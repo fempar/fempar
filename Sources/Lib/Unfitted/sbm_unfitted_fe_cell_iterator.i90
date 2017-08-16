@@ -89,22 +89,21 @@ function unfitted_fe_cell_iterator_get_quadrature(this) result (quadrature)
   end if
 end function unfitted_fe_cell_iterator_get_quadrature
 
-!=============================================================================================
-function unfitted_fe_cell_iterator_get_cell_map(this) result (cell_map)
+!==================================================================================================
+subroutine unfitted_fe_cell_iterator_update_cell_map ( this )
   implicit none
-  class(unfitted_fe_cell_iterator_t), intent(in) :: this
-  type(cell_map_t), pointer :: cell_map
+  class(unfitted_fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: mc_case
   assert(this%is_local())
   if ( this%is_cut() ) then
     mc_case = this%get_mc_case()
-    cell_map => this%unfitted_integration_manager%cut_cell_maps(mc_case)
+    call this%set_cell_map(this%unfitted_integration_manager%cut_cell_maps(mc_case))
   else if ( this%is_interior() .or. this%is_exterior() ) then
-    cell_map => this%fe_cell_iterator_t%get_cell_map()
+    call this%fe_cell_iterator_t%update_cell_map()
   else
     check(.false.)
-  end if
-end function unfitted_fe_cell_iterator_get_cell_map
+  end if  
+end subroutine unfitted_fe_cell_iterator_update_cell_map
 
 !=============================================================================================
 function unfitted_fe_cell_iterator_get_cell_integrator(this, field_id) result (cell_int)
@@ -202,13 +201,14 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
   integer(ip)            , pointer :: num_dofs_x_field(:)
 
   assert(this%is_local())
+  call this%update_cell_map()
   call this%update_sub_triangulation()
 
   call this%update_cut_quadratures()
   call this%update_cut_cell_maps()
   call this%update_cut_cell_integrators()
-
-  cell_map      => this%get_cell_map()
+  
+  cell_map => this%get_cell_map()
   coordinates => cell_map%get_coordinates()
   call this%get_coordinates(coordinates)
 

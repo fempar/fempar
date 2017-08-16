@@ -113,13 +113,13 @@ function base_fe_vef_iterator_is_at_interface (this)
   base_fe_vef_iterator_is_at_interface  = this%vef%is_at_interface()
 end function base_fe_vef_iterator_is_at_interface
 
-function base_fe_vef_iterator_is_face (this)
+function base_fe_vef_iterator_is_facet (this)
   implicit none
   class(base_fe_vef_iterator_t), intent(in) :: this
-  logical :: base_fe_vef_iterator_is_face
+  logical :: base_fe_vef_iterator_is_facet
   assert(allocated(this%vef))
-  base_fe_vef_iterator_is_face  = this%vef%is_face()
-end function base_fe_vef_iterator_is_face
+  base_fe_vef_iterator_is_facet  = this%vef%is_facet()
+end function base_fe_vef_iterator_is_facet
 
 function base_fe_vef_iterator_is_ghost (this)
   implicit none

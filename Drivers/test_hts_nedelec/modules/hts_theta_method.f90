@@ -103,8 +103,8 @@ contains
     assert ( .not. this%finished() )
     assert( (this%theta <= 1.0_rp) .and. (this%theta > 0.0_rp) )
     
-    dof_values_current_solution => current_solution%get_dof_values()
-    dof_values_previous_solution => previous_solution%get_dof_values()
+    dof_values_current_solution => current_solution%get_free_dof_values()
+    dof_values_previous_solution => previous_solution%get_free_dof_values()
     
     ! u^{n+1} = ( 1/theta ) * ( u^{n+theta} - (1-theta) * u^{n} ) (BCs not touched)
     dof_values_current_solution  = (1.0_rp/this%theta) * (dof_values_current_solution - (1.0_rp-this%theta)* dof_values_previous_solution)
@@ -152,8 +152,8 @@ contains
     this%time_step = updated_time_step
     
     ! Back to the previous converged solution  
-    dof_values_previous_solution => previous_solution%get_dof_values()
-    dof_values_current_solution =>  current_solution%get_dof_values()
+    dof_values_previous_solution => previous_solution%get_free_dof_values()
+    dof_values_current_solution =>  current_solution%get_free_dof_values()
     dof_values_current_solution = dof_values_previous_solution 
     
   end subroutine theta_method_move_time_backwards

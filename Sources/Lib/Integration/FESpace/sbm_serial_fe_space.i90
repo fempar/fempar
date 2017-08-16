@@ -173,24 +173,24 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
 
   call memalloc ( this%num_fields, &
        this%triangulation%get_num_cells()+1, &
-       this%ptr_dofs_x_field_cell, __FILE__, __LINE__ )
+       this%ptr_dofs_x_fe, __FILE__, __LINE__ )
 
-  this%ptr_dofs_x_field_cell(1,1) = 1 
+  this%ptr_dofs_x_fe(1,1) = 1 
   call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
      do field_id=1, fe%get_num_fields()-1
         reference_fe => fe%get_reference_fe(field_id)
-        this%ptr_dofs_x_field_cell(field_id+1,fe%get_gid()) = & 
-             this%ptr_dofs_x_field_cell(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
+        this%ptr_dofs_x_fe(field_id+1,fe%get_gid()) = & 
+             this%ptr_dofs_x_fe(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
      end do
      reference_fe => fe%get_reference_fe(field_id)
-     this%ptr_dofs_x_field_cell(1,fe%get_gid()+1) = & 
-          this%ptr_dofs_x_field_cell(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
+     this%ptr_dofs_x_fe(1,fe%get_gid()+1) = & 
+          this%ptr_dofs_x_fe(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
      call fe%next()
   end do
   call this%free_fe_cell_iterator(fe) 
 
-  call memalloc ( this%ptr_dofs_x_field_cell(1,this%triangulation%get_num_cells()+1)-1,&
+  call memalloc ( this%ptr_dofs_x_fe(1,this%triangulation%get_num_cells()+1)-1,&
        this%lst_dofs_gids, &
        __FILE__, __LINE__ )
   this%lst_dofs_gids = 0
@@ -199,7 +199,7 @@ end subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs
 subroutine serial_fe_space_free_ptr_lst_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%ptr_dofs_x_field_cell)) call memfree ( this%ptr_dofs_x_field_cell, __FILE__, __LINE__ )
+  if (allocated(this%ptr_dofs_x_fe)) call memfree ( this%ptr_dofs_x_fe, __FILE__, __LINE__ )
   if (allocated(this%lst_dofs_gids)) call memfree ( this%lst_dofs_gids, __FILE__, __LINE__ )
 end subroutine serial_fe_space_free_ptr_lst_dofs
 
@@ -964,7 +964,6 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   integer(ip)                    :: icomp
   class(reference_fe_t), pointer :: reference_fe
   type(quadrature_t)   , pointer :: quadrature
-  type(facet_maps_t)     , pointer :: facet_map
   type(point_t)        , pointer :: quad_coords(:)
                    
   real(rp)                       :: time_(1)
@@ -972,8 +971,7 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   
   call fe_face%get_cell_around(1,fe)
   reference_fe => fe%get_reference_fe(field_id)
-  facet_map     => fe_face%get_facet_maps()   
-  quad_coords  => facet_map%get_quadrature_points_coordinates()
+  quad_coords  => fe_face%get_quadrature_points_coordinates()
   
   assert ( reference_fe%get_num_field_components() <= size(function_scalar_components) )
   assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
@@ -1024,19 +1022,15 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   class(reference_fe_t)  , pointer :: reference_fe
   type(quadrature_t)     , pointer :: quadrature
   integer(ip)                      :: qpoint, n_q_points
-  type(facet_maps_t)       , pointer :: facet_maps
-  type(facet_map_t)        , pointer :: facet_map
   type(facet_integrator_t), pointer :: facet_int
   integer(ip)                      :: ishape, jshape
   real(rp)                         :: factor
-  type(vector_field_t) :: normal 
+  type(vector_field_t) :: normals(2)
   type(vector_field_t) :: vector_shape_test, vector_shape_trial
   
   call fe_face%get_cell_around(1,fe)
   reference_fe      => fe%get_reference_fe(field_id)
-  quadrature        => fe_face%get_quadrature()
-  facet_maps         => fe_face%get_facet_maps()   
-  facet_map => facet_maps%get_facet_map()
+  quadrature        => fe_face%get_quadrature()  
   n_q_points        = quadrature%get_num_quadrature_points()
   facet_int          => fe_face%get_facet_integrator(field_id)
   select case(reference_fe%get_field_type())
@@ -1047,15 +1041,16 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
      elmat = 0.0_rp
      elvec = 0.0_rp
      do qpoint = 1, n_q_points
-        factor = facet_maps%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-        call facet_map%get_normal(qpoint, normal)
+     call fe_face%get_normals(qpoint, normals)
+        factor = fe_face%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+        
         do ishape = 1, reference_fe%get_num_shape_functions() 
            call facet_int%get_value(ishape,qpoint,1,vector_shape_test)
            do jshape = 1, reference_fe%get_num_shape_functions()
               call facet_int%get_value(jshape,qpoint,1,vector_shape_trial)
-              elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normal)*cross_product(vector_shape_trial,normal)*factor
+              elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normals(1))*cross_product(vector_shape_trial,normals(1))*factor
            end do
-           elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normal)*cross_product(vector_shape_test,normal)*factor
+           elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normals(1))*cross_product(vector_shape_test,normals(1))*factor
         end do
      end do
   case ( field_type_tensor )
@@ -1765,7 +1760,7 @@ subroutine serial_fe_space_fill_facet_gids ( this )
   call this%facet_gids%resize(this%triangulation%get_num_facets())
   call this%create_fe_vef_iterator(fe_vef)
   do while ( .not. fe_vef%has_finished() )
-    if ( fe_vef%is_face() ) then
+    if ( fe_vef%is_facet() ) then
       facet_gid = facet_gid + 1
       call this%facet_gids%set(facet_gid,fe_vef%get_gid())
     end if

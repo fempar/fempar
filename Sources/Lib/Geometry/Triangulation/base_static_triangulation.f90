@@ -188,7 +188,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: is_local                  => vef_iterator_is_local
      procedure, non_overridable          :: is_ghost                  => vef_iterator_is_ghost
      procedure, non_overridable          :: is_at_interface           => vef_iterator_is_at_interface
-     procedure, non_overridable          :: is_face                   => vef_iterator_is_face
+     procedure, non_overridable          :: is_facet                   => vef_iterator_is_facet
      
      procedure, non_overridable          :: get_num_cells_around      => vef_iterator_get_num_cells_around
      procedure, non_overridable          :: vef_iterator_get_cell_around
