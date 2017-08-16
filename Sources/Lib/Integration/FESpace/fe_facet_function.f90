@@ -39,70 +39,67 @@ module fe_facet_function_names
   implicit none
 # include "debug.i90"
   private
-  
+ 
   
   type fe_facet_function_scalar_t
    private
-   logical                                      :: is_at_boundary
-   integer(ip)                                  :: active_cell_id(2)
-   type(i1p_t)                                  :: quadrature_points_permutation(2)
-   type(fe_cell_function_scalar_t)              :: fe_cell_function(2)
-   class(fe_cell_iterator_t)      , allocatable :: fe
-   class(serial_fe_space_t)       , pointer     :: fe_space => NULL()
+   logical                           :: is_at_boundary
+   type(i1p_t)                       :: quadrature_points_permutation(2)   
+   type(fe_cell_function_scalar_t)   :: fe_cell_function(2)
+   class(fe_cell_iterator_t), allocatable :: fe
+   class(serial_fe_space_t), pointer :: fe_space => NULL()
   contains
-     procedure, non_overridable :: create                             => fe_facet_function_scalar_create
-     procedure, non_overridable :: update                             => fe_facet_function_scalar_update
-     procedure, non_overridable :: get_field_id                       => fe_facet_function_scalar_get_field_id
-     procedure, non_overridable :: get_nodal_values                   => fe_facet_function_scalar_get_nodal_values
-     procedure, non_overridable :: get_quadrature_points_values       => fe_facet_function_scalar_get_quadrature_points_values
-     procedure, non_overridable :: get_quadrature_points_gradients    => fe_facet_function_scalar_get_quadrature_points_gradients
-     procedure, non_overridable :: get_value                          => fe_facet_function_scalar_get_value
-     procedure, non_overridable :: get_gradient                       => fe_facet_function_scalar_get_gradient
+     procedure, non_overridable :: create                                => fe_facet_function_scalar_create
+     procedure, non_overridable :: update                                => fe_facet_function_scalar_update
+     procedure, non_overridable :: get_field_id                          => fe_facet_function_scalar_get_field_id
+     procedure, non_overridable :: get_nodal_values                      => fe_facet_function_scalar_get_nodal_values
+     procedure, non_overridable :: get_quadrature_points_values          => fe_facet_function_scalar_get_quadrature_points_values
+     procedure, non_overridable :: get_quadrature_points_gradients       => fe_facet_function_scalar_get_quadrature_points_gradients
+     procedure, non_overridable :: get_value                             => fe_facet_function_scalar_get_value
+     procedure, non_overridable :: get_gradient                          => fe_facet_function_scalar_get_gradient
      procedure, non_overridable :: set_current_num_nodes              => fe_facet_function_scalar_set_current_num_nodes
      procedure, non_overridable :: set_current_num_quadrature_points  => fe_facet_function_scalar_set_current_num_quadrature_points
-     procedure, non_overridable :: free                               => fe_facet_function_scalar_free
+     procedure, non_overridable :: free                                  => fe_facet_function_scalar_free
   end type fe_facet_function_scalar_t
   
   type fe_facet_function_vector_t
    private
-   logical                                      :: is_at_boundary
-   integer(ip)                                  :: active_cell_id(2)
-   type(i1p_t)                                  :: quadrature_points_permutation(2)
-   type(fe_cell_function_vector_t)              :: fe_cell_function(2)
-   class(fe_cell_iterator_t)      , allocatable :: fe
-   class(serial_fe_space_t)       , pointer     :: fe_space => NULL()
+   logical                           :: is_at_boundary
+   type(i1p_t)                       :: quadrature_points_permutation(2)  
+   type(fe_cell_function_vector_t)   :: fe_cell_function(2)
+   class(fe_cell_iterator_t), allocatable :: fe
+   class(serial_fe_space_t), pointer :: fe_space => NULL()
   contains
-     procedure, non_overridable :: create                             => fe_facet_function_vector_create
-     procedure, non_overridable :: update                             => fe_facet_function_vector_update
-     procedure, non_overridable :: get_field_id                       => fe_facet_function_vector_get_field_id
-     procedure, non_overridable :: get_nodal_values                   => fe_facet_function_vector_get_nodal_values
-     procedure, non_overridable :: get_quadrature_points_values       => fe_facet_function_vector_get_quadrature_points_values
-     procedure, non_overridable :: get_quadrature_points_gradients    => fe_facet_function_vector_get_quadrature_points_gradients
-     procedure, non_overridable :: get_value                          => fe_facet_function_vector_get_value
-     procedure, non_overridable :: get_gradient                       => fe_facet_function_vector_get_gradient
+     procedure, non_overridable :: create                                => fe_facet_function_vector_create
+     procedure, non_overridable :: update                                => fe_facet_function_vector_update
+     procedure, non_overridable :: get_field_id                          => fe_facet_function_vector_get_field_id
+     procedure, non_overridable :: get_nodal_values                      => fe_facet_function_vector_get_nodal_values
+     procedure, non_overridable :: get_quadrature_points_values          => fe_facet_function_vector_get_quadrature_points_values
+     procedure, non_overridable :: get_quadrature_points_gradients       => fe_facet_function_vector_get_quadrature_points_gradients
+     procedure, non_overridable :: get_value                             => fe_facet_function_vector_get_value
+     procedure, non_overridable :: get_gradient                          => fe_facet_function_vector_get_gradient
      procedure, non_overridable :: set_current_num_nodes              => fe_facet_function_vector_set_current_num_nodes
      procedure, non_overridable :: set_current_num_quadrature_points  => fe_facet_function_vector_set_current_num_quadrature_points
-     procedure, non_overridable :: free                               => fe_facet_function_vector_free
+     procedure, non_overridable :: free                                  => fe_facet_function_vector_free
   end type fe_facet_function_vector_t
   
   type fe_facet_function_tensor_t
    private
-   logical                                      :: is_at_boundary
-   integer(ip)                                  :: active_cell_id(2)
-   type(i1p_t)                                  :: quadrature_points_permutation(2)
-   type(fe_cell_function_tensor_t)              :: fe_cell_function(2)
-   class(fe_cell_iterator_t)      , allocatable :: fe
-   class(serial_fe_space_t)       , pointer     :: fe_space => NULL()
+   logical                           :: is_at_boundary
+   type(i1p_t)                       :: quadrature_points_permutation(2)    
+   type(fe_cell_function_tensor_t)   :: fe_cell_function(2)
+   class(fe_cell_iterator_t), allocatable :: fe
+   class(serial_fe_space_t), pointer :: fe_space => NULL()
   contains
-     procedure, non_overridable :: create                            => fe_facet_function_tensor_create
-     procedure, non_overridable :: update                            => fe_facet_function_tensor_update
-     procedure, non_overridable :: get_field_id                      => fe_facet_function_tensor_get_field_id
-     procedure, non_overridable :: get_nodal_values                  => fe_facet_function_tensor_get_nodal_values
-     procedure, non_overridable :: get_quadrature_points_values      => fe_facet_function_tensor_get_quadrature_points_values
-     procedure, non_overridable :: get_value                         => fe_facet_function_tensor_get_value
-     procedure, non_overridable :: set_current_num_nodes             => fe_facet_function_tensor_set_current_num_nodes
-     procedure, non_overridable :: set_current_num_quadrature_points => fe_facet_function_tensor_set_current_num_quadrature_points
-     procedure, non_overridable :: free                              => fe_facet_function_tensor_free
+     procedure, non_overridable :: create                                => fe_facet_function_tensor_create
+     procedure, non_overridable :: update                                => fe_facet_function_tensor_update
+     procedure, non_overridable :: get_field_id                          => fe_facet_function_tensor_get_field_id
+     procedure, non_overridable :: get_nodal_values                      => fe_facet_function_tensor_get_nodal_values
+     procedure, non_overridable :: get_quadrature_points_values          => fe_facet_function_tensor_get_quadrature_points_values
+     procedure, non_overridable :: get_value                             => fe_facet_function_tensor_get_value
+     procedure, non_overridable :: set_current_num_nodes              => fe_facet_function_tensor_set_current_num_nodes
+     procedure, non_overridable :: set_current_num_quadrature_points  => fe_facet_function_tensor_set_current_num_quadrature_points
+     procedure, non_overridable :: free                                  => fe_facet_function_tensor_free
   end type fe_facet_function_tensor_t
   
  public :: fe_facet_function_scalar_t, fe_facet_function_vector_t, fe_facet_function_tensor_t
