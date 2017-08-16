@@ -87,7 +87,11 @@ contains
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    result = -4.0_rp 
+    if ( this%num_dims == 2 ) then
+      result = -4.0_rp 
+    else if ( this%num_dims == 3 ) then
+      result = -6.0_rp 
+    end if  
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -100,7 +104,7 @@ contains
     if ( this%num_dims == 2 ) then
       result = point%get(1)**2+ point%get(2)**2 ! x*2+y*2
     else if ( this%num_dims == 3 ) then
-      result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
+      result = point%get(1)**2+ point%get(2)**2 + point%get(3)**2
     end if  
   end subroutine boundary_function_get_value_space 
 
@@ -114,7 +118,7 @@ contains
     if ( this%num_dims == 2 ) then
       result = point%get(1)**2+ point%get(2)**2 ! x*2+y*2 
     else if ( this%num_dims == 3 ) then
-      result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
+      result = point%get(1)**2+ point%get(2)**2 + point%get(3)**2
     end if  
       
   end subroutine solution_function_get_value_space
@@ -130,9 +134,9 @@ contains
       call result%set( 1, point%get(1)*2 ) !call result%set( 1, 1.0_rp ) 
       call result%set( 2, point%get(2)*2 ) !call result%set( 2, 1.0_rp )
     else if ( this%num_dims == 3 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-      call result%set( 3, 1.0_rp ) 
+      call result%set( 1, point%get(1)*2 ) 
+      call result%set( 2, point%get(2)*2 )
+      call result%set( 3, point%get(3)*2 ) 
     end if
   end subroutine solution_function_get_gradient_space
   
