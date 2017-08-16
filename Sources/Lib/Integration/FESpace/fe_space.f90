@@ -193,6 +193,9 @@ module fe_space_names
     procedure, non_overridable          :: update_num_dofs_x_field                    => fe_cell_iterator_update_num_dofs_x_field
     procedure                           :: update_integration                         => fe_cell_iterator_update_integration
     procedure                           :: update_cell_map                            => fe_cell_iterator_update_cell_map
+    
+    procedure, non_overridable :: get_quadrature_points_coordinates => fe_cell_iterator_get_quadrature_points_coordinates
+    procedure, non_overridable :: get_det_jacobian                  => fe_cell_iterator_get_det_jacobian
 
     procedure, non_overridable          :: get_fe_space                               => fe_cell_iterator_get_fe_space
     procedure, non_overridable          :: get_num_fields                             => fe_cell_iterator_get_num_fields
@@ -296,6 +299,7 @@ module fe_space_names
     ! Scratch data to support FE face integration
     integer(ip)         , allocatable :: num_dofs_x_cell_and_field(:,:)
     type(i1p_t)         , allocatable :: fe_dofs_x_cell(:,:)
+    type(facet_maps_t)  , pointer     :: facet_maps
    contains
     procedure                 , private :: create                        => fe_facet_iterator_create
     procedure                 , private :: free                          => fe_facet_iterator_free
@@ -320,11 +324,17 @@ module fe_space_names
     procedure, non_overridable          :: get_quadrature_degree         => fe_facet_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree         => fe_facet_iterator_set_quadrature_degree
     procedure, non_overridable          :: get_quadrature                => fe_facet_iterator_get_quadrature
-    procedure, non_overridable          :: get_facet_maps                 => fe_facet_iterator_get_facet_map
-    procedure, non_overridable          :: get_facet_integrator           => fe_facet_iterator_get_facet_integrator
+    procedure, non_overridable          :: get_facet_maps                => fe_facet_iterator_get_facet_map
+    procedure, non_overridable          :: update_facet_maps              => fe_facet_iterator_update_facet_maps
+    procedure, non_overridable          :: get_facet_integrator          => fe_facet_iterator_get_facet_integrator
     procedure, non_overridable          :: compute_surface               => fe_facet_iterator_compute_surface
     procedure, non_overridable          :: get_lpos_within_cell_around   => fe_facet_iterator_get_lpos_within_cell_around
-    procedure, non_overridable          :: get_facet_permutation_index    => fe_facet_iterator_get_facet_permutation_index
+    procedure, non_overridable          :: get_facet_permutation_index   => fe_facet_iterator_get_facet_permutation_index
+    
+    procedure, non_overridable :: get_quadrature_points_coordinates => fe_facet_iterator_get_quadrature_points_coordinates
+    procedure, non_overridable :: get_normals                       => fe_facet_iterator_get_normals
+    procedure, non_overridable :: get_det_jacobian                  => fe_facet_iterator_get_det_jacobian
+    procedure, non_overridable :: compute_characteristic_length     => fe_facet_iterator_compute_characteristic_length
   end type fe_facet_iterator_t
       
   integer(ip), parameter :: fe_space_type_cg                        = 0 ! H^1 conforming FE space
