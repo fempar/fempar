@@ -563,16 +563,14 @@ function fe_cell_iterator_compute_volume ( this )
   integer(ip)                 :: q_poin, num_quadrature_points
   
   type(quadrature_t), pointer :: quadrature
-  type(cell_map_t)    , pointer :: cell_map
   
   quadrature => this%get_quadrature()
-  cell_map     => this%get_cell_map()
   
   num_quadrature_points = quadrature%get_num_quadrature_points()
   fe_cell_iterator_compute_volume = 0.0_rp
   do q_poin = 1, num_quadrature_points
      fe_cell_iterator_compute_volume = fe_cell_iterator_compute_volume + &
-          &                          cell_map%get_det_jacobian(q_poin) * &
+          &                          this%get_det_jacobian(q_poin) * &
           &                          quadrature%get_weight(q_poin)
   end do
 end function fe_cell_iterator_compute_volume

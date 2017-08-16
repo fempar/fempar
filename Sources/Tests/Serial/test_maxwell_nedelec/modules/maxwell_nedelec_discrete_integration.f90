@@ -69,7 +69,6 @@ contains
     class(fe_cell_iterator_t), allocatable :: fe
     
     ! FE integration-related data types
-    !type(cell_map_t)           , pointer :: cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int_H
@@ -96,7 +95,6 @@ contains
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
-    !cell_map           => fe%get_cell_map()
     cell_int_H => fe%get_cell_integrator(1)
     allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
 

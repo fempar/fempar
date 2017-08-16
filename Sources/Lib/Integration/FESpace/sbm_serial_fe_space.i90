@@ -964,7 +964,6 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   integer(ip)                    :: icomp
   class(reference_fe_t), pointer :: reference_fe
   type(quadrature_t)   , pointer :: quadrature
-  type(facet_maps_t)     , pointer :: facet_map
   type(point_t)        , pointer :: quad_coords(:)
                    
   real(rp)                       :: time_(1)
@@ -972,8 +971,7 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   
   call fe_face%get_cell_around(1,fe)
   reference_fe => fe%get_reference_fe(field_id)
-  facet_map     => fe_face%get_facet_maps()   
-  quad_coords  => facet_map%get_quadrature_points_coordinates()
+  quad_coords  => fe_face%get_quadrature_points_coordinates()
   
   assert ( reference_fe%get_num_field_components() <= size(function_scalar_components) )
   assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
