@@ -84,7 +84,6 @@ contains
     real(rp), allocatable :: nodal_vals(:)
     real(rp), allocatable :: element_vals(:)
     type(vector_field_t), allocatable :: grad_element_vals(:)
-    type(cell_map_t)           , pointer :: cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int
@@ -129,7 +128,6 @@ contains
        !This cannot be outside the loop
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()
-       cell_map          => fe%get_cell_map()
        cell_int         => fe%get_cell_integrator(1)
 
        ! Recover nodal values
@@ -145,7 +143,7 @@ contains
        call cell_int%evaluate_gradient_fe_function(nodal_vals,grad_element_vals)
 
        ! Physical coordinates of the quadrature points
-       quad_coords => cell_map%get_quadrature_points_coordinates()
+       quad_coords => fe%get_quadrature_points_coordinates()
 
        ! Loop in quadrature points
        do igp = 1, num_quad_points
@@ -166,7 +164,7 @@ contains
          end do
 
          ! Integrate
-         dV = cell_map%get_det_jacobian(igp) * quad%get_weight(igp)
+         dV = fe%get_det_jacobian(igp) * quad%get_weight(igp)
          error_l2_norm      = error_l2_norm      + error_l2_gp  *dV
          error_h1_semi_norm = error_h1_semi_norm + error_h1sn_gp*dV
          h1_semi_norm       = h1_semi_norm       + l2_gp        *dV

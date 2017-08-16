@@ -632,18 +632,7 @@ function fe_cell_iterator_get_cell_map ( this )
   implicit none
   class(fe_cell_iterator_t), intent(in) :: this
   type(cell_map_t), pointer :: fe_cell_iterator_get_cell_map
-  integer(ip) :: cell_maps_position, cell_maps_key
-  integer(ip) :: istat
-  
-  cell_maps_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
-                                                                   this%get_quadrature_degree())
-  
-  call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_maps_key, &
-                                                          val=cell_maps_position, &
-                                                          stat=istat)
-  
-  assert ( .not. istat == key_not_found )
-  fe_cell_iterator_get_cell_map => this%fe_space%cell_maps(cell_maps_position)
+  fe_cell_iterator_get_cell_map => this%cell_map
 end function fe_cell_iterator_get_cell_map
 
 !==================================================================================================
@@ -663,6 +652,14 @@ subroutine fe_cell_iterator_update_cell_map ( this )
   assert ( .not. istat == key_not_found )
   this%cell_map => this%fe_space%cell_maps(cell_maps_position)
 end subroutine fe_cell_iterator_update_cell_map
+
+!==================================================================================================
+subroutine fe_cell_iterator_set_cell_map ( this, cell_map )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  type(cell_map_t), target, intent(in) :: cell_map
+  this%cell_map => cell_map
+end subroutine fe_cell_iterator_set_cell_map
 
 !==================================================================================================
 function fe_cell_iterator_get_quadrature_points_coordinates(this)

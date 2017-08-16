@@ -79,7 +79,6 @@ contains
     class(fe_cell_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
-    type(cell_map_t)           , pointer :: cell_map
     type(piecewise_cell_map_t) , pointer :: pw_cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
@@ -163,12 +162,11 @@ contains
        !WARNING This has to be inside the loop
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()
-       cell_map          => fe%get_cell_map()
        cell_int         => fe%get_cell_integrator(1)
        num_dofs = fe%get_num_dofs()
 
        ! Get quadrature coordinates to evaluate source_term
-       quad_coords => cell_map%get_quadrature_points_coordinates()
+       quad_coords => fe%get_quadrature_points_coordinates()
 
        ! Compute element matrix and vector
        elmat = 0.0_rp
@@ -176,7 +174,7 @@ contains
        call cell_int%get_gradients(shape_gradients)
        call cell_int%get_values(shape_values)
        do qpoint = 1, num_quad_points
-          dV = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           do idof = 1, num_dofs
              do jdof = 1, num_dofs
                 ! A_K(i,j) = (grad(phi_i),grad(phi_j))

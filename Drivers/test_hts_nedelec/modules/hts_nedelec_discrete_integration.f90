@@ -100,7 +100,6 @@ contains
     class(fe_cell_iterator_t), allocatable :: fe
     
     ! FE integration-related data types
-    type(cell_map_t)           , pointer :: cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int_H, cell_int_p
@@ -143,7 +142,6 @@ contains
     num_dofs_x_field => fe%get_num_dofs_x_field()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
-    cell_map           => fe%get_cell_map()
     cell_int_H        => fe%get_cell_integrator(1)
     cell_int_p        => fe%get_cell_integrator(2) 
     
@@ -161,7 +159,7 @@ contains
        call fe_cell_function_current%update(fe, this%H_current)
 
        ! Get quadrature coordinates to evaluate boundary value
-       quad_coords => cell_map%get_quadrature_points_coordinates()
+       quad_coords => fe%get_quadrature_points_coordinates()
        
        ! Evaluate pressure source term at quadrature points
        call this%source_term%get_values_set( quad_coords, current_time, source_term_values)
@@ -173,7 +171,7 @@ contains
        elmat = 0.0_rp
        elvec = 0.0_rp
        do qpoint = 1, num_quad_points
-          factor = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           ! Compute nonlinear resistivity 
           resistivity  = this%compute_resistivity( H_current_curl_values(qpoint), fe%get_set_id() )

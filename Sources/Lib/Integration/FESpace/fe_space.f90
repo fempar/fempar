@@ -193,6 +193,7 @@ module fe_space_names
     procedure, non_overridable          :: update_num_dofs_x_field                    => fe_cell_iterator_update_num_dofs_x_field
     procedure                           :: update_integration                         => fe_cell_iterator_update_integration
     procedure                           :: update_cell_map                            => fe_cell_iterator_update_cell_map
+    procedure                           :: set_cell_map                               => fe_cell_iterator_set_cell_map
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_cell_iterator_get_quadrature_points_coordinates
     procedure, non_overridable :: get_det_jacobian                  => fe_cell_iterator_get_det_jacobian
@@ -225,7 +226,7 @@ module fe_space_names
     procedure, non_overridable          :: get_quadrature_degree                      => fe_cell_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree                      => fe_cell_iterator_set_quadrature_degree
     procedure                           :: get_quadrature                             => fe_cell_iterator_get_quadrature
-    procedure                           :: get_cell_map                                 => fe_cell_iterator_get_cell_map
+    procedure                           :: get_cell_map                               => fe_cell_iterator_get_cell_map
     procedure                           :: get_cell_integrator                        => fe_cell_iterator_get_cell_integrator
     
     procedure, non_overridable, private :: fe_cell_iterator_get_fe_vef
@@ -324,7 +325,7 @@ module fe_space_names
     procedure, non_overridable          :: get_quadrature_degree         => fe_facet_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree         => fe_facet_iterator_set_quadrature_degree
     procedure, non_overridable          :: get_quadrature                => fe_facet_iterator_get_quadrature
-    procedure, non_overridable          :: get_facet_maps                => fe_facet_iterator_get_facet_map
+    procedure, non_overridable, private :: get_facet_maps                => fe_facet_iterator_get_facet_map
     procedure, non_overridable          :: update_facet_maps              => fe_facet_iterator_update_facet_maps
     procedure, non_overridable          :: get_facet_integrator          => fe_facet_iterator_get_facet_integrator
     procedure, non_overridable          :: compute_surface               => fe_facet_iterator_compute_surface

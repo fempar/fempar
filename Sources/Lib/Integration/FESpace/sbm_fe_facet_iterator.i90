@@ -160,7 +160,7 @@ subroutine fe_facet_iterator_update_integration( this )
   do field_id = 1, this%fe_space%get_num_fields()
      facet_integrator => this%get_facet_integrator(field_id)
      call facet_integrator%update(facet_lpos_within_cells_around, &
-                                 this%get_facet_maps(), &             
+                                 this%facet_maps, &             
                                  this%get_facet_permutation_index())
   end do
   
@@ -436,17 +436,15 @@ function fe_facet_iterator_compute_surface ( this )
   class(fe_facet_iterator_t), intent(inout) :: this
   real(rp)                         :: fe_facet_iterator_compute_surface
   integer(ip) :: qpoin,num_quadrature_points
-  type(facet_maps_t)  , pointer :: facet_map
   type(quadrature_t), pointer :: quad
   
-  facet_map => this%get_facet_maps()
   quad     => this%get_quadrature()
   num_quadrature_points = quad%get_num_quadrature_points()
   
   fe_facet_iterator_compute_surface = 0.0_rp
   do qpoin = 1, num_quadrature_points
      fe_facet_iterator_compute_surface = fe_facet_iterator_compute_surface + &
-          &                        facet_map%get_det_jacobian(qpoin) * &
+          &                        this%get_det_jacobian(qpoin) * &
           &                        quad%get_weight(qpoin)
   end do
   
