@@ -53,7 +53,7 @@ module test_h_adaptive_poisson_driver_names
      type(test_poisson_params_t)   :: test_params
      type(ParameterList_t)         :: parameter_list
      
-     ! Cells and lower dimension objects container
+     ! Cells and lower dim objects container
      type(p4est_serial_triangulation_t)           :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
@@ -264,7 +264,7 @@ contains
 
     call this%triangulation%create_cell_iterator(cell)
 
-    if (this%triangulation%get_num_dimensions() == 2) then
+    if (this%triangulation%get_num_dims() == 2) then
 
       allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
 
@@ -466,7 +466,7 @@ contains
     do i=1,6
        
        if ( mod(i+1,3) == 0 ) then 
-         if (this%triangulation%get_num_dimensions() == 2) then
+         if (this%triangulation%get_num_dims() == 2) then
            call this%set_cells_for_coarsening()
          end if
        else
