@@ -592,7 +592,7 @@ contains
 
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_dof_values()
+    dof_values => this%solution%get_free_dof_values()
     
 #ifdef ENABLE_MKL    
     call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)

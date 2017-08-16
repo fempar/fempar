@@ -201,15 +201,15 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs_gids(this)
   this%lst_dofs_gids = 0
 end subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
 
-subroutine serial_fe_space_move_alloc_ptr_dofs_x_field_cell_out ( this, ptr_dofs_x_field_cell )
+subroutine serial_fe_space_move_alloc_ptr_dofs_x_fe_out ( this, ptr_dofs_x_fe )
   implicit none
   class(serial_fe_space_t)             , intent(inout) :: this
-  integer(ip)             , allocatable, intent(inout) :: ptr_dofs_x_field_cell(:,:)
-  assert ( .not. allocated(ptr_dofs_x_field_cell) )
-  if ( allocated(this%ptr_dofs_x_field_cell) ) then
-     call move_alloc( to=ptr_dofs_x_field_cell, from=this%ptr_dofs_x_field_cell )
+  integer(ip)             , allocatable, intent(inout) :: ptr_dofs_x_fe(:,:)
+  assert ( .not. allocated(ptr_dofs_x_fe) )
+  if ( allocated(this%ptr_dofs_x_fe) ) then
+     call move_alloc( to=ptr_dofs_x_fe, from=this%ptr_dofs_x_fe )
   end if
-end subroutine serial_fe_space_move_alloc_ptr_dofs_x_field_cell_out
+end subroutine serial_fe_space_move_alloc_ptr_dofs_x_fe_out
 
 subroutine serial_fe_space_move_alloc_lst_dofs_gids_out ( this, lst_dofs_gids )
   implicit none

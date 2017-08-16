@@ -440,7 +440,7 @@ module fe_space_names
      procedure, non_overridable          :: allocate_and_fill_fe_space_type_x_field      => serial_fe_space_allocate_and_fill_fe_space_type_x_field
      procedure, non_overridable, private :: free_fe_space_type_x_field                   => serial_fe_space_free_fe_space_type_x_field
      procedure, non_overridable          :: allocate_and_init_ptr_lst_dofs_gids               => serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
-     procedure, non_overridable          :: move_alloc_ptr_dofs_x_field_cell_out         => serial_fe_space_move_alloc_ptr_dofs_x_field_cell_out     
+     procedure, non_overridable          :: move_alloc_ptr_dofs_x_fe_out         => serial_fe_space_move_alloc_ptr_dofs_x_fe_out     
      procedure, non_overridable          :: move_alloc_lst_dofs_gids_out                 => serial_fe_space_move_alloc_lst_dofs_gids_out
      
      procedure, non_overridable, private :: free_ptr_lst_dofs                            => serial_fe_space_free_ptr_lst_dofs
@@ -952,7 +952,11 @@ module fe_space_names
    type(serial_scalar_array_t)   :: fixed_dof_values
   contains
      procedure, non_overridable          :: create                         => fe_function_create
-     procedure, non_overridable          :: gather_nodal_values            => fe_function_gather_nodal_values
+     procedure, non_overridable          :: gather_nodal_values_through_iterator => fe_function_gather_nodal_values_through_iterator
+     procedure, non_overridable          :: gather_nodal_values_from_raw_data    => fe_function_gather_nodal_values_from_raw_data
+     generic                             :: gather_nodal_values                  => gather_nodal_values_through_iterator, &
+                                                                                    gather_nodal_values_from_raw_data
+     procedure, non_overridable          :: update_fixed_dof_values              => fe_function_update_fixed_dof_values
      procedure, non_overridable          :: insert_nodal_values            => fe_function_insert_nodal_values
      procedure, non_overridable          :: copy                           => fe_function_copy
      procedure, non_overridable          :: get_free_dof_values            => fe_function_get_free_dof_values
