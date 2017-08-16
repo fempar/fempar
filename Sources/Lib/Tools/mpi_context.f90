@@ -83,9 +83,12 @@ module mpi_context_names
      procedure :: max_vector_rp      => mpi_context_max_vector_rp
      procedure :: min_scalar_rp      => mpi_context_min_scalar_rp
      procedure :: max_scalar_ip      => mpi_context_max_scalar_ip
-     procedure :: scatter            => mpi_context_scatter_scalar_ip
-     procedure :: gather             => mpi_context_gather_scalar_ip
-     procedure :: bcast              => mpi_context_bcast_scalar_ip
+     procedure :: scatter_ip         => mpi_context_scatter_scalar_ip
+     procedure :: gather_ip          => mpi_context_gather_scalar_ip
+     procedure :: bcast_ip           => mpi_context_bcast_scalar_ip
+     procedure :: scatter_igp        => mpi_context_scatter_scalar_igp
+     procedure :: gather_igp         => mpi_context_gather_scalar_igp
+     procedure :: bcast_igp          => mpi_context_bcast_scalar_igp
      procedure :: bcast_subcontext   => mpi_context_bcast_subcontext
      procedure, private :: neighbours_exchange_rp                   => mpi_context_neighbours_exchange_rp                 
      procedure, private :: neighbours_exchange_ip                   => mpi_context_neighbours_exchange_ip                 
@@ -681,9 +684,9 @@ contains
 
   !=============================================================================
   subroutine mpi_context_neighbours_exchange_igp ( this, & 
-       &                                              num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
-       &                                              num_snd, list_snd, snd_ptrs, pack_idx,   &
-       &                                              x, chunk_size)
+       &                                           num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                           num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                           x, chunk_size, mask)
     implicit none
     class(mpi_context_t), intent(in)    :: this
     ! Control info to receive
@@ -695,6 +698,7 @@ contains
     ! Raw data to be exchanged
     integer(igp)            , intent(inout) :: x(:)
     integer(ip)   , optional, intent(in)    :: chunk_size
+    integer(igp)  , optional, intent(in)    :: mask
 
     ! Communication related locals 
     integer :: i, proc_to_comm, sizmsg, istat
@@ -791,7 +795,7 @@ contains
     end do
 
     ! Unpack recv buffers
-    call unpack_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, x )
+    call unpack_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, x, mask )
 
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
@@ -860,7 +864,7 @@ contains
 
   !=============================================================================
   subroutine mpi_context_neighbours_exchange_wo_pack_unpack_ieep ( this, &
-       &                                                              number_neighbours, &
+       &                                                              num_neighbours, &
        &                                                              neighbour_ids, &
        &                                                              snd_ptrs, &
        &                                                              snd_buf, & 
@@ -868,12 +872,12 @@ contains
        &                                                              rcv_buf )
     implicit none
     class(mpi_context_t)  , intent(in)    :: this 
-    integer(ip)           , intent(in)    :: number_neighbours
-    integer(ip)           , intent(in)    :: neighbour_ids(number_neighbours)
-    integer(ip)           , intent(in)    :: snd_ptrs(number_neighbours+1)
-    integer(ieep)         , intent(in)    :: snd_buf(snd_ptrs(number_neighbours+1)-1)   
-    integer(ip)           , intent(in)    :: rcv_ptrs(number_neighbours+1)
-    integer(ieep)         , intent(out)   :: rcv_buf(rcv_ptrs(number_neighbours+1)-1)
+    integer(ip)           , intent(in)    :: num_neighbours
+    integer(ip)           , intent(in)    :: neighbour_ids(num_neighbours)
+    integer(ip)           , intent(in)    :: snd_ptrs(num_neighbours+1)
+    integer(ieep)         , intent(in)    :: snd_buf(snd_ptrs(num_neighbours+1)-1)   
+    integer(ip)           , intent(in)    :: rcv_ptrs(num_neighbours+1)
+    integer(ieep)         , intent(out)   :: rcv_buf(rcv_ptrs(num_neighbours+1)-1)
 
     ! Communication related locals 
     integer :: i, proc_to_comm, sizmsg, istat
@@ -885,11 +889,11 @@ contains
     ! Request handlers for non-blocking receives
     integer, allocatable, dimension(:) :: sndhd
 
-    call memalloc (number_neighbours, rcvhd, __FILE__,__LINE__)
-    call memalloc (number_neighbours, sndhd, __FILE__,__LINE__)
+    call memalloc (num_neighbours, rcvhd, __FILE__,__LINE__)
+    call memalloc (num_neighbours, sndhd, __FILE__,__LINE__)
 
     ! First post all the non blocking receives   
-    do i=1, number_neighbours
+    do i=1, num_neighbours
        proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be received
@@ -904,7 +908,7 @@ contains
     end do
 
     ! Secondly post all non-blocking sends
-    do i=1, number_neighbours
+    do i=1, num_neighbours
        proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be sent
@@ -919,7 +923,7 @@ contains
     end do
 
     ! Wait on all non-blocking receives
-    do i=1, number_neighbours
+    do i=1, num_neighbours
        proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be received
@@ -939,7 +943,7 @@ contains
     end do
 
     ! Finally wait on all non-blocking sends
-    do i=1, number_neighbours
+    do i=1, num_neighbours
        proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be received
@@ -955,7 +959,6 @@ contains
     call memfree (sndhd ,__FILE__,__LINE__)
   end subroutine mpi_context_neighbours_exchange_wo_pack_unpack_ieep
 
-  !=============================================================================
   !=============================================================================
   subroutine mpi_context_gather_scalar_ip ( this, input_data, output_data )
     implicit none
@@ -986,8 +989,38 @@ contains
     integer  ::  istat
     call mpi_bcast(data,1,mpi_context_ip,mpi_context_root,this%icontxt,istat); check( istat == mpi_success )
   end subroutine mpi_context_bcast_scalar_ip
+  
+  !=============================================================================
+  subroutine mpi_context_gather_scalar_igp ( this, input_data, output_data )
+    implicit none
+    class(mpi_context_t), intent(in)   :: this
+    integer(igp)         , intent(in)   :: input_data
+    integer(igp)         , intent(out)  :: output_data(:) ! (this%get_num_tasks())
+    integer  ::  istat
+    call mpi_gather( input_data, 1, mpi_context_igp, output_data, 1, mpi_context_igp, mpi_context_root, this%icontxt, istat)
+    check( istat == mpi_success )
+  end subroutine mpi_context_gather_scalar_igp
 
   !=============================================================================
+  subroutine mpi_context_scatter_scalar_igp ( this, input_data, output_data )
+    implicit none
+    class(mpi_context_t), intent(in)   :: this
+    integer(igp)             , intent(in)   :: input_data(:) ! (this%get_num_tasks())
+    integer(igp)             , intent(out)  :: output_data
+    integer  ::  istat
+    call mpi_scatter( input_data, 1, mpi_context_igp, output_data, 1, mpi_context_igp, mpi_context_root, this%icontxt, istat)
+    check( istat == mpi_success )
+  end subroutine mpi_context_scatter_scalar_igp
+
+  !=============================================================================
+  subroutine mpi_context_bcast_scalar_igp ( this, data )
+    implicit none
+    class(mpi_context_t), intent(in)    :: this
+    integer(igp)         , intent(inout) :: data
+    integer  ::  istat
+    call mpi_bcast(data,1,mpi_context_igp,mpi_context_root,this%icontxt,istat); check( istat == mpi_success )
+  end subroutine mpi_context_bcast_scalar_igp
+  
   !=============================================================================
   subroutine pack_rp ( n, pack_idx, alpha, x, y )
     implicit none
@@ -1124,7 +1157,7 @@ contains
   end subroutine pack_igp
 
   !=============================================================================
-  subroutine unpack_igp ( n, chunk_size, unpack_idx, x, y )
+  subroutine unpack_igp ( n, chunk_size, unpack_idx, x, y, mask )
     implicit none
 
     !Parameters
@@ -1133,6 +1166,7 @@ contains
     integer (ip), intent(in)     :: unpack_idx(n)
     integer (igp), intent(in)    :: x(*)
     integer (igp), intent(inout) :: y(*)
+    integer (igp), optional, intent(in) :: mask
 
     !Locals
     integer(ip) :: i, j, starty, endy, current
@@ -1141,7 +1175,13 @@ contains
        starty = (unpack_idx(i)-1)*chunk_size + 1
        endy   = starty + chunk_size - 1
        do j=starty, endy
-          y(j) = x(current)
+          if (present(mask)) then
+            if ( x(current) /= mask ) then
+              y(j) = x(current)
+            end if
+          else
+            y(j) = x(current)
+          end if
           current = current + 1
        end do
     end do

@@ -27,44 +27,44 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine interpolation_create( this, &
-                                 number_dimensions, &
-                                 number_shape_functions, &
-                                 number_quadrature_points, & 
-                                 number_entries_symmetric_tensor, &
+                                 num_dims, &
+                                 num_shape_functions, &
+                                 num_quadrature_points, & 
+                                 num_entries_symmetric_tensor, &
                                  compute_hessian )
   implicit none
   class(interpolation_t), intent(inout) :: this
-  integer(ip)              , intent(in)    :: number_dimensions, & 
-                                              number_shape_functions, & 
-                                              number_quadrature_points
-  integer(ip)              , intent(in)    :: number_entries_symmetric_tensor
+  integer(ip)              , intent(in)    :: num_dims, & 
+                                              num_shape_functions, & 
+                                              num_quadrature_points
+  integer(ip)              , intent(in)    :: num_entries_symmetric_tensor
   logical, optional        , intent(in)    :: compute_hessian
 
-  if (.not. this%is_needed_to_allocate( number_dimensions,        &
-                                        number_shape_functions,   &
-                                        number_quadrature_points, &
-                                        number_entries_symmetric_tensor,&
+  if (.not. this%is_needed_to_allocate( num_dims,        &
+                                        num_shape_functions,   &
+                                        num_quadrature_points, &
+                                        num_entries_symmetric_tensor,&
                                         compute_hessian&
                                       ) ) return
 
   call this%free()
 
-  this%number_dimensions = number_dimensions
-  this%number_shape_functions = number_shape_functions
-  this%number_quadrature_points = number_quadrature_points
-  this%number_entries_symmetric_tensor = number_entries_symmetric_tensor
-  call memalloc(SPACE_DIM, number_shape_functions, &
-                number_quadrature_points, &
+  this%num_dims = num_dims
+  this%num_shape_functions = num_shape_functions
+  this%num_quadrature_points = num_quadrature_points
+  this%num_entries_symmetric_tensor = num_entries_symmetric_tensor
+  call memalloc(SPACE_DIM, num_shape_functions, &
+                num_quadrature_points, &
                 this%shape_functions, __FILE__,__LINE__, 0.0_rp)
   call memalloc(SPACE_DIM,SPACE_DIM, &
-                number_shape_functions, &
-                number_quadrature_points, &
+                num_shape_functions, &
+                num_quadrature_points, &
                 this%shape_derivatives, __FILE__, __LINE__, 0.0_rp)
   if ( present(compute_hessian) ) then
      if ( compute_hessian ) then 
-        call memalloc(SPACE_DIM,number_entries_symmetric_tensor,&
-                      number_shape_functions,&
-                      number_quadrature_points, &
+        call memalloc(SPACE_DIM,num_entries_symmetric_tensor,&
+                      num_shape_functions,&
+                      num_quadrature_points, &
                       this%hessian,__FILE__,__LINE__) 
      end if
   end if
@@ -74,10 +74,10 @@ end subroutine interpolation_create
 subroutine interpolation_free( this)
   implicit none
   class(interpolation_t), intent(inout) :: this
-  this%number_dimensions = 0
-  this%number_shape_functions = 0
-  this%number_quadrature_points = 0
-  this%number_entries_symmetric_tensor = 0
+  this%num_dims = 0
+  this%num_shape_functions = 0
+  this%num_quadrature_points = 0
+  this%num_entries_symmetric_tensor = 0
   if(allocated(this%shape_functions)) call memfree(this%shape_functions,__FILE__,__LINE__)
   if(allocated(this%shape_derivatives)) call memfree(this%shape_derivatives,   __FILE__,__LINE__)
   if(allocated(this%hessian)) call memfree(this%hessian,   __FILE__,__LINE__)
@@ -103,25 +103,25 @@ subroutine interpolation_clone(this, source_interpolation)
   class(interpolation_t), intent(inout) :: this
 		type(interpolation_t), intent(in)     :: source_interpolation
 
-  if (.not. this%is_needed_to_allocate( source_interpolation%number_dimensions,        & 
-                                        source_interpolation%number_shape_functions,   &
-                                        source_interpolation%number_quadrature_points, & 
-                                        source_interpolation%number_entries_symmetric_tensor,&
+  if (.not. this%is_needed_to_allocate( source_interpolation%num_dims,        & 
+                                        source_interpolation%num_shape_functions,   &
+                                        source_interpolation%num_quadrature_points, & 
+                                        source_interpolation%num_entries_symmetric_tensor,&
                                         allocated(source_interpolation%hessian)&
                                         ) ) return
 	
   call this%free()
-  this%number_dimensions = source_interpolation%number_dimensions
-  this%number_shape_functions = source_interpolation%number_shape_functions
-  this%number_quadrature_points = source_interpolation%number_quadrature_points
-  this%number_entries_symmetric_tensor = source_interpolation%number_entries_symmetric_tensor
-  call memalloc(SPACE_DIM,this%number_shape_functions,this%number_quadrature_points, &
+  this%num_dims = source_interpolation%num_dims
+  this%num_shape_functions = source_interpolation%num_shape_functions
+  this%num_quadrature_points = source_interpolation%num_quadrature_points
+  this%num_entries_symmetric_tensor = source_interpolation%num_entries_symmetric_tensor
+  call memalloc(SPACE_DIM,this%num_shape_functions,this%num_quadrature_points, &
 																this%shape_functions,__FILE__,__LINE__)
-  call memalloc(SPACE_DIM,SPACE_DIM,this%number_shape_functions,&
-																this%number_quadrature_points,this%shape_derivatives,   __FILE__,__LINE__)
+  call memalloc(SPACE_DIM,SPACE_DIM,this%num_shape_functions,&
+																this%num_quadrature_points,this%shape_derivatives,   __FILE__,__LINE__)
   if ( allocated(source_interpolation%hessian) ) then
-    call memalloc(this%number_dimensions,this%number_entries_symmetric_tensor,this%number_shape_functions,&
-																		this%number_quadrature_points,this%hessian,   __FILE__,__LINE__) 
+    call memalloc(this%num_dims,this%num_entries_symmetric_tensor,this%num_shape_functions,&
+																		this%num_quadrature_points,this%hessian,   __FILE__,__LINE__) 
   end if
 end subroutine interpolation_clone
 
@@ -131,10 +131,10 @@ subroutine interpolation_print ( this )
   implicit none
   class(interpolation_t), intent(in) :: this
   integer(ip) :: i,j,k,l
-  write(*,*) 'number_dimensions: ', this%number_dimensions
-  write(*,*) 'number_shape_functions: ', this%number_shape_functions
-  write(*,*) 'number_quadrature_points: ', this%number_quadrature_points
-  write(*,*) 'number_entries_symmetric_tensor: ', this%number_entries_symmetric_tensor
+  write(*,*) 'num_dims: ', this%num_dims
+  write(*,*) 'num_shape_functions: ', this%num_shape_functions
+  write(*,*) 'num_quadrature_points: ', this%num_quadrature_points
+  write(*,*) 'num_entries_symmetric_tensor: ', this%num_entries_symmetric_tensor
   write(*,*) '*************** SHAPE FUNCTIONS ******************'
   do i = 1, size(this%shape_functions,1)
      do j = 1, size(this%shape_functions,2)
@@ -165,17 +165,17 @@ end subroutine interpolation_print
 
 function interpolation_is_needed_to_allocate(              &
                                  this,                     &
-                                 number_dimensions,        &
-                                 number_shape_functions,   &
-                                 number_quadrature_points, &
-                                 number_entries_symmetric_tensor,&
+                                 num_dims,        &
+                                 num_shape_functions,   &
+                                 num_quadrature_points, &
+                                 num_entries_symmetric_tensor,&
                                  compute_hessian ) result ( is_needed )
   implicit none
   class(interpolation_t), intent(inout) :: this
-  integer(ip),            intent(in)    :: number_dimensions
-  integer(ip),            intent(in)    :: number_shape_functions
-  integer(ip),            intent(in)    :: number_quadrature_points
-  integer(ip),            intent(in)    :: number_entries_symmetric_tensor
+  integer(ip),            intent(in)    :: num_dims
+  integer(ip),            intent(in)    :: num_shape_functions
+  integer(ip),            intent(in)    :: num_quadrature_points
+  integer(ip),            intent(in)    :: num_entries_symmetric_tensor
   logical, optional,      intent(in)    :: compute_hessian
   logical :: is_needed
 
@@ -183,11 +183,11 @@ function interpolation_is_needed_to_allocate(              &
   ! Its is important that calling free() will set them to 0.
   ! And that they always have a valid numerical value
   is_needed = .false.
-  if (this%number_dimensions .ne. number_dimensions)               is_needed = .true.
-  if (this%number_shape_functions .ne. number_shape_functions)     is_needed = .true.
-  if (this%number_quadrature_points .ne. number_quadrature_points) is_needed = .true.
+  if (this%num_dims .ne. num_dims)               is_needed = .true.
+  if (this%num_shape_functions .ne. num_shape_functions)     is_needed = .true.
+  if (this%num_quadrature_points .ne. num_quadrature_points) is_needed = .true.
   if (present(compute_hessian)) then
-    if (compute_hessian .and. (this%number_entries_symmetric_tensor .ne. number_entries_symmetric_tensor))&
+    if (compute_hessian .and. (this%num_entries_symmetric_tensor .ne. num_entries_symmetric_tensor))&
     is_needed = .true.
   end if
 

@@ -10,7 +10,7 @@ then
       # Scalar-valued tests
       ###############################################################################################################################
 
-      # Cube + Hexas
+      # Square + Quads 
       for gorder in 1
       do
        for order in 2 3 4 5 6 7 8 
@@ -27,7 +27,24 @@ then
         done
       done
       
-      # Cube + Hexas + Hybrid Void/Full FEs (half)
+      # Square + Quads + dG
+      for gorder in 1
+      do
+       for order in 2 3 4 5 6 7 8 
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -f dG"
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -f dG
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      # Square + Quads + Hybrid Void/Full FEs (half case)
       for gorder in 1
       do
        for order in 2
@@ -44,7 +61,7 @@ then
         done
       done
       
-      # Cube + Hexas + Hybrid Void/Full FEs (quarter)
+      # Square + Quads + Hybrid Void/Full FEs (quarter case)
       for gorder in 1
       do
        for order in 2
@@ -65,7 +82,7 @@ then
       # Vector-valued tests
       ###############################################################################################################################
 
-      # Cube + Hexas 
+      # Square + Quads
       for gorder in 1
       do
        for order in 2 3 4 5 6 7 8 

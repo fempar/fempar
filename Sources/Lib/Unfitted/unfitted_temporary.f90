@@ -40,45 +40,61 @@ contains
 ! A better way to do this?
 ! This subroutine assumes ref elem with hex topology and linear order
 ! Where to put this info? At the reference element?
-subroutine evaluate_monomials(points,monomials)
+subroutine evaluate_monomials(points,monomials,degree)
   implicit none
-  type(quadrature_t), intent(in) :: points
+  type(quadrature_t),    intent(in)    :: points
   real(rp), allocatable, intent(inout) :: monomials(:,:)
+  integer(ip),           intent(in)    :: degree
+
   integer(ip) :: q_point
   real(rp), pointer :: quad_coords(:,:)
+  integer(ip) :: imo, px, py, pz
+
   assert(allocated(monomials))
-  assert(size(monomials,1)==points%get_number_quadrature_points())
+  assert(size(monomials,1)==points%get_num_quadrature_points())
+
   quad_coords => points%get_coordinates()
-  select case(points%get_number_dimensions())
+  select case(points%get_num_dims())
     case(1)
-      assert(size(monomials,2)==2)
-      do q_point = 1, points%get_number_quadrature_points()
-        monomials(q_point,1) = 1 ! 1
-        monomials(q_point,2) = quad_coords(1,q_point) ! x
+      assert(size(monomials,2)==(degree+1))
+      do q_point = 1, points%get_num_quadrature_points()
+        imo = 1
+        do px = 0, degree
+          monomials(q_point,imo) = quad_coords(1,q_point)**px
+          imo = imo + 1
+        end do
       end do
     case(2)
-      assert(size(monomials,2)==4)
-      do q_point = 1, points%get_number_quadrature_points()
-        monomials(q_point,1) = 1 ! 1
-        monomials(q_point,2) = quad_coords(1,q_point) ! x
-        monomials(q_point,3) = quad_coords(2,q_point) ! y
-        monomials(q_point,4) = quad_coords(1,q_point)*quad_coords(2,q_point) ! xy
+      assert( size(monomials,2)== ((degree+1)**2) )
+      do q_point = 1, points%get_num_quadrature_points()
+        imo = 1
+        do px = 0, degree
+          do py = 0, degree
+            monomials(q_point,imo) = (quad_coords(1,q_point)**px)&
+                                   * (quad_coords(2,q_point)**py)
+            imo = imo + 1
+          end do
+        end do
       end do
     case(3)
-      assert(size(monomials,2)==8)
-      do q_point = 1, points%get_number_quadrature_points()
-        monomials(q_point,1) = 1 ! 1
-        monomials(q_point,2) = quad_coords(1,q_point) ! x
-        monomials(q_point,3) = quad_coords(2,q_point) ! y
-        monomials(q_point,5) = quad_coords(1,q_point)*quad_coords(2,q_point) ! xy
-        monomials(q_point,4) = quad_coords(3,q_point) ! z
-        monomials(q_point,6) = quad_coords(1,q_point)*quad_coords(3,q_point) ! xz
-        monomials(q_point,7) = quad_coords(2,q_point)*quad_coords(3,q_point) ! yz
-        monomials(q_point,8) = quad_coords(1,q_point)*quad_coords(2,q_point)*quad_coords(3,q_point) ! xyz
+      assert(size(monomials,2)==((degree+1)**3))
+      do q_point = 1, points%get_num_quadrature_points()
+        imo = 1
+        do px = 0, degree
+          do py = 0, degree
+            do pz = 0, degree
+              monomials(q_point,imo) = (quad_coords(1,q_point)**px)&
+                                     * (quad_coords(2,q_point)**py)&
+                                     * (quad_coords(3,q_point)**pz)
+              imo = imo + 1
+            end do
+          end do
+        end do
       end do
     case default
       check(.false.)
   end select
+
 end subroutine evaluate_monomials
 
 !========================================================================================

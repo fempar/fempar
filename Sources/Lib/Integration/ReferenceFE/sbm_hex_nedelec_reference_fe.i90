@@ -44,14 +44,14 @@ function hex_nedelec_reference_fe_check_compatibility_of_n_faces                
   select type(source_reference_fe)
      class is(hex_nedelec_reference_fe_t)
         ! Get number nodes per dimension
-     assert (target_reference_fe%number_dimensions == source_reference_fe%number_dimensions)
-     do idime = 1, target_reference_fe%number_dimensions
+     assert (target_reference_fe%num_dims == source_reference_fe%num_dims)
+     do idime = 1, target_reference_fe%num_dims
         assert (target_reference_fe%order_vector(idime) == source_reference_fe%order_vector(idime))
      end do
-     assert (target_reference_fe%get_n_face_dimension(target_n_face_id) == source_reference_fe%get_n_face_dimension(source_n_face_id))
-     assert (target_reference_fe%get_n_face_dimension(target_n_face_id) < 3)
-     assert (target_reference_fe%number_field_components == source_reference_fe%number_field_components)
-     assert (target_reference_fe%get_number_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_number_own_dofs_n_face(source_n_face_id))
+     assert (target_reference_fe%get_n_face_dim(target_n_face_id) == source_reference_fe%get_n_face_dim(source_n_face_id))
+     assert (target_reference_fe%get_n_face_dim(target_n_face_id) < 3)
+     assert (target_reference_fe%num_field_components == source_reference_fe%num_field_components)
+     assert (target_reference_fe%get_num_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_num_own_dofs_n_face(source_n_face_id))
      hex_nedelec_reference_fe_check_compatibility_of_n_faces = .true.
      class default
      hex_nedelec_reference_fe_check_compatibility_of_n_faces = .false.
@@ -70,6 +70,17 @@ end function hex_nedelec_reference_fe_get_characteristic_length
 !**************************************************************************************************
 ! Deferred TBP implementors from nedelec_reference_fe_t
 !**************************************************************************************************
+subroutine hex_nedelec_reference_fe_fill (this)
+  implicit none
+  class(hex_nedelec_reference_fe_t), intent(inout) :: this
+  integer(ip) :: c, i, j, dimension
+  integer(ip) :: column, inode, idime, inode_scalar, num_columns
+  ! Here we put a k-1,k,k order_vector, which is the one for the x-component.
+  ! In fill_vector, we use order_vector (and other arrays) using a permutation 
+  this%order_vector = this%order
+  this%order_vector(1) = this%order-1
+  call this%fill_vector()  
+end subroutine hex_nedelec_reference_fe_fill
 
 ! @sbadia: Think about an automatic generation of gauss points for an arbitrary order
 !==================================================================================================
@@ -100,8 +111,8 @@ subroutine hex_nedelec_reference_fe_fill_quadrature ( this, quadrature )
   real(rp)    :: posgl(20),weigl(20)
   integer(ip) :: nlocs,qpoin,ilocs,jlocs,klocs,ndime,ngaus
 
-  ndime = quadrature%number_dimensions
-  ngaus = quadrature%number_quadrature_points
+  ndime = quadrature%num_dims
+  ngaus = quadrature%num_quadrature_points
 
   if(ndime==1) then
      nlocs=ngaus
@@ -636,7 +647,7 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis( this, quadratu
   integer(ip)        , optional   , intent(in)         :: order_vector(SPACE_DIM)
   
   type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
-  type(polynomial_allocatable_array_t)    :: polynomial_1D_basis(SPACE_DIM)
+  type(polynomial_basis_t)    :: polynomial_1D_basis(SPACE_DIM)
   type(lagrange_polynomial_t)             :: polynomial_1D
 
   real(rp), allocatable :: tensor_product_values(:)
@@ -661,7 +672,7 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis( this, quadratu
     order_vector_  = this%order_vector
   end if
 
-  do idime=1, interpolation%number_dimensions
+  do idime=1, interpolation%num_dims
      perm_order_vector_   = order_vector_ 
 
      ! Swap positions 1 and idime of perm_order_vector_
@@ -671,32 +682,32 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis( this, quadratu
 
      ! Generate a basis of 1D polynomials per coordinate direction 
      ! (X,Y,(Z)) with order given by order_vector_(SPACE_DIM)
-     do jdime=1,interpolation%number_dimensions
+     do jdime=1,interpolation%num_dims
        call polynomial_1D%generate_basis( perm_order_vector_(jdime), & 
                                           polynomial_1D_basis(jdime) )
      end do
 
      ! Create an scalar-valued space of  2/3D polynomials from the 
      ! tensor product of the basis of 1D polynomials
-     call tensor_product_polynomial_space%create(interpolation%number_dimensions,&
+     call tensor_product_polynomial_space%create(interpolation%num_dims,&
                                                  polynomial_1D_basis)
      call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
 
-     call memalloc(tensor_product_polynomial_space%get_number_polynomials(),&
+     call memalloc(tensor_product_polynomial_space%get_num_polynomials(),&
                    tensor_product_values,__FILE__,__LINE__)
      call memalloc(SPACE_DIM,&
-                   tensor_product_polynomial_space%get_number_polynomials(),&
+                   tensor_product_polynomial_space%get_num_polynomials(),&
                    tensor_product_gradients,__FILE__,__LINE__)
 
-     do q_point=1, quadrature%get_number_quadrature_points()
-        c=(idime-1)*tensor_product_polynomial_space%get_number_polynomials()
+     do q_point=1, quadrature%get_num_quadrature_points()
+        c=(idime-1)*tensor_product_polynomial_space%get_num_polynomials()
         call tensor_product_polynomial_space%evaluate(q_point, &
                                                       tensor_product_values, &
                                                       tensor_product_gradients)
-        do i=1, tensor_product_polynomial_space%get_number_polynomials()
+        do i=1, tensor_product_polynomial_space%get_num_polynomials()
            c = c+1
            interpolation%shape_functions(idime,c,q_point) = tensor_product_values(i)
-           do jdime = 1,interpolation%number_dimensions
+           do jdime = 1,interpolation%num_dims
               interpolation%shape_derivatives(idime,jdime,c,q_point) = tensor_product_gradients(jdime,i)
            end do
         end do
@@ -704,7 +715,7 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis( this, quadratu
   
    
      ! Free auxiliary memory
-     do jdime=1,interpolation%number_dimensions
+     do jdime=1,interpolation%num_dims
         call polynomial_1D_basis(jdime)%free()
      end do
      call tensor_product_polynomial_space%free()
@@ -717,22 +728,27 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis( this, quadratu
 end subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis
 
 !==================================================================================================
-subroutine hex_nedelec_reference_fe_fill_face_interpolation( this, local_quadrature, local_face_id, face_interpolation )
+subroutine hex_nedelec_reference_fe_fill_facet_interpolation( this, local_quadrature, & 
+     & facet_lid, subfacet_lid, facet_interpolation )
   implicit none
   class(hex_nedelec_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                      , intent(in)    :: local_quadrature
-  integer(ip)                             , intent(in)    :: local_face_id
-  type(interpolation_t)                   , intent(inout) :: face_interpolation
+  integer(ip)                             , intent(in)    :: facet_lid
+  integer(ip)                             , intent(in)    :: subfacet_lid
+  type(interpolation_t)                   , intent(inout) :: facet_interpolation
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: c,idime,iface,n_face_index
   
+  ! Exit if attempts to fill the interpolation of a subface
+  if ( subfacet_lid >= 0 ) return
+  
   ! Add offset to have same numbering as in polytope
-  n_face_index = local_face_id+this%get_first_face_id()-1
+  n_face_index = facet_lid+this%get_first_facet_id()-1
   
   ! Create a d-dimensional quadrature as follows
-  call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
+  call aux_quadrature%create( this%num_dims, local_quadrature%num_quadrature_points )
   c = 0
-  do idime = 0,this%number_dimensions-1
+  do idime = 0,this%num_dims-1
      if ( this%polytope%n_face_dir_is_fixed( n_face_index, idime ) == 1 ) then
         c = c+1
         aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(c,:)
@@ -742,27 +758,27 @@ subroutine hex_nedelec_reference_fe_fill_face_interpolation( this, local_quadrat
         aux_quadrature%coordinates(idime+1,:) = 1.0_rp
      end if
   end do
-  call this%fill_interpolation( aux_quadrature, face_interpolation ) 
+  call this%fill_interpolation( aux_quadrature, facet_interpolation ) 
   call aux_quadrature%free()
-end subroutine hex_nedelec_reference_fe_fill_face_interpolation
+end subroutine hex_nedelec_reference_fe_fill_facet_interpolation
 
 !==================================================================================================
-subroutine hex_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id, local_quadrature, edge_interpolation )
+subroutine hex_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation )
   implicit none
   class(hex_nedelec_reference_fe_t)       , intent(in)    :: this
   integer(ip)                             , intent(in)    :: local_edge_id
   type(quadrature_t)                      , intent(in)    :: local_quadrature
-  type(interpolation_t)                   , intent(inout) :: edge_interpolation
+  type(interpolation_t)                   , intent(inout) :: edget_interpolation
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: c, idime, n_face_index
   
   ! Add offset to have same numbering as in polytope
-  n_face_index = local_edge_id+this%get_first_n_face_id_of_dimension(1)-1
+  n_face_index = local_edge_id+this%get_first_n_face_id_of_dim(1)-1
   
   ! Create a d-dimensional quadrature as follows
-  call aux_quadrature%create( this%number_dimensions, local_quadrature%number_quadrature_points )
+  call aux_quadrature%create( this%num_dims, local_quadrature%num_quadrature_points )
   c = 0
-  do idime = 0,this%number_dimensions-1
+  do idime = 0,this%num_dims-1
      if ( this%polytope%n_face_dir_is_fixed( n_face_index, idime ) == 1 ) then
         c = c+1
         aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(c,:)
@@ -772,9 +788,9 @@ subroutine hex_nedelec_reference_fe_fill_edge_interpolation( this, local_edge_id
         aux_quadrature%coordinates(idime+1,:) = 1.0_rp
      end if
   end do
-  call this%fill_interpolation( aux_quadrature, edge_interpolation ) 
+  call this%fill_interpolation( aux_quadrature, edget_interpolation ) 
   call aux_quadrature%free()
-end subroutine hex_nedelec_reference_fe_fill_edge_interpolation
+end subroutine hex_nedelec_reference_fe_fill_interpolation_restricted_to_edget
 
 subroutine hex_nedelec_reference_fe_change_basis(this) 
   implicit none
@@ -783,18 +799,18 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   ! Local variables required by edge boundary moments integration
   type(hex_lagrangian_reference_fe_t) :: fe_1D
   type(quadrature_t)                  :: edge_quadrature
-  type(interpolation_t)               :: interpolation_1D, edge_interpolation
-  type(fe_map_t)                      :: edge_map
+  type(interpolation_t)               :: interpolation_1D, edget_interpolation
+  type(edge_map_t)                    :: edge_map
   type(point_t), pointer              :: edge_map_coordinates(:)
   real(rp)                            :: shape_test
   type(vector_field_t)                :: tangent
   
   ! Local variables required by face boundary moments integration
   type(hex_nedelec_reference_fe_t)    :: fe_2D
-  type(quadrature_t)                  :: face_quadrature
-  type(interpolation_t)               :: interpolation_2D, face_interpolation
-  type(fe_map_t)                      :: face_map
-  type(point_t), pointer              :: face_map_coordinates(:)
+  type(quadrature_t)                  :: facet_quadrature
+  type(interpolation_t)               :: interpolation_2D, facet_interpolation
+  type(facet_map_t)                    :: facet_map
+  type(point_t), pointer              :: facet_map_coordinates(:)
   type(vector_field_t)                :: normal
   type(vector_field_t)                :: cross_product_v_shape_trial_normal
   type(vector_field_t)                :: cross_product_v_shape_trial_normal_proj
@@ -804,7 +820,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   type(quadrature_t)                  :: cell_quadrature
   type(interpolation_t)               :: reduced_order_cell_interpolation, cell_interpolation
   type(point_t), pointer              :: cell_map_coordinates(:)
-  type(fe_map_t)                      :: cell_map
+  type(cell_map_t)                      :: cell_map
   integer(ip)                         :: reduced_order_vector(SPACE_DIM)
   integer(ip)                         :: num_interior_moments
   type(vector_field_t)                :: v_shape_test
@@ -816,8 +832,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   real(rp)                            :: factor
   integer(ip)                         :: idime
   
-  ! Local variable required for normals reorientation calcs (required to update_face_map)
-  integer(ip)                         :: local_face_id
+  ! Local variable required for normals reorientation calcs (required to update_facet_map)
+  integer(ip)                         :: facet_lid
   
   ! Rest of local variables
   integer(ip)                         :: c, d, i, j, istat
@@ -839,15 +855,15 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   if ( allocated(this%change_basis_matrix) ) & 
        call memfree(this%change_basis_matrix, __FILE__, __LINE__)    
       
-  call memalloc(this%number_shape_functions, &
-                this%number_shape_functions, &
+  call memalloc(this%num_shape_functions, &
+                this%num_shape_functions, &
                 this%change_basis_matrix, &
                 __FILE__, &
                 __LINE__)
   
  ! Create a 1D scalar lagrangian reference FE of order k-1
  call fe_1D%create(topology          = this%get_topology(), &
-                   number_dimensions = 1, &
+                   num_dims = 1, &
                    order             = this%order-1, &
                    field_type        = field_type_scalar, &
                    conformity        = .true. )
@@ -855,22 +871,21 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
 
  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
  call d_fe_geo%create(topology          = this%get_topology(), &
-                      number_dimensions = this%number_dimensions, &
+                      num_dims = this%num_dims, &
                       order             = 1, &
                       field_type        = field_type_scalar, &
                       conformity        = .true. )
 
  call this%create_edge_quadrature( edge_quadrature )
- call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
- 
- call edge_map%create_edge_map( edge_quadrature, d_fe_geo )
+ call fe_1D%create_interpolation( edge_quadrature, interpolation_1D ) 
+ call edge_map%create( edge_quadrature, d_fe_geo )
 
  ! Initialize change of basis matrix
  this%change_basis_matrix = 0.0_rp
   
  d = 0
- do edge_id = this%get_first_n_face_id_of_dimension(1), & 
-               this%get_first_n_face_id_of_dimension(1) + this%get_number_n_faces_of_dimension(1)-1
+ do edge_id = this%get_first_n_face_id_of_dim(1), & 
+               this%get_first_n_face_id_of_dim(1) + this%get_num_n_faces_of_dim(1)-1
   
      ! Get face map coordinates
      edge_map_coordinates => edge_map%get_coordinates()
@@ -886,77 +901,76 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      end do
 
      ! Update edge_map on current edge
-     call edge_map%update_edge_map(local_edge_id = edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
-                                   reference_fe  = d_fe_geo, &
-                                   quadrature    = edge_quadrature ) 
+     call edge_map%update(local_edge_id = edge_id - d_fe_geo%get_first_n_face_id_of_dim(1)+1, &
+                          reference_fe  = d_fe_geo, &
+                          quadrature    = edge_quadrature ) 
      
-     call this%create_edge_interpolation (edge_id - d_fe_geo%get_first_n_face_id_of_dimension(1)+1, &
+     call this%create_interpolation_restricted_to_edget (edge_id - d_fe_geo%get_first_n_face_id_of_dim(1)+1, &
                                           edge_quadrature, &
-                                          edge_interpolation )
+                                          edget_interpolation )
      
      ! Integrate edge boundary moments int_edge(u.t q), q \in P_k-1
-     do qpoint = 1, edge_quadrature%number_quadrature_points
+     do qpoint = 1, edge_quadrature%num_quadrature_points
         factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
         call edge_map%get_tangent(qpoint, tangent)
 
-        do ishape=1, interpolation_1D%number_shape_functions
+        do ishape=1, interpolation_1D%num_shape_functions
            call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
-           do jshape=1, edge_interpolation%number_shape_functions
-              call this%get_value(edge_interpolation, jshape, qpoint, v_shape_trial)
+           do jshape=1, edget_interpolation%num_shape_functions
+              call this%get_value(edget_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
                                                           + shape_test * v_shape_trial * tangent * factor
            end do
         end do
      end do
-     d = d + interpolation_1D%number_shape_functions
+     d = d + interpolation_1D%num_shape_functions
  end do
 
- if ( this%number_dimensions == 3 .and. this%order > 1 ) then
+ if ( this%num_dims == 3 .and. this%order > 1 ) then
     ! Create a 2D nedelec reference FE of order k-1.
     ! Not that conformity = .false. as we are interested into 
     ! pre_basis_interpolation. Also because of computational reasons,
     ! with conformity = .false. we avoid evaluating the change of
     ! basis matrix (i.e., evaluation of functionals)
     call fe_2D%create(topology          = this%get_topology(), &
-                      number_dimensions = 2, &
+                      num_dims = 2, &
                       order             = this%order-1, &
                       field_type        = field_type_vector, &
                       conformity        = .false. )
     
-    call this%create_face_quadrature( face_quadrature )
-    call fe_2D%create_interpolation( face_quadrature, interpolation_2D )
-    call face_map%create_face_map( face_quadrature, d_fe_geo )
+    call this%create_facet_quadrature( facet_quadrature )
+    call fe_2D%create_interpolation( facet_quadrature, interpolation_2D )
+    call facet_map%create( facet_quadrature, d_fe_geo )
  
-    do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
+    do facet_id = this%get_first_facet_id(), this%get_first_facet_id() + this%get_num_facets()-1
   
      ! Get face map coordinates
-     face_map_coordinates => face_map%get_coordinates()
+     facet_map_coordinates => facet_map%get_coordinates()
    
      ! Extract coordinates of the vertices within the face
      vertex_within_face_id = 1
      vertex_iterator = this%vertices_n_face%create_iterator(facet_id)
      do while ( .not. vertex_iterator%is_upper_bound () )
         vertex_within_cell_id = vertex_iterator%get_current()
-        call face_map_coordinates(vertex_within_face_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
+        call facet_map_coordinates(vertex_within_face_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
         call vertex_iterator%next()
         vertex_within_face_id = vertex_within_face_id + 1
      end do
 
-     ! Update face_map on current face
-     local_face_id = facet_id - d_fe_geo%get_first_face_id()+1
-     call face_map%update_face_map(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(local_face_id), &
-                                   quadrature             = face_quadrature ) 
+     ! Update facet_map on current face
+     facet_lid = facet_id - d_fe_geo%get_first_facet_id()+1
+     call facet_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(facet_lid), &
+                          quadrature             = facet_quadrature ) 
      
-     call this%create_face_interpolation (facet_id - d_fe_geo%get_first_face_id()+1, &
-                                          face_quadrature, &
-                                          face_interpolation )
+     call this%create_interpolation_restricted_to_facet ( facet_id - d_fe_geo%get_first_facet_id()+1, &
+                                           -1, facet_quadrature, facet_interpolation )
      
      call cross_product_v_shape_trial_normal_proj%init(0.0_rp)
      
-     ! Integrate face boundary moments int_Face(u^n q), q \in Q_k-2,k-1 x Q_k-1,k-2
-     do qpoint = 1, face_quadrature%number_quadrature_points
-        factor = face_map%get_det_jacobian(qpoint) * face_quadrature%get_weight(qpoint)
-        call face_map%get_normal(qpoint, normal)
+     ! Integrate face boundary moments int_Face(u x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
+     do qpoint = 1, facet_quadrature%num_quadrature_points
+        factor = facet_map%get_det_jacobian(qpoint) * facet_quadrature%get_weight(qpoint)
+        call facet_map%get_normal(qpoint, normal)
         
         !!!!!!!!!!!
         !! IMPORTANT NOTE: trick to have normals associated to each pair of faces pointing
@@ -964,22 +978,20 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
         !!                 triangulation.
         !!!!!!!!!!!
         normal = (-1.0_rp)**(this%orientation%a(facet_id)) * normal
-        do i=1, SPACE_DIM
-          call normal%set(i, abs(normal%get(i)))
-        end do
         
-        do ishape=1, interpolation_2D%number_shape_functions
+        do ishape=1, interpolation_2D%num_shape_functions
            call fe_2D%get_value(interpolation_2D, ishape, qpoint, v_shape_test)
-           do jshape=1, face_interpolation%number_shape_functions
-              call this%get_value(face_interpolation, jshape, qpoint, v_shape_trial)
+           do jshape=1, facet_interpolation%num_shape_functions
+              call this%get_value(facet_interpolation, jshape, qpoint, v_shape_trial)
               
-              ! Compute u^n
+              ! Compute u x n
               cross_product_v_shape_trial_normal = cross_product(v_shape_trial,normal)
               
-              ! Multiply the transpose of the jacobian with normalized columns by u^n
-              ! This is required to transform u^n in a vector contained within the face
-              do i=1,this%number_dimensions-1
-                call face_map%get_jacobian_normalized_column(i,qpoint,col_jacobian)
+              ! Multiply the transpose of the jacobian with normalized columns by u x n
+              ! This is required to transform u x n in a vector contained within the face
+              do i=1,this%num_dims-1
+                call facet_map%get_jacobian_column(i,qpoint,col_jacobian)
+				col_jacobian = col_jacobian * (1.0_rp/col_jacobian%nrm2())
                 call cross_product_v_shape_trial_normal_proj%set(i, col_jacobian*cross_product_v_shape_trial_normal)
               end do
               
@@ -988,18 +1000,17 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
            end do
         end do
      end do
-     d = d + interpolation_2D%number_shape_functions
+     d = d + interpolation_2D%num_shape_functions
   end do
  end if
  
  
- if ( this%number_dimensions == 2 ) then
-   ! Qk-2,k-1 x Qk-1,k-2
-   !reduced_order_vector = this%order_vector-1
+ if ( this%num_dims == 2 ) then
+   ! Q_{k-1,k-2} x Q_{k-2,k-1}
    reduced_order_vector(1)   = this%order_vector(1)
-   reduced_order_vector(2:3) = this%order_vector(2:3)-2
- else if ( this%number_dimensions == 3 ) then
-   ! Qk-1,k-2,k-2 x Qk-2,k-1,k-2 x Qk-2,k-2,k-1
+   reduced_order_vector(2)   = this%order_vector(2)-2
+ else if ( this%num_dims == 3 ) then
+   ! Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}
    reduced_order_vector(1)   = this%order_vector(1)
    reduced_order_vector(2:3) = this%order_vector(2:3)-2
  end if
@@ -1007,122 +1018,141 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   
  ! compute number shape functions for reduced order element
  num_interior_moments = 1
- do idime = 1, this%number_dimensions
+ do idime = 1, this%num_dims
      num_interior_moments = num_interior_moments*(reduced_order_vector(idime)+1)
  end do
- num_interior_moments = num_interior_moments*this%number_dimensions
+ num_interior_moments = num_interior_moments*this%num_dims
   
- ! create cell quadrature
- call this%create_quadrature(cell_quadrature)
-  
- ! create reduced order interpolation
- call reduced_order_cell_interpolation%create( this%number_dimensions, &
-                                               num_interior_moments, &
-                                               cell_quadrature%number_quadrature_points, &
-                                               number_entries_symmetric_tensor=0, &
-                                               compute_hessian = .false. )
-  
- call this%fill_interpolation_pre_basis( cell_quadrature, reduced_order_cell_interpolation, reduced_order_vector)
-  
- ! Create PRE-BASIS cell-interpolation from this RT REF FE 
- call this%create_interpolation( cell_quadrature, cell_interpolation )
-  
- ! Create + Update cell map 
- call cell_map%create(cell_quadrature, d_fe_geo )
- cell_map_coordinates => cell_map%get_coordinates()
- do vertex_within_cell_id=1,d_fe_geo%get_number_vertices()
-    call cell_map_coordinates(vertex_within_cell_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
- end do
- call cell_map%update(cell_quadrature)
+ if ( num_interior_moments > 0 ) then 
+    ! create cell quadrature
+    call this%create_quadrature(cell_quadrature)
 
- ! ! Integration of interior moments int_K (u.q), q \in Qk-1,k,k x Qk,k-1,k x Qk,k,k-1     
- do qpoint = 1, cell_quadrature%number_quadrature_points
-    factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
-    do ishape=1, reduced_order_cell_interpolation%number_shape_functions
-       call this%get_value(reduced_order_cell_interpolation, ishape, qpoint, v_shape_test)
-       do jshape=1, cell_interpolation%number_shape_functions
-        call this%get_value(cell_interpolation, jshape, qpoint, v_shape_trial)
-         this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) + &
-                                                     v_shape_test * v_shape_trial * factor
-        end do
-     end do
-   end do
+    ! create reduced order interpolation
+    call reduced_order_cell_interpolation%create( this%num_dims, &
+         num_interior_moments, &
+         cell_quadrature%num_quadrature_points, &
+         num_entries_symmetric_tensor=0, &
+         compute_hessian = .false. )
+
+    call this%fill_interpolation_pre_basis( cell_quadrature, reduced_order_cell_interpolation, reduced_order_vector)
+
+    ! Create PRE-BASIS cell-interpolation from this RT REF FE 
+    call this%create_interpolation( cell_quadrature, cell_interpolation )
+
+    ! Create + Update cell map 
+    call cell_map%create(cell_quadrature, d_fe_geo )
+    cell_map_coordinates => cell_map%get_coordinates()
+    do vertex_within_cell_id=1,d_fe_geo%get_num_vertices()
+       call cell_map_coordinates(vertex_within_cell_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
+    end do
+    call cell_map%update(cell_quadrature)
+
+    ! ! Integration of interior moments int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}     
+    do qpoint = 1, cell_quadrature%num_quadrature_points
+       factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
+       do ishape=1, reduced_order_cell_interpolation%num_shape_functions
+          call this%get_value(reduced_order_cell_interpolation, ishape, qpoint, v_shape_test)
+          do jshape=1, cell_interpolation%num_shape_functions
+             call this%get_value(cell_interpolation, jshape, qpoint, v_shape_trial)
+             this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) + &
+                  v_shape_test * v_shape_trial * factor
+          end do
+       end do
+    end do
+ end if
    
   ! Invert change_basis_matrix
   call this%invert_change_basis_matrix()
   
  ! Transform type(list_t) member variables of this to reflect change of basis
- call this%own_dofs_n_face%create( this%number_n_faces + 1 )
- 
- 
- do edge_id = this%get_first_n_face_id_of_dimension(1), & 
-               this%get_first_n_face_id_of_dimension(1) + this%get_number_n_faces_of_dimension(1)-1
-    call this%own_dofs_n_face%sum_to_pointer_index(edge_id, interpolation_1D%number_shape_functions )           
- end do
- 
- if (this%number_dimensions == 3 .and. this%order > 1) then
-    do facet_id = this%get_first_face_id(), this%get_first_face_id() + this%get_number_faces()-1
-      call this%own_dofs_n_face%sum_to_pointer_index(facet_id, interpolation_2D%number_shape_functions )
-    end do
- end if
- 
- call this%own_dofs_n_face%sum_to_pointer_index(this%number_n_faces + 1, num_interior_moments)
- call this%own_dofs_n_face%calculate_header()
- call this%own_dofs_n_face%allocate_list_from_pointer()
+  call this%own_dofs_n_face%create( this%num_n_faces + 1 )
 
- c=1
- do idime=1, this%number_dimensions
-   do n_face_id = this%get_first_n_face_id_of_dimension(idime), & 
-                this%get_first_n_face_id_of_dimension(idime) + this%get_number_n_faces_of_dimension(idime)-1
-    own_dofs_iterator = this%own_dofs_n_face%create_iterator(n_face_id)
-    do while ( .not. own_dofs_iterator%is_upper_bound() )
-       call own_dofs_iterator%set_current(c)
-       c = c + 1
-       call own_dofs_iterator%next()
-    end do
-    call own_dofs_iterator%next()
-   end do 
- end do
- 
-  
- this%dofs_n_face      = this%own_dofs_n_face
+  if ( this%conformity .and. this%continuity ) then
+     do edge_id = this%get_first_n_face_id_of_dim(1), & 
+          this%get_first_n_face_id_of_dim(1) + this%get_num_n_faces_of_dim(1)-1
+        call this%own_dofs_n_face%sum_to_pointer_index(edge_id, interpolation_1D%num_shape_functions )           
+     end do
+
+     if (this%num_dims == 3 .and. this%order > 1) then
+        do facet_id = this%get_first_facet_id(), this%get_first_facet_id() + this%get_num_facets()-1
+           call this%own_dofs_n_face%sum_to_pointer_index(facet_id, interpolation_2D%num_shape_functions )
+        end do
+     end if
+
+     call this%own_dofs_n_face%sum_to_pointer_index(this%num_n_faces + 1, num_interior_moments)
+     call this%own_dofs_n_face%calculate_header()
+     call this%own_dofs_n_face%allocate_list_from_pointer()
+
+     c=1
+     do idime=1, this%num_dims
+        do n_face_id = this%get_first_n_face_id_of_dim(idime), & 
+             this%get_first_n_face_id_of_dim(idime) + this%get_num_n_faces_of_dim(idime)-1
+           own_dofs_iterator = this%own_dofs_n_face%create_iterator(n_face_id)
+           do while ( .not. own_dofs_iterator%is_upper_bound() )
+              call own_dofs_iterator%set_current(c)
+              c = c + 1
+              call own_dofs_iterator%next()
+           end do
+           call own_dofs_iterator%next()
+        end do
+     end do
+
+  else 
+
+     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%num_shape_functions)
+     call this%own_dofs_n_face%calculate_header()
+     call this%own_dofs_n_face%allocate_list_from_pointer()
+     own_dofs_iterator = this%own_dofs_n_face%create_iterator()
+     i=1
+     do while(.not. own_dofs_iterator%is_upper_bound())
+        call own_dofs_iterator%set_current(i)
+        call own_dofs_iterator%next()
+        i = i + 1 
+     enddo
+
+  end if
+  this%dofs_n_face      = this%own_dofs_n_face
  
   
   ! Re-define own_node_permutations-related stuff
-  if ( allocated(this%number_rotations_per_dimension) )  call memfree (this%number_rotations_per_dimension,__FILE__,__LINE__)
-  if ( allocated(this%number_orientations_per_dimension) ) call memfree (this%number_orientations_per_dimension,__FILE__,__LINE__)
+  if ( allocated(this%num_rotations_x_dim) )  call memfree (this%num_rotations_x_dim,__FILE__,__LINE__)
+  if ( allocated(this%num_orientations_x_dim) ) call memfree (this%num_orientations_x_dim,__FILE__,__LINE__)
   if (allocated(this%own_dof_permutations)) then
-     do i = 1, this%number_dimensions-1
+     do i = 1, this%num_dims-1
         call this%own_dof_permutations(i)%free()
      end do
      deallocate(this%own_dof_permutations, stat=istat)
      check(istat==0)
   end if
   
-  call memalloc (this%number_dimensions-1,this%number_rotations_per_dimension,__FILE__,__LINE__)
-  call memalloc (this%number_dimensions-1,this%number_orientations_per_dimension,__FILE__,__LINE__)
+  call memalloc (this%num_dims-1,this%num_rotations_x_dim,__FILE__,__LINE__)
+  call memalloc (this%num_dims-1,this%num_orientations_x_dim,__FILE__,__LINE__)
   
-  do idime = 1, this%number_dimensions-1
+  do idime = 1, this%num_dims-1
      call this%node_array_vector(1)%compute_num_rot_and_perm( idime, &
                                                               this%polytope, &
-                                                              this%number_rotations_per_dimension(idime), &
-                                                              this%number_orientations_per_dimension(idime))
+                                                              this%num_rotations_x_dim(idime), &
+                                                              this%num_orientations_x_dim(idime))
   end do
   
-  allocate(this%own_dof_permutations(this%number_dimensions-1)) 
-  do idime = 1, this%number_dimensions-1
-    num_cols_own_node_permutations = this%number_rotations_per_dimension(idime)*this%number_orientations_per_dimension(idime)
+  allocate(this%own_dof_permutations(this%num_dims-1)) 
+  do idime = 1, this%num_dims-1
+    num_cols_own_node_permutations = this%num_rotations_x_dim(idime)*this%num_orientations_x_dim(idime)
     if ( idime == 1 ) then
-      num_rows_own_node_permutations = interpolation_1D%number_shape_functions
+      num_rows_own_node_permutations = interpolation_1D%num_shape_functions
     else if ( idime == 2 ) then
-      num_rows_own_node_permutations = interpolation_2D%number_shape_functions
+	  if ( this%order == 1 ) then 
+	  num_rows_own_node_permutations = 0
+	  else 
+      num_rows_own_node_permutations = interpolation_2D%num_shape_functions
+	  end if 
     end if   
   
    call this%own_dof_permutations(idime)%create(num_rows_own_node_permutations, &
                                                  num_cols_own_node_permutations)
 
    
-   ! Warning: temporarily initializing this%own_node_permutations(number_dimensions-1)%a(:)
+   ! Warning: temporarily initializing this%own_node_permutations(num_dims-1)%a(:)
    !          to the identity. This only will work provided that for all faces F within the 
    !          triangulation, F is oriented the same way in both cells around it
    if (num_rows_own_node_permutations > 0) then
@@ -1144,15 +1174,15 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
  call fe_1D%free()
  call edge_quadrature%free()
  call interpolation_1D%free()
- call edge_interpolation%free()
+ call edget_interpolation%free()
  call edge_map%free()
  
  ! Free all local data structures required for face moments integration
  call fe_2D%free()
- call face_quadrature%free()
+ call facet_quadrature%free()
  call interpolation_2D%free()
- call face_interpolation%free()
- call face_map%free()
+ call facet_interpolation%free()
+ call facet_map%free()
  
  ! Free all  
  call cell_quadrature%free()
@@ -1164,14 +1194,14 @@ end subroutine hex_nedelec_reference_fe_change_basis
 
 ! @sbadia: It could be replaced by an anisotropic quadrature
 !==================================================================================================
-function hex_nedelec_reference_fe_compute_number_quadrature_points( this, degree, dimension )
+function hex_nedelec_reference_fe_compute_num_quadrature_points( this, degree, dimension )
   implicit none
   class(hex_nedelec_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: degree
   integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: hex_nedelec_reference_fe_compute_number_quadrature_points
-  hex_nedelec_reference_fe_compute_number_quadrature_points = int(ceiling(real(degree + 1,rp)/2.0_rp)**real(dimension,rp),ip)
- end function hex_nedelec_reference_fe_compute_number_quadrature_points
+  integer(ip) :: hex_nedelec_reference_fe_compute_num_quadrature_points
+  hex_nedelec_reference_fe_compute_num_quadrature_points = int(ceiling(real(degree + 1,rp)/2.0_rp)**real(dimension,rp),ip)
+ end function hex_nedelec_reference_fe_compute_num_quadrature_points
  
  !==================================================================================================
 subroutine hex_nedelec_reference_fe_fill_qpoints_permutations(this, quadrature, qpoints_perm)
@@ -1181,8 +1211,8 @@ subroutine hex_nedelec_reference_fe_fill_qpoints_permutations(this, quadrature, 
   type(allocatable_array_ip2_t)       , intent(inout) :: qpoints_perm
   integer(ip)    :: ndime, n_q_points, order
   
-  ndime      = quadrature%get_number_dimensions()
-  n_q_points = quadrature%get_number_quadrature_points()
+  ndime      = quadrature%get_num_dims()
+  n_q_points = quadrature%get_num_quadrature_points()
   order      = int(real(n_q_points,rp)**(1.0_rp/real(ndime,rp)),ip)+1
   
   call this%node_array%fill_permutations( order, &

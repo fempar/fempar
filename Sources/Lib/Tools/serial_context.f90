@@ -54,9 +54,12 @@ module serial_context_names
      procedure :: max_vector_rp      => serial_context_max_vector_rp
      procedure :: min_scalar_rp      => serial_context_min_scalar_rp
      procedure :: max_scalar_ip      => serial_context_max_scalar_ip
-     procedure :: scatter            => serial_context_scatter_scalar_ip
-     procedure :: gather             => serial_context_gather_scalar_ip
-     procedure :: bcast              => serial_context_bcast_scalar_ip
+     procedure :: scatter_ip         => serial_context_scatter_scalar_ip
+     procedure :: gather_ip          => serial_context_gather_scalar_ip
+     procedure :: bcast_ip           => serial_context_bcast_scalar_ip
+     procedure :: scatter_igp        => serial_context_scatter_scalar_igp
+     procedure :: gather_igp         => serial_context_gather_scalar_igp
+     procedure :: bcast_igp          => serial_context_bcast_scalar_igp
      procedure :: bcast_subcontext   => serial_context_bcast_subcontext
      procedure, private :: neighbours_exchange_rp                  =>  serial_context_neighbours_exchange_rp                 
      procedure, private :: neighbours_exchange_ip                  =>  serial_context_neighbours_exchange_ip                 
@@ -258,7 +261,7 @@ contains
   subroutine serial_context_neighbours_exchange_igp ( this, & 
        &                                              num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        &                                              num_snd, list_snd, snd_ptrs, pack_idx,   &
-       &                                              x, chunk_size)
+       &                                              x, chunk_size,mask)
     implicit none
     class(serial_context_t), intent(in)    :: this
     integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
@@ -267,7 +270,7 @@ contains
     integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
     integer(igp)            , intent(inout) :: x(:)
     integer(ip)   , optional, intent(in)    :: chunk_size
-
+    integer(igp)  , optional, intent(in)    :: mask
   end subroutine serial_context_neighbours_exchange_igp
 
   !=============================================================================
@@ -286,7 +289,7 @@ contains
 
   !=============================================================================
   subroutine serial_context_neighbours_exchange_wo_pack_unpack_ieep ( this, &
-       &                                                              number_neighbours, &
+       &                                                              num_neighbours, &
        &                                                              neighbour_ids, &
        &                                                              snd_ptrs, &
        &                                                              snd_buf, & 
@@ -294,16 +297,15 @@ contains
        &                                                              rcv_buf )
     implicit none
     class(serial_context_t)  , intent(in)    :: this 
-    integer(ip)           , intent(in)    :: number_neighbours
-    integer(ip)           , intent(in)    :: neighbour_ids(number_neighbours)
-    integer(ip)           , intent(in)    :: snd_ptrs(number_neighbours+1)
-    integer(ieep)         , intent(in)    :: snd_buf(snd_ptrs(number_neighbours+1)-1)   
-    integer(ip)           , intent(in)    :: rcv_ptrs(number_neighbours+1)
-    integer(ieep)         , intent(out)   :: rcv_buf(rcv_ptrs(number_neighbours+1)-1)
+    integer(ip)           , intent(in)    :: num_neighbours
+    integer(ip)           , intent(in)    :: neighbour_ids(num_neighbours)
+    integer(ip)           , intent(in)    :: snd_ptrs(num_neighbours+1)
+    integer(ieep)         , intent(in)    :: snd_buf(snd_ptrs(num_neighbours+1)-1)   
+    integer(ip)           , intent(in)    :: rcv_ptrs(num_neighbours+1)
+    integer(ieep)         , intent(out)   :: rcv_buf(rcv_ptrs(num_neighbours+1)-1)
     rcv_buf = snd_buf ! needed to satisfy the intent
   end subroutine serial_context_neighbours_exchange_wo_pack_unpack_ieep
 
-  !=============================================================================
   !=============================================================================
   subroutine serial_context_gather_scalar_ip ( this, input_data, output_data )
     implicit none
@@ -329,7 +331,33 @@ contains
     integer(ip)             , intent(inout) :: data
     check(.false.)       ! This routine should be never called
   end subroutine serial_context_bcast_scalar_ip
+  
+  !=============================================================================
+  subroutine serial_context_gather_scalar_igp ( this, input_data, output_data )
+    implicit none
+    class(serial_context_t), intent(in)   :: this
+    integer(igp)         , intent(in)   :: input_data
+    integer(igp)         , intent(out)  :: output_data(:)
+    check(.false.)       ! This routine should be never called
+  end subroutine serial_context_gather_scalar_igp
+  
+  !=============================================================================
+  subroutine serial_context_scatter_scalar_igp ( this, input_data, output_data )
+    implicit none
+    class(serial_context_t), intent(in)   :: this
+    integer(igp)             , intent(in)   :: input_data(:)
+    integer(igp)             , intent(out)  :: output_data
+    check(.false.)       ! This routine should be never called
+  end subroutine serial_context_scatter_scalar_igp
 
+  !=============================================================================
+  subroutine serial_context_bcast_scalar_igp ( this, data )
+    implicit none
+    class(serial_context_t), intent(in)    :: this
+    integer(igp)             , intent(inout) :: data
+    check(.false.)       ! This routine should be never called
+  end subroutine serial_context_bcast_scalar_igp
+  
   !=============================================================================
   subroutine serial_context_root_send_master_rcv_ip ( this, input_data, output_data )
     implicit none

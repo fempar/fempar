@@ -44,7 +44,6 @@ subroutine uim_create(this,fe_space,marching_cubes)
     call this%check_assumptions()
 #endif
     call this%init_reference_subelem()
-    call this%init_reference_subface()
     call this%init_cut_integration()
     call this%init_cut_boundary_integration()
   end if
@@ -55,7 +54,6 @@ subroutine uim_free( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
   call this%free_reference_subelem()
-  call this%free_reference_subface()
   call this%free_cut_integration()
   call this%free_cut_boundary_integration()
   this%fe_space => null()
@@ -67,7 +65,7 @@ subroutine uim_check_assumptions(this)
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
 
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   integer(ip) :: num_fields, ifield
   class(reference_fe_t), pointer :: ref_fe
   class(reference_fe_t), pointer :: ref_fe_1
@@ -78,8 +76,8 @@ subroutine uim_check_assumptions(this)
   ! Same geom ref element in all cells
   ! Same ref elem in all cells, but possibly different among fields
 
-  call this%fe_space%create_fe_iterator(fe)
-  num_fields = this%fe_space%get_number_fields()
+  call this%fe_space%create_fe_cell_iterator(fe)
+  num_fields = this%fe_space%get_num_fields()
 
   ! Check geom ref element
   ! TODO how to check the fe_type? EDIT: I think it is not necessary
@@ -89,7 +87,7 @@ subroutine uim_check_assumptions(this)
     if (fe%is_local()) then
       geo_ref_fe => fe%get_reference_fe_geo()
       assert( geo_ref_fe_1%get_topology()          ==    geo_ref_fe%get_topology()          )
-      assert( geo_ref_fe_1%get_number_dimensions() ==    geo_ref_fe%get_number_dimensions() )
+      assert( geo_ref_fe_1%get_num_dims() ==    geo_ref_fe%get_num_dims() )
       assert( geo_ref_fe_1%get_order()             ==    geo_ref_fe%get_order()             )
       assert( geo_ref_fe_1%get_field_type()        ==    geo_ref_fe%get_field_type()        )
       assert( geo_ref_fe_1%get_continuity()        .eqv. geo_ref_fe%get_continuity()        )
@@ -110,7 +108,7 @@ subroutine uim_check_assumptions(this)
       if (fe%is_local() .and. (.not. fe%is_void(ifield) )) then
         ref_fe     => fe%get_reference_fe(ifield)
         assert( ref_fe_1%get_topology()          ==    ref_fe%get_topology()         )
-        assert( ref_fe_1%get_number_dimensions() ==    ref_fe%get_number_dimensions())
+        assert( ref_fe_1%get_num_dims() ==    ref_fe%get_num_dims())
         assert( ref_fe_1%get_order()             ==    ref_fe%get_order()            )
         assert( ref_fe_1%get_field_type()        ==    ref_fe%get_field_type()       )
         assert( ref_fe_1%get_continuity()        .eqv. ref_fe%get_continuity()       )
@@ -121,7 +119,7 @@ subroutine uim_check_assumptions(this)
 
   end do
 
-  call this%fe_space%free_fe_iterator(fe)
+  call this%fe_space%free_fe_cell_iterator(fe)
 
 end subroutine uim_check_assumptions
 
@@ -129,74 +127,40 @@ end subroutine uim_check_assumptions
 subroutine uim_init_reference_subelem( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
-
-  ! Cubic quadrature for triangles enough to integrate x^2 and y^2 (stiffness matrix of qua4)
-  real(rp), target ::  tri_xg(3) = [ 0.5000000000000000, 0.0000000000000000, 0.5000000000000000]
-  real(rp), target ::  tri_yg(3) = [ 0.0000000000000000, 0.5000000000000000, 0.5000000000000000]
-  real(rp), target ::  tri_zg(3) = [ 0.0000000000000000, 0.0000000000000000, 0.0000000000000000]
-  real(rp), target ::  tri_wg(3) = [ 0.1666666666666666, 0.1666666666666666, 0.1666666666666666]
-
-  ! Quadrature for a tetrahedron enough to integrate x^2*x^2 (stiffness matrix of hex8)
-  real(rp), target :: tet_xg(11) = [ 0.2500000000000000, 0.7857142857142857, 0.0714285714285714, 0.0714285714285714, 0.0714285714285714,&
-                                     0.1005964238332008, 0.3994035761667992, 0.3994035761667992, 0.3994035761667992, 0.1005964238332008, 0.1005964238332008]
-  real(rp), target :: tet_yg(11) = [ 0.2500000000000000, 0.0714285714285714, 0.0714285714285714, 0.0714285714285714, 0.7857142857142857,&
-                                     0.3994035761667992, 0.1005964238332008, 0.3994035761667992, 0.1005964238332008, 0.3994035761667992, 0.1005964238332008]
-  real(rp), target :: tet_zg(11) = [ 0.2500000000000000, 0.0714285714285714, 0.0714285714285714, 0.7857142857142857, 0.0714285714285714,&
-                                     0.3994035761667992, 0.3994035761667992, 0.1005964238332008, 0.1005964238332008, 0.1005964238332008, 0.3994035761667992]
-  real(rp), target :: tet_wg(11) = [-0.0131555555555556, 0.0076222222222222, 0.0076222222222222, 0.0076222222222222, 0.0076222222222222,&
-                                     0.0248888888888889, 0.0248888888888889, 0.0248888888888889, 0.0248888888888889, 0.0248888888888889, 0.0248888888888889]
-
-  real(rp), pointer ::  xg(:)
-  real(rp), pointer ::  yg(:)
-  real(rp), pointer ::  zg(:)
-  real(rp), pointer ::  wg(:)
-
-  integer(ip) :: num_dim, num_gp
-  real(rp), pointer :: points_in_quadrature(:,:)
-  real(rp), pointer :: weights_in_quadrature(:)
-
+  
+  integer(ip) :: num_dim
+  integer(ip) :: p
+  
   call this%free_reference_subelem()
-
-  ! Now the quadrature of the sub-element is hard-codded in this procedure
-  ! TODO: Use fempar's quadrature generators instead
-  num_dim = this%marching_cubes%get_num_dimensions()
-  if (num_dim == 2) then
-    xg => tri_xg
-    yg => tri_yg
-    zg => tri_zg
-    wg => tri_wg
-  else if (num_dim == 3) then
-    xg => tet_xg
-    yg => tet_yg
-    zg => tet_zg
-    wg => tet_wg
-  else
-    check(.false.)
-  end if
-  num_gp  = size(wg)
-
-  ! Create and fill the quadrature
-  call this%quadrature_subelem%create( num_dim, num_gp )
-  points_in_quadrature  => this%quadrature_subelem%get_coordinates()
-  weights_in_quadrature => this%quadrature_subelem%get_weights()
-  points_in_quadrature(1,:) = xg(:)
-  points_in_quadrature(2,:) = yg(:)
-  points_in_quadrature(3,:) = zg(:)
-  weights_in_quadrature(:)  = wg(:)
+  
+  num_dim = this%marching_cubes%get_num_dims()
 
   ! Create the reference sub-element
   ! TODO a better way to create a reference element?
   ! TODO we assume that the sub-element is always either a triangle or a tetrahedron
-  ! TODO We assume also order 1
+  ! TODO We assume also order 1 in the geometrical representation of the unfitted boundary
   call this%geo_reference_subelem%create( topology = topology_tet,&
-                                      number_dimensions = num_dim,&
+                                      num_dims = num_dim,&
                                       order = 1,&
                                       field_type = field_type_scalar,&
                                       conformity = .true., &
                                       continuity = .false. )
-
+  
+  ! Find the max degree
+  p = this%fe_space%get_max_order()
+  
+  ! Create the quadrature for the sub-element
+  ! degree 2*(d*p-1) needed for integrate stifness matrix
+  ! If you need to integrate the mass matrix this would be 2*d*p
+  call this%geo_reference_subelem%create_quadrature(this%quadrature_subelem,degree=2*(num_dim*p-1))
+  
+  ! Create the quadrature for the sub-face
+  ! degree 2*(d*p-1) needed for integrate (n*grad(u))*(n*grad(u))
+  ! 2*d*p Needed for the penalty terms 
+  call this%geo_reference_subelem%create_facet_quadrature(this%quadrature_subfacet,degree=2*num_dim*p)
+  
   ! Create the fe map
-  call this%fe_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
+  call this%cell_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
 
 end subroutine uim_init_reference_subelem
 
@@ -204,75 +168,11 @@ end subroutine uim_init_reference_subelem
 subroutine uim_free_reference_subelem( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
-  call this%fe_map_subelem%free()
+  call this%cell_map_subelem%free()
   call this%geo_reference_subelem%free()
   call this%quadrature_subelem%free()
+  call this%quadrature_subfacet%free()
 end subroutine uim_free_reference_subelem
-
-!========================================================================================
-subroutine uim_init_reference_subface( this )
-
-  implicit none
-  class(unfitted_integration_manager_t), intent(inout) :: this
-
-  real(rp), pointer ::  xg(:)
-  real(rp), pointer ::  yg(:)
-  real(rp), pointer ::  wg(:)
-
-  ! We need to integrate (n*grad(u))*(n*grad(u)), thus the terms. TODO what about the penalty term??
-  ! of the type: x^2y^2
-  ! 7 Gauss points seems to be enough, 3 are not enough
-  real(rp), target :: xg_tri(7) =  [0.101286507323456, 0.101286507323456, 0.797426985353087, 0.470142064105115,&
-                                    0.470142064105115, 0.059715871789770, 0.333333333333333]
-  real(rp), target :: yg_tri(7) =  [0.101286507323456, 0.797426985353087, 0.101286507323456, 0.470142064105115,&
-                                    0.059715871789770, 0.470142064105115, 0.333333333333333]
-  real(rp), target :: wg_tri(7) =  [0.062969590272414, 0.062969590272414, 0.062969590272414, 0.066197076394253,&
-                                    0.066197076394253, 0.066197076394253, 0.112500000000000]
-
-  ! We need to integrate (n*grad(u))*(n*grad(u)), thus the term x^2 TODO what about the penalty term??
-  ! (order 2)
-  ! 2 Gauss points are enough
-  real(rp), target :: xg_seg(2) = [-0.577350269189626, 0.577350269189626]
-  real(rp), target :: yg_seg(2) = [ 0.000000000000000, 0.000000000000000]
-  real(rp), target :: wg_seg(2) = [1.0, 1.0]
-
-  integer(ip) :: num_gp, num_dim
-  real(rp), pointer :: points_in_quadrature(:,:)
-  real(rp), pointer :: weights_in_quadrature(:)
-
-  call this%free_reference_subface()
-
-  ! Now the quadrature of the sub-face is hard-codded in this procedure
-  ! TODO: Use fempar's quadrature generators instead
-  num_dim = this%marching_cubes%get_num_dimensions()
-  if (num_dim == 2) then
-    xg => xg_seg
-    yg => yg_seg
-    wg => wg_seg
-  else if (num_dim == 3) then
-    xg => xg_tri
-    yg => yg_tri
-    wg => wg_tri
-  else
-    check(.false.)
-  end if
-  num_gp  = size(wg)
-
-  call this%quadrature_subface%create(num_dim-1,num_gp)
-  points_in_quadrature  => this%quadrature_subface%get_coordinates()
-  weights_in_quadrature => this%quadrature_subface%get_weights()
-  points_in_quadrature(1,:) = xg(:)
-  points_in_quadrature(2,:) = yg(:)
-  weights_in_quadrature(:)  = wg(:)
-
-end subroutine uim_init_reference_subface
-
-!========================================================================================
-subroutine uim_free_reference_subface( this )
-  implicit none
-  class(unfitted_integration_manager_t), intent(inout) :: this
-  call this%quadrature_subface%free()
-end subroutine uim_free_reference_subface
 
 !========================================================================================
 subroutine uim_init_cut_integration( this )
@@ -282,13 +182,13 @@ subroutine uim_init_cut_integration( this )
   integer(ip) :: num_dim, num_gp, num_gp_subelem, num_subelems, num_fields
   integer(ip) :: mc_case, mc_num_cases, istat, ifield
 
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t),     pointer        :: reference_elem
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
 
   call this%free_cut_integration()
-  num_dim = this%marching_cubes%get_num_dimensions()
-  num_gp_subelem = this%quadrature_subelem%get_number_quadrature_points()
+  num_dim = this%marching_cubes%get_num_dims()
+  num_gp_subelem = this%quadrature_subelem%get_num_quadrature_points()
   mc_num_cases = this%marching_cubes%get_num_mc_cases()
 
   allocate( this%cut_quadratures(1:mc_num_cases), stat=istat ); check(istat==0_ip)
@@ -299,20 +199,20 @@ subroutine uim_init_cut_integration( this )
 
   ! We assume that the same geom ref element is in all the mesh
   ! We assume that the same ref element is in all the mesh (but can be different amnong fields)
-  call this%fe_space%create_fe_iterator(fe)
+  call this%fe_space%create_fe_cell_iterator(fe)
   geo_reference_elem => fe%get_reference_fe_geo() !This is safe since the geo_reference_elem is always non void
 
   ! TODO @fverdugo DRIVER PRIORITY HIGH EFFORT MEDIUM
   ! Now we allocate in function of the number of mc cases. 
   ! But this can be heavitly improved, since many mc cases have the same number of subcells
   ! TODO we whant to make it independent of the method used for sub-dividing the cells
-  allocate( this%cut_fe_maps(1:mc_num_cases), stat=istat ); check(istat==0_ip)
+  allocate( this%cut_cell_maps(1:mc_num_cases), stat=istat ); check(istat==0_ip)
   do mc_case = 1, mc_num_cases
-    call this%cut_fe_maps(mc_case)%create( this%cut_quadratures(mc_case), geo_reference_elem )
+    call this%cut_cell_maps(mc_case)%create( this%cut_quadratures(mc_case), geo_reference_elem )
   end do
 
   ! cell integrators
-  num_fields = this%fe_space%get_number_fields()
+  num_fields = this%fe_space%get_num_fields()
   allocate( this%cut_cell_integrators(1:mc_num_cases,1:num_fields), stat=istat ); check(istat==0_ip)
   do ifield = 1,num_fields
 
@@ -329,7 +229,7 @@ subroutine uim_init_cut_integration( this )
 
   ! Create empty dummy objects
   call this%empty_quadrature%create(num_dim,0)
-  call this%empty_fe_map%create( this%empty_quadrature, geo_reference_elem )
+  call this%empty_cell_map%create( this%empty_quadrature, geo_reference_elem )
   allocate (this%empty_cell_integrator(1:num_fields), stat=istat); check(istat==0)
   do ifield = 1,num_fields
 
@@ -340,7 +240,7 @@ subroutine uim_init_cut_integration( this )
     call this%empty_cell_integrator(ifield)%create( this%empty_quadrature, reference_elem )
   end do
 
-  call this%fe_space%free_fe_iterator(fe)
+  call this%fe_space%free_fe_cell_iterator(fe)
 
 end subroutine uim_init_cut_integration
 
@@ -359,11 +259,11 @@ subroutine uim_free_cut_integration( this )
     deallocate( this%cut_quadratures, stat=istat ); check(istat==0_ip)
   end if
 
-  if ( allocated(this%cut_fe_maps) ) then
-    do ind = 1,size(this%cut_fe_maps)
-      call this%cut_fe_maps(ind)%free()
+  if ( allocated(this%cut_cell_maps) ) then
+    do ind = 1,size(this%cut_cell_maps)
+      call this%cut_cell_maps(ind)%free()
     end do
-    deallocate( this%cut_fe_maps, stat=istat ); check(istat==0_ip)
+    deallocate( this%cut_cell_maps, stat=istat ); check(istat==0_ip)
   end if
 
   if ( allocated(this%cut_cell_integrators) ) then
@@ -376,7 +276,7 @@ subroutine uim_free_cut_integration( this )
   end if
 
   call this%empty_quadrature%free()
-  call this%empty_fe_map%free()
+  call this%empty_cell_map%free()
 
   if ( allocated(this%empty_cell_integrator) ) then
     do ind = 1,size(this%empty_cell_integrator)
@@ -393,75 +293,62 @@ subroutine uim_init_cut_boundary_integration( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
 
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t),     pointer        :: reference_elem
   class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
 
-  integer(ip) :: mc_case, mc_num_cases, istat, pini, pend, subface, ifield
-  integer(ip) :: num_dim, num_gp, num_subfaces, num_face_dim, num_fields
+  integer(ip) :: mc_case, mc_num_cases, istat, pini, pend, subfacet, ifield
+  integer(ip) :: num_dim, num_gp, num_subfacets, num_fields
 
   real(rp), pointer :: quad_coords(:,:), sub_quad_coords(:,:)
   real(rp), pointer :: quad_weight(:), sub_quad_weight(:)
 
   call this%free_cut_boundary_integration()
 
-  num_gp = this%quadrature_subface%get_number_quadrature_points()
-  num_dim = this%marching_cubes%get_num_dimensions()
+  num_gp = this%quadrature_subfacet%get_num_quadrature_points()
+  num_dim = this%marching_cubes%get_num_dims()
   mc_num_cases = this%marching_cubes%get_num_mc_cases()
-  num_fields = this%fe_space%get_number_fields()
+  num_fields = this%fe_space%get_num_fields()
 
   !TODO not needed to allocate for all the mc cases
   allocate( this%cut_boundary_quadratures_cell_dim    (1:mc_num_cases), stat = istat ); check(istat==0)
-  allocate( this%cut_boundary_piecewise_fe_maps       (1:mc_num_cases), stat = istat ); check(istat==0)
-  allocate( this%cut_boundary_fe_maps                 (1:mc_num_cases), stat = istat ); check(istat==0)
-  allocate( this%cut_boundary_cell_integrators         (1:mc_num_cases,1:num_fields), stat = istat ); check(istat==0)
+  allocate( this%cut_boundary_piecewise_cell_maps       (1:mc_num_cases), stat = istat ); check(istat==0)
+  allocate( this%cut_boundary_cell_maps                 (1:mc_num_cases), stat = istat ); check(istat==0)
+  allocate( this%cut_boundary_cell_integrators        (1:mc_num_cases,1:num_fields), stat = istat ); check(istat==0)
 
   do mc_case = 1, mc_num_cases
-    num_subfaces = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
-    call this%cut_boundary_quadratures_cell_dim(mc_case)%create(num_dim,     num_gp*num_subfaces)
+    num_subfacets = this%marching_cubes%get_num_subfacets_mc_case(mc_case)
+    call this%cut_boundary_quadratures_cell_dim(mc_case)%create(num_dim,     num_gp*num_subfacets)
   end do
 
-  ! Fill the quadratures with the values of the reference subface
+  ! Fill the quadratures with the values of the reference subfacet
   do mc_case = 1, mc_num_cases
-    num_subfaces = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
-    sub_quad_coords => this%quadrature_subface%get_coordinates()
-    sub_quad_weight => this%quadrature_subface%get_weights()
+    num_subfacets = this%marching_cubes%get_num_subfacets_mc_case(mc_case)
+    sub_quad_coords => this%quadrature_subfacet%get_coordinates()
+    sub_quad_weight => this%quadrature_subfacet%get_weights()
     quad_coords     => this%cut_boundary_quadratures_cell_dim(mc_case)%get_coordinates()
     quad_weight     => this%cut_boundary_quadratures_cell_dim(mc_case)%get_weights()
-    do subface = 1, num_subfaces
-      pend = subface*num_gp
+    do subfacet = 1, num_subfacets
+      pend = subfacet*num_gp
       pini = pend -  num_gp + 1
       quad_coords(:,pini:pend) = sub_quad_coords(:,:)
       quad_weight(pini:pend) = sub_quad_weight(:)
     end do
   end do
 
-
   !We assume that the same ref element is in all the mesh (discarding void FEs), but possibly different in all fields
-  call this%fe_space%create_fe_iterator(fe)
+  call this%fe_space%create_fe_cell_iterator(fe)
   geo_reference_elem => fe%get_reference_fe_geo() ! This is safe since the geo_reference_fe is always non-void
 
-  !TODO it is very counter intuitive that the reference element is here a tet4 (3d), a quad4 (2d)
-  select case (num_dim)
-  case (2)
-    do mc_case = 1, mc_num_cases
-      num_subfaces = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
-      call this%cut_boundary_piecewise_fe_maps(mc_case)%create_face_map(&
-           this%quadrature_subface, geo_reference_elem, num_subfaces  )
-    end do
-  case (3)
-    do mc_case = 1, mc_num_cases
-      num_subfaces = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
-      call this%cut_boundary_piecewise_fe_maps(mc_case)%create_face_map(&
-           this%quadrature_subface, this%geo_reference_subelem, num_subfaces  )
-    end do
-  case default
-    check(.false.)
-  end select
+  do mc_case = 1, mc_num_cases
+    num_subfacets = this%marching_cubes%get_num_subfacets_mc_case(mc_case)
+    call this%cut_boundary_piecewise_cell_maps(mc_case)%create_facet_map(&
+         this%quadrature_subfacet, this%geo_reference_subelem, num_subfacets  )
+  end do
 
   do mc_case = 1, mc_num_cases
-    num_subfaces = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
-    call this%cut_boundary_fe_maps(mc_case)%create(&
+    num_subfacets = this%marching_cubes%get_num_subfacets_mc_case(mc_case)
+    call this%cut_boundary_cell_maps(mc_case)%create(&
          this%cut_boundary_quadratures_cell_dim(mc_case), geo_reference_elem)
   end do
 
@@ -479,9 +366,9 @@ subroutine uim_init_cut_boundary_integration( this )
 
   end do
 
-  call this%empty_piecewise_fe_map%create_face_map( this%empty_quadrature, geo_reference_elem, 0 )
+  call this%empty_piecewise_cell_map%create_facet_map( this%empty_quadrature, geo_reference_elem, 0 )
 
-  call this%fe_space%free_fe_iterator(fe)
+  call this%fe_space%free_fe_cell_iterator(fe)
 
 end subroutine uim_init_cut_boundary_integration
 
@@ -500,18 +387,18 @@ subroutine uim_free_cut_boundary_integration( this )
     deallocate( this%cut_boundary_quadratures_cell_dim , stat = istat ); check(istat==0)
   end if
 
-  if ( allocated( this%cut_boundary_piecewise_fe_maps ) ) then
-    do id = 1, size(this%cut_boundary_piecewise_fe_maps )
-      call this%cut_boundary_piecewise_fe_maps(id)%free()
+  if ( allocated( this%cut_boundary_piecewise_cell_maps ) ) then
+    do id = 1, size(this%cut_boundary_piecewise_cell_maps )
+      call this%cut_boundary_piecewise_cell_maps(id)%free()
     end do
-    deallocate( this%cut_boundary_piecewise_fe_maps , stat = istat ); check(istat==0)
+    deallocate( this%cut_boundary_piecewise_cell_maps , stat = istat ); check(istat==0)
   end if
 
-  if ( allocated( this%cut_boundary_fe_maps ) ) then
-    do id = 1, size(this%cut_boundary_fe_maps )
-      call this%cut_boundary_fe_maps(id)%free()
+  if ( allocated( this%cut_boundary_cell_maps ) ) then
+    do id = 1, size(this%cut_boundary_cell_maps )
+      call this%cut_boundary_cell_maps(id)%free()
     end do
-    deallocate( this%cut_boundary_fe_maps , stat = istat ); check(istat==0)
+    deallocate( this%cut_boundary_cell_maps , stat = istat ); check(istat==0)
   end if
 
   if ( allocated( this%cut_boundary_cell_integrators ) ) then
@@ -523,6 +410,6 @@ subroutine uim_free_cut_boundary_integration( this )
     deallocate( this%cut_boundary_cell_integrators , stat = istat ); check(istat==0)
   end if
 
-  call this%empty_piecewise_fe_map%free()
+  call this%empty_piecewise_cell_map%free()
 
 end subroutine uim_free_cut_boundary_integration

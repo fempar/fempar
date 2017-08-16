@@ -1,0 +1,347 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine base_fe_cell_iterator_next(this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(inout) :: this
+  assert(allocated(this%cell))
+  call this%cell%next()
+end subroutine base_fe_cell_iterator_next
+
+subroutine base_fe_cell_iterator_first(this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(inout) :: this
+  assert(allocated(this%cell))
+  call this%cell%first()
+end subroutine base_fe_cell_iterator_first
+
+subroutine base_fe_cell_iterator_last(this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(inout) :: this
+  assert(allocated(this%cell))
+  call this%cell%last()
+end subroutine base_fe_cell_iterator_last
+
+subroutine base_fe_cell_iterator_set_gid(this, lid)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)        , intent(in)    :: lid
+  assert(allocated(this%cell))
+  call this%cell%set_gid(lid)
+end subroutine base_fe_cell_iterator_set_gid
+
+function base_fe_cell_iterator_has_finished(this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  logical :: base_fe_cell_iterator_has_finished
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_has_finished = this%cell%has_finished()
+end function base_fe_cell_iterator_has_finished
+
+function base_fe_cell_iterator_get_reference_fe_geo (this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  class(lagrangian_reference_fe_t), pointer :: base_fe_cell_iterator_get_reference_fe_geo
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_reference_fe_geo => this%cell%get_reference_fe_geo()
+end function base_fe_cell_iterator_get_reference_fe_geo
+
+function base_fe_cell_iterator_get_reference_fe_geo_id (this) 
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: base_fe_cell_iterator_get_reference_fe_geo_id
+  integer(ip) :: istat
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_reference_fe_geo_id = this%cell%get_reference_fe_geo_id()
+end function base_fe_cell_iterator_get_reference_fe_geo_id
+
+subroutine base_fe_cell_iterator_get_coordinates (this, cell_coordinates)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)     :: this
+  type(point_t)       ,  intent(inout) :: cell_coordinates(:)
+  assert(allocated(this%cell))
+  call this%cell%get_coordinates(cell_coordinates)
+end subroutine base_fe_cell_iterator_get_coordinates
+
+subroutine base_fe_cell_iterator_set_coordinates (this, cell_coordinates)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(inout) :: this
+  type(point_t)       ,  intent(in)   :: cell_coordinates(:)
+  assert(allocated(this%cell))
+  call this%cell%set_coordinates(cell_coordinates)
+end subroutine base_fe_cell_iterator_set_coordinates
+
+pure function base_fe_cell_iterator_get_gid (this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: base_fe_cell_iterator_get_gid
+  !assert(allocated(this%cell))
+  base_fe_cell_iterator_get_gid = this%cell%get_gid()
+end function base_fe_cell_iterator_get_gid
+
+function base_fe_cell_iterator_get_ggid (this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(igp) :: base_fe_cell_iterator_get_ggid
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_ggid = this%cell%get_ggid()
+end function base_fe_cell_iterator_get_ggid
+
+pure function base_fe_cell_iterator_get_mypart (this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: base_fe_cell_iterator_get_mypart
+  !assert(allocated(this%cell))
+  base_fe_cell_iterator_get_mypart = this%cell%get_my_part()
+end function base_fe_cell_iterator_get_mypart
+
+function base_fe_cell_iterator_get_mysubpart ( this )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: base_fe_cell_iterator_get_mysubpart
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_mysubpart = this%cell%get_my_subpart()
+end function base_fe_cell_iterator_get_mysubpart
+
+function base_fe_cell_iterator_get_mysubpart_lid ( this )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: base_fe_cell_iterator_get_mysubpart_lid
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_mysubpart_lid = this%cell%get_my_subpart_lid ()
+end function base_fe_cell_iterator_get_mysubpart_lid
+
+function base_fe_cell_iterator_get_set_id(this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: base_fe_cell_iterator_get_set_id
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_set_id = this%cell%get_set_id()
+end function base_fe_cell_iterator_get_set_id
+
+pure function base_fe_cell_iterator_get_num_vefs (this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: base_fe_cell_iterator_get_num_vefs
+  !assert(allocated(this%cell))
+  base_fe_cell_iterator_get_num_vefs = this%cell%get_num_vefs ()
+end function base_fe_cell_iterator_get_num_vefs
+
+function base_fe_cell_iterator_get_vef_gid (this, ivef)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip)                      :: ivef
+  integer(ip)                      :: base_fe_cell_iterator_get_vef_gid
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_vef_gid = this%cell%get_vef_gid (ivef)
+end function base_fe_cell_iterator_get_vef_gid
+
+function base_fe_cell_iterator_get_vef_gids (this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(ip), pointer               :: base_fe_cell_iterator_get_vef_gids(:)
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_vef_gids => this%cell%get_vef_gids()
+end function base_fe_cell_iterator_get_vef_gids
+
+function base_fe_cell_iterator_get_vef_ggid (this, ivef)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(igp)                       :: base_fe_cell_iterator_get_vef_ggid
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_vef_ggid = this%cell%get_vef_ggid (ivef)
+end function base_fe_cell_iterator_get_vef_ggid
+
+function base_fe_cell_iterator_get_vef_gid_from_gid (this, vef_lid)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip)                      :: vef_lid
+  integer(ip)                      :: base_fe_cell_iterator_get_vef_gid_from_gid
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_vef_gid_from_gid = this%cell%get_vef_gid_from_gid (vef_lid)
+end function base_fe_cell_iterator_get_vef_gid_from_gid
+
+function base_fe_cell_iterator_get_vef_gid_from_ggid (this, vef_gid)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(igp)                     :: vef_gid
+  integer(ip)                      :: base_fe_cell_iterator_get_vef_gid_from_ggid
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_vef_gid_from_ggid = this%cell%get_vef_gid_from_ggid (vef_gid)
+end function base_fe_cell_iterator_get_vef_gid_from_ggid
+
+function base_fe_cell_iterator_is_local (this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  logical                          :: base_fe_cell_iterator_is_local
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_is_local = this%cell%is_local()
+end function base_fe_cell_iterator_is_local
+
+function base_fe_cell_iterator_is_ghost (this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  logical                          :: base_fe_cell_iterator_is_ghost
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_is_ghost = this%cell%is_ghost()
+end function base_fe_cell_iterator_is_ghost
+
+! Returns the sum of num_vefs over all cells up-to the present one (exclusive, i.e.,
+! without considering the present one), with the cells being ordered consistently 
+! with the iterator sequential traversal over all cells. At the moment of writing this
+! comment (commit 0907e7b9d07e122ba69e02e0d72bac46546acc04), type(coarse_fe_space_t) needs 
+! this TBP to efficiently locate a vef in the global type(list_t) data type which associates 
+! DoFs to vefs. 
+function base_fe_cell_iterator_get_scan_sum_num_vefs(this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: base_fe_cell_iterator_get_scan_sum_num_vefs
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_scan_sum_num_vefs = this%cell%scan_sum_num_vefs()
+end function base_fe_cell_iterator_get_scan_sum_num_vefs
+
+subroutine base_fe_cell_iterator_get_vef (this, ivef, vef)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)    :: this
+  integer(ip),            intent(in)    :: ivef
+  class(vef_iterator_t),   intent(inout) :: vef
+  assert(allocated(this%cell))
+  call this%cell%get_vef(ivef, vef)
+end subroutine base_fe_cell_iterator_get_vef
+
+subroutine base_fe_cell_iterator_update_sub_triangulation( this )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(inout) :: this
+  call this%cell%update_sub_triangulation()
+end subroutine base_fe_cell_iterator_update_sub_triangulation
+
+function base_fe_cell_iterator_get_mc_case( this ) result ( mc_case )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)    :: this
+  integer(ip) :: mc_case
+  mc_case = this%cell%get_mc_case()
+end function base_fe_cell_iterator_get_mc_case
+
+function base_fe_cell_iterator_get_num_subcells( this ) result ( num_subcells )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: num_subcells
+  num_subcells = this%cell%get_num_subcells()
+end function base_fe_cell_iterator_get_num_subcells
+
+function base_fe_cell_iterator_get_num_subcell_nodes( this ) result ( num_nodes_subcell )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: num_nodes_subcell
+  num_nodes_subcell = this%cell%get_num_subcell_nodes()
+end function base_fe_cell_iterator_get_num_subcell_nodes
+
+subroutine base_fe_cell_iterator_get_phys_coords_of_subcell( this, subcell, points)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subcell
+  type(point_t),                   intent(inout) :: points(:)
+  call this%cell%get_phys_coords_of_subcell(subcell,points)
+end subroutine base_fe_cell_iterator_get_phys_coords_of_subcell
+
+subroutine base_fe_cell_iterator_get_ref_coords_of_subcell( this, subcell, points)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subcell
+  type(point_t),                   intent(inout) :: points(:)
+  call this%cell%get_ref_coords_of_subcell(subcell,points)
+end subroutine base_fe_cell_iterator_get_ref_coords_of_subcell
+
+function base_fe_cell_iterator_get_num_subfacets( this ) result ( num_subfacets )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)    :: this
+  integer(ip) :: num_subfacets
+  num_subfacets = this%cell%get_num_subfacets()
+end function base_fe_cell_iterator_get_num_subfacets
+
+function base_fe_cell_iterator_get_num_subfacet_nodes( this ) result ( num_nodes_subfacet )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)    :: this
+  integer(ip) :: num_nodes_subfacet
+  num_nodes_subfacet = this%cell%get_num_subfacet_nodes()
+end function base_fe_cell_iterator_get_num_subfacet_nodes
+
+subroutine base_fe_cell_iterator_get_phys_coords_of_subfacet( this, subfacet, points )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subfacet
+  type(point_t),                   intent(inout) :: points(:)
+  call this%cell%get_phys_coords_of_subfacet(subfacet,points)
+end subroutine base_fe_cell_iterator_get_phys_coords_of_subfacet
+
+subroutine base_fe_cell_iterator_get_ref_coords_of_subfacet( this, subfacet, points )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subfacet
+  type(point_t),                   intent(inout) :: points(:)
+  call this%cell%get_ref_coords_of_subfacet(subfacet,points)
+end subroutine base_fe_cell_iterator_get_ref_coords_of_subfacet
+
+function base_fe_cell_iterator_is_cut(this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)    :: this
+  logical :: base_fe_cell_iterator_is_cut
+  base_fe_cell_iterator_is_cut = this%cell%is_cut()
+end function base_fe_cell_iterator_is_cut
+
+function base_fe_cell_iterator_is_interior(this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)    :: this
+  logical :: base_fe_cell_iterator_is_interior
+  base_fe_cell_iterator_is_interior = this%cell%is_interior()
+end function base_fe_cell_iterator_is_interior
+
+function base_fe_cell_iterator_is_interior_subcell( this, subcell ) result ( is_in )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subcell
+  logical :: is_in
+  is_in = this%cell%is_interior_subcell(subcell)
+end function base_fe_cell_iterator_is_interior_subcell
+
+function base_fe_cell_iterator_is_exterior_subcell( this, subcell ) result ( is_out )
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subcell
+  logical :: is_out
+  is_out = this%cell%is_exterior_subcell(subcell)
+end function base_fe_cell_iterator_is_exterior_subcell
+
+function base_fe_cell_iterator_is_exterior(this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in)    :: this
+  logical :: base_fe_cell_iterator_is_exterior
+  base_fe_cell_iterator_is_exterior = this%cell%is_exterior()
+end function base_fe_cell_iterator_is_exterior
+

@@ -68,9 +68,9 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
   integer(ip) :: field_id
   type(coarse_fe_object_iterator_t) :: object
   type(coarse_fe_vef_iterator_t) :: vef
-  type(coarse_fe_iterator_t) :: fe
+  type(coarse_fe_cell_iterator_t) :: fe
   type(list_iterator_t) :: own_dofs_on_vef_iterator 
-  integer(ip), pointer :: elem2dof(:)
+  integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: ivef, ivef_within_object, idof, dof_lid
   type(coarse_fe_space_t), pointer :: fe_space
   
@@ -80,30 +80,30 @@ subroutine mlbddc_coarse_setup_weighting_operator(this)
   ! a single-field PDE problem
   field_id = 1
   
-  call memalloc(fe_space%get_block_number_dofs(1), this%W, __FILE__, __LINE__ )
+  call memalloc(fe_space%get_block_num_dofs(1), this%W, __FILE__, __LINE__ )
   this%W = 1.0_rp
   
-  call fe_space%create_coarse_fe_iterator(fe)
+  call fe_space%create_coarse_fe_cell_iterator(fe)
   call fe_space%create_coarse_fe_object_iterator(object)
   call fe_space%create_coarse_fe_vef_iterator(vef)
   do while ( .not. object%has_finished() )
      do ivef_within_object=1, object%get_num_vefs()
         call object%get_vef(ivef_within_object,vef)
         call vef%get_cell_around(1,fe)
-        call fe%get_field_elem2dof(field_id, elem2dof)
-        ivef = fe%find_lpos_vef_lid(vef%get_lid())
+        call fe%get_field_fe_dofs(field_id, fe_dofs)
+        ivef = fe%get_vef_gid_from_gid(vef%get_gid())
         own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef, field_id)
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof    = own_dofs_on_vef_iterator%get_current()
-           dof_lid = elem2dof(idof)
-           this%W(dof_lid) = this%W(dof_lid)/real(object%get_number_parts_around(),rp)
+           dof_lid = fe_dofs(idof)
+           this%W(dof_lid) = this%W(dof_lid)/real(object%get_num_parts_around(),rp)
            call own_dofs_on_vef_iterator%next()
         end do
      end do
      call object%next()
   end do
   call fe_space%free_coarse_fe_vef_iterator(vef)
-  call fe_space%free_coarse_fe_iterator(fe)
+  call fe_space%free_coarse_fe_cell_iterator(fe)
   call fe_space%free_coarse_fe_object_iterator(object)
 end subroutine mlbddc_coarse_setup_weighting_operator
 

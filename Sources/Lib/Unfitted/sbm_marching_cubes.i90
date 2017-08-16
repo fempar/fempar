@@ -60,12 +60,12 @@ subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator(this, field_id, p
 end subroutine mc_dummy_coarse_fe_handler_setup_weighting_operator
 
 !========================================================================================
-function mc_dummy_conditions_get_number_components(this)
+function mc_dummy_conditions_get_num_components(this)
   implicit none
   class(mc_dummy_conditions_t), intent(in) :: this
-  integer(ip) :: mc_dummy_conditions_get_number_components
-  mc_dummy_conditions_get_number_components = 1
-end function mc_dummy_conditions_get_number_components
+  integer(ip) :: mc_dummy_conditions_get_num_components
+  mc_dummy_conditions_get_num_components = 1
+end function mc_dummy_conditions_get_num_components
 
 !========================================================================================
 subroutine mc_dummy_conditions_get_components_code(this, boundary_id, components_code)
@@ -199,7 +199,7 @@ function marching_cubes_get_max_num_nodes_in_subcell( this ) result ( max_nodes_
 end function marching_cubes_get_max_num_nodes_in_subcell
 
 !========================================================================================
-function marching_cubes_get_total_num_of_subcells( this ) result ( total_num )
+function marching_cubes_get_total_num_subcells( this ) result ( total_num )
 
   implicit none
   class(marching_cubes_t), intent(in)    :: this
@@ -214,31 +214,31 @@ function marching_cubes_get_total_num_of_subcells( this ) result ( total_num )
       call cell%next(); cycle
     end if
     call cell%update_sub_triangulation()
-    total_num = total_num + cell%get_number_of_subcells()
+    total_num = total_num + cell%get_num_subcells()
     call cell%next()
   end do
   call this%triangulation%free_cell_iterator(cell)
 
-end function marching_cubes_get_total_num_of_subcells
+end function marching_cubes_get_total_num_subcells
 
 !========================================================================================
-function marching_cubes_get_max_num_subfaces_in_cell( this ) result ( max_subfaces_in_cell )
+function marching_cubes_get_max_num_subfacets_in_cell( this ) result ( max_subfacets_in_cell )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: max_subfaces_in_cell
-  max_subfaces_in_cell = this%mc_table_max_num_subfaces
-end function marching_cubes_get_max_num_subfaces_in_cell
+  integer(ip) :: max_subfacets_in_cell
+  max_subfacets_in_cell = this%mc_table_max_num_subfacets
+end function marching_cubes_get_max_num_subfacets_in_cell
 
 !========================================================================================
-function marching_cubes_get_max_num_nodes_in_subface( this ) result ( max_nodes_in_subface)
+function marching_cubes_get_max_num_nodes_in_subfacet( this ) result ( max_nodes_in_subfacet)
   implicit none
   class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: max_nodes_in_subface
-  max_nodes_in_subface = this%mc_table_num_nodes_subface
-end function marching_cubes_get_max_num_nodes_in_subface
+  integer(ip) :: max_nodes_in_subfacet
+  max_nodes_in_subfacet = this%mc_table_num_nodes_subfacet
+end function marching_cubes_get_max_num_nodes_in_subfacet
 
 !========================================================================================
-function marching_cubes_get_total_num_of_subfaces( this ) result ( total_num )
+function marching_cubes_get_total_num_subfacets( this ) result ( total_num )
 
   implicit none
   class(marching_cubes_t), intent(in)    :: this
@@ -250,28 +250,28 @@ function marching_cubes_get_total_num_of_subfaces( this ) result ( total_num )
   call this%triangulation%create_cell_iterator(cell)
   do while ( .not. cell%has_finished() )
     call cell%update_sub_triangulation()
-    total_num = total_num + cell%get_number_of_subfaces()
+    total_num = total_num + cell%get_num_subfacets()
     call cell%next()
   end do
   call this%triangulation%free_cell_iterator(cell)
 
-end function marching_cubes_get_total_num_of_subfaces
+end function marching_cubes_get_total_num_subfacets
 
 !========================================================================================
 function marching_cubes_get_max_num_subnodes_in_cell( this ) result ( max_subnodes_in_cell )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_subnodes_in_cell
-  max_subnodes_in_cell = this%triangulation%get_max_number_shape_functions() + this%mc_table_max_num_cut_edges
+  max_subnodes_in_cell = this%triangulation%get_max_num_shape_functions() + this%mc_table_max_num_cut_edges
 end function marching_cubes_get_max_num_subnodes_in_cell
 
 !========================================================================================
-function marching_cubes_get_num_dimensions(this) result (val)
+function marching_cubes_get_num_dims(this) result (val)
   implicit none
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%triangulation%get_num_dimensions()
-end function marching_cubes_get_num_dimensions
+  val = this%triangulation%get_num_dims()
+end function marching_cubes_get_num_dims
 
 !========================================================================================
 function marching_cubes_get_num_mc_cases(this) result (mc_cases)
@@ -287,17 +287,17 @@ function marching_cubes_get_num_subcells_mc_case(this,mc_case) result (num_subce
   class(marching_cubes_t), intent(in) :: this
   integer(ip), intent(in) :: mc_case
   integer(ip) :: num_subcells
-  num_subcells = this%mc_table_num_subcells_per_case(mc_case)
+  num_subcells = this%mc_table_num_subcells_x_case(mc_case)
 end function marching_cubes_get_num_subcells_mc_case
 
 !========================================================================================
-function marching_cubes_get_num_subfaces_mc_case(this,mc_case) result (num_subfaces)
+function marching_cubes_get_num_subfacets_mc_case(this,mc_case) result (num_subfacets)
   implicit none
   class(marching_cubes_t), intent(in) :: this
   integer(ip), intent(in) :: mc_case
-  integer(ip) :: num_subfaces
-  num_subfaces = this%mc_table_num_subfaces_per_case(mc_case)
-end function marching_cubes_get_num_subfaces_mc_case
+  integer(ip) :: num_subfacets
+  num_subfacets = this%mc_table_num_subfacets_x_case(mc_case)
+end function marching_cubes_get_num_subfacets_mc_case
 
 !========================================================================================
 subroutine marching_cubes_print ( this )
@@ -306,25 +306,25 @@ subroutine marching_cubes_print ( this )
   class(marching_cubes_t), intent(in)    :: this
 
   class(cell_iterator_t), allocatable :: cell
-  type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords, subface_coords
-  integer(ip) :: inode, isubcell, isubface
+  type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords, subfacet_coords
+  integer(ip) :: inode, isubcell, isubfacet
 
   ! Print basic info of triangulation
   write(*,*) " "
   write (*,'(a)') '**** print type(marching_cubes_t) [begin] ****'
   write(*,*) " "
-  write (*,'(a,i10)') 'num_dimensions:           ', this%triangulation%get_num_dimensions()
+  write (*,'(a,i10)') 'num_dims:           ', this%triangulation%get_num_dims()
   write (*,'(a,i10)') 'num_cells:                ', this%triangulation%get_num_cells()
   write (*,'(a,i10)') 'num_local_cells:          ', this%triangulation%get_num_local_cells()
   write (*,'(a,i10)') 'num_ghost_cells:          ', this%triangulation%get_num_ghost_cells()
   write (*,'(a,i10)') 'num_cut_cells:            ', this%get_num_cut_cells()
   write (*,'(a,i10)') 'num_interior_cells:       ', this%get_num_interior_cells()
   write (*,'(a,i10)') 'num_exterior_cells:       ', this%get_num_exterior_cells()
-  write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', this%triangulation%get_max_number_shape_functions()
+  write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', this%triangulation%get_max_num_shape_functions()
   write (*,'(a,i10)') 'max_num_subcells_in_cell: ', this%get_max_num_subcells_in_cell()
   write (*,'(a,i10)') 'max_num_nodes_in_subcell: ', this%get_max_num_nodes_in_subcell()
-  write (*,'(a,i10)') 'max_num_subfaces_in_cell: ', this%get_max_num_subfaces_in_cell()
-  write (*,'(a,i10)') 'max_num_nodes_in_subface: ', this%get_max_num_nodes_in_subface()
+  write (*,'(a,i10)') 'max_num_subfacets_in_cell: ', this%get_max_num_subfacets_in_cell()
+  write (*,'(a,i10)') 'max_num_nodes_in_subfacet: ', this%get_max_num_nodes_in_subfacet()
   write (*,'(a,i10)') 'max_num_subnodes_in_cell: ', this%get_max_num_subnodes_in_cell()
   write(*,*) " "
 
@@ -332,15 +332,15 @@ subroutine marching_cubes_print ( this )
   call this%triangulation%create_cell_iterator(cell)
   write(*,'(7a20)') 'id', 'is_cut', 'is_interior', 'is_exterior', 'num_nodes' , 'num_subcells', 'num_nodes_subcell'
   do while ( .not. cell%has_finished() )
-    write(*,'(i20,3L20,3i20)') cell%get_lid(), cell%is_cut(), cell%is_interior(), cell%is_exterior(), &
-                               cell%get_num_nodes(), cell%get_number_of_subcells(), cell%get_number_of_subcell_nodes()
+    write(*,'(i20,3L20,3i20)') cell%get_gid(), cell%is_cut(), cell%is_interior(), cell%is_exterior(), &
+                               cell%get_num_nodes(), cell%get_num_subcells(), cell%get_num_subcell_nodes()
     call cell%next()
   end do
   write(*,*) " "
 
-  call memalloc( this%triangulation%get_max_number_shape_functions(), cell_coords   , __FILE__, __LINE__ )
+  call memalloc( this%triangulation%get_max_num_shape_functions(), cell_coords   , __FILE__, __LINE__ )
   call memalloc( this%get_max_num_nodes_in_subcell()  , subcell_coords, __FILE__, __LINE__ )
-  call memalloc( this%get_max_num_nodes_in_subface()  , subface_coords, __FILE__, __LINE__ )
+  call memalloc( this%get_max_num_nodes_in_subfacet()  , subfacet_coords, __FILE__, __LINE__ )
 
   ! Print coordinates of cells and sub-cells
   write(*,'(3a7,7a11)') 'id', 'scid', 'sfid', 'x1', 'y1', 'z1', 'x2', 'y2', 'z2', 'etc.'
@@ -349,14 +349,14 @@ subroutine marching_cubes_print ( this )
     ! TODO where is the safe place to put this update?
     call cell%update_sub_triangulation()
     call cell%get_coordinates( cell_coords )
-    write (*,'(i7,2a7,20(2x,e9.2))'  ) cell%get_lid(), ' ', ' ',(cell_coords(inode)%get_value(),inode=1,cell%get_num_nodes())
-    do isubcell = 1, cell%get_number_of_subcells()
+    write (*,'(i7,2a7,20(2x,e9.2))'  ) cell%get_gid(), ' ', ' ',(cell_coords(inode)%get_value(),inode=1,cell%get_num_nodes())
+    do isubcell = 1, cell%get_num_subcells()
       call cell%get_phys_coords_of_subcell(isubcell,subcell_coords)
-      write (*,'(a7,i7,a7,20(2x,e9.2))'  ) ' ', isubcell, ' ' ,(subcell_coords(inode)%get_value(),inode=1,cell%get_number_of_subcell_nodes())
+      write (*,'(a7,i7,a7,20(2x,e9.2))'  ) ' ', isubcell, ' ' ,(subcell_coords(inode)%get_value(),inode=1,cell%get_num_subcell_nodes())
     end do
-    do isubface = 1, cell%get_number_of_subfaces()
-      call cell%get_phys_coords_of_subface(isubface,subface_coords)
-      write (*,'(2a7,i7,20(2x,e9.2))'  ) ' ', ' ' , isubface,(subface_coords(inode)%get_value(),inode=1,cell%get_number_of_subface_nodes())
+    do isubfacet = 1, cell%get_num_subfacets()
+      call cell%get_phys_coords_of_subfacet(isubfacet,subfacet_coords)
+      write (*,'(2a7,i7,20(2x,e9.2))'  ) ' ', ' ' , isubfacet,(subfacet_coords(inode)%get_value(),inode=1,cell%get_num_subfacet_nodes())
     end do
     call cell%next()
   end do
@@ -367,7 +367,7 @@ subroutine marching_cubes_print ( this )
 
  call memfree( cell_coords   , __FILE__, __LINE__ )
  call memfree( subcell_coords, __FILE__, __LINE__ )
- call memfree( subface_coords, __FILE__, __LINE__ )
+ call memfree( subfacet_coords, __FILE__, __LINE__ )
  call this%triangulation%free_cell_iterator(cell)
 
 end subroutine marching_cubes_print
@@ -388,12 +388,12 @@ function marching_cubes_fulfills_assumptions(this) result (fulfills)
   ! Hypothesis: All cells in the mesh are either bi-linear qua or tri-linear hex
   fulfills = .true.
   call this%triangulation%create_cell_iterator(cell)
-  num_dim  = this%triangulation%get_num_dimensions()
+  num_dim  = this%triangulation%get_num_dims()
   if ( (num_dim .ne. 2) .and. (num_dim .ne. 3) ) fulfills = .false.
   do while ( .not. cell%has_finished() )
     if (cell%is_local()) then
       reference_fe_geo => cell%get_reference_fe_geo()
-      num_dim_tmp  = reference_fe_geo%get_number_dimensions()
+      num_dim_tmp  = reference_fe_geo%get_num_dims()
       if (num_dim .ne. num_dim_tmp) fulfills = .false.
       p_order  = reference_fe_geo%get_order()
       if (p_order .ne. 1_ip) fulfills = .false.
@@ -418,102 +418,102 @@ subroutine marching_cubes_mc_tables_create(this)
   call this%mc_tables_free()
 
   ! Get element type, we assume hex-like topology
-  num_dim  = this%triangulation%get_num_dimensions()
+  num_dim  = this%triangulation%get_num_dims()
 
   ! Fill in the sizes of the tables
   if (num_dim == 2_ip) then
     this%mc_table_num_cases         = MC_QUA4_NUM_CASES
     this%mc_table_max_num_subcells  = MC_QUA4_MAX_NUM_SUBCELLS
-    this%mc_table_max_num_subfaces  = MC_QUA4_MAX_NUM_SUBFACES
+    this%mc_table_max_num_subfacets  = MC_QUA4_MAX_NUM_SUBFACES
     this%mc_table_max_num_cut_edges = MC_QUA4_MAX_NUM_CUT_EDGES
     this%mc_table_num_nodes_subcell = MC_QUA4_NUM_NODES_PER_SUBCELL
-    this%mc_table_num_nodes_subface = MC_QUA4_NUM_NODES_PER_SUBFACE
+    this%mc_table_num_nodes_subfacet = MC_QUA4_NUM_NODES_PER_SUBFACE
   else
     this%mc_table_num_cases         = MC_HEX8_NUM_CASES
     this%mc_table_max_num_subcells  = MC_HEX8_MAX_NUM_SUBCELLS
-    this%mc_table_max_num_subfaces  = MC_HEX8_MAX_NUM_SUBFACES
+    this%mc_table_max_num_subfacets  = MC_HEX8_MAX_NUM_SUBFACES
     this%mc_table_max_num_cut_edges = MC_HEX8_MAX_NUM_CUT_EDGES
     this%mc_table_num_nodes_subcell = MC_HEX8_NUM_NODES_PER_SUBCELL
-    this%mc_table_num_nodes_subface = MC_HEX8_NUM_NODES_PER_SUBFACE
+    this%mc_table_num_nodes_subfacet = MC_HEX8_NUM_NODES_PER_SUBFACE
   end if
 
   ! Now, we know the sizes and can allocate
   call memalloc (this%mc_table_num_cases, &
-                 this%mc_table_num_subcells_per_case    , __FILE__, __LINE__ )
+                 this%mc_table_num_subcells_x_case    , __FILE__, __LINE__ )
 
   call memalloc (this%mc_table_num_cases, &
-                 this%mc_table_num_subfaces_per_case    , __FILE__, __LINE__ )
+                 this%mc_table_num_subfacets_x_case    , __FILE__, __LINE__ )
 
   call memalloc (this%mc_table_num_cases, &
-                 this%mc_table_num_cut_edges_per_case   , __FILE__, __LINE__ )
+                 this%mc_table_num_cut_edges_x_case   , __FILE__, __LINE__ )
 
   call memalloc (this%mc_table_max_num_subcells, this%mc_table_num_cases, &
-                 this%mc_table_inout_subcells_per_case  , __FILE__, __LINE__ )
+                 this%mc_table_inout_subcells_x_case  , __FILE__, __LINE__ )
 
   call memalloc (this%mc_table_num_nodes_subcell, this%mc_table_max_num_subcells, this%mc_table_num_cases, &
-                 this%mc_table_subcell_node_ids_per_case, __FILE__, __LINE__ )
+                 this%mc_table_subcell_node_ids_x_case, __FILE__, __LINE__ )
 
-  call memalloc (this%mc_table_num_nodes_subface, this%mc_table_max_num_subfaces, this%mc_table_num_cases, &
-                 this%mc_table_subface_node_ids_per_case, __FILE__, __LINE__ )
+  call memalloc (this%mc_table_num_nodes_subfacet, this%mc_table_max_num_subfacets, this%mc_table_num_cases, &
+                 this%mc_table_subfacet_node_ids_x_case, __FILE__, __LINE__ )
 
   ! Fill tables for the selected element type
   if (num_dim == 2_ip) then
-    this%mc_table_num_subcells_per_case(:)      = MC_QUA4_NUM_SUBCELLS_PER_CASE(:)
-    this%mc_table_num_subfaces_per_case(:)      = MC_QUA4_NUM_SUBFACES_PER_CASE(:)
-    this%mc_table_num_cut_edges_per_case(:)     = MC_QUA4_NUM_CUT_EDGES_PER_CASE(:)
-    this%mc_table_inout_subcells_per_case(:,:)    = MC_QUA4_INOUT_SUBCELLS_PER_CASE(:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,:)  = MC_QUA4_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,:)  = MC_QUA4_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
+    this%mc_table_num_subcells_x_case(:)      = MC_QUA4_NUM_SUBCELLS_PER_CASE(:)
+    this%mc_table_num_subfacets_x_case(:)      = MC_QUA4_NUM_SUBFACES_PER_CASE(:)
+    this%mc_table_num_cut_edges_x_case(:)     = MC_QUA4_NUM_CUT_EDGES_PER_CASE(:)
+    this%mc_table_inout_subcells_x_case(:,:)    = MC_QUA4_INOUT_SUBCELLS_PER_CASE(:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,:)  = MC_QUA4_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+    this%mc_table_subfacet_node_ids_x_case(:,:,:)  = MC_QUA4_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
   else
-    this%mc_table_num_subcells_per_case(:)      = MC_HEX8_NUM_SUBCELLS_PER_CASE(:)
-    this%mc_table_num_subfaces_per_case(:)      = MC_HEX8_NUM_SUBFACES_PER_CASE(:)
-    this%mc_table_num_cut_edges_per_case(:)     = MC_HEX8_NUM_CUT_EDGES_PER_CASE(:)
-    !this%mc_table_inout_subcells_per_case(:,:)    = MC_HEX8_INOUT_SUBCELLS_PER_CASE(:,:)
-    !this%mc_table_subcell_node_ids_per_case(:,:,:)  = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
-    !this%mc_table_subface_node_ids_per_case(:,:,:)  = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,1:9) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL1(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,10:18) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL2(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,19:27) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL3(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,28:36) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL4(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,37:45) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL5(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,46:54) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL6(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,55:63) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL7(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,64:72) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL8(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,73:81) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL9(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,82:90) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL10(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,91:99) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL11(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,100:108) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL12(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,109:117) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL13(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,118:126) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL14(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,127:135) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL15(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,136:144) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL16(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,145:153) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL17(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,154:162) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL18(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,163:171) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL19(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,172:180) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL20(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,181:189) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL21(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,190:198) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL22(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,199:207) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL23(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,208:216) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL24(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,217:225) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL25(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,226:234) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL26(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,235:243) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL27(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,244:252) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL28(:,:,:)
-    this%mc_table_subcell_node_ids_per_case(:,:,253:256) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL29(:,:,:)
-    this%mc_table_inout_subcells_per_case(:,1:36) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL1(:,:)
-    this%mc_table_inout_subcells_per_case(:,37:72) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL2(:,:)
-    this%mc_table_inout_subcells_per_case(:,73:108) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL3(:,:)
-    this%mc_table_inout_subcells_per_case(:,109:144) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL4(:,:)
-    this%mc_table_inout_subcells_per_case(:,145:180) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL5(:,:)
-    this%mc_table_inout_subcells_per_case(:,181:216) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL6(:,:)
-    this%mc_table_inout_subcells_per_case(:,217:252) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL7(:,:)
-    this%mc_table_inout_subcells_per_case(:,253:256) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL8(:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,1:45) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL1(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,46:90) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL2(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,91:135) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL3(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,136:180) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL4(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,181:225) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL5(:,:,:)
-    this%mc_table_subface_node_ids_per_case(:,:,226:256) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL6(:,:,:)
+    this%mc_table_num_subcells_x_case(:)      = MC_HEX8_NUM_SUBCELLS_PER_CASE(:)
+    this%mc_table_num_subfacets_x_case(:)      = MC_HEX8_NUM_SUBFACES_PER_CASE(:)
+    this%mc_table_num_cut_edges_x_case(:)     = MC_HEX8_NUM_CUT_EDGES_PER_CASE(:)
+    !this%mc_table_inout_subcells_x_case(:,:)    = MC_HEX8_INOUT_SUBCELLS_PER_CASE(:,:)
+    !this%mc_table_subcell_node_ids_x_case(:,:,:)  = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
+    !this%mc_table_subfacet_node_ids_x_case(:,:,:)  = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,1:9) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL1(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,10:18) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL2(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,19:27) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL3(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,28:36) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL4(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,37:45) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL5(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,46:54) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL6(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,55:63) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL7(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,64:72) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL8(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,73:81) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL9(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,82:90) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL10(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,91:99) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL11(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,100:108) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL12(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,109:117) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL13(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,118:126) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL14(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,127:135) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL15(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,136:144) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL16(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,145:153) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL17(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,154:162) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL18(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,163:171) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL19(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,172:180) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL20(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,181:189) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL21(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,190:198) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL22(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,199:207) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL23(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,208:216) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL24(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,217:225) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL25(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,226:234) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL26(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,235:243) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL27(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,244:252) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL28(:,:,:)
+    this%mc_table_subcell_node_ids_x_case(:,:,253:256) = MC_HEX8_SUBCELL_NODE_IDS_PER_CASE_BL29(:,:,:)
+    this%mc_table_inout_subcells_x_case(:,1:36) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL1(:,:)
+    this%mc_table_inout_subcells_x_case(:,37:72) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL2(:,:)
+    this%mc_table_inout_subcells_x_case(:,73:108) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL3(:,:)
+    this%mc_table_inout_subcells_x_case(:,109:144) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL4(:,:)
+    this%mc_table_inout_subcells_x_case(:,145:180) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL5(:,:)
+    this%mc_table_inout_subcells_x_case(:,181:216) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL6(:,:)
+    this%mc_table_inout_subcells_x_case(:,217:252) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL7(:,:)
+    this%mc_table_inout_subcells_x_case(:,253:256) = MC_HEX8_INOUT_SUBCELLS_PER_CASE_BL8(:,:)
+    this%mc_table_subfacet_node_ids_x_case(:,:,1:45) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL1(:,:,:)
+    this%mc_table_subfacet_node_ids_x_case(:,:,46:90) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL2(:,:,:)
+    this%mc_table_subfacet_node_ids_x_case(:,:,91:135) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL3(:,:,:)
+    this%mc_table_subfacet_node_ids_x_case(:,:,136:180) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL4(:,:,:)
+    this%mc_table_subfacet_node_ids_x_case(:,:,181:225) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL5(:,:,:)
+    this%mc_table_subfacet_node_ids_x_case(:,:,226:256) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL6(:,:,:)
   endif
 
   this%mc_tables_init = .true.
@@ -525,12 +525,12 @@ subroutine marching_cubes_mc_tables_free(this)
   implicit none
   class(marching_cubes_t), intent(inout) :: this
 
-  if (allocated (this%mc_table_num_subcells_per_case    )) call memfree (this%mc_table_num_subcells_per_case    , __FILE__, __LINE__)
-  if (allocated (this%mc_table_num_subfaces_per_case    )) call memfree (this%mc_table_num_subfaces_per_case    , __FILE__, __LINE__)
-  if (allocated (this%mc_table_num_cut_edges_per_case   )) call memfree (this%mc_table_num_cut_edges_per_case   , __FILE__, __LINE__)
-  if (allocated (this%mc_table_inout_subcells_per_case  )) call memfree (this%mc_table_inout_subcells_per_case  , __FILE__, __LINE__)
-  if (allocated (this%mc_table_subcell_node_ids_per_case)) call memfree (this%mc_table_subcell_node_ids_per_case, __FILE__, __LINE__)
-  if (allocated (this%mc_table_subface_node_ids_per_case)) call memfree (this%mc_table_subface_node_ids_per_case, __FILE__, __LINE__)
+  if (allocated (this%mc_table_num_subcells_x_case    )) call memfree (this%mc_table_num_subcells_x_case    , __FILE__, __LINE__)
+  if (allocated (this%mc_table_num_subfacets_x_case    )) call memfree (this%mc_table_num_subfacets_x_case    , __FILE__, __LINE__)
+  if (allocated (this%mc_table_num_cut_edges_x_case   )) call memfree (this%mc_table_num_cut_edges_x_case   , __FILE__, __LINE__)
+  if (allocated (this%mc_table_inout_subcells_x_case  )) call memfree (this%mc_table_inout_subcells_x_case  , __FILE__, __LINE__)
+  if (allocated (this%mc_table_subcell_node_ids_x_case)) call memfree (this%mc_table_subcell_node_ids_x_case, __FILE__, __LINE__)
+  if (allocated (this%mc_table_subfacet_node_ids_x_case)) call memfree (this%mc_table_subfacet_node_ids_x_case, __FILE__, __LINE__)
 
   this%mc_tables_init = .false.
 
@@ -553,7 +553,7 @@ subroutine marching_cubes_discrete_levelset_create(this)
   allocate(this%reference_fes(1),stat=istat); check(istat==0)
   this%reference_fes(1) =  make_reference_fe ( topology = ref_fe_geo%get_topology(), &
                                                fe_type = fe_type_lagrangian, &
-                                               number_dimensions = this%triangulation%get_num_dimensions(), &
+                                               num_dims = this%triangulation%get_num_dims(), &
                                                order = ref_fe_geo%get_max_order(), &
                                                field_type = field_type_scalar, &
                                                conformity = .true., &
@@ -591,11 +591,11 @@ subroutine marching_cubes_discrete_levelset_create(this)
 
   ! Fill the dof info
   call this%block_layout%create(1)
-  call this%fe_space%fill_dof_info(this%block_layout)
+  call this%fe_space%generate_global_dof_numbering(this%block_layout)
 
   ! Create the discrete levelset function
   call this%fe_levelset%create(this%fe_space)
-  call this%fe_levelset%interpolate_function(this%fe_space,1,this%level_set_function)
+  call this%fe_space%interpolate(1,this%level_set_function,this%fe_levelset)
 
   ! Apply the tolerance
   call this%discrete_levelset_fix()
@@ -634,7 +634,7 @@ subroutine marching_cubes_discrete_levelset_fix(this)
   implicit none
   class(marching_cubes_t), intent(inout) :: this
 
-  class(fe_iterator_t),   allocatable  :: fe
+  class(fe_cell_iterator_t),   allocatable  :: fe
   class(cell_iterator_t), allocatable  :: cell
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   type(point_t), allocatable :: Xe_ref(:)
@@ -661,7 +661,7 @@ subroutine marching_cubes_discrete_levelset_fix(this)
   field_id = 1
 
   ! Get the nodal coordinates in the reference element
-  call this%fe_space%create_fe_iterator(fe)
+  call this%fe_space%create_fe_cell_iterator(fe)
   call this%triangulation%create_cell_iterator(cell)
   reference_fe_geo => fe%get_reference_fe_geo()
   num_nodes = cell%get_num_nodes()
@@ -671,7 +671,7 @@ subroutine marching_cubes_discrete_levelset_fix(this)
 
   ! Check that the length of the edge is ok
   DX = Xe_ref(1) - Xe_ref(2)
-  if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+  if (this%triangulation%get_num_dims()<3) call DX%set(3,0.0_rp)
   massert(abs(DX%nrm2() - edge_length)<1.0e-13,'The lenght of the edge is not 2.0!')
 
   call memalloc(num_nodes,nodal_vals,__FILE__,__LINE__)
@@ -686,8 +686,8 @@ subroutine marching_cubes_discrete_levelset_fix(this)
 
       ! Prepare Loop in cell edges
       reference_fe_geo => fe%get_reference_fe_geo()
-      first_edge = reference_fe_geo%get_first_n_face_id_of_dimension(edge_dim)
-      last_edge  = first_edge + reference_fe_geo%get_number_n_faces_of_dimension(edge_dim) - 1
+      first_edge = reference_fe_geo%get_first_n_face_id_of_dim(edge_dim)
+      last_edge  = first_edge + reference_fe_geo%get_num_n_faces_of_dim(edge_dim) - 1
 
       ! Loop in cell edges
       do iedge = first_edge, last_edge
@@ -717,11 +717,11 @@ subroutine marching_cubes_discrete_levelset_fix(this)
           ! fix the levelset on the corresponding node
 
           DX = Xe_ref(nodes_in_edge(1)) - X_intersection
-          if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+          if (this%triangulation%get_num_dims()<3) call DX%set(3,0.0_rp)
           if (DX%nrm2() < tol*edge_length) nodal_vals(nodes_in_edge(1)) = 0.0_rp
 
           DX = Xe_ref(nodes_in_edge(2)) - X_intersection
-          if (this%triangulation%get_num_dimensions()<3) call DX%set(3,0.0_rp)
+          if (this%triangulation%get_num_dims()<3) call DX%set(3,0.0_rp)
           if (DX%nrm2() < tol*edge_length) nodal_vals(nodes_in_edge(2)) = 0.0_rp
 
         end if
@@ -737,7 +737,7 @@ subroutine marching_cubes_discrete_levelset_fix(this)
 
   deallocate( Xe_ref, stat=istat );  check(istat == 0)
   call memfree(nodal_vals,__FILE__,__LINE__)
-  call this%fe_space%free_fe_iterator(fe)
+  call this%fe_space%free_fe_cell_iterator(fe)
 
 end subroutine marching_cubes_discrete_levelset_fix
 
@@ -766,7 +766,7 @@ subroutine marching_cubes_discrete_levelset_comm(this,par_fe_space)
   !3) Set to 0 the dofs of the discrete levelset that are 0 at least in one subdomain
 
   field_id = 1
-  assert(par_fe_space%get_number_fields() == 1)
+  assert(par_fe_space%get_num_fields() == 1)
   field_to_block => par_fe_space%get_field_blocks()
   block_id = field_to_block(field_id)
   p_env => par_fe_space%get_environment()
@@ -775,7 +775,7 @@ subroutine marching_cubes_discrete_levelset_comm(this,par_fe_space)
   serial_array   => par_array%get_serial_scalar_array()
   touched => serial_array%get_entries()
 
-  dof_values => this%fe_levelset%get_dof_values()
+  dof_values => this%fe_levelset%get_free_dof_values()
   select type(dof_values)
   class is (par_scalar_array_t)
 
@@ -810,7 +810,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
   implicit none
   class(marching_cubes_t), intent(inout) :: this
 
-  class(fe_iterator_t), allocatable  :: fe
+  class(fe_cell_iterator_t), allocatable  :: fe
   class(cell_iterator_t), allocatable  :: cell
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   type(point_t), allocatable :: Xe_ref(:)
@@ -833,7 +833,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
   field_id = 1
 
   ! Get the nodal coordinates in the reference element
-  call this%fe_space%create_fe_iterator(fe)
+  call this%fe_space%create_fe_cell_iterator(fe)
   call this%triangulation%create_cell_iterator(cell)
   reference_fe_geo => fe%get_reference_fe_geo()
   num_nodes = cell%get_num_nodes()
@@ -843,7 +843,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
 
   ! Allocate and fill marching cube cases
   num_cells = this%triangulation%get_num_local_cells()
-  call memalloc (num_cells, this%mc_case_per_cell, __FILE__, __LINE__ )
+  call memalloc (num_cells, this%mc_case_x_cell, __FILE__, __LINE__ )
   call memalloc(num_nodes,nodal_vals,__FILE__,__LINE__)
   do while ( .not. fe%has_finished() )
     if (fe%is_local()) then
@@ -858,9 +858,9 @@ subroutine marching_cubes_mc_runtime_info_create(this)
       if ( num_nodes_outside == 0_ip ) then
         ! This is to avoid to set as cut an element that has negative and zero nodes 
         ! (which is in fact a full interior element)
-        this%mc_case_per_cell(fe%get_lid()) = this%mc_table_num_cases
+        this%mc_case_x_cell(fe%get_gid()) = this%mc_table_num_cases
       else
-        this%mc_case_per_cell(fe%get_lid()) = icase + 1
+        this%mc_case_x_cell(fe%get_gid()) = icase + 1
       end if
     end if
     call fe%next()
@@ -872,8 +872,8 @@ subroutine marching_cubes_mc_runtime_info_create(this)
   call fe%first()
   do while ( .not. fe%has_finished() )
       if (fe%is_local()) then
-      this%mc_ptr_to_intersections(fe%get_lid() + 1) = this%mc_ptr_to_intersections(fe%get_lid()) &
-      + this%mc_table_num_cut_edges_per_case(this%mc_case_per_cell(fe%get_lid()))
+      this%mc_ptr_to_intersections(fe%get_gid() + 1) = this%mc_ptr_to_intersections(fe%get_gid()) &
+      + this%mc_table_num_cut_edges_x_case(this%mc_case_x_cell(fe%get_gid()))
     end if
     call fe%next()
   end do
@@ -888,7 +888,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
     if (fe%is_local()) then
 
       ! Only execute this loop for cut elements
-      if ( this%mc_case_per_cell(fe%get_lid())==1 .or. this%mc_case_per_cell(fe%get_lid())==this%mc_table_num_cases ) then
+      if ( this%mc_case_x_cell(fe%get_gid())==1 .or. this%mc_case_x_cell(fe%get_gid())==this%mc_table_num_cases ) then
         call fe%next()
         cycle
       end if
@@ -898,8 +898,8 @@ subroutine marching_cubes_mc_runtime_info_create(this)
 
       ! Prepare Loop in cell edges
       reference_fe_geo => fe%get_reference_fe_geo()
-      first_edge = reference_fe_geo%get_first_n_face_id_of_dimension(edge_dim)
-      last_edge  = first_edge + reference_fe_geo%get_number_n_faces_of_dimension(edge_dim) - 1
+      first_edge = reference_fe_geo%get_first_n_face_id_of_dim(edge_dim)
+      last_edge  = first_edge + reference_fe_geo%get_num_n_faces_of_dim(edge_dim) - 1
 
       ! Loop in cell edges
       do iedge = first_edge, last_edge
@@ -932,7 +932,7 @@ subroutine marching_cubes_mc_runtime_info_create(this)
 
   deallocate( Xe_ref, stat=istat );  check(istat == 0)
   call memfree(nodal_vals,__FILE__,__LINE__)
-  call this%fe_space%free_fe_iterator(fe)
+  call this%fe_space%free_fe_cell_iterator(fe)
   this%mc_runtime_init = .true.
 
 end subroutine marching_cubes_mc_runtime_info_create
@@ -942,7 +942,7 @@ subroutine marching_cubes_mc_runtime_info_free(this)
   implicit none
   class(marching_cubes_t), intent(inout) :: this
   integer(ip) :: istat, i
-  if (allocated (this%mc_case_per_cell       )) call memfree ( this%mc_case_per_cell        , __FILE__, __LINE__ )
+  if (allocated (this%mc_case_x_cell       )) call memfree ( this%mc_case_x_cell        , __FILE__, __LINE__ )
   if (allocated (this%mc_ptr_to_intersections)) call memfree ( this%mc_ptr_to_intersections , __FILE__, __LINE__ )
   if (allocated (this%mc_intersection_points)) then
     deallocate(this%mc_intersection_points, stat=istat); check(istat==0)
@@ -959,7 +959,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   integer(ip) :: istat, icase
   class(cell_iterator_t), allocatable  :: cell
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-  integer(ip) :: n_subcells, n_subfaces, n_subnodes, n_nodes_subcell, n_nodes_subface  
+  integer(ip) :: n_subcells, n_subfacets, n_subnodes, n_nodes_subcell, n_nodes_subfacet  
 
   assert(this%mc_tables_init)
   assert(this%mc_runtime_init)
@@ -968,29 +968,29 @@ subroutine marching_cubes_subnodes_data_create( this )
   
   ! TODO we don't really need to allocate for all the mc cases
   allocate( this%subnodes_nodal_quadratures(1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
-  allocate( this%subnodes_fe_maps          (1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
+  allocate( this%subnodes_cell_maps          (1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
 
   ! Initialize each one of the quadratures
   call this%triangulation%create_cell_iterator(cell)
   do icase=1, this%get_num_mc_cases()
-    n_subnodes =  this%mc_table_num_cut_edges_per_case(icase) + cell%get_num_nodes()
-    call this%subnodes_nodal_quadratures(icase)%create(this%triangulation%get_num_dimensions(),n_subnodes)
+    n_subnodes =  this%mc_table_num_cut_edges_x_case(icase) + cell%get_num_nodes()
+    call this%subnodes_nodal_quadratures(icase)%create(this%triangulation%get_num_dims(),n_subnodes)
   end do
 
-  ! Initialize each one of the fe_maps
+  ! Initialize each one of the cell_maps
   reference_fe_geo => cell%get_reference_fe_geo()
   do icase=1, this%get_num_mc_cases()
-    call this%subnodes_fe_maps(icase)%create( this%subnodes_nodal_quadratures(icase), reference_fe_geo)
+    call this%subnodes_cell_maps(icase)%create( this%subnodes_nodal_quadratures(icase), reference_fe_geo)
   end do
 
   !Allocate place holders for the sub-mesh
   n_subcells      = this%get_max_num_subcells_in_cell()
-  n_subfaces      = this%get_max_num_subfaces_in_cell()
+  n_subfacets      = this%get_max_num_subfacets_in_cell()
   n_subnodes      = this%get_max_num_subnodes_in_cell()
   n_nodes_subcell = this%get_max_num_nodes_in_subcell()
-  n_nodes_subface = this%get_max_num_nodes_in_subface()
+  n_nodes_subfacet = this%get_max_num_nodes_in_subfacet()
   call memalloc(n_nodes_subcell,n_subcells,this%subcells_nodal_connectivities,__FILE__,__LINE__)
-  call memalloc(n_nodes_subface,n_subfaces,this%subfaces_nodal_connectivities,__FILE__,__LINE__)
+  call memalloc(n_nodes_subfacet,n_subfacets,this%subfacets_nodal_connectivities,__FILE__,__LINE__)
   call memalloc(n_subcells,this%subcell_has_been_reoriented,__FILE__,__LINE__)
   allocate( this%subnodes_ref_coords(1:n_subnodes) , stat=istat); check(istat==0_ip)
 
@@ -1015,15 +1015,15 @@ subroutine marching_cubes_subnodes_data_free( this )
     deallocate( this%subnodes_nodal_quadratures, stat=istat ); check( istat==0_ip )
   end if
 
-  if ( allocated(this%subnodes_fe_maps) ) then
-    do i=1,size(this%subnodes_fe_maps)
-      call this%subnodes_fe_maps(i)%free()
+  if ( allocated(this%subnodes_cell_maps) ) then
+    do i=1,size(this%subnodes_cell_maps)
+      call this%subnodes_cell_maps(i)%free()
     end do
-    deallocate( this%subnodes_fe_maps, stat=istat ); check( istat==0_ip )
+    deallocate( this%subnodes_cell_maps, stat=istat ); check( istat==0_ip )
   end if
 
   if(allocated(this%subcells_nodal_connectivities  )) call memfree(this%subcells_nodal_connectivities  ,__FILE__,__LINE__)
-  if(allocated(this%subfaces_nodal_connectivities  )) call memfree(this%subfaces_nodal_connectivities  ,__FILE__,__LINE__)
+  if(allocated(this%subfacets_nodal_connectivities  )) call memfree(this%subfacets_nodal_connectivities  ,__FILE__,__LINE__)
   if(allocated(this%subcell_has_been_reoriented)) call memfree(this%subcell_has_been_reoriented,__FILE__,__LINE__)
 
 end subroutine marching_cubes_subnodes_data_free

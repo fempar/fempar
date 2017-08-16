@@ -29,13 +29,13 @@
 module unfitted_fe_spaces_names
   use fempar_names
   use unfitted_triangulations_names
-  use piecewise_fe_map_names
+  use piecewise_cell_map_names
 
   implicit none
 # include "debug.i90"
   private
 
-  type, extends(fe_iterator_t) :: unfitted_fe_iterator_t
+  type, extends(fe_cell_iterator_t) :: unfitted_fe_cell_iterator_t
 
     private
     class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
@@ -43,36 +43,36 @@ module unfitted_fe_spaces_names
   contains
 
     ! Creation / deletion methods
-    procedure :: create => unfitted_fe_iterator_create
-    procedure :: free   => unfitted_fe_iterator_free
+    procedure :: create => unfitted_fe_cell_iterator_create
+    procedure :: free   => unfitted_fe_cell_iterator_free
 
     ! Getters that override
-    procedure          :: get_quadrature        => unfitted_fe_iterator_get_quadrature
-    procedure          :: get_fe_map            => unfitted_fe_iterator_get_fe_map
-    procedure          :: get_cell_integrator   => unfitted_fe_iterator_get_cell_integrator
+    procedure          :: get_quadrature        => unfitted_fe_cell_iterator_get_quadrature
+    procedure          :: get_cell_map            => unfitted_fe_cell_iterator_get_cell_map
+    procedure          :: get_cell_integrator   => unfitted_fe_cell_iterator_get_cell_integrator
 
     ! Getters that extend
-    procedure          :: get_boundary_quadrature          => unfitted_fe_iterator_get_boundary_quadrature
-    procedure          :: get_boundary_piecewise_fe_map    => unfitted_fe_iterator_get_boundary_piecewise_fe_map
-    procedure          :: get_boundary_fe_map              => unfitted_fe_iterator_get_boundary_fe_map
-    procedure          :: get_boundary_cell_integrator     => unfitted_fe_iterator_get_boundary_cell_integrator
+    procedure          :: get_boundary_quadrature          => unfitted_fe_cell_iterator_get_boundary_quadrature
+    procedure          :: get_boundary_piecewise_cell_map    => unfitted_fe_cell_iterator_get_boundary_piecewise_cell_map
+    procedure          :: get_boundary_cell_map              => unfitted_fe_cell_iterator_get_boundary_cell_map
+    procedure          :: get_boundary_cell_integrator     => unfitted_fe_cell_iterator_get_boundary_cell_integrator
 
     ! Updater that overrides
-    procedure :: update_integration     => unfitted_fe_iterator_update_integration
+    procedure :: update_integration     => unfitted_fe_cell_iterator_update_integration
     
     ! Updater that extends
-    procedure :: update_boundary_integration  => unfitted_fe_iterator_update_boundary_integration
+    procedure :: update_boundary_integration  => unfitted_fe_cell_iterator_update_boundary_integration
 
     ! Private TBPs
-    procedure, non_overridable, private :: update_cut_quadratures => unfitted_fe_iterator_update_cut_quadratures
-    procedure, non_overridable, private :: update_cut_fe_maps     => unfitted_fe_iterator_update_cut_fe_maps
-    procedure, non_overridable, private :: update_cut_cell_integrators  => unfitted_fe_iterator_update_cut_cell_integrators
-    procedure, non_overridable, private :: update_cut_boundary_quadratures => unfitted_fe_iterator_update_cut_boundary_quadratures
-    procedure, non_overridable, private :: update_cut_boundary_fe_maps     => unfitted_fe_iterator_update_cut_boundary_fe_maps
+    procedure, non_overridable, private :: update_cut_quadratures => unfitted_fe_cell_iterator_update_cut_quadratures
+    procedure, non_overridable, private :: update_cut_cell_maps     => unfitted_fe_cell_iterator_update_cut_cell_maps
+    procedure, non_overridable, private :: update_cut_cell_integrators  => unfitted_fe_cell_iterator_update_cut_cell_integrators
+    procedure, non_overridable, private :: update_cut_boundary_quadratures => unfitted_fe_cell_iterator_update_cut_boundary_quadratures
+    procedure, non_overridable, private :: update_cut_boundary_cell_maps     => unfitted_fe_cell_iterator_update_cut_boundary_cell_maps
     procedure, non_overridable, private :: update_cut_boundary_cell_integrators  => &
-    unfitted_fe_iterator_update_cut_boundary_cell_integrators
+    unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators
 
-  end type unfitted_fe_iterator_t
+  end type unfitted_fe_cell_iterator_t
 
   type :: unfitted_integration_manager_t
 
@@ -84,22 +84,22 @@ module unfitted_fe_spaces_names
     ! All the machinery for integrating in subcells
     type(quadrature_t)                     :: quadrature_subelem
     type(tet_lagrangian_reference_fe_t)    :: geo_reference_subelem
-    type(fe_map_t)                         :: fe_map_subelem
+    type(cell_map_t)                         :: cell_map_subelem
     type(quadrature_t),        allocatable :: cut_quadratures(:)
-    type(fe_map_t),            allocatable :: cut_fe_maps(:)
+    type(cell_map_t),            allocatable :: cut_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_cell_integrators(:,:)
 
-    ! All the machinery for integrating in subfaces
-    type(quadrature_t)                     :: quadrature_subface
+    ! All the machinery for integrating in subfacets
+    type(quadrature_t)                     :: quadrature_subfacet
     type(quadrature_t),        allocatable :: cut_boundary_quadratures_cell_dim(:)
-    type(piecewise_fe_map_t),  allocatable :: cut_boundary_piecewise_fe_maps(:)
-    type(fe_map_t),            allocatable :: cut_boundary_fe_maps(:)
+    type(piecewise_cell_map_t),  allocatable :: cut_boundary_piecewise_cell_maps(:)
+    type(cell_map_t),            allocatable :: cut_boundary_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_boundary_cell_integrators(:,:)    
 
     ! Auxiliary dummy empty quadratures
     type(quadrature_t)             :: empty_quadrature
-    type(fe_map_t)                 :: empty_fe_map
-    type(piecewise_fe_map_t)       :: empty_piecewise_fe_map
+    type(cell_map_t)                 :: empty_cell_map
+    type(piecewise_cell_map_t)       :: empty_piecewise_cell_map
     type(cell_integrator_t), allocatable  :: empty_cell_integrator(:)
     
     contains
@@ -112,8 +112,6 @@ module unfitted_fe_spaces_names
       procedure, non_overridable, private :: check_assumptions      => uim_check_assumptions
       procedure, non_overridable, private :: init_reference_subelem => uim_init_reference_subelem
       procedure, non_overridable, private :: free_reference_subelem => uim_free_reference_subelem
-      procedure, non_overridable, private :: init_reference_subface => uim_init_reference_subface
-      procedure, non_overridable, private :: free_reference_subface => uim_free_reference_subface
       procedure, non_overridable, private :: init_cut_integration   => uim_init_cut_integration
       procedure, non_overridable, private :: free_cut_integration   => uim_free_cut_integration
       procedure, non_overridable, private :: init_cut_boundary_integration   => uim_init_cut_boundary_integration
@@ -131,11 +129,11 @@ module unfitted_fe_spaces_names
 
       ! Creation / deletion methods
       procedure,  private :: serial_fe_space_create_same_reference_fes_on_all_cells => sufs_create_same_reference_fes_on_all_cells
-      procedure,  private :: serial_fe_space_create_different_between_cells         => sufs_space_create_different_between_cells
+      procedure,  private :: serial_fe_space_create_different_ref_fes_between_cells         => sufs_space_create_different_ref_fes_between_cells
       procedure           :: free  => sufs_free
 
       ! Creation of the iterator
-      procedure :: create_fe_iterator           => sufs_create_fe_iterator
+      procedure :: create_fe_cell_iterator           => sufs_create_fe_cell_iterator
 
   end type serial_unfitted_fe_space_t
 
@@ -149,22 +147,22 @@ module unfitted_fe_spaces_names
 
       ! Creation / deletion methods
       procedure,  private :: par_fe_space_create_same_reference_fes_on_all_cells => pufs_create_same_reference_fes_on_all_cells
-      procedure,  private :: par_fe_space_create_different_between_cells         => pufs_create_different_between_cells
+      procedure,  private :: par_fe_space_create_different_ref_fes_between_cells         => pufs_create_different_ref_fes_between_cells
       procedure           :: free  => pufs_free
 
       ! Creation of the iterator
-      procedure :: create_fe_iterator           => pufs_create_fe_iterator
+      procedure :: create_fe_cell_iterator           => pufs_create_fe_cell_iterator
 
   end type par_unfitted_fe_space_t
 
 
-  public :: unfitted_fe_iterator_t
+  public :: unfitted_fe_cell_iterator_t
   public :: serial_unfitted_fe_space_t
   public :: par_unfitted_fe_space_t
 
 contains
 
-#include "sbm_unfitted_fe_iterator.i90"
+#include "sbm_unfitted_fe_cell_iterator.i90"
 #include "sbm_unfitted_integration_manager.i90"
 #include "sbm_serial_unfitted_fe_space.i90"
 #include "sbm_par_unfitted_fe_space.i90"

@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module conditions_names
+module conditions_names 
   use types_names
   use function_names
   implicit none
@@ -37,7 +37,7 @@ module conditions_names
   ! indicator + component combination
   type, abstract :: conditions_t
    contains
-     procedure(get_number_components_interface), deferred :: get_number_components
+     procedure(get_num_components_interface), deferred :: get_num_components
      procedure(get_components_code_interface)  , deferred :: get_components_code
      procedure(get_function_interface)         , deferred :: get_function
   end type conditions_t
@@ -46,12 +46,12 @@ module conditions_names
   public :: conditions_t
   
   abstract interface
-     function get_number_components_interface(this)
+     function get_num_components_interface(this)
        import :: conditions_t, ip
        implicit none
        class(conditions_t), intent(in) :: this
-       integer(ip) :: get_number_components_interface
-     end function get_number_components_interface
+       integer(ip) :: get_num_components_interface
+     end function get_num_components_interface
 
      subroutine get_components_code_interface(this, boundary_id, components_code)
        import :: conditions_t, ip

@@ -66,24 +66,24 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   class(unfitted_cell_iterator_t), intent(inout) :: this
 
   integer(ip) :: num_subnodes, num_nodes, num_intersections, i1, i2, mc_case, num_dim
-  integer(ip) :: ipo, idi, subcell, subface
+  integer(ip) :: ipo, idi, subcell, subfacet
   type(point_t), pointer, dimension(:) ::  node_coords, intersec_coords, coordinates
   type(quadrature_t), pointer :: quadrature
   real(rp), pointer :: points_in_quadrature(:,:)
   type(point_t),  pointer :: phys_cell_coords(:)
-  type(fe_map_t), pointer :: fe_map
+  type(cell_map_t), pointer :: cell_map
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: subcell_nodes(4)
-  integer(ip) :: subface_nodes(3)
+  integer(ip) :: subfacet_nodes(3)
 
   assert(this%is_local())
 
   if ( .not. this%is_cut() ) return
 
   assert(this%marching_cubes%mc_runtime_init)
-  num_subnodes = this%get_number_of_subnodes()
+  num_subnodes = this%get_num_subnodes()
   num_nodes = this%get_num_nodes()
-  num_dim = this%marching_cubes%triangulation%get_num_dimensions()
+  num_dim = this%marching_cubes%triangulation%get_num_dims()
   num_intersections = num_subnodes - num_nodes
   assert(num_subnodes > num_nodes)
 
@@ -93,31 +93,31 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   node_coords => coordinates(1:num_nodes)
   call this%get_coordinates_ref_space( node_coords )
   intersec_coords => coordinates(num_nodes+1:num_subnodes)
-  i1 = this%marching_cubes%mc_ptr_to_intersections(this%get_lid())
-  i2 = this%marching_cubes%mc_ptr_to_intersections(this%get_lid()+1)-1
+  i1 = this%marching_cubes%mc_ptr_to_intersections(this%get_gid())
+  i2 = this%marching_cubes%mc_ptr_to_intersections(this%get_gid()+1)-1
   intersec_coords(:) = this%marching_cubes%mc_intersection_points(i1:i2)
 
   ! Recover connectivities of the sub-cells
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
   this%marching_cubes%subcells_nodal_connectivities(:,:) = 0
-  do subcell=1,this%get_number_of_subcells()
+  do subcell=1,this%get_num_subcells()
     this%marching_cubes%subcells_nodal_connectivities(:,subcell) = &
-    this%marching_cubes%mc_table_subcell_node_ids_per_case(:,subcell,mc_case)
+    this%marching_cubes%mc_table_subcell_node_ids_x_case(:,subcell,mc_case)
   end do
 
   ! Recover connectivities of the sub-faces
-  this%marching_cubes%subfaces_nodal_connectivities(:,:) = 0
-  do subface=1,this%get_number_of_subfaces()
-    this%marching_cubes%subfaces_nodal_connectivities(:,subface) = &
-    this%marching_cubes%mc_table_subface_node_ids_per_case(:,subface,mc_case)
+  this%marching_cubes%subfacets_nodal_connectivities(:,:) = 0
+  do subfacet=1,this%get_num_subfacets()
+    this%marching_cubes%subfacets_nodal_connectivities(:,subfacet) = &
+    this%marching_cubes%mc_table_subfacet_node_ids_x_case(:,subfacet,mc_case)
   end do
 
   !Fix inverted sub-cells and sub-faces (only in 3D)
-  if (this%marching_cubes%triangulation%get_num_dimensions()==3) then
+  if (this%marching_cubes%triangulation%get_num_dims()==3) then
 
     ! Search for inverted sub-cells and reorient them
     this%marching_cubes%subcell_has_been_reoriented(:)=.false.
-    do subcell=1,this%get_number_of_subcells()
+    do subcell=1,this%get_num_subcells()
       if (this%subcell_has_been_reoriented(subcell)) then
         this%marching_cubes%subcell_has_been_reoriented(subcell)=.true.
         subcell_nodes(:) = this%marching_cubes%subcells_nodal_connectivities(:,subcell)
@@ -126,10 +126,10 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
     end do
 
     ! Find sub-faces belonging to inverted sub-cells and reorient them
-    do subface=1,this%get_number_of_subfaces()
-      if (this%subface_touches_interior_reoriented_subcell(subface)) then
-        subface_nodes(:) = this%marching_cubes%subfaces_nodal_connectivities(:,subface)
-        this%marching_cubes%subfaces_nodal_connectivities(:,subface) = subface_nodes([1,3,2])
+    do subfacet=1,this%get_num_subfacets()
+      if (this%subfacet_touches_interior_reoriented_subcell(subfacet)) then
+        subfacet_nodes(:) = this%marching_cubes%subfacets_nodal_connectivities(:,subfacet)
+        this%marching_cubes%subfacets_nodal_connectivities(:,subfacet) = subfacet_nodes([1,3,2])
       end if
     end do
 
@@ -137,8 +137,8 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
 
   ! Update the quadrature
   quadrature => this%marching_cubes%subnodes_nodal_quadratures(mc_case)
-  assert(num_dim == quadrature%get_number_dimensions())
-  assert(num_subnodes == quadrature%get_number_quadrature_points())
+  assert(num_dim == quadrature%get_num_dims())
+  assert(num_subnodes == quadrature%get_num_quadrature_points())
   points_in_quadrature => quadrature%get_coordinates()
   do ipo = 1, num_subnodes
     do idi = 1, num_dim
@@ -147,14 +147,14 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   end do
 
   ! Prepare the fe map
-  fe_map => this%marching_cubes%subnodes_fe_maps(mc_case)
+  cell_map => this%marching_cubes%subnodes_cell_maps(mc_case)
   reference_fe_geo => this%get_reference_fe_geo()
-  call fe_map%update_interpolation( quadrature, reference_fe_geo )
-  phys_cell_coords => fe_map%get_coordinates()
+  call cell_map%update_interpolation( quadrature, reference_fe_geo )
+  phys_cell_coords => cell_map%get_coordinates()
   call this%get_coordinates(phys_cell_coords)
-  call fe_map%compute_quadrature_coordinates()
+  call cell_map%compute_quadrature_points_coordinates()
 
-  ! At this point we can extract the physical coordinates of the sub-nodes from the fe_maps
+  ! At this point we can extract the physical coordinates of the sub-nodes from the cell_maps
 
 end subroutine unfitted_cell_iterator_update_sub_triangulation
 
@@ -165,31 +165,31 @@ function unfitted_cell_iterator_get_mc_case( this ) result ( mc_case )
   integer(ip) :: mc_case
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
 end function unfitted_cell_iterator_get_mc_case
 
 !========================================================================================
-function unfitted_cell_iterator_get_number_of_subcells( this ) result ( num_subcells )
+function unfitted_cell_iterator_get_num_subcells( this ) result ( num_subcells )
   implicit none
   class(unfitted_cell_iterator_t), intent(in) :: this
   integer(ip) :: num_subcells
   integer(ip) :: mc_case
   assert(this%is_local())
   assert(this%marching_cubes%mc_tables_init)
-  mc_case           = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  num_subcells      = this%marching_cubes%mc_table_num_subcells_per_case(mc_case)
-end function unfitted_cell_iterator_get_number_of_subcells
+  mc_case           = this%marching_cubes%mc_case_x_cell(this%get_gid())
+  num_subcells      = this%marching_cubes%mc_table_num_subcells_x_case(mc_case)
+end function unfitted_cell_iterator_get_num_subcells
 
 !========================================================================================
-function unfitted_cell_iterator_get_number_of_subcell_nodes( this ) result ( num_nodes_subcell )
+function unfitted_cell_iterator_get_num_subcell_nodes( this ) result ( num_nodes_subcell )
   implicit none
   class(unfitted_cell_iterator_t), intent(in) :: this
   integer(ip) :: num_nodes_subcell
   assert(this%is_local())
   assert(this%marching_cubes%mc_tables_init)
   num_nodes_subcell = 0
-  if (this%get_number_of_subcells() .ne. 0) num_nodes_subcell = this%marching_cubes%mc_table_num_nodes_subcell
-end function unfitted_cell_iterator_get_number_of_subcell_nodes
+  if (this%get_num_subcells() .ne. 0) num_nodes_subcell = this%marching_cubes%mc_table_num_nodes_subcell
+end function unfitted_cell_iterator_get_num_subcell_nodes
 
 !========================================================================================
 subroutine unfitted_cell_iterator_get_phys_coords_of_subcell( this, subcell, points)
@@ -201,19 +201,19 @@ subroutine unfitted_cell_iterator_get_phys_coords_of_subcell( this, subcell, poi
 
   integer(ip) :: num_nodes_subcell, mc_case
   type(point_t), pointer :: subnodes_phys_coords(:)
-  type(fe_map_t), pointer :: fe_map
+  type(cell_map_t), pointer :: cell_map
   integer(ip), pointer ::  subcell_node_ids(:)
 
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  num_nodes_subcell = this%get_number_of_subcell_nodes()
+  num_nodes_subcell = this%get_num_subcell_nodes()
   assert( size(points) == num_nodes_subcell)
   assert(this%is_cut())
-  assert( (1_ip <= subcell) .and. (subcell <= this%get_number_of_subcells())  )
+  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells())  )
 
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  fe_map => this%marching_cubes%subnodes_fe_maps(mc_case)
-  subnodes_phys_coords => fe_map%get_quadrature_points_coordinates()
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
+  cell_map => this%marching_cubes%subnodes_cell_maps(mc_case)
+  subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
   subcell_node_ids =>  this%marching_cubes%subcells_nodal_connectivities(:,subcell)
   points(:) = subnodes_phys_coords(subcell_node_ids(:))
 
@@ -233,10 +233,10 @@ subroutine unfitted_cell_iterator_get_ref_coords_of_subcell( this, subcell, poin
 
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  num_nodes_subcell = this%get_number_of_subcell_nodes()
+  num_nodes_subcell = this%get_num_subcell_nodes()
   assert( size(points) == num_nodes_subcell)
   assert(this%is_cut())
-  assert( (1_ip <= subcell) .and. (subcell <= this%get_number_of_subcells())  )
+  assert( (1_ip <= subcell) .and. (subcell <= this%get_num_subcells())  )
 
   subnodes_ref_coords => this%marching_cubes%subnodes_ref_coords
   subcell_node_ids =>  this%marching_cubes%subcells_nodal_connectivities(:,subcell)
@@ -245,81 +245,81 @@ subroutine unfitted_cell_iterator_get_ref_coords_of_subcell( this, subcell, poin
 end subroutine unfitted_cell_iterator_get_ref_coords_of_subcell
 
 !========================================================================================
-function unfitted_cell_iterator_get_number_of_subfaces( this ) result ( num_subfaces )
+function unfitted_cell_iterator_get_num_subfacets( this ) result ( num_subfacets )
   implicit none
   class(unfitted_cell_iterator_t), intent(in)    :: this
-  integer(ip) :: num_subfaces
+  integer(ip) :: num_subfacets
   integer(ip) :: mc_case
   assert(this%is_local())
   assert(this%marching_cubes%mc_tables_init)
-  mc_case           = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  num_subfaces      = this%marching_cubes%mc_table_num_subfaces_per_case(mc_case)
-end function unfitted_cell_iterator_get_number_of_subfaces
+  mc_case           = this%marching_cubes%mc_case_x_cell(this%get_gid())
+  num_subfacets      = this%marching_cubes%mc_table_num_subfacets_x_case(mc_case)
+end function unfitted_cell_iterator_get_num_subfacets
 
 !========================================================================================
-function unfitted_cell_iterator_get_number_of_subface_nodes( this ) result ( num_nodes_subface )
+function unfitted_cell_iterator_get_num_subfacet_nodes( this ) result ( num_nodes_subfacet )
   implicit none
   class(unfitted_cell_iterator_t), intent(in)    :: this
-  integer(ip) :: num_nodes_subface
+  integer(ip) :: num_nodes_subfacet
   assert(this%is_local())
   assert(this%marching_cubes%mc_tables_init)
-  num_nodes_subface = 0
-  if (this%get_number_of_subfaces() .ne. 0) num_nodes_subface = this%marching_cubes%mc_table_num_nodes_subface
-end function unfitted_cell_iterator_get_number_of_subface_nodes
+  num_nodes_subfacet = 0
+  if (this%get_num_subfacets() .ne. 0) num_nodes_subfacet = this%marching_cubes%mc_table_num_nodes_subfacet
+end function unfitted_cell_iterator_get_num_subfacet_nodes
 
 !========================================================================================
-subroutine unfitted_cell_iterator_get_phys_coords_of_subface( this, subface, points )
+subroutine unfitted_cell_iterator_get_phys_coords_of_subfacet( this, subfacet, points )
 
   implicit none
   class(unfitted_cell_iterator_t), intent(in)    :: this
-  integer(ip),                     intent(in)    :: subface
+  integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
 
-  integer(ip) :: num_nodes_subface, mc_case
+  integer(ip) :: num_nodes_subfacet, mc_case
   type(point_t), pointer :: subnodes_phys_coords(:)
-  type(fe_map_t), pointer :: fe_map
-  integer(ip), pointer ::  subface_node_ids(:)
+  type(cell_map_t), pointer :: cell_map
+  integer(ip), pointer ::  subfacet_node_ids(:)
 
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  num_nodes_subface = this%get_number_of_subface_nodes()
-  assert( size(points) == num_nodes_subface)
+  num_nodes_subfacet = this%get_num_subfacet_nodes()
+  assert( size(points) == num_nodes_subfacet)
   assert(this%is_cut())
-  assert( (1_ip <= subface) .and. (subface <= this%get_number_of_subfaces())  )
+  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets())  )
 
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  fe_map => this%marching_cubes%subnodes_fe_maps(mc_case)
-  subnodes_phys_coords => fe_map%get_quadrature_points_coordinates()
-  subface_node_ids =>  this%marching_cubes%subfaces_nodal_connectivities(:,subface)
-  points(:) = subnodes_phys_coords(subface_node_ids(:))
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
+  cell_map => this%marching_cubes%subnodes_cell_maps(mc_case)
+  subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
+  subfacet_node_ids =>  this%marching_cubes%subfacets_nodal_connectivities(:,subfacet)
+  points(:) = subnodes_phys_coords(subfacet_node_ids(:))
 
-end subroutine unfitted_cell_iterator_get_phys_coords_of_subface
+end subroutine unfitted_cell_iterator_get_phys_coords_of_subfacet
 
 !========================================================================================
-subroutine unfitted_cell_iterator_get_ref_coords_of_subface( this, subface, points )
+subroutine unfitted_cell_iterator_get_ref_coords_of_subfacet( this, subfacet, points )
 
   implicit none
   class(unfitted_cell_iterator_t), intent(in)    :: this
-  integer(ip),                     intent(in)    :: subface
+  integer(ip),                     intent(in)    :: subfacet
   type(point_t),                   intent(inout) :: points(:)
 
-  integer(ip) :: num_nodes_subface, mc_case
+  integer(ip) :: num_nodes_subfacet, mc_case
   type(point_t), pointer :: subnodes_ref_coords(:)
-  integer(ip), pointer ::  subface_node_ids(:)
+  integer(ip), pointer ::  subfacet_node_ids(:)
 
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  num_nodes_subface = this%get_number_of_subface_nodes()
-  assert( size(points) == num_nodes_subface)
+  num_nodes_subfacet = this%get_num_subfacet_nodes()
+  assert( size(points) == num_nodes_subfacet)
   assert(this%is_cut())
-  assert( (1_ip <= subface) .and. (subface <= this%get_number_of_subfaces())  )
+  assert( (1_ip <= subfacet) .and. (subfacet <= this%get_num_subfacets())  )
 
   subnodes_ref_coords => this%marching_cubes%subnodes_ref_coords
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  subface_node_ids =>  this%marching_cubes%subfaces_nodal_connectivities(:,subface)
-  points(:) = subnodes_ref_coords(subface_node_ids(:))
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
+  subfacet_node_ids =>  this%marching_cubes%subfacets_nodal_connectivities(:,subfacet)
+  points(:) = subnodes_ref_coords(subfacet_node_ids(:))
 
-end subroutine unfitted_cell_iterator_get_ref_coords_of_subface
+end subroutine unfitted_cell_iterator_get_ref_coords_of_subfacet
 
 !========================================================================================
 function unfitted_cell_iterator_is_cut( this ) result ( is_cut )
@@ -329,7 +329,7 @@ function unfitted_cell_iterator_is_cut( this ) result ( is_cut )
   integer(ip) :: mc_case, num_mc_cases
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
   num_mc_cases = this%marching_cubes%mc_table_num_cases
   is_cut = (1_ip < mc_case) .and. ( mc_case < num_mc_cases)
 end function unfitted_cell_iterator_is_cut
@@ -342,7 +342,7 @@ function unfitted_cell_iterator_is_interior( this ) result ( is_interior )
   integer(ip) :: mc_case, num_mc_cases
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
   num_mc_cases = this%marching_cubes%mc_table_num_cases
   is_interior = ( mc_case == num_mc_cases )
 end function unfitted_cell_iterator_is_interior
@@ -355,7 +355,7 @@ function unfitted_cell_iterator_is_exterior( this ) result ( is_exterior )
   integer(ip) :: mc_case
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
   is_exterior = ( mc_case == 1_ip )
 end function unfitted_cell_iterator_is_exterior
 
@@ -369,10 +369,10 @@ function unfitted_cell_iterator_is_interior_subcell( this, subcell ) result ( is
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
   assert(this%is_cut())
-  num_subcells = this%get_number_of_subcells()
+  num_subcells = this%get_num_subcells()
   assert( ( 1_ip <= subcell) .and. subcell <= num_subcells )
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  pos = this%marching_cubes%mc_table_inout_subcells_per_case(subcell, mc_case)
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
+  pos = this%marching_cubes%mc_table_inout_subcells_x_case(subcell, mc_case)
   is_in = ( pos == -1_ip )
 end function unfitted_cell_iterator_is_interior_subcell
 
@@ -386,24 +386,24 @@ function unfitted_cell_iterator_is_exterior_subcell( this, subcell ) result ( is
   assert(this%is_local())
   assert(this%marching_cubes%mc_runtime_init)
   assert(this%is_cut())
-  num_subcells = this%get_number_of_subcells()
+  num_subcells = this%get_num_subcells()
   assert( ( 1_ip <= subcell) .and. subcell <= num_subcells )
-  mc_case = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  pos = this%marching_cubes%mc_table_inout_subcells_per_case(subcell, mc_case)
+  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
+  pos = this%marching_cubes%mc_table_inout_subcells_x_case(subcell, mc_case)
   is_out = ( pos == 1_ip )
 end function unfitted_cell_iterator_is_exterior_subcell
 
 !========================================================================================
-function unfitted_cell_iterator_get_number_of_subnodes( this ) result (num_subnodes)
+function unfitted_cell_iterator_get_num_subnodes( this ) result (num_subnodes)
   implicit none
   class(unfitted_cell_iterator_t), intent(in) :: this
   integer(ip) :: num_subnodes
   integer(ip) :: mc_case
   assert(this%is_local())
   assert(this%marching_cubes%mc_tables_init)
-  mc_case      = this%marching_cubes%mc_case_per_cell(this%get_lid())
-  num_subnodes = this%get_num_nodes() + this%marching_cubes%mc_table_num_cut_edges_per_case(mc_case)
-end function unfitted_cell_iterator_get_number_of_subnodes
+  mc_case      = this%marching_cubes%mc_case_x_cell(this%get_gid())
+  num_subnodes = this%get_num_nodes() + this%marching_cubes%mc_table_num_cut_edges_x_case(mc_case)
+end function unfitted_cell_iterator_get_num_subnodes
 
 !========================================================================================
 function unfitted_cell_iterator_subcell_has_been_reoriented(this,subcell) result (is_inverted)
@@ -420,9 +420,9 @@ function unfitted_cell_iterator_subcell_has_been_reoriented(this,subcell) result
 
   ! This routine is only needed (and implemented) when the sub-cell is a tetrahedron
   ! Check it
-  assert(1<=subcell .and. subcell <= this%get_number_of_subcells())
-  assert(this%get_number_of_subcell_nodes()==4)
-  assert(this%marching_cubes%triangulation%get_num_dimensions() == 3)
+  assert(1<=subcell .and. subcell <= this%get_num_subcells())
+  assert(this%get_num_subcell_nodes()==4)
+  assert(this%marching_cubes%triangulation%get_num_dims() == 3)
 
   ! Get connectivities and coordinates
   ! We assume that update_triangulation was called for this cell
@@ -441,35 +441,35 @@ function unfitted_cell_iterator_subcell_has_been_reoriented(this,subcell) result
 end function unfitted_cell_iterator_subcell_has_been_reoriented
 
 !========================================================================================
-function unfitted_cell_iterator_subface_touches_reoriented_subcell(this,subface) result (is_neighbour)
+function unfitted_cell_iterator_subfacet_touches_reoriented_subcell(this,subfacet) result (is_neighbour)
 
   implicit none
   class(unfitted_cell_iterator_t), intent(in) :: this
-  integer(ip), intent(in) :: subface
+  integer(ip), intent(in) :: subfacet
   logical :: is_neighbour
 
   integer(ip), pointer :: Tf(:), Te(:)
   integer(ip) :: subcell
-  logical :: has_the_subface, has_been_reoriented, is_interior
+  logical :: has_the_subfacet, has_been_reoriented, is_interior
 
   ! This routine is only needed (and implemented) when the sub-cell is a tetrahedron
   ! Check it
-  assert(1<=subface .and. subface <= this%get_number_of_subfaces())
-  assert(this%get_number_of_subcell_nodes()==4)
-  assert(this%marching_cubes%triangulation%get_num_dimensions() == 3)
+  assert(1<=subfacet .and. subfacet <= this%get_num_subfacets())
+  assert(this%get_num_subcell_nodes()==4)
+  assert(this%marching_cubes%triangulation%get_num_dims() == 3)
 
   ! Initialize result
   is_neighbour= .false.
 
   ! Get connectivities of the sub-face
-  Tf => this%marching_cubes%subfaces_nodal_connectivities(:,subface)
+  Tf => this%marching_cubes%subfacets_nodal_connectivities(:,subfacet)
 
   ! Do a loop in sub-cell
-  do subcell=1,this%get_number_of_subcells()
+  do subcell=1,this%get_num_subcells()
 
     ! Find the sub-cells that have the three nodes of the face
     Te => this%marching_cubes%subcells_nodal_connectivities(:,subcell)
-    has_the_subface = (any(Te == Tf(1)) .and. any(Te == Tf(2)) .and. any(Te == Tf(3)))
+    has_the_subfacet = (any(Te == Tf(1)) .and. any(Te == Tf(2)) .and. any(Te == Tf(3)))
 
     ! Check if it has been reoriented
     has_been_reoriented = this%marching_cubes%subcell_has_been_reoriented(subcell)
@@ -478,11 +478,11 @@ function unfitted_cell_iterator_subface_touches_reoriented_subcell(this,subface)
     is_interior = this%is_interior_subcell(subcell)
 
     ! If the three conditions are met, return true, so that the sub-face will be reoriented
-    is_neighbour = has_the_subface .and. has_been_reoriented .and. is_interior
+    is_neighbour = has_the_subfacet .and. has_been_reoriented .and. is_interior
 
   end do
 
-end function unfitted_cell_iterator_subface_touches_reoriented_subcell
+end function unfitted_cell_iterator_subfacet_touches_reoriented_subcell
 
 
 
