@@ -242,21 +242,21 @@ contains
          
        else
          
+         ineigh = facet_int%get_active_cell_id(1)
          facemat = 0.0_rp
          facevec = 0.0_rp
          !assert( fe_face%get_set_id() == 1 )
          call fe_face%update_integration()
          call boundary_fe_facet_function%update(fe_face,boundary_fe_function)
          quad_coords => fe_face%get_quadrature_points_coordinates()
-         call facet_int%get_values(1,shape_values_first)
-         call facet_int%get_gradients(1,shape_gradients_first)
-         ineigh = facet_int%get_active_cell_id(1)
+         call facet_int%get_values(ineigh,shape_values_first)
+         call facet_int%get_gradients(ineigh,shape_gradients_first)
          do qpoint = 1, num_quad_points
-            call fe_face%get_outward_normal(1,qpoint,normals(1))
+            call fe_face%get_normals(1,qpoint,normals)
             h_length = fe_face%compute_characteristic_length(qpoint)
             factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call boundary_function%get_value(quad_coords(qpoint),boundary_value)
-            call boundary_fe_facet_function%get_value(qpoint,1,boundary_fe_function_value)
+            call boundary_fe_facet_function%get_value(qpoint,ineigh,boundary_fe_function_value)
             boundary_value = 2*boundary_value - boundary_fe_function_value
             do idof = 1, num_dofs
               !call facet_int%get_value(idof,qpoint,1,shape_trial)
@@ -266,12 +266,12 @@ contains
                  !call facet_int%get_gradient(jdof,qpoint,1,grad_test)
                  facemat(idof,jdof,ineigh,ineigh) = facemat(idof,jdof,ineigh,ineigh) + &
                                      &  factor * viscosity *   &
-                                     (-shape_gradients_first(jdof,qpoint)*normals(1)*shape_values_first(idof,qpoint) - &
-                                      shape_gradients_first(idof,qpoint)*normals(1)*shape_values_first(jdof,qpoint)  + &
+                                     (-shape_gradients_first(jdof,qpoint)*normals(ineigh)*shape_values_first(idof,qpoint) - &
+                                      shape_gradients_first(idof,qpoint)*normals(ineigh)*shape_values_first(jdof,qpoint)  + &
                                       c_IP / h_length * shape_values_first(idof,qpoint)*shape_values_first(jdof,qpoint))
               end do
               facevec(idof,ineigh) = facevec(idof,ineigh) + factor * viscosity * &
-                                      (-boundary_value * shape_gradients_first(idof,qpoint) * normals(1) + &
+                                      (-boundary_value * shape_gradients_first(idof,qpoint) * normals(ineigh) + &
                                       c_IP / h_length * boundary_value * shape_values_first(idof,qpoint) ) 
             end do   
          end do
