@@ -134,9 +134,9 @@ subroutine fe_facet_iterator_update_integration( this )
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   
   quadrature => this%get_quadrature()
-  facet_map   => this%get_facet_maps()
+  call this%update_facet_maps()
   
-  coords => facet_map%get_facet_coordinates()
+  coords => this%facet_maps%get_facet_coordinates()
   call this%get_coordinates(coords)
 
   do icell_around=1, this%get_num_cells_around()
@@ -144,7 +144,7 @@ subroutine fe_facet_iterator_update_integration( this )
     reference_fe_geo => this%fe%get_reference_fe_geo()
     facet_lpos_within_cells_around(icell_around) = &
       this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_facet_id() + 1
-    coords => facet_map%get_coordinates_neighbour(icell_around, &
+    coords => this%facet_maps%get_coordinates_neighbour(icell_around, &
                                                  facet_lpos_within_cells_around(icell_around))
     call this%fe%get_coordinates(coords)
     call this%update_num_dofs_x_field(icell_around)
@@ -153,14 +153,14 @@ subroutine fe_facet_iterator_update_integration( this )
   call this%get_cell_around(1, this%fe)
   reference_fe_geo => this%fe%get_reference_fe_geo()
   
-  call facet_map%update(facet_lpos_within_cells_around, &
+  call this%facet_maps%update(facet_lpos_within_cells_around, &
                        quadrature, &
                        reference_fe_geo)
   
   do field_id = 1, this%fe_space%get_num_fields()
      facet_integrator => this%get_facet_integrator(field_id)
      call facet_integrator%update(facet_lpos_within_cells_around, &
-                                 this%get_facet_maps(), &             
+                                 this%facet_maps, &             
                                  this%get_facet_permutation_index())
   end do
   
@@ -370,6 +370,34 @@ function fe_facet_iterator_get_facet_map(this)
   fe_facet_iterator_get_facet_map => this%fe_space%facet_maps(facet_maps_position)
 end function fe_facet_iterator_get_facet_map
 
+
+!==================================================================================================
+subroutine fe_facet_iterator_update_facet_maps(this)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)                           :: icell_around, istat
+  integer(ip)                           :: facet_maps_position_key
+  integer(ip)                           :: facet_maps_position
+  integer(ip)                           :: reference_fes_geo_id(2)
+   
+  reference_fes_geo_id(2) = 0 
+  do icell_around = 1, this%get_num_cells_around()
+     call this%get_cell_around(icell_around, this%fe)
+     reference_fes_geo_id(icell_around) = this%fe%get_reference_fe_geo_id()
+  end do
+  
+  facet_maps_position_key = &
+       this%fe_space%generate_facet_quadratures_position_key(this%get_quadrature_degree(), &
+                                                               reference_fes_geo_id(1), &
+                                                               reference_fes_geo_id(2) )
+       
+  call this%fe_space%facet_quadratures_position%get(key=facet_maps_position_key, &
+                                                      val=facet_maps_position, &
+                                                      stat=istat)
+  assert ( .not. istat == key_not_found )
+  this%facet_maps => this%fe_space%facet_maps(facet_maps_position)
+end subroutine fe_facet_iterator_update_facet_maps
+
 !==================================================================================================
 function fe_facet_iterator_get_facet_integrator(this, field_id)
   implicit none
@@ -408,17 +436,15 @@ function fe_facet_iterator_compute_surface ( this )
   class(fe_facet_iterator_t), intent(inout) :: this
   real(rp)                         :: fe_facet_iterator_compute_surface
   integer(ip) :: qpoin,num_quadrature_points
-  type(facet_maps_t)  , pointer :: facet_map
   type(quadrature_t), pointer :: quad
   
-  facet_map => this%get_facet_maps()
   quad     => this%get_quadrature()
   num_quadrature_points = quad%get_num_quadrature_points()
   
   fe_facet_iterator_compute_surface = 0.0_rp
   do qpoin = 1, num_quadrature_points
      fe_facet_iterator_compute_surface = fe_facet_iterator_compute_surface + &
-          &                        facet_map%get_det_jacobian(qpoin) * &
+          &                        this%get_det_jacobian(qpoin) * &
           &                        quad%get_weight(qpoin)
   end do
   
@@ -445,4 +471,41 @@ function fe_facet_iterator_get_facet_permutation_index ( this ) result(facet_per
   integer(ip)                           :: facet_permutation_index
   facet_permutation_index = this%fe_space%facet_permutation_indices%get(this%facet_gid)
 end function fe_facet_iterator_get_facet_permutation_index 
+
+!==================================================================================================
+function fe_facet_iterator_get_quadrature_points_coordinates(this)
+  implicit none
+  ! Parameters
+  class(fe_facet_iterator_t), target, intent(in) :: this
+  type(point_t), pointer :: fe_facet_iterator_get_quadrature_points_coordinates(:)
+  
+  fe_facet_iterator_get_quadrature_points_coordinates => this%facet_maps%get_quadrature_points_coordinates()
+end function fe_facet_iterator_get_quadrature_points_coordinates
+
+!=================================================================================================
+function fe_facet_iterator_get_det_jacobian ( this, i )
+  implicit none
+  class(fe_facet_iterator_t), intent(in) :: this
+  integer(ip)    , intent(in) :: i
+  real(rp) :: fe_facet_iterator_get_det_jacobian
+  fe_facet_iterator_get_det_jacobian = this%facet_maps%get_det_jacobian(i)
+end function fe_facet_iterator_get_det_jacobian
+
+!=================================================================================================
+subroutine fe_facet_iterator_get_normals (this, qpoint, normal)
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: qpoint
+  type(vector_field_t)    , intent(out)   :: normal(2)
+  call this%facet_maps%get_normals(qpoint, normal)
+end subroutine fe_facet_iterator_get_normals
+
+!==================================================================================================
+function fe_facet_iterator_compute_characteristic_length(this,qpoint)
+  implicit none
+  class(fe_facet_iterator_t), target, intent(in) :: this
+  integer(ip)              , intent(in) :: qpoint
+  real(rp) :: fe_facet_iterator_compute_characteristic_length
+  fe_facet_iterator_compute_characteristic_length = this%facet_maps%compute_characteristic_length(qpoint)
+end function fe_facet_iterator_compute_characteristic_length
 

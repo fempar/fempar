@@ -378,21 +378,20 @@ subroutine fe_cell_iterator_update_integration( this )
   class(fe_cell_iterator_t), intent(inout) :: this 
   integer(ip) :: field_id
   type(point_t)            , pointer :: coordinates(:)
-  type(cell_map_t)           , pointer :: cell_map
   type(quadrature_t)       , pointer :: quadrature
   type(cell_integrator_t), pointer :: cell_integrator
   
   integer(ip) :: istat
 
-  cell_map      => this%get_cell_map()
-  coordinates => cell_map%get_coordinates()
+  call this%update_cell_map()
+  coordinates => this%cell_map%get_coordinates()
   call this%get_coordinates(coordinates)
 
   quadrature => this%get_quadrature()
-  call cell_map%update(quadrature)
+  call this%cell_map%update(quadrature)
   do field_id = 1, this%get_num_fields()
      cell_integrator => this%get_cell_integrator(field_id) 
-     call cell_integrator%update(cell_map)
+     call cell_integrator%update(this%cell_map)
   end do
   
   call this%update_num_dofs_x_field(this%num_dofs_x_field)
@@ -564,16 +563,14 @@ function fe_cell_iterator_compute_volume ( this )
   integer(ip)                 :: q_poin, num_quadrature_points
   
   type(quadrature_t), pointer :: quadrature
-  type(cell_map_t)    , pointer :: cell_map
   
   quadrature => this%get_quadrature()
-  cell_map     => this%get_cell_map()
   
   num_quadrature_points = quadrature%get_num_quadrature_points()
   fe_cell_iterator_compute_volume = 0.0_rp
   do q_poin = 1, num_quadrature_points
      fe_cell_iterator_compute_volume = fe_cell_iterator_compute_volume + &
-          &                          cell_map%get_det_jacobian(q_poin) * &
+          &                          this%get_det_jacobian(q_poin) * &
           &                          quadrature%get_weight(q_poin)
   end do
 end function fe_cell_iterator_compute_volume
@@ -635,6 +632,13 @@ function fe_cell_iterator_get_cell_map ( this )
   implicit none
   class(fe_cell_iterator_t), intent(in) :: this
   type(cell_map_t), pointer :: fe_cell_iterator_get_cell_map
+  fe_cell_iterator_get_cell_map => this%cell_map
+end function fe_cell_iterator_get_cell_map
+
+!==================================================================================================
+subroutine fe_cell_iterator_update_cell_map ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: cell_maps_position, cell_maps_key
   integer(ip) :: istat
   
@@ -646,9 +650,35 @@ function fe_cell_iterator_get_cell_map ( this )
                                                           stat=istat)
   
   assert ( .not. istat == key_not_found )
-  fe_cell_iterator_get_cell_map => this%fe_space%cell_maps(cell_maps_position)
-end function fe_cell_iterator_get_cell_map
+  this%cell_map => this%fe_space%cell_maps(cell_maps_position)
+end subroutine fe_cell_iterator_update_cell_map
 
+!==================================================================================================
+subroutine fe_cell_iterator_set_cell_map ( this, cell_map )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  type(cell_map_t), target, intent(in) :: cell_map
+  this%cell_map => cell_map
+end subroutine fe_cell_iterator_set_cell_map
+
+!==================================================================================================
+function fe_cell_iterator_get_quadrature_points_coordinates(this)
+  implicit none
+  class(fe_cell_iterator_t)   , target, intent(in) :: this
+  type(point_t), pointer :: fe_cell_iterator_get_quadrature_points_coordinates(:)
+  fe_cell_iterator_get_quadrature_points_coordinates => this%cell_map%get_quadrature_points_coordinates()
+end function fe_cell_iterator_get_quadrature_points_coordinates
+
+!==================================================================================================
+function fe_cell_iterator_get_det_jacobian ( this, i )
+  implicit none
+  class(fe_cell_iterator_t), intent(in) :: this
+  integer(ip)    , intent(in) :: i
+  real(rp) :: fe_cell_iterator_get_det_jacobian
+  fe_cell_iterator_get_det_jacobian = this%cell_map%get_det_jacobian(i)
+end function fe_cell_iterator_get_det_jacobian
+
+!==================================================================================================
 function fe_cell_iterator_get_cell_integrator ( this, field_id )
   implicit none
   class(fe_cell_iterator_t), intent(in)   :: this
