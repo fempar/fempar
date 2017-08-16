@@ -144,7 +144,7 @@ subroutine fe_cell_iterator_generate_own_dofs_cell ( this, field_id, current_dof
   
   ! Determine position in lst_dofs_gids of the first dof associated to the
   ! field "field_id" within the current fe
-  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_gid())-1
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())-1
   
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within current fe
@@ -173,7 +173,7 @@ subroutine fe_cell_iterator_generate_own_dofs_vef ( this, ivef, field_id, curren
   
   ! Determine position in lst_dofs_gids of the first dof associated to the
   ! field "field_id" within the current fe
-  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_gid())-1
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())-1
   
   reference_fe => this%get_reference_fe(field_id)
   
@@ -209,7 +209,7 @@ function fe_cell_iterator_count_own_dofs_vef ( this, ivef, field_id )
   
   ! Determine position in lst_dofs_gids of the first dof associated to the
   ! field "field_id" within the current fe
-  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_gid())-1
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())-1
   
   reference_fe => this%get_reference_fe(field_id)
   
@@ -240,7 +240,7 @@ subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise ( this, ivef, f
   
   ! Determine position in lst_dofs_gids of the first dof associated to the
   ! field "field_id" within the current fe
-  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_gid())-1
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())-1
 
   reference_fe => this%get_reference_fe(field_id)
   
@@ -292,10 +292,10 @@ subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe ( this, target_ive
   assert ( field_id <= this%get_num_fields() )
   
   reference_fe_target => this%get_reference_fe(field_id)
-  base_pos_lst_dofs_gids_target = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_gid())-1
+  base_pos_lst_dofs_gids_target = this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())-1
   
   reference_fe_source => source_fe%get_reference_fe(field_id)
-  base_pos_lst_dofs_gids_source = this%fe_space%ptr_dofs_x_field_cell(field_id, source_fe%get_gid())-1
+  base_pos_lst_dofs_gids_source = this%fe_space%ptr_dofs_x_fe(field_id, source_fe%get_gid())-1
   source_ivef_dim = reference_fe_source%get_n_face_dim(source_ivef)
   ! Iterate over all DoFs associated to field "field_id" on top of the vef
   ! with local identifier ivef within target fe
@@ -340,7 +340,7 @@ subroutine fe_cell_iterator_generate_dofs_facet_integration_coupling ( this, ive
   
   if ( reference_fe%get_continuity() ) then
     facet_integration_coupling_dofs = reference_fe%create_dofs_on_n_face_iterator(ivef)
-    base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_gid())-1
+    base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())-1
     do while (.not. facet_integration_coupling_dofs%is_upper_bound())
       idof = facet_integration_coupling_dofs%get_current()
       dof_count = dof_count +1 
@@ -383,12 +383,12 @@ subroutine fe_cell_iterator_renum_dofs_field ( this, field_id, perm_old2new )
   integer(ip)         , intent(in) :: perm_old2new(*)
   integer(ip) :: i, start_pos_lst_dofs_gids, end_pos_lst_dofs_gids
   
-  start_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_field_cell(field_id,this%get_gid())
+  start_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id,this%get_gid())
   
   if ( field_id == this%fe_space%get_num_fields() ) then
-    end_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_field_cell(1, this%get_gid()+1)-1
+    end_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(1, this%get_gid()+1)-1
   else  
-    end_pos_lst_dofs_gids   = this%fe_space%ptr_dofs_x_field_cell(field_id+1, this%get_gid())-1
+    end_pos_lst_dofs_gids   = this%fe_space%ptr_dofs_x_fe(field_id+1, this%get_gid())-1
   end if  
   
   assert ( field_id >= 1 .and. field_id <= this%fe_space%get_num_fields() )
@@ -406,11 +406,11 @@ subroutine fe_cell_iterator_update_num_dofs_x_field( this, num_dofs_x_field )
   integer(ip) :: field_id
   
   do field_id = 1, this%get_num_fields()-1
-    num_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_field_cell(field_id+1, this%get_gid())- &
-                                      this%fe_space%ptr_dofs_x_field_cell(field_id  , this%get_gid())
+    num_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_fe(field_id+1, this%get_gid())- &
+                                      this%fe_space%ptr_dofs_x_fe(field_id  , this%get_gid())
   end do
-  num_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_field_cell(1, this%get_gid()+1)- &
-                                    this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_gid())
+  num_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_fe(1, this%get_gid()+1)- &
+                                    this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())
   
 end subroutine fe_cell_iterator_update_num_dofs_x_field
 
@@ -501,8 +501,8 @@ function fe_cell_iterator_get_num_dofs(this)
   implicit none
   class(fe_cell_iterator_t), intent(in) :: this
   integer(ip) :: fe_cell_iterator_get_num_dofs
-  fe_cell_iterator_get_num_dofs = this%fe_space%ptr_dofs_x_field_cell(1, this%get_gid()+1)- &
-                                this%fe_space%ptr_dofs_x_field_cell(1, this%get_gid())
+  fe_cell_iterator_get_num_dofs = this%fe_space%ptr_dofs_x_fe(1, this%get_gid()+1)- &
+                                this%fe_space%ptr_dofs_x_fe(1, this%get_gid())
 end function fe_cell_iterator_get_num_dofs
 
 function fe_cell_iterator_get_num_dofs_x_field (this) result (num_dofs_x_field)
@@ -519,11 +519,11 @@ subroutine fe_cell_iterator_get_field_fe_dofs( this, field_id, fe_dofs )
   integer(ip), pointer, intent(inout) :: fe_dofs(:)
   integer(ip) :: spos, epos
  
-  spos = this%fe_space%ptr_dofs_x_field_cell(field_id  ,this%get_gid())
+  spos = this%fe_space%ptr_dofs_x_fe(field_id  ,this%get_gid())
   if ( field_id == this%fe_space%get_num_fields() ) then
-     epos = this%fe_space%ptr_dofs_x_field_cell(1,this%get_gid()+1)-1
+     epos = this%fe_space%ptr_dofs_x_fe(1,this%get_gid()+1)-1
   else
-     epos = this%fe_space%ptr_dofs_x_field_cell(field_id+1,this%get_gid())-1
+     epos = this%fe_space%ptr_dofs_x_fe(field_id+1,this%get_gid())-1
   end if
   fe_dofs => this%fe_space%lst_dofs_gids(spos:epos)
 end subroutine fe_cell_iterator_get_field_fe_dofs
@@ -536,12 +536,12 @@ subroutine fe_cell_iterator_get_fe_dofs( this, fe_dofs )
   
   assert ( size(fe_dofs) == this%fe_space%num_fields )
   do field_id = 1, this%get_num_fields()-1
-    spos = this%fe_space%ptr_dofs_x_field_cell(field_id  ,this%get_gid())
-    epos = this%fe_space%ptr_dofs_x_field_cell(field_id+1,this%get_gid())-1
+    spos = this%fe_space%ptr_dofs_x_fe(field_id  ,this%get_gid())
+    epos = this%fe_space%ptr_dofs_x_fe(field_id+1,this%get_gid())-1
     fe_dofs(field_id)%p => this%fe_space%lst_dofs_gids(spos:epos)
   end do
-  spos = this%fe_space%ptr_dofs_x_field_cell(field_id  , this%get_gid())
-  epos = this%fe_space%ptr_dofs_x_field_cell(1         , this%get_gid()+1)-1
+  spos = this%fe_space%ptr_dofs_x_fe(field_id  , this%get_gid())
+  epos = this%fe_space%ptr_dofs_x_fe(1         , this%get_gid()+1)-1
   fe_dofs(field_id)%p => this%fe_space%lst_dofs_gids(spos:epos)
   
 end subroutine fe_cell_iterator_get_fe_dofs
@@ -877,7 +877,7 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs ( this, fe_function, elm
   do field_id = 1, this%fe_space%get_num_fields()
     if ( this%at_strong_dirichlet_boundary(field_id) ) then
       reference_fe => this%get_reference_fe(field_id)
-      spos = this%fe_space%ptr_dofs_x_field_cell(field_id, this%get_gid())
+      spos = this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())
       do idof = 1, reference_fe%get_num_shape_functions()
         elmat_col = elmat_col + 1
         if ( this%fe_space%lst_dofs_gids(spos+idof-1) < 0 ) then

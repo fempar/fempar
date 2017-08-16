@@ -178,24 +178,24 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs_gids(this)
   
   call memalloc ( this%num_fields, &
        this%triangulation%get_num_cells()+1, &
-       this%ptr_dofs_x_field_cell, __FILE__, __LINE__ )
+       this%ptr_dofs_x_fe, __FILE__, __LINE__ )
 
-  this%ptr_dofs_x_field_cell(1,1) = 1 
+  this%ptr_dofs_x_fe(1,1) = 1 
   call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
      do field_id=1, fe%get_num_fields()-1
         reference_fe => fe%get_reference_fe(field_id)
-        this%ptr_dofs_x_field_cell(field_id+1,fe%get_gid()) = & 
-             this%ptr_dofs_x_field_cell(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
+        this%ptr_dofs_x_fe(field_id+1,fe%get_gid()) = & 
+             this%ptr_dofs_x_fe(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
      end do
      reference_fe => fe%get_reference_fe(field_id)
-     this%ptr_dofs_x_field_cell(1,fe%get_gid()+1) = & 
-          this%ptr_dofs_x_field_cell(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
+     this%ptr_dofs_x_fe(1,fe%get_gid()+1) = & 
+          this%ptr_dofs_x_fe(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
      call fe%next()
   end do
   call this%free_fe_cell_iterator(fe) 
 
-  call memalloc ( this%ptr_dofs_x_field_cell(1,this%triangulation%get_num_cells()+1)-1,&
+  call memalloc ( this%ptr_dofs_x_fe(1,this%triangulation%get_num_cells()+1)-1,&
        this%lst_dofs_gids, &
        __FILE__, __LINE__ )
   this%lst_dofs_gids = 0
@@ -224,7 +224,7 @@ end subroutine serial_fe_space_move_alloc_lst_dofs_gids_out
 subroutine serial_fe_space_free_ptr_lst_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%ptr_dofs_x_field_cell)) call memfree ( this%ptr_dofs_x_field_cell, __FILE__, __LINE__ )
+  if (allocated(this%ptr_dofs_x_fe)) call memfree ( this%ptr_dofs_x_fe, __FILE__, __LINE__ )
   if (allocated(this%lst_dofs_gids)) call memfree ( this%lst_dofs_gids, __FILE__, __LINE__ )
 end subroutine serial_fe_space_free_ptr_lst_dofs
 
@@ -1837,7 +1837,7 @@ subroutine serial_fe_space_fill_facet_gids ( this )
   call this%facet_gids%resize(this%triangulation%get_num_facets())
   call this%create_fe_vef_iterator(fe_vef)
   do while ( .not. fe_vef%has_finished() )
-    if ( fe_vef%is_face() ) then
+    if ( fe_vef%is_facet() ) then
       facet_gid = facet_gid + 1
       call this%facet_gids%set(facet_gid,fe_vef%get_gid())
     end if

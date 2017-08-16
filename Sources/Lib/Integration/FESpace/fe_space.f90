@@ -284,7 +284,7 @@ module fe_space_names
      procedure, non_overridable          :: is_local                  => base_fe_vef_iterator_is_local
      procedure, non_overridable          :: is_ghost                  => base_fe_vef_iterator_is_ghost
      procedure, non_overridable          :: is_at_interface           => base_fe_vef_iterator_is_at_interface
-     procedure, non_overridable          :: is_face                   => base_fe_vef_iterator_is_face
+     procedure, non_overridable          :: is_facet                   => base_fe_vef_iterator_is_facet
      
      procedure                           :: get_num_cells_around      => base_fe_vef_iterator_get_num_cells_around
      procedure, non_overridable          :: base_fe_vef_iterator_get_cell_around
@@ -405,7 +405,7 @@ module fe_space_names
      type(std_vector_integer_ip_t)               :: facet_permutation_indices
      
      ! DoF identifiers associated to each FE and field within FE
-     integer(ip)                   , allocatable :: ptr_dofs_x_field_cell(:,:) ! (num_fields, num_fes+1)
+     integer(ip)                   , allocatable :: ptr_dofs_x_fe(:,:) ! (num_fields, num_fes+1)
      integer(ip)                   , allocatable :: lst_dofs_gids(:)
      
      ! Strong Dirichlet BCs-related member variables
@@ -689,7 +689,7 @@ module fe_space_names
    procedure        , non_overridable          :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
    procedure        , non_overridable, private :: transfer_num_fields                             => par_fe_space_transfer_num_fields
    procedure        , non_overridable, private :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
-   procedure        , non_overridable, private :: gather_ptr_dofs_x_field_cell_and_field                  => par_fe_space_gather_ptr_dofs_x_field_cell_and_field
+   procedure        , non_overridable, private :: gather_ptr_dofs_x_fe                            => par_fe_space_gather_ptr_dofs_x_fe
    procedure        , non_overridable, private :: gather_coarse_dofs_ggids_rcv_counts_and_displs  => par_fe_space_gather_coarse_dofs_ggids_rcv_counts_and_displs
    procedure        , non_overridable, private :: gather_coarse_dofs_ggids                        => par_fe_space_gather_coarse_dofs_ggids
    procedure        , non_overridable, private :: gather_vefs_ggids_dofs_objects                   => par_fe_space_gather_vefs_ggids_dofs_objects
@@ -821,7 +821,7 @@ module fe_space_names
     logical                       , allocatable :: blocks_coupling(:,:)
     integer(ip)                   , allocatable :: num_dofs_x_block(:)
     
-    integer(ip) , allocatable                   :: ptr_dofs_x_field_cell_and_field(:)
+    integer(ip) , allocatable                   :: ptr_dofs_x_fe(:)
     integer(ip) , allocatable                   :: lst_dofs_gids(:)
     type(list_t), allocatable                   :: own_dofs_vef_x_fe(:)
     	
@@ -852,8 +852,8 @@ module fe_space_names
     procedure, non_overridable, private         :: free_field_blocks_and_coupling                  => coarse_fe_space_free_field_blocks_and_coupling
     procedure, non_overridable, private         :: allocate_and_fill_fe_space_type_x_field         => coarse_fe_space_allocate_and_fill_fe_space_type
     procedure, non_overridable, private         :: free_fe_space_type_x_field                      => coarse_fe_space_free_fe_space_type
-    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_x_fe_and_field       => coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe_and_field
-    procedure, non_overridable, private         :: free_ptr_dofs_x_field_cell_and_field                    => coarse_fe_space_free_ptr_dofs_x_field_cell_and_field
+    procedure, non_overridable, private         :: allocate_and_fill_ptr_dofs_x_fe                 => coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe
+    procedure, non_overridable, private         :: free_ptr_dofs_x_fe                              => coarse_fe_space_free_ptr_dofs_x_fe
     procedure, non_overridable, private         :: fetch_ghost_fes_data                            => coarse_fe_space_fetch_ghost_fes_data
     procedure, non_overridable, private         :: allocate_and_generate_own_dofs_vef_x_fe         => coarse_fe_space_allocate_and_generate_own_dofs_vef_x_fe
     procedure, non_overridable, private         :: generate_own_dofs_cell_x_fe_field               => coarse_fe_space_generate_own_dofs_cell_x_fe_field
@@ -879,7 +879,7 @@ module fe_space_names
     procedure, non_overridable, private         :: setup_coarse_fe_space                           => coarse_fe_space_setup_coarse_fe_space
     procedure, non_overridable, private         :: transfer_num_fields                          => coarse_fe_space_transfer_num_fields
     procedure, non_overridable, private         :: transfer_fe_space_type                          => coarse_fe_space_transfer_fe_space_type
-    procedure, non_overridable, private         :: gather_ptr_dofs_x_field_cell_and_field                => coarse_fe_space_gather_ptr_dofs_x_field_cell_and_field
+    procedure, non_overridable, private         :: gather_ptr_dofs_x_fe                => coarse_fe_space_gather_ptr_dofs_x_fe
     procedure, non_overridable, private         :: gather_coarse_dofs_gids_rcv_counts_and_displs   => coarse_fe_space_gather_coarse_dofs_gids_rcv_counts_and_displs
     procedure, non_overridable, private         :: gather_coarse_dofs_gids                         => coarse_fe_space_gather_coarse_dofs_gids
     procedure, non_overridable, private         :: gather_vefs_gids_dofs_objects                   => coarse_fe_space_gather_vefs_gids_dofs_objects
@@ -951,19 +951,14 @@ module fe_space_names
    class(vector_t), allocatable  :: free_dof_values
    type(serial_scalar_array_t)   :: fixed_dof_values
   contains
-     procedure, non_overridable          :: create                               => fe_function_create
-     ! Development required 
-     procedure, non_overridable          :: update_fixed_dof_values              => fe_function_update_fixed_dof_values
-     procedure, non_overridable          :: gather_nodal_values_through_iterator => fe_function_gather_nodal_values_through_iterator
-     procedure, non_overridable          :: gather_nodal_values_from_raw_data    => fe_function_gather_nodal_values_from_raw_data
-     generic                             :: gather_nodal_values                  => gather_nodal_values_through_iterator, &
-                                                                                    gather_nodal_values_from_raw_data
-     procedure, non_overridable          :: insert_nodal_values                  => fe_function_insert_nodal_values
-     procedure, non_overridable          :: copy                                 => fe_function_copy
-     procedure, non_overridable          :: get_dof_values                       => fe_function_get_dof_values
-     procedure, non_overridable          :: get_fixed_dof_values                 => fe_function_get_fixed_dof_values
-     procedure, non_overridable          :: free                                 => fe_function_free
-     generic                             :: assignment(=)                        => copy
+     procedure, non_overridable          :: create                         => fe_function_create
+     procedure, non_overridable          :: gather_nodal_values            => fe_function_gather_nodal_values
+     procedure, non_overridable          :: insert_nodal_values            => fe_function_insert_nodal_values
+     procedure, non_overridable          :: copy                           => fe_function_copy
+     procedure, non_overridable          :: get_free_dof_values            => fe_function_get_free_dof_values
+     procedure, non_overridable          :: get_fixed_dof_values           => fe_function_get_fixed_dof_values
+     procedure, non_overridable          :: free                           => fe_function_free
+     generic                             :: assignment(=)                  => copy
   end type fe_function_t 
    
   public :: fe_function_t  

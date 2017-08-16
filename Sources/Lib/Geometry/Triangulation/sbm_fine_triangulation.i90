@@ -707,7 +707,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
     call this%create_cell_iterator(cell)
     call vef%first()
     do while ( .not. vef%has_finished() )
-       if ( vef%is_face() .and. .not. vef%is_ghost() ) then
+       if ( vef%is_facet() .and. .not. vef%is_ghost() ) then
           ivef = vef%get_gid()
 
           call vef%get_cell_around (1, cell) ! there is always one element around

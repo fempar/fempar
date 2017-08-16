@@ -233,13 +233,20 @@ function vef_iterator_is_at_interface (this)
   vef_iterator_is_at_interface  = (this%base_static_triangulation%vefs_type(this%gid)/100==1)
 end function vef_iterator_is_at_interface
 
-function vef_iterator_is_face (this)
+function vef_iterator_is_facet (this)
   implicit none
   class(vef_iterator_t), intent(in) :: this
+<<<<<<< HEAD
   logical :: vef_iterator_is_face
   assert ( this%is_within_valid_range() )
   vef_iterator_is_face  = (this%base_static_triangulation%get_num_dims()-1 == this%get_dim())
 end function vef_iterator_is_face
+=======
+  logical :: vef_iterator_is_facet
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  vef_iterator_is_facet  = (this%base_static_triangulation%get_num_dims()-1 == this%get_dim())
+end function vef_iterator_is_facet
+>>>>>>> d876dbdd7d6fab2e8d144baa0ccb819370c29f8b
 
 function vef_iterator_is_within_valid_range (this)
   implicit none

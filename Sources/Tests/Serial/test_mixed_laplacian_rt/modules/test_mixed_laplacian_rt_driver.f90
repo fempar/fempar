@@ -215,7 +215,7 @@ contains
     class(vector_t), pointer       :: dof_values
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_dof_values()
+    dof_values => this%solution%get_free_dof_values()
 #ifdef ENABLE_MKL    
     call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
 #else
@@ -336,7 +336,7 @@ contains
                     nodal_values_pre_basis, &
                     __FILE__, __LINE__ )
     
-    dof_values => this%solution%get_dof_values()
+    dof_values => this%solution%get_free_dof_values()
     
     num_fields = this%fe_space%get_num_fields()
     allocate( fe_dofs(num_fields), stat=istat); check(istat==0);

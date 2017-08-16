@@ -194,6 +194,7 @@ module base_static_triangulation_names
      procedure, non_overridable          :: set_it_as_ghost           => vef_iterator_set_it_as_ghost
      procedure, non_overridable          :: set_it_at_interface       => vef_iterator_set_it_at_interface
 
+<<<<<<< HEAD
      procedure                           :: get_dim             => vef_iterator_get_dim
      procedure                           :: is_at_boundary            => vef_iterator_is_at_boundary
      procedure                           :: is_local                  => vef_iterator_is_local
@@ -201,6 +202,14 @@ module base_static_triangulation_names
      procedure                           :: is_at_interface           => vef_iterator_is_at_interface
      procedure, non_overridable          :: is_face                   => vef_iterator_is_face
      procedure                           :: is_within_valid_range     => vef_iterator_is_within_valid_range
+=======
+     procedure, non_overridable          :: get_dim             => vef_iterator_get_dim
+     procedure, non_overridable          :: is_at_boundary            => vef_iterator_is_at_boundary
+     procedure, non_overridable          :: is_local                  => vef_iterator_is_local
+     procedure, non_overridable          :: is_ghost                  => vef_iterator_is_ghost
+     procedure, non_overridable          :: is_at_interface           => vef_iterator_is_at_interface
+     procedure, non_overridable          :: is_facet                   => vef_iterator_is_facet
+>>>>>>> d876dbdd7d6fab2e8d144baa0ccb819370c29f8b
      
      procedure                           :: get_num_cells_around      => vef_iterator_get_num_cells_around
      procedure                           :: get_cell_around           => vef_iterator_get_cell_around

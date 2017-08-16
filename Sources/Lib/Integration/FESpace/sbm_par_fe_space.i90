@@ -205,7 +205,7 @@ subroutine par_fe_space_compute_faces_object(this)
   do while ( .not. fe_object%has_finished() )
     do ivef_within_fe_object = 1,fe_object%get_num_vefs()
       call fe_object%get_vef(ivef_within_fe_object,fe_vef)
-      if ( fe_vef%is_face() ) then 
+      if ( fe_vef%is_facet() ) then 
         call this%faces_object%sum_to_pointer_index(fe_object%get_gid(), 1)
       end if
     end do
@@ -220,7 +220,7 @@ subroutine par_fe_space_compute_faces_object(this)
     faces_object_iterator = fe_object%create_faces_object_iterator()
     do ivef_within_fe_object = 1,fe_object%get_num_vefs()
       call fe_object%get_vef(ivef_within_fe_object,fe_vef)
-      if ( fe_vef%is_face() ) then
+      if ( fe_vef%is_facet() ) then
         facet_gid = fe_vef%get_gid() - this%triangulation%get_num_vefs() & 
                                     + this%triangulation%get_num_facets()
         call faces_object_iterator%set_current(facet_gid)
@@ -385,7 +385,7 @@ subroutine par_fe_space_count_and_list_dofs_on_ghosts( this )
               else
                  do ivef = 1, fe%get_num_vefs()
                     call fe%get_vef(ivef, vef)
-                    if ( vef%is_face() .and. vef%is_at_interface() ) then
+                    if ( vef%is_facet() .and. vef%is_at_interface() ) then
                       call fe%generate_dofs_facet_integration_coupling ( ivef, &
                                                                     field_id, &
                                                                     this%num_dofs_x_field(field_id) )
@@ -1953,7 +1953,11 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
   integer(ip)                           :: istat
   integer(ip)                           :: num_fields
   integer(ip), allocatable              :: fe_space_type_x_field(:)
+<<<<<<< HEAD
   integer(ip), allocatable              :: ptr_dofs_x_field_cell_and_field(:)
+=======
+  integer(ip), allocatable              :: ptr_dofs_x_fe(:)
+>>>>>>> d876dbdd7d6fab2e8d144baa0ccb819370c29f8b
   integer(ip), allocatable              :: coarse_dofs_gids_recv_counts(:)
   integer(ip), allocatable              :: coarse_dofs_gids_displs(:)
   integer(igp), allocatable             :: lst_dofs_gids(:)
@@ -1974,7 +1978,11 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
    ! be passed as actual arguments of dummy arguments that do not have the allocatable attribute 
    ! Otherwise, the code crashes with a segmentation fault.
    call memalloc (0, fe_space_type_x_field, __FILE__, __LINE__)
+<<<<<<< HEAD
    call memalloc (0, ptr_dofs_x_field_cell_and_field, __FILE__, __LINE__)
+=======
+   call memalloc (0, ptr_dofs_x_fe, __FILE__, __LINE__)
+>>>>>>> d876dbdd7d6fab2e8d144baa0ccb819370c29f8b
    call memalloc (0, lst_dofs_gids, __FILE__, __LINE__)
    call memalloc (0, lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
    call memalloc (0, coarse_dofs_gids_recv_counts, __FILE__, __LINE__)
@@ -1985,7 +1993,11 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
   if ( par_environment%am_i_l1_to_l2_task() ) then
      call this%transfer_num_fields(num_fields) 
      call this%transfer_fe_space_type(num_fields, fe_space_type_x_field)
-     call this%gather_ptr_dofs_x_field_cell_and_field(num_fields, ptr_dofs_x_field_cell_and_field)
+<<<<<<< HEAD
+     call this%gather_ptr_dofs_x_fe(num_fields, ptr_dofs_x_field_cell_and_field)
+=======
+     call this%gather_ptr_dofs_x_fe(num_fields, ptr_dofs_x_fe)
+>>>>>>> d876dbdd7d6fab2e8d144baa0ccb819370c29f8b
      call this%gather_coarse_dofs_ggids_rcv_counts_and_displs (coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs)
      call this%gather_coarse_dofs_ggids(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_dofs_gids)
      call this%gather_vefs_ggids_dofs_objects(coarse_dofs_gids_recv_counts, coarse_dofs_gids_displs, lst_vefs_gids_dofs_objects)
@@ -2003,7 +2015,11 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
      call this%coarse_fe_space%create (coarse_triangulation, &
                                        num_fields, &
                                        fe_space_type_x_field, &
+<<<<<<< HEAD
                                        ptr_dofs_x_field_cell_and_field, &
+=======
+                                       ptr_dofs_x_fe, &
+>>>>>>> d876dbdd7d6fab2e8d144baa0ccb819370c29f8b
                                        lst_dofs_gids, &
                                        lst_vefs_gids_dofs_objects)
   else
@@ -2013,7 +2029,11 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
 
   ! All tasks free raw data (see actual reason on the top part of this subroutine)
   call memfree (fe_space_type_x_field, __FILE__, __LINE__)
+<<<<<<< HEAD
   call memfree (ptr_dofs_x_field_cell_and_field, __FILE__, __LINE__)
+=======
+  call memfree (ptr_dofs_x_fe, __FILE__, __LINE__)
+>>>>>>> d876dbdd7d6fab2e8d144baa0ccb819370c29f8b
   call memfree (lst_dofs_gids, __FILE__, __LINE__)
   call memfree (lst_vefs_gids_dofs_objects, __FILE__, __LINE__)
   call memfree (coarse_dofs_gids_recv_counts, __FILE__, __LINE__)
@@ -2060,11 +2080,19 @@ subroutine par_fe_space_transfer_fe_space_type ( this, num_fields, fe_space_type
   end if
 end subroutine par_fe_space_transfer_fe_space_type
 
-subroutine par_fe_space_gather_ptr_dofs_x_field_cell_and_field( this, num_fields, ptr_dofs_x_field_cell_and_field )
+<<<<<<< HEAD
+subroutine par_fe_space_gather_ptr_dofs_x_fe( this, num_fields, ptr_dofs_x_field_cell_and_field )
   implicit none
   class(par_fe_space_t)   , intent(inout)    :: this
   integer(ip)             , intent(in)       :: num_fields
   integer(ip), allocatable, intent(inout)    :: ptr_dofs_x_field_cell_and_field(:)
+=======
+subroutine par_fe_space_gather_ptr_dofs_x_fe( this, num_fields, ptr_dofs_x_fe )
+  implicit none
+  class(par_fe_space_t)   , intent(inout)    :: this
+  integer(ip)             , intent(in)       :: num_fields
+  integer(ip), allocatable, intent(inout)    :: ptr_dofs_x_fe(:)
+>>>>>>> d876dbdd7d6fab2e8d144baa0ccb819370c29f8b
   integer(ip)                                :: i, num_local_cells
   integer(ip)                                :: dummy_integer_array(0)
   type(environment_t), pointer           :: par_environment
@@ -2077,6 +2105,7 @@ subroutine par_fe_space_gather_ptr_dofs_x_field_cell_and_field( this, num_fields
      triangulation => this%get_triangulation()
      coarse_triangulation => triangulation%get_coarse_triangulation()
      num_local_cells = coarse_triangulation%get_num_local_cells()
+<<<<<<< HEAD
      if (allocated(ptr_dofs_x_field_cell_and_field)) call memfree ( ptr_dofs_x_field_cell_and_field, __FILE__, __LINE__ )
      call memalloc ((num_local_cells+1)*num_fields+1, ptr_dofs_x_field_cell_and_field, __FILE__, __LINE__ )
      call par_environment%l2_from_l1_gather( input_data_size = num_fields, &
@@ -2085,6 +2114,16 @@ subroutine par_fe_space_gather_ptr_dofs_x_field_cell_and_field( this, num_fields
      ptr_dofs_x_field_cell_and_field(1) = 1
      do i=1, num_local_cells*num_fields
        ptr_dofs_x_field_cell_and_field(i+1) = ptr_dofs_x_field_cell_and_field(i) + ptr_dofs_x_field_cell_and_field(i+1)
+=======
+     if (allocated(ptr_dofs_x_fe)) call memfree ( ptr_dofs_x_fe, __FILE__, __LINE__ )
+     call memalloc ((num_local_cells+1)*num_fields+1, ptr_dofs_x_fe, __FILE__, __LINE__ )
+     call par_environment%l2_from_l1_gather( input_data_size = num_fields, &
+                                             input_data      = [((0), i=1,num_fields)], &
+                                             output_data     = ptr_dofs_x_fe(2:))
+     ptr_dofs_x_fe(1) = 1
+     do i=1, num_local_cells*num_fields
+       ptr_dofs_x_fe(i+1) = ptr_dofs_x_fe(i) + ptr_dofs_x_fe(i+1)
+>>>>>>> d876dbdd7d6fab2e8d144baa0ccb819370c29f8b
      end do
   else
      do i=1, this%num_fields
@@ -2098,7 +2137,11 @@ subroutine par_fe_space_gather_ptr_dofs_x_field_cell_and_field( this, num_fields
        this%ptr_coarse_dofs_x_field(i) = this%ptr_coarse_dofs_x_field(i+1)-this%ptr_coarse_dofs_x_field(i) 
      end do
   end if
-end subroutine par_fe_space_gather_ptr_dofs_x_field_cell_and_field
+<<<<<<< HEAD
+end subroutine par_fe_space_gather_ptr_dofs_x_fe
+=======
+end subroutine par_fe_space_gather_ptr_dofs_x_fe
+>>>>>>> d876dbdd7d6fab2e8d144baa0ccb819370c29f8b
 
   subroutine par_fe_space_gather_coarse_dofs_ggids_rcv_counts_and_displs( this, recv_counts, displs )
     implicit none

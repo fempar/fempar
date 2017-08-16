@@ -246,8 +246,8 @@ contains
     class(vector_t) , pointer :: dof_values_current 
     class(vector_t) , pointer :: dof_values_previous
     
-    dof_values_current => this%H_current%get_dof_values() 
-    dof_values_previous => this%H_previous%get_dof_values()
+    dof_values_current => this%H_current%get_free_dof_values() 
+    dof_values_previous => this%H_previous%get_free_dof_values()
     call dof_values_current%init(0.0_rp) 
     call dof_values_previous%init(0.0_rp) 
     
@@ -453,7 +453,7 @@ contains
                                        max_iters = this%test_params%get_max_nonlinear_iterations(),                   &
                                        ideal_iters = this%test_params%get_stepping_parameter(),                       &
                                        fe_affine_operator = this%fe_affine_operator,                                  &
-                                       current_dof_values = this%H_current%get_dof_values(),                          &
+                                       current_dof_values = this%H_current%get_free_dof_values(),                          &
                                        apply_constraint = this%test_params%get_apply_current_density_constraint(),    & 
                                        constraint_vector = this%constraint_vector                                 )
     

@@ -775,7 +775,7 @@ subroutine marching_cubes_discrete_levelset_comm(this,par_fe_space)
   serial_array   => par_array%get_serial_scalar_array()
   touched => serial_array%get_entries()
 
-  dof_values => this%fe_levelset%get_dof_values()
+  dof_values => this%fe_levelset%get_free_dof_values()
   select type(dof_values)
   class is (par_scalar_array_t)
 
