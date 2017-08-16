@@ -176,6 +176,7 @@ module fe_space_names
     ! Scratch data to support FE integration
     integer(ip)             , allocatable :: num_dofs_x_field(:)
     type(i1p_t)             , allocatable :: fe_dofs(:)
+    type(cell_map_t)        , pointer     :: cell_map
   contains
     procedure                           :: create                                     => fe_cell_iterator_create
     procedure                           :: free                                       => fe_cell_iterator_free
@@ -191,6 +192,7 @@ module fe_space_names
     procedure, non_overridable, private :: renum_dofs_field                           => fe_cell_iterator_renum_dofs_field
     procedure, non_overridable          :: update_num_dofs_x_field                    => fe_cell_iterator_update_num_dofs_x_field
     procedure                           :: update_integration                         => fe_cell_iterator_update_integration
+    procedure                           :: update_cell_map                            => fe_cell_iterator_update_cell_map
 
     procedure, non_overridable          :: get_fe_space                               => fe_cell_iterator_get_fe_space
     procedure, non_overridable          :: get_num_fields                             => fe_cell_iterator_get_num_fields

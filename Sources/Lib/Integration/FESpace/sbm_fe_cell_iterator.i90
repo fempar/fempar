@@ -378,21 +378,20 @@ subroutine fe_cell_iterator_update_integration( this )
   class(fe_cell_iterator_t), intent(inout) :: this 
   integer(ip) :: field_id
   type(point_t)            , pointer :: coordinates(:)
-  type(cell_map_t)           , pointer :: cell_map
   type(quadrature_t)       , pointer :: quadrature
   type(cell_integrator_t), pointer :: cell_integrator
   
   integer(ip) :: istat
 
-  cell_map      => this%get_cell_map()
+  call this%update_cell_map()
   coordinates => cell_map%get_coordinates()
   call this%get_coordinates(coordinates)
 
   quadrature => this%get_quadrature()
-  call cell_map%update(quadrature)
+  call this%cell_map%update(quadrature)
   do field_id = 1, this%get_num_fields()
      cell_integrator => this%get_cell_integrator(field_id) 
-     call cell_integrator%update(cell_map)
+     call cell_integrator%update(this%cell_map)
   end do
   
   call this%update_num_dofs_x_field(this%num_dofs_x_field)
@@ -648,6 +647,23 @@ function fe_cell_iterator_get_cell_map ( this )
   assert ( .not. istat == key_not_found )
   fe_cell_iterator_get_cell_map => this%fe_space%cell_maps(cell_maps_position)
 end function fe_cell_iterator_get_cell_map
+
+subroutine fe_cell_iterator_update_cell_map ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: cell_maps_position, cell_maps_key
+  integer(ip) :: istat
+  
+  cell_maps_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
+                                                                   this%get_quadrature_degree())
+  
+  call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_maps_key, &
+                                                          val=cell_maps_position, &
+                                                          stat=istat)
+  
+  assert ( .not. istat == key_not_found )
+  this%cell_map => this%fe_space%cell_maps(cell_maps_position)
+end subroutine fe_cell_iterator_update_cell_map
 
 function fe_cell_iterator_get_cell_integrator ( this, field_id )
   implicit none
