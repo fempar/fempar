@@ -228,15 +228,15 @@ module reference_fe_names
 
   type cell_map_facet_restriction_t
      private
-     integer(ip)                 :: num_facets = 0
-     integer(ip)                 :: active_facet_lid
+     integer(ip)                   :: num_facets = 0
+     integer(ip)                   :: current_facet_lid
      type(cell_map_t), allocatable :: cell_map(:)
    contains
-     procedure, non_overridable :: create            => cell_map_facet_restriction_create
-     procedure, non_overridable :: update            => cell_map_facet_restriction_update
-     procedure, non_overridable :: free              => cell_map_facet_restriction_free
-     procedure, non_overridable :: get_coordinates   => cell_map_facet_restriction_get_coordinates
-     procedure, non_overridable :: get_active_cell_map => cell_map_facet_restriction_get_active_cell_map 
+     procedure, non_overridable :: create               => cell_map_facet_restriction_create
+     procedure, non_overridable :: update               => cell_map_facet_restriction_update
+     procedure, non_overridable :: free                 => cell_map_facet_restriction_free
+     procedure, non_overridable :: get_coordinates      => cell_map_facet_restriction_get_coordinates
+     procedure, non_overridable :: get_current_cell_map => cell_map_facet_restriction_get_current_cell_map 
   end type cell_map_facet_restriction_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
@@ -252,12 +252,12 @@ module reference_fe_names
      procedure          :: create                   => polytope_create 
      procedure          :: create_facet_iterator    => polytope_create_facet_iterator
      procedure          :: get_n_face               => polytope_get_n_face
-     procedure          :: get_n_face_dim     => polytope_get_n_face_dim
+     procedure          :: get_n_face_dim           => polytope_get_n_face_dim
      procedure          :: n_face_type              => polytope_n_face_type
      procedure          :: n_face_dir_is_fixed      => polytope_n_face_dir_is_fixed 
      procedure          :: n_face_dir_coordinate    => polytope_n_face_dir_coordinate
      procedure          :: n_face_coordinate        => polytope_n_face_coordinate
-     procedure          :: get_num_n_faces       => polytope_get_num_n_faces
+     procedure          :: get_num_n_faces          => polytope_get_num_n_faces
      procedure          :: get_ijk_to_index         => polytope_get_ijk_to_index
      procedure          :: print                    => polytope_print
      procedure          :: free                     => polytope_free
@@ -1565,13 +1565,13 @@ public :: cell_integrator_t, p_cell_integrator_t
   type cell_integrator_facet_restriction_t
      private
      integer(ip)                            :: num_facets
-     integer(ip)                            :: active_facet_lid
+     integer(ip)                            :: current_facet_lid
      type(cell_integrator_t), allocatable :: cell_integrator(:) 
    contains
-     procedure, non_overridable :: create  => cell_integrator_facet_restriction_create
-     procedure, non_overridable :: update  => cell_integrator_facet_restriction_update
-     procedure, non_overridable :: free    => cell_integrator_facet_restriction_free
-     procedure, non_overridable :: get_active_cell_integrator => cell_integrator_facet_restriction_get_active_cell_integrator
+     procedure, non_overridable :: create                      => cell_integrator_facet_restriction_create
+     procedure, non_overridable :: update                      => cell_integrator_facet_restriction_update
+     procedure, non_overridable :: free                        => cell_integrator_facet_restriction_free
+     procedure, non_overridable :: get_current_cell_integrator => cell_integrator_facet_restriction_get_current_cell_integrator
   end type cell_integrator_facet_restriction_t
 
   public :: cell_integrator_facet_restriction_t
@@ -1611,7 +1611,7 @@ type facet_integrator_t
   integer(ip)                               :: active_cell_id(2)
   type(cell_integrator_facet_restriction_t) :: cell_integrator_facet_restriction(2)
   type(p_reference_fe_t)                    :: reference_fe(2)
-  integer(ip)                               :: current_qpoints_perm_cols(2)
+  integer(ip)                               :: current_permutation_index
   type(allocatable_array_ip2_t)             :: qpoints_perm
 contains
   procedure, non_overridable :: create             => facet_integrator_create

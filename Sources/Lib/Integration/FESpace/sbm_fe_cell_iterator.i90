@@ -55,9 +55,13 @@ subroutine fe_cell_iterator_free (this)
   if ( allocated(this%fe_dofs) ) then
     deallocate ( this%fe_dofs, stat=istat ); check(istat==0);
   end if
+<<<<<<< HEAD
   if ( allocated(this%cell_integrators) ) then
     deallocate ( this%cell_integrators, stat=istat ); check(istat==0);
   end if
+=======
+  nullify(this%cell_map)
+>>>>>>> b97c8712374524ee7bdba72b87ef2b193df5150a
 end subroutine fe_cell_iterator_free
 
 subroutine fe_cell_iterator_free_final(this)
@@ -65,6 +69,7 @@ subroutine fe_cell_iterator_free_final(this)
   type(fe_cell_iterator_t), intent(inout) :: this
   assert ( .not. allocated(this%cell) )
   assert ( .not. associated(this%fe_space))
+  assert ( .not. associated(this%cell_map))
 end subroutine fe_cell_iterator_free_final
 
 function fe_cell_iterator_count_own_dofs_cell ( this, field_id )

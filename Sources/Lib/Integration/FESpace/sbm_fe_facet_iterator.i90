@@ -58,6 +58,7 @@ subroutine fe_facet_iterator_free ( this )
   if ( allocated(this%fe_dofs_x_cell) ) then
     deallocate ( this%fe_dofs_x_cell, stat=istat ); check(istat==0);
   end if
+  nullify(this%facet_maps)
 end subroutine fe_facet_iterator_free
 
 subroutine fe_facet_iterator_first ( this )

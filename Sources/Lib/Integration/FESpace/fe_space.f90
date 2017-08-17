@@ -176,7 +176,7 @@ module fe_space_names
     ! Scratch data to support FE integration
     integer(ip)              , allocatable :: num_dofs_x_field(:)
     type(i1p_t)              , allocatable :: fe_dofs(:)
-    type(cell_map_t)         , pointer     :: cell_map
+    type(cell_map_t)         , pointer     :: cell_map => NULL()
     type(p_cell_integrator_t), allocatable:: cell_integrators(:)
   contains
     procedure                           :: create                                     => fe_cell_iterator_create
@@ -314,7 +314,7 @@ module fe_space_names
     ! Scratch data to support FE face integration
     integer(ip)         , allocatable :: num_dofs_x_cell_and_field(:,:)
     type(i1p_t)         , allocatable :: fe_dofs_x_cell(:,:)
-    type(facet_maps_t)  , pointer     :: facet_maps
+    type(facet_maps_t)  , pointer     :: facet_maps => NULL()
    contains
     procedure                 , private :: create                        => fe_facet_iterator_create
     procedure                 , private :: free                          => fe_facet_iterator_free
