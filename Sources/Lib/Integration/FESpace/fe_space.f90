@@ -309,8 +309,10 @@ module fe_space_names
     procedure                           :: has_finished                  => fe_facet_iterator_has_finished
     procedure, non_overridable          :: set_gid                       => fe_facet_iterator_set_gid
     procedure, non_overridable          :: get_gid                       => fe_facet_iterator_get_gid
-    procedure, non_overridable, private :: update_num_dofs_x_field  => fe_facet_iterator_update_num_dofs_x_field
-    procedure, non_overridable, private :: update_fe_dofs_x_cell      => fe_facet_iterator_update_fe_dofs_x_cell
+    procedure, non_overridable          :: is_at_field_boundary          => fe_facet_iterator_is_at_field_boundary
+    procedure, non_overridable          :: is_at_field_interior          => fe_facet_iterator_is_at_field_interior
+    procedure, non_overridable, private :: update_num_dofs_x_field       => fe_facet_iterator_update_num_dofs_x_field
+    procedure, non_overridable, private :: update_fe_dofs_x_cell         => fe_facet_iterator_update_fe_dofs_x_cell
     procedure, non_overridable          :: update_integration            => fe_facet_iterator_update_integration
     procedure, non_overridable, private :: fe_facet_iterator_assembly_array
     procedure, non_overridable, private :: fe_facet_iterator_assembly_matrix
@@ -319,8 +321,8 @@ module fe_space_names
                                                                             fe_facet_iterator_assembly_matrix, &
                                                                             fe_facet_iterator_assembly_matrix_array
     procedure, non_overridable          :: get_fe_space                  => fe_facet_iterator_get_fe_space
-    procedure, non_overridable          :: get_num_dofs_x_field     => fe_facet_iterator_get_num_dofs_x_field
-    procedure, non_overridable          :: get_fe_dofs                  => fe_facet_iterator_get_fe_dofs
+    procedure, non_overridable          :: get_num_dofs_x_field          => fe_facet_iterator_get_num_dofs_x_field
+    procedure, non_overridable          :: get_fe_dofs                   => fe_facet_iterator_get_fe_dofs
     procedure, non_overridable          :: get_default_quadrature_degree => fe_facet_iterator_get_default_quadrature_degree
     procedure, non_overridable          :: get_quadrature_degree         => fe_facet_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree         => fe_facet_iterator_set_quadrature_degree
@@ -331,6 +333,7 @@ module fe_space_names
     procedure, non_overridable          :: compute_surface               => fe_facet_iterator_compute_surface
     procedure, non_overridable          :: get_lpos_within_cell_around   => fe_facet_iterator_get_lpos_within_cell_around
     procedure, non_overridable          :: get_facet_permutation_index   => fe_facet_iterator_get_facet_permutation_index
+    procedure, non_overridable          :: get_outward_normal            => fe_facet_iterator_get_outward_normal
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_facet_iterator_get_quadrature_points_coordinates
     procedure, non_overridable :: get_normals                       => fe_facet_iterator_get_normals

@@ -103,9 +103,9 @@ contains
           
        ! Very important: this has to be inside the loop, as different FEs can be present!
        quad            => fe%get_quadrature()
-       num_quad_points = quad%get_num_quadrature_points()
-       cell_int         => fe%get_cell_integrator(1)
-       num_dofs = fe%get_num_dofs()
+       num_quad_points =  quad%get_num_quadrature_points()
+       cell_int        => fe%get_cell_integrator(1)
+       num_dofs        =  fe%get_num_dofs()
        
        ! Get quadrature coordinates to evaluate source_term
        quad_coords => fe%get_quadrature_points_coordinates()

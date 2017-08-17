@@ -60,6 +60,23 @@ then
           fi
         done
       done
+      
+      # Square + Quads + Hybrid Void/Full FEs + dG (half pattern)
+      for gorder in 1
+      do
+       for order in 1 2 5
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case half -f dG"
+            $TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case half -f dG
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
 
       # Square + Quads + Hybrid Void/Full FEs (quarter pattern)
       for gorder in 1
@@ -77,7 +94,23 @@ then
           fi
         done
       done
-
+      
+      # Square + Quads + Hybrid Void/Full FEs + dG (quarter pattern)
+      for gorder in 1
+      do
+       for order in 1 2 5
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case quarter -f dG"
+            $TEST_BINARY_PATH -tt structured -nx 10 -ny 10 -order $order -gorder $gorder -use-voids T -use-voids-case quarter -f dG
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
 
       # Circle + Quads        
       for gorder in 1 2 5
@@ -180,6 +213,23 @@ then
           fi
         done
       done
+      
+      # Cube + Hexas + Hybrid Void/Full FEs + dG (popcorn pattern)
+      for gorder in 1
+      do
+       for order in 1 #2 5
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 3 -nx 18 -ny 18 -nz 18 -order $order -gorder $gorder -use-voids T -use-voids-case popcorn -f dG"
+            $TEST_BINARY_PATH -tt structured -dim 3 -nx 18 -ny 18 -nz 18 -order $order -gorder $gorder -use-voids T -use-voids-case popcorn -f dG 
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
 
       # Cube + Tetrahedra
       for gorder in 1 #2 3 4 5 6
@@ -214,7 +264,6 @@ then
           fi
         done
       done
-
 
       ###############################################################################################################################
       # Vector-valued tests
@@ -323,7 +372,7 @@ then
           fi
         done
       done
-
+      
       # Cube + Hexas + Hybrid Void/Full FEs (popcorn pattern)
       for gorder in 1
       do

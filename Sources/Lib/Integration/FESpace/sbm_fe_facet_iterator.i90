@@ -103,6 +103,26 @@ function fe_facet_iterator_get_gid (this) result(facet_gid)
   facet_gid = this%facet_gid
 end function fe_facet_iterator_get_gid
 
+function fe_facet_iterator_is_at_field_boundary ( this, field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)               , intent(in)    :: field_id
+  logical                                   :: fe_facet_iterator_is_at_field_boundary
+  type(facet_integrator_t), pointer :: facet_int
+  facet_int  => this%get_facet_integrator(field_id)
+  fe_facet_iterator_is_at_field_boundary = facet_int%get_is_at_field_boundary()
+end function fe_facet_iterator_is_at_field_boundary
+
+function fe_facet_iterator_is_at_field_interior ( this, field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)               , intent(in)    :: field_id
+  logical                                   :: fe_facet_iterator_is_at_field_interior
+  type(facet_integrator_t), pointer :: facet_int
+  facet_int  => this%get_facet_integrator(field_id)
+  fe_facet_iterator_is_at_field_interior = facet_int%get_is_at_field_interior()
+end function fe_facet_iterator_is_at_field_interior
+
 subroutine fe_facet_iterator_update_num_dofs_x_field( this, icell_around )
   implicit none
   class(fe_facet_iterator_t), intent(inout) :: this 
@@ -429,6 +449,24 @@ function fe_facet_iterator_get_facet_integrator(this, field_id)
   
   fe_facet_iterator_get_facet_integrator => this%fe_space%facet_integrators(facet_integrators_position)
 end function fe_facet_iterator_get_facet_integrator
+
+subroutine fe_facet_iterator_get_outward_normal(this,field_id,qpoint,outward_normal)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)               , intent(in)    :: field_id
+  integer(ip)               , intent(in)    :: qpoint
+  type(vector_field_t)      , intent(inout) :: outward_normal
+  type(facet_maps_t)      , pointer :: facet_maps
+  type(facet_map_t)       , pointer :: facet_map
+  type(facet_integrator_t), pointer :: facet_int
+  facet_maps => this%get_facet_maps()
+  facet_map  => facet_maps%get_facet_map()
+  facet_int  => this%get_facet_integrator(field_id)
+  call facet_map%get_normal(qpoint,outward_normal)
+  if ( facet_int%get_active_cell_id(1) == 2 ) then
+    outward_normal = (-1.0_rp) * outward_normal
+  end if
+end subroutine fe_facet_iterator_get_outward_normal
 
 !==================================================================================================
 function fe_facet_iterator_compute_surface ( this )
