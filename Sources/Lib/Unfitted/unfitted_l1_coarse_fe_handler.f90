@@ -109,7 +109,7 @@ subroutine unfitted_l1_create(this, fe_affine_operator, parameter_list)
 
   this%parameter_list => parameter_list
 
-  par_environment => this%par_fe_space%get_par_environment()
+  par_environment => this%par_fe_space%get_environment()
   assert (associated(par_environment))
 
   if (par_environment%am_i_l1_task()) then
@@ -157,7 +157,7 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,field_id,par_fe_space,parameter_
 
   assert(field_id == 1)
 
-  par_environment => this%par_fe_space%get_par_environment()
+  par_environment => this%par_fe_space%get_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
   assert ( size(num_coarse_dofs) == this%par_fe_space%get_num_fe_objects() )
@@ -209,7 +209,7 @@ subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parame
   integer(ip)                  :: cdof_gid
   type(fe_object_iterator_t)   :: object
 
-  par_environment => this%par_fe_space%get_par_environment()
+  par_environment => this%par_fe_space%get_environment()
   assert (associated(par_environment))
   assert (par_environment%am_i_l1_task())
 
@@ -460,7 +460,7 @@ subroutine unfitted_l1_setup_dof_gid_to_cdof_id_in_object(this)
   assert(this%par_fe_space%get_num_fields() == 1)
   
   ! Get my part id
-  p_env => this%par_fe_space%get_par_environment()
+  p_env => this%par_fe_space%get_environment()
   my_part_id = p_env%get_l1_rank() + 1
 
   ! Allocate and initialize the member variable

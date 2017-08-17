@@ -47,7 +47,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
   integer(ip), pointer                   :: fe_dofs(:)
   logical                                :: use_vertices, use_edges, use_faces
   
-  par_environment => par_fe_space%get_par_environment()
+  par_environment => par_fe_space%get_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )
   assert ( size(num_coarse_dofs) == par_fe_space%get_num_fe_objects() )
@@ -143,7 +143,7 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
   type(hash_table_ip_ip_t) :: visited_dofs
   
   
-  par_environment => par_fe_space%get_par_environment()
+  par_environment => par_fe_space%get_environment()
   assert (associated(par_environment))
   assert (par_environment%am_i_l1_task())
   
@@ -242,7 +242,7 @@ subroutine standard_l1_setup_weighting_operator(this, field_id, par_fe_space, pa
   integer(ip) :: ipart, part_id, local_part_id, num_neighbours
   type(hash_table_ip_ip_t)          , allocatable :: visited_dofs(:)
   integer(ip)                       , allocatable :: num_parts_around_dof(:)
-  class(base_static_triangulation_t), pointer     :: triangulation
+  class(triangulation_t), pointer     :: triangulation
   type(cell_import_t)               , pointer     :: cell_import
 
   

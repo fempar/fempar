@@ -65,7 +65,6 @@ module triangulation_names
   contains
     procedure                            :: create                  => cell_iterator_create
     procedure                            :: free                    => cell_iterator_free
-    final                                ::                            cell_iterator_free_final
     procedure                            :: first                   => cell_iterator_first
     procedure                            :: next                    => cell_iterator_next
     procedure                            :: has_finished            => cell_iterator_has_finished
@@ -85,6 +84,7 @@ module triangulation_names
     procedure(get_num_vefs_interface)          , deferred :: get_num_vefs
     procedure(get_vef_interface)               , deferred :: get_vef
     procedure(get_vef_gid_interface)           , deferred :: get_vef_gid
+    procedure(get_vef_ggid_interface)          , deferred :: get_vef_ggid
     procedure(get_vefs_gid_interface)          , deferred :: get_vefs_gid
     procedure(get_vef_lid_from_gid_interface)  , deferred :: get_vef_lid_from_gid
     procedure(get_vef_lid_from_ggid_interface) , deferred :: get_vef_lid_from_ggid
@@ -157,14 +157,33 @@ module triangulation_names
 
   type, extends(vef_iterator_t) :: itfc_vef_iterator_t
     private
-    integer(ip)                        :: itfc_lid = -1
+    integer(ip)                        :: itfc_gid = -1
     class(vef_iterator_t), allocatable :: vef
   contains
-     !procedure          :: create         => itfc_vef_iterator_create
-     !procedure          :: free           => itfc_vef_iterator_create
-     !procedure          :: first          => itfc_vef_iterator_first
-     !procedure          :: next           => itfc_vef_iterator_next
-     !procedure          :: has_finished   => itfc_vef_iterator_has_finished
+     procedure          :: create                 => itfc_vef_iterator_create
+     procedure          :: free                   => itfc_vef_iterator_free
+     procedure          :: first                  => itfc_vef_iterator_first
+     procedure          :: next                   => itfc_vef_iterator_next
+     procedure          :: has_finished           => itfc_vef_iterator_has_finished
+     
+     ! Topology-data related TBPs
+     procedure          :: get_num_cells_around   => itfc_vef_iterator_get_num_cells_around
+     procedure          :: get_cell_around        => itfc_vef_iterator_get_cell_around
+
+     ! Geometry related-data TBPs
+     procedure          :: get_num_nodes          => itfc_vef_iterator_get_num_nodes
+     procedure          :: get_nodes_coordinates  => itfc_vef_iterator_get_nodes_coordinates
+
+     ! Misc TBPs
+     procedure          :: get_ggid               => itfc_vef_iterator_get_ggid
+     procedure          :: is_at_interior         => itfc_vef_iterator_is_at_interior
+     procedure          :: is_at_boundary         => itfc_vef_iterator_is_at_boundary
+     procedure          :: get_dim                => itfc_vef_iterator_get_dim
+     procedure          :: get_set_id             => itfc_vef_iterator_get_set_id
+     procedure          :: set_set_id             => itfc_vef_iterator_set_set_id
+     procedure          :: is_ghost               => itfc_vef_iterator_is_ghost
+     procedure          :: is_local               => itfc_vef_iterator_is_local
+     procedure          :: is_at_interface        => itfc_vef_iterator_is_at_interface
   end type itfc_vef_iterator_t
 
   abstract interface
@@ -174,7 +193,7 @@ module triangulation_names
        integer(igp) :: cell_get_ggid_interface 
      end function cell_get_ggid_interface 
 
-     function get_my_part_interface ( this )
+     pure function get_my_part_interface ( this )
        import :: cell_iterator_t, ip
        class(cell_iterator_t), intent(in) :: this
        integer(ip) :: get_my_part_interface
@@ -192,7 +211,7 @@ module triangulation_names
        logical :: cell_is_ghost_interface
      end function cell_is_ghost_interface
      
-     function get_num_vefs_interface ( this )
+     pure function get_num_vefs_interface ( this )
        import :: cell_iterator_t, ip
        class(cell_iterator_t), intent(in) :: this
        integer(ip) :: get_num_vefs_interface
@@ -212,12 +231,18 @@ module triangulation_names
        integer(ip) :: get_vef_gid_interface
      end function get_vef_gid_interface
      
-     subroutine get_vefs_gid_interface ( this, vefs_gid )
-       import :: cell_iterator_t, ip
+     function get_vef_ggid_interface ( this, vef_lid )
+       import :: cell_iterator_t, ip, igp
        class(cell_iterator_t), intent(in)    :: this
-       integer(ip), pointer  , intent(in)    :: vefs_gid(:)
-       integer(ip) :: get_vef_gid_interface
-     end subroutine get_vefs_gid_interface
+       integer(ip)           , intent(in)    :: vef_lid
+       integer(igp) :: get_vef_ggid_interface
+     end function get_vef_ggid_interface
+     
+     function get_vefs_gid_interface ( this )
+       import :: cell_iterator_t, ip
+       class(cell_iterator_t), intent(in) :: this
+       integer(ip), pointer  :: get_vefs_gid_interface(:)
+     end function get_vefs_gid_interface
      
      function get_vef_lid_from_gid_interface ( this, vef_gid )
        import :: cell_iterator_t, ip
@@ -229,7 +254,7 @@ module triangulation_names
      function get_vef_lid_from_ggid_interface ( this, vef_ggid )
        import :: cell_iterator_t, ip, igp
        class(cell_iterator_t), intent(in)    :: this
-       integer(ip)           , intent(in)    :: vef_ggid
+       integer(igp)          , intent(in)    :: vef_ggid
        integer(ip) :: get_vef_lid_from_ggid_interface 
      end function get_vef_lid_from_ggid_interface
      
@@ -261,15 +286,15 @@ module triangulation_names
      end subroutine cell_get_nodes_coordinates_interface
        
      function cell_get_set_id_interface ( this )
-       import :: cell_iterator_t, ip 
+       import :: ip, cell_iterator_t
        class(cell_iterator_t), intent(in)    :: this
-       integer(ip) :: get_set_id_interface
+       integer(ip) :: cell_get_set_id_interface
      end function cell_get_set_id_interface 
      
      subroutine cell_set_set_id_interface ( this, set_id )
        import :: cell_iterator_t, ip
-       class(cell_iterator_t), intent(in)  :: this
-       integer(ip)           , intent(in)  :: set_id
+       class(cell_iterator_t), intent(inout)  :: this
+       integer(ip)           , intent(in)     :: set_id
      end subroutine cell_set_set_id_interface
   end interface
   
@@ -280,12 +305,12 @@ module triangulation_names
        integer(ip) :: get_num_cells_around_interface
      end function get_num_cells_around_interface
 
-     function get_cell_around_interface ( this, icell_around, cell )
+     subroutine get_cell_around_interface ( this, icell_around, cell )
        import :: vef_iterator_t, cell_iterator_t, ip
        class(vef_iterator_t) , intent(in)    :: this
        integer(ip)           , intent(in)    :: icell_around
        class(cell_iterator_t), intent(inout) :: cell 
-     end function get_cell_around_interface
+     end subroutine get_cell_around_interface
 
      function get_num_nodes_interface ( this )
        import :: vef_iterator_t, ip
@@ -308,13 +333,14 @@ module triangulation_names
      function is_at_interior_interface ( this )
        import :: vef_iterator_t, ip
        class(vef_iterator_t), intent(in) :: this
-       integer(ip) :: get_num_vefs_interface
+       logical :: is_at_interior_interface 
      end function is_at_interior_interface
      
-     subroutine is_at_boundary_interface ( this )
+     function is_at_boundary_interface ( this )
        import :: vef_iterator_t
        class(vef_iterator_t), intent(in) :: this
-     end subroutine is_at_boundary_interface
+       logical :: is_at_boundary_interface 
+     end function is_at_boundary_interface
      
      function get_dim_interface ( this )
        import :: vef_iterator_t, ip
@@ -330,7 +356,7 @@ module triangulation_names
      
      subroutine set_set_id_interface ( this, set_id )
        import :: vef_iterator_t, ip
-       class(vef_iterator_t), intent(in)    :: this
+       class(vef_iterator_t), intent(inout) :: this
        integer(ip)          , intent(in)    :: set_id
      end subroutine set_set_id_interface
      
@@ -547,16 +573,16 @@ module triangulation_names
     procedure, non_overridable           :: get_nodes_coordinates   => bst_cell_iterator_get_nodes_coordinates
     procedure, non_overridable           :: set_nodes_coordinates   => bst_cell_iterator_set_nodes_coordinates
     procedure, non_overridable           :: get_nodes_coordinates_ref_space => bst_cell_iterator_get_nodes_coordinates_ref_space
-    procedure, non_overridable           :: get_gid                 => bst_cell_iterator_get_gid
     procedure, non_overridable           :: get_ggid                 => bst_cell_iterator_get_ggid
     procedure, non_overridable           :: get_my_part             => bst_cell_iterator_get_mypart
+    procedure, non_overridable           :: set_set_id              => bst_cell_iterator_set_set_id
     procedure, non_overridable           :: get_set_id              => bst_cell_iterator_get_set_id
     procedure, non_overridable           :: get_num_vefs            => bst_cell_iterator_get_num_vefs
     procedure, non_overridable           :: get_num_nodes           => bst_cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_node_gid            => bst_cell_iterator_get_node_gid
     procedure, non_overridable           :: get_vef_gid             => bst_cell_iterator_get_vef_gid
-    procedure, non_overridable           :: get_vefs_gid            => bst_cell_iterator_get_vefs_gid
     procedure, non_overridable           :: get_vef_ggid            => bst_cell_iterator_get_vef_ggid
+    procedure, non_overridable           :: get_vefs_gid            => bst_cell_iterator_get_vefs_gid
     procedure, non_overridable           :: get_vef_lid_from_gid    => bst_cell_iterator_get_vef_lid_from_gid
     procedure, non_overridable           :: get_vef_lid_from_ggid   => bst_cell_iterator_get_vef_lid_from_ggid
     procedure, non_overridable           :: get_vef                 => bst_cell_iterator_get_vef
@@ -597,7 +623,6 @@ module triangulation_names
      final                               ::                              bst_vef_iterator_free_final
      procedure, non_overridable          :: get_num_nodes             => bst_vef_iterator_get_num_nodes
      procedure, non_overridable          :: get_nodes_coordinates     => bst_vef_iterator_get_nodes_coordinates
-     procedure, non_overridable          :: get_gid                   => bst_vef_iterator_get_gid
      procedure, non_overridable          :: get_ggid                  => bst_vef_iterator_get_ggid
 
      procedure, non_overridable          :: set_geom_id               => bst_vef_iterator_set_geom_id
@@ -733,7 +758,6 @@ module triangulation_names
      procedure                           :: free                                => fine_triangulation_free     
   end type fine_triangulation_t
 
-
   type, extends(fine_triangulation_t) :: serial_triangulation_t
   contains
      procedure                 , private :: serial_triangulation_create
@@ -746,7 +770,6 @@ module triangulation_names
      procedure, private                  :: par_triangulation_create
      procedure, non_overridable, private :: allocate_and_fill_lst_vefs_gids     => par_triangulation_allocate_and_fill_lst_vefs_gids 
   end type par_triangulation_t
-
   
   type, extends(base_static_triangulation_t) :: coarse_triangulation_t
   contains
@@ -758,10 +781,7 @@ module triangulation_names
      procedure                           :: print                               => coarse_triangulation_print
   end type coarse_triangulation_t
   
-  
-  
-  
-  public :: triangulation_t
+  public :: triangulation_t, serial_triangulation_t, par_triangulation_t, coarse_triangulation_t
   public :: cell_iterator_t
   public :: vef_iterator_t
   public :: itfc_vef_iterator_t, object_iterator_t
@@ -770,6 +790,7 @@ contains
 
 #include "sbm_cell_iterator.i90"
 #include "sbm_vef_iterator.i90"
+#include "sbm_itfc_vef_iterator.i90"
 #include "sbm_object_iterator.i90"
 #include "sbm_triangulation.i90"
 

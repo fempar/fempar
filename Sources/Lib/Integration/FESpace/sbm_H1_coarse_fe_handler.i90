@@ -43,7 +43,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   integer(ip) :: num_fine_dofs_on_coarse_dof
   integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
 
-  class(base_static_triangulation_t), pointer :: triangulation
+  class(triangulation_t), pointer :: triangulation
 
   ! FE space traversal-related data types
   type(list_iterator_t)                  :: faces_object_iterator
@@ -65,7 +65,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   real(rp)     :: factor
 
 
-  par_environment => par_fe_space%get_par_environment()
+  par_environment => par_fe_space%get_environment()
   assert (associated(par_environment))
   assert (par_environment%am_i_l1_task())
 
@@ -179,7 +179,7 @@ subroutine H1_l1_setup_weighting_operator(this, field_id, par_fe_space, paramete
   integer(ip) :: num_fine_dofs_on_coarse_dof
   integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
   type(environment_t), pointer  :: par_env
-  class(base_static_triangulation_t), pointer :: triangulation
+  class(triangulation_t), pointer :: triangulation
   integer(ip) :: subpart
   real(rp) :: weigh, denom
   type(list_iterator_t)                  :: subparts_iterator 
@@ -198,7 +198,7 @@ subroutine H1_l1_setup_weighting_operator(this, field_id, par_fe_space, paramete
   touch_subpart = .false.
   subpart_viscosity = 0.0_rp
   
-  par_env =>  par_fe_space%get_par_environment()
+  par_env =>  par_fe_space%get_environment()
 
   call par_fe_space%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())

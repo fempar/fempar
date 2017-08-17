@@ -30,9 +30,9 @@
 subroutine cell_map_create( this, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
-  class(cell_map_t)      , intent(inout) :: this
+  class(cell_map_t)    , intent(inout) :: this
   type(quadrature_t)   , intent(in)    :: quadrature
-  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: num_nodes
   integer(ip) :: istat
@@ -71,10 +71,10 @@ end subroutine cell_map_create
 subroutine cell_map_restricted_to_facet( this, facet_lid, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
-  class(cell_map_t)      , intent(inout) :: this
+  class(cell_map_t)    , intent(inout) :: this
   integer(ip)          , intent(in)    :: facet_lid
-  type(quadrature_t), intent(in)    :: quadrature
-  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
+  type(quadrature_t)   , intent(in)    :: quadrature
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
   integer(ip) :: num_nodes
   integer(ip) :: istat
@@ -234,9 +234,9 @@ end subroutine cell_map_update
 !==================================================================================================
 subroutine cell_map_update_interpolation( this, quadrature, reference_fe_geometry )
   implicit none
-  class(cell_map_t)                 , intent(inout) :: this
-  type(quadrature_t)              , intent(in)    :: quadrature
-  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
+  class(cell_map_t)    , intent(inout) :: this
+  type(quadrature_t)   , intent(in)    :: quadrature
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
   call reference_fe_geometry%create_interpolation( quadrature, this%interpolation )
 end subroutine cell_map_update_interpolation
 

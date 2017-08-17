@@ -74,12 +74,12 @@ function base_fe_vef_iterator_get_set_id(this)
   base_fe_vef_iterator_get_set_id = this%vef%get_set_id()
 end function base_fe_vef_iterator_get_set_id  
 
-subroutine base_fe_vef_iterator_get_coordinates (this, vef_coordinates)
+subroutine base_fe_vef_iterator_get_nodes_coordinates (this, vef_coordinates)
   implicit none
   class(base_fe_vef_iterator_t), intent(inout) :: this
   type(point_t)                , intent(inout) :: vef_coordinates(:)
-  call this%vef%get_coordinates(vef_coordinates)
-end subroutine base_fe_vef_iterator_get_coordinates
+  call this%vef%get_nodes_coordinates(vef_coordinates)
+end subroutine base_fe_vef_iterator_get_nodes_coordinates
 
 function base_fe_vef_iterator_get_dim(this)
   implicit none

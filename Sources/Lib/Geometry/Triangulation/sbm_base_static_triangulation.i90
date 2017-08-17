@@ -294,7 +294,7 @@ end subroutine bst_orient_tet_mesh
     call memalloc ( num_neighbours+1, snd_ptrs_buf, __FILE__, __LINE__ )
     call memalloc ( num_neighbours+1, rcv_ptrs_buf, __FILE__, __LINE__ )
     
-    call this%create_cell_iterator(cell)    
+    call cell%create(this)
     
     snd_ptrs_buf = 0
     do i=1, num_neighbours
@@ -441,7 +441,7 @@ end subroutine bst_orient_tet_mesh
             end do
          end do
      endif
-     call this%free_cell_iterator(cell)
+     call cell%free()
      call memfree ( cell_sizes, __FILE__, __LINE__ )
      call memfree ( snd_ptrs_buf, __FILE__, __LINE__ )
      call memfree ( rcv_ptrs_buf, __FILE__, __LINE__ )
@@ -651,7 +651,7 @@ subroutine bst_allocate_and_fill_cells_around ( this )
   call memalloc ( this%num_vefs+1, this%ptrs_cells_around, __FILE__, __LINE__ )
   this%ptrs_cells_around = 0
 
-  call this%create_cell_iterator(cell)
+  call cell%create(this)
   do while( .not. cell%has_finished() )
      do ivef=1, cell%get_num_vefs()
         vef_lid = cell%get_vef_gid(ivef)
@@ -681,9 +681,7 @@ subroutine bst_allocate_and_fill_cells_around ( this )
      this%ptrs_cells_around(ivef) = this%ptrs_cells_around(ivef-1)
   end do
   this%ptrs_cells_around(1) = 1
-  
-  call this%free_cell_iterator(cell)
-  
+  call cell%free()
 end subroutine bst_allocate_and_fill_cells_around
 
 subroutine bst_free_cells_around(this)
@@ -704,7 +702,7 @@ subroutine bst_find_local_ghost_vefs (this)
   assert ( this%num_vefs >= 0 )
   assert ( allocated(this%vefs_type) )
 
-  call this%create_cell_iterator(cell)
+  call cell%create(this)
   call vef%create(this)
   ! Find vefs at interfaces and count them
   do while ( .not. vef%has_finished() )
@@ -725,7 +723,7 @@ subroutine bst_find_local_ghost_vefs (this)
      end if
      call vef%next()
   end do
-  call this%free_cell_iterator(cell)
+  call cell%free()
   call vef%free()
 end subroutine bst_find_local_ghost_vefs
 
@@ -855,7 +853,7 @@ subroutine bst_print ( this )
       end if
       call this%geometry%free()
     end if
-    call this%triangulation_t%free()
+    call triangulation_free(this)
    end subroutine bst_free
 
    function bst_get_num_reference_fes_geo ( this ) 

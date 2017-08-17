@@ -41,13 +41,6 @@ subroutine cell_iterator_free ( this)
   nullify ( this%triangulation )
 end subroutine cell_iterator_free
 
-subroutine cell_iterator_free_final(this)
-  implicit none
-  type(cell_iterator_t), intent(inout) :: this
-  assert(this%gid == -1)
-  assert(.not. associated(this%triangulation ))
-end subroutine cell_iterator_free_final
-
 subroutine cell_iterator_first(this)
   implicit none
   class(cell_iterator_t), intent(inout) :: this
@@ -68,9 +61,9 @@ function cell_iterator_has_finished(this)
                                            this%triangulation%num_ghost_cells)
 end function cell_iterator_has_finished
 
-function cell_iterator_get_gid(this)
+pure function cell_iterator_get_gid(this)
   implicit none
-  class(cell_iterator_t), intent(inout) :: this
+  class(cell_iterator_t), intent(in) :: this
   integer(ip) :: cell_iterator_get_gid
   cell_iterator_get_gid = this%gid
 end function cell_iterator_get_gid

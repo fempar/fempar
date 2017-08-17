@@ -31,9 +31,9 @@
 subroutine facet_map_create(this,quadrature,reference_fe_geo)
   implicit none
   ! Parameters
-  class(facet_map_t)                , intent(inout) :: this
-  type(quadrature_t)               , intent(in)    :: quadrature
-  class(lagrangian_reference_fe_t) , intent(in)    :: reference_fe_geo
+  class(facet_map_t)    , intent(inout) :: this
+  type(quadrature_t)    , intent(in)    :: quadrature
+  class(reference_fe_t) , intent(in)    :: reference_fe_geo
 
   integer(ip)           :: num_facet_dims
   integer(ip)           :: num_vertices_face
@@ -73,7 +73,7 @@ end subroutine facet_map_create
 !==================================================================================================
 subroutine facet_map_update(this,reorientation_factor,quadrature)
   implicit none    
-  class(facet_map_t)      , intent(inout) :: this
+  class(facet_map_t)   , intent(inout) :: this
   real(rp)             , intent(in)    :: reorientation_factor
   type(quadrature_t)   , intent(in)    :: quadrature
 

@@ -264,8 +264,8 @@ subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe ( this, target_ive
        permutation_index = reference_fe_target%compute_permutation_index( reference_fe_source, &
                                                                           target_ivef, &
                                                                           source_ivef, &
-                                                                          this%get_vef_gids(), &
-                                                                          source_fe%get_vef_gids())
+                                                                          this%get_vefs_gid(), &
+                                                                          source_fe%get_vefs_gid())
       
       do while (.not. own_dofs_on_vef_iterator_target%is_upper_bound())
         target_dof_LID_vef = own_dofs_on_vef_iterator_target%get_distance_to_lower_bound()
@@ -386,7 +386,7 @@ subroutine fe_cell_iterator_update_integration( this )
 
   cell_map      => this%get_cell_map()
   coordinates => cell_map%get_coordinates()
-  call this%get_coordinates(coordinates)
+  call this%get_nodes_coordinates(coordinates)
 
   quadrature => this%get_quadrature()
   call cell_map%update(quadrature)
@@ -874,7 +874,7 @@ subroutine fe_cell_iterator_first_local_non_void(this,field_id)
  implicit none
  class(fe_cell_iterator_t), intent(inout) :: this
  integer(ip),          intent(in)    :: field_id
- class(base_static_triangulation_t), pointer :: base_static_triangulation
+ class(triangulation_t), pointer :: triangulation
  ! Find the first local elem non void in this field
  ! If all local elems are void, then position the iterator at the end ( this%has_finished() == .true. )
  call this%first()

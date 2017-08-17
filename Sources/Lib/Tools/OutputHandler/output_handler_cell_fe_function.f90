@@ -367,7 +367,7 @@ contains
             reference_fe_geo    => fe_cell_iterator%get_reference_fe_geo()
             cell_map              => this%get_cell_map()
             coordinates         => cell_map%get_coordinates()
-            call this%current_fe%get_coordinates(coordinates)
+            call this%current_fe%get_nodes_coordinates(coordinates)
 
             quadrature => this%get_quadrature()
             call cell_map%update(quadrature)

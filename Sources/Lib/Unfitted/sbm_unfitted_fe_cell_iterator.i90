@@ -210,7 +210,7 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
 
   cell_map      => this%get_cell_map()
   coordinates => cell_map%get_coordinates()
-  call this%get_coordinates(coordinates)
+  call this%get_node_coordinates(coordinates)
 
   quadrature => this%get_quadrature()
   call cell_map%update(quadrature)
@@ -453,7 +453,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators( this 
 
   ! Set the coordinates of the fe map for the current physical cell
   coordinates => cell_map%get_coordinates()
-  call this%get_coordinates(coordinates)
+  call this%get_node_coordinates(coordinates)
 
   ! Compute the jacobian and co
   call cell_map%update( quad )

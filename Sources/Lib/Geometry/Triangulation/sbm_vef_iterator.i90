@@ -63,7 +63,7 @@ end function vef_iterator_has_finished
 
 function vef_iterator_get_gid(this)
   implicit none
-  class(vef_iterator_t), intent(inout) :: this
+  class(vef_iterator_t), intent(in) :: this
   integer(ip) :: vef_iterator_get_gid
   vef_iterator_get_gid = this%gid
 end function vef_iterator_get_gid
@@ -88,5 +88,3 @@ function vef_iterator_is_facet(this)
   logical :: vef_iterator_is_facet
   vef_iterator_is_facet = (this%get_dim() == (this%triangulation%get_num_dims()-1))
 end function vef_iterator_is_facet
-
-

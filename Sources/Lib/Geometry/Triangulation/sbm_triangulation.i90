@@ -298,13 +298,10 @@ subroutine triangulation_compute_subparts_itfc_vefs ( this, subparts_itfc_vefs, 
   call memalloc ( num_rows_subparts_itfc_vefs, this%get_num_itfc_vefs(), subparts_itfc_vefs, __FILE__, __LINE__ )
   subparts_itfc_vefs = 0
 
-  call this%create_itfc_vef_iterator(itfc_vef)
+  call itfc_vef%create(this)
   ivef_itfc = 1
-  call itfc_vef%first()
   do while(.not. itfc_vef%has_finished() )
-
      touched_subparts = .false.
-
      nsubparts_around = 0
      do icell=1, itfc_vef%get_num_cells_around()
         call itfc_vef%get_cell_around(icell,cell)
@@ -344,7 +341,7 @@ subroutine triangulation_compute_subparts_itfc_vefs ( this, subparts_itfc_vefs, 
   call memfree ( work2, __FILE__,__LINE__ )
   call memfree ( work1, __FILE__,__LINE__ )
   call memfree ( touched_subparts, __FILE__, __LINE__ )
-  call this%free_vef_iterator(itfc_vef)
+  call itfc_vef%free()
   call this%free_cell_iterator(cell)
 end subroutine triangulation_compute_subparts_itfc_vefs
 

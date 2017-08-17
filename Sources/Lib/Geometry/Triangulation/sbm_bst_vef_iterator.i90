@@ -25,20 +25,25 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine bst_vef_iterator_create ( this, base_static_triangulation )
+subroutine bst_vef_iterator_create ( this, triangulation )
   implicit none
   class(bst_vef_iterator_t)             , intent(inout)      :: this
-  class(base_static_triangulation_t), target, intent(in) :: base_static_triangulation
+  class(triangulation_t), target        , intent(in) :: triangulation
   call this%free()
-  this%base_static_triangulation => base_static_triangulation
-  call this%first()
+  call vef_iterator_create(this,triangulation)
+  select type(triangulation)
+  class is(base_static_triangulation_t)
+    this%base_static_triangulation => triangulation
+  class default
+    mcheck(.false., "bst_vef_iterator_create :: bst_vef_iterator_t can only be created from a descendant of base_static_triangulation_t")
+  end select
 end subroutine bst_vef_iterator_create
 
 subroutine bst_vef_iterator_free ( this)
   implicit none
   class(bst_vef_iterator_t), intent(inout) :: this
-  this%gid = -1
-  nullify ( this%base_static_triangulation )
+  call vef_iterator_free(this)
+  nullify(this%base_static_triangulation)
 end subroutine bst_vef_iterator_free
 
 subroutine bst_vef_iterator_free_final ( this)
@@ -53,7 +58,7 @@ function bst_vef_iterator_get_num_nodes(this)
   class(bst_vef_iterator_t), intent(in) :: this
   integer(ip) :: bst_vef_iterator_get_num_nodes
   type(bst_cell_iterator_t) :: cell
-  class(lagrangian_reference_fe_t), pointer :: reference_fe
+  class(reference_fe_t), pointer :: reference_fe
   type(list_iterator_t) :: dofs_on_bst_vef_iterator
   call this%get_cell_around(1, cell)
   reference_fe => cell%get_reference_fe()
@@ -61,14 +66,14 @@ function bst_vef_iterator_get_num_nodes(this)
   bst_vef_iterator_get_num_nodes = dofs_on_bst_vef_iterator%get_size()
 end function bst_vef_iterator_get_num_nodes
 
-subroutine bst_vef_iterator_get_nodes_coordinates (this, vef_coordinates)
+subroutine bst_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
   implicit none
-  class(bst_vef_iterator_t), intent(inout) :: this
-  type(point_t)            , intent(inout) :: vef_coordinates(:)
+  class(bst_vef_iterator_t), intent(in)    :: this
+  type(point_t)            , intent(inout) :: nodes_coordinates(:)
   type(bst_cell_iterator_t)                     :: cell
   integer(ip)                                   :: inode_within_cell
   integer(ip)                                   :: inode_within_vef
-  class(lagrangian_reference_fe_t), pointer     :: reference_fe_geo
+  class(reference_fe_t), pointer                :: reference_fe_geo
   type(list_iterator_t)                         :: dofs_on_bst_vef_iterator
   
   assert ( this%gid >= 1 .and. .not. this%has_finished() )
@@ -81,19 +86,12 @@ subroutine bst_vef_iterator_get_nodes_coordinates (this, vef_coordinates)
   inode_within_vef = 1
   do while (.not. dofs_on_bst_vef_iterator%is_upper_bound())     
     inode_within_cell = dofs_on_bst_vef_iterator%get_current()
-    vef_coordinates(inode_within_vef) = this%base_static_triangulation%coordinates(cell%get_node_gid(inode_within_cell))
+    nodes_coordinates(inode_within_vef) = this%base_static_triangulation%coordinates(cell%get_node_gid(inode_within_cell))
     call dofs_on_bst_vef_iterator%next()
     inode_within_vef = inode_within_vef + 1
   end do
   call cell%free()
 end subroutine bst_vef_iterator_get_nodes_coordinates
-
-function bst_vef_iterator_get_gid (this)
-  implicit none
-  class(bst_vef_iterator_t), intent(in) :: this
-  integer(ip) :: bst_vef_iterator_get_gid
-  bst_vef_iterator_get_gid = this%gid
-end function bst_vef_iterator_get_gid
 
 function bst_vef_iterator_get_ggid (this)
   implicit none

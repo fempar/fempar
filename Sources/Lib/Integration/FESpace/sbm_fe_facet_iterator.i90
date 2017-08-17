@@ -131,13 +131,13 @@ subroutine fe_facet_iterator_update_integration( this )
   type(facet_maps_t)       , pointer :: facet_map
   type(facet_integrator_t), pointer :: facet_integrator
   
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  class(reference_fe_t), pointer :: reference_fe_geo
   
   quadrature => this%get_quadrature()
   facet_map   => this%get_facet_maps()
   
   coords => facet_map%get_facet_coordinates()
-  call this%get_coordinates(coords)
+  call this%get_nodes_coordinates(coords)
 
   do icell_around=1, this%get_num_cells_around()
     call this%get_cell_around(icell_around,this%fe)  
@@ -146,7 +146,7 @@ subroutine fe_facet_iterator_update_integration( this )
       this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_facet_id() + 1
     coords => facet_map%get_coordinates_neighbour(icell_around, &
                                                  facet_lpos_within_cells_around(icell_around))
-    call this%fe%get_coordinates(coords)
+    call this%fe%get_nodes_coordinates(coords)
     call this%update_num_dofs_x_field(icell_around)
   end do
 
@@ -429,7 +429,7 @@ function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) resul
   class(fe_facet_iterator_t) , intent(inout) :: this
   integer(ip)               , intent(in)    :: icell_around
   integer(ip)                               :: facet_lpos_within_cell_around
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip)                               :: vef_gid_of_face
   assert ( allocated(this%fe) )
   call this%get_cell_around(icell_around, this%fe)

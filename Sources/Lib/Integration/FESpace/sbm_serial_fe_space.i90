@@ -31,7 +31,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
                                                                    conditions )
   implicit none
   class(serial_fe_space_t)                    , intent(inout) :: this
-  class(base_static_triangulation_t), target  , intent(in)    :: triangulation
+  class(triangulation_t)            , target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
 
@@ -62,7 +62,7 @@ subroutine serial_fe_space_create_different_ref_fes_between_cells( this,        
                                                            conditions )
   implicit none
   class(serial_fe_space_t)                    , intent(inout) :: this
-  class(base_static_triangulation_t), target  , intent(in)    :: triangulation
+  class(triangulation_t)    , target          , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
@@ -504,7 +504,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
               call fe%get_fe_dofs(fe_dofs)
 
               cell_coordinates => cell_maps(reference_fe_id)%get_coordinates()
-              call fe%get_coordinates(cell_coordinates)
+              call fe%get_nodes_coordinates(cell_coordinates)
               call cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
               nodal_coordinates => cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
 
@@ -1139,7 +1139,7 @@ end subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec
        
        ! Map reference_fe nodal coordinates to actual domain 
        cell_coordinates => cell_maps(reference_fe_id)%get_coordinates()
-       call fe%get_coordinates(cell_coordinates)
+       call fe%get_nodes_coordinates(cell_coordinates)
        call cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
        nodal_coordinates => cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
        
@@ -1274,7 +1274,7 @@ subroutine serial_fe_space_interpolate_vector( this, &
        
        ! Map reference_fe nodal coordinates to actual domain 
        cell_coordinates => cell_maps(reference_fe_id)%get_coordinates()
-       call fe%get_coordinates(cell_coordinates)
+       call fe%get_nodes_coordinates(cell_coordinates)
        call cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
        nodal_coordinates => cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
        
@@ -1436,7 +1436,7 @@ subroutine serial_fe_space_check_cell_vs_fe_topology_consistency(this)
   class(serial_fe_space_t)          , intent(in) :: this
   class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: reference_fe_unkno
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: field_id
 
 #ifdef DEBUG
@@ -1786,8 +1786,8 @@ subroutine serial_fe_space_compute_facet_permutation_indices ( this )
   class(fe_facet_iterator_t)       , allocatable :: fe_face
   class(fe_cell_iterator_t)            , allocatable :: first_fe
   class(fe_cell_iterator_t)            , allocatable :: second_fe
-  class(lagrangian_reference_fe_t), pointer     :: first_reference_fe_geo
-  class(lagrangian_reference_fe_t), pointer     :: second_reference_fe_geo
+  class(reference_fe_t), pointer     :: first_reference_fe_geo
+  class(reference_fe_t), pointer     :: second_reference_fe_geo
   integer(ip)                                   :: fe_facet_permutation_index
   
   call this%facet_permutation_indices%resize(this%facet_gids%size(),-1)
@@ -1804,8 +1804,8 @@ subroutine serial_fe_space_compute_facet_permutation_indices ( this )
         first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,                &
                                                           fe_face%get_lpos_within_cell_around(1), &
                                                           fe_face%get_lpos_within_cell_around(2), &
-                                                          first_fe%get_vef_gids(),                &
-                                                          second_fe%get_vef_gids() )
+                                                          first_fe%get_vefs_gid(),                &
+                                                          second_fe%get_vefs_gid() )
       call this%facet_permutation_indices%set(fe_face%facet_gid, &
                                              fe_facet_permutation_index)
     end if
@@ -1836,7 +1836,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
 
   integer(ip)            :: max_order_fes_around_fe_face
   integer(ip)            :: reference_fes_geo_id(2)
-  type(p_lagrangian_reference_fe_t) :: reference_fes_geo(2)
+  type(p_reference_fe_t) :: reference_fes_geo(2)
 
   integer(ip)            :: reference_fes_id(2)
   type(p_reference_fe_t) :: reference_fes(2)
@@ -2334,7 +2334,7 @@ function serial_fe_space_get_num_dims ( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
   integer(ip)                          :: serial_fe_space_get_num_dims
-  class(base_static_triangulation_t), pointer :: triangulation
+  class(triangulation_t), pointer :: triangulation
   triangulation => this%get_triangulation()
   serial_fe_space_get_num_dims = triangulation%get_num_dims()
 end function serial_fe_space_get_num_dims
@@ -2472,7 +2472,7 @@ end function serial_fe_space_get_max_order
 function serial_fe_space_get_triangulation( this) result(triangulation)
   implicit none
   class(serial_fe_space_t)      , intent(in)    :: this 
-  class(base_static_triangulation_t), pointer       :: triangulation
+  class(triangulation_t), pointer       :: triangulation
   assert ( associated(this%triangulation) )
   triangulation => this%triangulation
 end function serial_fe_space_get_triangulation
@@ -2481,7 +2481,7 @@ function serial_fe_space_get_environment(this) result(environment)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
   class(environment_t), pointer:: environment 
-  environment => this%triangulation%get_par_environment()
+  environment => this%triangulation%get_environment()
 end function serial_fe_space_get_environment
 
 function serial_fe_space_get_conditions( this) result(conditions)
@@ -2576,9 +2576,13 @@ subroutine serial_fe_space_create_fe_vef_iterator ( this, fe_vef )
   implicit none
   class(serial_fe_space_t), target, intent(in)    :: this
   type(fe_vef_iterator_t)         , intent(inout) :: fe_vef
-  type(vef_iterator_t) :: vef
+  class(triangulation_t), pointer :: triangulation
+  class(vef_iterator_t), allocatable :: vef
+  triangulation => this%get_triangulation()
+  call triangulation%create_vef_iterator(vef)
   call fe_vef%free()
   call fe_vef%create(this,vef)
+  call triangulation%free_vef_iterator(vef)
 end subroutine serial_fe_space_create_fe_vef_iterator
 
 subroutine serial_fe_space_create_itfc_fe_vef_iterator ( this, fe_vef )
@@ -2601,11 +2605,15 @@ subroutine serial_fe_space_create_fe_facet_iterator ( this, fe_face )
   implicit none
   class(serial_fe_space_t) , target     , intent(in)    :: this
   class(fe_facet_iterator_t), allocatable, intent(inout) :: fe_face
-  type(vef_iterator_t) :: vef
+  class(vef_iterator_t), allocatable :: vef
+  class(triangulation_t), pointer :: triangulation
   integer(ip)          :: istat
   call this%free_fe_facet_iterator(fe_face)
+  triangulation => fe_face%fe_space%get_triangulation()
+  call triangulation%create_vef_iterator(vef)
   allocate(fe_facet_iterator_t :: fe_face, stat=istat); check(istat==0)
   call fe_face%create(this,vef)
+  call triangulation%free_vef_iterator(vef)
 end subroutine serial_fe_space_create_fe_facet_iterator
 
 subroutine serial_fe_space_free_fe_facet_iterator ( this, fe_face )
