@@ -1557,9 +1557,6 @@ end type cell_integrator_t
 
 type p_cell_integrator_t
 type(cell_integrator_t), pointer :: p => NULL() 
-contains
-procedure :: allocate => p_cell_integrator_allocate 
-procedure :: free     => p_cell_integrator_free
 end type p_cell_integrator_t
 
 public :: cell_integrator_t, p_cell_integrator_t

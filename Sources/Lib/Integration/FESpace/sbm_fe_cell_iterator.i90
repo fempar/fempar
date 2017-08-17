@@ -35,6 +35,7 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   this%fe_space => fe_space
   call this%fe_space%triangulation%create_cell_iterator(this%cell)
   call memalloc ( this%fe_space%num_fields, this%num_dofs_x_field, __FILE__, __LINE__ )
+  allocate( this%cell_integrators(this%fe_space%num_fields), stat=istat ); check(istat==0);
   allocate( this%fe_dofs(this%fe_space%num_fields), stat=istat); check(istat==0);
 end subroutine fe_cell_iterator_create
 
@@ -53,6 +54,9 @@ subroutine fe_cell_iterator_free (this)
   end if
   if ( allocated(this%fe_dofs) ) then
     deallocate ( this%fe_dofs, stat=istat ); check(istat==0);
+  end if
+  if ( allocated(this%cell_integrators) ) then
+    deallocate ( this%cell_integrators, stat=istat ); check(istat==0);
   end if
 end subroutine fe_cell_iterator_free
 
@@ -389,9 +393,9 @@ subroutine fe_cell_iterator_update_integration( this )
 
   quadrature => this%get_quadrature()
   call this%cell_map%update(quadrature)
+  call this%update_cell_integrators()
   do field_id = 1, this%get_num_fields()
-     cell_integrator => this%get_cell_integrator(field_id) 
-     call cell_integrator%update(this%cell_map)
+     call this%cell_integrators(field_id)%p%update(this%cell_map)
   end do
   
   call this%update_num_dofs_x_field(this%num_dofs_x_field)
@@ -651,7 +655,29 @@ subroutine fe_cell_iterator_update_cell_map ( this )
   
   assert ( .not. istat == key_not_found )
   this%cell_map => this%fe_space%cell_maps(cell_maps_position)
+  
 end subroutine fe_cell_iterator_update_cell_map
+
+!==================================================================================================
+subroutine fe_cell_iterator_update_cell_integrators ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout)   :: this
+  integer(ip) :: cell_integrators_position_key
+  integer(ip) :: cell_integrators_position
+  integer(ip) :: istat, field_id
+  do field_id = 1, this%get_num_fields()
+     cell_integrators_position_key = &
+           this%fe_space%generate_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
+                                                                  this%get_quadrature_degree(), &
+                                                                  this%fe_space%field_cell_to_ref_fes(field_id, this%get_gid()))  
+     call this%fe_space%cell_integrators_position%get(key=cell_integrators_position_key, &
+                                                           val=cell_integrators_position, &
+                                                           stat=istat)
+     assert ( .not. istat == key_not_found )
+     this%cell_integrators(field_id)%p => this%fe_space%cell_integrators(cell_integrators_position) 
+  end do  
+end subroutine fe_cell_iterator_update_cell_integrators
+
 
 !==================================================================================================
 subroutine fe_cell_iterator_set_cell_map ( this, cell_map )

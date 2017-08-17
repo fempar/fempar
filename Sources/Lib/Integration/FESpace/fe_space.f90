@@ -174,9 +174,10 @@ module fe_space_names
     private
     class(serial_fe_space_t), pointer     :: fe_space => NULL()
     ! Scratch data to support FE integration
-    integer(ip)             , allocatable :: num_dofs_x_field(:)
-    type(i1p_t)             , allocatable :: fe_dofs(:)
-    type(cell_map_t)        , pointer     :: cell_map
+    integer(ip)              , allocatable :: num_dofs_x_field(:)
+    type(i1p_t)              , allocatable :: fe_dofs(:)
+    type(cell_map_t)         , pointer     :: cell_map
+    type(p_cell_integrator_t), allocatable:: cell_integrators(:)
   contains
     procedure                           :: create                                     => fe_cell_iterator_create
     procedure                           :: free                                       => fe_cell_iterator_free
@@ -193,6 +194,7 @@ module fe_space_names
     procedure, non_overridable          :: update_num_dofs_x_field                    => fe_cell_iterator_update_num_dofs_x_field
     procedure                           :: update_integration                         => fe_cell_iterator_update_integration
     procedure                           :: update_cell_map                            => fe_cell_iterator_update_cell_map
+    procedure                           :: update_cell_integrators                    => fe_cell_iterator_update_cell_integrators
     procedure                           :: set_cell_map                               => fe_cell_iterator_set_cell_map
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_cell_iterator_get_quadrature_points_coordinates
