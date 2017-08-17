@@ -610,9 +610,3 @@ subroutine fe_cell_function_tensor_free ( this )
      check(istat==0)
   end if
 end subroutine fe_cell_function_tensor_free
-
-
-
-
-
-

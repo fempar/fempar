@@ -256,6 +256,17 @@ module fe_space_names
     procedure                           :: get_boundary_cell_map                        => fe_cell_iterator_get_boundary_cell_map
     procedure                           :: get_boundary_cell_integrator               => fe_cell_iterator_get_boundary_cell_integrator
     procedure                           :: update_boundary_integration                => fe_cell_iterator_update_boundary_integration
+    
+    procedure, non_overridable, private :: get_values_scalar           => fe_cell_iterator_get_values_scalar
+    procedure, non_overridable, private :: get_values_vector           => fe_cell_iterator_get_values_vector
+    generic                             :: get_values                  => get_values_scalar, get_values_vector 
+    procedure, non_overridable, private :: get_gradients_scalar => fe_cell_iterator_get_gradients_scalar
+    procedure, non_overridable, private :: get_gradients_vector => fe_cell_iterator_get_gradients_vector
+    generic                             :: get_gradients        => get_gradients_scalar, get_gradients_vector 
+    procedure, non_overridable, private :: get_divergences_vector => fe_cell_iterator_get_divergences_vector
+    generic                             :: get_divergences        => get_divergences_vector
+    procedure, non_overridable, private :: get_curls_vector => fe_cell_iterator_get_curls_vector
+    generic                             :: get_curls        => get_curls_vector
 
   end type fe_cell_iterator_t
    

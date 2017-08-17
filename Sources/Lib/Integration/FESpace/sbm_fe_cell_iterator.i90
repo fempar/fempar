@@ -977,3 +977,78 @@ subroutine fe_cell_iterator_update_boundary_integration( this )
   mcheck(.false.,'This TPB cannot be called from this class')
 end subroutine fe_cell_iterator_update_boundary_integration
 
+
+
+
+
+
+
+
+
+
+
+
+subroutine fe_cell_iterator_get_values_scalar (this, values, field_id)
+  implicit none
+  class(fe_cell_iterator_t)   , intent(in)    :: this
+  real(rp), allocatable        , intent(inout) :: values(:,:)
+  integer(ip)     , optional   , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_values(values)
+end subroutine fe_cell_iterator_get_values_scalar
+
+subroutine fe_cell_iterator_get_values_vector (this, values, field_id)
+  implicit none
+  class(fe_cell_iterator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: values(:,:)
+  integer(ip)     , optional       , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_values(values)
+end subroutine fe_cell_iterator_get_values_vector
+
+subroutine fe_cell_iterator_get_gradients_scalar (this, gradients, field_id)
+  implicit none
+  class(fe_cell_iterator_t)              , intent(in)    :: this
+  type(vector_field_t),        allocatable, intent(inout) :: gradients(:,:)
+  integer(ip)     , optional              , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_gradients(gradients)
+end subroutine fe_cell_iterator_get_gradients_scalar
+
+subroutine fe_cell_iterator_get_gradients_vector (this, gradients, field_id)
+  implicit none
+  class(fe_cell_iterator_t)           , intent(in)     :: this
+  type(tensor_field_t),     allocatable, intent(inout)  :: gradients(:,:)
+  integer(ip)     , optional           , intent(in)     :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_gradients(gradients)
+end subroutine fe_cell_iterator_get_gradients_vector
+
+subroutine fe_cell_iterator_get_divergences_vector (this, divergences, field_id)
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp), allocatable     , intent(inout) :: divergences(:,:)
+  integer(ip)  , optional   , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_divergences(divergences)
+end subroutine fe_cell_iterator_get_divergences_vector
+
+subroutine fe_cell_iterator_get_curls_vector (this, curls, field_id)
+  implicit none
+  class(fe_cell_iterator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: curls(:,:)
+  integer(ip)     , optional       , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_curls(curls)
+end subroutine fe_cell_iterator_get_curls_vector
+
+
+
+
+
