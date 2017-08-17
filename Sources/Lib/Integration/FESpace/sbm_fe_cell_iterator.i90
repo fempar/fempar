@@ -688,6 +688,15 @@ subroutine fe_cell_iterator_set_cell_map ( this, cell_map )
 end subroutine fe_cell_iterator_set_cell_map
 
 !==================================================================================================
+subroutine fe_cell_iterator_set_cell_integrator ( this, field_id, cell_integrator )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in) :: field_id
+  type(cell_integrator_t), target, intent(in) :: cell_integrator
+  this%cell_integrators(field_id)%p => cell_integrator
+end subroutine fe_cell_iterator_set_cell_integrator
+
+!==================================================================================================
 function fe_cell_iterator_get_quadrature_points_coordinates(this)
   implicit none
   class(fe_cell_iterator_t)   , target, intent(in) :: this
@@ -710,20 +719,7 @@ function fe_cell_iterator_get_cell_integrator ( this, field_id )
   class(fe_cell_iterator_t), intent(in)   :: this
   integer(ip)         , intent(in)   :: field_id
   type(cell_integrator_t), pointer :: fe_cell_iterator_get_cell_integrator
-  integer(ip) :: cell_integrators_position_key
-  integer(ip) :: cell_integrators_position
-  integer(ip) :: istat
-  
-  cell_integrators_position_key = &
-        this%fe_space%generate_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
-                                                                  this%get_quadrature_degree(), &
-                                                                  this%fe_space%field_cell_to_ref_fes(field_id, this%get_gid()))
-  
-  call this%fe_space%cell_integrators_position%get(key=cell_integrators_position_key, &
-                                                        val=cell_integrators_position, &
-                                                        stat=istat)
-  assert ( .not. istat == key_not_found )
-  fe_cell_iterator_get_cell_integrator => this%fe_space%cell_integrators(cell_integrators_position)
+  fe_cell_iterator_get_cell_integrator => this%cell_integrators(field_id)%p
 end function fe_cell_iterator_get_cell_integrator
 
 subroutine fe_cell_iterator_get_fe_vef(this, ivef, fe_vef)

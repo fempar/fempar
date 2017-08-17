@@ -196,6 +196,7 @@ module fe_space_names
     procedure                           :: update_cell_map                            => fe_cell_iterator_update_cell_map
     procedure                           :: update_cell_integrators                    => fe_cell_iterator_update_cell_integrators
     procedure                           :: set_cell_map                               => fe_cell_iterator_set_cell_map
+    procedure                           :: set_cell_integrator                        => fe_cell_iterator_set_cell_integrator
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_cell_iterator_get_quadrature_points_coordinates
     procedure, non_overridable :: get_det_jacobian                  => fe_cell_iterator_get_det_jacobian
