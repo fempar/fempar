@@ -83,7 +83,6 @@ contains
     type(vector_field_t)               :: normals(2)
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(cell_integrator_t), pointer :: cell_int_velocity, cell_int_pressure
     type(vector_field_t), allocatable  :: velocity_shape_values(:,:)
     real(rp)            , allocatable  :: velocity_shape_divs(:,:)
     real(rp)            , allocatable  :: pressure_shape_values(:,:)
@@ -116,8 +115,6 @@ contains
     num_dofs_x_field => fe%get_num_dofs_x_field()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
-    cell_int_velocity => fe%get_cell_integrator(1)
-    cell_int_pressure => fe%get_cell_integrator(2)
     
     call memalloc ( num_quad_points, pressure_source_term_values, __FILE__, __LINE__ )
     do while ( .not. fe%has_finished())
@@ -134,9 +131,9 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       call cell_int_velocity%get_values(velocity_shape_values)
-       call cell_int_velocity%get_divergences(velocity_shape_divs)
-       call cell_int_pressure%get_values(pressure_shape_values)
+       call fe%get_values(velocity_shape_values,1)
+       call fe%get_divergences(velocity_shape_divs,1)
+       call fe%get_values(pressure_shape_values,2)
        do qpoint = 1, num_quad_points
           factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           

@@ -74,7 +74,6 @@ contains
     ! FE integration-related data types
     type(quadrature_t)       , pointer     :: quad
     type(point_t)            , pointer     :: quad_coords(:)
-    type(cell_integrator_t), pointer     :: cell_int
     type(vector_field_t)     , allocatable, target :: shape_gradients_first(:,:), shape_gradients_second(:,:)
     type(vector_field_t)     , pointer     :: shape_gradients_ineigh(:,:),shape_gradients_jneigh(:,:)
     real(rp)                 , allocatable, target :: shape_values_first(:,:), shape_values_second(:,:)
@@ -126,7 +125,6 @@ contains
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
-    cell_int         => fe%get_cell_integrator(1)
     
     viscosity = 1.0_rp
     C_IP      = 10.0_rp * fe%get_order(1)**2
@@ -144,8 +142,8 @@ contains
          ! Compute element matrix and vector
          elmat = 0.0_rp
          elvec = 0.0_rp
-         call cell_int%get_gradients(shape_gradients_first)
-         call cell_int%get_values(shape_values_first)
+         call fe%get_gradients(shape_gradients_first)
+         call fe%get_values(shape_values_first)
          do qpoint = 1, num_quad_points
             factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             do idof = 1, num_dofs
