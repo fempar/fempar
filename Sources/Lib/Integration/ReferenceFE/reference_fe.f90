@@ -1609,6 +1609,8 @@ public :: facet_maps_t
 type facet_integrator_t
   private
   logical                                   :: is_at_boundary
+  logical                                   :: is_at_field_boundary
+  logical                                   :: is_at_field_interior
   integer(ip)                               :: active_cell_id(2)
   type(cell_integrator_facet_restriction_t) :: cell_integrator_facet_restriction(2)
   type(p_reference_fe_t)                    :: reference_fe(2)
@@ -1621,6 +1623,8 @@ contains
   procedure, non_overridable :: set_is_at_boundary_and_active_cell_id &
     => facet_integrator_set_is_at_boundary_and_active_cell_id
   procedure, non_overridable :: get_is_at_boundary => facet_integrator_get_is_at_boundary
+  procedure, non_overridable :: get_is_at_field_boundary => facet_integrator_get_is_at_field_boundary
+  procedure, non_overridable :: get_is_at_field_interior => facet_integrator_get_is_at_field_interior
   procedure, non_overridable :: get_active_cell_id => facet_integrator_get_active_cell_id
   procedure, non_overridable :: get_value_scalar   => facet_integrator_get_value_scalar
   procedure, non_overridable :: get_value_vector   => facet_integrator_get_value_vector

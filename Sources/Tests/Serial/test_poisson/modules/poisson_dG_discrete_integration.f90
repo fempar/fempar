@@ -186,7 +186,7 @@ contains
        num_quad_points = quad%get_num_quadrature_points()
        facet_int       => fe_face%get_facet_integrator(1)
        
-       if ( .not. fe_face%is_at_field_boundary(1) ) then
+       if ( fe_face%is_at_field_interior(1) ) then
          
          facemat = 0.0_rp
          call fe_face%update_integration()    
@@ -240,7 +240,7 @@ contains
 
          call fe_face%assembly( facemat, assembler )
          
-       else
+       else if ( fe_face%is_at_field_boundary(1) ) then
          
          ineigh = facet_int%get_active_cell_id(1)
          facemat = 0.0_rp

@@ -318,8 +318,7 @@ subroutine facet_integrator_create(this,quadrature,left_reference_fe,right_refer
   
   this%reference_fe(1)%p => left_reference_fe
   this%reference_fe(2)%p => right_reference_fe
-  call this%cell_integrator_facet_restriction(this%active_cell_id(1))%create( &
-                        quadrature,this%reference_fe(this%active_cell_id(1))%p )
+  call this%cell_integrator_facet_restriction(1)%create( quadrature,this%reference_fe(1)%p )
   
   if (.not. this%is_at_boundary) then
      call this%cell_integrator_facet_restriction(2)%create(quadrature,this%reference_fe(2)%p)
@@ -366,27 +365,50 @@ subroutine facet_integrator_set_is_at_boundary_and_active_cell_id (this,left_ref
   implicit none
   class(facet_integrator_t)        , intent(inout) :: this
   class(reference_fe_t)   , pointer, intent(in)    :: left_reference_fe, right_reference_fe
+  logical :: left_is_void, right_is_void
+  
   this%active_cell_id(1) = 1
+  this%active_cell_id(2) = 2
   this%is_at_boundary = (.not. associated(right_reference_fe))
-  if (.not. this%is_at_boundary) this%active_cell_id(2) = 2
+  this%is_at_field_interior = .true.
+  
+  left_is_void  = .false.
+  right_is_void = .false.
   select type (left_reference_fe)
-    class is (lagrangian_reference_fe_t)
-      select type (right_reference_fe)
-      class is (void_reference_fe_t)
-        this%is_at_boundary = .true.
-      class default
-      end select
-    class is (void_reference_fe_t)
-      select type (right_reference_fe)
-      class is (lagrangian_reference_fe_t)
-        this%is_at_boundary = .true.
-        this%active_cell_id(1) = 2
-        this%active_cell_id(2) = 1
-      class default
-      end select
-    class default
-    assert(.false.)
+    class is (void_reference_fe_t)  
+        left_is_void = .true.
+        if ( .not. this%is_at_boundary ) then
+           this%active_cell_id(1) = 2
+           this%active_cell_id(2) = 1
+        end if
   end select
+  if ( .not. this%is_at_boundary ) then
+    select type (right_reference_fe)
+      class is (void_reference_fe_t)  
+         right_is_void = .true.  
+     end select
+  end if
+  
+  if ( this%is_at_boundary ) then
+    this%is_at_field_interior = .false.
+    this%is_at_field_interior = .false.
+    if ( left_is_void ) then
+       this%is_at_field_boundary = .false.
+    else
+       this%is_at_field_boundary = .true.
+    end if   
+  else
+    if ( left_is_void .neqv. right_is_void ) then
+      this%is_at_field_boundary = .true.
+      this%is_at_field_interior = .false.
+    else
+      this%is_at_field_interior = .true.
+      this%is_at_field_boundary = .false.
+      if (left_is_void ) then 
+         this%is_at_field_interior = .false.
+      end if 
+    end if
+  end if
 end subroutine facet_integrator_set_is_at_boundary_and_active_cell_id
 
 !==================================================================================================
@@ -396,6 +418,22 @@ function facet_integrator_get_is_at_boundary (this)
   logical                                  :: facet_integrator_get_is_at_boundary
   facet_integrator_get_is_at_boundary = this%is_at_boundary
 end function facet_integrator_get_is_at_boundary
+
+!==================================================================================================
+function facet_integrator_get_is_at_field_boundary (this)
+  implicit none
+  class(facet_integrator_t), intent(in)    :: this
+  logical                                  :: facet_integrator_get_is_at_field_boundary
+  facet_integrator_get_is_at_field_boundary = this%is_at_field_boundary
+end function facet_integrator_get_is_at_field_boundary
+
+!==================================================================================================
+function facet_integrator_get_is_at_field_interior (this)
+  implicit none
+  class(facet_integrator_t), intent(in)    :: this
+  logical                                  :: facet_integrator_get_is_at_field_interior
+  facet_integrator_get_is_at_field_interior = this%is_at_field_interior
+end function facet_integrator_get_is_at_field_interior
 
 !==================================================================================================
 function facet_integrator_get_active_cell_id (this,neighbour_id)

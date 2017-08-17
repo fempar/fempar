@@ -668,7 +668,7 @@ contains
     else
       call this%check_solution_vector()
     end if  
-      call this%write_solution()
+    call this%write_solution()
     call this%free()
   end subroutine run_simulation
   
