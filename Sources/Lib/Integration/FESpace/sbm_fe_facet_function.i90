@@ -123,6 +123,7 @@ function fe_facet_function_scalar_get_nodal_values ( this, ineigh )
   class(fe_facet_function_scalar_t), intent(in) :: this 
   integer(ip)                     , intent(in) :: ineigh
   real(rp), pointer :: fe_facet_function_scalar_get_nodal_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   fe_facet_function_scalar_get_nodal_values => this%fe_cell_function(ineigh)%get_nodal_values()
 end function fe_facet_function_scalar_get_nodal_values
 
@@ -132,6 +133,7 @@ function fe_facet_function_scalar_get_quadrature_points_values ( this, ineigh )
   class(fe_facet_function_scalar_t), intent(in) :: this 
   integer(ip)                     , intent(in) :: ineigh
   real(rp), pointer :: fe_facet_function_scalar_get_quadrature_points_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   fe_facet_function_scalar_get_quadrature_points_values => this%fe_cell_function(ineigh)%get_quadrature_points_values()
 end function fe_facet_function_scalar_get_quadrature_points_values
 
@@ -141,6 +143,7 @@ function fe_facet_function_scalar_get_quadrature_points_gradients ( this, ineigh
   class(fe_facet_function_scalar_t), intent(in) :: this 
   integer(ip)                     , intent(in) :: ineigh
   type(vector_field_t), pointer :: fe_facet_function_scalar_get_quadrature_points_gradients(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   fe_facet_function_scalar_get_quadrature_points_gradients => this%fe_cell_function(ineigh)%get_quadrature_points_gradients()
 end function fe_facet_function_scalar_get_quadrature_points_gradients
 
@@ -152,6 +155,7 @@ subroutine fe_facet_function_scalar_get_value ( this, point, ineigh, value )
   integer(ip)                     , intent(in)    :: ineigh
   real(rp)                        , intent(inout) :: value
   integer(ip) :: actual_point
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   actual_point = this%quadrature_points_permutation(ineigh)%p(point)
   call this%fe_cell_function(ineigh)%get_value(actual_point, value)
 end subroutine fe_facet_function_scalar_get_value
@@ -164,6 +168,7 @@ subroutine fe_facet_function_scalar_get_gradient ( this, point, ineigh, value )
   integer(ip)                     , intent(in)    :: ineigh
   type(vector_field_t)            , intent(inout) :: value
   integer(ip) :: actual_point
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   actual_point = this%quadrature_points_permutation(ineigh)%p(point)
   call this%fe_cell_function(ineigh)%get_gradient(actual_point, value)
 end subroutine fe_facet_function_scalar_get_gradient
@@ -174,6 +179,7 @@ subroutine fe_facet_function_scalar_set_current_num_nodes ( this, ineigh, value 
   class(fe_facet_function_scalar_t), intent(inout) :: this 
   integer(ip)                     , intent(in)    :: ineigh
   integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   call this%fe_cell_function(ineigh)%set_current_num_nodes(value)
 end subroutine fe_facet_function_scalar_set_current_num_nodes
 
@@ -183,6 +189,7 @@ subroutine fe_facet_function_scalar_set_current_num_quadrature_points ( this, in
   class(fe_facet_function_scalar_t), intent(inout) :: this 
   integer(ip)                     , intent(in)    :: ineigh
   integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   call this%fe_cell_function(ineigh)%set_current_num_quadrature_points(value)
 end subroutine fe_facet_function_scalar_set_current_num_quadrature_points
 
@@ -299,6 +306,7 @@ function fe_facet_function_vector_get_nodal_values ( this, ineigh )
   class(fe_facet_function_vector_t), intent(in) :: this 
   integer(ip)                     , intent(in) :: ineigh
   real(rp), pointer :: fe_facet_function_vector_get_nodal_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   fe_facet_function_vector_get_nodal_values => this%fe_cell_function(ineigh)%get_nodal_values()
 end function fe_facet_function_vector_get_nodal_values
 
@@ -308,6 +316,7 @@ function fe_facet_function_vector_get_quadrature_points_values ( this, ineigh )
   class(fe_facet_function_vector_t), intent(in) :: this 
   integer(ip)                     , intent(in) :: ineigh
   type(vector_field_t), pointer :: fe_facet_function_vector_get_quadrature_points_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   fe_facet_function_vector_get_quadrature_points_values => this%fe_cell_function(ineigh)%get_quadrature_points_values()
 end function fe_facet_function_vector_get_quadrature_points_values
 
@@ -317,6 +326,7 @@ function fe_facet_function_vector_get_quadrature_points_gradients ( this, ineigh
   class(fe_facet_function_vector_t), intent(in) :: this 
   integer(ip)                     , intent(in) :: ineigh
   type(tensor_field_t), pointer :: fe_facet_function_vector_get_quadrature_points_gradients(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   fe_facet_function_vector_get_quadrature_points_gradients => this%fe_cell_function(ineigh)%get_quadrature_points_gradients()
 end function fe_facet_function_vector_get_quadrature_points_gradients
 
@@ -328,6 +338,7 @@ subroutine fe_facet_function_vector_get_value ( this, point, ineigh, value )
   integer(ip)                     , intent(in)    :: ineigh
   type(vector_field_t)            , intent(inout) :: value
   integer(ip) :: actual_point
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   actual_point = this%quadrature_points_permutation(ineigh)%p(point)
   call this%fe_cell_function(ineigh)%get_value(actual_point, value)
 end subroutine fe_facet_function_vector_get_value
@@ -340,6 +351,7 @@ subroutine fe_facet_function_vector_get_gradient ( this, point, ineigh, value )
   integer(ip)                     , intent(in)    :: ineigh
   type(tensor_field_t)            , intent(inout) :: value
   integer(ip) :: actual_point
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   actual_point = this%quadrature_points_permutation(ineigh)%p(point)
   call this%fe_cell_function(ineigh)%get_gradient(actual_point, value)
 end subroutine fe_facet_function_vector_get_gradient
@@ -350,6 +362,7 @@ subroutine fe_facet_function_vector_set_current_num_nodes ( this, ineigh, value 
   class(fe_facet_function_vector_t), intent(inout) :: this 
   integer(ip)                     , intent(in)    :: ineigh
   integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   call this%fe_cell_function(ineigh)%set_current_num_nodes(value)
 end subroutine fe_facet_function_vector_set_current_num_nodes
 
@@ -359,6 +372,7 @@ subroutine fe_facet_function_vector_set_current_num_quadrature_points ( this, in
   class(fe_facet_function_vector_t), intent(inout) :: this 
   integer(ip)                     , intent(in)    :: ineigh
   integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   call this%fe_cell_function(ineigh)%set_current_num_quadrature_points(value)
 end subroutine fe_facet_function_vector_set_current_num_quadrature_points
 
@@ -470,6 +484,7 @@ function fe_facet_function_tensor_get_nodal_values ( this, ineigh )
   class(fe_facet_function_tensor_t), intent(in) :: this 
   integer(ip)                     , intent(in) :: ineigh
   real(rp), pointer :: fe_facet_function_tensor_get_nodal_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   fe_facet_function_tensor_get_nodal_values => this%fe_cell_function(ineigh)%get_nodal_values()
 end function fe_facet_function_tensor_get_nodal_values
 
@@ -479,6 +494,7 @@ function fe_facet_function_tensor_get_quadrature_points_values ( this, ineigh )
   class(fe_facet_function_tensor_t), intent(in) :: this 
   integer(ip)                     , intent(in) :: ineigh
   type(tensor_field_t), pointer :: fe_facet_function_tensor_get_quadrature_points_values(:)
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   fe_facet_function_tensor_get_quadrature_points_values => this%fe_cell_function(ineigh)%get_quadrature_points_values()
 end function fe_facet_function_tensor_get_quadrature_points_values
 
@@ -490,6 +506,7 @@ subroutine fe_facet_function_tensor_get_value ( this, point, ineigh, value )
   integer(ip)                     , intent(in)    :: ineigh
   type(tensor_field_t)            , intent(inout) :: value
   integer(ip) :: actual_point
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   actual_point = this%quadrature_points_permutation(ineigh)%p(point)
   call this%fe_cell_function(ineigh)%get_value(actual_point, value)
 end subroutine fe_facet_function_tensor_get_value
@@ -500,6 +517,7 @@ subroutine fe_facet_function_tensor_set_current_num_nodes ( this, ineigh, value 
   class(fe_facet_function_tensor_t), intent(inout) :: this 
   integer(ip)                     , intent(in)    :: ineigh
   integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   call this%fe_cell_function(ineigh)%set_current_num_nodes(value)
 end subroutine fe_facet_function_tensor_set_current_num_nodes
 
@@ -509,6 +527,7 @@ subroutine fe_facet_function_tensor_set_current_num_quadrature_points ( this, in
   class(fe_facet_function_tensor_t), intent(inout) :: this 
   integer(ip)                     , intent(in)    :: ineigh
   integer(ip)                     , intent(in)    :: value
+  assert ( ineigh == 1 .or. (ineigh == 2 .and. .not. this%is_at_boundary) )
   call this%fe_cell_function(ineigh)%set_current_num_quadrature_points(value)
 end subroutine fe_facet_function_tensor_set_current_num_quadrature_points
 
