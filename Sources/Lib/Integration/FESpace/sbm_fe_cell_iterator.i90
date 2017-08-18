@@ -70,6 +70,7 @@ subroutine fe_cell_iterator_allocate_scratch_data ( this )
   assert( associated(this%fe_space) )
   call memalloc ( this%fe_space%num_fields, this%num_dofs_x_field, __FILE__, __LINE__ )
   allocate( this%fe_dofs(this%fe_space%num_fields), stat=istat); check(istat==0);
+  allocate ( this%cell_integrators(this%fe_space%num_fields), stat=istat ); check(istat==0);
 end subroutine fe_cell_iterator_allocate_scratch_data
 
 subroutine fe_cell_iterator_free_scratch_data ( this )
@@ -82,6 +83,10 @@ subroutine fe_cell_iterator_free_scratch_data ( this )
   if ( allocated(this%fe_dofs) ) then
     deallocate ( this%fe_dofs, stat=istat ); check(istat==0);
   end if
+  if ( allocated(this%cell_integrators) ) then
+    deallocate ( this%cell_integrators, stat=istat ); check(istat==0);
+  end if
+  nullify(this%cell_map)
 end subroutine fe_cell_iterator_free_scratch_data
 
 subroutine fe_cell_iterator_free_final(this)
@@ -89,6 +94,7 @@ subroutine fe_cell_iterator_free_final(this)
   type(fe_cell_iterator_t), intent(inout) :: this
   assert ( .not. allocated(this%cell) )
   assert ( .not. associated(this%fe_space))
+  assert ( .not. associated(this%cell_map))
 end subroutine fe_cell_iterator_free_final
 
 subroutine fe_cell_iterator_set_fe_space(this,fe_space)
@@ -419,21 +425,20 @@ subroutine fe_cell_iterator_update_integration( this )
   class(fe_cell_iterator_t), intent(inout) :: this 
   integer(ip) :: field_id
   type(point_t)            , pointer :: coordinates(:)
-  type(cell_map_t)           , pointer :: cell_map
   type(quadrature_t)       , pointer :: quadrature
   type(cell_integrator_t), pointer :: cell_integrator
   
   integer(ip) :: istat
 
-  cell_map      => this%get_cell_map()
-  coordinates => cell_map%get_coordinates()
+  call this%update_cell_map()
+  coordinates => this%cell_map%get_coordinates()
   call this%get_coordinates(coordinates)
 
   quadrature => this%get_quadrature()
-  call cell_map%update(quadrature)
+  call this%cell_map%update(quadrature)
+  call this%update_cell_integrators()
   do field_id = 1, this%get_num_fields()
-     cell_integrator => this%get_cell_integrator(field_id) 
-     call cell_integrator%update(cell_map)
+     call this%cell_integrators(field_id)%p%update(this%cell_map)
   end do
   
   call this%update_num_dofs_x_field(this%num_dofs_x_field)
@@ -658,16 +663,14 @@ function fe_cell_iterator_compute_volume ( this )
   integer(ip)                 :: q_poin, num_quadrature_points
   
   type(quadrature_t), pointer :: quadrature
-  type(cell_map_t)    , pointer :: cell_map
   
   quadrature => this%get_quadrature()
-  cell_map     => this%get_cell_map()
   
   num_quadrature_points = quadrature%get_num_quadrature_points()
   fe_cell_iterator_compute_volume = 0.0_rp
   do q_poin = 1, num_quadrature_points
      fe_cell_iterator_compute_volume = fe_cell_iterator_compute_volume + &
-          &                          cell_map%get_det_jacobian(q_poin) * &
+          &                          this%get_det_jacobian(q_poin) * &
           &                          quadrature%get_weight(q_poin)
   end do
 end function fe_cell_iterator_compute_volume
@@ -729,6 +732,13 @@ function fe_cell_iterator_get_cell_map ( this )
   implicit none
   class(fe_cell_iterator_t), intent(in) :: this
   type(cell_map_t), pointer :: fe_cell_iterator_get_cell_map
+  fe_cell_iterator_get_cell_map => this%cell_map
+end function fe_cell_iterator_get_cell_map
+
+!==================================================================================================
+subroutine fe_cell_iterator_update_cell_map ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: cell_maps_position, cell_maps_key
   integer(ip) :: istat
   
@@ -740,28 +750,72 @@ function fe_cell_iterator_get_cell_map ( this )
                                                           stat=istat)
   
   assert ( .not. istat == key_not_found )
-  fe_cell_iterator_get_cell_map => this%fe_space%cell_maps(cell_maps_position)
-end function fe_cell_iterator_get_cell_map
+  this%cell_map => this%fe_space%cell_maps(cell_maps_position)
+  
+end subroutine fe_cell_iterator_update_cell_map
 
+!==================================================================================================
+subroutine fe_cell_iterator_update_cell_integrators ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout)   :: this
+  integer(ip) :: cell_integrators_position_key
+  integer(ip) :: cell_integrators_position
+  integer(ip) :: istat, field_id
+  do field_id = 1, this%get_num_fields()
+     cell_integrators_position_key = &
+           this%fe_space%generate_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
+                                                                  this%get_quadrature_degree(), &
+                                                                  this%fe_space%field_cell_to_ref_fes(field_id, this%get_gid()))  
+     call this%fe_space%cell_integrators_position%get(key=cell_integrators_position_key, &
+                                                           val=cell_integrators_position, &
+                                                           stat=istat)
+     assert ( .not. istat == key_not_found )
+     this%cell_integrators(field_id)%p => this%fe_space%cell_integrators(cell_integrators_position) 
+  end do  
+end subroutine fe_cell_iterator_update_cell_integrators
+
+
+!==================================================================================================
+subroutine fe_cell_iterator_set_cell_map ( this, cell_map )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  type(cell_map_t), target, intent(in) :: cell_map
+  this%cell_map => cell_map
+end subroutine fe_cell_iterator_set_cell_map
+
+!==================================================================================================
+subroutine fe_cell_iterator_set_cell_integrator ( this, field_id, cell_integrator )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in) :: field_id
+  type(cell_integrator_t), target, intent(in) :: cell_integrator
+  this%cell_integrators(field_id)%p => cell_integrator
+end subroutine fe_cell_iterator_set_cell_integrator
+
+!==================================================================================================
+function fe_cell_iterator_get_quadrature_points_coordinates(this)
+  implicit none
+  class(fe_cell_iterator_t)   , target, intent(in) :: this
+  type(point_t), pointer :: fe_cell_iterator_get_quadrature_points_coordinates(:)
+  fe_cell_iterator_get_quadrature_points_coordinates => this%cell_map%get_quadrature_points_coordinates()
+end function fe_cell_iterator_get_quadrature_points_coordinates
+
+!==================================================================================================
+function fe_cell_iterator_get_det_jacobian ( this, i )
+  implicit none
+  class(fe_cell_iterator_t), intent(in) :: this
+  integer(ip)    , intent(in) :: i
+  real(rp) :: fe_cell_iterator_get_det_jacobian
+  fe_cell_iterator_get_det_jacobian = this%cell_map%get_det_jacobian(i)
+end function fe_cell_iterator_get_det_jacobian
+
+!==================================================================================================
 function fe_cell_iterator_get_cell_integrator ( this, field_id )
   implicit none
   class(fe_cell_iterator_t), intent(in)   :: this
   integer(ip)         , intent(in)   :: field_id
   type(cell_integrator_t), pointer :: fe_cell_iterator_get_cell_integrator
-  integer(ip) :: cell_integrators_position_key
-  integer(ip) :: cell_integrators_position
-  integer(ip) :: istat
-  
-  cell_integrators_position_key = &
-        this%fe_space%generate_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
-                                                                  this%get_quadrature_degree(), &
-                                                                  this%fe_space%field_cell_to_ref_fes(field_id, this%get_gid()))
-  
-  call this%fe_space%cell_integrators_position%get(key=cell_integrators_position_key, &
-                                                        val=cell_integrators_position, &
-                                                        stat=istat)
-  assert ( .not. istat == key_not_found )
-  fe_cell_iterator_get_cell_integrator => this%fe_space%cell_integrators(cell_integrators_position)
+  fe_cell_iterator_get_cell_integrator => this%cell_integrators(field_id)%p
 end function fe_cell_iterator_get_cell_integrator
 
 subroutine fe_cell_iterator_get_fe_vef(this, ivef, fe_vef)
@@ -1022,4 +1076,144 @@ subroutine fe_cell_iterator_update_boundary_integration( this )
   class(fe_cell_iterator_t), intent(inout) :: this
   mcheck(.false.,'This TPB cannot be called from this class')
 end subroutine fe_cell_iterator_update_boundary_integration
+
+subroutine fe_cell_iterator_get_values_scalar (this, values, field_id)
+  implicit none
+  class(fe_cell_iterator_t)   , intent(in)    :: this
+  real(rp), allocatable        , intent(inout) :: values(:,:)
+  integer(ip)     , optional   , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_values(values)
+end subroutine fe_cell_iterator_get_values_scalar
+
+subroutine fe_cell_iterator_get_values_vector (this, values, field_id)
+  implicit none
+  class(fe_cell_iterator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: values(:,:)
+  integer(ip)     , optional       , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_values(values)
+end subroutine fe_cell_iterator_get_values_vector
+
+subroutine fe_cell_iterator_get_gradients_scalar (this, gradients, field_id)
+  implicit none
+  class(fe_cell_iterator_t)              , intent(in)    :: this
+  type(vector_field_t),        allocatable, intent(inout) :: gradients(:,:)
+  integer(ip)     , optional              , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_gradients(gradients)
+end subroutine fe_cell_iterator_get_gradients_scalar
+
+subroutine fe_cell_iterator_get_gradients_vector (this, gradients, field_id)
+  implicit none
+  class(fe_cell_iterator_t)           , intent(in)     :: this
+  type(tensor_field_t),     allocatable, intent(inout)  :: gradients(:,:)
+  integer(ip)     , optional           , intent(in)     :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_gradients(gradients)
+end subroutine fe_cell_iterator_get_gradients_vector
+
+subroutine fe_cell_iterator_get_divergences_vector (this, divergences, field_id)
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp), allocatable     , intent(inout) :: divergences(:,:)
+  integer(ip)  , optional   , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_divergences(divergences)
+end subroutine fe_cell_iterator_get_divergences_vector
+
+subroutine fe_cell_iterator_get_curls_vector (this, curls, field_id)
+  implicit none
+  class(fe_cell_iterator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: curls(:,:)
+  integer(ip)     , optional       , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_curls(curls)
+end subroutine fe_cell_iterator_get_curls_vector
+
+!=================================================================================================
+subroutine fe_cell_iterator_evaluate_fe_function_scalar ( this,                     &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp)                , intent(in)    :: nodal_values(:)
+  real(rp), allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%evaluate_fe_function(nodal_values,quadrature_points_values)
+end subroutine fe_cell_iterator_evaluate_fe_function_scalar
+!=================================================================================================
+subroutine fe_cell_iterator_evaluate_fe_function_vector ( this,                     &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(vector_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%evaluate_fe_function(nodal_values,quadrature_points_values)
+end subroutine fe_cell_iterator_evaluate_fe_function_vector
+!=================================================================================================
+subroutine fe_cell_iterator_evaluate_fe_function_tensor ( this,                     &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(tensor_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%evaluate_fe_function(nodal_values,quadrature_points_values)
+end subroutine fe_cell_iterator_evaluate_fe_function_tensor
+!=================================================================================================
+subroutine fe_cell_iterator_evaluate_gradient_fe_function_scalar ( this,                     &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(vector_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
+end subroutine fe_cell_iterator_evaluate_gradient_fe_function_scalar
+!=================================================================================================
+subroutine fe_cell_iterator_evaluate_gradient_fe_function_vector ( this,                     &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(tensor_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
+end subroutine fe_cell_iterator_evaluate_gradient_fe_function_vector
+
+
+
+
 

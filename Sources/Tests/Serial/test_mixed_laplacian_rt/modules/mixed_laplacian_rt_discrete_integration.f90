@@ -79,13 +79,9 @@ contains
     class(fe_facet_iterator_t), allocatable :: fe_face
     
     ! FE integration-related data types
-    type(cell_map_t)           , pointer :: cell_map
-    type(facet_maps_t)         , pointer :: facet_map
-    type(facet_integrator_t)  , pointer :: facet_int_velocity
     type(vector_field_t)               :: normals(2)
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(cell_integrator_t), pointer :: cell_int_velocity, cell_int_pressure
     type(vector_field_t), allocatable  :: velocity_shape_values(:,:)
     real(rp)            , allocatable  :: velocity_shape_divs(:,:)
     real(rp)            , allocatable  :: pressure_shape_values(:,:)
@@ -118,9 +114,6 @@ contains
     num_dofs_x_field => fe%get_num_dofs_x_field()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
-    cell_map           => fe%get_cell_map()
-    cell_int_velocity => fe%get_cell_integrator(1)
-    cell_int_pressure => fe%get_cell_integrator(2)
     
     call memalloc ( num_quad_points, pressure_source_term_values, __FILE__, __LINE__ )
     do while ( .not. fe%has_finished())
@@ -129,7 +122,7 @@ contains
        call fe%update_integration()
 
        ! Get quadrature coordinates to evaluate boundary value
-       quad_coords => cell_map%get_quadrature_points_coordinates()
+       quad_coords => fe%get_quadrature_points_coordinates()
        
        ! Evaluate pressure source term at quadrature points
        call this%pressure_source_term%get_values_set(quad_coords, pressure_source_term_values)
@@ -137,11 +130,11 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       call cell_int_velocity%get_values(velocity_shape_values)
-       call cell_int_velocity%get_divergences(velocity_shape_divs)
-       call cell_int_pressure%get_values(pressure_shape_values)
+       call fe%get_values(velocity_shape_values,1)
+       call fe%get_divergences(velocity_shape_divs,1)
+       call fe%get_values(pressure_shape_values,2)
        do qpoint = 1, num_quad_points
-          factor = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           ! \int_(v.u)
           do idof=1, num_dofs_x_field(1)
@@ -191,8 +184,6 @@ contains
 
     quad               => fe_face%get_quadrature()
     num_quad_points    = quad%get_num_quadrature_points()
-    facet_map           => fe_face%get_facet_maps()
-    facet_int_velocity  => fe_face%get_facet_integrator(1)
     num_dofs_x_field => fe_face%get_num_dofs_x_field(1)
     
     call memalloc ( num_quad_points, pressure_boundary_function_values, __FILE__, __LINE__ )
@@ -201,12 +192,12 @@ contains
          !assert( fe_face%get_set_id() == 1 )
          facevec = 0.0_rp
          call fe_face%update_integration() 
-         quad_coords => facet_map%get_quadrature_points_coordinates()
+         quad_coords => fe_face%get_quadrature_points_coordinates()
          call this%pressure_boundary_function%get_values_set(quad_coords, pressure_boundary_function_values)
-         call facet_int_velocity%get_values(1,velocity_shape_values)
+         call fe_face%get_values(1,velocity_shape_values)
          do qpoint = 1, num_quad_points
-            factor = facet_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-            call facet_map%get_normals(qpoint,normals)
+            factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            call fe_face%get_normals(qpoint,normals)
             do idof = 1, num_dofs_x_field(1)
               facevec(idof,1) = facevec(idof,1) - &
                                 pressure_boundary_function_values(qpoint)*velocity_shape_values(idof,qpoint)*normals(1)*factor

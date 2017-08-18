@@ -51,8 +51,6 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
 
   ! Face integration-related data types
   type(quadrature_t)     , pointer :: quad
-  type(facet_maps_t)       , pointer :: facet_map
-  type(facet_integrator_t), pointer :: facet_int
   real(rp)                         :: shape_trial
   integer(ip)            , pointer :: fe_dofs(:)
   type(i1p_t)        , allocatable :: test_fe_dofs(:)
@@ -63,6 +61,8 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   integer(ip)  :: istat
   integer(ip)  :: qpoint, num_quad_points
   real(rp)     :: factor
+  real(rp)            , allocatable  :: shape_values(:,:)
+
 
 
   par_environment => par_fe_space%get_par_environment()
@@ -93,17 +93,15 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
            do while ( .not. faces_object_iterator%is_upper_bound() )
               call object%get_face(faces_object_iterator%get_current(),fe_face)
               quad     => fe_face%get_quadrature()
-              facet_int => fe_face%get_facet_integrator(1)
-              facet_map => fe_face%get_facet_maps()
 
               call fe_face%get_cell_around(1,fe)
               facevec = 0.0_rp
               call fe_face%update_integration() 
+              call fe_face%get_values(1,shape_values)
               do qpoint = 1, quad%get_num_quadrature_points()
-                 factor = facet_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+                 factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
                  do idof = 1, fe%get_num_dofs()
-                    call facet_int%get_value(idof,qpoint,1,shape_trial)
-                    facevec(idof) = facevec(idof) + shape_trial*factor
+                    facevec(idof) = facevec(idof) + shape_values(idof,qpoint)*factor
                  end do
               end do
 
@@ -159,6 +157,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   call par_fe_space%free_fe_facet_iterator(fe_face)
   call par_fe_space%free_fe_vef_iterator(vef)
   deallocate (test_fe_dofs, stat=istat); check(istat==0);
+  deallocate (shape_values, stat=istat); check(istat==0);
   call memfree(facevec, __FILE__, __LINE__ )
 end subroutine H1_l1_setup_constraint_matrix
 

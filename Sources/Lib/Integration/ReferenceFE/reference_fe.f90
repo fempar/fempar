@@ -199,7 +199,7 @@ module reference_fe_names
      procedure, non_overridable :: update            => facet_map_update
      procedure                  :: free              => facet_map_free
      procedure, non_overridable :: get_normal        => facet_map_get_normal
-     procedure, non_overridable :: get_normals       => facet_map_get_normals
+     procedure, non_overridable :: get_raw_normals   => facet_map_get_raw_normals
   end type facet_map_t
   
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -230,15 +230,15 @@ module reference_fe_names
      private
      integer(ip)                 :: num_facets = 0
      integer(ip)                 :: num_subfacets = 0
-     integer(ip)                 :: active_facet_lid
-     integer(ip)                 :: active_subfacet_lid
+     integer(ip)                 :: current_facet_lid
+     integer(ip)                 :: current_subfacet_lid
      type(cell_map_t), allocatable :: cell_map(:)
    contains
-     procedure, non_overridable :: create            => cell_map_facet_restriction_create
-     procedure, non_overridable :: update            => cell_map_facet_restriction_update
-     procedure, non_overridable :: free              => cell_map_facet_restriction_free
-     procedure, non_overridable :: get_coordinates   => cell_map_facet_restriction_get_coordinates
-     procedure, non_overridable :: get_active_cell_map => cell_map_facet_restriction_get_active_cell_map 
+     procedure, non_overridable :: create               => cell_map_facet_restriction_create
+     procedure, non_overridable :: update               => cell_map_facet_restriction_update
+     procedure, non_overridable :: free                 => cell_map_facet_restriction_free
+     procedure, non_overridable :: get_coordinates      => cell_map_facet_restriction_get_coordinates
+     procedure, non_overridable :: get_current_cell_map => cell_map_facet_restriction_get_current_cell_map 
   end type cell_map_facet_restriction_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
@@ -254,12 +254,12 @@ module reference_fe_names
      procedure          :: create                   => polytope_create 
      procedure          :: create_facet_iterator    => polytope_create_facet_iterator
      procedure          :: get_n_face               => polytope_get_n_face
-     procedure          :: get_n_face_dim     => polytope_get_n_face_dim
+     procedure          :: get_n_face_dim           => polytope_get_n_face_dim
      procedure          :: n_face_type              => polytope_n_face_type
      procedure          :: n_face_dir_is_fixed      => polytope_n_face_dir_is_fixed 
      procedure          :: n_face_dir_coordinate    => polytope_n_face_dir_coordinate
      procedure          :: n_face_coordinate        => polytope_n_face_coordinate
-     procedure          :: get_num_n_faces       => polytope_get_num_n_faces
+     procedure          :: get_num_n_faces          => polytope_get_num_n_faces
      procedure          :: get_ijk_to_index         => polytope_get_ijk_to_index
      procedure          :: print                    => polytope_print
      procedure          :: free                     => polytope_free
@@ -938,7 +938,7 @@ contains
   procedure :: generate_own_dofs_cell_permutations           &
        & => lagrangian_reference_fe_generate_own_dofs_cell_permutations
   procedure :: fill_qpoints_permutations           &
-       & => lagrangian_fill_qpoints_permutations
+       & => lagrangian_reference_fe_fill_qpoints_permutations
   procedure, private, non_overridable :: fill_field_components        & 
        & => lagrangian_reference_fe_fill_field_components
 
@@ -1611,9 +1611,6 @@ end type cell_integrator_t
 
 type p_cell_integrator_t
 type(cell_integrator_t), pointer :: p => NULL() 
-contains
-procedure :: allocate => p_cell_integrator_allocate 
-procedure :: free     => p_cell_integrator_free
 end type p_cell_integrator_t
 
 public :: cell_integrator_t, p_cell_integrator_t
@@ -1623,14 +1620,14 @@ public :: cell_integrator_t, p_cell_integrator_t
      private
      integer(ip)                          :: num_facets
      integer(ip)                          :: num_subfacets
-     integer(ip)                          :: active_facet_lid
-     integer(ip)                          :: active_subfacet_lid
+     integer(ip)                          :: current_facet_lid
+     integer(ip)                          :: current_subfacet_lid
      type(cell_integrator_t), allocatable :: cell_integrator(:) 
    contains
-     procedure, non_overridable :: create  => cell_integrator_facet_restriction_create
-     procedure, non_overridable :: update  => cell_integrator_facet_restriction_update
-     procedure, non_overridable :: free    => cell_integrator_facet_restriction_free
-     procedure, non_overridable :: get_active_cell_integrator => cell_integrator_facet_restriction_get_active_cell_integrator
+     procedure, non_overridable :: create                      => cell_integrator_facet_restriction_create
+     procedure, non_overridable :: update                      => cell_integrator_facet_restriction_update
+     procedure, non_overridable :: free                        => cell_integrator_facet_restriction_free
+     procedure, non_overridable :: get_current_cell_integrator => cell_integrator_facet_restriction_get_current_cell_integrator
   end type cell_integrator_facet_restriction_t
 
   public :: cell_integrator_facet_restriction_t
@@ -1656,7 +1653,7 @@ contains
   procedure, non_overridable :: get_neighbour_cell_map => facet_maps_get_neighbour_cell_map
   procedure, non_overridable :: get_normals          => facet_maps_get_normals
   procedure, non_overridable :: get_det_jacobian     => facet_maps_get_det_jacobian
-  procedure, non_overridable :: get_facet_map         => facet_maps_get_facet_map
+  procedure, non_overridable :: get_facet_map        => facet_maps_get_facet_map
 end type facet_maps_t
 
 public :: facet_maps_t
@@ -1664,27 +1661,36 @@ public :: facet_maps_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type facet_integrator_t
   private
-  logical                                  :: is_at_boundary
+  logical                                   :: is_at_boundary
+  logical                                   :: is_at_field_boundary
+  logical                                   :: is_at_field_interior
+  integer(ip)                               :: active_cell_id(2)
   type(cell_integrator_facet_restriction_t) :: cell_integrator_facet_restriction(2)
-  type(p_reference_fe_t)                   :: reference_fe(2)
-  integer(ip)                              :: current_qpoints_perm_cols(2)
-  type(allocatable_array_ip2_t)            :: qpoints_perm
+  type(p_reference_fe_t)                    :: reference_fe(2)
+  integer(ip)                               :: current_permutation_index
+  type(allocatable_array_ip2_t)             :: qpoints_perm
 contains
-  procedure, non_overridable :: create            => facet_integrator_create
-  procedure, non_overridable :: update            => facet_integrator_update
-  procedure, non_overridable :: free              => facet_integrator_free
-  procedure, non_overridable :: get_value_scalar  => facet_integrator_get_value_scalar
-  procedure, non_overridable :: get_value_vector  => facet_integrator_get_value_vector
-  generic                    :: get_value         => get_value_scalar, get_value_vector
-  procedure, non_overridable :: get_values_scalar => facet_integrator_get_values_scalar
-  procedure, non_overridable :: get_values_vector => facet_integrator_get_values_vector
-  generic                    :: get_values        => get_values_scalar, get_values_vector
+  procedure, non_overridable :: create             => facet_integrator_create
+  procedure, non_overridable :: update             => facet_integrator_update
+  procedure, non_overridable :: free               => facet_integrator_free
+  procedure, non_overridable :: set_is_at_boundary_and_active_cell_id &
+    => facet_integrator_set_is_at_boundary_and_active_cell_id
+  procedure, non_overridable :: get_is_at_boundary => facet_integrator_get_is_at_boundary
+  procedure, non_overridable :: get_is_at_field_boundary => facet_integrator_get_is_at_field_boundary
+  procedure, non_overridable :: get_is_at_field_interior => facet_integrator_get_is_at_field_interior
+  procedure, non_overridable :: get_active_cell_id => facet_integrator_get_active_cell_id
+  procedure, non_overridable :: get_value_scalar   => facet_integrator_get_value_scalar
+  procedure, non_overridable :: get_value_vector   => facet_integrator_get_value_vector
+  generic                    :: get_value          => get_value_scalar, get_value_vector
+  procedure, non_overridable :: get_values_scalar  => facet_integrator_get_values_scalar
+  procedure, non_overridable :: get_values_vector  => facet_integrator_get_values_vector
+  generic                    :: get_values         => get_values_scalar, get_values_vector
   procedure, non_overridable :: get_gradient_scalar  => facet_integrator_get_gradient_scalar
   generic                    :: get_gradient => get_gradient_scalar
   procedure, non_overridable :: get_gradients_scalar  => facet_integrator_get_gradients_scalar
   generic                    :: get_gradients => get_gradients_scalar
-  procedure, non_overridable :: get_curl          => facet_integrator_get_curl_vector 
-  procedure, non_overridable :: get_curls         => facet_integrator_get_curls_vector 
+  procedure, non_overridable :: get_curl           => facet_integrator_get_curl_vector 
+  procedure, non_overridable :: get_curls          => facet_integrator_get_curls_vector 
   procedure, non_overridable :: get_current_qpoints_perm => facet_integrator_get_current_qpoints_perm
 
   procedure, non_overridable, private :: facet_integrator_evaluate_fe_function_scalar

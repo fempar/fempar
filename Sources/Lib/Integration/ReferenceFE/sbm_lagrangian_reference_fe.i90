@@ -899,13 +899,13 @@ subroutine lagrangian_reference_fe_generate_own_dofs_cell_permutations (this)
   end do
 end subroutine lagrangian_reference_fe_generate_own_dofs_cell_permutations
 
-subroutine lagrangian_fill_qpoints_permutations (this, quadrature, qpoints_perm)
+subroutine lagrangian_reference_fe_fill_qpoints_permutations (this, quadrature, qpoints_perm)
   implicit none
   class(lagrangian_reference_fe_t)        , intent(in)    :: this 
   type(quadrature_t)           , intent(in)    :: quadrature
   type(allocatable_array_ip2_t), intent(inout) :: qpoints_perm
   check(.false.)
-end subroutine lagrangian_fill_qpoints_permutations
+end subroutine lagrangian_reference_fe_fill_qpoints_permutations
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_fill_field_components (this)

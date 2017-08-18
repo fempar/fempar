@@ -72,18 +72,14 @@ contains
     class(fe_facet_iterator_t), allocatable :: fe_face
     
     ! FE integration-related data types
-    type(cell_map_t)           , pointer     :: cell_map
     type(quadrature_t)       , pointer     :: quad
     type(point_t)            , pointer     :: quad_coords(:)
-    type(cell_integrator_t), pointer     :: cell_int
     type(vector_field_t)     , allocatable, target :: shape_gradients_first(:,:), shape_gradients_second(:,:)
     type(vector_field_t)     , pointer     :: shape_gradients_ineigh(:,:),shape_gradients_jneigh(:,:)
     real(rp)                 , allocatable, target :: shape_values_first(:,:), shape_values_second(:,:)
     real(rp)                 , pointer     :: shape_values_ineigh(:,:),shape_values_jneigh(:,:)
     
     ! Face integration-related data types
-    type(facet_maps_t)       , pointer :: facet_map
-    type(facet_integrator_t), pointer :: face_int
     type(vector_field_t)             :: normals(2)
     real(rp)                         :: shape_test, shape_trial
     real(rp)                         :: h_length
@@ -126,8 +122,6 @@ contains
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
-    cell_map          => fe%get_cell_map()
-    cell_int         => fe%get_cell_integrator(1)
     
     viscosity = 1.0_rp
     C_IP      = 10.0_rp * fe%get_order(1)**2
@@ -140,15 +134,15 @@ contains
          call fe%update_integration()
          
          ! Get quadrature coordinates to evaluate source_term
-         quad_coords => cell_map%get_quadrature_points_coordinates()
+         quad_coords => fe%get_quadrature_points_coordinates()
 
          ! Compute element matrix and vector
          elmat = 0.0_rp
          elvec = 0.0_rp
-         call cell_int%get_gradients(shape_gradients_first)
-         call cell_int%get_values(shape_values_first)
+         call fe%get_gradients(shape_gradients_first)
+         call fe%get_values(shape_values_first)
          do qpoint = 1, num_quad_points
-            factor = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             do idof = 1, num_dofs
                do jdof = 1, num_dofs
                   ! A_K(i,j) = (grad(phi_i),grad(phi_j))
@@ -183,8 +177,6 @@ contains
     
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
-    facet_map        => fe_face%get_facet_maps()
-    face_int        => fe_face%get_facet_integrator(1)
     
     do while ( .not. fe_face%has_finished() ) 
        
@@ -193,14 +185,14 @@ contains
          facevec = 0.0_rp
          call fe_face%update_integration()    
          
-         call face_int%get_values(1,shape_values_first)
-         call face_int%get_values(2,shape_values_second)
-         call face_int%get_gradients(1,shape_gradients_first)
-         call face_int%get_gradients(2,shape_gradients_second)
+         call fe_face%get_values(1,shape_values_first)
+         call fe_face%get_values(2,shape_values_second)
+         call fe_face%get_gradients(1,shape_gradients_first)
+         call fe_face%get_gradients(2,shape_gradients_second)
          do qpoint = 1, num_quad_points
-            call facet_map%get_normals(qpoint,normals)
-            h_length = facet_map%compute_characteristic_length(qpoint)
-            factor = facet_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            call fe_face%get_normals(qpoint,normals)
+            h_length = fe_face%compute_characteristic_length(qpoint)
+            factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             do ineigh = 1, fe_face%get_num_cells_around()
                if (ineigh==1) then
                  shape_values_ineigh    => shape_values_first
@@ -253,8 +245,6 @@ contains
 
     quad            => fe_face%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
-    facet_map        => fe_face%get_facet_maps()
-    face_int        => fe_face%get_facet_integrator(1)
    
     do while ( .not. fe_face%has_finished() )
        
@@ -264,13 +254,13 @@ contains
          assert( fe_face%get_set_id() == 1 )
          call fe_face%update_integration()
          call boundary_fe_facet_function%update(fe_face,boundary_fe_function)
-         quad_coords => facet_map%get_quadrature_points_coordinates()
-         call face_int%get_values(1,shape_values_first)
-         call face_int%get_gradients(1,shape_gradients_first)
+         quad_coords => fe_face%get_quadrature_points_coordinates()
+         call fe_face%get_values(1,shape_values_first)
+         call fe_face%get_gradients(1,shape_gradients_first)
          do qpoint = 1, num_quad_points
-            call facet_map%get_normals(qpoint,normals)
-            h_length = facet_map%compute_characteristic_length(qpoint)
-            factor = facet_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            call fe_face%get_normals(qpoint,normals)
+            h_length = fe_face%compute_characteristic_length(qpoint)
+            factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call boundary_function%get_value(quad_coords(qpoint),boundary_value)
             call boundary_fe_facet_function%get_value(qpoint,1,boundary_fe_function_value)
             boundary_value = 2*boundary_value - boundary_fe_function_value
