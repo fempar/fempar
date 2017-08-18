@@ -1020,6 +1020,7 @@ module fe_space_names
    private
    class(vector_t), allocatable  :: free_dof_values
    type(serial_scalar_array_t)   :: fixed_dof_values
+   type(serial_scalar_array_t)   :: constraining_x_fixed_dof_values ! C_D u_D
   contains
      procedure, non_overridable          :: create                         => fe_function_create
      procedure, non_overridable          :: gather_nodal_values_through_iterator => fe_function_gather_nodal_values_through_iterator

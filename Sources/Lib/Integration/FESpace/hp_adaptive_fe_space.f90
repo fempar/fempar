@@ -61,9 +61,20 @@ module hp_adaptive_fe_space_names
      ! constraint_dofs_coefficients: constraint DoFs coefficients (also independent term)
      ! u_fixed = sum u_dep w_dep + c
      integer(ip)                                 :: num_fixed_dofs = -1
+     ! The prev integer will be renamed num_hanging_dofs when the development in issue 179 will be finished
+     integer(ip)                                 :: num_hanging_dofs = -1
+     integer(ip)                                 :: num_dirichlet_dofs = -1
      type(std_vector_integer_ip_t)               :: ptr_constraint_dofs
      type(std_vector_integer_ip_t)               :: constraint_dofs_dependencies
      type(std_vector_real_rp_t)                  :: constraint_dofs_coefficients
+     ! The two prev arrays will be eliminated when the development in issue 179 will be finished
+     type(std_vector_integer_ip_t)               :: ptr_constraining_free_dofs
+     type(std_vector_integer_ip_t)               :: ptr_constraining_dirichlet_dofs
+     type(std_vector_integer_ip_t)               :: constraining_free_dofs
+     type(std_vector_real_rp_t)                  :: constraining_free_dofs_coefficients
+     type(std_vector_integer_ip_t)               :: constraining_dirichlet_dofs
+     type(std_vector_real_rp_t)                  :: constraining_dirichlet_dofs_coefficients
+     type(std_vector_real_rp_t)                  :: constraints_independent_term
      
      type(p4est_serial_triangulation_t), pointer :: p4est_triangulation =>  NULL()
    contains
@@ -694,9 +705,16 @@ subroutine serial_hp_adaptive_fe_space_free(this)
   class(serial_hp_adaptive_fe_space_t), intent(inout)    :: this
   call this%serial_fe_space_t%free()
   this%num_fixed_dofs = -1
+  this%num_hanging_dofs = -1
+  this%num_dirichlet_dofs = -1
   call this%free_ptr_constraint_dofs()
   call this%free_constraint_dofs_dependencies()
   call this%free_constraint_dofs_coefficients()
+  !call this%free_constraining_free_dofs
+  !call this%free_constraining_free_dofs_coefficients
+  !call this%free_constraining_dirichlet_dofs
+  !call this%free_constraining_dirichlet_dofs_coefficients
+  !call this%free_constraints_independent_term
   nullify(this%p4est_triangulation)
 end subroutine serial_hp_adaptive_fe_space_free
 
@@ -736,6 +754,7 @@ subroutine shpafs_set_up_strong_dirichlet_bcs( this )
   ! Re-size to 0 to force re-initialization during second resize (to the actual/correct size)
   call this%ptr_constraint_dofs%resize(0)
   this%num_fixed_dofs = this%get_num_fixed_dof_values()
+  this%num_dirichlet_dofs = this%get_num_fixed_dof_values()
   call this%ptr_constraint_dofs%resize(this%num_fixed_dofs+1,0)
   call this%constraint_dofs_dependencies%resize(this%num_fixed_dofs)
   call this%constraint_dofs_coefficients%resize(this%num_fixed_dofs)
@@ -1006,6 +1025,8 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
   call this%set_field_num_dofs(field_id,current_dof_block - init_dof_block)
   call this%set_block_num_dofs(iblock, this%get_block_num_dofs(iblock) + & 
                                           this%get_field_num_dofs(field_id))
+  this%num_hanging_dofs = current_fixed_dof - init_fixed_dof
+  ! this%num_fixed_dofs = this%num_hanging_dofs + this%num_dirichlet_dof
   this%num_fixed_dofs = this%num_fixed_dofs + current_fixed_dof - init_fixed_dof
 end subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
 
