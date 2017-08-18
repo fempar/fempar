@@ -759,6 +759,14 @@ subroutine shpafs_set_up_strong_dirichlet_bcs( this )
   call this%constraint_dofs_dependencies%resize(this%num_fixed_dofs)
   call this%constraint_dofs_coefficients%resize(this%num_fixed_dofs)
   
+  call this%ptr_constraining_free_dofs%resize(0,0)
+  call this%ptr_constraining_dirichlet_dofs%resize(0,0)
+  call this%constraining_free_dofs%resize(0)
+  call this%constraining_free_dofs_coefficients%resize(0)
+  call this%constraining_dirichlet_dofs%resize(0)
+  call this%constraining_dirichlet_dofs_coefficients%resize(0)
+  call this%constraints_independent_term%resize(0)
+  
   ! DoFs which are subject to strong Dirichlet BC's depend on an artificial
   ! DoF with identifier equal to zero. The corresponding value in constraint_dofs_coefficients
   ! is the value of the DoF subject to strong Dirichlet BC's
