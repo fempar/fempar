@@ -1628,6 +1628,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
   type(p_scalar_function_t), allocatable :: function_scalar_components(:)
   real(rp)                 , allocatable :: scalar_function_values(:,:)
   type(vector_field_t)     , allocatable :: vector_function_values(:,:)
+  type(vector_field_t)     , allocatable :: shape_values(:,:)
 
   type(parameterlist_t)  :: parameter_list
   integer(ip)            :: FPLError
@@ -1726,7 +1727,8 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
                                                                           field_id, &
                                                                           vector_function_values, &
                                                                           elmat, &
-                                                                          elvec)
+                                                                          elvec, &
+                                                                          shape_values)
               
               
                     ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
@@ -1789,6 +1791,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      deallocate ( function_scalar_components, stat=istat); check(istat==0);
      deallocate ( vector_function_values, stat=istat); check(istat==0);
      deallocate ( scalar_function_values, stat=istat); check(istat==0);
+     deallocate ( shape_values, stat=istat); check(istat==0);
      call memfree ( components_code, __FILE__, __LINE__ )
      call memfree ( subset2global_dirichlet_dofs, __FILE__, __LINE__ )
      call memfree ( global2subset_dirichlet_dofs, __FILE__, __LINE__ ) 

@@ -625,6 +625,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
   type(p_scalar_function_t), allocatable :: function_scalar_components(:)
   real(rp)                 , allocatable :: scalar_function_values(:,:)
   type(vector_field_t)     , allocatable :: vector_function_values(:,:)
+  type(vector_field_t)     , allocatable :: shape_values(:,:)
 
   type(parameterlist_t)  :: parameter_list
   integer(ip)            :: FPLError
@@ -709,7 +710,8 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
                                                                        field_id, &
                                                                        vector_function_values, &
                                                                        elmat, &
-                                                                       elvec)
+                                                                       elvec, &
+                                                                       shape_values)
               
               
                  ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
@@ -786,6 +788,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
   deallocate ( function_scalar_components, stat=istat); check(istat==0);
   deallocate ( vector_function_values, stat=istat); check(istat==0);
   deallocate ( scalar_function_values, stat=istat); check(istat==0);
+  deallocate ( shape_values, stat=istat); check(istat==0);
   call memfree ( components_code, __FILE__, __LINE__ )
   call memfree ( subset2global_dirichlet_dofs, __FILE__, __LINE__ )
   call memfree ( global2subset_dirichlet_dofs, __FILE__, __LINE__ ) 
@@ -1008,7 +1011,8 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
                                                                          field_id, &
                                                                          vector_function_values, &
                                                                          elmat, &
-                                                                         elvec)
+                                                                         elvec, &
+                                                                         shape_values)
   implicit none
   class(serial_fe_space_t) , intent(in)    :: this
   class(fe_facet_iterator_t), intent(inout) :: fe_face
@@ -1017,12 +1021,12 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   type(vector_field_t)     , intent(in)    :: vector_function_values(:,:)
   real(rp)                 , intent(inout) :: elmat(:,:)
   real(rp)                 , intent(inout) :: elvec(:)
+  type(vector_field_t), allocatable, intent(inout) :: shape_values(:,:)
 
   ! Locals
   class(reference_fe_t)  , pointer :: reference_fe
   type(quadrature_t)     , pointer :: quadrature
   integer(ip)                      :: qpoint, n_q_points
-  type(facet_integrator_t), pointer :: facet_int
   integer(ip)                      :: ishape, jshape
   real(rp)                         :: factor
   type(vector_field_t) :: normals(2)
@@ -1032,7 +1036,6 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   reference_fe      => fe%get_reference_fe(field_id)
   quadrature        => fe_face%get_quadrature()  
   n_q_points        = quadrature%get_num_quadrature_points()
-  facet_int          => fe_face%get_facet_integrator(field_id)
   select case(reference_fe%get_field_type())
   case ( field_type_scalar )
      ! Curl-conforming projection does not make sense with scalar-valued fields
@@ -1040,17 +1043,16 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   case ( field_type_vector )
      elmat = 0.0_rp
      elvec = 0.0_rp
+     call fe_face%get_values(1,shape_values)
      do qpoint = 1, n_q_points
      call fe_face%get_normals(qpoint, normals)
         factor = fe_face%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
         
         do ishape = 1, reference_fe%get_num_shape_functions() 
-           call facet_int%get_value(ishape,qpoint,1,vector_shape_test)
            do jshape = 1, reference_fe%get_num_shape_functions()
-              call facet_int%get_value(jshape,qpoint,1,vector_shape_trial)
-              elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normals(1))*cross_product(vector_shape_trial,normals(1))*factor
+              elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(shape_values(ishape,qpoint),normals(1))*cross_product(shape_values(jshape,qpoint),normals(1))*factor
            end do
-           elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normals(1))*cross_product(vector_shape_test,normals(1))*factor
+           elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normals(1))*cross_product(shape_values(ishape,qpoint),normals(1))*factor
         end do
      end do
   case ( field_type_tensor )

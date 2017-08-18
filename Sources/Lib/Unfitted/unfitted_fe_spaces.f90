@@ -48,8 +48,7 @@ module unfitted_fe_spaces_names
 
     ! Getters that override
     procedure          :: get_quadrature        => unfitted_fe_cell_iterator_get_quadrature
-    procedure          :: get_cell_integrator   => unfitted_fe_cell_iterator_get_cell_integrator
-
+    
     ! Getters that extend
     procedure          :: get_boundary_quadrature          => unfitted_fe_cell_iterator_get_boundary_quadrature
     procedure          :: get_boundary_piecewise_cell_map    => unfitted_fe_cell_iterator_get_boundary_piecewise_cell_map
@@ -57,8 +56,9 @@ module unfitted_fe_spaces_names
     procedure          :: get_boundary_cell_integrator     => unfitted_fe_cell_iterator_get_boundary_cell_integrator
 
     ! Updater that overrides
-    procedure :: update_integration     => unfitted_fe_cell_iterator_update_integration
-    procedure :: update_cell_map        => unfitted_fe_cell_iterator_update_cell_map
+    procedure :: update_integration      => unfitted_fe_cell_iterator_update_integration
+    procedure :: update_cell_map         => unfitted_fe_cell_iterator_update_cell_map
+    procedure :: update_cell_integrators => unfitted_fe_cell_iterator_update_cell_integrators
     
     ! Updater that extends
     procedure :: update_boundary_integration  => unfitted_fe_cell_iterator_update_boundary_integration
