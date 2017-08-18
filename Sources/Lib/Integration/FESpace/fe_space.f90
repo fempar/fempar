@@ -345,11 +345,10 @@ module fe_space_names
     procedure, non_overridable, private :: get_facet_maps                => fe_facet_iterator_get_facet_map
     procedure, non_overridable          :: update_facet_maps             => fe_facet_iterator_update_facet_maps
     procedure, non_overridable          :: update_facet_integrators      => fe_facet_iterator_update_facet_integrators
-    procedure, non_overridable          :: get_facet_integrator          => fe_facet_iterator_get_facet_integrator
+    procedure, non_overridable, private :: get_facet_integrator          => fe_facet_iterator_get_facet_integrator
     procedure, non_overridable          :: compute_surface               => fe_facet_iterator_compute_surface
     procedure, non_overridable          :: get_lpos_within_cell_around   => fe_facet_iterator_get_lpos_within_cell_around
     procedure, non_overridable          :: get_facet_permutation_index   => fe_facet_iterator_get_facet_permutation_index
-    procedure, non_overridable          :: get_outward_normal            => fe_facet_iterator_get_outward_normal
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_facet_iterator_get_quadrature_points_coordinates
     procedure, non_overridable :: get_normals                       => fe_facet_iterator_get_normals
@@ -365,6 +364,20 @@ module fe_space_names
     procedure, non_overridable :: get_curls             => fe_facet_iterator_get_curls_vector 
     
     procedure, non_overridable :: get_active_cell_id    => fe_facet_iterator_get_active_cell_id
+    
+    procedure, non_overridable, private :: fe_facet_iterator_evaluate_fe_function_scalar
+    procedure, non_overridable, private :: fe_facet_iterator_evaluate_fe_function_vector
+    procedure, non_overridable, private :: fe_facet_iterator_evaluate_fe_function_tensor
+    generic :: evaluate_fe_function => fe_facet_iterator_evaluate_fe_function_scalar, &
+    & fe_facet_iterator_evaluate_fe_function_vector, &
+    & fe_facet_iterator_evaluate_fe_function_tensor
+
+    procedure, non_overridable, private :: fe_facet_iterator_evaluate_gradient_fe_function_scalar
+    procedure, non_overridable, private :: fe_facet_iterator_evaluate_gradient_fe_function_vector
+    generic :: evaluate_gradient_fe_function => fe_facet_iterator_evaluate_gradient_fe_function_scalar, &
+    & fe_facet_iterator_evaluate_gradient_fe_function_vector
+    
+    procedure, non_overridable :: get_current_qpoints_perm => fe_facet_iterator_get_current_qpoints_perm
     
   end type fe_facet_iterator_t
       

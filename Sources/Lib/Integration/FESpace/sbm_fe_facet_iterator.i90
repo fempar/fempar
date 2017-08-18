@@ -485,24 +485,6 @@ subroutine fe_facet_iterator_update_facet_integrators(this)
   end do
 end subroutine fe_facet_iterator_update_facet_integrators
 
-subroutine fe_facet_iterator_get_outward_normal(this,field_id,qpoint,outward_normal)
-  implicit none
-  class(fe_facet_iterator_t), intent(inout) :: this
-  integer(ip)               , intent(in)    :: field_id
-  integer(ip)               , intent(in)    :: qpoint
-  type(vector_field_t)      , intent(inout) :: outward_normal
-  type(facet_maps_t)      , pointer :: facet_maps
-  type(facet_map_t)       , pointer :: facet_map
-  type(facet_integrator_t), pointer :: facet_int
-  facet_maps => this%get_facet_maps()
-  facet_map  => facet_maps%get_facet_map()
-  facet_int  => this%get_facet_integrator(field_id)
-  call facet_map%get_normal(qpoint,outward_normal)
-  if ( facet_int%get_active_cell_id(1) == 2 ) then
-    outward_normal = (-1.0_rp) * outward_normal
-  end if
-end subroutine fe_facet_iterator_get_outward_normal
-
 !==================================================================================================
 function fe_facet_iterator_compute_surface ( this )
   implicit none
@@ -639,3 +621,101 @@ function fe_facet_iterator_get_active_cell_id (this,neighbour_id, field_id)
   field_id_=1; if (present(field_id)) field_id_ = field_id
   fe_facet_iterator_get_active_cell_id = this%facet_integrators(field_id_)%p%get_active_cell_id(neighbour_id)
 end function fe_facet_iterator_get_active_cell_id
+
+
+!=================================================================================================
+subroutine fe_facet_iterator_evaluate_fe_function_scalar ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  real(rp)                , intent(in)    :: nodal_values(:)
+  real(rp), allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%evaluate_fe_function(neighbour_id,nodal_values,quadrature_points_values)
+end subroutine fe_facet_iterator_evaluate_fe_function_scalar
+!=================================================================================================
+subroutine fe_facet_iterator_evaluate_fe_function_vector ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(vector_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%evaluate_fe_function(neighbour_id,nodal_values,quadrature_points_values)
+end subroutine fe_facet_iterator_evaluate_fe_function_vector
+!=================================================================================================
+subroutine fe_facet_iterator_evaluate_fe_function_tensor ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(tensor_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%evaluate_fe_function(neighbour_id,nodal_values,quadrature_points_values)
+end subroutine fe_facet_iterator_evaluate_fe_function_tensor
+!=================================================================================================
+subroutine fe_facet_iterator_evaluate_gradient_fe_function_scalar ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(vector_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%evaluate_gradient_fe_function(neighbour_id,nodal_values,quadrature_points_values)
+end subroutine fe_facet_iterator_evaluate_gradient_fe_function_scalar
+!=================================================================================================
+subroutine fe_facet_iterator_evaluate_gradient_fe_function_vector ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(tensor_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%evaluate_gradient_fe_function(neighbour_id,nodal_values,quadrature_points_values)
+end subroutine fe_facet_iterator_evaluate_gradient_fe_function_vector
+!=================================================================================================
+function fe_facet_iterator_get_current_qpoints_perm ( this, neighbour_id, field_id)
+  implicit none
+  class(fe_facet_iterator_t), target, intent(in)    :: this
+  integer(ip)                     , intent(in)    :: neighbour_id
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  integer(ip), pointer :: fe_facet_iterator_get_current_qpoints_perm(:)
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  fe_facet_iterator_get_current_qpoints_perm => this%facet_integrators(field_id_)%p%get_current_qpoints_perm(neighbour_id)
+end function fe_facet_iterator_get_current_qpoints_perm

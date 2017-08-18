@@ -56,7 +56,6 @@ subroutine fe_facet_function_scalar_update ( this, facet_iterator, fe_function )
   integer(ip)                      :: icell_around
   class(reference_fe_t)      , pointer     :: reference_fe
   type(quadrature_t)         , pointer     :: quadrature
-  type(facet_integrator_t)    , pointer     :: facet_integrator
   real(rp)                   , pointer     :: nodal_values(:)
   real(rp)                   , allocatable :: quadrature_points_values(:)
   type(vector_field_t)       , allocatable :: quadrature_points_gradients(:)
@@ -70,12 +69,11 @@ subroutine fe_facet_function_scalar_update ( this, facet_iterator, fe_function )
      field_id = this%get_field_id()
      quadrature => facet_iterator%get_quadrature()
      num_quadrature_points =  quadrature%get_num_quadrature_points()
-     facet_integrator => facet_iterator%get_facet_integrator(field_id)
 
      do icell_around=1, facet_iterator%get_num_cells_around()
 
         this%quadrature_points_permutation(icell_around)%p => &
-             facet_integrator%get_current_qpoints_perm(icell_around)
+             facet_iterator%get_current_qpoints_perm(icell_around, field_id)
 
         call facet_iterator%get_cell_around(icell_around, this%fe)
 
@@ -93,13 +91,13 @@ subroutine fe_facet_function_scalar_update ( this, facet_iterator, fe_function )
         call fe_function%gather_nodal_values(this%fe, field_id, nodal_values)
 
         ! Evaluate values and gradients at quadrature points
-        call facet_integrator%evaluate_fe_function ( icell_around, &
+        call facet_iterator%evaluate_fe_function ( icell_around, &
                                                     nodal_values, & 
-                                                    quadrature_points_values )
+                                                    quadrature_points_values, field_id )
 
-        call facet_integrator%evaluate_gradient_fe_function ( icell_around, &
+        call facet_iterator%evaluate_gradient_fe_function ( icell_around, &
                                                              nodal_values, & 
-                                                             quadrature_points_gradients )
+                                                             quadrature_points_gradients, field_id )
         
         call this%fe_cell_function(icell_around)%move_alloc_values_in(quadrature_points_values) 
         call this%fe_cell_function(icell_around)%move_alloc_gradients_in(quadrature_points_gradients) 
@@ -238,7 +236,6 @@ subroutine fe_facet_function_vector_update ( this, facet_iterator, fe_function )
   integer(ip)                      :: icell_around
   class(reference_fe_t)      , pointer     :: reference_fe
   type(quadrature_t)         , pointer     :: quadrature
-  type(facet_integrator_t)    , pointer     :: facet_integrator
   real(rp)                   , pointer     :: nodal_values(:)
   type(vector_field_t)       , allocatable :: quadrature_points_values(:)
   type(tensor_field_t)       , allocatable :: quadrature_points_gradients(:)
@@ -252,12 +249,11 @@ subroutine fe_facet_function_vector_update ( this, facet_iterator, fe_function )
      field_id = this%get_field_id()
      quadrature => facet_iterator%get_quadrature()
      num_quadrature_points =  quadrature%get_num_quadrature_points()
-     facet_integrator => facet_iterator%get_facet_integrator(field_id)
 
      do icell_around=1, facet_iterator%get_num_cells_around()
 
         this%quadrature_points_permutation(icell_around)%p => &
-             facet_integrator%get_current_qpoints_perm(icell_around)
+             facet_iterator%get_current_qpoints_perm(icell_around, field_id )
 
         call facet_iterator%get_cell_around(icell_around, this%fe)
 
@@ -275,13 +271,13 @@ subroutine fe_facet_function_vector_update ( this, facet_iterator, fe_function )
         call fe_function%gather_nodal_values(this%fe, field_id, nodal_values)
 
         ! Evaluate values and gradients at quadrature points
-        call facet_integrator%evaluate_fe_function ( icell_around, &
+        call facet_iterator%evaluate_fe_function ( icell_around, &
              nodal_values, & 
-             quadrature_points_values )
+             quadrature_points_values, field_id )
 
-        call facet_integrator%evaluate_gradient_fe_function ( icell_around, &
+        call facet_iterator%evaluate_gradient_fe_function ( icell_around, &
              nodal_values, & 
-             quadrature_points_gradients )
+             quadrature_points_gradients, field_id )
         
         call this%fe_cell_function(icell_around)%move_alloc_values_in(quadrature_points_values) 
         call this%fe_cell_function(icell_around)%move_alloc_gradients_in(quadrature_points_gradients) 
@@ -422,7 +418,6 @@ subroutine fe_facet_function_tensor_update ( this, facet_iterator, fe_function )
   integer(ip)                      :: icell_around
   class(reference_fe_t)      , pointer     :: reference_fe
   type(quadrature_t)         , pointer     :: quadrature
-  type(facet_integrator_t)    , pointer     :: facet_integrator
   real(rp)                   , pointer     :: nodal_values(:)
   type(tensor_field_t)       , allocatable :: quadrature_points_values(:)
   class(environment_t)       , pointer     :: environment
@@ -438,12 +433,11 @@ subroutine fe_facet_function_tensor_update ( this, facet_iterator, fe_function )
      field_id = this%get_field_id()
      quadrature => facet_iterator%get_quadrature()
      num_quadrature_points =  quadrature%get_num_quadrature_points()
-     facet_integrator => facet_iterator%get_facet_integrator(field_id)
 
      do icell_around=1, facet_iterator%get_num_cells_around()
 
         this%quadrature_points_permutation(icell_around)%p => &
-             facet_integrator%get_current_qpoints_perm(icell_around)
+             facet_iterator%get_current_qpoints_perm(icell_around, field_id)
 
         call facet_iterator%get_cell_around(icell_around, this%fe)
 
@@ -460,9 +454,9 @@ subroutine fe_facet_function_tensor_update ( this, facet_iterator, fe_function )
         call fe_function%gather_nodal_values(this%fe, field_id, nodal_values)
 
         ! Evaluate values and gradients at quadrature points
-        call facet_integrator%evaluate_fe_function ( icell_around, &
+        call facet_iterator%evaluate_fe_function ( icell_around, &
                                                     nodal_values, & 
-                                                    quadrature_points_values )
+                                                    quadrature_points_values, field_id )
         
         call this%fe_cell_function(icell_around)%move_alloc_values_in(quadrature_points_values)
      end do
