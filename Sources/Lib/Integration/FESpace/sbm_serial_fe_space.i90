@@ -1027,7 +1027,6 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   class(reference_fe_t)  , pointer :: reference_fe
   type(quadrature_t)     , pointer :: quadrature
   integer(ip)                      :: qpoint, n_q_points
-  type(facet_integrator_t), pointer :: facet_int
   integer(ip)                      :: ishape, jshape
   real(rp)                         :: factor
   type(vector_field_t) :: normals(2)
@@ -1051,7 +1050,6 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
         
         do ishape = 1, reference_fe%get_num_shape_functions() 
            do jshape = 1, reference_fe%get_num_shape_functions()
-              call facet_int%get_value(jshape,qpoint,1,vector_shape_trial)
               elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(shape_values(ishape,qpoint),normals(1))*cross_product(shape_values(jshape,qpoint),normals(1))*factor
            end do
            elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normals(1))*cross_product(shape_values(ishape,qpoint),normals(1))*factor

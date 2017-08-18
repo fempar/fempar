@@ -268,6 +268,19 @@ module fe_space_names
     generic                             :: get_divergences        => get_divergences_vector
     procedure, non_overridable, private :: get_curls_vector => fe_cell_iterator_get_curls_vector
     generic                             :: get_curls        => get_curls_vector
+    
+        
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_fe_function_scalar
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_fe_function_vector
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_fe_function_tensor
+    generic :: evaluate_fe_function => fe_cell_iterator_evaluate_fe_function_scalar, &
+    & fe_cell_iterator_evaluate_fe_function_vector, &
+    & fe_cell_iterator_evaluate_fe_function_tensor
+
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_gradient_fe_function_scalar
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_gradient_fe_function_vector
+    generic :: evaluate_gradient_fe_function => fe_cell_iterator_evaluate_gradient_fe_function_scalar, &
+    & fe_cell_iterator_evaluate_gradient_fe_function_vector
 
   end type fe_cell_iterator_t
    
