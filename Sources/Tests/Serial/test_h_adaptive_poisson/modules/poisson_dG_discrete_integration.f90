@@ -162,6 +162,7 @@ contains
             end do  
          end do        
          
+         ! (TODO) To be substituted by overriden fe_face%assembly (matrix_array)
          call fe%assemble( elmat, elvec, assembler )
        end if
        
@@ -185,6 +186,7 @@ contains
        if ( fe_face%is_at_field_interior(1) ) then
          
          facemat = 0.0_rp
+         facevec = 0.0_rp
          call fe_face%update_integration()    
          
          call fe_face%get_values(1,shape_values_first)
@@ -234,7 +236,8 @@ contains
             end do
          end do
 
-         call fe_face%assembly( facemat, assembler )
+         ! (TODO) To be substituted by overriden fe_face%assembly (matrix_array)
+         call fe_face%assemble( facemat, facevec, assembler )
          
        else if ( fe_face%is_at_field_boundary(1) ) then
        
@@ -273,6 +276,7 @@ contains
             end do   
          end do
 
+         ! (TODO) To be substituted by overriden fe_face%assembly (matrix_array)
          call fe_face%assemble( facemat, facevec, assembler )
 
        end if
