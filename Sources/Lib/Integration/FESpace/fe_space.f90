@@ -63,6 +63,10 @@ module fe_space_names
   use iterative_linear_solver_parameters_names
   
   use piecewise_cell_map_names
+  
+  ! Adaptivity
+  use std_vector_real_rp_names
+  use p4est_serial_triangulation_names
 
  ! Parallel modules
   use environment_names
@@ -257,14 +261,14 @@ module fe_space_names
     procedure, non_overridable          :: is_void                                    => fe_cell_iterator_is_void
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_cell_iterator_create_own_dofs_on_vef_iterator
     procedure, non_overridable, private :: impose_strong_dirichlet_bcs                => fe_cell_iterator_impose_strong_dirichlet_bcs
-    procedure, non_overridable, private :: fe_cell_iterator_assembly_array
-    procedure, non_overridable, private :: fe_cell_iterator_assembly_matrix
-    procedure, non_overridable, private :: fe_cell_iterator_assembly_matrix_array
-    procedure, non_overridable, private :: fe_cell_iterator_assembly_matrix_array_with_strong_bcs
-    generic                             :: assembly                                   => fe_cell_iterator_assembly_array,        &
-                                                                                         fe_cell_iterator_assembly_matrix,       &
-                                                                                         fe_cell_iterator_assembly_matrix_array, &
-                                                                                         fe_cell_iterator_assembly_matrix_array_with_strong_bcs
+    procedure, private :: assembly_array => fe_cell_iterator_assembly_array
+    procedure, private :: assembly_matrix => fe_cell_iterator_assembly_matrix
+    procedure, private :: assembly_matrix_array => fe_cell_iterator_assembly_matrix_array
+    procedure, private :: assembly_matrix_array_with_strong_bcs => fe_cell_iterator_assembly_matrix_array_with_strong_bcs
+    generic            :: assembly                                   => assembly_array,        &
+                                                                        assembly_matrix,       &
+                                                                        assembly_matrix_array, &
+                                                                        assembly_matrix_array_with_strong_bcs
     procedure, non_overridable          :: first_local_non_void                       => fe_cell_iterator_first_local_non_void
 
     ! Added by unfitted_fe_cell_iterator
@@ -1038,6 +1042,103 @@ module fe_space_names
   end type fe_function_t 
    
   public :: fe_function_t  
+  
+  type, extends(serial_fe_space_t) :: serial_hp_adaptive_fe_space_t
+     private
+     !list_t :: constraints 
+     ! Hanging and strong Dirichlet data
+     ! ptr_constraint_dofs         : pointer to constraints
+     ! l1                          : constraint DOFs dependencies (0 for independent term)
+     ! constraint_dofs_coefficients: constraint DoFs coefficients (also independent term)
+     ! u_fixed = sum u_dep w_dep + c
+     integer(ip)                                 :: num_fixed_dofs = -1
+     ! The prev integer will be renamed num_hanging_dofs when the development in issue 179 will be finished
+     integer(ip)                                 :: num_hanging_dofs = -1
+     integer(ip)                                 :: num_dirichlet_dofs = -1
+     
+     type(std_vector_integer_ip_t)               :: ptr_constraint_dofs
+     type(std_vector_integer_ip_t)               :: constraint_dofs_dependencies
+     type(std_vector_real_rp_t)                  :: constraint_dofs_coefficients
+     ! The two prev arrays will be eliminated when the development in issue 179 will be finished
+     type(std_vector_integer_ip_t)               :: ptr_constraining_free_dofs
+     type(std_vector_integer_ip_t)               :: ptr_constraining_dirichlet_dofs
+     type(std_vector_integer_ip_t)               :: constraining_free_dofs
+     type(std_vector_real_rp_t)                  :: constraining_free_dofs_coefficients
+     type(std_vector_integer_ip_t)               :: constraining_dirichlet_dofs
+     type(std_vector_real_rp_t)                  :: constraining_dirichlet_dofs_coefficients
+     type(std_vector_real_rp_t)                  :: constraints_independent_term
+     
+     type(p4est_serial_triangulation_t), pointer :: p4est_triangulation =>  NULL()
+   contains
+     procedure          :: create_fe_vef_iterator                                 => serial_hp_adaptive_fe_space_create_fe_vef_iterator
+     procedure          :: create_fe_cell_iterator                                     => serial_hp_adaptive_fe_space_create_fe_cell_iterator
+     procedure          :: create_fe_facet_iterator                                => serial_hp_adaptive_fe_space_create_fe_facet_iterator
+     
+     procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
+     procedure          :: serial_fe_space_create_different_ref_fes_between_cells => shpafs_create_different_ref_fes_between_cells
+     procedure          :: free                                                   => serial_hp_adaptive_fe_space_free
+     
+     procedure          :: generate_global_dof_numbering                                          => serial_hp_adaptive_fe_space_generate_global_dof_numbering
+     procedure, private :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
+     
+     procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
+     procedure          :: transfer_dirichlet_to_constraint_dof_coefficients      => shpafs_transfer_dirichlet_to_constraint_dof_coefficients
+     procedure          :: free_ptr_constraint_dofs                               => shpafs_free_ptr_constraint_dofs
+     procedure          :: free_constraint_dofs_dependencies                      => shpafs_free_constraint_dofs_dependencies
+     procedure          :: free_constraint_dofs_coefficients                      => shpafs_free_constraint_dofs_coefficients
+     
+     procedure          :: get_num_fixed_dofs                                  => shpafs_get_num_fixed_dofs
+     procedure          :: set_up_strong_dirichlet_bcs                            => shpafs_set_up_strong_dirichlet_bcs
+     procedure          :: update_fixed_dof_values                                => shpafs_update_fixed_dof_values
+     procedure          :: interpolate_dirichlet_values                           => shpafs_interpolate_dirichlet_values
+     
+     procedure, private :: fill_facet_gids                              => shpafs_fill_facet_gids
+     
+     procedure          :: project_field_cell_to_ref_fes                               => shpafs_project_field_cell_to_ref_fes
+     procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
+     procedure          :: project_fe_facet_integration_arrays                     => shpafs_project_fe_facet_integration_arrays
+     procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
+ end type serial_hp_adaptive_fe_space_t  
+ 
+ type, extends(fe_cell_iterator_t) :: hp_adaptive_fe_cell_iterator_t
+   private 
+   type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
+   type(std_vector_integer_ip_t), allocatable :: extended_fe_dofs(:)
+   integer(ip), allocatable :: gid_to_lid_map(:)
+   type(allocatable_array_rp2_t) :: extended_elmat
+   type(allocatable_array_rp1_t) :: extended_elvec
+ contains
+   procedure          :: create                     => hp_adaptive_fe_cell_iterator_create
+   procedure          :: free                       => hp_adaptive_fe_cell_iterator_free
+   procedure          :: assemble                   => hp_adaptive_fe_cell_iterator_assemble
+   procedure, private :: recursive_matrix_assembly  => hp_adaptive_fe_cell_iterator_recursive_matrix_assembly
+   procedure, private :: recursive_vector_assembly  => hp_adaptive_fe_cell_iterator_recursive_vector_assembly
+   procedure, non_overridable, private :: apply_constraints => hp_adaptive_fe_cell_iterator_apply_constraints
+   procedure, private :: hpafeci_impose_strong_dirichlet_bcs
+   procedure, private :: assembly_array =>  hpafeci_assembly_array
+   procedure, private :: assembly_matrix => hpafeci_assembly_matrix
+   procedure, private :: assembly_matrix_array => hpafeci_assembly_matrix_array
+   procedure, private :: assembly_matrix_array_with_strong_bcs => hpafeci_assembly_matrix_array_with_strong_bcs
+ end type hp_adaptive_fe_cell_iterator_t
+ 
+ type, extends(fe_facet_iterator_t) :: hp_adaptive_fe_facet_iterator_t
+   private 
+   type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
+ contains
+   procedure          :: create                         => hp_adaptive_fe_facet_iterator_create
+   procedure          :: free                           => hp_adaptive_fe_facet_iterator_free
+   procedure          :: get_num_cells_around           => hp_adaptive_fe_facet_iterator_get_num_cells_around
+   procedure, private :: fe_vef_iterator_get_fe_around  => hp_adaptive_fe_facet_iterator_get_fe_around
+   procedure          :: compute_fe_facet_permutation_index => hpafefi_compute_fe_facet_permutation_index
+   procedure          :: get_lpos_within_cell_around    => hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around
+   procedure, private :: get_subfacet_lid_cell_around    => hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around
+   procedure          :: assemble                       => hp_adaptive_fe_facet_iterator_assemble
+   procedure, private :: recursive_matrix_assembly      => hp_adaptive_fe_facet_iterator_recursive_matrix_assembly
+   procedure, private :: recursive_vector_assembly      => hp_adaptive_fe_facet_iterator_recursive_vector_assembly
+ end type hp_adaptive_fe_facet_iterator_t
+ 
+ public :: serial_hp_adaptive_fe_space_t
+ 
  
  
 contains
@@ -1063,5 +1164,7 @@ contains
 #include "sbm_coarse_fe_vef_iterator.i90"
 
 #include "sbm_fe_function.i90"
+
+#include "sbm_hp_adaptive_fe_space.i90"
 
 end module fe_space_names

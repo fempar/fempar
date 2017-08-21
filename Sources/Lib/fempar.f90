@@ -93,7 +93,6 @@ module fempar_names
   use field_names
   use polynomial_names
   use fe_space_names
-  use hp_adaptive_fe_space_names
   use fe_cell_function_names
   use fe_facet_function_names
   use conditions_names

@@ -1028,7 +1028,7 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
   class(assembler_t), intent(inout) :: assembler
   
   call this%impose_strong_dirichlet_bcs(fe_function,elmat,elvec)
-  call this%fe_cell_iterator_assembly_matrix_array(elmat,elvec,assembler)
+  call this%assembly_matrix_array(elmat,elvec,assembler)
   
 end subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs
 
