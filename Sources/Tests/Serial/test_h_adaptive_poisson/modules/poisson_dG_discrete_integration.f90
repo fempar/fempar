@@ -162,7 +162,7 @@ contains
             end do  
          end do        
          
-         call fe%assembly( elmat, elvec, assembler )
+         call fe%assemble( elmat, elvec, assembler )
        end if
        
        call fe%next()
@@ -273,7 +273,7 @@ contains
             end do   
          end do
 
-         call fe_face%assembly( facemat, facevec, assembler )
+         call fe_face%assemble( facemat, facevec, assembler )
 
        end if
        

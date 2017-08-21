@@ -224,6 +224,7 @@ module fe_space_names
     procedure, non_overridable          :: get_field_blocks                           => fe_cell_iterator_get_field_blocks
     procedure, non_overridable          :: get_field_coupling                         => fe_cell_iterator_get_field_coupling
     procedure, non_overridable          :: get_num_dofs                               => fe_cell_iterator_get_num_dofs
+    procedure, non_overridable          :: get_num_dofs_field                         => fe_cell_iterator_get_num_dofs_field
     procedure, non_overridable          :: get_num_dofs_x_field                       => fe_cell_iterator_get_num_dofs_x_field
     procedure, non_overridable          :: get_field_fe_dofs                          => fe_cell_iterator_get_field_fe_dofs
     procedure, non_overridable          :: get_fe_dofs                                => fe_cell_iterator_get_fe_dofs
