@@ -210,6 +210,7 @@ module allocatable_array_rp1_names
      real(rp)    , allocatable :: a(:)
    contains
      procedure, non_overridable :: create         => allocatable_array_rp1_create
+     procedure, non_overridable :: resize         => allocatable_array_rp1_resize
      procedure, non_overridable :: free           => allocatable_array_rp1_free
      procedure, non_overridable :: move_alloc_out => allocatable_array_rp1_move_alloc_out
      procedure, non_overridable :: move_alloc_in  => allocatable_array_rp1_move_alloc_in
@@ -233,6 +234,16 @@ contains
     this%nd1 = nd1
     call memalloc(nd1,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp1_create
+   
+  subroutine allocatable_array_rp1_resize(this, nd1)	
+    implicit none
+    integer(ip)    , intent(in)  :: nd1
+    class(allocatable_array_rp1_t), intent(inout) :: this
+    if ( this%nd1 /= nd1 ) then
+       this%nd1 = nd1
+       call memrealloc(nd1,this%a,__FILE__,__LINE__)
+    end if
+  end subroutine allocatable_array_rp1_resize
 
   subroutine allocatable_array_rp1_free(this)	
     implicit none
@@ -291,6 +302,7 @@ module allocatable_array_rp2_names
      real(rp)    , allocatable :: a(:,:) ! Simple real 2D array
    contains
      procedure :: create => allocatable_array_rp2_create
+     procedure :: resize => allocatable_array_rp2_resize
      procedure :: free   => allocatable_array_rp2_free
   end type allocatable_array_rp2_t
   public :: allocatable_array_rp2_t
@@ -311,6 +323,17 @@ contains
     this%nd2 = nd2
     call memalloc(nd1,nd2,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp2_create
+
+  subroutine allocatable_array_rp2_resize(this, nd1, nd2)	
+    implicit none
+    integer(ip)    , intent(in)  :: nd1, nd2
+    class(allocatable_array_rp2_t), intent(inout) :: this
+    if ( this%nd1 /= nd1 .or. this%nd2 /= nd2 ) then
+       this%nd1 = nd1
+       this%nd2 = nd2
+       call memrealloc(nd1,nd2,this%a,__FILE__,__LINE__)
+    end if
+  end subroutine allocatable_array_rp2_resize
 
   subroutine allocatable_array_rp2_free(this)	
     implicit none
