@@ -239,7 +239,7 @@ contains
     implicit none
     integer(ip)    , intent(in)  :: nd1
     class(allocatable_array_rp1_t), intent(inout) :: this
-    if ( this%nd1 /= nd1 ) then
+    if ( this%nd1 < nd1 ) then
        this%nd1 = nd1
        call memrealloc(nd1,this%a,__FILE__,__LINE__)
     end if
@@ -328,7 +328,7 @@ contains
     implicit none
     integer(ip)    , intent(in)  :: nd1, nd2
     class(allocatable_array_rp2_t), intent(inout) :: this
-    if ( this%nd1 /= nd1 .or. this%nd2 /= nd2 ) then
+    if ( this%nd1 < nd1 .or. this%nd2 < nd2 ) then
        this%nd1 = nd1
        this%nd2 = nd2
        call memrealloc(nd1,nd2,this%a,__FILE__,__LINE__)

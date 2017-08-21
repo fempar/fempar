@@ -37,6 +37,7 @@ module hp_adaptive_fe_space_names
   use std_vector_integer_ip_names
   use std_vector_real_rp_names
   use list_types_names
+  use allocatable_array_names
   
   use assembler_names
   use serial_scalar_array_names
@@ -64,6 +65,7 @@ module hp_adaptive_fe_space_names
      ! The prev integer will be renamed num_hanging_dofs when the development in issue 179 will be finished
      integer(ip)                                 :: num_hanging_dofs = -1
      integer(ip)                                 :: num_dirichlet_dofs = -1
+     
      type(std_vector_integer_ip_t)               :: ptr_constraint_dofs
      type(std_vector_integer_ip_t)               :: constraint_dofs_dependencies
      type(std_vector_real_rp_t)                  :: constraint_dofs_coefficients
@@ -111,12 +113,26 @@ module hp_adaptive_fe_space_names
  type, extends(fe_cell_iterator_t) :: hp_adaptive_fe_cell_iterator_t
    private 
    type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
+   type(std_vector_integer_ip_t), allocatable :: extended_fe_dofs(:)
+   integer(ip), allocatable :: gid_to_lid_map(:)
+   type(allocatable_array_rp2_t) :: extended_elmat
+   type(allocatable_array_rp1_t) :: extended_elvec
  contains
    procedure          :: create                     => hp_adaptive_fe_cell_iterator_create
    procedure          :: free                       => hp_adaptive_fe_cell_iterator_free
    procedure          :: assemble                   => hp_adaptive_fe_cell_iterator_assemble
    procedure, private :: recursive_matrix_assembly  => hp_adaptive_fe_cell_iterator_recursive_matrix_assembly
    procedure, private :: recursive_vector_assembly  => hp_adaptive_fe_cell_iterator_recursive_vector_assembly
+   procedure, non_overridable, private :: impose_strong_dirichlet_bcs => hp_adaptive_fe_cell_iterator_impose_strong_dirichlet_bcs
+   procedure, non_overridable, private :: apply_constraints => hp_adaptive_fe_cell_iterator_apply_constraints
+   procedure, private :: hpafeci_assembly_array
+   procedure, private :: hpafeci_assembly_matrix
+   procedure, private :: hpafeci_assembly_matrix_array
+   procedure, private :: hpafeci_assembly_matrix_array_with_strong_bcs
+   generic            :: assembly                                   => hpafeci_assembly_array,        &
+                                                                       hpafeci_assembly_matrix,       &
+                                                                       hpafeci_assembly_matrix_array, &
+                                                                       hpafeci_assembly_matrix_array_with_strong_bcs
  end type hp_adaptive_fe_cell_iterator_t
  
  type, extends(fe_facet_iterator_t) :: hp_adaptive_fe_facet_iterator_t
@@ -1514,5 +1530,239 @@ contains
   
 end subroutine serial_hp_adaptive_fe_space_refine_and_coarsen
 
+!! Assembly of local matrices for hp-adaptivity
+
+
+subroutine hpafeci_assembly_array ( this,  &
+                                        elvec, &
+                                        assembler )
+  implicit none
+  class(hp_adaptive_fe_cell_iterator_t)           , intent(inout) :: this
+  real(rp)                       , intent(in)    :: elvec(:)
+  class(assembler_t), intent(inout) :: assembler
+  massert(.false.,'hpafeci_assembly_array not implemented yet')
+end subroutine hpafeci_assembly_array
+
+subroutine hpafeci_assembly_matrix ( this,  &
+                                         elmat, &
+                                         assembler )
+  implicit none
+  class(hp_adaptive_fe_cell_iterator_t)           , intent(inout) :: this
+  real(rp)                       , intent(in)    :: elmat(:,:)
+  class(assembler_t), intent(inout) :: assembler
+  massert(.false.,'hpafeci_assembly_matrix not implemented yet')
+end subroutine hpafeci_assembly_matrix
+
+subroutine hpafeci_assembly_matrix_array ( this,  &
+                                               elmat, &
+                                               elvec, &
+                                               assembler )
+  implicit none
+  class(hp_adaptive_fe_cell_iterator_t)           , intent(inout) :: this
+  real(rp)                       , intent(in)    :: elmat(:,:)
+  real(rp)                       , intent(in)    :: elvec(:)
+  class(assembler_t), intent(inout) :: assembler
+  massert(.false.,'hpafeci_assembly_matrix_array not implemented yet')
+end subroutine hpafeci_assembly_matrix_array
+
+subroutine hpafeci_assembly_matrix_array_with_strong_bcs(this,fe_function,elmat,elvec,assembler)
+  implicit none
+  class(hp_adaptive_fe_cell_iterator_t), intent(in)    :: this
+  real(rp), intent(in) :: elmat(:,:)
+  real(rp), intent(in) :: elvec(:)
+  class(assembler_t) , intent(inout) :: assembler
+
+  logical :: no_hanging_node_constraints
+  integer(ip) :: ifield
+  type(i1p_t), allocatable :: fe_dofs(:)
+  
+  no_hanging_node_constraints = .true.
+  do ifield=1, this%get_num_fields() 
+     if ( this%has_fixed_dofs(ifield) .and. .not. this%at_strong_dirichlet_boundary(ifield) ) then
+        no_hanging_node_constraints = .false.
+        exit
+     end if
+  end do
+
+  if ( no_hanging_node_constraints ) then
+     call this%fe_cell_iterator_t%assembly(elmat,elvec,assembler)
+  else  
+     ! update fe_dofs
+     allocate( fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
+     call this%get_fe_dofs(fe_dofs)
+     
+     
+     
+     
+     call this%extended_fe_dofs%copy(fe_dofs)
+     
+     
+     
+     
+     ! "apply constraints"
+     call this%apply_constraints ( this, elmat, elvec )
+     
+     
+     
+     
+     
+     
+     
+     ! impose strong dirichlet bc's
+     call this%impose_strong_dirichlet_bcs ( this, fe_function )
+     ! call assembler%assembly()
+     call assembler%assembly_matrix( this%get_num_fields(),        &
+                                               this%get_field_blocks(),   &
+                                               this%get_field_coupling(), &
+                                               this%get_num_dofs_x_field(),         &
+                                               this%get_num_dofs_x_field(),         &
+                                               this%fe_dofs,                      &
+                                               this%fe_dofs,                      &
+                                               this%extended_elmat%a )
+     call assembler%assembly_array( this%get_num_fields(),         &
+                                              this%fe_space%get_field_blocks(),    &
+                                              this%fe_space%get_field_coupling(),  &
+                                              this%get_num_dofs_x_field(),          &
+                                              this%fe_dofs,                       &
+                                              this%extended_elvec%a )
+  end if
+  
+end subroutine hpafeci_assembly_matrix_array_with_strong_bcs
+ 
+subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
+  implicit none
+  class(hp_adaptive_fe_cell_iterator_t), intent(in)    :: this
+  real(rp), intent(in) :: elmat(:,:)
+  real(rp), intent(in) :: elvec(:)
+
+  integer(ip) :: ifield, i_lid, j_lid, i_gid, j_gid, total_num_dofs
+  integer(ip) :: current, current_extended, k_lid, k_gid
+  real(rp) :: weight
+  
+  
+  
+     ! Count number of free dofs involved in the assembly of this cell
+     ! i.e., the free dofs of the cell + all other free dofs that constrain
+     ! hanging dofs of the cell
+     do ifield=1, this%get_num_fields() 
+        if ( this%has_fixed_dofs(ifield) .and. .not. this%at_strong_dirichlet_boundary(ifield) ) then
+           call this%extended_fe_dofs(ifield)%resize(0)
+
+           do i_lid=1, this%get_num_dofs(ifield)
+              i_gid = this%fe_dofs(ifield)%p(i_lid)
+              if ( .not. this%fe_space%is_fixed(i_gid) ) then
+                 this%gid_to_lid_map(i_gid) = i_lid
+              end if
+              call this%extended_fe_dofs(ifield)%push_back(i_gid)
+           end do
+
+           do i_lid=1, this%get_num_dofs(ifield)
+              i_gid = this%fe_dofs(ifield)%p(i_lid)
+              if ( this%fe_space%is_fixed(i_gid) .and. .not. this%fe_space%at_strong_dirichlet_boundary(i_gid)) then
+
+                 do j_lid= this%fe_space%ptr_constraining_free_dofs%get(abs(i_gid)), &
+                      this%fe_space%ptr_constraining_free_dofs%get(abs(i_gid+1))-1
+                    j_gid = this%fe_space%constraining_free_dofs%get(j_lid)
+                    if ( this%gid_to_lid_map(j_gid) == 0 ) then
+                       this%num_dofs_x_field(ifield) = this%num_dofs_x_field(ifield)+1
+                       this%gid_to_lid_map(j_gid) = this%num_dofs_x_field(ifield)
+                       call this%extended_fe_dofs(ifield)%push_back(j_gid) 
+                    end if
+                 end do
+              end if
+           end do
+        end if
+        this%fe_dofs(ifield)%p => this%extended_fe_dofs(ifield)%get_raw_pointer()
+     end do
+
+     total_num_dofs = sum(this%num_dofs_x_field)
+     call this%extended_elmat%resize(total_num_dofs, total_num_dofs)
+     call this%extended_elvec%resize(total_num_dofs)
+
+     current          = 1 
+     current_extended = 1
+     do ifield=1, this%get_num_fields() 
+        this%extended_elmat%a(current_extended:current_extended+this%get_num_dofs(ifield)-1, &
+             & current_extended:current_extended+this%get_num_dofs(ifield)-1) = &
+             & elmat(current:current+this%get_num_dofs(ifield)-1, &
+             & current:current+this%get_num_dofs(ifield)-1)
+        this%extended_elvec%a(current_extended:current_extended+this%get_num_dofs(ifield)-1) &
+             & = elvec(current:current+this%get_num_dofs(ifield)-1)
+        current = current + this%get_num_dofs(ifield)
+        current_extended = current_extended + this%num_dofs_x_field(ifield)             
+     end do
+
+     do ifield=1, this%get_num_fields() 
+        do i_lid=1, this%get_num_dofs(ifield)
+           i_gid = this%fe_dofs(ifield)%p(i_lid)
+           ! i is a fixed DoF
+           if ( this%is_fixed_dof(i_gid) .and. .not. this%is_strong_dirichlet_dof(i_gid) ) then
+              ! Traverse DoFs on which i depends on
+              spos = this%hp_adaptive_fe_space%ptr_constraining_free_dofs%get(abs(i_gid))
+              epos = this%hp_adaptive_fe_space%ptr_constraining_free_dofs%get(abs(i_gid)+1)-1
+              do pos=spos, epos 
+                 k_gid       = this%hp_adaptive_fe_space%constraint_dofs_dependencies%get(pos)
+                 weight  = this%hp_adaptive_fe_space%constraint_dofs_coefficients%get(pos)
+                 k_lid = global_to_local_map(k_gid)
+                 this%extended_elmat%a(k_lid,:) = weight*this%extended_elmat%a(i_lid,:)
+                 this%extended_elvec%a(k_lid) = weight*this%extended_elvec%a(i_lid)
+              end do
+           end if
+        end do
+     end do
+
+     do ifield=1, this%get_num_fields() 
+        do i_lid=1, this%get_num_dofs(ifield)
+           i_gid = this%fe_dofs(ifield)%p(i_lid)
+           ! i is a fixed DoF
+           if ( this%is_fixed_dof(i_gid) .and. .not. this%is_strong_dirichlet_dof(i_gid) ) then
+              ! Traverse DoFs on which i depends on
+              spos = this%hp_adaptive_fe_space%ptr_constraining_free_dofs%get(abs(i_gid))
+              epos = this%hp_adaptive_fe_space%ptr_constraining_free_dofs%get(abs(i_gid)+1)-1
+              do pos=spos, epos 
+                 k_gid = this%hp_adaptive_fe_space%constraint_dofs_dependencies%get(pos)
+                 weight = this%hp_adaptive_fe_space%constraint_dofs_coefficients%get(pos)
+                 k_lid = global_to_local_map(k_gid)
+                 this%extended_elmat%a(:,k_lid) = weight*this%extended_elmat%a(:,i_lid)
+              end do
+           end if
+        end do
+     end do
+  
+   end subroutine hp_adaptive_fe_cell_iterator_apply_constraints
+  
+   
+  subroutine hp_adaptive_fe_cell_iterator_impose_strong_dirichlet_bcs ( this, fe_function )
+  implicit none
+  class(hp_adaptive_fe_cell_iterator_t), intent(in)    :: this
+  type(fe_function_t) , intent(in)    :: fe_function
+  
+  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+  real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
+  integer(ip) :: ifield, i_lid, i_gid, k_lid, k_gid
+  real(rp) :: weight
+  
+  strong_dirichlet_values         => fe_function%get_fixed_dof_values()
+  strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+     do ifield=1, this%get_num_fields() 
+        do i_lid=1, this%get_num_dofs(ifield)
+           i_gid = this%fe_dofs(ifield)%p(i_lid)
+           ! i is a fixed DoF
+           if ( this%is_fixed_dof(i_gid) .and. .not. this%is_strong_dirichlet_dof(i_gid) ) then
+              ! Traverse DoFs on which i depends on
+              spos = this%hp_adaptive_fe_space%ptr_constraining_dirichlet_dofs%get(abs(i_gid))
+              epos = this%hp_adaptive_fe_space%ptr_constraining_dirichlet_dofs%get(abs(i_gid)+1)-1
+              do pos=spos, epos 
+                 k_lid       = this%hp_adaptive_fe_space%constraint_dirichlet_dofs_dependencies%get(pos)
+                 weight  = this%hp_adaptive_fe_space%constraint_dirichlet_dofs_coefficients%get(pos)
+                 this%extended_elvec%a(:) = this%extended_elvec%a(:)-weight*this%extended_elmat%a(:,i_lid)*strong_dirichlet_values_entries(abs(k))
+              end do
+           else ( this%is_strong_dirichlet_dof(i_gid) ) then
+              this%extended_elvec%a(:) = this%extended_elvec%a(:)-this%extended_elmat%a(:,i_lid)*strong_dirichlet_values_entries(abs(i_gid))
+           end if
+        end do
+     end do
+
+   end subroutine hp_adaptive_fe_cell_iterator_impose_strong_dirichlet_bcs
 
 end module hp_adaptive_fe_space_names

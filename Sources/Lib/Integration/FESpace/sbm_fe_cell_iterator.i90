@@ -501,6 +501,12 @@ function fe_cell_iterator_get_field_blocks(this)
   fe_cell_iterator_get_field_blocks => this%fe_space%block_layout%get_field_id_to_block_id()
 end function fe_cell_iterator_get_field_blocks
 
+function fe_cell_iterator_get_field_coupling(this)
+  implicit none
+  class(fe_cell_iterator_t), intent(in) :: this
+  logical, pointer :: fe_cell_iterator_get_field_coupling(:,:)
+  fe_cell_iterator_get_field_coupling => this%fe_space%block_layout%get_field_coupling()
+end function fe_cell_iterator_get_field_coupling
 
 function fe_cell_iterator_get_num_dofs(this)
   implicit none
