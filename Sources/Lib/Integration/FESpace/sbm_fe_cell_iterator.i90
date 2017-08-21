@@ -516,6 +516,21 @@ function fe_cell_iterator_get_num_dofs(this)
                                 this%fe_space%ptr_dofs_x_fe(1, this%get_gid())
 end function fe_cell_iterator_get_num_dofs
 
+function fe_cell_iterator_get_num_dofs_field(this, field_id)
+  implicit none
+  class(fe_cell_iterator_t), intent(in) :: this
+  integer(ip), intent(in) :: field_id
+  integer(ip) :: fe_cell_iterator_get_num_dofs_field
+  
+  if ( field_id < this%fe_space%num_fields ) then
+     fe_cell_iterator_get_num_dofs_field = this%fe_space%ptr_dofs_x_fe(field_id+1, this%get_gid())- &
+                                   this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())
+  else                                
+     fe_cell_iterator_get_num_dofs_field = this%fe_space%ptr_dofs_x_fe(1, this%get_gid()+1)- &
+                                   this%fe_space%ptr_dofs_x_fe(1, this%get_gid())
+  end if
+end function fe_cell_iterator_get_num_dofs_field
+
 function fe_cell_iterator_get_num_dofs_x_field (this) result (num_dofs_x_field)
   implicit none
   class(fe_cell_iterator_t), target, intent(in) :: this
