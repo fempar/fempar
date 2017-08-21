@@ -44,15 +44,15 @@ then
         done
       done
       
-      # Square + Quads + Hybrid Void/Full FEs (half case)
+      # Square + Quads + Hybrid Void/Full FEs (half pattern)
       for gorder in 1
       do
        for order in 2
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -order 2 -use-voids T -use-voids-case half -wsolution .true."
-            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -order 2 -use-voids T -use-voids-case half -wsolution .true.
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true."
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true.
             if [ $? -ne 0 ] 
             then
              final_exit_code=1
@@ -61,15 +61,49 @@ then
         done
       done
       
-      # Square + Quads + Hybrid Void/Full FEs (quarter case)
+      # Square + Quads + Hybrid Void/Full FEs + dG (half pattern)
       for gorder in 1
       do
        for order in 2
         do
           if [ $order -ge $gorder ]
           then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -order 2 -use-voids T -use-voids-case quarter -wsolution .true."
-            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -order 2 -use-voids T -use-voids-case quarter -wsolution .true.
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG"
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case half -wsolution .true. -f dG
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      # Square + Quads + Hybrid Void/Full FEs (quarter pattern)
+      for gorder in 1
+      do
+       for order in 2
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true."
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true.
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      # Square + Quads + Hybrid Void/Full FEs + dG (quarter pattern)
+      for gorder in 1
+      do
+       for order in 2
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -f dG"
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -f dG
             if [ $? -ne 0 ] 
             then
              final_exit_code=1

@@ -285,9 +285,13 @@ contains
     call boundary_fe_function%free()
     call boundary_fe_facet_function%free()
     call memfree(shape_values_first, __FILE__, __LINE__) 
-    call memfree(shape_values_second, __FILE__, __LINE__) 
+    if (allocated(shape_values_second)) then
+      call memfree(shape_values_second, __FILE__, __LINE__) 
+    end if
     deallocate(shape_gradients_first, stat=istat); check(istat==0);
-    deallocate(shape_gradients_second, stat=istat); check(istat==0);
+    if (allocated(shape_gradients_second)) then 
+      deallocate(shape_gradients_second, stat=istat); check(istat==0);
+    end if
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( facemat, __FILE__, __LINE__ )
