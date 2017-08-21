@@ -479,13 +479,12 @@ contains
        else
          call this%set_cells_for_refinement()
        end if
-       !call this%fill_cells_set()
+
        call this%triangulation%refine_and_coarsen()
        
        call this%fe_space%refine_and_coarsen( fe_function = this%solution ) 
        
        call this%fe_space%set_up_cell_integration()
-       !call this%fe_space%initialize_fe_facet_integration()
        
        if ( this%test_params%get_laplacian_type() == 'scalar' ) then
          call this%check_solution()

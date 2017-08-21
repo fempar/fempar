@@ -645,14 +645,6 @@ subroutine shpafs_set_up_strong_dirichlet_bcs( this )
   call this%constraint_dofs_dependencies%resize(this%num_fixed_dofs)
   call this%constraint_dofs_coefficients%resize(this%num_fixed_dofs)
   
-  call this%ptr_constraining_free_dofs%resize(0,0)
-  call this%ptr_constraining_dirichlet_dofs%resize(0,0)
-  call this%constraining_free_dofs%resize(0)
-  call this%constraining_free_dofs_coefficients%resize(0)
-  call this%constraining_dirichlet_dofs%resize(0)
-  call this%constraining_dirichlet_dofs_coefficients%resize(0)
-  call this%constraints_independent_term%resize(0)
-  
   ! DoFs which are subject to strong Dirichlet BC's depend on an artificial
   ! DoF with identifier equal to zero. The corresponding value in constraint_dofs_coefficients
   ! is the value of the DoF subject to strong Dirichlet BC's
@@ -938,7 +930,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   class(reference_fe_t), pointer :: reference_fe, coarser_reference_fe
   type(i1p_t), allocatable :: fe_dofs(:), coarser_fe_fe_dofs(:)
   integer(ip) :: istat, i
-  integer(ip) :: improper_dof_lid
+  integer(ip) :: improper_dof_lid, hanging_dof_lid
   integer(ip) :: improper_vef_ivef, coarser_fe_ivef, coarse_fe_subvef
   integer(ip), pointer :: field_blocks(:)
   integer(ip) :: qpoint, ishape_fe, ishape_coarser_fe
@@ -951,11 +943,21 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   field_blocks => this%get_field_blocks()
   
   call this%ptr_constraint_dofs%resize(this%num_fixed_dofs+1,0)
-  
   ! Transform header to length strong Dirichlet DoFs
   do improper_dof_lid=1, this%get_num_fixed_dof_values()
     call this%ptr_constraint_dofs%set(improper_dof_lid+1, 1 )
   end do
+  
+  ! Re-size to 0 to force re-initialization during second resize (to the actual/correct size)
+  call this%ptr_constraining_free_dofs%resize(0)
+  call this%ptr_constraining_dirichlet_dofs%resize(0)
+  call this%ptr_constraining_free_dofs%resize(this%num_hanging_dofs+1,0)
+  call this%ptr_constraining_dirichlet_dofs%resize(this%num_hanging_dofs+1,0)
+  call this%constraining_free_dofs%resize(this%num_hanging_dofs)
+  call this%constraining_free_dofs_coefficients%resize(this%num_hanging_dofs)
+  call this%constraining_dirichlet_dofs%resize(this%num_hanging_dofs)
+  call this%constraining_dirichlet_dofs_coefficients%resize(this%num_hanging_dofs)
+  call this%constraints_independent_term%resize(this%num_hanging_dofs)
 
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_cell_iterator(coarser_fe)
@@ -998,12 +1000,20 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
 
            if ( .not. fe%is_fixed_dof(improper_dof_lid) ) exit
 
-           improper_dof_lid = abs(improper_dof_lid)    
+           improper_dof_lid = abs(improper_dof_lid)
+           hanging_dof_lid  = improper_dof_lid - this%num_dirichlet_dofs
 
            coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
-           do while (.not. coarser_fe_dofs_on_vef_iterator %is_upper_bound() )
+           do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
               call this%ptr_constraint_dofs%set(improper_dof_lid+1, &
-                                                this%ptr_constraint_dofs%get(improper_dof_lid+1)+1 )
+                                                this%ptr_constraint_dofs%get(improper_dof_lid+1)+1)
+              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(field_id)%p(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
+                call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, &
+                                                              this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+1)
+              else
+                call this%ptr_constraining_free_dofs%set(hanging_dof_lid+1, &
+                                                         this%ptr_constraining_free_dofs%get(hanging_dof_lid+1)+1)
+              end if
               call coarser_fe_dofs_on_vef_iterator%next()
            end do
            call fe_own_dofs_on_vef_iterator%next() 
@@ -1011,18 +1021,23 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
      end do
   end do
   
-  
   call this%p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraint_dofs)
   call this%constraint_dofs_dependencies%resize(this%ptr_constraint_dofs%get(this%ptr_constraint_dofs%size())-1)
   call this%constraint_dofs_coefficients%resize(this%ptr_constraint_dofs%get(this%ptr_constraint_dofs%size())-1)
   
+  call this%p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_free_dofs)
+  call this%constraining_free_dofs%resize(this%ptr_constraining_free_dofs%get(this%ptr_constraining_free_dofs%size())-1)
+  call this%constraining_free_dofs_coefficients%resize(this%ptr_constraining_free_dofs%get(this%ptr_constraining_free_dofs%size())-1)
+  
+  call this%p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_dirichlet_dofs)
+  call this%constraining_dirichlet_dofs%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
+  call this%constraining_dirichlet_dofs_coefficients%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
   
   do improper_dof_lid=1, this%get_num_fixed_dof_values()
     call this%ptr_constraint_dofs%set(improper_dof_lid, this%ptr_constraint_dofs%get(improper_dof_lid+1) )
   end do
   
-  
-   ! Computation of constraints     
+  ! Computation of constraints     
   do improper_vef_lid = 1, this%p4est_triangulation%get_num_improper_vefs()
      ! Retrieve all data related to the current improper vef 
      ! and one of the cells that owns it
@@ -1063,7 +1078,8 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
            ishape_fe = fe_own_dofs_on_vef_iterator%get_current()
            improper_dof_lid = fe_dofs(field_id)%p(ishape_fe)
            assert ( fe%is_fixed_dof(improper_dof_lid) )
-           improper_dof_lid = abs(improper_dof_lid)   
+           improper_dof_lid = abs(improper_dof_lid)
+           hanging_dof_lid  = improper_dof_lid - this%num_dirichlet_dofs
            
            call fe_dofs_on_vef_iterator%begin() 
            do while (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
@@ -1093,21 +1109,40 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
            do while (.not. coarser_fe_dofs_on_vef_iterator %is_upper_bound() )
               
               ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current() 
-              call this%constraint_dofs_dependencies%set(this%ptr_constraint_dofs%get(improper_dof_lid),&
-                                                         coarser_fe_fe_dofs(field_id)%p(ishape_coarser_fe))
-
-              ! Evaluate coefficient and push_back into the corresponding std_vector data structure
+              
+              ! Evaluate coefficient
               select type(coarser_reference_fe)
                 type is (hex_lagrangian_reference_fe_t)
                 call coarser_reference_fe%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient) 
               class default
                 assert(.false.)
               end select
+              
+              ! Set dependency and coefficient into the corresponding std_vector data structure
+              
+              call this%constraint_dofs_dependencies%set(this%ptr_constraint_dofs%get(improper_dof_lid),&
+                                                         coarser_fe_fe_dofs(field_id)%p(ishape_coarser_fe))
               call this%constraint_dofs_coefficients%set(this%ptr_constraint_dofs%get(improper_dof_lid),&
                                                          coefficient)
-
               call this%ptr_constraint_dofs%set(improper_dof_lid, &
                                                 this%ptr_constraint_dofs%get(improper_dof_lid)+1 )
+              
+              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(field_id)%p(ishape_coarser_fe) ) ) then
+                call this%constraining_dirichlet_dofs%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                                                          coarser_fe_fe_dofs(field_id)%p(ishape_coarser_fe))
+                call this%constraining_dirichlet_dofs_coefficients%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                                                                       coefficient)
+                call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, &
+                                                              this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
+              else
+                call this%constraining_free_dofs%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                                                     coarser_fe_fe_dofs(field_id)%p(ishape_coarser_fe))
+                call this%constraining_free_dofs_coefficients%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                                                                  coefficient)
+                call this%ptr_constraining_free_dofs%set(hanging_dof_lid, &
+                                                         this%ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
+              end if
+              
               call coarser_fe_dofs_on_vef_iterator%next()
            end do
            call fe_own_dofs_on_vef_iterator%next() 
@@ -1119,6 +1154,16 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
     call this%ptr_constraint_dofs%set(i, this%ptr_constraint_dofs%get(i-1))
   end do
   call this%ptr_constraint_dofs%set(1,1)
+  
+  do i=this%ptr_constraining_free_dofs%size(),2,-1
+    call this%ptr_constraining_free_dofs%set(i, this%ptr_constraining_free_dofs%get(i-1))
+  end do
+  call this%ptr_constraining_free_dofs%set(1,1)
+  
+  do i=this%ptr_constraining_dirichlet_dofs%size(),2,-1
+    call this%ptr_constraining_dirichlet_dofs%set(i, this%ptr_constraining_dirichlet_dofs%get(i-1))
+  end do
+  call this%ptr_constraining_dirichlet_dofs%set(1,1)
   
   ! TODO: shrink_to_fit this%constraint_dofs_dependencies and this%constraint_dofs_coefficients
   call this%free_fe_cell_iterator(coarser_fe)
