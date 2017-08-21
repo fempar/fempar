@@ -1086,6 +1086,13 @@ module fe_space_names
      procedure          :: free_ptr_constraint_dofs                               => shpafs_free_ptr_constraint_dofs
      procedure          :: free_constraint_dofs_dependencies                      => shpafs_free_constraint_dofs_dependencies
      procedure          :: free_constraint_dofs_coefficients                      => shpafs_free_constraint_dofs_coefficients
+     procedure          :: free_ptr_constraining_free_dofs                        => shpafs_free_ptr_constraining_free_dofs
+     procedure          :: free_constraining_free_dofs                            => shpafs_free_constraining_free_dofs
+     procedure          :: free_constraining_free_dofs_coefficients               => shpafs_free_constraining_free_dofs_coefficients
+     procedure          :: free_ptr_constraining_dirichlet_dofs                   => shpafs_free_ptr_constraining_dirichlet_dofs
+     procedure          :: free_constraining_dirichlet_dofs                       => shpafs_free_constraining_dirichlet_dofs
+     procedure          :: free_constraining_dirichlet_dofs_coefficients          => shpafs_free_constraining_dirichlet_dofs_coefficients
+     procedure          :: free_constraints_independent_term                      => shpafs_free_constraints_independent_term
      
      procedure          :: get_num_fixed_dofs                                  => shpafs_get_num_fixed_dofs
      procedure          :: set_up_strong_dirichlet_bcs                            => shpafs_set_up_strong_dirichlet_bcs

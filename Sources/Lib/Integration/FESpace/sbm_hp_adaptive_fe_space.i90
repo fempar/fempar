@@ -596,11 +596,13 @@ subroutine serial_hp_adaptive_fe_space_free(this)
   call this%free_ptr_constraint_dofs()
   call this%free_constraint_dofs_dependencies()
   call this%free_constraint_dofs_coefficients()
-  !call this%free_constraining_free_dofs
-  !call this%free_constraining_free_dofs_coefficients
-  !call this%free_constraining_dirichlet_dofs
-  !call this%free_constraining_dirichlet_dofs_coefficients
-  !call this%free_constraints_independent_term
+  call this%free_ptr_constraining_free_dofs()
+  call this%free_constraining_free_dofs
+  call this%free_constraining_free_dofs_coefficients
+  call this%free_ptr_constraining_dirichlet_dofs()
+  call this%free_constraining_dirichlet_dofs
+  call this%free_constraining_dirichlet_dofs_coefficients
+  call this%free_constraints_independent_term
   nullify(this%p4est_triangulation)
 end subroutine serial_hp_adaptive_fe_space_free
 
@@ -622,6 +624,51 @@ subroutine shpafs_free_constraint_dofs_coefficients( this )
   integer(ip) :: istat, block_id
   call this%constraint_dofs_coefficients%free()   
 end subroutine shpafs_free_constraint_dofs_coefficients
+
+subroutine shpafs_free_ptr_constraining_free_dofs( this )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
+  call this%ptr_constraining_free_dofs%free()
+end subroutine shpafs_free_ptr_constraining_free_dofs
+
+subroutine shpafs_free_constraining_free_dofs( this )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
+  call this%constraining_free_dofs%free()  
+end subroutine shpafs_free_constraining_free_dofs
+
+subroutine shpafs_free_constraining_free_dofs_coefficients( this )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
+  integer(ip) :: istat, block_id
+  call this%constraining_free_dofs_coefficients%free()   
+end subroutine shpafs_free_constraining_free_dofs_coefficients
+
+subroutine shpafs_free_ptr_constraining_dirichlet_dofs( this )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
+  call this%ptr_constraining_dirichlet_dofs%free()
+end subroutine shpafs_free_ptr_constraining_dirichlet_dofs
+
+subroutine shpafs_free_constraining_dirichlet_dofs( this )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
+  call this%constraining_dirichlet_dofs%free()  
+end subroutine shpafs_free_constraining_dirichlet_dofs
+
+subroutine shpafs_free_constraining_dirichlet_dofs_coefficients( this )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
+  integer(ip) :: istat, block_id
+  call this%constraining_dirichlet_dofs_coefficients%free()   
+end subroutine shpafs_free_constraining_dirichlet_dofs_coefficients
+
+subroutine shpafs_free_constraints_independent_term( this )
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
+  integer(ip) :: istat, block_id
+  call this%constraints_independent_term%free()   
+end subroutine shpafs_free_constraints_independent_term
 
 function shpafs_get_num_fixed_dofs(this)
   implicit none
