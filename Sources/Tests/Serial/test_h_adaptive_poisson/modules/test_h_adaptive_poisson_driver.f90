@@ -143,7 +143,7 @@ contains
     call this%triangulation%refine_and_coarsen()
     call this%triangulation%clear_refinement_and_coarsening_flags()
     
-    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+    if (this%test_params%get_use_void_fes()) then
         call memalloc(this%triangulation%get_num_cells(),cell_set_ids)
         call this%triangulation%create_cell_iterator(cell)
         allocate(cell_coords(1:num_nodes_x_cell),stat=istat); check(istat == 0)
@@ -185,7 +185,7 @@ contains
     end if
     
     ! Set all the vefs on the interface between full/void if there are void fes
-    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+    if (this%test_params%get_use_void_fes()) then
       call this%triangulation%create_vef_iterator(vef)
       call this%triangulation%create_vef_iterator(vef_of_vef)
       call this%triangulation%create_cell_iterator(cell)
@@ -357,7 +357,7 @@ contains
     integer(ip), pointer :: h_refinement_subfacet_permutation(:,:,:)
     integer(ip), pointer :: h_refinement_subedge_permutation(:,:,:)
     
-    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+    if (this%test_params%get_use_void_fes()) then
       allocate(this%reference_fes(2), stat=istat)
     else
       allocate(this%reference_fes(1), stat=istat)
@@ -383,13 +383,13 @@ contains
                                                                  field_type = field_type,                                     &
                                                                  conformity = conformity )
     
-    if ( this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG' ) then
-         this%reference_fes(TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
-                                                                      fe_type = fe_type_void,                                      &
-                                                                      num_dims = this%triangulation%get_num_dims(), &
-                                                                      order = -1,                                                  &
-                                                                      field_type = field_type,                                     &
-                                                                      conformity = conformity )
+    if (this%test_params%get_use_void_fes()) then
+      this%reference_fes(TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
+                                                                   fe_type = fe_type_void,                                      &
+                                                                   num_dims = this%triangulation%get_num_dims(), &
+                                                                   order = -1,                                                  &
+                                                                   field_type = field_type,                                     &
+                                                                   conformity = conformity )
     end if
     call this%triangulation%free_cell_iterator(cell)
     
@@ -426,9 +426,6 @@ contains
                                      reference_fes       = this%reference_fes, &
                                      conditions          = this%poisson_conditions )
         end if
-      else
-        call this%fe_space%create( triangulation       = this%triangulation, &
-                                   reference_fes       = this%reference_fes )
       end if
     else
       call this%vector_poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
@@ -446,7 +443,17 @@ contains
                                      reference_fes       = this%reference_fes, &
                                      conditions          = this%vector_poisson_conditions )
         end if
-      else
+      end if
+    end if
+    
+    if ( this%test_params%get_fe_formulation() == 'dG' ) then
+      if ( this%test_params%get_use_void_fes() ) then
+        set_ids_to_reference_fes(1,TEST_POISSON_FULL) = TEST_POISSON_FULL
+        set_ids_to_reference_fes(1,TEST_POISSON_VOID) = TEST_POISSON_VOID
+        call this%fe_space%create( triangulation            = this%triangulation,       &
+                                   reference_fes            = this%reference_fes,       &
+                                   set_ids_to_reference_fes = set_ids_to_reference_fes )
+      else 
         call this%fe_space%create( triangulation       = this%triangulation, &
                                    reference_fes       = this%reference_fes )
       end if
@@ -738,7 +745,7 @@ contains
         call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
         
         call this%triangulation%create_cell_iterator(cell)
-        if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+        if (this%test_params%get_use_void_fes()) then
           do while( .not. cell%has_finished() )
             cell_vector(cell%get_gid()) = cell%get_set_id()
             call cell%next()
