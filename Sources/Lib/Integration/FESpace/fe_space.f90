@@ -1050,8 +1050,6 @@ module fe_space_names
      ! l1                          : constraint DOFs dependencies (0 for independent term)
      ! constraint_dofs_coefficients: constraint DoFs coefficients (also independent term)
      ! u_fixed = sum u_dep w_dep + c
-     integer(ip)                                 :: num_fixed_dofs = -1
-     ! The prev integer will be renamed num_hanging_dofs when the development in issue 179 will be finished
      integer(ip)                                 :: num_hanging_dofs = -1
      integer(ip)                                 :: num_dirichlet_dofs = -1
      
@@ -1085,8 +1083,6 @@ module fe_space_names
      procedure          :: free_constraining_dirichlet_dofs                       => shpafs_free_constraining_dirichlet_dofs
      procedure          :: free_constraining_dirichlet_dofs_coefficients          => shpafs_free_constraining_dirichlet_dofs_coefficients
      procedure          :: free_constraints_independent_term                      => shpafs_free_constraints_independent_term
-     
-     procedure          :: get_num_fixed_dofs                                     => shpafs_get_num_fixed_dofs
      procedure          :: set_up_strong_dirichlet_bcs                            => shpafs_set_up_strong_dirichlet_bcs
      procedure          :: update_hanging_dof_values                              => shpafs_update_hanging_dof_values
      
