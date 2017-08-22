@@ -283,37 +283,37 @@ end function p4est_cell_iterator_get_vef_gids
 !  p4est_cell_iterator_get_vef_gid = this%base_static_triangulation%vefs_gid(this%get_vef_gid(ivef))
 !end function p4est_cell_iterator_get_vef_gid
 
-!function p4est_cell_iterator_get_vef_gid_from_gid (this, vef_lid)
+!function p4est_cell_iterator_get_vef_lid_from_gid (this, vef_lid)
 !  implicit none
 !  class(p4est_cell_iterator_t), intent(in) :: this
 !  integer(ip)                        :: vef_lid
-!  integer(ip)                        :: p4est_cell_iterator_get_vef_gid_from_gid
+!  integer(ip)                        :: p4est_cell_iterator_get_vef_lid_from_gid
 !  integer(ip)                        :: ivef
-!  p4est_cell_iterator_get_vef_gid_from_gid = -1
+!  p4est_cell_iterator_get_vef_lid_from_gid = -1
 !  ! Find position of vef_lid in local element
 !  do ivef = 1, this%get_num_vefs()
 !   if ( this%get_vef_gid(ivef) == vef_lid ) then
-!      p4est_cell_iterator_get_vef_gid_from_gid = ivef
+!      p4est_cell_iterator_get_vef_lid_from_gid = ivef
 !      return 
 !    end if
 !  end do
-!end function p4est_cell_iterator_get_vef_gid_from_gid
+!end function p4est_cell_iterator_get_vef_lid_from_gid
 
-!function p4est_cell_iterator_get_vef_gid_from_ggid (this, vef_gid)
+!function p4est_cell_iterator_get_vef_lid_from_ggid (this, vef_gid)
 !  implicit none
 !  class(p4est_cell_iterator_t), intent(in) :: this
 !  integer(igp)                       :: vef_gid
-!  integer(ip)                        :: p4est_cell_iterator_get_vef_gid_from_ggid
+!  integer(ip)                        :: p4est_cell_iterator_get_vef_lid_from_ggid
 !  integer(ip)                        :: ivef
-!  p4est_cell_iterator_get_vef_gid_from_ggid = -1
+!  p4est_cell_iterator_get_vef_lid_from_ggid = -1
 !  ! Find position of vef_lid in local element
 !  do ivef = 1, this%get_num_vefs()
 !    if ( this%get_vef_gid(ivef) == vef_gid ) then
-!      p4est_cell_iterator_get_vef_gid_from_ggid = ivef
+!      p4est_cell_iterator_get_vef_lid_from_ggid = ivef
 !      return 
 !    end if
 !  end do
-!end function p4est_cell_iterator_get_vef_gid_from_ggid
+!end function p4est_cell_iterator_get_vef_lid_from_ggid
 
 !subroutine p4est_cell_iterator_get_vef (this, ivef, vef)
 !  implicit none
@@ -443,7 +443,7 @@ end function p4est_cell_iterator_get_transformation_flag
 !  class(lagrangian_reference_fe_t) , pointer       :: reference_fe
 
 !  reference_fe => this%get_reference_fe_geo()
-!  ivef_pos_in_cell = this%get_vef_gid_from_gid(ivef)
+!  ivef_pos_in_cell = this%get_vef_lid_from_gid(ivef)
 
 !  do inode = 1,reference_fe%get_num_own_nodes_n_face(ivef_pos_in_cell)
 !    l_node = reference_fe%get_own_node_n_face(inode,ivef_pos_in_cell)
@@ -469,10 +469,10 @@ end function p4est_cell_iterator_get_transformation_flag
 !  integer(ip) :: relative_orientation, relative_rotation
 
 !  source_ref_fe => this%get_reference_fe_geo()
-!  source_vef_lid = this%get_vef_gid_from_gid(ivef)
+!  source_vef_lid = this%get_vef_lid_from_gid(ivef)
 
 !  target_ref_fe => cell%get_reference_fe_geo()
-!  target_vef_gid = cell%get_vef_gid_from_gid(ivef)
+!  target_vef_gid = cell%get_vef_lid_from_gid(ivef)
 ! 
 !  source_vefs => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &
 !                                                          &   this%base_static_triangulation%ptr_vefs_x_cell(this%gid+1)-1)

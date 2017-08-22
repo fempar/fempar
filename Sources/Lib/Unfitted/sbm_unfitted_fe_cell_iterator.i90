@@ -221,9 +221,6 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
      call cell_integrator%update(cell_map)
   end do
   
-  num_dofs_x_field => this%get_num_dofs_x_field()
-  call this%update_num_dofs_x_field(num_dofs_x_field)
-
 end subroutine unfitted_fe_cell_iterator_update_integration
 
 !=============================================================================================

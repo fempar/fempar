@@ -267,8 +267,8 @@ module p4est_serial_triangulation_names
     procedure                            :: get_vef_gid             => p4est_cell_iterator_get_vef_gid
     procedure                            :: get_vef_gids            => p4est_cell_iterator_get_vef_gids
     !procedure, non_overridable           :: get_vef_gid             => p4est_cell_iterator_get_vef_gid
-    !procedure                            :: get_vef_gid_from_gid       => p4est_cell_iterator_get_vef_gid_from_gid
-    !procedure, non_overridable           :: get_vef_gid_from_ggid       => p4est_cell_iterator_get_vef_gid_from_ggid
+    !procedure                            :: get_vef_lid_from_gid       => p4est_cell_iterator_get_vef_lid_from_gid
+    !procedure, non_overridable           :: get_vef_lid_from_ggid       => p4est_cell_iterator_get_vef_lid_from_ggid
     !procedure, non_overridable           :: get_vef                 => p4est_cell_iterator_get_vef
     procedure                            :: is_local                => p4est_cell_iterator_is_local
     procedure                            :: is_ghost                => p4est_cell_iterator_is_ghost

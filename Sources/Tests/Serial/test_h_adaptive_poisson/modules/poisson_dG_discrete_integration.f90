@@ -237,7 +237,7 @@ contains
          end do
 
          ! (TODO) To be substituted by overriden fe_face%assembly (matrix_array)
-         call fe_face%assemble( facemat, facevec, assembler )
+         call fe_face%assembly( facemat, facevec, assembler )
          
        else if ( fe_face%is_at_field_boundary(1) ) then
        
@@ -277,7 +277,7 @@ contains
          end do
 
          ! (TODO) To be substituted by overriden fe_face%assembly (matrix_array)
-         call fe_face%assemble( facemat, facevec, assembler )
+         call fe_face%assembly( facemat, facevec, assembler )
 
        end if
        

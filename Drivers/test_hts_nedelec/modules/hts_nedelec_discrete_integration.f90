@@ -123,8 +123,6 @@ contains
     real(rp)     :: factor, time_factor 
     type(vector_field_t), allocatable :: source_term_values(:,:)
     real(rp), allocatable             :: current_time(:)
-
-    integer(ip), pointer :: num_dofs_x_field(:)
     
     assert ( associated(this%source_term) )
     assert ( associated(this%H_current) )
@@ -138,7 +136,6 @@ contains
     num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    num_dofs_x_field => fe%get_num_dofs_x_field()
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
     
@@ -186,8 +183,8 @@ contains
           call fe_cell_function_previous%get_value( qpoint, H_value_previous )
           
           ! BLOCK [1,1] : mu_0 ( H,v ) + rho( curl(H), curl(v) )  
-          do idof=1, num_dofs_x_field(1)
-            do jdof=1, num_dofs_x_field(1)    
+          do idof=1, fe%get_num_dofs_field(1)
+            do jdof=1, fe%get_num_dofs_field(1)  
               elmat(idof,jdof) = elmat(idof,jdof) + &
               (permeability/time_factor*shape_values_H(jdof,qpoint)*shape_values_H(idof,qpoint) + resistivity*curl_values_H(jdof,qpoint)*curl_values_H(idof,qpoint))*factor
                   
@@ -201,26 +198,26 @@ contains
           end do
        
            ! BLOCK [1,2] : - ( v, grad(p) )
-          do idof=1, num_dofs_x_field(1)
-            do jdof=1, num_dofs_x_field(2)
-              elmat(idof,num_dofs_x_field(1)+jdof) = elmat(idof,num_dofs_x_field(1)+jdof)  &
-                                                       - (shape_values_H(idof,qpoint)*grad_values_P(jdof,qpoint))*factor                  
+          do idof=1, fe%get_num_dofs_field(1)
+            do jdof=1, fe%get_num_dofs_field(2)      
+              elmat(idof,fe%get_num_dofs_field(1)+jdof) = elmat(idof,fe%get_num_dofs_field(1)+jdof)  &
+                                                       - (shape_values_H(idof,qpoint)*grad_values_P(jdof,qpoint))*factor
             end do            
           end do
 
        ! BLOCK [2,1] :  ( H, grad(q) )
-          do idof=1, num_dofs_x_field(2)
-            do jdof=1, num_dofs_x_field(1)
-              elmat(num_dofs_x_field(1)+idof,jdof) = elmat(num_dofs_x_field(1)+idof,jdof)  &
-                                                       + (shape_values_H(jdof,qpoint)*grad_values_P(idof,qpoint))*factor                  
+          do idof=1, fe%get_num_dofs_field(2) 
+            do jdof=1, fe%get_num_dofs_field(1)
+              elmat(fe%get_num_dofs_field(1)+idof,jdof) = elmat(fe%get_num_dofs_field(1)+idof,jdof)  &
+                                                       + (shape_values_H(jdof,qpoint)*grad_values_P(idof,qpoint))*factor   
             end do            
           end do
           
            ! BLOCK [2,2] :  ( p,q )
-          do idof=1, num_dofs_x_field(2)
-            do jdof=1, num_dofs_x_field(2)
-              elmat(num_dofs_x_field(1)+idof,num_dofs_x_field(1)+jdof) = elmat(num_dofs_x_field(1)+idof,num_dofs_x_field(1)+jdof)  &
-                                                       + 1.0_rp/permeability*shape_values_P(idof,qpoint)*shape_values_P(jdof,qpoint)*factor                  
+          do idof=1, fe%get_num_dofs_field(2)
+            do jdof=1, fe%get_num_dofs_field(2)
+              elmat(fe%get_num_dofs_field(1)+idof,fe%get_num_dofs_field(1)+jdof) = elmat(fe%get_num_dofs_field(1)+idof,fe%get_num_dofs_field(1)+jdof)  &
+                                                       + 1.0_rp/permeability*shape_values_P(idof,qpoint)*shape_values_P(jdof,qpoint)*factor   
             end do            
           end do
 
