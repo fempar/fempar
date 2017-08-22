@@ -88,8 +88,8 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
      this%num_fields = size(reference_fes)
      
      ! This is a little bit DIRTY. fe_function%create(fe_space)
-     ! requires that num_fixed_dof_values is initialize
-     this%num_fixed_dof_values = 0
+     ! requires that num_fixed_dofs is initialize
+     this%num_fixed_dofs = 0
   end if
  
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
@@ -136,8 +136,8 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
      this%num_fields = size(set_ids_to_reference_fes,1)
 
      ! This is a little bit DIRTY. fe_function%create(fe_space)
-     ! requires that num_fixed_dof_values is initialize
-     this%num_fixed_dof_values = 0
+     ! requires that num_fixed_dofs is initialize
+     this%num_fixed_dofs = 0
   end if
 
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
@@ -168,8 +168,8 @@ subroutine par_fe_space_free( this )
         this%num_fields = 0
         
         ! This is a little bit DIRTY. fe_function%create(fe_space)
-        ! requires that num_fixed_dof_values is initialize
-        this%num_fixed_dof_values = 0
+        ! requires that num_fixed_dofs is initialize
+        this%num_fixed_dofs = 0
         
         if ( associated(this%coarse_fe_space) ) then
           call this%coarse_fe_space%free()
@@ -885,7 +885,7 @@ subroutine par_fe_space_compute_boundary_dof_import ( this, &
   type(environment_t), pointer :: par_environment
   
   assert ( size(fields_to_project) >= 1 .and. size(fields_to_project) <= this%get_num_fields() )
-  assert ( size(global2subset_strong_dirichlet_dofs) == this%num_fixed_dof_values )
+  assert ( size(global2subset_strong_dirichlet_dofs) == this%num_fixed_dofs )
   
   par_environment => this%get_par_environment()
   assert ( par_environment%am_i_l1_task() )
@@ -1061,7 +1061,7 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
   triangulation     => this%get_triangulation()
   cell_import       => triangulation%get_cell_import()
   assert ( par_environment%am_i_l1_task() )
-  assert ( size(global2subset_strong_dirichlet_dofs) == this%num_fixed_dof_values ) 
+  assert ( size(global2subset_strong_dirichlet_dofs) == this%num_fixed_dofs ) 
 
   ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
   call memalloc ( num_subset_strong_dirichlet_dofs, local_idof, __FILE__, __LINE__ )
