@@ -1112,7 +1112,7 @@ module fe_space_names
    private 
    type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
    type(std_vector_integer_ip_t), allocatable :: extended_fe_dofs(:)
-   integer(ip), allocatable :: gid_to_lid_map(:)
+   type(allocatable_array_ip1_t), allocatable :: gid_to_lid_map(:)
    type(allocatable_array_rp2_t) :: extended_elmat
    type(allocatable_array_rp1_t) :: extended_elvec
  contains
