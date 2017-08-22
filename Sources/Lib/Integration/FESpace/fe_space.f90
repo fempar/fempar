@@ -175,8 +175,9 @@ module fe_space_names
     class(serial_fe_space_t), pointer     :: fe_space => NULL()
     ! Scratch data to support FE integration
     integer(ip)             , allocatable :: num_cell_dofs_x_field(:)
-    type(i1p_t)             , allocatable :: fe_dofs(:)
-    type(cell_map_t)        , pointer     :: cell_map
+    type(i1p_t)              , allocatable :: fe_dofs(:)
+    type(cell_map_t)         , pointer     :: cell_map => NULL()
+    type(p_cell_integrator_t), allocatable:: cell_integrators(:)
   contains
     procedure                           :: create                                     => fe_cell_iterator_create
     procedure                           :: free                                       => fe_cell_iterator_free
@@ -193,7 +194,9 @@ module fe_space_names
     procedure, non_overridable          :: update_num_dofs_x_field                    => fe_cell_iterator_update_num_dofs_x_field
     procedure                           :: update_integration                         => fe_cell_iterator_update_integration
     procedure                           :: update_cell_map                            => fe_cell_iterator_update_cell_map
+    procedure                           :: update_cell_integrators                    => fe_cell_iterator_update_cell_integrators
     procedure                           :: set_cell_map                               => fe_cell_iterator_set_cell_map
+    procedure                           :: set_cell_integrator                        => fe_cell_iterator_set_cell_integrator
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_cell_iterator_get_quadrature_points_coordinates
     procedure, non_overridable :: get_det_jacobian                  => fe_cell_iterator_get_det_jacobian
@@ -254,6 +257,30 @@ module fe_space_names
     procedure                           :: get_boundary_cell_map                        => fe_cell_iterator_get_boundary_cell_map
     procedure                           :: get_boundary_cell_integrator               => fe_cell_iterator_get_boundary_cell_integrator
     procedure                           :: update_boundary_integration                => fe_cell_iterator_update_boundary_integration
+    
+    procedure, non_overridable, private :: get_values_scalar           => fe_cell_iterator_get_values_scalar
+    procedure, non_overridable, private :: get_values_vector           => fe_cell_iterator_get_values_vector
+    generic                             :: get_values                  => get_values_scalar, get_values_vector 
+    procedure, non_overridable, private :: get_gradients_scalar => fe_cell_iterator_get_gradients_scalar
+    procedure, non_overridable, private :: get_gradients_vector => fe_cell_iterator_get_gradients_vector
+    generic                             :: get_gradients        => get_gradients_scalar, get_gradients_vector 
+    procedure, non_overridable, private :: get_divergences_vector => fe_cell_iterator_get_divergences_vector
+    generic                             :: get_divergences        => get_divergences_vector
+    procedure, non_overridable, private :: get_curls_vector => fe_cell_iterator_get_curls_vector
+    generic                             :: get_curls        => get_curls_vector
+    
+        
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_fe_function_scalar
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_fe_function_vector
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_fe_function_tensor
+    generic :: evaluate_fe_function => fe_cell_iterator_evaluate_fe_function_scalar, &
+    & fe_cell_iterator_evaluate_fe_function_vector, &
+    & fe_cell_iterator_evaluate_fe_function_tensor
+
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_gradient_fe_function_scalar
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_gradient_fe_function_vector
+    generic :: evaluate_gradient_fe_function => fe_cell_iterator_evaluate_gradient_fe_function_scalar, &
+    & fe_cell_iterator_evaluate_gradient_fe_function_vector
 
   end type fe_cell_iterator_t
    
@@ -300,7 +327,8 @@ module fe_space_names
     ! Scratch data to support FE face integration
     integer(ip)         , allocatable :: num_cell_dofs_x_cell_and_field(:,:)
     type(i1p_t)         , allocatable :: fe_dofs_x_cell(:,:)
-    type(facet_maps_t)  , pointer     :: facet_maps
+    type(facet_maps_t)  , pointer     :: facet_maps => NULL()
+    type(p_facet_integrator_t), allocatable:: facet_integrators(:)
    contains
     procedure                 , private :: create                        => fe_facet_iterator_create
     procedure                 , private :: free                          => fe_facet_iterator_free
@@ -309,8 +337,10 @@ module fe_space_names
     procedure                           :: has_finished                  => fe_facet_iterator_has_finished
     procedure, non_overridable          :: set_gid                       => fe_facet_iterator_set_gid
     procedure, non_overridable          :: get_gid                       => fe_facet_iterator_get_gid
-    procedure, non_overridable, private :: update_num_dofs_x_field  => fe_facet_iterator_update_num_dofs_x_field
-    procedure, non_overridable, private :: update_fe_dofs_x_cell      => fe_facet_iterator_update_fe_dofs_x_cell
+    procedure, non_overridable          :: is_at_field_boundary          => fe_facet_iterator_is_at_field_boundary
+    procedure, non_overridable          :: is_at_field_interior          => fe_facet_iterator_is_at_field_interior
+    procedure, non_overridable, private :: update_num_dofs_x_field       => fe_facet_iterator_update_num_dofs_x_field
+    procedure, non_overridable, private :: update_fe_dofs_x_cell         => fe_facet_iterator_update_fe_dofs_x_cell
     procedure, non_overridable          :: update_integration            => fe_facet_iterator_update_integration
     procedure, non_overridable, private :: fe_facet_iterator_assembly_array
     procedure, non_overridable, private :: fe_facet_iterator_assembly_matrix
@@ -319,15 +349,16 @@ module fe_space_names
                                                                             fe_facet_iterator_assembly_matrix, &
                                                                             fe_facet_iterator_assembly_matrix_array
     procedure, non_overridable          :: get_fe_space                  => fe_facet_iterator_get_fe_space
-    procedure, non_overridable          :: get_num_dofs_x_field     => fe_facet_iterator_get_num_dofs_x_field
-    procedure, non_overridable          :: get_fe_dofs                  => fe_facet_iterator_get_fe_dofs
+    procedure, non_overridable          :: get_num_dofs_x_field          => fe_facet_iterator_get_num_dofs_x_field
+    procedure, non_overridable          :: get_fe_dofs                   => fe_facet_iterator_get_fe_dofs
     procedure, non_overridable          :: get_default_quadrature_degree => fe_facet_iterator_get_default_quadrature_degree
     procedure, non_overridable          :: get_quadrature_degree         => fe_facet_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree         => fe_facet_iterator_set_quadrature_degree
     procedure, non_overridable          :: get_quadrature                => fe_facet_iterator_get_quadrature
     procedure, non_overridable, private :: get_facet_maps                => fe_facet_iterator_get_facet_map
-    procedure, non_overridable          :: update_facet_maps              => fe_facet_iterator_update_facet_maps
-    procedure, non_overridable          :: get_facet_integrator          => fe_facet_iterator_get_facet_integrator
+    procedure, non_overridable          :: update_facet_maps             => fe_facet_iterator_update_facet_maps
+    procedure, non_overridable          :: update_facet_integrators      => fe_facet_iterator_update_facet_integrators
+    procedure, non_overridable, private :: get_facet_integrator          => fe_facet_iterator_get_facet_integrator
     procedure, non_overridable          :: compute_surface               => fe_facet_iterator_compute_surface
     procedure, non_overridable          :: get_lpos_within_cell_around   => fe_facet_iterator_get_lpos_within_cell_around
     procedure, non_overridable          :: get_facet_permutation_index   => fe_facet_iterator_get_facet_permutation_index
@@ -336,6 +367,31 @@ module fe_space_names
     procedure, non_overridable :: get_normals                       => fe_facet_iterator_get_normals
     procedure, non_overridable :: get_det_jacobian                  => fe_facet_iterator_get_det_jacobian
     procedure, non_overridable :: compute_characteristic_length     => fe_facet_iterator_compute_characteristic_length
+    
+    
+    procedure, non_overridable :: get_values_scalar     => fe_facet_iterator_get_values_scalar
+    procedure, non_overridable :: get_values_vector     => fe_facet_iterator_get_values_vector
+    generic                    :: get_values            => get_values_scalar, get_values_vector
+    procedure, non_overridable :: get_gradients_scalar  => fe_facet_iterator_get_gradients_scalar
+    generic                    :: get_gradients         => get_gradients_scalar
+    procedure, non_overridable :: get_curls             => fe_facet_iterator_get_curls_vector 
+    
+    procedure, non_overridable :: get_active_cell_id    => fe_facet_iterator_get_active_cell_id
+    
+    procedure, non_overridable, private :: fe_facet_iterator_evaluate_fe_function_scalar
+    procedure, non_overridable, private :: fe_facet_iterator_evaluate_fe_function_vector
+    procedure, non_overridable, private :: fe_facet_iterator_evaluate_fe_function_tensor
+    generic :: evaluate_fe_function => fe_facet_iterator_evaluate_fe_function_scalar, &
+    & fe_facet_iterator_evaluate_fe_function_vector, &
+    & fe_facet_iterator_evaluate_fe_function_tensor
+
+    procedure, non_overridable, private :: fe_facet_iterator_evaluate_gradient_fe_function_scalar
+    procedure, non_overridable, private :: fe_facet_iterator_evaluate_gradient_fe_function_vector
+    generic :: evaluate_gradient_fe_function => fe_facet_iterator_evaluate_gradient_fe_function_scalar, &
+    & fe_facet_iterator_evaluate_gradient_fe_function_vector
+    
+    procedure, non_overridable :: get_current_qpoints_perm => fe_facet_iterator_get_current_qpoints_perm
+    
   end type fe_facet_iterator_t
       
   integer(ip), parameter :: fe_space_type_cg                        = 0 ! H^1 conforming FE space

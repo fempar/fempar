@@ -71,7 +71,6 @@ contains
     ! FE integration-related data types
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(cell_integrator_t), pointer :: cell_int
     type(vector_field_t), allocatable  :: shape_gradients(:,:)
     real(rp)            , allocatable  :: shape_values(:,:)
 
@@ -103,9 +102,8 @@ contains
           
        ! Very important: this has to be inside the loop, as different FEs can be present!
        quad            => fe%get_quadrature()
-       num_quad_points = quad%get_num_quadrature_points()
-       cell_int         => fe%get_cell_integrator(1)
-       num_dofs = fe%get_num_dofs()
+       num_quad_points =  quad%get_num_quadrature_points()
+       num_dofs        =  fe%get_num_dofs()
        
        ! Get quadrature coordinates to evaluate source_term
        quad_coords => fe%get_quadrature_points_coordinates()
@@ -113,8 +111,8 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       call cell_int%get_gradients(shape_gradients)
-       call cell_int%get_values(shape_values)
+       call fe%get_gradients(shape_gradients)
+       call fe%get_values(shape_values)
        do qpoint = 1, num_quad_points
           factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           do idof = 1, num_dofs

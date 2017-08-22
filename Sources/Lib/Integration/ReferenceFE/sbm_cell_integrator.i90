@@ -318,21 +318,6 @@ subroutine cell_integrator_evaluate_gradient_fe_function_vector ( this, nodal_va
 end subroutine cell_integrator_evaluate_gradient_fe_function_vector
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-! p_cell_integrator_t type procedures
-subroutine p_cell_integrator_allocate( this )
-  implicit none
-  class(p_cell_integrator_t), intent(inout) :: this
-  allocate(this%p)
-end subroutine p_cell_integrator_allocate
-
-subroutine p_cell_integrator_free( this )
-  implicit none
-  class(p_cell_integrator_t), intent(inout) :: this
-  call this%p%free()
-  deallocate(this%p)
-end subroutine p_cell_integrator_free
-
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !Auxiliar routines
 subroutine vecpro(v1,v2,v3,n)
   !-----------------------------------------------------------------------

@@ -299,15 +299,13 @@ contains
     class(fe_facet_iterator_t), allocatable :: fe_face 
     integer(ip) :: ielem 
     type(quadrature_t)       , pointer     :: quad
-    type(vector_field_t)                   :: rot_test_vector
+    type(vector_field_t)     , allocatable :: curl_values(:,:)
     integer(ip)                            :: qpoin, num_qpoints, idof 
     type(i1p_t)              , pointer     :: fe_dofs(:)
-    type(cell_integrator_t), pointer     :: cell_int_H
-    type(facet_integrator_t), pointer       :: face_int_H
     integer(ip)                            :: i, inode, vector_size
     integer(ip)                            :: num_dofs, num_fields 
     real(rp)                 , allocatable :: elvec(:), facevec(:) 
-    real(rp)                               :: factor 
+    real(rp)                               :: factor  
     integer(ip)  :: istat 
 
 
@@ -341,7 +339,6 @@ contains
     if ( this%triangulation%get_num_dims() == 2) then  
     
     quad           => fe%get_quadrature()
-    cell_int_H      => fe%get_cell_integrator(1)
     num_qpoints =  quad%get_num_quadrature_points()
     
     ! Loop over elements
@@ -351,14 +348,14 @@ contains
           ! Update finite structures
           call fe%update_integration()		               
           call fe%get_fe_dofs(fe_dofs) 
+          call fe%get_curls(curl_values)
 
           elvec      = 0.0_rp 
           ! Integrate J over the hts subdomain 
           do qpoin=1, num_qpoints
              factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						
              do inode = 1, fe%get_num_dofs_field(1)  
-                call cell_int_H%get_curl(inode, qpoin, rot_test_vector)
-                elvec(inode) = elvec(inode) + factor * rot_test_vector%get(3) 
+                elvec(inode) = elvec(inode) + factor * curl_values(inode,qpoin)%get(3) 
              end do
           end do
 
@@ -389,7 +386,7 @@ contains
        call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
        quad            => fe_face%get_quadrature()
        num_qpoints  =  quad%get_num_quadrature_points()
-       face_int_H      => fe_face%get_facet_integrator(1)
+       call fe_face%get_curls(1,curl_values) 
 
        do while ( .not. fe_face%has_finished() )
           facevec = 0.0_rp
@@ -402,8 +399,7 @@ contains
                 do qpoin = 1, num_qpoints
                    factor = fe_face%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
                    do idof = 1, fe%get_num_dofs_field(1) 
-                      call face_int_H%get_curl(idof,qpoin,1,rot_test_vector)    
-                      facevec(idof) = facevec(idof) + factor * rot_test_vector%get(3) 
+                      facevec(idof) = facevec(idof) + factor * curl_values(idof,qpoin)%get(3) 
                    end do
                 end do
 
@@ -432,6 +428,7 @@ contains
     ! =============================================================================================
     call memfree ( elvec, __FILE__, __LINE__ )
     deallocate (fe_dofs, stat=istat); check(istat==0)
+    deallocate (curl_values, stat=istat); check(istat==0)
 
   end subroutine setup_constraint_matrix
   
