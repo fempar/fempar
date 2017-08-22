@@ -140,7 +140,7 @@ contains
     integer(ip) :: i
     
     call this%triangulation%create(this%parameter_list)
-    do i = 1,2
+    do i = 1,3
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%clear_refinement_and_coarsening_flags()
@@ -475,7 +475,7 @@ contains
     
     do i=1,6
        
-       if ( mod(i+1,3) == 0 ) then 
+       if ( mod(i+2,3) == 0 ) then 
          if (this%triangulation%get_num_dims() == 2) then
            call this%set_cells_for_coarsening()
          end if
@@ -867,7 +867,7 @@ contains
     else
       call this%check_solution_vector()
     end if
-    call this%refine_and_coarsen()
+    !call this%refine_and_coarsen()
     call this%write_solution()
     call this%write_filling_curve()
     call this%free()
