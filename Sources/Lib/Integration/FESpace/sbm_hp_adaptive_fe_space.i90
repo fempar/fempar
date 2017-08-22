@@ -1560,8 +1560,8 @@ subroutine hpafeci_assembly_matrix_array ( this,  &
   if ( no_hanging_node_constraints ) then
      call this%fe_cell_iterator_t%assembly(elmat,elvec,assembler)
   else  
-     ! update fe_dofs in fe_space_t
-     call this%get_fe_dofs(this%fe_dofs)
+     ! update scratch data in fe_space_t
+     call this%update_scratch_data()
      ! "apply constraints"
      call this%apply_constraints ( elmat, elvec )
      ! impose strong dirichlet bc's
@@ -1605,8 +1605,8 @@ subroutine hpafeci_assembly_matrix_array_with_strong_bcs(this,fe_function,elmat,
   if ( no_hanging_node_constraints ) then
      call this%fe_cell_iterator_t%assembly(fe_function,elmat,elvec,assembler)
   else  
-     ! update fe_dofs in fe_space_t
-     call this%get_fe_dofs(this%fe_dofs)
+     ! update scratch data in fe_space_t
+     call this%update_scratch_data()
      ! "apply constraints"
      call this%apply_constraints ( elmat, elvec )
      ! impose strong dirichlet bc's

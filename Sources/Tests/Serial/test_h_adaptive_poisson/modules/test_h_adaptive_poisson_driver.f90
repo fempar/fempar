@@ -137,11 +137,14 @@ contains
     integer(ip) :: vertex_pos_in_cell, icell_arround
     
     integer(ip), parameter :: num_nodes_x_cell = 4
+    integer(ip) :: i
     
     call this%triangulation%create(this%parameter_list)
-    call this%set_cells_for_refinement()
-    call this%triangulation%refine_and_coarsen()
-    call this%triangulation%clear_refinement_and_coarsening_flags()
+    do i = 1,2
+      call this%set_cells_for_refinement()
+      call this%triangulation%refine_and_coarsen()
+      call this%triangulation%clear_refinement_and_coarsening_flags()
+    end do
     
     if (this%test_params%get_use_void_fes()) then
         call memalloc(this%triangulation%get_num_cells(),cell_set_ids)
@@ -270,7 +273,7 @@ contains
 
       do while ( .not. cell%has_finished() )
 
-        !if ( mod(cell%get_lid()-1,2) == 0 ) then
+        !if ( mod(cell%get_gid()-1,2) == 0 ) then
         !  call cell%set_for_refinement()
         !end if
 
@@ -863,7 +866,7 @@ contains
     else
       call this%check_solution_vector()
     end if
-    call this%refine_and_coarsen()
+    !call this%refine_and_coarsen()
     call this%write_solution()
     call this%write_filling_curve()
     call this%free()
