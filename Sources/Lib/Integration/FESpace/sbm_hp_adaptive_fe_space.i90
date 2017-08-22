@@ -76,6 +76,14 @@ subroutine hp_adaptive_fe_cell_iterator_free (this)
   nullify(this%hp_adaptive_fe_space)
 end subroutine hp_adaptive_fe_cell_iterator_free
 
+function hpafeci_is_strong_dirichlet_dof ( this, dof_lid )
+  implicit none
+  class(hp_adaptive_fe_cell_iterator_t), intent(in) :: this
+  integer(ip)                          , intent(in) :: dof_lid
+  logical :: hpafeci_is_strong_dirichlet_dof
+  hpafeci_is_strong_dirichlet_dof = (dof_lid < 0 .and. dof_lid >= -this%hp_adaptive_fe_space%num_dirichlet_dofs )
+end function hpafeci_is_strong_dirichlet_dof
+
 subroutine hp_adaptive_fe_facet_iterator_create ( this, fe_space, vef )
   implicit none
   class(hp_adaptive_fe_facet_iterator_t), target, intent(inout) :: this

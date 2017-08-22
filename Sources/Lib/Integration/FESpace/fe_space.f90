@@ -240,7 +240,7 @@ module fe_space_names
     generic                             :: determine_at_strong_dirichlet_boundary     => fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field, &
                                                                                          fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields
     procedure, non_overridable          :: determine_has_fixed_dofs                   => fe_cell_iterator_set_has_fixed_dofs                                                                                     
-    procedure, non_overridable          :: is_strong_dirichlet_dof                    => fe_cell_iterator_is_strong_dirichlet_dof   
+    procedure                           :: is_strong_dirichlet_dof                    => fe_cell_iterator_is_strong_dirichlet_dof   
     procedure, non_overridable          :: is_fixed_dof                               => fe_cell_iterator_is_fixed_dof
     procedure, non_overridable          :: compute_volume                             => fe_cell_iterator_compute_volume
     
@@ -1102,6 +1102,7 @@ module fe_space_names
  contains
    procedure          :: create                     => hp_adaptive_fe_cell_iterator_create
    procedure          :: free                       => hp_adaptive_fe_cell_iterator_free
+   procedure          :: is_strong_dirichlet_dof    => hpafeci_is_strong_dirichlet_dof
    procedure, non_overridable, private :: apply_constraints => hp_adaptive_fe_cell_iterator_apply_constraints
    procedure, private :: hpafeci_impose_strong_dirichlet_bcs
    procedure, private :: hpafeci_allocate_block_based_scratch_data
