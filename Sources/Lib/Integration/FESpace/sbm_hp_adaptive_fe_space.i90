@@ -57,8 +57,6 @@ subroutine hp_adaptive_fe_cell_iterator_free (this)
       call this%free_cell(this%hp_adaptive_fe_space%p4est_triangulation)
     end if
   end if
-  call this%nullify_fe_space()
-  nullify(this%hp_adaptive_fe_space)
   call this%free_scratch_data()
   if ( allocated(this%gid_to_lid_map) ) then
     do iblock = 1, this%fe_space%get_num_blocks()
@@ -74,6 +72,8 @@ subroutine hp_adaptive_fe_cell_iterator_free (this)
   end if
   call this%extended_elmat%free()
   call this%extended_elvec%free()
+  call this%nullify_fe_space()
+  nullify(this%hp_adaptive_fe_space)
 end subroutine hp_adaptive_fe_cell_iterator_free
 
 !! Assembly of local matrices for hp-adaptivity

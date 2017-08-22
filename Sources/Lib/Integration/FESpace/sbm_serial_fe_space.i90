@@ -1510,7 +1510,6 @@ subroutine serial_fe_space_check_cell_vs_fe_topology_consistency(this)
 
 #ifdef DEBUG
   call this%create_fe_cell_iterator(fe)
-  call fe%first()
   do while ( .not. fe%has_finished())
      reference_fe_geo => fe%get_reference_fe_geo()
      do field_id = 1, fe%get_num_fields()  
