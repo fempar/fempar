@@ -43,12 +43,6 @@ subroutine hp_adaptive_fe_cell_iterator_create ( this, fe_space )
   end select
   call this%create_cell(this%hp_adaptive_fe_space%p4est_triangulation)
   call this%allocate_scratch_data()
-  
-  allocate ( this%gid_to_lid_map(this%fe_space%get_num_blocks()), stat=istat); check(istat==0);
-  do iblock = 1, this%fe_space%get_num_blocks()
-    call this%gid_to_lid_map(iblock)%create(this%fe_space%get_block_num_dofs(iblock))
-    this%gid_to_lid_map(iblock)%a = 0
-  end do
   allocate( this%extended_fe_dofs(this%fe_space%num_fields), stat=istat); check(istat==0);
   call this%extended_elmat%create(0,0)
   call this%extended_elvec%create(0)
@@ -1649,6 +1643,7 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
   integer(ip), pointer :: field_blocks(:)
   
   field_blocks            => this%get_field_blocks()
+  call this%hpafeci_allocate_block_based_scratch_data()
   
      ! Count number of free dofs involved in the assembly of this cell
      ! i.e., the free dofs of the cell + all other free dofs that constrain
@@ -1812,3 +1807,17 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
      end do
 
    end subroutine hpafeci_impose_strong_dirichlet_bcs
+   
+   
+  subroutine hpafeci_allocate_block_based_scratch_data ( this )
+  implicit none
+  class(hp_adaptive_fe_cell_iterator_t), intent(inout)    :: this
+  integer(ip) :: istat, iblock
+  if ( .not. allocated(this%gid_to_lid_map) ) then
+    allocate ( this%gid_to_lid_map(this%fe_space%get_num_blocks()), stat=istat); check(istat==0);
+    do iblock = 1, this%fe_space%get_num_blocks()
+      call this%gid_to_lid_map(iblock)%create(this%fe_space%get_block_num_dofs(iblock))
+      this%gid_to_lid_map(iblock)%a = 0
+    end do
+  end if
+  end subroutine hpafeci_allocate_block_based_scratch_data

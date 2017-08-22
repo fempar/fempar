@@ -1123,6 +1123,7 @@ module fe_space_names
    procedure, private :: recursive_vector_assembly  => hp_adaptive_fe_cell_iterator_recursive_vector_assembly
    procedure, non_overridable, private :: apply_constraints => hp_adaptive_fe_cell_iterator_apply_constraints
    procedure, private :: hpafeci_impose_strong_dirichlet_bcs
+   procedure, private :: hpafeci_allocate_block_based_scratch_data
    procedure, private :: assembly_array =>  hpafeci_assembly_array
    procedure, private :: assembly_matrix => hpafeci_assembly_matrix
    procedure, private :: assembly_matrix_array => hpafeci_assembly_matrix_array
