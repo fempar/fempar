@@ -172,12 +172,12 @@ module fe_space_names
   
   type, extends(base_fe_cell_iterator_t) :: fe_cell_iterator_t
     private
-    class(serial_fe_space_t), pointer     :: fe_space => NULL()
+    class(serial_fe_space_t) , pointer     :: fe_space => NULL()
     ! Scratch data to support FE integration
-    integer(ip)             , allocatable :: num_cell_dofs_x_field(:)
+    integer(ip)              , allocatable :: num_cell_dofs_x_field(:)
     type(i1p_t)              , allocatable :: fe_dofs(:)
     type(cell_map_t)         , pointer     :: cell_map => NULL()
-    type(p_cell_integrator_t), allocatable:: cell_integrators(:)
+    type(p_cell_integrator_t), allocatable :: cell_integrators(:)
   contains
     procedure                           :: create                                     => fe_cell_iterator_create
     procedure                           :: free                                       => fe_cell_iterator_free
@@ -191,7 +191,7 @@ module fe_space_names
     procedure, non_overridable, private :: generate_dofs_facet_integration_coupling   => fe_cell_iterator_generate_dofs_facet_integration_coupling
     procedure, non_overridable, private :: renum_dofs_block                           => fe_cell_iterator_renum_dofs_block
     procedure, non_overridable, private :: renum_dofs_field                           => fe_cell_iterator_renum_dofs_field
-    procedure, non_overridable          :: update_num_dofs_x_field                    => fe_cell_iterator_update_num_dofs_x_field
+    procedure, non_overridable, private :: update_scratch_data                        => fe_cell_iterator_update_scratch_data
     procedure                           :: update_integration                         => fe_cell_iterator_update_integration
     procedure                           :: update_cell_map                            => fe_cell_iterator_update_cell_map
     procedure                           :: update_cell_integrators                    => fe_cell_iterator_update_cell_integrators
@@ -284,6 +284,10 @@ module fe_space_names
 
   end type fe_cell_iterator_t
    
+  type p_fe_cell_iterator_t
+    class(fe_cell_iterator_t), pointer :: p 
+  end type p_fe_cell_iterator_t
+  
   type :: base_fe_vef_iterator_t
     private
     class(vef_iterator_t), allocatable :: vef
@@ -322,13 +326,13 @@ module fe_space_names
     
   type, extends(fe_vef_iterator_t) :: fe_facet_iterator_t
     private
-    integer(ip)                       :: facet_gid
-    class(fe_cell_iterator_t), allocatable :: fe
+    integer(ip)                              :: facet_gid
     ! Scratch data to support FE face integration
-    integer(ip)         , allocatable :: num_cell_dofs_x_cell_and_field(:,:)
-    type(i1p_t)         , allocatable :: fe_dofs_x_cell(:,:)
-    type(facet_maps_t)  , pointer     :: facet_maps => NULL()
-    type(p_facet_integrator_t), allocatable:: facet_integrators(:)
+    class(fe_cell_iterator_t) , allocatable  :: fe1
+    class(fe_cell_iterator_t) , allocatable  :: fe2
+    type(p_fe_cell_iterator_t)               :: fes_around(2)
+    type(facet_maps_t)  , pointer           :: facet_maps => NULL()
+    type(p_facet_integrator_t), allocatable :: facet_integrators(:)
    contains
     procedure                 , private :: create                        => fe_facet_iterator_create
     procedure                 , private :: free                          => fe_facet_iterator_free
@@ -339,8 +343,7 @@ module fe_space_names
     procedure, non_overridable          :: get_gid                       => fe_facet_iterator_get_gid
     procedure, non_overridable          :: is_at_field_boundary          => fe_facet_iterator_is_at_field_boundary
     procedure, non_overridable          :: is_at_field_interior          => fe_facet_iterator_is_at_field_interior
-    procedure, non_overridable, private :: update_num_cell_dofs_x_cell_and_field => fe_facet_iterator_update_num_cell_dofs_x_cell_and_field
-    procedure, non_overridable, private :: update_fe_dofs_x_cell         => fe_facet_iterator_update_fe_dofs_x_cell
+    procedure, non_overridable, private :: update_fes_around             => fe_facet_iterator_update_fes_around
     procedure, non_overridable          :: update_integration            => fe_facet_iterator_update_integration
     procedure, non_overridable          :: get_num_dofs_field            => fe_facet_iterator_get_num_dofs_field
     procedure, non_overridable, private :: fe_facet_iterator_assembly_array
@@ -350,7 +353,6 @@ module fe_space_names
                                                                             fe_facet_iterator_assembly_matrix, &
                                                                             fe_facet_iterator_assembly_matrix_array
     procedure, non_overridable          :: get_fe_space                  => fe_facet_iterator_get_fe_space
-    procedure, non_overridable          :: get_num_dofs_x_field          => fe_facet_iterator_get_num_dofs_x_field
     procedure, non_overridable          :: get_fe_dofs                   => fe_facet_iterator_get_fe_dofs
     procedure, non_overridable          :: get_default_quadrature_degree => fe_facet_iterator_get_default_quadrature_degree
     procedure, non_overridable          :: get_quadrature_degree         => fe_facet_iterator_get_quadrature_degree

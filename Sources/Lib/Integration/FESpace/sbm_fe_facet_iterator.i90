@@ -34,13 +34,12 @@ subroutine fe_facet_iterator_create ( this, fe_space, vef )
   integer(ip) :: istat
   call this%free()
   call this%fe_vef_iterator_t%create(fe_space,vef)
-  call this%fe_space%create_fe_cell_iterator(this%fe)
-  call this%first()
-  call memalloc ( 2, this%fe_space%num_fields,      &
-                  this%num_cell_dofs_x_cell_and_field, &
-                  __FILE__, __LINE__ )
-  allocate( this%fe_dofs_x_cell(2,this%fe_space%num_fields), stat=istat); check(istat==0);
   allocate( this%facet_integrators(this%fe_space%num_fields), stat=istat); check(istat==0);
+  call this%fe_space%create_fe_cell_iterator(this%fe1)
+  call this%fe_space%create_fe_cell_iterator(this%fe2)
+  this%fes_around(1)%p => this%fe1
+  this%fes_around(2)%p => this%fe2
+  call this%first()
 end subroutine fe_facet_iterator_create
 
 subroutine fe_facet_iterator_free ( this )
@@ -48,17 +47,18 @@ subroutine fe_facet_iterator_free ( this )
   class(fe_facet_iterator_t) , intent(inout)      :: this
   integer(ip) :: istat
   call this%fe_vef_iterator_t%free()
-  if (allocated(this%fe)) then
-    call this%fe%free()
-    deallocate(this%fe, stat=istat); check(istat==0);
+  if (allocated(this%fe1)) then
+    call this%fe1%free()
+    deallocate(this%fe1, stat=istat); check(istat==0);
   end if
+  if (allocated(this%fe2)) then
+    call this%fe2%free()
+    deallocate(this%fe2, stat=istat); check(istat==0);
+  end if
+  nullify(this%fes_around(1)%p)
+  nullify(this%fes_around(2)%p)
+  
   this%facet_gid = -1
-  if ( allocated(this%num_cell_dofs_x_cell_and_field) ) then
-    call memfree ( this%num_cell_dofs_x_cell_and_field, __FILE__, __LINE__ )
-  end if
-  if ( allocated(this%fe_dofs_x_cell) ) then
-    deallocate ( this%fe_dofs_x_cell, stat=istat ); check(istat==0);
-  end if  
   if ( allocated(this%facet_integrators) ) then
     deallocate ( this%facet_integrators, stat=istat ); check(istat==0);
   end if
@@ -72,7 +72,9 @@ subroutine fe_facet_iterator_first ( this )
   if ( .not. this%has_finished() ) then
     call this%base_fe_vef_iterator_t%set_gid( &
       this%fe_space%facet_gids%get(this%facet_gid) )
+    call this%update_fes_around()
   end if
+  
 end subroutine fe_facet_iterator_first
 
 subroutine fe_facet_iterator_next ( this )
@@ -82,6 +84,7 @@ subroutine fe_facet_iterator_next ( this )
   if ( .not. this%has_finished() ) then
     call this%base_fe_vef_iterator_t%set_gid( &
       this%fe_space%facet_gids%get(this%facet_gid) )
+    call this%update_fes_around()
   end if
 end subroutine fe_facet_iterator_next
 
@@ -99,6 +102,7 @@ subroutine fe_facet_iterator_set_gid ( this, gid )
   assert ( gid >= 1 .and. gid <= this%fe_space%facet_gids%size() )
   this%facet_gid = gid
   call this%base_fe_vef_iterator_t%set_gid(this%fe_space%facet_gids%get(gid))
+  call this%update_fes_around()
 end subroutine fe_facet_iterator_set_gid
 
 function fe_facet_iterator_get_gid (this) result(facet_gid)
@@ -134,27 +138,18 @@ function fe_facet_iterator_get_num_dofs_field(this, icell_around, field_id)
   integer(ip)              , intent(in) :: icell_around
   integer(ip), intent(in) :: field_id
   integer(ip) :: fe_facet_iterator_get_num_dofs_field
-  call this%get_cell_around(icell_around,this%fe)
-  fe_facet_iterator_get_num_dofs_field = this%fe%get_num_dofs_field(field_id)
+  fe_facet_iterator_get_num_dofs_field = this%fes_around(icell_around)%p%get_num_dofs_field(field_id)
 end function fe_facet_iterator_get_num_dofs_field
 
-subroutine fe_facet_iterator_update_num_cell_dofs_x_cell_and_field( this, icell_around )
-  implicit none
-  class(fe_facet_iterator_t), intent(inout) :: this 
-  integer(ip)              , intent(in)    :: icell_around
-  call this%get_cell_around(icell_around, this%fe)
-  call this%fe%update_num_dofs_x_field(this%num_cell_dofs_x_cell_and_field(icell_around,:))
-end subroutine fe_facet_iterator_update_num_cell_dofs_x_cell_and_field
-
-subroutine fe_facet_iterator_update_fe_dofs_x_cell( this )
+subroutine fe_facet_iterator_update_fes_around( this )
   implicit none
   class(fe_facet_iterator_t), intent(inout) :: this 
   integer(ip) :: icell_around
-  do icell_around = 1,this%get_num_cells_around()
-    call this%get_cell_around(icell_around,this%fe)  
-    call this%fe%get_fe_dofs(this%fe_dofs_x_cell(icell_around,:))
-  end do
-end subroutine fe_facet_iterator_update_fe_dofs_x_cell
+  do icell_around=1, this%get_num_cells_around()
+    call this%get_cell_around(icell_around, this%fes_around(icell_around)%p)
+    call this%fes_around(icell_around)%p%update_scratch_data()
+  end do 
+end subroutine fe_facet_iterator_update_fes_around
 
 subroutine fe_facet_iterator_update_integration( this )
   implicit none
@@ -172,21 +167,18 @@ subroutine fe_facet_iterator_update_integration( this )
   coords => this%facet_maps%get_facet_coordinates()
   call this%get_coordinates(coords)
 
-  quadrature => this%get_quadrature()
+  quadrature => this%get_quadrature() 
   
   do icell_around=1, this%get_num_cells_around()
-    call this%get_cell_around(icell_around,this%fe)  
-    reference_fe_geo => this%fe%get_reference_fe_geo()
+    reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
     facet_lpos_within_cells_around(icell_around) = &
       this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_facet_id() + 1
     coords => this%facet_maps%get_coordinates_neighbour(icell_around, &
                                                  facet_lpos_within_cells_around(icell_around))
-    call this%fe%get_coordinates(coords)
-    call this%update_num_cell_dofs_x_cell_and_field(icell_around)
+    call this%fes_around(icell_around)%p%get_coordinates(coords)
   end do
 
-  call this%get_cell_around(1, this%fe)
-  reference_fe_geo => this%fe%get_reference_fe_geo()
+  reference_fe_geo => this%fes_around(1)%p%get_reference_fe_geo()
   
   call this%facet_maps%update(facet_lpos_within_cells_around, &
                        quadrature, &
@@ -211,17 +203,12 @@ subroutine fe_facet_iterator_assembly_array ( this,    &
   
   integer(ip) :: ineigh
   
-  do ineigh=1, this%get_num_cells_around()
-    call this%update_num_cell_dofs_x_cell_and_field(ineigh)
-  end do
-  
-  call this%update_fe_dofs_x_cell()
   do ineigh = 1, this%get_num_cells_around()
     call assembler%assembly_array( this%fe_space%num_fields,                    &
                                                 this%fe_space%get_field_blocks(),               &
                                                 this%fe_space%get_field_coupling(),             &
-                                                this%num_cell_dofs_x_cell_and_field(ineigh,:),  &
-                                                this%fe_dofs_x_cell(ineigh,:),               &
+                                                this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
+                                                this%fes_around(ineigh)%p%fe_dofs,               &
                                                 facevec(:,ineigh) )
   end do
   
@@ -237,20 +224,15 @@ subroutine fe_facet_iterator_assembly_matrix ( this,    &
   
   integer(ip) :: ineigh, jneigh
   
-  do ineigh=1, this%get_num_cells_around()
-    call this%update_num_cell_dofs_x_cell_and_field(ineigh)
-  end do
-  
-  call this%update_fe_dofs_x_cell()
   do ineigh = 1, this%get_num_cells_around()
     do jneigh = 1, this%get_num_cells_around()
       call assembler%assembly_matrix( this%fe_space%num_fields,                   &
                                                    this%fe_space%get_field_blocks(),              &
                                                    this%fe_space%get_field_coupling(),            &
-                                                   this%num_cell_dofs_x_cell_and_field(ineigh,:), &
-                                                   this%num_cell_dofs_x_cell_and_field(jneigh,:), &
-                                                   this%fe_dofs_x_cell(ineigh,:),              &
-                                                   this%fe_dofs_x_cell(jneigh,:),              &
+                                                   this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                                   this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
+                                                   this%fes_around(ineigh)%p%fe_dofs,             &
+                                                   this%fes_around(jneigh)%p%fe_dofs,              &
                                                    facemat(:,:,ineigh,jneigh) )
     end do
   end do
@@ -268,28 +250,23 @@ subroutine fe_facet_iterator_assembly_matrix_array ( this,    &
   class(assembler_t), intent(inout) :: assembler
   
   integer(ip) :: ineigh, jneigh
-  
-  do ineigh=1, this%get_num_cells_around()
-    call this%update_num_cell_dofs_x_cell_and_field(ineigh)
-  end do
-  
-  call this%update_fe_dofs_x_cell()
+ 
   do ineigh = 1, this%get_num_cells_around()
     do jneigh = 1, this%get_num_cells_around()
       call assembler%assembly_matrix( this%fe_space%num_fields,                   &
                                                    this%fe_space%get_field_blocks(),              &
                                                    this%fe_space%get_field_coupling(),            &
-                                                   this%num_cell_dofs_x_cell_and_field(ineigh,:), &
-                                                   this%num_cell_dofs_x_cell_and_field(jneigh,:), &
-                                                   this%fe_dofs_x_cell(ineigh,:),              &
-                                                   this%fe_dofs_x_cell(jneigh,:),              &
+                                                   this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                                   this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
+                                                   this%fes_around(ineigh)%p%fe_dofs,              &
+                                                   this%fes_around(jneigh)%p%fe_dofs,              &
                                                    facemat(:,:,ineigh,jneigh) )
     end do
     call assembler%assembly_array( this%fe_space%num_fields,                    &
                                                   this%fe_space%get_field_blocks(),               &
                                                   this%fe_space%get_field_coupling(),             &
-                                                  this%num_cell_dofs_x_cell_and_field(ineigh,:),  &
-                                                  this%fe_dofs_x_cell(ineigh,:),               &
+                                                  this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
+                                                  this%fes_around(ineigh)%p%fe_dofs,               &
                                                   facevec(:,ineigh) )
   end do
   
@@ -303,22 +280,12 @@ function fe_facet_iterator_get_fe_space(this)
 end function fe_facet_iterator_get_fe_space
 
 !==================================================================================================
-function fe_facet_iterator_get_num_dofs_x_field(this, icell_around) result (num_dofs_x_field)
-  implicit none
-  class(fe_facet_iterator_t), target, intent(in) :: this
-  integer(ip)                      , intent(in) :: icell_around
-  integer(ip), pointer :: num_dofs_x_field(:)
-  num_dofs_x_field => this%num_cell_dofs_x_cell_and_field(icell_around,:)
-end function fe_facet_iterator_get_num_dofs_x_field
-
-!==================================================================================================
 subroutine fe_facet_iterator_get_fe_dofs(this, icell_around, fe_dofs)
   implicit none
   class(fe_facet_iterator_t), target, intent(inout)  :: this
   integer(ip)                      , intent(in)     :: icell_around
   type(i1p_t)                      , intent(out)    :: fe_dofs(:)
-  call this%get_cell_around(icell_around, this%fe)
-  call this%fe%get_fe_dofs(fe_dofs)
+  call this%fes_around(icell_around)%p%get_fe_dofs(fe_dofs)
 end subroutine fe_facet_iterator_get_fe_dofs
 
 !==================================================================================================
@@ -373,8 +340,7 @@ function fe_facet_iterator_get_quadrature ( this )
    
   reference_fes_geo_id(2) = 0 
   do icell_around = 1, this%get_num_cells_around()
-     call this%get_cell_around(icell_around, this%fe)
-     reference_fes_geo_id(icell_around) = this%fe%get_reference_fe_geo_id()
+     reference_fes_geo_id(icell_around) = this%fes_around(icell_around)%p%get_reference_fe_geo_id()
   end do
   
   facet_quadratures_position_key = &
@@ -401,8 +367,7 @@ function fe_facet_iterator_get_facet_map(this)
    
   reference_fes_geo_id(2) = 0 
   do icell_around = 1, this%get_num_cells_around()
-     call this%get_cell_around(icell_around, this%fe)
-     reference_fes_geo_id(icell_around) = this%fe%get_reference_fe_geo_id()
+     reference_fes_geo_id(icell_around) = this%fes_around(icell_around)%p%get_reference_fe_geo_id()
   end do
   
   facet_maps_position_key = &
@@ -429,8 +394,7 @@ subroutine fe_facet_iterator_update_facet_maps(this)
    
   reference_fes_geo_id(2) = 0 
   do icell_around = 1, this%get_num_cells_around()
-     call this%get_cell_around(icell_around, this%fe)
-     reference_fes_geo_id(icell_around) = this%fe%get_reference_fe_geo_id()
+     reference_fes_geo_id(icell_around) = this%fes_around(icell_around)%p%get_reference_fe_geo_id()
   end do
   
   facet_maps_position_key = &
@@ -460,8 +424,7 @@ function fe_facet_iterator_get_facet_integrator(this, field_id)
  
   reference_fes_id(2) = 0 
   do icell_around = 1, this%get_num_cells_around()
-     call this%get_cell_around(icell_around, this%fe)
-     reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id, this%fe%get_gid())
+     reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id, this%fes_around(icell_around)%p%get_gid())
   end do
   
   facet_integrators_position_key = &
@@ -490,8 +453,7 @@ subroutine fe_facet_iterator_update_facet_integrators(this)
   do field_id = 1, this%fe_space%num_fields
      reference_fes_id(2) = 0 
      do icell_around = 1, this%get_num_cells_around()
-        call this%get_cell_around(icell_around, this%fe)
-        reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id, this%fe%get_gid())
+        reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id, this%fes_around(icell_around)%p%get_gid())
      end do
      facet_integrators_position_key = &
         this%fe_space%generate_facet_integrators_position_key(this%get_quadrature_degree(), &
@@ -534,12 +496,10 @@ function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) resul
   integer(ip)                               :: facet_lpos_within_cell_around
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   integer(ip)                               :: vef_gid_of_face
-  assert ( allocated(this%fe) )
-  call this%get_cell_around(icell_around, this%fe)
-  reference_fe_geo => this%fe%get_reference_fe_geo()
+  reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
   vef_gid_of_face = this%base_fe_vef_iterator_t%get_gid()
-  assert ( this%fe%get_vef_lid_from_gid (vef_gid_of_face) /= -1 )
-  facet_lpos_within_cell_around = this%fe%get_vef_lid_from_gid(vef_gid_of_face)
+  assert ( this%fes_around(icell_around)%p%get_vef_lid_from_gid (vef_gid_of_face) /= -1 )
+  facet_lpos_within_cell_around = this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face)
 end function fe_facet_iterator_get_lpos_within_cell_around
 
 function fe_facet_iterator_get_facet_permutation_index ( this ) result(facet_permutation_index)
