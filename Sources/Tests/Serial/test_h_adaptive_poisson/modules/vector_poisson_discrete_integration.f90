@@ -134,9 +134,7 @@ contains
           
        end do
        
-       ! Assemble and apply boundary conditions (and the rest of hanging node constraints)
-       ! (TODO) To be substituted by overriden fe%assembly
-       call fe%assemble( elmat, elvec, assembler )
+       call fe%assembly( this%fe_function, elmat, elvec, assembler )
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)

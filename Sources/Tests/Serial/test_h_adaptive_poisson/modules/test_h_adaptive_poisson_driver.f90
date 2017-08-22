@@ -630,7 +630,8 @@ contains
                                             dof_values)
 #endif    
     
-    call this%solution%update_fixed_dof_values(this%fe_space)
+    call this%fe_space%update_hanging_dof_values(this%solution)
+    !call this%solution%update_fixed_dof_values(this%fe_space)
     
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
@@ -866,7 +867,7 @@ contains
     else
       call this%check_solution_vector()
     end if
-    !call this%refine_and_coarsen()
+    call this%refine_and_coarsen()
     call this%write_solution()
     call this%write_filling_curve()
     call this%free()

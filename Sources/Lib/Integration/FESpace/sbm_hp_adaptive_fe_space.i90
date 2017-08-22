@@ -726,50 +726,45 @@ subroutine shpafs_set_up_strong_dirichlet_bcs( this )
   
 end subroutine shpafs_set_up_strong_dirichlet_bcs
 
-
-subroutine shpafs_update_fixed_dof_values(this, free_dof_values, fixed_dof_values)
-  implicit none
-  class(serial_hp_adaptive_fe_space_t), intent(in)    :: this 
-  class(vector_t)                     , intent(in)    :: free_dof_values
-  type(serial_scalar_array_t)         , intent(inout) :: fixed_dof_values
-  real(rp) :: dof_value(1)
-  real(rp) :: alpha 
-  real(rp), pointer :: fixed_dof_values_entries(:)
-  integer(ip) :: dof_lid, i, j, spos, epos
-  
-  fixed_dof_values_entries => fixed_dof_values%get_entries()
-  do i=1, this%num_fixed_dofs
-    spos=this%ptr_constraint_dofs%get(i)
-    epos=this%ptr_constraint_dofs%get(i+1)-1
-    alpha=0.0_rp
-    do j=spos, epos
-      dof_lid=this%constraint_dofs_dependencies%get(j)
-      if ( dof_lid==0 ) then ! Dirichlet DoF
-         alpha = this%constraint_dofs_coefficients%get(j)
-         assert (spos == epos)
-         exit
-      else
-         if (dof_lid > 0) then ! Depends on a free DoF
-            call free_dof_values%extract_subvector( iblock=1, size_indices=1, indices=[dof_lid], values=dof_value )
-         else ! Depends on a strong Dirichlet DoF
-            call fixed_dof_values%extract_subvector( iblock=1, size_indices=1, indices=[-dof_lid], values=dof_value )
-         end if
-         alpha = alpha + this%constraint_dofs_coefficients%get(j) * dof_value(1)
-      end if
-    end do
-    fixed_dof_values_entries(i) = alpha
-  end do
-end subroutine shpafs_update_fixed_dof_values
-
-subroutine shpafs_interpolate_dirichlet_values (this, fe_function, time, fields_to_interpolate)
+subroutine shpafs_update_hanging_dof_values (this, fe_function )
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
   class(fe_function_t)                , intent(inout) :: fe_function
-  real(rp)               , optional   , intent(in)    :: time
-  integer(ip)            , optional   , intent(in)    :: fields_to_interpolate(:)
-  call serial_fe_space_interpolate_dirichlet_values(this, fe_function, time, fields_to_interpolate)
-  call this%transfer_dirichlet_to_constraint_dof_coefficients(fe_function)
-end subroutine shpafs_interpolate_dirichlet_values 
+  
+  type(serial_scalar_array_t), pointer :: fixed_dof_values
+  real(rp)                   , pointer :: fixed_dof_values_entries(:)
+  
+  integer(ip) :: i_gid, spos, epos, pos, k_gid
+  real(rp) :: weight, free_dof_value(1)
+  
+  fixed_dof_values         => fe_function%get_fixed_dof_values()
+  fixed_dof_values_entries => fixed_dof_values%get_entries()
+  
+  do i_gid = 1, this%num_hanging_dofs
+    spos = this%ptr_constraining_free_dofs%get(i_gid)
+    epos = this%ptr_constraining_free_dofs%get(i_gid+1)-1
+    do pos=spos, epos 
+      k_gid = this%constraining_free_dofs%get(pos)
+      weight = this%constraining_free_dofs_coefficients%get(pos)
+         call fe_function%free_dof_values%extract_subvector ( iblock = 1, &
+                                             size_indices = 1, &
+                                             indices = [k_gid], &
+                                             values = free_dof_value )
+      fixed_dof_values_entries(i_gid+this%num_dirichlet_dofs) = &
+         & fixed_dof_values_entries(i_gid+this%num_dirichlet_dofs) +  &
+         & weight*free_dof_value(1)
+    end do
+    spos = this%ptr_constraining_dirichlet_dofs%get(i_gid)
+    epos = this%ptr_constraining_dirichlet_dofs%get(i_gid+1)-1
+    do pos=spos, epos 
+      k_gid = this%constraining_dirichlet_dofs%get(pos)
+      weight = this%constraining_dirichlet_dofs_coefficients%get(pos)
+      fixed_dof_values_entries(i_gid+this%num_dirichlet_dofs) = &
+         & fixed_dof_values_entries(i_gid+this%num_dirichlet_dofs) + &
+         & weight*fixed_dof_values_entries(abs(k_gid))
+    end do
+  end do
+end subroutine shpafs_update_hanging_dof_values 
 
 subroutine shpafs_fill_facet_gids ( this )
   implicit none

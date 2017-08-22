@@ -527,7 +527,6 @@ module fe_space_names
      procedure                           :: set_up_strong_dirichlet_bcs                  => serial_fe_space_set_up_strong_dirichlet_bcs
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs_on_vef_and_field => serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
      procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
-     procedure                           :: update_fixed_dof_values                      => serial_fe_space_update_fixed_dof_values
      procedure                           :: project_dirichlet_values_curl_conforming     => serial_fe_space_project_dirichlet_values_curl_conforming
      procedure, non_overridable, private :: allocate_and_fill_fields_to_project_         => serial_fe_space_allocate_and_fill_fields_to_project_
      procedure, non_overridable, private :: allocate_and_fill_offset_component           => serial_fe_space_allocate_and_fill_offset_component
@@ -1033,7 +1032,6 @@ module fe_space_names
      procedure, non_overridable          :: gather_nodal_values_from_raw_data    => fe_function_gather_nodal_values_from_raw_data
      generic                             :: gather_nodal_values                  => gather_nodal_values_through_iterator, &
                                                                                     gather_nodal_values_from_raw_data
-     procedure, non_overridable          :: update_fixed_dof_values              => fe_function_update_fixed_dof_values
      procedure, non_overridable          :: insert_nodal_values            => fe_function_insert_nodal_values
      procedure, non_overridable          :: copy                           => fe_function_copy
      procedure, non_overridable          :: get_free_dof_values            => fe_function_get_free_dof_values
@@ -1095,10 +1093,9 @@ module fe_space_names
      procedure          :: free_constraining_dirichlet_dofs_coefficients          => shpafs_free_constraining_dirichlet_dofs_coefficients
      procedure          :: free_constraints_independent_term                      => shpafs_free_constraints_independent_term
      
-     procedure          :: get_num_fixed_dofs                                  => shpafs_get_num_fixed_dofs
+     procedure          :: get_num_fixed_dofs                                     => shpafs_get_num_fixed_dofs
      procedure          :: set_up_strong_dirichlet_bcs                            => shpafs_set_up_strong_dirichlet_bcs
-     procedure          :: update_fixed_dof_values                                => shpafs_update_fixed_dof_values
-     procedure          :: interpolate_dirichlet_values                           => shpafs_interpolate_dirichlet_values
+     procedure          :: update_hanging_dof_values                              => shpafs_update_hanging_dof_values
      
      procedure, private :: fill_facet_gids                              => shpafs_fill_facet_gids
      
