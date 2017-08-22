@@ -95,7 +95,7 @@ subroutine serial_fe_space_free (this)
   call this%free_ptr_lst_dofs()
   call this%free_at_strong_dirichlet_bound()
   nullify(this%conditions)
-  this%num_fixed_dof_values = 0
+  this%num_fixed_dofs = 0
   if (allocated(this%num_dofs_x_field)) call memfree( this%num_dofs_x_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
   call this%free_facet_integration()
@@ -236,8 +236,8 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   integer(ip), allocatable           :: visited_vef_to_cell_map(:,:)
   integer(ip)                        :: previous_num_dirichlet_dofs
   
-  ! Count num_fixed_dof_values
-  this%num_fixed_dof_values = 0
+  ! Count num_fixed_dofs
+  this%num_fixed_dofs = 0
   
   if ( .not. associated(this%conditions) ) then
     return
@@ -286,7 +286,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
                call this%conditions%get_components_code( vef%get_set_id(), components_code )
 
                ! Auxiliary function containing the work done at each innermost iteration
-               previous_num_dirichlet_dofs = this%num_fixed_dof_values
+               previous_num_dirichlet_dofs = this%num_fixed_dofs
                call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
                                                                       vef,&
                                                                       ivef,&
@@ -297,7 +297,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
                                                                       source_fe)
 
                if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 .and. &
-                    previous_num_dirichlet_dofs < this%num_fixed_dof_values ) then
+                    previous_num_dirichlet_dofs < this%num_fixed_dofs ) then
                   visited_vef_to_cell_map ( 1, vef%get_gid() ) = fe%get_gid()
                   visited_vef_to_cell_map ( 2, vef%get_gid() ) = ivef
                end if
@@ -352,7 +352,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
        if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 ) then
            call fe%generate_own_dofs_vef ( ivef, &
                                           field_id, &
-                                          this%num_fixed_dof_values, &
+                                          this%num_fixed_dofs, &
                                           free_dofs_loop=.false.)
        end if
      end if
@@ -360,7 +360,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
      if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 ) then
        call fe%generate_own_dofs_vef_component_wise ( ivef, &
                                                      field_id, &
-                                                     this%num_fixed_dof_values, &
+                                                     this%num_fixed_dofs, &
                                                      components_code, &
                                                      free_dofs_loop=.false. )
      end if
@@ -874,7 +874,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
   if (allocated(subset2global)) call memfree(subset2global,__FILE__,__LINE__)
   
   allocate( fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
-  call memalloc ( this%num_fixed_dof_values, global2subset, __FILE__, __LINE__ ) 
+  call memalloc ( this%num_fixed_dofs, global2subset, __FILE__, __LINE__ ) 
   global2subset=0
 
   ! Count number of Dirichlet DOFs to be projected
@@ -904,7 +904,7 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
   call memalloc ( num_subset_strong_dirichlet_dofs, subset2global, __FILE__, __LINE__ ) 
 
   idof_subset=1
-  do idof_global=1, this%num_fixed_dof_values
+  do idof_global=1, this%num_fixed_dofs
      if (global2subset(idof_global) /= 0) then
         subset2global(global2subset(idof_global)) = idof_global
      end if
@@ -2496,12 +2496,12 @@ subroutine serial_fe_space_set_conditions( this, conditions )
   this%conditions => conditions
 end subroutine serial_fe_space_set_conditions
 
-function serial_fe_space_get_num_fixed_dof_values(this) result(num_fixed_dof_values)
+function serial_fe_space_get_num_fixed_dofs(this) result(num_fixed_dofs)
   implicit none
   class(serial_fe_space_t), target, intent(in)    :: this 
-  integer(ip) :: num_fixed_dof_values
-  num_fixed_dof_values = this%num_fixed_dof_values
-end function serial_fe_space_get_num_fixed_dof_values
+  integer(ip) :: num_fixed_dofs
+  num_fixed_dofs = this%num_fixed_dofs
+end function serial_fe_space_get_num_fixed_dofs
 
 function serial_fe_space_get_num_blocks( this)
   implicit none
