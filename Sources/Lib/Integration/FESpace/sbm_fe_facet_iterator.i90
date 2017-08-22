@@ -128,13 +128,23 @@ function fe_facet_iterator_is_at_field_interior ( this, field_id )
   fe_facet_iterator_is_at_field_interior = facet_int%get_is_at_field_interior()
 end function fe_facet_iterator_is_at_field_interior
 
-subroutine fe_facet_iterator_update_num_dofs_x_field( this, icell_around )
+function fe_facet_iterator_get_num_dofs_field(this, icell_around, field_id)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in) :: icell_around
+  integer(ip), intent(in) :: field_id
+  integer(ip) :: fe_facet_iterator_get_num_dofs_field
+  call this%get_cell_around(icell_around,this%fe)
+  fe_facet_iterator_get_num_dofs_field = this%fe%get_num_dofs_field(field_id)
+end function fe_facet_iterator_get_num_dofs_field
+
+subroutine fe_facet_iterator_update_num_cell_dofs_x_cell_and_field( this, icell_around )
   implicit none
   class(fe_facet_iterator_t), intent(inout) :: this 
   integer(ip)              , intent(in)    :: icell_around
   call this%get_cell_around(icell_around, this%fe)
   call this%fe%update_num_dofs_x_field(this%num_cell_dofs_x_cell_and_field(icell_around,:))
-end subroutine fe_facet_iterator_update_num_dofs_x_field
+end subroutine fe_facet_iterator_update_num_cell_dofs_x_cell_and_field
 
 subroutine fe_facet_iterator_update_fe_dofs_x_cell( this )
   implicit none
@@ -172,7 +182,7 @@ subroutine fe_facet_iterator_update_integration( this )
     coords => this%facet_maps%get_coordinates_neighbour(icell_around, &
                                                  facet_lpos_within_cells_around(icell_around))
     call this%fe%get_coordinates(coords)
-    call this%update_num_dofs_x_field(icell_around)
+    call this%update_num_cell_dofs_x_cell_and_field(icell_around)
   end do
 
   call this%get_cell_around(1, this%fe)
@@ -202,7 +212,7 @@ subroutine fe_facet_iterator_assembly_array ( this,    &
   integer(ip) :: ineigh
   
   do ineigh=1, this%get_num_cells_around()
-    call this%update_num_dofs_x_field(ineigh)
+    call this%update_num_cell_dofs_x_cell_and_field(ineigh)
   end do
   
   call this%update_fe_dofs_x_cell()
@@ -228,7 +238,7 @@ subroutine fe_facet_iterator_assembly_matrix ( this,    &
   integer(ip) :: ineigh, jneigh
   
   do ineigh=1, this%get_num_cells_around()
-    call this%update_num_dofs_x_field(ineigh)
+    call this%update_num_cell_dofs_x_cell_and_field(ineigh)
   end do
   
   call this%update_fe_dofs_x_cell()
@@ -260,7 +270,7 @@ subroutine fe_facet_iterator_assembly_matrix_array ( this,    &
   integer(ip) :: ineigh, jneigh
   
   do ineigh=1, this%get_num_cells_around()
-    call this%update_num_dofs_x_field(ineigh)
+    call this%update_num_cell_dofs_x_cell_and_field(ineigh)
   end do
   
   call this%update_fe_dofs_x_cell()

@@ -181,7 +181,6 @@ contains
 
     quad               => fe_face%get_quadrature()
     num_quad_points    = quad%get_num_quadrature_points()
-    num_dofs_x_field => fe_face%get_num_dofs_x_field(1)
     
     call memalloc ( num_quad_points, pressure_boundary_function_values, __FILE__, __LINE__ )
     do while ( .not. fe_face%has_finished() )
@@ -195,7 +194,7 @@ contains
          do qpoint = 1, num_quad_points
             factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call fe_face%get_normals(qpoint,normals)
-            do idof = 1, fe%get_num_dofs_field(1)
+            do idof = 1, fe_face%get_num_dofs_field(1,1)
               facevec(idof,1) = facevec(idof,1) - &
                                 pressure_boundary_function_values(qpoint)*velocity_shape_values(idof,qpoint)*normals(1)*factor
             end do   

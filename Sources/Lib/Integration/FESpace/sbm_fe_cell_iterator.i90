@@ -470,7 +470,7 @@ function fe_cell_iterator_get_num_dofs_field(this, field_id)
                                    this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())
   else                                
      fe_cell_iterator_get_num_dofs_field = this%fe_space%ptr_dofs_x_fe(1, this%get_gid()+1)- &
-                                   this%fe_space%ptr_dofs_x_fe(1, this%get_gid())
+                                   this%fe_space%ptr_dofs_x_fe(this%fe_space%num_fields, this%get_gid())
   end if
 end function fe_cell_iterator_get_num_dofs_field
 
