@@ -306,37 +306,37 @@ function cell_iterator_get_vef_ggid (this, ivef)
   cell_iterator_get_vef_ggid = this%base_static_triangulation%vefs_gid(this%get_vef_gid(ivef))
 end function cell_iterator_get_vef_ggid
 
-function cell_iterator_get_vef_gid_from_gid (this, vef_lid)
+function cell_iterator_get_vef_lid_from_gid (this, vef_lid)
   implicit none
   class(cell_iterator_t), intent(in) :: this
   integer(ip)                        :: vef_lid
-  integer(ip)                        :: cell_iterator_get_vef_gid_from_gid
+  integer(ip)                        :: cell_iterator_get_vef_lid_from_gid
   integer(ip)                        :: ivef
-  cell_iterator_get_vef_gid_from_gid = -1
+  cell_iterator_get_vef_lid_from_gid = -1
   ! Find position of vef_lid in local element
   do ivef = 1, this%get_num_vefs()
     if ( this%get_vef_gid(ivef) == vef_lid ) then
-      cell_iterator_get_vef_gid_from_gid = ivef
+      cell_iterator_get_vef_lid_from_gid = ivef
       return 
     end if
   end do
-end function cell_iterator_get_vef_gid_from_gid
+end function cell_iterator_get_vef_lid_from_gid
 
-function cell_iterator_get_vef_gid_from_ggid (this, vef_gid)
+function cell_iterator_get_vef_lid_from_ggid (this, vef_gid)
   implicit none
   class(cell_iterator_t), intent(in) :: this
   integer(igp)                       :: vef_gid
-  integer(ip)                        :: cell_iterator_get_vef_gid_from_ggid
+  integer(ip)                        :: cell_iterator_get_vef_lid_from_ggid
   integer(ip)                        :: ivef
-  cell_iterator_get_vef_gid_from_ggid = -1
+  cell_iterator_get_vef_lid_from_ggid = -1
   ! Find position of vef_lid in local element
   do ivef = 1, this%get_num_vefs()
     if ( this%get_vef_ggid(ivef) == vef_gid ) then
-      cell_iterator_get_vef_gid_from_ggid = ivef
+      cell_iterator_get_vef_lid_from_ggid = ivef
       return 
     end if
   end do
-end function cell_iterator_get_vef_gid_from_ggid
+end function cell_iterator_get_vef_lid_from_ggid
 
 subroutine cell_iterator_get_vef (this, ivef, vef)
   implicit none
@@ -556,7 +556,7 @@ subroutine cell_iterator_fill_nodes_on_vef_new (this,ivef,node_count)
   class(lagrangian_reference_fe_t) , pointer       :: reference_fe
 
   reference_fe => this%get_reference_fe_geo()
-  ivef_pos_in_cell = this%get_vef_gid_from_gid(ivef)
+  ivef_pos_in_cell = this%get_vef_lid_from_gid(ivef)
 
   do inode = 1,reference_fe%get_num_own_dofs_n_face(ivef_pos_in_cell)
     l_node = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef_pos_in_cell)
@@ -582,10 +582,10 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   integer(ip) :: permutation_index, target_vef_dim, target_node_LID_cell, target_node_LID_vef
 
   source_ref_fe => this%get_reference_fe_geo()
-  source_vef_lid = this%get_vef_gid_from_gid(ivef)
+  source_vef_lid = this%get_vef_lid_from_gid(ivef)
 
   target_ref_fe => cell%get_reference_fe_geo()
-  target_vef_gid = cell%get_vef_gid_from_gid(ivef)
+  target_vef_gid = cell%get_vef_lid_from_gid(ivef)
   target_vef_dim = target_ref_fe%get_n_face_dim(target_vef_gid)
  
   source_vefs => this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &

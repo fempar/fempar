@@ -1050,7 +1050,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
      ! and one of the cells that owns it
      call fe_vef%set_gid(-improper_vef_lid)
      call fe_vef%get_cell_around(1,fe)
-     improper_vef_ivef = fe%get_vef_gid_from_gid(fe_vef%get_gid())
+     improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
      call fe%get_fe_dofs(fe_dofs)
 
      ! Retrieve all data related to the first improper cell around current improper vef
@@ -1111,7 +1111,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
      ! and one of the cells that owns it
      call fe_vef%set_gid(-improper_vef_lid)
      call fe_vef%get_cell_around(1,fe)
-     improper_vef_ivef = fe%get_vef_gid_from_gid(fe_vef%get_gid())
+     improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
      call fe%get_fe_dofs(fe_dofs)
 
      mcheck( this%p4est_triangulation%get_num_dims()==2 , 'The following code only valid for 2d cases' )
@@ -1568,15 +1568,15 @@ subroutine hpafeci_assembly_matrix_array ( this,  &
      call assembler%assembly_matrix( this%fe_space%num_fields,        &
                                                this%fe_space%get_field_blocks(),    &
                                                this%fe_space%get_field_coupling(),  &
-                                               this%get_num_dofs_x_field(),         &
-                                               this%get_num_dofs_x_field(),         &
+                                               this%num_cell_dofs_x_field,         &
+                                               this%num_cell_dofs_x_field,         &
                                                this%fe_dofs,                      &
                                                this%fe_dofs,                      &
                                                this%extended_elmat%a )
      call assembler%assembly_array( this%fe_space%num_fields,         &
                                               this%fe_space%get_field_blocks(),    &
                                               this%fe_space%get_field_coupling(),  &
-                                              this%get_num_dofs_x_field(),          &
+                                              this%num_cell_dofs_x_field,          &
                                               this%fe_dofs,                       &
                                               this%extended_elvec%a )
   end if
@@ -1615,15 +1615,15 @@ subroutine hpafeci_assembly_matrix_array_with_strong_bcs(this,fe_function,elmat,
      call assembler%assembly_matrix( this%fe_space%num_fields,        &
                                                this%fe_space%get_field_blocks(),    &
                                                this%fe_space%get_field_coupling(),  &
-                                               this%get_num_dofs_x_field(),         &
-                                               this%get_num_dofs_x_field(),         &
+                                               this%num_cell_dofs_x_field,         &
+                                               this%num_cell_dofs_x_field,         &
                                                this%fe_dofs,                      &
                                                this%fe_dofs,                      &
                                                this%extended_elmat%a )
      call assembler%assembly_array( this%fe_space%num_fields,         &
                                               this%fe_space%get_field_blocks(),    &
                                               this%fe_space%get_field_coupling(),  &
-                                              this%get_num_dofs_x_field(),          &
+                                              this%num_cell_dofs_x_field,          &
                                               this%fe_dofs,                       &
                                               this%extended_elvec%a )
   end if
@@ -1674,8 +1674,8 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
                     ! If not touched constraining free dof, compute gid to lid map, and insert this dof
                     ! in extended_fe_dofs
                     if ( this%gid_to_lid_map(iblock)%a(j_gid) == 0 ) then
-                       this%num_dofs_x_field(ifield) = this%num_dofs_x_field(ifield)+1
-                       this%gid_to_lid_map(iblock)%a(j_gid) = this%num_dofs_x_field(ifield)
+                       this%num_cell_dofs_x_field(ifield) = this%num_cell_dofs_x_field(ifield)+1
+                       this%gid_to_lid_map(iblock)%a(j_gid) = this%num_cell_dofs_x_field(ifield)
                        call this%extended_fe_dofs(ifield)%push_back(j_gid) 
                     end if
                  end do
@@ -1687,7 +1687,7 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
      end do
      
      ! Compute all extended dofs, and resize elmat and elvec accordingly
-     total_num_dofs = sum(this%num_dofs_x_field)
+     total_num_dofs = sum(this%num_cell_dofs_x_field)
      call this%extended_elmat%resize(total_num_dofs, total_num_dofs)
      call this%extended_elvec%resize(total_num_dofs)
 
@@ -1703,12 +1703,12 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
              & elmat(current_i:current_i+this%get_num_dofs_field(ifield)-1, &
              & current_j:current_j+this%get_num_dofs_field(jfield)-1)
            current_j = current_j + this%get_num_dofs_field(jfield)
-           current_extended_j = current_extended_j + this%num_dofs_x_field(jfield)  
+           current_extended_j = current_extended_j + this%num_cell_dofs_x_field(jfield)  
     end do
     this%extended_elvec%a(current_extended_i:current_extended_i+this%get_num_dofs_field(ifield)-1) &
          & = elvec(current_i:current_i+this%get_num_dofs_field(ifield)-1)
     current_i = current_i + this%get_num_dofs_field(ifield)
-    current_extended_i = current_extended_i + this%num_dofs_x_field(ifield)       
+    current_extended_i = current_extended_i + this%num_cell_dofs_x_field(ifield)       
     end do
 
      ! Now, we want to compute the matrix entries for the constraining free dofs, both the own constraining free dofs
@@ -1786,7 +1786,7 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
   strong_dirichlet_values         => fe_function%get_fixed_dof_values()
   strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
      do ifield=1, this%get_num_fields() 
-        do i_lid=1, this%num_dofs_x_field(ifield)
+        do i_lid=1, this%num_cell_dofs_x_field(ifield)
            i_gid = this%fe_dofs(ifield)%p(i_lid)
            ! i is a hanging DoF?
            if ( this%is_fixed_dof(i_gid) .and. .not. this%is_strong_dirichlet_dof(i_gid) ) then

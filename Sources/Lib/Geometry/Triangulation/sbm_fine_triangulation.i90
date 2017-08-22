@@ -492,7 +492,7 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
      call vef%get_cell_around(1,cell) ! There is always one cell around
      reference_fe_geo => cell%get_reference_fe_geo()
 
-     ivef_pos_in_cell = cell%get_vef_gid_from_gid(ivef)
+     ivef_pos_in_cell = cell%get_vef_lid_from_gid(ivef)
      
      if(vef%get_num_cells_around()==1) then ! vef is on the boundary
         if( vef%get_dim() == this%num_dims-1 ) then ! It is a face
@@ -567,7 +567,7 @@ subroutine fine_triangulation_compute_vefs_dim (this)
 
      cell_num_vefs_of_dim0   = reference_fe_geo%get_num_n_faces_of_dim(0)
      cell_num_vefs_of_dim1   = reference_fe_geo%get_num_n_faces_of_dim(1)
-     ivef_pos_in_cell = cell%get_vef_gid_from_gid(ivef)
+     ivef_pos_in_cell = cell%get_vef_lid_from_gid(ivef)
      if(ivef_pos_in_cell<=cell_num_vefs_of_dim0) then
         call vef%set_dim(0)
      else if(ivef_pos_in_cell<=cell_num_vefs_of_dim0+cell_num_vefs_of_dim1) then
@@ -711,7 +711,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
           ivef = vef%get_gid()
 
           call vef%get_cell_around (1, cell) ! there is always one element around
-          ivef_pos_in_cell = cell%get_vef_gid_from_gid(ivef)
+          ivef_pos_in_cell = cell%get_vef_lid_from_gid(ivef)
           cell_num_vefs = cell%get_num_vefs()
           call this%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
           assert(istat==key_found)

@@ -68,7 +68,7 @@ subroutine fe_cell_iterator_allocate_scratch_data ( this )
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: istat
   assert( associated(this%fe_space) )
-  call memalloc ( this%fe_space%num_fields, this%num_dofs_x_field, __FILE__, __LINE__ )
+  call memalloc ( this%fe_space%num_fields, this%num_cell_dofs_x_field, __FILE__, __LINE__ )
   allocate( this%fe_dofs(this%fe_space%num_fields), stat=istat); check(istat==0);
   allocate ( this%cell_integrators(this%fe_space%num_fields), stat=istat ); check(istat==0);
 end subroutine fe_cell_iterator_allocate_scratch_data
@@ -77,8 +77,8 @@ subroutine fe_cell_iterator_free_scratch_data ( this )
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: istat
-  if ( allocated(this%num_dofs_x_field) ) then
-    call memfree ( this%num_dofs_x_field, __FILE__, __LINE__ )
+  if ( allocated(this%num_cell_dofs_x_field) ) then
+    call memfree ( this%num_cell_dofs_x_field, __FILE__, __LINE__ )
   end if
   if ( allocated(this%fe_dofs) ) then
     deallocate ( this%fe_dofs, stat=istat ); check(istat==0);
@@ -405,20 +405,21 @@ subroutine fe_cell_iterator_renum_dofs_field ( this, field_id, perm_old2new )
   end do
 end subroutine fe_cell_iterator_renum_dofs_field
 
-subroutine fe_cell_iterator_update_num_dofs_x_field( this, num_dofs_x_field )
+subroutine fe_cell_iterator_update_scratch_data( this)
   implicit none
-  class(fe_cell_iterator_t), intent(in)    :: this 
-  integer(ip)         , intent(inout) :: num_dofs_x_field(:)
+  class(fe_cell_iterator_t), intent(inout)    :: this 
   integer(ip) :: field_id
-  
   do field_id = 1, this%get_num_fields()-1
-    num_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_fe(field_id+1, this%get_gid())- &
+    this%num_cell_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_fe(field_id+1, this%get_gid())- &
                                       this%fe_space%ptr_dofs_x_fe(field_id  , this%get_gid())
   end do
-  num_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_fe(1, this%get_gid()+1)- &
+  this%num_cell_dofs_x_field(field_id) = this%fe_space%ptr_dofs_x_fe(1, this%get_gid()+1)- &
                                     this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())
-  
-end subroutine fe_cell_iterator_update_num_dofs_x_field
+                                    
+  call this%get_fe_dofs(this%fe_dofs)
+end subroutine fe_cell_iterator_update_scratch_data
+
+
 
 subroutine fe_cell_iterator_update_integration( this )
   implicit none
@@ -440,8 +441,6 @@ subroutine fe_cell_iterator_update_integration( this )
   do field_id = 1, this%get_num_fields()
      call this%cell_integrators(field_id)%p%update(this%cell_map)
   end do
-  
-  call this%update_num_dofs_x_field(this%num_dofs_x_field)
   
 end subroutine fe_cell_iterator_update_integration
 
@@ -527,16 +526,10 @@ function fe_cell_iterator_get_num_dofs_field(this, field_id)
                                    this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())
   else                                
      fe_cell_iterator_get_num_dofs_field = this%fe_space%ptr_dofs_x_fe(1, this%get_gid()+1)- &
-                                   this%fe_space%ptr_dofs_x_fe(1, this%get_gid())
+                                   this%fe_space%ptr_dofs_x_fe(this%fe_space%num_fields, this%get_gid())
   end if
 end function fe_cell_iterator_get_num_dofs_field
 
-function fe_cell_iterator_get_num_dofs_x_field (this) result (num_dofs_x_field)
-  implicit none
-  class(fe_cell_iterator_t), target, intent(in) :: this
-  integer(ip), pointer :: num_dofs_x_field(:)
-  num_dofs_x_field => this%num_dofs_x_field
-end function fe_cell_iterator_get_num_dofs_x_field
 
 subroutine fe_cell_iterator_get_field_fe_dofs( this, field_id, fe_dofs )
   implicit none
@@ -972,11 +965,11 @@ subroutine fe_cell_iterator_assembly_array ( this,  &
   real(rp)                       , intent(in)    :: elvec(:)
   class(assembler_t), intent(inout) :: assembler
   
-  call this%get_fe_dofs(this%fe_dofs)
+  call this%update_scratch_data()
   call assembler%assembly_array( this%fe_space%num_fields,         &
                                               this%fe_space%get_field_blocks(),    &
                                               this%fe_space%get_field_coupling(),  &
-                                              this%num_dofs_x_field,          &
+                                              this%num_cell_dofs_x_field,          &
                                               this%fe_dofs,                       &
                                               elvec )
   
@@ -990,12 +983,12 @@ subroutine fe_cell_iterator_assembly_matrix ( this,  &
   real(rp)                       , intent(in)    :: elmat(:,:)
   class(assembler_t), intent(inout) :: assembler
   
-  call this%get_fe_dofs(this%fe_dofs)
+  call this%update_scratch_data()
   call assembler%assembly_matrix( this%fe_space%num_fields,        &
                                                this%fe_space%get_field_blocks(),   &
                                                this%fe_space%get_field_coupling(), &
-                                               this%num_dofs_x_field,         &
-                                               this%num_dofs_x_field,         &
+                                               this%num_cell_dofs_x_field,         &
+                                               this%num_cell_dofs_x_field,         &
                                                this%fe_dofs,                      &
                                                this%fe_dofs,                      &
                                                elmat )
@@ -1012,19 +1005,19 @@ subroutine fe_cell_iterator_assembly_matrix_array ( this,  &
   real(rp)                       , intent(in)    :: elvec(:)
   class(assembler_t), intent(inout) :: assembler
   
-  call this%get_fe_dofs(this%fe_dofs)
+  call this%update_scratch_data()
   call assembler%assembly_matrix( this%fe_space%num_fields,        &
                                                this%fe_space%get_field_blocks(),   &
                                                this%fe_space%get_field_coupling(), &
-                                               this%num_dofs_x_field,         &
-                                               this%num_dofs_x_field,         &
+                                               this%num_cell_dofs_x_field,         &
+                                               this%num_cell_dofs_x_field,         &
                                                this%fe_dofs,                      &
                                                this%fe_dofs,                      &
                                                elmat )
   call assembler%assembly_array( this%fe_space%num_fields,         &
                                               this%fe_space%get_field_blocks(),    &
                                               this%fe_space%get_field_coupling(),  &
-                                              this%num_dofs_x_field,          &
+                                              this%num_cell_dofs_x_field,          &
                                               this%fe_dofs,                       &
                                               elvec )
   

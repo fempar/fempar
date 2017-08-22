@@ -201,7 +201,7 @@ subroutine coarse_triangulation_print ( this )
      call this%create_cell_iterator(cell)
      write (*,'(a)') '       id      is_local   is_ghost  num_vefs    vef        vef  ....'
      do while ( .not. cell%has_finished() )
-         write(*,'(i10,2l10,10(2x,i10))') cell%get_gid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_gid_from_gid(ivef),ivef=1,cell%get_num_vefs())
+         write(*,'(i10,2l10,10(2x,i10))') cell%get_gid(), cell%is_local(), cell%is_ghost(), cell%get_num_vefs(), (cell%get_vef_lid_from_gid(ivef),ivef=1,cell%get_num_vefs())
          call cell%next()
      end do
      call this%free_cell_iterator(cell)

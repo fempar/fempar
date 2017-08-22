@@ -126,8 +126,8 @@ module base_static_triangulation_names
     procedure                            :: get_vef_gid             => cell_iterator_get_vef_gid
     procedure                            :: get_vef_gids            => cell_iterator_get_vef_gids
     procedure, non_overridable           :: get_vef_ggid             => cell_iterator_get_vef_ggid
-    procedure                            :: get_vef_gid_from_gid       => cell_iterator_get_vef_gid_from_gid
-    procedure, non_overridable           :: get_vef_gid_from_ggid       => cell_iterator_get_vef_gid_from_ggid
+    procedure                            :: get_vef_lid_from_gid       => cell_iterator_get_vef_lid_from_gid
+    procedure, non_overridable           :: get_vef_lid_from_ggid       => cell_iterator_get_vef_lid_from_ggid
     procedure                            :: get_vef                 => cell_iterator_get_vef
     procedure                            :: is_local                => cell_iterator_is_local
     procedure                            :: is_ghost                => cell_iterator_is_ghost

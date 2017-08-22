@@ -95,7 +95,7 @@ subroutine p4est_vef_iterator_get_coordinates (this, vef_coordinates)
   call this%get_cell_around(1, cell)
   reference_fe_geo => cell%get_reference_fe_geo()
   num_vertices = reference_fe_geo%get_num_vertices()
-  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_gid_from_gid(this%get_gid()))
+  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
   inode_within_vef = 1
   do while (.not. dofs_on_vef_iterator%is_upper_bound())     
     inode_within_cell = dofs_on_vef_iterator%get_current()

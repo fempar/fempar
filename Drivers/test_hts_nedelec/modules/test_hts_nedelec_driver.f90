@@ -304,7 +304,6 @@ contains
     type(i1p_t)              , pointer     :: fe_dofs(:)
     integer(ip)                            :: i, inode, vector_size
     integer(ip)                            :: num_dofs, num_fields 
-    integer(ip)              , pointer     :: num_dofs_x_field(:) 
     real(rp)                 , allocatable :: elvec(:), facevec(:) 
     real(rp)                               :: factor  
     integer(ip)  :: istat 
@@ -333,7 +332,6 @@ contains
     
     num_fields         =  this%fe_space%get_num_fields()
     num_dofs              =  fe%get_num_dofs()
-    num_dofs_x_field => fe%get_num_dofs_x_field()
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
     allocate( fe_dofs(num_fields), stat=istat); check(istat==0);
     
@@ -356,13 +354,13 @@ contains
           ! Integrate J over the hts subdomain 
           do qpoin=1, num_qpoints
              factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						
-             do inode = 1, num_dofs_x_field(1)  
+             do inode = 1, fe%get_num_dofs_field(1)  
                 elvec(inode) = elvec(inode) + factor * curl_values(inode,qpoin)%get(3) 
              end do
           end do
 
           ! Add element contribution to matrix and vector 
-          do i = 1, num_dofs_x_field(1) 
+          do i = 1, fe%get_num_dofs_field(1) 
              idof = fe_dofs(1)%p(i) 
              if ( idof > 0 ) then 
                  call this%constraint_matrix%insert( idof, 1, elvec(i) )
@@ -385,7 +383,6 @@ contains
        end do
 
        num_dofs              =  fe%get_num_dofs() 
-       num_dofs_x_field => fe_face%get_num_dofs_x_field(1)
        call memalloc ( num_dofs, facevec, __FILE__, __LINE__ )
        quad            => fe_face%get_quadrature()
        num_qpoints  =  quad%get_num_quadrature_points()
@@ -401,7 +398,7 @@ contains
                 call fe_face%update_integration()    
                 do qpoin = 1, num_qpoints
                    factor = fe_face%get_det_jacobian(qpoin) * quad%get_weight(qpoin)
-                   do idof = 1, num_dofs_x_field(1) 
+                   do idof = 1, fe%get_num_dofs_field(1) 
                       facevec(idof) = facevec(idof) + factor * curl_values(idof,qpoin)%get(3) 
                    end do
                 end do
@@ -409,7 +406,7 @@ contains
                 call fe_face%get_fe_dofs(1, fe_dofs)
 
                 ! Add element contribution to vector 
-                do i = 1, num_dofs_x_field(1) 
+                do i = 1, fe%get_num_dofs_field(1) 
                    idof = fe_dofs(1)%p(i) 
                    if ( idof > 0 ) then 
                       call this%constraint_matrix%insert( idof, 1, facevec(i) )
