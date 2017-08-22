@@ -1055,9 +1055,6 @@ module fe_space_names
      integer(ip)                                 :: num_hanging_dofs = -1
      integer(ip)                                 :: num_dirichlet_dofs = -1
      
-     type(std_vector_integer_ip_t)               :: ptr_constraint_dofs
-     type(std_vector_integer_ip_t)               :: constraint_dofs_dependencies
-     type(std_vector_real_rp_t)                  :: constraint_dofs_coefficients
      ! The two prev arrays will be eliminated when the development in issue 179 will be finished
      type(std_vector_integer_ip_t)               :: ptr_constraining_free_dofs
      type(std_vector_integer_ip_t)               :: ptr_constraining_dirichlet_dofs
@@ -1081,10 +1078,6 @@ module fe_space_names
      procedure, private :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
      
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
-     procedure          :: transfer_dirichlet_to_constraint_dof_coefficients      => shpafs_transfer_dirichlet_to_constraint_dof_coefficients
-     procedure          :: free_ptr_constraint_dofs                               => shpafs_free_ptr_constraint_dofs
-     procedure          :: free_constraint_dofs_dependencies                      => shpafs_free_constraint_dofs_dependencies
-     procedure          :: free_constraint_dofs_coefficients                      => shpafs_free_constraint_dofs_coefficients
      procedure          :: free_ptr_constraining_free_dofs                        => shpafs_free_ptr_constraining_free_dofs
      procedure          :: free_constraining_free_dofs                            => shpafs_free_constraining_free_dofs
      procedure          :: free_constraining_free_dofs_coefficients               => shpafs_free_constraining_free_dofs_coefficients
@@ -1115,9 +1108,6 @@ module fe_space_names
  contains
    procedure          :: create                     => hp_adaptive_fe_cell_iterator_create
    procedure          :: free                       => hp_adaptive_fe_cell_iterator_free
-   procedure          :: assemble                   => hp_adaptive_fe_cell_iterator_assemble
-   procedure, private :: recursive_matrix_assembly  => hp_adaptive_fe_cell_iterator_recursive_matrix_assembly
-   procedure, private :: recursive_vector_assembly  => hp_adaptive_fe_cell_iterator_recursive_vector_assembly
    procedure, non_overridable, private :: apply_constraints => hp_adaptive_fe_cell_iterator_apply_constraints
    procedure, private :: hpafeci_impose_strong_dirichlet_bcs
    procedure, private :: hpafeci_allocate_block_based_scratch_data
@@ -1138,9 +1128,6 @@ module fe_space_names
    procedure          :: compute_fe_facet_permutation_index => hpafefi_compute_fe_facet_permutation_index
    procedure          :: get_lpos_within_cell_around    => hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around
    procedure, private :: get_subfacet_lid_cell_around    => hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around
-   procedure          :: assemble                       => hp_adaptive_fe_facet_iterator_assemble
-   procedure, private :: recursive_matrix_assembly      => hp_adaptive_fe_facet_iterator_recursive_matrix_assembly
-   procedure, private :: recursive_vector_assembly      => hp_adaptive_fe_facet_iterator_recursive_vector_assembly
  end type hp_adaptive_fe_facet_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t
