@@ -34,7 +34,7 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   call this%free()
   this%fe_space => fe_space
   call this%fe_space%triangulation%create_cell_iterator(this%cell)
-  call memalloc ( this%fe_space%num_fields, this%num_dofs_x_field, __FILE__, __LINE__ )
+  call memalloc ( this%fe_space%num_fields, this%num_cell_dofs_x_field, __FILE__, __LINE__ )
   allocate( this%fe_dofs(this%fe_space%num_fields), stat=istat); check(istat==0);
 end subroutine fe_cell_iterator_create
 
@@ -48,8 +48,8 @@ subroutine fe_cell_iterator_free (this)
     end if
   end if
   nullify(this%fe_space)
-  if ( allocated(this%num_dofs_x_field) ) then
-    call memfree ( this%num_dofs_x_field, __FILE__, __LINE__ )
+  if ( allocated(this%num_cell_dofs_x_field) ) then
+    call memfree ( this%num_cell_dofs_x_field, __FILE__, __LINE__ )
   end if
   if ( allocated(this%fe_dofs) ) then
     deallocate ( this%fe_dofs, stat=istat ); check(istat==0);
@@ -394,8 +394,6 @@ subroutine fe_cell_iterator_update_integration( this )
      call cell_integrator%update(this%cell_map)
   end do
   
-  call this%update_num_dofs_x_field(this%num_dofs_x_field)
-  
 end subroutine fe_cell_iterator_update_integration
 
 function fe_cell_iterator_get_fe_space(this)
@@ -454,12 +452,22 @@ function fe_cell_iterator_get_num_dofs(this)
                                 this%fe_space%ptr_dofs_x_fe(1, this%get_gid())
 end function fe_cell_iterator_get_num_dofs
 
-function fe_cell_iterator_get_num_dofs_x_field (this) result (num_dofs_x_field)
+
+function fe_cell_iterator_get_num_dofs_field(this, field_id)
   implicit none
-  class(fe_cell_iterator_t), target, intent(in) :: this
-  integer(ip), pointer :: num_dofs_x_field(:)
-  num_dofs_x_field => this%num_dofs_x_field
-end function fe_cell_iterator_get_num_dofs_x_field
+  class(fe_cell_iterator_t), intent(in) :: this
+  integer(ip), intent(in) :: field_id
+  integer(ip) :: fe_cell_iterator_get_num_dofs_field
+  
+  if ( field_id < this%fe_space%num_fields ) then
+     fe_cell_iterator_get_num_dofs_field = this%fe_space%ptr_dofs_x_fe(field_id+1, this%get_gid())- &
+                                   this%fe_space%ptr_dofs_x_fe(field_id, this%get_gid())
+  else                                
+     fe_cell_iterator_get_num_dofs_field = this%fe_space%ptr_dofs_x_fe(1, this%get_gid()+1)- &
+                                   this%fe_space%ptr_dofs_x_fe(1, this%get_gid())
+  end if
+end function fe_cell_iterator_get_num_dofs_field
+
 
 subroutine fe_cell_iterator_get_field_fe_dofs( this, field_id, fe_dofs )
   implicit none
@@ -825,11 +833,12 @@ subroutine fe_cell_iterator_assembly_array ( this,  &
   real(rp)                       , intent(in)    :: elvec(:)
   class(assembler_t), intent(inout) :: assembler
   
+  call this%update_num_dofs_x_field(this%num_cell_dofs_x_field)
   call this%get_fe_dofs(this%fe_dofs)
   call assembler%assembly_array( this%fe_space%num_fields,         &
                                               this%fe_space%get_field_blocks(),    &
                                               this%fe_space%get_field_coupling(),  &
-                                              this%num_dofs_x_field,          &
+                                              this%num_cell_dofs_x_field,          &
                                               this%fe_dofs,                       &
                                               elvec )
   
@@ -843,12 +852,13 @@ subroutine fe_cell_iterator_assembly_matrix ( this,  &
   real(rp)                       , intent(in)    :: elmat(:,:)
   class(assembler_t), intent(inout) :: assembler
   
+  call this%update_num_dofs_x_field(this%num_cell_dofs_x_field)
   call this%get_fe_dofs(this%fe_dofs)
   call assembler%assembly_matrix( this%fe_space%num_fields,        &
                                                this%fe_space%get_field_blocks(),   &
                                                this%fe_space%get_field_coupling(), &
-                                               this%num_dofs_x_field,         &
-                                               this%num_dofs_x_field,         &
+                                               this%num_cell_dofs_x_field,         &
+                                               this%num_cell_dofs_x_field,         &
                                                this%fe_dofs,                      &
                                                this%fe_dofs,                      &
                                                elmat )
@@ -865,19 +875,20 @@ subroutine fe_cell_iterator_assembly_matrix_array ( this,  &
   real(rp)                       , intent(in)    :: elvec(:)
   class(assembler_t), intent(inout) :: assembler
   
+  call this%update_num_dofs_x_field(this%num_cell_dofs_x_field)
   call this%get_fe_dofs(this%fe_dofs)
   call assembler%assembly_matrix( this%fe_space%num_fields,        &
                                                this%fe_space%get_field_blocks(),   &
                                                this%fe_space%get_field_coupling(), &
-                                               this%num_dofs_x_field,         &
-                                               this%num_dofs_x_field,         &
+                                               this%num_cell_dofs_x_field,         &
+                                               this%num_cell_dofs_x_field,         &
                                                this%fe_dofs,                      &
                                                this%fe_dofs,                      &
                                                elmat )
   call assembler%assembly_array( this%fe_space%num_fields,         &
                                               this%fe_space%get_field_blocks(),    &
                                               this%fe_space%get_field_coupling(),  &
-                                              this%num_dofs_x_field,          &
+                                              this%num_cell_dofs_x_field,          &
                                               this%fe_dofs,                       &
                                               elvec )
   

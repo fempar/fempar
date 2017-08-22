@@ -174,7 +174,7 @@ module fe_space_names
     private
     class(serial_fe_space_t), pointer     :: fe_space => NULL()
     ! Scratch data to support FE integration
-    integer(ip)             , allocatable :: num_dofs_x_field(:)
+    integer(ip)             , allocatable :: num_cell_dofs_x_field(:)
     type(i1p_t)             , allocatable :: fe_dofs(:)
     type(cell_map_t)        , pointer     :: cell_map
   contains
@@ -205,7 +205,7 @@ module fe_space_names
 
     procedure, non_overridable          :: get_field_blocks                           => fe_cell_iterator_get_field_blocks
     procedure, non_overridable          :: get_num_dofs                               => fe_cell_iterator_get_num_dofs
-    procedure, non_overridable          :: get_num_dofs_x_field                       => fe_cell_iterator_get_num_dofs_x_field
+    procedure, non_overridable          :: get_num_dofs_field                       => fe_cell_iterator_get_num_dofs_field
     procedure, non_overridable          :: get_field_fe_dofs                          => fe_cell_iterator_get_field_fe_dofs
     procedure, non_overridable          :: get_fe_dofs                                => fe_cell_iterator_get_fe_dofs
     procedure, non_overridable          :: get_order                                  => fe_cell_iterator_get_order
@@ -298,7 +298,7 @@ module fe_space_names
     integer(ip)                       :: facet_gid
     class(fe_cell_iterator_t), allocatable :: fe
     ! Scratch data to support FE face integration
-    integer(ip)         , allocatable :: num_dofs_x_cell_and_field(:,:)
+    integer(ip)         , allocatable :: num_cell_dofs_x_cell_and_field(:,:)
     type(i1p_t)         , allocatable :: fe_dofs_x_cell(:,:)
     type(facet_maps_t)  , pointer     :: facet_maps
    contains
