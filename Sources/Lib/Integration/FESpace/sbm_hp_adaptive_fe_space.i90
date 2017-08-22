@@ -610,7 +610,7 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
                                           this%get_field_num_dofs(field_id))
   this%num_hanging_dofs = current_fixed_dof - init_fixed_dof
   ! this%num_fixed_dofs = this%num_hanging_dofs + this%num_dirichlet_dof
-  this%num_fixed_dofs = this%num_fixed_dofs + current_fixed_dof - init_fixed_dof
+  this%num_fixed_dofs = current_fixed_dof
 end subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
 
 subroutine shpafs_setup_hanging_node_constraints ( this )
