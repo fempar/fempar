@@ -239,7 +239,8 @@ module fe_space_names
     procedure, non_overridable          :: fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields
     generic                             :: determine_at_strong_dirichlet_boundary     => fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field, &
                                                                                          fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields
-    procedure, non_overridable          :: determine_has_fixed_dofs                   => fe_cell_iterator_set_has_fixed_dofs                                                                                     
+    procedure, non_overridable          :: determine_has_fixed_dofs                   => fe_cell_iterator_set_has_fixed_dofs
+    procedure                           :: determine_has_hanging_dofs                 => fe_cell_iterator_set_has_hanging_dofs
     procedure                           :: is_strong_dirichlet_dof                    => fe_cell_iterator_is_strong_dirichlet_dof   
     procedure, non_overridable          :: is_fixed_dof                               => fe_cell_iterator_is_fixed_dof
     procedure, non_overridable          :: compute_volume                             => fe_cell_iterator_compute_volume
@@ -1051,6 +1052,9 @@ module fe_space_names
      integer(ip)                                 :: num_hanging_dofs = -1
      integer(ip)                                 :: num_dirichlet_dofs = -1
      
+     ! Acceleration array to skip cells without handing DOFs
+     logical                       , allocatable :: has_hanging_dofs_x_fe(:,:)
+     
      ! The two prev arrays will be eliminated when the development in issue 179 will be finished
      type(std_vector_integer_ip_t)               :: ptr_constraining_free_dofs
      type(std_vector_integer_ip_t)               :: ptr_constraining_dirichlet_dofs
@@ -1072,6 +1076,9 @@ module fe_space_names
      
      procedure          :: generate_global_dof_numbering                                          => serial_hp_adaptive_fe_space_generate_global_dof_numbering
      procedure, private :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
+     
+     procedure          :: allocate_and_init_has_hanging_dofs_x_fe                => shpafs_allocate_and_init_has_hanging_dofs_x_fe
+     procedure, private :: free_has_hanging_dofs_x_fe                             => shpafs_free_has_hanging_dofs_x_fe
      
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
      procedure          :: free_ptr_constraining_free_dofs                        => shpafs_free_ptr_constraining_free_dofs
@@ -1103,6 +1110,9 @@ module fe_space_names
    procedure          :: create                     => hp_adaptive_fe_cell_iterator_create
    procedure          :: free                       => hp_adaptive_fe_cell_iterator_free
    procedure          :: is_strong_dirichlet_dof    => hpafeci_is_strong_dirichlet_dof
+   procedure          :: is_hanging_dof             => hpafeci_is_hanging_dof
+   procedure, non_overridable :: has_hanging_dofs           => hpafeci_has_hanging_dofs
+   procedure                  :: determine_has_hanging_dofs => hpafeci_set_has_hanging_dofs
    procedure, non_overridable, private :: apply_constraints => hp_adaptive_fe_cell_iterator_apply_constraints
    procedure, private :: hpafeci_impose_strong_dirichlet_bcs
    procedure, private :: hpafeci_allocate_block_based_scratch_data

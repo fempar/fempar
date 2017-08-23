@@ -641,6 +641,12 @@ subroutine fe_cell_iterator_set_has_fixed_dofs ( this, field_id )
   end do  
 end subroutine fe_cell_iterator_set_has_fixed_dofs
 
+subroutine fe_cell_iterator_set_has_hanging_dofs ( this, field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: field_id
+  check(.false.)
+end subroutine fe_cell_iterator_set_has_hanging_dofs
 
 subroutine fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields ( this )
   implicit none
