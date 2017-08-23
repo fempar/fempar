@@ -89,7 +89,7 @@ contains
     real(rp), optional , intent(inout) :: h1_semi_norm_boundary
     real(rp), optional , intent(inout) :: l2_norm_boundary
 
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
     real(rp), allocatable :: nodal_vals(:)
     real(rp), allocatable :: element_vals(:)
     type(vector_field_t), allocatable :: grad_element_vals(:)

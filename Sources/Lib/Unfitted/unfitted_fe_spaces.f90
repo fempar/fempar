@@ -79,22 +79,22 @@ module unfitted_fe_spaces_names
 
   end type unfitted_fe_cell_iterator_t
 
-  type, extends(unfitted_fe_iterator_t) :: unfitted_hp_adaptive_fe_iterator_t
-      type (hp_adaptive_fe_iterator_t) :: adaptive_fe
+  type, extends(unfitted_fe_cell_iterator_t) :: unfitted_hp_adaptive_fe_cell_iterator_t
+      type (hp_adaptive_fe_cell_iterator_t) :: adaptive_fe
     contains
 
       ! We need to override the functions that change the state
-      procedure :: create               => unfitted_hp_adaptive_fe_iterator_create
-      procedure :: free                 => unfitted_hp_adaptive_fe_iterator_free
-      procedure :: next                 => unfitted_hp_adaptive_fe_iterator_next
-      procedure :: first                => unfitted_hp_adaptive_fe_iterator_first
-      procedure :: last                 => unfitted_hp_adaptive_fe_iterator_last
-      procedure :: set_lid              => unfitted_hp_adaptive_fe_iterator_set_lid
+      procedure :: create               => unfitted_hp_adaptive_fe_cell_iterator_create
+      procedure :: free                 => unfitted_hp_adaptive_fe_cell_iterator_free
+      procedure :: next                 => unfitted_hp_adaptive_fe_cell_iterator_next
+      procedure :: first                => unfitted_hp_adaptive_fe_cell_iterator_first
+      procedure :: last                 => unfitted_hp_adaptive_fe_cell_iterator_last
+      procedure :: set_lid              => unfitted_hp_adaptive_fe_cell_iterator_set_lid
 
-      ! Overridden in hp_adaptive_fe_iterator_t
-      procedure :: assemble             => unfitted_hp_adaptive_fe_iterator_assemble
+      ! Overridden in hp_adaptive_fe_cell_iterator_t
+      procedure :: assemble             => unfitted_hp_adaptive_fe_cell_iterator_assemble
 
-  end type unfitted_hp_adaptive_fe_iterator_t
+  end type unfitted_hp_adaptive_fe_cell_iterator_t
 
 
   type :: unfitted_integration_manager_t
@@ -178,11 +178,11 @@ module unfitted_fe_spaces_names
       procedure           :: set_use_constraints                                    => suhpafs_set_use_constraints
       
       ! Creation of the iterator
-      procedure :: create_fe_iterator                                               => suhpafs_create_fe_iterator
+      procedure :: create_fe_cell_iterator                                               => suhpafs_create_fe_cell_iterator
       
       ! Creation of constrained degrees of freedom
       procedure          :: generate_global_dof_numbering                                           => suhpafs_generate_global_dof_numbering 
-      procedure          :: fill_elem2dof_and_count_dofs                            => suhpafs_procedure_fill_elem2dof_and_count_dofs
+      procedure          :: fill_fe_dofs_and_count_dofs                            => suhpafs_procedure_fill_fe_dofs_and_count_dofs
 
       ! Getters
       procedure, non_overridable :: get_aggregate_ids                               => suhpafs_get_aggregate_ids
@@ -215,8 +215,8 @@ module unfitted_fe_spaces_names
 
 
 <<<<<<< HEAD
-  public :: unfitted_fe_iterator_t
-  public :: unfitted_hp_adaptive_fe_iterator_t
+  public :: unfitted_fe_cell_iterator_t
+  public :: unfitted_hp_adaptive_fe_cell_iterator_t
 =======
   public :: unfitted_fe_cell_iterator_t
 >>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
@@ -227,8 +227,8 @@ module unfitted_fe_spaces_names
 contains
 
 <<<<<<< HEAD
-#include "sbm_unfitted_fe_iterator.i90"
-#include "sbm_unfitted_hp_adaptive_fe_iterator.i90"
+#include "sbm_unfitted_fe_cell_iterator.i90"
+#include "sbm_unfitted_hp_adaptive_fe_cell_iterator.i90"
 =======
 #include "sbm_unfitted_fe_cell_iterator.i90"
 >>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979

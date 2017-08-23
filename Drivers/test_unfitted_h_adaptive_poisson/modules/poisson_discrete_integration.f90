@@ -86,7 +86,7 @@ contains
 
     ! FE space traversal-related data types
     ! TODO We need this because the accesors and iterators are not polymorphic
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
     type(cell_map_t)           , pointer :: cell_map
@@ -116,7 +116,7 @@ contains
     integer(ip), pointer :: field_blocks(:)
     logical    , pointer :: field_coupling(:,:)
 
-    type(i1p_t), allocatable :: elem2dof(:)
+    type(i1p_t), allocatable :: fe_dofs(:)
     integer(ip), allocatable :: num_dofs_x_field(:)
     class(scalar_function_t), pointer :: source_term
     class(scalar_function_t), pointer :: exact_sol
@@ -135,13 +135,13 @@ contains
 
     assert (associated(this%analytical_functions))
 
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
 
     source_term => this%analytical_functions%get_source_term()
     exact_sol   => this%analytical_functions%get_solution_function()
 
     num_fields = fe_space%get_num_fields()
-    allocate( elem2dof(num_fields), stat=istat); check(istat==0);
+    allocate( fe_dofs(num_fields), stat=istat); check(istat==0);
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
 
@@ -191,7 +191,7 @@ contains
        call fe%get_num_dofs_x_field(num_dofs_x_field)
 
        ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
+       call fe%get_fe_dofs(fe_dofs)
 
        ! Get quadrature coordinates to evaluate source_term
        quad_coords => cell_map%get_quadrature_coordinates()
@@ -340,7 +340,7 @@ contains
        end if ! Only for cut elems
 
        !call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       !call assembler%assembly( num_fields, num_dofs_x_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+       !call assembler%assembly( num_fields, num_dofs_x_field, fe_dofs, field_blocks, field_coupling, elmat, elvec )
        call fe%assemble(elmat, elvec, assembler)
        call fe%next()
 
@@ -352,7 +352,7 @@ contains
     deallocate (shape_gradients, stat=istat); check(istat==0);
     deallocate (boundary_shape_gradients, stat=istat); check(istat==0);
 
-    deallocate (elem2dof, stat=istat); check(istat==0);
+    deallocate (fe_dofs, stat=istat); check(istat==0);
     call memfree ( num_dofs_x_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
@@ -361,7 +361,7 @@ contains
     call memfree ( elmatV, __FILE__, __LINE__ )
     call memfree ( shape2mono, __FILE__, __LINE__ )
     call eigs%free()
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
   end subroutine integrate
 
 end module poisson_unfitted_cG_discrete_integration_names

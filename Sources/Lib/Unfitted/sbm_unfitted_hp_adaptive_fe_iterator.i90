@@ -27,62 +27,62 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !===============================================================================
-subroutine unfitted_hp_adaptive_fe_iterator_create ( this, fe_space )
+subroutine unfitted_hp_adaptive_fe_cell_iterator_create ( this, fe_space )
   implicit none
-  class(unfitted_hp_adaptive_fe_iterator_t)            , intent(inout) :: this
+  class(unfitted_hp_adaptive_fe_cell_iterator_t)            , intent(inout) :: this
   class(serial_fe_space_t), target, intent(in)    :: fe_space
-  call this%unfitted_fe_iterator_t%create(fe_space)
+  call this%unfitted_fe_cell_iterator_t%create(fe_space)
   call this%adaptive_fe%create(fe_space)
-end subroutine unfitted_hp_adaptive_fe_iterator_create
+end subroutine unfitted_hp_adaptive_fe_cell_iterator_create
 
 !===============================================================================
-subroutine unfitted_hp_adaptive_fe_iterator_free (this)
+subroutine unfitted_hp_adaptive_fe_cell_iterator_free (this)
   implicit none
-  class(unfitted_hp_adaptive_fe_iterator_t), intent(inout) :: this
-  call this%unfitted_fe_iterator_t%free()
+  class(unfitted_hp_adaptive_fe_cell_iterator_t), intent(inout) :: this
+  call this%unfitted_fe_cell_iterator_t%free()
   call this%adaptive_fe%free()
-end subroutine unfitted_hp_adaptive_fe_iterator_free
+end subroutine unfitted_hp_adaptive_fe_cell_iterator_free
 
 !===============================================================================
-subroutine unfitted_hp_adaptive_fe_iterator_next(this)
+subroutine unfitted_hp_adaptive_fe_cell_iterator_next(this)
   implicit none
-  class(unfitted_hp_adaptive_fe_iterator_t), intent(inout) :: this
-  call this%unfitted_fe_iterator_t%next()
+  class(unfitted_hp_adaptive_fe_cell_iterator_t), intent(inout) :: this
+  call this%unfitted_fe_cell_iterator_t%next()
   call this%adaptive_fe%next()
-end subroutine unfitted_hp_adaptive_fe_iterator_next
+end subroutine unfitted_hp_adaptive_fe_cell_iterator_next
 
 !===============================================================================
-subroutine unfitted_hp_adaptive_fe_iterator_first(this)
+subroutine unfitted_hp_adaptive_fe_cell_iterator_first(this)
   implicit none
-  class(unfitted_hp_adaptive_fe_iterator_t), intent(inout) :: this
-  call this%unfitted_fe_iterator_t%first()
+  class(unfitted_hp_adaptive_fe_cell_iterator_t), intent(inout) :: this
+  call this%unfitted_fe_cell_iterator_t%first()
   call this%adaptive_fe%first()
-end subroutine unfitted_hp_adaptive_fe_iterator_first
+end subroutine unfitted_hp_adaptive_fe_cell_iterator_first
 
 !===============================================================================
-subroutine unfitted_hp_adaptive_fe_iterator_last(this)
+subroutine unfitted_hp_adaptive_fe_cell_iterator_last(this)
   implicit none
-  class(unfitted_hp_adaptive_fe_iterator_t), intent(inout) :: this
-  call this%unfitted_fe_iterator_t%last()
+  class(unfitted_hp_adaptive_fe_cell_iterator_t), intent(inout) :: this
+  call this%unfitted_fe_cell_iterator_t%last()
   call this%adaptive_fe%last()
-end subroutine unfitted_hp_adaptive_fe_iterator_last
+end subroutine unfitted_hp_adaptive_fe_cell_iterator_last
 
 !===============================================================================
-subroutine unfitted_hp_adaptive_fe_iterator_set_lid(this, lid)
+subroutine unfitted_hp_adaptive_fe_cell_iterator_set_lid(this, lid)
   implicit none
-  class(unfitted_hp_adaptive_fe_iterator_t), intent(inout) :: this
+  class(unfitted_hp_adaptive_fe_cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
-  call this%unfitted_fe_iterator_t%set_lid(lid)
+  call this%unfitted_fe_cell_iterator_t%set_lid(lid)
   call this%adaptive_fe%set_lid(lid)
-end subroutine unfitted_hp_adaptive_fe_iterator_set_lid
+end subroutine unfitted_hp_adaptive_fe_cell_iterator_set_lid
 
 !===============================================================================
-subroutine unfitted_hp_adaptive_fe_iterator_assemble(this,elmat,elvec,assembler)
+subroutine unfitted_hp_adaptive_fe_cell_iterator_assemble(this,elmat,elvec,assembler)
   implicit none
-  class(unfitted_hp_adaptive_fe_iterator_t), intent(in)    :: this
+  class(unfitted_hp_adaptive_fe_cell_iterator_t), intent(in)    :: this
   real(rp)                        , intent(in)    :: elmat(:,:)
   real(rp)                        , intent(in)    :: elvec(:)
   class(assembler_t) , intent(inout) :: assembler
   call this%adaptive_fe%assemble(elmat,elvec,assembler)
-end subroutine unfitted_hp_adaptive_fe_iterator_assemble
+end subroutine unfitted_hp_adaptive_fe_cell_iterator_assemble
 

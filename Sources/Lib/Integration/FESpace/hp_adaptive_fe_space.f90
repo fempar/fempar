@@ -69,7 +69,7 @@ module hp_adaptive_fe_space_names
      type(p4est_serial_triangulation_t), pointer, public :: p4est_triangulation =>  NULL()
    contains
      procedure                            :: create_fe_vef_iterator                                 => serial_hp_adaptive_fe_space_create_fe_vef_iterator
-     procedure                            :: create_fe_iterator                                     => serial_hp_adaptive_fe_space_create_fe_iterator
+     procedure                            :: create_fe_cell_iterator                                     => serial_hp_adaptive_fe_space_create_fe_cell_iterator
      
      
      procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
@@ -78,7 +78,7 @@ module hp_adaptive_fe_space_names
      
      
      procedure          :: generate_global_dof_numbering                                          => serial_hp_adaptive_fe_space_generate_global_dof_numbering
-     procedure          :: fill_elem2dof_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs
+     procedure          :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
      
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
      procedure          :: transfer_dirichlet_to_constraint_dof_coefficients      => shpafs_transfer_dirichlet_to_constraint_dof_coefficients
@@ -98,26 +98,26 @@ module hp_adaptive_fe_space_names
      procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
  end type serial_hp_adaptive_fe_space_t  
  
- type, extends(fe_iterator_t) :: hp_adaptive_fe_iterator_t
+ type, extends(fe_cell_iterator_t) :: hp_adaptive_fe_cell_iterator_t
    private 
    type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
  contains
-   procedure          :: create                     => hp_adaptive_fe_iterator_create
-   procedure          :: free                       => hp_adaptive_fe_iterator_free
-   procedure          :: assemble                   => hp_adaptive_fe_iterator_assemble
-   procedure, private :: recursive_matrix_assembly  => hp_adaptive_fe_iterator_recursive_matrix_assembly
-   procedure, private :: recursive_vector_assembly  => hp_adaptive_fe_iterator_recursive_vector_assembly
- end type hp_adaptive_fe_iterator_t
+   procedure          :: create                     => hp_adaptive_fe_cell_iterator_create
+   procedure          :: free                       => hp_adaptive_fe_cell_iterator_free
+   procedure          :: assemble                   => hp_adaptive_fe_cell_iterator_assemble
+   procedure, private :: recursive_matrix_assembly  => hp_adaptive_fe_cell_iterator_recursive_matrix_assembly
+   procedure, private :: recursive_vector_assembly  => hp_adaptive_fe_cell_iterator_recursive_vector_assembly
+ end type hp_adaptive_fe_cell_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t
- public :: hp_adaptive_fe_iterator_t
+ public :: hp_adaptive_fe_cell_iterator_t
  
 contains
 
 
-subroutine hp_adaptive_fe_iterator_create ( this, fe_space )
+subroutine hp_adaptive_fe_cell_iterator_create ( this, fe_space )
   implicit none
-  class(hp_adaptive_fe_iterator_t), intent(inout) :: this
+  class(hp_adaptive_fe_cell_iterator_t), intent(inout) :: this
   class(serial_fe_space_t), target, intent(in)    :: fe_space
   call this%free()
   call this%set_fe_space(fe_space)
@@ -128,11 +128,11 @@ subroutine hp_adaptive_fe_iterator_create ( this, fe_space )
     assert(.false.)
   end select
   call this%create_cell(this%hp_adaptive_fe_space%p4est_triangulation)
-end subroutine hp_adaptive_fe_iterator_create
+end subroutine hp_adaptive_fe_cell_iterator_create
 
-subroutine hp_adaptive_fe_iterator_free (this)
+subroutine hp_adaptive_fe_cell_iterator_free (this)
   implicit none
-  class(hp_adaptive_fe_iterator_t), intent(inout) :: this
+  class(hp_adaptive_fe_cell_iterator_t), intent(inout) :: this
   if ( associated(this%hp_adaptive_fe_space ) ) then
     if ( associated(this%hp_adaptive_fe_space%p4est_triangulation) ) then
       call this%free_cell(this%hp_adaptive_fe_space%p4est_triangulation)
@@ -140,17 +140,17 @@ subroutine hp_adaptive_fe_iterator_free (this)
   end if
   call this%nullify_fe_space()
   nullify(this%hp_adaptive_fe_space)
-end subroutine hp_adaptive_fe_iterator_free
+end subroutine hp_adaptive_fe_cell_iterator_free
 
 !! Assembly of local matrices for hp-adaptivity
-subroutine hp_adaptive_fe_iterator_assemble(this,elmat,elvec,assembler)
+subroutine hp_adaptive_fe_cell_iterator_assemble(this,elmat,elvec,assembler)
   implicit none
-  class(hp_adaptive_fe_iterator_t), intent(in)    :: this
+  class(hp_adaptive_fe_cell_iterator_t), intent(in)    :: this
   real(rp)                        , intent(in)    :: elmat(:,:)
   real(rp)                        , intent(in)    :: elvec(:)
   class(assembler_t) , intent(inout) :: assembler
   
-  integer(ip), pointer :: elem2dof(:)
+  integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: i, j
   
   class(matrix_t), pointer :: matrix
@@ -159,7 +159,7 @@ subroutine hp_adaptive_fe_iterator_assemble(this,elmat,elvec,assembler)
   type(serial_scalar_array_t), pointer :: serial_scalar_array
   
   
-  call this%get_field_elem2dof(1,elem2dof)
+  call this%get_field_fe_dofs(1,fe_dofs)
   matrix => assembler%get_matrix()
   array  => assembler%get_array()  
   
@@ -179,15 +179,15 @@ subroutine hp_adaptive_fe_iterator_assemble(this,elmat,elvec,assembler)
   
   do j=1, this%get_num_dofs()
      do i=1, this%get_num_dofs() 
-        call this%recursive_matrix_assembly( elem2dof(i), elem2dof(j), elmat(i,j), sparse_matrix, serial_scalar_array)
+        call this%recursive_matrix_assembly( fe_dofs(i), fe_dofs(j), elmat(i,j), sparse_matrix, serial_scalar_array)
      end do
-     call this%recursive_vector_assembly (elem2dof(j), elvec(j), serial_scalar_array)
+     call this%recursive_vector_assembly (fe_dofs(j), elvec(j), serial_scalar_array)
   end do 
-end subroutine   hp_adaptive_fe_iterator_assemble
+end subroutine   hp_adaptive_fe_cell_iterator_assemble
 
-recursive subroutine hp_adaptive_fe_iterator_recursive_matrix_assembly(this, i, j, a_ij, matrix, array)
+recursive subroutine hp_adaptive_fe_cell_iterator_recursive_matrix_assembly(this, i, j, a_ij, matrix, array)
   implicit none
-  class(hp_adaptive_fe_iterator_t), intent(in)    :: this
+  class(hp_adaptive_fe_cell_iterator_t), intent(in)    :: this
   integer(ip)                     , intent(in)    :: i
   integer(ip)                     , intent(in)    :: j
   real(rp)                        , intent(in)    :: a_ij
@@ -229,11 +229,11 @@ recursive subroutine hp_adaptive_fe_iterator_recursive_matrix_assembly(this, i, 
         end do
       end if
   end if
-end subroutine hp_adaptive_fe_iterator_recursive_matrix_assembly
+end subroutine hp_adaptive_fe_cell_iterator_recursive_matrix_assembly
 
-recursive subroutine hp_adaptive_fe_iterator_recursive_vector_assembly(this, i, v_i, array)
+recursive subroutine hp_adaptive_fe_cell_iterator_recursive_vector_assembly(this, i, v_i, array)
   implicit none
-  class(hp_adaptive_fe_iterator_t), intent(in)    :: this
+  class(hp_adaptive_fe_cell_iterator_t), intent(in)    :: this
   integer(ip)                     , intent(in)    :: i
   real(rp)                        , intent(in)    :: v_i
   type(serial_scalar_array_t)     , intent(inout) :: array
@@ -255,13 +255,13 @@ recursive subroutine hp_adaptive_fe_iterator_recursive_vector_assembly(this, i, 
         end do
      end if
   end if
-end subroutine hp_adaptive_fe_iterator_recursive_vector_assembly
+end subroutine hp_adaptive_fe_cell_iterator_recursive_vector_assembly
 
 
 !  
-!subroutine fe_iterator_recursive_assembly(this, i, j, a_ij, v_j, matrix, array)
+!subroutine fe_cell_iterator_recursive_assembly(this, i, j, a_ij, v_j, matrix, array)
 !  implicit none
-!  class(fe_iterator_t)           , intent(in)    :: this
+!  class(fe_cell_iterator_t)           , intent(in)    :: this
 !  integer(ip)                    , intent(in)    :: i
 !  integer(ip)                    , intent(in)    :: j
 !  real(rp)                       , intent(in)    :: a_ij
@@ -319,7 +319,7 @@ end subroutine hp_adaptive_fe_iterator_recursive_vector_assembly
 !        end select
 !    end if
 !  end if
-!end fe_iterator_recursive_assembly
+!end fe_cell_iterator_recursive_assembly
 
 subroutine serial_hp_adaptive_fe_space_create_fe_vef_iterator ( this, fe_vef )
   implicit none
@@ -330,15 +330,15 @@ subroutine serial_hp_adaptive_fe_space_create_fe_vef_iterator ( this, fe_vef )
   call fe_vef%create(this,vef)
 end subroutine serial_hp_adaptive_fe_space_create_fe_vef_iterator
 
-subroutine serial_hp_adaptive_fe_space_create_fe_iterator ( this, fe )
+subroutine serial_hp_adaptive_fe_space_create_fe_cell_iterator ( this, fe )
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(in)  :: this
-  class(fe_iterator_t), allocatable, intent(inout) :: fe
+  class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
   integer(ip) :: istat
-  call this%free_fe_iterator(fe)
-  allocate(hp_adaptive_fe_iterator_t :: fe, stat=istat); check(istat==0)
+  call this%free_fe_cell_iterator(fe)
+  allocate(hp_adaptive_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
-end subroutine serial_hp_adaptive_fe_space_create_fe_iterator
+end subroutine serial_hp_adaptive_fe_space_create_fe_cell_iterator
 
 subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
                                                            triangulation, &
@@ -555,14 +555,14 @@ subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering( this, bloc
   
     ! Generate field-wise/block-wise global DoF identifiers
     do field_id = 1, this%get_num_fields()
-      call this%fill_elem2dof_and_count_dofs( field_id )
+      call this%fill_fe_dofs_and_count_dofs( field_id )
     end do
   
     call this%setup_hanging_node_constraints()
   end if  
 end subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering
 
-subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
+subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_id ) 
   implicit none
   ! Parameters
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
@@ -575,7 +575,7 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
   integer(ip), allocatable :: visited_proper_vef_to_cell_map(:,:)
   integer(ip), allocatable :: visited_improper_vef_to_cell_map(:,:)
   
-  class(fe_iterator_t) , allocatable :: fe, source_fe, coarser_fe
+  class(fe_cell_iterator_t) , allocatable :: fe, source_fe, coarser_fe
   type(fe_vef_iterator_t) :: vef
   integer(ip), pointer :: field_blocks(:)
   integer(ip), pointer :: fe_space_type_x_field(:)
@@ -594,7 +594,7 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
   init_fixed_dof    = this%num_fixed_dofs
   current_fixed_dof = init_fixed_dof
 
-  call this%create_fe_iterator(fe)
+  call this%create_fe_cell_iterator(fe)
   if ( fe_space_type_x_field(field_id) == fe_space_type_cg ) then
      call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_proper_vef_to_cell_map  ,  __FILE__, __LINE__ )
      call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
@@ -602,11 +602,11 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
      visited_improper_vef_to_cell_map = -1
      
      call this%create_fe_vef_iterator(vef)
-     call this%create_fe_iterator(source_fe)
-     call this%create_fe_iterator(coarser_fe)
+     call this%create_fe_cell_iterator(source_fe)
+     call this%create_fe_cell_iterator(coarser_fe)
      do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
-           call fe%fill_own_dofs ( field_id, current_dof_block )
+           call fe%generate_own_dofs_cell ( field_id, current_dof_block )
            do ivef = 1, fe%get_num_vefs()
               call fe%get_vef(ivef,vef)
               
@@ -631,7 +631,7 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
 
                  if ( is_owner ) then
                     previous_dof_block = current_dof_block
-                    call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
+                    call fe%generate_own_dofs_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
                     if (previous_dof_block < current_dof_block) then
                       if ( vef%is_proper()) then
                         visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
@@ -650,21 +650,21 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
                       source_vef_lid = visited_improper_vef_to_cell_map(2,vef_lid)
                     end if
                     call source_fe%set_lid(source_cell_id)
-                    call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
+                    call fe%generate_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
                  end if
               else 
                  assert ( fe%get_vef_lid(ivef) < 0 )
                  vef_lid = abs(fe%get_vef_lid(ivef))
                  if ( visited_improper_vef_to_cell_map ( 1, vef_lid ) == -1 ) then
                     previous_fixed_dof = current_fixed_dof
-                    call fe%fill_own_dofs_on_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
+                    call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
                     if (previous_fixed_dof < current_fixed_dof) then
                       visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
                       visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                     end if
                  else 
                     call source_fe%set_lid(visited_improper_vef_to_cell_map(1,vef_lid))
-                    call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                    call fe%generate_own_dofs_vef_from_source_fe ( ivef, &
                          source_fe, &
                          visited_improper_vef_to_cell_map(2,vef_lid), &
                          field_id) 
@@ -675,8 +675,8 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
           call fe%determine_has_fixed_dofs(field_id)
           call fe%next()
         end do
-        call this%free_fe_iterator(source_fe)
-        call this%free_fe_iterator(coarser_fe)
+        call this%free_fe_cell_iterator(source_fe)
+        call this%free_fe_cell_iterator(coarser_fe)
         call this%free_fe_vef_iterator(vef)
         call memfree ( visited_proper_vef_to_cell_map  ,  __FILE__, __LINE__ )
         call memfree ( visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
@@ -686,24 +686,24 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
      !       to avoid code replication
      do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
-           call fe%fill_own_dofs ( field_id, current_dof_block )
+           call fe%generate_own_dofs_cell ( field_id, current_dof_block )
         end if
         call fe%next()
      end do
   end if
-  call this%free_fe_iterator(fe)
+  call this%free_fe_cell_iterator(fe)
 
   call this%set_field_num_dofs(field_id,current_dof_block - init_dof_block)
   call this%set_block_num_dofs(iblock, this%get_block_num_dofs(iblock) + & 
                                           this%get_field_num_dofs(field_id))
   this%num_fixed_dofs = this%num_fixed_dofs + current_fixed_dof - init_fixed_dof
-end subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs
+end subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
 
 subroutine shpafs_setup_hanging_node_constraints ( this )
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
-  class(fe_iterator_t), allocatable :: fe
-  class(fe_iterator_t), allocatable :: coarser_fe
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: coarser_fe
   type(fe_vef_iterator_t) :: fe_vef, coarser_vef
   type(list_iterator_t) :: fe_own_dofs_on_vef_iterator
   type(list_iterator_t) :: fe_dofs_on_vef_iterator 
@@ -711,7 +711,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   integer(ip) :: improper_vef_lid
   integer(ip) :: block_id, field_id
   class(reference_fe_t), pointer :: reference_fe, coarser_reference_fe
-  type(i1p_t), allocatable :: elem2dof(:), coarser_fe_elem2dof(:)
+  type(i1p_t), allocatable :: fe_dofs(:), coarser_fe_fe_dofs(:)
   integer(ip) :: istat, i
   integer(ip) :: improper_dof_lid
   integer(ip) :: improper_vef_ivef, coarser_fe_ivef, coarse_fe_subvef
@@ -732,8 +732,8 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
     call this%ptr_constraint_dofs%set(improper_dof_lid+1, 1 )
   end do
 
-  call this%create_fe_iterator(fe)
-  call this%create_fe_iterator(coarser_fe)
+  call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(coarser_fe)
   call this%create_fe_vef_iterator(fe_vef)
   call this%create_fe_vef_iterator(coarser_vef)
   
@@ -746,8 +746,8 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   end if  
   num_cell_faces = reference_fe%get_num_faces()
   
-  allocate(elem2dof(this%get_num_fields()), stat=istat); check(istat==0);
-  allocate(coarser_fe_elem2dof(this%get_num_fields()), stat=istat); check(istat==0);
+  allocate(fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
+  allocate(coarser_fe_fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
 
   ! Computation of constraints     
   do improper_vef_lid = 1, this%p4est_triangulation%get_num_improper_vefs()
@@ -756,11 +756,11 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
      call fe_vef%set_lid(-improper_vef_lid)
      call fe_vef%get_cell_around(1,fe)
      improper_vef_ivef = fe%find_lpos_vef_lid(fe_vef%get_lid())
-     call fe%get_elem2dof(elem2dof)
+     call fe%get_fe_dofs(fe_dofs)
 
      ! Retrieve all data related to the first improper cell around current improper vef
      call fe_vef%get_improper_cell_around(1,coarser_fe)
-     call coarser_fe%get_elem2dof(coarser_fe_elem2dof)
+     call coarser_fe%get_fe_dofs(coarser_fe_fe_dofs)
      coarser_fe_ivef = fe_vef%get_improper_cell_around_ivef()
 
      do field_id=1, this%get_num_fields()
@@ -769,7 +769,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
         block_id = field_blocks(field_id)
         fe_own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(improper_vef_ivef)
         do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
-           improper_dof_lid = elem2dof(field_id)%p(fe_own_dofs_on_vef_iterator%get_current())
+           improper_dof_lid = fe_dofs(field_id)%p(fe_own_dofs_on_vef_iterator%get_current())
 
            if ( .not. fe%is_fixed_dof(improper_dof_lid) ) exit
 
@@ -804,7 +804,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
      call fe_vef%set_lid(-improper_vef_lid)
      call fe_vef%get_cell_around(1,fe)
      improper_vef_ivef = fe%find_lpos_vef_lid(fe_vef%get_lid())
-     call fe%get_elem2dof(elem2dof)
+     call fe%get_fe_dofs(fe_dofs)
 
      mcheck( this%p4est_triangulation%get_num_dims()==2 , 'The following code only valid for 2d cases' )
      ! Here we need to find the first non-void coarser_fe in this field. In 2d, the first non-void coarser_fe is always the first
@@ -812,7 +812,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
 
      ! Retrieve all data related to the first improper cell around current improper vef
      call fe_vef%get_improper_cell_around(1,coarser_fe)
-     call coarser_fe%get_elem2dof(coarser_fe_elem2dof)
+     call coarser_fe%get_fe_dofs(coarser_fe_fe_dofs)
      coarser_fe_ivef  = fe_vef%get_improper_cell_around_ivef()
      coarse_fe_subvef = fe_vef%get_improper_cell_around_subvef()
      call coarser_fe%get_vef(coarser_fe_ivef,coarser_vef)
@@ -836,7 +836,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
         fe_dofs_on_vef_iterator = reference_fe%create_dofs_on_n_face_iterator(improper_vef_ivef)
         do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
            ishape_fe = fe_own_dofs_on_vef_iterator%get_current()
-           improper_dof_lid = elem2dof(field_id)%p(ishape_fe)
+           improper_dof_lid = fe_dofs(field_id)%p(ishape_fe)
            assert ( fe%is_fixed_dof(improper_dof_lid) )
            improper_dof_lid = abs(improper_dof_lid)   
            
@@ -869,7 +869,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
               
               ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current() 
               call this%constraint_dofs_dependencies%set(this%ptr_constraint_dofs%get(improper_dof_lid),&
-                                                         coarser_fe_elem2dof(field_id)%p(ishape_coarser_fe))
+                                                         coarser_fe_fe_dofs(field_id)%p(ishape_coarser_fe))
 
               ! Evaluate coefficient and push_back into the corresponding std_vector data structure
               select type(coarser_reference_fe)
@@ -896,8 +896,8 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   call this%ptr_constraint_dofs%set(1,1)
   
   ! TODO: shrink_to_fit this%constraint_dofs_dependencies and this%constraint_dofs_coefficients
-  call this%free_fe_iterator(coarser_fe)
-  call this%free_fe_iterator(fe)
+  call this%free_fe_cell_iterator(coarser_fe)
+  call this%free_fe_cell_iterator(fe)
   call this%free_fe_vef_iterator(fe_vef)
   call this%free_fe_vef_iterator(coarser_vef)
 end subroutine shpafs_setup_hanging_node_constraints 
@@ -939,7 +939,7 @@ subroutine shpafs_project_ref_fe_id_x_fe(this)
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
   class(base_static_triangulation_t), pointer     :: triangulation
   type(std_vector_integer_ip_t)     , pointer     :: p4est_refinement_and_coarsening_flags
-  class(fe_iterator_t)              , allocatable :: new_fe
+  class(fe_cell_iterator_t)              , allocatable :: new_fe
   class(reference_fe_t)             , pointer     :: reference_fe
   integer(ip)                       , allocatable :: old_ref_fe_id_x_fe(:,:)
   integer(ip)                                     :: old_num_cells
@@ -963,7 +963,7 @@ subroutine shpafs_project_ref_fe_id_x_fe(this)
   
   old_num_cells = size(old_ref_fe_id_x_fe,2)
   
-  call this%create_fe_iterator(new_fe)
+  call this%create_fe_cell_iterator(new_fe)
   
   reference_fe => new_fe%get_reference_fe_geo()
   num_children_x_cell = reference_fe%get_num_n_faces_of_dim(0)
@@ -1006,7 +1006,7 @@ subroutine shpafs_project_ref_fe_id_x_fe(this)
   
   massert ( new_cell_lid - 1 == this%p4est_triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
   
-  call this%free_fe_iterator(new_fe)
+  call this%free_fe_cell_iterator(new_fe)
   call memfree(old_ref_fe_id_x_fe,__FILE__,__LINE__)
   
 end subroutine shpafs_project_ref_fe_id_x_fe
@@ -1032,14 +1032,14 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   type(std_vector_integer_ip_t)     , pointer     :: p4est_refinement_and_coarsening_flags
   integer(ip)                       , allocatable :: old_ptr_dofs_x_fe(:,:)
   integer(ip)              , target , allocatable :: old_lst_dofs_lids(:)
-  integer(ip)                       , pointer     :: old_field_elem2dof(:)
+  integer(ip)                       , pointer     :: old_field_fe_dofs(:)
   integer(ip)                                     :: num_children_x_cell
   integer(ip)                                     :: transformation_flag
   integer(ip)                                     :: subcell_id, old_cell_lid, new_cell_lid
   integer(ip)                                     :: current_old_cell_lid, current_new_cell_lid
   integer(ip)                                     :: old_num_cells
   integer(ip)                                     :: field_id
-  class(fe_iterator_t)              , allocatable :: new_fe
+  class(fe_cell_iterator_t)              , allocatable :: new_fe
   real(rp)                          , allocatable :: old_nodal_values(:,:)
   real(rp)                          , allocatable :: new_nodal_values(:)
   class(reference_fe_t)             , pointer     :: reference_fe
@@ -1074,7 +1074,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   call this%nullify_block_layout()
   call this%generate_global_dof_numbering(block_layout)
   
-  call this%create_fe_iterator(new_fe)
+  call this%create_fe_cell_iterator(new_fe)
   reference_fe => new_fe%get_reference_fe_geo()
   num_children_x_cell = reference_fe%get_num_n_faces_of_dim(0)
   call memalloc(num_children_x_cell, &
@@ -1093,9 +1093,9 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
       current_new_cell_lid = new_cell_lid
       reference_fe => new_fe%get_reference_fe(field_id) ! Only h-adaptivity
       num_nodes_field = reference_fe%get_num_shape_functions()
-      old_field_elem2dof => get_field_elem2dof()
+      old_field_fe_dofs => get_field_fe_dofs()
       call fe_function%gather_nodal_values( field_id,                & 
-                                            old_field_elem2dof,      &
+                                            old_field_fe_dofs,      &
                                             num_nodes_field,      & 
                                             this%get_field_blocks(), &
                                             old_nodal_values(1,1:num_nodes_field) )
@@ -1125,9 +1125,9 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
       else if ( transformation_flag == coarsening ) then
         do subcell_id = 1,num_children_x_cell-1
           current_old_cell_lid = current_old_cell_lid + 1
-          old_field_elem2dof => get_field_elem2dof()
+          old_field_fe_dofs => get_field_fe_dofs()
           call fe_function%gather_nodal_values( field_id,                & 
-                                                old_field_elem2dof,      &
+                                                old_field_fe_dofs,      &
                                                 num_nodes_field,      & 
                                                 this%get_field_blocks(), &
                                                 old_nodal_values(subcell_id+1,1:num_nodes_field) )
@@ -1168,7 +1168,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
     assert(.false.)
   end select
   
-  call this%free_fe_iterator(new_fe)
+  call this%free_fe_cell_iterator(new_fe)
   call transformed_fe_function%free()
   call memfree(old_nodal_values,__FILE__,__LINE__)
   call memfree(new_nodal_values,__FILE__,__LINE__)
@@ -1177,9 +1177,9 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   
 contains
   
-  function get_field_elem2dof()
+  function get_field_fe_dofs()
     implicit none
-    integer(ip), pointer     :: get_field_elem2dof(:)
+    integer(ip), pointer     :: get_field_fe_dofs(:)
     integer(ip)              :: spos, epos
     spos = old_ptr_dofs_x_fe(field_id,current_old_cell_lid)
     if ( field_id == this%get_num_fields() ) then
@@ -1187,8 +1187,8 @@ contains
     else
       epos = old_ptr_dofs_x_fe(field_id+1,current_old_cell_lid)-1
     end if
-    get_field_elem2dof => old_lst_dofs_lids(spos:epos)    
-  end function get_field_elem2dof
+    get_field_fe_dofs => old_lst_dofs_lids(spos:epos)    
+  end function get_field_fe_dofs
   
 end subroutine serial_hp_adaptive_fe_space_refine_and_coarsen
 

@@ -57,7 +57,7 @@ contains
     class(assembler_t)             , intent(inout) :: assembler
 
     ! FE space traversal-related data types
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
     type(cell_map_t)           , pointer :: cell_map
@@ -83,12 +83,12 @@ contains
     integer(ip), pointer :: field_blocks(:)
     logical    , pointer :: field_coupling(:,:)
 
-    type(i1p_t), allocatable :: elem2dof(:)
+    type(i1p_t), allocatable :: fe_dofs(:)
     integer(ip), allocatable :: num_dofs_x_field(:)  
 
     
     num_fields = fe_space%get_num_fields()
-    allocate( elem2dof(num_fields), stat=istat); check(istat==0);
+    allocate( fe_dofs(num_fields), stat=istat); check(istat==0);
     field_blocks => fe_space%get_field_blocks()
     field_coupling => fe_space%get_field_coupling()
     
@@ -97,7 +97,7 @@ contains
     call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
     call memalloc ( num_fields, num_dofs_x_field, __FILE__, __LINE__ )
 
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished())
        
        ! Update FE-integration related data structures
@@ -112,7 +112,7 @@ contains
        call fe%get_num_dofs_x_field(num_dofs_x_field)
        
        ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
+       call fe%get_fe_dofs(fe_dofs)
 
        ! Get quadrature coordinates to evaluate boundary value
        quad_coords => cell_map%get_quadrature_coordinates()
@@ -146,10 +146,10 @@ contains
        call fe%assemble( elmat, elvec, assembler )
        call fe%next()
     end do
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
     deallocate(shape_values, stat=istat); check(istat==0);
     deallocate(shape_gradients, stat=istat); check(istat==0);
-    deallocate (elem2dof, stat=istat); check(istat==0);
+    deallocate (fe_dofs, stat=istat); check(istat==0);
     call memfree ( num_dofs_x_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )

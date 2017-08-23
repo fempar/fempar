@@ -57,8 +57,8 @@ end subroutine unfitted_fe_cell_iterator_create
 !=============================================================================================
 subroutine unfitted_fe_cell_iterator_free( this )
   implicit none
-<<<<<<< HEAD:Sources/Lib/Unfitted/sbm_unfitted_fe_iterator.i90
-  class(unfitted_fe_iterator_t)   , intent(inout) :: this
+<<<<<<< HEAD:Sources/Lib/Unfitted/sbm_unfitted_fe_cell_iterator.i90
+  class(unfitted_fe_cell_iterator_t)   , intent(inout) :: this
   integer(ip) :: istat
 =======
   class(unfitted_fe_cell_iterator_t)   , intent(inout) :: this

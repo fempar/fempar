@@ -133,48 +133,48 @@ module fe_space_names
   contains
     ! Methods exploiting ("inherited from") cell_t common to all descendants
 <<<<<<< HEAD
-    procedure                            :: next                    => base_fe_iterator_next
-    procedure                            :: first                   => base_fe_iterator_first
-    procedure                            :: last                    => base_fe_iterator_last
-    procedure                            :: set_lid                 => base_fe_iterator_set_lid
-    procedure, non_overridable           :: has_finished            => base_fe_iterator_has_finished
-    procedure, non_overridable           :: get_reference_fe_geo    => base_fe_iterator_get_reference_fe_geo
-    procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_iterator_get_reference_fe_geo_id
-    procedure, non_overridable           :: get_coordinates         => base_fe_iterator_get_coordinates
-    procedure, non_overridable           :: set_coordinates         => base_fe_iterator_set_coordinates
-    procedure, non_overridable           :: get_lid                 => base_fe_iterator_get_lid
-    procedure, non_overridable           :: get_gid                 => base_fe_iterator_get_gid
-    procedure, non_overridable           :: get_my_part             => base_fe_iterator_get_mypart
-    procedure, non_overridable           :: get_my_subpart          => base_fe_iterator_get_mysubpart
-    procedure, non_overridable           :: get_my_subpart_lid      => base_fe_iterator_get_mysubpart_lid
-    procedure, non_overridable           :: get_set_id              => base_fe_iterator_get_set_id
-    procedure, non_overridable           :: get_num_vefs            => base_fe_iterator_get_num_vefs
-    procedure, non_overridable           :: get_vef_lid             => base_fe_iterator_get_vef_lid
-    procedure, non_overridable           :: get_vef_lids            => base_fe_iterator_get_vef_lids
-    procedure, non_overridable           :: get_vef_gid             => base_fe_iterator_get_vef_gid
-    procedure, non_overridable           :: find_lpos_vef_lid       => base_fe_iterator_find_lpos_vef_lid
-    procedure, non_overridable           :: find_lpos_vef_gid       => base_fe_iterator_find_lpos_vef_gid
-    procedure, non_overridable           :: is_local                => base_fe_iterator_is_local
-    procedure, non_overridable           :: is_ghost                => base_fe_iterator_is_ghost
-    procedure, non_overridable           :: scan_sum_num_vefs    => base_fe_iterator_get_scan_sum_num_vefs
-    procedure, non_overridable, private  :: base_fe_iterator_get_vef
-    generic                              :: get_vef                 => base_fe_iterator_get_vef
-    procedure                            :: update_sub_triangulation    => base_fe_iterator_update_sub_triangulation
-    procedure                            :: get_mc_case                 => base_fe_iterator_get_mc_case
-    procedure                            :: get_num_subcells      => base_fe_iterator_get_num_subcells
-    procedure                            :: get_num_subcell_nodes => base_fe_iterator_get_num_subcell_nodes
-    procedure                            :: get_phys_coords_of_subcell  => base_fe_iterator_get_phys_coords_of_subcell
-    procedure                            :: get_ref_coords_of_subcell   => base_fe_iterator_get_ref_coords_of_subcell
-    procedure                            :: get_num_subfaces      => base_fe_iterator_get_num_subfaces
-    procedure                            :: get_num_subface_nodes => base_fe_iterator_get_num_subface_nodes
-    procedure                            :: get_phys_coords_of_subface  => base_fe_iterator_get_phys_coords_of_subface
-    procedure                            :: get_ref_coords_of_subface   => base_fe_iterator_get_ref_coords_of_subface
-    procedure                            :: is_cut                      => base_fe_iterator_is_cut
-    procedure                            :: is_interior                 => base_fe_iterator_is_interior
-    procedure                            :: is_exterior                 => base_fe_iterator_is_exterior
-    procedure                            :: is_interior_subcell         => base_fe_iterator_is_interior_subcell
-    procedure                            :: is_exterior_subcell         => base_fe_iterator_is_exterior_subcell
-  end type base_fe_iterator_t
+    procedure                            :: next                    => base_fe_cell_iterator_next
+    procedure                            :: first                   => base_fe_cell_iterator_first
+    procedure                            :: last                    => base_fe_cell_iterator_last
+    procedure                            :: set_lid                 => base_fe_cell_iterator_set_lid
+    procedure, non_overridable           :: has_finished            => base_fe_cell_iterator_has_finished
+    procedure, non_overridable           :: get_reference_fe_geo    => base_fe_cell_iterator_get_reference_fe_geo
+    procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_cell_iterator_get_reference_fe_geo_id
+    procedure, non_overridable           :: get_coordinates         => base_fe_cell_iterator_get_coordinates
+    procedure, non_overridable           :: set_coordinates         => base_fe_cell_iterator_set_coordinates
+    procedure, non_overridable           :: get_lid                 => base_fe_cell_iterator_get_lid
+    procedure, non_overridable           :: get_gid                 => base_fe_cell_iterator_get_gid
+    procedure, non_overridable           :: get_my_part             => base_fe_cell_iterator_get_mypart
+    procedure, non_overridable           :: get_my_subpart          => base_fe_cell_iterator_get_mysubpart
+    procedure, non_overridable           :: get_my_subpart_lid      => base_fe_cell_iterator_get_mysubpart_lid
+    procedure, non_overridable           :: get_set_id              => base_fe_cell_iterator_get_set_id
+    procedure, non_overridable           :: get_num_vefs            => base_fe_cell_iterator_get_num_vefs
+    procedure, non_overridable           :: get_vef_lid             => base_fe_cell_iterator_get_vef_lid
+    procedure, non_overridable           :: get_vef_lids            => base_fe_cell_iterator_get_vef_lids
+    procedure, non_overridable           :: get_vef_gid             => base_fe_cell_iterator_get_vef_gid
+    procedure, non_overridable           :: find_lpos_vef_lid       => base_fe_cell_iterator_find_lpos_vef_lid
+    procedure, non_overridable           :: find_lpos_vef_gid       => base_fe_cell_iterator_find_lpos_vef_gid
+    procedure, non_overridable           :: is_local                => base_fe_cell_iterator_is_local
+    procedure, non_overridable           :: is_ghost                => base_fe_cell_iterator_is_ghost
+    procedure, non_overridable           :: scan_sum_num_vefs    => base_fe_cell_iterator_get_scan_sum_num_vefs
+    procedure, non_overridable, private  :: base_fe_cell_iterator_get_vef
+    generic                              :: get_vef                 => base_fe_cell_iterator_get_vef
+    procedure                            :: update_sub_triangulation    => base_fe_cell_iterator_update_sub_triangulation
+    procedure                            :: get_mc_case                 => base_fe_cell_iterator_get_mc_case
+    procedure                            :: get_num_subcells      => base_fe_cell_iterator_get_num_subcells
+    procedure                            :: get_num_subcell_nodes => base_fe_cell_iterator_get_num_subcell_nodes
+    procedure                            :: get_phys_coords_of_subcell  => base_fe_cell_iterator_get_phys_coords_of_subcell
+    procedure                            :: get_ref_coords_of_subcell   => base_fe_cell_iterator_get_ref_coords_of_subcell
+    procedure                            :: get_num_subfaces      => base_fe_cell_iterator_get_num_subfaces
+    procedure                            :: get_num_subface_nodes => base_fe_cell_iterator_get_num_subface_nodes
+    procedure                            :: get_phys_coords_of_subface  => base_fe_cell_iterator_get_phys_coords_of_subface
+    procedure                            :: get_ref_coords_of_subface   => base_fe_cell_iterator_get_ref_coords_of_subface
+    procedure                            :: is_cut                      => base_fe_cell_iterator_is_cut
+    procedure                            :: is_interior                 => base_fe_cell_iterator_is_interior
+    procedure                            :: is_exterior                 => base_fe_cell_iterator_is_exterior
+    procedure                            :: is_interior_subcell         => base_fe_cell_iterator_is_interior_subcell
+    procedure                            :: is_exterior_subcell         => base_fe_cell_iterator_is_exterior_subcell
+  end type base_fe_cell_iterator_t
 =======
     procedure, non_overridable           :: next                    => base_fe_cell_iterator_next
     procedure, non_overridable           :: first                   => base_fe_cell_iterator_first
@@ -625,7 +625,7 @@ module fe_space_names
      procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
      procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
 <<<<<<< HEAD
-     procedure                           :: fill_elem2dof_and_count_dofs                 => serial_fe_space_fill_elem2dof_and_count_dofs
+     procedure                           :: fill_fe_dofs_and_count_dofs                 => serial_fe_space_fill_fe_dofs_and_count_dofs
      procedure                 , private :: renum_dofs_block                          => serial_fe_space_renum_dofs_block
 =======
      procedure                 , private :: fill_fe_dofs_and_count_dofs                 => serial_fe_space_fill_fe_dofs_and_count_dofs
