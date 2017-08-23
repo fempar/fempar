@@ -262,7 +262,7 @@ module p4est_serial_triangulation_names
     procedure                            :: get_set_id              => p4est_cell_iterator_get_set_id
     procedure                            :: get_level               => p4est_cell_iterator_get_level
     procedure                            :: get_num_vefs            => p4est_cell_iterator_get_num_vefs
-    !procedure, non_overridable           :: get_num_nodes           => p4est_cell_iterator_get_num_nodes
+    procedure                            :: get_num_nodes           => p4est_cell_iterator_get_num_nodes
     !procedure, non_overridable           :: get_node_gid            => p4est_cell_iterator_get_node_gid
     procedure                            :: get_vef_gid             => p4est_cell_iterator_get_vef_gid
     procedure                            :: get_vef_gids            => p4est_cell_iterator_get_vef_gids
@@ -391,6 +391,8 @@ module p4est_serial_triangulation_names
     ! Getters
     procedure                                   :: get_num_dims                            => p4est_serial_triangulation_get_num_dims
     procedure                                   :: get_num_cells                                 => p4est_serial_triangulation_get_num_cells
+    procedure                                   :: get_num_local_cells                           => p4est_serial_triangulation_get_num_local_cells
+    procedure                                   :: get_max_num_shape_functions                => p4est_serial_triangulation_get_max_num_shape_functions
     procedure                                   :: get_num_vefs                                  => p4est_serial_triangulation_get_num_vefs
     procedure                                   :: get_num_proper_vefs                           => p4est_serial_triangulation_get_num_proper_vefs
     procedure                                   :: get_num_improper_vefs                         => p4est_serial_triangulation_get_num_improper_vefs

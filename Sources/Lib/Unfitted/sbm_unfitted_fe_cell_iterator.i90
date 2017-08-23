@@ -34,17 +34,20 @@ subroutine unfitted_fe_cell_iterator_create( this, fe_space )
   
   class(unfitted_integration_manager_t), pointer  :: unfitted_integration_manager
   class(base_static_triangulation_t),    pointer  :: triangulation
-  
+  integer(ip) :: istat
+
   triangulation => fe_space%get_triangulation()
   select type (fe_space)
-  class is (serial_unfitted_fe_space_t)
-    unfitted_integration_manager => fe_space%unfitted_integration
-  class is (par_unfitted_fe_space_t)
-    unfitted_integration_manager => fe_space%unfitted_integration  
-  class default
-    check(.false.)
+    class is ( serial_unfitted_fe_space_t)
+      unfitted_integration_manager => fe_space%unfitted_integration
+    class is (par_unfitted_fe_space_t)
+      unfitted_integration_manager => fe_space%unfitted_integration  
+    class is ( serial_unfitted_hp_adaptive_fe_space_t)
+      unfitted_integration_manager => fe_space%unfitted_integration  
+    class default
+      check(.false.)
   end select
-  
+
   call this%free()
   call this%fe_cell_iterator_t%create(fe_space)
   this%unfitted_integration_manager => unfitted_integration_manager
@@ -199,8 +202,6 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
   type(quadrature_t)       , pointer :: quadrature
   type(cell_integrator_t), pointer :: cell_integrator
   
-  integer(ip)            , pointer :: num_dofs_x_field(:)
-
   assert(this%is_local())
   call this%update_cell_map()
   call this%update_cell_integrators()

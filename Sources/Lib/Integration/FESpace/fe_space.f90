@@ -132,10 +132,11 @@ module fe_space_names
     class(cell_iterator_t), allocatable :: cell
   contains
     ! Methods exploiting ("inherited from") cell_t common to all descendants
-    procedure, non_overridable           :: next                    => base_fe_cell_iterator_next
-    procedure, non_overridable           :: first                   => base_fe_cell_iterator_first
-    procedure, non_overridable           :: last                    => base_fe_cell_iterator_last
-    procedure, non_overridable           :: set_gid                 => base_fe_cell_iterator_set_gid
+  
+    procedure                            :: next                    => base_fe_cell_iterator_next
+    procedure                            :: first                   => base_fe_cell_iterator_first
+    procedure                            :: last                    => base_fe_cell_iterator_last
+    procedure                            :: set_gid                 => base_fe_cell_iterator_set_gid
     procedure, non_overridable           :: has_finished            => base_fe_cell_iterator_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => base_fe_cell_iterator_get_reference_fe_geo
     procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_cell_iterator_get_reference_fe_geo_id
@@ -173,8 +174,7 @@ module fe_space_names
     procedure                            :: is_exterior                 => base_fe_cell_iterator_is_exterior
     procedure                            :: is_interior_subcell         => base_fe_cell_iterator_is_interior_subcell
     procedure                            :: is_exterior_subcell         => base_fe_cell_iterator_is_exterior_subcell
-  end type base_fe_cell_iterator_t
-  
+  end type base_fe_cell_iterator_t  
   
   type, extends(base_fe_cell_iterator_t) :: fe_cell_iterator_t
     private
@@ -445,7 +445,7 @@ module fe_space_names
   integer(ip), parameter :: fe_space_default_quadrature_degree_flag = -1000
   
   type, extends(base_fe_space_t) :: serial_fe_space_t 
-     private     
+     !private      ! UNDER QUARANTINE
      ! Reference FE container
      integer(ip)                                 :: reference_fes_size
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
@@ -581,7 +581,8 @@ module fe_space_names
      procedure                           :: allocate_num_dofs_x_field               =>  serial_fe_space_allocate_num_dofs_x_field
      procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
      procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
-     procedure                 , private :: fill_fe_dofs_and_count_dofs                 => serial_fe_space_fill_fe_dofs_and_count_dofs
+     ! UNDER QUARANTINE
+     procedure                           :: fill_fe_dofs_and_count_dofs                 => serial_fe_space_fill_fe_dofs_and_count_dofs
      procedure                 , private :: renum_dofs_block                          => serial_fe_space_renum_dofs_block
  
      ! Getters
@@ -1043,7 +1044,7 @@ module fe_space_names
   public :: fe_function_t  
   
   type, extends(serial_fe_space_t) :: serial_hp_adaptive_fe_space_t
-     private
+     !private ! UNDER QUARANTINE
      !list_t :: constraints 
      ! Hanging and strong Dirichlet data
      ! ptr_constraint_dofs         : pointer to constraints
@@ -1076,7 +1077,8 @@ module fe_space_names
      procedure          :: free                                                   => serial_hp_adaptive_fe_space_free
      
      procedure          :: generate_global_dof_numbering                                          => serial_hp_adaptive_fe_space_generate_global_dof_numbering
-     procedure, private :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
+     ! UNDER QUARANTINE
+     procedure          :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
      
      procedure          :: allocate_and_init_has_hanging_dofs_x_fe                => shpafs_allocate_and_init_has_hanging_dofs_x_fe
      procedure, private :: free_has_hanging_dofs_x_fe                             => shpafs_free_has_hanging_dofs_x_fe
@@ -1096,7 +1098,7 @@ module fe_space_names
      
      procedure          :: project_field_cell_to_ref_fes                               => shpafs_project_field_cell_to_ref_fes
      procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
-     procedure          :: project_fe_facet_integration_arrays                     => shpafs_project_fe_facet_integration_arrays
+     procedure          :: project_facet_integration_arrays                     => shpafs_project_facet_integration_arrays
      procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
  end type serial_hp_adaptive_fe_space_t  
  
@@ -1136,10 +1138,8 @@ module fe_space_names
    procedure, private :: get_subfacet_lid_cell_around    => hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around
  end type hp_adaptive_fe_facet_iterator_t
  
- public :: serial_hp_adaptive_fe_space_t
- 
- 
- 
+ public :: serial_hp_adaptive_fe_space_t, hp_adaptive_fe_cell_iterator_t
+
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.

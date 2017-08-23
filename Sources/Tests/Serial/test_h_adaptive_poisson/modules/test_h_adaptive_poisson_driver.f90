@@ -284,13 +284,10 @@ contains
     integer(ip), parameter :: max_level = 4
 
     call this%triangulation%create_cell_iterator(cell)
-
     if (this%triangulation%get_num_dims() == 2) then
-
       allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
 
       do while ( .not. cell%has_finished() )
-
         !if ( mod(cell%get_gid()-1,2) == 0 ) then
         !  call cell%set_for_refinement()
         !end if

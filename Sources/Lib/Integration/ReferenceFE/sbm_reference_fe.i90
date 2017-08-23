@@ -95,7 +95,7 @@ subroutine reference_fe_print ( reference_fe )
   write(*,*) 'vertices_n_face'
   call reference_fe%vertices_n_face%print(6)
 
-  write(*,*) 'n_faces_n_face'
+  write(*,*) 'facets_n_face'
   call reference_fe%facets_n_face%print(6)
 
   write(*,*) 'own_nodes_n_face'

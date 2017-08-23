@@ -40,6 +40,24 @@ function p4est_serial_triangulation_get_num_cells(this)
   p4est_serial_triangulation_get_num_cells = this%p4est_num_cells
 end function p4est_serial_triangulation_get_num_cells
 
+function p4est_serial_triangulation_get_num_local_cells(this)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_serial_triangulation_get_num_local_cells
+  !TODO We assume there are no ghost cells
+  p4est_serial_triangulation_get_num_local_cells = this%p4est_num_cells
+end function p4est_serial_triangulation_get_num_local_cells
+
+function p4est_serial_triangulation_get_max_num_shape_functions(this) result (num)
+  implicit none
+  class(p4est_serial_triangulation_t), intent(in) :: this
+  integer(ip) :: num
+  class(cell_iterator_t), allocatable :: cell
+  call this%create_cell_iterator(cell)
+  num = cell%get_num_nodes()
+  call this%free_cell_iterator(cell)
+end function p4est_serial_triangulation_get_max_num_shape_functions
+
 function p4est_serial_triangulation_get_num_vefs(this)
   implicit none
   class(p4est_serial_triangulation_t), intent(in) :: this
@@ -189,7 +207,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
   class(p4est_serial_triangulation_t), intent(inout) :: this
   type(std_vector_integer_ip_t)      , intent(inout) :: old_lst_vefs_lids
   integer(ip) :: num_corners_x_cell, num_edges_x_cell, num_faces_x_cell
-  integer(ip) :: num_face_corners, num_faces_at_corner, num_subfaces_face
+  integer(ip) :: num_face_corners, num_faces_at_corner, num_subfacets_facet
   integer(ip) :: icell, icell_iface, icell_icorner, icell_iedge
   integer(ip) :: jcell, jcell_iface, jcell_icorner, jcell_iedge
   integer(ip) :: min_cell, min_icorner, min_iedge, min_iface, icorner, iedge, iface
@@ -218,7 +236,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
      num_faces_x_cell      =  NUM_FACES_2D
      num_face_corners        =  NUM_FACE_CORNERS_2D
      num_faces_at_corner     =  NUM_FACES_AT_CORNER_2D
-     num_subfaces_face       =  NUM_SUBFACES_FACE_2D
+     num_subfacets_facet       =  NUM_SUBFACES_FACE_2D
      P4EST_2_FEMPAR_CORNER   => P4EST_2_FEMPAR_CORNER_2D
      P4EST_FACES_AT_CORNER   => P4EST_FACES_AT_CORNER_2D
      P4EST_FACE_CORNERS      => P4EST_FACE_CORNERS_2D
@@ -231,7 +249,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
      num_faces_x_cell      =  NUM_FACES_3D
      num_face_corners        =  NUM_FACE_CORNERS_3D
      num_faces_at_corner     =  NUM_FACES_AT_CORNER_3D
-     num_subfaces_face       =  NUM_SUBFACES_FACE_3D
+     num_subfacets_facet       =  NUM_SUBFACES_FACE_3D
      P4EST_2_FEMPAR_CORNER   => P4EST_2_FEMPAR_CORNER_3D
      P4EST_FACES_AT_CORNER   => P4EST_FACES_AT_CORNER_3D
      P4EST_FACE_CORNERS      => P4EST_FACE_CORNERS_3D
@@ -298,17 +316,17 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
              min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS)
             end if
             call work_vector_cells_around%push_back(jcell)
-         else if ( mortar >= 1 .and. mortar <= num_subfaces_face )  then ! Double-size neighbour 
+         else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
             jcell      = this%quad_to_quad(icell_iface,icell)+1
              
             ! Determine whether this corner is improper
             ! 1. Go to coarser neighbour and find across which subface am I neighbour
-            do isubface = 1, num_subfaces_face
+            do isubface = 1, num_subfacets_facet
               if (this%quad_to_half(isubface,this%quad_to_quad(jcell_iface, jcell)+1)+1==icell) then
                 exit
               end if
             end do
-            assert(isubface<=num_subfaces_face)
+            assert(isubface<=num_subfacets_facet)
             
             ! 2. Determine which face_corner of my face am I
             do face_corner=1, num_face_corners
@@ -546,7 +564,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
          else
             vef_at_boundary = .true.
          end if   
-       else if ( mortar >= 1 .and. mortar <= num_subfaces_face )  then ! Double-size neighbour 
+       else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
          if (is_proper) then
            improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
            improper_cell_around_subvef  = mortar
