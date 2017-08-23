@@ -174,79 +174,97 @@ contains
         call this%triangulation%fill_cells_set(cell_set_ids)
     end if
     
-    if ( this%test_params%get_triangulation_type() == 'structured' ) then
-       call this%triangulation%create_vef_iterator(vef)
-       do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then
-             call vef%set_set_id(1)
-          else
-             call vef%set_set_id(0)
-          end if
-          call vef%next()
-       end do
-       call this%triangulation%free_vef_iterator(vef)
-    end if
-    
-    ! Set all the vefs on the interface between full/void if there are void fes
-    if (this%test_params%get_use_void_fes()) then
-      call this%triangulation%create_vef_iterator(vef)
-      call this%triangulation%create_vef_iterator(vef_of_vef)
-      call this%triangulation%create_cell_iterator(cell)
-      do while ( .not. vef%has_finished() )
-                                       
-         ! If it is an INTERIOR face
-         if( vef%get_dim() == this%triangulation%get_num_dims()-1 .and. vef%get_num_cells_around()==2 ) then
+    if ( this%test_params%get_triangulation_type() == 'structured') then
 
-           ! Compute number of void neighbors
-           num_void_neigs = 0
-           do icell_arround = 1,vef%get_num_cells_around()
-             call vef%get_cell_around(icell_arround,cell)
-             if (cell%get_set_id() == TEST_POISSON_VOID) num_void_neigs = num_void_neigs + 1
-           end do
+      ! Set all the vefs on the interface between full/void if there are void fes
+      if ( this%test_params%get_use_void_fes()) then
+        ! WARNING: Consider updating this piece of code for h-adaptivity, because 
+        ! the vef set_IDs are not correctly assigned on improper vefs and on proper 
+        ! vefs containing them. At the moment, all examples are such that only proper 
+        ! vefs are on the interface void/full.
+        call this%triangulation%create_vef_iterator(vef)
+        call this%triangulation%create_vef_iterator(vef_of_vef)
+        call this%triangulation%create_cell_iterator(cell)
+        do while ( .not. vef%has_finished() )
+                                         
+           ! If it is an INTERIOR face
+           if( vef%is_facet() .and. vef%get_num_cells_around()==2 ) then
 
-           if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
+             ! Compute number of void neighbors
+             num_void_neigs = 0
+             do icell_arround = 1,vef%get_num_cells_around()
+               call vef%get_cell_around(icell_arround,cell)
+               if (cell%get_set_id() == TEST_POISSON_VOID) num_void_neigs = num_void_neigs + 1
+             end do
 
-               ! Set this face as Dirichlet boundary
+             if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
+
+                 ! Set this face as Dirichlet boundary
+                 call vef%set_set_id(1)
+
+                 ! Do a loop on all edges in 3D (vertex in 2D) of the face
+                 ivef = vef%get_gid()
+                 call vef%get_cell_around(1,cell) ! There is always one cell around
+                 reference_fe_geo => cell%get_reference_fe_geo()
+                 ivef_pos_in_cell = cell%get_vef_lid_from_gid(ivef)
+                 vefs_of_vef => reference_fe_geo%get_facets_n_face()
+                 vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
+                 do while( .not. vefs_of_vef_iterator%is_upper_bound() )
+
+                    ! Set edge (resp. vertex) as Dirichlet
+                    vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
+                    call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
+                    call vef_of_vef%set_set_id(1)
+
+                    ! If 3D, traverse vertices of current line
+                    if ( this%triangulation%get_num_dims() == 3 ) then
+                      vertices_of_line          => reference_fe_geo%get_vertices_n_face()
+                      vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
+                      do while( .not. vertices_of_line_iterator%is_upper_bound() )
+
+                        ! Set vertex as Dirichlet
+                        vertex_pos_in_cell = vertices_of_line_iterator%get_current()
+                        call cell%get_vef(vertex_pos_in_cell, vef_of_vef)
+                        call vef_of_vef%set_set_id(1)
+
+                        call vertices_of_line_iterator%next()
+                      end do ! Loop in vertices in 3D only
+                    end if
+
+                    call vefs_of_vef_iterator%next()
+                 end do ! Loop in edges (resp. vertices)
+
+             end if ! If face on void/full boundary
+           end if ! If vef is an interior face
+           
+           if(vef%is_at_boundary()) then
+              call vef%get_cell_around(1,cell)
+              if (cell%get_set_id() == TEST_POISSON_FULL) then
+                 call vef%set_set_id(1)
+              end if
+           end if
+           
+           call vef%next()
+        end do ! Loop in vefs
+        call this%triangulation%free_vef_iterator(vef)
+        call this%triangulation%free_vef_iterator(vef_of_vef)
+        call this%triangulation%free_cell_iterator(cell)
+        
+      else
+      
+         call this%triangulation%create_vef_iterator(vef)
+         do while ( .not. vef%has_finished() )
+            if(vef%is_at_boundary()) then
                call vef%set_set_id(1)
-
-               ! Do a loop on all edges in 3D (vertex in 2D) of the face
-               ivef = vef%get_gid()
-               call vef%get_cell_around(1,cell) ! There is always one cell around
-               reference_fe_geo => cell%get_reference_fe_geo()
-               ivef_pos_in_cell = cell%get_vef_lid_from_gid(ivef)
-               vefs_of_vef => reference_fe_geo%get_facets_n_face()
-               vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
-               do while( .not. vefs_of_vef_iterator%is_upper_bound() )
-
-                  ! Set edge (resp. vertex) as Dirichlet
-                  vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
-                  call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
-                  call vef_of_vef%set_set_id(1)
-
-                  ! If 3D, traverse vertices of current line
-                  if ( this%triangulation%get_num_dims() == 3 ) then
-                    massert(.false.,'h_adaptivity only available for 2D')
-                  end if
-
-                  call vefs_of_vef_iterator%next()
-               end do ! Loop in edges (resp. vertices)
-
-           end if ! If face on void/full boundary
-         end if ! If vef is an interior face
-         
-         if(vef%is_at_boundary()) then
-            call vef%get_cell_around(1,cell)
-            if (cell%get_set_id() == TEST_POISSON_FULL) then
-               call vef%set_set_id(1)
+            else
+               call vef%set_set_id(0)
             end if
-         end if
-
-         call vef%next()
-      end do ! Loop in vefs
-      call this%triangulation%free_vef_iterator(vef)
-      call this%triangulation%free_vef_iterator(vef_of_vef)
-      call this%triangulation%free_cell_iterator(cell)
-    end if    
+            call vef%next()
+         end do
+         call this%triangulation%free_vef_iterator(vef)
+      end if
+    
+    end if
     
     if (allocated(cell_set_ids)) call memfree(cell_set_ids,__FILE__,__LINE__)
     
@@ -470,9 +488,9 @@ contains
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
     integer(ip) :: i
     
-    do i=1,6
+    do i=1,3
        
-       if ( mod(i+1,3) == 0 ) then 
+       if ( i == 2 ) then 
          if (this%triangulation%get_num_dims() == 2) then
            call this%set_cells_for_coarsening()
          end if
@@ -864,7 +882,7 @@ contains
     else
       call this%check_solution_vector()
     end if
-    !call this%refine_and_coarsen()
+    call this%refine_and_coarsen()
     call this%write_solution()
     call this%write_filling_curve()
     call this%free()

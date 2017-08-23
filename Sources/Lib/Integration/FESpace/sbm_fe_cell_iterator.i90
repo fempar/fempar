@@ -651,6 +651,12 @@ subroutine fe_cell_iterator_set_has_fixed_dofs ( this, field_id )
   end do  
 end subroutine fe_cell_iterator_set_has_fixed_dofs
 
+subroutine fe_cell_iterator_set_has_hanging_dofs ( this, field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: field_id
+  check(.false.)
+end subroutine fe_cell_iterator_set_has_hanging_dofs
 
 subroutine fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields ( this )
   implicit none
@@ -661,8 +667,13 @@ subroutine fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields ( this )
   end do
 end subroutine fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields
 
-
-
+function fe_cell_iterator_is_free_dof ( this, dof_lid )
+  implicit none
+  class(fe_cell_iterator_t)   , intent(in) :: this
+  integer(ip)            , intent(in) :: dof_lid
+  logical :: fe_cell_iterator_is_free_dof
+  fe_cell_iterator_is_free_dof = dof_lid > 0
+end function fe_cell_iterator_is_free_dof
 
 function fe_cell_iterator_is_strong_dirichlet_dof ( this, dof_lid )
   implicit none

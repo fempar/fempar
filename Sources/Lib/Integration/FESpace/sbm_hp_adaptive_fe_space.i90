@@ -84,6 +84,38 @@ function hpafeci_is_strong_dirichlet_dof ( this, dof_lid )
   hpafeci_is_strong_dirichlet_dof = (dof_lid < 0 .and. dof_lid >= -this%hp_adaptive_fe_space%num_dirichlet_dofs )
 end function hpafeci_is_strong_dirichlet_dof
 
+function hpafeci_is_hanging_dof ( this, dof_lid )
+  implicit none
+  class(hp_adaptive_fe_cell_iterator_t), intent(in) :: this
+  integer(ip)                          , intent(in) :: dof_lid
+  logical :: hpafeci_is_hanging_dof
+  hpafeci_is_hanging_dof = dof_lid < -this%hp_adaptive_fe_space%num_dirichlet_dofs
+end function hpafeci_is_hanging_dof
+
+function hpafeci_has_hanging_dofs ( this, field_id )
+  implicit none
+  class(hp_adaptive_fe_cell_iterator_t), intent(in) :: this
+  integer(ip)                          , intent(in) :: field_id
+  logical                                           :: hpafeci_has_hanging_dofs
+  hpafeci_has_hanging_dofs = this%hp_adaptive_fe_space%has_hanging_dofs_x_fe(field_id,this%get_gid())
+end function hpafeci_has_hanging_dofs
+
+subroutine hpafeci_set_has_hanging_dofs ( this, field_id )
+  implicit none
+  class(hp_adaptive_fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)                          , intent(in)    :: field_id
+  integer(ip), pointer :: fe_dofs(:)
+  integer(ip) :: i 
+  call this%get_field_fe_dofs(field_id, fe_dofs)
+  this%hp_adaptive_fe_space%has_hanging_dofs_x_fe(field_id,this%get_gid()) = .false.
+  do i=1, size(fe_dofs)
+    if ( this%is_hanging_dof(fe_dofs(i)) ) then
+      this%hp_adaptive_fe_space%has_hanging_dofs_x_fe(field_id,this%get_gid()) = .true.
+      exit
+    end if  
+  end do  
+end subroutine hpafeci_set_has_hanging_dofs
+
 subroutine hp_adaptive_fe_facet_iterator_create ( this, fe_space, vef )
   implicit none
   class(hp_adaptive_fe_facet_iterator_t), target, intent(inout) :: this
@@ -243,6 +275,7 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   if ( present(conditions) ) call this%set_conditions(conditions)
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
+  call this%allocate_and_init_has_hanging_dofs_x_fe()
   call this%set_up_strong_dirichlet_bcs()
   
 end subroutine shpafs_create_same_reference_fes_on_all_cells 
@@ -285,6 +318,7 @@ subroutine shpafs_create_different_ref_fes_between_cells( this,          &
   if ( present(conditions) ) call this%set_conditions(conditions)
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
+  call this%allocate_and_init_has_hanging_dofs_x_fe()
   call this%set_up_strong_dirichlet_bcs()
   
 end subroutine shpafs_create_different_ref_fes_between_cells
@@ -295,6 +329,7 @@ subroutine serial_hp_adaptive_fe_space_free(this)
   call this%serial_fe_space_t%free()
   this%num_hanging_dofs = -1
   this%num_dirichlet_dofs = -1
+  call this%free_has_hanging_dofs_x_fe()
   call this%free_ptr_constraining_free_dofs()
   call this%free_constraining_free_dofs
   call this%free_constraining_free_dofs_coefficients
@@ -581,6 +616,7 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
            end do
           end if 
           call fe%determine_has_fixed_dofs(field_id)
+          call fe%determine_has_hanging_dofs(field_id)
           call fe%next()
         end do
         call this%free_fe_cell_iterator(source_fe)
@@ -608,6 +644,24 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
   ! this%num_fixed_dofs = this%num_hanging_dofs + this%num_dirichlet_dof
   this%num_fixed_dofs = current_fixed_dof
 end subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
+
+subroutine shpafs_allocate_and_init_has_hanging_dofs_x_fe(this)
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
+  call this%free_has_hanging_dofs_x_fe()
+  call memalloc ( this%num_fields,                          &
+                  this%p4est_triangulation%get_num_cells(), &
+                  this%has_hanging_dofs_x_fe, __FILE__, __LINE__ )
+  this%has_hanging_dofs_x_fe = .false. 
+end subroutine shpafs_allocate_and_init_has_hanging_dofs_x_fe
+
+subroutine shpafs_free_has_hanging_dofs_x_fe(this)
+  implicit none
+  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
+  if (allocated(this%has_hanging_dofs_x_fe)) then
+     call memfree ( this%has_hanging_dofs_x_fe, __FILE__, __LINE__ )
+  end if
+end subroutine shpafs_free_has_hanging_dofs_x_fe
 
 subroutine shpafs_setup_hanging_node_constraints ( this )
   implicit none
@@ -685,7 +739,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
         do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
            improper_dof_lid = fe_dofs(field_id)%p(fe_own_dofs_on_vef_iterator%get_current())
 
-           if ( .not. fe%is_fixed_dof(improper_dof_lid) ) exit
+           if ( fe%is_free_dof(improper_dof_lid) ) exit
 
            improper_dof_lid = abs(improper_dof_lid)
            hanging_dof_lid  = improper_dof_lid - this%num_dirichlet_dofs
@@ -970,6 +1024,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   call this%allocate_and_init_ptr_lst_dofs_gids()
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
+  call this%allocate_and_init_has_hanging_dofs_x_fe()
   call this%set_up_strong_dirichlet_bcs()
   
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
@@ -1131,7 +1186,7 @@ subroutine hpafeci_assembly_matrix_array ( this,  &
   
   no_hanging_node_constraints = .true.
   do ifield=1, this%fe_space%num_fields
-     if ( this%has_fixed_dofs(ifield) ) then
+     if ( this%has_hanging_dofs(ifield) ) then
         no_hanging_node_constraints = .false.
         exit
      end if
@@ -1176,7 +1231,7 @@ subroutine hpafeci_assembly_matrix_array_with_strong_bcs(this,fe_function,elmat,
   
   no_hanging_node_constraints = .true.
   do ifield=1, this%fe_space%num_fields
-     if ( this%has_fixed_dofs(ifield) ) then
+     if ( this%has_hanging_dofs(ifield) ) then
         no_hanging_node_constraints = .false.
         exit
      end if
@@ -1231,13 +1286,13 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
      do ifield=1, this%get_num_fields() 
         iblock = field_blocks(ifield)
         ! Only if hanging nodes perform the following work
-        if ( this%has_fixed_dofs(ifield) ) then
+        if ( this%has_hanging_dofs(ifield) ) then
            ! Initialize extended_fe_dofs
            call this%extended_fe_dofs(ifield)%resize(0)
            ! First, insert all free nodes
            do i_lid=1, this%get_num_dofs_field(ifield)
               i_gid = this%fe_dofs(ifield)%p(i_lid)
-              if ( .not. this%is_fixed_dof(i_gid) ) then
+              if ( this%is_free_dof(i_gid) ) then
                  ! Global to local map for free dofs (dofs already belonging to the cell)
                  this%gid_to_lid_map(iblock)%a(i_gid) = i_lid
               end if
@@ -1246,7 +1301,7 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
            end do
            do i_lid=1, this%get_num_dofs_field(ifield)
               i_gid = this%fe_dofs(ifield)%p(i_lid)
-              if ( this%is_fixed_dof(i_gid) .and. .not. this%is_strong_dirichlet_dof(i_gid)) then
+              if ( this%is_hanging_dof(i_gid) ) then
                  ! Only for hanging dofs, find outer constraining dofs
                  i_gid_hanging = abs(i_gid) - this%hp_adaptive_fe_space%num_dirichlet_dofs
                  do j_lid= this%hp_adaptive_fe_space%ptr_constraining_free_dofs%get(i_gid_hanging), &
@@ -1303,7 +1358,7 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
         do i_lid=1, this%get_num_dofs_field(ifield)
            i_gid = this%fe_dofs(ifield)%p(i_lid)
            ! i is a hanging DoF?
-           if ( this%is_fixed_dof(i_gid) .and. .not. this%is_strong_dirichlet_dof(i_gid) ) then
+           if ( this%is_hanging_dof(i_gid) ) then
               ! Traverse constraining free DoFs of i
               i_gid_hanging = abs(i_gid) - this%hp_adaptive_fe_space%num_dirichlet_dofs
               spos = this%hp_adaptive_fe_space%ptr_constraining_free_dofs%get(i_gid_hanging)
@@ -1326,7 +1381,7 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
         do i_lid=1, this%get_num_dofs_field(ifield)
            i_gid = this%fe_dofs(ifield)%p(i_lid)
            ! i is a hanging DoF?
-           if ( this%is_fixed_dof(i_gid) .and. .not. this%is_strong_dirichlet_dof(i_gid) ) then
+           if ( this%is_hanging_dof(i_gid) ) then
               ! Traverse constraining free DoFs of i
               i_gid_hanging = abs(i_gid) - this%hp_adaptive_fe_space%num_dirichlet_dofs
               spos = this%hp_adaptive_fe_space%ptr_constraining_free_dofs%get(i_gid_hanging)
@@ -1346,10 +1401,10 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
      do ifield=1, this%get_num_fields() 
        iblock = field_blocks(ifield)
        ! Only if hanging nodes perform the following work
-       if ( this%has_fixed_dofs(ifield) ) then
+       if ( this%has_hanging_dofs(ifield) ) then
          do i_lid=1, this%get_num_dofs_field(ifield)
            i_gid = this%fe_dofs(ifield)%p(i_lid)
-           if ( this%is_fixed_dof(i_gid) .and. .not. this%is_strong_dirichlet_dof(i_gid)) then
+           if ( this%is_hanging_dof(i_gid) ) then
                  ! Only for hanging dofs, find outer constraining dofs
                  i_gid_hanging = abs(i_gid) - this%hp_adaptive_fe_space%num_dirichlet_dofs
                  do j_lid= this%hp_adaptive_fe_space%ptr_constraining_free_dofs%get(i_gid_hanging), &
@@ -1359,7 +1414,7 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
                     ! in extended_fe_dofs
                     this%gid_to_lid_map(iblock)%a(j_gid) = 0
                  end do 
-           else if ( .not. this%is_fixed_dof(i_gid) ) then
+           else if ( this%is_free_dof(i_gid) ) then
              ! Global to local map for free dofs (dofs already belonging to the cell)
              this%gid_to_lid_map(iblock)%a(i_gid) = 0
            end if
@@ -1386,7 +1441,7 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
         do i_lid=1, this%num_cell_dofs_x_field(ifield)
            i_gid = this%fe_dofs(ifield)%p(i_lid)
            ! i is a hanging DoF?
-           if ( this%is_fixed_dof(i_gid) .and. .not. this%is_strong_dirichlet_dof(i_gid) ) then
+           if ( this%is_hanging_dof(i_gid) ) then
               ! Traverse constraining dirichlet DoFs of i
               i_gid_hanging = abs(i_gid) - this%hp_adaptive_fe_space%num_dirichlet_dofs
               spos = this%hp_adaptive_fe_space%ptr_constraining_dirichlet_dofs%get(i_gid_hanging)
