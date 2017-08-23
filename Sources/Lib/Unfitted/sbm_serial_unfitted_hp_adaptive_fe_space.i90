@@ -217,7 +217,7 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
 
            if ( vef%is_proper() .or. all_improper_cells_around_void ) then
 
-             vef_lid = abs(fe%get_vef_lid(ivef))
+             vef_lid = abs(fe%get_vef_gid(ivef))
              is_owner = .false.
              if ( vef%is_proper()) then
                is_owner = ( visited_proper_vef_to_cell_map   ( 1, vef_lid ) == -1 )
@@ -230,10 +230,10 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
                call fe%generate_own_dofs_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
                if (previous_dof_block < current_dof_block) then
                  if ( vef%is_proper()) then
-                   visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                   visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
                    visited_proper_vef_to_cell_map ( 2, vef_lid ) = ivef
                  else
-                   visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                   visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
                    visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                  end if
                end if
@@ -245,22 +245,22 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
                  source_cell_id = visited_improper_vef_to_cell_map(1,vef_lid)
                  source_vef_lid = visited_improper_vef_to_cell_map(2,vef_lid)
                end if
-               call source_fe%set_lid(source_cell_id)
+               call source_fe%set_gid(source_cell_id)
                call fe%generate_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
              end if
            else 
              mcheck(.false.,'For the moment that the only interior constained nodes are the ones of cut cells. I.e., no hanging nodes in the interior allowed')
-             assert ( fe%get_vef_lid(ivef) < 0 )
-             vef_lid = abs(fe%get_vef_lid(ivef))
+             assert ( fe%get_vef_gid(ivef) < 0 )
+             vef_lid = abs(fe%get_vef_gid(ivef))
              if ( visited_improper_vef_to_cell_map ( 1, vef_lid ) == -1 ) then
                previous_fixed_dof = current_fixed_dof
                call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
                if (previous_fixed_dof < current_fixed_dof) then
-                 visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                 visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
                  visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                end if
              else 
-               call source_fe%set_lid(visited_improper_vef_to_cell_map(1,vef_lid))
+               call source_fe%set_gid(visited_improper_vef_to_cell_map(1,vef_lid))
                call fe%generate_own_dofs_vef_from_source_fe ( ivef, &
                  source_fe, &
                  visited_improper_vef_to_cell_map(2,vef_lid), &
@@ -281,7 +281,7 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
          do ivef = 1, fe%get_num_vefs()
            call fe%get_vef(ivef,vef)
 
-           vef_lid = abs(fe%get_vef_lid(ivef))
+           vef_lid = abs(fe%get_vef_gid(ivef))
            is_owner = .false.
            if ( vef%is_proper()) then
              is_owner = ( visited_proper_vef_to_cell_map   ( 1, vef_lid ) == -1 )
@@ -294,10 +294,10 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
              call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
              if (previous_fixed_dof < current_fixed_dof) then
                if ( vef%is_proper()) then
-                 visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                 visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
                  visited_proper_vef_to_cell_map ( 2, vef_lid ) = ivef
                else
-                 visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                 visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
                  visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                end if
              end if
@@ -309,7 +309,7 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
                source_cell_id = visited_improper_vef_to_cell_map(1,vef_lid)
                source_vef_lid = visited_improper_vef_to_cell_map(2,vef_lid)
              end if
-             call source_fe%set_lid(source_cell_id)
+             call source_fe%set_gid(source_cell_id)
              call fe%generate_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
            end if
 
@@ -416,10 +416,10 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   do while (.not. cell%has_finished())
     if (cell%is_local()) then
       if (cell%is_interior()) then
-        this%aggregate_ids(cell%get_lid()) = cell%get_lid()
-        distance(cell%get_lid(),:) = 0
+        this%aggregate_ids(cell%get_gid()) = cell%get_gid()
+        distance(cell%get_gid(),:) = 0
       else
-        this%aggregate_ids(cell%get_lid()) = 0
+        this%aggregate_ids(cell%get_gid()) = 0
       end if
     end if
     call cell%next()
@@ -438,7 +438,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
     is_needed = .false.
     do while (.not. cell%has_finished())
       if (cell%is_local()) then
-        if ( cell%is_cut() .and. (this%aggregate_ids(cell%get_lid()) == 0) ) then
+        if ( cell%is_cut() .and. (this%aggregate_ids(cell%get_gid()) == 0) ) then
 
           ! TODO: We try to glue only by true neighbors
           ! For adaptive meshes, shall we look for improper neighbors as well?
@@ -454,15 +454,15 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
             do icell_arround = 1,vef%get_num_cells_around()
               call vef%get_cell_around(icell_arround,cell_arround)
               if ( (isweep == 1) .and. (.not. cell_arround%is_interior()) ) cycle
-              if ( this%aggregate_ids(cell_arround%get_lid()) > 0 ) then
+              if ( this%aggregate_ids(cell_arround%get_gid()) > 0 ) then
 
                 ! Compute the movement to reach the root element
-                tent_distance = distance(cell_arround%get_lid(),:) + face2dir(ifacet,:)
+                tent_distance = distance(cell_arround%get_gid(),:) + face2dir(ifacet,:)
 
                 ! Find which is the best neighbor to glue into
                 if ( norm2(real(tent_distance,kind=rp)) < norm2(real(min_distance,kind=rp)) ) then
                   min_distance =  tent_distance
-                  min_distance_aggr_id = this%aggregate_ids(cell_arround%get_lid())
+                  min_distance_aggr_id = this%aggregate_ids(cell_arround%get_gid())
                 end if
 
               end if
@@ -472,8 +472,8 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
           if (min_distance_aggr_id == 0) then
             is_needed = .true.
           else
-            this%aggregate_ids(cell%get_lid()) = min_distance_aggr_id
-            distance(cell%get_lid(),:) = min_distance
+            this%aggregate_ids(cell%get_gid()) = min_distance_aggr_id
+            distance(cell%get_gid(),:) = min_distance
             this%max_separation_from_root = max(this%max_separation_from_root,norm2(real(min_distance,kind=rp)))
           end if
 
@@ -554,7 +554,7 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   do while (.not. fe%has_finished())
     if ( fe%is_local() .and. fe%is_cut() ) then
 
-      call root_fe%set_lid(this%aggregate_ids(fe%get_lid()))
+      call root_fe%set_gid(this%aggregate_ids(fe%get_gid()))
 
       call fe%get_field_fe_dofs(field_id, fe_dofs)
       call root_fe%get_field_fe_dofs(field_id, root_fe_dofs)
@@ -592,7 +592,7 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   do while (.not. fe%has_finished())
     if ( fe%is_local() .and. fe%is_cut() ) then
 
-      call root_fe%set_lid(this%aggregate_ids(fe%get_lid()))
+      call root_fe%set_gid(this%aggregate_ids(fe%get_gid()))
 
       call fe%get_field_fe_dofs(field_id, fe_dofs)
       call root_fe%get_field_fe_dofs(field_id, root_fe_dofs)

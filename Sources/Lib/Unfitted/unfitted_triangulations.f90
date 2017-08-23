@@ -27,11 +27,27 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module unfitted_triangulations_names
-  use fempar_names
+  !use fempar_names
+  use types_names
+  use field_names
+  use reference_fe_names
+  use fpl
+  use environment_names
+  use list_types_names
+  use par_scalar_array_names
+  use vector_names
+  use serial_scalar_array_names
+  use base_static_triangulation_names
   use level_set_functions_gallery_names
   use base_sparse_matrix_names
   use dof_import_names
   use p4est_serial_triangulation_names
+  
+  
+  use fe_space_names
+  use conditions_names
+  use block_layout_names
+  use function_names
   
   implicit none
 # include "debug.i90"
@@ -117,8 +133,8 @@ module unfitted_triangulations_names
     procedure                            :: get_num_vefs            => unfitted_p4est_cell_iterator_get_num_vefs
     procedure                            :: get_num_nodes           => unfitted_p4est_cell_iterator_get_num_nodes
     !procedure, non_overridable           :: get_node_lid            => unfitted_p4est_cell_iterator_get_node_lid
-    procedure                            :: get_vef_lid             => unfitted_p4est_cell_iterator_get_vef_lid
-    procedure                            :: get_vef_lids            => unfitted_p4est_cell_iterator_get_vef_lids
+    procedure                            :: get_vef_gid             => unfitted_p4est_cell_iterator_get_vef_gid
+    procedure                            :: get_vef_gids            => unfitted_p4est_cell_iterator_get_vef_gids
     !procedure, non_overridable           :: get_vef_gid             => unfitted_p4est_cell_iterator_get_vef_gid
     !procedure                            :: find_lpos_vef_lid       => unfitted_p4est_cell_iterator_find_lpos_vef_lid
     !procedure, non_overridable           :: find_lpos_vef_gid       => unfitted_p4est_cell_iterator_find_lpos_vef_gid
@@ -309,7 +325,7 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => upst_get_max_num_nodes_in_subcell
       procedure, non_overridable :: get_total_num_subcells     => upst_get_total_num_subcells
       procedure, non_overridable :: get_max_num_subfacets_in_cell  => upst_get_max_num_subfacets_in_cell
-      procedure, non_overridable :: get_max_num_nodes_in_subface  => upst_get_max_num_nodes_in_subface
+      procedure, non_overridable :: get_max_num_nodes_in_subfacet  => upst_get_max_num_nodes_in_subfacet
       procedure, non_overridable :: get_total_num_subfacets     => upst_get_total_num_subfacets
       procedure, non_overridable :: get_max_num_subnodes_in_cell  => upst_get_max_num_subnodes_in_cell
 

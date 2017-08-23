@@ -35,7 +35,17 @@ module unfitted_fe_spaces_names
 # include "debug.i90"
   private
 
-  type, extends(fe_cell_iterator_t) :: unfitted_fe_cell_iterator_t
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ! Types from unfitted branch that are *** UNDER QUARANTINE ***
+ 
+ type, extends(fe_cell_iterator_t) :: unfitted_fe_cell_iterator_t
 
     private
     class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
@@ -217,12 +227,10 @@ module unfitted_fe_spaces_names
 
 contains
 
-#include "sbm_unfitted_fe_cell_iterator.i90"
-#include "sbm_unfitted_hp_adaptive_fe_cell_iterator.i90"
-#include "sbm_unfitted_fe_cell_iterator.i90"
-#include "sbm_unfitted_integration_manager.i90"
-#include "sbm_serial_unfitted_fe_space.i90"
-#include "sbm_serial_unfitted_hp_adaptive_fe_space.i90"
-#include "sbm_par_unfitted_fe_space.i90"
+#include "../Unfitted/sbm_unfitted_fe_cell_iterator.i90"
+#include "../Unfitted/sbm_unfitted_integration_manager.i90"
+#include "../Unfitted/sbm_serial_unfitted_fe_space.i90"
+#include "../Unfitted/sbm_serial_unfitted_hp_adaptive_fe_space.i90"
+#include "../Unfitted/sbm_par_unfitted_fe_space.i90"
 
 end module unfitted_fe_spaces_names

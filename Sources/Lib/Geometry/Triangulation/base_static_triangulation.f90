@@ -102,7 +102,7 @@ module base_static_triangulation_names
     procedure                            :: next                    => cell_iterator_next
     procedure                            :: first                   => cell_iterator_first
     procedure                            :: last                    => cell_iterator_last
-    procedure, non_overridable           :: set_gid                 => cell_iterator_set_gid
+    procedure                            :: set_gid                 => cell_iterator_set_gid
     procedure, non_overridable, private  :: set_ggid                 => cell_iterator_set_ggid
     procedure, non_overridable, private  :: set_mypart              => cell_iterator_set_mypart
     procedure, non_overridable, private  :: get_triangulation       => cell_iterator_get_triangulation

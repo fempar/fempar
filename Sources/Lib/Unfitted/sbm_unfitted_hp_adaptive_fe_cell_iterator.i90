@@ -68,13 +68,13 @@ subroutine unfitted_hp_adaptive_fe_cell_iterator_last(this)
 end subroutine unfitted_hp_adaptive_fe_cell_iterator_last
 
 !===============================================================================
-subroutine unfitted_hp_adaptive_fe_cell_iterator_set_lid(this, lid)
+subroutine unfitted_hp_adaptive_fe_cell_iterator_set_gid(this, lid)
   implicit none
   class(unfitted_hp_adaptive_fe_cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
-  call this%unfitted_fe_cell_iterator_t%set_lid(lid)
-  call this%adaptive_fe%set_lid(lid)
-end subroutine unfitted_hp_adaptive_fe_cell_iterator_set_lid
+  call this%unfitted_fe_cell_iterator_t%set_gid(lid)
+  call this%adaptive_fe%set_gid(lid)
+end subroutine unfitted_hp_adaptive_fe_cell_iterator_set_gid
 
 !===============================================================================
 subroutine unfitted_hp_adaptive_fe_cell_iterator_assemble(this,elmat,elvec,assembler)

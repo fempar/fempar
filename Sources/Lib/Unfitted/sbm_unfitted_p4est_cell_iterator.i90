@@ -68,12 +68,12 @@ subroutine unfitted_p4est_cell_iterator_last(this)
   call this%p4est_cell%last()
 end subroutine unfitted_p4est_cell_iterator_last
 
-subroutine unfitted_p4est_cell_iterator_set_gid(this, gid)
+subroutine unfitted_p4est_cell_iterator_set_gid(this, lid)
   implicit none
   class(unfitted_p4est_cell_iterator_t), intent(inout) :: this
-  integer(ip)        , intent(in)    :: gid
-  call this%unfitted_cell_iterator_t%set_gid(gid)
-  call this%p4est_cell%set_gid(gid)
+  integer(ip)        , intent(in)    :: lid
+  call this%unfitted_cell_iterator_t%set_gid(lid)
+  call this%p4est_cell%set_gid(lid)
 end subroutine unfitted_p4est_cell_iterator_set_gid
 
 !subroutine unfitted_p4est_cell_iterator_set_gid(this, gid)

@@ -443,7 +443,7 @@ module fe_space_names
   integer(ip), parameter :: fe_space_default_quadrature_degree_flag = -1000
   
   type, extends(base_fe_space_t) :: serial_fe_space_t 
-     private     
+     !private      ! UNDER QUARANTINE
      ! Reference FE container
      integer(ip)                                 :: reference_fes_size
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
@@ -579,7 +579,8 @@ module fe_space_names
      procedure                           :: allocate_num_dofs_x_field               =>  serial_fe_space_allocate_num_dofs_x_field
      procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
      procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
-     procedure                 , private :: fill_fe_dofs_and_count_dofs                 => serial_fe_space_fill_fe_dofs_and_count_dofs
+     ! UNDER QUARANTINE
+     procedure                           :: fill_fe_dofs_and_count_dofs                 => serial_fe_space_fill_fe_dofs_and_count_dofs
      procedure                 , private :: renum_dofs_block                          => serial_fe_space_renum_dofs_block
  
      ! Getters
@@ -1041,7 +1042,7 @@ module fe_space_names
   public :: fe_function_t  
   
   type, extends(serial_fe_space_t) :: serial_hp_adaptive_fe_space_t
-     private
+     !private ! UNDER QUARANTINE
      !list_t :: constraints 
      ! Hanging and strong Dirichlet data
      ! ptr_constraint_dofs         : pointer to constraints
@@ -1071,7 +1072,8 @@ module fe_space_names
      procedure          :: free                                                   => serial_hp_adaptive_fe_space_free
      
      procedure          :: generate_global_dof_numbering                                          => serial_hp_adaptive_fe_space_generate_global_dof_numbering
-     procedure, private :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
+     ! UNDER QUARANTINE
+     procedure          :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
      
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
      procedure          :: free_ptr_constraining_free_dofs                        => shpafs_free_ptr_constraining_free_dofs
@@ -1125,10 +1127,8 @@ module fe_space_names
    procedure, private :: get_subfacet_lid_cell_around    => hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around
  end type hp_adaptive_fe_facet_iterator_t
  
- public :: serial_hp_adaptive_fe_space_t
- 
- 
- 
+ public :: serial_hp_adaptive_fe_space_t, hp_adaptive_fe_cell_iterator_t
+
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
