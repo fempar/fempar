@@ -308,9 +308,9 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_max_num_subcells_in_cell  => upst_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => upst_get_max_num_nodes_in_subcell
       procedure, non_overridable :: get_total_num_subcells     => upst_get_total_num_subcells
-      procedure, non_overridable :: get_max_num_subfaces_in_cell  => upst_get_max_num_subfaces_in_cell
+      procedure, non_overridable :: get_max_num_subfacets_in_cell  => upst_get_max_num_subfacets_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subface  => upst_get_max_num_nodes_in_subface
-      procedure, non_overridable :: get_total_num_subfaces     => upst_get_total_num_subfaces
+      procedure, non_overridable :: get_total_num_subfacets     => upst_get_total_num_subfacets
       procedure, non_overridable :: get_max_num_subnodes_in_cell  => upst_get_max_num_subnodes_in_cell
 
       ! TODO this getters should be removed in the future
@@ -318,7 +318,7 @@ module unfitted_triangulations_names
       ! The goal is that the fe space does not assume that the tesselation algorithm is the mc algorithm
       procedure, non_overridable :: get_num_mc_cases              => upst_get_num_mc_cases
       procedure, non_overridable :: get_num_subcells_mc_case      => upst_get_num_subcells_mc_case
-      procedure, non_overridable :: get_num_subfaces_mc_case      => upst_get_num_subfaces_mc_case
+      procedure, non_overridable :: get_num_subfacets_mc_case      => upst_get_num_subfacets_mc_case
 
       ! Printers
       procedure :: print                     => upst_print

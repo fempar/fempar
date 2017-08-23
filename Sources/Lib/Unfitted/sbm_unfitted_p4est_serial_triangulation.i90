@@ -130,12 +130,12 @@ function upst_get_total_num_subcells(this) result (val)
 end function upst_get_total_num_subcells
 
 !========================================================================================
-function upst_get_max_num_subfaces_in_cell(this) result (val)
+function upst_get_max_num_subfacets_in_cell(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_max_num_subfaces_in_cell()
-end function upst_get_max_num_subfaces_in_cell
+  val = this%marching_cubes%get_max_num_subfacets_in_cell()
+end function upst_get_max_num_subfacets_in_cell
 
 !========================================================================================
 function upst_get_max_num_nodes_in_subface(this) result (val)
@@ -146,12 +146,12 @@ function upst_get_max_num_nodes_in_subface(this) result (val)
 end function upst_get_max_num_nodes_in_subface
 
 !========================================================================================
-function upst_get_total_num_subfaces(this) result (val)
+function upst_get_total_num_subfacets(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_total_num_subfaces()
-end function upst_get_total_num_subfaces
+  val = this%marching_cubes%get_total_num_subfacets()
+end function upst_get_total_num_subfacets
 
 !========================================================================================
 function upst_get_max_num_subnodes_in_cell(this) result (val)
@@ -179,13 +179,13 @@ function upst_get_num_subcells_mc_case(this,mc_case) result (val)
 end function upst_get_num_subcells_mc_case
 
 !========================================================================================
-function upst_get_num_subfaces_mc_case(this,mc_case) result (val)
+function upst_get_num_subfacets_mc_case(this,mc_case) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: mc_case
   integer(ip) :: val
-  val = this%marching_cubes%get_num_subfaces_mc_case(mc_case)
-end function upst_get_num_subfaces_mc_case
+  val = this%marching_cubes%get_num_subfacets_mc_case(mc_case)
+end function upst_get_num_subfacets_mc_case
 
 !========================================================================================
 subroutine upst_print(this)
