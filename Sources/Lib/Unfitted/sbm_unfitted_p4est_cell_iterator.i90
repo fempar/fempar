@@ -68,26 +68,26 @@ subroutine unfitted_p4est_cell_iterator_last(this)
   call this%p4est_cell%last()
 end subroutine unfitted_p4est_cell_iterator_last
 
-subroutine unfitted_p4est_cell_iterator_set_lid(this, lid)
+subroutine unfitted_p4est_cell_iterator_set_gid(this, gid)
   implicit none
   class(unfitted_p4est_cell_iterator_t), intent(inout) :: this
-  integer(ip)        , intent(in)    :: lid
-  call this%unfitted_cell_iterator_t%set_lid(lid)
-  call this%p4est_cell%set_lid(lid)
-end subroutine unfitted_p4est_cell_iterator_set_lid
+  integer(ip)        , intent(in)    :: gid
+  call this%unfitted_cell_iterator_t%set_gid(gid)
+  call this%p4est_cell%set_gid(gid)
+end subroutine unfitted_p4est_cell_iterator_set_gid
 
 !subroutine unfitted_p4est_cell_iterator_set_gid(this, gid)
 !  implicit none
 !  class(unfitted_p4est_cell_iterator_t), intent(inout) :: this
 !  integer(igp)          , intent(in)    :: gid
-!  this%base_static_triangulation%cells_gid(this%lid) = gid
+!  this%base_static_triangulation%cells_gid(this%gid) = gid
 !end subroutine unfitted_p4est_cell_iterator_set_gid
 
 !subroutine unfitted_p4est_cell_iterator_set_mypart(this, mypart)
 !  implicit none
 !  class(unfitted_p4est_cell_iterator_t), intent(inout) :: this
 !  integer(ip)           , intent(in)    :: mypart
-!  this%base_static_triangulation%cells_mypart(this%lid) = mypart
+!  this%base_static_triangulation%cells_mypart(this%gid) = mypart
 !end subroutine unfitted_p4est_cell_iterator_set_mypart
 
 !function unfitted_p4est_cell_iterator_get_triangulation(this)
@@ -132,37 +132,37 @@ end subroutine unfitted_p4est_cell_iterator_get_coordinates
 !  integer(ip)                    :: inode
 !  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
 
-!  assert ( this%lid >= 1 .and. .not. this%has_finished() )
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
 !  assert ( allocated ( this%base_static_triangulation%coordinates ) )
 !  
 !   reference_fe_geo => this%get_reference_fe_geo()
 !   do inode=1, reference_fe_geo%get_num_shape_functions()
-!     this%base_static_triangulation%coordinates(this%get_node_lid(inode)) = cell_coordinates(inode)
+!     this%base_static_triangulation%coordinates(this%get_node_gid(inode)) = cell_coordinates(inode)
 !   end do
 !  
 !end subroutine unfitted_p4est_cell_iterator_set_coordinates
 
-!pure function unfitted_p4est_cell_iterator_get_lid (this)
+!pure function unfitted_p4est_cell_iterator_get_gid (this)
 !  implicit none
 !  class(unfitted_p4est_cell_iterator_t), intent(in) :: this
-!  integer(ip) :: unfitted_p4est_cell_iterator_get_lid
-!  unfitted_p4est_cell_iterator_get_lid = this%lid
-!end function unfitted_p4est_cell_iterator_get_lid
+!  integer(ip) :: unfitted_p4est_cell_iterator_get_gid
+!  unfitted_p4est_cell_iterator_get_gid = this%gid
+!end function unfitted_p4est_cell_iterator_get_gid
 
 !function unfitted_p4est_cell_iterator_get_gid (this)
 !  implicit none
 !  class(unfitted_p4est_cell_iterator_t), intent(in) :: this
 !  integer(igp) :: unfitted_p4est_cell_iterator_get_gid
-!  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-!  unfitted_p4est_cell_iterator_get_gid = this%base_static_triangulation%cells_gid(this%lid)
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+!  unfitted_p4est_cell_iterator_get_gid = this%base_static_triangulation%cells_gid(this%gid)
 !end function unfitted_p4est_cell_iterator_get_gid
 
 !pure function unfitted_p4est_cell_iterator_get_mypart (this)
 !  implicit none
 !  class(unfitted_p4est_cell_iterator_t), intent(in) :: this
 !  integer(ip) :: unfitted_p4est_cell_iterator_get_mypart
-!  !assert ( this%lid >= 1 .and. .not. this%has_finished() )
-!  unfitted_p4est_cell_iterator_get_mypart = this%base_static_triangulation%cells_mypart(this%lid)
+!  !assert ( this%gid >= 1 .and. .not. this%has_finished() )
+!  unfitted_p4est_cell_iterator_get_mypart = this%base_static_triangulation%cells_mypart(this%gid)
 !end function unfitted_p4est_cell_iterator_get_mypart
 
 !function unfitted_p4est_cell_iterator_get_mysubpart ( this )
@@ -173,16 +173,16 @@ end subroutine unfitted_p4est_cell_iterator_get_coordinates
 !  unfitted_p4est_cell_iterator_get_mysubpart = (this%get_set_id())*this%base_static_triangulation%cell_import%get_num_parts() + this%get_my_part()
 !end function unfitted_p4est_cell_iterator_get_mysubpart
 
-!function unfitted_p4est_cell_iterator_get_mysubpart_lid ( this )
+!function unfitted_p4est_cell_iterator_get_mysubpart_gid ( this )
 !  implicit none
 !  class(unfitted_p4est_cell_iterator_t), intent(in) :: this
-!  integer(ip) :: unfitted_p4est_cell_iterator_get_mysubpart_lid
+!  integer(ip) :: unfitted_p4est_cell_iterator_get_mysubpart_gid
 !  integer(ip) :: istat
 !  call this%base_static_triangulation%g2l_subparts%get(key=this%get_my_subpart(), &
-!                                                       val=unfitted_p4est_cell_iterator_get_mysubpart_lid, &
+!                                                       val=unfitted_p4est_cell_iterator_get_mysubpart_gid, &
 !                                                       stat=istat)
 !  assert ( istat == key_found )
-!end function unfitted_p4est_cell_iterator_get_mysubpart_lid
+!end function unfitted_p4est_cell_iterator_get_mysubpart_gid
 
 ! get_set_id() let's the user to get the cell set ID assigned to
 ! a cell. Note that the counterpart, set_set_id(), does not exist, as we do not let 
@@ -216,64 +216,64 @@ function unfitted_p4est_cell_iterator_get_num_nodes (this)
   unfitted_p4est_cell_iterator_get_num_nodes = this%p4est_cell%get_num_nodes()
 end function unfitted_p4est_cell_iterator_get_num_nodes
 
-!function unfitted_p4est_cell_iterator_get_node_lid (this, inode)
+!function unfitted_p4est_cell_iterator_get_node_gid (this, inode)
 !  implicit none
 !  class(unfitted_p4est_cell_iterator_t), intent(in) :: this
 !  integer(ip)                        :: inode
-!  integer(ip)                        :: unfitted_p4est_cell_iterator_get_node_lid
+!  integer(ip)                        :: unfitted_p4est_cell_iterator_get_node_gid
 !  class(reference_fe_t), pointer     :: reference_fe_geo
-!  assert ( this%lid >= 1 .and. .not. this%has_finished() )
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
 !  
 !  !reference_fe_geo => this%get_reference_fe_geo()
 !  !if ( reference_fe_geo%get_order() == 1 ) then
 !  !  assert ( inode >=1 .and. inode <= reference_fe_geo%get_num_vertices() )
-!  !  unfitted_p4est_cell_iterator_get_node_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%lid)+inode-1)
+!  !  unfitted_p4est_cell_iterator_get_node_gid = this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid)+inode-1)
 !  !else
 !  !  assert ( inode >=1 .and. inode <= reference_fe_geo%get_num_nodes() )
-!    unfitted_p4est_cell_iterator_get_node_lid = this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid)+inode-1)
+!    unfitted_p4est_cell_iterator_get_node_gid = this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+inode-1)
 !  !end if
 !  
-!end function unfitted_p4est_cell_iterator_get_node_lid
+!end function unfitted_p4est_cell_iterator_get_node_gid
 
-function unfitted_p4est_cell_iterator_get_vef_lid (this, ivef)
+function unfitted_p4est_cell_iterator_get_vef_gid (this, ivef)
   implicit none
   class(unfitted_p4est_cell_iterator_t), intent(in) :: this
   integer(ip)                       :: ivef
-  integer(ip)                        :: unfitted_p4est_cell_iterator_get_vef_lid
-  unfitted_p4est_cell_iterator_get_vef_lid = this%p4est_cell%get_vef_lid(ivef)
-end function unfitted_p4est_cell_iterator_get_vef_lid
+  integer(ip)                        :: unfitted_p4est_cell_iterator_get_vef_gid
+  unfitted_p4est_cell_iterator_get_vef_gid = this%p4est_cell%get_vef_gid(ivef)
+end function unfitted_p4est_cell_iterator_get_vef_gid
 
-function unfitted_p4est_cell_iterator_get_vef_lids (this)
+function unfitted_p4est_cell_iterator_get_vef_gids (this)
   implicit none
   class(unfitted_p4est_cell_iterator_t), intent(in) :: this
-  integer(ip), pointer               :: unfitted_p4est_cell_iterator_get_vef_lids(:)
-  unfitted_p4est_cell_iterator_get_vef_lids => this%p4est_cell%get_vef_lids()
-end function unfitted_p4est_cell_iterator_get_vef_lids
+  integer(ip), pointer               :: unfitted_p4est_cell_iterator_get_vef_gids(:)
+  unfitted_p4est_cell_iterator_get_vef_gids => this%p4est_cell%get_vef_gids()
+end function unfitted_p4est_cell_iterator_get_vef_gids
 
 !function unfitted_p4est_cell_iterator_get_vef_gid (this, ivef)
 !  implicit none
 !  class(unfitted_p4est_cell_iterator_t), intent(in) :: this
 !  integer(ip)                        :: ivef
 !  integer(igp)                       :: unfitted_p4est_cell_iterator_get_vef_gid
-!  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-!  unfitted_p4est_cell_iterator_get_vef_gid = this%base_static_triangulation%vefs_gid(this%get_vef_lid(ivef))
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+!  unfitted_p4est_cell_iterator_get_vef_gid = this%base_static_triangulation%vefs_gid(this%get_vef_gid(ivef))
 !end function unfitted_p4est_cell_iterator_get_vef_gid
 
-!function unfitted_p4est_cell_iterator_find_lpos_vef_lid (this, vef_lid)
+!function unfitted_p4est_cell_iterator_find_lpos_vef_gid (this, vef_gid)
 !  implicit none
 !  class(unfitted_p4est_cell_iterator_t), intent(in) :: this
-!  integer(ip)                        :: vef_lid
-!  integer(ip)                        :: unfitted_p4est_cell_iterator_find_lpos_vef_lid
+!  integer(ip)                        :: vef_gid
+!  integer(ip)                        :: unfitted_p4est_cell_iterator_find_lpos_vef_gid
 !  integer(ip)                        :: ivef
-!  unfitted_p4est_cell_iterator_find_lpos_vef_lid = -1
-!  ! Find position of vef_lid in local element
+!  unfitted_p4est_cell_iterator_find_lpos_vef_gid = -1
+!  ! Find position of vef_gid in local element
 !  do ivef = 1, this%get_num_vefs()
-!   if ( this%get_vef_lid(ivef) == vef_lid ) then
-!      unfitted_p4est_cell_iterator_find_lpos_vef_lid = ivef
+!   if ( this%get_vef_gid(ivef) == vef_gid ) then
+!      unfitted_p4est_cell_iterator_find_lpos_vef_gid = ivef
 !      return 
 !    end if
 !  end do
-!end function unfitted_p4est_cell_iterator_find_lpos_vef_lid
+!end function unfitted_p4est_cell_iterator_find_lpos_vef_gid
 
 !function unfitted_p4est_cell_iterator_find_lpos_vef_gid (this, vef_gid)
 !  implicit none
@@ -282,7 +282,7 @@ end function unfitted_p4est_cell_iterator_get_vef_lids
 !  integer(ip)                        :: unfitted_p4est_cell_iterator_find_lpos_vef_gid
 !  integer(ip)                        :: ivef
 !  unfitted_p4est_cell_iterator_find_lpos_vef_gid = -1
-!  ! Find position of vef_lid in local element
+!  ! Find position of vef_gid in local element
 !  do ivef = 1, this%get_num_vefs()
 !    if ( this%get_vef_gid(ivef) == vef_gid ) then
 !      unfitted_p4est_cell_iterator_find_lpos_vef_gid = ivef
@@ -296,8 +296,8 @@ end function unfitted_p4est_cell_iterator_get_vef_lids
 !  class(unfitted_p4est_cell_iterator_t), intent(in)    :: this
 !  integer(ip),            intent(in)    :: ivef
 !  class(vef_iterator_t),   intent(inout) :: vef
-!  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-!  call vef%set_lid(this%get_vef_lid(ivef))
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+!  call vef%set_gid(this%get_vef_gid(ivef))
 !end subroutine unfitted_p4est_cell_iterator_get_vef
 
 function unfitted_p4est_cell_iterator_is_local (this)
@@ -351,8 +351,8 @@ end function unfitted_p4est_cell_iterator_get_transformation_flag
 !  implicit none
 !  class(unfitted_p4est_cell_iterator_t), intent(in) :: this
 !  integer(ip) :: unfitted_p4est_cell_iterator_get_scan_sum_num_vefs
-!  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-!  unfitted_p4est_cell_iterator_get_scan_sum_num_vefs = this%base_static_triangulation%ptr_vefs_x_cell(this%lid)-1
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+!  unfitted_p4est_cell_iterator_get_scan_sum_num_vefs = this%base_static_triangulation%ptr_vefs_x_cell(this%gid)-1
 !end function unfitted_p4est_cell_iterator_get_scan_sum_num_vefs
 
 !!function unfitted_p4est_cell_iterator_get_num_vertices (this)
@@ -374,8 +374,8 @@ end function unfitted_p4est_cell_iterator_get_transformation_flag
 !  do ivef=1,reference_fe%get_num_n_faces_of_dim(0)
 !     assert(reference_fe%get_num_own_nodes_n_face(ivef)==1)
 !     inode = reference_fe%get_own_node_n_face(1,ivef)
-!     lnode = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%lid) + ivef - 1 )
-!     this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid) + inode - 1 ) = lnode
+!     lnode = this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid) + ivef - 1 )
+!     this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid) + inode - 1 ) = lnode
 !  end do
 
 !end subroutine unfitted_p4est_cell_iterator_fill_nodes_on_vertices
@@ -389,14 +389,14 @@ end function unfitted_p4est_cell_iterator_get_transformation_flag
 !  class(lagrangian_reference_fe_t) , pointer       :: reference_fe
 
 !  reference_fe => this%get_reference_fe_geo()
-!  ivef_pos_in_cell = this%find_lpos_vef_lid(ivef)
+!  ivef_pos_in_cell = this%find_lpos_vef_gid(ivef)
 
 !  do inode = 1,reference_fe%get_num_own_nodes_n_face(ivef_pos_in_cell)
 !    l_node = reference_fe%get_own_node_n_face(inode,ivef_pos_in_cell)
-!    assert(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid)+l_node-1)<=0)
-!    if(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid)+l_node-1)==0) then
+!    assert(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)<=0)
+!    if(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)==0) then
 !       node_count = node_count + 1
-!       this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid)+l_node-1)=node_count
+!       this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)=node_count
 !    end	if
 !  end do
 !  
@@ -409,49 +409,49 @@ end function unfitted_p4est_cell_iterator_get_transformation_flag
 !  class(unfitted_p4est_cell_iterator_t), intent(inout) :: cell
 
 !  class(lagrangian_reference_fe_t) , pointer  :: source_ref_fe, target_ref_fe
-!  integer(ip)          :: source_vef_lid, target_vef_lid
+!  integer(ip)          :: source_vef_gid, target_vef_gid
 !  integer(ip), pointer :: source_vefs(:), target_vefs(:), source_node_list(:), target_node_list(:)
 !  integer(ip) :: own_inode, l_node, own_nnode, inode_source, inode_target
 !  integer(ip) :: relative_orientation, relative_rotation
 
 !  source_ref_fe => this%get_reference_fe_geo()
-!  source_vef_lid = this%find_lpos_vef_lid(ivef)
+!  source_vef_gid = this%find_lpos_vef_gid(ivef)
 
 !  target_ref_fe => cell%get_reference_fe_geo()
-!  target_vef_lid = cell%find_lpos_vef_lid(ivef)
+!  target_vef_gid = cell%find_lpos_vef_gid(ivef)
 ! 
-!  source_vefs => this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%lid): &
-!                                                          &   this%base_static_triangulation%ptr_vefs_x_cell(this%lid+1)-1)
-!  target_vefs => cell%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(cell%lid): &
-!                                                          &   this%base_static_triangulation%ptr_vefs_x_cell(cell%lid+1)-1)
+!  source_vefs => this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &
+!                                                          &   this%base_static_triangulation%ptr_vefs_x_cell(this%gid+1)-1)
+!  target_vefs => cell%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(cell%gid): &
+!                                                          &   this%base_static_triangulation%ptr_vefs_x_cell(cell%gid+1)-1)
 !  
-!  source_node_list => this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid): &
-!                                                          &    this%base_static_triangulation%ptr_nodes_x_cell(this%lid+1)-1)
-!  target_node_list => this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(cell%lid): &
-!                                                          &    this%base_static_triangulation%ptr_nodes_x_cell(cell%lid+1)-1)
+!  source_node_list => this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid): &
+!                                                          &    this%base_static_triangulation%ptr_nodes_x_cell(this%gid+1)-1)
+!  target_node_list => this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(cell%gid): &
+!                                                          &    this%base_static_triangulation%ptr_nodes_x_cell(cell%gid+1)-1)
 
 !  assert(size(source_vefs)==source_ref_fe%get_num_n_faces())
 !  assert(size(target_vefs)==target_ref_fe%get_num_n_faces())
 
-!  own_nnode = source_ref_fe%get_num_own_nodes_n_face(source_vef_lid)
+!  own_nnode = source_ref_fe%get_num_own_nodes_n_face(source_vef_gid)
 
 !  if ( own_nnode > 0 ) then
 
-!     check (target_ref_fe%check_compatibility_of_n_faces(source_ref_fe,source_vef_lid,target_vef_lid))
+!     check (target_ref_fe%check_compatibility_of_n_faces(source_ref_fe,source_vef_gid,target_vef_gid))
 !     relative_rotation = target_ref_fe%compute_relative_rotation( source_ref_fe, &
-!          &                                                      source_vef_lid, &
-!          &                                                      target_vef_lid, &
+!          &                                                      source_vef_gid, &
+!          &                                                      target_vef_gid, &
 !          &                                                      source_vefs,    &
 !          &                                                      target_vefs)
 
 !     relative_orientation = target_ref_fe%compute_relative_orientation( source_ref_fe,            &
-!          &                                           source_vef_lid,                             &
-!          &                                           target_vef_lid)
+!          &                                           source_vef_gid,                             &
+!          &                                           target_vef_gid)
 !     
 !     do own_inode = 1, own_nnode
-!        inode_source = source_ref_fe%get_own_node_n_face(own_inode,source_vef_lid)
+!        inode_source = source_ref_fe%get_own_node_n_face(own_inode,source_vef_gid)
 !        inode_target = target_ref_fe%get_permuted_own_node_n_face(own_inode,               &
-!             &                          target_vef_lid, relative_orientation,relative_rotation)
+!             &                          target_vef_gid, relative_orientation,relative_rotation)
 !        assert ( target_node_list(inode_target) <= 0 )
 !        if ( target_node_list(inode_target) == 0 ) then
 !          target_node_list(inode_target) = source_node_list(inode_source)
@@ -474,7 +474,7 @@ end function unfitted_p4est_cell_iterator_get_transformation_flag
 !  do inode = 1, reference_fe%get_num_own_nodes_n_face(ivef)
 !     l_node = reference_fe%get_own_node_n_face(inode,ivef)
 !     node_count = node_count +1
-!     this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%lid)-1+l_node) = node_count
+!     this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)-1+l_node) = node_count
 !  end do
 
 !end subroutine unfitted_p4est_cell_iterator_fill_internal_nodes_new

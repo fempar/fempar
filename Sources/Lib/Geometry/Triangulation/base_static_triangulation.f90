@@ -121,7 +121,7 @@ module base_static_triangulation_names
     procedure                            :: get_set_id              => cell_iterator_get_set_id
     procedure                            :: get_level               => cell_iterator_get_level
     procedure                            :: get_num_vefs            => cell_iterator_get_num_vefs
-    procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
+    procedure                            :: get_num_nodes           => cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_node_gid            => cell_iterator_get_node_gid
     procedure                            :: get_vef_gid             => cell_iterator_get_vef_gid
     procedure                            :: get_vef_gids            => cell_iterator_get_vef_gids

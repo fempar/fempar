@@ -98,7 +98,7 @@ module unfitted_triangulations_names
     procedure                            :: next                    => unfitted_p4est_cell_iterator_next
     procedure                            :: first                   => unfitted_p4est_cell_iterator_first
     procedure                            :: last                    => unfitted_p4est_cell_iterator_last
-    procedure                            :: set_lid                 => unfitted_p4est_cell_iterator_set_lid
+    procedure                            :: set_gid                 => unfitted_p4est_cell_iterator_set_gid
     !procedure, non_overridable, private  :: set_gid                 => unfitted_p4est_cell_iterator_set_gid
     !procedure, non_overridable, private  :: set_mypart              => unfitted_p4est_cell_iterator_set_mypart
     !procedure, non_overridable, private  :: get_triangulation       => unfitted_p4est_cell_iterator_get_triangulation
