@@ -130,18 +130,26 @@ function fe_cell_iterator_count_own_dofs_cell ( this, field_id )
   fe_cell_iterator_count_own_dofs_cell = own_dofs_on_vef_iterator%get_size() 
 end function fe_cell_iterator_count_own_dofs_cell
 
-subroutine fe_cell_iterator_generate_own_dofs_cell ( this, field_id, current_dof )
+subroutine fe_cell_iterator_generate_own_dofs_cell ( this, field_id, current_dof, are_free_dofs )
   implicit none
   ! Parameters
   class(fe_cell_iterator_t), intent(inout)   :: this
   integer(ip)         , intent(in)      :: field_id
   integer(ip)         , intent(inout)   :: current_dof
+  logical, optional   , intent(in)      :: are_free_dofs
 
   ! Local variables
   integer(ip) :: ivef
   integer(ip) :: base_pos_lst_dofs_gids
   class(reference_fe_t), pointer :: reference_fe
   type(list_iterator_t) :: own_dofs_on_vef_iterator
+  logical  :: are_free
+
+  if (present(are_free_dofs)) then
+    are_free = are_free_dofs
+  else
+    are_free = .true.
+  end if
   
   assert ( field_id>= 1 .and. field_id <= this%fe_space%num_fields )
   ivef = this%get_num_vefs()+1
@@ -157,7 +165,11 @@ subroutine fe_cell_iterator_generate_own_dofs_cell ( this, field_id, current_dof
   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
   do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
     current_dof = current_dof + 1
-    this%fe_space%lst_dofs_gids(base_pos_lst_dofs_gids+own_dofs_on_vef_iterator%get_current()) = current_dof
+    if (are_free) then
+      this%fe_space%lst_dofs_gids(base_pos_lst_dofs_gids+own_dofs_on_vef_iterator%get_current()) = current_dof
+    else
+      this%fe_space%lst_dofs_gids(base_pos_lst_dofs_gids+own_dofs_on_vef_iterator%get_current()) = -current_dof
+    end if
     call own_dofs_on_vef_iterator%next()
   end do
 end subroutine fe_cell_iterator_generate_own_dofs_cell
@@ -428,8 +440,6 @@ subroutine fe_cell_iterator_update_integration( this )
   type(point_t)            , pointer :: coordinates(:)
   type(quadrature_t)       , pointer :: quadrature
   type(cell_integrator_t), pointer :: cell_integrator
-  
-  integer(ip) :: istat
 
   call this%update_cell_map()
   coordinates => this%cell_map%get_coordinates()

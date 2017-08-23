@@ -266,59 +266,10 @@ contains
     integer(ip), parameter :: max_level = 4
 
     call this%triangulation%create_cell_iterator(cell)
-
-<<<<<<< HEAD
     if (this%triangulation%get_num_dims() == 2) then
-=======
-    if (this%triangulation%get_num_dims() == 2) then
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
-
       allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
 
       do while ( .not. cell%has_finished() )
-
-<<<<<<< HEAD
-        !if ( mod(cell%get_lid()-1,2) == 0 ) then
-        !  call cell%set_for_refinement()
-        !end if
-
-        call cell%get_coordinates(coords)
-        x = 0.0
-        y = 0.0
-        do k=1,max_num_cell_nodes
-         x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
-         y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
-        end do
-        R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
-       
-        if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
-          call cell%set_for_refinement()
-        end if
-
-        !write(*,*) 'cid= ', cell%get_lid(), ' l= ', cell%get_level()
-
-        call cell%next()
-      end do
-
-      deallocate(coords,stat=istat); check(istat==0)
-
-    else if (this%triangulation%get_num_dims() == 3) then
-
-      do while ( .not. cell%has_finished() )
-
-        if ( (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
-          call cell%set_for_refinement()
-        end if
-
-        call cell%next()
-      end do
-
-    else
-      mcheck(.false.,'Only for 2D and 3D')
-
-    end if
-
-=======
         !if ( mod(cell%get_gid()-1,2) == 0 ) then
         !  call cell%set_for_refinement()
         !end if
@@ -356,7 +307,6 @@ contains
       mcheck(.false.,'Only for 2D and 3D')
 
     end if
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
 
     call this%triangulation%free_cell_iterator(cell)
 
@@ -522,13 +472,8 @@ contains
     
     do i=1,6
        
-<<<<<<< HEAD
        if ( mod(i+1,3) == 0 ) then 
          if (this%triangulation%get_num_dims() == 2) then
-=======
-       if ( mod(i+2,3) == 0 ) then 
-         if (this%triangulation%get_num_dims() == 2) then
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
            call this%set_cells_for_coarsening()
          end if
        else

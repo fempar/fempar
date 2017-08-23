@@ -246,32 +246,24 @@ contains
 
     call triangulation%create_cell_iterator(cell)
 
-  
-<<<<<<< HEAD
     num_dime = triangulation%get_num_dims()
+    
     select type (triangulation)
     class is (serial_unfitted_triangulation_t)
-      num_subfaces = triangulation%get_total_num_subfaces()
-      num_subface_nodes = triangulation%get_max_num_nodes_in_subface()
+      num_subfacets = triangulation%get_total_num_subfacets()
+      num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
     class is (unfitted_p4est_serial_triangulation_t)
-      num_subfaces = triangulation%get_total_num_subfaces()
-      num_subface_nodes = triangulation%get_max_num_nodes_in_subface()
+      num_subfacets = triangulation%get_total_num_subfacets()
+      num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
     class is (par_unfitted_triangulation_t)
-      num_subfaces = triangulation%get_total_num_subfaces()
-      num_subface_nodes = triangulation%get_max_num_nodes_in_subface()
+      num_subfacets = triangulation%get_total_num_subfacets()
+      num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
     class default
       check(.false.)
     end select
     
-    this%Ne = num_subfaces
-    this%Nn = num_subface_nodes*num_subfaces
-=======
-    num_dime = triangulation%get_num_dims()
-    num_subfacets = triangulation%get_total_num_subfacets()
-    num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
     this%Ne = num_subfacets
     this%Nn = num_subfacet_nodes*num_subfacets
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
   
     call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )

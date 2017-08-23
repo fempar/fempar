@@ -102,13 +102,8 @@ module base_static_triangulation_names
     procedure                            :: next                    => cell_iterator_next
     procedure                            :: first                   => cell_iterator_first
     procedure                            :: last                    => cell_iterator_last
-<<<<<<< HEAD
-    procedure                            :: set_lid                 => cell_iterator_set_lid
-    procedure, non_overridable, private  :: set_gid                 => cell_iterator_set_gid
-=======
     procedure, non_overridable           :: set_gid                 => cell_iterator_set_gid
     procedure, non_overridable, private  :: set_ggid                 => cell_iterator_set_ggid
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
     procedure, non_overridable, private  :: set_mypart              => cell_iterator_set_mypart
     procedure, non_overridable, private  :: get_triangulation       => cell_iterator_get_triangulation
     procedure, non_overridable, private  :: cell_iterator_get_vef
@@ -126,15 +121,6 @@ module base_static_triangulation_names
     procedure                            :: get_set_id              => cell_iterator_get_set_id
     procedure                            :: get_level               => cell_iterator_get_level
     procedure                            :: get_num_vefs            => cell_iterator_get_num_vefs
-<<<<<<< HEAD
-    procedure                            :: get_num_nodes           => cell_iterator_get_num_nodes
-    procedure, non_overridable           :: get_node_lid            => cell_iterator_get_node_lid
-    procedure                            :: get_vef_lid             => cell_iterator_get_vef_lid
-    procedure                            :: get_vef_lids            => cell_iterator_get_vef_lids
-    procedure, non_overridable           :: get_vef_gid             => cell_iterator_get_vef_gid
-    procedure                            :: find_lpos_vef_lid       => cell_iterator_find_lpos_vef_lid
-    procedure, non_overridable           :: find_lpos_vef_gid       => cell_iterator_find_lpos_vef_gid
-=======
     procedure, non_overridable           :: get_num_nodes           => cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_node_gid            => cell_iterator_get_node_gid
     procedure                            :: get_vef_gid             => cell_iterator_get_vef_gid
@@ -142,7 +128,6 @@ module base_static_triangulation_names
     procedure, non_overridable           :: get_vef_ggid             => cell_iterator_get_vef_ggid
     procedure                            :: get_vef_lid_from_gid       => cell_iterator_get_vef_lid_from_gid
     procedure, non_overridable           :: get_vef_lid_from_ggid       => cell_iterator_get_vef_lid_from_ggid
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
     procedure                            :: get_vef                 => cell_iterator_get_vef
     procedure                            :: is_local                => cell_iterator_is_local
     procedure                            :: is_ghost                => cell_iterator_is_ghost

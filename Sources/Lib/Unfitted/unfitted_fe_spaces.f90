@@ -29,12 +29,7 @@
 module unfitted_fe_spaces_names
   use fempar_names
   use unfitted_triangulations_names
-<<<<<<< HEAD
   use piecewise_cell_map_names
-  use hp_adaptive_fe_space_names
-=======
-  use piecewise_cell_map_names
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
 
   implicit none
 # include "debug.i90"
@@ -214,24 +209,17 @@ module unfitted_fe_spaces_names
   end type par_unfitted_fe_space_t
 
 
-<<<<<<< HEAD
   public :: unfitted_fe_cell_iterator_t
   public :: unfitted_hp_adaptive_fe_cell_iterator_t
-=======
-  public :: unfitted_fe_cell_iterator_t
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
   public :: serial_unfitted_fe_space_t
   public :: serial_unfitted_hp_adaptive_fe_space_t
   public :: par_unfitted_fe_space_t
 
 contains
 
-<<<<<<< HEAD
 #include "sbm_unfitted_fe_cell_iterator.i90"
 #include "sbm_unfitted_hp_adaptive_fe_cell_iterator.i90"
-=======
 #include "sbm_unfitted_fe_cell_iterator.i90"
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
 #include "sbm_unfitted_integration_manager.i90"
 #include "sbm_serial_unfitted_fe_space.i90"
 #include "sbm_serial_unfitted_hp_adaptive_fe_space.i90"

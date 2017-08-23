@@ -224,7 +224,6 @@ pure function p4est_cell_iterator_get_num_vefs (this)
                                        this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())
 end function p4est_cell_iterator_get_num_vefs
 
-<<<<<<< HEAD
 function p4est_cell_iterator_get_num_nodes (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
@@ -233,16 +232,6 @@ function p4est_cell_iterator_get_num_nodes (this)
   ref_element_geo => this%get_reference_fe_geo()
   p4est_cell_iterator_get_num_nodes = ref_element_geo%get_num_shape_functions()
 end function p4est_cell_iterator_get_num_nodes
-=======
-!pure function p4est_cell_iterator_get_num_nodes (this)
-!  implicit none
-!  class(p4est_cell_iterator_t), intent(in) :: this
-!  integer(ip)                        :: p4est_cell_iterator_get_num_nodes
-!  !assert ( this%gid >= 1 .and. .not. this%has_finished() )
-!  p4est_cell_iterator_get_num_nodes = this%base_static_triangulation%ptr_nodes_x_cell(this%gid+1) - &
-!       this%base_static_triangulation%ptr_nodes_x_cell(this%gid)
-!end function p4est_cell_iterator_get_num_nodes
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
 
 !function p4est_cell_iterator_get_node_gid (this, inode)
 !  implicit none

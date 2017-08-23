@@ -722,11 +722,7 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
   else
     FEMPAR_SUBCELLS_IN_TOUCH_FACE => FEMPAR_SUBCELLS_IN_TOUCH_FACE_3D
     NUM_SUBCELLS_IN_TOUCH_FACE = NUM_SUBCELLS_IN_TOUCH_FACE_3D
-<<<<<<< HEAD
     num_edges_ref_elem_geo = this%reference_fe_geo%get_num_n_faces_of_dim(1)
-=======
-    num_edges_ref_elem_geo = this%reference_fe_geo%get_num_n_faces_of_dim(1)
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
   end if
   
   call old_proper_vefs_set_ids%copy(this%p4est_proper_vefs_set_ids)
@@ -786,30 +782,17 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
         end do
       end if
       
-<<<<<<< HEAD
-      do iface=1, this%reference_fe_geo%get_num_faces()
-         ivef = this%reference_fe_geo%get_num_n_faces_of_dim(0) + num_edges_ref_elem_geo  + iface
-         do j=1, NUM_SUBCELLS_IN_TOUCH_FACE
-            call cell%set_lid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE(j,iface)-1)
-=======
       do iface=1, this%reference_fe_geo%get_num_facets()
          ivef = this%reference_fe_geo%get_num_n_faces_of_dim(0) + num_edges_ref_elem_geo  + iface
          do j=1, NUM_SUBCELLS_IN_TOUCH_FACE
             call cell%set_gid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE(j,iface)-1)
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
             call cell%get_vef(ivef,vef)
             old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
             old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
             call vef%set_set_id(old_vef_set_id)
-<<<<<<< HEAD
             if (this%p4est_num_dims == 3) then
               iedge = FEMPAR_EDGE_OF_SUBCELLS_IN_TOUCH_FACE_3D(j,iface)
               call cell%get_vef(this%reference_fe_geo%get_num_n_faces_of_dim(0)+iedge,vef)
-=======
-            if (this%p4est_num_dims == 3) then
-              iedge = FEMPAR_EDGE_OF_SUBCELLS_IN_TOUCH_FACE_3D(j,iface)
-              call cell%get_vef(this%reference_fe_geo%get_num_n_faces_of_dim(0)+iedge,vef)
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
               call vef%set_set_id(old_vef_set_id)
             end if
          end do

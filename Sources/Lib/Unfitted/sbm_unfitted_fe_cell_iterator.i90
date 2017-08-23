@@ -57,12 +57,7 @@ end subroutine unfitted_fe_cell_iterator_create
 !=============================================================================================
 subroutine unfitted_fe_cell_iterator_free( this )
   implicit none
-<<<<<<< HEAD:Sources/Lib/Unfitted/sbm_unfitted_fe_cell_iterator.i90
   class(unfitted_fe_cell_iterator_t)   , intent(inout) :: this
-  integer(ip) :: istat
-=======
-  class(unfitted_fe_cell_iterator_t)   , intent(inout) :: this
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979:Sources/Lib/Unfitted/sbm_unfitted_fe_cell_iterator.i90
   this%unfitted_integration_manager => null()
   call this%fe_cell_iterator_t%free()
 end subroutine unfitted_fe_cell_iterator_free
@@ -207,8 +202,6 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
   type(quadrature_t)       , pointer :: quadrature
   type(cell_integrator_t), pointer :: cell_integrator
   
-  integer(ip)            , pointer :: num_dofs_x_field(:)
-
   assert(this%is_local())
   call this%update_cell_map()
   call this%update_cell_integrators()

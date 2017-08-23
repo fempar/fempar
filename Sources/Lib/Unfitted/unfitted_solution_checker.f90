@@ -83,7 +83,6 @@ contains
     real(rp), intent(inout) :: h1_semi_norm
     real(rp), intent(inout) :: l2_norm
 
-<<<<<<< HEAD
     real(rp), optional , intent(inout) :: error_h1_semi_norm_boundary
     real(rp), optional , intent(inout) :: error_l2_norm_boundary
     real(rp), optional , intent(inout) :: h1_semi_norm_boundary
@@ -95,12 +94,7 @@ contains
     type(vector_field_t), allocatable :: grad_element_vals(:)
     type(cell_map_t)           , pointer :: cell_map
     type(piecewise_cell_map_t) , pointer :: pw_cell_map
-=======
-    class(fe_cell_iterator_t), allocatable :: fe
-    real(rp), allocatable :: nodal_vals(:)
-    real(rp), allocatable :: element_vals(:)
-    type(vector_field_t), allocatable :: grad_element_vals(:)
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
+    
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int
@@ -126,20 +120,13 @@ contains
     h1_semi_norm = 0.0
     l2_norm = 0.0
 
-<<<<<<< HEAD
     if (present(error_l2_norm_boundary)) then
       error_h1_semi_norm_boundary= 0.0
       error_l2_norm_boundary     = 0.0
       h1_semi_norm_boundary      = 0.0
       l2_norm_boundary           = 0.0
     end if
-
-    num_dime = this%fe_space%get_num_dims()
-    num_elem_nodes =  this%fe_space%get_max_num_shape_functions()
-=======
-    num_dime = this%fe_space%get_num_dims()
-    num_elem_nodes =  this%fe_space%get_max_num_shape_functions()
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
+    
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
 
 

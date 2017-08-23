@@ -176,41 +176,7 @@ module reference_fe_names
      ! Map's Jacobian sign
      logical                  :: det_jacobian_positiveness
    contains
-<<<<<<< HEAD
-     procedure, non_overridable :: create                            => cell_map_create
-     procedure, non_overridable :: create_on_face                    => cell_map_create_on_face
-     procedure, non_overridable :: create_facet_map                   => cell_map_create_facet_map
-     procedure, non_overridable :: create_edge_map                   => cell_map_create_edge_map
-     procedure, non_overridable :: update                            => cell_map_update
-     procedure, non_overridable :: update_face_map                   => cell_map_update_face_map
-     procedure, non_overridable :: update_edge_map                   => cell_map_update_edge_map
-     procedure, non_overridable :: update_interpolation              => cell_map_update_interpolation
-     procedure, non_overridable :: free                              => cell_map_free
-     procedure, non_overridable :: print                             => cell_map_print
-     procedure, non_overridable :: get_det_jacobian                  => cell_map_get_det_jacobian
-     procedure, non_overridable :: get_det_jacobians                 => cell_map_get_det_jacobians
-     procedure, non_overridable :: compute_h                         => cell_map_compute_h
-     procedure, non_overridable :: compute_h_min                     => cell_map_compute_h_min
-     procedure, non_overridable :: compute_h_max                     => cell_map_compute_h_max
-     procedure, non_overridable :: get_coordinates                   => cell_map_get_coordinates
-     procedure, non_overridable :: get_quadrature_points_coordinates => cell_map_get_quadrature_points_coordinates
-     procedure, non_overridable :: get_inv_jacobian_tensor           => cell_map_get_inv_jacobian_tensor
-     procedure, non_overridable :: get_reference_h                   => cell_map_get_reference_h
-     procedure, non_overridable :: apply_jacobian                    => cell_map_apply_jacobian
-     procedure, non_overridable :: apply_inv_jacobian                => cell_map_apply_inv_jacobian
-     procedure, non_overridable :: compute_quadrature_coordinates    => cell_map_compute_quadrature_coordinates
-     procedure, non_overridable :: get_quadrature_coordinates        => cell_map_get_quadrature_coordinates
-     procedure, non_overridable :: get_normal                        => cell_map_get_normal
-     procedure, non_overridable :: get_normals                       => cell_map_get_normals
-     procedure, non_overridable :: get_tangent                       => cell_map_get_tangent
-     procedure, non_overridable :: get_jacobian_normalized_column    => cell_map_get_jacobian_normalized_column
-     procedure, non_overridable :: is_det_jacobian_positive          => cell_map_is_det_jacobian_positive
-  end type cell_map_t
-
-  type p_cell_map_t
-     class(cell_map_t), pointer :: p => NULL()   
-=======
-     procedure, non_overridable :: create                            => cell_map_create
+        procedure, non_overridable :: create                            => cell_map_create
      procedure, non_overridable :: restricted_to_facet                    => cell_map_restricted_to_facet
      procedure                  :: free                              => cell_map_free
      procedure, non_overridable :: update                            => cell_map_update
@@ -219,6 +185,7 @@ module reference_fe_names
      procedure, non_overridable :: compute_h_min                     => cell_map_compute_h_min
      procedure, non_overridable :: compute_h_max                     => cell_map_compute_h_max
      procedure, non_overridable :: get_inv_jacobian_tensor           => cell_map_get_inv_jacobian_tensor
+     procedure, non_overridable :: apply_jacobian                    => cell_map_apply_jacobian
      procedure, non_overridable :: apply_inv_jacobian                => cell_map_apply_inv_jacobian
      procedure, non_overridable :: is_det_jacobian_positive          => cell_map_is_det_jacobian_positive
   end type cell_map_t
@@ -242,7 +209,6 @@ module reference_fe_names
      ! Vector tangents to edges. Vector tangents to edges are required e.g. 
      ! by type(hex_nedelec_reference_fe_t) on the reference cell.
      real(rp), allocatable    :: tangents(:,:) 
->>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
    contains
      procedure, non_overridable :: create       => edge_map_create
      procedure, non_overridable :: update       => edge_map_update
