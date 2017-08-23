@@ -1024,6 +1024,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   call this%allocate_and_init_ptr_lst_dofs_gids()
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
+  call this%allocate_and_init_has_hanging_dofs_x_fe()
   call this%set_up_strong_dirichlet_bcs()
   
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation

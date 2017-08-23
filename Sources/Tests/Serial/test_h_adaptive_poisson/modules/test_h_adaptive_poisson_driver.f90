@@ -473,9 +473,9 @@ contains
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
     integer(ip) :: i
     
-    do i=1,6
+    do i=1,3
        
-       if ( mod(i+2,3) == 0 ) then 
+       if ( i == 2 ) then 
          if (this%triangulation%get_num_dims() == 2) then
            call this%set_cells_for_coarsening()
          end if
@@ -867,7 +867,7 @@ contains
     else
       call this%check_solution_vector()
     end if
-    !call this%refine_and_coarsen()
+    call this%refine_and_coarsen()
     call this%write_solution()
     call this%write_filling_curve()
     call this%free()
