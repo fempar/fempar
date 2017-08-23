@@ -30,7 +30,7 @@
 module unfitted_solution_checker_names
   use fempar_names
   use unfitted_fe_spaces_names
-  use piecewise_fe_map_names
+  use piecewise_cell_map_names
   implicit none
 # include "debug.i90"
   private
@@ -93,8 +93,8 @@ contains
     real(rp), allocatable :: nodal_vals(:)
     real(rp), allocatable :: element_vals(:)
     type(vector_field_t), allocatable :: grad_element_vals(:)
-    type(fe_map_t)           , pointer :: fe_map
-    type(piecewise_fe_map_t) , pointer :: pw_fe_map
+    type(cell_map_t)           , pointer :: cell_map
+    type(piecewise_cell_map_t) , pointer :: pw_cell_map
 =======
     class(fe_cell_iterator_t), allocatable :: fe
     real(rp), allocatable :: nodal_vals(:)
@@ -214,8 +214,8 @@ contains
            ! Get info on the unfitted boundary for integrating BCs
            quad            => fe%get_boundary_quadrature()
            num_quad_points = quad%get_num_quadrature_points()
-           pw_fe_map       => fe%get_boundary_piecewise_fe_map()
-           quad_coords     => pw_fe_map%get_quadrature_points_coordinates()
+           pw_cell_map       => fe%get_boundary_piecewise_cell_map()
+           quad_coords     => pw_cell_map%get_quadrature_points_coordinates()
            cell_int         => fe%get_boundary_cell_integrator(1)
 
            !TODO move outside
@@ -245,7 +245,7 @@ contains
              end do
 
              ! Integrate
-             dV = pw_fe_map%get_det_jacobian(igp) * quad%get_weight(igp)
+             dV = pw_cell_map%get_det_jacobian(igp) * quad%get_weight(igp)
              error_l2_norm_boundary     = error_l2_norm_boundary      + error_l2_gp  *dV
              error_h1_semi_norm_boundary= error_h1_semi_norm_boundary + error_h1sn_gp*dV
              h1_semi_norm_boundary      = h1_semi_norm_boundary       + l2_gp        *dV

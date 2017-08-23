@@ -73,7 +73,7 @@ module hp_adaptive_fe_space_names
      
      
      procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
-     procedure          :: serial_fe_space_create_different_between_cells         => shpafs_create_different_between_cells
+     procedure          :: serial_fe_space_create_different_ref_fes_between_cells         => shpafs_create_different_ref_fes_between_cells
      procedure          :: free                                                   => serial_hp_adaptive_fe_space_free
      
      
@@ -94,7 +94,7 @@ module hp_adaptive_fe_space_names
      
      procedure          :: project_ref_fe_id_x_fe                               => shpafs_project_ref_fe_id_x_fe
      procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
-     procedure          :: project_fe_face_integration_arrays                     => shpafs_project_fe_face_integration_arrays
+     procedure          :: project_facet_integration_arrays                     => shpafs_project_facet_integration_arrays
      procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
  end type serial_hp_adaptive_fe_space_t  
  
@@ -377,7 +377,7 @@ subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
   
 end subroutine shpafs_create_same_reference_fes_on_all_cells 
 
-subroutine shpafs_create_different_between_cells( this,          &
+subroutine shpafs_create_different_ref_fes_between_cells( this,          &
                                                   triangulation, &
                                                   reference_fes, &
                                                   set_ids_to_reference_fes, &
@@ -404,7 +404,7 @@ subroutine shpafs_create_different_between_cells( this,          &
   call this%set_num_fields(size(set_ids_to_reference_fes,1))
   call this%allocate_and_fill_reference_fes(reference_fes)
   call this%allocate_ref_fe_id_x_fe()
-  call this%fill_ref_fe_id_x_fe_different_between_cells(set_ids_to_reference_fes)
+  call this%fill_ref_fe_id_x_fe_different_ref_fes_between_cells(set_ids_to_reference_fes)
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
   call this%allocate_and_init_ptr_lst_dofs()
@@ -414,7 +414,7 @@ subroutine shpafs_create_different_between_cells( this,          &
   call this%allocate_and_init_has_fixed_dofs()
   call this%set_up_strong_dirichlet_bcs()
   
-end subroutine shpafs_create_different_between_cells
+end subroutine shpafs_create_different_ref_fes_between_cells
 
 subroutine serial_hp_adaptive_fe_space_free(this)
   implicit none
@@ -572,8 +572,8 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
   integer(ip) :: ivef, vef_lid
   integer(ip) :: iblock, init_dof_block, current_dof_block, previous_dof_block
   integer(ip) :: init_fixed_dof, current_fixed_dof, previous_fixed_dof
-  integer(ip), allocatable :: visited_proper_vef_to_fe_map(:,:)
-  integer(ip), allocatable :: visited_improper_vef_to_fe_map(:,:)
+  integer(ip), allocatable :: visited_proper_vef_to_cell_map(:,:)
+  integer(ip), allocatable :: visited_improper_vef_to_cell_map(:,:)
   
   class(fe_iterator_t) , allocatable :: fe, source_fe, coarser_fe
   type(fe_vef_iterator_t) :: vef
@@ -596,10 +596,10 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
 
   call this%create_fe_iterator(fe)
   if ( fe_space_type_x_field(field_id) == fe_space_type_cg ) then
-     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_proper_vef_to_fe_map  ,  __FILE__, __LINE__ )
-     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_improper_vef_to_fe_map,  __FILE__, __LINE__ )
-     visited_proper_vef_to_fe_map = -1
-     visited_improper_vef_to_fe_map = -1
+     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_proper_vef_to_cell_map  ,  __FILE__, __LINE__ )
+     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
+     visited_proper_vef_to_cell_map = -1
+     visited_improper_vef_to_cell_map = -1
      
      call this%create_fe_vef_iterator(vef)
      call this%create_fe_iterator(source_fe)
@@ -624,9 +624,9 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
                  vef_lid = abs(fe%get_vef_lid(ivef))
                  is_owner = .false.
                  if ( vef%is_proper()) then
-                   is_owner = ( visited_proper_vef_to_fe_map   ( 1, vef_lid ) == -1 )
+                   is_owner = ( visited_proper_vef_to_cell_map   ( 1, vef_lid ) == -1 )
                  else
-                   is_owner = ( visited_improper_vef_to_fe_map ( 1, vef_lid ) == -1 )
+                   is_owner = ( visited_improper_vef_to_cell_map ( 1, vef_lid ) == -1 )
                  end if
 
                  if ( is_owner ) then
@@ -634,20 +634,20 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
                     call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
                     if (previous_dof_block < current_dof_block) then
                       if ( vef%is_proper()) then
-                        visited_proper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                        visited_proper_vef_to_fe_map ( 2, vef_lid ) = ivef
+                        visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                        visited_proper_vef_to_cell_map ( 2, vef_lid ) = ivef
                       else
-                        visited_improper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                        visited_improper_vef_to_fe_map ( 2, vef_lid ) = ivef
+                        visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                        visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                       end if
                     end if
                  else 
                     if ( vef%is_proper()) then
-                      source_cell_id = visited_proper_vef_to_fe_map(1,vef_lid)
-                      source_vef_lid = visited_proper_vef_to_fe_map(2,vef_lid)
+                      source_cell_id = visited_proper_vef_to_cell_map(1,vef_lid)
+                      source_vef_lid = visited_proper_vef_to_cell_map(2,vef_lid)
                     else
-                      source_cell_id = visited_improper_vef_to_fe_map(1,vef_lid)
-                      source_vef_lid = visited_improper_vef_to_fe_map(2,vef_lid)
+                      source_cell_id = visited_improper_vef_to_cell_map(1,vef_lid)
+                      source_vef_lid = visited_improper_vef_to_cell_map(2,vef_lid)
                     end if
                     call source_fe%set_lid(source_cell_id)
                     call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
@@ -655,18 +655,18 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
               else 
                  assert ( fe%get_vef_lid(ivef) < 0 )
                  vef_lid = abs(fe%get_vef_lid(ivef))
-                 if ( visited_improper_vef_to_fe_map ( 1, vef_lid ) == -1 ) then
+                 if ( visited_improper_vef_to_cell_map ( 1, vef_lid ) == -1 ) then
                     previous_fixed_dof = current_fixed_dof
                     call fe%fill_own_dofs_on_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
                     if (previous_fixed_dof < current_fixed_dof) then
-                      visited_improper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                      visited_improper_vef_to_fe_map ( 2, vef_lid ) = ivef
+                      visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                      visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                     end if
                  else 
-                    call source_fe%set_lid(visited_improper_vef_to_fe_map(1,vef_lid))
+                    call source_fe%set_lid(visited_improper_vef_to_cell_map(1,vef_lid))
                     call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
                          source_fe, &
-                         visited_improper_vef_to_fe_map(2,vef_lid), &
+                         visited_improper_vef_to_cell_map(2,vef_lid), &
                          field_id) 
                  end if
               end if   
@@ -678,8 +678,8 @@ subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field
         call this%free_fe_iterator(source_fe)
         call this%free_fe_iterator(coarser_fe)
         call this%free_fe_vef_iterator(vef)
-        call memfree ( visited_proper_vef_to_fe_map  ,  __FILE__, __LINE__ )
-        call memfree ( visited_improper_vef_to_fe_map,  __FILE__, __LINE__ )
+        call memfree ( visited_proper_vef_to_cell_map  ,  __FILE__, __LINE__ )
+        call memfree ( visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
   else    
      ! TODO: this code is a verbatim copy of the one of its parent.
      !       we should better split the parent into additional TBPs
@@ -1017,11 +1017,11 @@ subroutine shpafs_project_fe_integration_arrays(this)
   ! if allocated, FE integration arrays not projected
 end subroutine shpafs_project_fe_integration_arrays
 
-subroutine shpafs_project_fe_face_integration_arrays(this)
+subroutine shpafs_project_facet_integration_arrays(this)
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
   ! if allocated, FE face integration arrays not projected
-end subroutine shpafs_project_fe_face_integration_arrays
+end subroutine shpafs_project_facet_integration_arrays
 
 subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   implicit none
@@ -1063,7 +1063,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   call this%project_ref_fe_id_x_fe()
   !call this%check_cell_vs_fe_topology_consistency()
   call this%project_fe_integration_arrays()
-  call this%project_fe_face_integration_arrays()
+  call this%project_facet_integration_arrays()
   call this%allocate_and_init_ptr_lst_dofs()
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()

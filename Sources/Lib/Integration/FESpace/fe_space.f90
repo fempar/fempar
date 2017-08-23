@@ -1138,7 +1138,7 @@ module fe_space_names
      
      procedure          :: project_field_cell_to_ref_fes                               => shpafs_project_field_cell_to_ref_fes
      procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
-     procedure          :: project_fe_facet_integration_arrays                     => shpafs_project_fe_facet_integration_arrays
+     procedure          :: project_facet_integration_arrays                     => shpafs_project_facet_integration_arrays
      procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
  end type serial_hp_adaptive_fe_space_t  
  

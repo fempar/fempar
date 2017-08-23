@@ -60,7 +60,7 @@ contains
     class(fe_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
-    type(fe_map_t)           , pointer :: fe_map
+    type(cell_map_t)           , pointer :: cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int
@@ -106,7 +106,7 @@ contains
        ! Very important: this has to be inside the loop, as different FEs can be present!
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()
-       fe_map          => fe%get_fe_map()
+       cell_map          => fe%get_cell_map()
        cell_int         => fe%get_cell_integrator(1)
        num_dofs = fe%get_num_dofs()
        call fe%get_num_dofs_x_field(num_dofs_x_field)
@@ -115,7 +115,7 @@ contains
        call fe%get_elem2dof(elem2dof)
 
        ! Get quadrature coordinates to evaluate boundary value
-       quad_coords => fe_map%get_quadrature_coordinates()
+       quad_coords => cell_map%get_quadrature_coordinates()
        
        ! Compute element matrix and vector
        elmat = 0.0_rp
@@ -124,7 +124,7 @@ contains
        call cell_int%get_values(shape_values)
        do qpoint = 1, num_quad_points
        
-          factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          factor = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           ! Diffusive term
           do idof = 1, num_dofs

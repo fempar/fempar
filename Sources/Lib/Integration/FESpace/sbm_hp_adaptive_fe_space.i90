@@ -919,11 +919,11 @@ subroutine shpafs_project_fe_integration_arrays(this)
   ! if allocated, FE integration arrays not projected
 end subroutine shpafs_project_fe_integration_arrays
 
-subroutine shpafs_project_fe_facet_integration_arrays(this)
+subroutine shpafs_project_facet_integration_arrays(this)
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
   ! if allocated, FE face integration arrays not projected
-end subroutine shpafs_project_fe_facet_integration_arrays
+end subroutine shpafs_project_facet_integration_arrays
 
 subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   implicit none
@@ -966,7 +966,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   !call this%check_cell_vs_fe_topology_consistency()
   call this%fill_facet_gids()
   call this%project_fe_integration_arrays()
-  call this%project_fe_facet_integration_arrays()
+  call this%project_facet_integration_arrays()
   call this%allocate_and_init_ptr_lst_dofs_gids()
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()

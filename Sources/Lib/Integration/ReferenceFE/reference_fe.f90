@@ -177,38 +177,38 @@ module reference_fe_names
      logical                  :: det_jacobian_positiveness
    contains
 <<<<<<< HEAD
-     procedure, non_overridable :: create                            => fe_map_create
-     procedure, non_overridable :: create_on_face                    => fe_map_create_on_face
-     procedure, non_overridable :: create_face_map                   => fe_map_create_face_map
-     procedure, non_overridable :: create_edge_map                   => fe_map_create_edge_map
-     procedure, non_overridable :: update                            => fe_map_update
-     procedure, non_overridable :: update_face_map                   => fe_map_update_face_map
-     procedure, non_overridable :: update_edge_map                   => fe_map_update_edge_map
-     procedure, non_overridable :: update_interpolation              => fe_map_update_interpolation
-     procedure, non_overridable :: free                              => fe_map_free
-     procedure, non_overridable :: print                             => fe_map_print
-     procedure, non_overridable :: get_det_jacobian                  => fe_map_get_det_jacobian
-     procedure, non_overridable :: get_det_jacobians                 => fe_map_get_det_jacobians
-     procedure, non_overridable :: compute_h                         => fe_map_compute_h
-     procedure, non_overridable :: compute_h_min                     => fe_map_compute_h_min
-     procedure, non_overridable :: compute_h_max                     => fe_map_compute_h_max
-     procedure, non_overridable :: get_coordinates                   => fe_map_get_coordinates
-     procedure, non_overridable :: get_quadrature_points_coordinates => fe_map_get_quadrature_points_coordinates
-     procedure, non_overridable :: get_inv_jacobian_tensor           => fe_map_get_inv_jacobian_tensor
-     procedure, non_overridable :: get_reference_h                   => fe_map_get_reference_h
-     procedure, non_overridable :: apply_jacobian                    => fe_map_apply_jacobian
-     procedure, non_overridable :: apply_inv_jacobian                => fe_map_apply_inv_jacobian
-     procedure, non_overridable :: compute_quadrature_coordinates    => fe_map_compute_quadrature_coordinates
-     procedure, non_overridable :: get_quadrature_coordinates        => fe_map_get_quadrature_coordinates
-     procedure, non_overridable :: get_normal                        => fe_map_get_normal
-     procedure, non_overridable :: get_normals                       => fe_map_get_normals
-     procedure, non_overridable :: get_tangent                       => fe_map_get_tangent
-     procedure, non_overridable :: get_jacobian_normalized_column    => fe_map_get_jacobian_normalized_column
-     procedure, non_overridable :: is_det_jacobian_positive          => fe_map_is_det_jacobian_positive
-  end type fe_map_t
+     procedure, non_overridable :: create                            => cell_map_create
+     procedure, non_overridable :: create_on_face                    => cell_map_create_on_face
+     procedure, non_overridable :: create_facet_map                   => cell_map_create_facet_map
+     procedure, non_overridable :: create_edge_map                   => cell_map_create_edge_map
+     procedure, non_overridable :: update                            => cell_map_update
+     procedure, non_overridable :: update_face_map                   => cell_map_update_face_map
+     procedure, non_overridable :: update_edge_map                   => cell_map_update_edge_map
+     procedure, non_overridable :: update_interpolation              => cell_map_update_interpolation
+     procedure, non_overridable :: free                              => cell_map_free
+     procedure, non_overridable :: print                             => cell_map_print
+     procedure, non_overridable :: get_det_jacobian                  => cell_map_get_det_jacobian
+     procedure, non_overridable :: get_det_jacobians                 => cell_map_get_det_jacobians
+     procedure, non_overridable :: compute_h                         => cell_map_compute_h
+     procedure, non_overridable :: compute_h_min                     => cell_map_compute_h_min
+     procedure, non_overridable :: compute_h_max                     => cell_map_compute_h_max
+     procedure, non_overridable :: get_coordinates                   => cell_map_get_coordinates
+     procedure, non_overridable :: get_quadrature_points_coordinates => cell_map_get_quadrature_points_coordinates
+     procedure, non_overridable :: get_inv_jacobian_tensor           => cell_map_get_inv_jacobian_tensor
+     procedure, non_overridable :: get_reference_h                   => cell_map_get_reference_h
+     procedure, non_overridable :: apply_jacobian                    => cell_map_apply_jacobian
+     procedure, non_overridable :: apply_inv_jacobian                => cell_map_apply_inv_jacobian
+     procedure, non_overridable :: compute_quadrature_coordinates    => cell_map_compute_quadrature_coordinates
+     procedure, non_overridable :: get_quadrature_coordinates        => cell_map_get_quadrature_coordinates
+     procedure, non_overridable :: get_normal                        => cell_map_get_normal
+     procedure, non_overridable :: get_normals                       => cell_map_get_normals
+     procedure, non_overridable :: get_tangent                       => cell_map_get_tangent
+     procedure, non_overridable :: get_jacobian_normalized_column    => cell_map_get_jacobian_normalized_column
+     procedure, non_overridable :: is_det_jacobian_positive          => cell_map_is_det_jacobian_positive
+  end type cell_map_t
 
-  type p_fe_map_t
-     class(fe_map_t), pointer :: p => NULL()   
+  type p_cell_map_t
+     class(cell_map_t), pointer :: p => NULL()   
 =======
      procedure, non_overridable :: create                            => cell_map_create
      procedure, non_overridable :: restricted_to_facet                    => cell_map_restricted_to_facet

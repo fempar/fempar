@@ -41,7 +41,7 @@ subroutine suhpafs_create_same_reference_fes_on_all_cells(&
 end subroutine suhpafs_create_same_reference_fes_on_all_cells
 
 !========================================================================================
-subroutine suhpafs_space_create_different_between_cells(&
+subroutine suhpafs_space_create_different_ref_fes_between_cells(&
     this, &
     triangulation,            &
     reference_fes,            &
@@ -66,7 +66,7 @@ subroutine suhpafs_space_create_different_between_cells(&
     check(.false.)
   end select
   call this%allocate_and_fill_aggregate_ids()
-end subroutine suhpafs_space_create_different_between_cells
+end subroutine suhpafs_space_create_different_ref_fes_between_cells
 
 !========================================================================================
 subroutine suhpafs_free(this)
@@ -159,8 +159,8 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
   integer(ip) :: ivef, vef_lid
   integer(ip) :: iblock, init_dof_block, current_dof_block, previous_dof_block
   integer(ip) :: init_fixed_dof, current_fixed_dof, previous_fixed_dof
-  integer(ip), allocatable :: visited_proper_vef_to_fe_map(:,:)
-  integer(ip), allocatable :: visited_improper_vef_to_fe_map(:,:)
+  integer(ip), allocatable :: visited_proper_vef_to_cell_map(:,:)
+  integer(ip), allocatable :: visited_improper_vef_to_cell_map(:,:)
   
   class(fe_iterator_t) , allocatable :: fe, source_fe, coarser_fe
   type(fe_vef_iterator_t) :: vef
@@ -189,10 +189,10 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
 
   call this%create_fe_iterator(fe)
   if ( fe_space_type_x_field(field_id) == fe_space_type_cg ) then
-     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_proper_vef_to_fe_map  ,  __FILE__, __LINE__ )
-     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_improper_vef_to_fe_map,  __FILE__, __LINE__ )
-     visited_proper_vef_to_fe_map = -1
-     visited_improper_vef_to_fe_map = -1
+     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_proper_vef_to_cell_map  ,  __FILE__, __LINE__ )
+     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
+     visited_proper_vef_to_cell_map = -1
+     visited_improper_vef_to_cell_map = -1
      
      call this%create_fe_vef_iterator(vef)
      call this%create_fe_iterator(source_fe)
@@ -220,9 +220,9 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
              vef_lid = abs(fe%get_vef_lid(ivef))
              is_owner = .false.
              if ( vef%is_proper()) then
-               is_owner = ( visited_proper_vef_to_fe_map   ( 1, vef_lid ) == -1 )
+               is_owner = ( visited_proper_vef_to_cell_map   ( 1, vef_lid ) == -1 )
              else
-               is_owner = ( visited_improper_vef_to_fe_map ( 1, vef_lid ) == -1 )
+               is_owner = ( visited_improper_vef_to_cell_map ( 1, vef_lid ) == -1 )
              end if
 
              if ( is_owner ) then
@@ -230,20 +230,20 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
                call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
                if (previous_dof_block < current_dof_block) then
                  if ( vef%is_proper()) then
-                   visited_proper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                   visited_proper_vef_to_fe_map ( 2, vef_lid ) = ivef
+                   visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                   visited_proper_vef_to_cell_map ( 2, vef_lid ) = ivef
                  else
-                   visited_improper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                   visited_improper_vef_to_fe_map ( 2, vef_lid ) = ivef
+                   visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                   visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                  end if
                end if
              else 
                if ( vef%is_proper()) then
-                 source_cell_id = visited_proper_vef_to_fe_map(1,vef_lid)
-                 source_vef_lid = visited_proper_vef_to_fe_map(2,vef_lid)
+                 source_cell_id = visited_proper_vef_to_cell_map(1,vef_lid)
+                 source_vef_lid = visited_proper_vef_to_cell_map(2,vef_lid)
                else
-                 source_cell_id = visited_improper_vef_to_fe_map(1,vef_lid)
-                 source_vef_lid = visited_improper_vef_to_fe_map(2,vef_lid)
+                 source_cell_id = visited_improper_vef_to_cell_map(1,vef_lid)
+                 source_vef_lid = visited_improper_vef_to_cell_map(2,vef_lid)
                end if
                call source_fe%set_lid(source_cell_id)
                call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
@@ -252,18 +252,18 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
              mcheck(.false.,'For the moment that the only interior constained nodes are the ones of cut cells. I.e., no hanging nodes in the interior allowed')
              assert ( fe%get_vef_lid(ivef) < 0 )
              vef_lid = abs(fe%get_vef_lid(ivef))
-             if ( visited_improper_vef_to_fe_map ( 1, vef_lid ) == -1 ) then
+             if ( visited_improper_vef_to_cell_map ( 1, vef_lid ) == -1 ) then
                previous_fixed_dof = current_fixed_dof
                call fe%fill_own_dofs_on_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
                if (previous_fixed_dof < current_fixed_dof) then
-                 visited_improper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                 visited_improper_vef_to_fe_map ( 2, vef_lid ) = ivef
+                 visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                 visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                end if
              else 
-               call source_fe%set_lid(visited_improper_vef_to_fe_map(1,vef_lid))
+               call source_fe%set_lid(visited_improper_vef_to_cell_map(1,vef_lid))
                call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
                  source_fe, &
-                 visited_improper_vef_to_fe_map(2,vef_lid), &
+                 visited_improper_vef_to_cell_map(2,vef_lid), &
                  field_id) 
              end if
            end if   
@@ -284,9 +284,9 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
            vef_lid = abs(fe%get_vef_lid(ivef))
            is_owner = .false.
            if ( vef%is_proper()) then
-             is_owner = ( visited_proper_vef_to_fe_map   ( 1, vef_lid ) == -1 )
+             is_owner = ( visited_proper_vef_to_cell_map   ( 1, vef_lid ) == -1 )
            else
-             is_owner = ( visited_improper_vef_to_fe_map ( 1, vef_lid ) == -1 )
+             is_owner = ( visited_improper_vef_to_cell_map ( 1, vef_lid ) == -1 )
            end if
 
            if ( is_owner ) then
@@ -294,20 +294,20 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
              call fe%fill_own_dofs_on_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.  )
              if (previous_fixed_dof < current_fixed_dof) then
                if ( vef%is_proper()) then
-                 visited_proper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                 visited_proper_vef_to_fe_map ( 2, vef_lid ) = ivef
+                 visited_proper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                 visited_proper_vef_to_cell_map ( 2, vef_lid ) = ivef
                else
-                 visited_improper_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                 visited_improper_vef_to_fe_map ( 2, vef_lid ) = ivef
+                 visited_improper_vef_to_cell_map ( 1, vef_lid ) = fe%get_lid()
+                 visited_improper_vef_to_cell_map ( 2, vef_lid ) = ivef
                end if
              end if
            else 
              if ( vef%is_proper()) then
-               source_cell_id = visited_proper_vef_to_fe_map(1,vef_lid)
-               source_vef_lid = visited_proper_vef_to_fe_map(2,vef_lid)
+               source_cell_id = visited_proper_vef_to_cell_map(1,vef_lid)
+               source_vef_lid = visited_proper_vef_to_cell_map(2,vef_lid)
              else
-               source_cell_id = visited_improper_vef_to_fe_map(1,vef_lid)
-               source_vef_lid = visited_improper_vef_to_fe_map(2,vef_lid)
+               source_cell_id = visited_improper_vef_to_cell_map(1,vef_lid)
+               source_vef_lid = visited_improper_vef_to_cell_map(2,vef_lid)
              end if
              call source_fe%set_lid(source_cell_id)
              call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
@@ -322,8 +322,8 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
      call this%free_fe_iterator(source_fe)
      call this%free_fe_iterator(coarser_fe)
      call this%free_fe_vef_iterator(vef)
-     call memfree ( visited_proper_vef_to_fe_map  ,  __FILE__, __LINE__ )
-     call memfree ( visited_improper_vef_to_fe_map,  __FILE__, __LINE__ )
+     call memfree ( visited_proper_vef_to_cell_map  ,  __FILE__, __LINE__ )
+     call memfree ( visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
   else    
      ! TODO: this code is a verbatim copy of the one of its parent.
      !       we should better split the parent into additional TBPs
@@ -513,8 +513,8 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   class(reference_fe_t), pointer :: root_reference_fe
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
   type(quadrature_t), pointer :: nodal_quad_ref_fe
-  type(fe_map_t) :: fe_map
-  type(fe_map_t), pointer :: root_fe_map
+  type(cell_map_t) :: cell_map
+  type(cell_map_t), pointer :: root_cell_map
   type(quadrature_t), pointer :: root_fe_quad
   integer(ip) :: iaux
   type(point_t), pointer :: coordinates_nodes_cut_cell(:)
@@ -606,20 +606,20 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
       ! Transform them to the physical space
       reference_fe_geo => fe%get_reference_fe_geo()
       if (iaux == 1) then
-        call fe_map%create(nodal_quad_ref_fe,reference_fe_geo)
+        call cell_map%create(nodal_quad_ref_fe,reference_fe_geo)
       else
-        call fe_map%update_interpolation(nodal_quad_ref_fe,reference_fe_geo)
+        call cell_map%update_interpolation(nodal_quad_ref_fe,reference_fe_geo)
       end if
-      coordinates => fe_map%get_coordinates()
+      coordinates => cell_map%get_coordinates()
       call fe%get_coordinates(coordinates)
-      call fe_map%compute_quadrature_coordinates()
-      coordinates_nodes_cut_cell => fe_map%get_quadrature_coordinates()
+      call cell_map%compute_quadrature_coordinates()
+      coordinates_nodes_cut_cell => cell_map%get_quadrature_coordinates()
 
       ! Transform back to the reference space of the root_fe
       call root_fe%update_integration()
       root_fe_quad => root_fe%get_quadrature()
-      root_fe_map  => root_fe%get_fe_map()
-      call send_to_reference_space(coordinates_nodes_cut_cell,root_fe_quad,root_fe_map,nodal_quad_in_root_fe)
+      root_cell_map  => root_fe%get_cell_map()
+      call send_to_reference_space(coordinates_nodes_cut_cell,root_fe_quad,root_cell_map,nodal_quad_in_root_fe)
 
       ! Evaluate the root_fe shape functions at these points
       root_reference_fe => root_fe%get_reference_fe(field_id)
@@ -628,7 +628,7 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
       else
         call cell_integrator%update_interpolation(nodal_quad_in_root_fe)
       end if
-      call cell_integrator%update(root_fe_map)
+      call cell_integrator%update(root_cell_map)
       call cell_integrator%get_values(shape_values)
 
       do idof = 1, size(elem2dof)
@@ -652,7 +652,7 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
 
   call this%free_fe_iterator(fe)
   call this%free_fe_iterator(root_fe)
-  call fe_map%free()
+  call cell_map%free()
   call cell_integrator%free()
   call nodal_quad_in_root_fe%free()
   call memfree(shape_values,__FILE__,__LINE__)
@@ -662,11 +662,11 @@ end subroutine suhpafs_setup_cut_cells_constraints
 
 
 !========================================================================================
-subroutine send_to_reference_space(phys_coords_as_point,fe_quad,fe_map,ref_coords_as_quadrature)
+subroutine send_to_reference_space(phys_coords_as_point,fe_quad,cell_map,ref_coords_as_quadrature)
   implicit none
   type(point_t),      intent(in)    :: phys_coords_as_point(:)
   type(quadrature_t), intent(in)    :: fe_quad
-  type(fe_map_t),     intent(in)    :: fe_map
+  type(cell_map_t),     intent(in)    :: cell_map
   type(quadrature_t), intent(inout) :: ref_coords_as_quadrature
 
   real(rp), pointer :: det_jacobians(:)
@@ -684,23 +684,23 @@ subroutine send_to_reference_space(phys_coords_as_point,fe_quad,fe_map,ref_coord
 
   ! Check that we have an affine fe map
 #ifdef DEBUG
-  det_jacobians => fe_map%get_det_jacobians()
+  det_jacobians => cell_map%get_det_jacobians()
   do qpoint = 1, size(det_jacobians)
     massert( abs(det_jacobians(1) - det_jacobians(qpoint)) < 1.0e-13, 'We assume that the FE map is afine')
   end do
 #endif
 
-  ! Compute the rhs of the affine fe_map
+  ! Compute the rhs of the affine cell_map
   qpoint = 1
   ref_quad_coords  => fe_quad%get_coordinates()
-  phys_quad_coords => fe_map%get_quadrature_coordinates()
+  phys_quad_coords => cell_map%get_quadrature_coordinates()
   call eta%init(0.0)
   call x%init(0.0)
   do idime = 1, fe_quad%get_num_dims()
     call eta%set(idime,ref_quad_coords(idime,qpoint))
     call x%set(idime,phys_quad_coords(qpoint)%get(idime))
   end do
-  Aeta = fe_map%apply_jacobian(qpoint,eta)
+  Aeta = cell_map%apply_jacobian(qpoint,eta)
   b = x - Aeta
 
   ! Compute the inverse affine fe map
@@ -711,7 +711,7 @@ subroutine send_to_reference_space(phys_coords_as_point,fe_quad,fe_map,ref_coord
       call x%set(idime,phys_coords_as_point(qpoint)%get(idime))
     end do
     x = x - b
-    eta = fe_map%apply_inv_jacobian(1,x)
+    eta = cell_map%apply_inv_jacobian(1,x)
     do idime = 1, fe_quad%get_num_dims()
       ref_quad_coords(idime,qpoint) = eta%get(idime)
     end do

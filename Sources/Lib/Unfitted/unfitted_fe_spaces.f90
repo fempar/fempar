@@ -30,7 +30,7 @@ module unfitted_fe_spaces_names
   use fempar_names
   use unfitted_triangulations_names
 <<<<<<< HEAD
-  use piecewise_fe_map_names
+  use piecewise_cell_map_names
   use hp_adaptive_fe_space_names
 =======
   use piecewise_cell_map_names
@@ -173,7 +173,7 @@ module unfitted_fe_spaces_names
 
       ! Creation / deletion methods
       procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => suhpafs_create_same_reference_fes_on_all_cells
-      procedure           :: serial_fe_space_create_different_between_cells         => suhpafs_space_create_different_between_cells
+      procedure           :: serial_fe_space_create_different_ref_fes_between_cells         => suhpafs_space_create_different_ref_fes_between_cells
       procedure           :: free                                                   => suhpafs_free
       procedure           :: set_use_constraints                                    => suhpafs_set_use_constraints
       
