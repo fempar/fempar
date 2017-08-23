@@ -241,6 +241,7 @@ module fe_space_names
                                                                                          fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields
     procedure, non_overridable          :: determine_has_fixed_dofs                   => fe_cell_iterator_set_has_fixed_dofs
     procedure                           :: determine_has_hanging_dofs                 => fe_cell_iterator_set_has_hanging_dofs
+    procedure                           :: is_free_dof                                => fe_cell_iterator_is_free_dof
     procedure                           :: is_strong_dirichlet_dof                    => fe_cell_iterator_is_strong_dirichlet_dof   
     procedure, non_overridable          :: is_fixed_dof                               => fe_cell_iterator_is_fixed_dof
     procedure, non_overridable          :: compute_volume                             => fe_cell_iterator_compute_volume
