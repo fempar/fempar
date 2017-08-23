@@ -115,7 +115,7 @@ contains
        call fe%get_fe_dofs(fe_dofs)
 
        ! Get quadrature coordinates to evaluate boundary value
-       quad_coords => cell_map%get_quadrature_coordinates()
+       quad_coords => cell_map%get_quadrature_points_coordinates()
        
        ! Compute element matrix and vector
        elmat = 0.0_rp

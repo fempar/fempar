@@ -94,10 +94,7 @@ module unfitted_fe_spaces_names
       procedure :: next                 => unfitted_hp_adaptive_fe_cell_iterator_next
       procedure :: first                => unfitted_hp_adaptive_fe_cell_iterator_first
       procedure :: last                 => unfitted_hp_adaptive_fe_cell_iterator_last
-      procedure :: set_lid              => unfitted_hp_adaptive_fe_cell_iterator_set_lid
-
-      ! Overridden in hp_adaptive_fe_cell_iterator_t
-      procedure :: assemble             => unfitted_hp_adaptive_fe_cell_iterator_assemble
+      procedure :: set_gid              => unfitted_hp_adaptive_fe_cell_iterator_set_gid
 
   end type unfitted_hp_adaptive_fe_cell_iterator_t
 
@@ -228,6 +225,7 @@ module unfitted_fe_spaces_names
 contains
 
 #include "../Unfitted/sbm_unfitted_fe_cell_iterator.i90"
+#include "../Unfitted/sbm_unfitted_hp_adaptive_fe_cell_iterator.i90"
 #include "../Unfitted/sbm_unfitted_integration_manager.i90"
 #include "../Unfitted/sbm_serial_unfitted_fe_space.i90"
 #include "../Unfitted/sbm_serial_unfitted_hp_adaptive_fe_space.i90"

@@ -246,7 +246,7 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
                  source_vef_lid = visited_improper_vef_to_cell_map(2,vef_lid)
                end if
                call source_fe%set_gid(source_cell_id)
-               call fe%generate_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
+               call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
              end if
            else 
              mcheck(.false.,'For the moment that the only interior constained nodes are the ones of cut cells. I.e., no hanging nodes in the interior allowed')
@@ -261,7 +261,7 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
                end if
              else 
                call source_fe%set_gid(visited_improper_vef_to_cell_map(1,vef_lid))
-               call fe%generate_own_dofs_vef_from_source_fe ( ivef, &
+               call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
                  source_fe, &
                  visited_improper_vef_to_cell_map(2,vef_lid), &
                  field_id) 
@@ -310,7 +310,7 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
                source_vef_lid = visited_improper_vef_to_cell_map(2,vef_lid)
              end if
              call source_fe%set_gid(source_cell_id)
-             call fe%generate_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
+             call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
            end if
 
          end do
@@ -500,163 +500,164 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout)    :: this
 
-  integer(ip) :: improper_dof_lid
-  class(fe_cell_iterator_t), allocatable :: fe
-  class(fe_cell_iterator_t), allocatable :: root_fe
-  integer(ip) :: field_id
-  integer(ip), pointer :: fe_dofs(:)
-  integer(ip), pointer :: root_fe_dofs(:)
-  integer(ip) :: idof, root_idof
-  integer(ip) :: num_dofs_in_root
-  integer(ip) :: current_pos
-  class(reference_fe_t), pointer :: reference_fe
-  class(reference_fe_t), pointer :: root_reference_fe
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-  type(quadrature_t), pointer :: nodal_quad_ref_fe
-  type(cell_map_t) :: cell_map
-  type(cell_map_t), pointer :: root_cell_map
-  type(quadrature_t), pointer :: root_fe_quad
-  integer(ip) :: iaux
-  type(point_t), pointer :: coordinates_nodes_cut_cell(:)
-  type(cell_integrator_t) :: cell_integrator
-  type(quadrature_t) :: nodal_quad_in_root_fe
-  class(base_static_triangulation_t), pointer :: triangulation
-  real(rp), allocatable  :: shape_values(:,:)
-  type(point_t), pointer :: coordinates(:)
-  integer(ip) :: istat
-  logical, allocatable :: visited_improper_dof_lids(:)
+  ! UNDER QUARANTINE: TO BE UNCOMMENTED AND FIXED (eneiva help)
+  !integer(ip) :: improper_dof_lid
+  !class(fe_cell_iterator_t), allocatable :: fe
+  !class(fe_cell_iterator_t), allocatable :: root_fe
+  !integer(ip) :: field_id
+  !integer(ip), pointer :: fe_dofs(:)
+  !integer(ip), pointer :: root_fe_dofs(:)
+  !integer(ip) :: idof, root_idof
+  !integer(ip) :: num_dofs_in_root
+  !integer(ip) :: current_pos
+  !class(reference_fe_t), pointer :: reference_fe
+  !class(reference_fe_t), pointer :: root_reference_fe
+  !class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  !type(quadrature_t), pointer :: nodal_quad_ref_fe
+  !type(cell_map_t) :: cell_map
+  !type(cell_map_t), pointer :: root_cell_map
+  !type(quadrature_t), pointer :: root_fe_quad
+  !integer(ip) :: iaux
+  !type(point_t), pointer :: coordinates_nodes_cut_cell(:)
+  !type(cell_integrator_t) :: cell_integrator
+  !type(quadrature_t) :: nodal_quad_in_root_fe
+  !class(base_static_triangulation_t), pointer :: triangulation
+  !real(rp), allocatable  :: shape_values(:,:)
+  !type(point_t), pointer :: coordinates(:)
+  !integer(ip) :: istat
+  !logical, allocatable :: visited_improper_dof_lids(:)
 
-  field_id = 1
-  mcheck(this%get_num_fields() == 1, 'Procedure implemented currently for a single field')
-  mcheck(this%get_field_type(field_id) == field_type_scalar, 'Procedure implemented currently for scalar fields')
+  !field_id = 1
+  !mcheck(this%get_num_fields() == 1, 'Procedure implemented currently for a single field')
+  !mcheck(this%get_field_type(field_id) == field_type_scalar, 'Procedure implemented currently for scalar fields')
 
-  ! Auxiliary
-  triangulation => this%get_triangulation()
-  call nodal_quad_in_root_fe%create(triangulation%get_num_dims(),this%get_max_num_shape_functions())
+  !! Auxiliary
+  !triangulation => this%get_triangulation()
+  !call nodal_quad_in_root_fe%create(triangulation%get_num_dims(),this%get_max_num_shape_functions())
 
-  call memalloc(this%num_fixed_dofs,visited_improper_dof_lids,__FILE__,__LINE__)
+  !call memalloc(this%num_fixed_dofs,visited_improper_dof_lids,__FILE__,__LINE__)
   
-  !Fill the sizes of each sub-list
+  !!Fill the sizes of each sub-list
 
-  ! Init to 0
-  call this%ptr_constraint_dofs%resize(this%num_fixed_dofs+1,0)
+  !! Init to 0
+  !call this%ptr_constraint_dofs%resize(this%num_fixed_dofs+1,0)
   
-  ! Dirichlet nodes only depend on one value
-  do improper_dof_lid=1, this%get_num_fixed_dofs()
-    call this%ptr_constraint_dofs%set(improper_dof_lid+1, 1 )
-  end do
+  !! Dirichlet nodes only depend on one value
+  !do improper_dof_lid=1, this%get_num_fixed_dofs()
+  !  call this%ptr_constraint_dofs%set(improper_dof_lid+1, 1 )
+  !end do
 
-  ! Nodes in cut cells might depend on several nodes of their root cell. Count them!
-  ! (We skip Dirichlet Dofs since they are already taken into account in previous loop)
-  call this%create_fe_cell_iterator(fe)
-  call this%create_fe_cell_iterator(root_fe)
-  visited_improper_dof_lids(:) = .false.
-  do while (.not. fe%has_finished())
-    if ( fe%is_local() .and. fe%is_cut() ) then
+  !! Nodes in cut cells might depend on several nodes of their root cell. Count them!
+  !! (We skip Dirichlet Dofs since they are already taken into account in previous loop)
+  !call this%create_fe_cell_iterator(fe)
+  !call this%create_fe_cell_iterator(root_fe)
+  !visited_improper_dof_lids(:) = .false.
+  !do while (.not. fe%has_finished())
+  !  if ( fe%is_local() .and. fe%is_cut() ) then
 
-      call root_fe%set_gid(this%aggregate_ids(fe%get_gid()))
+  !    call root_fe%set_gid(this%aggregate_ids(fe%get_gid()))
 
-      call fe%get_field_fe_dofs(field_id, fe_dofs)
-      call root_fe%get_field_fe_dofs(field_id, root_fe_dofs)
-      num_dofs_in_root = size(root_fe_dofs)
+  !    call fe%get_field_fe_dofs(field_id, fe_dofs)
+  !    call root_fe%get_field_fe_dofs(field_id, root_fe_dofs)
+  !    num_dofs_in_root = size(root_fe_dofs)
 
-      do idof = 1, size(fe_dofs)
-        if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (.not. fe%is_strong_dirichlet_dof(fe_dofs(idof))) ) then
-          improper_dof_lid = abs(fe_dofs(idof))
-          if ( .not. visited_improper_dof_lids(improper_dof_lid) ) then
-            call this%ptr_constraint_dofs%set(improper_dof_lid+1, num_dofs_in_root )
-            visited_improper_dof_lids(improper_dof_lid) = .true.
-          end if
-        end if
-      end do
+  !    do idof = 1, size(fe_dofs)
+  !      if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (.not. fe%is_strong_dirichlet_dof(fe_dofs(idof))) ) then
+  !        improper_dof_lid = abs(fe_dofs(idof))
+  !        if ( .not. visited_improper_dof_lids(improper_dof_lid) ) then
+  !          call this%ptr_constraint_dofs%set(improper_dof_lid+1, num_dofs_in_root )
+  !          visited_improper_dof_lids(improper_dof_lid) = .true.
+  !        end if
+  !      end if
+  !    end do
 
-    end if
-    call fe%next()
-  end do
+  !  end if
+  !  call fe%next()
+  !end do
 
-  ! Create the header from the sizes
-  call this%p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraint_dofs)
+  !! Create the header from the sizes
+  !call this%p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraint_dofs)
 
-  ! Allocate the vectors containing the raw data
-  call this%constraint_dofs_dependencies%resize(this%ptr_constraint_dofs%get(this%ptr_constraint_dofs%size())-1)
-  call this%constraint_dofs_coefficients%resize(this%ptr_constraint_dofs%get(this%ptr_constraint_dofs%size())-1)
+  !! Allocate the vectors containing the raw data
+  !call this%constraint_dofs_dependencies%resize(this%ptr_constraint_dofs%get(this%ptr_constraint_dofs%size())-1)
+  !call this%constraint_dofs_coefficients%resize(this%ptr_constraint_dofs%get(this%ptr_constraint_dofs%size())-1)
 
 
-  ! Compute dependencies and coefficients for Dirichlet BC
-  ! (It seems that this should not be computed here)
+  !! Compute dependencies and coefficients for Dirichlet BC
+  !! (It seems that this should not be computed here)
 
-  ! Compute dependencies and coefficients for the rest of constraints
-  call fe%first()
-  iaux = 1
-  visited_improper_dof_lids(:) = .false.
-  do while (.not. fe%has_finished())
-    if ( fe%is_local() .and. fe%is_cut() ) then
+  !! Compute dependencies and coefficients for the rest of constraints
+  !call fe%first()
+  !iaux = 1
+  !visited_improper_dof_lids(:) = .false.
+  !do while (.not. fe%has_finished())
+  !  if ( fe%is_local() .and. fe%is_cut() ) then
 
-      call root_fe%set_gid(this%aggregate_ids(fe%get_gid()))
+  !    call root_fe%set_gid(this%aggregate_ids(fe%get_gid()))
 
-      call fe%get_field_fe_dofs(field_id, fe_dofs)
-      call root_fe%get_field_fe_dofs(field_id, root_fe_dofs)
-      num_dofs_in_root = size(root_fe_dofs)
+  !    call fe%get_field_fe_dofs(field_id, fe_dofs)
+  !    call root_fe%get_field_fe_dofs(field_id, root_fe_dofs)
+  !    num_dofs_in_root = size(root_fe_dofs)
 
-      ! Get the coordinates in the reference space of the nodes associated to the cut cell shape functions
-      reference_fe => fe%get_reference_fe(field_id)
-      massert(reference_fe%has_nodal_quadrature(),'This routine only work for interpolatory FEs.')
-      nodal_quad_ref_fe => reference_fe%get_nodal_quadrature()
+  !    ! Get the coordinates in the reference space of the nodes associated to the cut cell shape functions
+  !    reference_fe => fe%get_reference_fe(field_id)
+  !    massert(reference_fe%has_nodal_quadrature(),'This routine only work for interpolatory FEs.')
+  !    nodal_quad_ref_fe => reference_fe%get_nodal_quadrature()
 
-      ! Transform them to the physical space
-      reference_fe_geo => fe%get_reference_fe_geo()
-      if (iaux == 1) then
-        call cell_map%create(nodal_quad_ref_fe,reference_fe_geo)
-      else
-        call cell_map%update_interpolation(nodal_quad_ref_fe,reference_fe_geo)
-      end if
-      coordinates => cell_map%get_coordinates()
-      call fe%get_coordinates(coordinates)
-      call cell_map%compute_quadrature_coordinates()
-      coordinates_nodes_cut_cell => cell_map%get_quadrature_coordinates()
+  !    ! Transform them to the physical space
+  !    reference_fe_geo => fe%get_reference_fe_geo()
+  !    if (iaux == 1) then
+  !      call cell_map%create(nodal_quad_ref_fe,reference_fe_geo)
+  !    else
+  !      call cell_map%update_interpolation(nodal_quad_ref_fe,reference_fe_geo)
+  !    end if
+  !    coordinates => cell_map%get_coordinates()
+  !    call fe%get_coordinates(coordinates)
+  !    call cell_map%compute_quadrature_points_coordinates()
+  !    coordinates_nodes_cut_cell => cell_map%get_quadrature_points_coordinates()
 
-      ! Transform back to the reference space of the root_fe
-      call root_fe%update_integration()
-      root_fe_quad => root_fe%get_quadrature()
-      root_cell_map  => root_fe%get_cell_map()
-      call send_to_reference_space(coordinates_nodes_cut_cell,root_fe_quad,root_cell_map,nodal_quad_in_root_fe)
+  !    ! Transform back to the reference space of the root_fe
+  !    call root_fe%update_integration()
+  !    root_fe_quad => root_fe%get_quadrature()
+  !    root_cell_map  => root_fe%get_cell_map()
+  !    call send_to_reference_space(coordinates_nodes_cut_cell,root_fe_quad,root_cell_map,nodal_quad_in_root_fe)
 
-      ! Evaluate the root_fe shape functions at these points
-      root_reference_fe => root_fe%get_reference_fe(field_id)
-      if (iaux == 1) then
-        call cell_integrator%create(nodal_quad_in_root_fe,root_reference_fe)
-      else
-        call cell_integrator%update_interpolation(nodal_quad_in_root_fe)
-      end if
-      call cell_integrator%update(root_cell_map)
-      call cell_integrator%get_values(shape_values)
+  !    ! Evaluate the root_fe shape functions at these points
+  !    root_reference_fe => root_fe%get_reference_fe(field_id)
+  !    if (iaux == 1) then
+  !      call cell_integrator%create(nodal_quad_in_root_fe,root_reference_fe)
+  !    else
+  !      call cell_integrator%update_interpolation(nodal_quad_in_root_fe)
+  !    end if
+  !    call cell_integrator%update(root_cell_map)
+  !    call cell_integrator%get_values(shape_values)
 
-      do idof = 1, size(fe_dofs)
-        if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (.not. fe%is_strong_dirichlet_dof(fe_dofs(idof))) ) then
-          improper_dof_lid = abs(fe_dofs(idof))
-          if ( .not. visited_improper_dof_lids(improper_dof_lid) ) then
-            do root_idof = 1,size(root_fe_dofs)
-              current_pos = this%ptr_constraint_dofs%get(improper_dof_lid) + root_idof -1
-              call this%constraint_dofs_dependencies%set(current_pos,root_fe_dofs(root_idof))
-              call this%constraint_dofs_coefficients%set(current_pos,shape_values(root_idof,idof))
-            end do
-            visited_improper_dof_lids(improper_dof_lid) = .true.
-          end if
-        end if
-      end do
+  !    do idof = 1, size(fe_dofs)
+  !      if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (.not. fe%is_strong_dirichlet_dof(fe_dofs(idof))) ) then
+  !        improper_dof_lid = abs(fe_dofs(idof))
+  !        if ( .not. visited_improper_dof_lids(improper_dof_lid) ) then
+  !          do root_idof = 1,size(root_fe_dofs)
+  !            current_pos = this%ptr_constraint_dofs%get(improper_dof_lid) + root_idof -1
+  !            call this%constraint_dofs_dependencies%set(current_pos,root_fe_dofs(root_idof))
+  !            call this%constraint_dofs_coefficients%set(current_pos,shape_values(root_idof,idof))
+  !          end do
+  !          visited_improper_dof_lids(improper_dof_lid) = .true.
+  !        end if
+  !      end if
+  !    end do
 
-      iaux = iaux + 1
-    end if
-    call fe%next()
-  end do
+  !    iaux = iaux + 1
+  !  end if
+  !  call fe%next()
+  !end do
 
-  call this%free_fe_cell_iterator(fe)
-  call this%free_fe_cell_iterator(root_fe)
-  call cell_map%free()
-  call cell_integrator%free()
-  call nodal_quad_in_root_fe%free()
-  call memfree(shape_values,__FILE__,__LINE__)
-  call memfree(visited_improper_dof_lids,__FILE__,__LINE__)
+  !call this%free_fe_cell_iterator(fe)
+  !call this%free_fe_cell_iterator(root_fe)
+  !call cell_map%free()
+  !call cell_integrator%free()
+  !call nodal_quad_in_root_fe%free()
+  !call memfree(shape_values,__FILE__,__LINE__)
+  !call memfree(visited_improper_dof_lids,__FILE__,__LINE__)
 
 end subroutine suhpafs_setup_cut_cells_constraints
 
@@ -693,7 +694,7 @@ subroutine send_to_reference_space(phys_coords_as_point,fe_quad,cell_map,ref_coo
   ! Compute the rhs of the affine cell_map
   qpoint = 1
   ref_quad_coords  => fe_quad%get_coordinates()
-  phys_quad_coords => cell_map%get_quadrature_coordinates()
+  phys_quad_coords => cell_map%get_quadrature_points_coordinates()
   call eta%init(0.0)
   call x%init(0.0)
   do idime = 1, fe_quad%get_num_dims()
