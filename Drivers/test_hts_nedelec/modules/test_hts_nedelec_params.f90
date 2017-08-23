@@ -35,7 +35,7 @@ module hts_nedelec_params_names
     character(len=*), parameter :: theta_value_key                = 'theta_value' 
     character(len=*), parameter :: initial_time_key               = 'initial_time' 
     character(len=*), parameter :: final_time_key                 = 'final_time' 
-    character(len=*), parameter :: number_time_steps_key          = 'number_time_steps' 
+    character(len=*), parameter :: num_time_steps_key          = 'num_time_steps' 
     character(len=*), parameter :: is_adaptive_time_stepping_key  = 'is_adaptive_time_stepping' 
     character(len=*), parameter :: stepping_parameter_key         = 'stepping_parameter' 
     character(len=*), parameter :: max_time_step_key              = 'max_time_step' 
@@ -62,7 +62,7 @@ module hts_nedelec_params_names
        procedure, non_overridable             :: get_magnetic_field_reference_fe_order
        procedure, non_overridable             :: get_magnetic_pressure_reference_fe_order
        procedure, non_overridable             :: get_external_magnetic_field_amplitude
-       procedure, non_overridable             :: get_external_magnetic_field_frequencys
+       procedure, non_overridable             :: get_external_magnetic_field_frequency
        procedure, non_overridable             :: get_external_current_amplitude
        procedure, non_overridable             :: get_external_current_frequency
        procedure, non_overridable             :: get_apply_current_density_constraint
@@ -76,7 +76,7 @@ module hts_nedelec_params_names
        procedure, non_overridable             :: get_theta_value 
        procedure, non_overridable             :: get_initial_time 
        procedure, non_overridable             :: get_final_time 
-       procedure, non_overridable             :: get_number_time_steps
+       procedure, non_overridable             :: get_num_time_steps
        procedure, non_overridable             :: get_is_adaptive_time_stepping 
        procedure, non_overridable             :: get_stepping_parameter
        procedure, non_overridable             :: get_max_time_step 
@@ -116,8 +116,8 @@ contains
     error = list%set(key = write_solution_key , value =  .false.) ; check(error==0)
 
     ! MESHING parameters 
-    error = list%set(key = number_of_dimensions_key   , value =  2)                                 ; check(error==0)
-    error = list%set(key = number_of_cells_per_dir_key, value =  [2,2,2])                           ; check(error==0)
+    error = list%set(key = num_dims_key   , value =  2)                                 ; check(error==0)
+    error = list%set(key = num_cells_x_dir_key, value =  [2,2,2])                           ; check(error==0)
     error = list%set(key = is_dir_periodic_key        , value =  [0,0,0])                           ; check(error==0)
     error = list%set(key = triangulation_generate_key , value =  triangulation_generate_structured) ; check(error==0)
     error = list%set(key = domain_length_key          , value =  [1.0,1.0,1.0])                     ; check(error==0)
@@ -147,7 +147,7 @@ contains
     error = list%set(key = theta_value_key              , value = 1.0)      ; check(error==0)
     error = list%set(key = initial_time_key             , value = 0.0)      ; check(error==0)
     error = list%set(key = final_time_key               , value = 1.0)      ; check(error==0)
-    error = list%set(key = number_time_steps_key        , value = 10)       ; check(error==0)
+    error = list%set(key = num_time_steps_key        , value = 10)       ; check(error==0)
     error = list%set(key = is_adaptive_time_stepping_key, value = .true.)   ; check(error==0)
     error = list%set(key = stepping_parameter_key       , value = 10)       ; check(error==0)
     error = list%set(key = max_time_step_key            , value = 0.1)      ; check(error==0)
@@ -170,8 +170,8 @@ contains
     error = switches%set(key = write_solution_key            , value = '--write_solution')   ; check(error==0)
     
     ! MESHING parameters 
-    error = switches%set(key = number_of_dimensions_key      , value = '--number_dimensions') ; check(error==0)
-    error = switches%set(key = number_of_cells_per_dir_key   , value = '--number_of_cells')   ; check(error==0)
+    error = switches%set(key = num_dims_key      , value = '--num_dims') ; check(error==0)
+    error = switches%set(key = num_cells_x_dir_key   , value = '--num_cells')   ; check(error==0)
     error = switches%set(key = is_dir_periodic_key           , value = '--is_dir_periodic')   ; check(error==0)
     error = switches%set(key = triangulation_generate_key    , value = '--triangulation-type'); check(error==0)
     error = switches%set(key = domain_length_key             , value = '--domain_length')     ; check(error==0)
@@ -201,7 +201,7 @@ contains
     error = switches%set(key = theta_value_key              , value = '--theta_value')              ; check(error==0)
     error = switches%set(key = initial_time_key             , value = '--initial_time')             ; check(error==0)
     error = switches%set(key = final_time_key               , value = '--final_time')               ; check(error==0)
-    error = switches%set(key = number_time_steps_key        , value = '--number_time_steps')        ; check(error==0)
+    error = switches%set(key = num_time_steps_key        , value = '--num_time_steps')        ; check(error==0)
     error = switches%set(key = is_adaptive_time_stepping_key, value ='--is_adaptive_time_stepping') ; check(error==0)
     error = switches%set(key = stepping_parameter_key       , value = '--stepping_parameter')       ; check(error==0)
     error = switches%set(key = max_time_step_key            , value = '--max_time_step')            ; check(error==0)
@@ -225,8 +225,8 @@ contains
     
     ! MESHING parameters 
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution') ; check(error==0)
-    error = switches_ab%set(key = number_of_dimensions_key   , value = '-dim')       ; check(error==0)
-    error = switches_ab%set(key = number_of_cells_per_dir_key, value = '-nelem')     ; check(error==0)
+    error = switches_ab%set(key = num_dims_key   , value = '-dim')       ; check(error==0)
+    error = switches_ab%set(key = num_cells_x_dir_key, value = '-nelem')     ; check(error==0)
     error = switches_ab%set(key = is_dir_periodic_key        , value = '-idp')       ; check(error==0)
     error = switches_ab%set(key = triangulation_generate_key , value = '-tt')        ; check(error==0)
     error = switches_ab%set(key = domain_length_key          , value = '-dl')        ; check(error==0)
@@ -256,7 +256,7 @@ contains
     error = switches_ab%set(key = theta_value_key              , value = '-theta')  ; check(error==0)
     error = switches_ab%set(key = initial_time_key             , value = '-t0')     ; check(error==0)
     error = switches_ab%set(key = final_time_key               , value = '-tf')     ; check(error==0)
-    error = switches_ab%set(key = number_time_steps_key        , value = '-nsteps') ; check(error==0)
+    error = switches_ab%set(key = num_time_steps_key        , value = '-nsteps') ; check(error==0)
     error = switches_ab%set(key = is_adaptive_time_stepping_key, value = '-iats')   ; check(error==0)
     error = switches_ab%set(key = stepping_parameter_key       , value = '-sp')     ; check(error==0)
     error = switches_ab%set(key = max_time_step_key            , value = '-max_ts') ; check(error==0)
@@ -279,8 +279,8 @@ contains
     error = helpers%set(key = write_solution_key , value = 'Print solution?')    ; check(error==0)
     
     ! MESHING parameters
-    error = helpers%set(key = number_of_dimensions_key   , value = 'Number of dimensions')  ; check(error==0)
-    error = helpers%set(key = number_of_cells_per_dir_key, value = 'Number of elements in each direction'); check(error==0)
+    error = helpers%set(key = num_dims_key   , value = 'Number of dimensions')  ; check(error==0)
+    error = helpers%set(key = num_cells_x_dir_key, value = 'Number of elements in each direction'); check(error==0)
     error = helpers%set(key = is_dir_periodic_key        , value = 'Is periodic? in each direction'); check(error==0)
   
     msg = 'structured (*) or unstructured (*) triangulation?'
@@ -314,7 +314,7 @@ contains
     error = helpers%set(key = theta_value_key        , value = 'Theta value')        ; check(error==0)
     error = helpers%set(key = initial_time_key       , value = 'Initial time')       ; check(error==0)
     error = helpers%set(key = final_time_key         , value = 'Final time')         ; check(error==0)
-    error = helpers%set(key = number_time_steps_key  , value = 'Number of steps')  ; check(error==0)
+    error = helpers%set(key = num_time_steps_key  , value = 'Number of steps')  ; check(error==0)
     error = helpers%set(key = is_adaptive_time_stepping_key, value ='Is adaptive time stepping?'); check(error==0)
     error = helpers%set(key = stepping_parameter_key       , value = 'Ideal number of Newton-Raphson nonlinear iterations to converge') ; check(error==0)
     error = helpers%set(key = max_time_step_key            , value = 'Maximum time step size')  ; check(error==0)
@@ -338,8 +338,8 @@ contains
     error = required%set(key = write_solution_key , value = .false.)    ; check(error==0)
     
     ! MESHING parameters
-    error = required%set(key = number_of_dimensions_key   , value = .false.)  ; check(error==0)
-    error = required%set(key = number_of_cells_per_dir_key, value = .false.)  ; check(error==0)
+    error = required%set(key = num_dims_key   , value = .false.)  ; check(error==0)
+    error = required%set(key = num_cells_x_dir_key, value = .false.)  ; check(error==0)
     error = required%set(key = is_dir_periodic_key        , value = .false.)  ; check(error==0)
     error = required%set(key = triangulation_generate_key , value = .false.)  ; check(error==0)
     error = required%set(key = domain_length_key          , value = .false.)  ; check(error==0)
@@ -369,7 +369,7 @@ contains
     error = required%set(key = theta_value_key              , value = .false.)   ; check(error==0)
     error = required%set(key = initial_time_key             , value = .false.)   ; check(error==0)
     error = required%set(key = final_time_key               , value = .false.)   ; check(error==0)
-    error = required%set(key = number_time_steps_key        , value = .false.)   ; check(error==0)
+    error = required%set(key = num_time_steps_key        , value = .false.)   ; check(error==0)
     error = required%set(key = is_adaptive_time_stepping_key, value =.false.)    ; check(error==0)
     error = required%set(key = stepping_parameter_key       , value = .false.)   ; check(error==0)
     error = required%set(key = max_time_step_key            , value = .false.)   ; check(error==0)
@@ -698,17 +698,17 @@ contains
   end function get_final_time   
 
 !==================================================================================================
-  function get_number_time_steps  (this)
+  function get_num_time_steps  (this)
     implicit none
     class(hts_nedelec_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_number_time_steps   
+    integer(ip)                                   :: get_num_time_steps   
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(number_time_steps_key, get_number_time_steps  ))
-    error = list%Get(key=number_time_steps_key, Value = get_number_time_steps  )
+    assert(list%isAssignable(num_time_steps_key, get_num_time_steps  ))
+    error = list%Get(key=num_time_steps_key, Value = get_num_time_steps  )
     assert(error==0)
-  end function get_number_time_steps   
+  end function get_num_time_steps   
 
 !==================================================================================================
   function get_is_adaptive_time_stepping  (this)

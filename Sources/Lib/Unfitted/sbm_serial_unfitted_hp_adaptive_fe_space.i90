@@ -122,21 +122,21 @@ subroutine suhpafs_fill_dof_info( this, block_layout )
   if ( perform_numbering ) then
     call this%set_block_layout(block_layout)
   
-    this%number_fixed_dofs = this%get_number_strong_dirichlet_dofs()
+    this%num_fixed_dofs = this%get_num_strong_dirichlet_dofs()
   
     ! Initialize number DoFs per field
-    call this%allocate_number_dofs_per_field()
-    do field_id=1, this%get_number_fields()
-      call this%set_field_number_dofs(field_id, 0)
+    call this%allocate_num_dofs_x_field()
+    do field_id=1, this%get_num_fields()
+      call this%set_field_num_dofs(field_id, 0)
     end do
   
     ! Initialize number DoFs per block
-    do block_id=1, this%get_number_blocks()
-      call this%set_block_number_dofs(block_id, 0)
+    do block_id=1, this%get_num_blocks()
+      call this%set_block_num_dofs(block_id, 0)
     end do
   
     ! Generate field-wise/block-wise global DoF identifiers
-    do field_id = 1, this%get_number_fields()
+    do field_id = 1, this%get_num_fields()
       call this%fill_elem2dof_and_count_dofs( field_id )
     end do
   
@@ -165,7 +165,7 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
   class(fe_iterator_t) , allocatable :: fe, source_fe, coarser_fe
   type(fe_vef_iterator_t) :: vef
   integer(ip), pointer :: field_blocks(:)
-  integer(ip), pointer :: fe_space_type_per_field(:)
+  integer(ip), pointer :: fe_space_type_x_field(:)
 
   logical :: all_improper_cells_around_void, is_owner
   integer(ip) :: source_cell_id
@@ -179,16 +179,16 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
   end if
 
   field_blocks            => this%get_field_blocks()
-  fe_space_type_per_field => this%get_fe_space_type()
+  fe_space_type_x_field => this%get_fe_space_type()
   iblock            = field_blocks(field_id)
-  init_dof_block    = this%get_block_number_dofs(iblock)
+  init_dof_block    = this%get_block_num_dofs(iblock)
   current_dof_block = init_dof_block
   
-  init_fixed_dof    = this%number_fixed_dofs
+  init_fixed_dof    = this%num_fixed_dofs
   current_fixed_dof = init_fixed_dof
 
   call this%create_fe_iterator(fe)
-  if ( fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+  if ( fe_space_type_x_field(field_id) == fe_space_type_cg ) then
      call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_proper_vef_to_fe_map  ,  __FILE__, __LINE__ )
      call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_improper_vef_to_fe_map,  __FILE__, __LINE__ )
      visited_proper_vef_to_fe_map = -1
@@ -337,10 +337,10 @@ subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id )
   end if
   call this%free_fe_iterator(fe)
 
-  call this%set_field_number_dofs(field_id,current_dof_block - init_dof_block)
-  call this%set_block_number_dofs(iblock, this%get_block_number_dofs(iblock) + & 
-                                          this%get_field_number_dofs(field_id))
-  this%number_fixed_dofs = this%number_fixed_dofs + current_fixed_dof - init_fixed_dof
+  call this%set_field_num_dofs(field_id,current_dof_block - init_dof_block)
+  call this%set_block_num_dofs(iblock, this%get_block_num_dofs(iblock) + & 
+                                          this%get_field_num_dofs(field_id))
+  this%num_fixed_dofs = this%num_fixed_dofs + current_fixed_dof - init_fixed_dof
 end subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs
 
 !========================================================================================
@@ -394,9 +394,9 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
     return
   end if
 
-  if (triangulation%get_num_dimensions() == 2) then
+  if (triangulation%get_num_dims() == 2) then
     face2dir => face2dir_2d
-  else if (triangulation%get_num_dimensions() == 3) then
+  else if (triangulation%get_num_dims() == 3) then
     face2dir => face2dir_3d
   else
     mcheck(.false.,'Only for 3D and 2D')
@@ -404,9 +404,9 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
 
   this%max_separation_from_root = 0.0_rp
 
-  call memalloc(triangulation%get_num_local_cells(),triangulation%get_num_dimensions(),distance,__FILE__,__LINE__)
-  call memalloc(triangulation%get_num_dimensions(),tent_distance,__FILE__,__LINE__)
-  call memalloc(triangulation%get_num_dimensions(),min_distance,__FILE__,__LINE__)
+  call memalloc(triangulation%get_num_local_cells(),triangulation%get_num_dims(),distance,__FILE__,__LINE__)
+  call memalloc(triangulation%get_num_dims(),tent_distance,__FILE__,__LINE__)
+  call memalloc(triangulation%get_num_dims(),min_distance,__FILE__,__LINE__)
 
   call triangulation%create_cell_iterator(cell)
   call triangulation%create_cell_iterator(cell_arround)
@@ -527,22 +527,22 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   logical, allocatable :: visited_improper_dof_lids(:)
 
   field_id = 1
-  mcheck(this%get_number_fields() == 1, 'Procedure implemented currently for a single field')
+  mcheck(this%get_num_fields() == 1, 'Procedure implemented currently for a single field')
   mcheck(this%get_field_type(field_id) == field_type_scalar, 'Procedure implemented currently for scalar fields')
 
   ! Auxiliary
   triangulation => this%get_triangulation()
-  call nodal_quad_in_root_fe%create(triangulation%get_num_dimensions(),this%get_max_number_shape_functions())
+  call nodal_quad_in_root_fe%create(triangulation%get_num_dims(),this%get_max_num_shape_functions())
 
-  call memalloc(this%number_fixed_dofs,visited_improper_dof_lids,__FILE__,__LINE__)
+  call memalloc(this%num_fixed_dofs,visited_improper_dof_lids,__FILE__,__LINE__)
   
   !Fill the sizes of each sub-list
 
   ! Init to 0
-  call this%ptr_constraint_dofs%resize(this%number_fixed_dofs+1,0)
+  call this%ptr_constraint_dofs%resize(this%num_fixed_dofs+1,0)
   
   ! Dirichlet nodes only depend on one value
-  do improper_dof_lid=1, this%get_number_strong_dirichlet_dofs()
+  do improper_dof_lid=1, this%get_num_strong_dirichlet_dofs()
     call this%ptr_constraint_dofs%set(improper_dof_lid+1, 1 )
   end do
 
@@ -679,8 +679,8 @@ subroutine send_to_reference_space(phys_coords_as_point,fe_quad,fe_map,ref_coord
   real(rp), pointer :: ref_quad_coords(:,:)
   type(point_t), pointer :: phys_quad_coords(:)
 
-  assert(size(phys_coords_as_point)<=ref_coords_as_quadrature%get_number_quadrature_points())
-  assert(fe_quad%get_number_dimensions() == ref_coords_as_quadrature%get_number_dimensions())
+  assert(size(phys_coords_as_point)<=ref_coords_as_quadrature%get_num_quadrature_points())
+  assert(fe_quad%get_num_dims() == ref_coords_as_quadrature%get_num_dims())
 
   ! Check that we have an affine fe map
 #ifdef DEBUG
@@ -696,7 +696,7 @@ subroutine send_to_reference_space(phys_coords_as_point,fe_quad,fe_map,ref_coord
   phys_quad_coords => fe_map%get_quadrature_coordinates()
   call eta%init(0.0)
   call x%init(0.0)
-  do idime = 1, fe_quad%get_number_dimensions()
+  do idime = 1, fe_quad%get_num_dims()
     call eta%set(idime,ref_quad_coords(idime,qpoint))
     call x%set(idime,phys_quad_coords(qpoint)%get(idime))
   end do
@@ -707,12 +707,12 @@ subroutine send_to_reference_space(phys_coords_as_point,fe_quad,fe_map,ref_coord
   ref_quad_coords  => ref_coords_as_quadrature%get_coordinates()
   do qpoint = 1,size(phys_coords_as_point) 
     call x%init(0.0)
-    do idime = 1, fe_quad%get_number_dimensions()
+    do idime = 1, fe_quad%get_num_dims()
       call x%set(idime,phys_coords_as_point(qpoint)%get(idime))
     end do
     x = x - b
     eta = fe_map%apply_inv_jacobian(1,x)
-    do idime = 1, fe_quad%get_number_dimensions()
+    do idime = 1, fe_quad%get_num_dims()
       ref_quad_coords(idime,qpoint) = eta%get(idime)
     end do
   end do

@@ -358,7 +358,7 @@ module execution_context_names
 
      !=============================================================================
      subroutine execution_context_neighbours_exchange_wo_pack_unpack_ieep ( this, &
-          &                                                              number_neighbours, &
+          &                                                              num_neighbours, &
           &                                                              neighbour_ids, &
           &                                                              snd_ptrs, &
           &                                                              snd_buf, & 
@@ -367,12 +367,12 @@ module execution_context_names
        import :: execution_context_t, ip, ieep
        implicit none
        class(execution_context_t)  , intent(in)    :: this 
-       integer(ip)           , intent(in)    :: number_neighbours
-       integer(ip)           , intent(in)    :: neighbour_ids(number_neighbours)
-       integer(ip)           , intent(in)    :: snd_ptrs(number_neighbours+1)
-       integer(ieep)         , intent(in)    :: snd_buf(snd_ptrs(number_neighbours+1)-1)   
-       integer(ip)           , intent(in)    :: rcv_ptrs(number_neighbours+1)
-       integer(ieep)         , intent(out)   :: rcv_buf(rcv_ptrs(number_neighbours+1)-1)
+       integer(ip)           , intent(in)    :: num_neighbours
+       integer(ip)           , intent(in)    :: neighbour_ids(num_neighbours)
+       integer(ip)           , intent(in)    :: snd_ptrs(num_neighbours+1)
+       integer(ieep)         , intent(in)    :: snd_buf(snd_ptrs(num_neighbours+1)-1)   
+       integer(ip)           , intent(in)    :: rcv_ptrs(num_neighbours+1)
+       integer(ieep)         , intent(out)   :: rcv_buf(rcv_ptrs(num_neighbours+1)-1)
      end subroutine execution_context_neighbours_exchange_wo_pack_unpack_ieep
 
      !=============================================================================

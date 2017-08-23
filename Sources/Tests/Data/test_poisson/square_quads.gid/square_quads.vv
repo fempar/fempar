@@ -1,6 +1,6 @@
-BeginZE /home/jbonilla/Progs/fempar/Sources/Tests/Data/test_poisson/square_quads.gid/square_quads.vv
-   x -0.912359118461608887 1.84972929954528809
-   y 1.11880004405975342 -0.229503855109214783
+BeginZE square_quads.gid/square_quads.vv
+   x -0.906493663787841797 1.843863844871521
+   y 1.16103088855743408 -0.271734714508056641
    z -1.43358993530273438 1.43358993530273438
    e 0.726483166217803955
    v 0 0 0
@@ -29,7 +29,7 @@ BeginZE /home/jbonilla/Progs/fempar/Sources/Tests/Data/test_poisson/square_quads
    OGLStereo(EyeDistance) 0.075
    OGLStereo(LeftEyeDistance) 1 0 0 1
    OGLStereo(RightEyeDistance) 0 1 1 1
-EndZE /home/jbonilla/Progs/fempar/Sources/Tests/Data/test_poisson/square_quads.gid/square_quads.vv
+EndZE square_quads.gid/square_quads.vv
 
 BeginMirror
    Mirror 0 Angle 0.0 AngleFake -15.0 SizeFactor 2.0 HeightOffset 0.25 Color #d9e5f24d Backlight Off EdgeStyle No Type Scene DrawMode Mirror

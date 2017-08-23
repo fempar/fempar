@@ -86,8 +86,8 @@ module test_poisson_driver_names
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
-     procedure        , private :: setup_fe_quadratures_degree
-     procedure        , private :: setup_fe_face_quadratures_degree
+     procedure        , private :: setup_cell_quadratures_degree
+     procedure        , private :: setup_facet_quadratures_degree
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
@@ -141,7 +141,7 @@ contains
     !call this%triangulation%print()
     
     ! Set the cell ids to use void fes
-    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+    if (this%test_params%get_use_void_fes()) then
         call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
         call this%triangulation%create_cell_iterator(cell)
         allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
@@ -160,7 +160,7 @@ contains
             case ('popcorn')
               do inode = 1,cell%get_num_nodes()
                 if ( this%popcorn_fun(cell_coords(inode),&
-                  this%triangulation%get_num_dimensions()) < 0.0 ) then
+                  this%triangulation%get_num_dims()) < 0.0 ) then
                   set_id = TEST_POISSON_FULL
                   exit
                 end if
@@ -168,7 +168,7 @@ contains
             case default
               check(.false.)
             end select
-            this%cell_set_ids(cell%get_lid()) = set_id
+            this%cell_set_ids(cell%get_gid()) = set_id
           end if
           call cell%next()
         end do
@@ -191,14 +191,14 @@ contains
     end if
     
     ! Set all the vefs on the interface between full/void if there are void fes
-    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+    if (this%test_params%get_use_void_fes()) then
       call this%triangulation%create_vef_iterator(vef)
       call this%triangulation%create_vef_iterator(vef_of_vef)
       call this%triangulation%create_cell_iterator(cell)
       do while ( .not. vef%has_finished() )
                                        
          ! If it is an INTERIOR face
-         if( vef%get_dimension() == this%triangulation%get_num_dimensions()-1 .and. vef%get_num_cells_around()==2 ) then
+         if( vef%get_dim() == this%triangulation%get_num_dims()-1 .and. vef%get_num_cells_around()==2 ) then
 
            ! Compute number of void neighbors
            num_void_neigs = 0
@@ -213,11 +213,11 @@ contains
                call vef%set_set_id(1)
 
                ! Do a loop on all edges in 3D (vertex in 2D) of the face
-               ivef = vef%get_lid()
+               ivef = vef%get_gid()
                call vef%get_cell_around(1,cell) ! There is always one cell around
                reference_fe_geo => cell%get_reference_fe_geo()
-               ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
-               vefs_of_vef => reference_fe_geo%get_n_faces_n_face()
+               ivef_pos_in_cell = cell%get_vef_lid_from_gid(ivef)
+               vefs_of_vef => reference_fe_geo%get_facets_n_face()
                vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
                do while( .not. vefs_of_vef_iterator%is_upper_bound() )
 
@@ -227,7 +227,7 @@ contains
                   call vef_of_vef%set_set_id(1)
 
                   ! If 3D, traverse vertices of current line
-                  if ( this%triangulation%get_num_dimensions() == 3 ) then
+                  if ( this%triangulation%get_num_dims() == 3 ) then
                     vertices_of_line          => reference_fe_geo%get_vertices_n_face()
                     vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
                     do while( .not. vertices_of_line_iterator%is_upper_bound() )
@@ -270,7 +270,7 @@ contains
     character(:), allocatable :: field_type
     
 
-    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+    if (this%test_params%get_use_void_fes()) then
       allocate(this%reference_fes(2), stat=istat)
     else
       allocate(this%reference_fes(1), stat=istat)
@@ -291,15 +291,15 @@ contains
     reference_fe_geo => cell%get_reference_fe_geo()
     this%reference_fes(TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                                  fe_type = fe_type_lagrangian, &
-                                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                                 num_dims = this%triangulation%get_num_dims(), &
                                                                  order = this%test_params%get_reference_fe_order(), &
                                                                  field_type = field_type, &
                                                                  conformity = conformity )
     
-    if (this%test_params%get_use_void_fes() .and. this%test_params%get_fe_formulation() == 'cG') then
+    if (this%test_params%get_use_void_fes()) then
          this%reference_fes(TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                                       fe_type = fe_type_void, &
-                                                                      number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                                      num_dims = this%triangulation%get_num_dims(), &
                                                                       order = -1, &
                                                                       field_type = field_type, &
                                                                       conformity = conformity )
@@ -314,7 +314,7 @@ contains
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-      call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
       call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
       if ( this%test_params%get_fe_formulation() == 'cG' ) then
         if ( this%test_params%get_use_void_fes() ) then
@@ -329,12 +329,9 @@ contains
                                      reference_fes       = this%reference_fes, &
                                      conditions          = this%poisson_conditions )
         end if
-      else
-        call this%fe_space%create( triangulation       = this%triangulation, &
-                                   reference_fes       = this%reference_fes )
       end if
     else
-      call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%vector_poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
       call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function()) 
       if ( this%test_params%get_fe_formulation() == 'cG' ) then
         if ( this%test_params%get_use_void_fes() ) then
@@ -349,51 +346,57 @@ contains
                                      reference_fes       = this%reference_fes, &
                                      conditions          = this%vector_poisson_conditions )
         end if
-      else
+      end if
+    end if
+    
+    if ( this%test_params%get_fe_formulation() == 'dG' ) then
+      if ( this%test_params%get_use_void_fes() ) then
+        set_ids_to_reference_fes(1,TEST_POISSON_FULL) = TEST_POISSON_FULL
+        set_ids_to_reference_fes(1,TEST_POISSON_VOID) = TEST_POISSON_VOID
+        call this%fe_space%create( triangulation            = this%triangulation,       &
+                                   reference_fes            = this%reference_fes,       &
+                                   set_ids_to_reference_fes = set_ids_to_reference_fes )
+      else 
         call this%fe_space%create( triangulation       = this%triangulation, &
                                    reference_fes       = this%reference_fes )
       end if
     end if
-    call this%fe_space%initialize_fe_integration()
+
+    call this%fe_space%set_up_cell_integration()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
-      call this%fe_space%initialize_fe_face_integration()
+      call this%fe_space%set_up_facet_integration()
     end if
-    if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-      call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)
-    else
-      call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_conditions)
-    end if
-    call this%setup_fe_quadratures_degree()
+    call this%setup_cell_quadratures_degree()
     if ( this%test_params%get_fe_formulation() == 'dG' ) then
-      call this%setup_fe_face_quadratures_degree()
+      call this%setup_facet_quadratures_degree()
     end if
   end subroutine setup_fe_space
   
-  subroutine setup_fe_quadratures_degree (this)
+  subroutine setup_cell_quadratures_degree (this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    class(fe_iterator_t), allocatable :: fe
-    call this%fe_space%create_fe_iterator(fe)
+    class(fe_cell_iterator_t), allocatable :: fe
+    call this%fe_space%create_fe_cell_iterator(fe)
     ! Set first FE is enough for testing. Leaving loop as snippet for user-customization
     do while ( .not. fe%has_finished() )
        call fe%set_quadrature_degree(fe%get_default_quadrature_degree())
        call fe%next()
     end do
-    call this%fe_space%free_fe_iterator(fe)
-  end subroutine setup_fe_quadratures_degree
+    call this%fe_space%free_fe_cell_iterator(fe)
+  end subroutine setup_cell_quadratures_degree
   
-  subroutine setup_fe_face_quadratures_degree (this)
+  subroutine setup_facet_quadratures_degree (this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    type(fe_face_iterator_t) :: fe_face
-    call this%fe_space%create_fe_face_iterator(fe_face)
+    class(fe_facet_iterator_t), allocatable :: fe_face
+    call this%fe_space%create_fe_facet_iterator(fe_face)
     ! Set first FE face is enough for testing. Leaving loop as snippet for user-customization
     do while ( .not. fe_face%has_finished() )
        call fe_face%set_quadrature_degree(fe_face%get_default_quadrature_degree())
        call fe_face%next()
     end do
-    call this%fe_space%free_fe_vef_iterator(fe_face)
-  end subroutine setup_fe_face_quadratures_degree
+    call this%fe_space%free_fe_facet_iterator(fe_face)
+  end subroutine setup_facet_quadratures_degree
   
   subroutine setup_system (this)
     implicit none
@@ -428,6 +431,15 @@ contains
                                               discrete_integration              = this%vector_poisson_integration )
       else
         mcheck(.false.,'Vector poisson dG integration is not implemented')
+      end if
+    end if
+    call this%solution%create(this%fe_space) 
+    if ( this%test_params%get_fe_formulation() == 'cG' ) then
+      call this%fe_space%interpolate_dirichlet_values(this%solution)
+      if ( this%test_params%get_laplacian_type() == 'scalar' ) then
+        call this%poisson_cG_integration%set_fe_function(this%solution)
+      else
+        call this%vector_poisson_integration%set_fe_function(this%solution)
       end if
     end if
   end subroutine setup_system
@@ -507,7 +519,7 @@ contains
 
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_dof_values()
+    dof_values => this%solution%get_free_dof_values()
     
 #ifdef ENABLE_MKL    
     call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
@@ -626,7 +638,7 @@ contains
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-        if (this%test_params%get_use_void_fes() .and.  this%test_params%get_fe_formulation() == 'cG') then
+        if (this%test_params%get_use_void_fes()) then
            call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
            cell_vector(:) = this%cell_set_ids(:)
            call oh%add_cell_vector(cell_vector,'cell_set_ids')
@@ -650,14 +662,13 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%solution%create(this%fe_space) 
     call this%solve_system()
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%check_solution()
     else
       call this%check_solution_vector()
     end if  
-      call this%write_solution()
+    call this%write_solution()
     call this%free()
   end subroutine run_simulation
   

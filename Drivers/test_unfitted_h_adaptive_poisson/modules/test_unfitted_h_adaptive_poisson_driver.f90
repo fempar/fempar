@@ -137,15 +137,15 @@ contains
     type(level_set_function_factory_t) :: level_set_factory
 
     ! Get number of dimensions form input
-    massert( this%parameter_list%isPresent    (key = number_of_dimensions_key), 'Use -tt structured' )
-    assert( this%parameter_list%isAssignable (key = number_of_dimensions_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = number_of_dimensions_key, value=num_dime); check(istat==0)
+    massert( this%parameter_list%isPresent    (key = num_of_dims_key), 'Use -tt structured' )
+    assert( this%parameter_list%isAssignable (key = num_of_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = num_of_dims_key, value=num_dime); check(istat==0)
 
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_levelset_function_type(), this%level_set_function)
 
     ! Set options of the base class
-    call this%level_set_function%set_num_dimensions(num_dime)
+    call this%level_set_function%set_num_dims(num_dime)
     call this%level_set_function%set_tolerance(this%test_params%get_levelset_tolerance())
     if (this%test_params%get_domain_limits() == '[-1,1]') then
       call this%level_set_function%set_domain([-1.0_rp,1.0_rp,-1.0_rp,1.0_rp,-1.0_rp,1.0_rp])
@@ -339,13 +339,13 @@ contains
     reference_fe_geo => cell%get_reference_fe_geo()
     this%reference_fes(SERIAL_UNF_POISSON_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_lagrangian, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dims = this%triangulation%get_num_dims(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type, &
                                                  conformity = .true. )
     this%reference_fes(SERIAL_UNF_POISSON_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                  fe_type = fe_type_void, &
-                                                 number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                 num_dims = this%triangulation%get_num_dims(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type, &
                                                  conformity = .true. )
@@ -373,7 +373,7 @@ contains
     set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
     
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-      call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
       call this%poisson_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
       call this%poisson_analytical_functions%set_degree(this%test_params%get_reference_fe_order())
       call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
@@ -384,7 +384,7 @@ contains
                                  set_ids_to_reference_fes = set_ids_to_reference_fes)
     else
       mcheck(.false., 'Not yed tested for vector problems')
-      !call this%vector_poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+      !call this%vector_poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
       !call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function()) 
       !call this%fe_space%create( triangulation       = this%triangulation,             &
       !                           conditions          = this%vector_poisson_conditions, &
@@ -856,7 +856,7 @@ contains
       call memalloc ( 2*Ne, connect  , __FILE__, __LINE__ )
 
       call this%triangulation%create_cell_iterator(cell)
-      max_num_cell_nodes = this%triangulation%get_max_number_shape_functions()
+      max_num_cell_nodes = this%triangulation%get_max_num_shape_functions()
 
       allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
 

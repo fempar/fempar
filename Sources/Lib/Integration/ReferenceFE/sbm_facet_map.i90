@@ -1,0 +1,168 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! facet_map_t type procedures
+!==================================================================================================
+subroutine facet_map_create(this,quadrature,reference_fe_geo)
+  implicit none
+  ! Parameters
+  class(facet_map_t)                , intent(inout) :: this
+  type(quadrature_t)               , intent(in)    :: quadrature
+  class(lagrangian_reference_fe_t) , intent(in)    :: reference_fe_geo
+
+  integer(ip)           :: num_facet_dims
+  integer(ip)           :: num_vertices_face
+  integer(ip)           :: istat
+  integer(ip)           :: num_dofs_on_face
+  
+  call this%free()
+  this%num_dims        = reference_fe_geo%num_dims
+  this%num_quadrature_points = quadrature%num_quadrature_points
+  num_facet_dims        = reference_fe_geo%num_dims - 1
+
+  call reference_fe_geo%create_facet_interpolation &
+       &                ( quadrature, this%interpolation)
+
+  call memalloc(this%num_dims, &
+                num_facet_dims, &
+                this%num_quadrature_points, &
+                this%jacobian,__FILE__,__LINE__)
+
+  call memalloc(this%num_quadrature_points, &
+       this%det_jacobian,__FILE__,__LINE__)
+
+  call memalloc(this%num_dims, &
+                this%num_quadrature_points, &
+                this%normals,__FILE__,__LINE__)
+
+  allocate(this%quadrature_points_coordinates(this%num_quadrature_points), stat=istat)
+  check(istat==0)
+
+  num_dofs_on_face = reference_fe_geo%get_num_dofs_on_n_face(reference_fe_geo%get_first_facet_id())
+  allocate(this%nodes_coordinates(num_dofs_on_face), stat=istat)
+  check(istat==0)
+
+  this%reference_fe_characteristic_length = reference_fe_geo%get_characteristic_length()
+end subroutine facet_map_create
+
+!==================================================================================================
+subroutine facet_map_update(this,reorientation_factor,quadrature)
+  implicit none    
+  class(facet_map_t)      , intent(inout) :: this
+  real(rp)             , intent(in)    :: reorientation_factor
+  type(quadrature_t)   , intent(in)    :: quadrature
+
+  integer(ip) :: evaluation_point_id, node_id, idime, jdime
+  integer(ip) :: num_facet_dims
+  type(vector_field_t) :: aux_vector
+
+  num_facet_dims = this%interpolation%num_dims
+  
+  ! See comment in facet_orientation (polytope module) about the reasoning behind this
+  call this%compute_quadrature_points_coordinates()
+  ! Initialize values
+  this%jacobian           = 0.0_rp
+  do evaluation_point_id = 1, quadrature%num_quadrature_points
+
+     ! Update the Jacobian Matrix
+     do jdime=1, num_facet_dims
+        aux_vector = 0.0_rp
+        do node_id = 1, this%interpolation%num_shape_functions
+           aux_vector = aux_vector + this%nodes_coordinates(node_id) * &
+                & this%interpolation%shape_derivatives(1,jdime,node_id,evaluation_point_id)
+        end do
+        do idime=1,this%num_dims
+           this%jacobian(idime,jdime,evaluation_point_id) = aux_vector%get(idime)
+        end do
+
+     end do
+
+     ! Compute outside normals (using the Jacobian Matrix)
+     if ( this%num_dims == 1) then
+        ! -1 and 1 is given by the reorientation_factor
+        this%normals(1,evaluation_point_id) = 1.0_rp
+     elseif ( this%num_dims == 2) then
+        ! dx x e_z = ( dx/dX, dx/dY, 0) x (0,0,1) = ( dx/dY, -dx/dX, 0)
+        ! (normal component up to correction by orientation)
+        this%normals (1,evaluation_point_id) = this%jacobian(2,1,evaluation_point_id)
+        this%normals (2,evaluation_point_id) = -this%jacobian(1,1,evaluation_point_id)
+     elseif ( this%num_dims == 3) then
+        ! dx x dy = (normal component up to correction by orientation)
+        ! = (dx/dX, dx/dY, dx/dZ) x ( dy/dX, dy/dY, dy/dZ)
+        call vecpro(this%jacobian(:,1,evaluation_point_id),this%jacobian(:,2,evaluation_point_id),&
+             &                    this%normals(:,evaluation_point_id),3)
+     end if
+
+     ! Compute the measure of the face (= norm of the outside normal)
+     this%det_jacobian(evaluation_point_id) =                                                     &
+          &                         sqrt(dot_product(this%normals(:,evaluation_point_id),         &
+          &                                          this%normals(:,evaluation_point_id)))
+
+     ! Normalize the normal vector (safely handling degenerated cases)
+     if (this%det_jacobian(evaluation_point_id) .ne. 0.0_rp) then
+       this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id)/               &
+          &                                                 this%det_jacobian(evaluation_point_id)
+     else
+       this%normals (:,evaluation_point_id) = 0.0_rp
+     end if
+     
+     ! and make it point in the correct direction
+     this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *                &
+          &                                                             real(reorientation_factor) 
+  end do
+end subroutine facet_map_update
+
+!==================================================================================================
+subroutine facet_map_free( this )
+  implicit none
+  class(facet_map_t), intent(inout) :: this
+  call this%base_map_t%free()
+  if(allocated(this%normals)) call memfree(this%normals,__FILE__,__LINE__)
+end subroutine facet_map_free
+
+!==================================================================================================
+subroutine facet_map_get_normal(this, qpoint, normal)
+ implicit none
+ class(facet_map_t)     , intent(in)    :: this
+ integer(ip)         , intent(in)    :: qpoint
+ type(vector_field_t), intent(inout) :: normal
+ integer(ip) :: idime
+ assert ( allocated(this%normals) )
+ call normal%init(0.0_rp)
+ do idime = 1, this%num_dims
+   call normal%set(idime,this%normals(idime,qpoint))
+ end do
+end subroutine  facet_map_get_normal
+
+!==================================================================================================
+function facet_map_get_raw_normals(this)
+ implicit none
+ class(facet_map_t), target, intent(in)    :: this
+ real(rp), pointer :: facet_map_get_raw_normals(:,:)
+ facet_map_get_raw_normals => this%normals
+end function  facet_map_get_raw_normals

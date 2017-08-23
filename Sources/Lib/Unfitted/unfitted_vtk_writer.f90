@@ -31,7 +31,7 @@ module unfitted_vtk_writer_names
   use fempar_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
-  use piecewise_fe_map_names
+  use piecewise_cell_map_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO ! VTK_IO
 
@@ -63,7 +63,7 @@ module unfitted_vtk_writer_names
 
     procedure, non_overridable :: attach_triangulation  => uvtkw_attach_triangulation
     procedure, non_overridable :: attach_boundary_faces => uvtkw_attach_boundary_faces
-    procedure, non_overridable :: attach_boundary_quad_points => uvtkw_attach_boundary_quad_points
+    procedure, non_overridable :: attach_boundary_quadrature_points => uvtkw_attach_boundary_quadrature_points
     procedure, non_overridable :: attach_fe_function    => uvtkw_attach_fe_function
     procedure, non_overridable :: write_to_vtk_file     => uvtkw_write_to_vtk_file
     procedure, non_overridable :: write_to_pvtk_file    => uvtkw_write_to_pvtk_file
@@ -101,10 +101,10 @@ contains
 
     select type (triangulation)
     class is (serial_unfitted_triangulation_t)
-      num_subcells = triangulation%get_total_num_of_subcells()
+      num_subcells = triangulation%get_total_num_subcells()
       num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
     class is (par_unfitted_triangulation_t)
-      num_subcells = triangulation%get_total_num_of_subcells()
+      num_subcells = triangulation%get_total_num_subcells()
       num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
     class is (unfitted_p4est_serial_triangulation_t)
       num_subcells = triangulation%get_total_num_of_subcells()
@@ -113,7 +113,7 @@ contains
       check(.false.)
     end select
 
-    num_dime = triangulation%get_num_dimensions()
+    num_dime = triangulation%get_num_dims()
     num_cells = triangulation%get_num_local_cells()
     num_cell_nodes = cell%get_num_nodes()
     this%Ne = num_cells + num_subcells
@@ -185,7 +185,7 @@ contains
 
       icell = icell + 1
 
-      do isubcell = 1, cell%get_number_of_subcells()
+      do isubcell = 1, cell%get_num_subcells()
         call cell%get_phys_coords_of_subcell(isubcell,subcell_coords)
 
         do ino = 1, num_subcell_nodes
@@ -233,11 +233,11 @@ contains
     class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(base_static_triangulation_t), intent(in)    :: triangulation
   
-    integer(ip) :: num_subfaces, num_subface_nodes, num_dime
-    integer(ip) :: istat, iface, inode, ino, isubface
+    integer(ip) :: num_subfacets, num_subfacet_nodes, num_dime
+    integer(ip) :: istat, iface, inode, ino, isubfacet
     class(cell_iterator_t), allocatable  :: cell
-    type(point_t), allocatable, dimension(:) :: subface_coords
-    integer(ip) :: the_subface_type
+    type(point_t), allocatable, dimension(:) :: subfacet_coords
+    integer(ip) :: the_subfacet_type
 
     call this%free()
   
@@ -247,7 +247,8 @@ contains
     call triangulation%create_cell_iterator(cell)
 
   
-    num_dime = triangulation%get_num_dimensions()
+<<<<<<< HEAD
+    num_dime = triangulation%get_num_dims()
     select type (triangulation)
     class is (serial_unfitted_triangulation_t)
       num_subfaces = triangulation%get_total_num_of_subfaces()
@@ -264,6 +265,13 @@ contains
     
     this%Ne = num_subfaces
     this%Nn = num_subface_nodes*num_subfaces
+=======
+    num_dime = triangulation%get_num_dims()
+    num_subfacets = triangulation%get_total_num_subfacets()
+    num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    this%Ne = num_subfacets
+    this%Nn = num_subfacet_nodes*num_subfacets
+>>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
   
     call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
@@ -271,13 +279,13 @@ contains
     call memalloc ( this%Ne, this%cell_type, __FILE__, __LINE__ )
     call memalloc ( this%Ne, this%offset   , __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
-    allocate ( subface_coords(1:num_subface_nodes), stat = istat ); check(istat == 0)
+    allocate ( subfacet_coords(1:num_subfacet_nodes), stat = istat ); check(istat == 0)
   
     select case (num_dime)
       case(3)
-        the_subface_type = 5_I1P
+        the_subfacet_type = 5_I1P
       case(2)
-        the_subface_type = 3_I1P
+        the_subfacet_type = 3_I1P
       case default
       check(.false.)
     end select
@@ -295,19 +303,19 @@ contains
   
       call cell%update_sub_triangulation()
   
-      do isubface = 1, cell%get_number_of_subfaces()
-        call cell%get_phys_coords_of_subface(isubface,subface_coords)
+      do isubfacet = 1, cell%get_num_subfacets()
+        call cell%get_phys_coords_of_subfacet(isubfacet,subfacet_coords)
   
-        do ino = 1, num_subface_nodes
-          this%x(inode) = subface_coords(ino)%get(1)
-          this%y(inode) = subface_coords(ino)%get(2)
-          this%z(inode) = subface_coords(ino)%get(3)
+        do ino = 1, num_subfacet_nodes
+          this%x(inode) = subfacet_coords(ino)%get(1)
+          this%y(inode) = subfacet_coords(ino)%get(2)
+          this%z(inode) = subfacet_coords(ino)%get(3)
           this%connect(inode) = inode - 1
           inode = inode + 1
         end do
   
         this%offset(iface)        = inode - 1
-        this%cell_type(iface)     = the_subface_type
+        this%cell_type(iface)     = the_subfacet_type
   
         iface = iface + 1
   
@@ -319,7 +327,7 @@ contains
   
     if (num_dime == 2_ip) this%z(:) = 0
   
-    deallocate ( subface_coords, stat = istat ); check(istat == 0)
+    deallocate ( subfacet_coords, stat = istat ); check(istat == 0)
     call triangulation%free_cell_iterator(cell)
   
   end subroutine uvtkw_attach_boundary_faces
@@ -333,7 +341,7 @@ contains
     class(serial_fe_space_t),      intent(in)    :: fe_space
 
     class(base_static_triangulation_t), pointer :: triangulation
-    class(fe_iterator_t), allocatable  :: fe
+    class(fe_cell_iterator_t), allocatable  :: fe
     class(reference_fe_t), pointer :: ref_fe
     type(quadrature_t) :: subcel_nodal_quad
     type(interpolation_t) :: fe_interpol
@@ -365,8 +373,8 @@ contains
     end select
 
 
-    num_elem_nodes = triangulation%get_max_number_shape_functions()
-    num_dime = triangulation%get_num_dimensions()
+    num_elem_nodes = triangulation%get_max_num_shape_functions()
+    num_dime = triangulation%get_num_dims()
 
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
     call memalloc ( num_subelem_nodes, subelem_nodal_vals, __FILE__, __LINE__ )
@@ -376,7 +384,7 @@ contains
     call subcel_nodal_quad%create(num_dime,num_subelem_nodes)
     subcell_coords => subcel_nodal_quad%get_coordinates()
 
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
 
     ipoint = 1
     do while ( .not. fe%has_finished() )
@@ -402,7 +410,7 @@ contains
 
        call fe%update_sub_triangulation()
 
-       do subcell = 1, fe%get_number_of_subcells()
+       do subcell = 1, fe%get_num_subcells()
 
          ! Get the subcell values
          if (fe%is_interior_subcell(subcell)) then
@@ -435,23 +443,23 @@ contains
     deallocate(subcell_points,stat = istat); check(istat == 0)
     call subcel_nodal_quad%free()
     call fe_interpol%free()
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
 
 
   end subroutine  uvtkw_attach_fe_function
 
 !========================================================================================
-  subroutine uvtkw_attach_boundary_quad_points( this, fe_space )
+  subroutine uvtkw_attach_boundary_quadrature_points( this, fe_space )
   
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(serial_unfitted_fe_space_t),      intent(in)    :: fe_space
   
-    class(fe_iterator_t),allocatable :: fe
+    class(fe_cell_iterator_t),allocatable :: fe
     type(quadrature_t), pointer :: quadrature
-    type(point_t), pointer :: quadrature_coordinates(:)
-    type(piecewise_fe_map_t),     pointer :: fe_map
-    integer(ip) :: num_dime, num_subfaces, num_gp_subface
+    type(point_t), pointer :: quadrature_points_coordinates(:)
+    type(piecewise_cell_map_t),     pointer :: cell_map
+    integer(ip) :: num_dime, num_subfacets, num_gp_subfacet
     integer(ip) :: qpoint, num_quad_points
     integer(ip) :: ipoint
     type(vector_field_t)  :: normal_vec
@@ -466,28 +474,28 @@ contains
     this%environment => triangulation%get_par_environment()
     if ( .not. this%environment%am_i_l1_task() ) return
 
-    num_dime       = triangulation%get_num_dimensions()
+    num_dime       = triangulation%get_num_dims()
 
     select type(triangulation)
       class is (serial_unfitted_triangulation_t)
-        num_subfaces   = triangulation%get_total_num_of_subfaces()
+        num_subfacets   = triangulation%get_total_num_subfacets()
       class default
       check(.false.)
     end select
   
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
 
-    num_gp_subface = 0
+    num_gp_subfacet = 0
     do while ( .not. fe%has_finished() )
        call fe%update_boundary_integration()
        quadrature => fe%get_boundary_quadrature()
-       num_gp_subface = quadrature%get_number_quadrature_points()
-       if (num_gp_subface > 0) exit
+       num_gp_subfacet = quadrature%get_num_quadrature_points()
+       if (num_gp_subfacet > 0) exit
        call fe%next()
     end do
   
-    this%Ne = num_subfaces*num_gp_subface
-    this%Nn = num_subfaces*num_gp_subface
+    this%Ne = num_subfacets*num_gp_subfacet
+    this%Nn = num_subfacets*num_gp_subfacet
   
     call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
@@ -513,17 +521,17 @@ contains
   
        ! As the quadrature changes elem by elem, this has to be inside the loop
        quadrature => fe%get_boundary_quadrature()
-       num_quad_points = quadrature%get_number_quadrature_points()
-       fe_map => fe%get_boundary_piecewise_fe_map()
+       num_quad_points = quadrature%get_num_quadrature_points()
+       cell_map => fe%get_boundary_piecewise_cell_map()
   
        ! Physical coordinates of the quadrature points
-       quadrature_coordinates => fe_map%get_quadrature_points_coordinates()
+       quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
   
        do qpoint = 1, num_quad_points
-         this%x(ipoint) = quadrature_coordinates(qpoint)%get(1)
-         this%y(ipoint) = quadrature_coordinates(qpoint)%get(2)
-         this%z(ipoint) = quadrature_coordinates(qpoint)%get(3)
-         call fe_map%get_normal(qpoint,normal_vec)
+         this%x(ipoint) = quadrature_points_coordinates(qpoint)%get(1)
+         this%y(ipoint) = quadrature_points_coordinates(qpoint)%get(2)
+         this%z(ipoint) = quadrature_points_coordinates(qpoint)%get(3)
+         call cell_map%get_normal(qpoint,normal_vec)
          this%v_x(ipoint) = normal_vec%get(1)
          this%v_y(ipoint) = normal_vec%get(2)
          this%v_z(ipoint) = normal_vec%get(3)
@@ -538,9 +546,9 @@ contains
   
     if (num_dime == 2_ip) this%z(:) = 0
     if (num_dime == 2_ip) this%v_z(:) = 0
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
   
-  end subroutine uvtkw_attach_boundary_quad_points
+  end subroutine uvtkw_attach_boundary_quadrature_points
 
 !========================================================================================  
   subroutine uvtkw_write_to_vtk_file(this,filename)
@@ -593,12 +601,12 @@ contains
   end subroutine uvtkw_write_to_vtk_file
 
 !========================================================================================  
-  subroutine uvtkw_write_to_pvtk_file(this,file_prefix,number_parts)
+  subroutine uvtkw_write_to_pvtk_file(this,file_prefix,num_parts)
 
     implicit none
     class(unfitted_vtk_writer_t), intent(in) :: this
     character(*),                 intent(in) :: file_prefix
-    integer(ip),                  intent(in) :: number_parts
+    integer(ip),                  intent(in) :: num_parts
 
     integer(ip) :: file_id
     integer(ip) :: E_IO
@@ -614,7 +622,7 @@ contains
                         tp            = 'Float64',           &
                         cf            = file_id)
     assert(E_IO == 0)
-    do i=0, number_parts-1
+    do i=0, num_parts-1
         E_IO = PVTK_GEO_XML(source=trim(adjustl( trim(adjustl(file_prefix))//'_'//trim(adjustl(str(no_sign=.true.,n=i)))//'.vtu' )), cf=file_id)
         assert(E_IO == 0)
     enddo

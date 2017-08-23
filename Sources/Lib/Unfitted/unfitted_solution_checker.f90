@@ -83,6 +83,7 @@ contains
     real(rp), intent(inout) :: h1_semi_norm
     real(rp), intent(inout) :: l2_norm
 
+<<<<<<< HEAD
     real(rp), optional , intent(inout) :: error_h1_semi_norm_boundary
     real(rp), optional , intent(inout) :: error_l2_norm_boundary
     real(rp), optional , intent(inout) :: h1_semi_norm_boundary
@@ -94,6 +95,12 @@ contains
     type(vector_field_t), allocatable :: grad_element_vals(:)
     type(fe_map_t)           , pointer :: fe_map
     type(piecewise_fe_map_t) , pointer :: pw_fe_map
+=======
+    class(fe_cell_iterator_t), allocatable :: fe
+    real(rp), allocatable :: nodal_vals(:)
+    real(rp), allocatable :: element_vals(:)
+    type(vector_field_t), allocatable :: grad_element_vals(:)
+>>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int
@@ -119,6 +126,7 @@ contains
     h1_semi_norm = 0.0
     l2_norm = 0.0
 
+<<<<<<< HEAD
     if (present(error_l2_norm_boundary)) then
       error_h1_semi_norm_boundary= 0.0
       error_l2_norm_boundary     = 0.0
@@ -126,12 +134,16 @@ contains
       l2_norm_boundary           = 0.0
     end if
 
-    num_dime = this%fe_space%get_num_dimensions()
-    num_elem_nodes =  this%fe_space%get_max_number_shape_functions()
+    num_dime = this%fe_space%get_num_dims()
+    num_elem_nodes =  this%fe_space%get_max_num_shape_functions()
+=======
+    num_dime = this%fe_space%get_num_dims()
+    num_elem_nodes =  this%fe_space%get_max_num_shape_functions()
+>>>>>>> 893f8355af5bec5b333af960e1ff9a5e4e13b979
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
 
 
-    call this%fe_space%create_fe_iterator(fe)
+    call this%fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished() )
 
        ! Skip ghost cells
@@ -144,8 +156,7 @@ contains
 
        !This cannot be outside the loop
        quad            => fe%get_quadrature()
-       num_quad_points = quad%get_number_quadrature_points()
-       fe_map          => fe%get_fe_map()
+       num_quad_points = quad%get_num_quadrature_points()
        cell_int         => fe%get_cell_integrator(1)
 
        ! Recover nodal values
@@ -161,7 +172,7 @@ contains
        call cell_int%evaluate_gradient_fe_function(nodal_vals,grad_element_vals)
 
        ! Physical coordinates of the quadrature points
-       quad_coords => fe_map%get_quadrature_points_coordinates()
+       quad_coords => fe%get_quadrature_points_coordinates()
 
        ! Loop in quadrature points
        do igp = 1, num_quad_points
@@ -182,7 +193,7 @@ contains
          end do
 
          ! Integrate
-         dV = fe_map%get_det_jacobian(igp) * quad%get_weight(igp)
+         dV = fe%get_det_jacobian(igp) * quad%get_weight(igp)
          error_l2_norm      = error_l2_norm      + error_l2_gp  *dV
          error_h1_semi_norm = error_h1_semi_norm + error_h1sn_gp*dV
          h1_semi_norm       = h1_semi_norm       + l2_gp        *dV
@@ -202,7 +213,7 @@ contains
 
            ! Get info on the unfitted boundary for integrating BCs
            quad            => fe%get_boundary_quadrature()
-           num_quad_points = quad%get_number_quadrature_points()
+           num_quad_points = quad%get_num_quadrature_points()
            pw_fe_map       => fe%get_boundary_piecewise_fe_map()
            quad_coords     => pw_fe_map%get_quadrature_points_coordinates()
            cell_int         => fe%get_boundary_cell_integrator(1)
@@ -251,7 +262,7 @@ contains
 
        call fe%next()
     end do
-    call this%fe_space%free_fe_iterator(fe)
+    call this%fe_space%free_fe_cell_iterator(fe)
 
     call memfree ( nodal_vals, __FILE__, __LINE__ )
 

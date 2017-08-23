@@ -16,7 +16,7 @@ module par_test_poisson_unfitted_params_names
   character(len=*), parameter :: unfitted_boundary_type_key = 'unfitted_boundary_type'    
   character(len=*), parameter :: nitsche_beta_factor_key    = 'nitsche_beta_factor'    
   character(len=*), parameter :: levelset_tolerance_key     = 'levelset_tolerance'    
-  character(len=*), parameter :: number_runs_key            = 'number_runs'    
+  character(len=*), parameter :: num_runs_key            = 'num_runs'    
   character(len=*), parameter :: is_in_fe_space_key         = 'is_in_fe_space'    
   character(len=*), parameter :: are_checks_active_key      = 'are_checks_active'    
 
@@ -40,13 +40,13 @@ module par_test_poisson_unfitted_params_names
        procedure, non_overridable             :: get_unfitted_boundary_type
        procedure, non_overridable             :: get_nitsche_beta_factor
        procedure, non_overridable             :: get_levelset_tolerance
-       procedure, non_overridable             :: get_number_runs
+       procedure, non_overridable             :: get_num_runs
        procedure, non_overridable             :: print
        procedure, non_overridable, private    :: print_character_switch
        procedure, non_overridable, private    :: print_integer_switch
        procedure, non_overridable, private    :: print_real_switch
        procedure, non_overridable, private    :: print_logical_switch
-       !procedure, non_overridable             :: get_num_dimensions
+       !procedure, non_overridable             :: get_num_dims
        procedure, non_overridable             :: is_in_fe_space
        procedure, non_overridable             :: are_checks_active
   end type par_test_poisson_unfitted_params_t
@@ -73,11 +73,11 @@ contains
     error = list%set(key = dir_path_key            , value = '.') ; check(error==0)
     error = list%set(key = prefix_key              , value = 'square') ; check(error==0)
     error = list%set(key = dir_path_out_key        , value = '.') ; check(error==0)
-    error = list%set(key = number_of_dimensions_key          , value =  2)                   ; check(error==0)
-    error = list%set(key = number_of_cells_per_dir_key       , value =  [12,12,12])          ; check(error==0)
+    error = list%set(key = num_dims_key          , value =  2)                   ; check(error==0)
+    error = list%set(key = num_cells_x_dir_key       , value =  [12,12,12])          ; check(error==0)
     error = list%set(key = is_dir_periodic_key               , value =  [0,0,0])             ; check(error==0)
-    error = list%set(key = number_of_levels_key              , value =  3)                   ; check(error==0)
-    error = list%set(key = number_of_parts_per_dir_key       , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
+    error = list%set(key = num_levels_key              , value =  3)                   ; check(error==0)
+    error = list%set(key = num_parts_x_dir_key       , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
     error = list%set(key = reference_fe_geo_order_key        , value =  1)                   ; check(error==0)
     error = list%set(key = reference_fe_order_key            , value =  1)                   ; check(error==0)
     error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
@@ -92,7 +92,7 @@ contains
     error = list%set(key = unfitted_boundary_type_key        , value =  'dirichlet')                      ; check(error==0)
     error = list%set(key = nitsche_beta_factor_key           , value =  2.0)                              ; check(error==0)
     error = list%set(key = levelset_tolerance_key            , value =  1.0e-2)                           ; check(error==0)
-    error = list%set(key = number_runs_key                   , value =  1)                                ; check(error==0)
+    error = list%set(key = num_runs_key                   , value =  1)                                ; check(error==0)
     error = list%set(key = is_in_fe_space_key                , value =  .true.)                           ; check(error==0)
     error = list%set(key = are_checks_active_key             , value =  .true.)                           ; check(error==0)
 
@@ -100,10 +100,10 @@ contains
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
     error = switches%set(key = prefix_key                    , value = '--prefix')                   ; check(error==0)
     error = switches%set(key = dir_path_out_key              , value = '--dir-path-out')             ; check(error==0)
-    error = switches%set(key = number_of_dimensions_key      , value = '--dim')                      ; check(error==0)
-    error = switches%set(key = number_of_cells_per_dir_key   , value = '--number_of_cells')          ; check(error==0)
-    error = switches%set(key = number_of_levels_key          , value = '--number_of_levels')         ; check(error==0)
-    error = switches%set(key = number_of_parts_per_dir_key   , value = '--number_of_parts_per_dir')  ; check(error==0)
+    error = switches%set(key = num_dims_key      , value = '--dim')                      ; check(error==0)
+    error = switches%set(key = num_cells_x_dir_key   , value = '--num_cells')          ; check(error==0)
+    error = switches%set(key = num_levels_key          , value = '--num_levels')         ; check(error==0)
+    error = switches%set(key = num_parts_x_dir_key   , value = '--num_parts_x_dir')  ; check(error==0)
     error = switches%set(key = reference_fe_geo_order_key    , value = '--reference-fe-geo-order')   ; check(error==0)
     error = switches%set(key = reference_fe_order_key        , value = '--reference-fe-order'    )   ; check(error==0)
     error = switches%set(key = write_solution_key            , value = '--write-solution'        )   ; check(error==0)
@@ -118,17 +118,17 @@ contains
     error = switches%set(key = unfitted_boundary_type_key    , value = '--unfitted-boundary' )       ; check(error==0)
     error = switches%set(key = nitsche_beta_factor_key       , value = '--nitsche-beta' )            ; check(error==0)
     error = switches%set(key = levelset_tolerance_key        , value = '--level-set-tol' )           ; check(error==0)
-    error = switches%set(key = number_runs_key               , value = '--number-runs' )             ; check(error==0)
+    error = switches%set(key = num_runs_key               , value = '--number-runs' )             ; check(error==0)
     error = switches%set(key = is_in_fe_space_key            , value = '--solution_in_fe_space' )    ; check(error==0)
     error = switches%set(key = are_checks_active_key         , value = '--check_solution' )          ; check(error==0)
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
     error = switches_ab%set(key = dir_path_out_key           , value = '-o')        ; check(error==0) 
-    error = switches_ab%set(key = number_of_dimensions_key   , value = '-dm')      ; check(error==0)
-    error = switches_ab%set(key = number_of_cells_per_dir_key, value = '-n')        ; check(error==0) 
-    error = switches_ab%set(key = number_of_levels_key       , value = '-l')        ; check(error==0)
-    error = switches_ab%set(key = number_of_parts_per_dir_key, value = '-np')       ; check(error==0)
+    error = switches_ab%set(key = num_dims_key   , value = '-dm')      ; check(error==0)
+    error = switches_ab%set(key = num_cells_x_dir_key, value = '-n')        ; check(error==0) 
+    error = switches_ab%set(key = num_levels_key       , value = '-l')        ; check(error==0)
+    error = switches_ab%set(key = num_parts_x_dir_key, value = '-np')       ; check(error==0)
     error = switches_ab%set(key = reference_fe_geo_order_key , value = '-gorder')   ; check(error==0)
     error = switches_ab%set(key = reference_fe_order_key     , value = '-order')    ; check(error==0)
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution'); check(error==0)
@@ -143,17 +143,17 @@ contains
     error = switches_ab%set(key = unfitted_boundary_type_key    , value = '-uboundary' )  ; check(error==0)
     error = switches_ab%set(key = nitsche_beta_factor_key       , value = '-beta' )       ; check(error==0)
     error = switches_ab%set(key = levelset_tolerance_key        , value = '-levelsettol') ; check(error==0)
-    error = switches_ab%set(key = number_runs_key               , value = '-nruns')       ; check(error==0)
+    error = switches_ab%set(key = num_runs_key               , value = '-nruns')       ; check(error==0)
     error = switches_ab%set(key = is_in_fe_space_key            , value = '-in_space')    ; check(error==0)
     error = switches_ab%set(key = are_checks_active_key         , value = '-check')       ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
     error = helpers%set(key = dir_path_out_key               , value = 'Output Directory')                         ; check(error==0)
-    error = helpers%set(key = number_of_dimensions_key       , value = 'Number of space dimensions')               ; check(error==0)
-    error = helpers%set(key = number_of_cells_per_dir_key    , value = 'Number of cells per dir')                  ; check(error==0)
-    error = helpers%set(key = number_of_levels_key           , value = 'Number of levels')                         ; check(error==0)
-    error = helpers%set(key = number_of_parts_per_dir_key    , value = 'Number of parts per dir and per level')    ; check(error==0)
+    error = helpers%set(key = num_dims_key       , value = 'Number of space dimensions')               ; check(error==0)
+    error = helpers%set(key = num_cells_x_dir_key    , value = 'Number of cells per dir')                  ; check(error==0)
+    error = helpers%set(key = num_levels_key           , value = 'Number of levels')                         ; check(error==0)
+    error = helpers%set(key = num_parts_x_dir_key    , value = 'Number of parts per dir and per level')    ; check(error==0)
     error = helpers%set(key = reference_fe_geo_order_key     , value = 'Order of the triangulation reference fe')  ; check(error==0)
     error = helpers%set(key = reference_fe_order_key         , value = 'Order of the fe space reference fe')       ; check(error==0)
     error = helpers%set(key = write_solution_key             , value = 'Write solution in VTK format')             ; check(error==0)
@@ -170,7 +170,7 @@ contains
     error = helpers%set(key = unfitted_boundary_type_key    , value  = 'Use (dirichlet) or not (neumann) boundary conditions on the unfitted boundary' )  ; check(error==0)
     error = helpers%set(key = nitsche_beta_factor_key       , value  = 'Set the value of the factor to compute nitches beta' )  ; check(error==0)
     error = helpers%set(key = levelset_tolerance_key        , value  = 'Set the tolerance of the levelset' )  ; check(error==0)
-    error = helpers%set(key = number_runs_key               , value  = 'Number of times the simulation is repeated (useful when measuring times)' )  ; check(error==0)
+    error = helpers%set(key = num_runs_key               , value  = 'Number of times the simulation is repeated (useful when measuring times)' )  ; check(error==0)
     error = helpers%set(key = is_in_fe_space_key            , value  = 'Is the solution in fe space' )  ; check(error==0)
     error = helpers%set(key = are_checks_active_key         , value  = 'Check or not the solution' )  ; check(error==0)
     
@@ -187,10 +187,10 @@ contains
     error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
     error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
     error = required%set(key = dir_path_out_key              , value = .false.) ; check(error==0)
-    error = required%set(key = number_of_dimensions_key      , value = .false.) ; check(error==0)
-    error = required%set(key = number_of_cells_per_dir_key   , value = .false.) ; check(error==0)
-    error = required%set(key = number_of_levels_key          , value = .false.) ; check(error==0)
-    error = required%set(key = number_of_parts_per_dir_key   , value = .false.) ; check(error==0)
+    error = required%set(key = num_dims_key      , value = .false.) ; check(error==0)
+    error = required%set(key = num_cells_x_dir_key   , value = .false.) ; check(error==0)
+    error = required%set(key = num_levels_key          , value = .false.) ; check(error==0)
+    error = required%set(key = num_parts_x_dir_key   , value = .false.) ; check(error==0)
     error = required%set(key = reference_fe_geo_order_key    , value = .false.) ; check(error==0)
     error = required%set(key = reference_fe_order_key        , value = .false.) ; check(error==0)
     error = required%set(key = write_solution_key            , value = .false.) ; check(error==0)
@@ -205,7 +205,7 @@ contains
     error = required%set(key = unfitted_boundary_type_key    , value = .false.) ; check(error==0)
     error = required%set(key = nitsche_beta_factor_key       , value = .false.) ; check(error==0)
     error = required%set(key = levelset_tolerance_key        , value = .false.) ; check(error==0)
-    error = required%set(key = number_runs_key               , value = .false.) ; check(error==0)
+    error = required%set(key = num_runs_key               , value = .false.) ; check(error==0)
     error = required%set(key = is_in_fe_space_key            , value = .false.) ; check(error==0)
     error = required%set(key = are_checks_active_key         , value = .false.) ; check(error==0)
 
@@ -371,17 +371,17 @@ contains
   end function get_levelset_tolerance
 
   !==================================================================================================
-  function get_number_runs(this)
+  function get_num_runs(this)
     implicit none
     class(par_test_poisson_unfitted_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_number_runs
+    integer(ip)                                   :: get_num_runs
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(number_runs_key, get_number_runs))
-    error = list%Get(key = number_runs_key, Value = get_number_runs)
+    assert(list%isAssignable(num_runs_key, get_num_runs))
+    error = list%Get(key = num_runs_key, Value = get_num_runs)
     assert(error==0)
-  end function get_number_runs
+  end function get_num_runs
 
   !==================================================================================================
   subroutine print(this, environment)
@@ -396,7 +396,7 @@ contains
       call this%print_character_switch(unfitted_boundary_type_key )
       call this%print_real_switch     (nitsche_beta_factor_key    )
       call this%print_real_switch     (levelset_tolerance_key     )
-      call this%print_integer_switch  (number_runs_key            )
+      call this%print_integer_switch  (num_runs_key            )
     end if
 
   end subroutine print

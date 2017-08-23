@@ -34,15 +34,15 @@ module mixed_laplacian_rt_analytical_functions_names
 
  type, extends(scalar_function_t) :: base_scalar_function_t
     private
-    integer(ip) :: num_dimensions = -1  
+    integer(ip) :: num_dims = -1  
   contains
-    procedure :: set_num_dimensions    => base_scalar_function_set_num_dimensions
+    procedure :: set_num_dims    => base_scalar_function_set_num_dims
   end type base_scalar_function_t
   
  type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dimensions = -1  
+    integer(ip) :: num_dims = -1  
   contains
-    procedure :: set_num_dimensions    => base_vector_function_set_num_dimensions
+    procedure :: set_num_dims    => base_vector_function_set_num_dims
   end type base_vector_function_t
   
   type, extends(base_scalar_function_t) :: pressure_source_term_t
@@ -74,7 +74,7 @@ module mixed_laplacian_rt_analytical_functions_names
      type(pressure_solution_t)            :: pressure_solution
      type(velocity_solution_t)            :: velocity_solution
    contains
-     procedure :: set_num_dimensions               => mlrtaf_set_num_dimensions
+     procedure :: set_num_dims               => mlrtaf_set_num_dims
      procedure :: get_pressure_source_term         => mlrtaf_get_pressure_source_term
      procedure :: get_pressure_boundary_function   => mlrtaf_get_pressure_boundary_function
      procedure :: get_pressure_solution            => mlrtaf_get_pressure_solution
@@ -86,21 +86,21 @@ module mixed_laplacian_rt_analytical_functions_names
 contains  
 
   !===============================================================================================
-  subroutine base_scalar_function_set_num_dimensions ( this, num_dimensions )
+  subroutine base_scalar_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    this%num_dimensions = num_dimensions
-  end subroutine base_scalar_function_set_num_dimensions
+    integer(ip), intent(in) ::  num_dims
+    this%num_dims = num_dims
+  end subroutine base_scalar_function_set_num_dims
  
   
   !===============================================================================================
-  subroutine base_vector_function_set_num_dimensions ( this, num_dimensions )
+  subroutine base_vector_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    this%num_dimensions = num_dimensions
-  end subroutine base_vector_function_set_num_dimensions
+    integer(ip), intent(in) ::  num_dims
+    this%num_dims = num_dims
+  end subroutine base_vector_function_set_num_dims
 
   !===============================================================================================
   subroutine pressure_source_term_get_value_space ( this, point, result )
@@ -117,10 +117,10 @@ contains
     class(pressure_boundary_function_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    if ( this%num_dimensions == 2 ) then
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    if ( this%num_dims == 2 ) then
       result = point%get(1) + point%get(2) ! x+y
-    else if ( this%num_dimensions == 3 ) then
+    else if ( this%num_dims == 3 ) then
       result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
     end if  
   end subroutine pressure_boundary_function_get_value_space
@@ -131,10 +131,10 @@ contains
     class(pressure_solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    if ( this%num_dimensions == 2 ) then
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    if ( this%num_dims == 2 ) then
       result = point%get(1) + point%get(2) ! x+y
-    else if ( this%num_dimensions == 3 ) then
+    else if ( this%num_dims == 3 ) then
       result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
     end if  
   end subroutine pressure_solution_get_value_space
@@ -145,11 +145,11 @@ contains
     class(pressure_solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t), intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    if ( this%num_dimensions == 2 ) then
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    if ( this%num_dims == 2 ) then
       call result%set(1,1.0_rp)
       call result%set(2,1.0_rp)
-    else if ( this%num_dimensions == 3 ) then
+    else if ( this%num_dims == 3 ) then
       call result%set(1,1.0_rp)
       call result%set(2,1.0_rp)
       call result%set(3,1.0_rp)
@@ -163,11 +163,11 @@ contains
     class(velocity_solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
-    assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-    if ( this%num_dimensions == 2 ) then
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    if ( this%num_dims == 2 ) then
       call result%set(1,-1.0_rp)
       call result%set(2,-1.0_rp)
-    else if ( this%num_dimensions == 3 ) then
+    else if ( this%num_dims == 3 ) then
       call result%set(1,-1.0_rp)
       call result%set(2,-1.0_rp)
       call result%set(3,-1.0_rp)
@@ -184,15 +184,15 @@ contains
   end subroutine velocity_solution_get_gradient_space 
   
   !===============================================================================================
-  subroutine mlrtaf_set_num_dimensions ( this, num_dimensions )
+  subroutine mlrtaf_set_num_dims ( this, num_dims )
     implicit none
     class(mixed_laplacian_rt_analytical_functions_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    call this%pressure_source_term%set_num_dimensions(num_dimensions)
-    call this%pressure_boundary_function%set_num_dimensions(num_dimensions)
-    call this%pressure_solution%set_num_dimensions(num_dimensions)
-    call this%velocity_solution%set_num_dimensions(num_dimensions)
-  end subroutine mlrtaf_set_num_dimensions 
+    integer(ip), intent(in) ::  num_dims
+    call this%pressure_source_term%set_num_dims(num_dims)
+    call this%pressure_boundary_function%set_num_dims(num_dims)
+    call this%pressure_solution%set_num_dims(num_dims)
+    call this%velocity_solution%set_num_dims(num_dims)
+  end subroutine mlrtaf_set_num_dims 
   
   !===============================================================================================
   function mlrtaf_get_pressure_source_term ( this )

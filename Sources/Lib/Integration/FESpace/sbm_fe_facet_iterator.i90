@@ -1,0 +1,752 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine fe_facet_iterator_create ( this, fe_space, vef )
+  implicit none
+  class(fe_facet_iterator_t), target, intent(inout) :: this
+  class(serial_fe_space_t) , target, intent(in)    :: fe_space
+  class(vef_iterator_t)    , intent(in)            :: vef
+  call this%free()
+  call this%fe_vef_iterator_t%create(fe_space,vef)
+  call this%allocate_scratch_data()
+  call this%first()
+end subroutine fe_facet_iterator_create
+
+subroutine fe_facet_iterator_free ( this )
+  implicit none
+  class(fe_facet_iterator_t) , intent(inout)      :: this
+  integer(ip) :: istat
+  call this%fe_vef_iterator_t%free()
+  this%facet_gid = -1
+  call this%free_scratch_data()
+end subroutine fe_facet_iterator_free
+
+subroutine fe_facet_iterator_allocate_scratch_data ( this )
+  implicit none
+  class(fe_facet_iterator_t), target, intent(inout) :: this
+  integer(ip) :: istat
+  allocate( this%facet_integrators(this%fe_space%num_fields), stat=istat); check(istat==0);
+  call this%fe_space%create_fe_cell_iterator(this%fe1)
+  call this%fe_space%create_fe_cell_iterator(this%fe2)
+  this%fes_around(1)%p => this%fe1
+  this%fes_around(2)%p => this%fe2
+end subroutine fe_facet_iterator_allocate_scratch_data
+
+subroutine fe_facet_iterator_free_scratch_data ( this )
+  implicit none
+  class(fe_facet_iterator_t), target, intent(inout) :: this
+  integer(ip) :: istat
+  if (allocated(this%fe1)) then
+    call this%fe1%free()
+    deallocate(this%fe1, stat=istat); check(istat==0);
+  end if
+  if (allocated(this%fe2)) then
+    call this%fe2%free()
+    deallocate(this%fe2, stat=istat); check(istat==0);
+  end if
+  nullify(this%fes_around(1)%p)
+  nullify(this%fes_around(2)%p)
+  
+  this%facet_gid = -1
+  if ( allocated(this%facet_integrators) ) then
+    deallocate ( this%facet_integrators, stat=istat ); check(istat==0);
+  end if
+  nullify(this%facet_maps)
+end subroutine fe_facet_iterator_free_scratch_data
+
+subroutine fe_facet_iterator_first ( this )
+  implicit none
+  class(fe_facet_iterator_t) , intent(inout)      :: this
+  this%facet_gid = 1
+  if ( .not. this%has_finished() ) then
+    call this%base_fe_vef_iterator_t%set_gid( &
+      this%fe_space%facet_gids%get(this%facet_gid) )
+    call this%update_fes_around()
+  end if
+  
+end subroutine fe_facet_iterator_first
+
+subroutine fe_facet_iterator_next ( this )
+  implicit none
+  class(fe_facet_iterator_t) , intent(inout)      :: this
+  this%facet_gid = this%facet_gid + 1
+  if ( .not. this%has_finished() ) then
+    call this%base_fe_vef_iterator_t%set_gid( &
+      this%fe_space%facet_gids%get(this%facet_gid) )
+    call this%update_fes_around()
+  end if
+end subroutine fe_facet_iterator_next
+
+function fe_facet_iterator_has_finished ( this )
+  implicit none
+  class(fe_facet_iterator_t) , intent(in)         :: this
+  logical :: fe_facet_iterator_has_finished
+  fe_facet_iterator_has_finished = ( this%facet_gid > this%fe_space%facet_gids%size() )
+end function fe_facet_iterator_has_finished
+
+subroutine fe_facet_iterator_set_gid ( this, gid )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: gid
+  assert ( gid >= 1 .and. gid <= this%fe_space%facet_gids%size() )
+  this%facet_gid = gid
+  call this%base_fe_vef_iterator_t%set_gid(this%fe_space%facet_gids%get(gid))
+  call this%update_fes_around()
+end subroutine fe_facet_iterator_set_gid
+
+function fe_facet_iterator_get_gid (this) result(facet_gid)
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip) :: facet_gid
+  facet_gid = this%facet_gid
+end function fe_facet_iterator_get_gid
+
+function fe_facet_iterator_is_at_field_boundary ( this, field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)               , intent(in)    :: field_id
+  logical                                   :: fe_facet_iterator_is_at_field_boundary
+  type(facet_integrator_t), pointer :: facet_int
+  facet_int  => this%get_facet_integrator(field_id)
+  fe_facet_iterator_is_at_field_boundary = facet_int%get_is_at_field_boundary()
+end function fe_facet_iterator_is_at_field_boundary
+
+function fe_facet_iterator_is_at_field_interior ( this, field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)               , intent(in)    :: field_id
+  logical                                   :: fe_facet_iterator_is_at_field_interior
+  type(facet_integrator_t), pointer :: facet_int
+  facet_int  => this%get_facet_integrator(field_id)
+  fe_facet_iterator_is_at_field_interior = facet_int%get_is_at_field_interior()
+end function fe_facet_iterator_is_at_field_interior
+
+function fe_facet_iterator_get_num_dofs_field(this, icell_around, field_id)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in) :: icell_around
+  integer(ip), intent(in) :: field_id
+  integer(ip) :: fe_facet_iterator_get_num_dofs_field
+  fe_facet_iterator_get_num_dofs_field = this%fes_around(icell_around)%p%get_num_dofs_field(field_id)
+end function fe_facet_iterator_get_num_dofs_field
+
+subroutine fe_facet_iterator_update_fes_around( this )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this 
+  integer(ip) :: icell_around
+  do icell_around=1, this%get_num_cells_around()
+    call this%get_cell_around(icell_around, this%fes_around(icell_around)%p)
+    call this%fes_around(icell_around)%p%update_scratch_data()
+  end do 
+end subroutine fe_facet_iterator_update_fes_around
+
+subroutine fe_facet_iterator_update_integration( this )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this 
+  integer(ip)                      :: icell_around, field_id
+  integer(ip)                      :: facet_lpos_within_cells_around(2)
+  integer(ip)                      :: subfacet_lid_within_cells_around(2)
+  type(point_t)          , pointer :: coords(:)
+  type(quadrature_t)     , pointer :: quadrature
+  type(facet_integrator_t), pointer :: facet_integrator
+  
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  
+  call this%update_facet_maps()
+  coords => this%facet_maps%get_facet_coordinates()
+  call this%get_coordinates(coords)
+
+  quadrature => this%get_quadrature() 
+  
+  do icell_around=1, this%get_num_cells_around()
+    reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
+    facet_lpos_within_cells_around(icell_around) = &
+      this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_facet_id() + 1
+    subfacet_lid_within_cells_around(icell_around) = this%get_subfacet_lid_cell_around(icell_around)
+    coords => this%facet_maps%get_coordinates_neighbour(icell_around,                                &
+                                                 facet_lpos_within_cells_around(icell_around), &
+                                                 subfacet_lid_within_cells_around(icell_around))
+    call this%fes_around(icell_around)%p%get_coordinates(coords)
+  end do
+
+  reference_fe_geo => this%fes_around(1)%p%get_reference_fe_geo()
+  
+  call this%facet_maps%update(facet_lpos_within_cells_around,   &
+                       subfacet_lid_within_cells_around, &
+                       quadrature,                       &
+                       reference_fe_geo)
+  
+  call this%update_facet_integrators()
+  do field_id = 1, this%fe_space%get_num_fields()
+
+     call this%facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
+                                 subfacet_lid_within_cells_around, &
+                                 this%facet_maps, &             
+                                 this%get_facet_permutation_index())
+  end do
+  
+end subroutine fe_facet_iterator_update_integration
+
+subroutine fe_facet_iterator_assembly_array ( this,    &
+                                             facevec, &
+                                             assembler )
+  implicit none
+  class(fe_facet_iterator_t)      , intent(inout) :: this
+  real(rp)                       , intent(in)    :: facevec(:,:)
+  class(assembler_t), intent(inout) :: assembler
+  
+  integer(ip) :: ineigh
+  
+  do ineigh = 1, this%get_num_cells_around()
+    call assembler%assembly_array( this%fe_space%num_fields,                    &
+                                                this%fe_space%get_field_blocks(),               &
+                                                this%fe_space%get_field_coupling(),             &
+                                                this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
+                                                this%fes_around(ineigh)%p%fe_dofs,               &
+                                                facevec(:,ineigh) )
+  end do
+  
+end subroutine fe_facet_iterator_assembly_array
+
+subroutine fe_facet_iterator_assembly_matrix ( this,    &
+                                              facemat, &
+                                              assembler )
+  implicit none
+  class(fe_facet_iterator_t)      , intent(inout) :: this
+  real(rp)                       , intent(in)    :: facemat(:,:,:,:)
+  class(assembler_t), intent(inout) :: assembler
+  
+  integer(ip) :: ineigh, jneigh
+  
+  do ineigh = 1, this%get_num_cells_around()
+    do jneigh = 1, this%get_num_cells_around()
+      call assembler%assembly_matrix( this%fe_space%num_fields,                   &
+                                                   this%fe_space%get_field_blocks(),              &
+                                                   this%fe_space%get_field_coupling(),            &
+                                                   this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                                   this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
+                                                   this%fes_around(ineigh)%p%fe_dofs,             &
+                                                   this%fes_around(jneigh)%p%fe_dofs,              &
+                                                   facemat(:,:,ineigh,jneigh) )
+    end do
+  end do
+  
+end subroutine fe_facet_iterator_assembly_matrix
+
+subroutine fe_facet_iterator_assembly_matrix_array ( this,    &
+                                                    facemat, &
+                                                    facevec, &
+                                                    assembler )
+  implicit none
+  class(fe_facet_iterator_t)      , intent(inout) :: this
+  real(rp)                       , intent(in)    :: facemat(:,:,:,:)
+  real(rp)                       , intent(in)    :: facevec(:,:)
+  class(assembler_t), intent(inout) :: assembler
+  
+  integer(ip) :: ineigh, jneigh
+ 
+  do ineigh = 1, this%get_num_cells_around()
+    do jneigh = 1, this%get_num_cells_around()
+      call assembler%assembly_matrix( this%fe_space%num_fields,                   &
+                                                   this%fe_space%get_field_blocks(),              &
+                                                   this%fe_space%get_field_coupling(),            &
+                                                   this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                                   this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
+                                                   this%fes_around(ineigh)%p%fe_dofs,              &
+                                                   this%fes_around(jneigh)%p%fe_dofs,              &
+                                                   facemat(:,:,ineigh,jneigh) )
+    end do
+    call assembler%assembly_array( this%fe_space%num_fields,                    &
+                                                  this%fe_space%get_field_blocks(),               &
+                                                  this%fe_space%get_field_coupling(),             &
+                                                  this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
+                                                  this%fes_around(ineigh)%p%fe_dofs,               &
+                                                  facevec(:,ineigh) )
+  end do
+  
+end subroutine fe_facet_iterator_assembly_matrix_array
+
+function fe_facet_iterator_get_fe_space(this)
+  implicit none
+  class(fe_facet_iterator_t), target, intent(in) :: this
+  class(serial_fe_space_t), pointer :: fe_facet_iterator_get_fe_space
+  fe_facet_iterator_get_fe_space => this%fe_space
+end function fe_facet_iterator_get_fe_space
+
+!==================================================================================================
+subroutine fe_facet_iterator_get_fe_dofs(this, icell_around, fe_dofs)
+  implicit none
+  class(fe_facet_iterator_t), target, intent(inout)  :: this
+  integer(ip)                      , intent(in)     :: icell_around
+  type(i1p_t)                      , intent(out)    :: fe_dofs(:)
+  call this%fes_around(icell_around)%p%get_fe_dofs(fe_dofs)
+end subroutine fe_facet_iterator_get_fe_dofs
+
+!==================================================================================================
+function fe_facet_iterator_get_quadrature_degree ( this )
+  implicit none
+  class(fe_facet_iterator_t), intent(in) :: this
+  integer(ip) :: fe_facet_iterator_get_quadrature_degree
+  if ( allocated(this%fe_space%facet_quadratures_degree) ) then
+     fe_facet_iterator_get_quadrature_degree = this%fe_space%facet_quadratures_degree(this%facet_gid)
+  end if
+  if ( .not. allocated(this%fe_space%facet_quadratures_degree) .or. &
+       fe_facet_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
+     fe_facet_iterator_get_quadrature_degree = this%get_default_quadrature_degree()
+  end if
+end function fe_facet_iterator_get_quadrature_degree
+
+!==================================================================================================
+function fe_facet_iterator_get_default_quadrature_degree ( this )
+  implicit none
+  class(fe_facet_iterator_t), intent(in) :: this
+  integer(ip) :: fe_facet_iterator_get_default_quadrature_degree
+  integer(ip) :: reference_fe_id
+  assert( allocated(this%fe_space%max_order_field_cell_to_ref_fes_face) )
+  reference_fe_id = this%fe_space%max_order_field_cell_to_ref_fes_face(this%facet_gid)
+  fe_facet_iterator_get_default_quadrature_degree = & 
+    this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
+end function fe_facet_iterator_get_default_quadrature_degree
+
+!==================================================================================================
+subroutine fe_facet_iterator_set_quadrature_degree ( this, quadrature_degree )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: quadrature_degree
+  assert ( quadrature_degree >= -1 )
+  if ( .not. allocated ( this%fe_space%facet_quadratures_degree) ) then
+     call this%fe_space%allocate_facet_quadratures_degree()
+     call this%fe_space%clear_facet_quadratures_degree()
+  end if
+  this%fe_space%facet_quadratures_degree(this%facet_gid) = quadrature_degree
+end subroutine fe_facet_iterator_set_quadrature_degree
+
+!=================================================================================================
+function fe_facet_iterator_get_quadrature ( this )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  type(quadrature_t), pointer :: fe_facet_iterator_get_quadrature
+  
+  integer(ip) :: icell_around, istat
+  integer(ip) :: facet_quadratures_position_key
+  integer(ip) :: facet_quadratures_position
+  integer(ip) :: reference_fes_geo_id(2)
+   
+  reference_fes_geo_id(2) = 0 
+  do icell_around = 1, this%get_num_cells_around()
+     reference_fes_geo_id(icell_around) = this%fes_around(icell_around)%p%get_reference_fe_geo_id()
+  end do
+  
+  facet_quadratures_position_key = &
+       this%fe_space%generate_facet_quadratures_position_key(this%get_quadrature_degree(), &
+                                                               reference_fes_geo_id(1), &
+                                                               reference_fes_geo_id(2) )
+       
+  call this%fe_space%facet_quadratures_position%get(key=facet_quadratures_position_key, &
+                                                      val=facet_quadratures_position, &
+                                                      stat=istat)
+  assert ( .not. istat == key_not_found )
+  fe_facet_iterator_get_quadrature => this%fe_space%facet_quadratures(facet_quadratures_position)
+end function fe_facet_iterator_get_quadrature
+
+!==================================================================================================
+function fe_facet_iterator_get_facet_map(this)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  type(facet_maps_t)         , pointer    :: fe_facet_iterator_get_facet_map
+  integer(ip)                           :: icell_around, istat
+  integer(ip)                           :: facet_maps_position_key
+  integer(ip)                           :: facet_maps_position
+  integer(ip)                           :: reference_fes_geo_id(2)
+   
+  reference_fes_geo_id(2) = 0 
+  do icell_around = 1, this%get_num_cells_around()
+     reference_fes_geo_id(icell_around) = this%fes_around(icell_around)%p%get_reference_fe_geo_id()
+  end do
+  
+  facet_maps_position_key = &
+       this%fe_space%generate_facet_quadratures_position_key(this%get_quadrature_degree(), &
+                                                               reference_fes_geo_id(1), &
+                                                               reference_fes_geo_id(2) )
+       
+  call this%fe_space%facet_quadratures_position%get(key=facet_maps_position_key, &
+                                                      val=facet_maps_position, &
+                                                      stat=istat)
+  assert ( .not. istat == key_not_found )
+  fe_facet_iterator_get_facet_map => this%fe_space%facet_maps(facet_maps_position)
+end function fe_facet_iterator_get_facet_map
+
+
+!==================================================================================================
+subroutine fe_facet_iterator_update_facet_maps(this)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)                           :: icell_around, istat
+  integer(ip)                           :: facet_maps_position_key
+  integer(ip)                           :: facet_maps_position
+  integer(ip)                           :: reference_fes_geo_id(2)
+   
+  reference_fes_geo_id(2) = 0 
+  do icell_around = 1, this%get_num_cells_around()
+     reference_fes_geo_id(icell_around) = this%fes_around(icell_around)%p%get_reference_fe_geo_id()
+  end do
+  
+  facet_maps_position_key = &
+       this%fe_space%generate_facet_quadratures_position_key(this%get_quadrature_degree(), &
+                                                               reference_fes_geo_id(1), &
+                                                               reference_fes_geo_id(2) )
+       
+  call this%fe_space%facet_quadratures_position%get(key=facet_maps_position_key, &
+                                                      val=facet_maps_position, &
+                                                      stat=istat)
+  assert ( .not. istat == key_not_found )
+  this%facet_maps => this%fe_space%facet_maps(facet_maps_position)
+end subroutine fe_facet_iterator_update_facet_maps
+
+!==================================================================================================
+function fe_facet_iterator_get_facet_integrator(this, field_id)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: field_id
+  type(facet_integrator_t)  , pointer    :: fe_facet_iterator_get_facet_integrator
+  integer(ip)                           :: icell_around, istat
+  integer(ip)                           :: facet_integrators_position_key
+  integer(ip)                           :: facet_integrators_position
+  integer(ip)                           :: reference_fes_id(2)
+  
+  assert ( field_id >= 1 .and. field_id <= this%fe_space%get_num_fields() )
+ 
+  reference_fes_id(2) = 0 
+  do icell_around = 1, this%get_num_cells_around()
+     reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id, this%fes_around(icell_around)%p%get_gid())
+  end do
+  
+  facet_integrators_position_key = &
+       this%fe_space%generate_facet_integrators_position_key(this%get_quadrature_degree(), &
+                                                               reference_fes_id(1), &
+                                                               reference_fes_id(2) )
+       
+  call this%fe_space%facet_integrators_position%get(key=facet_integrators_position_key, &
+                                                      val=facet_integrators_position, &
+                                                      stat=istat)
+  assert ( .not. istat == key_not_found )
+  
+  fe_facet_iterator_get_facet_integrator => this%fe_space%facet_integrators(facet_integrators_position)
+end function fe_facet_iterator_get_facet_integrator
+
+!==================================================================================================
+subroutine fe_facet_iterator_update_facet_integrators(this)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)                           :: icell_around, istat
+  integer(ip)                           :: facet_integrators_position_key
+  integer(ip)                           :: facet_integrators_position
+  integer(ip)                           :: reference_fes_id(2)
+  integer(ip)                           :: field_id
+  
+  do field_id = 1, this%fe_space%num_fields
+     reference_fes_id(2) = 0 
+     do icell_around = 1, this%get_num_cells_around()
+        reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id, this%fes_around(icell_around)%p%get_gid())
+     end do
+     facet_integrators_position_key = &
+        this%fe_space%generate_facet_integrators_position_key(this%get_quadrature_degree(), &
+                                                               reference_fes_id(1), &
+                                                               reference_fes_id(2) )
+       
+     call this%fe_space%facet_integrators_position%get(key=facet_integrators_position_key, &
+                                                      val=facet_integrators_position, &
+                                                      stat=istat)
+     assert ( .not. istat == key_not_found )
+  
+     this%facet_integrators(field_id)%p => this%fe_space%facet_integrators(facet_integrators_position)
+  end do
+end subroutine fe_facet_iterator_update_facet_integrators
+
+!==================================================================================================
+function fe_facet_iterator_compute_surface ( this )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  real(rp)                         :: fe_facet_iterator_compute_surface
+  integer(ip) :: qpoin,num_quadrature_points
+  type(quadrature_t), pointer :: quad
+  
+  quad     => this%get_quadrature()
+  num_quadrature_points = quad%get_num_quadrature_points()
+  
+  fe_facet_iterator_compute_surface = 0.0_rp
+  do qpoin = 1, num_quadrature_points
+     fe_facet_iterator_compute_surface = fe_facet_iterator_compute_surface + &
+          &                        this%get_det_jacobian(qpoin) * &
+          &                        quad%get_weight(qpoin)
+  end do
+  
+end function fe_facet_iterator_compute_surface
+
+function fe_facet_iterator_compute_fe_facet_permutation_index (this,first_fe,second_fe) result (fe_facet_permutation_index)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  class(fe_cell_iterator_t)     , intent(inout) :: first_fe
+  class(fe_cell_iterator_t)     , intent(inout) :: second_fe
+  integer(ip)                              :: fe_facet_permutation_index
+  class(lagrangian_reference_fe_t), pointer     :: first_reference_fe_geo
+  class(lagrangian_reference_fe_t), pointer     :: second_reference_fe_geo
+  assert( .not. this%is_ghost() .and. this%get_num_cells_around() == 2 )
+  call this%get_cell_around(1,first_fe)
+  first_reference_fe_geo => first_fe%get_reference_fe_geo()
+  call this%get_cell_around(2,second_fe)
+  second_reference_fe_geo => second_fe%get_reference_fe_geo()
+  fe_facet_permutation_index = &
+    first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,             &
+                                                      this%get_lpos_within_cell_around(1), &
+                                                      this%get_lpos_within_cell_around(2), &
+                                                      first_fe%get_vef_gids(),             &
+                                                      second_fe%get_vef_gids() )
+end function fe_facet_iterator_compute_fe_facet_permutation_index
+
+function fe_facet_iterator_get_fe_facet_permutation_index ( this ) result(fe_facet_permutation_index)
+  implicit none
+  class(fe_facet_iterator_t), intent(in) :: this
+  integer(ip)                           :: fe_facet_permutation_index
+  fe_facet_permutation_index = this%fe_space%facet_permutation_indices%get(this%facet_gid)
+end function fe_facet_iterator_get_fe_facet_permutation_index 
+
+function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) result(facet_lpos_within_cell_around)
+  implicit none
+  class(fe_facet_iterator_t) , intent(inout) :: this
+  integer(ip)               , intent(in)    :: icell_around
+  integer(ip)                               :: facet_lpos_within_cell_around
+  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  integer(ip)                               :: vef_gid_of_face
+  reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
+  vef_gid_of_face = this%base_fe_vef_iterator_t%get_gid()
+
+  assert ( this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face) /= -1 )
+  facet_lpos_within_cell_around = this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face)
+end function fe_facet_iterator_get_lpos_within_cell_around
+
+function fe_facet_iterator_get_subfacet_lid_cell_around ( this, icell_around ) result( subfacet_lid )
+  implicit none
+  class(fe_facet_iterator_t), intent(in) :: this
+  integer(ip)              , intent(in) :: icell_around
+  integer(ip)                           :: subfacet_lid
+  subfacet_lid = 0
+end function fe_facet_iterator_get_subfacet_lid_cell_around 
+
+!==================================================================================================
+function fe_facet_iterator_get_quadrature_points_coordinates(this)
+  implicit none
+  ! Parameters
+  class(fe_facet_iterator_t), target, intent(in) :: this
+  type(point_t), pointer :: fe_facet_iterator_get_quadrature_points_coordinates(:)
+  
+  fe_facet_iterator_get_quadrature_points_coordinates => this%facet_maps%get_quadrature_points_coordinates()
+end function fe_facet_iterator_get_quadrature_points_coordinates
+
+!=================================================================================================
+function fe_facet_iterator_get_det_jacobian ( this, i )
+  implicit none
+  class(fe_facet_iterator_t), intent(in) :: this
+  integer(ip)    , intent(in) :: i
+  real(rp) :: fe_facet_iterator_get_det_jacobian
+  fe_facet_iterator_get_det_jacobian = this%facet_maps%get_det_jacobian(i)
+end function fe_facet_iterator_get_det_jacobian
+
+!=================================================================================================
+subroutine fe_facet_iterator_get_normals (this, qpoint, normal)
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: qpoint
+  type(vector_field_t)    , intent(out)   :: normal(2)
+  call this%facet_maps%get_normals(qpoint, normal)
+end subroutine fe_facet_iterator_get_normals
+
+!==================================================================================================
+function fe_facet_iterator_compute_characteristic_length(this,qpoint)
+  implicit none
+  class(fe_facet_iterator_t), target, intent(in) :: this
+  integer(ip)              , intent(in) :: qpoint
+  real(rp) :: fe_facet_iterator_compute_characteristic_length
+  fe_facet_iterator_compute_characteristic_length = this%facet_maps%compute_characteristic_length(qpoint)
+end function fe_facet_iterator_compute_characteristic_length
+
+!==================================================================================================
+subroutine fe_facet_iterator_get_values_scalar (this, ineigh, values, field_id)
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: ineigh
+  real(rp), allocatable   , intent(inout) :: values(:,:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%get_values(ineigh, values)
+end subroutine fe_facet_iterator_get_values_scalar
+!==================================================================================================
+subroutine fe_facet_iterator_get_values_vector (this, ineigh, values, field_id)
+  implicit none
+  class(fe_facet_iterator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: ineigh
+  type(vector_field_t), allocatable, intent(inout) :: values(:,:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%get_values(ineigh, values)
+end subroutine fe_facet_iterator_get_values_vector
+!=================================================================================================
+subroutine fe_facet_iterator_get_gradients_scalar (this, ineigh, gradients, field_id)
+  implicit none
+  class(fe_facet_iterator_t)         , intent(in)    :: this
+  integer(ip)                      , intent(in)    :: ineigh
+  type(vector_field_t), allocatable, intent(inout) :: gradients(:,:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%get_gradients(ineigh, gradients)
+end subroutine fe_facet_iterator_get_gradients_scalar
+
+!=================================================================================================
+subroutine fe_facet_iterator_get_curls_vector (this, ineigh, curls, field_id)
+  implicit none
+  class(fe_facet_iterator_t)             , intent(in)    :: this
+  integer(ip)                          , intent(in)    :: ineigh
+  type(vector_field_t)    , allocatable, intent(inout) :: curls(:,:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%get_curls(ineigh, curls)
+end subroutine fe_facet_iterator_get_curls_vector
+
+!==================================================================================================
+function fe_facet_iterator_get_active_cell_id (this,neighbour_id, field_id)
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)              , intent(in)    :: neighbour_id
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  integer(ip)                              :: fe_facet_iterator_get_active_cell_id
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  fe_facet_iterator_get_active_cell_id = this%facet_integrators(field_id_)%p%get_active_cell_id(neighbour_id)
+end function fe_facet_iterator_get_active_cell_id
+
+
+!=================================================================================================
+subroutine fe_facet_iterator_evaluate_fe_function_scalar ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  real(rp)                , intent(in)    :: nodal_values(:)
+  real(rp), allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%evaluate_fe_function(neighbour_id,nodal_values,quadrature_points_values)
+end subroutine fe_facet_iterator_evaluate_fe_function_scalar
+!=================================================================================================
+subroutine fe_facet_iterator_evaluate_fe_function_vector ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(vector_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%evaluate_fe_function(neighbour_id,nodal_values,quadrature_points_values)
+end subroutine fe_facet_iterator_evaluate_fe_function_vector
+!=================================================================================================
+subroutine fe_facet_iterator_evaluate_fe_function_tensor ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(tensor_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%evaluate_fe_function(neighbour_id,nodal_values,quadrature_points_values)
+end subroutine fe_facet_iterator_evaluate_fe_function_tensor
+!=================================================================================================
+subroutine fe_facet_iterator_evaluate_gradient_fe_function_scalar ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(vector_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%evaluate_gradient_fe_function(neighbour_id,nodal_values,quadrature_points_values)
+end subroutine fe_facet_iterator_evaluate_gradient_fe_function_scalar
+!=================================================================================================
+subroutine fe_facet_iterator_evaluate_gradient_fe_function_vector ( this,                     &
+                                                         neighbour_id,             &
+                                                         nodal_values,             &
+                                                         quadrature_points_values, &
+                                                         field_id )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: neighbour_id
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(tensor_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%facet_integrators(field_id_)%p%evaluate_gradient_fe_function(neighbour_id,nodal_values,quadrature_points_values)
+end subroutine fe_facet_iterator_evaluate_gradient_fe_function_vector
+!=================================================================================================
+function fe_facet_iterator_get_current_qpoints_perm ( this, neighbour_id, field_id)
+  implicit none
+  class(fe_facet_iterator_t), target, intent(in)    :: this
+  integer(ip)                     , intent(in)    :: neighbour_id
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  integer(ip), pointer :: fe_facet_iterator_get_current_qpoints_perm(:)
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  fe_facet_iterator_get_current_qpoints_perm => this%facet_integrators(field_id_)%p%get_current_qpoints_perm(neighbour_id)
+end function fe_facet_iterator_get_current_qpoints_perm

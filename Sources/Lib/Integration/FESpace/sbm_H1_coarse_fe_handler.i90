@@ -35,26 +35,25 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   type(environment_t), pointer :: par_environment
   type(fe_object_iterator_t) :: object
   type(fe_vef_iterator_t)                :: vef
-  class(fe_iterator_t), allocatable      :: fe
+  class(fe_cell_iterator_t), allocatable      :: fe
   type(list_iterator_t)                  :: own_coarse_dofs_iterator
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
   integer(ip)                            :: off
   integer(ip) :: num_rows, num_cols
   integer(ip) :: num_fine_dofs_on_coarse_dof
-  integer(ip) :: iface_within_object, ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
+  integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
 
   class(base_static_triangulation_t), pointer :: triangulation
 
   ! FE space traversal-related data types
-  type(fe_face_iterator_t)            :: fe_face
+  type(list_iterator_t)                  :: faces_object_iterator
+  class(fe_facet_iterator_t), allocatable :: fe_face
 
   ! Face integration-related data types
   type(quadrature_t)     , pointer :: quad
-  type(face_map_t)       , pointer :: face_map
-  type(face_integrator_t), pointer :: face_int
   real(rp)                         :: shape_trial
-  integer(ip)            , pointer :: elem2dof(:)
-  type(i1p_t)        , allocatable :: test_elem2dof(:)
+  integer(ip)            , pointer :: fe_dofs(:)
+  type(i1p_t)        , allocatable :: test_fe_dofs(:)
 
   ! FACE vector
   real(rp), allocatable            :: facevec(:)
@@ -62,6 +61,8 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   integer(ip)  :: istat
   integer(ip)  :: qpoint, num_quad_points
   real(rp)     :: factor
+  real(rp)            , allocatable  :: shape_values(:,:)
+
 
 
   par_environment => par_fe_space%get_par_environment()
@@ -70,16 +71,16 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
 
   triangulation => par_fe_space%get_triangulation()
 
-  allocate (test_elem2dof(1), stat=istat); check(istat==0);
-  call memalloc(par_fe_space%get_max_number_shape_functions(), facevec, __FILE__, __LINE__ )
+  allocate (test_fe_dofs(1), stat=istat); check(istat==0);
+  call memalloc(par_fe_space%get_max_num_shape_functions(), facevec, __FILE__, __LINE__ )
 
   ! Fill constraint matrix entries (transposed)
   call par_fe_space%create_fe_object_iterator(object)
-  call par_fe_space%create_fe_iterator(fe)
-  call par_fe_space%create_fe_face_iterator(fe_face)
+  call par_fe_space%create_fe_cell_iterator(fe)
+  call par_fe_space%create_fe_facet_iterator(fe_face)
   call par_fe_space%create_fe_vef_iterator(vef)
   do while ( .not. object%has_finished() )
-     if ( object%get_number_coarse_dofs(field_id) > 0 ) then
+     if ( object%get_num_coarse_dofs(field_id) > 0 ) then
 
         own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
         assert ( own_coarse_dofs_iterator%get_size() == 1 )
@@ -87,29 +88,29 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
         coarse_dof_lid = own_coarse_dofs_iterator%get_current() 
 
         ! Face coarse DoF
-        if ( object%get_dimension () == triangulation%get_num_dimensions()-1) then
-           do iface_within_object=1, object%get_num_faces()
-              call object%get_face(iface_within_object,fe_face)
+        if ( object%get_dim () == triangulation%get_num_dims()-1) then
+           faces_object_iterator = object%create_faces_object_iterator()
+           do while ( .not. faces_object_iterator%is_upper_bound() )
+              call object%get_face(faces_object_iterator%get_current(),fe_face)
               quad     => fe_face%get_quadrature()
-              face_int => fe_face%get_face_integrator(1)
-              face_map => fe_face%get_face_map()
 
               call fe_face%get_cell_around(1,fe)
               facevec = 0.0_rp
               call fe_face%update_integration() 
-              do qpoint = 1, quad%get_number_quadrature_points()
-                 factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-                 do idof = 1, fe%get_number_dofs()
-                    call face_int%get_value(idof,qpoint,1,shape_trial)
-                    facevec(idof) = facevec(idof) + shape_trial*factor
+              call fe_face%get_values(1,shape_values)
+              do qpoint = 1, quad%get_num_quadrature_points()
+                 factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+                 do idof = 1, fe%get_num_dofs()
+                    facevec(idof) = facevec(idof) + shape_values(idof,qpoint)*factor
                  end do
               end do
 
-              call fe_face%get_elem2dof(1, test_elem2dof)
-              call constraint_matrix%insert(fe%get_number_dofs(), &
-                                            test_elem2dof(1)%p, &
+              call fe_face%get_fe_dofs(1, test_fe_dofs)
+              call constraint_matrix%insert(fe%get_num_dofs(), &
+                                            test_fe_dofs(1)%p, &
                                             coarse_dof_lid, &
                                             facevec)
+              call faces_object_iterator%next()
            end do
         else    
            ! Either corner or edge coarse DoF
@@ -118,12 +119,12 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
            do ivef_within_object=1, object%get_num_vefs()
               call object%get_vef(ivef_within_object,vef)
               call vef%get_cell_around(1,fe)
-              call fe%get_field_elem2dof(field_id, elem2dof)
-              ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+              call fe%get_field_fe_dofs(field_id, fe_dofs)
+              ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
               own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
-                 dof_lid = elem2dof(idof)
+                 dof_lid = fe_dofs(idof)
                  if ( dof_lid > 0 ) then
                     num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + 1
                  end if
@@ -134,12 +135,12 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
            do ivef_within_object=1, object%get_num_vefs()
               call object%get_vef(ivef_within_object,vef)
               call vef%get_cell_around(1,fe)
-              call fe%get_field_elem2dof(field_id, elem2dof)
-              ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+              call fe%get_field_fe_dofs(field_id, fe_dofs)
+              ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
               own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
-                 dof_lid = elem2dof(idof)
+                 dof_lid = fe_dofs(idof)
                  if ( dof_lid > 0 ) then
                     call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp/real(num_fine_dofs_on_coarse_dof,rp))
                  end if
@@ -150,11 +151,13 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
      end if
      call object%next()
   end do
-  call par_fe_space%free_fe_iterator(fe)
+  call faces_object_iterator%free()
+  call par_fe_space%free_fe_cell_iterator(fe)
   call par_fe_space%free_fe_object_iterator(object)
-  call par_fe_space%free_fe_vef_iterator(fe_face)
+  call par_fe_space%free_fe_facet_iterator(fe_face)
   call par_fe_space%free_fe_vef_iterator(vef)
-  deallocate (test_elem2dof, stat=istat); check(istat==0);
+  deallocate (test_fe_dofs, stat=istat); check(istat==0);
+  deallocate (shape_values, stat=istat); check(istat==0);
   call memfree(facevec, __FILE__, __LINE__ )
 end subroutine H1_l1_setup_constraint_matrix
 
@@ -169,7 +172,7 @@ subroutine H1_l1_setup_weighting_operator(this, field_id, par_fe_space, paramete
   type(fe_vef_iterator_t)                :: vef
   type(list_iterator_t)                  :: own_coarse_dofs_iterator
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
-  integer(ip), pointer                   :: elem2dof(:)
+  integer(ip), pointer                   :: fe_dofs(:)
   integer(ip)                            :: off
   integer(ip) :: num_rows, num_cols
   integer(ip) :: num_fine_dofs_on_coarse_dof
@@ -181,14 +184,14 @@ subroutine H1_l1_setup_weighting_operator(this, field_id, par_fe_space, paramete
   type(list_iterator_t)                  :: subparts_iterator 
   logical, allocatable :: is_subpart_local(:), touch_subpart(:)
   real(rp), allocatable :: subpart_viscosity(:)
-  class(fe_iterator_t), allocatable :: fe  
+  class(fe_cell_iterator_t), allocatable :: fe  
 
     
   ! Fill constraint matrix entries (transposed)
   triangulation => par_fe_space%get_triangulation()
-  call memalloc( triangulation%get_number_subparts(), is_subpart_local, __FILE__ , __LINE__ )
-  call memalloc( triangulation%get_number_subparts(), touch_subpart, __FILE__ , __LINE__ )
-  call memalloc( triangulation%get_number_subparts(), subpart_viscosity, __FILE__ , __LINE__ )
+  call memalloc( triangulation%get_num_subparts(), is_subpart_local, __FILE__ , __LINE__ )
+  call memalloc( triangulation%get_num_subparts(), touch_subpart, __FILE__ , __LINE__ )
+  call memalloc( triangulation%get_num_subparts(), subpart_viscosity, __FILE__ , __LINE__ )
   
   is_subpart_local = .false.
   touch_subpart = .false.
@@ -196,7 +199,7 @@ subroutine H1_l1_setup_weighting_operator(this, field_id, par_fe_space, paramete
   
   par_env =>  par_fe_space%get_par_environment()
 
-  call par_fe_space%create_fe_iterator(fe)
+  call par_fe_space%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
      subpart = fe%get_my_subpart()
      subpart = fe%get_my_subpart_lid()
@@ -233,12 +236,12 @@ subroutine H1_l1_setup_weighting_operator(this, field_id, par_fe_space, paramete
      do ivef_within_object=1, object%get_num_vefs()
         call object%get_vef(ivef_within_object,vef)
         call vef%get_cell_around(1,fe)
-        call fe%get_field_elem2dof(field_id, elem2dof)
-        ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+        call fe%get_field_fe_dofs(field_id, fe_dofs)
+        ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
         own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof    = own_dofs_on_vef_iterator%get_current()
-           dof_lid = elem2dof(idof)
+           dof_lid = fe_dofs(idof)
            if ( dof_lid > 0 ) then
               weighting_operator(dof_lid) = weigh
            end if
@@ -247,7 +250,7 @@ subroutine H1_l1_setup_weighting_operator(this, field_id, par_fe_space, paramete
      end do
      call object%next()
   end do
-  call par_fe_space%free_fe_iterator(fe)
+  call par_fe_space%free_fe_cell_iterator(fe)
   call par_fe_space%free_fe_object_iterator(object)
   call par_fe_space%free_fe_vef_iterator(vef)
   call memfree( is_subpart_local, __FILE__ , __LINE__ )

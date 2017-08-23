@@ -37,42 +37,42 @@ end subroutine vef_iterator_create
 subroutine vef_iterator_free ( this)
   implicit none
   class(vef_iterator_t), intent(inout) :: this
-  this%lid = 0
+  this%gid = -1
   nullify ( this%base_static_triangulation )
 end subroutine vef_iterator_free
 
 subroutine vef_iterator_free_final ( this)
   implicit none
   type(vef_iterator_t), intent(inout) :: this
-  assert (this%lid == 0)
+  assert (this%gid == -1)
   assert (.not. associated(this%base_static_triangulation))
 end subroutine vef_iterator_free_final
 
 subroutine vef_iterator_first(this)
   implicit none
   class(vef_iterator_t), intent(inout) :: this
-  this%lid = 1
+  this%gid = 1
 end subroutine vef_iterator_first
 
 subroutine vef_iterator_next(this)
   implicit none
   class(vef_iterator_t), intent(inout) :: this
-  this%lid = this%lid + 1
+  this%gid = this%gid + 1
 end subroutine vef_iterator_next
 
-subroutine vef_iterator_set_lid(this, lid)
+subroutine vef_iterator_set_gid(this, gid)
   implicit none
   class(vef_iterator_t), intent(inout) :: this
-  integer(ip)        , intent(in)    :: lid
-  this%lid = lid
-end subroutine vef_iterator_set_lid
+  integer(ip)        , intent(in)    :: gid
+  this%gid = gid
+end subroutine vef_iterator_set_gid
 
 function vef_iterator_has_finished(this)
   implicit none
   class(vef_iterator_t), intent(in) :: this
   logical :: vef_iterator_has_finished
-  vef_iterator_has_finished = (this%lid > this%base_static_triangulation%num_vefs)
-  !vef_iterator_has_finished = (this%lid > this%base_static_triangulation%num_local_vefs + &
+  vef_iterator_has_finished = (this%gid > this%base_static_triangulation%num_vefs)
+  !vef_iterator_has_finished = (this%gid > this%base_static_triangulation%num_local_vefs + &
   !     this%base_static_triangulation%num_ghost_vefs)
 end function vef_iterator_has_finished
 
@@ -83,27 +83,54 @@ function vef_iterator_get_triangulation(this)
   vef_iterator_get_triangulation => this%base_static_triangulation
 end function vef_iterator_get_triangulation
 
-function vef_iterator_get_lid (this)
+subroutine vef_iterator_get_coordinates (this, vef_coordinates)
   implicit none
-  class(vef_iterator_t), intent(in) :: this
-  integer(ip) :: vef_iterator_get_lid
-  vef_iterator_get_lid = this%lid
-end function vef_iterator_get_lid
+  class(vef_iterator_t), intent(inout) :: this
+  type(point_t)        , intent(inout) :: vef_coordinates(:)
+  type(cell_iterator_t)                         :: cell
+  integer(ip)                                   :: inode_within_cell
+  integer(ip)                                   :: inode_within_vef
+  class(lagrangian_reference_fe_t), pointer     :: reference_fe_geo
+  type(list_iterator_t)                         :: dofs_on_vef_iterator
+  
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  assert ( allocated ( this%base_static_triangulation%coordinates ) )
+  
+  call cell%create(this%base_static_triangulation)
+  call this%get_cell_around(1, cell)
+  reference_fe_geo => cell%get_reference_fe_geo()
+  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
+  inode_within_vef = 1
+  do while (.not. dofs_on_vef_iterator%is_upper_bound())     
+    inode_within_cell = dofs_on_vef_iterator%get_current()
+    vef_coordinates(inode_within_vef) = this%base_static_triangulation%coordinates(cell%get_node_gid(inode_within_cell))
+    call dofs_on_vef_iterator%next()
+    inode_within_vef = inode_within_vef + 1
+  end do
+  call cell%free()
+end subroutine vef_iterator_get_coordinates
 
 function vef_iterator_get_gid (this)
   implicit none
   class(vef_iterator_t), intent(in) :: this
-  integer(igp) :: vef_iterator_get_gid
-  assert ( this%is_within_valid_range() )
-  vef_iterator_get_gid = this%base_static_triangulation%vefs_gid(this%lid)
+  integer(ip) :: vef_iterator_get_gid
+  vef_iterator_get_gid = this%gid
 end function vef_iterator_get_gid
+
+function vef_iterator_get_ggid (this)
+  implicit none
+  class(vef_iterator_t), intent(in) :: this
+  integer(igp) :: vef_iterator_get_ggid
+  assert ( this%is_within_valid_range() )
+  vef_iterator_get_ggid = this%base_static_triangulation%vefs_gid(this%gid)
+end function vef_iterator_get_ggid
 
 subroutine vef_iterator_set_set_id(this,set_id)
   implicit none
   class(vef_iterator_t), intent(inout) :: this
   integer(ip)          , intent(in) :: set_id
   assert ( this%is_within_valid_range() )
-  this%base_static_triangulation%vefs_set(this%lid) = set_id
+  this%base_static_triangulation%vefs_set(this%gid) = set_id
 end subroutine vef_iterator_set_set_id  
 
 subroutine vef_iterator_set_geom_id(this,geom_id)
@@ -111,7 +138,7 @@ subroutine vef_iterator_set_geom_id(this,geom_id)
   class(vef_iterator_t), intent(inout) :: this
   integer(ip)          , intent(in) :: geom_id
   assert ( this%is_within_valid_range() )
-  this%base_static_triangulation%vefs_geometry(this%lid) = geom_id
+  this%base_static_triangulation%vefs_geometry(this%gid) = geom_id
 end subroutine vef_iterator_set_geom_id  
 
 function vef_iterator_get_set_id(this)
@@ -119,7 +146,7 @@ function vef_iterator_get_set_id(this)
   class(vef_iterator_t), intent(in) :: this
   integer(ip) :: vef_iterator_get_set_id
   assert ( this%is_within_valid_range() )
-  vef_iterator_get_set_id = this%base_static_triangulation%vefs_set(this%lid)
+  vef_iterator_get_set_id = this%base_static_triangulation%vefs_set(this%gid)
 end function vef_iterator_get_set_id  
 
 function vef_iterator_get_geom_id(this)
@@ -127,24 +154,24 @@ function vef_iterator_get_geom_id(this)
   class(vef_iterator_t), intent(in) :: this
   integer(ip) :: vef_iterator_get_geom_id
   assert ( this%is_within_valid_range() )
-  vef_iterator_get_geom_id = this%base_static_triangulation%vefs_geometry(this%lid)
+  vef_iterator_get_geom_id = this%base_static_triangulation%vefs_geometry(this%gid)
 end function vef_iterator_get_geom_id  
 
-subroutine vef_iterator_set_dimension(this,vef_dim)
+subroutine vef_iterator_set_dim(this,vef_dim)
   implicit none
   class(vef_iterator_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: vef_dim
   assert ( this%is_within_valid_range() )
-  this%base_static_triangulation%vefs_type(this%lid) = (this%base_static_triangulation%vefs_type(this%lid)/10) * 10 + vef_dim
-end subroutine vef_iterator_set_dimension
+  this%base_static_triangulation%vefs_type(this%gid) = (this%base_static_triangulation%vefs_type(this%gid)/10) * 10 + vef_dim
+end subroutine vef_iterator_set_dim
 
 subroutine vef_iterator_set_it_at_boundary(this)
   implicit none
   class(vef_iterator_t), intent(inout) :: this
   integer(ip) :: vef_dim
   assert ( this%is_within_valid_range() )
-  vef_dim = mod(this%base_static_triangulation%vefs_type(this%lid),10)
-  this%base_static_triangulation%vefs_type(this%lid) = (this%base_static_triangulation%vefs_type(this%lid)/100) * 100 + 10 + vef_dim
+  vef_dim = mod(this%base_static_triangulation%vefs_type(this%gid),10)
+  this%base_static_triangulation%vefs_type(this%gid) = (this%base_static_triangulation%vefs_type(this%gid)/100) * 100 + 10 + vef_dim
 end subroutine vef_iterator_set_it_at_boundary
 
 subroutine vef_iterator_set_it_as_local(this)
@@ -152,8 +179,8 @@ subroutine vef_iterator_set_it_as_local(this)
   class(vef_iterator_t), intent(inout) :: this
   integer(ip) :: vef_dim_and_bound
   assert ( this%is_within_valid_range() )
-  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%lid),100)
-  this%base_static_triangulation%vefs_type(this%lid) = vef_dim_and_bound
+  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%gid),100)
+  this%base_static_triangulation%vefs_type(this%gid) = vef_dim_and_bound
 end subroutine vef_iterator_set_it_as_local
 
 subroutine vef_iterator_set_it_at_interface(this)
@@ -161,8 +188,8 @@ subroutine vef_iterator_set_it_at_interface(this)
   class(vef_iterator_t), intent(inout) :: this
   integer(ip) :: vef_dim_and_bound
   assert ( this%is_within_valid_range() )
-  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%lid),100)
-  this%base_static_triangulation%vefs_type(this%lid) = 100 + vef_dim_and_bound
+  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%gid),100)
+  this%base_static_triangulation%vefs_type(this%gid) = 100 + vef_dim_and_bound
 end subroutine vef_iterator_set_it_at_interface
 
 subroutine vef_iterator_set_it_as_ghost(this)
@@ -170,24 +197,24 @@ subroutine vef_iterator_set_it_as_ghost(this)
   class(vef_iterator_t), intent(inout) :: this
   integer(ip) :: vef_dim_and_bound
   assert ( this%is_within_valid_range() )
-  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%lid),100)
-  this%base_static_triangulation%vefs_type(this%lid) = 200 + vef_dim_and_bound
+  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%gid),100)
+  this%base_static_triangulation%vefs_type(this%gid) = 200 + vef_dim_and_bound
 end subroutine vef_iterator_set_it_as_ghost
 
-function vef_iterator_get_dimension(this)
+function vef_iterator_get_dim(this)
   implicit none
   class(vef_iterator_t), intent(in) :: this
-  integer(ip) :: vef_iterator_get_dimension
+  integer(ip) :: vef_iterator_get_dim
   assert ( this%is_within_valid_range() )
-  vef_iterator_get_dimension  = mod(this%base_static_triangulation%vefs_type(this%lid),10)
-end function vef_iterator_get_dimension
+  vef_iterator_get_dim  = mod(this%base_static_triangulation%vefs_type(this%gid),10)
+end function vef_iterator_get_dim
 
 function vef_iterator_is_at_boundary (this)
   implicit none
   class(vef_iterator_t), intent(in) :: this
   logical :: vef_iterator_is_at_boundary 
   assert ( this%is_within_valid_range() )
-  vef_iterator_is_at_boundary  = (mod(this%base_static_triangulation%vefs_type(this%lid)/10,10)==1)
+  vef_iterator_is_at_boundary  = (mod(this%base_static_triangulation%vefs_type(this%gid)/10,10)==1)
 end function vef_iterator_is_at_boundary
 
 function vef_iterator_is_local (this)
@@ -195,7 +222,7 @@ function vef_iterator_is_local (this)
   class(vef_iterator_t), intent(in) :: this
   logical :: vef_iterator_is_local 
   assert ( this%is_within_valid_range() )
-  vef_iterator_is_local  = (this%base_static_triangulation%vefs_type(this%lid)/100==0)
+  vef_iterator_is_local  = (this%base_static_triangulation%vefs_type(this%gid)/100==0)
 end function vef_iterator_is_local
 
 function vef_iterator_is_at_interface (this)
@@ -203,22 +230,22 @@ function vef_iterator_is_at_interface (this)
   class(vef_iterator_t), intent(in) :: this
   logical :: vef_iterator_is_at_interface 
   assert ( this%is_within_valid_range() )
-  vef_iterator_is_at_interface  = (this%base_static_triangulation%vefs_type(this%lid)/100==1)
+  vef_iterator_is_at_interface  = (this%base_static_triangulation%vefs_type(this%gid)/100==1)
 end function vef_iterator_is_at_interface
 
-function vef_iterator_is_face (this)
+function vef_iterator_is_facet (this)
   implicit none
   class(vef_iterator_t), intent(in) :: this
-  logical :: vef_iterator_is_face
+  logical :: vef_iterator_is_facet
   assert ( this%is_within_valid_range() )
-  vef_iterator_is_face  = (this%base_static_triangulation%get_num_dimensions()-1 == this%get_dimension())
-end function vef_iterator_is_face
+  vef_iterator_is_facet  = (this%base_static_triangulation%get_num_dims()-1 == this%get_dim())
+end function vef_iterator_is_facet
 
 function vef_iterator_is_within_valid_range (this)
   implicit none
   class(vef_iterator_t), intent(in) :: this
   logical :: vef_iterator_is_within_valid_range 
-  vef_iterator_is_within_valid_range  = (this%lid >= 1 .and. .not. this%has_finished())
+  vef_iterator_is_within_valid_range  = (this%gid >= 1 .and. .not. this%has_finished())
 end function vef_iterator_is_within_valid_range
 
 function vef_iterator_is_ghost (this)
@@ -226,7 +253,7 @@ function vef_iterator_is_ghost (this)
   class(vef_iterator_t), intent(in) :: this
   logical :: vef_iterator_is_ghost 
   assert ( this%is_within_valid_range() )
-  vef_iterator_is_ghost  = (this%base_static_triangulation%vefs_type(this%lid)/100==2)
+  vef_iterator_is_ghost  = (this%base_static_triangulation%vefs_type(this%gid)/100==2)
 end function vef_iterator_is_ghost
 
 function vef_iterator_get_num_cells_around (this)
@@ -234,8 +261,8 @@ function vef_iterator_get_num_cells_around (this)
   class(vef_iterator_t), intent(in) :: this
   integer(ip) :: vef_iterator_get_num_cells_around
   assert ( this%is_within_valid_range() )
-  vef_iterator_get_num_cells_around = this%base_static_triangulation%ptrs_cells_around(this%lid+1)- &
-       this%base_static_triangulation%ptrs_cells_around(this%lid)
+  vef_iterator_get_num_cells_around = this%base_static_triangulation%ptrs_cells_around(this%gid+1)- &
+       this%base_static_triangulation%ptrs_cells_around(this%gid)
 end function vef_iterator_get_num_cells_around
 
 subroutine vef_iterator_get_cell_around (this, icell_around, cell)
@@ -247,9 +274,9 @@ subroutine vef_iterator_get_cell_around (this, icell_around, cell)
   integer(ip)                          :: icell 
   assert ( this%is_within_valid_range() )
   assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
-  position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(this%lid) + icell_around-1
+  position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(this%gid) + icell_around-1
   icell = this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around)
-  call cell%set_lid(icell)
+  call cell%set_gid(icell)
 end subroutine vef_iterator_get_cell_around
 
 function vef_iterator_is_proper ( this ) 
@@ -292,140 +319,12 @@ function vef_iterator_get_improper_cell_around_subvef(this)
   class(vef_iterator_t) , intent(in)    :: this
   integer(ip) :: vef_iterator_get_improper_cell_around_subvef
   assert ( this%is_within_valid_range() )
-  assert ( .false. )
+  vef_iterator_get_improper_cell_around_subvef = 0
 end function vef_iterator_get_improper_cell_around_subvef
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Extensions
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine vertex_iterator_first ( this ) 
-  implicit none
-  class(vertex_iterator_t), intent(inout)    :: this
-  this%lid = 1
-end subroutine vertex_iterator_first
-
-function vertex_iterator_has_finished ( this ) 
-  implicit none
-  class(vertex_iterator_t), intent(in)    :: this
-  logical :: vertex_iterator_has_finished
-  vertex_iterator_has_finished = (this%lid > this%base_static_triangulation%num_vertices)
-end function vertex_iterator_has_finished
-
-subroutine edge_iterator_first (this) 
-  implicit none
-  class(edge_iterator_t), intent(inout) :: this
-  call this%set_lid(this%base_static_triangulation%num_vertices+1)
-end subroutine edge_iterator_first
-
-function edge_iterator_has_finished ( this ) 
-  implicit none
-  class(edge_iterator_t), intent(in)    :: this
-  logical :: edge_iterator_has_finished
-  edge_iterator_has_finished = (this%lid > this%base_static_triangulation%num_vertices + this%base_static_triangulation%num_edges)
-end function edge_iterator_has_finished
-
-!=============================================================================================================
-!
-! Face extension methods
-!
-!=============================================================================================================
-subroutine face_iterator_create (this, base_static_triangulation ) 
-  implicit none
-  class(face_iterator_t)                    , intent(inout) :: this
-  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
-  call this%free()
-  call this%vef_iterator_t%create(base_static_triangulation)
-  call this%first()
-  call this%base_static_triangulation%create_cell_iterator(this%cell)
-end subroutine face_iterator_create
-
-subroutine face_iterator_free (this) 
-  implicit none
-  class(face_iterator_t), intent(inout) :: this
-  if ( associated(this%base_static_triangulation) ) then
-    call this%base_static_triangulation%free_cell_iterator(this%cell)
-    call this%vef_iterator_t%free()
-  end if
-end subroutine face_iterator_free
-
-subroutine face_iterator_free_final(this)
-  implicit none
-  type(face_iterator_t), intent(inout) :: this
-  assert( .not. allocated(this%cell) )
-end subroutine face_iterator_free_final
-
-subroutine face_iterator_first (this)
-   implicit none
-   class(face_iterator_t), intent(inout) :: this
-   call this%set_lid(this%base_static_triangulation%num_vertices+this%base_static_triangulation%num_edges+1)
-end subroutine face_iterator_first
-
-function face_iterator_has_finished ( this ) 
-  implicit none
-  class(face_iterator_t), intent(in)    :: this
-  logical :: face_iterator_has_finished
-  face_iterator_has_finished = (this%lid > this%base_static_triangulation%num_vefs)
-end function face_iterator_has_finished
-
-subroutine face_iterator_get_coordinates (this, face_coordinates)
-  implicit none
-  class(face_iterator_t), intent(inout) :: this
-  type(point_t)        ,  intent(inout) :: face_coordinates(:)
-  integer(ip)                           :: inode_within_cell
-  integer(ip)                           :: inode_within_face
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-  type(list_iterator_t)                     :: dofs_on_vef_iterator
-
-  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  assert ( allocated ( this%base_static_triangulation%coordinates ) )
-  assert ( allocated(this%cell) )
-  
-  call this%get_cell_around(1, this%cell)
-  reference_fe_geo => this%cell%get_reference_fe_geo()
-  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(this%cell%find_lpos_vef_lid(this%get_lid()))
-  inode_within_face = 1
-  do while (.not. dofs_on_vef_iterator%is_upper_bound())     
-    inode_within_cell = dofs_on_vef_iterator%get_current()
-    face_coordinates(inode_within_face) = this%base_static_triangulation%coordinates(this%cell%get_node_lid(inode_within_cell))
-    call dofs_on_vef_iterator%next()
-    inode_within_face = inode_within_face + 1
-  end do  
-end subroutine face_iterator_get_coordinates
-
-function face_iterator_get_face_lid (this) result(face_lid)
-  implicit none
-  class(face_iterator_t), intent(in)    :: this
-  integer(ip) :: face_lid
-  face_lid = this%lid - (this%base_static_triangulation%num_vertices+&
-                         this%base_static_triangulation%num_edges)
-end function face_iterator_get_face_lid
-
-function face_iterator_get_face_lpos_within_cell_around(this, icell_around) result(face_lpos_within_cell_around)
-  implicit none
-  class(face_iterator_t), intent(inout)    :: this
-  integer(ip)           , intent(in)       :: icell_around
-  integer(ip)                           :: face_lpos_within_cell_around
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
-  assert ( allocated(this%cell) )
-  call this%get_cell_around(icell_around, this%cell)
-  reference_fe_geo => this%cell%get_reference_fe_geo()
-  assert ( this%cell%find_lpos_vef_lid (this%lid) /= -1 )
-  face_lpos_within_cell_around = this%cell%find_lpos_vef_lid(this%lid) - reference_fe_geo%get_first_face_id() + 1
-end function face_iterator_get_face_lpos_within_cell_around
-
-function face_iterator_get_face_permutation_index ( this ) result(face_orientation)
-  implicit none
-  class(face_iterator_t), intent(in)    :: this
-  integer(ip)                           :: face_orientation
-  face_orientation = this%base_static_triangulation%face_permutation_index(this%get_face_lid())
-end function face_iterator_get_face_permutation_index 
-
-subroutine face_iterator_set_face_permutation_index (this, face_permutation_index)
-  implicit none
-  class(face_iterator_t), intent(inout)    :: this
-  integer(ip)           , intent(in)       :: face_permutation_index
-  this%base_static_triangulation%face_permutation_index(this%get_face_lid()) = face_permutation_index
-end subroutine face_iterator_set_face_permutation_index
 
 ! We need cells around to evaluate it. Storing faces of elements, 
 ! edges of faces and vertices of edges, this would not be necessary.
@@ -434,20 +333,20 @@ end subroutine face_iterator_set_face_permutation_index
 !  class(vef_iterator_t), intent(in) :: this
 !  integer(ip)                       :: vertices(:)
 !  type(cell_iterator_t)             :: cell
-!  type(list_t), pointer             :: vertices_per_vef
+!  type(list_t), pointer             :: vertices_x_vef
 !  integer(ip) ::  ivef, cell_num_vefs, cell_type,num_vertices, istat, i
 !  type(list_iterator_t) :: vertices_iterator
 
 !  call this%get_cell_around (1, cell) ! there is always one element around
-!  ivef = cell%find_lpos_vef_lid(this%get_lid())
+!  ivef = cell%get_vef_lid_from_ggid(this%get_gid())
 !  cell_num_vefs = cell%get_num_vefs()
 !  call this%base_static_triangulation%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
 !  assert(istat==key_found)
-!  vertices_per_vef => this%base_static_triangulation%reference_fe_geo_list(cell_type)%p%get_vertices_vef()
-!  vertices_iterator = vertices_per_vef%create_iterator(ivef)
+!  vertices_x_vef => this%base_static_triangulation%reference_fe_geo_list(cell_type)%p%get_vertices_vef()
+!  vertices_iterator = vertices_x_vef%create_iterator(ivef)
 !  num_vertices = vertices_iterator%get_size()
 !  ! Alternatively:
-!  !num_vertices = this%reference_fe_geo_list(cell_type)%p%get_number_vertices_vef(ivef)
+!  !num_vertices = this%reference_fe_geo_list(cell_type)%p%get_num_vertices_vef(ivef)
 !  assert(size(vertices)>=num_vertices)
 !  do i=1, num_vertices
 !     vertices(i) = vertices_iterator%get_current()
@@ -458,18 +357,18 @@ end subroutine face_iterator_set_face_permutation_index
 subroutine itfc_vef_iterator_first (this) 
   implicit none
   class(itfc_vef_iterator_t), intent(inout) :: this
-  this%itfc_lid = 1
+  this%itfc_gid = 1
   if ( .not. this%has_finished() ) then
-    call this%set_lid(lid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
+    call this%set_gid(gid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_gid))
   end if
 end subroutine itfc_vef_iterator_first
 
 subroutine itfc_vef_iterator_next ( this ) 
   implicit none
   class(itfc_vef_iterator_t), intent(inout)    :: this
-  this%itfc_lid = this%itfc_lid + 1
+  this%itfc_gid = this%itfc_gid + 1
   if ( .not. this%has_finished() ) then
-    call this%set_lid(lid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_lid))
+    call this%set_gid(gid=this%base_static_triangulation%lst_itfc_vefs(this%itfc_gid))
   end if
 end subroutine itfc_vef_iterator_next
 
@@ -477,5 +376,5 @@ function itfc_vef_iterator_has_finished ( this )
   implicit none
   class(itfc_vef_iterator_t), intent(in)    :: this
   logical :: itfc_vef_iterator_has_finished
-  itfc_vef_iterator_has_finished = (this%itfc_lid > this%base_static_triangulation%num_itfc_vefs)
+  itfc_vef_iterator_has_finished = (this%itfc_gid > this%base_static_triangulation%num_itfc_vefs)
 end function itfc_vef_iterator_has_finished
