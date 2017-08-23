@@ -30,6 +30,7 @@ subroutine itfc_vef_iterator_create(this, triangulation)
   class(itfc_vef_iterator_t)    , intent(inout) :: this
   class(triangulation_t), target, intent(in)    :: triangulation
   call this%free()
+  call vef_iterator_create(this%vef_iterator_t,triangulation)  
   call triangulation%create_vef_iterator(this%vef)
   call this%first()
 end subroutine itfc_vef_iterator_create

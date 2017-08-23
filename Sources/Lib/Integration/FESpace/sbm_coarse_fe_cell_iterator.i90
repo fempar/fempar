@@ -248,7 +248,6 @@ subroutine coarse_fe_cell_iterator_get_field_fe_dofs( this, field_id, fe_dofs )
   fe_dofs => this%coarse_fe_space%lst_dofs_gids(spos:epos)
 end subroutine coarse_fe_cell_iterator_get_field_fe_dofs
 
-
 subroutine coarse_fe_cell_iterator_get_coarse_fe_vef(this, ivef, coarse_fe_vef)
   implicit none
   class(coarse_fe_cell_iterator_t)   , intent(in)    :: this
@@ -256,3 +255,43 @@ subroutine coarse_fe_cell_iterator_get_coarse_fe_vef(this, ivef, coarse_fe_vef)
   type(coarse_fe_vef_iterator_t), intent(inout) :: coarse_fe_vef
   call coarse_fe_vef%set_gid(this%cell%get_vef_gid(ivef))
 end subroutine coarse_fe_cell_iterator_get_coarse_fe_vef
+
+! Returns the sum of num_vefs over all cells up-to the present one (exclusive, i.e.,
+! without considering the present one), with the cells being ordered consistently 
+! with the iterator sequential traversal over all cells. At the moment of writing this
+! comment (commit 0907e7b9d07e122ba69e02e0d72bac46546acc04), type(coarse_fe_space_t) needs 
+! this TBP to efficiently locate a vef in the global type(list_t) data type which associates 
+! DoFs to vefs. 
+! Returns the sum of num_vefs over all cells up-to the present one (exclusive, i.e.,
+! without considering the present one), with the cells being ordered consistently 
+! with the iterator sequential traversal over all cells. At the moment of writing this
+! comment (commit 0907e7b9d07e122ba69e02e0d72bac46546acc04), type(coarse_fe_space_t) needs 
+! this TBP to efficiently locate a vef in the global type(list_t) data type which associates 
+! DoFs to vefs. 
+function coarse_fe_cell_iterator_scan_sum_num_vefs(this)
+  implicit none
+  class(coarse_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: coarse_fe_cell_iterator_scan_sum_num_vefs
+  class(triangulation_t), pointer :: triangulation
+  integer(ip), pointer :: ptr_vefs_x_cell(:)
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  triangulation => this%get_triangulation()
+  select type(triangulation)
+  class is (coarse_triangulation_t)
+     ptr_vefs_x_cell => triangulation%get_ptr_vefs_x_cell()
+     coarse_fe_cell_iterator_scan_sum_num_vefs = ptr_vefs_x_cell(this%get_gid())-1
+  class default
+    check(.false.)
+  end select
+end function coarse_fe_cell_iterator_scan_sum_num_vefs
+
+subroutine coarse_fe_cell_iterator_last(this)
+  implicit none
+  class(coarse_fe_cell_iterator_t), intent(inout) :: this
+  class(triangulation_t), pointer :: triangulation
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  triangulation => this%get_triangulation()
+  call this%set_gid(triangulation%get_num_cells())
+end subroutine coarse_fe_cell_iterator_last
+
+

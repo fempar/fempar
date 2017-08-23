@@ -81,11 +81,11 @@ contains
 
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
-    class(base_static_triangulation_t), intent(in)    :: triangulation
+    class(triangulation_t), intent(in)    :: triangulation
 
     integer(ip) :: num_cells, num_cell_nodes, num_subcells, num_subcell_nodes, num_dime
     integer(ip) :: istat, icell, inode, ino, isubcell
-    class(cell_iterator_t), allocatable  :: cell
+    type(unfitted_cell_iterator_t)  :: cell
     type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords
     integer(ip) :: the_cell_type, the_subcell_type
     integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
@@ -93,11 +93,11 @@ contains
     
     call this%free()
 
-    this%environment => triangulation%get_par_environment()
+    this%environment => triangulation%get_environment()
     if ( .not. this%environment%am_i_l1_task() ) return
     my_part_id = this%environment%get_l1_rank() + 1
 
-    call triangulation%create_cell_iterator(cell)
+    call cell%create(triangulation)
 
     select type (triangulation)
     class is (serial_unfitted_triangulation_t)
@@ -155,7 +155,7 @@ contains
 
       call cell%update_sub_triangulation()
 
-      call cell%get_coordinates( cell_coords )
+      call cell%get_nodes_coordinates( cell_coords )
 
       do ino = 1, num_cell_nodes !TODO is it possible to avoid loops like this one?
         this%x(inode) = cell_coords(ino)%get(1)
@@ -219,7 +219,7 @@ contains
     deallocate ( subcell_coords, stat = istat ); check(istat == 0)
     call memfree ( nodes_vtk2fempar, __FILE__, __LINE__ )
     call memfree ( nodesids, __FILE__, __LINE__ )
-    call triangulation%free_cell_iterator(cell)
+    call cell%free()
 
   end subroutine  uvtkw_attach_triangulation
 
@@ -232,18 +232,17 @@ contains
   
     integer(ip) :: num_subfacets, num_subfacet_nodes, num_dime
     integer(ip) :: istat, iface, inode, ino, isubfacet
-    class(cell_iterator_t), allocatable  :: cell
+    type(unfitted_cell_iterator_t)  :: cell
     type(point_t), allocatable, dimension(:) :: subfacet_coords
     integer(ip) :: the_subfacet_type
 
     call this%free()
   
-    this%environment => triangulation%get_par_environment()
+    this%environment => triangulation%get_environment()
     if ( .not. this%environment%am_i_l1_task() ) return
 
-    call triangulation%create_cell_iterator(cell)
-
-  
+    call cell%create(triangulation)
+    
     num_dime = triangulation%get_num_dims()
     num_subfacets = triangulation%get_total_num_subfacets()
     num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
@@ -305,7 +304,7 @@ contains
     if (num_dime == 2_ip) this%z(:) = 0
   
     deallocate ( subfacet_coords, stat = istat ); check(istat == 0)
-    call triangulation%free_cell_iterator(cell)
+    call cell%free()
   
   end subroutine uvtkw_attach_boundary_faces
 
@@ -317,7 +316,7 @@ contains
     class(fe_function_t),                   intent(in)    :: fe_function
     class(serial_fe_space_t),      intent(in)    :: fe_space
 
-    class(base_static_triangulation_t), pointer :: triangulation
+    class(triangulation_t), pointer :: triangulation
     class(fe_cell_iterator_t), allocatable  :: fe
     class(reference_fe_t), pointer :: ref_fe
     type(quadrature_t) :: subcel_nodal_quad
@@ -332,22 +331,23 @@ contains
 
     triangulation => fe_space%get_triangulation()
 
-    this%environment => triangulation%get_par_environment()
+    this%environment => triangulation%get_environment()
     if ( .not. this%environment%am_i_l1_task() ) return
 
     select type(triangulation)
       class is(serial_unfitted_triangulation_t)
         call this%attach_triangulation(triangulation)
         num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
+        num_elem_nodes = triangulation%get_max_num_shape_functions()
       class is (par_unfitted_triangulation_t)
         call this%attach_triangulation(triangulation)
         num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
+        num_elem_nodes = triangulation%get_max_num_shape_functions()
       class default
         check(.false.)
     end select
 
 
-    num_elem_nodes = triangulation%get_max_num_shape_functions()
     num_dime = triangulation%get_num_dims()
 
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
@@ -439,13 +439,13 @@ contains
     type(vector_field_t)  :: normal_vec
     integer(ip), parameter :: the_point_type = 1
 
-    class(base_static_triangulation_t), pointer :: triangulation
+    class(triangulation_t), pointer :: triangulation
 
     call this%free()
 
     triangulation => fe_space%get_triangulation()
 
-    this%environment => triangulation%get_par_environment()
+    this%environment => triangulation%get_environment()
     if ( .not. this%environment%am_i_l1_task() ) return
 
     num_dime       = triangulation%get_num_dims()

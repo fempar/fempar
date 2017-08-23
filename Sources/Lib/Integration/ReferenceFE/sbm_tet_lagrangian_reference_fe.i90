@@ -345,7 +345,7 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
 end subroutine tet_lagrangian_reference_fe_fill_interpolation
 
 !==================================================================================================
-subroutine tet_lagrangian_reference_fe_fill_facet_interpolation (this, local_quadrature, facet_lid, facet_interpolation)
+subroutine tet_lagrangian_reference_fe_fill_interp_restricted_to_facet (this, local_quadrature, facet_lid, facet_interpolation)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                      , intent(in)    :: local_quadrature
@@ -374,7 +374,7 @@ subroutine tet_lagrangian_reference_fe_fill_facet_interpolation (this, local_qua
   call this%fill_interpolation( aux_quadrature, facet_interpolation ) 
   call aux_quadrature%free()
 
-end subroutine tet_lagrangian_reference_fe_fill_facet_interpolation
+end subroutine tet_lagrangian_reference_fe_fill_interp_restricted_to_facet
 
 !=================================================================================================
 function tet_lagrangian_reference_fe_compute_num_quadrature_points( this, degree, dimension )

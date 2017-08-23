@@ -133,25 +133,23 @@ subroutine triangulation_free_environment ( this )
   this%environment_allocated = .false.
 end subroutine triangulation_free_environment 
 
-
-
 subroutine triangulation_set_up_lst_itfc_vefs (this)
   implicit none
   class(triangulation_t), intent(inout) :: this
   class(vef_iterator_t), allocatable  :: vef
   integer(ip) :: vef_gid
-  !assert ( this%num_vefs >= 0 )
-  !! Find vefs at interfaces
-  !call this%lst_itfc_vefs%resize(0)
-  !call this%create_vef_iterator(vef)
-  !do while ( .not. vef%has_finished() )
-  !   if(vef%is_at_interface()) then
-  !      vef_gid = vef%get_gid()
-  !      call this%lst_itfc_vefs%push_back(vef_gid)
-  !   end if
-  !   call vef%next()
-  !end do
-  !call this%free_vef_iterator(vef)
+  assert ( this%num_vefs >= 0 )
+  ! Find vefs at interfaces
+  call this%lst_itfc_vefs%resize(0)
+  call this%create_vef_iterator(vef)
+  do while ( .not. vef%has_finished() )
+     if(vef%is_at_interface()) then
+        vef_gid = vef%get_gid()
+        call this%lst_itfc_vefs%push_back(vef_gid)
+     end if
+     call vef%next()
+  end do
+  call this%free_vef_iterator(vef)
 end subroutine triangulation_set_up_lst_itfc_vefs
 
 subroutine triangulation_free_lst_itfc_vefs( this )

@@ -93,11 +93,11 @@ subroutine marching_cubes_create(this, triangulation, level_set_function)
   class(marching_cubes_t),            target,  intent(inout)  :: this
   class(base_static_triangulation_t), target,  intent(in)     :: triangulation
   class(level_set_function_t),        target,  intent(in)     :: level_set_function
-  type(environment_t), pointer           :: par_environment
+  type(environment_t), pointer           :: environment
   call this%free()
-  par_environment => triangulation%get_par_environment()
+  environment => triangulation%get_environment()
   this%triangulation => triangulation
-  if ( par_environment%am_i_l1_task() ) then
+  if ( environment%am_i_l1_task() ) then
     assert(this%fulfills_assumptions())
     this%level_set_function => level_set_function
     call this%mc_tables_create()
@@ -126,17 +126,17 @@ function marching_cubes_get_num_cut_cells( this ) result ( num_cut_cells )
   class(marching_cubes_t), intent(in)    :: this
 
   integer(ip) :: num_cut_cells
-  class(cell_iterator_t), allocatable :: cell
+  type(unfitted_cell_iterator_t) :: cell
 
   num_cut_cells = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
+  call cell%create(this%triangulation)
   do while ( .not. cell%has_finished() )
     if ( cell%is_cut() ) then
       num_cut_cells = num_cut_cells + 1_ip
     end if
     call cell%next()
   end do
-  call this%triangulation%free_cell_iterator(cell)
+  call cell%free()
 
 end function marching_cubes_get_num_cut_cells
 
@@ -147,17 +147,17 @@ function marching_cubes_get_num_interior_cells( this ) result ( num_interior_cel
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: num_interior_cells
 
-  class(cell_iterator_t), allocatable :: cell
+  type(unfitted_cell_iterator_t) :: cell
 
   num_interior_cells = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
+  call cell%create(this%triangulation)
   do while ( .not. cell%has_finished() )
     if ( cell%is_interior() ) then
       num_interior_cells = num_interior_cells + 1_ip
     end if
     call cell%next()
   end do
-  call this%triangulation%free_cell_iterator(cell)
+  call cell%free()
 
 end function marching_cubes_get_num_interior_cells
 
@@ -168,17 +168,17 @@ function marching_cubes_get_num_exterior_cells( this ) result ( num_exterior_cel
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: num_exterior_cells
 
-  class(cell_iterator_t), allocatable :: cell
+  type(unfitted_cell_iterator_t) :: cell
 
   num_exterior_cells = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
+  call cell%create(this%triangulation)
   do while ( .not. cell%has_finished() )
     if ( cell%is_exterior() ) then
       num_exterior_cells = num_exterior_cells + 1_ip
     end if
     call cell%next()
   end do
-  call this%triangulation%free_cell_iterator(cell)
+  call cell%free()
 
 end function marching_cubes_get_num_exterior_cells
 
@@ -205,10 +205,10 @@ function marching_cubes_get_total_num_subcells( this ) result ( total_num )
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: total_num
 
-  class(cell_iterator_t), allocatable :: cell
+  type(unfitted_cell_iterator_t) :: cell
 
   total_num = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
+  call cell%create(this%triangulation)
   do while ( .not. cell%has_finished() )
     if (cell%is_ghost()) then
       call cell%next(); cycle
@@ -217,7 +217,7 @@ function marching_cubes_get_total_num_subcells( this ) result ( total_num )
     total_num = total_num + cell%get_num_subcells()
     call cell%next()
   end do
-  call this%triangulation%free_cell_iterator(cell)
+  call cell%free()
 
 end function marching_cubes_get_total_num_subcells
 
@@ -244,16 +244,16 @@ function marching_cubes_get_total_num_subfacets( this ) result ( total_num )
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: total_num
 
-  class(cell_iterator_t), allocatable :: cell
+  type(unfitted_cell_iterator_t) :: cell
 
   total_num = 0_ip
-  call this%triangulation%create_cell_iterator(cell)
+  call cell%create(this%triangulation)
   do while ( .not. cell%has_finished() )
     call cell%update_sub_triangulation()
     total_num = total_num + cell%get_num_subfacets()
     call cell%next()
   end do
-  call this%triangulation%free_cell_iterator(cell)
+  call cell%free()
 
 end function marching_cubes_get_total_num_subfacets
 
@@ -305,7 +305,7 @@ subroutine marching_cubes_print ( this )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
 
-  class(cell_iterator_t), allocatable :: cell
+  type(unfitted_cell_iterator_t) :: cell
   type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords, subfacet_coords
   integer(ip) :: inode, isubcell, isubfacet
 
@@ -329,7 +329,7 @@ subroutine marching_cubes_print ( this )
   write(*,*) " "
 
   ! Print basic info of cells
-  call this%triangulation%create_cell_iterator(cell)
+  call cell%create(this%triangulation)
   write(*,'(7a20)') 'id', 'is_cut', 'is_interior', 'is_exterior', 'num_nodes' , 'num_subcells', 'num_nodes_subcell'
   do while ( .not. cell%has_finished() )
     write(*,'(i20,3L20,3i20)') cell%get_gid(), cell%is_cut(), cell%is_interior(), cell%is_exterior(), &
@@ -348,7 +348,7 @@ subroutine marching_cubes_print ( this )
   do while ( .not. cell%has_finished() )
     ! TODO where is the safe place to put this update?
     call cell%update_sub_triangulation()
-    call cell%get_coordinates( cell_coords )
+    call cell%get_nodes_coordinates( cell_coords )
     write (*,'(i7,2a7,20(2x,e9.2))'  ) cell%get_gid(), ' ', ' ',(cell_coords(inode)%get_value(),inode=1,cell%get_num_nodes())
     do isubcell = 1, cell%get_num_subcells()
       call cell%get_phys_coords_of_subcell(isubcell,subcell_coords)
@@ -368,7 +368,7 @@ subroutine marching_cubes_print ( this )
  call memfree( cell_coords   , __FILE__, __LINE__ )
  call memfree( subcell_coords, __FILE__, __LINE__ )
  call memfree( subfacet_coords, __FILE__, __LINE__ )
- call this%triangulation%free_cell_iterator(cell)
+ call cell%free()
 
 end subroutine marching_cubes_print
 
@@ -380,19 +380,19 @@ function marching_cubes_fulfills_assumptions(this) result (fulfills)
   class(marching_cubes_t), intent(in) :: this
   logical :: fulfills
 
-  class(cell_iterator_t), allocatable  :: cell
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(unfitted_cell_iterator_t)  :: cell
+  class(reference_fe_t), pointer :: reference_fe_geo
   character(:),                 allocatable :: topology
   integer(ip)                               :: num_dim, num_dim_tmp, p_order
 
   ! Hypothesis: All cells in the mesh are either bi-linear qua or tri-linear hex
   fulfills = .true.
-  call this%triangulation%create_cell_iterator(cell)
+  call cell%create(this%triangulation)
   num_dim  = this%triangulation%get_num_dims()
   if ( (num_dim .ne. 2) .and. (num_dim .ne. 3) ) fulfills = .false.
   do while ( .not. cell%has_finished() )
     if (cell%is_local()) then
-      reference_fe_geo => cell%get_reference_fe_geo()
+      reference_fe_geo => cell%get_reference_fe()
       num_dim_tmp  = reference_fe_geo%get_num_dims()
       if (num_dim .ne. num_dim_tmp) fulfills = .false.
       p_order  = reference_fe_geo%get_order()
@@ -403,7 +403,7 @@ function marching_cubes_fulfills_assumptions(this) result (fulfills)
     end if
     call cell%next()
   end do
-  call this%triangulation%free_cell_iterator(cell)
+  call cell%free()
 
 end function marching_cubes_fulfills_assumptions
 
@@ -542,14 +542,14 @@ subroutine marching_cubes_discrete_levelset_create(this)
   class(marching_cubes_t), target, intent(inout) :: this
 
   class(base_static_triangulation_t), pointer :: triangulation
-  class(lagrangian_reference_fe_t),   pointer :: ref_fe_geo
+  class(reference_fe_t),   pointer :: ref_fe_geo
   class(serial_fe_space_t),           pointer :: fe_space
-  class(cell_iterator_t), allocatable :: cell
+  type(unfitted_cell_iterator_t) :: cell
   integer(ip) :: istat
 
   ! Create the reference fe
-  call this%triangulation%create_cell_iterator(cell)
-  ref_fe_geo => cell%get_reference_fe_geo()
+  call cell%create(this%triangulation)
+  ref_fe_geo => cell%get_reference_fe()
   allocate(this%reference_fes(1),stat=istat); check(istat==0)
   this%reference_fes(1) =  make_reference_fe ( topology = ref_fe_geo%get_topology(), &
                                                fe_type = fe_type_lagrangian, &
@@ -558,7 +558,7 @@ subroutine marching_cubes_discrete_levelset_create(this)
                                                field_type = field_type_scalar, &
                                                conformity = .true., &
                                                continuity = .true. )
-  call this%triangulation%free_cell_iterator(cell)
+  call cell%free()
 
   ! Create the fe space
   triangulation => this%triangulation
@@ -635,8 +635,8 @@ subroutine marching_cubes_discrete_levelset_fix(this)
   class(marching_cubes_t), intent(inout) :: this
 
   class(fe_cell_iterator_t),   allocatable  :: fe
-  class(cell_iterator_t), allocatable  :: cell
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(unfitted_cell_iterator_t)  :: cell
+  class(reference_fe_t), pointer :: reference_fe_geo
   type(point_t), allocatable :: Xe_ref(:)
   real(rp), allocatable :: nodal_vals(:)
   integer(ip), parameter :: edge_dim = 1
@@ -662,12 +662,12 @@ subroutine marching_cubes_discrete_levelset_fix(this)
 
   ! Get the nodal coordinates in the reference element
   call this%fe_space%create_fe_cell_iterator(fe)
-  call this%triangulation%create_cell_iterator(cell)
+  call cell%create(this%triangulation)
   reference_fe_geo => fe%get_reference_fe_geo()
   num_nodes = cell%get_num_nodes()
   allocate( Xe_ref(1:num_nodes), stat=istat ); check(istat == 0)
-  call cell%get_coordinates_ref_space( Xe_ref )
-  call this%triangulation%free_cell_iterator(cell)
+  call cell%get_nodes_coordinates_ref_space( Xe_ref )
+  call cell%free()
 
   ! Check that the length of the edge is ok
   DX = Xe_ref(1) - Xe_ref(2)
@@ -811,8 +811,8 @@ subroutine marching_cubes_mc_runtime_info_create(this)
   class(marching_cubes_t), intent(inout) :: this
 
   class(fe_cell_iterator_t), allocatable  :: fe
-  class(cell_iterator_t), allocatable  :: cell
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(unfitted_cell_iterator_t)  :: cell
+  class(reference_fe_t), pointer :: reference_fe_geo
   type(point_t), allocatable :: Xe_ref(:)
   real(rp), allocatable :: nodal_vals(:)
   integer(ip), parameter :: edge_dim = 1
@@ -834,12 +834,12 @@ subroutine marching_cubes_mc_runtime_info_create(this)
 
   ! Get the nodal coordinates in the reference element
   call this%fe_space%create_fe_cell_iterator(fe)
-  call this%triangulation%create_cell_iterator(cell)
+  call cell%create(this%triangulation)
   reference_fe_geo => fe%get_reference_fe_geo()
   num_nodes = cell%get_num_nodes()
   allocate( Xe_ref(1:num_nodes), stat=istat ); check(istat == 0)
-  call cell%get_coordinates_ref_space( Xe_ref )
-  call this%triangulation%free_cell_iterator(cell)
+  call cell%get_nodes_coordinates_ref_space( Xe_ref )
+  call cell%free()
 
   ! Allocate and fill marching cube cases
   num_cells = this%triangulation%get_num_local_cells()
@@ -957,8 +957,8 @@ subroutine marching_cubes_subnodes_data_create( this )
   class(marching_cubes_t), intent(inout) :: this
 
   integer(ip) :: istat, icase
-  class(cell_iterator_t), allocatable  :: cell
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  type(unfitted_cell_iterator_t)  :: cell
+  class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: n_subcells, n_subfacets, n_subnodes, n_nodes_subcell, n_nodes_subfacet  
 
   assert(this%mc_tables_init)
@@ -971,14 +971,14 @@ subroutine marching_cubes_subnodes_data_create( this )
   allocate( this%subnodes_cell_maps          (1:this%get_num_mc_cases()), stat=istat); check(istat==0_ip)
 
   ! Initialize each one of the quadratures
-  call this%triangulation%create_cell_iterator(cell)
+  call cell%create(this%triangulation)
   do icase=1, this%get_num_mc_cases()
     n_subnodes =  this%mc_table_num_cut_edges_x_case(icase) + cell%get_num_nodes()
     call this%subnodes_nodal_quadratures(icase)%create(this%triangulation%get_num_dims(),n_subnodes)
   end do
 
   ! Initialize each one of the cell_maps
-  reference_fe_geo => cell%get_reference_fe_geo()
+  reference_fe_geo => cell%get_reference_fe()
   do icase=1, this%get_num_mc_cases()
     call this%subnodes_cell_maps(icase)%create( this%subnodes_nodal_quadratures(icase), reference_fe_geo)
   end do
@@ -994,7 +994,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   call memalloc(n_subcells,this%subcell_has_been_reoriented,__FILE__,__LINE__)
   allocate( this%subnodes_ref_coords(1:n_subnodes) , stat=istat); check(istat==0_ip)
 
-  call this%triangulation%free_cell_iterator(cell)
+  call cell%free()
 end subroutine marching_cubes_subnodes_data_create
 
 !========================================================================================

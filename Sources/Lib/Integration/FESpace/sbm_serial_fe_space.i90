@@ -1673,8 +1673,8 @@ function serial_fe_space_generate_cell_quadratures_position_key ( this, geo_refe
   integer(ip)                 , intent(in) :: quadrature_degree
   integer(ip) :: serial_fe_space_generate_cell_quadratures_position_key
   massert ( quadrature_degree >= -1,  "serial_fe_space_generate_cell_quadratures_position_key::Invalid quadrature degree")
-  massert ( geo_reference_fe_id >= 1 .and. geo_reference_fe_id <= this%triangulation%get_num_reference_fes_geo(), "serial_fe_space_generate_cell_quadratures_position_key::Invalid geo_reference_fe_id" )
-  serial_fe_space_generate_cell_quadratures_position_key = quadrature_degree * this%triangulation%get_num_reference_fes_geo() + geo_reference_fe_id + this%triangulation%get_num_reference_fes_geo()
+  massert ( geo_reference_fe_id >= 1 .and. geo_reference_fe_id <= this%triangulation%get_num_reference_fes(), "serial_fe_space_generate_cell_quadratures_position_key::Invalid geo_reference_fe_id" )
+  serial_fe_space_generate_cell_quadratures_position_key = quadrature_degree * this%triangulation%get_num_reference_fes() + geo_reference_fe_id + this%triangulation%get_num_reference_fes()
 end function serial_fe_space_generate_cell_quadratures_position_key
 
 ! Some comments:
@@ -1760,18 +1760,16 @@ subroutine serial_fe_space_fill_facet_gids ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   type(fe_vef_iterator_t) :: fe_vef
-  integer(ip)             :: facet_gid
-  facet_gid = 0
-  call this%facet_gids%resize(this%triangulation%get_num_facets())
+  call this%facet_gids%resize(0)
   call this%create_fe_vef_iterator(fe_vef)
   do while ( .not. fe_vef%has_finished() )
     if ( fe_vef%is_facet() ) then
-      facet_gid = facet_gid + 1
-      call this%facet_gids%set(facet_gid,fe_vef%get_gid())
+      call this%facet_gids%push_back(fe_vef%get_gid())
     end if
     call fe_vef%next()
   end do
   call this%free_fe_vef_iterator(fe_vef)
+  call this%facet_gids%shrink_to_fit()
 end subroutine serial_fe_space_fill_facet_gids
 
 subroutine serial_fe_space_free_facet_gids ( this )
@@ -2040,7 +2038,7 @@ function serial_fe_space_facet_quadratures_position_key ( this, quadrature_degre
   integer(ip) :: serial_fe_space_facet_quadratures_position_key
   integer(ip) :: num_reference_fes_geo
 
-  num_reference_fes_geo = this%triangulation%get_num_reference_fes_geo()
+  num_reference_fes_geo = this%triangulation%get_num_reference_fes()
   serial_fe_space_facet_quadratures_position_key = left_geo_reference_fe_id + &
        (num_reference_fes_geo)*(right_geo_reference_fe_id) + &
        (num_reference_fes_geo)*(num_reference_fes_geo+1)*(quadrature_degree+1)
@@ -2609,7 +2607,7 @@ subroutine serial_fe_space_create_fe_facet_iterator ( this, fe_face )
   class(triangulation_t), pointer :: triangulation
   integer(ip)          :: istat
   call this%free_fe_facet_iterator(fe_face)
-  triangulation => fe_face%fe_space%get_triangulation()
+  triangulation => this%get_triangulation()
   call triangulation%create_vef_iterator(vef)
   allocate(fe_facet_iterator_t :: fe_face, stat=istat); check(istat==0)
   call fe_face%create(this,vef)

@@ -114,17 +114,17 @@ subroutine void_reference_fe_create_interpolation_restricted_to_facet( this,face
        & local_quadrature%num_quadrature_points, 0 )
 
   ! Fill the values of the shape functions
-  !call this%fill_facet_interpolation(local_quadrature,facet_lid,facet_interpolation)
+  !call this%fill_interp_restricted_to_facet(local_quadrature,facet_lid,facet_interpolation)
 end subroutine void_reference_fe_create_interpolation_restricted_to_facet
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine void_reference_fe_create_facet_interpolation (this, quadrature, interpolation)
+subroutine void_reference_fe_create_facet_interpolation (this, quadrature, facet_interpolation)
   implicit none
   class(void_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation
+  type(interpolation_t)           , intent(inout) :: facet_interpolation
 
   type(p_reference_fe_t) :: aux_reference_fe
 
@@ -135,18 +135,18 @@ subroutine void_reference_fe_create_facet_interpolation (this, quadrature, inter
                                          this%field_type, &
                                          this%conformity )
   
-  call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
+  call aux_reference_fe%p%create_interpolation ( quadrature, facet_interpolation )
   call aux_reference_fe%free()
 end subroutine void_reference_fe_create_facet_interpolation
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine void_reference_fe_create_edget_interpolation (this, quadrature, interpolation)
+subroutine void_reference_fe_create_edget_interpolation (this, quadrature, edget_interpolation)
   implicit none
   class(void_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation
+  type(interpolation_t)           , intent(inout) :: edget_interpolation
   type(p_reference_fe_t) :: aux_reference_fe
   aux_reference_fe = make_reference_fe ( this%topology, &
                                          this%fe_type, &
@@ -154,7 +154,7 @@ subroutine void_reference_fe_create_edget_interpolation (this, quadrature, inter
                                          this%order, &
                                          this%field_type, &
                                          this%conformity )
-  call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
+  call aux_reference_fe%p%create_interpolation ( quadrature, edget_interpolation )
   call aux_reference_fe%free()
 end subroutine void_reference_fe_create_edget_interpolation
 
@@ -685,3 +685,29 @@ subroutine void_reference_fe_fill (this)
   ! call memalloc (0, this%num_orientations_x_dim,__FILE__,__LINE__)
   ! allocate(this%own_node_permutations(0))
 end subroutine void_reference_fe_fill
+
+!==================================================================================================
+function void_reference_fe_get_num_subcells(this, num_refinements) result(num_subcells)
+  class(void_reference_fe_t), intent(in)    :: this
+  integer(ip)               , intent(in)    :: num_refinements
+  integer(ip) :: num_subcells
+  check(.false.)
+end function void_reference_fe_get_num_subcells
+
+!==================================================================================================
+subroutine void_reference_fe_get_subcells_connectivity(this, num_refinements, connectivity)
+  implicit none
+  class(void_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: num_refinements
+  integer(ip)                         , intent(inout) :: connectivity(:,:)
+  check(.false.)
+end subroutine void_reference_fe_get_subcells_connectivity
+
+!==================================================================================================
+subroutine void_reference_fe_create_data_out_quadrature ( this, num_refinements, quadrature )
+  implicit none
+  class(void_reference_fe_t), intent(in)    :: this
+  integer(ip)                         , intent(in)    :: num_refinements
+  type(quadrature_t)                  , intent(inout) :: quadrature
+  check(.false.)
+end subroutine void_reference_fe_create_data_out_quadrature

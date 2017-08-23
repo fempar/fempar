@@ -40,11 +40,9 @@ module unfitted_triangulations_names
 # include "mc_tables_qua4.i90"
 # include "mc_tables_hex8.i90"
   
-  type, extends(cell_iterator_t) :: unfitted_cell_iterator_t
-  
+  type, extends(bst_cell_iterator_t) :: unfitted_cell_iterator_t
     private
     class(marching_cubes_t), pointer :: marching_cubes => NULL()
-    
   contains
 
     ! Creation / deletion methods
@@ -83,8 +81,6 @@ module unfitted_triangulations_names
     procedure, non_overridable, private :: get_num_subnodes         => unfitted_cell_iterator_get_num_subnodes
     procedure, non_overridable, private :: subcell_has_been_reoriented    => unfitted_cell_iterator_subcell_has_been_reoriented
     procedure, non_overridable, private :: subfacet_touches_interior_reoriented_subcell => unfitted_cell_iterator_subfacet_touches_reoriented_subcell
-
-    
   end type unfitted_cell_iterator_t
 
   ! We need this to create a par fe space in marching_cubes_t to hold a discrete levelset function
@@ -196,15 +192,12 @@ module unfitted_triangulations_names
     procedure, non_overridable, private :: mc_runtime_info_free           => marching_cubes_mc_runtime_info_free
     procedure, non_overridable, private :: subnodes_data_create           => marching_cubes_subnodes_data_create
     procedure, non_overridable, private :: subnodes_data_free             => marching_cubes_subnodes_data_free
-    
-
   end type marching_cubes_t
 
   type, extends(serial_triangulation_t) :: serial_unfitted_triangulation_t
     private
       type(marching_cubes_t) :: marching_cubes
     contains
-
       ! Creation / deletion methods
       generic             :: create                       => sut_create
       procedure           :: free                         => sut_free

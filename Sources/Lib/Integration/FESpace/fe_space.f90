@@ -126,7 +126,6 @@ module fe_space_names
     ! Methods exploiting ("inherited from") cell_t common to all descendants
     procedure, non_overridable           :: next                    => base_fe_cell_iterator_next
     procedure, non_overridable           :: first                   => base_fe_cell_iterator_first
-    procedure, non_overridable           :: last                    => base_fe_cell_iterator_last
     procedure, non_overridable           :: set_gid                 => base_fe_cell_iterator_set_gid
     procedure, non_overridable           :: has_finished            => base_fe_cell_iterator_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => base_fe_cell_iterator_get_reference_fe_geo
@@ -146,9 +145,10 @@ module fe_space_names
     procedure, non_overridable           :: get_vef_lid_from_ggid   => base_fe_cell_iterator_get_vef_lid_from_ggid
     procedure, non_overridable           :: is_local                => base_fe_cell_iterator_is_local
     procedure, non_overridable           :: is_ghost                => base_fe_cell_iterator_is_ghost
-    procedure, non_overridable           :: scan_sum_num_vefs       => base_fe_cell_iterator_get_scan_sum_num_vefs
     procedure, non_overridable, private  :: base_fe_cell_iterator_get_vef
     generic                              :: get_vef                 => base_fe_cell_iterator_get_vef
+    procedure, non_overridable           :: get_triangulation       => base_fe_cell_iterator_get_triangulation
+    
     procedure                            :: update_sub_triangulation    => base_fe_cell_iterator_update_sub_triangulation
     procedure                            :: get_mc_case                 => base_fe_cell_iterator_get_mc_case
     procedure                            :: get_num_subcells            => base_fe_cell_iterator_get_num_subcells
@@ -713,21 +713,24 @@ module fe_space_names
     private
     type(coarse_fe_space_t), pointer :: coarse_fe_space => NULL()
   contains
-    procedure, non_overridable, private :: create                                     => coarse_fe_cell_iterator_create
-    procedure, non_overridable, private :: free                                       => coarse_fe_cell_iterator_free
+    procedure, non_overridable, private :: create                                      => coarse_fe_cell_iterator_create
+    procedure, non_overridable, private :: free                                        => coarse_fe_cell_iterator_free
     final                               :: coarse_fe_cell_iterator_free_final
-    procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => coarse_fe_cell_iterator_create_own_dofs_on_vef_iterator
+    procedure, non_overridable          :: create_own_dofs_on_vef_iterator             => coarse_fe_cell_iterator_create_own_dofs_on_vef_iterator
     procedure, non_overridable, private :: generate_own_dofs_vef                       => coarse_fe_cell_iterator_generate_own_dofs_vef
     procedure, non_overridable, private :: generate_own_dofs_vef_from_source_coarse_fe => cfeci_generate_own_dofs_vef_from_source_coarse_fe
-    procedure, non_overridable, private :: renum_dofs_block                        => coarse_fe_cell_iterator_renum_dofs_block
-    procedure, non_overridable, private :: renum_dofs_field                        => coarse_fe_cell_iterator_renum_dofs_field
+    procedure, non_overridable, private :: renum_dofs_block                            => coarse_fe_cell_iterator_renum_dofs_block
+    procedure, non_overridable, private :: renum_dofs_field                            => coarse_fe_cell_iterator_renum_dofs_field
     
-    procedure, non_overridable, private :: get_scan_sum_num_dofs                   => coarse_fe_cell_iterator_get_scan_sum_num_dofs
-    procedure, non_overridable          :: get_num_fe_spaces                       => coarse_fe_cell_iterator_get_num_fe_spaces
-    procedure, non_overridable          :: get_num_dofs                            => coarse_fe_cell_iterator_get_num_dofs
-    procedure, non_overridable          :: get_fe_dofs                               => coarse_fe_cell_iterator_get_fe_dofs
-    procedure, non_overridable          :: get_field_fe_dofs                         => coarse_fe_cell_iterator_get_field_fe_dofs
-    procedure, non_overridable          :: get_coarse_fe_vef                          => coarse_fe_cell_iterator_get_coarse_fe_vef
+    procedure, non_overridable, private :: get_scan_sum_num_dofs                       => coarse_fe_cell_iterator_get_scan_sum_num_dofs
+    procedure, non_overridable          :: get_num_fe_spaces                           => coarse_fe_cell_iterator_get_num_fe_spaces
+    procedure, non_overridable          :: get_num_dofs                                => coarse_fe_cell_iterator_get_num_dofs
+    procedure, non_overridable          :: get_fe_dofs                                 => coarse_fe_cell_iterator_get_fe_dofs
+    procedure, non_overridable          :: get_field_fe_dofs                           => coarse_fe_cell_iterator_get_field_fe_dofs
+    procedure, non_overridable          :: get_coarse_fe_vef                           => coarse_fe_cell_iterator_get_coarse_fe_vef
+    
+    procedure, non_overridable          :: last                                        => coarse_fe_cell_iterator_last
+    procedure, non_overridable          :: scan_sum_num_vefs                           => coarse_fe_cell_iterator_scan_sum_num_vefs
   end type coarse_fe_cell_iterator_t
   
   type, extends(base_fe_vef_iterator_t) :: coarse_fe_vef_iterator_t

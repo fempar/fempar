@@ -38,7 +38,7 @@ module stiffness_weighting_l1_coarse_fe_handler_names
   use dof_import_names
   use serial_scalar_array_names
   use fe_affine_operator_names
-  use base_static_triangulation_names
+  use triangulation_names
   use cell_import_names
 
   implicit none

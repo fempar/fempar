@@ -105,15 +105,15 @@ contains
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    type(vef_iterator_t)  :: vef
+    class(vef_iterator_t), allocatable  :: vef
     class(cell_iterator_t), allocatable       :: cell
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    class(reference_fe_t), pointer :: reference_fe_geo
 
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 
     call this%triangulation%create_cell_iterator(cell)
-    reference_fe_geo => cell%get_reference_fe_geo()
+    reference_fe_geo => cell%get_reference_fe()
 	
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
                                                  fe_type = fe_type_nedelec,                                   &
@@ -128,7 +128,7 @@ contains
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
-		  call vef%set_set_id(1)
+		           call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if

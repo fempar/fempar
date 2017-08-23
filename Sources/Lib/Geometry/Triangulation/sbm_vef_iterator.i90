@@ -57,8 +57,7 @@ function vef_iterator_has_finished(this)
   implicit none
   class(vef_iterator_t), intent(in) :: this
   logical :: vef_iterator_has_finished
-  vef_iterator_has_finished = (this%gid > this%triangulation%num_local_cells + &
-                                           this%triangulation%num_ghost_cells)
+  vef_iterator_has_finished = (this%gid > this%triangulation%num_vefs)
 end function vef_iterator_has_finished
 
 function vef_iterator_get_gid(this)

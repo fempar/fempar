@@ -108,7 +108,7 @@ subroutine nedelec_create_interpolation_restricted_to_facet( this, facet_lid, lo
                                  0 )
 
   ! Fill the values of the shape functions
-  call this%fill_facet_interpolation(local_quadrature, &
+  call this%fill_interp_restricted_to_facet(local_quadrature, &
                                     facet_lid, &
                                     facet_interpolation)
 
@@ -320,21 +320,21 @@ subroutine nedelec_fill_vector (this)
 end subroutine nedelec_fill_vector
 
 subroutine nedelec_create_facet_interpolation ( this, quadrature, &
-     & interpolation)
+     & facet_interpolation)
   implicit none
   class(nedelec_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation
+  type(interpolation_t)           , intent(inout) :: facet_interpolation
 
   write(0,*) 'Nedelec FEs cannot be used for geometry mapping'
   check(.false.)
 end subroutine nedelec_create_facet_interpolation
 
-subroutine nedelec_create_edget_interpolation ( this, quadrature, interpolation)
+subroutine nedelec_create_edget_interpolation ( this, quadrature, edget_interpolation)
   implicit none
   class(nedelec_reference_fe_t)   , intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation
+  type(interpolation_t)           , intent(inout) :: edget_interpolation
 
   write(0,*) 'Nedelec FEs cannot be used for geometry mapping'
   check(.false.)

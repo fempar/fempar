@@ -720,6 +720,8 @@ subroutine bst_find_local_ghost_vefs (this)
         call vef%set_it_as_local()
      else if(vef_is_ghost) then
         call vef%set_it_as_ghost()
+     else
+        call vef%set_it_at_interface()
      end if
      call vef%next()
   end do
@@ -856,12 +858,12 @@ subroutine bst_print ( this )
     call triangulation_free(this)
    end subroutine bst_free
 
-   function bst_get_num_reference_fes_geo ( this ) 
+   function bst_get_num_reference_fes ( this ) 
      implicit none
      class(base_static_triangulation_t), intent(in) :: this
-     integer(ip) :: bst_get_num_reference_fes_geo
-     bst_get_num_reference_fes_geo = max_num_reference_fes_geo
-   end function bst_get_num_reference_fes_geo
+     integer(ip) :: bst_get_num_reference_fes
+     bst_get_num_reference_fes = max_num_reference_fes_geo
+   end function bst_get_num_reference_fes
    
    function bst_get_max_num_shape_functions ( this ) 
      implicit none

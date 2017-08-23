@@ -39,7 +39,7 @@ module unfitted_l1_coarse_fe_handler_names
   use serial_scalar_array_names
   use fe_affine_operator_names
   use list_types_names
-  use base_static_triangulation_names
+  use triangulation_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
   use cell_import_names
@@ -93,7 +93,7 @@ subroutine unfitted_l1_create(this, fe_affine_operator, parameter_list)
 
   class(matrix_t),            pointer :: matrix
   class(serial_fe_space_t),   pointer :: fe_space
-  type(environment_t),        pointer :: par_environment
+  type(environment_t),        pointer :: environment
 
   call this%free()
 
@@ -109,10 +109,10 @@ subroutine unfitted_l1_create(this, fe_affine_operator, parameter_list)
 
   this%parameter_list => parameter_list
 
-  par_environment => this%par_fe_space%get_environment()
-  assert (associated(par_environment))
+  environment => this%par_fe_space%get_environment()
+  assert (associated(environment))
 
-  if (par_environment%am_i_l1_task()) then
+  if (environment%am_i_l1_task()) then
     call this%setup_object_gid_to_dof_gids()
     call this%setup_dof_gid_to_cdof_id_in_object()
   end if
@@ -148,7 +148,7 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,field_id,par_fe_space,parameter_
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
 
-  type(environment_t), pointer  :: par_environment
+  type(environment_t), pointer  :: environment
   integer(ip)                   :: max_cdof_gid_in_object
   logical, allocatable          :: visited_cdof_gids_in_object(:)
   type(list_iterator_t)         :: dofs_in_object_iterator
@@ -157,9 +157,9 @@ subroutine unfitted_l1_get_num_coarse_dofs(this,field_id,par_fe_space,parameter_
 
   assert(field_id == 1)
 
-  par_environment => this%par_fe_space%get_environment()
-  assert ( associated ( par_environment ) )
-  assert ( par_environment%am_i_l1_task() )
+  environment => this%par_fe_space%get_environment()
+  assert ( associated ( environment ) )
+  assert ( environment%am_i_l1_task() )
   assert ( size(num_coarse_dofs) == this%par_fe_space%get_num_fe_objects() )
 
 
@@ -198,7 +198,7 @@ subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parame
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
 
-  type(environment_t), pointer :: par_environment
+  type(environment_t), pointer :: environment
   integer(ip)                  :: block_id
   integer(ip),         pointer :: field_to_block(:)
   integer(ip)                  :: num_cols, num_rows
@@ -209,9 +209,9 @@ subroutine unfitted_l1_setup_constraint_matrix(this,field_id,par_fe_space,parame
   integer(ip)                  :: cdof_gid
   type(fe_object_iterator_t)   :: object
 
-  par_environment => this%par_fe_space%get_environment()
-  assert (associated(par_environment))
-  assert (par_environment%am_i_l1_task())
+  environment => this%par_fe_space%get_environment()
+  assert (associated(environment))
+  assert (environment%am_i_l1_task())
 
   ! We assume a single field for the moment
   assert(field_id == 1)
@@ -291,7 +291,7 @@ subroutine unfitted_l1_setup_object_gid_to_dof_gids(this)
   integer(ip)                        :: ivef_within_object
   integer(ip)                        :: idof, dof_gid
   logical                            :: dofs_on_vef
-  type(environment_t), pointer       :: par_environment
+  type(environment_t), pointer       :: environment
   type(fe_object_iterator_t)         :: object
   type(fe_vef_iterator_t)            :: vef
   class(fe_cell_iterator_t), allocatable  :: fe
@@ -531,10 +531,10 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   integer(ip) :: field_id
   class(par_fe_space_t), pointer :: par_fe_space
   class(par_unfitted_fe_space_t), pointer :: par_unf_fe_space
-  class(base_static_triangulation_t), pointer :: triangulation
+  class(triangulation_t), pointer :: triangulation
   class(fe_cell_iterator_t), allocatable  :: fe
   integer(ip) :: num_total_cells
-  type(environment_t), pointer :: par_environment
+  type(environment_t), pointer :: environment
   type(cell_import_t), pointer :: cell_import
   integer(ip), pointer :: fe_dofs(:)
 
@@ -569,10 +569,10 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
   ! Communicate so that the ghost also have this info
   ! TODO this could be avoided if ghost cells have also the coordinates
   ! For the structured triangulation seems to be true, but for the unstructured?
-  par_environment => triangulation%get_par_environment()
+  environment => triangulation%get_environment()
   cell_import => triangulation%get_cell_import()
-  if(par_environment%get_l1_size()>1) &
-  call par_environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+  if(environment%get_l1_size()>1) &
+  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
                                                 cell_import%get_neighbours_ids(),    &
                                                 cell_import%get_rcv_ptrs(),          &
                                                 cell_import%get_rcv_leids(),         &

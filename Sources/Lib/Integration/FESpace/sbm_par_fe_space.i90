@@ -221,7 +221,7 @@ subroutine par_fe_space_compute_faces_object(this)
       call fe_object%get_vef(ivef_within_fe_object,fe_vef)
       if ( fe_vef%is_facet() ) then
         facet_gid = fe_vef%get_gid() - this%triangulation%get_num_vefs() & 
-                                    + this%triangulation%get_num_facets()
+                                    + this%facet_gids%size()
         call faces_object_iterator%set_current(facet_gid)
         call faces_object_iterator%next() 
       end if

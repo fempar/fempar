@@ -452,7 +452,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this
 end subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget
 
 !==================================================================================================
-subroutine tet_nedelec_reference_fe_fill_facet_interpolation( this, local_quadrature, facet_lid, facet_interpolation )
+subroutine tet_nedelec_reference_fe_fill_interp_restricted_to_facet( this, local_quadrature, facet_lid, facet_interpolation )
   implicit none
   class(tet_nedelec_reference_fe_t)       , intent(in)    :: this
   type(quadrature_t)                      , intent(in)    :: local_quadrature
@@ -489,7 +489,7 @@ subroutine tet_nedelec_reference_fe_fill_facet_interpolation( this, local_quadra
 
   call this%fill_interpolation( aux_quadrature, facet_interpolation ) 
   call aux_quadrature%free()
-end subroutine tet_nedelec_reference_fe_fill_facet_interpolation
+end subroutine tet_nedelec_reference_fe_fill_interp_restricted_to_facet
 
 !=================================================================================================
 function tet_nedelec_reference_fe_compute_num_quadrature_points( this, degree, dimension )

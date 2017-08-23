@@ -56,7 +56,7 @@ module output_handler_fe_cell_function_names
     use allocatable_array_names
 
     use reference_fe_names
-    use base_static_triangulation_names
+    use triangulation_names
     use fe_space_names
     use environment_names
     use field_names
@@ -180,10 +180,10 @@ contains
         integer(ip),                              intent(in)    :: num_fields
         type(output_handler_fe_field_t),          intent(in)    :: fe_fields(1:num_fields)
         integer(ip), optional,                    intent(in)    :: num_refinements
-        class(base_static_triangulation_t), pointer             :: triangulation
+        class(triangulation_t), pointer             :: triangulation
         class(reference_fe_t),            pointer               :: reference_fe
-        class(lagrangian_reference_fe_t), pointer               :: reference_fe_geo
-        class(lagrangian_reference_fe_t), pointer               :: previous_reference_fe_geo
+        class(reference_fe_t), pointer               :: reference_fe_geo
+        class(reference_fe_t), pointer               :: previous_reference_fe_geo
         class(environment_t),             pointer               :: environment
         integer(ip)                                             :: current_quadrature_and_map
         integer(ip)                                             :: current_cell_integrator
@@ -348,7 +348,7 @@ contains
         integer(ip)                                              :: max_order_within_fe
         class(serial_fe_space_t),          pointer               :: fe_space
         type(fe_function_t),               pointer               :: fe_function
-        class(lagrangian_reference_fe_t),  pointer               :: reference_fe_geo
+        class(reference_fe_t),  pointer               :: reference_fe_geo
         class(environment_t),              pointer               :: environment
         type(point_t),                     pointer               :: coordinates(:)
         type(cell_map_t),                    pointer               :: cell_map

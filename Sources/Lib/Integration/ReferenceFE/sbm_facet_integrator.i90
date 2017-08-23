@@ -32,7 +32,7 @@ subroutine cell_map_facet_restriction_create( this, quadrature, reference_fe_geo
   ! Parameters
   class(cell_map_facet_restriction_t), intent(inout) :: this
   type(quadrature_t)           , intent(in)    :: quadrature
-  class(lagrangian_reference_fe_t)           , intent(in)    :: reference_fe_geometry
+  class(reference_fe_t)           , intent(in)    :: reference_fe_geometry
 
   integer(ip)           :: facet_lid, istat
 
@@ -101,7 +101,7 @@ subroutine facet_maps_create(this, quadrature, left_geo_reference_fe, right_geo_
   implicit none
   ! Parameters
   class(facet_maps_t)             , intent(inout) :: this
-  class(lagrangian_reference_fe_t), pointer, intent(in)    :: left_geo_reference_fe, right_geo_reference_fe
+  class(reference_fe_t), pointer, intent(in)    :: left_geo_reference_fe, right_geo_reference_fe
   type(quadrature_t)         , intent(in)    :: quadrature
 
   call this%free()
@@ -135,7 +135,7 @@ subroutine facet_maps_update(this,facet_lid,facet_quadrature,left_reference_fe_g
   class(facet_maps_t)    , intent(inout) :: this
   integer(ip)          , intent(in)    :: facet_lid(2)
   type(quadrature_t), intent(in)    :: facet_quadrature
-  class(lagrangian_reference_fe_t), intent(in)    :: left_reference_fe_geo
+  class(reference_fe_t), intent(in)    :: left_reference_fe_geo
   real   (rp)             :: reorientation_factor
 
   ! Update cell_maps

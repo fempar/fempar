@@ -183,12 +183,12 @@ end subroutine free_timers
     integer(ip) :: num_void_neigs
 
     integer(ip)           :: ivef
-    type(vef_iterator_t)  :: vef, vef_of_vef
+    class(vef_iterator_t), allocatable  :: vef, vef_of_vef
     type(list_t), pointer :: vefs_of_vef
     type(list_t), pointer :: vertices_of_line
     type(list_iterator_t) :: vefs_of_vef_iterator
     type(list_iterator_t) :: vertices_of_line_iterator
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    class(reference_fe_t), pointer :: reference_fe_geo
     integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
@@ -205,7 +205,7 @@ end subroutine free_timers
         do while( .not. cell%has_finished() )
           if (cell%is_local()) then
             set_id = PAR_TEST_POISSON_VOID
-            call cell%get_coordinates(cell_coords)
+            call cell%get_nodes_coordinates(cell_coords)
             select case (trim(this%test_params%get_use_void_fes_case()))
             case ('half')
               y = cell_coords(1)%get(2)
@@ -273,7 +273,7 @@ end subroutine free_timers
                ! Do a loop on all edges in 3D (vertex in 2D) of the face
                ivef = vef%get_gid()
                call vef%get_cell_around(1,cell) ! There is always one cell around
-               reference_fe_geo => cell%get_reference_fe_geo()
+               reference_fe_geo => cell%get_reference_fe()
                ivef_pos_in_cell = cell%get_vef_lid_from_gid(ivef)
                vefs_of_vef => reference_fe_geo%get_facets_n_face()
                vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
@@ -321,7 +321,7 @@ end subroutine free_timers
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     class(cell_iterator_t), allocatable       :: cell
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    class(reference_fe_t), pointer :: reference_fe_geo
     
     if (this%test_params%get_use_void_fes()) then
       allocate(this%reference_fes(2), stat=istat)
@@ -332,7 +332,7 @@ end subroutine free_timers
     
     if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
-      reference_fe_geo => cell%get_reference_fe_geo()
+      reference_fe_geo => cell%get_reference_fe()
       this%reference_fes(PAR_TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
                                                    num_dims = this%triangulation%get_num_dims(), &

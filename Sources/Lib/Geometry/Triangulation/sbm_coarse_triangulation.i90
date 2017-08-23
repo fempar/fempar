@@ -216,3 +216,9 @@ subroutine coarse_triangulation_print ( this )
      call vef%free()
    end if
   end subroutine coarse_triangulation_print
+  
+  function coarse_triangulation_get_ptr_vefs_x_cell(this)
+    class(coarse_triangulation_t), target, intent(in) :: this
+    integer(ip), pointer :: coarse_triangulation_get_ptr_vefs_x_cell(:)
+    coarse_triangulation_get_ptr_vefs_x_cell => this%ptr_vefs_x_cell 
+  end function coarse_triangulation_get_ptr_vefs_x_cell
