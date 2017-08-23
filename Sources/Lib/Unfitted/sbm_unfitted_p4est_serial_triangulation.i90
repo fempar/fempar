@@ -122,12 +122,12 @@ function upst_get_max_num_nodes_in_subcell(this) result (val)
 end function upst_get_max_num_nodes_in_subcell
 
 !========================================================================================
-function upst_get_total_num_of_subcells(this) result (val)
+function upst_get_total_num_subcells(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_total_num_of_subcells()
-end function upst_get_total_num_of_subcells
+  val = this%marching_cubes%get_total_num_subcells()
+end function upst_get_total_num_subcells
 
 !========================================================================================
 function upst_get_max_num_subfaces_in_cell(this) result (val)
@@ -146,12 +146,12 @@ function upst_get_max_num_nodes_in_subface(this) result (val)
 end function upst_get_max_num_nodes_in_subface
 
 !========================================================================================
-function upst_get_total_num_of_subfaces(this) result (val)
+function upst_get_total_num_subfaces(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
   integer(ip) :: val
-  val = this%marching_cubes%get_total_num_of_subfaces()
-end function upst_get_total_num_of_subfaces
+  val = this%marching_cubes%get_total_num_subfaces()
+end function upst_get_total_num_subfaces
 
 !========================================================================================
 function upst_get_max_num_subnodes_in_cell(this) result (val)

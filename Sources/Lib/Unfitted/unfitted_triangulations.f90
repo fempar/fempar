@@ -307,10 +307,10 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_num_exterior_cells        => upst_get_num_exterior_cells
       procedure, non_overridable :: get_max_num_subcells_in_cell  => upst_get_max_num_subcells_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subcell  => upst_get_max_num_nodes_in_subcell
-      procedure, non_overridable :: get_total_num_of_subcells     => upst_get_total_num_of_subcells
+      procedure, non_overridable :: get_total_num_subcells     => upst_get_total_num_subcells
       procedure, non_overridable :: get_max_num_subfaces_in_cell  => upst_get_max_num_subfaces_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subface  => upst_get_max_num_nodes_in_subface
-      procedure, non_overridable :: get_total_num_of_subfaces     => upst_get_total_num_of_subfaces
+      procedure, non_overridable :: get_total_num_subfaces     => upst_get_total_num_subfaces
       procedure, non_overridable :: get_max_num_subnodes_in_cell  => upst_get_max_num_subnodes_in_cell
 
       ! TODO this getters should be removed in the future

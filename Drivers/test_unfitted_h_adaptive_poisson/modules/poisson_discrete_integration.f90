@@ -78,11 +78,11 @@ contains
   end subroutine set_is_constant_nitches_beta
 
 !========================================================================================
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate ( this, fe_space, assembler )
     implicit none
     class(poisson_unfitted_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
+    class(assembler_t)      , intent(inout) :: assembler
 
     ! FE space traversal-related data types
     ! TODO We need this because the accesors and iterators are not polymorphic
@@ -340,8 +340,8 @@ contains
        end if ! Only for cut elems
 
        !call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       !call matrix_array_assembler%assembly( num_fields, num_dofs_x_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
-       call fe%assemble(elmat, elvec, matrix_array_assembler)
+       !call assembler%assembly( num_fields, num_dofs_x_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+       call fe%assemble(elmat, elvec, assembler)
        call fe%next()
 
     end do

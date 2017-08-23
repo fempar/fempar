@@ -181,7 +181,7 @@ module unfitted_fe_spaces_names
       procedure :: create_fe_iterator                                               => suhpafs_create_fe_iterator
       
       ! Creation of constrained degrees of freedom
-      procedure          :: fill_dof_info                                           => suhpafs_fill_dof_info 
+      procedure          :: generate_global_dof_numbering                                           => suhpafs_generate_global_dof_numbering 
       procedure          :: fill_elem2dof_and_count_dofs                            => suhpafs_procedure_fill_elem2dof_and_count_dofs
 
       ! Getters

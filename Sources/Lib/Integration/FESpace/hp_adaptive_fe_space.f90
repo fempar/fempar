@@ -39,7 +39,7 @@ module hp_adaptive_fe_space_names
   use std_vector_real_rp_names
   use list_types_names
   
-  use matrix_array_assembler_names
+  use assembler_names
   use serial_scalar_array_names
   use vector_names
   use array_names
@@ -77,7 +77,7 @@ module hp_adaptive_fe_space_names
      procedure          :: free                                                   => serial_hp_adaptive_fe_space_free
      
      
-     procedure          :: fill_dof_info                                          => serial_hp_adaptive_fe_space_fill_dof_info
+     procedure          :: generate_global_dof_numbering                                          => serial_hp_adaptive_fe_space_generate_global_dof_numbering
      procedure          :: fill_elem2dof_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs
      
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
@@ -143,12 +143,12 @@ subroutine hp_adaptive_fe_iterator_free (this)
 end subroutine hp_adaptive_fe_iterator_free
 
 !! Assembly of local matrices for hp-adaptivity
-subroutine hp_adaptive_fe_iterator_assemble(this,elmat,elvec,matrix_array_assembler)
+subroutine hp_adaptive_fe_iterator_assemble(this,elmat,elvec,assembler)
   implicit none
   class(hp_adaptive_fe_iterator_t), intent(in)    :: this
   real(rp)                        , intent(in)    :: elmat(:,:)
   real(rp)                        , intent(in)    :: elvec(:)
-  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+  class(assembler_t) , intent(inout) :: assembler
   
   integer(ip), pointer :: elem2dof(:)
   integer(ip) :: i, j
@@ -160,8 +160,8 @@ subroutine hp_adaptive_fe_iterator_assemble(this,elmat,elvec,matrix_array_assemb
   
   
   call this%get_field_elem2dof(1,elem2dof)
-  matrix => matrix_array_assembler%get_matrix()
-  array  => matrix_array_assembler%get_array()  
+  matrix => assembler%get_matrix()
+  array  => assembler%get_array()  
   
   select type(matrix)
   class is(sparse_matrix_t)
@@ -199,7 +199,7 @@ recursive subroutine hp_adaptive_fe_iterator_recursive_matrix_assembly(this, i, 
  
   if ( .not. this%is_fixed_dof(i)) then    
     if ( .not. this%is_fixed_dof(j) ) then 
-      ! Insert a_ij, v_j on matrix_array_assembler position (i,j)  
+      ! Insert a_ij, v_j on assembler position (i,j)  
       call matrix%insert(i,j,a_ij)
     else ! j is a fixed DoF
       if ( this%is_strong_dirichlet_dof(j) ) then
@@ -275,7 +275,7 @@ end subroutine hp_adaptive_fe_iterator_recursive_vector_assembly
 !        k       = this%constraint_dofs_dependencies%get(pos)
 !        if (k>0) then ! If current DoF on which i depends is subject to Dirichlet BC's
 !          weight  = this%constraint_coefficient%get(pos)
-!          call this%recursive_assembly( k, j, weight*a_ij, v_j, matrix_array_assembler )
+!          call this%recursive_assembly( k, j, weight*a_ij, v_j, assembler )
 !        end if  
 !      end do
 !  else
@@ -285,7 +285,7 @@ end subroutine hp_adaptive_fe_iterator_recursive_vector_assembly
 !        k       = this%constraint_dofs_dependencies%get(pos)
 !        weight  = this%constraint_coefficient%get(pos)
 !        if (k>0) then ! If current DoF on which i depends is subject to Dirichlet BC's
-!          call this%recursive_assembly( i, k, weight*a_ij, weight*v_j, matrix_array_assembler )
+!          call this%recursive_assembly( i, k, weight*a_ij, weight*v_j, assembler )
 !        else
 !          !  Insert v_j-a_ij*weight in position j of RHS array
 !          select type(array)
@@ -299,7 +299,7 @@ end subroutine hp_adaptive_fe_iterator_recursive_vector_assembly
 !        end if
 !      end do   
 !    else
-!        ! Insert a_ij, v_j on matrix_array_assembler position (i,j)  
+!        ! Insert a_ij, v_j on assembler position (i,j)  
 !        select type(matrix)
 !          type is (sparse_matrix_t)
 !            call matrix%insert(i,j,a_ij)
@@ -462,7 +462,7 @@ subroutine shpafs_set_up_strong_dirichlet_bcs( this )
   
   ! Re-size to 0 to force re-initialization during second resize (to the actual/correct size)
   call this%ptr_constraint_dofs%resize(0)
-  this%num_fixed_dofs = this%get_num_strong_dirichlet_dofs()
+  this%num_fixed_dofs = this%get_num_fixed_dofs()
   call this%ptr_constraint_dofs%resize(this%num_fixed_dofs+1,0)
   call this%constraint_dofs_dependencies%resize(this%num_fixed_dofs)
   call this%constraint_dofs_coefficients%resize(this%num_fixed_dofs)
@@ -525,7 +525,7 @@ subroutine shpafs_interpolate_dirichlet_values (this, conditions, time, fields_t
   call this%transfer_dirichlet_to_constraint_dof_coefficients()
 end subroutine shpafs_interpolate_dirichlet_values 
 
-subroutine serial_hp_adaptive_fe_space_fill_dof_info( this, block_layout )
+subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering( this, block_layout )
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
   type(block_layout_t), target        , intent(inout) :: block_layout
@@ -540,7 +540,7 @@ subroutine serial_hp_adaptive_fe_space_fill_dof_info( this, block_layout )
   if ( perform_numbering ) then
     call this%set_block_layout(block_layout)
   
-    this%num_fixed_dofs = this%get_num_strong_dirichlet_dofs()
+    this%num_fixed_dofs = this%get_num_fixed_dofs()
   
     ! Initialize number DoFs per field
     call this%allocate_num_dofs_x_field()
@@ -560,7 +560,7 @@ subroutine serial_hp_adaptive_fe_space_fill_dof_info( this, block_layout )
   
     call this%setup_hanging_node_constraints()
   end if  
-end subroutine serial_hp_adaptive_fe_space_fill_dof_info
+end subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering
 
 subroutine serial_hp_adaptive_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
   implicit none
@@ -728,7 +728,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   call this%ptr_constraint_dofs%resize(this%num_fixed_dofs+1,0)
   
   ! Transform header to length strong Dirichlet DoFs
-  do improper_dof_lid=1, this%get_num_strong_dirichlet_dofs()
+  do improper_dof_lid=1, this%get_num_fixed_dofs()
     call this%ptr_constraint_dofs%set(improper_dof_lid+1, 1 )
   end do
 
@@ -792,7 +792,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   call this%constraint_dofs_coefficients%resize(this%ptr_constraint_dofs%get(this%ptr_constraint_dofs%size())-1)
   
   
-  do improper_dof_lid=1, this%get_num_strong_dirichlet_dofs()
+  do improper_dof_lid=1, this%get_num_fixed_dofs()
     call this%ptr_constraint_dofs%set(improper_dof_lid, this%ptr_constraint_dofs%get(improper_dof_lid+1) )
   end do
   
@@ -910,7 +910,7 @@ subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients(this)
   real(rp), pointer :: strong_dirichlet_values_entries(:)
   strong_dirichlet_values         => this%get_strong_dirichlet_values()
   strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
-  do improper_dof_lid=1, this%get_num_strong_dirichlet_dofs()
+  do improper_dof_lid=1, this%get_num_fixed_dofs()
      call this%constraint_dofs_coefficients%set(improper_dof_lid, strong_dirichlet_values_entries(improper_dof_lid) )
   end do
 end subroutine shpafs_transfer_dirichlet_to_constraint_dof_coefficients
@@ -921,14 +921,14 @@ subroutine shpafs_transfer_dirichlet_to_fe_space(this,fixed_dof_values)
   type(serial_scalar_array_t)         , intent(in)    :: fixed_dof_values
   type(serial_scalar_array_t), pointer     :: strong_dirichlet_values
   real(rp)                   , pointer     :: strong_dirichlet_values_entries(:)
-  integer(ip)                              :: i, num_strong_dirichlet_dofs
+  integer(ip)                              :: i, num_fixed_dofs
   integer(ip)                , allocatable :: indices(:)
-  num_strong_dirichlet_dofs = this%get_num_strong_dirichlet_dofs()
-  call memalloc(num_strong_dirichlet_dofs,indices,__FILE__,__LINE__)
-  indices = (/ (i, i=1,num_strong_dirichlet_dofs) /)
+  num_fixed_dofs = this%get_num_fixed_dofs()
+  call memalloc(num_fixed_dofs,indices,__FILE__,__LINE__)
+  indices = (/ (i, i=1,num_fixed_dofs) /)
   strong_dirichlet_values => this%get_strong_dirichlet_values()
   strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
-  call fixed_dof_values%extract_subvector( 1, num_strong_dirichlet_dofs, &
+  call fixed_dof_values%extract_subvector( 1, num_fixed_dofs, &
                                            indices, strong_dirichlet_values_entries )
   call this%transfer_dirichlet_to_constraint_dof_coefficients()
   call memfree(indices,__FILE__,__LINE__)
@@ -1072,7 +1072,7 @@ subroutine serial_hp_adaptive_fe_space_refine_and_coarsen( this, fe_function )
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
   block_layout => this%get_block_layout()
   call this%nullify_block_layout()
-  call this%fill_dof_info(block_layout)
+  call this%generate_global_dof_numbering(block_layout)
   
   call this%create_fe_iterator(new_fe)
   reference_fe => new_fe%get_reference_fe_geo()

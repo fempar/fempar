@@ -50,11 +50,11 @@ contains
     this%source_term => vector_function
   end subroutine set_source_term
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine integrate ( this, fe_space, assembler )
     implicit none
     class(vector_poisson_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
+    class(assembler_t)             , intent(inout) :: assembler
 
     ! FE space traversal-related data types
     class(fe_iterator_t), allocatable :: fe
@@ -143,7 +143,7 @@ contains
        end do
        
        ! Assemble and apply boundary conditions (and the rest of hanging node constraints)
-       call fe%assemble( elmat, elvec, matrix_array_assembler )
+       call fe%assemble( elmat, elvec, assembler )
        call fe%next()
     end do
     call fe_space%free_fe_iterator(fe)

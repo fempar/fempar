@@ -77,12 +77,12 @@ subroutine unfitted_hp_adaptive_fe_iterator_set_lid(this, lid)
 end subroutine unfitted_hp_adaptive_fe_iterator_set_lid
 
 !===============================================================================
-subroutine unfitted_hp_adaptive_fe_iterator_assemble(this,elmat,elvec,matrix_array_assembler)
+subroutine unfitted_hp_adaptive_fe_iterator_assemble(this,elmat,elvec,assembler)
   implicit none
   class(unfitted_hp_adaptive_fe_iterator_t), intent(in)    :: this
   real(rp)                        , intent(in)    :: elmat(:,:)
   real(rp)                        , intent(in)    :: elvec(:)
-  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
-  call this%adaptive_fe%assemble(elmat,elvec,matrix_array_assembler)
+  class(assembler_t) , intent(inout) :: assembler
+  call this%adaptive_fe%assemble(elmat,elvec,assembler)
 end subroutine unfitted_hp_adaptive_fe_iterator_assemble
 

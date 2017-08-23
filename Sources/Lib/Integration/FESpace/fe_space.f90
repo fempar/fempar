@@ -161,12 +161,12 @@ module fe_space_names
     generic                              :: get_vef                 => base_fe_iterator_get_vef
     procedure                            :: update_sub_triangulation    => base_fe_iterator_update_sub_triangulation
     procedure                            :: get_mc_case                 => base_fe_iterator_get_mc_case
-    procedure                            :: get_num_of_subcells      => base_fe_iterator_get_num_of_subcells
-    procedure                            :: get_num_of_subcell_nodes => base_fe_iterator_get_num_of_subcell_nodes
+    procedure                            :: get_num_subcells      => base_fe_iterator_get_num_subcells
+    procedure                            :: get_num_subcell_nodes => base_fe_iterator_get_num_subcell_nodes
     procedure                            :: get_phys_coords_of_subcell  => base_fe_iterator_get_phys_coords_of_subcell
     procedure                            :: get_ref_coords_of_subcell   => base_fe_iterator_get_ref_coords_of_subcell
-    procedure                            :: get_num_of_subfaces      => base_fe_iterator_get_num_of_subfaces
-    procedure                            :: get_num_of_subface_nodes => base_fe_iterator_get_num_of_subface_nodes
+    procedure                            :: get_num_subfaces      => base_fe_iterator_get_num_subfaces
+    procedure                            :: get_num_subface_nodes => base_fe_iterator_get_num_subface_nodes
     procedure                            :: get_phys_coords_of_subface  => base_fe_iterator_get_phys_coords_of_subface
     procedure                            :: get_ref_coords_of_subface   => base_fe_iterator_get_ref_coords_of_subface
     procedure                            :: is_cut                      => base_fe_iterator_is_cut

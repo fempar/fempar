@@ -310,7 +310,7 @@ subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe ( this, target_ivef, 
   end if
 end subroutine fe_iterator_fill_own_dofs_on_vef_from_source_fe
 
-subroutine fe_iterator_fill_dofs_face_integration_coupling ( this, ivef, field_id, dof_count )
+subroutine fe_iterator_fill_dofs_facet_integration_coupling ( this, ivef, field_id, dof_count )
   implicit none
   ! Parameters
   class(fe_iterator_t), intent(inout)   :: this
@@ -321,22 +321,22 @@ subroutine fe_iterator_fill_dofs_face_integration_coupling ( this, ivef, field_i
   ! Local variables
   integer(ip)                    :: idof, base_pos_lst_dofs_lids
   class(reference_fe_t), pointer :: reference_fe
-  type(list_iterator_t)          :: face_integration_coupling_dofs 
+  type(list_iterator_t)          :: facet_integration_coupling_dofs 
   
   reference_fe => this%get_reference_fe(field_id)
   assert ( reference_fe%get_n_face_dim(ivef) == reference_fe%get_num_dims()-1 )
   
   if ( reference_fe%get_continuity() ) then
-    face_integration_coupling_dofs = reference_fe%create_dofs_on_n_face_iterator(ivef)
+    facet_integration_coupling_dofs = reference_fe%create_dofs_on_n_face_iterator(ivef)
     base_pos_lst_dofs_lids = this%fe_space%ptr_dofs_x_fe(field_id, this%get_lid())-1
-    do while (.not. face_integration_coupling_dofs%is_upper_bound())
-      idof = face_integration_coupling_dofs%get_current()
+    do while (.not. facet_integration_coupling_dofs%is_upper_bound())
+      idof = facet_integration_coupling_dofs%get_current()
       dof_count = dof_count +1 
       this%fe_space%lst_dofs_lids(base_pos_lst_dofs_lids+idof) = dof_count
-      call face_integration_coupling_dofs%next()
+      call facet_integration_coupling_dofs%next()
     end do
   end if
-end subroutine fe_iterator_fill_dofs_face_integration_coupling
+end subroutine fe_iterator_fill_dofs_facet_integration_coupling
 
 ! Renumbers the DoF identifiers corresponding to all fields mapped to block with identifier block_id
 subroutine fe_iterator_renum_dofs_block ( this, block_id, perm_old2new )
@@ -409,12 +409,12 @@ subroutine fe_iterator_update_integration( this )
   
 end subroutine fe_iterator_update_integration
 
-subroutine fe_iterator_assemble(this,elmat,elvec,matrix_array_assembler)
+subroutine fe_iterator_assemble(this,elmat,elvec,assembler)
   implicit none
   class(fe_iterator_t)            , intent(in)    :: this
   real(rp)                        , intent(in)    :: elmat(:,:)
   real(rp)                        , intent(in)    :: elvec(:)
-  class(matrix_array_assembler_t) , intent(inout) :: matrix_array_assembler
+  class(assembler_t) , intent(inout) :: assembler
   check(.false.)
 end subroutine fe_iterator_assemble 
 
@@ -621,7 +621,7 @@ function fe_iterator_is_strong_dirichlet_dof ( this, dof_lid )
   class(fe_iterator_t)   , intent(in) :: this
   integer(ip)            , intent(in) :: dof_lid
   logical :: fe_iterator_is_strong_dirichlet_dof
-  fe_iterator_is_strong_dirichlet_dof = (dof_lid < 0 .and. dof_lid >= -this%fe_space%get_num_strong_dirichlet_dofs() )
+  fe_iterator_is_strong_dirichlet_dof = (dof_lid < 0 .and. dof_lid >= -this%fe_space%get_num_fixed_dofs() )
 end function fe_iterator_is_strong_dirichlet_dof
 
 function fe_iterator_is_fixed_dof ( this, dof_lid )

@@ -392,7 +392,7 @@ contains
       !                           set_ids_to_reference_fes = set_ids_to_reference_fes)
     end if
     
-    call this%fe_space%initialize_fe_integration()    
+    call this%fe_space%set_up_cell_integration()    
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)
     else
@@ -432,7 +432,7 @@ contains
 !         !                                       set_ids_to_reference_fes = set_ids_to_reference_fes)
 !       end if
 !       
-!       call this%fe_space%initialize_fe_integration()
+!       call this%fe_space%set_up_cell_integration()
 !       
 !       !if ( this%test_params%get_laplacian_type() == 'scalar' ) then
 !       !  call this%check_solution()

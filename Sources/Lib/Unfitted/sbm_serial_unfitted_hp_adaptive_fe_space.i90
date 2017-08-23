@@ -101,7 +101,7 @@ subroutine suhpafs_create_fe_iterator(this, fe)
 end subroutine suhpafs_create_fe_iterator
 
 !========================================================================================
-subroutine suhpafs_fill_dof_info( this, block_layout )
+subroutine suhpafs_generate_global_dof_numbering( this, block_layout )
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this 
   type(block_layout_t), target        , intent(inout) :: block_layout
@@ -111,7 +111,7 @@ subroutine suhpafs_fill_dof_info( this, block_layout )
 
   if (.not. this%use_constraints) then
     ! Call the father
-    call this%serial_hp_adaptive_fe_space_t%fill_dof_info(block_layout)
+    call this%serial_hp_adaptive_fe_space_t%generate_global_dof_numbering(block_layout)
     return
   end if
 
@@ -122,7 +122,7 @@ subroutine suhpafs_fill_dof_info( this, block_layout )
   if ( perform_numbering ) then
     call this%set_block_layout(block_layout)
   
-    this%num_fixed_dofs = this%get_num_strong_dirichlet_dofs()
+    this%num_fixed_dofs = this%get_num_fixed_dofs()
   
     ! Initialize number DoFs per field
     call this%allocate_num_dofs_x_field()
@@ -144,7 +144,7 @@ subroutine suhpafs_fill_dof_info( this, block_layout )
     call this%setup_cut_cells_constraints()
   end if  
 
-end subroutine suhpafs_fill_dof_info
+end subroutine suhpafs_generate_global_dof_numbering
 
 !========================================================================================
 subroutine suhpafs_procedure_fill_elem2dof_and_count_dofs( this, field_id ) 
@@ -542,7 +542,7 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   call this%ptr_constraint_dofs%resize(this%num_fixed_dofs+1,0)
   
   ! Dirichlet nodes only depend on one value
-  do improper_dof_lid=1, this%get_num_strong_dirichlet_dofs()
+  do improper_dof_lid=1, this%get_num_fixed_dofs()
     call this%ptr_constraint_dofs%set(improper_dof_lid+1, 1 )
   end do
 
