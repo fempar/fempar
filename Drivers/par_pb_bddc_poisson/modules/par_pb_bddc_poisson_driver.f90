@@ -145,13 +145,14 @@ contains
     integer(ip), allocatable                  :: cells_set(:)
     type(point_t), allocatable :: cell_coords(:)
     type(point_t) :: grav_center
-    integer(ip)   :: inode  
+    integer(ip)   :: inode, l1_rank  
     real(rp), allocatable:: px1(:), px2(:), py1(:), py2(:),  pz1(:), pz2(:)
 
     this%poisson_integration%diffusion_inclusion = this%test_params%get_jump()    
     this%H1_coarse_fe_handler%diffusion_inclusion = this%test_params%get_jump()
 
     if ( this%environment%am_i_l1_task() ) then
+       l1_rank = this%environment%get_l1_rank()
        call memalloc( this%triangulation%get_num_local_cells(), cells_set, __FILE__, __LINE__ ) 
        call this%triangulation%create_cell_iterator(cell)
        allocate (cell_coords(cell%get_num_nodes()),stat=istat)
@@ -432,6 +433,19 @@ contains
             end do
          end do
          if ( cell_set_id /= 1 ) cell_set_id = 2
+      else if ( inclusion == 8 ) then
+         i = mod(mod(l1_rank,nparts(1)),2)
+         j = mod(mod(l1_rank,nparts(1)*nparts(2))/nparts(1),2)
+         k = mod(l1_rank/(nparts(1)*nparts(2)),2)
+         if (((i==0) .and. (j==0) .and. (k==0)).or.&
+             (i==0 .and. j==1 .and. k==0).or.&
+             (i==1 .and. j==0 .and. k==0).or.&
+             ((i==0) .and. (j==0) .and. (k==1))) then
+            cell_set_id=2
+         else 
+            cell_set_id=1
+         end if  
+
       end if
 
     end function cell_set_id

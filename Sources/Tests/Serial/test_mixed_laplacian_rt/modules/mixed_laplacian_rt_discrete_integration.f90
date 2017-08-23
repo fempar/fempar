@@ -66,8 +66,8 @@ contains
     class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
 
     ! FE space traversal-related data types
-    class(fe_iterator_t), allocatable :: fe
-    type(fe_face_iterator_t) :: fe_face
+    class(fe_iterator_t)     , allocatable :: fe
+    class(fe_face_iterator_t), allocatable :: fe_face
     
     ! FE integration-related data types
     type(fe_map_t)           , pointer :: fe_map
@@ -227,7 +227,7 @@ contains
        end if
        call fe_face%next()
     end do
-    call fe_space%free_fe_vef_iterator(fe_face)
+    call fe_space%free_fe_face_iterator(fe_face)
     call memfree ( pressure_boundary_function_values, __FILE__, __LINE__ )
     deallocate(velocity_shape_values, stat=istat); check(istat==0);
     call memfree(velocity_shape_divs, __FILE__, __LINE__)
