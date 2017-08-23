@@ -73,8 +73,7 @@ subroutine serial_triangulation_create ( this, parameters)
   else
      istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
   end if
-  call this%par_environment%create (parameters)
-  this%p_env => this%par_environment
+  call this%create_environment(parameters)
 
   if(geometry_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
 

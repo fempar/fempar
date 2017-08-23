@@ -720,14 +720,19 @@ end subroutine hex_raviart_thomas_reference_fe_fill_interpolation_pre_basis
 ! Here we define the dim-1 quadrature and next translate the nodes
 ! using the facet type to dim. Next, use the same machinary as for the volume with this new quadrature.
 !!==================================================================================================
-subroutine hex_raviart_thomas_reference_fe_fill_facet_interpolation( this, local_quadrature, facet_lid, facet_interpolation )
+
+subroutine hex_raviart_thomas_reference_fe_fill_facet_interpolation( this, local_quadrature, &
+     & facet_lid, subfacet_lid, facet_interpolation )
   implicit none
   class(hex_raviart_thomas_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                      , intent(in)    :: local_quadrature
   integer(ip)                             , intent(in)    :: facet_lid
+  integer(ip)                             , intent(in)    :: subfacet_lid
   type(interpolation_t)                   , intent(inout) :: facet_interpolation
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: c,idime,iface,n_face_index
+  ! Exit if attempts to fill the interpolation of a subface
+  if ( subfacet_lid >= 0 ) return
   ! Add offset to have same numbering as in polytope
   n_face_index = facet_lid+this%get_first_facet_id()-1
   ! Create a d-dimensional quadrature as follows
@@ -848,9 +853,8 @@ subroutine hex_raviart_thomas_reference_fe_change_basis(this)
      call facet_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(facet_lid), &
                                    quadrature             = d_1_quadrature ) 
      
-     call this%create_interpolation_restricted_to_facet (facet_id - d_fe_geo%get_first_facet_id()+1, &
-                                          d_1_quadrature, &
-                                          facet_interpolation )
+     call this%create_interpolation_restricted_to_facet ( facet_id - d_fe_geo%get_first_facet_id()+1, &
+                                           -1, d_1_quadrature, facet_interpolation )
      
      ! Integrate boundary moments int_Face(u.n q), q \in Q_k
      do qpoint = 1, d_1_quadrature%num_quadrature_points

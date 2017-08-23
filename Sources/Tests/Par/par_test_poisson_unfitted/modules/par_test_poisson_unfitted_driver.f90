@@ -239,7 +239,7 @@ end subroutine free_timers
 
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 
-    type(vef_iterator_t)  :: vef
+    class(vef_iterator_t), allocatable  :: vef
     integer(ip) :: inode
 
     type(point_t), allocatable :: coords(:)

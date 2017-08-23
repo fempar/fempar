@@ -31,14 +31,9 @@ subroutine fe_facet_iterator_create ( this, fe_space, vef )
   class(fe_facet_iterator_t), target, intent(inout) :: this
   class(serial_fe_space_t) , target, intent(in)    :: fe_space
   class(vef_iterator_t)    , intent(in)            :: vef
-  integer(ip) :: istat
   call this%free()
   call this%fe_vef_iterator_t%create(fe_space,vef)
-  allocate( this%facet_integrators(this%fe_space%num_fields), stat=istat); check(istat==0);
-  call this%fe_space%create_fe_cell_iterator(this%fe1)
-  call this%fe_space%create_fe_cell_iterator(this%fe2)
-  this%fes_around(1)%p => this%fe1
-  this%fes_around(2)%p => this%fe2
+  call this%allocate_scratch_data()
   call this%first()
 end subroutine fe_facet_iterator_create
 
@@ -47,6 +42,25 @@ subroutine fe_facet_iterator_free ( this )
   class(fe_facet_iterator_t) , intent(inout)      :: this
   integer(ip) :: istat
   call this%fe_vef_iterator_t%free()
+  this%facet_gid = -1
+  call this%free_scratch_data()
+end subroutine fe_facet_iterator_free
+
+subroutine fe_facet_iterator_allocate_scratch_data ( this )
+  implicit none
+  class(fe_facet_iterator_t), target, intent(inout) :: this
+  integer(ip) :: istat
+  allocate( this%facet_integrators(this%fe_space%num_fields), stat=istat); check(istat==0);
+  call this%fe_space%create_fe_cell_iterator(this%fe1)
+  call this%fe_space%create_fe_cell_iterator(this%fe2)
+  this%fes_around(1)%p => this%fe1
+  this%fes_around(2)%p => this%fe2
+end subroutine fe_facet_iterator_allocate_scratch_data
+
+subroutine fe_facet_iterator_free_scratch_data ( this )
+  implicit none
+  class(fe_facet_iterator_t), target, intent(inout) :: this
+  integer(ip) :: istat
   if (allocated(this%fe1)) then
     call this%fe1%free()
     deallocate(this%fe1, stat=istat); check(istat==0);
@@ -63,7 +77,7 @@ subroutine fe_facet_iterator_free ( this )
     deallocate ( this%facet_integrators, stat=istat ); check(istat==0);
   end if
   nullify(this%facet_maps)
-end subroutine fe_facet_iterator_free
+end subroutine fe_facet_iterator_free_scratch_data
 
 subroutine fe_facet_iterator_first ( this )
   implicit none
@@ -156,9 +170,9 @@ subroutine fe_facet_iterator_update_integration( this )
   class(fe_facet_iterator_t), intent(inout) :: this 
   integer(ip)                      :: icell_around, field_id
   integer(ip)                      :: facet_lpos_within_cells_around(2)
+  integer(ip)                      :: subfacet_lid_within_cells_around(2)
   type(point_t)          , pointer :: coords(:)
   type(quadrature_t)     , pointer :: quadrature
-  type(facet_maps_t)       , pointer :: facet_map
   type(facet_integrator_t), pointer :: facet_integrator
   
   class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
@@ -173,20 +187,25 @@ subroutine fe_facet_iterator_update_integration( this )
     reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
     facet_lpos_within_cells_around(icell_around) = &
       this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_facet_id() + 1
-    coords => this%facet_maps%get_coordinates_neighbour(icell_around, &
-                                                 facet_lpos_within_cells_around(icell_around))
+    subfacet_lid_within_cells_around(icell_around) = this%get_subfacet_lid_cell_around(icell_around)
+    coords => this%facet_maps%get_coordinates_neighbour(icell_around,                                &
+                                                 facet_lpos_within_cells_around(icell_around), &
+                                                 subfacet_lid_within_cells_around(icell_around))
     call this%fes_around(icell_around)%p%get_coordinates(coords)
   end do
 
   reference_fe_geo => this%fes_around(1)%p%get_reference_fe_geo()
   
-  call this%facet_maps%update(facet_lpos_within_cells_around, &
-                       quadrature, &
+  call this%facet_maps%update(facet_lpos_within_cells_around,   &
+                       subfacet_lid_within_cells_around, &
+                       quadrature,                       &
                        reference_fe_geo)
   
   call this%update_facet_integrators()
   do field_id = 1, this%fe_space%get_num_fields()
-     call this%facet_integrators(field_id)%p%update(facet_lpos_within_cells_around, &
+
+     call this%facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
+                                 subfacet_lid_within_cells_around, &
                                  this%facet_maps, &             
                                  this%get_facet_permutation_index())
   end do
@@ -308,8 +327,8 @@ function fe_facet_iterator_get_default_quadrature_degree ( this )
   class(fe_facet_iterator_t), intent(in) :: this
   integer(ip) :: fe_facet_iterator_get_default_quadrature_degree
   integer(ip) :: reference_fe_id
-  assert( allocated(this%fe_space%max_order_reference_fe_id_x_fe_face) )
-  reference_fe_id = this%fe_space%max_order_reference_fe_id_x_fe_face(this%facet_gid)
+  assert( allocated(this%fe_space%max_order_field_cell_to_ref_fes_face) )
+  reference_fe_id = this%fe_space%max_order_field_cell_to_ref_fes_face(this%facet_gid)
   fe_facet_iterator_get_default_quadrature_degree = & 
     this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
 end function fe_facet_iterator_get_default_quadrature_degree
@@ -489,6 +508,34 @@ function fe_facet_iterator_compute_surface ( this )
   
 end function fe_facet_iterator_compute_surface
 
+function fe_facet_iterator_compute_fe_facet_permutation_index (this,first_fe,second_fe) result (fe_facet_permutation_index)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  class(fe_cell_iterator_t)     , intent(inout) :: first_fe
+  class(fe_cell_iterator_t)     , intent(inout) :: second_fe
+  integer(ip)                              :: fe_facet_permutation_index
+  class(lagrangian_reference_fe_t), pointer     :: first_reference_fe_geo
+  class(lagrangian_reference_fe_t), pointer     :: second_reference_fe_geo
+  assert( .not. this%is_ghost() .and. this%get_num_cells_around() == 2 )
+  call this%get_cell_around(1,first_fe)
+  first_reference_fe_geo => first_fe%get_reference_fe_geo()
+  call this%get_cell_around(2,second_fe)
+  second_reference_fe_geo => second_fe%get_reference_fe_geo()
+  fe_facet_permutation_index = &
+    first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,             &
+                                                      this%get_lpos_within_cell_around(1), &
+                                                      this%get_lpos_within_cell_around(2), &
+                                                      first_fe%get_vef_gids(),             &
+                                                      second_fe%get_vef_gids() )
+end function fe_facet_iterator_compute_fe_facet_permutation_index
+
+function fe_facet_iterator_get_fe_facet_permutation_index ( this ) result(fe_facet_permutation_index)
+  implicit none
+  class(fe_facet_iterator_t), intent(in) :: this
+  integer(ip)                           :: fe_facet_permutation_index
+  fe_facet_permutation_index = this%fe_space%facet_permutation_indices%get(this%facet_gid)
+end function fe_facet_iterator_get_fe_facet_permutation_index 
+
 function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) result(facet_lpos_within_cell_around)
   implicit none
   class(fe_facet_iterator_t) , intent(inout) :: this
@@ -498,16 +545,18 @@ function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) resul
   integer(ip)                               :: vef_gid_of_face
   reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
   vef_gid_of_face = this%base_fe_vef_iterator_t%get_gid()
-  assert ( this%fes_around(icell_around)%p%get_vef_lid_from_gid (vef_gid_of_face) /= -1 )
+
+  assert ( this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face) /= -1 )
   facet_lpos_within_cell_around = this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face)
 end function fe_facet_iterator_get_lpos_within_cell_around
 
-function fe_facet_iterator_get_facet_permutation_index ( this ) result(facet_permutation_index)
+function fe_facet_iterator_get_subfacet_lid_cell_around ( this, icell_around ) result( subfacet_lid )
   implicit none
   class(fe_facet_iterator_t), intent(in) :: this
-  integer(ip)                           :: facet_permutation_index
-  facet_permutation_index = this%fe_space%facet_permutation_indices%get(this%facet_gid)
-end function fe_facet_iterator_get_facet_permutation_index 
+  integer(ip)              , intent(in) :: icell_around
+  integer(ip)                           :: subfacet_lid
+  subfacet_lid = 0
+end function fe_facet_iterator_get_subfacet_lid_cell_around 
 
 !==================================================================================================
 function fe_facet_iterator_get_quadrature_points_coordinates(this)

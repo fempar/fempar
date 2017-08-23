@@ -345,14 +345,20 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
 end subroutine tet_lagrangian_reference_fe_fill_interpolation
 
 !==================================================================================================
-subroutine tet_lagrangian_reference_fe_fill_facet_interpolation (this, local_quadrature, facet_lid, facet_interpolation)
+subroutine tet_lagrangian_reference_fe_fill_facet_interpolation (this, local_quadrature, &
+     & facet_lid, subfacet_lid, facet_interpolation)
   implicit none
   class(tet_lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                      , intent(in)    :: local_quadrature
   integer(ip)                             , intent(in)    :: facet_lid
+  integer(ip)                             , intent(in)    :: subfacet_lid
   type(interpolation_t)                   , intent(inout) :: facet_interpolation
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: c,idime,iface,n_face_index
+  
+  ! Exit if attempts to fill the interpolation of a subface
+  if ( subfacet_lid >= 0 ) return
+  
   ! Add offset to have same numbering as in polytope
   n_face_index = facet_lid+this%get_first_facet_id()-1
 

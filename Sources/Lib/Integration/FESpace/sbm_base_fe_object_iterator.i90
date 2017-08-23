@@ -111,6 +111,6 @@ subroutine base_fe_object_iterator_get_vef(this, ivef, vef)
   implicit none
   class(base_fe_object_iterator_t), intent(in)    :: this
   integer(ip)                     , intent(in)    :: ivef
-  type(vef_iterator_t)            , intent(inout) :: vef
+  class(vef_iterator_t)           , intent(inout) :: vef
   call this%object%get_vef(ivef,vef)
 end subroutine base_fe_object_iterator_get_vef

@@ -713,17 +713,22 @@ subroutine tet_raviart_thomas_fill_interpolation ( this, quadrature, interpolati
 end subroutine tet_raviart_thomas_fill_interpolation
 
 !==================================================================================================
-subroutine tet_raviart_thomas_fill_facet_interpolation (this, local_quadrature, facet_lid, facet_interpolation)
+subroutine tet_raviart_thomas_fill_facet_interpolation (this, local_quadrature, &
+     & facet_lid, subfacet_lid, facet_interpolation)
   implicit none
   class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                  , intent(in)    :: local_quadrature
   integer(ip)                         , intent(in)    :: facet_lid
+  integer(ip)                         , intent(in)    :: subfacet_lid
   type(interpolation_t)               , intent(inout) :: facet_interpolation
 
   real(rp)   , allocatable :: global_coordinates(:)
   integer(ip)              :: idime, iquad, ishape, p_local_coordinate
   type(interpolation_t)    :: scalar_interpolation
 
+  ! Exit if attempts to fill the interpolation of a subface
+  if ( subfacet_lid >= 0 ) return
+  
   ! Create an auxiliary interpolation with num_nodes_scalar shape functions (scalar one)
   call scalar_interpolation%create( facet_interpolation%num_dims, this%node_array%num_nodes, &
        facet_interpolation%num_quadrature_points, 0, .false. )

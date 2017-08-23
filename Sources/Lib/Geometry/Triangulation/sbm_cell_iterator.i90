@@ -234,6 +234,14 @@ function cell_iterator_get_set_id(this)
   cell_iterator_get_set_id = this%base_static_triangulation%cells_set(this%gid)
 end function cell_iterator_get_set_id
 
+function cell_iterator_get_level(this)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  integer(ip) :: cell_iterator_get_level
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  cell_iterator_get_level = 0
+end function cell_iterator_get_level
+
 pure function cell_iterator_get_num_vefs (this)
   implicit none
   class(cell_iterator_t), intent(in) :: this
@@ -243,7 +251,7 @@ pure function cell_iterator_get_num_vefs (this)
        this%base_static_triangulation%ptr_vefs_x_cell(this%gid)
 end function cell_iterator_get_num_vefs
 
-pure function cell_iterator_get_num_nodes (this)
+function cell_iterator_get_num_nodes (this)
   implicit none
   class(cell_iterator_t), intent(in) :: this
   integer(ip)                        :: cell_iterator_get_num_nodes
@@ -263,7 +271,7 @@ function cell_iterator_get_node_gid (this, inode)
   !reference_fe_geo => this%get_reference_fe_geo()
   !if ( reference_fe_geo%get_order() == 1 ) then
   !  assert ( inode >=1 .and. inode <= reference_fe_geo%get_num_vertices() )
-  !  cell_iterator_get_node_lid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid)+inode-1)
+  !  cell_iterator_get_node_gid = this%base_static_triangulation%lst_vefs_lids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid)+inode-1)
   !else
   !  assert ( inode >=1 .and. inode <= reference_fe_geo%get_num_nodes() )
     cell_iterator_get_node_gid = this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+inode-1)
@@ -354,6 +362,41 @@ function cell_iterator_is_ghost (this)
   assert ( this%gid >= 1 .and. .not. this%has_finished() )
   cell_iterator_is_ghost = (this%gid > this%base_static_triangulation%num_local_cells)
 end function cell_iterator_is_ghost
+
+function cell_iterator_is_ancestor(this,child_level,child_linear_id)
+  implicit none
+  class(cell_iterator_t), intent(in) :: this
+  integer(ip)           , intent(in) :: child_level
+  integer(ip)           , intent(in) :: child_linear_id
+  logical :: cell_iterator_is_ancestor
+  assert(.false.)
+end function cell_iterator_is_ancestor
+
+subroutine cell_iterator_set_for_coarsening(this)
+  implicit none
+  class(cell_iterator_t), intent(inout) :: this
+  assert(.false.)
+end subroutine cell_iterator_set_for_coarsening
+
+subroutine cell_iterator_set_for_refinement(this)
+  implicit none
+  class(cell_iterator_t), intent(inout) :: this
+  assert(.false.)
+end subroutine cell_iterator_set_for_refinement
+
+subroutine cell_iterator_set_for_do_nothing(this)
+  implicit none
+  class(cell_iterator_t), intent(inout) :: this
+  assert(.false.)
+end subroutine cell_iterator_set_for_do_nothing
+
+function cell_iterator_get_transformation_flag(this)
+  implicit none
+  class(cell_iterator_t), intent(inout) :: this
+  integer(ip) :: cell_iterator_get_transformation_flag
+  assert(.false.)
+end function cell_iterator_get_transformation_flag
+
 
 ! Returns the sum of num_vefs over all cells up-to the present one (exclusive, i.e.,
 ! without considering the present one), with the cells being ordered consistently 
@@ -533,7 +576,7 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   class(cell_iterator_t), intent(inout) :: cell
 
   class(lagrangian_reference_fe_t) , pointer  :: source_ref_fe, target_ref_fe
-  integer(ip)          :: source_vef_lid, target_vef_lid
+  integer(ip)          :: source_vef_lid, target_vef_gid
   integer(ip), pointer :: source_vefs(:), target_vefs(:), source_node_list(:), target_node_list(:)
   integer(ip) :: source_node_LID_vef, l_node, own_nnode, source_node_LID_cell
   integer(ip) :: permutation_index, target_vef_dim, target_node_LID_cell, target_node_LID_vef
@@ -542,8 +585,8 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   source_vef_lid = this%get_vef_lid_from_gid(ivef)
 
   target_ref_fe => cell%get_reference_fe_geo()
-  target_vef_lid = cell%get_vef_lid_from_gid(ivef)
-  target_vef_dim = target_ref_fe%get_n_face_dim(target_vef_lid)
+  target_vef_gid = cell%get_vef_lid_from_gid(ivef)
+  target_vef_dim = target_ref_fe%get_n_face_dim(target_vef_gid)
  
   source_vefs => this%base_static_triangulation%lst_vefs_gids(this%base_static_triangulation%ptr_vefs_x_cell(this%gid): &
                                                           &   this%base_static_triangulation%ptr_vefs_x_cell(this%gid+1)-1)
@@ -561,17 +604,17 @@ subroutine cell_iterator_fill_nodes_on_vef_from_source (this,ivef,cell)
   own_nnode = source_ref_fe%get_num_own_dofs_n_face(source_vef_lid)
 
   if ( own_nnode > 0 ) then
-     check (target_ref_fe%check_compatibility_of_n_faces(source_ref_fe,source_vef_lid,target_vef_lid))
+     check (target_ref_fe%check_compatibility_of_n_faces(source_ref_fe,source_vef_lid,target_vef_gid))
      permutation_index = source_ref_fe%compute_permutation_index( target_ref_fe, &
           &                                                       source_vef_lid, &
-          &                                                       target_vef_lid, &
+          &                                                       target_vef_gid, &
           &                                                       source_vefs,    &
           &                                                       target_vefs)
      
      do source_node_LID_vef = 1, own_nnode
         source_node_LID_cell = source_ref_fe%translate_dof_lid_n_face_to_dof_lid_cell(source_node_LID_vef,source_vef_lid)
         target_node_LID_vef = target_ref_fe%permute_dof_LID_n_face(source_node_LID_vef,target_vef_dim, permutation_index)
-        target_node_LID_cell = target_ref_fe%translate_dof_lid_n_face_to_dof_lid_cell(target_node_LID_vef, target_vef_lid)
+        target_node_LID_cell = target_ref_fe%translate_dof_lid_n_face_to_dof_lid_cell(target_node_LID_vef, target_vef_gid)
         assert ( target_node_list(target_node_LID_cell) <= 0 )
         if ( target_node_list(target_node_LID_cell) == 0 ) then
           target_node_list(target_node_LID_cell) = source_node_list(source_node_LID_cell)

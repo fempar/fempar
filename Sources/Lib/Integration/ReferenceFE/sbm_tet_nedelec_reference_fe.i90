@@ -452,14 +452,19 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this
 end subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget
 
 !==================================================================================================
-subroutine tet_nedelec_reference_fe_fill_facet_interpolation( this, local_quadrature, facet_lid, facet_interpolation )
+subroutine tet_nedelec_reference_fe_fill_facet_interpolation( this, local_quadrature, & 
+     & facet_lid, subfacet_lid, facet_interpolation )
   implicit none
   class(tet_nedelec_reference_fe_t)       , intent(in)    :: this
   type(quadrature_t)                      , intent(in)    :: local_quadrature
   integer(ip)                             , intent(in)    :: facet_lid
+  integer(ip)                             , intent(in)    :: subfacet_lid
   type(interpolation_t)                   , intent(inout) :: facet_interpolation
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: idime,iface,n_face_index, qpoin,p_local_coordinate
+
+  ! Exit if attempts to fill the interpolation of a subface
+  if ( subfacet_lid >= 0 ) return
 
   ! Add offset to have same numbering as in polytope
   n_face_index = facet_lid+this%get_first_facet_id()-1
@@ -1262,7 +1267,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
              quadrature             = facet_quadrature ) 
 
         call this%create_interpolation_restricted_to_facet (facet_id - d_fe_geo%get_first_facet_id()+1, &
-             facet_quadrature,                           &
+             -1, facet_quadrature,                           &
              facet_interpolation )
 
         ! Integrate face boundary moments int_Face(u^n q), q \in P_{k-2,k-2} P_{k-2,k-2}

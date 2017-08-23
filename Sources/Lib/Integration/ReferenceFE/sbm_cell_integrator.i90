@@ -25,7 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! cell_integrator_t type procedures
 subroutine cell_integrator_create( this, quadrature, reference_fe )
@@ -45,18 +44,19 @@ subroutine cell_integrator_create( this, quadrature, reference_fe )
   call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
 end subroutine cell_integrator_create
 
-subroutine cell_integrator_restricted_to_facet( this, quadrature, reference_fe, facet_lid )
+subroutine cell_integrator_restricted_to_facet( this, quadrature, reference_fe, facet_lid, subfacet_lid )
   implicit none
   ! Parameters
-  class(cell_integrator_t)    , intent(inout) :: this 
+  class(cell_integrator_t)      , intent(inout) :: this 
   type(quadrature_t)            , intent(in)    :: quadrature
   class(reference_fe_t), target , intent(in)    :: reference_fe  
   integer(ip)                   , intent(in)    :: facet_lid
+  integer(ip)                   , intent(in)    :: subfacet_lid
   call this%free()
   this%num_quadrature_points = quadrature%num_quadrature_points
   this%num_shape_functions   = reference_fe%num_shape_functions
   this%reference_fe             => reference_fe
-  call reference_fe%create_interpolation_restricted_to_facet( facet_lid, quadrature, this%interpolation_reference_cell )
+  call reference_fe%create_interpolation_restricted_to_facet( facet_lid, subfacet_lid, quadrature, this%interpolation_reference_cell )
   call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
 end subroutine cell_integrator_restricted_to_facet
 

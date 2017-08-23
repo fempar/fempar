@@ -123,7 +123,7 @@ contains
     integer(ip) :: num_void_neigs
 
     integer(ip)           :: ivef
-    type(vef_iterator_t)  :: vef, vef_of_vef
+    class(vef_iterator_t),allocatable :: vef, vef_of_vef
     type(list_t), pointer :: vefs_of_vef
     type(list_t), pointer :: vertices_of_line
     type(list_iterator_t) :: vefs_of_vef_iterator

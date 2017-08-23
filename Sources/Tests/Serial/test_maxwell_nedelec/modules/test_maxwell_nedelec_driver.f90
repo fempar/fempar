@@ -105,8 +105,8 @@ contains
     implicit none
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    type(vef_iterator_t)  :: vef
-    class(cell_iterator_t), allocatable       :: cell
+    class(vef_iterator_t) , allocatable :: vef
+    class(cell_iterator_t), allocatable :: cell
     class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
 
     allocate(this%reference_fes(1), stat=istat)

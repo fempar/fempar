@@ -106,6 +106,9 @@ contains
     class is (par_unfitted_triangulation_t)
       num_subcells = triangulation%get_total_num_subcells()
       num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
+    class is (unfitted_p4est_serial_triangulation_t)
+      num_subcells = triangulation%get_total_num_subcells()
+      num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
     class default
       check(.false.)
     end select
@@ -228,7 +231,7 @@ contains
   
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
-    class(serial_unfitted_triangulation_t), intent(in)    :: triangulation
+    class(base_static_triangulation_t), intent(in)    :: triangulation
   
     integer(ip) :: num_subfacets, num_subfacet_nodes, num_dime
     integer(ip) :: istat, iface, inode, ino, isubfacet
@@ -243,10 +246,22 @@ contains
 
     call triangulation%create_cell_iterator(cell)
 
-  
     num_dime = triangulation%get_num_dims()
-    num_subfacets = triangulation%get_total_num_subfacets()
-    num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    
+    select type (triangulation)
+    class is (serial_unfitted_triangulation_t)
+      num_subfacets = triangulation%get_total_num_subfacets()
+      num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    class is (unfitted_p4est_serial_triangulation_t)
+      num_subfacets = triangulation%get_total_num_subfacets()
+      num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    class is (par_unfitted_triangulation_t)
+      num_subfacets = triangulation%get_total_num_subfacets()
+      num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    class default
+      check(.false.)
+    end select
+    
     this%Ne = num_subfacets
     this%Nn = num_subfacet_nodes*num_subfacets
   
@@ -340,6 +355,9 @@ contains
         call this%attach_triangulation(triangulation)
         num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
       class is (par_unfitted_triangulation_t)
+        call this%attach_triangulation(triangulation)
+        num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
+      class is (unfitted_p4est_serial_triangulation_t)
         call this%attach_triangulation(triangulation)
         num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
       class default

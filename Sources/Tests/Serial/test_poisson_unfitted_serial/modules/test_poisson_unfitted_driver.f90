@@ -165,7 +165,7 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
-    type(vef_iterator_t)  :: vef
+    class(vef_iterator_t), allocatable  :: vef
     integer(ip) :: istat
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 

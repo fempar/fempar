@@ -775,7 +775,7 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
   class(base_static_triangulation_t), intent(inout) :: this
   integer(ip)           :: ivef,icell
   class(cell_iterator_t), allocatable :: cell
-  type(vef_iterator_t)  :: vef
+  class(vef_iterator_t), allocatable  :: vef
   logical               :: vef_is_local, vef_is_ghost
 
   assert ( this%num_vefs >= 0 )
@@ -821,7 +821,6 @@ subroutine bst_find_and_list_vefs_at_interfaces (this)
      call vef%next()
   end do
   call this%free_vef_iterator(vef)
-  
 end subroutine bst_find_and_list_vefs_at_interfaces
 
 subroutine bst_free_lst_itfc_vefs( this )
@@ -916,7 +915,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work2, __FILE__,__LINE__ )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_neighbours, __FILE__, __LINE__ )
-    call this%free_vef_iterator(itfc_vef)
+    call this%free_itfc_vef_iterator(itfc_vef)
     call this%free_cell_iterator(cell)
   end subroutine bst_compute_parts_itfc_vefs
   
@@ -1014,7 +1013,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     call memfree ( work2, __FILE__,__LINE__ )
     call memfree ( work1, __FILE__,__LINE__ )
     call memfree ( touched_subparts, __FILE__, __LINE__ )
-    call this%free_vef_iterator(itfc_vef)
+    call this%free_itfc_vef_iterator(itfc_vef)
     call this%free_cell_iterator(cell)
   end subroutine bst_compute_subparts_itfc_vefs
   
@@ -1228,7 +1227,7 @@ subroutine bst_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_itfc_vefs )
     class(base_static_triangulation_t), intent(inout) :: this
     integer(ip)                                  :: iobj, vef_lid
     type(list_iterator_t)                        :: vefs_object_iterator
-    type(vef_iterator_t) :: vef
+    class(vef_iterator_t), allocatable  :: vef
     
     call memalloc ( this%num_objects, this%objects_dim, __FILE__, __LINE__ )
     call this%create_vef_iterator(vef)
@@ -1930,8 +1929,10 @@ end subroutine bst_free_cell_iterator
 subroutine bst_create_vef_iterator ( this, vef )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this
-  type(vef_iterator_t)               , intent(inout) :: vef
+  class(vef_iterator_t), allocatable , intent(inout) :: vef
+  integer(ip) :: istat
   call this%free_vef_iterator(vef)
+  allocate(vef_iterator_t :: vef, stat=istat); check(istat==0)
   call vef%create(this)
 end subroutine bst_create_vef_iterator
 
@@ -1939,16 +1940,28 @@ subroutine bst_create_itfc_vef_iterator ( this, itfc_vef )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this
   type(itfc_vef_iterator_t)          , intent(inout) :: itfc_vef
-  call this%free_vef_iterator(itfc_vef)
+  call this%free_itfc_vef_iterator(itfc_vef)
   call itfc_vef%create(this)
 end subroutine bst_create_itfc_vef_iterator
 
 subroutine bst_free_vef_iterator ( this, vef )
   implicit none
   class(base_static_triangulation_t) , intent(in)    :: this
-  class(vef_iterator_t)              , intent(inout) :: vef
-  call vef%free()
+  class(vef_iterator_t), allocatable , intent(inout) :: vef
+  integer(ip) :: istat
+  if ( allocated(vef) ) then
+    call vef%free()
+    deallocate(vef, stat=istat); check(istat==0)
+  end if
 end subroutine bst_free_vef_iterator
+
+subroutine bst_free_itfc_vef_iterator ( this, itfc_vef )
+  implicit none
+  class(base_static_triangulation_t)   , intent(in)    :: this
+  type(itfc_vef_iterator_t), intent(inout) :: itfc_vef 
+  integer(ip) :: istat
+  call itfc_vef%free()
+end subroutine bst_free_itfc_vef_iterator
 
 subroutine bst_create_object_iterator(this, object)
   implicit none
@@ -1973,8 +1986,8 @@ end subroutine bst_free_object_iterator
 subroutine bst_print ( this )
    class(base_static_triangulation_t), intent(in) :: this
    integer(ip) :: ivef,inode
-   type(vef_iterator_t)  :: vef
-   class(cell_iterator_t), allocatable       :: cell
+   class(vef_iterator_t), allocatable  :: vef
+   class(cell_iterator_t), allocatable :: cell
    type(point_t), allocatable :: cell_coordinates(:)
    integer(ip) :: vef_lid
 
@@ -1998,7 +2011,7 @@ subroutine bst_print ( this )
 
     write (*,'(a)') '       id      is_local   num_vefs    coord        coord  ....'
     do while ( .not. cell%has_finished() )
-       !write(*,*) 'Printing cell:',cell%get_lid(),cell%is_local()
+       !write(*,*) 'Printing cell:',cell%get_gid(),cell%is_local()
        if(cell%is_local()) then
           call memrealloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
           call cell%get_coordinates (cell_coordinates)
@@ -2027,7 +2040,6 @@ subroutine bst_print ( this )
     implicit none
     class(base_static_triangulation_t), target, intent(inout) :: this
     integer(ip)                                       :: icell, ivef, istat
-    
     if ( associated(this%p_env) ) then
     if ( this%p_env%am_i_l1_task() ) then
         this%num_dims = -1 
@@ -2058,21 +2070,25 @@ subroutine bst_print ( this )
         call this%g2l_subparts%free()
         this%num_objects = -1
         this%num_global_objects = -1
-
-      else ! I am lgt1_task
-         call this%coarse_triangulation%free()
-         deallocate ( this%coarse_triangulation, stat=istat)
-         check(istat == 0)
-      end if
-
-      if(associated(this%p_env,this%par_environment)) then
-         ! The environment has been created by the triangulation
-         call this%par_environment%free()
-      end if
-      nullify(this%p_env)
-      end if
-      call this%geometry%free()
-   end subroutine bst_free
+       else ! I am lgt1_task
+          call this%coarse_triangulation%free()
+          deallocate ( this%coarse_triangulation, stat=istat)
+          check(istat == 0)
+       end if
+       call this%environment_free_or_nullify()     
+    end if
+    call this%geometry%free()
+  end subroutine bst_free
+   
+   subroutine bst_environment_free_or_nullify ( this) 
+     implicit none
+     class(base_static_triangulation_t), target, intent(inout) :: this
+     if(associated(this%p_env,this%par_environment)) then
+       ! The environment has been created by the triangulation
+       call this%par_environment%free()
+     end if
+     nullify(this%p_env)
+   end subroutine  bst_environment_free_or_nullify 
 
    function bst_get_num_reference_fes_geo ( this ) 
      implicit none

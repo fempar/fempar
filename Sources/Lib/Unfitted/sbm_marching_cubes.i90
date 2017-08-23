@@ -563,27 +563,35 @@ subroutine marching_cubes_discrete_levelset_create(this)
   ! Create the fe space
   triangulation => this%triangulation
   select type(triangulation)
-  class is(serial_triangulation_t)
+    type is(serial_unfitted_triangulation_t)
 
      allocate(serial_fe_space_t:: this%fe_space, stat=istat); check(istat==0)
      call this%fe_space%create(triangulation     = this%triangulation, &
                                reference_fes     = this%reference_fes )
 
-  class is(par_triangulation_t)
+    type is(unfitted_p4est_serial_triangulation_t)
 
-     allocate(this%dummy_coarse_handlers(1),stat=istat); check(istat==0)
-     this%dummy_coarse_handlers(1)%p => this%dummy_coarse_handler
+      allocate(serial_hp_adaptive_fe_space_t :: this%fe_space, stat=istat); check(istat==0)
+      call this%fe_space%create(triangulation     = this%triangulation, &
+                                conditions        = this%dummy_conditions, &
+                                reference_fes     = this%reference_fes )
 
-     allocate(par_fe_space_t:: this%fe_space, stat=istat); check(istat==0)
-     fe_space => this%fe_space
-     select type (fe_space)
-     class is (par_fe_space_t)
-       call fe_space%create(triangulation      = this%triangulation, &
-                            reference_fes      = this%reference_fes, &
-                            coarse_fe_handlers = this%dummy_coarse_handlers )
-     class default
-       check(.false.)
-     end select
+    type is(par_unfitted_triangulation_t)
+
+      allocate(this%dummy_coarse_handlers(1),stat=istat); check(istat==0)
+      this%dummy_coarse_handlers(1)%p => this%dummy_coarse_handler
+
+      allocate(par_fe_space_t:: this%fe_space, stat=istat); check(istat==0)
+      fe_space => this%fe_space
+      select type (fe_space)
+      class is (par_fe_space_t)
+        call fe_space%create(triangulation      = this%triangulation, &
+                             conditions         = this%dummy_conditions, &
+                             reference_fes      = this%reference_fes , &
+                             coarse_fe_handlers = this%dummy_coarse_handlers)
+    class default
+      check(.false.)
+  end select
 
   class default
     mcheck(.false.,'Wrong triangulation type')
