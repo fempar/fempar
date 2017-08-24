@@ -126,7 +126,14 @@ module triangulation_names
     class(triangulation_t), pointer :: triangulation => NULL()
   contains
      procedure                           :: create                    => vef_iterator_create
+     ! This regular TBP is required in extensions of vef_iterator_t that require to :
+     !       (1) overwrite create; 
+     !       (2) call the create TBP of the parent;
+     ! Note that the Fortran200X standard does not allow to call the overrided regular method of a parent
+     ! data type when the parent is abstract
+     procedure, non_overridable          :: create_for_extensions     => vef_iterator_create_for_extensions
      procedure                           :: free                      => vef_iterator_free
+     procedure, non_overridable          :: free_for_extensions       => vef_iterator_free_for_extensions
      procedure                           :: first                     => vef_iterator_first
      procedure                           :: next                      => vef_iterator_next
      procedure                           :: has_finished              => vef_iterator_has_finished

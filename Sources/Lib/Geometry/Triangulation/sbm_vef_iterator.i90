@@ -34,12 +34,27 @@ subroutine vef_iterator_create ( this, triangulation )
   call this%first()
 end subroutine vef_iterator_create
 
+subroutine vef_iterator_create_for_extensions ( this, triangulation )
+  implicit none
+  class(vef_iterator_t)        , intent(inout) :: this
+  class(triangulation_t), target, intent(in)    :: triangulation
+  this%gid = 1
+  this%triangulation => triangulation
+end subroutine vef_iterator_create_for_extensions
+
 subroutine vef_iterator_free ( this)
   implicit none
   class(vef_iterator_t), intent(inout) :: this
   this%gid = -1
   nullify ( this%triangulation )
 end subroutine vef_iterator_free
+
+subroutine vef_iterator_free_for_extensions( this)
+  implicit none
+  class(vef_iterator_t), intent(inout) :: this
+  this%gid = -1
+  nullify ( this%triangulation )
+end subroutine vef_iterator_free_for_extensions
 
 subroutine vef_iterator_first(this)
   implicit none
