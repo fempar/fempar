@@ -127,7 +127,10 @@ recursive subroutine coarse_fe_space_free (this)
         ! This is a very DIRTY. type(sparse_matrix_t) requires that this%blocks_dof_import is also
         ! allocated on >L1 MPI tasks. Once we have the actual value for this%num_blocks, I think
         ! that, although still dirty, we could live with this.
-        deallocate ( this%blocks_dof_import )
+        if ( allocated( this%blocks_dof_import ) ) then
+          deallocate(this%blocks_dof_import, stat=istat)
+          check (istat==0)
+        end if
         
         call this%coarse_fe_space%free()
         deallocate (this%coarse_fe_space, stat=istat)
