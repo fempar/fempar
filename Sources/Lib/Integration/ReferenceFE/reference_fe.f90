@@ -401,7 +401,9 @@ module reference_fe_names
      ! TBP to create an interpolation from a quadrature_t and reference_fe_t, 
      ! i.e., the value of the shape functions of the reference element on the quadrature points. 
      procedure(create_interpolation_interface)          , deferred :: create_interpolation 
-     procedure(create_interpolation_restricted_to_facet_interface)     , deferred :: create_interpolation_restricted_to_facet
+     procedure(create_interpolation_restricted_to_facet_interface), deferred :: create_interpolation_restricted_to_facet
+     procedure(create_facet_interpolation_interface)    , deferred :: create_facet_interpolation
+     procedure(create_edget_interpolation_interface)    , deferred :: create_edget_interpolation
      procedure(apply_cell_map_interface)                , deferred :: apply_cell_map
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
@@ -471,9 +473,10 @@ module reference_fe_names
      
      procedure(generate_own_dofs_cell_permutations_interface), deferred :: generate_own_dofs_cell_permutations
      procedure(fill_qpoints_permutations_interface), deferred :: fill_qpoints_permutations
-     
-     procedure(get_default_quadrature_degree_interface), deferred :: get_default_quadrature_degree
-     
+     procedure(get_default_quadrature_degree_interface), deferred :: get_default_quadrature_degree 
+     procedure (create_data_out_quadrature_interface), deferred :: create_data_out_quadrature 
+     procedure (get_num_subcells_interface      )    , deferred :: get_num_subcells
+     procedure (get_subcells_connectivity_interface) , deferred :: get_subcells_connectivity
      procedure(get_h_refinement_num_subfacets_interface), private, deferred :: get_h_refinement_num_subfacets
 
      ! generic part of the subroutine above
@@ -525,9 +528,9 @@ module reference_fe_names
      procedure :: has_nodal_quadrature => reference_fe_has_nodal_quadrature
      procedure :: get_nodal_quadrature => reference_fe_get_nodal_quadrature
 
-     procedure :: compute_permutation_index => reference_fe_compute_permutation_index
-     procedure :: permute_dof_LID_n_face  => reference_fe_permute_dof_LID_n_face
-
+     procedure :: compute_permutation_index     => reference_fe_compute_permutation_index
+     procedure :: permute_dof_LID_n_face        => reference_fe_permute_dof_LID_n_face
+     procedure :: get_normal_orientation_factor => reference_fe_get_normal_orientation_factor
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -585,6 +588,22 @@ module reference_fe_names
        type(quadrature_t)   , intent(in)    :: local_quadrature
        type(interpolation_t), intent(inout) :: facet_interpolation
      end subroutine create_interpolation_restricted_to_facet_interface
+
+     subroutine create_facet_interpolation_interface ( this, quadrature, facet_interpolation)
+       import :: reference_fe_t, ip, quadrature_t, interpolation_t
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       type(quadrature_t)   , intent(in)    :: quadrature
+       type(interpolation_t), intent(inout) :: facet_interpolation
+     end subroutine create_facet_interpolation_interface
+     
+     subroutine create_edget_interpolation_interface ( this, quadrature, edget_interpolation)
+       import :: reference_fe_t, ip, quadrature_t, interpolation_t
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       type(quadrature_t)   , intent(in)    :: quadrature
+       type(interpolation_t), intent(inout) :: edget_interpolation
+     end subroutine create_edget_interpolation_interface
 
      function get_component_node_interface( this, node )
        import :: reference_fe_t, ip
@@ -793,7 +812,7 @@ module reference_fe_names
        real(rp)                          , intent(in)    :: nodal_values(:)
        type(tensor_field_t) , allocatable, intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
-	 
+     
      function check_compatibility_of_n_faces_interface(target_reference_fe, &
           &                       source_reference_fe, source_n_face_id,target_n_face_id)
        import :: reference_fe_t, ip
@@ -853,13 +872,36 @@ module reference_fe_names
         integer(ip) :: get_default_quadrature_degree_interface
      end function get_default_quadrature_degree_interface
      
+     subroutine create_data_out_quadrature_interface ( this, num_refinements, quadrature )
+        import :: reference_fe_t, ip, quadrature_t
+        implicit none
+        class(reference_fe_t), intent(in)    :: this
+        integer(ip)                     , intent(in)    :: num_refinements
+        type(quadrature_t)              , intent(inout) :: quadrature
+     end subroutine create_data_out_quadrature_interface
+
+     function get_num_subcells_interface(this, num_refinements) result(num_subcells)
+        import :: reference_fe_t, ip
+        implicit none
+        class(reference_fe_t), intent(in)    :: this
+        integer(ip),                      intent(in)    :: num_refinements
+        integer(ip)                                     :: num_subcells
+     end function get_num_subcells_interface
+
+     subroutine get_subcells_connectivity_interface(this, num_refinements, connectivity)
+        import :: reference_fe_t, ip
+        implicit none
+        class(reference_fe_t), intent(in)    :: this
+        integer(ip),                      intent(in)    :: num_refinements
+        integer(ip),                      intent(inout) :: connectivity(:,:)
+     end subroutine get_subcells_connectivity_interface
+
      function get_h_refinement_num_subfacets_interface(this)
         import :: reference_fe_t, ip
         implicit none
         class(reference_fe_t)        , intent(in)    :: this 
         integer(ip) :: get_h_refinement_num_subfacets_interface
      end function get_h_refinement_num_subfacets_interface
-     
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -881,14 +923,10 @@ module reference_fe_names
   type(quadrature_t)       :: nodal_quadrature
 contains
   ! Additional deferred methods
-  !procedure (fill_scalar_interface)            , private, deferred :: fill_scalar
-  procedure (create_data_out_quadrature_interface)           , deferred :: create_data_out_quadrature 
-  procedure (get_num_subcells_interface      )            , deferred :: get_num_subcells
-  procedure (get_subcells_connectivity_interface)            , deferred :: get_subcells_connectivity
   procedure (fill_quadrature_interface)             , private, deferred :: fill_quadrature
   procedure (fill_nodal_quadrature_interface)       , private, deferred :: fill_nodal_quadrature
   procedure (fill_interpolation_interface)          , private, deferred :: fill_interpolation
-  procedure (fill_facet_interpolation_interface)     , private, deferred :: fill_facet_interpolation
+  procedure (fill_interp_restricted_to_facet_interface)     , private, deferred :: fill_interp_restricted_to_facet
   procedure (compute_num_quadrature_points_interface), private, deferred :: compute_num_quadrature_points
   ! Blending function to generate interpolations in the interior (given values on the boundary)
   procedure(blending_interface), deferred :: blending
@@ -930,8 +968,6 @@ contains
        & => lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
   procedure :: evaluate_gradient_fe_function_vector &
        & => lagrangian_reference_fe_evaluate_gradient_fe_function_vector
-  procedure :: get_normal_orientation_factor        &
-       & => lagrangian_reference_fe_get_normal_orientation_factor
   procedure :: free                      => lagrangian_reference_fe_free
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                         & 
@@ -956,37 +992,12 @@ contains
 end type lagrangian_reference_fe_t
 
 abstract interface
-
   subroutine fill_scalar_interface ( this )
     import :: lagrangian_reference_fe_t
     implicit none 
     class(lagrangian_reference_fe_t), intent(inout) :: this 
   end subroutine fill_scalar_interface
   
-  subroutine create_data_out_quadrature_interface ( this, num_refinements, quadrature )
-    import :: lagrangian_reference_fe_t, ip, quadrature_t
-    implicit none 
-    class(lagrangian_reference_fe_t), intent(in)    :: this
-    integer(ip)                     , intent(in)    :: num_refinements
-    type(quadrature_t)              , intent(inout) :: quadrature
-  end subroutine create_data_out_quadrature_interface
-
-  function get_num_subcells_interface(this, num_refinements) result(num_subcells)
-    import :: lagrangian_reference_fe_t, ip
-    implicit none
-    class(lagrangian_reference_fe_t), intent(in)    :: this
-    integer(ip),                      intent(in)    :: num_refinements
-    integer(ip)                                     :: num_subcells
-  end function get_num_subcells_interface
-  
-  subroutine get_subcells_connectivity_interface(this, num_refinements, connectivity)
-    import :: lagrangian_reference_fe_t, ip
-    implicit none
-    class(lagrangian_reference_fe_t), intent(in)    :: this
-    integer(ip),                      intent(in)    :: num_refinements
-    integer(ip),                      intent(inout) :: connectivity(:,:)
-  end subroutine get_subcells_connectivity_interface
-
   subroutine fill_quadrature_interface ( this, quadrature )
     import :: lagrangian_reference_fe_t, quadrature_t
     implicit none 
@@ -1010,7 +1021,7 @@ abstract interface
     integer(ip)           , optional, intent(in)    :: order_vector(SPACE_DIM)
   end subroutine fill_interpolation_interface
 
-  subroutine fill_facet_interpolation_interface ( this,             &
+  subroutine fill_interp_restricted_to_facet_interface ( this,             &
                                                  local_quadrature, &
                                                  facet_lid,    &
                                                  subfacet_lid, &
@@ -1022,7 +1033,7 @@ abstract interface
     integer(ip)                     , intent(in)    :: facet_lid
     integer(ip)                     , intent(in)    :: subfacet_lid
     type(interpolation_t)           , intent(inout) :: facet_interpolation
-  end subroutine fill_facet_interpolation_interface
+  end subroutine fill_interp_restricted_to_facet_interface
 
   function compute_num_quadrature_points_interface ( this, degree, dimension )
     import :: lagrangian_reference_fe_t, ip, SPACE_DIM
@@ -1223,8 +1234,8 @@ contains
              &  => tet_lagrangian_reference_fe_fill_nodal_quadrature
    procedure, private :: fill_interpolation                                             &
              &  => tet_lagrangian_reference_fe_fill_interpolation
-   procedure, private :: fill_facet_interpolation                                        &
-             &  => tet_lagrangian_reference_fe_fill_facet_interpolation
+   procedure, private :: fill_interp_restricted_to_facet                                        &
+             &  => tet_lagrangian_reference_fe_fill_interp_restricted_to_facet
    procedure, private :: compute_num_quadrature_points                                   &
              &  => tet_lagrangian_reference_fe_compute_num_quadrature_points
    procedure, private :: get_node_local_id                                              &
@@ -1277,8 +1288,8 @@ procedure, private :: fill_quadrature                                    &
 & => tet_raviart_thomas_fill_quadrature
 procedure, private :: fill_interpolation                                 &
 & => tet_raviart_thomas_fill_interpolation
-procedure, private :: fill_facet_interpolation                            &
-& => tet_raviart_thomas_fill_facet_interpolation
+procedure, private :: fill_interp_restricted_to_facet                            &
+& => tet_raviart_thomas_fill_interp_restricted_to_facet
 procedure, private :: set_permutation_2D                                 &
 & => tet_raviart_thomas_set_permutation_2D
 procedure, private :: compute_num_quadrature_points                       &
@@ -1335,8 +1346,8 @@ procedure, private :: fill_nodal_quadrature                              &
 & => hex_lagrangian_reference_fe_fill_nodal_quadrature
 procedure, private :: fill_interpolation                                 &
 & => hex_lagrangian_reference_fe_fill_interpolation
-procedure, private :: fill_facet_interpolation                            &
-& => hex_lagrangian_reference_fe_fill_facet_interpolation
+procedure, private :: fill_interp_restricted_to_facet                            &
+& => hex_lagrangian_reference_fe_fill_interp_restricted_to_facet
 ! Overwriten TBPs from lagrangian_reference_fe_t
 procedure :: free                                                        &
 & => hex_lagrangian_reference_fe_free
@@ -1386,8 +1397,8 @@ procedure, private :: fill_interpolation                                 &
 & => hex_raviart_thomas_reference_fe_fill_interpolation
 procedure, private :: fill_interpolation_pre_basis                       &
 & => hex_raviart_thomas_reference_fe_fill_interpolation_pre_basis
-procedure, private :: fill_facet_interpolation                            &
-& => hex_raviart_thomas_reference_fe_fill_facet_interpolation
+procedure, private :: fill_interp_restricted_to_facet                            &
+& => hex_raviart_thomas_reference_fe_fill_interp_restricted_to_facet
 procedure, private :: compute_num_quadrature_points                       &
 & => hrtrf_compute_num_quadrature_points
 procedure, private :: change_basis &
@@ -1418,8 +1429,8 @@ procedure, private :: fill_interpolation                                 &
 & => hex_nedelec_reference_fe_fill_interpolation
 procedure, private :: fill_interpolation_pre_basis                       &
 & => hex_nedelec_reference_fe_fill_interpolation_pre_basis
-procedure, private :: fill_facet_interpolation                            &
-& => hex_nedelec_reference_fe_fill_facet_interpolation
+procedure, private :: fill_interp_restricted_to_facet                            &
+& => hex_nedelec_reference_fe_fill_interp_restricted_to_facet
 procedure, private :: fill_interpolation_restricted_to_edget                            &
 & => hex_nedelec_reference_fe_fill_interpolation_restricted_to_edget
 procedure, private :: compute_num_quadrature_points                       &
@@ -1460,8 +1471,8 @@ procedure, private :: fill_interpolation                                 &
 & => tet_nedelec_reference_fe_fill_interpolation
 procedure, private :: fill_interpolation_pre_basis                       &
 & => tet_nedelec_reference_fe_fill_interpolation_pre_basis   
-procedure, private :: fill_facet_interpolation                            &
-& => tet_nedelec_reference_fe_fill_facet_interpolation
+procedure, private :: fill_interp_restricted_to_facet                            &
+& => tet_nedelec_reference_fe_fill_interp_restricted_to_facet
 procedure, private :: fill_interpolation_restricted_to_edget              &
 & => tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget
 procedure, private :: compute_num_quadrature_points                   &
@@ -1517,6 +1528,9 @@ contains
   procedure, private :: get_h_refinement_num_subfacets => void_reference_fe_get_h_refinement_num_subfacets
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                        => void_reference_fe_fill
+  procedure :: create_data_out_quadrature  => void_reference_fe_create_data_out_quadrature
+  procedure :: get_num_subcells            => void_reference_fe_get_num_subcells
+  procedure :: get_subcells_connectivity   => void_reference_fe_get_subcells_connectivity
 end type void_reference_fe_t
 
 public :: void_reference_fe_t

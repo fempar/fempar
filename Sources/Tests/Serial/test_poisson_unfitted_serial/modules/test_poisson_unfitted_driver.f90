@@ -221,7 +221,7 @@ contains
     integer(ip) :: istat
     logical                                   :: continuity
     class(cell_iterator_t), allocatable       :: cell
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    class(reference_fe_t), pointer :: reference_fe_geo
     character(:), allocatable :: field_type
 
 
@@ -239,7 +239,7 @@ contains
     end if
 
     call this%triangulation%create_cell_iterator(cell)
-    reference_fe_geo => cell%get_reference_fe_geo()
+    reference_fe_geo => cell%get_reference_fe()
 
 
 

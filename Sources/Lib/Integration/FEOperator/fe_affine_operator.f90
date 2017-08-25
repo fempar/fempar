@@ -360,7 +360,7 @@ function fe_affine_operator_create_par_assembler(this, &
   
   select type(fe_space => this%test_fe_space)
   class is(par_fe_space_t)
-   par_environment => fe_space%get_par_environment()
+   par_environment => fe_space%get_environment()
    if (this%block_layout%get_num_blocks() == 1) then
      allocate ( par_sparse_assembler_t :: fe_affine_operator_create_par_assembler )
      allocate ( par_sparse_matrix_t :: matrix )

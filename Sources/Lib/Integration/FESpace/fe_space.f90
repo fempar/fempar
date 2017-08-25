@@ -37,7 +37,7 @@ module fe_space_names
   use FPL
 
   use environment_names
-  use base_static_triangulation_names
+  use triangulation_names
   use conditions_names
   
   use reference_fe_names
@@ -45,8 +45,6 @@ module fe_space_names
   use function_names
   
   use block_layout_names
-  use operator_names
-  use matrix_names
   use vector_names
   use array_names
   use assembler_names
@@ -57,6 +55,7 @@ module fe_space_names
   use serial_block_array_names
   use sparse_assembler_names
   use block_sparse_assembler_names
+  
   use direct_solver_names
   use direct_solver_parameters_names
   use iterative_linear_solver_names
@@ -68,9 +67,8 @@ module fe_space_names
   use std_vector_real_rp_names
   use p4est_serial_triangulation_names
 
- ! Parallel modules
+  ! Parallel modules
   use environment_names
-  !use par_context_names
   use dof_import_names
   use cell_import_names
   use par_sparse_matrix_names
@@ -132,33 +130,31 @@ module fe_space_names
     class(cell_iterator_t), allocatable :: cell
   contains
     ! Methods exploiting ("inherited from") cell_t common to all descendants
-  
     procedure                            :: next                    => base_fe_cell_iterator_next
     procedure                            :: first                   => base_fe_cell_iterator_first
-    procedure                            :: last                    => base_fe_cell_iterator_last
     procedure                            :: set_gid                 => base_fe_cell_iterator_set_gid
     procedure, non_overridable           :: has_finished            => base_fe_cell_iterator_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => base_fe_cell_iterator_get_reference_fe_geo
     procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_cell_iterator_get_reference_fe_geo_id
-    procedure, non_overridable           :: get_coordinates         => base_fe_cell_iterator_get_coordinates
-    procedure, non_overridable           :: set_coordinates         => base_fe_cell_iterator_set_coordinates
+    procedure, non_overridable           :: get_nodes_coordinates   => base_fe_cell_iterator_get_nodes_coordinates
     procedure, non_overridable           :: get_gid                 => base_fe_cell_iterator_get_gid
-    procedure, non_overridable           :: get_ggid                 => base_fe_cell_iterator_get_ggid
+    procedure, non_overridable           :: get_ggid                => base_fe_cell_iterator_get_ggid
     procedure, non_overridable           :: get_my_part             => base_fe_cell_iterator_get_mypart
     procedure, non_overridable           :: get_my_subpart          => base_fe_cell_iterator_get_mysubpart
     procedure, non_overridable           :: get_my_subpart_lid      => base_fe_cell_iterator_get_mysubpart_lid
     procedure, non_overridable           :: get_set_id              => base_fe_cell_iterator_get_set_id
     procedure, non_overridable           :: get_num_vefs            => base_fe_cell_iterator_get_num_vefs
     procedure, non_overridable           :: get_vef_gid             => base_fe_cell_iterator_get_vef_gid
-    procedure, non_overridable           :: get_vef_gids            => base_fe_cell_iterator_get_vef_gids
+    procedure, non_overridable           :: get_vefs_gid            => base_fe_cell_iterator_get_vefs_gid
     procedure, non_overridable           :: get_vef_ggid            => base_fe_cell_iterator_get_vef_ggid
     procedure, non_overridable           :: get_vef_lid_from_gid    => base_fe_cell_iterator_get_vef_lid_from_gid
     procedure, non_overridable           :: get_vef_lid_from_ggid   => base_fe_cell_iterator_get_vef_lid_from_ggid
     procedure, non_overridable           :: is_local                => base_fe_cell_iterator_is_local
     procedure, non_overridable           :: is_ghost                => base_fe_cell_iterator_is_ghost
-    procedure, non_overridable           :: scan_sum_num_vefs       => base_fe_cell_iterator_get_scan_sum_num_vefs
     procedure, non_overridable, private  :: base_fe_cell_iterator_get_vef
     generic                              :: get_vef                 => base_fe_cell_iterator_get_vef
+    procedure, non_overridable           :: get_triangulation       => base_fe_cell_iterator_get_triangulation
+    
     procedure                            :: update_sub_triangulation    => base_fe_cell_iterator_update_sub_triangulation
     procedure                            :: get_mc_case                 => base_fe_cell_iterator_get_mc_case
     procedure                            :: get_num_subcells            => base_fe_cell_iterator_get_num_subcells
@@ -320,7 +316,7 @@ module fe_space_names
      procedure                           :: has_finished              => base_fe_vef_iterator_has_finished
      procedure                           :: set_gid                   => base_fe_vef_iterator_set_gid
      procedure                           :: get_gid                   => base_fe_vef_iterator_get_gid
-     procedure, non_overridable          :: get_coordinates           => base_fe_vef_iterator_get_coordinates
+     procedure, non_overridable          :: get_nodes_coordinates     => base_fe_vef_iterator_get_nodes_coordinates
      procedure, non_overridable          :: get_set_id                => base_fe_vef_iterator_get_set_id
      
      procedure, non_overridable          :: get_dim                   => base_fe_vef_iterator_get_dim
@@ -496,7 +492,7 @@ module fe_space_names
      type(block_layout_t)              , pointer :: block_layout  => NULL()
      
      ! ( Polymorphic ) pointer to a triangulation it was created from
-     class(base_static_triangulation_t), pointer :: triangulation => NULL()
+     class(triangulation_t)            , pointer :: triangulation => NULL()
    contains
      procedure,                  private :: serial_fe_space_create_same_reference_fes_on_all_cells
      procedure,                  private :: serial_fe_space_create_different_ref_fes_between_cells
@@ -749,9 +745,7 @@ module fe_space_names
    procedure        , non_overridable, private :: compute_faces_object                            => par_fe_space_compute_faces_object
    procedure        , non_overridable, private :: free_faces_object                               => par_fe_space_free_faces_object
    
-   procedure        , non_overridable          :: get_num_fe_objects                           => par_fe_space_get_num_fe_objects
-   procedure                                   :: get_par_environment                             => par_fe_space_get_par_environment
-   procedure                                   :: get_environment                                 => par_fe_space_get_environment
+   procedure        , non_overridable          :: get_num_fe_objects                              => par_fe_space_get_num_fe_objects
    
    procedure                                   :: print                                           => par_fe_space_print
    procedure                                   :: free                                            => par_fe_space_free
@@ -812,7 +806,7 @@ module fe_space_names
     end subroutine l1_setup_constraint_matrix
   
     subroutine l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
-	     import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, operator_t, rp, ip
+	     import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, rp, ip
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
       integer(ip)                  , intent(in)    :: field_id
       type(par_fe_space_t)          , intent(in)    :: par_fe_space
@@ -844,21 +838,24 @@ module fe_space_names
     private
     type(coarse_fe_space_t), pointer :: coarse_fe_space => NULL()
   contains
-    procedure, non_overridable, private :: create                                     => coarse_fe_cell_iterator_create
-    procedure, non_overridable, private :: free                                       => coarse_fe_cell_iterator_free
+    procedure, non_overridable, private :: create                                      => coarse_fe_cell_iterator_create
+    procedure, non_overridable, private :: free                                        => coarse_fe_cell_iterator_free
     final                               :: coarse_fe_cell_iterator_free_final
-    procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => coarse_fe_cell_iterator_create_own_dofs_on_vef_iterator
+    procedure, non_overridable          :: create_own_dofs_on_vef_iterator             => coarse_fe_cell_iterator_create_own_dofs_on_vef_iterator
     procedure, non_overridable, private :: generate_own_dofs_vef                       => coarse_fe_cell_iterator_generate_own_dofs_vef
     procedure, non_overridable, private :: generate_own_dofs_vef_from_source_coarse_fe => cfeci_generate_own_dofs_vef_from_source_coarse_fe
-    procedure, non_overridable, private :: renum_dofs_block                        => coarse_fe_cell_iterator_renum_dofs_block
-    procedure, non_overridable, private :: renum_dofs_field                        => coarse_fe_cell_iterator_renum_dofs_field
+    procedure, non_overridable, private :: renum_dofs_block                            => coarse_fe_cell_iterator_renum_dofs_block
+    procedure, non_overridable, private :: renum_dofs_field                            => coarse_fe_cell_iterator_renum_dofs_field
     
-    procedure, non_overridable, private :: get_scan_sum_num_dofs                   => coarse_fe_cell_iterator_get_scan_sum_num_dofs
-    procedure, non_overridable          :: get_num_fe_spaces                       => coarse_fe_cell_iterator_get_num_fe_spaces
-    procedure, non_overridable          :: get_num_dofs                            => coarse_fe_cell_iterator_get_num_dofs
-    procedure, non_overridable          :: get_fe_dofs                               => coarse_fe_cell_iterator_get_fe_dofs
-    procedure, non_overridable          :: get_field_fe_dofs                         => coarse_fe_cell_iterator_get_field_fe_dofs
-    procedure, non_overridable          :: get_coarse_fe_vef                          => coarse_fe_cell_iterator_get_coarse_fe_vef
+    procedure, non_overridable, private :: get_scan_sum_num_dofs                       => coarse_fe_cell_iterator_get_scan_sum_num_dofs
+    procedure, non_overridable          :: get_num_fe_spaces                           => coarse_fe_cell_iterator_get_num_fe_spaces
+    procedure, non_overridable          :: get_num_dofs                                => coarse_fe_cell_iterator_get_num_dofs
+    procedure, non_overridable          :: get_fe_dofs                                 => coarse_fe_cell_iterator_get_fe_dofs
+    procedure, non_overridable          :: get_field_fe_dofs                           => coarse_fe_cell_iterator_get_field_fe_dofs
+    procedure, non_overridable          :: get_coarse_fe_vef                           => coarse_fe_cell_iterator_get_coarse_fe_vef
+    
+    procedure, non_overridable          :: last                                        => coarse_fe_cell_iterator_last
+    procedure, non_overridable          :: scan_sum_num_vefs                           => coarse_fe_cell_iterator_scan_sum_num_vefs
   end type coarse_fe_cell_iterator_t
   
   type, extends(base_fe_vef_iterator_t) :: coarse_fe_vef_iterator_t
@@ -987,13 +984,12 @@ module fe_space_names
      procedure, non_overridable                 :: get_num_local_coarse_fes                     => coarse_fe_space_get_num_local_coarse_fes
      procedure, non_overridable                 :: get_num_ghost_coarse_fes                     => coarse_fe_space_get_num_ghost_coarse_fes
      procedure, non_overridable                 :: get_num_coarse_fe_objects                    => coarse_fe_space_get_num_coarse_fe_objects
-     procedure, non_overridable                 :: get_triangulation                               => coarse_fe_space_get_triangulation
-     procedure, non_overridable                 :: get_par_environment                             => coarse_fe_space_get_par_environment
-     procedure                                  :: get_environment                                 => coarse_fe_space_get_environment
+     procedure, non_overridable                 :: get_triangulation                            => coarse_fe_space_get_triangulation
+     procedure                                  :: get_environment                              => coarse_fe_space_get_environment
      
      procedure                                  :: get_num_blocks                               => coarse_fe_space_get_num_blocks
-     procedure                                  :: get_field_blocks                                => coarse_fe_space_get_field_blocks
-     procedure                                  :: get_field_coupling                              => coarse_fe_space_get_field_coupling
+     procedure                                  :: get_field_blocks                             => coarse_fe_space_get_field_blocks
+     procedure                                  :: get_field_coupling                           => coarse_fe_space_get_field_coupling
      procedure                                  :: get_block_num_dofs                           => coarse_fe_space_get_block_num_dofs
  end type coarse_fe_space_t
  

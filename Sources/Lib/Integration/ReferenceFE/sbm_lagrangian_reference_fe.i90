@@ -132,19 +132,18 @@ subroutine lrfe_create_interpolation_restricted_to_facet( this,facet_lid, &
        & local_quadrature%num_quadrature_points, 0 )
 
   ! Fill the values of the shape functions
-
-  call this%fill_facet_interpolation(local_quadrature,facet_lid,subfacet_lid,facet_interpolation)
+  call this%fill_interp_restricted_to_facet(local_quadrature,facet_lid,subfacet_lid,facet_interpolation)
 
 end subroutine lrfe_create_interpolation_restricted_to_facet
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine lagrangian_reference_fe_create_facet_interpolation (this, quadrature, interpolation)
+subroutine lagrangian_reference_fe_create_facet_interpolation (this, quadrature, facet_interpolation)
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation
+  type(interpolation_t)           , intent(inout) :: facet_interpolation
 
   type(p_reference_fe_t) :: aux_reference_fe
 
@@ -155,18 +154,18 @@ subroutine lagrangian_reference_fe_create_facet_interpolation (this, quadrature,
        this%field_type, &
        this%conformity )
 
-  call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
+  call aux_reference_fe%p%create_interpolation ( quadrature, facet_interpolation )
   call aux_reference_fe%free()
 end subroutine lagrangian_reference_fe_create_facet_interpolation
 
 !==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
-subroutine lagrangian_reference_fe_create_edget_interpolation (this, quadrature, interpolation)
+subroutine lagrangian_reference_fe_create_edget_interpolation (this, quadrature, edget_interpolation)
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation
+  type(interpolation_t)           , intent(inout) :: edget_interpolation
   type(p_reference_fe_t) :: aux_reference_fe
   !assert( this%num_dims > 2 )
   aux_reference_fe = make_reference_fe ( this%topology, &
@@ -176,7 +175,7 @@ subroutine lagrangian_reference_fe_create_edget_interpolation (this, quadrature,
                                          this%order_vector(1), &
                                          this%field_type, &
                                          this%conformity )
-  call aux_reference_fe%p%create_interpolation ( quadrature, interpolation )
+  call aux_reference_fe%p%create_interpolation ( quadrature, edget_interpolation )
   call aux_reference_fe%free()
 end subroutine lagrangian_reference_fe_create_edget_interpolation
 
@@ -1264,33 +1263,6 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
      enddo
   end if
 end subroutine lagrangian_reference_fe_fill_scalar
-
-!==================================================================================================
-function lagrangian_reference_fe_get_normal_orientation_factor( this, facet_lid, cell_map )          &
-  result(orientation_factor)
-  implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip)                     , intent(in)    :: facet_lid
-  type(cell_map_t)       , optional , intent(in)    :: cell_map
-  real(rp)    :: orientation_factor
-  real(rp)    :: jacobian_reorientation_factor
-  integer(ip) :: num_cell_dims, orientation_face, local_vef_id
-  
-  jacobian_reorientation_factor = 1.0_rp
-  if (present(cell_map)) then
-     if (.not. cell_map%is_det_jacobian_positive()) jacobian_reorientation_factor = -1.0_rp
-  end if 
-  
-  num_cell_dims = this%num_dims
-  if (num_cell_dims.ne.1) then
-     local_vef_id = this%ptr_n_faces_x_dim(num_cell_dims) + facet_lid - 1
-     orientation_face  = this%orientation%a(local_vef_id)
-     orientation_factor = (-1)**orientation_face*jacobian_reorientation_factor
-  else ! 1D special case
-     orientation_factor = -1.0_rp**(real(facet_lid))
-  end if
-  
-end function lagrangian_reference_fe_get_normal_orientation_factor
 
 !=================================================================================================
 function get_quadratures_from_hex(quadrature)

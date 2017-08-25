@@ -713,7 +713,8 @@ subroutine tet_raviart_thomas_fill_interpolation ( this, quadrature, interpolati
 end subroutine tet_raviart_thomas_fill_interpolation
 
 !==================================================================================================
-subroutine tet_raviart_thomas_fill_facet_interpolation (this, local_quadrature, &
+
+subroutine tet_raviart_thomas_fill_interp_restricted_to_facet (this, local_quadrature, &
      & facet_lid, subfacet_lid, facet_interpolation)
   implicit none
   class(tet_raviart_thomas_reference_fe_t), intent(in)    :: this
@@ -784,7 +785,7 @@ subroutine tet_raviart_thomas_fill_facet_interpolation (this, local_quadrature, 
 
   call memfree(global_coordinates,__FILE__,__LINE__)
 
-end subroutine tet_raviart_thomas_fill_facet_interpolation
+end subroutine tet_raviart_thomas_fill_interp_restricted_to_facet
 
 !==================================================================================================
 subroutine tet_raviart_thomas_reference_fe_change_basis(this) 

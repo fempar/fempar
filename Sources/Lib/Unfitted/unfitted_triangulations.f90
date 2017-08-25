@@ -37,7 +37,7 @@ module unfitted_triangulations_names
   use par_scalar_array_names
   use vector_names
   use serial_scalar_array_names
-  use base_static_triangulation_names
+  use triangulation_names
   use level_set_functions_gallery_names
   use base_sparse_matrix_names
   use dof_import_names
@@ -57,11 +57,9 @@ module unfitted_triangulations_names
 # include "mc_tables_qua4.i90"
 # include "mc_tables_hex8.i90"
   
-  type, extends(cell_iterator_t) :: unfitted_cell_iterator_t
-  
+  type, extends(bst_cell_iterator_t) :: unfitted_cell_iterator_t
     private
     class(marching_cubes_t), pointer :: marching_cubes => NULL()
-    
   contains
 
     ! Creation / deletion methods
@@ -100,8 +98,6 @@ module unfitted_triangulations_names
     procedure, non_overridable, private :: get_num_subnodes         => unfitted_cell_iterator_get_num_subnodes
     procedure, non_overridable, private :: subcell_has_been_reoriented    => unfitted_cell_iterator_subcell_has_been_reoriented
     procedure, non_overridable, private :: subfacet_touches_interior_reoriented_subcell => unfitted_cell_iterator_subfacet_touches_reoriented_subcell
-
-    
   end type unfitted_cell_iterator_t
 
   type, extends(unfitted_cell_iterator_t) :: unfitted_p4est_cell_iterator_t
@@ -113,14 +109,13 @@ module unfitted_triangulations_names
     !final                                ::                            unfitted_p4est_cell_iterator_free_final
     procedure                            :: next                    => unfitted_p4est_cell_iterator_next
     procedure                            :: first                   => unfitted_p4est_cell_iterator_first
-    procedure                            :: last                    => unfitted_p4est_cell_iterator_last
     procedure                            :: set_gid                 => unfitted_p4est_cell_iterator_set_gid
     !procedure, non_overridable, private  :: set_gid                 => unfitted_p4est_cell_iterator_set_gid
     !procedure, non_overridable, private  :: set_mypart              => unfitted_p4est_cell_iterator_set_mypart
     !procedure, non_overridable, private  :: get_triangulation       => unfitted_p4est_cell_iterator_get_triangulation
     procedure                            :: has_finished            => unfitted_p4est_cell_iterator_has_finished
-    procedure                            :: get_reference_fe_geo    => unfitted_p4est_cell_iterator_get_reference_fe_geo
-    procedure                            :: get_reference_fe_geo_id => unfitted_p4est_cell_iterator_get_reference_fe_geo_id
+    procedure                            :: get_reference_fe        => unfitted_p4est_cell_iterator_get_reference_fe
+    procedure                            :: get_reference_fe_id     => unfitted_p4est_cell_iterator_get_reference_fe_id
     procedure                            :: get_coordinates         => unfitted_p4est_cell_iterator_get_coordinates
     !procedure, non_overridable           :: set_coordinates         => unfitted_p4est_cell_iterator_set_coordinates
     !procedure, non_overridable           :: get_lid                 => unfitted_p4est_cell_iterator_get_lid
@@ -168,7 +163,7 @@ module unfitted_triangulations_names
     private
 
     ! The underlying triangulation
-    class(base_static_triangulation_t), pointer :: triangulation => null()
+    class(triangulation_t), pointer :: triangulation => null()
 
     ! The level set funciton
     class(level_set_function_t), pointer :: level_set_function => null()
@@ -237,6 +232,7 @@ module unfitted_triangulations_names
     procedure, non_overridable :: get_total_num_subfacets     => marching_cubes_get_total_num_subfacets
     procedure, non_overridable :: get_max_num_subnodes_in_cell  => marching_cubes_get_max_num_subnodes_in_cell
     procedure, non_overridable :: get_num_dims            => marching_cubes_get_num_dims
+    procedure, non_overridable :: get_max_num_shape_functions            => marching_cubes_get_max_num_shape_functions
     
     ! Getters related with the mc algorithm
     procedure, non_overridable :: get_num_mc_cases              => marching_cubes_get_num_mc_cases
@@ -258,15 +254,12 @@ module unfitted_triangulations_names
     procedure, non_overridable, private :: mc_runtime_info_free           => marching_cubes_mc_runtime_info_free
     procedure, non_overridable, private :: subnodes_data_create           => marching_cubes_subnodes_data_create
     procedure, non_overridable, private :: subnodes_data_free             => marching_cubes_subnodes_data_free
-    
-
   end type marching_cubes_t
 
   type, extends(serial_triangulation_t) :: serial_unfitted_triangulation_t
     private
       type(marching_cubes_t) :: marching_cubes
     contains
-
       ! Creation / deletion methods
       generic             :: create                       => sut_create
       procedure           :: free                         => sut_free

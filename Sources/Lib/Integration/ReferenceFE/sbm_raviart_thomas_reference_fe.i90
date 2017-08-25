@@ -89,7 +89,7 @@ subroutine rt_create_interpolation_restricted_to_facet( this, facet_lid, &
                                  0 )
 
   ! Fill the values of the shape functions
-  call this%fill_facet_interpolation(local_quadrature, &
+  call this%fill_interp_restricted_to_facet(local_quadrature, &
                                     facet_lid, &
                                     subfacet_lid, &
                                     facet_interpolation)
@@ -349,15 +349,14 @@ end subroutine raviart_thomas_fill_vector
 ! This subroutine constructs a interpolation of order 1 of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
 subroutine raviart_thomas_create_facet_interpolation ( this, quadrature, &
-     & interpolation)
+     & facet_interpolation)
   implicit none
   class(raviart_thomas_reference_fe_t), intent(in)    :: this
   type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation
+  type(interpolation_t)           , intent(inout) :: facet_interpolation
 
   write(*,*) 'Raviart-Thomas FEs cannot be used for geometry mapping'
   check(.false.)
-
 end subroutine raviart_thomas_create_facet_interpolation
 
 function raviart_thomas_has_nodal_quadrature(this)

@@ -43,7 +43,7 @@ subroutine base_map_update_interpolation( this, quadrature, reference_fe_geometr
   implicit none
   class(base_map_t)               , intent(inout) :: this
   type(quadrature_t)              , intent(in)    :: quadrature
-  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
   call reference_fe_geometry%create_interpolation( quadrature, this%interpolation )
 end subroutine base_map_update_interpolation
 

@@ -60,14 +60,6 @@ subroutine unfitted_hp_adaptive_fe_cell_iterator_first(this)
 end subroutine unfitted_hp_adaptive_fe_cell_iterator_first
 
 !===============================================================================
-subroutine unfitted_hp_adaptive_fe_cell_iterator_last(this)
-  implicit none
-  class(unfitted_hp_adaptive_fe_cell_iterator_t), intent(inout) :: this
-  call this%unfitted_fe_cell_iterator_t%last()
-  call this%adaptive_fe%last()
-end subroutine unfitted_hp_adaptive_fe_cell_iterator_last
-
-!===============================================================================
 subroutine unfitted_hp_adaptive_fe_cell_iterator_set_gid(this, lid)
   implicit none
   class(unfitted_hp_adaptive_fe_cell_iterator_t), intent(inout) :: this

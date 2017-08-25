@@ -48,11 +48,11 @@ subroutine put_free(this)
 end subroutine put_free
 
 !========================================================================================
-subroutine put_par_triangulation_create( this, parameters, par_environment)
+subroutine put_par_triangulation_create( this, parameters, environment)
   implicit none
   class(par_unfitted_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t),                       intent(inout) :: parameters
-  type(environment_t), optional,       target, intent(in)    :: par_environment
+  type(environment_t), optional,       target, intent(in)    :: environment
   check(.false.)
 end subroutine put_par_triangulation_create
 

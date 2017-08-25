@@ -245,7 +245,7 @@ end subroutine free_timers
     type(point_t), allocatable :: coords(:)
     real(rp) :: resu
     integer(ip) :: ivef
-    class(lagrangian_reference_fe_t), pointer :: ref_elem_geo
+    class(reference_fe_t), pointer :: ref_elem_geo
     type(list_iterator_t)          :: own_dofs_on_vef_iterator
     logical                        :: found_interior_vertex
     real(rp)                       :: num_blocked_vertex
@@ -303,8 +303,8 @@ end subroutine free_timers
       call this%triangulation%create_cell_iterator(cell)
       do while( .not. cell%has_finished() )
         if (cell%is_local()) then
-          call cell%get_coordinates(coords)
-          ref_elem_geo => cell%get_reference_fe_geo()
+          call cell%get_nodes_coordinates(coords)
+          ref_elem_geo => cell%get_reference_fe()
           do ivef = 1, cell%get_num_vefs()
             call cell%get_vef(ivef,vef)
             if (vef%is_at_interface()) cycle
@@ -346,14 +346,14 @@ end subroutine free_timers
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     class(cell_iterator_t), allocatable       :: cell
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    class(reference_fe_t), pointer :: reference_fe_geo
     
     allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
-      reference_fe_geo => cell%get_reference_fe_geo()
+      reference_fe_geo => cell%get_reference_fe()
       this%reference_fes(PAR_POISSON_UNFITTED_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
                                                    num_dims = this%triangulation%get_num_dims(), &

@@ -35,21 +35,10 @@ module unfitted_fe_spaces_names
 # include "debug.i90"
   private
 
-  
- 
- 
- 
- 
- 
- 
- 
  ! Types from unfitted branch that are *** UNDER QUARANTINE ***
- 
  type, extends(fe_cell_iterator_t) :: unfitted_fe_cell_iterator_t
-
     private
     class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
-
   contains
 
     ! Creation / deletion methods
@@ -87,15 +76,12 @@ module unfitted_fe_spaces_names
   type, extends(unfitted_fe_cell_iterator_t) :: unfitted_hp_adaptive_fe_cell_iterator_t
       type (hp_adaptive_fe_cell_iterator_t) :: adaptive_fe
     contains
-
       ! We need to override the functions that change the state
       procedure :: create               => unfitted_hp_adaptive_fe_cell_iterator_create
       procedure :: free                 => unfitted_hp_adaptive_fe_cell_iterator_free
       procedure :: next                 => unfitted_hp_adaptive_fe_cell_iterator_next
       procedure :: first                => unfitted_hp_adaptive_fe_cell_iterator_first
-      procedure :: last                 => unfitted_hp_adaptive_fe_cell_iterator_last
       procedure :: set_gid              => unfitted_hp_adaptive_fe_cell_iterator_set_gid
-
   end type unfitted_hp_adaptive_fe_cell_iterator_t
 
 
@@ -164,15 +150,12 @@ module unfitted_fe_spaces_names
 
   type, extends(serial_hp_adaptive_fe_space_t) :: serial_unfitted_hp_adaptive_fe_space_t
     private
-
       class(unfitted_p4est_serial_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
       type(unfitted_integration_manager_t) :: unfitted_integration
       integer(ip), allocatable :: aggregate_ids(:)
       real(rp) :: max_separation_from_root = -1.0_rp
       logical :: use_constraints = .true.
-
     contains
-
       ! Creation / deletion methods
       procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => suhpafs_create_same_reference_fes_on_all_cells
       procedure           :: serial_fe_space_create_different_ref_fes_between_cells         => suhpafs_space_create_different_ref_fes_between_cells

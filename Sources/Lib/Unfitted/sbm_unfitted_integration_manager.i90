@@ -32,14 +32,14 @@ subroutine uim_create(this,fe_space,marching_cubes)
   class(unfitted_integration_manager_t),intent(inout) :: this
   class(serial_fe_space_t), target, intent(in)    :: fe_space
   class(marching_cubes_t), target,  intent(in)    :: marching_cubes
-  class(base_static_triangulation_t), pointer :: triangulation
-  type(environment_t), pointer :: par_environment
+  class(triangulation_t), pointer :: triangulation
+  type(environment_t), pointer :: environment
   call this%free()
   this%fe_space => fe_space
   this%marching_cubes => marching_cubes
   triangulation => fe_space%get_triangulation()
-  par_environment => triangulation%get_par_environment()
-  if ( par_environment%am_i_l1_task() ) then
+  environment => triangulation%get_environment()
+  if ( environment%am_i_l1_task() ) then
 #ifdef DEBUG
     call this%check_assumptions()
 #endif
@@ -69,8 +69,8 @@ subroutine uim_check_assumptions(this)
   integer(ip) :: num_fields, ifield
   class(reference_fe_t), pointer :: ref_fe
   class(reference_fe_t), pointer :: ref_fe_1
-  class(lagrangian_reference_fe_t), pointer :: geo_ref_fe
-  class(lagrangian_reference_fe_t), pointer :: geo_ref_fe_1
+  class(reference_fe_t), pointer :: geo_ref_fe
+  class(reference_fe_t), pointer :: geo_ref_fe_1
 
   ! Hypothesis:
   ! Same geom ref element in all cells
@@ -184,7 +184,7 @@ subroutine uim_init_cut_integration( this )
 
   class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t),     pointer        :: reference_elem
-  class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
+  class(reference_fe_t), pointer :: geo_reference_elem
 
   call this%free_cut_integration()
   num_dim = this%marching_cubes%get_num_dims()
@@ -295,7 +295,7 @@ subroutine uim_init_cut_boundary_integration( this )
 
   class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t),     pointer        :: reference_elem
-  class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
+  class(reference_fe_t), pointer :: geo_reference_elem
 
   integer(ip) :: mc_case, mc_num_cases, istat, pini, pend, subfacet, ifield
   integer(ip) :: num_dim, num_gp, num_subfacets, num_fields

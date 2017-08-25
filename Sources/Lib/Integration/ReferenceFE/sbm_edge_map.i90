@@ -31,9 +31,9 @@
 subroutine edge_map_create(this, quadrature, reference_fe_geo)
   implicit none
   ! Parameters
-  class(edge_map_t)                , intent(inout) :: this
-  type(quadrature_t)               , intent(in)    :: quadrature
-  class(lagrangian_reference_fe_t) , intent(in)    :: reference_fe_geo
+  class(edge_map_t)     , intent(inout) :: this
+  type(quadrature_t)    , intent(in)    :: quadrature
+  class(reference_fe_t) , intent(in)    :: reference_fe_geo
 
   integer(ip)           :: num_edge_dims
   integer(ip)           :: num_vertices_face
@@ -73,10 +73,10 @@ end subroutine edge_map_create
 !==================================================================================================
 subroutine edge_map_update(this,local_edge_id,reference_fe,quadrature)
   implicit none    
-  class(edge_map_t)      , intent(inout) :: this
+  class(edge_map_t)    , intent(inout) :: this
   integer(ip)          , intent(in)    :: local_edge_id
-  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe
-  type(quadrature_t), intent(in)    :: quadrature
+  class(reference_fe_t), intent(in)    :: reference_fe
+  type(quadrature_t)   , intent(in)    :: quadrature
 
   integer(ip) :: evaluation_point_id, node_id, idime, jdime, local_vef_id,  reorientation_factor
   integer(ip) :: num_edge_dims, num_cell_dims

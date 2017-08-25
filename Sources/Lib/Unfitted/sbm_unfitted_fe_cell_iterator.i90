@@ -33,9 +33,9 @@ subroutine unfitted_fe_cell_iterator_create( this, fe_space )
   class(serial_fe_space_t), target, intent(in)    :: fe_space
   
   class(unfitted_integration_manager_t), pointer  :: unfitted_integration_manager
-  class(base_static_triangulation_t),    pointer  :: triangulation
+  class(triangulation_t),    pointer  :: triangulation
   integer(ip) :: istat
-
+  
   triangulation => fe_space%get_triangulation()
   select type (fe_space)
     class is ( serial_unfitted_fe_space_t)
@@ -213,7 +213,7 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
   
   cell_map => this%get_cell_map()
   coordinates => cell_map%get_coordinates()
-  call this%get_coordinates(coordinates)
+  call this%get_nodes_coordinates(coordinates)
 
   quadrature => this%get_quadrature()
   call cell_map%update(quadrature)
@@ -327,7 +327,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_cell_maps( this )
 
   type(quadrature_t), pointer :: quadrature
   type(cell_map_t), pointer :: cell_map
-  class(lagrangian_reference_fe_t), pointer :: geo_reference_elem
+  class(reference_fe_t), pointer :: geo_reference_elem
 
   assert(this%is_local())
   cell_map => this%get_cell_map()
@@ -434,7 +434,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators( this 
   type(quadrature_t), pointer :: quad
   type(cell_map_t), pointer :: cell_map
   type(cell_integrator_t), pointer :: cell_int
-  class  (lagrangian_reference_fe_t), pointer  :: reference_fe_geometry
+  class  (reference_fe_t), pointer  :: reference_fe_geometry
   integer(ip) :: field_id
   type(point_t), pointer :: coordinates(:)
 
@@ -453,7 +453,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators( this 
 
   ! Set the coordinates of the fe map for the current physical cell
   coordinates => cell_map%get_coordinates()
-  call this%get_coordinates(coordinates)
+  call this%get_nodes_coordinates(coordinates)
 
   ! Compute the jacobian and co
   call cell_map%update( quad )

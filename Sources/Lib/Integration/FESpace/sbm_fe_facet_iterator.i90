@@ -175,11 +175,12 @@ subroutine fe_facet_iterator_update_integration( this )
   type(quadrature_t)     , pointer :: quadrature
   type(facet_integrator_t), pointer :: facet_integrator
   
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  class(reference_fe_t), pointer :: reference_fe_geo
   
   call this%update_facet_maps()
   coords => this%facet_maps%get_facet_coordinates()
-  call this%get_coordinates(coords)
+  call this%get_nodes_coordinates(coords)
+
 
   quadrature => this%get_quadrature() 
   
@@ -191,7 +192,7 @@ subroutine fe_facet_iterator_update_integration( this )
     coords => this%facet_maps%get_coordinates_neighbour(icell_around,                                &
                                                  facet_lpos_within_cells_around(icell_around), &
                                                  subfacet_lid_within_cells_around(icell_around))
-    call this%fes_around(icell_around)%p%get_coordinates(coords)
+    call this%fes_around(icell_around)%p%get_nodes_coordinates(coords)
   end do
 
   reference_fe_geo => this%fes_around(1)%p%get_reference_fe_geo()
@@ -514,8 +515,8 @@ function fe_facet_iterator_compute_fe_facet_permutation_index (this,first_fe,sec
   class(fe_cell_iterator_t)     , intent(inout) :: first_fe
   class(fe_cell_iterator_t)     , intent(inout) :: second_fe
   integer(ip)                              :: fe_facet_permutation_index
-  class(lagrangian_reference_fe_t), pointer     :: first_reference_fe_geo
-  class(lagrangian_reference_fe_t), pointer     :: second_reference_fe_geo
+  class(reference_fe_t), pointer     :: first_reference_fe_geo
+  class(reference_fe_t), pointer     :: second_reference_fe_geo
   assert( .not. this%is_ghost() .and. this%get_num_cells_around() == 2 )
   call this%get_cell_around(1,first_fe)
   first_reference_fe_geo => first_fe%get_reference_fe_geo()
@@ -525,8 +526,8 @@ function fe_facet_iterator_compute_fe_facet_permutation_index (this,first_fe,sec
     first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,             &
                                                       this%get_lpos_within_cell_around(1), &
                                                       this%get_lpos_within_cell_around(2), &
-                                                      first_fe%get_vef_gids(),             &
-                                                      second_fe%get_vef_gids() )
+                                                      first_fe%get_vefs_gid(),             &
+                                                      second_fe%get_vefs_gid() )
 end function fe_facet_iterator_compute_fe_facet_permutation_index
 
 function fe_facet_iterator_get_fe_facet_permutation_index ( this ) result(fe_facet_permutation_index)
@@ -541,7 +542,7 @@ function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) resul
   class(fe_facet_iterator_t) , intent(inout) :: this
   integer(ip)               , intent(in)    :: icell_around
   integer(ip)                               :: facet_lpos_within_cell_around
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip)                               :: vef_gid_of_face
   reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
   vef_gid_of_face = this%base_fe_vef_iterator_t%get_gid()

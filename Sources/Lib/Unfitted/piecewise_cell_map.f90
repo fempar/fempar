@@ -49,7 +49,7 @@ module piecewise_cell_map_names
     integer(ip)        :: num_quadrature_points_sub_map
     integer(ip)        :: num_nodes_sub_map
     integer(ip)        :: num_nodes
-    class  (lagrangian_reference_fe_t), pointer:: reference_fe_geometry => null()
+    class  (reference_fe_t), pointer:: reference_fe_geometry => null()
 
     ! The same as in cell_map_t (this can be inherited form cell_map_t)
     real(rp),      allocatable    :: det_jacobian(:)
@@ -85,7 +85,7 @@ contains
     implicit none
     class  (piecewise_cell_map_t),        intent(inout) :: this
     type   (quadrature_t),              intent(in)    :: quadrature
-    class  (lagrangian_reference_fe_t), target, intent(in)    :: reference_fe_geometry
+    class  (reference_fe_t), target, intent(in)    :: reference_fe_geometry
     integer(ip),                        intent(in)    :: num_sub_maps
 
     integer(ip) :: istat

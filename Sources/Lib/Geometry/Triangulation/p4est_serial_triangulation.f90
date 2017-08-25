@@ -36,7 +36,7 @@ module p4est_serial_triangulation_names
   use uniform_hex_mesh_generator_names
   use p4est_bindings_names
   use reference_fe_names
-  use base_static_triangulation_names
+  use triangulation_names
   use std_vector_integer_ip_names
   use field_names
   
@@ -241,44 +241,46 @@ module p4est_serial_triangulation_names
   contains
     procedure                            :: create                  => p4est_cell_iterator_create
     procedure                            :: free                    => p4est_cell_iterator_free
-    !final                                ::                            p4est_cell_iterator_free_final
-    !procedure, non_overridable           :: next                    => p4est_cell_iterator_next
-    !procedure, non_overridable           :: first                   => p4est_cell_iterator_first
-    procedure                            :: last                    => p4est_cell_iterator_last
-    !procedure, non_overridable           :: set_lid                 => p4est_cell_iterator_set_lid
-    !procedure, non_overridable, private  :: set_gid                 => p4est_cell_iterator_set_gid
-    !procedure, non_overridable, private  :: set_mypart              => p4est_cell_iterator_set_mypart
-    !procedure, non_overridable, private  :: get_triangulation       => p4est_cell_iterator_get_triangulation
-    procedure                            :: has_finished            => p4est_cell_iterator_has_finished
-    procedure                            :: get_reference_fe_geo    => p4est_cell_iterator_get_reference_fe_geo
-    procedure                            :: get_reference_fe_geo_id => p4est_cell_iterator_get_reference_fe_geo_id
-    procedure                            :: get_coordinates         => p4est_cell_iterator_get_coordinates
-    !procedure, non_overridable           :: set_coordinates         => p4est_cell_iterator_set_coordinates
-    !procedure, non_overridable           :: get_lid                 => p4est_cell_iterator_get_lid
-    !procedure, non_overridable           :: get_gid                 => p4est_cell_iterator_get_gid
-    !procedure, non_overridable           :: get_my_part             => p4est_cell_iterator_get_mypart
-    !procedure, non_overridable           :: get_my_subpart          => p4est_cell_iterator_get_mysubpart
-    !procedure, non_overridable           :: get_my_subpart_lid      => p4est_cell_iterator_get_mysubpart_lid
+    procedure                            :: get_reference_fe        => p4est_cell_iterator_get_reference_fe
+    procedure                            :: get_reference_fe_id     => p4est_cell_iterator_get_reference_fe_id
     procedure                            :: get_set_id              => p4est_cell_iterator_get_set_id
+    procedure                            :: set_set_id              => p4est_cell_iterator_set_set_id
     procedure                            :: get_level               => p4est_cell_iterator_get_level
     procedure                            :: get_num_vefs            => p4est_cell_iterator_get_num_vefs
     procedure                            :: get_num_nodes           => p4est_cell_iterator_get_num_nodes
-    !procedure, non_overridable           :: get_node_gid            => p4est_cell_iterator_get_node_gid
+    procedure                            :: get_nodes_coordinates   => p4est_cell_iterator_get_nodes_coordinates
+    procedure                            :: get_ggid                => p4est_cell_iterator_get_ggid
+    procedure                            :: get_my_part             => p4est_cell_iterator_get_mypart
     procedure                            :: get_vef_gid             => p4est_cell_iterator_get_vef_gid
-    procedure                            :: get_vef_gids            => p4est_cell_iterator_get_vef_gids
-    !procedure, non_overridable           :: get_vef_gid             => p4est_cell_iterator_get_vef_gid
-    !procedure                            :: get_vef_lid_from_gid       => p4est_cell_iterator_get_vef_lid_from_gid
-    !procedure, non_overridable           :: get_vef_lid_from_ggid       => p4est_cell_iterator_get_vef_lid_from_ggid
-    !procedure, non_overridable           :: get_vef                 => p4est_cell_iterator_get_vef
+    procedure                            :: get_vefs_gid            => p4est_cell_iterator_get_vefs_gid
+    procedure                            :: get_vef_ggid            => p4est_cell_iterator_get_vef_ggid
+    procedure                            :: get_vef_lid_from_gid    => p4est_cell_iterator_get_vef_lid_from_gid
+    procedure                            :: get_vef_lid_from_ggid   => p4est_cell_iterator_get_vef_lid_from_ggid
+    procedure                            :: get_vef                 => p4est_cell_iterator_get_vef
     procedure                            :: is_local                => p4est_cell_iterator_is_local
     procedure                            :: is_ghost                => p4est_cell_iterator_is_ghost
-    
     procedure                            :: is_ancestor             => p4est_cell_iterator_is_ancestor
-    
     procedure                            :: set_for_coarsening      => p4est_cell_iterator_set_for_coarsening
     procedure                            :: set_for_refinement      => p4est_cell_iterator_set_for_refinement
     procedure                            :: set_for_do_nothing      => p4est_cell_iterator_set_for_do_nothing
     procedure                            :: get_transformation_flag => p4est_cell_iterator_get_transformation_flag
+    procedure                            :: get_permutation_index   => p4est_cell_iterator_get_permutation_index
+    
+    procedure                            :: update_sub_triangulation    => p4est_cell_iterator_update_sub_triangulation
+    procedure                            :: get_mc_case                 => p4est_cell_iterator_get_mc_case
+    procedure                            :: get_num_subcells            => p4est_cell_iterator_get_num_subcells
+    procedure                            :: get_num_subcell_nodes       => p4est_cell_iterator_get_num_subcell_nodes
+    procedure                            :: get_phys_coords_of_subcell  => p4est_cell_iterator_get_phys_coords_of_subcell
+    procedure                            :: get_ref_coords_of_subcell   => p4est_cell_iterator_get_ref_coords_of_subcell
+    procedure                            :: get_num_subfacets           => p4est_cell_iterator_get_num_subfacets
+    procedure                            :: get_num_subfacet_nodes      => p4est_cell_iterator_get_num_subfacet_nodes
+    procedure                            :: get_phys_coords_of_subfacet => p4est_cell_iterator_get_phys_coords_of_subfacet
+    procedure                            :: get_ref_coords_of_subfacet  => p4est_cell_iterator_get_ref_coords_of_subfacet
+    procedure                            :: is_cut                      => p4est_cell_iterator_is_cut
+    procedure                            :: is_interior                 => p4est_cell_iterator_is_interior
+    procedure                            :: is_exterior                 => p4est_cell_iterator_is_exterior
+    procedure                            :: is_interior_subcell         => p4est_cell_iterator_is_interior_subcell
+    procedure                            :: is_exterior_subcell         => p4est_cell_iterator_is_exterior_subcell
   end type p4est_cell_iterator_t
   
   type, extends(vef_iterator_t) :: p4est_vef_iterator_t
@@ -288,33 +290,19 @@ module p4est_serial_triangulation_names
      procedure                           :: create                    => p4est_vef_iterator_create
      procedure                           :: free                      => p4est_vef_iterator_free
      final                               ::                              p4est_vef_iterator_free_final
-     !procedure                           :: first                     => p4est_vef_iterator_first
      procedure                           :: next                      => p4est_vef_iterator_next
-     !procedure, non_overridable          :: set_lid                   => p4est_vef_iterator_set_lid
      procedure                           :: has_finished              => p4est_vef_iterator_has_finished
-     procedure                           :: get_coordinates           => p4est_vef_iterator_get_coordinates
-     !procedure, non_overridable          :: get_triangulation         => p4est_vef_iterator_get_triangulation
-     !procedure, non_overridable          :: get_lid                   => p4est_vef_iterator_get_lid
-     !procedure, non_overridable          :: get_gid                   => p4est_vef_iterator_get_gid
-
-     !procedure, non_overridable          :: set_geom_id               => p4est_vef_iterator_set_geom_id
+     procedure                           :: get_num_nodes             => p4est_vef_iterator_get_num_nodes
+     procedure                           :: get_nodes_coordinates     => p4est_vef_iterator_get_nodes_coordinates
+     procedure                           :: get_ggid                  => p4est_vef_iterator_get_ggid
      procedure                           :: set_set_id                => p4est_vef_iterator_set_set_id
-     !procedure, non_overridable          :: get_geom_id               => p4est_vef_iterator_get_geom_id
      procedure                           :: get_set_id                => p4est_vef_iterator_get_set_id
-
-     !procedure, non_overridable          :: set_dim             => p4est_vef_iterator_set_dim
-     !procedure, non_overridable          :: set_it_at_boundary        => p4est_vef_iterator_set_it_at_boundary
-     !procedure, non_overridable          :: set_it_as_local           => p4est_vef_iterator_set_it_as_local
-     !procedure, non_overridable          :: set_it_as_ghost           => p4est_vef_iterator_set_it_as_ghost
-     !procedure, non_overridable          :: set_it_at_interface       => p4est_vef_iterator_set_it_at_interface
-
-     procedure                           :: get_dim             => p4est_vef_iterator_get_dim
+     procedure                           :: get_dim                   => p4est_vef_iterator_get_dim
      procedure                           :: is_at_boundary            => p4est_vef_iterator_is_at_boundary
+     procedure                           :: is_at_interior            => p4est_vef_iterator_is_at_interior
      procedure                           :: is_local                  => p4est_vef_iterator_is_local
      procedure                           :: is_ghost                  => p4est_vef_iterator_is_ghost
      procedure                           :: is_at_interface           => p4est_vef_iterator_is_at_interface
-     !procedure, non_overridable          :: is_face                   => p4est_vef_iterator_is_face
-     
      procedure                           :: is_proper                       => p4est_vef_iterator_is_proper
      procedure                           :: is_within_valid_range           => p4est_vef_iterator_is_within_valid_range
      
@@ -332,11 +320,8 @@ module p4est_serial_triangulation_names
   
   ! TODO: this data type should extend an abstract triangulation,
   !       and implement its corresponding accessors
-  type, extends(serial_triangulation_t) ::  p4est_serial_triangulation_t
+  type, extends(triangulation_t) ::  p4est_serial_triangulation_t
     private
-    integer(ip) :: p4est_num_cells          = -1
-    integer(ip) :: p4est_num_dims     = -1
-    integer(ip) :: p4est_num_vefs           = -1
     integer(ip) :: num_proper_vefs          = -1 
     integer(ip) :: num_improper_vefs        = -1 
     
@@ -387,24 +372,21 @@ module p4est_serial_triangulation_names
     type(std_vector_integer_ip_t)          :: p4est_proper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: p4est_improper_vefs_set_ids
   contains
-  
     ! Getters
-    procedure                                   :: get_num_dims                            => p4est_serial_triangulation_get_num_dims
-    procedure                                   :: get_num_cells                                 => p4est_serial_triangulation_get_num_cells
-    procedure                                   :: get_num_local_cells                           => p4est_serial_triangulation_get_num_local_cells
-    procedure                                   :: get_max_num_shape_functions                => p4est_serial_triangulation_get_max_num_shape_functions
-    procedure                                   :: get_num_vefs                                  => p4est_serial_triangulation_get_num_vefs
+    procedure                                   :: get_num_reference_fes                         => p4est_serial_triangulation_get_num_reference_fes
+    procedure                                   :: get_max_num_shape_functions                   => p4est_serial_triangulation_get_max_num_shape_functions
     procedure                                   :: get_num_proper_vefs                           => p4est_serial_triangulation_get_num_proper_vefs
     procedure                                   :: get_num_improper_vefs                         => p4est_serial_triangulation_get_num_improper_vefs
     procedure                                   :: get_p4est_refinement_and_coarsening_flags     => p4est_st_get_p4est_refinement_and_coarsening_flags
     
     ! Set up related methods
-    procedure                                   :: serial_triangulation_create                   => p4est_serial_triangulation_create
+    procedure, private                          :: p4est_serial_triangulation_create
+    generic                                     :: create                                        => p4est_serial_triangulation_create
     procedure                                   :: free                                          => p4est_serial_triangulation_free
     procedure                 , non_overridable :: refine_and_coarsen                            => p4est_serial_triangulation_refine_and_coarsen
     procedure, private        , non_overridable :: update_p4est_mesh                             => p4est_serial_triangulation_update_p4est_mesh
     procedure, private        , non_overridable :: update_topology_from_p4est_mesh               => p4est_serial_triangulation_update_topology_from_p4est_mesh
-    procedure, private        , non_overridable :: get_ptr_vefs_x_cell                         => p4est_serial_triangulation_get_ptr_vefs_x_cell
+    procedure, private        , non_overridable :: get_ptr_vefs_x_cell                           => p4est_serial_triangulation_get_ptr_vefs_x_cell
     procedure, private        , non_overridable :: update_lst_vefs_lids_and_cells_around         => p4est_st_update_lst_vefs_lids_and_cells_around
     procedure, private        , non_overridable :: update_cell_set_ids                           => p4est_st_update_cell_set_ids
     procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_st_update_vef_set_ids
@@ -418,9 +400,11 @@ module p4est_serial_triangulation_names
 
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator
+    procedure                                   :: free_cell_iterator                    => p4est_free_cell_iterator
     
     ! VEF traversals-related TBPs
     procedure                                   :: create_vef_iterator                   => p4est_create_vef_iterator
+    procedure                                   :: free_vef_iterator                     => p4est_free_vef_iterator
 
 #ifndef ENABLE_P4EST
     procedure, non_overridable :: not_enabled_error => p4est_serial_triangulation_not_enabled_error

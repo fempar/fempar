@@ -25,15 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine p4est_vef_iterator_create ( this, base_static_triangulation )
+subroutine p4est_vef_iterator_create ( this, triangulation )
   implicit none
-  class(p4est_vef_iterator_t)             , intent(inout)      :: this
-  class(base_static_triangulation_t), target, intent(in) :: base_static_triangulation
+  class(p4est_vef_iterator_t)               , intent(inout) :: this
+  class(triangulation_t), target            , intent(in)    :: triangulation
   call this%free()
-  call this%vef_iterator_t%create(base_static_triangulation)
-  select type(base_static_triangulation)
+  call vef_iterator_create(this,triangulation)
+  select type(triangulation)
   class is (p4est_serial_triangulation_t)
-    this%p4est_triangulation => base_static_triangulation
+    this%p4est_triangulation => triangulation
   class default
     assert(.false.)
   end select
@@ -42,7 +42,7 @@ end subroutine p4est_vef_iterator_create
 subroutine p4est_vef_iterator_free ( this)
   implicit none
   class(p4est_vef_iterator_t), intent(inout) :: this
-  call this%vef_iterator_t%free()
+  call vef_iterator_free(this)
   nullify ( this%p4est_triangulation )
 end subroutine p4est_vef_iterator_free
 
@@ -77,15 +77,28 @@ function p4est_vef_iterator_has_finished(this)
   p4est_vef_iterator_has_finished = (this%get_gid() < 0 .and. this%get_gid() < -this%p4est_triangulation%num_improper_vefs)
 end function p4est_vef_iterator_has_finished
 
-subroutine p4est_vef_iterator_get_coordinates (this, vef_coordinates)
+function p4est_vef_iterator_get_num_nodes(this)
   implicit none
-  class(p4est_vef_iterator_t), intent(inout) :: this
-  type(point_t)              , intent(inout) :: vef_coordinates(:)
+  class(p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_vef_iterator_get_num_nodes
+  class(reference_fe_t), pointer :: reference_fe_geo
+  type(p4est_cell_iterator_t) :: cell
+  call cell%create(this%p4est_triangulation)
+  call this%get_cell_around(1, cell)
+  reference_fe_geo => cell%get_reference_fe()
+  p4est_vef_iterator_get_num_nodes = reference_fe_geo%get_num_shape_functions()
+  call cell%free()
+end function p4est_vef_iterator_get_num_nodes
+
+subroutine p4est_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  type(point_t)              , intent(inout) :: nodes_coordinates(:)
   type(p4est_cell_iterator_t)                   :: cell
   integer(ip)                                   :: inode_within_cell
   integer(ip)                                   :: inode_within_vef
   integer(ip)                                   :: num_vertices
-  class(lagrangian_reference_fe_t), pointer     :: reference_fe_geo
+  class(reference_fe_t), pointer :: reference_fe_geo
   type(list_iterator_t)                         :: dofs_on_vef_iterator
   
   assert ( this%get_gid() <= this%p4est_triangulation%num_proper_vefs .and. .not. this%has_finished() )
@@ -93,20 +106,20 @@ subroutine p4est_vef_iterator_get_coordinates (this, vef_coordinates)
   
   call cell%create(this%p4est_triangulation)
   call this%get_cell_around(1, cell)
-  reference_fe_geo => cell%get_reference_fe_geo()
+  reference_fe_geo => cell%get_reference_fe()
   num_vertices = reference_fe_geo%get_num_vertices()
   dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
   inode_within_vef = 1
   do while (.not. dofs_on_vef_iterator%is_upper_bound())     
     inode_within_cell = dofs_on_vef_iterator%get_current()
-    vef_coordinates(inode_within_vef) =                     &
+    nodes_coordinates(inode_within_vef) =                     &
       this%p4est_triangulation%per_cell_vertex_coordinates( & 
            (cell%get_gid()-1)*num_vertices+inode_within_cell)
     call dofs_on_vef_iterator%next()
     inode_within_vef = inode_within_vef + 1
   end do
   call cell%free()
-end subroutine p4est_vef_iterator_get_coordinates
+end subroutine p4est_vef_iterator_get_nodes_coordinates
 
 !function p4est_vef_iterator_get_triangulation(this)
 !  implicit none
@@ -122,13 +135,12 @@ end subroutine p4est_vef_iterator_get_coordinates
 !  p4est_vef_iterator_get_lid = this%gid
 !end function p4est_vef_iterator_get_lid
 
-!function p4est_vef_iterator_get_gid (this)
-!  implicit none
-!  class(p4est_vef_iterator_t), intent(in) :: this
-!  integer(igp) :: p4est_vef_iterator_get_gid
-!  assert ( (this%get_gid() > 0 .and. this%get_gid() <= this%p4est_triangulation%num_proper_vefs) .or. (this%get_gid() < 0 .and. this%get_gid() >= -this%p4est_triangulation%num_improper_vefs) )
-!  p4est_vef_iterator_get_gid = this%base_static_triangulation%vefs_gid(this%gid)
-!end function p4est_vef_iterator_get_gid
+function p4est_vef_iterator_get_ggid (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  integer(igp) :: p4est_vef_iterator_get_ggid
+  p4est_vef_iterator_get_ggid = this%get_gid()
+end function p4est_vef_iterator_get_ggid
 
 subroutine p4est_vef_iterator_set_set_id(this,set_id)
   implicit none
@@ -235,9 +247,15 @@ function p4est_vef_iterator_is_at_boundary (this)
   p4est_vef_iterator_is_at_boundary  = .false.
   if ( this%get_gid() > 0 ) then
     p4est_vef_iterator_is_at_boundary = (this%p4est_triangulation%p4est_proper_vefs_at_boundary%get(this%get_gid()) == 1)
-  end if  
-  
+  end if 
 end function p4est_vef_iterator_is_at_boundary
+
+function p4est_vef_iterator_is_at_interior (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_is_at_interior
+  p4est_vef_iterator_is_at_interior = .false.
+end function p4est_vef_iterator_is_at_interior
 
 function p4est_vef_iterator_is_local (this)
   implicit none
