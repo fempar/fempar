@@ -320,12 +320,9 @@ subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe ( this, target_ive
   own_dofs_on_vef_iterator_target = reference_fe_target%create_own_dofs_on_n_face_iterator(target_ivef)
   if ( own_dofs_on_vef_iterator_target%get_size() > 0 ) then
        assert (reference_fe_source%check_compatibility_of_n_faces(reference_fe_target,target_ivef,source_ivef))
-       permutation_index = reference_fe_target%compute_permutation_index( reference_fe_source, &
-                                                                          target_ivef, &
-                                                                          source_ivef, &
-                                                                          this%get_vefs_gid(), &
-                                                                          source_fe%get_vefs_gid())
-      
+       permutation_index = this%get_permutation_index( source_fe, &
+                                                       target_ivef, &
+                                                       source_ivef )
       do while (.not. own_dofs_on_vef_iterator_target%is_upper_bound())
         target_dof_LID_vef = own_dofs_on_vef_iterator_target%get_distance_to_lower_bound()
         source_dof_LID_vef = reference_fe_source%permute_dof_LID_n_face(target_dof_LID_vef, &

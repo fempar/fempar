@@ -285,6 +285,7 @@ function p4est_cell_iterator_get_permutation_index(this, target_cell, source_vef
   integer(ip)                 , intent(in) :: source_vef_lid
   integer(ip)                 , intent(in) :: target_vef_lid
   integer(ip) :: p4est_cell_iterator_get_permutation_index
+  p4est_cell_iterator_get_permutation_index = 1
 end function p4est_cell_iterator_get_permutation_index
 
 subroutine p4est_cell_iterator_update_sub_triangulation( this )

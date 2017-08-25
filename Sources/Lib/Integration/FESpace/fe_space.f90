@@ -154,6 +154,7 @@ module fe_space_names
     procedure, non_overridable, private  :: base_fe_cell_iterator_get_vef
     generic                              :: get_vef                 => base_fe_cell_iterator_get_vef
     procedure, non_overridable           :: get_triangulation       => base_fe_cell_iterator_get_triangulation
+    procedure, non_overridable           :: get_permutation_index   => base_fe_cell_iterator_get_permutation_index
     
     procedure                            :: update_sub_triangulation    => base_fe_cell_iterator_update_sub_triangulation
     procedure                            :: get_mc_case                 => base_fe_cell_iterator_get_mc_case
@@ -1129,7 +1130,6 @@ module fe_space_names
    procedure          :: free                           => hp_adaptive_fe_facet_iterator_free
    procedure          :: get_num_cells_around           => hp_adaptive_fe_facet_iterator_get_num_cells_around
    procedure, private :: fe_vef_iterator_get_fe_around  => hp_adaptive_fe_facet_iterator_get_fe_around
-   procedure          :: compute_fe_facet_permutation_index => hpafefi_compute_fe_facet_permutation_index
    procedure          :: get_lpos_within_cell_around    => hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around
    procedure, private :: get_subfacet_lid_cell_around    => hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around
  end type hp_adaptive_fe_facet_iterator_t

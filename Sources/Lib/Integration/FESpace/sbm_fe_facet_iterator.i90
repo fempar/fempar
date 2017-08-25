@@ -512,22 +512,16 @@ end function fe_facet_iterator_compute_surface
 function fe_facet_iterator_compute_fe_facet_permutation_index (this,first_fe,second_fe) result (fe_facet_permutation_index)
   implicit none
   class(fe_facet_iterator_t), intent(inout) :: this
-  class(fe_cell_iterator_t)     , intent(inout) :: first_fe
-  class(fe_cell_iterator_t)     , intent(inout) :: second_fe
-  integer(ip)                              :: fe_facet_permutation_index
-  class(reference_fe_t), pointer     :: first_reference_fe_geo
-  class(reference_fe_t), pointer     :: second_reference_fe_geo
+  class(fe_cell_iterator_t) , intent(inout) :: first_fe
+  class(fe_cell_iterator_t) , intent(inout) :: second_fe
+  integer(ip) :: fe_facet_permutation_index
   assert( .not. this%is_ghost() .and. this%get_num_cells_around() == 2 )
   call this%get_cell_around(1,first_fe)
-  first_reference_fe_geo => first_fe%get_reference_fe_geo()
   call this%get_cell_around(2,second_fe)
-  second_reference_fe_geo => second_fe%get_reference_fe_geo()
   fe_facet_permutation_index = &
-    first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,             &
-                                                      this%get_lpos_within_cell_around(1), &
-                                                      this%get_lpos_within_cell_around(2), &
-                                                      first_fe%get_vefs_gid(),             &
-                                                      second_fe%get_vefs_gid() )
+    first_fe%get_permutation_index( second_fe, &
+                                    this%get_lpos_within_cell_around(1), &
+                                    this%get_lpos_within_cell_around(2) )
 end function fe_facet_iterator_compute_fe_facet_permutation_index
 
 function fe_facet_iterator_get_fe_facet_permutation_index ( this ) result(fe_facet_permutation_index)
