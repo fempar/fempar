@@ -1,6 +1,6 @@
 function fc = write_i90_file(file_name, mc_ncases, mc_max_sub_cells, mc_max_num_cut_edges, mc_num_sub_cells_per_case,...
     mc_subcells_per_case, mc_inout_subcells_per_case, mc_num_nodes_per_subcell,mc_num_cut_edges_per_case,elem_type,...
-    mc_num_nodes_per_subface,mc_max_sub_faces,mc_num_sub_faces_per_case,mc_subfaces_per_case)
+    mc_num_nodes_per_subface,mc_max_sub_faces,mc_num_sub_faces_per_case,mc_subfacets_per_case)
 
 % Falta el num d'intersection points
 
@@ -104,7 +104,7 @@ varname = sprintf('MC_%s_INOUT_SUBCELLS_PER_CASE',elem_type);
 write_long_variable_2D(fid,mc_inout_subcells_per_case,mc_max_sub_cells,varname,mc_max_sub_cells,mc_ncases)
 
 varname = sprintf('MC_%s_SUBFACE_NODE_IDS_PER_CASE',elem_type);
-write_long_variable_3D(fid,mc_subfaces_per_case,width,varname,mc_num_nodes_per_subface,mc_max_sub_faces,mc_ncases)
+write_long_variable_3D(fid,mc_subfacets_per_case,width,varname,mc_num_nodes_per_subface,mc_max_sub_faces,mc_ncases)
 
 fc = fclose(fid);
 

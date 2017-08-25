@@ -80,7 +80,7 @@ subroutine base_fe_cell_iterator_get_nodes_coordinates (this, nodes_coordinates)
   call this%cell%get_nodes_coordinates(nodes_coordinates)
 end subroutine base_fe_cell_iterator_get_nodes_coordinates
 
-pure function base_fe_cell_iterator_get_gid (this)
+function base_fe_cell_iterator_get_gid (this)
   implicit none
   class(base_fe_cell_iterator_t), intent(in) :: this
   integer(ip) :: base_fe_cell_iterator_get_gid
@@ -96,7 +96,7 @@ function base_fe_cell_iterator_get_ggid (this)
   base_fe_cell_iterator_get_ggid = this%cell%get_ggid()
 end function base_fe_cell_iterator_get_ggid
 
-pure function base_fe_cell_iterator_get_mypart (this)
+function base_fe_cell_iterator_get_mypart (this)
   implicit none
   class(base_fe_cell_iterator_t), intent(in) :: this
   integer(ip) :: base_fe_cell_iterator_get_mypart
@@ -128,7 +128,7 @@ function base_fe_cell_iterator_get_set_id(this)
   base_fe_cell_iterator_get_set_id = this%cell%get_set_id()
 end function base_fe_cell_iterator_get_set_id
 
-pure function base_fe_cell_iterator_get_num_vefs (this)
+function base_fe_cell_iterator_get_num_vefs (this)
   implicit none
   class(base_fe_cell_iterator_t), intent(in) :: this
   integer(ip)                        :: base_fe_cell_iterator_get_num_vefs

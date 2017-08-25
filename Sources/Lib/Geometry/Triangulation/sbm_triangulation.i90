@@ -65,6 +65,34 @@ function triangulation_get_num_vefs(this)
   triangulation_get_num_vefs = this%num_vefs
 end function triangulation_get_num_vefs
 
+subroutine triangulation_set_num_vefs(this,num_vefs)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  integer(ip), intent(in) :: num_vefs
+  this%num_vefs = num_vefs
+end subroutine triangulation_set_num_vefs
+
+subroutine triangulation_set_num_dims(this,num_dims)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  integer(ip), intent(in) :: num_dims
+  this%num_dims = num_dims 
+end subroutine triangulation_set_num_dims
+
+subroutine triangulation_set_num_local_cells(this, num_local_cells)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  integer(ip), intent(in):: num_local_cells
+  this%num_local_cells = num_local_cells
+end subroutine triangulation_set_num_local_cells
+
+subroutine triangulation_set_num_ghost_cells(this, num_ghost_cells)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  integer(ip), intent(in) :: num_ghost_cells
+  this%num_ghost_cells = num_ghost_cells
+end subroutine triangulation_set_num_ghost_cells
+
 function triangulation_get_environment ( this )
   implicit none
   class(triangulation_t), target, intent(in) :: this

@@ -247,3 +247,39 @@ subroutine bst_vef_iterator_get_cell_around (this, icell_around, cell)
   icell = this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around)
   call cell%set_gid(icell)
 end subroutine bst_vef_iterator_get_cell_around
+
+function bst_vef_iterator_is_proper(this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  logical :: bst_vef_iterator_is_proper
+  bst_vef_iterator_is_proper = .true.
+end function bst_vef_iterator_is_proper
+
+function bst_vef_iterator_get_num_improper_cells_around (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  integer(ip) :: bst_vef_iterator_get_num_improper_cells_around
+  bst_vef_iterator_get_num_improper_cells_around = 0 
+end function bst_vef_iterator_get_num_improper_cells_around
+
+subroutine bst_vef_iterator_get_improper_cell_around (this, icell_around, cell)
+  implicit none
+  class(bst_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  mcheck(.false., "bst_vef_iterator_t does not have improper cells around")
+end subroutine bst_vef_iterator_get_improper_cell_around
+
+function bst_vef_iterator_get_improper_cell_around_ivef(this)
+  implicit none
+  class(bst_vef_iterator_t) , intent(in)    :: this
+  integer(ip) :: bst_vef_iterator_get_improper_cell_around_ivef
+  mcheck(.false., "bst_vef_iterator_t does not have improper cells around")
+end function bst_vef_iterator_get_improper_cell_around_ivef
+
+function bst_vef_iterator_get_improper_cell_around_subvef(this)
+  implicit none
+  class(bst_vef_iterator_t) , intent(in)    :: this
+  integer(ip) :: bst_vef_iterator_get_improper_cell_around_subvef
+  mcheck(.false., "bst_vef_iterator_t does not have improper cells around")
+end function bst_vef_iterator_get_improper_cell_around_subvef

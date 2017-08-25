@@ -88,8 +88,8 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
      this%num_fields = size(reference_fes)
      
      ! This is a little bit DIRTY. fe_function%create(fe_space)
-     ! requires that num_fixed_dof_values is initialize
-     this%num_fixed_dof_values = 0
+     ! requires that num_fixed_dofs is initialize
+     this%num_fixed_dofs = 0
   end if
  
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
@@ -135,8 +135,8 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
      this%num_fields = size(set_ids_to_reference_fes,1)
 
      ! This is a little bit DIRTY. fe_function%create(fe_space)
-     ! requires that num_fixed_dof_values is initialize
-     this%num_fixed_dof_values = 0
+     ! requires that num_fixed_dofs is initialize
+     this%num_fixed_dofs = 0
   end if
 
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
@@ -167,8 +167,8 @@ subroutine par_fe_space_free( this )
         this%num_fields = 0
         
         ! This is a little bit DIRTY. fe_function%create(fe_space)
-        ! requires that num_fixed_dof_values is initialize
-        this%num_fixed_dof_values = 0
+        ! requires that num_fixed_dofs is initialize
+        this%num_fixed_dofs = 0
         
         if ( associated(this%coarse_fe_space) ) then
           call this%coarse_fe_space%free()
@@ -451,6 +451,7 @@ subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes(this, field_id)
             end if
           end do
           call fe%determine_at_strong_dirichlet_boundary(field_id)  
+          call fe%determine_has_fixed_dofs(field_id)  
         end if
         call fe%next() 
      end do
@@ -862,7 +863,7 @@ subroutine par_fe_space_compute_boundary_dof_import ( this, &
   type(environment_t), pointer :: environment
   
   assert ( size(fields_to_project) >= 1 .and. size(fields_to_project) <= this%get_num_fields() )
-  assert ( size(global2subset_strong_dirichlet_dofs) == this%num_fixed_dof_values )
+  assert ( size(global2subset_strong_dirichlet_dofs) == this%num_fixed_dofs )
   
   environment => this%get_environment()
   assert ( environment%am_i_l1_task() )
@@ -1033,12 +1034,11 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
   class(fe_cell_iterator_t), allocatable :: fe
   type(i1p_t)              , allocatable :: fe_dofs(:)
 
-
   environment   => this%get_environment()
   triangulation     => this%get_triangulation()
   cell_import       => triangulation%get_cell_import()
   assert ( environment%am_i_l1_task() )
-  assert ( size(global2subset_strong_dirichlet_dofs) == this%num_fixed_dof_values ) 
+  assert ( size(global2subset_strong_dirichlet_dofs) == this%num_fixed_dofs ) 
 
   ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
   call memalloc ( num_subset_strong_dirichlet_dofs, local_idof, __FILE__, __LINE__ )
@@ -1606,6 +1606,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
   type(p_scalar_function_t), allocatable :: function_scalar_components(:)
   real(rp)                 , allocatable :: scalar_function_values(:,:)
   type(vector_field_t)     , allocatable :: vector_function_values(:,:)
+  type(vector_field_t)     , allocatable :: shape_values(:,:)
 
   type(parameterlist_t)  :: parameter_list
   integer(ip)            :: FPLError
@@ -1704,13 +1705,14 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
                                                                           field_id, &
                                                                           vector_function_values, &
                                                                           elmat, &
-                                                                          elvec)
+                                                                          elvec, &
+                                                                          shape_values)
               
               
                     ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
                     subset_fe_dofs = 0
                     do idof = 1, size(fe_dofs(field_id)%p)
-                       if ( (fe_dofs(field_id)%p(idof) < 0) ) then 
+                       if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
                           subset_fe_dofs(idof) = global2subset_dirichlet_dofs( -fe_dofs(field_id)%p(idof) )
                        end if
                     end do
@@ -1767,6 +1769,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      deallocate ( function_scalar_components, stat=istat); check(istat==0);
      deallocate ( vector_function_values, stat=istat); check(istat==0);
      deallocate ( scalar_function_values, stat=istat); check(istat==0);
+     deallocate ( shape_values, stat=istat); check(istat==0);
      call memfree ( components_code, __FILE__, __LINE__ )
      call memfree ( subset2global_dirichlet_dofs, __FILE__, __LINE__ )
      call memfree ( global2subset_dirichlet_dofs, __FILE__, __LINE__ ) 

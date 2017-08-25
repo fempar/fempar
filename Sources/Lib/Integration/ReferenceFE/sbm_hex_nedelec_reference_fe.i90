@@ -728,14 +728,19 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis( this, quadratu
 end subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis
 
 !==================================================================================================
-subroutine hex_nedelec_reference_fe_fill_interp_restricted_to_facet( this, local_quadrature, facet_lid, facet_interpolation )
+subroutine hex_nedelec_reference_fe_fill_interp_restricted_to_facet( this, local_quadrature, & 
+     & facet_lid, subfacet_lid, facet_interpolation )
   implicit none
   class(hex_nedelec_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                      , intent(in)    :: local_quadrature
   integer(ip)                             , intent(in)    :: facet_lid
+  integer(ip)                             , intent(in)    :: subfacet_lid
   type(interpolation_t)                   , intent(inout) :: facet_interpolation
   type(quadrature_t) :: aux_quadrature
   integer(ip) :: c,idime,iface,n_face_index
+  
+  ! Exit if attempts to fill the interpolation of a subface
+  if ( subfacet_lid >= 0 ) return
   
   ! Add offset to have same numbering as in polytope
   n_face_index = facet_lid+this%get_first_facet_id()-1
@@ -957,9 +962,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      call facet_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(facet_lid), &
                           quadrature             = facet_quadrature ) 
      
-     call this%create_interpolation_restricted_to_facet (facet_id - d_fe_geo%get_first_facet_id()+1, &
-                                          facet_quadrature, &
-                                          facet_interpolation )
+     call this%create_interpolation_restricted_to_facet ( facet_id - d_fe_geo%get_first_facet_id()+1, &
+                                           -1, facet_quadrature, facet_interpolation )
      
      call cross_product_v_shape_trial_normal_proj%init(0.0_rp)
      

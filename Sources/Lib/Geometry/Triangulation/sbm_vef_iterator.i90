@@ -102,3 +102,85 @@ function vef_iterator_is_facet(this)
   logical :: vef_iterator_is_facet
   vef_iterator_is_facet = (this%get_dim() == (this%triangulation%get_num_dims()-1))
 end function vef_iterator_is_facet
+
+function vef_iterator_is_within_valid_range (this)
+  implicit none
+  class(vef_iterator_t), intent(in) :: this
+  logical :: vef_iterator_is_within_valid_range 
+  vef_iterator_is_within_valid_range  = (this%gid >= 1 .and. .not. this%has_finished())
+end function vef_iterator_is_within_valid_range
+
+!function vef_iterator_is_proper ( this ) 
+!  implicit none
+!  class(vef_iterator_t), intent(in) :: this
+!  logical :: vef_iterator_is_proper 
+!  assert ( this%is_within_valid_range() )
+!  vef_iterator_is_proper = .true.
+!end function vef_iterator_is_proper 
+
+!function vef_iterator_get_num_improper_cells_around (this)
+!  implicit none
+!  class(vef_iterator_t), intent(in) :: this
+!  integer(ip) :: vef_iterator_get_num_improper_cells_around
+!  assert ( this%is_within_valid_range() )
+!  vef_iterator_get_num_improper_cells_around  =  0
+!end function vef_iterator_get_num_improper_cells_around
+
+!subroutine vef_iterator_get_improper_cell_around (this, icell_around, cell)
+!  implicit none
+!  class(vef_iterator_t) , intent(in)    :: this
+!  integer(ip)           , intent(in)    :: icell_around
+!  class(cell_iterator_t), intent(inout) :: cell
+!  integer(ip)                          :: position_in_lst_cells_around
+!  integer(ip)                          :: icell 
+!  assert ( this%is_within_valid_range() )
+!  assert ( .false. )
+!end subroutine vef_iterator_get_improper_cell_around
+
+!function vef_iterator_get_improper_cell_around_ivef(this)
+!  implicit none
+!  class(vef_iterator_t) , intent(in)    :: this
+!  integer(ip) :: vef_iterator_get_improper_cell_around_ivef
+!  assert ( this%is_within_valid_range() )
+!  assert ( .false. )
+!end function vef_iterator_get_improper_cell_around_ivef
+
+!function vef_iterator_get_improper_cell_around_subvef(this)
+!  implicit none
+!  class(vef_iterator_t) , intent(in)    :: this
+!  integer(ip) :: vef_iterator_get_improper_cell_around_subvef
+!  assert ( this%is_within_valid_range() )
+!  vef_iterator_get_improper_cell_around_subvef = 0
+!end function vef_iterator_get_improper_cell_around_subvef
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Extensions
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! We need cells around to evaluate it. Storing faces of elements, 
+! edges of faces and vertices of edges, this would not be necessary.
+!subroutine vef_iterator_get_vertices(this,vertices)
+!  implicit none
+!  class(vef_iterator_t), intent(in) :: this
+!  integer(ip)                       :: vertices(:)
+!  type(cell_iterator_t)             :: cell
+!  type(list_t), pointer             :: vertices_x_vef
+!  integer(ip) ::  ivef, cell_num_vefs, cell_type,num_vertices, istat, i
+!  type(list_iterator_t) :: vertices_iterator
+
+!  call this%get_cell_around (1, cell) ! there is always one element around
+!  ivef = cell%get_vef_lid_from_ggid(this%get_gid())
+!  cell_num_vefs = cell%get_num_vefs()
+!  call this%base_static_triangulation%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
+!  assert(istat==key_found)
+!  vertices_x_vef => this%base_static_triangulation%reference_fe_geo_list(cell_type)%p%get_vertices_vef()
+!  vertices_iterator = vertices_x_vef%create_iterator(ivef)
+!  num_vertices = vertices_iterator%get_size()
+!  ! Alternatively:
+!  !num_vertices = this%reference_fe_geo_list(cell_type)%p%get_num_vertices_vef(ivef)
+!  assert(size(vertices)>=num_vertices)
+!  do i=1, num_vertices
+!     vertices(i) = vertices_iterator%get_current()
+!     call vertices_iterator%next()
+!  enddo
+!end subroutine vef_iterator_get_vertices

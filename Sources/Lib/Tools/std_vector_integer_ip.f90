@@ -47,8 +47,10 @@ contains
   STD_VECTOR_COPY(integer,ip)
   STD_VECTOR_FREE(integer,ip)
   STD_VECTOR_GET(integer,ip)
+  STD_VECTOR_GET_POINTER_TO_RANGE(integer,ip)
   STD_VECTOR_SET(integer,ip)
   STD_VECTOR_SIZE(integer,ip)
   STD_VECTOR_CAPACITY(integer,ip)
+  STD_VECTOR_GET_RAW_POINTER(integer,ip)
   
 end module std_vector_integer_ip_names

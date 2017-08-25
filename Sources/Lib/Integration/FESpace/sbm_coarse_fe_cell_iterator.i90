@@ -67,7 +67,7 @@ function coarse_fe_cell_iterator_create_own_dofs_on_vef_iterator ( this, ivef, f
   ! the vef in local position "ivef" within the current cell, we have to 
   ! sum the following:
   ! 1. The number of interior vefs of all cells up-to the present one, 
-  !    but not including the present one (this%get_lid()-1)
+  !    but not including the present one (this%get_gid()-1)
   ! 2. The number of boundary vefs of all cells up-to the present one,
   !    but not including the present one (this%sum_scan_num_vefs())
   ! 3. The position of the vef in the current cell (ivef)
@@ -209,7 +209,7 @@ function coarse_fe_cell_iterator_get_num_fe_spaces(this)
   coarse_fe_cell_iterator_get_num_fe_spaces = this%coarse_fe_space%num_fields
 end function coarse_fe_cell_iterator_get_num_fe_spaces
 
-pure function coarse_fe_cell_iterator_get_num_dofs(this)
+function coarse_fe_cell_iterator_get_num_dofs(this)
   implicit none
   class(coarse_fe_cell_iterator_t), intent(in) :: this
   integer(ip) :: coarse_fe_cell_iterator_get_num_dofs

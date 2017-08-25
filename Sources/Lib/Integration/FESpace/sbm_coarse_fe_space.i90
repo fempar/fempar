@@ -264,7 +264,6 @@ subroutine coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe (this, ptr_dofs_x_fe)
   end do
 end subroutine coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe
   
-
 subroutine coarse_fe_space_free_ptr_dofs_x_fe(this)
   implicit none
   class(coarse_fe_space_t)        , intent(inout) :: this

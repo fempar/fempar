@@ -147,7 +147,6 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
   logical                       :: norm_requires_values
   logical                       :: norm_requires_gradients
   logical                       :: norm_requires_curl_values 
-  type(cell_map_t)    , pointer   :: cell_map 
   type(quadrature_t), pointer   :: quadrature 
   type(point_t)     , pointer   :: coordinates(:)
   real(rp)                      :: time_(1) 
@@ -167,9 +166,8 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
   norm_requires_values      = error_norm_requires_values(norm_type)
   norm_requires_gradients   = error_norm_requires_gradients(norm_type) 
   norm_requires_curl_values = error_norm_requires_curl_values(norm_type) 
-  cell_map                  => fe%get_cell_map()
   quadrature              => fe%get_quadrature()
-  coordinates             => cell_map%get_quadrature_points_coordinates()
+  coordinates             => fe%get_quadrature_points_coordinates()
   n_q_points              = quadrature%get_num_quadrature_points() 
 
   if (norm_requires_values) then
@@ -213,7 +211,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
               call this%fe_cell_function%compute_curl(q_point,curl_vector)
               work_vector = work_vector-curl_vector        
               curl_values_cell_contribution = curl_values_cell_contribution + work_vector*work_vector*&
-                   cell_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point) 
+                   fe%get_det_jacobian(q_point) * quadrature%get_weight(q_point) 
            end do
         end select
      end if
@@ -235,7 +233,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
            sum = sum + this%work_array_values(q_point,1)%get(idime)
         end do
         values_cell_contribution = values_cell_contribution + & 
-             sum*cell_map%get_det_jacobian(q_point)*quadrature%get_weight(q_point)
+             sum*fe%get_det_jacobian(q_point)*quadrature%get_weight(q_point)
      end do
   case (l1_norm)
      do q_point=1, n_q_points
@@ -244,19 +242,19 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
            sum = sum + abs(this%work_array_values(q_point,1)%get(idime))
         end do
         values_cell_contribution = values_cell_contribution + & 
-             sum*cell_map%get_det_jacobian(q_point)*quadrature%get_weight(q_point)
+             sum*fe%get_det_jacobian(q_point)*quadrature%get_weight(q_point)
      end do
   case (l2_norm,h1_norm)
      do q_point=1, n_q_points
         values_cell_contribution = values_cell_contribution + & 
              (this%work_array_values(q_point,1)*this%work_array_values(q_point,1))*&
-              cell_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+              fe%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do
   case (lp_norm,w1p_norm)
      do q_point=1, n_q_points
         values_cell_contribution = values_cell_contribution + & 
              (this%work_array_values(q_point,1)*this%work_array_values(q_point,1))**(exponent/2.0_rp)*&
-             cell_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+             fe%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do
   case (linfty_norm,w1infty_norm)
      do q_point=1, n_q_points
@@ -272,7 +270,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
      do q_point=1, n_q_points
         gradients_cell_contribution = gradients_cell_contribution + & 
              (double_contract(this%work_array_gradients(q_point,1),this%work_array_gradients(q_point,1)))*&
-             cell_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+             fe%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do
   case (hdiv_seminorm)
      sum=0.0_rp
@@ -281,13 +279,13 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
             sum = sum + this%work_array_gradients(q_point,1)%get(idime,idime)*this%work_array_gradients(q_point,1)%get(idime,idime)
          end do
          gradients_cell_contribution = gradients_cell_contribution + sum* &
-             cell_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+             fe%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do   
   case (w1p_norm, w1p_seminorm)
      do q_point=1, n_q_points
         gradients_cell_contribution = gradients_cell_contribution + & 
              (double_contract(this%work_array_gradients(q_point,1),this%work_array_gradients(q_point,1)))**(exponent/2.0_rp)*&
-             cell_map%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
+             fe%get_det_jacobian(q_point) * quadrature%get_weight(q_point)
      end do
   case (w1infty_norm,w1infty_seminorm)
      do q_point=1, n_q_points

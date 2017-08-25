@@ -151,13 +151,6 @@ subroutine bst_cell_iterator_get_nodes_coordinates_ref_space (this, cell_coordin
 
  end subroutine bst_cell_iterator_get_nodes_coordinates_ref_space
 
-pure function bst_cell_iterator_get_gid (this)
-  implicit none
-  class(bst_cell_iterator_t), intent(in) :: this
-  integer(ip) :: bst_cell_iterator_get_gid
-  bst_cell_iterator_get_gid = this%gid
-end function bst_cell_iterator_get_gid
-
 function bst_cell_iterator_get_ggid (this)
   implicit none
   class(bst_cell_iterator_t), intent(in) :: this
@@ -166,7 +159,7 @@ function bst_cell_iterator_get_ggid (this)
   bst_cell_iterator_get_ggid = this%base_static_triangulation%cells_ggid(this%gid)
 end function bst_cell_iterator_get_ggid
 
-pure function bst_cell_iterator_get_mypart (this)
+function bst_cell_iterator_get_mypart (this)
   implicit none
   class(bst_cell_iterator_t), intent(in) :: this
   integer(ip) :: bst_cell_iterator_get_mypart
@@ -194,7 +187,7 @@ function bst_cell_iterator_get_set_id(this)
   bst_cell_iterator_get_set_id = this%base_static_triangulation%cells_set(this%gid)
 end function bst_cell_iterator_get_set_id
 
-pure function bst_cell_iterator_get_num_vefs (this)
+function bst_cell_iterator_get_num_vefs (this)
   implicit none
   class(bst_cell_iterator_t), intent(in) :: this
   integer(ip)                        :: bst_cell_iterator_get_num_vefs
@@ -203,7 +196,7 @@ pure function bst_cell_iterator_get_num_vefs (this)
        this%base_static_triangulation%ptr_vefs_x_cell(this%gid)
 end function bst_cell_iterator_get_num_vefs
 
-pure function bst_cell_iterator_get_num_nodes (this)
+function bst_cell_iterator_get_num_nodes (this)
   implicit none
   class(bst_cell_iterator_t), intent(in) :: this
   integer(ip)                        :: bst_cell_iterator_get_num_nodes
@@ -443,6 +436,31 @@ function bst_cell_iterator_is_exterior_subcell( this, subcell ) result ( is_out 
   mcheck(.false.,'This subroutine can only be called by some descendent classes')
 end function bst_cell_iterator_is_exterior_subcell
 
+function bst_cell_iterator_get_level_interface(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in)  :: this
+  integer(ip) :: bst_cell_iterator_get_level_interface
+  bst_cell_iterator_get_level_interface = 0
+end function bst_cell_iterator_get_level_interface
+
+subroutine bst_cell_iterator_set_for_refinement_interface(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout)  :: this
+end subroutine bst_cell_iterator_set_for_refinement_interface
+
+subroutine bst_cell_iterator_set_for_coarsening_interface(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout)  :: this
+end subroutine bst_cell_iterator_set_for_coarsening_interface
+
+subroutine bst_cell_iterator_set_for_do_nothing_interface(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout)  :: this
+end subroutine bst_cell_iterator_set_for_do_nothing_interface
+
+
+
+
 subroutine bst_cell_iterator_fill_nodes_on_vertices (this)
   implicit none
   class(bst_cell_iterator_t), intent(inout) :: this
@@ -542,16 +560,13 @@ subroutine bst_cell_iterator_fill_internal_nodes_new(this,node_count)
   integer(ip)           , intent(inout) :: node_count
   class(reference_fe_t) , pointer       :: reference_fe
   integer(ip) :: inode, l_node, ivef
-
   reference_fe => this%get_reference_fe()  
-  
   ivef = reference_fe%get_num_n_faces()+1 ! volume
   do inode = 1, reference_fe%get_num_own_dofs_n_face(ivef)
      l_node = reference_fe%translate_dof_lid_n_face_to_dof_lid_cell(inode,ivef)
      node_count = node_count +1
      this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)-1+l_node) = node_count
   end do
-
 end subroutine bst_cell_iterator_fill_internal_nodes_new
 
 

@@ -68,11 +68,12 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry )
 end subroutine cell_map_create
 
 !==================================================================================================
-subroutine cell_map_restricted_to_facet( this, facet_lid, quadrature, reference_fe_geometry )
+subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadrature, reference_fe_geometry )
   implicit none
   ! Parameters
   class(cell_map_t)    , intent(inout) :: this
   integer(ip)          , intent(in)    :: facet_lid
+  integer(ip)          , intent(in)    :: subfacet_lid
   type(quadrature_t)   , intent(in)    :: quadrature
   class(reference_fe_t), intent(in)    :: reference_fe_geometry
 
@@ -83,8 +84,10 @@ subroutine cell_map_restricted_to_facet( this, facet_lid, quadrature, reference_
   this%num_dims        = reference_fe_geometry%num_dims
   this%num_quadrature_points = quadrature%num_quadrature_points
 
-  call reference_fe_geometry%create_interpolation_restricted_to_facet( facet_lid, quadrature,                &
-       &                                                this%interpolation )
+  call reference_fe_geometry%create_interpolation_restricted_to_facet( facet_lid,    &
+                                                        subfacet_lid, &
+                                                        quadrature,       &
+                                                        this%interpolation )
 
   call memalloc(this%num_dims, &
                 this%num_dims, &
@@ -389,6 +392,28 @@ subroutine cell_map_get_inv_jacobian_tensor ( this, qpoin, inv_jacobian )
   end do
 
 end subroutine cell_map_get_inv_jacobian_tensor
+
+!==================================================================================================
+function cell_map_apply_jacobian ( this, qpoin, v_in ) result ( v_out )
+  implicit none
+  class(cell_map_t)     , intent(in) :: this
+  integer(ip)         , intent(in) :: qpoin
+  type(vector_field_t), intent(in) :: v_in
+  type(vector_field_t) :: v_out
+  integer(ip)          :: idime,jdime
+  real(rp)             :: vector_value
+
+  assert( qpoin>=1 .and. qpoin <= this%num_quadrature_points)
+
+  call v_out%init(0.0_rp)
+  do jdime = 1, this%num_dims
+     vector_value = v_in%get(jdime)
+     do idime = 1,  this%num_dims
+        call v_out%add(idime, this%jacobian(idime,jdime,qpoin)*vector_value)
+     end do
+  end do  
+
+end function cell_map_apply_jacobian
 
 !==================================================================================================
 function cell_map_apply_inv_jacobian ( this, qpoin, v_in ) result ( v_out )

@@ -102,10 +102,11 @@ end subroutine void_reference_fe_create_interpolation
 ! integration points given by local_quadrature either on the face 'facet_lid' of the element or
 ! in all the faces of the element.
 subroutine void_reference_fe_create_interpolation_restricted_to_facet( this,facet_lid, &
-     & local_quadrature,facet_interpolation)
+     & subfacet_lid, local_quadrature,facet_interpolation)
   implicit none 
   class(void_reference_fe_t), intent(in)    :: this 
   integer(ip)                     , intent(in)    :: facet_lid
+  integer(ip)                     , intent(in)    :: subfacet_lid
   type(quadrature_t)              , intent(in)    :: local_quadrature
   type(interpolation_t)           , intent(inout) :: facet_interpolation
 
@@ -542,7 +543,10 @@ subroutine void_reference_fe_fill_qpoints_permutations  ( this, quadrature, qpoi
   class(void_reference_fe_t)   , intent(in)    :: this 
   type(quadrature_t)           , intent(in)    :: quadrature
   type(allocatable_array_ip2_t), intent(inout) :: qpoints_perm
-  check(.false.)
+  call this%node_array%fill_permutations( this%order,                &
+                                          quadrature%get_num_dims(), &
+                                          this%polytope,             &
+                                          qpoints_perm )
 end subroutine void_reference_fe_fill_qpoints_permutations 
 
 !==================================================================================================
@@ -559,6 +563,13 @@ function void_reference_fe_get_default_quadrature_degree ( this )
   integer(ip) :: void_reference_fe_get_default_quadrature_degree 
   void_reference_fe_get_default_quadrature_degree = -1
 end function void_reference_fe_get_default_quadrature_degree
+
+!==================================================================================================
+function void_reference_fe_get_h_refinement_num_subfacets(this)
+  class(void_reference_fe_t), intent(in)    :: this
+  integer(ip) :: void_reference_fe_get_h_refinement_num_subfacets
+  void_reference_fe_get_h_refinement_num_subfacets = 0
+end function void_reference_fe_get_h_refinement_num_subfacets
 
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type

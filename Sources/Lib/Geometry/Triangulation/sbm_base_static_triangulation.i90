@@ -787,6 +787,7 @@ subroutine bst_print ( this )
    integer(ip) :: ivef,inode
    type(bst_vef_iterator_t)  :: vef
    type(bst_cell_iterator_t) :: cell 
+
    type(point_t), allocatable :: cell_coordinates(:)
    integer(ip) :: vef_lid
 
@@ -810,7 +811,7 @@ subroutine bst_print ( this )
 
     write (*,'(a)') '       id      is_local   num_vefs    coord        coord  ....'
     do while ( .not. cell%has_finished() )
-       !write(*,*) 'Printing cell:',cell%get_lid(),cell%is_local()
+       !write(*,*) 'Printing cell:',cell%get_gid(),cell%is_local()
        if(cell%is_local()) then
           call memrealloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
           call cell%get_nodes_coordinates (cell_coordinates)
@@ -858,6 +859,12 @@ subroutine bst_print ( this )
     call triangulation_free(this)
    end subroutine bst_free
 
+   subroutine bst_environment_free_or_nullify ( this) 
+     implicit none
+     class(base_static_triangulation_t), target, intent(inout) :: this
+     check(.false.)
+   end subroutine  bst_environment_free_or_nullify 
+   
    function bst_get_num_reference_fes ( this ) 
      implicit none
      class(base_static_triangulation_t), intent(in) :: this

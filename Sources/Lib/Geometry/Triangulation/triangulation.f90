@@ -69,7 +69,7 @@ module triangulation_names
     procedure                            :: next                    => cell_iterator_next
     procedure                            :: has_finished            => cell_iterator_has_finished
     procedure, non_overridable           :: get_gid                 => cell_iterator_get_gid
-    procedure, non_overridable           :: set_gid                 => cell_iterator_set_gid
+    procedure                            :: set_gid                 => cell_iterator_set_gid
     procedure, non_overridable           :: get_triangulation       => cell_iterator_get_triangulation
     procedure, non_overridable           :: get_my_subpart          => cell_iterator_get_mysubpart
     procedure, non_overridable           :: get_my_subpart_lid      => cell_iterator_get_mysubpart_lid
@@ -105,19 +105,28 @@ module triangulation_names
     ! XFEM-related TBPs
     procedure(update_sub_triangulation_interface)   , deferred :: update_sub_triangulation
     procedure(get_mc_case_interface)                , deferred :: get_mc_case
-    procedure(get_num_subcells_interface)        , deferred :: get_num_subcells
-    procedure(get_num_subcell_nodes_interface)   , deferred :: get_num_subcell_nodes
+    procedure(get_num_subcells_interface)           , deferred :: get_num_subcells
+    procedure(get_num_subcell_nodes_interface)      , deferred :: get_num_subcell_nodes
     procedure(get_phys_coords_of_subcell_interface) , deferred :: get_phys_coords_of_subcell
     procedure(get_ref_coords_of_subcell_interface)  , deferred :: get_ref_coords_of_subcell
-    procedure(get_num_subfacets_interface)        , deferred :: get_num_subfacets
-    procedure(get_num_subfacet_nodes_interface)   , deferred :: get_num_subfacet_nodes
-    procedure(get_phys_coords_of_subfacet_interface) , deferred :: get_phys_coords_of_subfacet
-    procedure(get_ref_coords_of_subfacet_interface)  , deferred :: get_ref_coords_of_subfacet
+    procedure(get_num_subfacets_interface)          , deferred :: get_num_subfacets
+    procedure(get_num_subfacet_nodes_interface)     , deferred :: get_num_subfacet_nodes
+    procedure(get_phys_coords_of_subfacet_interface), deferred :: get_phys_coords_of_subfacet
+    procedure(get_ref_coords_of_subfacet_interface) , deferred :: get_ref_coords_of_subfacet
     procedure(is_cut_interface)                     , deferred :: is_cut
     procedure(is_exterior_interface)                , deferred :: is_exterior
     procedure(is_interior_interface)                , deferred :: is_interior
     procedure(is_exterior_subcell_interface)        , deferred :: is_exterior_subcell
     procedure(is_interior_subcell_interface)        , deferred :: is_interior_subcell
+
+    ! h-adaptivity related TBPs
+    procedure(get_level_interface)                  , deferred :: get_level
+    procedure(set_for_refinement_interface)         , deferred :: set_for_refinement
+    procedure(set_for_coarsening_interface)         , deferred :: set_for_coarsening
+    procedure(set_for_do_nothing_interface)         , deferred :: set_for_do_nothing
+    ! set_for_do_nothing ?
+    ! get_transformation_flag
+    ! ??? What else required
   end type cell_iterator_t
  
   type, abstract :: vef_iterator_t
@@ -159,7 +168,14 @@ module triangulation_names
      procedure(set_set_id_interface)          , deferred :: set_set_id
      procedure(is_ghost_interface)            , deferred :: is_ghost
      procedure(is_local_interface)            , deferred :: is_local 
-     procedure(is_at_interface_interface)     , deferred :: is_at_interface
+     procedure(is_at_interface)               , deferred :: is_at_interface
+
+     ! h-adaptive FEM
+     procedure(is_proper_interface)                       , deferred :: is_proper
+     procedure(get_num_improper_cells_around_interface)   , deferred :: get_num_improper_cells_around
+     procedure(get_improper_cell_around_interface)        , deferred :: get_improper_cell_around
+     procedure(get_improper_cell_around_ivef_interface)   , deferred :: get_improper_cell_around_ivef
+     procedure(get_improper_cell_around_subvef_interface) , deferred :: get_improper_cell_around_subvef
   end type vef_iterator_t
 
   type, extends(vef_iterator_t) :: itfc_vef_iterator_t
@@ -191,6 +207,13 @@ module triangulation_names
      procedure          :: is_ghost               => itfc_vef_iterator_is_ghost
      procedure          :: is_local               => itfc_vef_iterator_is_local
      procedure          :: is_at_interface        => itfc_vef_iterator_is_at_interface
+     
+     ! h-adaptive FEM
+     procedure          :: is_proper                        => itfc_vef_iterator_is_proper
+     procedure          :: get_num_improper_cells_around    => itfc_vef_iterator_get_num_improper_cells_around
+     procedure          :: get_improper_cell_around         => itfc_vef_iterator_get_improper_cell_around 
+     procedure          :: get_improper_cell_around_ivef    => itfc_vef_iterator_get_improper_cell_around_ivef
+     procedure          :: get_improper_cell_around_subvef  => itfc_vef_iterator_get_improper_cell_around_subvef
   end type itfc_vef_iterator_t
 
   abstract interface
@@ -200,7 +223,7 @@ module triangulation_names
        integer(igp) :: cell_get_ggid_interface 
      end function cell_get_ggid_interface 
 
-     pure function get_my_part_interface ( this )
+     function get_my_part_interface ( this )
        import :: cell_iterator_t, ip
        class(cell_iterator_t), intent(in) :: this
        integer(ip) :: get_my_part_interface
@@ -218,7 +241,7 @@ module triangulation_names
        logical :: cell_is_ghost_interface
      end function cell_is_ghost_interface
      
-     pure function get_num_vefs_interface ( this )
+     function get_num_vefs_interface ( this )
        import :: cell_iterator_t, ip
        class(cell_iterator_t), intent(in) :: this
        integer(ip) :: get_num_vefs_interface
@@ -405,6 +428,26 @@ module triangulation_names
         logical :: is_out
      end function is_exterior_subcell_interface
      
+     function get_level_interface(this)
+        import :: cell_iterator_t, ip
+        class(cell_iterator_t), intent(in)  :: this
+        integer(ip) :: get_level_interface
+     end function get_level_interface   
+     
+     subroutine set_for_refinement_interface(this)
+       import :: cell_iterator_t
+       class(cell_iterator_t), intent(inout)  :: this
+     end subroutine set_for_refinement_interface 
+     
+     subroutine set_for_coarsening_interface(this)
+       import :: cell_iterator_t
+       class(cell_iterator_t), intent(inout)  :: this
+     end subroutine set_for_coarsening_interface
+     
+     subroutine set_for_do_nothing_interface(this)
+       import :: cell_iterator_t
+       class(cell_iterator_t), intent(inout)  :: this
+     end subroutine set_for_do_nothing_interface
   end interface
   
    abstract interface
@@ -481,11 +524,44 @@ module triangulation_names
        logical :: is_local_interface
      end function is_local_interface
      
-     function is_at_interface_interface ( this )
+     function is_at_interface ( this )
        import :: vef_iterator_t
        class(vef_iterator_t), intent(in) :: this 
-       logical :: is_at_interface_interface 
-     end function is_at_interface_interface 
+       logical :: is_at_interface 
+     end function is_at_interface 
+
+     function is_proper_interface ( this )
+       import :: vef_iterator_t
+       class(vef_iterator_t), intent(in) :: this
+       logical :: is_proper_interface
+     end function is_proper_interface
+
+     function get_num_improper_cells_around_interface (this)
+       import :: vef_iterator_t, ip
+       class(vef_iterator_t), intent(in) :: this
+       integer(ip) :: get_num_improper_cells_around_interface
+     end function get_num_improper_cells_around_interface
+
+     subroutine get_improper_cell_around_interface (this, icell_around, cell)
+       import :: vef_iterator_t, cell_iterator_t, ip
+       class(vef_iterator_t) , intent(in)    :: this
+       integer(ip)           , intent(in)    :: icell_around
+       class(cell_iterator_t), intent(inout) :: cell
+       integer(ip)                          :: position_in_lst_cells_around
+       integer(ip)                          :: icell
+     end subroutine get_improper_cell_around_interface
+
+     function get_improper_cell_around_ivef_interface(this)
+       import :: vef_iterator_t, ip
+       class(vef_iterator_t) , intent(in)    :: this
+       integer(ip) :: get_improper_cell_around_ivef_interface
+     end function get_improper_cell_around_ivef_interface
+
+     function get_improper_cell_around_subvef_interface(this)
+       import :: vef_iterator_t, ip
+       class(vef_iterator_t) , intent(in)    :: this
+       integer(ip) :: get_improper_cell_around_subvef_interface
+     end function get_improper_cell_around_subvef_interface
   end interface
   
   type object_iterator_t
@@ -553,6 +629,13 @@ module triangulation_names
      procedure, non_overridable :: get_num_local_cells      => triangulation_get_num_local_cells
      procedure, non_overridable :: get_num_ghost_cells      => triangulation_get_num_ghost_cells
      procedure, non_overridable :: get_num_vefs             => triangulation_get_num_vefs
+     
+     procedure, non_overridable :: set_num_dims             => triangulation_set_num_dims
+     procedure, non_overridable :: set_num_local_cells      => triangulation_set_num_local_cells
+     procedure, non_overridable :: set_num_ghost_cells      => triangulation_set_num_ghost_cells
+     procedure, non_overridable :: set_num_vefs             => triangulation_set_num_vefs
+     
+     
      procedure, non_overridable :: get_environment          => triangulation_get_environment
      procedure, non_overridable :: get_cell_import          => triangulation_get_cell_import
      procedure, non_overridable :: get_num_objects          => triangulation_get_num_objects
@@ -724,7 +807,12 @@ module triangulation_names
     procedure :: is_exterior                 => bst_cell_iterator_is_exterior
     procedure :: is_interior_subcell         => bst_cell_iterator_is_interior_subcell
     procedure :: is_exterior_subcell         => bst_cell_iterator_is_exterior_subcell
-
+    
+    procedure :: get_level                   => bst_cell_iterator_get_level_interface
+    procedure :: set_for_refinement          => bst_cell_iterator_set_for_refinement_interface
+    procedure :: set_for_coarsening          => bst_cell_iterator_set_for_coarsening_interface
+    procedure :: set_for_do_nothing          => bst_cell_iterator_set_for_do_nothing_interface
+    
     procedure, non_overridable, private  :: fill_nodes_on_vertices        => bst_cell_iterator_fill_nodes_on_vertices
     procedure, non_overridable, private  :: fill_nodes_on_vef_new         => bst_cell_iterator_fill_nodes_on_vef_new
     procedure, non_overridable, private  :: fill_nodes_on_vef_from_source => bst_cell_iterator_fill_nodes_on_vef_from_source
@@ -762,6 +850,12 @@ module triangulation_names
      
      procedure                           :: get_num_cells_around      => bst_vef_iterator_get_num_cells_around
      procedure                           :: get_cell_around           => bst_vef_iterator_get_cell_around
+
+     procedure                           :: is_proper                       => bst_vef_iterator_is_proper
+     procedure                           :: get_num_improper_cells_around   => bst_vef_iterator_get_num_improper_cells_around
+     procedure                           :: get_improper_cell_around        => bst_vef_iterator_get_improper_cell_around
+     procedure                           :: get_improper_cell_around_ivef   => bst_vef_iterator_get_improper_cell_around_ivef
+     procedure                           :: get_improper_cell_around_subvef => bst_vef_iterator_get_improper_cell_around_subvef
   end type bst_vef_iterator_t
       
   integer(ip), parameter      :: max_num_reference_fes_geo = 3
@@ -904,6 +998,10 @@ module triangulation_names
   public :: cell_iterator_t
   public :: vef_iterator_t
   public :: itfc_vef_iterator_t, object_iterator_t
+  public :: cell_iterator_create
+  public :: cell_iterator_free
+  public :: vef_iterator_create
+  public :: vef_iterator_free
   
   public :: base_static_triangulation_t
   public :: bst_cell_iterator_t, bst_vef_iterator_t

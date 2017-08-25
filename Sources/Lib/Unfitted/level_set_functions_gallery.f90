@@ -27,7 +27,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module level_set_functions_gallery_names
-  use fempar_names
+  !use fempar_names
+  use types_names 
+  use field_names
+  use function_names
   implicit none
 # include "debug.i90"
   private
@@ -50,11 +53,13 @@ module level_set_functions_gallery_names
     private
     real(rp) :: tolerance = 1.0e-3_rp
     integer(ip) :: num_dims = SPACE_DIM
+    real(rp) :: domain(6) = [0, 1, 0, 1, 0, 1]
   contains
     procedure, private :: get_level_set_value => level_set_function_get_level_set_value
     procedure, non_overridable :: set_num_dims  => level_set_function_set_num_dims
     procedure :: get_value_space              => level_set_function_get_value_space
     procedure :: set_tolerance                => level_set_function_set_tolerance
+    procedure :: set_domain                   => level_set_function_set_domain
     procedure :: get_tolerance                => level_set_function_get_tolerance
   end type level_set_function_t
 
@@ -144,8 +149,12 @@ end subroutine level_set_function_factory_create
     type(point_t) :: point2
     real(rp), parameter :: tol = 1.0e-14_rp
 
+    ! Map to the new domain
+    call point2%set(1, (this%domain(2)-this%domain(1))*point%get(1) + this%domain(1) )
+    call point2%set(2, (this%domain(4)-this%domain(3))*point%get(2) + this%domain(3) )
+    call point2%set(3, (this%domain(6)-this%domain(5))*point%get(3) + this%domain(5) )
+
     ! Restrict to the current dimensions
-    point2 = point
     if (this%num_dims < 3) call point2%set(3,0.0)
     if (this%num_dims < 2) call point2%set(2,0.0)
 
@@ -164,6 +173,14 @@ end subroutine level_set_function_factory_create
     real(rp)                   , intent(in)    :: tolerance_in
     this%tolerance = tolerance_in
   end subroutine level_set_function_set_tolerance
+
+!========================================================================================
+subroutine level_set_function_set_domain ( this, domain )
+    implicit none
+    class(level_set_function_t), intent(inout) :: this
+    real(rp)                   , intent(in)    :: domain(6)
+    this%domain(:) = domain
+  end subroutine level_set_function_set_domain
 
 !========================================================================================
   function level_set_function_get_tolerance ( this )

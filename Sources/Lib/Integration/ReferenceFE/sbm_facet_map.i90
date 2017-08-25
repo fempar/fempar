@@ -153,14 +153,16 @@ subroutine facet_map_get_normal(this, qpoint, normal)
  type(vector_field_t), intent(inout) :: normal
  integer(ip) :: idime
  assert ( allocated(this%normals) )
+ call normal%init(0.0_rp)
  do idime = 1, this%num_dims
    call normal%set(idime,this%normals(idime,qpoint))
  end do
 end subroutine  facet_map_get_normal
 
-function facet_map_get_normals(this)
+!==================================================================================================
+function facet_map_get_raw_normals(this)
  implicit none
  class(facet_map_t), target, intent(in)    :: this
- real(rp), pointer :: facet_map_get_normals(:,:)
- facet_map_get_normals => this%normals
-end function  facet_map_get_normals
+ real(rp), pointer :: facet_map_get_raw_normals(:,:)
+ facet_map_get_raw_normals => this%normals
+end function  facet_map_get_raw_normals

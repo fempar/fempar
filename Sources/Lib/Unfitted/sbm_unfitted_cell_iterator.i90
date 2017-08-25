@@ -38,6 +38,8 @@ subroutine unfitted_cell_iterator_create ( this, triangulation )
   select type (triangulation)
   class is (serial_unfitted_triangulation_t)
     marching_cubes => triangulation%get_marching_cubes()
+  class is (unfitted_p4est_serial_triangulation_t)
+    marching_cubes => triangulation%get_marching_cubes()
   class is (par_unfitted_triangulation_t)
     marching_cubes => triangulation%get_marching_cubes()
   class default

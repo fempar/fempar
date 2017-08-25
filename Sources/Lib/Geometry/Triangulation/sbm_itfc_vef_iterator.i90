@@ -166,3 +166,39 @@ subroutine itfc_vef_iterator_get_cell_around (this, icell_around, cell)
   class(cell_iterator_t), intent(inout) :: cell
   call this%vef%get_cell_around(icell_around,cell)
 end subroutine itfc_vef_iterator_get_cell_around
+
+function itfc_vef_iterator_is_proper(this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  logical :: itfc_vef_iterator_is_proper
+  itfc_vef_iterator_is_proper = this%vef%is_proper()
+end function itfc_vef_iterator_is_proper
+
+function itfc_vef_iterator_get_num_improper_cells_around (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  integer(ip) :: itfc_vef_iterator_get_num_improper_cells_around
+  itfc_vef_iterator_get_num_improper_cells_around = this%vef%get_num_improper_cells_around() 
+end function itfc_vef_iterator_get_num_improper_cells_around
+
+subroutine itfc_vef_iterator_get_improper_cell_around (this, icell_around, cell)
+  implicit none
+  class(itfc_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  call this%vef%get_improper_cell_around(icell_around,cell)
+end subroutine itfc_vef_iterator_get_improper_cell_around
+
+function itfc_vef_iterator_get_improper_cell_around_ivef(this)
+  implicit none
+  class(itfc_vef_iterator_t) , intent(in)    :: this
+  integer(ip) :: itfc_vef_iterator_get_improper_cell_around_ivef
+  itfc_vef_iterator_get_improper_cell_around_ivef = this%vef%get_improper_cell_around_ivef()
+end function itfc_vef_iterator_get_improper_cell_around_ivef
+
+function itfc_vef_iterator_get_improper_cell_around_subvef(this)
+  implicit none
+  class(itfc_vef_iterator_t) , intent(in)    :: this
+  integer(ip) :: itfc_vef_iterator_get_improper_cell_around_subvef
+  itfc_vef_iterator_get_improper_cell_around_subvef = this%vef%get_improper_cell_around_subvef()
+end function itfc_vef_iterator_get_improper_cell_around_subvef

@@ -25,6 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 subroutine fine_triangulation_fill_reference_fe_geo_list(this,order)
   implicit none
   ! This routine assumes a triangulation with vertices and ghost elements
@@ -32,9 +33,9 @@ subroutine fine_triangulation_fill_reference_fe_geo_list(this,order)
   class(fine_triangulation_t), intent(inout) :: this
   integer(ip)                , intent(in)    :: order
   type(bst_cell_iterator_t)  :: icell
-  
   integer(ip) :: istat, ielem, icell_type
   integer(ip) :: ielem_num_vefs, ielem_num_vertices
+  
   type(p_reference_fe_t) :: reference_fe_geo_list(max_num_reference_fes_geo)
   
   call  this%reference_fe_geo_index%init(max_num_reference_fes_geo)
@@ -100,7 +101,6 @@ subroutine fine_triangulation_generate_vefs(this,order)
   type(bst_cell_iterator_t)  :: icell
   type(bst_cell_iterator_t)  :: jcell
   type(bst_vef_iterator_t):: vef
-
   type(list_t), pointer    :: vertices_ivef
   type(list_t), pointer    :: vertices_jvef
   logical     :: equal
@@ -300,10 +300,8 @@ subroutine fine_triangulation_allocate_and_fill_geometry_and_set(this,given_vefs
   integer(ip) , intent(in) :: vefs_geometry(:)
   integer(ip) , intent(in) :: vefs_set(:)
   integer(ip) :: order
-
   type(bst_cell_iterator_t)   :: cell
   type(bst_vef_iterator_t)       :: vef
-
   type(list_t), pointer    :: vertices_ivef
   type(list_t), pointer    :: vertices_jvef
   logical     :: equal
@@ -472,7 +470,7 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
               vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
               call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
               call vef_of_vef%set_it_at_boundary()
-              !write(*,*) 'Boundary face', vef%get_lid(), vef_set_id, 'vef', vef_of_vef%get_lid(), vef_of_vef%get_set_id()
+              !write(*,*) 'Boundary face', vef%get_gid(), vef_set_id, 'vef', vef_of_vef%get_gid(), vef_of_vef%get_set_id()
               if( vef_of_vef%get_set_id() == 0) then
                  call vef_of_vef%set_set_id(vef_set_id)
                  !call vef_of_vef%set_geom_id(vef_geom_id)
@@ -486,7 +484,7 @@ subroutine fine_triangulation_find_vefs_at_boundary (this)
                   vertex_pos_in_cell = vertices_of_line_iterator%get_current()
                   call cell%get_vef(vertex_pos_in_cell, vef_of_vef)
                   call vef_of_vef%set_it_at_boundary()
-                  !write(*,*) 'Boundary face', vef%get_lid(), vef_set_id, 'vef', vef_of_vef%get_lid(), vef_of_vef%get_set_id()
+                  !write(*,*) 'Boundary face', vef%get_gid(), vef_set_id, 'vef', vef_of_vef%get_gid(), vef_of_vef%get_set_id()
                   if( vef_of_vef%get_set_id() == 0) then
                     call vef_of_vef%set_set_id(vef_set_id)
                    !call vef_of_vef%set_geom_id(vef_geom_id)
@@ -513,7 +511,7 @@ subroutine fine_triangulation_compute_vefs_dim (this)
   type(bst_cell_iterator_t)  :: cell
   type(bst_vef_iterator_t) :: vef
   class(reference_fe_t), pointer :: reference_fe_geo
-  
+
   integer(ip) :: ivef_pos_in_cell, cell_num_vefs_of_dim0, cell_num_vefs_of_dim1
 
   assert ( this%num_vefs >= 0 )
@@ -553,7 +551,6 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   type(bst_cell_iterator_t) :: cell, cell2
   type(bst_vef_iterator_t) :: vef
   class(reference_fe_t), pointer :: reference_fe_geo
-
   integer(ip) :: ivef, ielem, jelem, jelem_type, ivef_pos_in_cell, jvef_pos_in_cell, cell_num_vertices
 
   ! Compute header and allocate array

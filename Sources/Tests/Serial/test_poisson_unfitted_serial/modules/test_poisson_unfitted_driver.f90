@@ -623,7 +623,6 @@ subroutine compute_domain_volume( this )
     class(fe_cell_iterator_t), allocatable :: fe
     real(rp) :: volume, dV
     type(quadrature_t), pointer :: quadrature
-    type(cell_map_t),     pointer :: cell_map
     integer(ip) :: qpoint, num_quad_points
     type(point_t), pointer :: quadrature_points_coordinates(:)
 
@@ -640,14 +639,13 @@ subroutine compute_domain_volume( this )
        ! As the quadrature changes elem by elem, this has to be inside the loop
        quadrature => fe%get_quadrature()
        num_quad_points = quadrature%get_num_quadrature_points()
-       cell_map => fe%get_cell_map()
 
        ! Physical coordinates of the quadrature points
-       quadrature_points_coordinates => cell_map%get_quadrature_points_coordinates()
+       quadrature_points_coordinates => fe%get_quadrature_points_coordinates()
 
        ! Integrate!
        do qpoint = 1, num_quad_points
-         dV = cell_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+         dV = fe%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
          volume = volume + dV
        end do
 

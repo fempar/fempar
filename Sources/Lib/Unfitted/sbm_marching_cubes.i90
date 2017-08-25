@@ -91,7 +91,7 @@ end subroutine mc_dummy_conditions_get_function
 subroutine marching_cubes_create(this, triangulation, level_set_function)
   implicit none
   class(marching_cubes_t),            target,  intent(inout)  :: this
-  class(base_static_triangulation_t), target,  intent(in)     :: triangulation
+  class(triangulation_t)            , target,  intent(in)     :: triangulation
   class(level_set_function_t),        target,  intent(in)     :: level_set_function
   type(environment_t), pointer           :: environment
   call this%free()
@@ -262,8 +262,25 @@ function marching_cubes_get_max_num_subnodes_in_cell( this ) result ( max_subnod
   implicit none
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_subnodes_in_cell
-  max_subnodes_in_cell = this%triangulation%get_max_num_shape_functions() + this%mc_table_max_num_cut_edges
+  max_subnodes_in_cell = this%get_max_num_shape_functions() + this%mc_table_max_num_cut_edges
 end function marching_cubes_get_max_num_subnodes_in_cell
+
+!========================================================================================
+function marching_cubes_get_max_num_shape_functions(this)
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: marching_cubes_get_max_num_shape_functions 
+  select type(triangulation=>this%triangulation)
+    class is (serial_unfitted_triangulation_t)
+      marching_cubes_get_max_num_shape_functions = triangulation%get_max_num_shape_functions()
+    class is (par_unfitted_triangulation_t)
+      marching_cubes_get_max_num_shape_functions = triangulation%get_max_num_shape_functions()
+    class is (unfitted_p4est_serial_triangulation_t)
+      marching_cubes_get_max_num_shape_functions = triangulation%get_max_num_shape_functions()
+    class default
+      check(.false.)
+  end select
+end function marching_cubes_get_max_num_shape_functions
 
 !========================================================================================
 function marching_cubes_get_num_dims(this) result (val)
@@ -320,7 +337,7 @@ subroutine marching_cubes_print ( this )
   write (*,'(a,i10)') 'num_cut_cells:            ', this%get_num_cut_cells()
   write (*,'(a,i10)') 'num_interior_cells:       ', this%get_num_interior_cells()
   write (*,'(a,i10)') 'num_exterior_cells:       ', this%get_num_exterior_cells()
-  write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', this%triangulation%get_max_num_shape_functions()
+  write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', this%get_max_num_shape_functions()
   write (*,'(a,i10)') 'max_num_subcells_in_cell: ', this%get_max_num_subcells_in_cell()
   write (*,'(a,i10)') 'max_num_nodes_in_subcell: ', this%get_max_num_nodes_in_subcell()
   write (*,'(a,i10)') 'max_num_subfacets_in_cell: ', this%get_max_num_subfacets_in_cell()
@@ -338,7 +355,7 @@ subroutine marching_cubes_print ( this )
   end do
   write(*,*) " "
 
-  call memalloc( this%triangulation%get_max_num_shape_functions(), cell_coords   , __FILE__, __LINE__ )
+  call memalloc( this%get_max_num_shape_functions(), cell_coords   , __FILE__, __LINE__ )
   call memalloc( this%get_max_num_nodes_in_subcell()  , subcell_coords, __FILE__, __LINE__ )
   call memalloc( this%get_max_num_nodes_in_subfacet()  , subfacet_coords, __FILE__, __LINE__ )
 
@@ -540,8 +557,7 @@ end subroutine marching_cubes_mc_tables_free
 subroutine marching_cubes_discrete_levelset_create(this)
   implicit none
   class(marching_cubes_t), target, intent(inout) :: this
-
-  class(base_static_triangulation_t), pointer :: triangulation
+  class(triangulation_t), pointer :: triangulation
   class(reference_fe_t),   pointer :: ref_fe_geo
   class(serial_fe_space_t),           pointer :: fe_space
   type(unfitted_cell_iterator_t) :: cell
@@ -563,27 +579,35 @@ subroutine marching_cubes_discrete_levelset_create(this)
   ! Create the fe space
   triangulation => this%triangulation
   select type(triangulation)
-  class is(serial_triangulation_t)
+    type is(serial_unfitted_triangulation_t)
 
      allocate(serial_fe_space_t:: this%fe_space, stat=istat); check(istat==0)
      call this%fe_space%create(triangulation     = this%triangulation, &
                                reference_fes     = this%reference_fes )
 
-  class is(par_triangulation_t)
+    type is(unfitted_p4est_serial_triangulation_t)
 
-     allocate(this%dummy_coarse_handlers(1),stat=istat); check(istat==0)
-     this%dummy_coarse_handlers(1)%p => this%dummy_coarse_handler
+      allocate(serial_hp_adaptive_fe_space_t :: this%fe_space, stat=istat); check(istat==0)
+      call this%fe_space%create(triangulation     = this%triangulation, &
+                                conditions        = this%dummy_conditions, &
+                                reference_fes     = this%reference_fes )
 
-     allocate(par_fe_space_t:: this%fe_space, stat=istat); check(istat==0)
-     fe_space => this%fe_space
-     select type (fe_space)
-     class is (par_fe_space_t)
-       call fe_space%create(triangulation      = this%triangulation, &
-                            reference_fes      = this%reference_fes, &
-                            coarse_fe_handlers = this%dummy_coarse_handlers )
-     class default
-       check(.false.)
-     end select
+    type is(par_unfitted_triangulation_t)
+
+      allocate(this%dummy_coarse_handlers(1),stat=istat); check(istat==0)
+      this%dummy_coarse_handlers(1)%p => this%dummy_coarse_handler
+
+      allocate(par_fe_space_t:: this%fe_space, stat=istat); check(istat==0)
+      fe_space => this%fe_space
+      select type (fe_space)
+      class is (par_fe_space_t)
+        call fe_space%create(triangulation      = this%triangulation, &
+                             conditions         = this%dummy_conditions, &
+                             reference_fes      = this%reference_fes , &
+                             coarse_fe_handlers = this%dummy_coarse_handlers)
+    class default
+      check(.false.)
+  end select
 
   class default
     mcheck(.false.,'Wrong triangulation type')

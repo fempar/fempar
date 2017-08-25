@@ -70,19 +70,17 @@ contains
     class(fe_cell_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
-    type(cell_map_t)           , pointer :: cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(cell_integrator_t), pointer :: cell_int
-    type(vector_field_t)               :: grad_test, grad_trial
-    real(rp)                           :: shape_trial
-
+    type(vector_field_t), allocatable  :: shape_gradients(:,:)
+    real(rp)            , allocatable  :: shape_values(:,:)
 
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
 
+    integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
-    integer(ip)  :: idof, jdof, num_dofs
+    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
     real(rp)     :: factor
     real(rp)     :: source_term_value
 
@@ -91,29 +89,32 @@ contains
     real(rp) :: viscosity
     
     assert (associated(this%analytical_functions))
-    assert (associated(this%fe_function))
-
+    assert (associated(this%fe_function)) 
+    
     source_term => this%analytical_functions%get_source_term()
 
     call fe_space%set_up_cell_integration()
     call fe_space%create_fe_cell_iterator(fe)
     
-    num_dofs = fe%get_num_dofs()
-    call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
-    call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    quad            => fe%get_quadrature()
-    num_quad_points = quad%get_num_quadrature_points()
-    cell_map          => fe%get_cell_map()
-    cell_int         => fe%get_cell_integrator(1)
-    do while ( .not. fe%has_finished())
-       if ( fe%is_local() ) then
-          ! Update FE-integration related data structures
-          call fe%update_integration()
+    max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
+    call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
+    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
+    
+    call fe_space%create_fe_cell_iterator(fe)
+    do while ( .not. fe%has_finished() )
+       
+       ! Update FE-integration related data structures
+       call fe%update_integration()
           
-          ! Get quadrature coordinates to evaluate source_term
-          quad_coords => cell_map%get_quadrature_points_coordinates()
-          
-          ! Get subset_id
+     ! Very important: this has to be inside the loop, as different FEs can be present!
+       quad            => fe%get_quadrature()
+       num_quad_points =  quad%get_num_quadrature_points()
+       num_dofs        =  fe%get_num_dofs()
+       
+       ! Get quadrature coordinates to evaluate source_term
+       quad_coords => fe%get_quadrature_points_coordinates()
+
+! Get subset_id
           if ( fe%get_set_id() <= 1 ) then
              viscosity = 1.0_rp
           else 
@@ -121,26 +122,18 @@ contains
           end if
           
           !if (viscosity == 0.0_rp) viscosity = 1.0_rp
-          
-          ! Compute element matrix and vector
-          elmat = 0.0_rp
-          elvec = 0.0_rp
-          do qpoint = 1, num_quad_points
-             factor = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-             do idof = 1, num_dofs
-                call cell_int%get_gradient(idof, qpoint, grad_trial)
-                do jdof = 1, num_dofs
-                   call cell_int%get_gradient(jdof, qpoint, grad_test)
-                   ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * grad_test * grad_trial * viscosity
-                end do
-             end do
-             
-             ! Source term
-             call source_term%get_value(quad_coords(qpoint),source_term_value)
-             do idof = 1, num_dofs
-                call cell_int%get_value(idof, qpoint, shape_trial)
-                elvec(idof) = elvec(idof) + factor * source_term_value * shape_trial !* viscosity
+
+       ! Compute element matrix and vector
+       elmat = 0.0_rp
+       elvec = 0.0_rp
+       call fe%get_gradients(shape_gradients)
+       call fe%get_values(shape_values)
+       do qpoint = 1, num_quad_points
+          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          do idof = 1, num_dofs
+             do jdof = 1, num_dofs
+                ! A_K(i,j) = (grad(phi_i),grad(phi_j))
+                elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)* viscosity
              end do
           end do
           
@@ -149,6 +142,9 @@ contains
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
+
+    call memfree(shape_values, __FILE__, __LINE__)
+    deallocate (shape_gradients, stat=istat); check(istat==0);
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin

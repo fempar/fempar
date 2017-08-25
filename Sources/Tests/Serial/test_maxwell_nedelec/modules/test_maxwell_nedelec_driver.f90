@@ -109,6 +109,7 @@ contains
     class(cell_iterator_t), allocatable       :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
 
+
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
 

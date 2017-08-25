@@ -79,7 +79,7 @@ subroutine serial_triangulation_create ( this, parameters)
   call this%allocate_environment()
   environment => this%get_environment()
   call environment%create(parameters)
-
+  
   if(geometry_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
 
   if(triangulation_generate==triangulation_generate_from_mesh) then
