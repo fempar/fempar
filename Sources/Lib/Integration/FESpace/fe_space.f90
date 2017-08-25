@@ -1038,8 +1038,12 @@ module fe_space_names
      procedure, non_overridable          :: free                           => fe_function_free
      generic                             :: assignment(=)                  => copy
   end type fe_function_t 
-   
-  public :: fe_function_t  
+  
+  type :: p_fe_function_t
+    class(fe_function_t), pointer :: p
+  end type p_fe_function_t
+  
+  public :: fe_function_t, p_fe_function_t
   
   type, extends(serial_fe_space_t) :: serial_hp_adaptive_fe_space_t
      !private ! UNDER QUARANTINE
