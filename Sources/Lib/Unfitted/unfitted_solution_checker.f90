@@ -28,7 +28,15 @@
 
 !***************************************************************************************************
 module unfitted_solution_checker_names
-  use fempar_names
+  use types_names
+  use memor_names
+  use field_names
+  
+  use reference_fe_names
+  use fe_space_names
+  use function_names
+  use environment_names
+  
   use unfitted_fe_spaces_names
   use piecewise_cell_map_names
   implicit none

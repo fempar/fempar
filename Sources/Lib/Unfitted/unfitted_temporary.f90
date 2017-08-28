@@ -28,7 +28,9 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module unfitted_temporary_names
-  use fempar_names
+  use types_names
+  use memor_names
+  use reference_fe_names
 
   implicit none
 # include "debug.i90"

@@ -27,7 +27,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module level_set_functions_gallery_names
-  !use fempar_names
   use types_names 
   use field_names
   use function_names
