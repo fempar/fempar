@@ -724,8 +724,8 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
               ivef_within_fe = fe%find_lpos_vef_lid( vef%get_lid() )	
 			  
 			  		do face_id = ref_fe%get_first_face_id(), ref_fe%get_first_face_id() + ref_fe%get_number_faces()-1
-					
-                    call fe_face%set_lid( fe%get_vef_lid( face_id ) )					
+					! Chapuza, need for an inverse vef_lids_of_fe_faces(fe_face_lid) to assign fe_face id ! 
+                    call fe_face%set_lid( fe%get_vef_lid( face_id ) - ( par_fe_space%triangulation%get_num_vefs() -  fe_face%fe_space%vef_lids_of_fe_faces%size() ) )					
 					if ( fe_face%is_at_interface() ) then 
 					facets_n_face_iterator = facets_n_face%create_iterator(face_id) 
 					
@@ -740,9 +740,9 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
 					if ( vefs_are_coupled ) then 
                     nodes_n_face_iterator = nodes_n_face%create_iterator(ivef_within_fe)
 				    
-                    call Lagrangian_fe_3D%create_face_interpolation( fe%find_lpos_vef_lid(fe_face%get_lid())-ref_fe%get_first_face_id()+1   ,&
-                                                                     fe_face%get_quadrature()                                               ,&
-                                                                     Lagrangian_interpolation                                                )
+                    call Lagrangian_fe_3D%create_face_interpolation( fe%find_lpos_vef_lid(fe%get_vef_lid(face_id))-ref_fe%get_first_face_id()+1   ,&
+                                                                     fe_face%get_quadrature()                                                     ,&
+                                                                     Lagrangian_interpolation                                                      )
 
                     call this%compute_face_discrete_gradient_elmat(fe,                        &
                                                                    fe_face,                   &
@@ -862,7 +862,8 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
                     nodes_n_face          => Lagrangian_fe_3D%get_dofs_n_face() 	
 					faces_n_face          => Lagrangian_fe_3D%get_n_faces_n_face() 
 					
-                    call fe_face%set_lid( fe%get_vef_lid( face_id ) )					
+					! Chapuza, need for an inverse vef_lids_of_fe_faces(fe_face_lid) to assign fe_face id ! 
+                    call fe_face%set_lid( fe%get_vef_lid( face_id ) - ( par_fe_space%triangulation%get_num_vefs() -  fe_face%fe_space%vef_lids_of_fe_faces%size() ) )				
 					if ( fe_face%is_at_interface() ) then 
 					facets_in_face_iterator = faces_n_face%create_iterator(face_id) 
 					
@@ -878,9 +879,9 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
                      
                     nodes_iterator = nodes_n_face%create_iterator(ivef_within_fe)					
 					
-                    call Lagrangian_fe_3D%create_face_interpolation( fe%find_lpos_vef_lid(fe_face%get_lid())-ref_fe%get_first_face_id()+1   ,&
-                                                                     fe_face%get_quadrature()                                               ,&
-                                                                     Lagrangian_interpolation                                                )
+                    call Lagrangian_fe_3D%create_face_interpolation( fe%find_lpos_vef_lid(fe%get_vef_lid(face_id))-ref_fe%get_first_face_id()+1   ,&
+                                                                     fe_face%get_quadrature()                                                     ,&
+                                                                     Lagrangian_interpolation                                                      )
 
                     call this%compute_face_discrete_gradient_elmat(fe,                        &
                                                                    fe_face,                   &
@@ -915,7 +916,8 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
 			  do face_id = ref_fe%get_first_face_id(), ref_fe%get_first_face_id() + ref_fe%get_number_faces()-1	
 					nodes_n_face          => Lagrangian_fe_3D%get_dofs_n_face() 
 					
-                    call fe_face%set_lid( fe%get_vef_lid( face_id ) )					
+					! Chapuza, need for an inverse vef_lids_of_fe_faces(fe_face_lid) to assign fe_face id ! 
+                    call fe_face%set_lid( fe%get_vef_lid( face_id ) - ( par_fe_space%triangulation%get_num_vefs() -  fe_face%fe_space%vef_lids_of_fe_faces%size() ) )				
 					if ( fe_face%is_at_interface() ) then 
 					
 					vertices_in_face_iterator = nodes_n_face%create_iterator(face_id) 
@@ -931,9 +933,9 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
 
 					if ( vefs_are_coupled ) then 
                      
-                    call Lagrangian_fe_3D%create_face_interpolation( fe%find_lpos_vef_lid(fe_face%get_lid())-ref_fe%get_first_face_id()+1   ,&
-                                                                     fe_face%get_quadrature()                                               ,&
-                                                                     Lagrangian_interpolation                                                )
+                    call Lagrangian_fe_3D%create_face_interpolation( fe%find_lpos_vef_lid(fe%get_vef_lid(face_id))-ref_fe%get_first_face_id()+1   ,&
+                                                                     fe_face%get_quadrature()                                                     ,&
+                                                                     Lagrangian_interpolation                                                      )
 
                     call this%compute_face_discrete_gradient_elmat(fe,                        &
                                                                    fe_face,                   &
@@ -1739,7 +1741,6 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, x_new_local
 	 
 	 call x_old_local_edge%copy(inv_Gt_application)
 	 
-
      call x_old_local_edge%free()
      call x_new_local_edge%free()
      call inv_Gt_application%free()
