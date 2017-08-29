@@ -137,9 +137,9 @@ contains
     type(level_set_function_factory_t) :: level_set_factory
 
     ! Get number of dimensions form input
-    massert( this%parameter_list%isPresent    (key = num_of_dims_key), 'Use -tt structured' )
-    assert( this%parameter_list%isAssignable (key = num_of_dims_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = num_of_dims_key, value=num_dime); check(istat==0)
+    massert( this%parameter_list%isPresent   (key = num_dims_key), 'Use -tt structured' )
+    assert( this%parameter_list%isAssignable (key = num_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = num_dims_key, value=num_dime); check(istat==0)
 
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_levelset_function_type(), this%level_set_function)
@@ -229,11 +229,11 @@ contains
 
     do while ( .not. cell%has_finished() )
 
-      !if ( mod(cell%get_lid()-1,2) == 0 ) then
+      !if ( mod(cell%get_gid()-1,2) == 0 ) then
       !  call cell%set_for_refinement()
       !end if
 
-      call cell%get_coordinates(coords)
+      call cell%get_nodes_coordinates(coords)
       do k=1,cell%get_num_nodes()
         call this%level_set_function%get_value_space(coords(k),val)
         if ( (val<0) .and. (cell%get_level()< max_level) .or. (cell%get_level() == 0)) then
@@ -257,7 +257,7 @@ contains
       !  call cell%set_for_refinement()
       !end if
 
-      !write(*,*) 'cid= ', cell%get_lid(), ' l= ', cell%get_level()
+      !write(*,*) 'cid= ', cell%get_gid(), ' l= ', cell%get_level()
 
       call cell%next()
     end do
@@ -294,7 +294,7 @@ contains
       else
         set_id = SERIAL_UNF_POISSON_SET_ID_FULL
       end if
-      cell_set_ids(cell%get_lid()) = set_id
+      cell_set_ids(cell%get_gid()) = set_id
       call cell%next()
     end do
     call this%triangulation%fill_cells_set(cell_set_ids)
@@ -305,7 +305,7 @@ contains
     !call this%triangulation%create_cell_iterator(cell)
     !do while( .not. cell%has_finished() )
     !  if (cell%is_local()) then
-    !     cell_set_ids(cell%get_lid()) = cell%get_lid()
+    !     cell_set_ids(cell%get_gid()) = cell%get_gid()
     !  end if
     !  call cell%next()
     !end do
@@ -319,13 +319,9 @@ contains
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
     integer(ip) :: istat    
-    class(cell_iterator_t)          , allocatable :: cell
-    class(lagrangian_reference_fe_t), pointer     :: reference_fe_geo
-    character(:)                    , allocatable :: field_type
-    
-    type(interpolation_t), pointer :: h_refinement_interpolation
-    integer(ip), pointer :: h_refinement_subface_permutation(:,:,:)
-    integer(ip), pointer :: h_refinement_subedge_permutation(:,:,:)
+    class(cell_iterator_t), allocatable :: cell
+    class(reference_fe_t),  pointer     :: reference_fe
+    character(:),           allocatable :: field_type
     
     allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
@@ -336,30 +332,20 @@ contains
     end if
     
     call this%triangulation%create_cell_iterator(cell)
-    reference_fe_geo => cell%get_reference_fe_geo()
-    this%reference_fes(SERIAL_UNF_POISSON_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+    reference_fe => cell%get_reference_fe()
+    this%reference_fes(SERIAL_UNF_POISSON_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe%get_topology(), &
                                                  fe_type = fe_type_lagrangian, &
                                                  num_dims = this%triangulation%get_num_dims(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type, &
                                                  conformity = .true. )
-    this%reference_fes(SERIAL_UNF_POISSON_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+    this%reference_fes(SERIAL_UNF_POISSON_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe%get_topology(), &
                                                  fe_type = fe_type_void, &
                                                  num_dims = this%triangulation%get_num_dims(), &
                                                  order = this%test_params%get_reference_fe_order(), &
                                                  field_type = field_type, &
                                                  conformity = .true. )
     call this%triangulation%free_cell_iterator(cell)
-    
-    ! TODO Needed?
-    select type( reference_fe => this%reference_fes(1)%p )
-    type is (hex_lagrangian_reference_fe_t)
-       h_refinement_interpolation       => reference_fe%get_h_refinement_interpolation()
-       h_refinement_subface_permutation => reference_fe%get_h_refinement_subface_permutation()
-       h_refinement_subedge_permutation => reference_fe%get_h_refinement_subedge_permutation()
-    class default
-      assert(.false.)
-    end select
     
   end subroutine setup_reference_fes
 
@@ -393,11 +379,6 @@ contains
     end if
     
     call this%fe_space%set_up_cell_integration()    
-    if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-      call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)
-    else
-      call this%fe_space%interpolate_dirichlet_values(this%vector_poisson_conditions)
-    end if
     
   end subroutine setup_fe_space
   
@@ -556,7 +537,7 @@ contains
 
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_dof_values()
+    dof_values => this%solution%get_free_dof_values()
     
 #ifdef ENABLE_MKL    
     call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
@@ -565,7 +546,7 @@ contains
                                             dof_values)
 #endif    
     
-    call this%solution%update_fixed_dof_values(this%fe_space)
+    !call this%solution%update_fixed_dof_values(this%fe_space)
     
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
@@ -779,7 +760,7 @@ contains
         do pid=0, P-1
             i=0
             do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
-              cell_vector(cell%get_lid()) = pid 
+              cell_vector(cell%get_gid()) = pid 
               call cell%next()
               i=i+1
             end do
@@ -788,7 +769,7 @@ contains
 
         call this%triangulation%create_cell_iterator(cell)
         do while (.not. cell%has_finished())
-          cell_vector_set_ids(cell%get_lid()) = cell%get_set_id()
+          cell_vector_set_ids(cell%get_gid()) = cell%get_set_id()
           call cell%next()
         end do
         call this%triangulation%free_cell_iterator(cell)
@@ -862,7 +843,7 @@ contains
 
       do while ( .not. cell%has_finished() )
 
-        call cell%get_coordinates(coords)
+        call cell%get_nodes_coordinates(coords)
         xc = 0.0
         yc = 0.0
         do k=1,max_num_cell_nodes
@@ -870,15 +851,15 @@ contains
           yc = yc + (1.0/max_num_cell_nodes)*coords(k)%get(2)
         end do
 
-        x(cell%get_lid()) = xc;
-        y(cell%get_lid()) = yc;
-        z(cell%get_lid()) = 0.0;
+        x(cell%get_gid()) = xc;
+        y(cell%get_gid()) = yc;
+        z(cell%get_gid()) = 0.0;
 
-        if (cell%get_lid()>1) then
-          connect(  2*(cell%get_lid()-1)-1  ) = cell%get_lid()-2
-          connect(  2*(cell%get_lid()-1)    ) = cell%get_lid()-1
-          offset( cell%get_lid()-1 ) = 2*(cell%get_lid()-1)
-          cell_type( cell%get_lid()-1 ) = vtk_1d_elem_id
+        if (cell%get_gid()>1) then
+          connect(  2*(cell%get_gid()-1)-1  ) = cell%get_gid()-2
+          connect(  2*(cell%get_gid()-1)    ) = cell%get_gid()-1
+          offset( cell%get_gid()-1 ) = 2*(cell%get_gid()-1)
+          cell_type( cell%get_gid()-1 ) = vtk_1d_elem_id
         end if
 
         call cell%next()
