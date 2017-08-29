@@ -32,7 +32,7 @@ module poisson_unfitted_discrete_integration_names
   use par_test_poisson_unfitted_params_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
-  use piecewise_fe_map_names
+  use piecewise_cell_map_names
   use blas77_interfaces_names
   use gen_eigenvalue_solver_names
   
@@ -41,11 +41,13 @@ module poisson_unfitted_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: poisson_unfitted_cG_discrete_integration_t
      type(poisson_unfitted_analytical_functions_t), pointer :: analytical_functions => NULL()
-     type(par_test_poisson_unfitted_params_t), pointer :: test_params => null()
+     type(fe_function_t)                          , pointer :: fe_function          => NULL()
+     type(par_test_poisson_unfitted_params_t)     , pointer :: test_params => null()
    contains
      procedure :: set_analytical_functions
+     procedure :: set_fe_function
      procedure :: set_test_params
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type poisson_unfitted_cG_discrete_integration_t
   
   public :: poisson_unfitted_cG_discrete_integration_t
@@ -65,23 +67,28 @@ contains
      type(par_test_poisson_unfitted_params_t), target, intent(in)    :: test_params
      this%test_params => test_params
   end subroutine set_test_params
-
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  
+  subroutine set_fe_function (this, fe_function)
+     implicit none
+     class(poisson_unfitted_cG_discrete_integration_t)       , intent(inout) :: this
+     type(fe_function_t)                             , target, intent(in)    :: fe_function
+     this%fe_function => fe_function
+  end subroutine set_fe_function
+  
+  subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(poisson_unfitted_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)      , intent(inout) :: matrix_array_assembler
+    class(assembler_t)      , intent(inout) :: assembler
 
     ! FE space traversal-related data types
     ! TODO We need this because the accesors and iterators are not polymorphic
-    class(fe_iterator_t), allocatable  :: fe
+    class(fe_cell_iterator_t), allocatable  :: fe
 
     ! FE integration-related data types
-    type(fe_map_t)           , pointer :: fe_map
-    type(piecewise_fe_map_t) , pointer :: pw_fe_map
+    type(piecewise_cell_map_t) , pointer :: pw_cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(cell_integrator_t), pointer :: cell_int
     type(vector_field_t), allocatable  :: shape_gradients(:,:)
     real(rp)            , allocatable  :: shape_values(:,:)
     real(rp)            , allocatable  :: boundary_shape_values(:,:)
@@ -100,13 +107,6 @@ contains
     real(rp)     :: volume, surface
     real(rp)     :: source_term_value
 
-    integer(ip)  :: number_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:)
     class(scalar_function_t), pointer :: source_term
     class(scalar_function_t), pointer :: exact_sol
 
@@ -124,41 +124,35 @@ contains
 
     assert (associated(this%analytical_functions))
     assert (associated(this%test_params))
+    assert (associated(this%fe_function))
     beta_coef = this%test_params%get_nitsche_beta_factor()
 
     ! TODO We will delete this once implemented the fake methods in the father class
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%create_fe_cell_iterator(fe)
 
     source_term => this%analytical_functions%get_source_term()
     exact_sol   => this%analytical_functions%get_solution_function()
 
-    number_fields = fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
-
     ! Find the first non-void FE
     call fe%first_local_non_void(field_id = 1)
     if (fe%has_finished()) then 
-      call fe_space%free_fe_iterator(fe)
+      call fe_space%free_fe_cell_iterator(fe)
       return
     end if
     quad            => fe%get_quadrature()
-    num_quad_points = quad%get_number_quadrature_points()
+    num_quad_points = quad%get_num_quadrature_points()
 
     ! TODO We assume that all non-void FEs are the same...
-    num_dofs = fe%get_number_dofs()
+    num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
 
     !This is for the Nitsche's BCs
     ! TODO  We assume same ref element for all cells, and for all fields
     ref_fe => fe%get_reference_fe(1)
     nodal_quad => ref_fe%get_nodal_quadrature()
     call memalloc ( num_dofs, num_dofs  , shape2mono, __FILE__, __LINE__ )
-    call evaluate_monomials(nodal_quad,shape2mono)
+    call evaluate_monomials(nodal_quad,shape2mono,degree=this%analytical_functions%get_degree())
     ! TODO  We assume that the constant monomial is the first
     shape2mono_fixed => shape2mono(:,2:)
     ! Allocate the eigenvalue solver
@@ -180,25 +174,19 @@ contains
 
          !WARNING This has to be inside the loop
          quad            => fe%get_quadrature()
-         num_quad_points = quad%get_number_quadrature_points()
-         fe_map          => fe%get_fe_map()
-         cell_int         => fe%get_cell_integrator(1)
-         num_dofs = fe%get_number_dofs()
-         call fe%get_number_dofs_per_field(num_dofs_per_field)
-
-         ! Get DoF numbering within current FE
-         call fe%get_elem2dof(elem2dof)
+         num_quad_points = quad%get_num_quadrature_points()
+         num_dofs = fe%get_num_dofs()
 
          ! Get quadrature coordinates to evaluate source_term
-         quad_coords => fe_map%get_quadrature_coordinates()
+         quad_coords => fe%get_quadrature_points_coordinates()
 
          ! Compute element matrix and vector
          elmat = 0.0_rp
          elvec = 0.0_rp
-         call cell_int%get_gradients(shape_gradients)
-         call cell_int%get_values(shape_values)
+         call fe%get_gradients(shape_gradients)
+         call fe%get_values(shape_values)
          do qpoint = 1, num_quad_points
-            dV = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             volume = volume + dV
             do idof = 1, num_dofs
                do jdof = 1, num_dofs
@@ -224,12 +212,11 @@ contains
 
            ! Get info on the unfitted boundary for integrating BCs
            quad            => fe%get_boundary_quadrature()
-           num_quad_points = quad%get_number_quadrature_points()
-           pw_fe_map       => fe%get_boundary_piecewise_fe_map()
-           quad_coords     => pw_fe_map%get_quadrature_points_coordinates()
-           cell_int         => fe%get_boundary_cell_integrator(1)
-           call cell_int%get_values(boundary_shape_values)
-           call cell_int%get_gradients(boundary_shape_gradients)
+           num_quad_points = quad%get_num_quadrature_points()
+           pw_cell_map       => fe%get_boundary_piecewise_cell_map()
+           quad_coords     => pw_cell_map%get_quadrature_points_coordinates()
+           call fe%get_values(boundary_shape_values)
+           call fe%get_gradients(boundary_shape_gradients)
 
            select case (trim(this%test_params%get_unfitted_boundary_type()))
            case ('neumann')
@@ -238,13 +225,13 @@ contains
              do qpoint = 1, num_quad_points
 
                ! Surface measure
-               dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+               dS = pw_cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
 
                ! Value of the gradient of the solution at the boundary
                call exact_sol%get_gradient(quad_coords(qpoint),exact_gradient_gp)
 
                ! Get the boundary normals
-               call pw_fe_map%get_normal(qpoint,normal_vec)
+               call pw_cell_map%get_normal(qpoint,normal_vec)
 
                ! Normal derivative
                ! It is save to do so in 2d only if the 3rd component is set to 0
@@ -265,8 +252,8 @@ contains
              ! Integrate the matrix associated with the normal derivatives
              elmatB_pre(:,:)=0.0_rp
              do qpoint = 1, num_quad_points
-               dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-               call pw_fe_map%get_normal(qpoint,normal_vec)
+               dS = pw_cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+               call pw_cell_map%get_normal(qpoint,normal_vec)
                 do idof = 1, num_dofs
                    do jdof = 1, num_dofs
                       ! B_K(i,j) = (n*grad(phi_i),n*grad(phi_j))_{\partial\Omega}
@@ -284,17 +271,17 @@ contains
              lambdas => eigs%solve(elmatB,elmatV,istat)
              if (istat .ne. 0) then
                write(*,*) 'istat = ', istat
-               write(*,*) 'lid   = ', fe%get_lid()
-               write(*,*) 'elmatB = '
-               do idof = 1,size(elmatB,1)
-                 write(*,*) elmatB(idof,:)
-               end do
-               write(*,*) 'elmatV = '
-               do idof = 1,size(elmatV,1)
-                 write(*,*) elmatV(idof,:)
-               end do
+               write(*,*) 'lid   = ', fe%get_gid()
+               !write(*,*) 'elmatB = '
+               !do idof = 1,size(elmatB,1)
+               !  write(*,*) elmatB(idof,:)
+               !end do
+               !write(*,*) 'elmatV = '
+               !do idof = 1,size(elmatV,1)
+               !  write(*,*) elmatV(idof,:)
+               !end do
              end if
-             check(istat == 0)
+             mcheck(istat == 0,'Failed to solve the generalized eigenvalue problem')
 
              ! The eigenvalue should be real. Thus, it is save to take only the real part.
              beta = beta_coef*maxval(lambdas(:,1))
@@ -304,9 +291,9 @@ contains
              do qpoint = 1, num_quad_points
 
                ! Get info at quadrature point
-               dS = pw_fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+               dS = pw_cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
                surface = surface + dS
-               call pw_fe_map%get_normal(qpoint,normal_vec)
+               call pw_cell_map%get_normal(qpoint,normal_vec)
                call exact_sol%get_value(quad_coords(qpoint),exact_sol_gp)
 
                ! Elem matrix
@@ -336,9 +323,7 @@ contains
 
          end if ! Only for cut elems
 
-         ! Apply boundary conditions
-         call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-         call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+         call fe%assembly( this%fe_function, elmat, elvec, assembler )
 
        end if
        call fe%next()
@@ -356,8 +341,6 @@ contains
     if (allocated(shape_gradients         )) deallocate  (shape_gradients         , stat=istat); check(istat==0);
     if (allocated(boundary_shape_gradients)) deallocate  (boundary_shape_gradients, stat=istat); check(istat==0);
 
-    deallocate (elem2dof, stat=istat); check(istat==0);
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( elmatB_pre, __FILE__, __LINE__ )
@@ -365,8 +348,8 @@ contains
     call memfree ( elmatV, __FILE__, __LINE__ )
     call memfree ( shape2mono, __FILE__, __LINE__ )
     call eigs%free()
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
 
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module poisson_unfitted_discrete_integration_names

@@ -35,10 +35,10 @@ module function_names
   private
   type :: array_function_t
      private
-     integer(ip)  :: number_components = 1
+     integer(ip)  :: num_components = 1
    contains
-     procedure, non_overridable :: set_number_components  => array_set_number_components
-     procedure, non_overridable :: get_number_components  => array_function_get_number_components
+     procedure, non_overridable :: set_num_components  => array_set_num_components
+     procedure, non_overridable :: get_num_components  => array_function_get_num_components
      procedure  :: get_component_value_space              => array_function_get_component_value_space
      procedure  :: get_component_value_space_time         => array_function_get_component_value_space_time
      generic    :: get_component_value                    => get_component_value_space, get_component_value_space_time

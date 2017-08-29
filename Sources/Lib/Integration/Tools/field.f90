@@ -215,7 +215,7 @@ contains
   
   ! This constructor should be used with care. In a 2D simulation,
   ! and assuming that FEMPAR was compiled with parameter constant
-  ! number_space_dimensions == 3, then this function will also fill
+  ! num_space_dims == 3, then this function will also fill
   ! with a nonzero value the third component of new_vector_field
   ! (obviously if value/= 0.0_rp). This may cause trouble if the
   ! code that consumes the resulting type(vector_field_t) also 

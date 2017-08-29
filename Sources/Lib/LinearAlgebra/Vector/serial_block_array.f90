@@ -68,7 +68,7 @@ module serial_block_array_names
      procedure :: clone             => serial_block_array_clone
      procedure :: same_vector_space => serial_block_array_same_vector_space
      procedure :: free_in_stages    => serial_block_array_free_in_stages
-     procedure :: get_number_blocks => serial_block_array_get_number_blocks
+     procedure :: get_num_blocks => serial_block_array_get_num_blocks
      procedure :: extract_subvector => serial_block_array_extract_subvector
      procedure :: insert_subvector  => serial_block_array_insert_subvector
   end type serial_block_array_t
@@ -397,12 +397,12 @@ contains
   end function serial_block_array_same_vector_space
 	
   !=============================================================================
-  function serial_block_array_get_number_blocks(this) result(res)
+  function serial_block_array_get_num_blocks(this) result(res)
     implicit none 
     class(serial_block_array_t), intent(in)   :: this
     integer(ip) :: res
     res = this%nblocks
-  end function serial_block_array_get_number_blocks
+  end function serial_block_array_get_num_blocks
   
   !=============================================================================
   subroutine serial_block_array_extract_subvector( this, &

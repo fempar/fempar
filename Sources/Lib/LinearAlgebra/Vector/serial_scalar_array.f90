@@ -103,7 +103,7 @@ module serial_scalar_array_names
      procedure :: same_vector_space      => serial_scalar_array_same_vector_space
      procedure :: free_in_stages         => serial_scalar_array_free_in_stages
      procedure :: default_initialization => serial_scalar_array_default_init
-     procedure :: get_number_blocks      => serial_scalar_array_get_number_blocks
+     procedure :: get_num_blocks      => serial_scalar_array_get_num_blocks
      procedure :: extract_subvector      => serial_scalar_array_extract_subvector
      procedure :: insert_subvector       => serial_scalar_array_insert_subvector
   end type serial_scalar_array_t
@@ -484,12 +484,12 @@ contains
   end function serial_scalar_array_same_vector_space
 	
   !=============================================================================
-  function serial_scalar_array_get_number_blocks(this) result(res)
+  function serial_scalar_array_get_num_blocks(this) result(res)
     implicit none 
     class(serial_scalar_array_t), intent(in)   :: this
     integer(ip) :: res
     res = 1
-  end function serial_scalar_array_get_number_blocks
+  end function serial_scalar_array_get_num_blocks
  
   !=============================================================================
   subroutine serial_scalar_array_extract_subvector( this, &

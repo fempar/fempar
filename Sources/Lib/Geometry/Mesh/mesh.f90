@@ -28,6 +28,7 @@
 module mesh_names
   use types_names
   use memor_names
+  use sort_names
   use list_types_names
   use hash_table_names
   use stdio_names
@@ -305,6 +306,7 @@ contains
     character(6)   :: dum6
     character(1000) :: tel
     integer(ip), allocatable :: lnods_aux(:)
+	integer(ip), allocatable :: sorted_nodes(:) 
     integer(ip), allocatable :: bound_list_aux(:)
     type(list_iterator_t)    :: bound_iterator
     integer(ip), pointer     :: permu(:)
@@ -861,30 +863,30 @@ contains
     allocate(ldomp(prt_pars%num_levels), stat=istat); check(istat==0);
     ldomp(1)%p => ldome
     do ilevel=1,prt_pars%num_levels-1
-       call memallocp(prt_pars%num_parts_per_level(ilevel),ldomp(ilevel+1)%p, __FILE__,__LINE__)
-       if(prt_pars%num_parts_per_level(ilevel+1)>1) then  ! Typically in the last level there is onle one part
-          call build_parts_graph (prt_pars%num_parts_per_level(ilevel), ldomp(ilevel)%p, fe_graph, parts_graph)
+       call memallocp(prt_pars%num_parts_x_level(ilevel),ldomp(ilevel+1)%p, __FILE__,__LINE__)
+       if(prt_pars%num_parts_x_level(ilevel+1)>1) then  ! Typically in the last level there is onle one part
+          call build_parts_graph (prt_pars%num_parts_x_level(ilevel), ldomp(ilevel)%p, fe_graph, parts_graph)
           call fe_graph%free()
           fe_graph = parts_graph
-          prt_pars%nparts = prt_pars%num_parts_per_level(ilevel+1)
+          prt_pars%nparts = prt_pars%num_parts_x_level(ilevel+1)
           call graph_pt_renumbering(prt_pars,parts_graph,ldomp(ilevel+1)%p)
        else
           ldomp(ilevel+1)%p = 1
        end if
        call parts_graph%free()
     end do
-    prt_pars%nparts = prt_pars%num_parts_per_level(1)
+    prt_pars%nparts = prt_pars%num_parts_x_level(1)
     call fe_graph%free()
 
     num_tasks = 0
     do ilevel=1,prt_pars%num_levels
-       num_tasks = num_tasks + prt_pars%num_parts_per_level(ilevel)
+       num_tasks = num_tasks + prt_pars%num_parts_x_level(ilevel)
     end do
     allocate(env(num_tasks), stat=istat); check(istat==0) 
     itask = 0
     call memalloc(prt_pars%num_levels,parts_mapping,__FILE__,__LINE__)
     do ilevel=1,prt_pars%num_levels
-       do ipart = 1, prt_pars%num_parts_per_level(ilevel)
+       do ipart = 1, prt_pars%num_parts_x_level(ilevel)
           itask = itask+1
           do jlevel = 1 , ilevel - 1 
              parts_mapping(jlevel) = 0
@@ -893,12 +895,12 @@ contains
           do jlevel = ilevel+1 , prt_pars%num_levels
              parts_mapping(jlevel) = ldomp(jlevel)%p( parts_mapping(jlevel-1) )
           end do
-          call env(itask)%assign_parts_to_tasks(prt_pars%num_levels,prt_pars%num_parts_per_level,parts_mapping)
+          call env(itask)%assign_parts_to_tasks(prt_pars%num_levels,prt_pars%num_parts_x_level,parts_mapping)
        end do
     end do
     call memfree(parts_mapping,__FILE__,__LINE__)
 
-    prt_pars%nparts = prt_pars%num_parts_per_level(1)
+    prt_pars%nparts = prt_pars%num_parts_x_level(1)
     do ilevel=1,prt_pars%num_levels-1
        call memfreep(ldomp(ilevel+1)%p, __FILE__,__LINE__)
     end do

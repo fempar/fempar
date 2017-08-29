@@ -16,9 +16,9 @@ then
 
     # NAVIER-STOKES test
     rm -Rf $PWD/output_test_nsi_iss_oss_navierstokes.txt
-    for number_elements in 2 4 8
+    for num_elements in 2 4 8
     do
-	$TEST_BINARY_PATH analytical -cnv .true. -ne $number_elements $number_elements -af NSI-LINEAR-STEADY >> $PWD/output_test_nsi_iss_oss_navierstokes.txt
+	$TEST_BINARY_PATH analytical -cnv .true. -ne $num_elements $num_elements -af NSI-LINEAR-STEADY >> $PWD/output_test_nsi_iss_oss_navierstokes.txt
         if [ $? -ne 0 ] 
         then
           final_exit_code=1

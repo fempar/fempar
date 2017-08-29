@@ -58,7 +58,7 @@ module block_layout_names
      procedure, non_overridable :: add_to_block_num_dofs    => block_layout_add_to_block_num_dofs 
      procedure, non_overridable :: equal                    => block_layout_equal
      generic :: operator(==)                                => equal
-     
+     procedure, non_overridable :: copy_num_dofs_x_block    => block_layout_copy_num_dofs_x_block
   end type block_layout_t
   
   public :: block_layout_t 
@@ -243,5 +243,12 @@ contains
     block_layout_equal = (all(block_layout_op1%field_id_to_block_id == block_layout_op2%field_id_to_block_id))  
     if (.not. block_layout_equal) return  
   end function block_layout_equal 
+  
+  subroutine block_layout_copy_num_dofs_x_block(this, block_layout)
+    implicit none
+    class(block_layout_t), intent(inout) :: this
+    class(block_layout_t), intent(in)    :: block_layout
     
+    this%num_dofs_x_block = block_layout%num_dofs_x_block
+  end subroutine
 end module block_layout_names
