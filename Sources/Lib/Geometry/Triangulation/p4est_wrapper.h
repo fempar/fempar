@@ -52,10 +52,31 @@ void init_fn_callback_2d(p4est_t *,p4est_topidx_t,p4est_quadrant_t *);
 void init_fn_callback_3d(p8est_t *,p4est_topidx_t,p8est_quadrant_t *);
 void edge_callback(p8est_iter_edge_info_t * info, void * user_data);
 
+
+/* The quad_to_quad_by_edge list stores one value for each local quadrant's edge.
+ * This value is in 0..local_num_quadrants-1 for local quadrants, or in
+ * local_num_quadrants + (0..ghost_num_quadrants-1) for ghost quadrants.
+ * The quad_to_edge list has equally many entries which are either:
+ * 1. A value of v = 0..23 indicates one same-size neighbor.
+ *    This value is decoded as v = r * 12 + ne, where ne = 0..11 is the
+ *    neighbor's connecting face number and r = 0..1 is the relative
+ *    orientation of the neighbor's edge.
+ * 2. A value of v = 24..71 indicates a double-size neighbor.
+ *    This value is decoded as v = 24 + h * 24 + r * 12 + ne, where
+ *    r and nf are as above and h = 0..1 is the number of the subedge.
+ * 3. A value of v = -24..-1 indicates two half-size neighbors.
+ *    In this case the corresponding quad_to_quad_by_edge index points into the
+ *    quad_to_half_by_edge array which stores two quadrant numbers per index,
+ *    and the orientation of the smaller edges follows from 24 + v.
+ *    The entries of quad_to_half encode between local and ghost quadrant
+ *    in the same way as the quad_to_quad values described above.
+ * A quadrant on the boundary of the forest sees itself and its face number.*/
+
 typedef struct edge_info
 {
   p4est_locidx_t *quad_to_quad_by_edge;
   int8_t         *quad_to_edge;
+  p4est_locidx_t *quad_to_half_by_edge; 
 }
 edge_info_t;
 

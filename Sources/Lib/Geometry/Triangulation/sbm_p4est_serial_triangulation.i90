@@ -1054,10 +1054,14 @@ subroutine p4est_serial_triangulation_update_topology_from_p4est_mesh(this)
   if (allocated(this%quad_to_edge)) &
     call memfree(this%quad_to_edge, __FILE__, __LINE__)
   
+  if (allocated(this%quad_to_half_by_edge)) &
+    call memfree(this%quad_to_half_by_edge, __FILE__, __LINE__)
+  
   call memalloc(3, local_num_quadrants, this%quad_coords, __FILE__, __LINE__)
   call memalloc(local_num_quadrants, this%quad_level, __FILE__, __LINE__ )
   call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_quad_by_edge, __FILE__, __LINE__ )
   call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_edge, __FILE__, __LINE__ )
+  call memalloc(NUM_SUBEDGES_EDGE_3D,local_num_quadrants, this%quad_to_half_by_edge, __FILE__, __LINE__ )
   
   call F90_p8est_get_mesh_topology_arrays(this%p4est, &
                                           this%p4est_mesh, &
@@ -1065,7 +1069,8 @@ subroutine p4est_serial_triangulation_update_topology_from_p4est_mesh(this)
                                           QF, &
                                           QH, &
                                           this%quad_to_quad_by_edge,&
-                                          this%quad_to_edge, &
+                                          this%quad_to_edge,&
+                                          this%quad_to_half_by_edge,&
                                           QC, &
                                           this%quad_coords, &
                                           this%quad_level)
@@ -1132,6 +1137,9 @@ subroutine p4est_serial_triangulation_free ( this)
 
   if (allocated(this%quad_to_edge)) &
     call memfree(this%quad_to_edge, __FILE__, __LINE__)
+  
+  if (allocated(this%quad_to_half_by_edge)) &
+    call memfree(this%quad_to_half_by_edge, __FILE__, __LINE__)
   
   this%num_proper_vefs = -1
   this%num_improper_vefs = -1
