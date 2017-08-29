@@ -115,7 +115,7 @@ module unfitted_triangulations_names
     procedure                            :: has_finished            => unfitted_p4est_cell_iterator_has_finished
     procedure                            :: get_reference_fe        => unfitted_p4est_cell_iterator_get_reference_fe
     procedure                            :: get_reference_fe_id     => unfitted_p4est_cell_iterator_get_reference_fe_id
-    procedure                            :: get_coordinates         => unfitted_p4est_cell_iterator_get_coordinates
+    procedure                            :: get_nodes_coordinates   => unfitted_p4est_cell_iterator_get_nodes_coordinates
     !procedure, non_overridable           :: set_coordinates         => unfitted_p4est_cell_iterator_set_coordinates
     !procedure, non_overridable           :: get_lid                 => unfitted_p4est_cell_iterator_get_lid
     !procedure, non_overridable           :: get_gid                 => unfitted_p4est_cell_iterator_get_gid

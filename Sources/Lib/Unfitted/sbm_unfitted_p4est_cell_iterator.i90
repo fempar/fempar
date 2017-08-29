@@ -111,12 +111,12 @@ function unfitted_p4est_cell_iterator_get_reference_fe_id (this)
   unfitted_p4est_cell_iterator_get_reference_fe_id = this%p4est_cell%get_reference_fe_id() 
 end function unfitted_p4est_cell_iterator_get_reference_fe_id
 
-subroutine unfitted_p4est_cell_iterator_get_coordinates (this, cell_coordinates)
+subroutine unfitted_p4est_cell_iterator_get_nodes_coordinates (this, nodes_coordinates)
   implicit none
   class(unfitted_p4est_cell_iterator_t), intent(in)    :: this
-  type(point_t)        ,  intent(inout) :: cell_coordinates(:)
-  call this%p4est_cell%get_nodes_coordinates(cell_coordinates)
-end subroutine unfitted_p4est_cell_iterator_get_coordinates
+  type(point_t)        ,  intent(inout) :: nodes_coordinates(:)
+  call this%p4est_cell%get_nodes_coordinates(nodes_coordinates)
+end subroutine unfitted_p4est_cell_iterator_get_nodes_coordinates
 
 !subroutine unfitted_p4est_cell_iterator_set_coordinates (this, cell_coordinates)
 !  implicit none
