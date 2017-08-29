@@ -260,6 +260,7 @@ module p4est_serial_triangulation_names
     procedure                            :: get_vef                 => p4est_cell_iterator_get_vef
     procedure                            :: is_local                => p4est_cell_iterator_is_local
     procedure                            :: is_ghost                => p4est_cell_iterator_is_ghost
+    procedure                            :: is_equal                => p4est_cell_iterator_is_equal
     procedure                            :: is_ancestor             => p4est_cell_iterator_is_ancestor
     procedure                            :: set_for_coarsening      => p4est_cell_iterator_set_for_coarsening
     procedure                            :: set_for_refinement      => p4est_cell_iterator_set_for_refinement

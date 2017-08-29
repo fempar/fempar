@@ -429,7 +429,7 @@ module p4est_bindings_names
      end subroutine F90_p8est_get_quadrant_vertex_coordinates
      
      !=================================================================================================================================
-     !> summary: Test if a quadrant q1 is an ancestor of another quadrant q2.
+     !> summary: Return true if quadrant q1 is unequal to and an ancestor of another quadrant q2.
      !=================================================================================================================================
      function F90_p4est_is_ancestor(q1_x,q1_y,q1_level,q2_x,q2_y,q2_level) bind(c, name="F90_p4est_is_ancestor")
        use, intrinsic :: iso_c_binding
@@ -443,6 +443,22 @@ module p4est_bindings_names
        integer(P4EST_F90_QLEVEL) , value, intent(in)     :: q2_level
        integer(c_int)                                    :: F90_p4est_is_ancestor
      end function F90_p4est_is_ancestor
+     
+     !=================================================================================================================================
+     !> summary: Return true if quadrant q1 describes the same quadrant as q2.
+     !=================================================================================================================================
+     function F90_p4est_is_equal(q1_x,q1_y,q1_level,q2_x,q2_y,q2_level) bind(c, name="F90_p4est_is_equal")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       implicit none
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q1_x
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q1_y
+       integer(P4EST_F90_QLEVEL) , value, intent(in)     :: q1_level
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q2_x
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q2_y
+       integer(P4EST_F90_QLEVEL) , value, intent(in)     :: q2_level
+       integer(c_int)                                    :: F90_p4est_is_equal
+     end function F90_p4est_is_equal
      
      !=================================================================================================================================
      !> summary: Set quadrant q Morton indices based on linear position id in uniform grid of level l.
