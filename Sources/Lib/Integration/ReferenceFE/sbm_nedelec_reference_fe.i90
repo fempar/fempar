@@ -844,7 +844,7 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
   ! Measure application 
   real(rp)                :: edge_measure, face_measure, cell_measure  
   type(list_iterator_t)   :: interior_nodes_iterator
-  integer(ip)             :: inode
+  integer(ip)             :: inode, qpoin 
   
   coordinates => map%get_coordinates() 
 
@@ -885,9 +885,10 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
                           reference_fe  = this,                                                 &
                           quadrature    = edge_quadrature )
 	 
-	 ! Trick to have edge measure: In the hexahedra case the Jacobian makes reference to a h=2 reference edge. In the tetrahedral 
-	 ! case, it does to a unit edge length. TO SOLVE 
-	 edge_measure = edge_map%get_det_jacobian(1)
+	 edge_measure = 0.0_rp 
+	 do qpoin = 1, edge_quadrature%get_number_quadrature_points() 
+	 edge_measure = edge_measure + edge_map%get_det_jacobian(qpoin)*edge_quadrature%get_weight(qpoin) 
+     end do 
 
     interior_nodes_iterator = this%own_dofs_n_face%create_iterator(edge_id)
     do while ( .not. interior_nodes_iterator%is_upper_bound() )
