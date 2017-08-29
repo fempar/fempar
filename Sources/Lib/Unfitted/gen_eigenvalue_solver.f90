@@ -28,7 +28,8 @@
 
 !****************************************************************************************
 module gen_eigenvalue_solver_names
-  use fempar_names
+  use types_names
+  use memor_names
 
 #ifdef ENABLE_BLAS
  use blas77_interfaces_names

@@ -28,7 +28,6 @@
 
 !****************************************************************************************
 module piecewise_cell_map_names
-  !use fempar_names
   use types_names
   use reference_fe_names
   use field_names

@@ -27,7 +27,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module unfitted_triangulations_names
-  !use fempar_names
   use types_names
   use field_names
   use reference_fe_names

@@ -27,8 +27,16 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module unfitted_vtk_writer_names
+ use types_names
+ use memor_names
+ use field_names
+ 
+ use reference_fe_names
+ use triangulation_names
+ use fe_space_names
+ use environment_names
 
-  use fempar_names
+
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
   use piecewise_cell_map_names

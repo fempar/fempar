@@ -27,7 +27,17 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module unfitted_fe_spaces_names
-  use fempar_names
+  use types_names
+  use memor_names
+  use field_names
+  use block_layout_names
+  
+  use triangulation_names
+  use reference_fe_names
+  use environment_names
+  use fe_space_names
+  use conditions_names
+  
   use unfitted_triangulations_names
   use piecewise_cell_map_names
 
