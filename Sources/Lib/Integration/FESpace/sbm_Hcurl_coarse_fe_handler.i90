@@ -301,7 +301,7 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
      if ( this%order > 1 ) call this%fill_face_coupled_to_edges_local_change_of_basis(par_fe_space) 
 
      call this%change_basis_matrix%B%convert(csr_format) 
-    ! call this%change_basis_matrix%B%print_matrix_market(6)
+     ! call this%change_basis_matrix%B%print_matrix_market(6)
 
      call memfree(edge_elmat, __FILE__, __LINE__ ) 
   end if
@@ -725,7 +725,7 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
 			  
 			  		do face_id = ref_fe%get_first_face_id(), ref_fe%get_first_face_id() + ref_fe%get_number_faces()-1
 					! Chapuza, need for an inverse vef_lids_of_fe_faces(fe_face_lid) to assign fe_face id ! 
-                    call fe_face%set_lid( fe%get_vef_lid( face_id ) - ( par_fe_space%triangulation%get_num_vefs() -  fe_face%fe_space%vef_lids_of_fe_faces%size() ) )					
+                    call fe_face%set_lid( fe%get_vef_lid( face_id ) - ( par_fe_space%triangulation%get_num_vefs() -  fe_face%fe_space%vef_lids_of_fe_faces%size() ) )	
 					if ( fe_face%is_at_interface() ) then 
 					facets_n_face_iterator = facets_n_face%create_iterator(face_id) 
 					
@@ -740,9 +740,9 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
 					if ( vefs_are_coupled ) then 
                     nodes_n_face_iterator = nodes_n_face%create_iterator(ivef_within_fe)
 				    
-                    call Lagrangian_fe_3D%create_face_interpolation( fe%find_lpos_vef_lid(fe%get_vef_lid(face_id))-ref_fe%get_first_face_id()+1   ,&
-                                                                     fe_face%get_quadrature()                                                     ,&
-                                                                     Lagrangian_interpolation                                                      )
+                    call Lagrangian_fe_3D%create_face_interpolation( fe%find_lpos_vef_lid(fe%get_vef_lid(face_id))-ref_fe%get_first_face_id()+1,  &
+                                                                     fe_face%get_quadrature(),                                                    &
+                                                                     Lagrangian_interpolation                                                     )
 
                     call this%compute_face_discrete_gradient_elmat(fe,                        &
                                                                    fe_face,                   &
@@ -1756,14 +1756,14 @@ end subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose
 !             Getters for DoFs in different numberings 
 !
 ! -------------------------------------------------------------------------------------------
-subroutine Hcurl_l1_get_dofs_from_vef(this, par_fe_space, vef, dof_list) 
+subroutine Hcurl_l1_get_dofs_from_vef(this, par_fe_space, fe_vef, dof_list) 
   implicit none 
   ! This function returns dofs associated to a local VEF in the local 
   ! wire numbering. Interface does not contain sets of consecutive dofs 
   ! on its vefs, extract one-by-one info 
   class(Hcurl_l1_coarse_fe_handler_t)           , intent(in)       :: this
   type(par_fe_space_t)                          , intent(in)       :: par_fe_space 
-  class(fe_vef_iterator_t)                      , intent(in)       :: vef
+  class(fe_vef_iterator_t)                      , intent(in)       :: fe_vef
   integer(ip),  allocatable                     , intent(inout)    :: dof_list(:)
 
   class(fe_iterator_t) , allocatable     :: fe
@@ -1776,9 +1776,10 @@ subroutine Hcurl_l1_get_dofs_from_vef(this, par_fe_space, vef, dof_list)
   idof     = 0
   call par_fe_space%create_fe_iterator(fe) 
 
-  call vef%get_cell_around(1,fe)
+  call fe_vef%get_cell_around(1,fe)
   call fe%get_field_elem2dof(field_id, elem2dof)
-  ivef_within_cell = fe%find_lpos_vef_lid( vef%get_lid() )
+  ivef_within_cell = fe%find_lpos_vef_lid( fe_vef%vef%get_lid() )
+  
   own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
 
   dof_list = 0

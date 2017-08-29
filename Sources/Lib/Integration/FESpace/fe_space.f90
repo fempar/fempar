@@ -855,6 +855,7 @@ module fe_space_names
   integer(ip), parameter :: tangential_average                        = 1
   integer(ip), parameter :: tangential_average_and_first_order_moment = 2
   integer(ip), parameter :: all_dofs_in_coarse_edges                  = 3 
+  
   public :: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges
   
   public :: p_l1_coarse_fe_handler_t, l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t  

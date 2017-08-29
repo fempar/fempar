@@ -828,7 +828,6 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
   ! Edges 
   type(edge_map_t)                   :: edge_map
   type(quadrature_t)                 :: edge_quadrature
-  type(vector_field_t)               :: tangent 
   type(list_iterator_t)              :: vertex_iterator 
   type(point_t), pointer             :: edge_map_coordinates(:)
   integer(ip)                        :: edge_id  
@@ -885,11 +884,10 @@ subroutine nedelec_apply_femap_to_interpolation(this,map,ref,phy)
      call edge_map%update(local_edge_id = edge_id - this%get_first_n_face_id_of_dimension(1)+1, &
                           reference_fe  = this,                                                 &
                           quadrature    = edge_quadrature )
-	
-	 ! It returns unit tangents!!!!!!!!!! 
-	 call edge_map%get_tangent(1, tangent) 	
-	 ! Trick to have edge measure
-	 edge_measure = edge_map%get_det_jacobian(1) 
+	 
+	 ! Trick to have edge measure: In the hexahedra case the Jacobian makes reference to a h=2 reference edge. In the tetrahedral 
+	 ! case, it does to a unit edge length. TO SOLVE 
+	 edge_measure = edge_map%get_det_jacobian(1)
 
     interior_nodes_iterator = this%own_dofs_n_face%create_iterator(edge_id)
     do while ( .not. interior_nodes_iterator%is_upper_bound() )

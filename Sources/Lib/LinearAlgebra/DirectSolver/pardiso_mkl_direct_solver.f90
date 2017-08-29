@@ -78,6 +78,8 @@ module pardiso_mkl_direct_solver_names
         procedure, public :: numerical_setup_body        => pardiso_mkl_direct_solver_numerical_setup_body
         procedure, public :: solve_single_rhs_body       => pardiso_mkl_direct_solver_solve_single_rhs_body
         procedure, public :: solve_several_rhs_body      => pardiso_mkl_direct_solver_solve_several_rhs_body
+		procedure, public :: check_solution_single_rhs   => pardiso_mkl_direct_solver_check_solution_single_rhs 
+		procedure, public :: check_solution_several_rhs  => pardiso_mkl_direct_solver_check_solution_several_rhs
 #ifndef ENABLE_MKL
         procedure         :: not_enabled_error           => pardiso_mkl_direct_solver_not_enabled_error
 #endif
@@ -473,6 +475,92 @@ contains
         call op%not_enabled_error()
 #endif
     end subroutine pardiso_mkl_direct_solver_solve_several_rhs_body
+	
+    subroutine pardiso_mkl_direct_solver_check_solution_single_rhs(op, x, y)
+      class(pardiso_mkl_direct_solver_t),  intent(inout) :: op
+      type(serial_scalar_array_t), intent(in)     :: x
+      type(serial_scalar_array_t), intent(inout)  :: y
+
+      type(sparse_matrix_t),  pointer :: matrix
+      type(serial_scalar_array_t)     :: r
+      real(rp),               pointer :: r_real(:)
+      real(rp),               pointer :: x_real(:)
+      real(rp)                        :: err
+      character(len=10)               :: serr
+      real(rp),             parameter :: tol = 1.0e-10
+
+      matrix => op%get_matrix()
+      call r%clone(x)
+      call r%scal(-1.0,x)
+
+      r_real => r%get_entries()
+      x_real => x%get_entries()
+
+      ! Check depending on the regular or the transposed system	  	  
+      if ( op%pardiso_mkl_iparm(12) == 2 ) then
+         call matrix%apply_transpose_add(y,r)
+      else 
+         call matrix%apply_add(y,r)
+      end if
+
+      err = 0.0
+      if (maxval(abs(x_real))>0) then
+         err = maxval(abs(r_real))/maxval(abs(x_real))
+      end if
+      write(serr,'(e10.3)') err                              
+      wassert( maxval(abs(r_real))<=tol*maxval(abs(x_real)), 'Direct solver (single rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+      call r%free()	
+
+    end subroutine pardiso_mkl_direct_solver_check_solution_single_rhs
+	
+    subroutine pardiso_mkl_direct_solver_check_solution_several_rhs(op, x, y)
+      class(pardiso_mkl_direct_solver_t),  intent(inout) :: op
+      real(rp),                            intent(inout) :: x(:, :)
+      real(rp),                            intent(inout) :: y(:, :)
+
+      type(sparse_matrix_t),  pointer                :: matrix
+      type(serial_scalar_array_t)     :: xarr
+      type(serial_scalar_array_t)     :: yarr
+      type(serial_scalar_array_t)     :: rarr
+      real(rp),               pointer :: x_real(:)
+      real(rp),               pointer :: y_real(:)
+      real(rp),               pointer :: r_real(:)
+      integer(ip)                     :: nrhs
+      integer(ip)                     :: i
+      real(rp)                        :: err
+      character(len=10)               :: serr
+      real(rp),             parameter :: tol = 1.0e-10
+
+      matrix => op%get_matrix()
+
+      nrhs = size(x,2)
+      call xarr%create_and_allocate(size(x,1))
+      call yarr%clone(xarr)
+      call rarr%clone(xarr)
+      x_real =>xarr%get_entries()
+      y_real =>yarr%get_entries()
+      r_real =>rarr%get_entries()
+      do i =1,nrhs
+         x_real(:) = x(:,i)
+         y_real(:) = y(:,i)
+         call rarr%scal(-1.0,xarr)
+         if (op%pardiso_mkl_iparm(12) == 2 ) then ! transposed system 
+            call matrix%apply_transpose_add(yarr,rarr)
+         else ! Regular system 
+            call matrix%apply_add(yarr,rarr)
+         end if
+         err = 0.0
+         if (maxval(abs(x_real))>0) then
+            err = maxval(abs(r_real))/maxval(abs(x_real))
+         end if
+         write(serr,'(e10.3)') err
+         wassert( maxval(abs(r_real))<=tol*maxval(abs(x_real)),'Direct solver (several rhs): returned solution is not accurate. |b-Ax|_inf/|b|_inf = '//serr )
+      end do
+      call xarr%free()
+      call yarr%free()
+      call rarr%free()
+
+    end subroutine pardiso_mkl_direct_solver_check_solution_several_rhs
 
 
     subroutine pardiso_mkl_direct_solver_free_clean_body(this)

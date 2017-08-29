@@ -130,6 +130,7 @@ private
         procedure,                  public :: apply                            => sparse_matrix_apply
         procedure,                  public :: apply_add                        => sparse_matrix_apply_add
         procedure,                  public :: apply_transpose                  => sparse_matrix_apply_transpose
+		procedure,                  public :: apply_transpose_add              => sparse_matrix_apply_transpose_add 
         procedure,                  public :: apply_to_dense_matrix            => sparse_matrix_apply_to_dense_matrix
         procedure,                  public :: apply_transpose_to_dense_matrix  => sparse_matrix_apply_transpose_to_dense_matrix
         procedure, non_overridable, public :: print                            => sparse_matrix_print
@@ -1246,6 +1247,20 @@ contains
         call this%abort_if_not_in_range(x)
         call this%State%apply_transpose(x,y)
     end subroutine sparse_matrix_apply_transpose
+	
+	  subroutine sparse_matrix_apply_transpose_add(this,x,y) 
+    !-----------------------------------------------------------------
+    !< Apply transpose matrix vector product y=op'*x
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in)    :: this
+        class(vector_t),        intent(in)    :: x
+        class(vector_t),        intent(inout) :: y 
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%abort_if_not_in_domain(y)
+        call this%abort_if_not_in_range(x)
+        call this%State%apply_transpose_add(x,y)
+    end subroutine sparse_matrix_apply_transpose_add
 
 
     subroutine sparse_matrix_apply_to_dense_matrix(this, n, alpha, LDB, b, beta, LDC, c) 
