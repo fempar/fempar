@@ -502,6 +502,8 @@ subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering( this, bloc
     end do
   
     call this%setup_hanging_node_constraints()
+  else
+    call block_layout%copy_num_dofs_x_block(this%block_layout)
   end if  
 end subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering
 
