@@ -89,6 +89,7 @@ contains
     type(piecewise_cell_map_t) , pointer :: pw_cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
+    type(cell_integrator_t), pointer :: cell_int
     type(vector_field_t), allocatable  :: shape_gradients(:,:)
     real(rp)            , allocatable  :: shape_values(:,:)
     real(rp)            , allocatable  :: boundary_shape_values(:,:)
@@ -215,8 +216,9 @@ contains
            num_quad_points = quad%get_num_quadrature_points()
            pw_cell_map       => fe%get_boundary_piecewise_cell_map()
            quad_coords     => pw_cell_map%get_quadrature_points_coordinates()
-           call fe%get_values(boundary_shape_values)
-           call fe%get_gradients(boundary_shape_gradients)
+           cell_int         => fe%get_boundary_cell_integrator(1)
+           call cell_int%get_values(boundary_shape_values)
+           call cell_int%get_gradients(boundary_shape_gradients)
 
            select case (trim(this%test_params%get_unfitted_boundary_type()))
            case ('neumann')
