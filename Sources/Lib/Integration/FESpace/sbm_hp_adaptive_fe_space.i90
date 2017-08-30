@@ -407,6 +407,7 @@ subroutine shpafs_update_hanging_dof_values (this, fe_function )
   
   fixed_dof_values         => fe_function%get_fixed_dof_values()
   fixed_dof_values_entries => fixed_dof_values%get_entries()
+  fixed_dof_values_entries(this%num_dirichlet_dofs+1:this%num_fixed_dofs) = 0.0_rp
   
   do i_gid = 1, this%num_hanging_dofs
     spos = this%ptr_constraining_free_dofs%get(i_gid)
