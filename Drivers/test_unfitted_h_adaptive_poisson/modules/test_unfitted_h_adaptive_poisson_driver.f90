@@ -431,6 +431,7 @@ contains
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
 
+
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then    
       call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
       call this%poisson_cG_integration%set_unfitted_boundary_is_dirichlet(this%test_params%get_unfitted_boundary_is_dirichlet())
@@ -450,6 +451,10 @@ contains
                                              fe_space                          = this%fe_space,                            &
                                              discrete_integration              = this%vector_poisson_integration )
     end if
+
+    call this%solution%create(this%fe_space)
+    call this%fe_space%interpolate_dirichlet_values(this%solution)
+    call this%poisson_cG_integration%set_fe_function(this%solution)
     
   end subroutine setup_system
   
@@ -545,7 +550,7 @@ contains
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)
 #endif    
-    
+    call this%fe_space%update_hanging_dof_values(this%solution)
     !call this%solution%update_fixed_dof_values(this%fe_space)
     
     !select type (dof_values)
@@ -911,7 +916,7 @@ contains
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
-    call this%solution%create(this%fe_space) 
+    !call this%solution%create(this%fe_space) 
     call this%solve_system()
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then
       call this%check_solution()

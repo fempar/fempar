@@ -40,7 +40,7 @@ module poisson_unfitted_cG_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: poisson_unfitted_cG_discrete_integration_t
      type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
-     type(fe_function_t)                          , pointer :: fe_function     
+     type(fe_function_t)                          , pointer :: fe_function => NULL()    
      logical :: unfitted_boundary_is_dirichlet = .true.
      logical :: is_constant_nitches_beta       = .false.
    contains
