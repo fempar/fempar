@@ -554,7 +554,7 @@ subroutine H1_l1_setup_constraint_matrix_CC(this, field_id, par_fe_space, parame
            !                              dofs_in_face_gids, &
            !                              (/ (coarse_dof_lid, idof=1,num_dofs_in_face) /), &
            !                              (/ (1.0_rp/real(num_dofs_in_face,rp), idof = 1, num_dofs_in_face) /))
-           write(*,*) real(dofs_in_face_touched(dofs_in_face_gids(1:num_dofs_in_face)),rp)*(1.0_rp/real(num_dofs_in_face,rp))
+           !write(*,*) real(dofs_in_face_touched(dofs_in_face_gids(1:num_dofs_in_face)),rp)*(1.0_rp/real(num_dofs_in_face,rp))
            call constraint_matrix%insert(num_dofs_in_face, &
                                          dofs_in_face_gids, &
                                          (/ (coarse_dof_lid, idof=1,num_dofs_in_face) /), &
