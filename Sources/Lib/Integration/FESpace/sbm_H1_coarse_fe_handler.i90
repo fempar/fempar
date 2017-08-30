@@ -25,7 +25,146 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+subroutine H1_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+  implicit none
+  class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
+  type(environment_t), pointer :: par_environment
+  type(fe_object_iterator_t) :: object
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_iterator_t), allocatable      :: fe
+  type(list_iterator_t)                  :: own_coarse_dofs_iterator
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+  integer(ip)                            :: off
+  integer(ip) :: num_rows, num_cols
+  integer(ip) :: num_fine_dofs_on_coarse_dof
+  integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
+
+  class(base_static_triangulation_t), pointer :: triangulation
+
+  ! FE space traversal-related data types
+  type(list_iterator_t)                  :: faces_object_iterator
+  class(fe_face_iterator_t), allocatable :: fe_face
+
+  ! Face integration-related data types
+  type(quadrature_t)     , pointer :: quad
+  type(face_map_t)       , pointer :: face_map
+  type(face_integrator_t), pointer :: face_int
+  real(rp)                         :: shape_trial
+  integer(ip)            , pointer :: elem2dof(:)
+  type(i1p_t)        , allocatable :: test_elem2dof(:)
+
+  ! FACE vector
+  real(rp), allocatable            :: facevec(:)
+
+  integer(ip)  :: istat
+  integer(ip)  :: qpoint, num_quad_points
+  real(rp)     :: factor
+  integer(ip)  :: icol
+
+
+  par_environment => par_fe_space%get_par_environment()
+  assert (associated(par_environment))
+  assert (par_environment%am_i_l1_task())
+
+  triangulation => par_fe_space%get_triangulation()
+
+  allocate (test_elem2dof(1), stat=istat); check(istat==0);
+  call memalloc(par_fe_space%get_max_number_shape_functions(), facevec, __FILE__, __LINE__ )
+
+  ! Fill constraint matrix entries (transposed)
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_iterator(fe)
+  call par_fe_space%create_fe_face_iterator(fe_face)
+  call par_fe_space%create_fe_vef_iterator(vef)
+  do while ( .not. object%has_finished() )
+     if ( object%get_number_coarse_dofs(field_id) > 0 ) then
+
+        own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
+        assert ( own_coarse_dofs_iterator%get_size() == 1 )
+
+        coarse_dof_lid = own_coarse_dofs_iterator%get_current() 
+
+        ! Face coarse DoF
+        if ( object%get_dimension () == triangulation%get_num_dimensions()-1) then
+           faces_object_iterator = object%create_faces_object_iterator()
+           do while ( .not. faces_object_iterator%is_upper_bound() )
+              call object%get_face(faces_object_iterator%get_current(),fe_face)
+              quad     => fe_face%get_quadrature()
+              face_int => fe_face%get_face_integrator(1)
+              face_map => fe_face%get_face_map()
+
+              call fe_face%get_cell_around(1,fe)
+              facevec = 0.0_rp
+              call fe_face%update_integration() 
+              do qpoint = 1, quad%get_number_quadrature_points()
+                 factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+                 do idof = 1, fe%get_number_dofs()
+                    call face_int%get_value(idof,qpoint,1,shape_trial)
+                    facevec(idof) = facevec(idof) + shape_trial*factor
+                 end do
+              end do
+
+              call fe_face%get_elem2dof(1, test_elem2dof)
+              call constraint_matrix%insert(fe%get_number_dofs(), &
+                                            test_elem2dof(1)%p, &
+                                            coarse_dof_lid, &
+                                            facevec)
+              call faces_object_iterator%next()
+           end do
+        else    
+           ! Either corner or edge coarse DoF
+           num_fine_dofs_on_coarse_dof = 0 
+           ! Count how many fine DoFs current coarse DoF aggregates
+           do ivef_within_object=1, object%get_num_vefs()
+              call object%get_vef(ivef_within_object,vef)
+              call vef%get_cell_around(1,fe)
+              call fe%get_field_elem2dof(field_id, elem2dof)
+              ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+              own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                 idof    = own_dofs_on_vef_iterator%get_current()
+                 dof_lid = elem2dof(idof)
+                 if ( dof_lid > 0 ) then
+                    num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + 1
+                 end if
+                 call own_dofs_on_vef_iterator%next()
+              end do
+           end do
+
+           do ivef_within_object=1, object%get_num_vefs()
+              call object%get_vef(ivef_within_object,vef)
+              call vef%get_cell_around(1,fe)
+              call fe%get_field_elem2dof(field_id, elem2dof)
+              ivef_within_cell = fe%find_lpos_vef_lid(vef%get_lid())
+              own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                 idof    = own_dofs_on_vef_iterator%get_current()
+                 dof_lid = elem2dof(idof)
+                 if ( dof_lid > 0 ) then
+                    call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp/real(num_fine_dofs_on_coarse_dof,rp))
+                 end if
+                 call own_dofs_on_vef_iterator%next()
+              end do
+           end do
+        end if
+     end if
+     call object%next()
+  end do
+  call faces_object_iterator%free()
+  call par_fe_space%free_fe_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_face_iterator(fe_face)
+  call par_fe_space%free_fe_vef_iterator(vef)
+  deallocate (test_elem2dof, stat=istat); check(istat==0);
+  call memfree(facevec, __FILE__, __LINE__ )
+end subroutine H1_l1_setup_constraint_matrix_CI
+
+
+subroutine H1_l1_setup_constraint_matrix_CM(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
   implicit none
   class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
@@ -192,8 +331,7 @@ subroutine H1_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter
   call par_fe_space%free_fe_vef_iterator(vef)
   deallocate (test_elem2dof, stat=istat); check(istat==0);
   call memfree(facevec, __FILE__, __LINE__ )
-end subroutine H1_l1_setup_constraint_matrix
-
+end subroutine H1_l1_setup_constraint_matrix_CM
 
 subroutine H1_l1_setup_constraint_matrix_CB(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
   implicit none
@@ -315,6 +453,170 @@ subroutine H1_l1_setup_constraint_matrix_CB(this, field_id, par_fe_space, parame
   call memfree (dofs_in_face_touched, __FILE__, __LINE__ )
   call memfree (dofs_in_face_gids, __FILE__, __LINE__ )
 end subroutine H1_l1_setup_constraint_matrix_CB
+
+subroutine H1_l1_setup_constraint_matrix_CC(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+  implicit none
+  class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
+  type(environment_t), pointer :: par_environment
+  type(fe_object_iterator_t) :: object
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_iterator_t), allocatable      :: fe
+  type(list_iterator_t)                  :: own_coarse_dofs_iterator
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+  integer(ip)                            :: off
+  integer(ip) :: num_rows, num_cols
+  integer(ip) :: num_fine_dofs_on_coarse_dof
+  integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
+
+  class(base_static_triangulation_t), pointer :: triangulation
+
+  ! FE space traversal-related data types
+  type(list_iterator_t)                  :: faces_object_iterator
+  class(fe_face_iterator_t), allocatable :: fe_face
+
+  ! Face integration-related data types
+  type(quadrature_t)     , pointer :: quad
+  type(face_map_t)       , pointer :: face_map
+  type(face_integrator_t), pointer :: face_int
+  real(rp)                         :: shape_trial
+  integer(ip)            , pointer :: elem2dof(:)
+  type(i1p_t)        , allocatable :: test_elem2dof(:)
+  
+  integer(ip) :: num_dofs_in_face
+  integer(ip), allocatable :: dofs_in_face_touched(:)
+  integer(ip), allocatable :: dofs_in_face_gids(:)
+
+  integer(ip)  :: istat
+  integer(ip)  :: qpoint, num_quad_points
+  real(rp)     :: factor
+  integer(ip)  :: icol
+  integer(ip)  :: gdof
+  class(reference_fe_t), pointer :: reference_fe
+  type(list_iterator_t) :: own_dofs_face
+
+
+  par_environment => par_fe_space%get_par_environment()
+  assert (associated(par_environment))
+  assert (par_environment%am_i_l1_task())
+
+  triangulation => par_fe_space%get_triangulation()
+
+  allocate (test_elem2dof(1), stat=istat); check(istat==0);
+  
+  call memalloc ( par_fe_space%get_field_number_dofs(1), dofs_in_face_touched, __FILE__, __LINE__ )
+  dofs_in_face_touched = 0
+  
+  call memalloc ( par_fe_space%get_field_number_dofs(1), dofs_in_face_gids, __FILE__, __LINE__ )
+  
+  ! Fill constraint matrix entries (transposed)
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_iterator(fe)
+  call par_fe_space%create_fe_face_iterator(fe_face)
+  call par_fe_space%create_fe_vef_iterator(vef)
+  do while ( .not. object%has_finished() )
+     if ( object%get_number_coarse_dofs(field_id) > 0 ) then
+        own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
+        assert ( own_coarse_dofs_iterator%get_size() == 1 )
+        
+        coarse_dof_lid = own_coarse_dofs_iterator%get_current() 
+
+        ! Face coarse DoF
+        if ( object%get_dimension () == triangulation%get_num_dimensions()-1) then
+           num_dofs_in_face = 0
+           faces_object_iterator = object%create_faces_object_iterator()
+           do while ( .not. faces_object_iterator%is_upper_bound() )
+              call object%get_face(faces_object_iterator%get_current(),fe_face)
+              call fe_face%get_cell_around(1,fe)
+              call fe%get_elem2dof(test_elem2dof)
+              
+              reference_fe => fe%get_reference_fe_geo()
+              own_dofs_face = reference_fe%create_dofs_on_n_face_iterator(fe_face%get_lpos_within_cell_around(1))
+              do while (.not. own_dofs_face%is_upper_bound())
+                 gdof = test_elem2dof(1)%p(own_dofs_face%get_current())
+                 if ( gdof < 0 ) then 
+                   call own_dofs_face%next()
+                   cycle
+                 end if
+                 if (dofs_in_face_touched(gdof) == 0 ) then
+                   num_dofs_in_face = num_dofs_in_face + 1
+                   dofs_in_face_gids(num_dofs_in_face) = gdof
+                 end if
+                 dofs_in_face_touched(gdof) = dofs_in_face_touched(gdof) + 1
+                 call own_dofs_face%next()
+              end do
+              call faces_object_iterator%next()
+           end do
+           !call constraint_matrix%insert(num_dofs_in_face, &
+           !                              dofs_in_face_gids, &
+           !                              (/ (coarse_dof_lid, idof=1,num_dofs_in_face) /), &
+           !                              (/ (1.0_rp/real(num_dofs_in_face,rp), idof = 1, num_dofs_in_face) /))
+           write(*,*) real(dofs_in_face_touched(dofs_in_face_gids(1:num_dofs_in_face)),rp)*(1.0_rp/real(num_dofs_in_face,rp))
+           call constraint_matrix%insert(num_dofs_in_face, &
+                                         dofs_in_face_gids, &
+                                         (/ (coarse_dof_lid, idof=1,num_dofs_in_face) /), &
+                                         real(dofs_in_face_touched(dofs_in_face_gids(1:num_dofs_in_face)),rp)*(1.0_rp/real(num_dofs_in_face,rp)) )
+           
+           do idof=1, num_dofs_in_face
+              dofs_in_face_touched(dofs_in_face_gids(idof)) = 0
+           end do
+        end if
+     end if    
+     call object%next()
+  end do     
+       
+ 
+  call faces_object_iterator%free()
+  call par_fe_space%free_fe_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_face_iterator(fe_face)
+  call par_fe_space%free_fe_vef_iterator(vef)
+  deallocate (test_elem2dof, stat=istat); check(istat==0);
+  call memfree (dofs_in_face_touched, __FILE__, __LINE__ )
+  call memfree (dofs_in_face_gids, __FILE__, __LINE__ )
+end subroutine H1_l1_setup_constraint_matrix_CC
+
+
+subroutine H1_l1_setup_constraint_matrix_multiple(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+  implicit none
+  class(H1_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
+  
+  integer(ip), parameter :: CA = 0
+  integer(ip), parameter :: CI = 1
+  integer(ip), parameter :: CM = 2
+  integer(ip), parameter :: CB = 3
+  integer(ip), parameter :: CC = 4
+  
+  integer(ip), parameter :: strategy = CC
+  
+  write(*,*) 'strategy ::', strategy
+  
+  if (strategy == CA) then
+    call standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+  else if ( strategy == CI ) then
+    call H1_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+  else if ( strategy == CM ) then
+    call H1_l1_setup_constraint_matrix_CM(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+  else if ( strategy == CB ) then
+    call H1_l1_setup_constraint_matrix_CB(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+  else if ( strategy == CC ) then
+    call H1_l1_setup_constraint_matrix_CC(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+  end if
+  
+  
+end subroutine H1_l1_setup_constraint_matrix_multiple
+
+
+
+
+
 
 subroutine H1_l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
   implicit none
