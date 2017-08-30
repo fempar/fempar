@@ -59,7 +59,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data);
  * The quad_to_edge list has equally many entries which are either:
  * 1. A value of v = 0..23 indicates one same-size neighbor.
  *    This value is decoded as v = r * 12 + ne, where ne = 0..11 is the
- *    neighbor's connecting face number and r = 0..1 is the relative
+ *    neighbor's connecting edge number and r = 0..1 is the relative
  *    orientation of the neighbor's edge.
  * 2. A value of v = 24..71 indicates a double-size neighbor.
  *    This value is decoded as v = 24 + h * 24 + r * 12 + ne, where

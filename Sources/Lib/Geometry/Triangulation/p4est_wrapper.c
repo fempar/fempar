@@ -394,9 +394,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
   int k;
   p4est_locidx_t ineig[4], jneig[4];
   int8_t ineig_iedge[4], jneig_jedge[4];
-  int visited[4];
-
-  for(int i=0;i<4;i++)  visited[i] =  0;
+  
   for(int i=0;i<2;i++) ineig[i]   = -1;
   for(int i=0;i<2;i++) jneig[i]   = -1;
 
@@ -408,6 +406,33 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
   quad_to_half_by_edge = edge_info->quad_to_half_by_edge;
   
   cells_around = (p8est_iter_edge_side_t *) info->sides.array;
+  
+  // First treat boundary edges
+  if ( info->sides.elem_count == 1 || info->sides.elem_count == 2 )
+  {
+      for(int i=0;i<(info->sides.elem_count);i++)
+      {
+          if (cells_around[i].is_hanging)
+          {
+              ineig[0]       = cells_around[i].is.hanging.quadid[0];
+              ineig[1]       = cells_around[i].is.hanging.quadid[1];
+              ineig_iedge[0] = cells_around[i].edge;
+              quad_to_quad_by_edge[ 12*ineig[0] + ineig_iedge[0] ] = ineig[0];
+              quad_to_edge        [ 12*ineig[0] + ineig_iedge[0] ] = ineig_iedge[0];
+              quad_to_quad_by_edge[ 12*ineig[1] + ineig_iedge[0] ] = ineig[1];
+              quad_to_edge        [ 12*ineig[1] + ineig_iedge[0] ] = ineig_iedge[0];
+          }
+          else
+          {
+              ineig[0]       = cells_around[i].is.full.quadid;
+              ineig_iedge[0] = cells_around[i].edge;
+              quad_to_quad_by_edge[ 12*ineig[0] + ineig_iedge[0] ] = ineig[0];
+              quad_to_edge        [ 12*ineig[0] + ineig_iedge[0] ] = ineig_iedge[0];  
+          } 
+      }
+      return;
+  }
+  
   k=0;
   for(int i=0;i<(info->sides.elem_count);i++)
   {
@@ -460,8 +485,8 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
           else if (! cells_around[i].is_hanging && cells_around[j].is_hanging) 
           {
               // i side
-              quad_to_quad_by_edge[ 12*ineig[2*k] + ineig_iedge[2*k] ] = jneig[2*k];
-              quad_to_edge        [ 12*ineig[2*k] + ineig_iedge[2*k] ] = -jneig_jedge[2*k];
+              quad_to_quad_by_edge[ 12*ineig[2*k] + ineig_iedge[2*k] ] = ineig[2*k];
+              quad_to_edge        [ 12*ineig[2*k] + ineig_iedge[2*k] ] = jneig_jedge[2*k]-24;
               quad_to_half_by_edge[ 2*ineig[2*k]                     ] = jneig[2*k];
               quad_to_half_by_edge[ 2*ineig[2*k] +                 1 ] = jneig[2*k+1];
               
@@ -480,8 +505,8 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
               quad_to_edge        [ 12*ineig[2*k+1] + ineig_iedge[2*k] ] = 48+jneig_jedge[2*k];
              
               //j side
-              quad_to_quad_by_edge[ 12*jneig[2*k] + jneig_jedge[2*k] ] = ineig[2*k];
-              quad_to_edge        [ 12*jneig[2*k] + jneig_jedge[2*k] ] = -ineig_iedge[2*k];
+              quad_to_quad_by_edge[ 12*jneig[2*k] + jneig_jedge[2*k] ] = jneig[2*k];
+              quad_to_edge        [ 12*jneig[2*k] + jneig_jedge[2*k] ] = ineig_iedge[2*k]-24;
               quad_to_half_by_edge[ 2*jneig[2*k]                     ] = ineig[2*k];
               quad_to_half_by_edge[ 2*jneig[2*k] +                 1 ] = ineig[2*k+1];
           }   
