@@ -1,1 +1,0 @@
-The purpose of this file is to keep track in git of the folder where this file is placed

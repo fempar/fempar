@@ -306,8 +306,8 @@ contains
        istat = parameter_list%set(key = triangulation_generate_key, value = triangulation_generate_from_mesh)
     else if(trim(this%triangulation_type)=='structured') then
        istat = parameter_list%set(key = triangulation_generate_key         , value = triangulation_generate_structured)
-       istat = istat + parameter_list%set(key = num_of_dims_key   , value = this%num_dims)
-       istat = istat + parameter_list%set(key = num_of_cells_x_dir_key, value = this%num_of_cells_x_dir)
+       istat = istat + parameter_list%set(key = num_dims_key   , value = this%num_dims)
+       istat = istat + parameter_list%set(key = num_cells_x_dir_key, value = this%num_of_cells_x_dir)
        istat = istat + parameter_list%set(key = is_dir_periodic_key        , value = this%is_dir_periodic)
     end if
     check(istat==0)
