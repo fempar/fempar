@@ -89,6 +89,7 @@ module p4est_serial_triangulation_names
   integer(ip), parameter :: NUM_FACES_3D                  = 6
   integer(ip), parameter :: NUM_EDGES_3D                  = 12
   integer(ip), parameter :: NUM_SUBFACES_FACE_3D          = 4
+  integer(ip), parameter :: NUM_SUBEDGES_EDGE_3D          = 2
   integer(ip), parameter :: NUM_FACE_CORNERS_3D           = 4
   integer(ip), parameter :: NUM_FACE_EDGES_3D             = 4
   integer(ip), parameter :: NUM_EDGE_CORNERS_3D           = 2
@@ -346,6 +347,7 @@ module p4est_serial_triangulation_names
     
     integer(P4EST_F90_LOCIDX), allocatable :: quad_to_quad_by_edge(:,:)
     integer(P4EST_F90_QLEVEL), allocatable :: quad_to_edge(:,:)
+    integer(P4EST_F90_LOCIDX), allocatable :: quad_to_half_by_edge(:,:)
 
     ! TODO: The following 2x member variables should be replaced by our F200X implementation of "std::vector<T>" 
     ! p4est Integer coordinates of first quadrant node (xy/xyz,nQuads)
