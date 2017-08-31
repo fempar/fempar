@@ -61,7 +61,7 @@ module pardiso_mkl_direct_solver_names
         integer                     :: pardiso_mkl_iparm(64)
         integer                     :: phase                 = -1
         integer                     :: matrix_type           = -1500
-        integer                     :: max_number_of_factors = 1
+        integer                     :: max_num_factors = 1
         integer                     :: actual_matrix         = 1
         integer                     :: message_level         = 0
         logical                     :: forced_matrix_type    = .false.
@@ -136,7 +136,7 @@ contains
         integer(ip)                                        :: i
     !-----------------------------------------------------------------
 #ifdef ENABLE_MKL
-        this%max_number_of_factors = 1
+        this%max_num_factors = 1
         this%actual_matrix         = 1
         this%message_level         = pardiso_mkl_default_message_level
         this%matrix_type           = pardiso_mkl_default_matrix_type
@@ -265,7 +265,7 @@ contains
                 ! Reordering and symbolic factorization, this step also allocates 
                 ! all memory that is necessary for the factorization
                 call pardiso(pt     = this%pardiso_mkl_pt,         & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
-                             maxfct = this%max_number_of_factors,  & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
+                             maxfct = this%max_num_factors,  & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
                              mnum   = this%actual_matrix,          & !< Actual matrix for the solution phase. The value must be: 1 <= mnum <= maxfct. 
                              mtype  = this%matrix_type,            & !< Defines the matrix type, which influences the pivoting method
                              phase  = this%phase,                  & !< Controls the execution of the solver (11 == Analysis)
@@ -325,7 +325,7 @@ contains
                 ! Reordering and symbolic factorization, this step also allocates 
                 ! all memory that is necessary for the factorization
                 call pardiso(pt     = this%pardiso_mkl_pt,         & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
-                             maxfct = this%max_number_of_factors,  & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
+                             maxfct = this%max_num_factors,  & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
                              mnum   = this%actual_matrix,          & !< Actual matrix for the solution phase. The value must be: 1 <= mnum <= maxfct. 
                              mtype  = this%matrix_type,            & !< Defines the matrix type, which influences the pivoting method
                              phase  = this%phase,                  & !< Controls the execution of the solver (22 == Numerical factorization)
@@ -387,7 +387,7 @@ contains
                 ja => matrix%get_ja()
                 ! Solve, iterative refinement
                 call pardiso(pt     = op%pardiso_mkl_pt,           & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
-                             maxfct = op%max_number_of_factors,    & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
+                             maxfct = op%max_num_factors,    & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
                              mnum   = op%actual_matrix,            & !< Actual matrix for the solution phase. The value must be: 1 <= mnum <= maxfct. 
                              mtype  = op%matrix_type,              & !< Defines the matrix type, which influences the pivoting method
                              phase  = op%phase,                    & !< Controls the execution of the solver (33 == Solve, iterative refinement)
@@ -424,8 +424,8 @@ contains
         class(pardiso_mkl_direct_solver_t), intent(inout) :: op
         real(rp),                           intent(inout) :: x(:, :)
         real(rp),                           intent(inout) :: y(:, :)
-        integer(ip)                                       :: number_rows
-        integer(ip)                                       :: number_rhs
+        integer(ip)                                       :: num_rows
+        integer(ip)                                       :: num_rhs
         integer                                           :: error
         integer,  target                                  :: idum(1)
         real(rp), pointer                                 :: val(:)
@@ -435,19 +435,19 @@ contains
 #ifdef ENABLE_MKL
         ! (c) y  <- A^-1 * x
         op%phase    = 33 ! only Fwd/Bck substitution
-        number_rows = size(x,1)
-        number_rhs  = size(x,2)
+        num_rows = size(x,1)
+        num_rhs  = size(x,2)
 
         select type (matrix => op%matrix%get_pointer_to_base_matrix())
             type is (csr_sparse_matrix_t)
-                assert(matrix%get_num_rows()==number_rows .and. size(y,1) == number_rows)
-                assert(size(y,2) == number_rhs)
+                assert(matrix%get_num_rows()==num_rows .and. size(y,1) == num_rows)
+                assert(size(y,2) == num_rhs)
                 ! Solve, iterative refinement
                 val => matrix%get_val()
                 ia => matrix%get_irp()
                 ja => matrix%get_ja()
                 call pardiso(pt     = op%pardiso_mkl_pt,           & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
-                             maxfct = op%max_number_of_factors,    & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
+                             maxfct = op%max_num_factors,    & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
                              mnum   = op%actual_matrix,            & !< Actual matrix for the solution phase. The value must be: 1 <= mnum <= maxfct. 
                              mtype  = op%matrix_type,              & !< Defines the matrix type, which influences the pivoting method
                              phase  = op%phase,                    & !< Controls the execution of the solver (33 == Solve, iterative refinement)
@@ -456,7 +456,7 @@ contains
                              ia     = ia,                          & !< Pointers to columns in CSR format
                              ja     = ja,                          & !< Column indices of the CSR sparse matrix
                              perm   = idum,                        & !< Permutation vector
-                             nrhs   = number_rhs,                  & !< Number of right-hand sides that need to be solved for
+                             nrhs   = num_rhs,                  & !< Number of right-hand sides that need to be solved for
                              iparm  = op%pardiso_mkl_iparm,        & !< This array is used to pass various parameters to Intel MKL PARDISO 
                              msglvl = op%message_level,            & !< Message level information
                              b      = x,                           & !< Array, size (n, nrhs). On entry, contains the right-hand side vector/matrix
@@ -590,7 +590,7 @@ contains
 #ifdef ENABLE_MKL
         this%phase = -1 ! Release all internal memory for all matrices
         call pardiso(pt     = this%pardiso_mkl_pt,             & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
-                     maxfct = this%max_number_of_factors,      & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
+                     maxfct = this%max_num_factors,      & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
                      mnum   = this%actual_matrix,              & !< Actual matrix for the solution phase. The value must be: 1 <= mnum <= maxfct. 
                      mtype  = this%matrix_type,                & !< Defines the matrix type, which influences the pivoting method
                      phase  = this%phase,                      & !< Controls the execution of the solver (-1 == Release all internal memory for all matrices)
@@ -631,7 +631,7 @@ contains
         ! Release internal memory only for L and U factors
         this%phase = 0 ! Release internal memory for L and U matrix number mnum
         call pardiso(pt     = this%pardiso_mkl_pt,         & !< Handle to internal data structure. The entries must be set to zero prior to the first call to pardiso
-                     maxfct = this%max_number_of_factors,  & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
+                     maxfct = this%max_num_factors,  & !< Maximum number of factors with identical sparsity structure that must be kept in memory at the same time
                      mnum   = this%actual_matrix,          & !< Actual matrix for the solution phase. The value must be: 1 <= mnum <= maxfct. 
                      mtype  = this%matrix_type,            & !< Defines the matrix type, which influences the pivoting method
                      phase  = this%phase,                  & !< Controls the execution of the solver (0 == Release internal memory for L and U matrix number mnum)

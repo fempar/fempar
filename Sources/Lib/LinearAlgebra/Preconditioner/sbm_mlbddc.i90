@@ -39,7 +39,7 @@ subroutine mlbddc_create ( this, fe_affine_operator, mlbddc_params )
   fe_space                => this%get_par_fe_space()
   call this%create_vector_spaces()
 
-  assert ( fe_space%get_number_blocks() == 1 )
+  assert ( fe_space%get_num_blocks() == 1 )
 end subroutine mlbddc_create
 
 subroutine mlbddc_create_vector_spaces (this)
@@ -75,11 +75,11 @@ subroutine mlbddc_setup_constraint_matrix (this)
 
   ! Free any dynamic memory that constraint_matrix may have inside and create it (transposed)
   call this%constraint_matrix%free()
-  num_cols = par_fe_space%get_block_number_dofs        (block_id=block_id)
-  num_rows = par_fe_space%get_block_number_coarse_dofs (block_id=block_id) 
+  num_cols = par_fe_space%get_block_num_dofs        (block_id=block_id)
+  num_rows = par_fe_space%get_block_num_coarse_dofs (block_id=block_id) 
   call this%constraint_matrix%create ( num_cols, num_rows )
   
-  do field_id = 1, par_fe_space%get_number_fields()
+  do field_id = 1, par_fe_space%get_num_fields()
      if ( field_blocks(field_id) == block_id ) then
         coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
         call coarse_fe_handler%setup_constraint_matrix(par_fe_space      = par_fe_space, &
@@ -109,11 +109,11 @@ subroutine mlbddc_setup_weighting_operator (this)
  field_blocks => par_fe_space%get_field_blocks()
 
   if (allocated(this%W) ) call memfree ( this%W, __FILE__, __LINE__ )
-  num_rows = par_fe_space%get_block_number_dofs(block_id=block_id)
+  num_rows = par_fe_space%get_block_num_dofs(block_id=block_id)
   call memalloc ( num_rows, this%W, __FILE__, __LINE__ )
   this%W = 1.0_rp
 
- do field_id = 1, par_fe_space%get_number_fields()
+ do field_id = 1, par_fe_space%get_num_fields()
     if ( field_blocks(field_id) == block_id ) then
        coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
        call coarse_fe_handler%setup_weighting_operator(par_fe_space       = par_fe_space, &
@@ -204,7 +204,7 @@ function mlbddc_get_par_environment(this)
   type(environment_t)  , pointer    :: mlbddc_get_par_environment
   type(par_fe_space_t)     , pointer    :: coarse_fe_space
   coarse_fe_space => this%get_par_fe_space()
-  mlbddc_get_par_environment => coarse_fe_space%get_par_environment()
+  mlbddc_get_par_environment => coarse_fe_space%get_environment()
 end function mlbddc_get_par_environment
 
 function mlbddc_am_i_l1_task(this)

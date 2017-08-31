@@ -55,7 +55,7 @@ module output_handler_fe_field_names
 
 USE types_names
 USE memor_names
-USE fe_function_names,           only: fe_function_t
+USE fe_space_names,              only: fe_function_t
 USE reference_fe_names,          only: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
 USE output_handler_parameters_names
 
@@ -90,7 +90,7 @@ private
         procedure, non_overridable, public :: get_field_type        => output_handler_fe_field_get_field_type
         procedure, non_overridable, public :: get_field_id          => output_handler_fe_field_get_field_id
         procedure, non_overridable, public :: get_fe_function       => output_handler_fe_field_get_fe_function
-        procedure, non_overridable, public :: get_number_components => output_handler_fe_field_get_number_components
+        procedure, non_overridable, public :: get_num_components => output_handler_fe_field_get_num_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_free
         generic,                    public :: assignment(=)         => output_handler_fe_field_assign
     end type
@@ -132,7 +132,7 @@ private
     !### Stores raw values of a field in a 1D real array
     !-----------------------------------------------------------------
     private
-        integer(ip)                    :: number_components = 0
+        integer(ip)                    :: num_components = 0
         real(rp), allocatable          :: value(:)
     contains
     private
@@ -140,7 +140,7 @@ private
         procedure, non_overridable, public :: create                => output_handler_fe_field_1D_value_create
         procedure, non_overridable, public :: init                  => output_handler_fe_field_1D_value_init
         procedure, non_overridable, public :: get_value             => output_handler_fe_field_1D_value_get_value
-        procedure, non_overridable, public :: get_number_components => output_handler_fe_field_1D_value_get_number_components
+        procedure, non_overridable, public :: get_num_components => output_handler_fe_field_1D_value_get_num_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_1D_value_free
     end type
 
@@ -155,7 +155,7 @@ private
     !### Stores raw values of a field in a 2D real array
     !-----------------------------------------------------------------
     private
-        integer(ip)                    :: number_components = 0
+        integer(ip)                    :: num_components = 0
         real(rp), allocatable          :: value(:,:)
     contains
     private
@@ -163,7 +163,7 @@ private
         procedure, non_overridable, public :: create                => output_handler_fe_field_2D_value_create
         procedure, non_overridable, public :: init                  => output_handler_fe_field_2D_value_init
         procedure, non_overridable, public :: get_value             => output_handler_fe_field_2D_value_get_value
-        procedure, non_overridable, public :: get_number_components => output_handler_fe_field_2D_value_get_number_components
+        procedure, non_overridable, public :: get_num_components => output_handler_fe_field_2D_value_get_num_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_2D_value_free
     end type
 
@@ -294,12 +294,12 @@ contains
     end function output_handler_fe_field_get_fe_function
 
 
-    function output_handler_fe_field_get_number_components(this) result(number_components)
+    function output_handler_fe_field_get_num_components(this) result(num_components)
     !-----------------------------------------------------------------
     !< Return the number of components of the field
     !-----------------------------------------------------------------
         class(output_handler_fe_field_t), intent(in) :: this
-        integer(ip)                                  :: number_components
+        integer(ip)                                  :: num_components
     !-----------------------------------------------------------------
         assert(allocated(this%field_type))
 	
@@ -308,35 +308,35 @@ contains
             case ( field_type_scalar )
                 select case (this%diff_operator)
                     case (no_diff_operator)
-                        number_components = 1
+                        num_components = 1
                     case (grad_diff_operator) 
-                        number_components = SPACE_DIM
+                        num_components = SPACE_DIM
                     case DEFAULT
                         check(.false.)
                 end select
             case ( field_type_vector )
                 select case (this%diff_operator)
                     case (no_diff_operator)
-                        number_components = SPACE_DIM
+                        num_components = SPACE_DIM
                     case (grad_diff_operator)
-                        number_components = SPACE_DIM*SPACE_DIM
+                        num_components = SPACE_DIM*SPACE_DIM
                     case (div_diff_operator)
-                        number_components = 1
+                        num_components = 1
                     case (curl_diff_operator)
-                        number_components = SPACE_DIM
+                        num_components = SPACE_DIM
                     case DEFAULT
                         check(.false.)
                 end select
             case ( field_type_tensor )
                 select case (this%diff_operator)
                     case (no_diff_operator)
-                        number_components = SPACE_DIM*SPACE_DIM
+                        num_components = SPACE_DIM*SPACE_DIM
                     case DEFAULT
                         check(.false.)
                 end select
         end select
         
-    end function output_handler_fe_field_get_number_components
+    end function output_handler_fe_field_get_num_components
     
 
 !---------------------------------------------------------------------
@@ -421,7 +421,7 @@ contains
         logical                                                  :: value_is_allocated
     !-----------------------------------------------------------------
         if(allocated(this%value)) call memfree(this%value, __FILE__, __LINE__)
-        this%number_components = 0
+        this%num_components = 0
     end subroutine output_handler_fe_field_1D_value_free
 
 
@@ -436,17 +436,17 @@ contains
     end function output_handler_fe_field_1D_value_value_is_allocated
 
 
-    subroutine output_handler_fe_field_1D_value_create(this, number_components, number_nodes) 
+    subroutine output_handler_fe_field_1D_value_create(this, num_components, num_nodes) 
     !-----------------------------------------------------------------
     !< Allocate value
     !-----------------------------------------------------------------
         class(output_handler_fe_field_1D_value_t), intent(inout) :: this
-        integer(ip)                                              :: number_components
-        integer(ip)                                              :: number_nodes
+        integer(ip)                                              :: num_components
+        integer(ip)                                              :: num_nodes
     !-----------------------------------------------------------------
         call this%free()
-        call memalloc(number_components*number_nodes, this%value, __FILE__, __LINE__)
-        this%number_components = number_components
+        call memalloc(num_components*num_nodes, this%value, __FILE__, __LINE__)
+        this%num_components = num_components
     end subroutine output_handler_fe_field_1D_value_create
     
     subroutine output_handler_fe_field_1D_value_init(this, value) 
@@ -471,15 +471,15 @@ contains
     end function output_handler_fe_field_1D_value_get_value
 
 
-    function output_handler_fe_field_1D_value_get_number_components(this) result(number_components)
+    function output_handler_fe_field_1D_value_get_num_components(this) result(num_components)
     !-----------------------------------------------------------------
     !< Return the number of components
     !-----------------------------------------------------------------
         class(output_handler_fe_field_1D_value_t), target, intent(in) :: this
-        integer(ip)                                                   :: number_components
+        integer(ip)                                                   :: num_components
     !-----------------------------------------------------------------
-        number_components = this%number_components
-    end function output_handler_fe_field_1D_value_get_number_components
+        num_components = this%num_components
+    end function output_handler_fe_field_1D_value_get_num_components
 
 
 !---------------------------------------------------------------------
@@ -495,7 +495,7 @@ contains
         logical                                                  :: value_is_allocated
     !-----------------------------------------------------------------
         if(allocated(this%value)) call memfree(this%value, __FILE__, __LINE__)
-        this%number_components = 0
+        this%num_components = 0
     end subroutine output_handler_fe_field_2D_value_free
 
 
@@ -510,17 +510,17 @@ contains
     end function output_handler_fe_field_2D_value_value_is_allocated
 
 
-    subroutine output_handler_fe_field_2D_value_create(this, number_components, number_nodes) 
+    subroutine output_handler_fe_field_2D_value_create(this, num_components, num_nodes) 
     !-----------------------------------------------------------------
     !< Allocate value
     !-----------------------------------------------------------------
         class(output_handler_fe_field_2D_value_t), intent(inout) :: this
-        integer(ip)                                              :: number_components
-        integer(ip)                                              :: number_nodes
+        integer(ip)                                              :: num_components
+        integer(ip)                                              :: num_nodes
     !-----------------------------------------------------------------
         call this%free()
-        call memalloc(number_components, number_nodes, this%value, __FILE__, __LINE__)
-        this%number_components = number_components
+        call memalloc(num_components, num_nodes, this%value, __FILE__, __LINE__)
+        this%num_components = num_components
     end subroutine output_handler_fe_field_2D_value_create
     
     subroutine output_handler_fe_field_2D_value_init(this, value) 
@@ -545,14 +545,14 @@ contains
     end function output_handler_fe_field_2D_value_get_value
 
 
-    function output_handler_fe_field_2D_value_get_number_components(this) result(number_components)
+    function output_handler_fe_field_2D_value_get_num_components(this) result(num_components)
     !-----------------------------------------------------------------
     !< Return the number of components
     !-----------------------------------------------------------------
         class(output_handler_fe_field_2D_value_t), target, intent(in) :: this
-        integer(ip)                                                   :: number_components
+        integer(ip)                                                   :: num_components
     !-----------------------------------------------------------------
-        number_components = this%number_components
-    end function output_handler_fe_field_2D_value_get_number_components
+        num_components = this%num_components
+    end function output_handler_fe_field_2D_value_get_num_components
 
 end module output_handler_fe_field_names

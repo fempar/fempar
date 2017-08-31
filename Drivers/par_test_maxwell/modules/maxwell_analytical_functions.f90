@@ -34,7 +34,7 @@ module maxwell_analytical_functions_names
 
   ! Scalar functions 
   type, extends(scalar_function_t) :: base_scalar_function_t
-    integer(ip) :: num_dimensions = -1  
+    integer(ip) :: num_dims = -1  
   contains
   end type base_scalar_function_t
   
@@ -58,9 +58,9 @@ module maxwell_analytical_functions_names
   
   ! Vector functions 
    type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dimensions = -1  
+    integer(ip) :: num_dims = -1  
   contains
-    procedure :: set_num_dimensions    => base_vector_function_set_num_dimensions
+    procedure :: set_num_dims    => base_vector_function_set_num_dims
   end type base_vector_function_t
   
     type, extends(base_vector_function_t) :: source_term_t
@@ -76,30 +76,30 @@ module maxwell_analytical_functions_names
   
   type maxwell_analytical_functions_t
      private
-	 type(boundary_function_Hx_t)            :: boundary_function_Hx
-	 type(boundary_function_Hy_t)            :: boundary_function_Hy
-	 type(boundary_function_Hz_t)            :: boundary_function_Hz
-     type(source_term_t)                     :: source_term
-     type(solution_t)                        :: solution
+	  type(boundary_function_Hx_t)            :: boundary_function_Hx
+	  type(boundary_function_Hy_t)            :: boundary_function_Hy
+	  type(boundary_function_Hz_t)            :: boundary_function_Hz
+   type(source_term_t)                     :: source_term
+   type(solution_t)                        :: solution
    contains
-     procedure :: set_num_dimensions               => mn_set_num_dimensions
-	 procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
-	 procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
-	 procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
-     procedure :: get_source_term                  => mn_get_source_term
-     procedure :: get_solution_function            => mn_get_solution_function
+   procedure :: set_num_dims                     => mn_set_num_dims
+	  procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
+	  procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
+	  procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
+   procedure :: get_source_term                  => mn_get_source_term
+   procedure :: get_solution_function            => mn_get_solution_function
   end type maxwell_analytical_functions_t
 
   public :: maxwell_analytical_functions_t
 
 contains  
   !===============================================================================================
-  subroutine base_vector_function_set_num_dimensions ( this, num_dimensions )
+  subroutine base_vector_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_vector_function_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    this%num_dimensions = num_dimensions
-  end subroutine base_vector_function_set_num_dimensions
+    integer(ip), intent(in) ::  num_dims
+    this%num_dims = num_dims
+  end subroutine base_vector_function_set_num_dims
   
     !===============================================================================================
   subroutine boundary_function_Hx_get_value_space( this, point, result )
@@ -145,7 +145,7 @@ contains
  
 	real(rp) :: x,y,z 
 	
-	assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+	assert ( this%num_dims == 2 .or. this%num_dims == 3 )
 	x = point%get(1); y=point%get(2); z=point%get(3)     
 	 call result%init(0.0_rp) 
 	 call result%set(1, -y ) 
@@ -162,7 +162,7 @@ contains
     type(vector_field_t)    , intent(inout) :: result
 	
     real(rp) :: x,y,z 
-	assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
+	assert ( this%num_dims == 2 .or. this%num_dims == 3 )
 	x = point%get(1); y=point%get(2); z=point%get(3) 
 	 call result%init(0.0_rp) 
 	 call result%set(1, -y ) 
@@ -187,13 +187,13 @@ contains
   end subroutine solution_get_gradient_space
   
   !===============================================================================================
-  subroutine mn_set_num_dimensions ( this, num_dimensions )
+  subroutine mn_set_num_dims ( this, num_dims )
     implicit none
     class(maxwell_analytical_functions_t), intent(inout)    :: this
-    integer(ip), intent(in) ::  num_dimensions
-    call this%source_term%set_num_dimensions(num_dimensions)
-    call this%solution%set_num_dimensions(num_dimensions)
-  end subroutine mn_set_num_dimensions
+    integer(ip), intent(in) ::  num_dims
+    call this%source_term%set_num_dims(num_dims)
+    call this%solution%set_num_dims(num_dims)
+  end subroutine mn_set_num_dims
   
   !===============================================================================================
   function mn_get_boundary_function_Hx ( this )

@@ -50,8 +50,8 @@ module par_test_maxwell_driver_names
      type(par_fe_space_t)                          :: fe_space 
      type(p_reference_fe_t), allocatable           :: reference_fes(:) 
      class(l1_coarse_fe_handler_t), pointer        :: coarse_fe_handler 
-	 type(p_l1_coarse_fe_handler_t), allocatable   :: coarse_fe_handlers(:)
-	 type(maxwell_CG_discrete_integration_t)       :: maxwell_integration
+	    type(p_l1_coarse_fe_handler_t), allocatable   :: coarse_fe_handlers(:)
+	    type(maxwell_CG_discrete_integration_t)       :: maxwell_integration
      type(maxwell_conditions_t)                    :: maxwell_conditions
      type(maxwell_analytical_functions_t)          :: maxwell_analytical_functions
 
@@ -88,7 +88,7 @@ module par_test_maxwell_driver_names
      procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
-	 procedure        , private :: setup_coarse_fe_handlers
+	    procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
@@ -168,10 +168,7 @@ end subroutine free_timers
   subroutine setup_triangulation(this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
-    type(vef_iterator_t)  :: vef
-	
-	integer(ip) :: nv
-	nv=0
+    class(vef_iterator_t), allocatable :: vef
 
     call this%triangulation%create(this%parameter_list, this%par_environment)
 	
@@ -195,21 +192,21 @@ end subroutine free_timers
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    class(cell_iterator_t), allocatable       :: cell
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    class(cell_iterator_t), allocatable    :: cell
+    class(reference_fe_t), pointer         :: reference_fe_geo
     
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
-      reference_fe_geo => cell%get_reference_fe_geo()
-      this%reference_fes(1) =  make_reference_fe ( topology          = reference_fe_geo%get_topology(),           &
-                                                   fe_type           = fe_type_nedelec,                           &
-                                                   number_dimensions = this%triangulation%get_num_dimensions(),   &
-                                                   order             = this%test_params%get_reference_fe_order(), &
-                                                   field_type        = field_type_vector,                         &
-                                                   conformity        = .true. )
+      reference_fe_geo => cell%get_reference_fe()
+      this%reference_fes(1) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
+                                                   fe_type    = fe_type_nedelec,                           &
+                                                   num_dims   = this%triangulation%get_num_dims(),         &
+                                                   order      = this%test_params%get_reference_fe_order(), &
+                                                   field_type = field_type_vector,                         &
+                                                   conformity = .true. )
       call this%triangulation%free_cell_iterator(cell)
     end if  
 		 
@@ -218,16 +215,16 @@ end subroutine free_timers
   subroutine setup_coarse_fe_handlers(this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
-	class(cell_iterator_t), allocatable        :: cell
-    class(lagrangian_reference_fe_t), pointer  :: reference_fe_geo
+   	class(cell_iterator_t), allocatable        :: cell
+    class(reference_fe_t), pointer             :: reference_fe_geo
 	integer(ip) :: istat 
 	
 	if ( this%par_environment%am_i_l1_task() ) then
 	call this%triangulation%create_cell_iterator(cell)
-    reference_fe_geo => cell%get_reference_fe_geo()
+    reference_fe_geo => cell%get_reference_fe()
 	call this%triangulation%free_cell_iterator(cell)
 	
-	 if (this%triangulation%get_num_dimensions() == 3 ) then 
+	 if (this%triangulation%get_num_dims() == 3 ) then 
 	   if ( reference_fe_geo%get_topology() == topology_tet ) then
 	   allocate ( tet_Hcurl_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
 	   elseif ( reference_fe_geo%get_topology() == topology_hex ) then 
@@ -245,32 +242,21 @@ end subroutine free_timers
   subroutine setup_fe_space(this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
-		    
-	call this%maxwell_conditions%set_num_dimensions(this%triangulation%get_num_dimensions())
+	
+	call this%maxwell_conditions%set_num_dims(this%triangulation%get_num_dims())
     call this%fe_space%create( triangulation       = this%triangulation,      &
                                reference_fes       = this%reference_fes,      &
                                coarse_fe_handlers  = this%coarse_fe_handlers, & 
 							   conditions          = this%maxwell_conditions  )
     
-    call this%fe_space%initialize_fe_integration()
-	call this%fe_space%initialize_fe_face_integration() 
-    
-	! Set-up fe_space with Dirichlet boundary conditions  
-    call this%maxwell_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-	call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
-	call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
-	if ( this%triangulation%get_num_dimensions() == 3) then 
-	call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
-	end if 
-	
-	call this%fe_space%project_dirichlet_values_curl_conforming(this%maxwell_conditions) 
-
+    call this%fe_space%set_up_cell_integration()
+    call this%fe_space%set_up_facet_integration()   
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
-    
+    	
     call this%maxwell_integration%set_analytical_functions(this%maxwell_analytical_functions)
     
     ! if (test_single_scalar_valued_reference_fe) then
@@ -280,6 +266,19 @@ end subroutine free_timers
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%maxwell_integration )
+	
+	! Set-up solution with Dirichlet boundary conditions  
+ call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+	call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
+	call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
+	if ( this%triangulation%get_num_dims() == 3) then 
+	call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
+	end if 
+	
+	call this%solution%create(this%fe_space)
+	call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
+	call this%maxwell_integration%set_fe_function(this%solution)
+	
   end subroutine setup_system
   
   subroutine setup_solver (this)
@@ -291,6 +290,8 @@ end subroutine free_timers
     integer(ip) :: ilev
     integer(ip) :: iparm(64)
 
+	   call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+		
 !#ifdef ENABLE_MKL  
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
@@ -335,7 +336,6 @@ end subroutine free_timers
 
 !#ifdef ENABLE_MKL   
     ! Set-up MLBDDC preconditioner
-	call this%fe_space%setup_coarse_fe_space(this%parameter_list)
 	select type ( ch=> this%coarse_fe_handler ) 
 	class is ( Hcurl_l1_coarse_fe_handler_t ) 
 	call this%coarse_fe_handler%compute_change_basis_matrix( this%fe_space ) 
@@ -374,14 +374,14 @@ end subroutine free_timers
     matrix             => this%fe_affine_operator%get_matrix()
     
     !select type(matrix)
-    !class is (sparse_matrix_t)  
+    !class is (par_sparse_matrix_t)  
     !   call matrix%print_matrix_market(6) 
     !class DEFAULT
     !   assert(.false.) 
     !end select
     
     !select type(rhs)
-    !class is (serial_scalar_array_t)  
+    !class is (par_scalar_array_t)  
     !   call rhs%print(6) 
     !class DEFAULT
     !   assert(.false.) 
@@ -398,9 +398,8 @@ end subroutine free_timers
 
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-                                            dof_values)
+    dof_values => this%solution%get_free_dof_values()
+    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
     
     !select type (dof_values)
     !class is (par_scalar_array_t)  
@@ -447,10 +446,8 @@ end subroutine free_timers
   
   subroutine write_solution(this)
     implicit none
-    class(par_test_maxwell_fe_driver_t), intent(in) :: this
-    type(output_handler_t)                          :: oh
-	
-	class(fe_iterator_t)              , allocatable    :: fe
+    class(par_test_maxwell_fe_driver_t), intent(in)    :: this
+    type(output_handler_t)                             :: oh	
 	real(rp), allocatable                              :: set_id_cell_vector(:)
 	integer(ip)                                        :: i, istat
 	
@@ -505,8 +502,6 @@ end subroutine free_timers
     call this%timer_solver_setup%start()
     call this%setup_solver()
     call this%timer_solver_setup%stop()
-
-    call this%solution%create(this%fe_space) 
 
     call this%timer_solver_run%start()
     call this%solve_system()

@@ -43,10 +43,10 @@ mc_max_sub_faces = 0;
 mc_num_sub_cells_per_case = zeros(mc_ncases,1);
 mc_num_sub_faces_per_case = zeros(mc_ncases,1);
 mc_subcells_per_case_aux = cell(mc_ncases,1);
-mc_subfaces_per_case_aux = cell(mc_ncases,1);
+mc_subfacets_per_case_aux = cell(mc_ncases,1);
 mc_inout_subcells_per_case_aux = cell(mc_ncases,1);
 mc_num_nodes_per_subcell = 4;
-mc_num_nodes_per_subface = 3;
+mc_num_nodes_per_subfacet = 3;
 mc_num_cut_edges_per_case = zeros(mc_ncases,1);
 
 icase = 1;
@@ -137,7 +137,7 @@ for n1 = 1:2
                                 mc_num_sub_faces_per_case(icase) = num_sub_faces;
                                 mc_subcells_per_case_aux{icase} = Ttris;
                                 mc_inout_subcells_per_case_aux{icase} = Ptris;
-                                mc_subfaces_per_case_aux{icase} = Ttris_faces;
+                                mc_subfacets_per_case_aux{icase} = Ttris_faces;
                                 
                                 if size(Xtris,1)-size(Xe,1) < 0
                                     mc_num_cut_edges_per_case(icase) = 0;
@@ -171,11 +171,11 @@ end
 mc_max_num_cut_edges = max(mc_num_cut_edges_per_case);
 
 % Transform cells to arrays, now that we know the maximum number of
-% subfaces
-mc_subfaces_per_case = zeros(mc_ncases,mc_max_sub_faces,mc_num_nodes_per_subface);
+% subfacets
+mc_subfacets_per_case = zeros(mc_ncases,mc_max_sub_faces,mc_num_nodes_per_subfacet);
 for icase = 1:mc_ncases
     N = mc_num_sub_faces_per_case(icase);
-    mc_subfaces_per_case(icase,1:N,:) = mc_subfaces_per_case_aux{icase};
+    mc_subfacets_per_case(icase,1:N,:) = mc_subfacets_per_case_aux{icase};
 end
 
 
@@ -183,7 +183,7 @@ elem_type = 'HEX8';
 file_name = '../mc_tables_hex8.i90';
 write_i90_file(file_name, mc_ncases, mc_max_sub_cells, mc_max_num_cut_edges, ...
     mc_num_sub_cells_per_case, mc_subcells_per_case, mc_inout_subcells_per_case,...
-    mc_num_nodes_per_subcell,mc_num_cut_edges_per_case,elem_type,mc_num_nodes_per_subface,...
-    mc_max_sub_faces,mc_num_sub_faces_per_case,mc_subfaces_per_case);
+    mc_num_nodes_per_subcell,mc_num_cut_edges_per_case,elem_type,mc_num_nodes_per_subfacet,...
+    mc_max_sub_faces,mc_num_sub_faces_per_case,mc_subfacets_per_case);
 disp('Table for HEX8 done!')
 

@@ -299,25 +299,25 @@ contains
         real(rp),                       intent(inout) :: y(:, :)
         class(base_sparse_matrix_t), pointer          :: matrix
         real(rp),                    pointer          :: val(:)
-        integer(ip)                                   :: number_rows
-        integer(ip)                                   :: number_rhs
+        integer(ip)                                   :: num_rows
+        integer(ip)                                   :: num_rhs
         integer(ip)                                   :: status
         integer(ip)                                   :: i
     !-----------------------------------------------------------------
 #ifdef ENABLE_UMFPACK
         assert ( .not. op%matrix%get_symmetric_storage() )
         matrix      => op%matrix%get_pointer_to_base_matrix()
-        number_rows = size(x,1)
-        number_rhs  = size(x,2)
+        num_rows = size(x,1)
+        num_rhs  = size(x,2)
         select type (matrix)
             type is (csr_sparse_matrix_t)
-                assert(matrix%get_num_rows()==number_rows .and. size(y,1) == number_rows)
-                assert(size(y,2) == number_rhs)
+                assert(matrix%get_num_rows()==num_rows .and. size(y,1) == num_rows)
+                assert(size(y,2) == num_rhs)
                 ! Fortran to C numbering 
                 call op%Fortran_to_C_numbering()
                 val => matrix%get_val()
 
-                do i=1, number_rhs
+                do i=1, num_rhs
                     ! Solve the linear system.
                     status = umfpack_di_solve ( UMFPACK_At, &        !< A'x=b
                                                 matrix%get_irp(), &  !< Transposed CSC column (CSR rows) pointers

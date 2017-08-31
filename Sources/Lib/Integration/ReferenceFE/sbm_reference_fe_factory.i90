@@ -29,10 +29,10 @@
   ! We should have a generic interface with two differents overloads, one for
   ! isotropic order (i.e., order would be a scalar) and another one for 
   ! anistropic order (i.e., order would be a SPACE_DIM array)
-  function make_reference_fe ( topology, fe_type, number_dimensions, order, field_type, conformity, continuity )
+  function make_reference_fe ( topology, fe_type, num_dims, order, field_type, conformity, continuity )
     implicit none 
     character(*)          , intent(in) :: topology, fe_type
-    integer(ip)           , intent(in) :: number_dimensions, order
+    integer(ip)           , intent(in) :: num_dims, order
     character(*)          , intent(in) :: field_type
     logical               , intent(in) :: conformity
     logical , optional    , intent(in) :: continuity
@@ -65,7 +65,7 @@
     else if ( fe_type == fe_type_void ) then
        allocate ( void_reference_fe_t :: make_reference_fe%p )
     end if
-    call make_reference_fe%p%create( topology, number_dimensions, order, field_type, conformity, continuity )
+    call make_reference_fe%p%create( topology, num_dims, order, field_type, conformity, continuity )
   
   end function make_reference_fe
 

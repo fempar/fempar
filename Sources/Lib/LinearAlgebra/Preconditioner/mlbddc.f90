@@ -34,7 +34,7 @@ module mlbddc_names
  use FPL
  
  ! Integration related modules
- use base_static_triangulation_names
+ use triangulation_names
  use fe_space_names
  use fe_affine_operator_names
  

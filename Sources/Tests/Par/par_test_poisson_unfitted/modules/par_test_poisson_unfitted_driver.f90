@@ -192,15 +192,15 @@ end subroutine free_timers
     type(level_set_function_factory_t) :: level_set_factory
 
     ! Get number of dimensions form input
-    assert( this%parameter_list%isPresent    (key = number_of_dimensions_key) )
-    assert( this%parameter_list%isAssignable (key = number_of_dimensions_key, value=num_dime) )
-    istat = this%parameter_list%get          (key = number_of_dimensions_key, value=num_dime); check(istat==0)
+    assert( this%parameter_list%isPresent    (key = num_dims_key) )
+    assert( this%parameter_list%isAssignable (key = num_dims_key, value=num_dime) )
+    istat = this%parameter_list%get          (key = num_dims_key, value=num_dime); check(istat==0)
 
     ! Create the desired type of level set function
     call level_set_factory%create(this%test_params%get_level_set_function_type(), this%level_set_function)
 
     ! Set options of the base class
-    call this%level_set_function%set_num_dimensions(num_dime)
+    call this%level_set_function%set_num_dims(num_dime)
     call this%level_set_function%set_tolerance(this%test_params%get_levelset_tolerance())
 
     ! Set options of the derived classes
@@ -239,13 +239,13 @@ end subroutine free_timers
 
     real(rp), parameter :: domain(6) = [-1,1,-1,1,-1,1]
 
-    type(vef_iterator_t)  :: vef
+    class(vef_iterator_t), allocatable  :: vef
     integer(ip) :: inode
 
     type(point_t), allocatable :: coords(:)
     real(rp) :: resu
     integer(ip) :: ivef
-    class(lagrangian_reference_fe_t), pointer :: ref_elem_geo
+    class(reference_fe_t), pointer :: ref_elem_geo
     type(list_iterator_t)          :: own_dofs_on_vef_iterator
     logical                        :: found_interior_vertex
     real(rp)                       :: num_blocked_vertex
@@ -268,7 +268,7 @@ end subroutine free_timers
           else
             set_id = PAR_POISSON_UNFITTED_SET_ID_FULL
           end if
-          this%cell_set_ids(cell%get_lid()) = set_id
+          this%cell_set_ids(cell%get_gid()) = set_id
         end if
         call cell%next()
       end do
@@ -299,12 +299,12 @@ end subroutine free_timers
     found_interior_vertex = .false.
     if (this%test_params%get_unfitted_boundary_type() == 'neumann' .and. this%par_environment%am_i_l1_task()) then
 
-      allocate(coords(this%triangulation%get_max_number_shape_functions()),stat = istat); check(istat == 0)
+      allocate(coords(this%triangulation%get_max_num_shape_functions()),stat = istat); check(istat == 0)
       call this%triangulation%create_cell_iterator(cell)
       do while( .not. cell%has_finished() )
         if (cell%is_local()) then
-          call cell%get_coordinates(coords)
-          ref_elem_geo => cell%get_reference_fe_geo()
+          call cell%get_nodes_coordinates(coords)
+          ref_elem_geo => cell%get_reference_fe()
           do ivef = 1, cell%get_num_vefs()
             call cell%get_vef(ivef,vef)
             if (vef%is_at_interface()) cycle
@@ -346,17 +346,17 @@ end subroutine free_timers
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     class(cell_iterator_t), allocatable       :: cell
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    class(reference_fe_t), pointer :: reference_fe_geo
     
     allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
-      reference_fe_geo => cell%get_reference_fe_geo()
+      reference_fe_geo => cell%get_reference_fe()
       this%reference_fes(PAR_POISSON_UNFITTED_SET_ID_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
-                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                   num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
                                                    conformity = .true., &
@@ -364,7 +364,7 @@ end subroutine free_timers
 
       this%reference_fes(PAR_POISSON_UNFITTED_SET_ID_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_void, &
-                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                   num_dims = this%triangulation%get_num_dims(), &
                                                    order = -1, &
                                                    field_type = field_type_scalar, &
                                                    conformity = .true., &
@@ -400,19 +400,18 @@ end subroutine free_timers
     set_ids_to_reference_fes(1,PAR_POISSON_UNFITTED_SET_ID_FULL) = PAR_POISSON_UNFITTED_SET_ID_FULL
     set_ids_to_reference_fes(1,PAR_POISSON_UNFITTED_SET_ID_VOID) = PAR_POISSON_UNFITTED_SET_ID_VOID
     
+    call this%poisson_unfitted_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+    call this%poisson_unfitted_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
+    call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
+    
     call this%fe_space%create( triangulation            = this%triangulation, &
                                reference_fes            = this%reference_fes, &
                                set_ids_to_reference_fes = set_ids_to_reference_fes, &
                                coarse_fe_handlers       = this%l1_coarse_fe_handlers, &
                                conditions               = this%poisson_unfitted_conditions )
     
-    !call this%fe_space%fill_dof_info() 
-    call this%fe_space%initialize_fe_integration()
-    
-    call this%poisson_unfitted_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%poisson_unfitted_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
-    call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
-    call this%fe_space%interpolate_dirichlet_values(this%poisson_unfitted_conditions)    
+    !call this%fe_space%generate_global_dof_numbering() 
+    call this%fe_space%set_up_cell_integration()
     !call this%fe_space%print()
   end subroutine setup_fe_space
   
@@ -420,7 +419,6 @@ end subroutine free_timers
   subroutine setup_system (this)
     implicit none
     class(par_test_poisson_unfitted_fe_driver_t), intent(inout) :: this
-
     
     call this%poisson_unfitted_integration%set_analytical_functions(this%poisson_unfitted_analytical_functions)
     call this%poisson_unfitted_integration%set_test_params(this%test_params)
@@ -433,6 +431,9 @@ end subroutine free_timers
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%poisson_unfitted_integration )
 
+    call this%solution%create(this%fe_space) 
+    call this%fe_space%interpolate_dirichlet_values(this%solution)    
+    call this%poisson_unfitted_integration%set_fe_function(this%solution)
 
   end subroutine setup_system
 
@@ -588,7 +589,7 @@ end subroutine free_timers
 
       num_total_cells  = real(this%triangulation%get_num_local_cells(),kind=rp)
       num_active_cells = real(count( this%cell_set_ids(:) == PAR_POISSON_UNFITTED_SET_ID_FULL ),kind=rp)
-      num_dofs         = real(this%fe_space%get_field_number_dofs(1),kind=rp)
+      num_dofs         = real(this%fe_space%get_field_num_dofs(1),kind=rp)
 
       call environment%l1_sum(num_total_cells )
       call environment%l1_sum(num_active_cells)
@@ -608,7 +609,7 @@ end subroutine free_timers
     if (this%test_params%get_use_preconditioner()) then
       if (environment%am_i_lgt1_task()) then
         coarse_fe_space => this%fe_space%get_coarse_fe_space()
-        num_coarse_dofs = coarse_fe_space%get_field_number_dofs(1)
+        num_coarse_dofs = coarse_fe_space%get_field_num_dofs(1)
         write(*,'(a,i22)') 'num_coarse_dofs:  ', num_coarse_dofs
       end if
     end if
@@ -626,7 +627,7 @@ end subroutine free_timers
 
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_dof_values()
+    dof_values => this%solution%get_free_dof_values()
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)
     
@@ -792,7 +793,6 @@ end subroutine free_timers
 
     call this%timer_solver_total%start()
     call this%setup_solver()
-    call this%solution%create(this%fe_space) 
     call this%solve_system()
     call this%timer_solver_total%stop()
 

@@ -33,9 +33,9 @@ subroutine base_map_free( this )
   class(base_map_t), intent(inout) :: this
   if(allocated(this%jacobian)) call memfree(this%jacobian,__FILE__,__LINE__)
   if(allocated(this%det_jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
-  if(allocated(this%coordinates_quadrature)) deallocate(this%coordinates_quadrature)
-  if(allocated(this%coordinates_nodes)) deallocate(this%coordinates_nodes)
-  call this%interpolation_geometry%free()
+  if(allocated(this%quadrature_points_coordinates)) deallocate(this%quadrature_points_coordinates)
+  if(allocated(this%nodes_coordinates)) deallocate(this%nodes_coordinates)
+  call this%interpolation%free()
 end subroutine base_map_free
 
 !==================================================================================================
@@ -43,8 +43,8 @@ subroutine base_map_update_interpolation( this, quadrature, reference_fe_geometr
   implicit none
   class(base_map_t)               , intent(inout) :: this
   type(quadrature_t)              , intent(in)    :: quadrature
-  class(lagrangian_reference_fe_t), intent(in)    :: reference_fe_geometry
-  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation_geometry )
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
+  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation )
 end subroutine base_map_update_interpolation
 
 !==================================================================================================
@@ -52,7 +52,7 @@ function base_map_get_coordinates(this)
   implicit none
   class(base_map_t)   , target, intent(in) :: this
   type(point_t), pointer :: base_map_get_coordinates(:)
-  base_map_get_coordinates => this%coordinates_nodes
+  base_map_get_coordinates => this%nodes_coordinates
 end function base_map_get_coordinates
 
 !==================================================================================================
@@ -60,32 +60,24 @@ function base_map_get_quadrature_points_coordinates(this)
   implicit none
   class(base_map_t)   , target, intent(in) :: this
   type(point_t), pointer :: base_map_get_quadrature_points_coordinates(:)
-  base_map_get_quadrature_points_coordinates => this%coordinates_quadrature
+  base_map_get_quadrature_points_coordinates => this%quadrature_points_coordinates
 end function base_map_get_quadrature_points_coordinates
 
 !==================================================================================================
-function base_map_get_quadrature_coordinates(this)
-  implicit none
-  class(base_map_t)   , target, intent(in) :: this
-  type(point_t), pointer :: base_map_get_quadrature_coordinates(:)
-  base_map_get_quadrature_coordinates => this%coordinates_quadrature
-end function base_map_get_quadrature_coordinates
-
-!==================================================================================================
-subroutine base_map_compute_quadrature_coordinates(this)
+subroutine base_map_compute_quadrature_points_coordinates(this)
   implicit none
   class(base_map_t), intent(inout) :: this
   integer(ip)   :: qpoin,inode,nnode,nquad
-  nnode = this%interpolation_geometry%number_shape_functions
-  nquad = this%number_quadrature_points
+  nnode = this%interpolation%num_shape_functions
+  nquad = this%num_quadrature_points
   do qpoin = 1,nquad
-     call this%coordinates_quadrature(qpoin)%init(0.0_rp)
+     call this%quadrature_points_coordinates(qpoin)%init(0.0_rp)
      do inode=1,nnode
-        this%coordinates_quadrature(qpoin) = this%coordinates_quadrature(qpoin) + &
-             & this%coordinates_nodes(inode) * this%interpolation_geometry%shape_functions(1,inode,qpoin)
+        this%quadrature_points_coordinates(qpoin) = this%quadrature_points_coordinates(qpoin) + &
+             & this%nodes_coordinates(inode) * this%interpolation%shape_functions(1,inode,qpoin)
      end do
   end do
-end subroutine base_map_compute_quadrature_coordinates
+end subroutine base_map_compute_quadrature_points_coordinates
 
 !==================================================================================================
 function base_map_get_det_jacobian ( this, i )
@@ -115,7 +107,7 @@ subroutine base_map_get_jacobian_column ( this, column_id, qpoint, column )
   integer(ip) :: idime
   
   call column%init(0.0_rp)
-  do idime=1, this%number_dimensions
+  do idime=1, this%num_dims
     call column%set(idime, this%jacobian(idime, column_id, qpoint))
   end do
 
