@@ -40,19 +40,19 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
   
-  integer(ip)                            :: ivef_within_cell
-  integer(ip)                            :: ivef_within_object
-  integer(ip)                            :: icell_around
-  integer(ip)                            :: idof, dof_lid
-  logical                                :: dofs_on_vef
-  type(environment_t), pointer           :: par_environment
-  type(fe_object_iterator_t)             :: object
-  type(fe_vef_iterator_t)                :: vef
-  class(fe_cell_iterator_t), allocatable      :: fe
-  class(reference_fe_t), pointer         :: reference_fe
-  type(list_iterator_t)                  :: own_dofs_on_vef_iterator
-  integer(ip), pointer                   :: fe_dofs(:)
-  logical                                :: use_vertices, use_edges, use_faces
+  integer(ip)                             :: ivef_within_cell
+  integer(ip)                             :: ivef_within_object
+  integer(ip)                             :: icell_around
+  integer(ip)                             :: idof, dof_lid
+  logical                                 :: dofs_on_vef
+  type(environment_t), pointer            :: par_environment
+  type(fe_object_iterator_t)              :: object
+  type(fe_vef_iterator_t)                 :: vef
+  class(fe_cell_iterator_t), allocatable  :: fe
+  class(reference_fe_t), pointer          :: reference_fe
+  type(list_iterator_t)                   :: own_dofs_on_vef_iterator
+  integer(ip), pointer                    :: fe_dofs(:)
+  logical                                 :: use_vertices, use_edges, use_faces
   
   par_environment => par_fe_space%get_environment()
   assert ( associated ( par_environment ) )
@@ -126,15 +126,6 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
   call par_fe_space%free_fe_cell_iterator(fe)
   call par_fe_space%free_fe_object_iterator(object)
 end subroutine standard_l1_get_num_coarse_dofs
-
-subroutine standard_l1_renum_interface_dofs_first_E_then_Ec(this, par_fe_space, iblock, perm_old2new)
-implicit none 
-  class(standard_l1_coarse_fe_handler_t), intent(inout) :: this
-  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  integer(ip)                           , intent(in)    :: iblock 
-  integer(ip), allocatable              , intent(inout) :: perm_old2new(:)
-  ! The renumbering is not needed in the general case: do-nothing   
-end subroutine standard_l1_renum_interface_dofs_first_E_then_Ec
 
 subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
   implicit none

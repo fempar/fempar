@@ -278,7 +278,7 @@ end subroutine free_timers
 	call this%solution%create(this%fe_space)
 	call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
 	call this%maxwell_integration%set_fe_function(this%solution)
-	
+		
   end subroutine setup_system
   
   subroutine setup_solver (this)
@@ -290,6 +290,11 @@ end subroutine free_timers
     integer(ip) :: ilev
     integer(ip) :: iparm(64)
 
+	select type ( ch=> this%coarse_fe_handler ) 
+	class is ( Hcurl_l1_coarse_fe_handler_t ) 
+	call this%coarse_fe_handler%compute_change_basis_matrix( this%fe_space ) 
+	end select 
+	
 	   call this%fe_space%setup_coarse_fe_space(this%parameter_list)
 		
 !#ifdef ENABLE_MKL  
@@ -336,11 +341,6 @@ end subroutine free_timers
 
 !#ifdef ENABLE_MKL   
     ! Set-up MLBDDC preconditioner
-	select type ( ch=> this%coarse_fe_handler ) 
-	class is ( Hcurl_l1_coarse_fe_handler_t ) 
-	call this%coarse_fe_handler%compute_change_basis_matrix( this%fe_space ) 
-	end select 
-
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
