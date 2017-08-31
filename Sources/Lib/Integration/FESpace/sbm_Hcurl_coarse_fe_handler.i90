@@ -2146,6 +2146,14 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
   integer(ip)              :: total_num_subedges, isubedge
   integer(ip)              :: offcomponent_fine_edges, num_fine_edges
 
+		! Dofs on vef checker 
+		type(list_iterator_t)        :: own_dofs_on_vef_iterator
+		integer(ip)                  :: idof, field_id           
+		integer(ip), pointer         :: fe_dofs(:)
+		logical                      :: dofs_on_vef 
+		
+		field_id = 1
+		
   call par_fe_space%create_fe_cell_iterator(fe)
   call par_fe_space%create_fe_object_iterator(object)
   call par_fe_space%create_fe_vef_iterator(vef_within_object)
@@ -2178,10 +2186,30 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
 		call edge_interior_vertices(iedge_coarse)%init(100)
         do ivef_within_object=1, object%get_num_vefs()
            call object%get_vef(ivef_within_object, vef_within_object)
-		   if ( vef_within_object%get_dim() == 0 ) then  
-		      call edge_interior_vertices(iedge_coarse)%put( key=vef_within_object%get_gid(), val=1, stat=istat); check(istat==now_stored)
-           elseif ( vef_within_object%get_dim() == 1 .and. (.not. vef_within_object%is_at_boundary() ) ) then  
+		      if ( vef_within_object%get_dim() == 0 ) then  
+		           call edge_interior_vertices(iedge_coarse)%put( key=vef_within_object%get_gid(), val=1, stat=istat); check(istat==now_stored)
+								     								
+           elseif ( vef_within_object%get_dim() == 1 ) then   
+											
+											 call vef_within_object%get_cell_around(1,fe)
+												call fe%get_field_fe_dofs(field_id, fe_dofs)
+								    ivef_within_cell         = fe%get_vef_lid_from_gid(vef_within_object%get_gid())
+								    own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+												
+												  dofs_on_vef = .false. 
+												  do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                 idof    = own_dofs_on_vef_iterator%get_current()
+                 if ( fe_dofs(idof) > 0 ) then
+                    dofs_on_vef = .true.
+                    exit
+                 end if
+                 call own_dofs_on_vef_iterator%next()
+              end do
+												
+												if ( dofs_on_vef ) then
               num_fine_edges_x_coarse_edge( iedge_coarse ) = num_fine_edges_x_coarse_edge( iedge_coarse ) + 1
+												end if 
+												
            end if
         end do
      end if
@@ -2216,7 +2244,25 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
         iedge_fine = 0
         do ivef_within_object=1, object%get_num_vefs()
            call object%get_vef(ivef_within_object, vef_within_object)
-           if ( vef_within_object%get_dim() == 1 .and. (.not. vef_within_object%is_at_boundary() ) ) then
+           if ( vef_within_object%get_dim() == 1 ) then
+											
+												call vef_within_object%get_cell_around(1,fe)
+												call fe%get_field_fe_dofs(field_id, fe_dofs)
+								    ivef_within_cell         = fe%get_vef_lid_from_gid(vef_within_object%get_gid())
+								    own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+												
+												  dofs_on_vef = .false. 
+												  do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                 idof    = own_dofs_on_vef_iterator%get_current()
+                 if ( fe_dofs(idof) > 0 ) then
+                    dofs_on_vef = .true.
+                    exit
+                 end if
+                 call own_dofs_on_vef_iterator%next()
+              end do
+												
+												if ( dofs_on_vef ) then
+
               iedge_fine = iedge_fine + 1
               fine_edges_list(iedge_coarse, iedge_fine) = vef_within_object%get_gid() 
 
@@ -2251,6 +2297,7 @@ subroutine Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges( this, p
                  call vertices_of_line_iterator%next() 
               end do
 
+														end if 
            end if
         end do
 		
