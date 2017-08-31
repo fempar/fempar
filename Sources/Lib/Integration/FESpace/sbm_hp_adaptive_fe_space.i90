@@ -678,8 +678,8 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   integer(ip) :: improper_vef_lid
   integer(ip) :: block_id, field_id
   class(reference_fe_t), pointer :: reference_fe, coarser_reference_fe
-  type(i1p_t), allocatable :: fe_dofs(:), coarser_fe_fe_dofs(:)
-  integer(ip) :: istat, i
+  integer(ip), pointer :: fe_dofs(:), coarser_fe_fe_dofs(:)
+  integer(ip) :: istat, i, icell
   integer(ip) :: improper_dof_lid, hanging_dof_lid
   integer(ip) :: improper_vef_ivef, coarser_fe_ivef, coarse_fe_subvef
   integer(ip), pointer :: field_blocks(:)
@@ -722,25 +722,35 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
 
   ! Computation of constraints     
   do improper_vef_lid = 1, this%p4est_triangulation%get_num_improper_vefs()
-     ! Retrieve all data related to the current improper vef 
-     ! and one of the cells that owns it
      call fe_vef%set_gid(-improper_vef_lid)
-     call fe_vef%get_cell_around(1,fe)
-     improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
-     call fe%get_fe_dofs(fe_dofs)
-
-     ! Retrieve all data related to the first improper cell around current improper vef
-     call fe_vef%get_improper_cell_around(1,coarser_fe)
-     call coarser_fe%get_fe_dofs(coarser_fe_fe_dofs)
-     coarser_fe_ivef = fe_vef%get_improper_cell_around_ivef()
 
      do field_id=1, this%get_num_fields()
+        
+        ! Retrieve all data related to the current improper vef 
+        ! and one of the cells that owns it
+        do icell = 1,fe_vef%get_num_cells_around()
+           call fe_vef%get_cell_around(icell,fe)
+           if ( .not. fe%is_void(field_id) ) exit
+        end do
+        if ( fe%is_void(field_id) ) cycle
+        improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
+        call fe%get_field_fe_dofs(field_id,fe_dofs)
+        
+        ! Retrieve all data related to the first improper cell around current improper vef
+        do icell = 1,fe_vef%get_num_improper_cells_around()
+           call fe_vef%get_improper_cell_around(icell,coarser_fe)
+           if ( .not. coarser_fe%is_void(field_id) ) exit
+        end do
+        if ( coarser_fe%is_void(field_id) ) cycle
+        coarser_fe_ivef = fe_vef%get_improper_cell_around_ivef()
+        call coarser_fe%get_field_fe_dofs(field_id,coarser_fe_fe_dofs)
+        
         reference_fe => fe%get_reference_fe(field_id)
         coarser_reference_fe  => coarser_fe%get_reference_fe(field_id)
         block_id = field_blocks(field_id)
         fe_own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(improper_vef_ivef)
         do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
-           improper_dof_lid = fe_dofs(field_id)%p(fe_own_dofs_on_vef_iterator%get_current())
+           improper_dof_lid = fe_dofs(fe_own_dofs_on_vef_iterator%get_current())
 
            if ( fe%is_free_dof(improper_dof_lid) ) exit
 
@@ -749,7 +759,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
 
            coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
            do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
-              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(field_id)%p(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
+              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
                 call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, &
                                                               this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+1)
               else
@@ -773,26 +783,30 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
     
   ! Computation of constraints     
   do improper_vef_lid = 1, this%p4est_triangulation%get_num_improper_vefs()
-     ! Retrieve all data related to the current improper vef 
-     ! and one of the cells that owns it
      call fe_vef%set_gid(-improper_vef_lid)
-     call fe_vef%get_cell_around(1,fe)
-     improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
-     call fe%get_fe_dofs(fe_dofs)
-
-     mcheck( this%p4est_triangulation%get_num_dims()==2 , 'The following code only valid for 2d cases' )
-     ! Here we need to find the first non-void coarser_fe in this field. In 2d, the first non-void coarser_fe is always the first
-     ! one (if it exists). But this is not true in 3d. Thus, taking the first coarser_fe in the next line is correct only in 2d.
-
-     ! Retrieve all data related to the first improper cell around current improper vef
-     call fe_vef%get_improper_cell_around(1,coarser_fe)
-     call coarser_fe%get_fe_dofs(coarser_fe_fe_dofs)
-     coarser_fe_ivef  = fe_vef%get_improper_cell_around_ivef()
-     coarse_fe_subvef = fe_vef%get_improper_cell_around_subvef()
-     call coarser_fe%get_vef(coarser_fe_ivef,coarser_vef)
 
      do field_id=1, this%get_num_fields()
-        if ( coarser_fe%is_void(field_id)) cycle
+        
+        ! Retrieve all data related to the current improper vef 
+        ! and one of the cells that owns it
+        do icell = 1,fe_vef%get_num_cells_around()
+           call fe_vef%get_cell_around(icell,fe)
+           if ( .not. fe%is_void(field_id) ) exit
+        end do
+        if ( fe%is_void(field_id) ) cycle
+        improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
+        call fe%get_field_fe_dofs(field_id,fe_dofs)
+        
+        ! Retrieve all data related to the first improper cell around current improper vef
+        do icell = 1,fe_vef%get_num_improper_cells_around()
+           call fe_vef%get_improper_cell_around(icell,coarser_fe)
+           if ( .not. coarser_fe%is_void(field_id) ) exit
+        end do
+        if ( coarser_fe%is_void(field_id) ) cycle
+        coarser_fe_ivef  = fe_vef%get_improper_cell_around_ivef()
+        coarse_fe_subvef = fe_vef%get_improper_cell_around_subvef()
+        call coarser_fe%get_field_fe_dofs(field_id,coarser_fe_fe_dofs)
+        call coarser_fe%get_vef(coarser_fe_ivef,coarser_vef)
 
         reference_fe => fe%get_reference_fe(field_id)
         coarser_reference_fe => coarser_fe%get_reference_fe(field_id)
@@ -810,7 +824,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
         fe_dofs_on_vef_iterator = reference_fe%create_dofs_on_n_face_iterator(improper_vef_ivef)
         do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
            ishape_fe = fe_own_dofs_on_vef_iterator%get_current()
-           improper_dof_lid = fe_dofs(field_id)%p(ishape_fe)
+           improper_dof_lid = fe_dofs(ishape_fe)
            assert ( fe%is_fixed_dof(improper_dof_lid) )
            improper_dof_lid = abs(improper_dof_lid)
            hanging_dof_lid  = improper_dof_lid - this%num_dirichlet_dofs
@@ -854,16 +868,16 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
               
               ! Set dependency and coefficient into the corresponding std_vector data structure
                             
-              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(field_id)%p(ishape_coarser_fe) ) ) then
+              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
                 call this%constraining_dirichlet_dofs%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
-                                                          coarser_fe_fe_dofs(field_id)%p(ishape_coarser_fe))
+                                                          coarser_fe_fe_dofs(ishape_coarser_fe))
                 call this%constraining_dirichlet_dofs_coefficients%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
                                                                        coefficient)
                 call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, &
                                                               this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
               else
                 call this%constraining_free_dofs%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
-                                                     coarser_fe_fe_dofs(field_id)%p(ishape_coarser_fe))
+                                                     coarser_fe_fe_dofs(ishape_coarser_fe))
                 call this%constraining_free_dofs_coefficients%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
                                                                   coefficient)
                 call this%ptr_constraining_free_dofs%set(hanging_dof_lid, &
