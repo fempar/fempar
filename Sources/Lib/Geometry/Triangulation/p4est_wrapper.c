@@ -336,6 +336,7 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
                                          p4est_locidx_t **quad_to_half, 
                                          p4est_locidx_t *quad_to_quad_by_edge,
                                          int8_t         *quad_to_edge,
+                                         p4est_locidx_t *quad_to_half_by_edge,
                                          p4est_locidx_t **quad_to_corner,
                                          p4est_qcoord_t *quadcoords,
                                          int8_t         *quadlevel ) 
@@ -364,8 +365,15 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
     quad_to_quad_by_edge[i] = -1;
     quad_to_edge[i] = -1;
   }
+  for(int i=0;i<2*(mesh->local_num_quadrants);i++)
+  {
+    quad_to_half_by_edge[i] = -1;
+  }
+
+
   edge_info.quad_to_quad_by_edge = quad_to_quad_by_edge;
   edge_info.quad_to_edge         = quad_to_edge;
+  edge_info.quad_to_half_by_edge = quad_to_half_by_edge;
   p8est_iterate(p8est, NULL, &edge_info, NULL, NULL,edge_callback, NULL);
 
   *quad_to_quad=mesh->quad_to_quad;
@@ -377,69 +385,142 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
 
 void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
 {
-  static int num_edges = 0;
   p8est_iter_edge_side_t * cells_around;
   edge_info_t *edge_info;
   p4est_locidx_t *quad_to_quad_by_edge;
   int8_t         *quad_to_edge;
+  p4est_locidx_t *quad_to_half_by_edge;
 
   int k;
-  p4est_locidx_t ineig[2], jneig[2];
-  int8_t ineig_iedge[2], jneig_jedge[2];
-  int visited[4];
-
-  for(int i=0;i<4;i++)  visited[i] =  0;
+  p4est_locidx_t ineig[4], jneig[4];
+  int8_t ineig_iedge[4], jneig_jedge[4];
+  
   for(int i=0;i<2;i++) ineig[i]   = -1;
   for(int i=0;i<2;i++) jneig[i]   = -1;
 
   P4EST_ASSERT( (info->sides.elem_count) <= 4 );
 
+  edge_info = (edge_info_t *) user_data;
+  quad_to_quad_by_edge = edge_info->quad_to_quad_by_edge;
+  quad_to_edge = edge_info->quad_to_edge;
+  quad_to_half_by_edge = edge_info->quad_to_half_by_edge;
+  
   cells_around = (p8est_iter_edge_side_t *) info->sides.array;
+  
+  // First treat boundary edges
+  if ( info->sides.elem_count == 1 || info->sides.elem_count == 2 )
+  {
+      for(int i=0;i<(info->sides.elem_count);i++)
+      {
+          if (cells_around[i].is_hanging)
+          {
+              ineig[0]       = cells_around[i].is.hanging.quadid[0];
+              ineig[1]       = cells_around[i].is.hanging.quadid[1];
+              ineig_iedge[0] = cells_around[i].edge;
+              quad_to_quad_by_edge[ 12*ineig[0] + ineig_iedge[0] ] = ineig[0];
+              quad_to_edge        [ 12*ineig[0] + ineig_iedge[0] ] = ineig_iedge[0];
+              quad_to_quad_by_edge[ 12*ineig[1] + ineig_iedge[0] ] = ineig[1];
+              quad_to_edge        [ 12*ineig[1] + ineig_iedge[0] ] = ineig_iedge[0];
+          }
+          else
+          {
+              ineig[0]       = cells_around[i].is.full.quadid;
+              ineig_iedge[0] = cells_around[i].edge;
+              quad_to_quad_by_edge[ 12*ineig[0] + ineig_iedge[0] ] = ineig[0];
+              quad_to_edge        [ 12*ineig[0] + ineig_iedge[0] ] = ineig_iedge[0];  
+          } 
+      }
+      return;
+  }
+  
   k=0;
   for(int i=0;i<(info->sides.elem_count);i++)
   {
-    P4EST_ASSERT( !(cells_around[i].is_hanging) );
-    if (! visited[i] )
+    if (cells_around[i].is_hanging)
     {
-      for(int j=0;j<(info->sides.elem_count);j++)
-      {
-        P4EST_ASSERT( !(cells_around[j].is_hanging) );
+      ineig[2*k]       = cells_around[i].is.hanging.quadid[0];
+      ineig[2*k+1]     = cells_around[i].is.hanging.quadid[1];
+      ineig_iedge[2*k] = cells_around[i].edge;
+    }
+    else
+    {
+      ineig[2*k]       = cells_around[i].is.full.quadid;
+      ineig_iedge[2*k] = cells_around[i].edge;
+    } 
+
+    for(int j=i;j<(info->sides.elem_count);j++)
+    {
         if ( (cells_around[i].faces[0] != cells_around[j].faces[0]) &&
              (cells_around[i].faces[0] != cells_around[j].faces[1]) &&
              (cells_around[i].faces[1] != cells_around[j].faces[0]) &&
              (cells_around[i].faces[1] != cells_around[j].faces[1]) )
         {
           P4EST_ASSERT(k<2);
-          ineig[k] = cells_around[i].is.full.quadid;
-          jneig[k] = cells_around[j].is.full.quadid;
-          ineig_iedge[k] = cells_around[i].edge;
-          jneig_jedge[k] = cells_around[j].edge;
+          if (cells_around[j].is_hanging)
+          {
+            jneig[2*k]       = cells_around[j].is.hanging.quadid[0];
+            jneig[2*k+1]     = cells_around[j].is.hanging.quadid[1];
+            jneig_jedge[2*k] = cells_around[j].edge;
+          }
+          else
+          {
+            jneig[2*k]       = cells_around[j].is.full.quadid;
+            jneig_jedge[2*k] = cells_around[j].edge;
+          } 
+          
+          if (cells_around[i].is_hanging && cells_around[j].is_hanging) 
+          {
+              // i side
+              quad_to_quad_by_edge[ 12*ineig[2*k]   + ineig_iedge[2*k] ] = jneig[2*k];
+              quad_to_edge        [ 12*ineig[2*k]   + ineig_iedge[2*k] ] = jneig_jedge[2*k];
+              quad_to_quad_by_edge[ 12*ineig[2*k+1] + ineig_iedge[2*k] ] = jneig[2*k+1];
+              quad_to_edge        [ 12*ineig[2*k+1] + ineig_iedge[2*k] ] = jneig_jedge[2*k];
+              
+              //j side
+              quad_to_quad_by_edge[ 12*jneig[2*k]   + jneig_jedge[2*k] ] = ineig[2*k];
+              quad_to_edge        [ 12*jneig[2*k]   + jneig_jedge[2*k] ] = ineig_iedge[2*k];
+              quad_to_quad_by_edge[ 12*jneig[2*k+1] + jneig_jedge[2*k] ] = ineig[2*k+1];
+              quad_to_edge        [ 12*jneig[2*k+1] + jneig_jedge[2*k] ] = ineig_iedge[2*k];
+          }
+          else if (! cells_around[i].is_hanging && cells_around[j].is_hanging) 
+          {
+              // i side
+              quad_to_quad_by_edge[ 12*ineig[2*k] + ineig_iedge[2*k] ] = ineig[2*k];
+              quad_to_edge        [ 12*ineig[2*k] + ineig_iedge[2*k] ] = jneig_jedge[2*k]-24;
+              quad_to_half_by_edge[ 2*ineig[2*k]                     ] = jneig[2*k];
+              quad_to_half_by_edge[ 2*ineig[2*k] +                 1 ] = jneig[2*k+1];
+              
+              //j side
+              quad_to_quad_by_edge[ 12*jneig[2*k]   + jneig_jedge[2*k] ] = ineig[2*k];
+              quad_to_edge        [ 12*jneig[2*k]   + jneig_jedge[2*k] ] = 24+ineig_iedge[2*k];
+              quad_to_quad_by_edge[ 12*jneig[2*k+1] + jneig_jedge[2*k] ] = ineig[2*k];
+              quad_to_edge        [ 12*jneig[2*k+1] + jneig_jedge[2*k] ] = 48+ineig_iedge[2*k];
+          }
+          else if (cells_around[i].is_hanging && !cells_around[j].is_hanging) 
+          {
+              // i side
+              quad_to_quad_by_edge[ 12*ineig[2*k]   + ineig_iedge[2*k] ] = jneig[2*k];
+              quad_to_edge        [ 12*ineig[2*k]   + ineig_iedge[2*k] ] = 24+jneig_jedge[2*k];
+              quad_to_quad_by_edge[ 12*ineig[2*k+1] + ineig_iedge[2*k] ] = jneig[2*k];
+              quad_to_edge        [ 12*ineig[2*k+1] + ineig_iedge[2*k] ] = 48+jneig_jedge[2*k];
+             
+              //j side
+              quad_to_quad_by_edge[ 12*jneig[2*k] + jneig_jedge[2*k] ] = jneig[2*k];
+              quad_to_edge        [ 12*jneig[2*k] + jneig_jedge[2*k] ] = ineig_iedge[2*k]-24;
+              quad_to_half_by_edge[ 2*jneig[2*k]                     ] = ineig[2*k];
+              quad_to_half_by_edge[ 2*jneig[2*k] +                 1 ] = ineig[2*k+1];
+          }   
+          else // !cells_around[i].is_hanging && !cells_around[j].is_hanging
+          {
+              quad_to_quad_by_edge[ 12*ineig[2*k] + ineig_iedge[2*k] ] = jneig[2*k];
+              quad_to_edge[ 12*ineig[2*k] + ineig_iedge[2*k] ] = jneig_jedge[2*k];
+              quad_to_quad_by_edge[ 12*jneig[2*k] + jneig_jedge[2*k] ] = ineig[2*k];
+              quad_to_edge[ 12*jneig[2*k] + jneig_jedge[2*k] ] = ineig_iedge[2*k];
+          }
           k++;
-          visited[j] = 1;
-          break;
         }
-      }
-      visited[i] = 1;
     }
   }
-
-  edge_info = (edge_info_t *) user_data;
-  quad_to_quad_by_edge = edge_info->quad_to_quad_by_edge;
-  quad_to_edge = edge_info->quad_to_edge;
-  for(int i=0;i<2;i++)
-  {
-    if (ineig[i] != -1)
-    {
-      quad_to_quad_by_edge[ 12*ineig[i] + ineig_iedge[i] ] = jneig[i];
-      quad_to_edge[ 12*ineig[i] + ineig_iedge[i] ] = jneig_jedge[i];
-    }
-    if (jneig[i] != -1)
-    {
-      quad_to_quad_by_edge[ 12*jneig[i] + jneig_jedge[i] ] = ineig[i];
-      quad_to_edge[ 12*jneig[i] + jneig_jedge[i] ] = ineig_iedge[i];
-    }
-  }
-
 }
 
 int refine_callback_2d(p4est_t * p4est,

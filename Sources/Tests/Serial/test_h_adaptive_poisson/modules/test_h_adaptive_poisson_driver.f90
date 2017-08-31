@@ -140,7 +140,7 @@ contains
     integer(ip) :: i
     
     call this%triangulation%create(this%parameter_list)
-    do i = 1,3
+    do i = 1,2
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%clear_refinement_and_coarsening_flags()
@@ -310,14 +310,12 @@ contains
       end do
       deallocate(coords,stat=istat); check(istat==0)
 
-    else if (this%triangulation%get_num_dims() == 3) then
-
+    else if (this%triangulation%get_num_dims() == 3) then    
       do while ( .not. cell%has_finished() )
-
-        if ( (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
+          if (cell%get_level() == 0) then
+          !if ( (cell%get_gid()==8) .or. (cell%get_level() == 0) )then
           call cell%set_for_refinement()
         end if
-
         call cell%next()
       end do
 
