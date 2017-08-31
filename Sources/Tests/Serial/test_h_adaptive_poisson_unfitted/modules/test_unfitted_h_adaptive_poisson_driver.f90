@@ -891,7 +891,8 @@ contains
   
   subroutine run_simulation(this) 
     implicit none
-    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this    
+    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
+    integer(ip) :: iounit
     call this%free()
     call this%parse_command_line_parameters()
     call this%setup_levelset()
@@ -911,6 +912,16 @@ contains
     
     ! Setup fe space and co for the new mesh 
     call this%setup_fe_space()
+    
+    !if (this%test_params%get_write_matrix()) then
+    !  iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
+    !  check(iounit>0)
+    !  write(iounit,'(a,e32.25)'   ) 'max_separation_from_root       ;', this%fe_space%get_max_separation_from_root()
+    !  call this%fe_space%debug_info%print(iounit)
+    !  call io_close(iounit)
+    !end if
+    
+    
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()

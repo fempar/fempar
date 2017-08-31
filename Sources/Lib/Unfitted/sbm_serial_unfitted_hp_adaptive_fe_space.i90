@@ -65,6 +65,7 @@ subroutine suhpafs_space_create_different_ref_fes_between_cells(&
   class default
     check(.false.)
   end select
+  call this%debug_info%init()
   call this%allocate_and_fill_aggregate_ids()
 end subroutine suhpafs_space_create_different_ref_fes_between_cells
 
@@ -79,6 +80,7 @@ subroutine suhpafs_free(this)
     call memfree(this%aggregate_ids,__FILE__,__LINE__)
   end if
   this%max_separation_from_root = -1.0_rp
+  call this%debug_info%free()
 end subroutine suhpafs_free
 
 !========================================================================================
@@ -389,6 +391,17 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
                                                       1,-1, 0, 0, 0, 0],[6,3])
   integer(ip), pointer :: face2dir(:,:)
 
+  ! Debug info
+  integer(ip) :: max_separation(3)
+  integer(ip) :: max_separation_aggr_id
+  integer(ip) :: istat
+  logical :: has_full_neig_along_dim(3)
+  logical :: cell_has_full_neig_along_dim(3)
+  integer(ip) :: i
+
+  max_separation(3) = 0
+  has_full_neig_along_dim(:) = .true.
+
   triangulation => this%get_triangulation()
   call memalloc(triangulation%get_num_local_cells(),this%aggregate_ids,__FILE__,__LINE__)
 
@@ -443,6 +456,21 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
       if (cell%is_local()) then
         if ( cell%is_cut() .and. (this%aggregate_ids(cell%get_gid()) == 0) ) then
 
+          ! This is only for info purposes. It can be uncommented if wished.
+          cell_has_full_neig_along_dim(:) = .false.
+          do ivef = 1, cell%get_num_vefs()
+            call cell%get_vef(ivef,vef)
+            do icell_arround = 1,vef%get_num_cells_around()
+              call vef%get_cell_around(icell_arround,cell_arround)
+              if (cell_arround%is_interior()) then
+                cell_has_full_neig_along_dim(vef%get_dim()+1) = .true.
+              end if
+            end do
+          end do
+          do i=1,triangulation%get_num_dims()
+           if (.not. cell_has_full_neig_along_dim(i)) has_full_neig_along_dim(i) = .false.
+          end do
+
           ! TODO: We try to glue only by true neighbors
           ! For adaptive meshes, shall we look for improper neighbors as well?
 
@@ -477,7 +505,11 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
           else
             this%aggregate_ids(cell%get_gid()) = min_distance_aggr_id
             distance(cell%get_gid(),:) = min_distance
-            this%max_separation_from_root = max(this%max_separation_from_root,norm2(real(min_distance,kind=rp)))
+            if (this%max_separation_from_root < norm2(real(min_distance,kind=rp))) then
+              this%max_separation_from_root = norm2(real(min_distance,kind=rp))
+              max_separation(1:triangulation%get_num_dims()) = min_distance(:)
+              max_separation_aggr_id = min_distance_aggr_id
+            end if
           end if
 
         end if
@@ -491,6 +523,15 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   call triangulation%free_cell_iterator(cell)
   call triangulation%free_cell_iterator(cell_arround)
   call triangulation%free_vef_iterator(vef)
+
+  ! Write info
+  istat = this%debug_info%set(key='max_separation_id',value=max_separation_aggr_id); check(istat==0)
+  istat = this%debug_info%set(key='max_separation_x',value=max_separation(1)); check(istat==0)
+  istat = this%debug_info%set(key='max_separation_y',value=max_separation(2)); check(istat==0)
+  istat = this%debug_info%set(key='max_separation_z',value=max_separation(3)); check(istat==0)
+  istat = this%debug_info%set(key='has_full_neig_c',value=has_full_neig_along_dim(1)); check(istat==0)
+  istat = this%debug_info%set(key='has_full_neig_e',value=has_full_neig_along_dim(2)); check(istat==0)
+  istat = this%debug_info%set(key='has_full_neig_f',value=has_full_neig_along_dim(3)); check(istat==0)
 
   call memfree(tent_distance,__FILE__,__LINE__)
   call memfree(min_distance,__FILE__,__LINE__)

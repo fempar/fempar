@@ -42,6 +42,8 @@ module unfitted_fe_spaces_names
   use unfitted_triangulations_names
   use piecewise_cell_map_names
 
+  use ParameterList
+
   implicit none
 # include "debug.i90"
   private
@@ -177,6 +179,7 @@ module unfitted_fe_spaces_names
       integer(ip), allocatable :: aggregate_ids(:)
       real(rp) :: max_separation_from_root = -1.0_rp
       logical :: use_constraints = .true.
+      type(ParameterList_t), public :: debug_info
     contains
       ! Creation / deletion methods
       procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => suhpafs_create_same_reference_fes_on_all_cells
