@@ -48,6 +48,13 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
   logical                                :: use_vertices, use_edges, use_faces
   logical, parameter :: face_minus = .true.
   
+  
+  if (face_minus) then
+    write(*,*) "face_minus: 1"
+  else
+    write(*,*) "face_minus: 0"
+  end if 
+  
   par_environment => par_fe_space%get_par_environment()
   assert ( associated ( par_environment ) )
   assert ( par_environment%am_i_l1_task() )

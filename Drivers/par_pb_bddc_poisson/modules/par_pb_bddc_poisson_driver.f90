@@ -550,6 +550,13 @@ contains
     integer(ip) :: iparm(64)
     logical, parameter :: si_solver = .true.
 
+    if ( this%environment%get_l1_rank() == 0 ) then
+      if (si_solver) then
+        write(*,*) "si_solver:: 1"
+      else 
+        write(*,*) "si_solver:: 0"
+      end if 
+    end if
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     
     ! Prepare the internal parameter list of pardiso
