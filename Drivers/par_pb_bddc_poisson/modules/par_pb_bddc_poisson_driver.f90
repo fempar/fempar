@@ -589,9 +589,9 @@ contains
        neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
        FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
        if ( si_solver ) then
-          !FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
-          !FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-          !FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+          FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+          FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+          FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
        end if
      
        coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
