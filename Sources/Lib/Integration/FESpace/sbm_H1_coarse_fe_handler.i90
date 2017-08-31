@@ -594,7 +594,7 @@ subroutine H1_l1_setup_constraint_matrix_multiple(this, field_id, par_fe_space, 
   integer(ip), parameter :: CB = 3
   integer(ip), parameter :: CC = 4
   
-  integer(ip), parameter :: strategy = CI
+  integer(ip), parameter :: strategy = CC
   
   write(*,*) 'strategy ::', strategy
   
