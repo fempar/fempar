@@ -667,7 +667,7 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
           hanging_dof_lid  = improper_dof_lid - this%num_dirichlet_dofs
           if ( .not. visited_hanging_dof_lids(hanging_dof_lid) ) then
             current_pos_free = this%ptr_constraining_free_dofs%get(hanging_dof_lid)
-            current_pos_diri = this%ptr_constraining_free_dofs%get(hanging_dof_lid)
+            current_pos_diri = this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)
             do root_idof = 1,size(root_fe_dofs)
               if (root_fe_dofs(root_idof)>0) then
                 call this%constraining_free_dofs%set(current_pos_free,root_fe_dofs(root_idof))
