@@ -26,8 +26,6 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-#define ENABLE_MKL
-
 module test_unfitted_h_adaptive_poisson_driver_names
   use fempar_names
   use unfitted_triangulations_names
