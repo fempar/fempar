@@ -312,7 +312,7 @@ contains
 
     else if (this%triangulation%get_num_dims() == 3) then    
       do while ( .not. cell%has_finished() )
-        if (cell%get_level() == 0) then
+          if (cell%get_level() == 0) then
           !if ( (cell%get_gid()==8) .or. (cell%get_level() == 0) )then
           call cell%set_for_refinement()
         end if

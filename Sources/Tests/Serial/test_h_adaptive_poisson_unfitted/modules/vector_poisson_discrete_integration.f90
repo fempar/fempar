@@ -33,10 +33,12 @@ module vector_poisson_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: vector_poisson_discrete_integration_t
      private
-     class(vector_function_t), pointer :: source_term
+     class(vector_function_t), pointer :: source_term => NULL()
+     type(fe_function_t)     , pointer :: fe_function => NULL()
    contains
      procedure :: set_source_term
-     procedure :: integrate
+     procedure :: set_fe_function
+     procedure :: integrate_galerkin
   end type vector_poisson_discrete_integration_t
   
   public :: vector_poisson_discrete_integration_t
@@ -50,7 +52,14 @@ contains
     this%source_term => vector_function
   end subroutine set_source_term
 
-  subroutine integrate ( this, fe_space, assembler )
+  subroutine set_fe_function (this, fe_function)
+     implicit none
+     class(vector_poisson_discrete_integration_t), intent(inout) :: this
+     type(fe_function_t)                          , target, intent(in)    :: fe_function
+     this%fe_function => fe_function
+  end subroutine set_fe_function
+
+  subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(vector_poisson_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
@@ -60,10 +69,8 @@ contains
     class(fe_cell_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
-    type(cell_map_t)           , pointer :: cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(cell_integrator_t), pointer :: cell_int
     type(vector_field_t), allocatable  :: shape_values(:,:)
     type(tensor_field_t), allocatable  :: shape_gradients(:,:)
 
@@ -78,24 +85,11 @@ contains
     
     type(vector_field_t) :: source_term
 
-    integer(ip)  :: num_fields
+    assert (associated(this%fe_function)) 
 
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: fe_dofs(:)
-    integer(ip), allocatable :: num_dofs_x_field(:)  
-
-    
-    num_fields = fe_space%get_num_fields()
-    allocate( fe_dofs(num_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
-    
     max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
     call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( num_fields, num_dofs_x_field, __FILE__, __LINE__ )
 
     call fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished())
@@ -106,25 +100,19 @@ contains
        ! Very important: this has to be inside the loop, as different FEs can be present!
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()
-       cell_map          => fe%get_cell_map()
-       cell_int         => fe%get_cell_integrator(1)
        num_dofs = fe%get_num_dofs()
-       call fe%get_num_dofs_x_field(num_dofs_x_field)
-       
-       ! Get DoF numbering within current FE
-       call fe%get_fe_dofs(fe_dofs)
 
        ! Get quadrature coordinates to evaluate boundary value
-       quad_coords => cell_map%get_quadrature_points_coordinates()
+       quad_coords => fe%get_quadrature_points_coordinates()
        
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       call cell_int%get_gradients(shape_gradients)
-       call cell_int%get_values(shape_values)
+       call fe%get_gradients(shape_gradients)
+       call fe%get_values(shape_values)
        do qpoint = 1, num_quad_points
        
-          factor = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
           ! Diffusive term
           do idof = 1, num_dofs
@@ -142,17 +130,14 @@ contains
           
        end do
        
-       ! Assemble and apply boundary conditions (and the rest of hanging node constraints)
-       call fe%assemble( elmat, elvec, assembler )
+       call fe%assembly( this%fe_function, elmat, elvec, assembler )
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
     deallocate(shape_values, stat=istat); check(istat==0);
     deallocate(shape_gradients, stat=istat); check(istat==0);
-    deallocate (fe_dofs, stat=istat); check(istat==0);
-    call memfree ( num_dofs_x_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module vector_poisson_discrete_integration_names

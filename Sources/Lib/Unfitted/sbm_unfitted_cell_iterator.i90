@@ -34,20 +34,21 @@ subroutine unfitted_cell_iterator_create ( this, triangulation )
   class(triangulation_t)            , target, intent(in)    :: triangulation
 
   class(marching_cubes_t), pointer :: marching_cubes
-
+  call this%free()
   select type (triangulation)
   class is (serial_unfitted_triangulation_t)
     marching_cubes => triangulation%get_marching_cubes()
+    call this%bst_cell_iterator_t%create(triangulation)
   class is (unfitted_p4est_serial_triangulation_t)
     marching_cubes => triangulation%get_marching_cubes()
+    call cell_iterator_create(this,triangulation)
   class is (par_unfitted_triangulation_t)
     marching_cubes => triangulation%get_marching_cubes()
+    call this%bst_cell_iterator_t%create(triangulation)
   class default
     check(.false.)
   end select
   assert(associated(marching_cubes%triangulation))
-  call this%free()
-  call this%bst_cell_iterator_t%create(triangulation)
   this%marching_cubes => marching_cubes
 end subroutine unfitted_cell_iterator_create
 
@@ -75,6 +76,7 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: subcell_nodes(4)
   integer(ip) :: subfacet_nodes(3)
+  type(quadrature_t), pointer :: nodal_quadrature
 
   assert(this%is_local())
 
@@ -88,10 +90,12 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   assert(num_subnodes > num_nodes)
 
   ! Recover the sub-points coordinates on the ref space
+  reference_fe_geo => this%get_reference_fe()
   coordinates => this%marching_cubes%subnodes_ref_coords
   assert( num_subnodes <= size(coordinates) )
   node_coords => coordinates(1:num_nodes)
-  call this%get_nodes_coordinates_ref_space( node_coords )
+  nodal_quadrature => reference_fe_geo%get_nodal_quadrature()
+  call nodal_quadrature%get_coordinates_as_points( node_coords )
   intersec_coords => coordinates(num_nodes+1:num_subnodes)
   i1 = this%marching_cubes%mc_ptr_to_intersections(this%get_gid())
   i2 = this%marching_cubes%mc_ptr_to_intersections(this%get_gid()+1)-1
@@ -148,7 +152,6 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
 
   ! Prepare the fe map
   cell_map => this%marching_cubes%subnodes_cell_maps(mc_case)
-  reference_fe_geo => this%get_reference_fe()
   call cell_map%update_interpolation( quadrature, reference_fe_geo )
   phys_cell_coords => cell_map%get_coordinates()
   call this%get_nodes_coordinates(phys_cell_coords)

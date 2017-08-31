@@ -60,7 +60,7 @@ then
       # Cube + Tetrahedra
       for gorder in 1
       do
-        for order in 1 2 3 4
+        for order in 1 2 3 #4
         do
           if [ $order -ge $gorder ]
           then

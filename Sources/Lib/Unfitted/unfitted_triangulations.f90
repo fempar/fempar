@@ -103,43 +103,40 @@ module unfitted_triangulations_names
     private
     type(p4est_cell_iterator_t) :: p4est_cell
   contains
+
+    ! TBPs that change the gid
     procedure                            :: create                  => unfitted_p4est_cell_iterator_create
     procedure                            :: free                    => unfitted_p4est_cell_iterator_free
-    !final                                ::                            unfitted_p4est_cell_iterator_free_final
     procedure                            :: next                    => unfitted_p4est_cell_iterator_next
     procedure                            :: first                   => unfitted_p4est_cell_iterator_first
     procedure                            :: set_gid                 => unfitted_p4est_cell_iterator_set_gid
-    !procedure, non_overridable, private  :: set_gid                 => unfitted_p4est_cell_iterator_set_gid
-    !procedure, non_overridable, private  :: set_mypart              => unfitted_p4est_cell_iterator_set_mypart
-    !procedure, non_overridable, private  :: get_triangulation       => unfitted_p4est_cell_iterator_get_triangulation
-    procedure                            :: has_finished            => unfitted_p4est_cell_iterator_has_finished
+
+    ! TBPS that only relay on this::p4est_cell
     procedure                            :: get_reference_fe        => unfitted_p4est_cell_iterator_get_reference_fe
     procedure                            :: get_reference_fe_id     => unfitted_p4est_cell_iterator_get_reference_fe_id
-    procedure                            :: get_coordinates         => unfitted_p4est_cell_iterator_get_coordinates
-    !procedure, non_overridable           :: set_coordinates         => unfitted_p4est_cell_iterator_set_coordinates
-    !procedure, non_overridable           :: get_lid                 => unfitted_p4est_cell_iterator_get_lid
-    !procedure, non_overridable           :: get_gid                 => unfitted_p4est_cell_iterator_get_gid
-    !procedure, non_overridable           :: get_my_part             => unfitted_p4est_cell_iterator_get_mypart
-    !procedure, non_overridable           :: get_my_subpart          => unfitted_p4est_cell_iterator_get_mysubpart
-    !procedure, non_overridable           :: get_my_subpart_lid      => unfitted_p4est_cell_iterator_get_mysubpart_lid
     procedure                            :: get_set_id              => unfitted_p4est_cell_iterator_get_set_id
+    procedure                            :: set_set_id              => unfitted_p4est_cell_iterator_set_set_id
     procedure                            :: get_level               => unfitted_p4est_cell_iterator_get_level
     procedure                            :: get_num_vefs            => unfitted_p4est_cell_iterator_get_num_vefs
     procedure                            :: get_num_nodes           => unfitted_p4est_cell_iterator_get_num_nodes
-    !procedure, non_overridable           :: get_node_lid            => unfitted_p4est_cell_iterator_get_node_lid
+    procedure                            :: get_nodes_coordinates   => unfitted_p4est_cell_iterator_get_nodes_coordinates
+    procedure                            :: get_ggid                => unfitted_p4est_cell_iterator_get_ggid
+    procedure                            :: get_my_part             => unfitted_p4est_cell_iterator_get_my_part
     procedure                            :: get_vef_gid             => unfitted_p4est_cell_iterator_get_vef_gid
-    procedure                            :: get_vef_gids            => unfitted_p4est_cell_iterator_get_vef_gids
-    !procedure, non_overridable           :: get_vef_gid             => unfitted_p4est_cell_iterator_get_vef_gid
-    !procedure                            :: find_lpos_vef_lid       => unfitted_p4est_cell_iterator_find_lpos_vef_lid
-    !procedure, non_overridable           :: find_lpos_vef_gid       => unfitted_p4est_cell_iterator_find_lpos_vef_gid
-    !procedure, non_overridable           :: get_vef                 => unfitted_p4est_cell_iterator_get_vef
+    procedure                            :: get_vefs_gid            => unfitted_p4est_cell_iterator_get_vefs_gid
+    procedure                            :: get_vef_ggid            => unfitted_p4est_cell_iterator_get_vef_ggid
+    procedure                            :: get_vef_lid_from_gid    => unfitted_p4est_cell_iterator_get_vef_lid_from_gid
+    procedure                            :: get_vef_lid_from_ggid   => unfitted_p4est_cell_iterator_get_vef_lid_from_ggid
+    procedure                            :: get_vef                 => unfitted_p4est_cell_iterator_get_vef
     procedure                            :: is_local                => unfitted_p4est_cell_iterator_is_local
     procedure                            :: is_ghost                => unfitted_p4est_cell_iterator_is_ghost
-    
+    procedure                            :: is_ancestor             => unfitted_p4est_cell_iterator_is_ancestor
     procedure                            :: set_for_coarsening      => unfitted_p4est_cell_iterator_set_for_coarsening
     procedure                            :: set_for_refinement      => unfitted_p4est_cell_iterator_set_for_refinement
     procedure                            :: set_for_do_nothing      => unfitted_p4est_cell_iterator_set_for_do_nothing
     procedure                            :: get_transformation_flag => unfitted_p4est_cell_iterator_get_transformation_flag
+    procedure                            :: get_permutation_index   => unfitted_p4est_cell_iterator_get_permutation_index
+
   end type unfitted_p4est_cell_iterator_t
 
   ! We need this to create a par fe space in marching_cubes_t to hold a discrete levelset function
