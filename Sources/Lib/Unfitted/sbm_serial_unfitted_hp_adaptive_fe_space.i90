@@ -370,6 +370,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout)    :: this
 
   class(cell_iterator_t), allocatable :: cell
+  integer(ip) :: icell
   class(cell_iterator_t), allocatable :: cell_arround
   integer(ip), parameter :: max_num_sweeps = 5
   integer(ip) :: isweep
@@ -383,6 +384,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   integer(ip), allocatable :: tent_distance(:)
   integer(ip), allocatable :: min_distance(:)
   integer(ip) :: min_distance_aggr_id
+  logical(ip),allocatable :: touched(:)
 
   integer(ip), allocatable :: distance(:,:)
   integer(ip), target :: face2dir_2d(4,2) = reshape([0,0,1,-1,1,-1,0,0],[4,2])
@@ -421,6 +423,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   this%max_separation_from_root = 0.0_rp
 
   call memalloc(triangulation%get_num_local_cells(),triangulation%get_num_dims(),distance,__FILE__,__LINE__)
+  call memalloc(triangulation%get_num_local_cells(),touched,__FILE__,__LINE__)
   call memalloc(triangulation%get_num_dims(),tent_distance,__FILE__,__LINE__)
   call memalloc(triangulation%get_num_dims(),min_distance,__FILE__,__LINE__)
 
@@ -429,11 +432,13 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   call triangulation%create_vef_iterator(vef)
 
   ! Initialize by setting the roots of the aggregates
+  touched(:) = .false.
   do while (.not. cell%has_finished())
     if (cell%is_local()) then
       if (cell%is_interior()) then
         this%aggregate_ids(cell%get_gid()) = cell%get_gid()
         distance(cell%get_gid(),:) = 0
+        touched(cell%get_gid()) = .true.
       else
         this%aggregate_ids(cell%get_gid()) = 0
       end if
@@ -454,7 +459,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
     is_needed = .false.
     do while (.not. cell%has_finished())
       if (cell%is_local()) then
-        if ( cell%is_cut() .and. (this%aggregate_ids(cell%get_gid()) == 0) ) then
+        if ( cell%is_cut() .and. (.not. touched(cell%get_gid())) )  then
 
           ! This is only for info purposes. It can be uncommented if wished.
           cell_has_full_neig_along_dim(:) = .false.
@@ -484,8 +489,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
             ifacet = ifacet + 1
             do icell_arround = 1,vef%get_num_cells_around()
               call vef%get_cell_around(icell_arround,cell_arround)
-              if ( (isweep == 1) .and. (.not. cell_arround%is_interior()) ) cycle
-              if ( this%aggregate_ids(cell_arround%get_gid()) > 0 ) then
+              if ( touched(cell_arround%get_gid()) ) then
 
                 ! Compute the movement to reach the root element
                 tent_distance = distance(cell_arround%get_gid(),:) + face2dir(ifacet,:)
@@ -517,6 +521,9 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
       call cell%next()
     end do
 
+    ! Mark as touched all the aggregated cells
+    touched(:) = this%aggregate_ids(:) > 0
+
     isweep = isweep + 1
   end do
 
@@ -536,6 +543,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   call memfree(tent_distance,__FILE__,__LINE__)
   call memfree(min_distance,__FILE__,__LINE__)
   call memfree(distance,__FILE__,__LINE__)
+  call memfree(touched,__FILE__,__LINE__)
 
 end subroutine suhpafs_allocate_and_fill_aggregate_ids
 
