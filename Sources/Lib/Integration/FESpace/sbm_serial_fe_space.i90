@@ -648,7 +648,7 @@ subroutine serial_fe_space_project_vector_function (this, analytical_function, f
   class(fe_cell_iterator_t), allocatable :: fe 
   type(cell_map_t)         , pointer     :: cell_map 
 
-		integer(ip)   :: field_id 
+  integer(ip)   :: field_id 
   real(rp)      :: time_(1) 
 
   real(rp)  , allocatable      :: dof_values(:)  
@@ -656,35 +656,114 @@ subroutine serial_fe_space_project_vector_function (this, analytical_function, f
   class(environment_t), pointer :: environment 
 
   environment => this%get_environment() 
-  
+
   if (.not. environment%am_i_l1_task() ) then 
      return 
   end if
- 
+
   if ( present(time) ) time_(1) = time 
 
   call this%create_fe_cell_iterator(fe)
 
-		do field_id = 1,this%get_num_fields()
-		   reference_fe => fe%get_reference_fe(field_id)
-     call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
-					
-  do while (.not. fe%has_finished() )         
-        call fe%update_integration() 
-        cell_map => fe%get_cell_map() 
-
-        call reference_fe%compute_vector_function_moments( cell_map, analytical_function, dof_values )
-								
-        call fe_function%insert_nodal_values(fe, field_id, dof_values)
-
-								call fe%next()
+  do field_id = 1,this%get_num_fields()
+     reference_fe => fe%get_reference_fe(field_id)
+     call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )				
+     do while (.not. fe%has_finished() )  
+        if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then
+           call fe%update_integration() 
+           cell_map => fe%get_cell_map() 
+           call reference_fe%evaluate_vector_function_moments( cell_map, analytical_function, dof_values )
+           call fe_function%insert_nodal_values(fe, field_id, dof_values)
+        end if
+        call fe%next()
      end do
-					call memfree( dof_values, __FILE__, __LINE__ )
+     call memfree( dof_values, __FILE__, __LINE__ )
   end do
 
   call this%free_fe_cell_iterator(fe) 
-   
+
 end subroutine serial_fe_space_project_vector_function
+
+subroutine serial_fe_space_project_Dirichlet_boundary_vector_function (this, fe_function, time)
+  implicit none
+  class(serial_fe_space_t)          , intent(in)    :: this
+  class(fe_function_t)              , intent(inout) :: fe_function
+  real(rp)                , optional, intent(in)    :: time
+
+  class(reference_fe_t)    , pointer        :: reference_fe 
+		class(fe_cell_iterator_t), allocatable    :: fe 
+  class(fe_facet_iterator_t), allocatable   :: fe_facet 
+  type(facet_maps_t)         , pointer      :: facet_maps
+		type(facet_map_t)          , pointer      :: facet_map
+		
+  integer(ip)                :: field_id 
+		integer(ip)                :: component_id 
+		logical     , allocatable  :: components_code(:)
+		integer(ip) , allocatable  :: offset_component(:)
+  real(rp)                   :: time_(1) 
+
+		type(p_scalar_function_t), allocatable :: function_scalar_components(:)
+  real(rp)  , allocatable                :: dof_values(:)  
+
+  class(environment_t), pointer :: environment 
+
+		integer(ip) :: istat 
+		
+  environment => this%get_environment() 
+
+  if (.not. environment%am_i_l1_task() ) then 
+     return 
+  end if
+
+  if ( present(time) ) time_(1) = time 
+		
+		allocate ( function_scalar_components(this%triangulation%get_num_dims()), & 
+             stat=istat); check(istat==0);
+		call memalloc ( this%get_num_components(), components_code, __FILE__, __LINE__ )
+		call this%allocate_and_fill_offset_component(offset_component)
+		
+		call this%create_fe_cell_iterator(fe)
+  call this%create_fe_facet_iterator(fe_facet)
+		
+  do field_id = 1,this%get_num_fields()
+		   call fe_facet%get_cell_around(1,fe)
+     reference_fe => fe%get_reference_fe(field_id)
+     call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
+
+     do while (.not. fe_facet%has_finished() )         
+					  if ( (fe_facet%is_at_field_boundary(field_id)) .and. (fe_facet%get_set_id() /= 0 ) ) then 
+        call fe_facet%update_integration() 
+        facet_maps  => fe_facet%get_facet_maps()  
+								facet_map   => facet_maps%get_facet_map() 
+								
+								! Get scalar boundary functions 
+								call this%conditions%get_components_code( fe_facet%get_set_id(), components_code )
+								component_id = offset_component(field_id) + 1
+								if (components_code(component_id)) then
+								
+								call this%get_function_scalar_components(fe_facet,     & 
+                                                 fe,           &
+                                                 field_id,     &
+                                                 component_id, &
+                                                 function_scalar_components)
+								
+        call reference_fe%evaluate_boundary_function_moments( facet_map, function_scalar_components, dof_values )
+        call fe_function%insert_nodal_values(fe, field_id, dof_values)
+								
+								end if 
+							end if 
+        call fe_facet%next()
+     end do
+     call memfree( dof_values, __FILE__, __LINE__ )
+  end do
+
+		call this%free_fe_cell_iterator(fe)
+  call this%free_fe_facet_iterator(fe_facet) 
+
+		deallocate ( function_scalar_components, stat=istat); check(istat==0);
+		call memfree( components_code, __FILE__, __LINE__ ) 
+		call memfree (offset_component, __FILE__, __LINE__ )
+end subroutine serial_fe_space_project_Dirichlet_boundary_vector_function
 
 subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_function, time, fields_to_project)
   implicit none

@@ -1069,14 +1069,24 @@ function lagrangian_reference_fe_get_h_refinement_num_subfacets(this)
 end function lagrangian_reference_fe_get_h_refinement_num_subfacets
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_compute_vector_function_moments(this, cell_map, vector_function, dof_values)
+subroutine lagrangian_reference_fe_evaluate_vector_function_moments(this, cell_map, vector_function, dof_values)
   class(lagrangian_reference_fe_t), intent(in)    :: this
 		class(cell_map_t)            , intent(in)    :: cell_map
 		class(vector_function_t)     , intent(in)    :: vector_function
 		real(rp) , allocatable       , intent(inout) :: dof_values(:) 
 		! To develop with nodal values 
 		check(.false.)  
-end subroutine lagrangian_reference_fe_compute_vector_function_moments
+end subroutine lagrangian_reference_fe_evaluate_vector_function_moments
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_evaluate_boundary_function_moments(this, facet_map, function_scalar_components, dof_values)
+  class(lagrangian_reference_fe_t)         , intent(in)    :: this
+		class(facet_map_t)                       , intent(in)    :: facet_map
+		type(p_scalar_function_t), allocatable   , intent(in)    :: function_scalar_components(:)
+		real(rp) , allocatable                   , intent(inout) :: dof_values(:) 
+		! To develop 
+		check(.false.)  
+end subroutine lagrangian_reference_fe_evaluate_boundary_function_moments
 
 !**************************************************************************************************
 ! Auxiliary procedures called by the child-classes that are not bound to the attributes
