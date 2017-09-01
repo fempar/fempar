@@ -14,7 +14,7 @@ module par_pb_bddc_poisson_params_names
   character(len=*), parameter :: coarse_fe_handler_type_key = 'coarse_fe_handler_type_key' 
   character(len=*), parameter :: standard_bddc              = 'standard_bddc' 
   character(len=*), parameter :: pb_bddc                    = 'pb_bddc' 
-  character(len=*), parameter :: nchannel_per_direction_key = 'nchannel_per_direction' 
+  character(len=*), parameter :: nchannel_x_direction_key = 'nchannel_x_direction' 
   character(len=*), parameter :: nparts_with_channels_key   = 'nparts_with_channels' 
 
   type, extends(parameter_handler_t) :: par_pb_bddc_poisson_params_t
@@ -32,10 +32,10 @@ module par_pb_bddc_poisson_params_names
        procedure, non_overridable             :: get_jump
        procedure, non_overridable             :: get_inclusion
        procedure, non_overridable             :: get_coarse_fe_handler_type
-       procedure, non_overridable             :: get_nchannel_per_direction
+       procedure, non_overridable             :: get_nchannel_x_direction
        procedure, non_overridable             :: get_nparts_with_channels
        procedure, non_overridable             :: get_nparts
-       !procedure, non_overridable             :: get_num_dimensions
+       !procedure, non_overridable             :: get_num_dims
   end type par_pb_bddc_poisson_params_t
 
   ! Types
@@ -60,11 +60,11 @@ contains
     error = list%set(key = dir_path_key      , value = '.') ; check(error==0)
     error = list%set(key = prefix_key        , value = 'square') ; check(error==0)
     error = list%set(key = dir_path_out_key  , value = '.') ; check(error==0)
-    error = list%set(key = number_of_dimensions_key          , value =  2)                   ; check(error==0)
-    error = list%set(key = number_of_cells_per_dir_key       , value =  [12,12,12])          ; check(error==0)
+    error = list%set(key = num_dims_key          , value =  2)                   ; check(error==0)
+    error = list%set(key = num_cells_x_dir_key       , value =  [12,12,12])          ; check(error==0)
     error = list%set(key = is_dir_periodic_key               , value =  [0,0,0])             ; check(error==0)
-    error = list%set(key = number_of_levels_key              , value =  3)                   ; check(error==0)
-    error = list%set(key = number_of_parts_per_dir_key       , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
+    error = list%set(key = num_levels_key              , value =  3)                   ; check(error==0)
+    error = list%set(key = num_parts_x_dir_key       , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
     error = list%set(key = reference_fe_geo_order_key        , value =  1)                   ; check(error==0)
     error = list%set(key = reference_fe_order_key            , value =  1)                   ; check(error==0)
     error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
@@ -77,17 +77,17 @@ contains
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_fe_handler_type_key        , value =  pb_bddc)                     ; check(error==0)
-    error = list%set(key = nchannel_per_direction_key        , value = [1,1,1])                      ; check(error==0)
+    error = list%set(key = nchannel_x_direction_key        , value = [1,1,1])                      ; check(error==0)
     error = list%set(key = nparts_with_channels_key          , value = [1,1,1])                      ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                ; check(error==0)
     error = switches%set(key = prefix_key                    , value = '--prefix')                  ; check(error==0)
     error = switches%set(key = dir_path_out_key              , value = '--dir-path-out')            ; check(error==0)
-    error = switches%set(key = number_of_dimensions_key      , value = '--dim')                     ; check(error==0)
-    error = switches%set(key = number_of_cells_per_dir_key   , value = '--number_of_cells')         ; check(error==0)
-    error = switches%set(key = number_of_levels_key          , value = '--number_of_levels')        ; check(error==0)
-    error = switches%set(key = number_of_parts_per_dir_key   , value = '--number_of_parts_per_dir') ; check(error==0)
+    error = switches%set(key = num_dims_key      , value = '--dim')                     ; check(error==0)
+    error = switches%set(key = num_cells_x_dir_key   , value = '--num_cells')         ; check(error==0)
+    error = switches%set(key = num_levels_key          , value = '--num_levels')        ; check(error==0)
+    error = switches%set(key = num_parts_x_dir_key   , value = '--num_parts_x_dir') ; check(error==0)
     error = switches%set(key = reference_fe_geo_order_key    , value = '--reference-fe-geo-order')  ; check(error==0)
     error = switches%set(key = reference_fe_order_key        , value = '--reference-fe-order')      ; check(error==0)
     error = switches%set(key = write_solution_key            , value = '--write-solution')          ; check(error==0)
@@ -100,17 +100,17 @@ contains
     error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
     error = switches%set(key = coarse_fe_handler_type_key    , value = '--coarse-fe-handler')        ; check(error==0)
-    error = switches%set(key = nchannel_per_direction_key    , value = '--nchannel_per_direction')   ; check(error==0)
+    error = switches%set(key = nchannel_x_direction_key    , value = '--nchannel_x_direction')   ; check(error==0)
     error = switches%set(key = nparts_with_channels_key      , value = '--nparts_with_channels')     ; check(error==0)
 
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
     error = switches_ab%set(key = dir_path_out_key           , value = '-o')        ; check(error==0) 
-    error = switches_ab%set(key = number_of_dimensions_key   , value = '-dm')      ; check(error==0)
-    error = switches_ab%set(key = number_of_cells_per_dir_key, value = '-n')        ; check(error==0) 
-    error = switches_ab%set(key = number_of_levels_key       , value = '-l')        ; check(error==0)
-    error = switches_ab%set(key = number_of_parts_per_dir_key, value = '-np')       ; check(error==0)
+    error = switches_ab%set(key = num_dims_key   , value = '-dm')      ; check(error==0)
+    error = switches_ab%set(key = num_cells_x_dir_key, value = '-n')        ; check(error==0) 
+    error = switches_ab%set(key = num_levels_key       , value = '-l')        ; check(error==0)
+    error = switches_ab%set(key = num_parts_x_dir_key, value = '-np')       ; check(error==0)
     error = switches_ab%set(key = reference_fe_geo_order_key , value = '-gorder')   ; check(error==0)
     error = switches_ab%set(key = reference_fe_order_key     , value = '-order')    ; check(error==0)
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution'); check(error==0)
@@ -123,16 +123,16 @@ contains
     error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
     error = switches_ab%set(key = coarse_fe_handler_type_key    , value = '-coarse-handler')        ; check(error==0)
-    error = switches_ab%set(key = nchannel_per_direction_key    , value = '-nc')        ; check(error==0)
+    error = switches_ab%set(key = nchannel_x_direction_key    , value = '-nc')        ; check(error==0)
     error = switches_ab%set(key = nparts_with_channels_key      , value = '-npwc')      ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')               ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                       ; check(error==0)
     error = helpers%set(key = dir_path_out_key               , value = 'Output Directory')                            ; check(error==0)
-    error = helpers%set(key = number_of_dimensions_key       , value = 'Number of space dimensions')               ; check(error==0)
-    error = helpers%set(key = number_of_cells_per_dir_key    , value = 'Number of cells per dir')                     ; check(error==0)
-    error = helpers%set(key = number_of_levels_key           , value = 'Number of levels')                            ; check(error==0)
-    error = helpers%set(key = number_of_parts_per_dir_key    , value = 'Number of parts per dir and per level')       ; check(error==0)
+    error = helpers%set(key = num_dims_key       , value = 'Number of space dimensions')               ; check(error==0)
+    error = helpers%set(key = num_cells_x_dir_key    , value = 'Number of cells per dir')                     ; check(error==0)
+    error = helpers%set(key = num_levels_key           , value = 'Number of levels')                            ; check(error==0)
+    error = helpers%set(key = num_parts_x_dir_key    , value = 'Number of parts per dir and per level')       ; check(error==0)
     error = helpers%set(key = reference_fe_geo_order_key     , value = 'Order of the triangulation reference fe')     ; check(error==0)
     error = helpers%set(key = reference_fe_order_key         , value = 'Order of the fe space reference fe')          ; check(error==0)
     error = helpers%set(key = write_solution_key             , value = 'Write solution in VTK format')                ; check(error==0)
@@ -143,7 +143,7 @@ contains
     error = helpers%set(key = coarse_space_use_edges_key    , value  = 'Include edge coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = coarse_fe_handler_type_key    , value  = 'Which coarse fe handler to use?')        ; check(error==0)
-    error = helpers%set(key = nchannel_per_direction_key    , value  = 'Number of channels per direction')       ; check(error==0)
+    error = helpers%set(key = nchannel_x_direction_key    , value  = 'Number of channels per direction')       ; check(error==0)
     error = helpers%set(key = nparts_with_channels_key      , value  = 'Number of parts per with channels')      ; check(error==0)
 
     msg = 'structured (*) or unstructured (*) triangulation?'
@@ -160,10 +160,10 @@ contains
     error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
     error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
     error = required%set(key = dir_path_out_key              , value = .false.) ; check(error==0)
-    error = required%set(key = number_of_cells_per_dir_key   , value = .false.) ; check(error==0)
-    error = required%set(key = number_of_dimensions_key      , value = .false.) ; check(error==0)
-    error = required%set(key = number_of_levels_key          , value = .false.) ; check(error==0)
-    error = required%set(key = number_of_parts_per_dir_key   , value = .false.) ; check(error==0)
+    error = required%set(key = num_cells_x_dir_key   , value = .false.) ; check(error==0)
+    error = required%set(key = num_dims_key      , value = .false.) ; check(error==0)
+    error = required%set(key = num_levels_key          , value = .false.) ; check(error==0)
+    error = required%set(key = num_parts_x_dir_key   , value = .false.) ; check(error==0)
     error = required%set(key = reference_fe_geo_order_key    , value = .false.) ; check(error==0)
     error = required%set(key = reference_fe_order_key        , value = .false.) ; check(error==0)
     error = required%set(key = write_solution_key            , value = .false.) ; check(error==0)
@@ -176,7 +176,7 @@ contains
     error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_fe_handler_type_key    , value = .false.) ; check(error==0)
-    error = required%set(key = nchannel_per_direction_key    , value = .false.) ; check(error==0)
+    error = required%set(key = nchannel_x_direction_key    , value = .false.) ; check(error==0)
     error = required%set(key = nparts_with_channels_key      , value = .false.) ; check(error==0)
 
 
@@ -325,17 +325,17 @@ contains
   end function get_coarse_fe_handler_type 
   
   !==================================================================================================
-  function get_nchannel_per_direction(this)
+  function get_nchannel_x_direction(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip)                                   :: get_nchannel_per_direction(3)
+    integer(ip)                                   :: get_nchannel_x_direction(3)
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(nchannel_per_direction_key, get_nchannel_per_direction))
-    error = list%Get(key = nchannel_per_direction_key, Value = get_nchannel_per_direction)
+    assert(list%isAssignable(nchannel_x_direction_key, get_nchannel_x_direction))
+    error = list%Get(key = nchannel_x_direction_key, Value = get_nchannel_x_direction)
     assert(error==0)
-  end function get_nchannel_per_direction
+  end function get_nchannel_x_direction
 
   !==================================================================================================
   function get_nparts_with_channels(this)
@@ -354,25 +354,25 @@ contains
   function get_nparts(this)
     implicit none
     class(par_pb_bddc_poisson_params_t) , intent(in) :: this
-    integer(ip)                                   :: number_of_levels
+    integer(ip)                                   :: num_levels
     integer(ip)                                   :: get_nparts(3)
-    integer(ip), allocatable :: number_of_parts_per_dir(:) ! 0:SPACE_DIM-1)
+    integer(ip), allocatable :: num_parts_x_dir(:) ! 0:SPACE_DIM-1)
     integer(ip), allocatable :: array_size(:)
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
-    assert(list%isAssignable(number_of_levels_key, number_of_levels))
-    error = list%Get(key = number_of_levels_key, Value = number_of_levels)
+    assert(list%isAssignable(num_levels_key, num_levels))
+    error = list%Get(key = num_levels_key, Value = num_levels)
     assert(error==0)       
-    error = list%GetShape(key = number_of_parts_per_dir_key   , shape = array_size); 
+    error = list%GetShape(key = num_parts_x_dir_key   , shape = array_size); 
     check(error==0)
-    assert(array_size(1) >= number_of_levels*SPACE_DIM)
-    call memalloc(array_size(1), number_of_parts_per_dir)
-    error = list%get(key = number_of_parts_per_dir_key , value = number_of_parts_per_dir) 
+    assert(array_size(1) >= num_levels*SPACE_DIM)
+    call memalloc(array_size(1), num_parts_x_dir)
+    error = list%get(key = num_parts_x_dir_key , value = num_parts_x_dir) 
     check(error==0)
-    get_nparts=number_of_parts_per_dir(1:3)
+    get_nparts=num_parts_x_dir(1:3)
     if (allocated(array_size)) deallocate(array_size) 
-    call memfree(number_of_parts_per_dir)
+    call memfree(num_parts_x_dir)
 
   end function get_nparts
 

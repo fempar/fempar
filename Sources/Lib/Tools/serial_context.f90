@@ -289,7 +289,7 @@ contains
 
   !=============================================================================
   subroutine serial_context_neighbours_exchange_wo_pack_unpack_ieep ( this, &
-       &                                                              number_neighbours, &
+       &                                                              num_neighbours, &
        &                                                              neighbour_ids, &
        &                                                              snd_ptrs, &
        &                                                              snd_buf, & 
@@ -297,12 +297,12 @@ contains
        &                                                              rcv_buf )
     implicit none
     class(serial_context_t)  , intent(in)    :: this 
-    integer(ip)           , intent(in)    :: number_neighbours
-    integer(ip)           , intent(in)    :: neighbour_ids(number_neighbours)
-    integer(ip)           , intent(in)    :: snd_ptrs(number_neighbours+1)
-    integer(ieep)         , intent(in)    :: snd_buf(snd_ptrs(number_neighbours+1)-1)   
-    integer(ip)           , intent(in)    :: rcv_ptrs(number_neighbours+1)
-    integer(ieep)         , intent(out)   :: rcv_buf(rcv_ptrs(number_neighbours+1)-1)
+    integer(ip)           , intent(in)    :: num_neighbours
+    integer(ip)           , intent(in)    :: neighbour_ids(num_neighbours)
+    integer(ip)           , intent(in)    :: snd_ptrs(num_neighbours+1)
+    integer(ieep)         , intent(in)    :: snd_buf(snd_ptrs(num_neighbours+1)-1)   
+    integer(ip)           , intent(in)    :: rcv_ptrs(num_neighbours+1)
+    integer(ieep)         , intent(out)   :: rcv_buf(rcv_ptrs(num_neighbours+1)-1)
     rcv_buf = snd_buf ! needed to satisfy the intent
   end subroutine serial_context_neighbours_exchange_wo_pack_unpack_ieep
 

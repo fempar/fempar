@@ -65,9 +65,11 @@ contains                                                 ;\
  procedure, non_overridable :: copy                      ;\
  procedure, non_overridable :: free                      ;\
  procedure, non_overridable :: get                       ;\
+ procedure, non_overridable :: get_pointer_to_range      ;\
  procedure, non_overridable :: set                       ;\
  procedure, non_overridable :: size => std_vector_size   ;\
  procedure, non_overridable :: capacity                  ;\
+ procedure, non_overridable :: get_raw_pointer           ;\
 end type                                                 ;\
 
 #define STD_VECTOR_PUSH_BACK(TINCTYPE,TKIND)                  \
@@ -165,7 +167,9 @@ SUBROUTINE copy(T,T2)  ;\
   T%capacity_= T2%size_       ;\
   T%size_    = T2%size_       ;\
   call memalloc(T%capacity_, T%v, __FILE__, __LINE__)     ;\
-  T%v(1:T%size_) = T2%v(1:T%size_) ;\
+  if (allocated(T2%v)) then ;\
+    if (T%size_ >0) T%v(1:T%size_) = T2%v(1:T%size_) ;\
+  end if  ;\
 END SUBROUTINE  ;\
 
 #define STD_VECTOR_FREE(TINCTYPE,TKIND) \
@@ -186,6 +190,19 @@ FUNCTION get(T,pos) ;\
   assert ( allocated(T%v) ) ;\
   assert ( pos>=1 .and. pos<= T%size_ ) ;\
   get = T%v(pos) ;\
+END FUNCTION  ;\
+
+#define STD_VECTOR_GET_POINTER_TO_RANGE(TINCTYPE,TKIND) \
+FUNCTION get_pointer_to_range(T,spos,epos) ;\
+  IMPLICIT NONE                 ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(TINCTYPE,TKIND)  , target, intent(in) :: T  ;\
+  integer(ip)                                           , intent(in) :: spos  ;\
+  integer(ip)                                           , intent(in) :: epos  ;\
+  BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND), pointer :: get_pointer_to_range(:)  ;\
+  assert ( allocated(T%v) ) ;\
+  assert ( spos>=1 .and. spos<= T%size_ ) ;\
+  assert ( epos>=1 .and. epos<= T%size_ ) ;\
+  get_pointer_to_range => T%v(spos:epos) ;\
 END FUNCTION  ;\
 
 #define STD_VECTOR_SET(TINCTYPE,TKIND) \
@@ -213,5 +230,13 @@ FUNCTION capacity(T) ;\
   CLASS_DERIVED_DATA_TYPE_NAME(TINCTYPE,TKIND)  , intent(in) :: T  ;\
   BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND) :: capacity  ;\
   capacity = T%capacity_ ;\
+END FUNCTION  ;\
+
+#define STD_VECTOR_GET_RAW_POINTER(TINCTYPE,TKIND) \
+FUNCTION get_raw_pointer(T) ;\
+  IMPLICIT NONE                 ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(TINCTYPE,TKIND), target, intent(in) :: T  ;\
+  BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND), pointer :: get_raw_pointer(:)  ;\
+  get_raw_pointer => T%v(1:T%size());\
 END FUNCTION  ;\
 

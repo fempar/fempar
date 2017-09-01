@@ -31,7 +31,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
                                                                    conditions )
   implicit none
   class(serial_fe_space_t)                    , intent(inout) :: this
-  class(base_static_triangulation_t), target  , intent(in)    :: triangulation
+  class(triangulation_t)            , target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
 
@@ -39,186 +39,230 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
 
   call this%free()
 
-  this%triangulation => triangulation
-  this%number_fields = size(reference_fes)
+  call this%set_triangulation(triangulation)  
+  call this%set_num_fields(size(reference_fes))
   call this%allocate_and_fill_reference_fes(reference_fes)
-  call this%allocate_ref_fe_id_per_fe()
-  call this%fill_ref_fe_id_per_fe_same_on_all_cells()
+  call this%allocate_field_cell_to_ref_fes()
+  call this%fill_field_cell_to_ref_fes_same_on_all_cells()
   call this%check_cell_vs_fe_topology_consistency()
-  call this%allocate_and_fill_fe_space_type_per_field()
-  call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_and_fill_fe_space_type_x_field()
+  call this%fill_facet_gids()
+  call this%allocate_and_init_ptr_lst_dofs_gids()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
   call this%allocate_and_init_at_strong_dirichlet_bound()
+  call this%allocate_and_init_has_fixed_dofs()
   call this%set_up_strong_dirichlet_bcs()
-
+  
 end subroutine serial_fe_space_create_same_reference_fes_on_all_cells
 
-subroutine serial_fe_space_create_different_between_cells( this,                     &
+subroutine serial_fe_space_create_different_ref_fes_between_cells( this,                     &
                                                            triangulation,            &
                                                            reference_fes,            &
                                                            set_ids_to_reference_fes, &
                                                            conditions )
   implicit none
   class(serial_fe_space_t)                    , intent(inout) :: this
-  class(base_static_triangulation_t), target  , intent(in)    :: triangulation
+  class(triangulation_t)    , target          , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
   
   call this%free()
-
-  this%triangulation => triangulation
-  this%number_fields = size(set_ids_to_reference_fes,1)
+  
+  call this%set_triangulation(triangulation)  
+  call this%set_num_fields(size(set_ids_to_reference_fes,1))
   call this%allocate_and_fill_reference_fes(reference_fes)
-  call this%allocate_ref_fe_id_per_fe()
-  call this%fill_ref_fe_id_per_fe_different_between_cells(set_ids_to_reference_fes)
+  call this%allocate_field_cell_to_ref_fes()
+  call this%fill_field_cell_to_ref_fes_different_ref_fes_between_cells(set_ids_to_reference_fes)
   call this%check_cell_vs_fe_topology_consistency()
-  call this%allocate_and_fill_fe_space_type_per_field()
-  call this%allocate_and_init_ptr_lst_dofs()
+  call this%allocate_and_fill_fe_space_type_x_field()
+  call this%fill_facet_gids()
+  call this%allocate_and_init_ptr_lst_dofs_gids()
   
   if ( present(conditions) ) call this%set_conditions(conditions)
   call this%allocate_and_init_at_strong_dirichlet_bound()
+  call this%allocate_and_init_has_fixed_dofs()
   call this%set_up_strong_dirichlet_bcs()
   
-end subroutine serial_fe_space_create_different_between_cells
+end subroutine serial_fe_space_create_different_ref_fes_between_cells
 
 subroutine serial_fe_space_free (this)
   implicit none
   class(serial_fe_space_t)    , intent(inout) :: this
   call this%free_reference_fes()
-  call this%free_ref_fe_id_per_fe()
-  call this%free_fe_space_type_per_field()
+  call this%free_field_cell_to_ref_fes()
+  call this%free_fe_space_type_x_field()
+  call this%free_facet_gids()
   call this%free_ptr_lst_dofs()
-  call this%free_at_strong_dirichlet_bound()
+  call this%free_at_strong_dirichlet_boundary()
+  call this%free_has_fixed_dofs()
   nullify(this%conditions)
-  call this%strong_dirichlet_values%free()
-  if (allocated(this%number_dofs_per_field)) call memfree( this%number_dofs_per_field, __FILE__, __LINE__ )
+  this%num_fixed_dofs = 0
+  if (allocated(this%num_dofs_x_field)) call memfree( this%num_dofs_x_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
-  call this%free_fe_face_integration()
+  call this%free_facet_integration()
   nullify(this%block_layout)
 end subroutine serial_fe_space_free
 
 subroutine serial_fe_space_print ( this )
   class(serial_fe_space_t), intent(in)    :: this
-  class(fe_iterator_t), allocatable :: fe
-  type(i1p_t), allocatable         :: elem2dof(:)
+  class(fe_cell_iterator_t), allocatable :: fe
+  type(i1p_t), allocatable         :: fe_dofs(:)
   integer(ip)                      :: field_id, istat
 
-  if (allocated(this%number_dofs_per_field)) write(*,'(a,i10,a)') '********* number_dofs_per_field ',this%number_dofs_per_field,'********'
-  write(*,'(a,i10,a)') '********* number_strong_dirichlet_dofs',this%strong_dirichlet_values%get_size(),'********'
+  if (allocated(this%num_dofs_x_field)) write(*,'(a,i10,a)') '********* num_dofs_x_field ',this%num_dofs_x_field,'********'
 
-  allocate ( elem2dof(this%get_number_fields()), stat=istat)
+  allocate ( fe_dofs(this%get_num_fields()), stat=istat)
   check(istat==0)
 
-  call this%create_fe_iterator(fe)
+  call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
-     write(*,'(a,i10,a)') '********* ELEMENT: ',fe%get_lid(),'********'
+     write(*,'(a,i10,a)') '********* ELEMENT: ',fe%get_gid(),'********'
      write(*,'(a)') '********* ELEMENT 2 DOF********'
-     call fe%get_elem2dof(elem2dof)
-     do field_id = 1, fe%get_number_fields()
+     call fe%get_fe_dofs(fe_dofs)
+     do field_id = 1, fe%get_num_fields()
         write(*,'(a,i10,a)') '********* FIELD: ',field_id,'********'
-        write(*,'(10i10)') elem2dof(field_id)%p
+        write(*,'(10i10)') fe_dofs(field_id)%p
      end do
      call fe%next()
   end do
-  call this%free_fe_iterator(fe) 
+  call this%free_fe_cell_iterator(fe)
 
-  call this%strong_dirichlet_values%print(6)
-
-  deallocate ( elem2dof, stat=istat)
+  deallocate ( fe_dofs, stat=istat)
   check(istat==0)
 end subroutine serial_fe_space_print
 
 
-subroutine serial_fe_space_allocate_and_fill_fe_space_type_per_field(this)
+subroutine serial_fe_space_allocate_and_fill_fe_space_type_x_field(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   integer(ip) :: field_id
   class(reference_fe_t), pointer ::reference_fe
 
-  call memalloc ( this%number_fields, this%fe_space_type_per_field, __FILE__, __LINE__ )
+  call memalloc ( this%num_fields, this%fe_space_type_x_field, __FILE__, __LINE__ )
 
-  call this%create_fe_iterator(fe)
-  do field_id=1, this%get_number_fields()
-     this%fe_space_type_per_field(field_id) = fe%get_fe_space_type(field_id)
+  call this%create_fe_cell_iterator(fe)
+  do field_id=1, this%get_num_fields()
+     this%fe_space_type_x_field(field_id) = fe%get_fe_space_type(field_id)
   end do
 
 #ifdef DEBUG  
   call fe%next()
   do while ( .not. fe%has_finished())
-     do field_id=1, this%get_number_fields()
-        assert ( this%fe_space_type_per_field(field_id) == fe%get_fe_space_type(field_id)  )
+     do field_id=1, this%get_num_fields()
+        assert ( this%fe_space_type_x_field(field_id) == fe%get_fe_space_type(field_id)  )
      end do
      call fe%next()
   end do
 #endif  
-  call this%free_fe_iterator(fe)
-end subroutine serial_fe_space_allocate_and_fill_fe_space_type_per_field
+  call this%free_fe_cell_iterator(fe)
+end subroutine serial_fe_space_allocate_and_fill_fe_space_type_x_field
 
-subroutine serial_fe_space_free_fe_space_type_per_field(this)
+subroutine serial_fe_space_free_fe_space_type_x_field(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if ( allocated(this%fe_space_type_per_field) ) call memfree ( this%fe_space_type_per_field, __FILE__, __LINE__ )
-end subroutine serial_fe_space_free_fe_space_type_per_field
+  if ( allocated(this%fe_space_type_x_field) ) call memfree ( this%fe_space_type_x_field, __FILE__, __LINE__ )
+end subroutine serial_fe_space_free_fe_space_type_x_field
 
-subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs(this)
+subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs_gids(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
 
   integer(ip)                    :: field_id
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: reference_fe
 
-  call memalloc ( this%number_fields, &
+  call this%free_ptr_lst_dofs()
+  
+  call memalloc ( this%num_fields, &
        this%triangulation%get_num_cells()+1, &
-       this%ptr_dofs_per_fe, __FILE__, __LINE__ )
+       this%ptr_dofs_x_fe, __FILE__, __LINE__ )
 
-  this%ptr_dofs_per_fe(1,1) = 1 
-  call this%create_fe_iterator(fe)
+  this%ptr_dofs_x_fe(1,1) = 1 
+  call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
-     do field_id=1, fe%get_number_fields()-1
+     do field_id=1, fe%get_num_fields()-1
         reference_fe => fe%get_reference_fe(field_id)
-        this%ptr_dofs_per_fe(field_id+1,fe%get_lid()) = & 
-             this%ptr_dofs_per_fe(field_id,fe%get_lid()) + reference_fe%get_number_shape_functions()
+        this%ptr_dofs_x_fe(field_id+1,fe%get_gid()) = & 
+             this%ptr_dofs_x_fe(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
      end do
      reference_fe => fe%get_reference_fe(field_id)
-     this%ptr_dofs_per_fe(1,fe%get_lid()+1) = & 
-          this%ptr_dofs_per_fe(field_id,fe%get_lid()) + reference_fe%get_number_shape_functions()
+     this%ptr_dofs_x_fe(1,fe%get_gid()+1) = & 
+          this%ptr_dofs_x_fe(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
      call fe%next()
   end do
-  call this%free_fe_iterator(fe) 
+  call this%free_fe_cell_iterator(fe) 
 
-  call memalloc ( this%ptr_dofs_per_fe(1,this%triangulation%get_num_cells()+1)-1,&
-       this%lst_dofs_lids, &
+  call memalloc ( this%ptr_dofs_x_fe(1,this%triangulation%get_num_cells()+1)-1,&
+       this%lst_dofs_gids, &
        __FILE__, __LINE__ )
-  this%lst_dofs_lids = 0
-end subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs
+  this%lst_dofs_gids = 0
+end subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
+
+subroutine serial_fe_space_move_alloc_ptr_dofs_x_fe_out ( this, ptr_dofs_x_fe )
+  implicit none
+  class(serial_fe_space_t)             , intent(inout) :: this
+  integer(ip)             , allocatable, intent(inout) :: ptr_dofs_x_fe(:,:)
+  assert ( .not. allocated(ptr_dofs_x_fe) )
+  if ( allocated(this%ptr_dofs_x_fe) ) then
+     call move_alloc( to=ptr_dofs_x_fe, from=this%ptr_dofs_x_fe )
+  end if
+end subroutine serial_fe_space_move_alloc_ptr_dofs_x_fe_out
+
+subroutine serial_fe_space_move_alloc_lst_dofs_gids_out ( this, lst_dofs_gids )
+  implicit none
+  class(serial_fe_space_t)             , intent(inout) :: this
+  integer(ip)             , allocatable, intent(inout) :: lst_dofs_gids(:)
+  assert ( .not. allocated(lst_dofs_gids) )
+  if ( allocated(this%lst_dofs_gids) ) then
+     call move_alloc( to=lst_dofs_gids, from=this%lst_dofs_gids )
+  end if
+end subroutine serial_fe_space_move_alloc_lst_dofs_gids_out
 
 subroutine serial_fe_space_free_ptr_lst_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%ptr_dofs_per_fe)) call memfree ( this%ptr_dofs_per_fe, __FILE__, __LINE__ )
-  if (allocated(this%lst_dofs_lids)) call memfree ( this%lst_dofs_lids, __FILE__, __LINE__ )
+  if (allocated(this%ptr_dofs_x_fe)) call memfree ( this%ptr_dofs_x_fe, __FILE__, __LINE__ )
+  if (allocated(this%lst_dofs_gids)) call memfree ( this%lst_dofs_gids, __FILE__, __LINE__ )
 end subroutine serial_fe_space_free_ptr_lst_dofs
 
 subroutine serial_fe_space_allocate_and_init_at_strong_dirichlet_bound(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call memalloc ( this%number_fields, &
+  call this%free_at_strong_dirichlet_boundary()
+  call memalloc ( this%num_fields, &
        this%triangulation%get_num_cells(), &
-       this%at_strong_dirichlet_boundary_per_fe, __FILE__, __LINE__ )
-  this%at_strong_dirichlet_boundary_per_fe = .false. 
+       this%at_strong_dirichlet_boundary_x_fe, __FILE__, __LINE__ )
+  this%at_strong_dirichlet_boundary_x_fe = .false. 
 end subroutine serial_fe_space_allocate_and_init_at_strong_dirichlet_bound
 
-subroutine serial_fe_space_free_at_strong_dirichlet_bound (this)
+subroutine serial_fe_space_free_at_strong_dirichlet_boundary (this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%at_strong_dirichlet_boundary_per_fe)) then
-     call memfree ( this%at_strong_dirichlet_boundary_per_fe, __FILE__, __LINE__ )
+  if (allocated(this%at_strong_dirichlet_boundary_x_fe)) then
+     call memfree ( this%at_strong_dirichlet_boundary_x_fe, __FILE__, __LINE__ )
   end if
-end subroutine serial_fe_space_free_at_strong_dirichlet_bound
+end subroutine serial_fe_space_free_at_strong_dirichlet_boundary
+
+subroutine serial_fe_space_allocate_and_init_has_fixed_dofs(this)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  call this%free_has_fixed_dofs()
+  call memalloc ( this%num_fields, &
+       this%triangulation%get_num_cells(), &
+       this%has_fixed_dofs_x_fe, __FILE__, __LINE__ )
+  this%has_fixed_dofs_x_fe = .false. 
+end subroutine serial_fe_space_allocate_and_init_has_fixed_dofs
+
+subroutine serial_fe_space_free_has_fixed_dofs(this)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  if (allocated(this%has_fixed_dofs_x_fe)) then
+     call memfree ( this%has_fixed_dofs_x_fe, __FILE__, __LINE__ )
+  end if
+end subroutine serial_fe_space_free_has_fixed_dofs
 
 subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   implicit none
@@ -227,18 +271,19 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   integer(ip)             :: field_id
   integer(ip)             :: ivef
   integer(ip)             :: component_id
-  integer(ip), allocatable :: offset_component_per_field(:)
+  integer(ip), allocatable :: offset_component_x_field(:)
   integer(ip)             :: istat
-  class(fe_iterator_t), allocatable :: fe, source_fe
+  class(fe_cell_iterator_t), allocatable :: fe, source_fe
   type(fe_vef_iterator_t)    :: vef
   class(reference_fe_t), pointer :: reference_fe
   logical              , allocatable :: components_code(:)
-  integer(ip), allocatable           :: visited_vef_to_fe_map(:,:)
-  integer(ip)                        :: previous_number_dirichlet_dofs
-  integer(ip)                        :: number_strong_dirichlet_dofs
+  integer(ip), allocatable           :: visited_vef_to_cell_map(:,:)
+  integer(ip)                        :: previous_num_dirichlet_dofs
+  
+  ! Count num_fixed_dofs
+  this%num_fixed_dofs = 0
   
   if ( .not. associated(this%conditions) ) then
-    call this%strong_dirichlet_values%create_and_allocate(0)
     return
   end if
   
@@ -246,33 +291,29 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   ! subject to strong Dirichlet BCs. It would be desirable (for efficiency) to 
   ! know a priori which FEs have DoFs which are subject to strong Dirichlet BCs, 
   ! but at the present moment we do not have any way to determine such a thing
-  assert ( this%conditions%get_number_components() == this%get_number_components() )
-  call memalloc ( this%conditions%get_number_components(), components_code, __FILE__, __LINE__ )
+  assert ( this%conditions%get_num_components() == this%get_num_components() )
+  call memalloc ( this%conditions%get_num_components(), components_code, __FILE__, __LINE__ )
 
-  call memalloc (this%get_number_fields()+1,offset_component_per_field,__FILE__,__LINE__)
-  call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
+  call memalloc (this%get_num_fields()+1,offset_component_x_field,__FILE__,__LINE__)
+  call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_cell_map,  __FILE__, __LINE__ )
 
-  ! Count number_strong_dirichlet_dofs
-  number_strong_dirichlet_dofs = 0
-
-  call this%create_fe_iterator(fe)
-  call this%create_fe_iterator(source_fe)
+  call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(source_fe)
   call this%create_fe_vef_iterator(vef)
 
   ! Precompute the offsets
-  offset_component_per_field(1) = 1
-  do field_id = 1, this%get_number_fields()
+  offset_component_x_field(1) = 1
+  do field_id = 1, this%get_num_fields()
     reference_fe => fe%get_reference_fe(field_id)
-    offset_component_per_field(field_id+1) = offset_component_per_field(field_id) + reference_fe%get_number_field_components()
+    offset_component_x_field(field_id+1) = offset_component_x_field(field_id) + reference_fe%get_num_field_components()
   end do
 
-  do field_id = 1, this%get_number_fields()
+  do field_id = 1, this%get_num_fields()
     ! Initialize
-    visited_vef_to_fe_map = -1
+    visited_vef_to_cell_map = -1
 
     call fe%first()
     do while (.not. fe%has_finished() )
-
       if ( fe%is_local() ) then
          do ivef = 1, fe%get_num_vefs()
             call fe%get_vef(ivef, vef)
@@ -288,41 +329,47 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
                call this%conditions%get_components_code( vef%get_set_id(), components_code )
 
                ! Auxiliary function containing the work done at each innermost iteration
-               previous_number_dirichlet_dofs = number_strong_dirichlet_dofs
+               previous_num_dirichlet_dofs = this%num_fixed_dofs
                call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
                                                                       vef,&
                                                                       ivef,&
                                                                       field_id,&
-                                                                      components_code(offset_component_per_field(field_id):&
-                                                                                      offset_component_per_field(field_id+1)-1),&
-                                                                      number_strong_dirichlet_dofs,&
-                                                                      visited_vef_to_fe_map,&
+                                                                      components_code(offset_component_x_field(field_id):&
+                                                                                      offset_component_x_field(field_id+1)-1),&
+                                                                      visited_vef_to_cell_map,&
                                                                       source_fe)
 
-               if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 .and. &
-                    previous_number_dirichlet_dofs < number_strong_dirichlet_dofs ) then
-                  visited_vef_to_fe_map ( 1, vef%get_lid() ) = fe%get_lid()
-                  visited_vef_to_fe_map ( 2, vef%get_lid() ) = ivef
+               if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 .and. &
+                    previous_num_dirichlet_dofs < this%num_fixed_dofs ) then
+                  visited_vef_to_cell_map ( 1, vef%get_gid() ) = fe%get_gid()
+                  visited_vef_to_cell_map ( 2, vef%get_gid() ) = ivef
                end if
             end if
          end do
-         call fe%determine_at_strong_dirichlet_boundary(field_id)
       end if
 
       call fe%next()
-    end do ! Loop if FEs
-
+    end do ! Loop in FEs
   end do ! Loop in fields
+  ! This second sweep over all cells cannot be integrated as part of the first one
+  ! as the fe%determine_* TBPs have as a pre-condition that this%strong_dirichlet_values
+  ! has at least been created (i.e., that it has at least size already set)
+  call fe%first()
+  do while (.not. fe%has_finished() )
+    if ( fe%is_local() ) then
+      do field_id = 1, this%get_num_fields()
+         call fe%determine_at_strong_dirichlet_boundary(field_id)
+         call fe%determine_has_fixed_dofs(field_id)
+      end do
+    end if
+    call fe%next()
+  end do
 
-
-  call this%strong_dirichlet_values%create_and_allocate(number_strong_dirichlet_dofs)
-  call this%strong_dirichlet_values%init(0.0_rp)
-
-  call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
+  call memfree ( visited_vef_to_cell_map,  __FILE__, __LINE__ )
   call memfree ( components_code, __FILE__, __LINE__ )
-  call memfree (offset_component_per_field,__FILE__,__LINE__)
-  call this%free_fe_iterator(fe)
-  call this%free_fe_iterator(source_fe)
+  call memfree (offset_component_x_field,__FILE__,__LINE__)
+  call this%free_fe_cell_iterator(fe)
+  call this%free_fe_cell_iterator(source_fe)
   call this%free_fe_vef_iterator(vef)
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs
 
@@ -332,19 +379,17 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
                                                                         ivef, &
                                                                         field_id,&
                                                                         components_code,&
-                                                                        number_strong_dirichlet_dofs,&
-                                                                        visited_vef_to_fe_map,&
+                                                                        visited_vef_to_cell_map,&
                                                                         source_fe)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  class(fe_iterator_t),     intent(inout) :: fe
+  class(fe_cell_iterator_t),     intent(inout) :: fe
   type(fe_vef_iterator_t),  intent(in)    :: vef
   integer(ip),              intent(in)    :: ivef
   integer(ip),              intent(in)    :: field_id
   logical,                  intent(in)    :: components_code(:)
-  integer(ip),              intent(inout) :: number_strong_dirichlet_dofs
-  integer(ip),              intent(inout) :: visited_vef_to_fe_map(:,:)
-  class(fe_iterator_t),     intent(inout) :: source_fe
+  integer(ip),              intent(inout) :: visited_vef_to_cell_map(:,:)
+  class(fe_cell_iterator_t),     intent(inout) :: source_fe
 
   type(list_iterator_t)           :: own_dofs_on_vef_iterator
   class(reference_fe_t), pointer  :: reference_fe
@@ -353,59 +398,59 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
   !        We could use an allocatable array of type(p_reference_fe_t) items, and
   !        allocate/initialize it from the beginning.
   reference_fe => fe%get_reference_fe(field_id)
-  assert ( size(components_code) == reference_fe%get_number_field_components() )
+  assert ( size(components_code) == reference_fe%get_num_field_components() )
   
   select type ( reference_fe )
      class is ( nedelec_reference_fe_t )
      if ( components_code(1) ) then
-       if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
-           call fe%fill_own_dofs_on_vef ( ivef, &
+       if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 ) then
+           call fe%generate_own_dofs_vef ( ivef, &
                                           field_id, &
-                                          number_strong_dirichlet_dofs, &
+                                          this%num_fixed_dofs, &
                                           free_dofs_loop=.false.)
        end if
      end if
      class is ( lagrangian_reference_fe_t )
-     if ( visited_vef_to_fe_map(1, vef%get_lid()) == -1 ) then
-       call fe%fill_own_dofs_on_vef_component_wise ( ivef, &
+     if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 ) then
+       call fe%generate_own_dofs_vef_component_wise ( ivef, &
                                                      field_id, &
-                                                     number_strong_dirichlet_dofs, &
+                                                     this%num_fixed_dofs, &
                                                      components_code, &
                                                      free_dofs_loop=.false. )
      end if
   end select
   
-  if ( visited_vef_to_fe_map(1, vef%get_lid()) /= -1 ) then
-    call source_fe%set_lid(visited_vef_to_fe_map(1,vef%get_lid()))
-    call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+  if ( visited_vef_to_cell_map(1, vef%get_gid()) /= -1 ) then
+    call source_fe%set_gid(visited_vef_to_cell_map(1,vef%get_gid()))
+    call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
                                                   source_fe, &
-                                                  visited_vef_to_fe_map(2,vef%get_lid()), &
+                                                  visited_vef_to_cell_map(2,vef%get_gid()), &
                                                   field_id) 
   end if
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
 
-subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time, fields_to_interpolate)
+subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time, fields_to_interpolate)
   implicit none
-  class(serial_fe_space_t), intent(inout)  :: this
-  class(conditions_t)     , intent(in)     :: conditions
-  real(rp)       , optional   , intent(in) :: time
-  integer(ip)    , optional   , intent(in) :: fields_to_interpolate(:)
+  class(serial_fe_space_t)          , intent(inout) :: this
+  class(fe_function_t)              , intent(inout) :: fe_function
+  real(rp)                , optional, intent(in)    :: time
+  integer(ip)             , optional, intent(in)    :: fields_to_interpolate(:)
 
   !  Locals
   integer(ip)                                :: field_id, istat, ifield, jfield
   integer(ip)                                :: icomp, component_id
   integer(ip)                  , allocatable :: offset_component(:)
-  integer(ip)                                :: number_components
-  integer(ip)                                :: number_fields
+  integer(ip)                                :: num_components
+  integer(ip)                                :: num_fields
   integer(ip)                                :: reference_fe_id
-  integer(ip)                                :: number_reference_fes
+  integer(ip)                                :: num_reference_fes
   integer(ip)                                :: local_within_ref_fe_dof_id
   integer(ip)                                :: local_within_ref_fe_scalar_dof_id
   integer(ip)                                :: strong_dirichlet_dof_id
   integer(ip)                                :: ivef
   real(rp)                                   :: time_(1)
   type(allocatable_array_rp2_t), allocatable :: values(:,:)
-  type(fe_map_t)               , allocatable :: fe_maps(:)
+  type(cell_map_t)               , allocatable :: cell_maps(:)
   type(p_quadrature_t)         , allocatable :: nodal_quadratures(:)
   type(point_t)                , pointer     :: nodal_coordinates(:)
   type(point_t)                , pointer     :: cell_coordinates(:)
@@ -416,15 +461,16 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
 
   class(reference_fe_t)        , pointer     :: reference_fe
   class(scalar_function_t)     , pointer     :: scalar_function
+  type(serial_scalar_array_t)  , pointer     :: strong_dirichlet_values
 
   type(list_iterator_t)    :: own_dofs_on_vef_iterator
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   type(fe_vef_iterator_t)     :: vef
-  type(i1p_t), allocatable :: elem2dof(:)
+  type(i1p_t), allocatable :: fe_dofs(:)
 
-  number_components    = this%get_number_components()
-  number_reference_fes = this%get_number_reference_fes()
-  number_fields        = this%get_number_fields()
+  num_components    = this%get_num_components()
+  num_reference_fes = this%get_num_reference_fes()
+  num_fields        = this%get_num_fields()
 
   if ( present(fields_to_interpolate) ) then 
      ! User specifies which fields will be interpolated
@@ -432,8 +478,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
      fields_to_interpolate_ = fields_to_interpolate
   else  
      ! By default, all fields will be interpolated
-     call memalloc ( number_fields , fields_to_interpolate_, __FILE__, __LINE__ )  
-     do field_id = 1,number_fields 
+     call memalloc ( num_fields , fields_to_interpolate_, __FILE__, __LINE__ )  
+     do field_id = 1,num_fields 
         fields_to_interpolate_(field_id) = field_id  
      end do
   end if
@@ -442,7 +488,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
 #ifdef DEBUG
   do ifield = 1, size(fields_to_interpolate_) 
     field_id = fields_to_interpolate_(ifield)
-    assert ( field_id >= 1 .and. field_id <= number_fields)
+    assert ( field_id >= 1 .and. field_id <= num_fields)
     do jfield = ifield+1, size(fields_to_interpolate_)
       assert ( fields_to_interpolate_(ifield) /= fields_to_interpolate_(jfield) )
     end do
@@ -450,28 +496,31 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
 #endif
 
   ! Build offset components 
-  call memalloc( this%get_number_fields(), offset_component, __FILE__, __LINE__ ) 
+  call memalloc( this%get_num_fields(), offset_component, __FILE__, __LINE__ ) 
   offset_component(1) = 0
-  do field_id = 2, this%get_number_fields() 
+  do field_id = 2, this%get_num_fields() 
      reference_fe                   => this%get_reference_fe(field_id-1)
-     offset_component(field_id)     =  offset_component(field_id-1) + reference_fe%get_number_field_components() 
+     offset_component(field_id)     =  offset_component(field_id-1) + reference_fe%get_num_field_components() 
   end do
 
-  assert ( conditions%get_number_components() == number_components )
-  call memalloc ( number_components, components_code, __FILE__, __LINE__ )
+  
+  assert ( associated(this%conditions) )
+  call memalloc ( num_components, components_code, __FILE__, __LINE__ )
 
-  call memalloc ( number_reference_fes, reference_fes_touched, __FILE__, __LINE__ )
+  call memalloc ( num_reference_fes, reference_fes_touched, __FILE__, __LINE__ )
   reference_fes_touched = .false.
 
-  allocate(fe_maps(number_reference_fes), stat=istat)
+  allocate(cell_maps(num_reference_fes), stat=istat)
   check(istat==0)
-  allocate(nodal_quadratures(number_reference_fes), stat=istat)
+  allocate(nodal_quadratures(num_reference_fes), stat=istat)
   check(istat==0)
-  allocate(values(number_components,number_reference_fes), stat=istat)
+  allocate(values(num_components,num_reference_fes), stat=istat)
   check(istat==0)
-  allocate ( elem2dof(number_fields), stat=istat ) 
+  allocate ( fe_dofs(num_fields), stat=istat ) 
   check (istat==0)
 
+  strong_dirichlet_values => fe_function%get_fixed_dof_values()
+  
   ! IMPORTANT : The following code is implicitly assuming that the
   !             composition of reference FEs, for all cells on top of
   !             the same geometric reference FE, is the same.
@@ -481,7 +530,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
 
   if ( present(time) ) time_(1) = time
 
-  call this%create_fe_iterator(fe)
+  call this%create_fe_cell_iterator(fe)
   call this%create_fe_vef_iterator(vef)
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then 
@@ -490,28 +539,28 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
            reference_fe => fe%get_reference_fe(field_id)
 
            if ( fe%at_strong_dirichlet_boundary(field_id) ) then
-              reference_fe_id = this%reference_fe_id_per_fe(field_id, fe%get_lid()) 
+              reference_fe_id = this%field_cell_to_ref_fes(field_id, fe%get_gid()) 
               if ( .not. reference_fes_touched(reference_fe_id) ) then
                  reference_fes_touched(reference_fe_id) = .true.
                  nodal_quadratures(reference_fe_id)%p => reference_fe%get_nodal_quadrature()
-                 call fe_maps(reference_fe_id)%create(nodal_quadratures(reference_fe_id)%p, & 
+                 call cell_maps(reference_fe_id)%create(nodal_quadratures(reference_fe_id)%p, & 
                       fe%get_reference_fe_geo())
 
-                 do icomp=1, reference_fe%get_number_field_components()
+                 do icomp=1, reference_fe%get_num_field_components()
                     component_id = offset_component(field_id) + icomp
-                    call values(component_id,reference_fe_id)%create(nodal_quadratures(reference_fe_id)%p%get_number_quadrature_points(),1) 
+                    call values(component_id,reference_fe_id)%create(nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points(),1) 
                  end do
               end if
 
               ! TO-DO: This call should ONLY be performed once 
               !        per FE s.t. at least one of its fields
               !        has DoFs subject to BCs.
-              call fe%get_elem2dof(elem2dof)
+              call fe%get_fe_dofs(fe_dofs)
 
-              cell_coordinates => fe_maps(reference_fe_id)%get_coordinates()
-              call fe%get_coordinates(cell_coordinates)
-              call fe_maps(reference_fe_id)%compute_quadrature_coordinates()
-              nodal_coordinates => fe_maps(reference_fe_id)%get_quadrature_coordinates()
+              cell_coordinates => cell_maps(reference_fe_id)%get_coordinates()
+              call fe%get_nodes_coordinates(cell_coordinates)
+              call cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
+              nodal_coordinates => cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
 
               ! Go over all vefs within current FE
               do ivef = 1, fe%get_num_vefs()
@@ -525,12 +574,12 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
                     ! Get components code corresponding to set_id assigned to current vef
                     ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
                     ! a more clever strategy. Does it pay off to look carefully at this?
-                    call conditions%get_components_code( vef%get_set_id(), components_code )
+                    call this%conditions%get_components_code( vef%get_set_id(), components_code )
 
-                    do icomp=1, reference_fe%get_number_field_components()
+                    do icomp=1, reference_fe%get_num_field_components()
                        component_id = offset_component(field_id) + icomp
                        if (components_code(component_id)) then
-                          call conditions%get_function( vef%get_set_id(), component_id, scalar_function )
+                          call this%conditions%get_function( vef%get_set_id(), component_id, scalar_function )
                           assert(associated(scalar_function))
                           ! Evaluate function
                           if(present(time)) then
@@ -547,10 +596,10 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
                        component_id = offset_component(field_id) + reference_fe%get_component_node(local_within_ref_fe_dof_id)
                        if ( components_code(component_id) ) then 
                           ! Check if current node is subject to strong Dirichlet boundary conditions
-                          if(elem2dof(field_id)%p(local_within_ref_fe_dof_id) < 0) then
+                          if(fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(local_within_ref_fe_dof_id))) then
                              local_within_ref_fe_scalar_dof_id = reference_fe%get_scalar_from_vector_node(local_within_ref_fe_dof_id)
-                             strong_dirichlet_dof_id = -elem2dof(field_id)%p(local_within_ref_fe_dof_id)
-                             call this%strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(component_id,field_id)%a(local_within_ref_fe_scalar_dof_id,1))
+                             strong_dirichlet_dof_id = -fe_dofs(field_id)%p(local_within_ref_fe_dof_id)
+                             call strong_dirichlet_values%insert(strong_dirichlet_dof_id,values(component_id,field_id)%a(local_within_ref_fe_scalar_dof_id,1))
                           end if
                        end if
                        call own_dofs_on_vef_iterator%next()
@@ -562,24 +611,24 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
      end if
      call fe%next() 
   end do
-  call this%free_fe_iterator(fe) 
+  call this%free_fe_cell_iterator(fe) 
   call this%free_fe_vef_iterator(vef)
   
   call memfree ( reference_fes_touched, __FILE__, __LINE__ )
   call memfree ( components_code, __FILE__, __LINE__ )
 
 
-  do reference_fe_id = 1, number_reference_fes
-     call fe_maps(reference_fe_id)%free()
-     do component_id = 1, number_components
+  do reference_fe_id = 1, num_reference_fes
+     call cell_maps(reference_fe_id)%free()
+     do component_id = 1, num_components
         call values(component_id, reference_fe_id)%free()
      end do
   end do
-
+  
   call memfree(offset_component, __FILE__, __LINE__) 
-  deallocate(elem2dof, stat=istat ) 
+  deallocate(fe_dofs, stat=istat ) 
   check (istat==0)
-  deallocate(fe_maps, stat=istat)
+  deallocate(cell_maps, stat=istat)
   check(istat==0)
   deallocate(nodal_quadratures, stat=istat)
   check(istat==0)
@@ -588,34 +637,35 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, conditions, time,
   call memfree ( fields_to_interpolate_, __FILE__, __LINE__ ) 
 end subroutine serial_fe_space_interpolate_dirichlet_values
 
-subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, conditions, time, fields_to_project)
+subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_function, time, fields_to_project)
   implicit none
-  class(serial_fe_space_t), intent(inout)  :: this
-  class(conditions_t)     , intent(in)     :: conditions
-  real(rp)       , optional   , intent(in) :: time
-  integer(ip)    , optional   , intent(in) :: fields_to_project(:) 
+  class(serial_fe_space_t)          , intent(inout) :: this
+  class(fe_function_t)              , intent(inout) :: fe_function
+  real(rp)                , optional, intent(in)    :: time
+  integer(ip)             , optional, intent(in)    :: fields_to_project(:)
 
   !  Locals
   integer(ip)                  , allocatable :: fields_to_project_(:)  
   integer(ip)                                :: field_id, istat
   integer(ip)                                :: component_id
   integer(ip)                  , allocatable :: offset_component(:)
-  integer(ip)                                :: number_components
+  integer(ip)                                :: num_components
   logical                      , allocatable :: components_code(:)
+  type(serial_scalar_array_t)  , pointer     :: strong_dirichlet_values
 
   class(reference_fe_t)        , pointer     :: reference_fe
 
-  class(fe_iterator_t)     , allocatable :: fe
-  class(fe_face_iterator_t), allocatable :: fe_face
+  class(fe_cell_iterator_t)     , allocatable :: fe
+  class(fe_facet_iterator_t), allocatable :: fe_face
 
-  type(i1p_t), allocatable :: elem2dof(:)
+  type(i1p_t), allocatable :: fe_dofs(:)
 
   type(sparse_matrix_t)       :: matrix
   type(serial_scalar_array_t) :: rhs
   type(serial_scalar_array_t) :: projected_nodal_values
   integer(ip), allocatable    :: subset2global_dirichlet_dofs(:) 
   integer(ip), allocatable    :: global2subset_dirichlet_dofs(:) 
-  integer(ip), allocatable    :: subset_elem2dof(:) 
+  integer(ip), allocatable    :: subset_fe_dofs(:) 
 #ifdef ENABLE_MKL  
   type(direct_solver_t)           :: direct_solver
 #else
@@ -629,66 +679,66 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   type(p_scalar_function_t), allocatable :: function_scalar_components(:)
   real(rp)                 , allocatable :: scalar_function_values(:,:)
   type(vector_field_t)     , allocatable :: vector_function_values(:,:)
+  type(vector_field_t)     , allocatable :: shape_values(:,:)
 
   type(parameterlist_t)  :: parameter_list
   integer(ip)            :: FPLError
   integer                :: iparm(64)
   integer(ip)            :: ifield, jfield, idof, idof_subset, idof_global
-  integer(ip)            :: number_subset_strong_dirichlet_dofs
+  integer(ip)            :: num_subset_strong_dirichlet_dofs
 
-  number_components = this%get_number_components()
-  assert ( conditions%get_number_components() == number_components )
-  call memalloc ( number_components, components_code, __FILE__, __LINE__ )
+  assert ( associated(this%conditions) )
+  call memalloc ( this%get_num_components(), components_code, __FILE__, __LINE__ )
 
   call this%allocate_and_fill_fields_to_project_(fields_to_project_, &
                                                  fields_to_project)
   
   call this%allocate_and_fill_offset_component(offset_component)
   
-  call memalloc ( this%get_max_number_shape_functions(), &
-                  this%get_max_number_shape_functions(), &
+  call memalloc ( this%get_max_num_shape_functions(), &
+                  this%get_max_num_shape_functions(), &
                   elmat, __FILE__, __LINE__ )
 
-  call memalloc ( this%get_max_number_shape_functions(), &
+  call memalloc ( this%get_max_num_shape_functions(), &
                   elvec, __FILE__, __LINE__ )
 
-  call memalloc ( this%get_max_number_shape_functions(), subset_elem2dof, __FILE__, __LINE__ )
+  call memalloc ( this%get_max_num_shape_functions(), subset_fe_dofs, __FILE__, __LINE__ )
 
-  allocate ( vector_function_values(this%get_max_number_face_quadrature_points(),1), & 
+  allocate ( vector_function_values(this%get_max_num_facet_quadrature_points(),1), & 
              stat=istat); check(istat==0);
 
-  allocate ( scalar_function_values(this%get_max_number_face_quadrature_points(),1), & 
+  allocate ( scalar_function_values(this%get_max_num_facet_quadrature_points(),1), & 
              stat=istat); check(istat==0);
 
-  allocate ( function_scalar_components(this%triangulation%get_num_dimensions()), & 
+  allocate ( function_scalar_components(this%triangulation%get_num_dims()), & 
              stat=istat); check(istat==0);
   
-  allocate( elem2dof(this%get_number_fields()), stat=istat); check(istat==0);
+  allocate( fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
 
-  number_subset_strong_dirichlet_dofs = this%allocate_and_fill_global2subset_and_inverse(fields_to_project_, &
+  num_subset_strong_dirichlet_dofs = this%allocate_and_fill_global2subset_and_inverse(fields_to_project_, &
                                                                                          global2subset_dirichlet_dofs, &
                                                                                          subset2global_dirichlet_dofs)
   
   ! Create linear system 
-  call matrix%create(num_rows_and_cols=number_subset_strong_dirichlet_dofs, &
-                     symmetric_storage=.false.,       &
-                     is_symmetric=.false.,            &
-                     sign=SPARSE_MATRIX_SIGN_UNKNOWN )
+  call matrix%create(num_rows_and_cols=num_subset_strong_dirichlet_dofs, &
+                     symmetric_storage=.true.,       &
+                     is_symmetric=.true.,            &
+                     sign=SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
 
-  call rhs%create_and_allocate(number_subset_strong_dirichlet_dofs) 
+  call rhs%create_and_allocate(num_subset_strong_dirichlet_dofs) 
   call rhs%init(0.0_rp)
 
   ! Create data structures
-  call projected_nodal_values%create_and_allocate(number_subset_strong_dirichlet_dofs)
-  call this%create_fe_face_iterator(fe_face)
-  call this%create_fe_iterator(fe)
+  call projected_nodal_values%create_and_allocate(num_subset_strong_dirichlet_dofs)
+  call this%create_fe_facet_iterator(fe_face)
+  call this%create_fe_cell_iterator(fe)
   do while ( .not. fe_face%has_finished() )
      if ( fe_face%is_at_boundary() ) then
         if ( fe_face%get_set_id() /= 0 ) then
            call fe_face%update_integration() 
            call fe_face%get_cell_around(1,fe)
-           call fe%get_elem2dof(elem2dof)
-           call conditions%get_components_code( fe_face%get_set_id(), components_code )
+           call fe%get_fe_dofs(fe_dofs)
+           call this%conditions%get_components_code( fe_face%get_set_id(), components_code )
 
            do ifield = 1, size(fields_to_project_)    
               field_id = fields_to_project_(ifield) 
@@ -699,7 +749,6 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
                                                           fe, &
                                                           field_id, &
                                                           component_id, &
-                                                          conditions, &
                                                           function_scalar_components)
                  
                  call this%evaluate_vector_function_scalar_components(fe_face, &
@@ -715,27 +764,28 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
                                                                        field_id, &
                                                                        vector_function_values, &
                                                                        elmat, &
-                                                                       elvec)
+                                                                       elvec, &
+                                                                       shape_values)
               
               
                  ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
-                 subset_elem2dof = 0
-                 do idof = 1, size(elem2dof(field_id)%p)
-                    if ( (elem2dof(field_id)%p(idof) < 0) ) then 
-                        subset_elem2dof(idof) = global2subset_dirichlet_dofs( -elem2dof(field_id)%p(idof) )
+                 subset_fe_dofs = 0
+                 do idof = 1, size(fe_dofs(field_id)%p)
+                    if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
+                        subset_fe_dofs(idof) = global2subset_dirichlet_dofs( -fe_dofs(field_id)%p(idof) )
                     end if
                  end do
                  
                  reference_fe => fe%get_reference_fe(field_id)
-                 call matrix%insert(num_rows = reference_fe%get_number_shape_functions(),& 
-                                    num_cols = reference_fe%get_number_shape_functions(),& 
-                                    ia       = subset_elem2dof, &
-                                    ja       = subset_elem2dof, &
+                 call matrix%insert(num_rows = reference_fe%get_num_shape_functions(),& 
+                                    num_cols = reference_fe%get_num_shape_functions(),& 
+                                    ia       = subset_fe_dofs, &
+                                    ja       = subset_fe_dofs, &
                                     ioffset  = 0, &
                                     joffset  = 0, & 
                                     val      = elmat)
-                 call rhs%add(num_entries = reference_fe%get_number_shape_functions(),& 
-                              ia          = subset_elem2dof, &
+                 call rhs%add(num_entries = reference_fe%get_num_shape_functions(),& 
+                              ia          = subset_fe_dofs, &
                               ioffset     = 0, &
                               val         = elvec)
               end if
@@ -744,14 +794,14 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
      end if
      call fe_face%next()
   end do
-  call this%free_fe_face_iterator(fe_face)
-  call this%free_fe_iterator(fe)
+  call this%free_fe_facet_iterator(fe_face)
+  call this%free_fe_cell_iterator(fe)
   call matrix%convert(csr_format)
-
+  				
   call parameter_list%init()
 #ifdef ENABLE_MKL
   FPLError = parameter_list%set(key = direct_solver_type                  ,  value = pardiso_mkl)
-  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_uns)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type  ,  value = pardiso_mkl_spd)
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level,  value = 0)
   iparm = 0
   FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
@@ -777,10 +827,11 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   call parameter_list%free()
 
   ! Insert projected nodal values into strong_dirichlet_values array 
-  call this%strong_dirichlet_values%insert_subvector(iblock=1, &
-                                                     size_indices=number_subset_strong_dirichlet_dofs, &
-                                                     indices=subset2global_dirichlet_dofs,             &
-                                                     values=projected_nodal_values%get_entries())
+  strong_dirichlet_values => fe_function%get_fixed_dof_values()
+  call strong_dirichlet_values%insert_subvector(iblock=1, &
+                                                size_indices=num_subset_strong_dirichlet_dofs, &
+                                                indices=subset2global_dirichlet_dofs,             &
+                                                values=projected_nodal_values%get_entries())
 
   call matrix%free()
   call rhs%free()
@@ -791,12 +842,13 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, condi
   deallocate ( function_scalar_components, stat=istat); check(istat==0);
   deallocate ( vector_function_values, stat=istat); check(istat==0);
   deallocate ( scalar_function_values, stat=istat); check(istat==0);
+  deallocate ( shape_values, stat=istat); check(istat==0);
   call memfree ( components_code, __FILE__, __LINE__ )
   call memfree ( subset2global_dirichlet_dofs, __FILE__, __LINE__ )
   call memfree ( global2subset_dirichlet_dofs, __FILE__, __LINE__ ) 
   call memfree ( fields_to_project_, __FILE__, __LINE__ )
-  call memfree ( subset_elem2dof, __FILE__, __LINE__ )
-  deallocate(elem2dof, stat=istat ); check (istat==0)
+  call memfree ( subset_fe_dofs, __FILE__, __LINE__ )
+  deallocate(fe_dofs, stat=istat ); check (istat==0)
 end subroutine serial_fe_space_project_dirichlet_values_curl_conforming
 
 
@@ -818,8 +870,8 @@ subroutine serial_fe_space_allocate_and_fill_fields_to_project_ (this, &
      fields_to_project_ = fields_to_project
   else  
      ! By default, all fields are projected ( i.e., 1-field case where no subset selection is needed) 
-     call memalloc ( this%get_number_fields() , fields_to_project_, __FILE__, __LINE__ )  
-     do field_id=1,this%get_number_fields() 
+     call memalloc ( this%get_num_fields() , fields_to_project_, __FILE__, __LINE__ )  
+     do field_id=1,this%get_num_fields() 
         fields_to_project_(field_id) = field_id
      end do
   end if
@@ -828,7 +880,7 @@ subroutine serial_fe_space_allocate_and_fill_fields_to_project_ (this, &
 #ifdef DEBUG
   do ifield = 1, size(fields_to_project_) 
     field_id = fields_to_project_(ifield)
-    assert ( field_id >= 1 .and. field_id <= this%get_number_fields() )
+    assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
     do jfield = ifield+1, size(fields_to_project_)
       assert ( fields_to_project_(ifield) /= fields_to_project_(jfield) )
     end do
@@ -845,11 +897,11 @@ subroutine serial_fe_space_allocate_and_fill_offset_component(this, offset_compo
   class(reference_fe_t), pointer :: reference_fe
   if (allocated(offset_component)) call memfree(offset_component, __FILE__, __LINE__ )
   ! Build offset components 
-  call memalloc( this%get_number_fields(), offset_component, __FILE__, __LINE__ ) 
+  call memalloc( this%get_num_fields(), offset_component, __FILE__, __LINE__ ) 
   offset_component(1) = 0
-  do field_id = 2, this%get_number_fields() 
+  do field_id = 2, this%get_num_fields() 
      reference_fe                   => this%get_reference_fe(field_id-1)
-     offset_component(field_id)     =  offset_component(field_id-1) + reference_fe%get_number_field_components() 
+     offset_component(field_id)     =  offset_component(field_id-1) + reference_fe%get_num_field_components() 
   end do
 end subroutine serial_fe_space_allocate_and_fill_offset_component
 
@@ -868,31 +920,31 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
 
   integer(ip)              :: ifield, field_id, idof, idof_subset, idof_global
   integer(ip)              :: istat
-  class(fe_iterator_t), allocatable :: fe
-  type(i1p_t), allocatable :: elem2dof(:)
+  class(fe_cell_iterator_t), allocatable :: fe
+  type(i1p_t), allocatable :: fe_dofs(:)
 
 
   if (allocated(global2subset)) call memfree(global2subset,__FILE__,__LINE__)
   if (allocated(subset2global)) call memfree(subset2global,__FILE__,__LINE__)
   
-  allocate( elem2dof(this%get_number_fields()), stat=istat); check(istat==0);
-  call memalloc ( this%strong_dirichlet_values%get_size(), global2subset, __FILE__, __LINE__ ) 
+  allocate( fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
+  call memalloc ( this%num_fixed_dofs, global2subset, __FILE__, __LINE__ ) 
   global2subset=0
 
   ! Count number of Dirichlet DOFs to be projected
   num_subset_strong_dirichlet_dofs = 0
-  call this%create_fe_iterator(fe)
+  call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
         do ifield = 1, size(fields_to_project) 
            field_id = fields_to_project(ifield) 
            if ( fe%at_strong_dirichlet_boundary(field_id) ) then 
-              call fe%get_elem2dof(elem2dof)
-              do idof = 1,size(elem2dof(field_id)%p)
-                 if ( (elem2dof(field_id)%p(idof) < 0)) then 
-                    if (global2subset(-elem2dof(field_id)%p(idof))==0) then 
+              call fe%get_fe_dofs(fe_dofs)
+              do idof = 1,size(fe_dofs(field_id)%p)
+                 if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
+                    if (global2subset(-fe_dofs(field_id)%p(idof))==0) then 
                        num_subset_strong_dirichlet_dofs = num_subset_strong_dirichlet_dofs + 1
-                       global2subset(-elem2dof(field_id)%p(idof)) = num_subset_strong_dirichlet_dofs 
+                       global2subset(-fe_dofs(field_id)%p(idof)) = num_subset_strong_dirichlet_dofs 
                     end if
                  end if
               end do
@@ -901,17 +953,17 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
      end if
      call fe%next()
   end do
-  call this%free_fe_iterator(fe)
+  call this%free_fe_cell_iterator(fe)
   ! Allocate + compute subset2global_dirichlet_dofs from subset2global_dirichlet_dofs
   call memalloc ( num_subset_strong_dirichlet_dofs, subset2global, __FILE__, __LINE__ ) 
+
   idof_subset=1
-  do idof_global=1, this%strong_dirichlet_values%get_size()
+  do idof_global=1, this%num_fixed_dofs
      if (global2subset(idof_global) /= 0) then
-        subset2global(idof_subset) = global2subset(idof_global) 
-        idof_subset=idof_subset+1
+        subset2global(global2subset(idof_global)) = idof_global
      end if
   end do  
-  deallocate(elem2dof, stat=istat ); check (istat==0)
+  deallocate(fe_dofs, stat=istat ); check (istat==0)
 end function serial_fe_space_allocate_and_fill_global2subset_and_inverse
 
 subroutine serial_fe_space_get_function_scalar_components ( this, &
@@ -919,15 +971,13 @@ subroutine serial_fe_space_get_function_scalar_components ( this, &
                                                             fe, &
                                                             field_id, &
                                                             component_id, &
-                                                            conditions, & 
                                                             function_scalar_components )
   implicit none
   class(serial_fe_space_t)    , intent(in)    :: this
-  class(fe_face_iterator_t)   , intent(in)    :: fe_face
-  class(fe_iterator_t)        , intent(inout) :: fe
+  class(fe_facet_iterator_t)   , intent(in)    :: fe_face
+  class(fe_cell_iterator_t)        , intent(inout) :: fe
   integer(ip)                 , intent(in)    :: field_id
   integer(ip)                 , intent(in)    :: component_id
-  class(conditions_t)         , intent(in)    :: conditions
   type(p_scalar_function_t)   , intent(inout) :: function_scalar_components(:)
   
   ! Locals
@@ -937,15 +987,15 @@ subroutine serial_fe_space_get_function_scalar_components ( this, &
   call fe_face%get_cell_around(1,fe)
   reference_fe => fe%get_reference_fe(field_id)
   
-  assert ( reference_fe%get_number_field_components() <= size(function_scalar_components) )
-  assert ( field_id >= 1 .and. field_id <= this%get_number_fields() )
-  assert ( component_id >= 1 .and. component_id <= conditions%get_number_components() )
+  assert ( reference_fe%get_num_field_components() <= size(function_scalar_components) )
+  assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
+  assert ( component_id >= 1 .and. component_id <= this%conditions%get_num_components() )
   
   ! Retreive the scalar functions corresponding to the components of the function to be projected
-  do icomp=1, reference_fe%get_number_field_components()
-       call conditions%get_function(fe_face%get_set_id(), &
-                                    component_id+icomp-1, &
-                                    function_scalar_components(icomp)%p)
+  do icomp=1, reference_fe%get_num_field_components()
+       call this%conditions%get_function(fe_face%get_set_id(), &
+                                         component_id+icomp-1, &
+                                         function_scalar_components(icomp)%p)
   end do
 end subroutine serial_fe_space_get_function_scalar_components
 
@@ -959,8 +1009,8 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
                                                                       time)
   implicit none
   class(serial_fe_space_t) , intent(in)    :: this
-  class(fe_face_iterator_t), intent(inout) :: fe_face
-  class(fe_iterator_t)     , intent(inout) :: fe
+  class(fe_facet_iterator_t), intent(inout) :: fe_face
+  class(fe_cell_iterator_t)     , intent(inout) :: fe
   integer(ip)              , intent(in)    :: field_id
   type(p_scalar_function_t), intent(in)    :: function_scalar_components(:)
   real(rp)                 , intent(inout) :: scalar_function_values(:,:) ! Work-space
@@ -971,7 +1021,6 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   integer(ip)                    :: icomp
   class(reference_fe_t), pointer :: reference_fe
   type(quadrature_t)   , pointer :: quadrature
-  type(face_map_t)     , pointer :: face_map
   type(point_t)        , pointer :: quad_coords(:)
                    
   real(rp)                       :: time_(1)
@@ -979,23 +1028,22 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   
   call fe_face%get_cell_around(1,fe)
   reference_fe => fe%get_reference_fe(field_id)
-  face_map     => fe_face%get_face_map()   
-  quad_coords  => face_map%get_quadrature_coordinates()
+  quad_coords  => fe_face%get_quadrature_points_coordinates()
   
-  assert ( reference_fe%get_number_field_components() <= size(function_scalar_components) )
-  assert ( field_id >= 1 .and. field_id <= this%get_number_fields() )
+  assert ( reference_fe%get_num_field_components() <= size(function_scalar_components) )
+  assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
   
   if ( present(time) ) time_(1) = time
   
   quadrature   => fe_face%get_quadrature()
-  n_q_points   = quadrature%get_number_quadrature_points()
+  n_q_points   = quadrature%get_num_quadrature_points()
   
   select case(reference_fe%get_field_type())
   case ( field_type_scalar )
      ! reference_fe MUST BE a vector-valued FE
      assert (.false.)
   case ( field_type_vector )
-     do icomp=1, reference_fe%get_number_field_components()
+     do icomp=1, reference_fe%get_num_field_components()
         if(present(time)) then
            call function_scalar_components(icomp)%p%get_values_set_space_time(quad_coords,time_,scalar_function_values(1:n_q_points,:))
         else
@@ -1017,35 +1065,31 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
                                                                          field_id, &
                                                                          vector_function_values, &
                                                                          elmat, &
-                                                                         elvec)
+                                                                         elvec, &
+                                                                         shape_values)
   implicit none
   class(serial_fe_space_t) , intent(in)    :: this
-  class(fe_face_iterator_t), intent(inout) :: fe_face
-  class(fe_iterator_t)     , intent(inout) :: fe
+  class(fe_facet_iterator_t), intent(inout) :: fe_face
+  class(fe_cell_iterator_t)     , intent(inout) :: fe
   integer(ip)              , intent(in)    :: field_id
   type(vector_field_t)     , intent(in)    :: vector_function_values(:,:)
   real(rp)                 , intent(inout) :: elmat(:,:)
   real(rp)                 , intent(inout) :: elvec(:)
+  type(vector_field_t), allocatable, intent(inout) :: shape_values(:,:)
 
   ! Locals
   class(reference_fe_t)  , pointer :: reference_fe
   type(quadrature_t)     , pointer :: quadrature
   integer(ip)                      :: qpoint, n_q_points
-  type(face_map_t)       , pointer :: face_map
-  type(fe_map_t)         , pointer :: face_map_face_map
-  type(face_integrator_t), pointer :: face_int
   integer(ip)                      :: ishape, jshape
   real(rp)                         :: factor
-  type(vector_field_t) :: normal 
+  type(vector_field_t) :: normals(2)
   type(vector_field_t) :: vector_shape_test, vector_shape_trial
   
   call fe_face%get_cell_around(1,fe)
-  reference_fe => fe%get_reference_fe(field_id)
-  quadrature        => fe_face%get_quadrature()
-  face_map          => fe_face%get_face_map()   
-  face_map_face_map => face_map%get_face_map()
-  n_q_points        = quadrature%get_number_quadrature_points()
-  face_int          => fe_face%get_face_integrator(field_id)
+  reference_fe      => fe%get_reference_fe(field_id)
+  quadrature        => fe_face%get_quadrature()  
+  n_q_points        = quadrature%get_num_quadrature_points()
   select case(reference_fe%get_field_type())
   case ( field_type_scalar )
      ! Curl-conforming projection does not make sense with scalar-valued fields
@@ -1053,16 +1097,16 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   case ( field_type_vector )
      elmat = 0.0_rp
      elvec = 0.0_rp
+     call fe_face%get_values(1,shape_values)
      do qpoint = 1, n_q_points
-        factor = face_map%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
-        call face_map_face_map%get_normal(qpoint, normal)
-        do ishape = 1, reference_fe%get_number_shape_functions() 
-           call face_int%get_value(ishape,qpoint,1,vector_shape_test)
-           do jshape = 1, reference_fe%get_number_shape_functions()
-              call face_int%get_value(jshape,qpoint,1,vector_shape_trial)
-              elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(vector_shape_test,normal)*cross_product(vector_shape_trial,normal)*factor
+     call fe_face%get_normals(qpoint, normals)
+        factor = fe_face%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
+        
+        do ishape = 1, reference_fe%get_num_shape_functions() 
+           do jshape = 1, reference_fe%get_num_shape_functions()
+              elmat(ishape,jshape) = elmat(ishape,jshape) + cross_product(shape_values(ishape,qpoint),normals(1))*cross_product(shape_values(jshape,qpoint),normals(1))*factor
            end do
-           elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normal)*cross_product(vector_shape_test,normal)*factor
+           elvec(ishape) = elvec(ishape) + cross_product(vector_function_values(qpoint,1),normals(1))*cross_product(shape_values(ishape,qpoint),normals(1))*factor
         end do
      end do
   case ( field_type_tensor )
@@ -1071,6 +1115,296 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   end select
 end subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec
 
+
+  subroutine serial_fe_space_interpolate_scalar( this, &
+                                                 field_id, &
+                                                 function, &
+                                                 fe_function, &
+                                                 time )
+                                                           
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: field_id
+  class(scalar_function_t), intent(in)    :: function
+  class(fe_function_t)    , intent(inout) :: fe_function
+  real(rp)   , optional   , intent(in)    :: time
+  
+  logical       , allocatable    :: cell_maps_created(:)
+  type(cell_map_t), allocatable    :: cell_maps(:)
+  
+  integer(ip)                    :: reference_fe_id
+  integer(ip)                    :: num_nodes
+  class(reference_fe_t), pointer :: reference_fe
+ 
+  integer(ip)                    :: n_nodal_q_points
+  type(quadrature_t), pointer    :: nodal_quadrature
+  integer(ip)                    :: block_id
+  
+  class(fe_cell_iterator_t), allocatable :: fe
+  type(point_t)        , pointer :: nodal_coordinates(:)
+  type(point_t)        , pointer :: cell_coordinates(:)
+  real(rp), allocatable          :: fe_function_values(:,:)
+  real(rp), allocatable          :: nodal_values(:)
+  real(rp)                       :: time_(1)
+  type(i1p_t)      , allocatable :: fe_dofs(:)
+  integer(ip)      , pointer     :: field_blocks(:)
+  integer(ip)                    :: i, istat
+  class(environment_t), pointer  :: environment
+  
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+  
+  if ( present(time) ) time_(1) = time
+  
+  allocate ( fe_dofs(this%get_num_fields()), stat=istat)
+  check(istat==0)
+  
+  allocate(cell_maps(this%get_num_reference_fes()), stat=istat)
+  check(istat==0)
+  
+  call memalloc(this%get_num_reference_fes(), cell_maps_created, __FILE__, __LINE__)
+  cell_maps_created = .false.
+  
+  call memalloc(this%get_max_num_nodal_quadrature_points(), 1, fe_function_values, __FILE__, __LINE__ )
+  
+  call memalloc(this%get_max_num_shape_functions(), nodal_values, __FILE__, __LINE__ )
+  
+  field_blocks => this%get_field_blocks()
+  block_id = field_blocks(field_id)
+  
+  call this%create_fe_cell_iterator(fe)
+  
+  ! Loop over the elements
+  do while ( .not. fe%has_finished())
+  
+     if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then
+     
+       ! Create FE_MAP for current cell + field_id if we didn't
+       reference_fe_id = fe%get_reference_fe_id(field_id)
+       reference_fe     => fe%get_reference_fe(field_id)
+       nodal_quadrature => reference_fe%get_nodal_quadrature()
+       if ( .not. cell_maps_created(reference_fe_id) ) then
+         call cell_maps(reference_fe_id)%create(nodal_quadrature,fe%get_reference_fe_geo())
+         cell_maps_created(reference_fe_id) = .true.
+       end if
+       
+       ! Map reference_fe nodal coordinates to actual domain 
+       cell_coordinates => cell_maps(reference_fe_id)%get_coordinates()
+       call fe%get_nodes_coordinates(cell_coordinates)
+       call cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
+       nodal_coordinates => cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
+       
+       n_nodal_q_points = nodal_quadrature%get_num_quadrature_points()
+      
+       ! Evaluate scalar function
+       if(present(time)) then
+         call function%get_values_set_space_time(nodal_coordinates, &
+                                                        time_, &
+                                                        fe_function_values(1:n_nodal_q_points,1:1))
+       else
+         call function%get_values_set_space(nodal_coordinates, &
+                                            fe_function_values(1:n_nodal_q_points,1))
+       end if
+       
+       call fe%get_fe_dofs(fe_dofs)
+       num_nodes = reference_fe%get_num_shape_functions()
+       nodal_values(1:num_nodes) = fe_function_values(1:num_nodes,1)
+       
+       ! Update interior DoFs
+       call fe_function%free_dof_values%insert_subvector(block_id, &
+                                             num_nodes, &
+                                             fe_dofs(field_id)%p, &
+                                             nodal_values(1:num_nodes))
+       
+       ! Update DoFs subject to strong Dirichlet BCs
+       if ( fe%at_strong_dirichlet_boundary(field_id) ) then
+           fe_dofs(field_id)%p = -fe_dofs(field_id)%p
+           call fe_function%fixed_dof_values%insert_subvector(1, &
+                                                              num_nodes, &
+                                                              fe_dofs(field_id)%p, &
+                                                              nodal_values(1:num_nodes))
+           fe_dofs(field_id)%p = -fe_dofs(field_id)%p
+       end if
+     end if
+     
+     ! Go to next FE
+     call fe%next()
+  end do
+  call this%free_fe_cell_iterator(fe)
+
+  do i=1, size(cell_maps)
+    call cell_maps(i)%free()
+  end do
+  deallocate(cell_maps, stat=istat)
+  check(istat==0)
+  
+  deallocate (fe_dofs, stat=istat)
+  check(istat==0)
+  
+  call memfree(cell_maps_created, __FILE__, __LINE__)
+  call memfree(fe_function_values, __FILE__, __LINE__ )
+  call memfree(nodal_values, __FILE__, __LINE__ )
+  
+  end if
+end subroutine serial_fe_space_interpolate_scalar
+
+subroutine serial_fe_space_interpolate_vector( this, &
+                                               field_id, &
+                                               function, &
+                                               fe_function, &
+                                               time )
+                                                           
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: field_id
+  class(vector_function_t), intent(in)    :: function
+  class(fe_function_t)    , intent(inout) :: fe_function
+  real(rp)   , optional   , intent(in)    :: time
+  
+  logical       , allocatable    :: cell_maps_created(:)
+  type(cell_map_t), allocatable    :: cell_maps(:)
+  
+  integer(ip)                    :: reference_fe_id
+  integer(ip)                    :: num_nodes
+  integer(ip)                    :: inode, inode_scalar, icomp
+  class(reference_fe_t), pointer :: reference_fe
+ 
+  integer(ip)                    :: n_nodal_q_points
+  type(quadrature_t), pointer    :: nodal_quadrature
+  integer(ip)                    :: block_id
+  
+  class(fe_cell_iterator_t), allocatable :: fe
+  type(point_t)        , pointer :: nodal_coordinates(:)
+  type(point_t)        , pointer :: cell_coordinates(:)
+  type(vector_field_t) , allocatable :: fe_function_values(:,:)
+  real(rp), allocatable          :: nodal_values(:)
+  real(rp)                       :: time_(1)
+  type(i1p_t)      , allocatable :: fe_dofs(:)
+  integer(ip)      , pointer     :: field_blocks(:)
+  integer(ip)                    :: i, istat
+  
+    class(environment_t), pointer  :: environment
+  
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+
+  if ( present(time) ) time_(1) = time
+  
+  allocate ( fe_dofs(this%get_num_fields()), stat=istat)
+  check(istat==0)
+  
+  allocate(cell_maps(this%get_num_reference_fes()), stat=istat)
+  check(istat==0)
+  
+  call memalloc(this%get_num_reference_fes(), cell_maps_created, __FILE__, __LINE__)
+  cell_maps_created = .false.
+  
+  allocate ( fe_function_values(this%get_max_num_nodal_quadrature_points(), 1), stat=istat)
+  check(istat==0)
+  
+  call memalloc(this%get_max_num_shape_functions(), nodal_values, __FILE__, __LINE__ )
+  
+  field_blocks => this%get_field_blocks()
+  block_id = field_blocks(field_id)
+  
+  call this%create_fe_cell_iterator(fe)
+  
+  ! Loop over the elements
+  do while ( .not. fe%has_finished())
+
+     if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then
+     
+       ! Create FE_MAP for current cell + field_id if we didn't
+       reference_fe_id = fe%get_reference_fe_id(field_id)
+       reference_fe     => fe%get_reference_fe(field_id)
+       nodal_quadrature => reference_fe%get_nodal_quadrature()
+       if ( .not. cell_maps_created(reference_fe_id) ) then
+         call cell_maps(reference_fe_id)%create(nodal_quadrature,fe%get_reference_fe_geo())
+         cell_maps_created(reference_fe_id) = .true.
+       end if
+       
+       ! Map reference_fe nodal coordinates to actual domain 
+       cell_coordinates => cell_maps(reference_fe_id)%get_coordinates()
+       call fe%get_nodes_coordinates(cell_coordinates)
+       call cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
+       nodal_coordinates => cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
+       
+       n_nodal_q_points = nodal_quadrature%get_num_quadrature_points()
+      
+       ! Evaluate scalar function
+       if(present(time)) then
+         call function%get_values_set_space_time(nodal_coordinates, &
+                                                        time_, &
+                                                        fe_function_values(1:n_nodal_q_points,1:1))
+       else
+         call function%get_values_set_space(nodal_coordinates, &
+                                                   fe_function_values(1:n_nodal_q_points,1))
+       end if
+       
+       call fe%get_fe_dofs(fe_dofs)
+       num_nodes = reference_fe%get_num_shape_functions()
+       
+       ! Fill nodal_values from fe_function_values
+       do inode=1, num_nodes
+          icomp        = reference_fe%get_component_node(inode) 
+          inode_scalar = reference_fe%get_scalar_from_vector_node(inode)
+          nodal_values(inode) = fe_function_values(inode_scalar,1)%get(icomp)
+       end do   
+       
+       ! Update interior DoFs
+       call fe_function%free_dof_values%insert_subvector(block_id, &
+                                                    num_nodes, &
+                                                    fe_dofs(field_id)%p, &
+                                                    nodal_values(1:num_nodes))
+       
+       ! Update DoFs subject to strong Dirichlet BCs
+       if ( fe%at_strong_dirichlet_boundary(field_id) ) then
+           fe_dofs(field_id)%p = -fe_dofs(field_id)%p
+           call fe_function%fixed_dof_values%insert_subvector(1, &
+                                                              num_nodes, &
+                                                              fe_dofs(field_id)%p, &
+                                                              nodal_values(1:num_nodes))
+           fe_dofs(field_id)%p = -fe_dofs(field_id)%p
+       end if
+     end if
+     
+     
+     ! Go to next FE
+     call fe%next()
+  end do   
+  call this%free_fe_cell_iterator(fe)
+
+  do i=1, size(cell_maps)
+    call cell_maps(i)%free()
+  end do
+  deallocate(cell_maps, stat=istat)
+  check(istat==0)
+  
+  deallocate (fe_dofs, stat=istat)
+  check(istat==0)
+  
+  call memfree(cell_maps_created, __FILE__, __LINE__)
+  deallocate ( fe_function_values, stat=istat)
+  check(istat==0)  
+  call memfree(nodal_values, __FILE__, __LINE__ )
+  end if
+end subroutine serial_fe_space_interpolate_vector
+
+subroutine serial_fe_space_interpolate_tensor( this, &
+                                               field_id, &
+                                               function, &
+                                               fe_function, &
+                                               time )            
+  implicit none
+  
+  class(serial_fe_space_t), intent(in)    :: this
+  integer(ip)             , intent(in)    :: field_id
+  class(tensor_function_t), intent(in)    :: function
+  class(fe_function_t)    , intent(inout) :: fe_function
+  real(rp)   , optional   , intent(in)    :: time   
+  ! Not implemented yet
+  check(.false.)
+end subroutine serial_fe_space_interpolate_tensor
 
 subroutine serial_fe_space_allocate_and_fill_reference_fes ( this, reference_fes )
   implicit none
@@ -1098,23 +1432,33 @@ subroutine serial_fe_space_free_reference_fes ( this )
   end if
 end subroutine serial_fe_space_free_reference_fes
 
-subroutine serial_fe_space_allocate_ref_fe_id_per_fe ( this )
+subroutine serial_fe_space_allocate_field_cell_to_ref_fes ( this )
   class(serial_fe_space_t), intent(inout) :: this
-  call memalloc (this%number_fields, &
+  call memalloc (this%num_fields, &
        this%triangulation%get_num_cells(), &
-       this%reference_fe_id_per_fe, &
+       this%field_cell_to_ref_fes, &
        __FILE__, __LINE__)
-end subroutine serial_fe_space_allocate_ref_fe_id_per_fe
+end subroutine serial_fe_space_allocate_field_cell_to_ref_fes
 
-subroutine serial_fe_space_free_ref_fe_id_per_fe ( this )
+subroutine serial_fe_space_move_alloc_field_cell_to_ref_fes ( this, field_cell_to_ref_fes )
+  implicit none
+  class(serial_fe_space_t)             , intent(inout) :: this
+  integer(ip)             , allocatable, intent(inout) :: field_cell_to_ref_fes(:,:)
+  assert ( .not. allocated(field_cell_to_ref_fes) )
+  if ( allocated(this%field_cell_to_ref_fes) ) then
+     call move_alloc( to=field_cell_to_ref_fes, from=this%field_cell_to_ref_fes )
+  end if
+end subroutine serial_fe_space_move_alloc_field_cell_to_ref_fes
+
+subroutine serial_fe_space_free_field_cell_to_ref_fes ( this )
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%reference_fe_id_per_fe)) then
-     call memfree (this%reference_fe_id_per_fe, &
+  if (allocated(this%field_cell_to_ref_fes)) then
+     call memfree (this%field_cell_to_ref_fes, &
           __FILE__, __LINE__)
   end if
-end subroutine serial_fe_space_free_ref_fe_id_per_fe
+end subroutine serial_fe_space_free_field_cell_to_ref_fes
 
-subroutine serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells ( this )
+subroutine serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells ( this )
   implicit none
   class(serial_fe_space_t)          , intent(inout) :: this
 
@@ -1122,14 +1466,14 @@ subroutine serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells ( this )
   integer(ip) :: ife
 
   do ife=1, this%triangulation%get_num_cells()
-     do ifield=1, this%number_fields
-        this%reference_fe_id_per_fe(ifield,ife) = ifield
+     do ifield=1, this%num_fields
+        this%field_cell_to_ref_fes(ifield,ife) = ifield
      end do
   end do
 
-end subroutine serial_fe_space_fill_ref_fe_id_per_fe_same_on_all_cells
+end subroutine serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells
 
-subroutine serial_fe_space_fill_ref_fe_id_per_fe_different_between_cells ( this, set_ids_to_reference_fes )
+subroutine sfes_fill_field_cell_to_ref_fes_different_ref_fes_between_cells ( this, set_ids_to_reference_fes )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: set_ids_to_reference_fes(:,:)
@@ -1139,29 +1483,28 @@ subroutine serial_fe_space_fill_ref_fe_id_per_fe_different_between_cells ( this,
 
   call this%triangulation%create_cell_iterator(cell)
   do while (.not. cell%has_finished())
-    do ifield=1, this%number_fields
-      this%reference_fe_id_per_fe(ifield,cell%get_lid()) = set_ids_to_reference_fes(ifield,cell%get_set_id())
+    do ifield=1, this%num_fields
+      this%field_cell_to_ref_fes(ifield,cell%get_gid()) = set_ids_to_reference_fes(ifield,cell%get_set_id())
     end do
     call cell%next()
   end do
   call this%triangulation%free_cell_iterator(cell)
 
-end subroutine serial_fe_space_fill_ref_fe_id_per_fe_different_between_cells
+end subroutine sfes_fill_field_cell_to_ref_fes_different_ref_fes_between_cells
 
 subroutine serial_fe_space_check_cell_vs_fe_topology_consistency(this)
   implicit none
   class(serial_fe_space_t)          , intent(in) :: this
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: reference_fe_unkno
-  class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+  class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: field_id
 
 #ifdef DEBUG
-  call this%create_fe_iterator(fe)
-  call fe%first()
+  call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
      reference_fe_geo => fe%get_reference_fe_geo()
-     do field_id = 1, fe%get_number_fields()  
+     do field_id = 1, fe%get_num_fields()  
         reference_fe_unkno => fe%get_reference_fe(field_id)
         assert ( reference_fe_unkno%get_topology() == reference_fe_geo%get_topology() )
      end do
@@ -1172,73 +1515,73 @@ subroutine serial_fe_space_check_cell_vs_fe_topology_consistency(this)
 
 end subroutine serial_fe_space_check_cell_vs_fe_topology_consistency
 
-subroutine serial_fe_space_allocate_fe_quadratures_degree ( this ) 
+subroutine serial_fe_space_allocate_cell_quadratures_degree ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%free_fe_quadratures_degree()
-  call memalloc ( this%triangulation%get_num_cells(), this%fe_quadratures_degree, __FILE__, __LINE__ )
-end subroutine serial_fe_space_allocate_fe_quadratures_degree 
+  call this%free_cell_quadratures_degree()
+  call memalloc ( this%triangulation%get_num_cells(), this%cell_quadratures_degree, __FILE__, __LINE__ )
+end subroutine serial_fe_space_allocate_cell_quadratures_degree 
 
-subroutine serial_fe_space_clear_fe_quadratures_degree ( this ) 
+subroutine serial_fe_space_clear_cell_quadratures_degree ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  assert ( allocated(this%fe_quadratures_degree) )
-  this%fe_quadratures_degree = fe_space_default_quadrature_degree_flag
-end subroutine serial_fe_space_clear_fe_quadratures_degree
+  assert ( allocated(this%cell_quadratures_degree) )
+  this%cell_quadratures_degree = fe_space_default_quadrature_degree_flag
+end subroutine serial_fe_space_clear_cell_quadratures_degree
 
-subroutine serial_fe_space_free_fe_quadratures_degree ( this ) 
+subroutine serial_fe_space_free_cell_quadratures_degree ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%fe_quadratures_degree)) call memfree ( this%fe_quadratures_degree, __FILE__, __LINE__ )
-end subroutine serial_fe_space_free_fe_quadratures_degree
+  if (allocated(this%cell_quadratures_degree)) call memfree ( this%cell_quadratures_degree, __FILE__, __LINE__ )
+end subroutine serial_fe_space_free_cell_quadratures_degree
 
-subroutine serial_fe_space_allocate_max_order_reference_fe_id_per_fe ( this )
+subroutine serial_fe_space_allocate_max_order_reference_fe_id_x_cell ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%free_max_order_reference_fe_id_per_fe()
-  call memalloc ( this%triangulation%get_num_cells(), this%max_order_reference_fe_id_per_fe, __FILE__, __LINE__ )
-end subroutine serial_fe_space_allocate_max_order_reference_fe_id_per_fe 
+  call this%free_max_order_reference_fe_id_x_cell()
+  call memalloc ( this%triangulation%get_num_cells(), this%max_order_reference_fe_id_x_cell, __FILE__, __LINE__ )
+end subroutine serial_fe_space_allocate_max_order_reference_fe_id_x_cell 
 
-subroutine serial_fe_space_free_max_order_reference_fe_id_per_fe ( this )
+subroutine serial_fe_space_free_max_order_reference_fe_id_x_cell ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%max_order_reference_fe_id_per_fe)) call memfree ( this%max_order_reference_fe_id_per_fe, __FILE__, __LINE__ )
-end subroutine serial_fe_space_free_max_order_reference_fe_id_per_fe 
+  if (allocated(this%max_order_reference_fe_id_x_cell)) call memfree ( this%max_order_reference_fe_id_x_cell, __FILE__, __LINE__ )
+end subroutine serial_fe_space_free_max_order_reference_fe_id_x_cell 
 
-subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe ( this )
+subroutine serial_fe_space_compute_max_order_reference_fe_id_x_cell ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   integer(ip) :: max_order, max_order_reference_fe_id_within_fe
   integer(ip) :: field_id
   
-  call this%create_fe_iterator(fe)
+  call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
      max_order = -1
-     do field_id=1, this%get_number_fields()
+     do field_id=1, this%get_num_fields()
         if ( max_order <= fe%get_max_order_single_field(field_id) ) then
            max_order = fe%get_max_order_single_field(field_id)
            max_order_reference_fe_id_within_fe = fe%get_reference_fe_id(field_id)
         end if
      end do
-     this%max_order_reference_fe_id_per_fe(fe%get_lid()) = max_order_reference_fe_id_within_fe
+     this%max_order_reference_fe_id_x_cell(fe%get_gid()) = max_order_reference_fe_id_within_fe
      call fe%next()
   end do
-  call this%free_fe_iterator(fe) 
-end subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe 
+  call this%free_fe_cell_iterator(fe) 
+end subroutine serial_fe_space_compute_max_order_reference_fe_id_x_cell 
 
-subroutine serial_fe_space_initialize_fe_integration ( this )
+subroutine serial_fe_space_set_up_cell_integration ( this )
   implicit none
   class(serial_fe_space_t)          , intent(inout) :: this
 
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   integer(ip)         :: current_quadrature_and_map
   integer(ip)         :: current_cell_integrator
 
   integer(ip)         :: field_id
   integer(ip)         :: max_order, max_order_reference_fe_id_within_fe
-  integer(ip)         :: fe_quadrature_and_map_key
-  integer(ip)         :: fe_cell_integrators_position_key
+  integer(ip)         :: cell_quadrature_and_map_key
+  integer(ip)         :: cell_integrators_position_key
   integer(ip)         :: istat
   type(quadrature_t), pointer :: quadrature
 
@@ -1246,35 +1589,35 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
 
   call this%free_fe_integration()
   
-  call this%allocate_max_order_reference_fe_id_per_fe()
-  call this%compute_max_order_reference_fe_id_per_fe()
+  call this%allocate_max_order_reference_fe_id_x_cell()
+  call this%compute_max_order_reference_fe_id_x_cell()
   
-  ! Determine the size of fe_quadratures, fe_maps, and fe_cell_integrators 
+  ! Determine the size of cell_quadratures, cell_maps, and cell_integrators 
   ! while filling the corresponding hash tables
-  call this%fe_quadratures_and_maps_position%init()
-  call this%fe_cell_integrators_position%init()
+  call this%cell_quadratures_and_maps_position%init()
+  call this%cell_integrators_position%init()
   current_quadrature_and_map = 1
   current_cell_integrator  = 1
   
-  call this%create_fe_iterator(fe)
+  call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
-     fe_quadrature_and_map_key = this%generate_fe_quadratures_position_key(fe%get_reference_fe_geo_id(),&
+     cell_quadrature_and_map_key = this%generate_cell_quadratures_position_key(fe%get_reference_fe_geo_id(),&
                                                                            fe%get_quadrature_degree())
 
-     call this%fe_quadratures_and_maps_position%put(key = fe_quadrature_and_map_key,  &
+     call this%cell_quadratures_and_maps_position%put(key = cell_quadrature_and_map_key,  &
                                                     val = current_quadrature_and_map, &
                                                     stat= istat)
      if (istat == now_stored) then
         current_quadrature_and_map = current_quadrature_and_map + 1
      end if
 
-     do field_id=1, this%get_number_fields()
-        fe_cell_integrators_position_key = &
-             this%generate_fe_cell_integrators_position_key(fe%get_reference_fe_geo_id(), &
+     do field_id=1, this%get_num_fields()
+        cell_integrators_position_key = &
+             this%generate_cell_integrators_position_key(fe%get_reference_fe_geo_id(), &
                                                  fe%get_quadrature_degree(), &
-                                                 this%reference_fe_id_per_fe(field_id, fe%get_lid()))
+                                                 this%field_cell_to_ref_fes(field_id, fe%get_gid()))
 
-        call this%fe_cell_integrators_position%put(key=fe_cell_integrators_position_key, &
+        call this%cell_integrators_position%put(key=cell_integrators_position_key, &
                                                      val=current_cell_integrator, &
                                                      stat=istat)
         if (istat == now_stored) then
@@ -1285,60 +1628,60 @@ subroutine serial_fe_space_initialize_fe_integration ( this )
      call fe%next()
   end do
 
-  allocate ( this%fe_quadratures(current_quadrature_and_map-1), stat=istat)
+  allocate ( this%cell_quadratures(current_quadrature_and_map-1), stat=istat)
   check (istat==0)
 
-  allocate ( this%fe_maps(current_quadrature_and_map-1), stat=istat)
+  allocate ( this%cell_maps(current_quadrature_and_map-1), stat=istat)
   check (istat==0)
 
-  allocate ( this%fe_cell_integrators(current_cell_integrator-1), stat=istat)
+  allocate ( this%cell_integrators(current_cell_integrator-1), stat=istat)
   check (istat==0)
 
-  call this%fe_quadratures_and_maps_position%init()
-  call this%fe_cell_integrators_position%init()
+  call this%cell_quadratures_and_maps_position%init()
+  call this%cell_integrators_position%init()
   current_quadrature_and_map = 1
   current_cell_integrator  = 1
 
   call fe%first()
   do while ( .not. fe%has_finished())
    
-     fe_quadrature_and_map_key = this%generate_fe_quadratures_position_key(fe%get_reference_fe_geo_id(),&
+     cell_quadrature_and_map_key = this%generate_cell_quadratures_position_key(fe%get_reference_fe_geo_id(),&
                                                                            fe%get_quadrature_degree())
      
-     call this%fe_quadratures_and_maps_position%put(key = fe_quadrature_and_map_key,  &
+     call this%cell_quadratures_and_maps_position%put(key = cell_quadrature_and_map_key,  &
                                                     val = current_quadrature_and_map, &
                                                     stat= istat)
      if (istat == now_stored) then
-        ! Create quadrature and fe_map associated to current max_order_within_fe
-        max_order_reference_fe_id_within_fe = this%max_order_reference_fe_id_per_fe(fe%get_lid()) 
+        ! Create quadrature and cell_map associated to current max_order_within_fe
+        max_order_reference_fe_id_within_fe = this%max_order_reference_fe_id_x_cell(fe%get_gid()) 
         reference_fe => this%reference_fes(max_order_reference_fe_id_within_fe)%p
-        call reference_fe%create_quadrature(this%fe_quadratures(current_quadrature_and_map))!, &
+        call reference_fe%create_quadrature(this%cell_quadratures(current_quadrature_and_map))!, &
                                             !fe%get_quadrature_degree())
-        call this%fe_maps(current_quadrature_and_map)%create(this%fe_quadratures(current_quadrature_and_map),&
+        call this%cell_maps(current_quadrature_and_map)%create(this%cell_quadratures(current_quadrature_and_map),&
                                                              fe%get_reference_fe_geo())
         current_quadrature_and_map = current_quadrature_and_map + 1
      end if
 
-     do field_id=1, this%get_number_fields()
-        fe_cell_integrators_position_key = &
-             this%generate_fe_cell_integrators_position_key(fe%get_reference_fe_geo_id(), &
+     do field_id=1, this%get_num_fields()
+        cell_integrators_position_key = &
+             this%generate_cell_integrators_position_key(fe%get_reference_fe_geo_id(), &
                                                               fe%get_quadrature_degree(), &
-                                                              this%reference_fe_id_per_fe(field_id, fe%get_lid()))
+                                                              this%field_cell_to_ref_fes(field_id, fe%get_gid()))
         
-        call this%fe_cell_integrators_position%put(key=fe_cell_integrators_position_key, &
+        call this%cell_integrators_position%put(key=cell_integrators_position_key, &
                                                      val=current_cell_integrator, &
                                                      stat=istat)
         if (istat == now_stored) then 
            quadrature => fe%get_quadrature()
-           call this%fe_cell_integrators(current_cell_integrator)%create(quadrature,&
+           call this%cell_integrators(current_cell_integrator)%create(quadrature,&
                                                                              fe%get_reference_fe(field_id))
            current_cell_integrator = current_cell_integrator + 1
         end if
      end do
      call fe%next()
   end do
-  call this%free_fe_iterator(fe)
-end subroutine serial_fe_space_initialize_fe_integration
+  call this%free_fe_cell_iterator(fe)
+end subroutine serial_fe_space_set_up_cell_integration
 
 subroutine serial_fe_space_free_fe_integration ( this )
   implicit none
@@ -1347,242 +1690,227 @@ subroutine serial_fe_space_free_fe_integration ( this )
 
   class(reference_fe_t), pointer :: reference_fe
 
-  call this%fe_quadratures_and_maps_position%free()
-  call this%fe_cell_integrators_position%free()
+  call this%cell_quadratures_and_maps_position%free()
+  call this%cell_integrators_position%free()
 
-  if (allocated(this%fe_quadratures)) then
-     do i=1, size(this%fe_quadratures)
-        call this%fe_quadratures(i)%free()
+  if (allocated(this%cell_quadratures)) then
+     do i=1, size(this%cell_quadratures)
+        call this%cell_quadratures(i)%free()
      end do
-     deallocate(this%fe_quadratures, stat=istat)
+     deallocate(this%cell_quadratures, stat=istat)
      check(istat==0)
   end if
 
-  if (allocated(this%fe_maps)) then
-     do i=1, size(this%fe_maps)
-        call this%fe_maps(i)%free()
+  if (allocated(this%cell_maps)) then
+     do i=1, size(this%cell_maps)
+        call this%cell_maps(i)%free()
      end do
-     deallocate(this%fe_maps, stat=istat)
+     deallocate(this%cell_maps, stat=istat)
      check(istat==0)
   end if
 
-  if (allocated(this%fe_cell_integrators)) then
-     do i=1, size(this%fe_cell_integrators)
-        call this%fe_cell_integrators(i)%free()
+  if (allocated(this%cell_integrators)) then
+     do i=1, size(this%cell_integrators)
+        call this%cell_integrators(i)%free()
      end do
-     deallocate(this%fe_cell_integrators, stat=istat)
+     deallocate(this%cell_integrators, stat=istat)
      check(istat==0)
   end if
   
-  call this%free_fe_quadratures_degree()
-  call this%free_max_order_reference_fe_id_per_fe()
+  call this%free_cell_quadratures_degree()
+  call this%free_max_order_reference_fe_id_x_cell()
   
 end subroutine serial_fe_space_free_fe_integration
 
 
 ! Some comments:
-!   * geo_reference_fe_id can range from 1 to this%triangulation%get_number_reference_fes_geo()
+!   * geo_reference_fe_id can range from 1 to this%triangulation%get_num_reference_fes_geo()
 !   * quadrature_degree can range from -1 to fe_space_max_quadrature_degree
-function serial_fe_space_generate_fe_quadratures_position_key ( this, geo_reference_fe_id, quadrature_degree)
+function serial_fe_space_generate_cell_quadratures_position_key ( this, geo_reference_fe_id, quadrature_degree)
   implicit none
   class(serial_fe_space_t)    , intent(in) :: this
   integer(ip)                 , intent(in) :: geo_reference_fe_id
   integer(ip)                 , intent(in) :: quadrature_degree
-  integer(ip) :: serial_fe_space_generate_fe_quadratures_position_key
-  massert ( quadrature_degree >= -1,  "serial_fe_space_generate_fe_quadratures_position_key::Invalid quadrature degree")
-  massert ( geo_reference_fe_id >= 1 .and. geo_reference_fe_id <= this%triangulation%get_number_reference_fes_geo(), "serial_fe_space_generate_fe_quadratures_position_key::Invalid geo_reference_fe_id" )
-  serial_fe_space_generate_fe_quadratures_position_key = quadrature_degree * this%triangulation%get_number_reference_fes_geo() + geo_reference_fe_id + this%triangulation%get_number_reference_fes_geo()
-end function serial_fe_space_generate_fe_quadratures_position_key
+  integer(ip) :: serial_fe_space_generate_cell_quadratures_position_key
+  massert ( quadrature_degree >= -1,  "serial_fe_space_generate_cell_quadratures_position_key::Invalid quadrature degree")
+  massert ( geo_reference_fe_id >= 1 .and. geo_reference_fe_id <= this%triangulation%get_num_reference_fes(), "serial_fe_space_generate_cell_quadratures_position_key::Invalid geo_reference_fe_id" )
+  serial_fe_space_generate_cell_quadratures_position_key = quadrature_degree * this%triangulation%get_num_reference_fes() + geo_reference_fe_id + this%triangulation%get_num_reference_fes()
+end function serial_fe_space_generate_cell_quadratures_position_key
 
 ! Some comments:
-!   * geo_reference_fe_id can range from 1 to this%triangulation%get_number_reference_fes_geo()
+!   * geo_reference_fe_id can range from 1 to this%triangulation%get_num_reference_fes_geo()
 !   * quadrature_degree can range from -1 to fe_space_max_quadrature_degree
 !   * reference_fe_id can range from 1 to this%reference_fes_size
-function serial_fe_space_generate_fe_cell_integrators_position_key ( this, geo_reference_fe_id, quadrature_degree, reference_fe_id )
+function serial_fe_space_generate_cell_integrators_position_key ( this, geo_reference_fe_id, quadrature_degree, reference_fe_id )
   implicit none
   class(serial_fe_space_t)    , intent(in) :: this
   integer(ip)                 , intent(in) :: geo_reference_fe_id
   integer(ip)                 , intent(in) :: quadrature_degree
   integer(ip)                 , intent(in) :: reference_fe_id
-  integer(ip) :: serial_fe_space_generate_fe_cell_integrators_position_key
-  massert ( reference_fe_id >= 1 .and. reference_fe_id <= this%get_number_reference_fes(), "serial_fe_space_generate_fe_cell_integrators_position_key::Invalid reference_fe_id" )
-  serial_fe_space_generate_fe_cell_integrators_position_key =  reference_fe_id + &
-       this%generate_fe_quadratures_position_key(geo_reference_fe_id,quadrature_degree) * this%get_number_reference_fes()
-end function serial_fe_space_generate_fe_cell_integrators_position_key
+  integer(ip) :: serial_fe_space_generate_cell_integrators_position_key
+  massert ( reference_fe_id >= 1 .and. reference_fe_id <= this%get_num_reference_fes(), "serial_fe_space_generate_cell_integrators_position_key::Invalid reference_fe_id" )
+  serial_fe_space_generate_cell_integrators_position_key =  reference_fe_id + &
+       this%generate_cell_quadratures_position_key(geo_reference_fe_id,quadrature_degree) * this%get_num_reference_fes()
+end function serial_fe_space_generate_cell_integrators_position_key
 
-subroutine serial_fe_space_allocate_fe_face_quadratures_degree ( this ) 
+subroutine serial_fe_space_allocate_facet_quadratures_degree ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%free_fe_face_quadratures_degree()
-  call memalloc ( this%triangulation%get_num_faces(), this%fe_face_quadratures_degree, __FILE__, __LINE__ )
-end subroutine serial_fe_space_allocate_fe_face_quadratures_degree 
+  call this%free_facet_quadratures_degree()
+  call memalloc ( this%facet_gids%size(), this%facet_quadratures_degree, __FILE__, __LINE__ )
+end subroutine serial_fe_space_allocate_facet_quadratures_degree 
 
-subroutine serial_fe_space_clear_fe_face_quadratures_degree ( this ) 
+subroutine serial_fe_space_clear_facet_quadratures_degree ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  assert ( allocated(this%fe_face_quadratures_degree) )
-  this%fe_face_quadratures_degree = fe_space_default_quadrature_degree_flag
-end subroutine serial_fe_space_clear_fe_face_quadratures_degree
+  assert ( allocated(this%facet_quadratures_degree) )
+  this%facet_quadratures_degree = fe_space_default_quadrature_degree_flag
+end subroutine serial_fe_space_clear_facet_quadratures_degree
 
-subroutine serial_fe_space_free_fe_face_quadratures_degree ( this ) 
+subroutine serial_fe_space_free_facet_quadratures_degree ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%fe_face_quadratures_degree)) call memfree ( this%fe_face_quadratures_degree, __FILE__, __LINE__ )
-end subroutine serial_fe_space_free_fe_face_quadratures_degree
+  if (allocated(this%facet_quadratures_degree)) call memfree ( this%facet_quadratures_degree, __FILE__, __LINE__ )
+end subroutine serial_fe_space_free_facet_quadratures_degree
 
-subroutine serial_fe_space_allocate_max_order_reference_fe_id_per_fe_face ( this )
+subroutine serial_fe_space_allocate_max_order_field_cell_to_ref_fes_face ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%free_max_order_reference_fe_id_per_fe_face()
-  call memalloc ( this%triangulation%get_num_faces(), this%max_order_reference_fe_id_per_fe_face , __FILE__, __LINE__ )
-end subroutine serial_fe_space_allocate_max_order_reference_fe_id_per_fe_face  
+  call this%free_max_order_field_cell_to_ref_fes_face()
+  call memalloc ( this%facet_gids%size(), this%max_order_field_cell_to_ref_fes_face , __FILE__, __LINE__ )
+end subroutine serial_fe_space_allocate_max_order_field_cell_to_ref_fes_face  
 
-subroutine serial_fe_space_free_max_order_reference_fe_id_per_fe_face  ( this )
+subroutine serial_fe_space_free_max_order_field_cell_to_ref_fes_face  ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%max_order_reference_fe_id_per_fe_face)) call memfree ( this%max_order_reference_fe_id_per_fe_face , __FILE__, __LINE__ )
-end subroutine serial_fe_space_free_max_order_reference_fe_id_per_fe_face  
+  if (allocated(this%max_order_field_cell_to_ref_fes_face)) call memfree ( this%max_order_field_cell_to_ref_fes_face , __FILE__, __LINE__ )
+end subroutine serial_fe_space_free_max_order_field_cell_to_ref_fes_face  
 
-subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face ( this )
+subroutine serial_fe_space_compute_max_order_field_cell_to_ref_fes_face ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  class(fe_face_iterator_t), allocatable :: fe_face
-  class(fe_iterator_t)     , allocatable :: fe
+  class(fe_facet_iterator_t), allocatable :: fe_face
+  class(fe_cell_iterator_t)     , allocatable :: fe
   integer(ip) :: max_order, max_order_reference_fe_id, reference_fe_id
   integer(ip) :: max_order_fes_around_fe_face
   integer(ip) :: field_id, icell_around
   
-  call this%create_fe_face_iterator(fe_face)
-  call this%create_fe_iterator(fe)
+  call this%create_fe_facet_iterator(fe_face)
+  call this%create_fe_cell_iterator(fe)
   do while ( .not. fe_face%has_finished())
      max_order_fes_around_fe_face = -1
      max_order_reference_fe_id    =  1 
      do icell_around = 1, fe_face%get_num_cells_around()
         call fe_face%get_cell_around(icell_around, fe)
-        do field_id=1, fe%get_number_fields()
+        do field_id=1, fe%get_num_fields()
            if ( max_order_fes_around_fe_face <= fe%get_max_order_single_field(field_id) ) then
               max_order_fes_around_fe_face = fe%get_max_order_single_field(field_id)
               max_order_reference_fe_id = fe%get_reference_fe_id(field_id)
            end if
         end do
      end do
-     this%max_order_reference_fe_id_per_fe_face(fe_face%face_lid) = max_order_reference_fe_id 
+     this%max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) = max_order_reference_fe_id 
      call fe_face%next()
   end do
-  call this%free_fe_face_iterator(fe_face)
-  call this%free_fe_iterator(fe)
-end subroutine serial_fe_space_compute_max_order_reference_fe_id_per_fe_face  
+  call this%free_fe_facet_iterator(fe_face)
+  call this%free_fe_cell_iterator(fe)
+end subroutine serial_fe_space_compute_max_order_field_cell_to_ref_fes_face  
 
-subroutine serial_fe_space_fill_vef_lids_of_fe_faces ( this )
+subroutine serial_fe_space_fill_facet_gids ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   type(fe_vef_iterator_t) :: fe_vef
-  integer(ip)             :: face_lid
-  face_lid = 0
-  call this%vef_lids_of_fe_faces%resize(this%triangulation%get_num_faces())
+  call this%facet_gids%resize(0)
   call this%create_fe_vef_iterator(fe_vef)
   do while ( .not. fe_vef%has_finished() )
-    if ( fe_vef%is_face() ) then
-      face_lid = face_lid + 1
-      call this%vef_lids_of_fe_faces%set(face_lid,fe_vef%get_lid())
+    if ( fe_vef%is_facet() ) then
+      call this%facet_gids%push_back(fe_vef%get_gid())
     end if
     call fe_vef%next()
   end do
   call this%free_fe_vef_iterator(fe_vef)
-end subroutine serial_fe_space_fill_vef_lids_of_fe_faces
+  call this%facet_gids%shrink_to_fit()
+end subroutine serial_fe_space_fill_facet_gids
 
-subroutine serial_fe_space_free_vef_lids_of_fe_faces ( this )
+subroutine serial_fe_space_free_facet_gids ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%vef_lids_of_fe_faces%free()
-end subroutine serial_fe_space_free_vef_lids_of_fe_faces
+  call this%facet_gids%free()
+end subroutine serial_fe_space_free_facet_gids
 
-subroutine serial_fe_space_compute_face_permutation_indices ( this )
+subroutine serial_fe_space_compute_facet_permutation_indices ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  class(fe_face_iterator_t)       , allocatable :: fe_face
-  class(fe_iterator_t)            , allocatable :: first_fe
-  class(fe_iterator_t)            , allocatable :: second_fe
-  class(lagrangian_reference_fe_t), pointer     :: first_reference_fe_geo
-  class(lagrangian_reference_fe_t), pointer     :: second_reference_fe_geo
-  integer(ip)                                   :: fe_face_permutation_index
+  class(fe_facet_iterator_t)       , allocatable :: fe_face
+  class(fe_cell_iterator_t)            , allocatable :: first_fe
+  class(fe_cell_iterator_t)            , allocatable :: second_fe
+  integer(ip) :: fe_facet_permutation_index
   
-  call this%face_permutation_indices%resize(this%triangulation%get_num_faces(),-1)
-  call this%create_fe_iterator(first_fe)
-  call this%create_fe_iterator(second_fe)
-  call this%create_fe_face_iterator(fe_face)
+  call this%facet_permutation_indices%resize(this%facet_gids%size(),-1)
+  call this%create_fe_cell_iterator(first_fe)
+  call this%create_fe_cell_iterator(second_fe)
+  call this%create_fe_facet_iterator(fe_face)
   do while ( .not. fe_face%has_finished() )
     if ( .not. fe_face%is_ghost() .and. fe_face%get_num_cells_around() == 2 ) then
-      call fe_face%get_cell_around(1,first_fe)
-      first_reference_fe_geo => first_fe%get_reference_fe_geo()
-      call fe_face%get_cell_around(2, second_fe)
-      second_reference_fe_geo => second_fe%get_reference_fe_geo()
-      fe_face_permutation_index = &
-        first_reference_fe_geo%compute_permutation_index( second_reference_fe_geo,                &
-                                                          fe_face%get_lpos_within_cell_around(1), &
-                                                          fe_face%get_lpos_within_cell_around(2), &
-                                                          first_fe%get_vef_lids(),                &
-                                                          second_fe%get_vef_lids() )
-      call this%face_permutation_indices%set(fe_face%face_lid, &
-                                             fe_face_permutation_index)
+      fe_facet_permutation_index = fe_face%compute_fe_facet_permutation_index(first_fe,second_fe)
+      call this%facet_permutation_indices%set(fe_face%facet_gid,fe_facet_permutation_index)
     end if
     call fe_face%next()
   end do
-  call this%free_fe_face_iterator(fe_face)
-  call this%free_fe_iterator(second_fe)
-  call this%free_fe_iterator(first_fe)
+  call this%free_fe_facet_iterator(fe_face)
+  call this%free_fe_cell_iterator(second_fe)
+  call this%free_fe_cell_iterator(first_fe)
 
-end subroutine serial_fe_space_compute_face_permutation_indices
+end subroutine serial_fe_space_compute_facet_permutation_indices
 
-subroutine serial_fe_space_free_face_permutation_indices ( this )
+subroutine serial_fe_space_free_facet_permutation_indices ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%face_permutation_indices%free()
-end subroutine serial_fe_space_free_face_permutation_indices
+  call this%facet_permutation_indices%free()
+end subroutine serial_fe_space_free_facet_permutation_indices
 
-subroutine serial_fe_space_initialize_fe_face_integration ( this )
+subroutine serial_fe_space_set_up_facet_integration ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
 
-  class(fe_face_iterator_t), allocatable :: fe_face
-  class(fe_iterator_t)     , allocatable :: fe
+  class(fe_facet_iterator_t), allocatable :: fe_face
+  class(fe_cell_iterator_t)     , allocatable :: fe
 
-  integer(ip) :: current_fe_face_quadrature
-  integer(ip) :: current_fe_face_map
-  integer(ip) :: current_fe_face_integrator
+  integer(ip) :: current_facet_quadrature
+  integer(ip) :: current_facet_map
+  integer(ip) :: current_facet_integrator
 
   integer(ip)            :: max_order_fes_around_fe_face
   integer(ip)            :: reference_fes_geo_id(2)
-  type(p_lagrangian_reference_fe_t) :: reference_fes_geo(2)
+  type(p_reference_fe_t) :: reference_fes_geo(2)
 
   integer(ip)            :: reference_fes_id(2)
   type(p_reference_fe_t) :: reference_fes(2)
 
-  integer(ip) :: fe_face_quadratures_position_key
-  integer(ip) :: fe_face_integrators_position_key
+  integer(ip) :: facet_quadratures_position_key
+  integer(ip) :: facet_integrators_position_key
 
   integer(ip) :: field_id, istat, icell_around
 
   class(reference_fe_t), pointer :: reference_fe
 
-  call this%free_fe_face_integration()
+  call this%free_facet_integration()
 
-  call this%fill_vef_lids_of_fe_faces()
-  call this%compute_face_permutation_indices()
+  call this%compute_facet_permutation_indices()
   
-  call this%allocate_max_order_reference_fe_id_per_fe_face()
-  call this%compute_max_order_reference_fe_id_per_fe_face()
+  call this%allocate_max_order_field_cell_to_ref_fes_face()
+  call this%compute_max_order_field_cell_to_ref_fes_face()
   
-  ! Determine the size of fe_face_quadratures, fe_face_maps, 
-  ! and fe_face_integrators while filling the corresponding hash tables
-  call this%fe_face_quadratures_position%init()
-  call this%fe_face_integrators_position%init()
-  current_fe_face_quadrature = 1
-  current_fe_face_map = 1
-  current_fe_face_integrator = 1
+  ! Determine the size of facet_quadratures, facet_maps, 
+  ! and facet_integrators while filling the corresponding hash tables
+  call this%facet_quadratures_position%init()
+  call this%facet_integrators_position%init()
+  current_facet_quadrature = 1
+  current_facet_map = 1
+  current_facet_integrator = 1
 
-  call this%create_fe_iterator(fe)
-  call this%create_fe_face_iterator(fe_face)
+  call this%create_fe_cell_iterator(fe)
+  call this%create_fe_facet_iterator(fe_face)
   do while ( .not. fe_face%has_finished() ) 
      reference_fes_geo_id(2) = 0 
      do icell_around = 1, fe_face%get_num_cells_around()
@@ -1590,56 +1918,56 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
         reference_fes_geo_id(icell_around) = fe%get_reference_fe_geo_id()
      end do
 
-     fe_face_quadratures_position_key = &
-          this%generate_fe_face_quadratures_position_key(fe_face%get_quadrature_degree(), &
+     facet_quadratures_position_key = &
+          this%generate_facet_quadratures_position_key(fe_face%get_quadrature_degree(), &
                                                          reference_fes_geo_id(1), &
                                                          reference_fes_geo_id(2) )
           
-     call this%fe_face_quadratures_position%put(key  = fe_face_quadratures_position_key, &
-                                                val  = current_fe_face_quadrature, &
+     call this%facet_quadratures_position%put(key  = facet_quadratures_position_key, &
+                                                val  = current_facet_quadrature, &
                                                 stat = istat)  
      
      if (istat == now_stored) then
-        current_fe_face_quadrature = current_fe_face_quadrature + 1
-        current_fe_face_map = current_fe_face_map + 1
+        current_facet_quadrature = current_facet_quadrature + 1
+        current_facet_map = current_facet_map + 1
      end if
 
-     do field_id=1, this%get_number_fields()
+     do field_id=1, this%get_num_fields()
         reference_fes_id(2) = 0  
         do icell_around = 1, fe_face%get_num_cells_around()
            call fe_face%get_cell_around(icell_around, fe)
-           reference_fes_id(icell_around) = this%reference_fe_id_per_fe(field_id, fe%get_lid())
+           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id, fe%get_gid())
         end do
 
-        fe_face_integrators_position_key = &
-             this%generate_fe_face_integrators_position_key(fe_face%get_quadrature_degree(), &
+        facet_integrators_position_key = &
+             this%generate_facet_integrators_position_key(fe_face%get_quadrature_degree(), &
                                                             reference_fes_id(1), &
                                                             reference_fes_id(2) )
 
-        call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
-                                                   val=current_fe_face_integrator, &
+        call this%facet_integrators_position%put(key=facet_integrators_position_key, &
+                                                   val=current_facet_integrator, &
                                                    stat=istat)
         if (istat == now_stored) then
-           current_fe_face_integrator = current_fe_face_integrator + 1
+           current_facet_integrator = current_facet_integrator + 1
         end if
      end do
      call fe_face%next()
   end do
 
-  allocate ( this%fe_face_quadratures(current_fe_face_quadrature-1), stat=istat)
+  allocate ( this%facet_quadratures(current_facet_quadrature-1), stat=istat)
   check (istat==0)
 
-  allocate ( this%fe_face_maps(current_fe_face_map-1), stat=istat)
+  allocate ( this%facet_maps(current_facet_map-1), stat=istat)
   check (istat==0)
 
-  allocate ( this%fe_face_integrators(current_fe_face_integrator-1), stat=istat)
+  allocate ( this%facet_integrators(current_facet_integrator-1), stat=istat)
   check (istat==0)
 
-  call this%fe_face_quadratures_position%init()
-  call this%fe_face_integrators_position%init()
-  current_fe_face_quadrature = 1
-  current_fe_face_map = 1
-  current_fe_face_integrator = 1
+  call this%facet_quadratures_position%init()
+  call this%facet_integrators_position%init()
+  current_facet_quadrature = 1
+  current_facet_map = 1
+  current_facet_integrator = 1
 
   call fe_face%first()
   do while ( .not. fe_face%has_finished() ) 
@@ -1651,139 +1979,138 @@ subroutine serial_fe_space_initialize_fe_face_integration ( this )
         reference_fes_geo(icell_around)%p  => fe%get_reference_fe_geo()
      end do
 
-     fe_face_quadratures_position_key = &
-          this%generate_fe_face_quadratures_position_key(fe_face%get_quadrature_degree(), &
+     facet_quadratures_position_key = &
+          this%generate_facet_quadratures_position_key(fe_face%get_quadrature_degree(), &
                                                          reference_fes_geo_id(1), &
                                                          reference_fes_geo_id(2) )
      
      
-     call this%fe_face_quadratures_position%put(key  = fe_face_quadratures_position_key, &
-                                                val  = current_fe_face_quadrature, &
+     call this%facet_quadratures_position%put(key  = facet_quadratures_position_key, &
+                                                val  = current_facet_quadrature, &
                                                 stat = istat)  
      if (istat == now_stored) then
-        reference_fe=>this%reference_fes( this%max_order_reference_fe_id_per_fe_face(fe_face%face_lid) )%p
-        call reference_fe%create_face_quadrature(this%fe_face_quadratures(current_fe_face_quadrature),fe_face%get_quadrature_degree())
-        call this%fe_face_maps(current_fe_face_map)%create(fe_face%get_quadrature(), &
+        reference_fe=>this%reference_fes( this%max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) )%p
+        call reference_fe%create_facet_quadrature(this%facet_quadratures(current_facet_quadrature),fe_face%get_quadrature_degree())
+        call this%facet_maps(current_facet_map)%create(fe_face%get_quadrature(), &
                                                            reference_fes_geo(1)%p, &
                                                            reference_fes_geo(2)%p )
-        current_fe_face_quadrature = current_fe_face_quadrature + 1
-        current_fe_face_map = current_fe_face_map + 1
+        current_facet_quadrature = current_facet_quadrature + 1
+        current_facet_map = current_facet_map + 1
      end if
 
-     do field_id=1, this%get_number_fields()
+     do field_id=1, this%get_num_fields()
         reference_fes_id(2) = 0  
         nullify(reference_fes(2)%p)
         do icell_around = 1, fe_face%get_num_cells_around()
            call fe_face%get_cell_around(icell_around, fe)
-           reference_fes_id(icell_around) = this%reference_fe_id_per_fe(field_id, fe%get_lid())
+           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id, fe%get_gid())
            reference_fes(icell_around)%p => fe%get_reference_fe(field_id)
         end do
 
-        fe_face_integrators_position_key = &
-             this%generate_fe_face_integrators_position_key(fe_face%get_quadrature_degree(), &
+        facet_integrators_position_key = &
+             this%generate_facet_integrators_position_key(fe_face%get_quadrature_degree(), &
                                                             reference_fes_id(1), &
                                                             reference_fes_id(2) )
 
-        call this%fe_face_integrators_position%put(key=fe_face_integrators_position_key, &
-                                                   val=current_fe_face_integrator, &
+        call this%facet_integrators_position%put(key=facet_integrators_position_key, &
+                                                   val=current_facet_integrator, &
                                                    stat=istat)
         if (istat == now_stored) then
-           call this%fe_face_integrators(current_fe_face_integrator)%create(fe_face%get_quadrature(), &
+           call this%facet_integrators(current_facet_integrator)%create(fe_face%get_quadrature(), &
                 reference_fes(1)%p, &
                 reference_fes(2)%p )
-           current_fe_face_integrator = current_fe_face_integrator + 1
+           current_facet_integrator = current_facet_integrator + 1
         end if
      end do
      call fe_face%next()
   end do
-  call this%free_fe_iterator(fe)
-  call this%free_fe_face_iterator(fe_face)
-end subroutine serial_fe_space_initialize_fe_face_integration
+  call this%free_fe_cell_iterator(fe)
+  call this%free_fe_facet_iterator(fe_face)
+end subroutine serial_fe_space_set_up_facet_integration
 
-subroutine serial_fe_space_free_fe_face_integration ( this )
+subroutine serial_fe_space_free_facet_integration ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   integer(ip) :: i, istat
 
-  !if (allocated(this%max_order_per_fe_face)) call memfree ( this%max_order_per_fe_face, __FILE__, __LINE__ )
+  !if (allocated(this%max_order_x_fe_face)) call memfree ( this%max_order_x_fe_face, __FILE__, __LINE__ )
 
-  call this%fe_face_quadratures_position%free()
-  call this%fe_face_integrators_position%free()
+  call this%facet_quadratures_position%free()
+  call this%facet_integrators_position%free()
 
-  if (allocated(this%fe_face_quadratures)) then
-     do i=1, size(this%fe_face_quadratures)
-        call this%fe_face_quadratures(i)%free()
+  if (allocated(this%facet_quadratures)) then
+     do i=1, size(this%facet_quadratures)
+        call this%facet_quadratures(i)%free()
      end do
-     deallocate(this%fe_face_quadratures, stat=istat)
+     deallocate(this%facet_quadratures, stat=istat)
      check(istat==0)
   end if
 
-  if (allocated(this%fe_face_maps)) then
-     do i=1, size(this%fe_face_maps)
-        call this%fe_face_maps(i)%free()
+  if (allocated(this%facet_maps)) then
+     do i=1, size(this%facet_maps)
+        call this%facet_maps(i)%free()
      end do
-     deallocate(this%fe_face_maps, stat=istat)
+     deallocate(this%facet_maps, stat=istat)
      check(istat==0)
   end if
 
-  if (allocated(this%fe_face_integrators)) then
-     do i=1, size(this%fe_face_integrators)
-        call this%fe_face_integrators(i)%free()
+  if (allocated(this%facet_integrators)) then
+     do i=1, size(this%facet_integrators)
+        call this%facet_integrators(i)%free()
      end do
-     deallocate(this%fe_face_integrators, stat=istat)
+     deallocate(this%facet_integrators, stat=istat)
      check(istat==0)
   end if
   
-  call this%free_fe_face_quadratures_degree()
-  call this%free_max_order_reference_fe_id_per_fe_face()
+  call this%free_facet_quadratures_degree()
+  call this%free_max_order_field_cell_to_ref_fes_face()
   
-  call this%free_vef_lids_of_fe_faces()
-  call this%free_face_permutation_indices()
+  call this%free_facet_permutation_indices()
   
-end subroutine serial_fe_space_free_fe_face_integration
+end subroutine serial_fe_space_free_facet_integration
 
 ! Provided the identifiers of the reference_fes_geo corresponding 
 ! to the cells around a fe_face, and the quadrature degree, computes a unique key 
-! that is used to retrieve the position in the "this%fe_face_quadratures(:)" allocatable array through 
+! that is used to retrieve the position in the "this%facet_quadratures(:)" allocatable array through 
 ! the corresponding hash table. Some comments:
 !    * [quadrature_degree >= -1]
-!    * right_geo_reference_fe_id can range from 0 to number_reference_fes_geo 
+!    * right_geo_reference_fe_id can range from 0 to num_reference_fes_geo 
 !      (with 0 for boundary fe_faces)
-!    * left_geo_reference_fe_id can range from 1 to number_reference_fes_geo
-function serial_fe_space_fe_face_quadratures_position_key ( this, quadrature_degree, left_geo_reference_fe_id, right_geo_reference_fe_id )
+!    * left_geo_reference_fe_id can range from 1 to num_reference_fes_geo
+function serial_fe_space_facet_quadratures_position_key ( this, quadrature_degree, left_geo_reference_fe_id, right_geo_reference_fe_id )
   implicit none
   class(serial_fe_space_t)    , intent(in) :: this
   integer(ip)                 , intent(in) :: quadrature_degree
   integer(ip)                 , intent(in) :: left_geo_reference_fe_id
   integer(ip)                 , intent(in) :: right_geo_reference_fe_id
-  integer(ip) :: serial_fe_space_fe_face_quadratures_position_key
+  integer(ip) :: serial_fe_space_facet_quadratures_position_key
   integer(ip) :: num_reference_fes_geo
 
-  num_reference_fes_geo = this%triangulation%get_number_reference_fes_geo()
-  serial_fe_space_fe_face_quadratures_position_key = left_geo_reference_fe_id + &
+  num_reference_fes_geo = this%triangulation%get_num_reference_fes()
+  serial_fe_space_facet_quadratures_position_key = left_geo_reference_fe_id + &
        (num_reference_fes_geo)*(right_geo_reference_fe_id) + &
        (num_reference_fes_geo)*(num_reference_fes_geo+1)*(quadrature_degree+1)
-end function serial_fe_space_fe_face_quadratures_position_key
+end function serial_fe_space_facet_quadratures_position_key
 
 ! For a given field, provided the identifiers of the reference_fes corresponding 
 ! to the cells around a fe_face, and the quadrature degree to be used, computes a unique key that 
-! is used to retrieve the position in the "this%fe_face_integrators(:)" allocatable array through the corresponding 
+! is used to retrieve the position in the "this%facet_integrators(:)" allocatable array through the corresponding 
 ! hash table. Some comments:
 !    * [quadrature_degree >= -1]
 !    * right_reference_fe_id can range from 1 to this%reference_fes_size 
 !      (with 0 for boundary fe_faces)
 !    * left_reference_fe_id can range from 1 to this%reference_fes_size
-function serial_fe_space_fe_face_integrators_position_key(this, quadrature_degree, left_reference_fe_id, right_reference_fe_id)
+function serial_fe_space_facet_integrators_position_key(this, quadrature_degree, left_reference_fe_id, right_reference_fe_id)
   implicit none
   class(serial_fe_space_t)    , intent(in) :: this
   integer(ip)                 , intent(in) :: quadrature_degree
   integer(ip)                 , intent(in) :: left_reference_fe_id
   integer(ip)                 , intent(in) :: right_reference_fe_id
-  integer(ip) :: serial_fe_space_fe_face_integrators_position_key
-  serial_fe_space_fe_face_integrators_position_key = left_reference_fe_id + &
+  integer(ip) :: serial_fe_space_facet_integrators_position_key
+  serial_fe_space_facet_integrators_position_key = left_reference_fe_id + &
        (this%reference_fes_size)*(right_reference_fe_id) + &
        (this%reference_fes_size)*(this%reference_fes_size+1)*(quadrature_degree+1)
-end function serial_fe_space_fe_face_integrators_position_key
+end function serial_fe_space_facet_integrators_position_key
 
 subroutine serial_fe_space_create_dof_values(this, dof_values)
   implicit none
@@ -1817,7 +2144,7 @@ subroutine serial_fe_space_create_dof_values(this, dof_values)
   end if
 end subroutine serial_fe_space_create_dof_values
 
-subroutine serial_fe_space_fill_dof_info( this, block_layout )
+subroutine serial_fe_space_generate_global_dof_numbering( this, block_layout )
   implicit none
   class(serial_fe_space_t)    , intent(inout) :: this
   type(block_layout_t), target, intent(inout) :: block_layout
@@ -1827,8 +2154,8 @@ subroutine serial_fe_space_fill_dof_info( this, block_layout )
   if (.not. perform_numbering) perform_numbering = .not. (this%block_layout == block_layout)
   if ( perform_numbering ) then
     this%block_layout => block_layout
-    call memalloc( this%number_fields, this%number_dofs_per_field, __FILE__, __LINE__ )   
-    if ( this%number_fields >= 1 ) then 
+    call memalloc( this%num_fields, this%num_dofs_x_field, __FILE__, __LINE__ )   
+    if ( this%num_fields >= 1 ) then 
       call this%count_dofs()
     end if  
     call this%list_dofs()
@@ -1836,36 +2163,36 @@ subroutine serial_fe_space_fill_dof_info( this, block_layout )
     call block_layout%copy_num_dofs_x_block(this%block_layout)
   end if
   
-end subroutine serial_fe_space_fill_dof_info
+end subroutine serial_fe_space_generate_global_dof_numbering
 
 subroutine serial_fe_space_count_dofs ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this   
   logical, allocatable :: per_field_vefs_visited(:,:)
   integer(ip) :: field_id, vef_lid, ivef, num_own_dofs_on_vef, iblock
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   
   ! Count #DoFs per field
-  this%number_dofs_per_field = 0
+  this%num_dofs_x_field = 0
   
-  call memalloc ( this%number_fields, this%triangulation%get_num_vefs(), per_field_vefs_visited,  __FILE__, __LINE__ )
+  call memalloc ( this%num_fields, this%triangulation%get_num_vefs(), per_field_vefs_visited,  __FILE__, __LINE__ )
   per_field_vefs_visited = .false.
 
-  call this%create_fe_iterator(fe)
+  call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
-        do field_id=1, this%number_fields
+        do field_id=1, this%num_fields
           if ( .not. fe%is_void(field_id)) then
-            this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
-                                                      fe%count_own_dofs(field_id)
-            if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
+            this%num_dofs_x_field(field_id) = this%num_dofs_x_field(field_id) + &
+                                                      fe%count_own_dofs_cell(field_id)
+            if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
                do ivef = 1, fe%get_num_vefs()
-                 vef_lid = fe%get_vef_lid(ivef)
+                 vef_lid = fe%get_vef_gid(ivef)
                  if ( .not. per_field_vefs_visited (field_id,vef_lid) ) then
-                    num_own_dofs_on_vef = fe%count_own_dofs_on_vef(ivef,field_id)
+                    num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
                     if (num_own_dofs_on_vef>0) then
                       per_field_vefs_visited (field_id,vef_lid) = .true.
-                      this%number_dofs_per_field(field_id) = this%number_dofs_per_field(field_id) + &
+                      this%num_dofs_x_field(field_id) = this%num_dofs_x_field(field_id) + &
                                                                   num_own_dofs_on_vef 
                     end if
                  end if
@@ -1879,12 +2206,12 @@ subroutine serial_fe_space_count_dofs ( this )
   
   ! Count #DoFs per block
   call this%block_layout%clear_num_dofs_x_block()
-  do field_id=1, this%get_number_fields()
+  do field_id=1, this%get_num_fields()
     iblock = this%block_layout%get_block_id(field_id) 
-    call this%block_layout%add_to_block_num_dofs(iblock,this%number_dofs_per_field(field_id))     
+    call this%block_layout%add_to_block_num_dofs(iblock,this%num_dofs_x_field(field_id))     
   end do
   
-  call this%free_fe_iterator(fe)
+  call this%free_fe_cell_iterator(fe)
   call memfree ( per_field_vefs_visited,  __FILE__, __LINE__ )
 end subroutine serial_fe_space_count_dofs 
 
@@ -1892,54 +2219,54 @@ subroutine serial_fe_space_list_dofs ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this   
   
-  integer(ip), allocatable :: owner_cell_gid_per_field_and_vef(:,:)
+  integer(ip), allocatable :: owner_cell_gid_x_field_and_vef(:,:)
   integer(ip), allocatable :: per_field_vef_lid_in_owner_cell (:,:)
   integer(ip), allocatable :: blocks_current_num_dofs(:)
   integer(ip), allocatable :: fields_current_dof(:)
-  class(fe_iterator_t), allocatable :: fe, source_fe
+  class(fe_cell_iterator_t), allocatable :: fe, source_fe
   integer(ip) :: block_id, field_id
   integer(ip) :: ivef, vef_lid
   integer(ip) :: previous_dof_block
   
-  call memalloc ( this%get_number_fields(), this%triangulation%get_num_vefs(), owner_cell_gid_per_field_and_vef,  __FILE__, __LINE__ )
-  owner_cell_gid_per_field_and_vef = -1
+  call memalloc ( this%get_num_fields(), this%triangulation%get_num_vefs(), owner_cell_gid_x_field_and_vef,  __FILE__, __LINE__ )
+  owner_cell_gid_x_field_and_vef = -1
   
-  call memalloc ( this%get_number_fields(), this%triangulation%get_num_vefs(), per_field_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
+  call memalloc ( this%get_num_fields(), this%triangulation%get_num_vefs(), per_field_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
   per_field_vef_lid_in_owner_cell = -1
   
   call memalloc( this%block_layout%get_num_blocks(), blocks_current_num_dofs, __FILE__, __LINE__ )
   blocks_current_num_dofs = 0
   
-  call memalloc( this%number_fields, fields_current_dof, __FILE__, __LINE__ )
+  call memalloc( this%num_fields, fields_current_dof, __FILE__, __LINE__ )
   fields_current_dof = 0
   
-  if (this%number_fields > 1) then
-    do field_id=1, this%number_fields
+  if (this%num_fields > 1) then
+    do field_id=1, this%num_fields
        block_id = this%block_layout%get_block_id(field_id)
        fields_current_dof(field_id) = fields_current_dof(field_id) + blocks_current_num_dofs(block_id)
-       blocks_current_num_dofs(block_id) = blocks_current_num_dofs(block_id) + this%number_dofs_per_field(field_id)
+       blocks_current_num_dofs(block_id) = blocks_current_num_dofs(block_id) + this%num_dofs_x_field(field_id)
     end do
   end if
   
-  call this%create_fe_iterator(source_fe)
-  call this%create_fe_iterator(fe)
+  call this%create_fe_cell_iterator(source_fe)
+  call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
-       do field_id=1, this%get_number_fields()
+       do field_id=1, this%get_num_fields()
          if ( .not. fe%is_void(field_id)) then
-           call fe%fill_own_dofs ( field_id, fields_current_dof(field_id) )
+           call fe%generate_own_dofs_cell ( field_id, fields_current_dof(field_id) )
            do ivef = 1, fe%get_num_vefs()
-             vef_lid = fe%get_vef_lid(ivef)
-             if ( owner_cell_gid_per_field_and_vef( field_id, vef_lid ) == -1 ) then
+             vef_lid = fe%get_vef_gid(ivef)
+             if ( owner_cell_gid_x_field_and_vef( field_id, vef_lid ) == -1 ) then
                 previous_dof_block = fields_current_dof(field_id)
-                call fe%fill_own_dofs_on_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true.  )
+                call fe%generate_own_dofs_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true.  )
                 if (previous_dof_block < fields_current_dof(field_id)) then
-                  owner_cell_gid_per_field_and_vef( field_id, vef_lid ) = fe%get_lid() 
+                  owner_cell_gid_x_field_and_vef( field_id, vef_lid ) = fe%get_gid() 
                   per_field_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
                 end if
              else 
-                call source_fe%set_lid(owner_cell_gid_per_field_and_vef(field_id, vef_lid))
-                call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                call source_fe%set_gid(owner_cell_gid_x_field_and_vef(field_id, vef_lid))
+                call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
                                                               source_fe, &
                                                               per_field_vef_lid_in_owner_cell(field_id,vef_lid), &
                                                               field_id) 
@@ -1953,25 +2280,30 @@ subroutine serial_fe_space_list_dofs ( this )
   
   ! Set #DoFs per field and block in case of single-field, single-block problem
   ! (as we did not call fe_space%count_dofs() in this case)
-  if ( this%number_fields == 1 ) then
+  if ( this%num_fields == 1 ) then
     field_id = 1
     block_id = 1
-    this%number_dofs_per_field(field_id) = fields_current_dof(field_id)
-    call this%block_layout%set_block_num_dofs(block_id,this%number_dofs_per_field(field_id))
+    this%num_dofs_x_field(field_id) = fields_current_dof(field_id)
+    call this%block_layout%set_block_num_dofs(block_id,this%num_dofs_x_field(field_id))
   end if
   
-  call this%free_fe_iterator(source_fe)
-  call this%free_fe_iterator(fe)
+  call this%free_fe_cell_iterator(source_fe)
+  call this%free_fe_cell_iterator(fe)
   call memfree( blocks_current_num_dofs, __FILE__, __LINE__ )
   call memfree( fields_current_dof     , __FILE__, __LINE__ )
-  call memfree ( owner_cell_gid_per_field_and_vef,  __FILE__, __LINE__ )
+  call memfree ( owner_cell_gid_x_field_and_vef,  __FILE__, __LINE__ )
   call memfree ( per_field_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
 end subroutine serial_fe_space_list_dofs 
 
+subroutine serial_fe_space_allocate_num_dofs_x_field( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  if ( .not. allocated(this%num_dofs_x_field) ) & 
+     call memalloc( this%get_num_fields(), this%num_dofs_x_field, __FILE__, __LINE__ )
+  assert ( size(this%num_dofs_x_field) == this%get_num_fields() )
+end subroutine serial_fe_space_allocate_num_dofs_x_field
 
-
-
-subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id ) 
+subroutine serial_fe_space_fill_fe_dofs_and_count_dofs( this, field_id ) 
   implicit none
   ! Parameters
   class(serial_fe_space_t), intent(inout) :: this 
@@ -1980,97 +2312,95 @@ subroutine serial_fe_space_fill_elem2dof_and_count_dofs( this, field_id )
   ! Local variables
   integer(ip) :: ivef, vef_lid, ielem
   integer(ip) :: iblock, init_dof_block, current_dof_block, previous_dof_block
-  integer(ip), allocatable :: visited_vef_to_fe_map(:,:)
-  class(fe_iterator_t), allocatable :: fe, source_fe
+  integer(ip), allocatable :: visited_vef_to_cell_map(:,:)
+  class(fe_cell_iterator_t), allocatable :: fe, source_fe
 
   iblock            = this%block_layout%get_block_id(field_id)
   init_dof_block    = this%block_layout%get_block_num_dofs(iblock)
   current_dof_block = init_dof_block
 
-  if ( this%fe_space_type_per_field(field_id) == fe_space_type_cg ) then
-     call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_fe_map,  __FILE__, __LINE__ )
-     visited_vef_to_fe_map = -1
+  if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
+     call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_cell_map,  __FILE__, __LINE__ )
+     visited_vef_to_cell_map = -1
 
-     call this%create_fe_iterator(source_fe)
-     call this%create_fe_iterator(fe)
+     call this%create_fe_cell_iterator(source_fe)
+     call this%create_fe_cell_iterator(fe)
      do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
-           call fe%fill_own_dofs ( field_id, current_dof_block )
+           call fe%generate_own_dofs_cell ( field_id, current_dof_block )
            do ivef = 1, fe%get_num_vefs()
-              vef_lid = fe%get_vef_lid(ivef)
-              if ( visited_vef_to_fe_map ( 1, vef_lid ) == -1 ) then
+              vef_lid = fe%get_vef_gid(ivef)
+              if ( visited_vef_to_cell_map ( 1, vef_lid ) == -1 ) then
                  previous_dof_block = current_dof_block
-                 call fe%fill_own_dofs_on_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
+                 call fe%generate_own_dofs_vef ( ivef, field_id, current_dof_block, free_dofs_loop=.true.  )
                  if (previous_dof_block < current_dof_block) then
-                   visited_vef_to_fe_map ( 1, vef_lid ) = fe%get_lid()
-                   visited_vef_to_fe_map ( 2, vef_lid ) = ivef
+                   visited_vef_to_cell_map ( 1, vef_lid ) = fe%get_gid()
+                   visited_vef_to_cell_map ( 2, vef_lid ) = ivef
                  end if
               else 
-                 call source_fe%set_lid(visited_vef_to_fe_map(1,vef_lid))
-                 call fe%fill_own_dofs_on_vef_from_source_fe ( ivef, &
+                 call source_fe%set_gid(visited_vef_to_cell_map(1,vef_lid))
+                 call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
                       source_fe, &
-                      visited_vef_to_fe_map(2,vef_lid), &
+                      visited_vef_to_cell_map(2,vef_lid), &
                       field_id) 
               end if
            end do
         end if
         call fe%next()
      end do
-     call this%free_fe_iterator(source_fe)
-     call this%free_fe_iterator(fe)
-     call memfree ( visited_vef_to_fe_map,  __FILE__, __LINE__ )
+     call this%free_fe_cell_iterator(source_fe)
+     call memfree ( visited_vef_to_cell_map,  __FILE__, __LINE__ )
   else 
-     call this%create_fe_iterator(fe)
      do while ( .not. fe%has_finished())
         if ( fe%is_local() ) then
-           call fe%fill_own_dofs ( field_id, current_dof_block )
+           call fe%generate_own_dofs_cell ( field_id, current_dof_block )
         end if
         call fe%next()
      end do
-     call this%free_fe_iterator(fe)
   end if
-  this%number_dofs_per_field(field_id) = current_dof_block - init_dof_block
-  call this%block_layout%add_to_block_num_dofs(iblock,this%number_dofs_per_field(field_id))     
-end subroutine serial_fe_space_fill_elem2dof_and_count_dofs
+  call this%free_fe_cell_iterator(fe)
+  this%num_dofs_x_field(field_id) = current_dof_block - init_dof_block
+  call this%block_layout%add_to_block_num_dofs(iblock,this%num_dofs_x_field(field_id))     
+end subroutine serial_fe_space_fill_fe_dofs_and_count_dofs
 
-subroutine serial_fe_space_renumber_dofs_block (this, block_id, perm_old2new)
+subroutine serial_fe_space_renum_dofs_block (this, block_id, perm_old2new)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: block_id
   integer(ip)             , intent(in)    :: perm_old2new(this%block_layout%get_block_num_dofs(block_id))
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
 
-  call this%create_fe_iterator(fe)
+  call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
-     call fe%renumber_dofs_block ( block_id, perm_old2new )
+     call fe%renum_dofs_block ( block_id, perm_old2new )
      call fe%next()
   end do
-  call this%free_fe_iterator(fe)
+  call this%free_fe_cell_iterator(fe)
 
-end subroutine serial_fe_space_renumber_dofs_block
+end subroutine serial_fe_space_renum_dofs_block
 
-function serial_fe_space_get_num_dimensions ( this )
+function serial_fe_space_get_num_dims ( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
-  integer(ip)                          :: serial_fe_space_get_num_dimensions
-  class(base_static_triangulation_t), pointer :: triangulation
+  integer(ip)                          :: serial_fe_space_get_num_dims
+  class(triangulation_t), pointer :: triangulation
   triangulation => this%get_triangulation()
-  serial_fe_space_get_num_dimensions = triangulation%get_num_dimensions()
-end function serial_fe_space_get_num_dimensions
+  serial_fe_space_get_num_dims = triangulation%get_num_dims()
+end function serial_fe_space_get_num_dims
 
-function serial_fe_space_get_number_reference_fes ( this )
+function serial_fe_space_get_num_reference_fes ( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
-  integer(ip) :: serial_fe_space_get_number_reference_fes
-  serial_fe_space_get_number_reference_fes = size(this%reference_fes)
-end function serial_fe_space_get_number_reference_fes
+  integer(ip) :: serial_fe_space_get_num_reference_fes
+  serial_fe_space_get_num_reference_fes = size(this%reference_fes)
+end function serial_fe_space_get_num_reference_fes
 
 function serial_fe_space_get_reference_fe ( this, reference_fe_id )
   implicit none
   class(serial_fe_space_t), target, intent(in) :: this
   integer(ip)                     , intent(in) :: reference_fe_id
   class(reference_fe_t), pointer :: serial_fe_space_get_reference_fe
-  assert ( reference_fe_id >=1 .and. reference_fe_id <= this%get_number_reference_fes() )
+  assert ( reference_fe_id >=1 .and. reference_fe_id <= this%get_num_reference_fes() )
   serial_fe_space_get_reference_fe => this%reference_fes(reference_fe_id)%p
 end function serial_fe_space_get_reference_fe
 
@@ -2079,102 +2409,102 @@ function serial_fe_space_get_field_type ( this, field_id )
   class(serial_fe_space_t), target, intent(in) :: this
   integer(ip)                     , intent(in) :: field_id
   character(:), pointer :: serial_fe_space_get_field_type
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: reference_fe
 
-  call this%create_fe_iterator(fe)
+  call this%create_fe_cell_iterator(fe)
   reference_fe => fe%get_reference_fe(field_id)
   serial_fe_space_get_field_type => reference_fe%get_field_type()
-  call this%free_fe_iterator(fe)
+  call this%free_fe_cell_iterator(fe)
 end function serial_fe_space_get_field_type
 
-function serial_fe_space_get_number_components ( this )
+function serial_fe_space_get_num_components ( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
-  integer(ip) :: serial_fe_space_get_number_components
-  class(fe_iterator_t), allocatable :: fe
+  integer(ip) :: serial_fe_space_get_num_components
+  class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: reference_fe
   integer(ip) :: field_id
 
-  call this%create_fe_iterator(fe)
-  serial_fe_space_get_number_components = 0
-  do field_id = 1, this%get_number_fields()
+  call this%create_fe_cell_iterator(fe)
+  serial_fe_space_get_num_components = 0
+  do field_id = 1, this%get_num_fields()
      reference_fe => fe%get_reference_fe(field_id)
-     serial_fe_space_get_number_components = serial_fe_space_get_number_components + &
-          reference_fe%get_number_field_components()
+     serial_fe_space_get_num_components = serial_fe_space_get_num_components + &
+          reference_fe%get_num_field_components()
   end do
-  call this%free_fe_iterator(fe)
-end function serial_fe_space_get_number_components
+  call this%free_fe_cell_iterator(fe)
+end function serial_fe_space_get_num_components
 
-function serial_fe_space_get_max_number_shape_functions( this )
+function serial_fe_space_get_max_num_shape_functions( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
-  integer(ip) :: serial_fe_space_get_max_number_shape_functions
+  integer(ip) :: serial_fe_space_get_max_num_shape_functions
   integer(ip) :: irefe
-  serial_fe_space_get_max_number_shape_functions = 0
+  serial_fe_space_get_max_num_shape_functions = 0
   do irefe = 1, this%reference_fes_size
-     serial_fe_space_get_max_number_shape_functions = max(serial_fe_space_get_max_number_shape_functions, &
-          this%reference_fes(irefe)%p%get_number_shape_functions())
+     serial_fe_space_get_max_num_shape_functions = max(serial_fe_space_get_max_num_shape_functions, &
+          this%reference_fes(irefe)%p%get_num_shape_functions())
   end do
-end function serial_fe_space_get_max_number_shape_functions
+end function serial_fe_space_get_max_num_shape_functions
 
-function serial_fe_space_get_max_number_dofs_on_a_cell( this ) result (max_dofs)
+function serial_fe_space_get_max_num_dofs_on_a_cell( this ) result (max_dofs)
   implicit none
   class(serial_fe_space_t), intent(in) :: this
   integer(ip) :: max_dofs
-  class(fe_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe
   max_dofs = 0
-  call this%create_fe_iterator(fe)
+  call this%create_fe_cell_iterator(fe)
   do while (.not. fe%has_finished())
-    max_dofs = max(max_dofs,fe%get_number_dofs())
+    max_dofs = max(max_dofs,fe%get_num_dofs())
     call fe%next()
   end do
-  call this%free_fe_iterator(fe)
-end function serial_fe_space_get_max_number_dofs_on_a_cell
+  call this%free_fe_cell_iterator(fe)
+end function serial_fe_space_get_max_num_dofs_on_a_cell
 
-function serial_fe_space_get_max_number_quadrature_points( this )
+function serial_fe_space_get_max_num_quadrature_points( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
-  integer(ip) :: serial_fe_space_get_max_number_quadrature_points
+  integer(ip) :: serial_fe_space_get_max_num_quadrature_points
   integer(ip) :: iquad
-  serial_fe_space_get_max_number_quadrature_points = 0
-  do iquad = 1, size(this%fe_quadratures)
-     serial_fe_space_get_max_number_quadrature_points =       & 
-          max(serial_fe_space_get_max_number_quadrature_points, &
-          this%fe_quadratures(iquad)%get_number_quadrature_points())
+  serial_fe_space_get_max_num_quadrature_points = 0
+  do iquad = 1, size(this%cell_quadratures)
+     serial_fe_space_get_max_num_quadrature_points =       & 
+          max(serial_fe_space_get_max_num_quadrature_points, &
+          this%cell_quadratures(iquad)%get_num_quadrature_points())
   end do
-end function serial_fe_space_get_max_number_quadrature_points
+end function serial_fe_space_get_max_num_quadrature_points
 
-function serial_fe_space_get_max_number_nodal_quadrature_points( this )
+function serial_fe_space_get_max_num_nodal_quadrature_points( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
-  integer(ip) :: serial_fe_space_get_max_number_nodal_quadrature_points
+  integer(ip) :: serial_fe_space_get_max_num_nodal_quadrature_points
   integer(ip) :: i
   type(quadrature_t), pointer :: nodal_quadrature
 
-  serial_fe_space_get_max_number_nodal_quadrature_points = 0
+  serial_fe_space_get_max_num_nodal_quadrature_points = 0
   do i= 1, this%reference_fes_size
      if (this%reference_fes(i)%p%has_nodal_quadrature()) then
         nodal_quadrature => this%reference_fes(i)%p%get_nodal_quadrature()
-        serial_fe_space_get_max_number_nodal_quadrature_points =       & 
-             max(serial_fe_space_get_max_number_nodal_quadrature_points, &
-             nodal_quadrature%get_number_quadrature_points())
+        serial_fe_space_get_max_num_nodal_quadrature_points =       & 
+             max(serial_fe_space_get_max_num_nodal_quadrature_points, &
+             nodal_quadrature%get_num_quadrature_points())
      end if
   end do
-end function serial_fe_space_get_max_number_nodal_quadrature_points
+end function serial_fe_space_get_max_num_nodal_quadrature_points
 
-function serial_fe_space_get_max_number_face_quadrature_points( this )
+function serial_fe_space_get_max_num_facet_quadrature_points( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
-  integer(ip) :: serial_fe_space_get_max_number_face_quadrature_points
+  integer(ip) :: serial_fe_space_get_max_num_facet_quadrature_points
   integer(ip) :: iquad
-  serial_fe_space_get_max_number_face_quadrature_points = 0
-  do iquad = 1, size(this%fe_face_quadratures)
-     serial_fe_space_get_max_number_face_quadrature_points =       & 
-          max(serial_fe_space_get_max_number_face_quadrature_points, &
-          this%fe_face_quadratures(iquad)%get_number_quadrature_points())
+  serial_fe_space_get_max_num_facet_quadrature_points = 0
+  do iquad = 1, size(this%facet_quadratures)
+     serial_fe_space_get_max_num_facet_quadrature_points =       & 
+          max(serial_fe_space_get_max_num_facet_quadrature_points, &
+          this%facet_quadratures(iquad)%get_num_quadrature_points())
   end do
-end function serial_fe_space_get_max_number_face_quadrature_points
+end function serial_fe_space_get_max_num_facet_quadrature_points
 
 function serial_fe_space_get_max_order( this )
   implicit none
@@ -2191,21 +2521,35 @@ end function serial_fe_space_get_max_order
 function serial_fe_space_get_triangulation( this) result(triangulation)
   implicit none
   class(serial_fe_space_t)      , intent(in)    :: this 
-  class(base_static_triangulation_t), pointer       :: triangulation
+  class(triangulation_t), pointer       :: triangulation
   assert ( associated(this%triangulation) )
   triangulation => this%triangulation
 end function serial_fe_space_get_triangulation
+
+subroutine serial_fe_space_set_triangulation( this, triangulation )
+  implicit none
+  class(serial_fe_space_t)                  , intent(inout) :: this 
+  class(triangulation_t), target, intent(in)    :: triangulation
+  this%triangulation => triangulation
+end subroutine serial_fe_space_set_triangulation
 
 function serial_fe_space_get_environment(this) result(environment)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
   class(environment_t), pointer:: environment 
-  environment => this%triangulation%get_par_environment()
+  environment => this%triangulation%get_environment()
 end function serial_fe_space_get_environment
+
+function serial_fe_space_get_vef_gids_of_fe_faces( this) result(facet_gids)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this 
+  type(std_vector_integer_ip_t), pointer :: facet_gids
+  facet_gids => this%facet_gids
+end function serial_fe_space_get_vef_gids_of_fe_faces
 
 function serial_fe_space_get_conditions( this) result(conditions)
   implicit none
-  class(serial_fe_space_t), intent(in) :: this 
+  class(serial_fe_space_t), target, intent(in) :: this 
   class(conditions_t), pointer :: conditions
   assert ( associated(this%conditions) )
   conditions => this%conditions
@@ -2218,19 +2562,20 @@ subroutine serial_fe_space_set_conditions( this, conditions )
   this%conditions => conditions
 end subroutine serial_fe_space_set_conditions
 
-function serial_fe_space_get_strong_dirichlet_values(this) result(strong_dirichlet_values)
+function serial_fe_space_get_num_fixed_dofs(this)
   implicit none
-  class(serial_fe_space_t), target, intent(in)    :: this 
-  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
-  strong_dirichlet_values => this%strong_dirichlet_values
-end function serial_fe_space_get_strong_dirichlet_values
+  class(serial_fe_space_t), intent(in)    :: this 
+  integer(ip) :: serial_fe_space_get_num_fixed_dofs
+  serial_fe_space_get_num_fixed_dofs = this%num_fixed_dofs
+end function serial_fe_space_get_num_fixed_dofs
 
-function serial_fe_space_get_number_blocks( this)
+function serial_fe_space_get_num_blocks( this)
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
-  integer(ip) :: serial_fe_space_get_number_blocks
-  serial_fe_space_get_number_blocks = this%block_layout%get_num_blocks()
-end function serial_fe_space_get_number_blocks
+  integer(ip) :: serial_fe_space_get_num_blocks
+  assert ( associated (this%block_layout) ) 
+  serial_fe_space_get_num_blocks = this%block_layout%get_num_blocks()
+end function serial_fe_space_get_num_blocks
 
 function serial_fe_space_get_field_blocks( this )
   implicit none
@@ -2257,47 +2602,88 @@ function serial_fe_space_get_field_coupling( this )
 end function serial_fe_space_get_field_coupling
 
 ! Returns the number of DoFs associated to block with identifier block_id
-function serial_fe_space_get_block_number_dofs ( this, block_id )
+function serial_fe_space_get_block_num_dofs ( this, block_id )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
   integer(ip)          , intent(in) :: block_id
-  integer(ip)                       :: serial_fe_space_get_block_number_dofs
+  integer(ip)                       :: serial_fe_space_get_block_num_dofs
   class(environment_t), pointer  :: environment
   environment => this%get_environment()
-  serial_fe_space_get_block_number_dofs = 0
+  serial_fe_space_get_block_num_dofs = 0
   if ( environment%am_i_l1_task() ) then 
-     serial_fe_space_get_block_number_dofs  = this%block_layout%get_block_num_dofs(block_id)
+     serial_fe_space_get_block_num_dofs  = this%block_layout%get_block_num_dofs(block_id)
   end if
-end function serial_fe_space_get_block_number_dofs
+end function serial_fe_space_get_block_num_dofs
 
-subroutine serial_fe_space_create_fe_iterator ( this, fe )
+! Sets the number of DoFs associated to block with identifier block_id to num_dofs
+subroutine serial_fe_space_set_block_num_dofs ( this, block_id, num_dofs )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip)             , intent(in) :: block_id
+  integer(ip)             , intent(in) :: num_dofs
+  class(environment_t), pointer  :: environment
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then 
+     call this%block_layout%set_block_num_dofs(block_id,num_dofs)
+  end if
+end subroutine serial_fe_space_set_block_num_dofs
+
+! Returns a pointer to the block_layout member variable
+function serial_fe_space_get_block_layout ( this )
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(block_layout_t), pointer :: serial_fe_space_get_block_layout
+  serial_fe_space_get_block_layout => this%block_layout
+end function serial_fe_space_get_block_layout
+
+! Sets the pointer block_layout member variable
+subroutine serial_fe_space_set_block_layout ( this, block_layout )
+  implicit none
+  class(serial_fe_space_t)    , intent(inout) :: this
+  type(block_layout_t), target, intent(in)    :: block_layout
+  this%block_layout => block_layout
+end subroutine serial_fe_space_set_block_layout
+
+! Nullifies the pointer block_layout member variable
+subroutine serial_fe_space_nullify_block_layout ( this )
+  implicit none
+  class(serial_fe_space_t)    , intent(inout) :: this
+  nullify(this%block_layout)
+end subroutine serial_fe_space_nullify_block_layout
+
+subroutine serial_fe_space_create_fe_cell_iterator ( this, fe )
+
   implicit none
   class(serial_fe_space_t)         , intent(in)  :: this
-  class(fe_iterator_t), allocatable, intent(inout) :: fe
+  class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
   integer(ip) :: istat
-  call this%free_fe_iterator(fe)
-  allocate(fe_iterator_t :: fe, stat=istat); check(istat==0)
+  call this%free_fe_cell_iterator(fe)
+  allocate(fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
-end subroutine serial_fe_space_create_fe_iterator
+end subroutine serial_fe_space_create_fe_cell_iterator
 
-subroutine serial_fe_space_free_fe_iterator ( this, fe )
+subroutine serial_fe_space_free_fe_cell_iterator ( this, fe )
   implicit none
   class(serial_fe_space_t)         , intent(in)  :: this
-  class(fe_iterator_t), allocatable, intent(inout) :: fe
+  class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
   integer(ip) :: istat
   if(allocated(fe)) then
      call fe%free()
      deallocate(fe, stat=istat); check(istat==0)
   end if
-end subroutine serial_fe_space_free_fe_iterator
+end subroutine serial_fe_space_free_fe_cell_iterator
 
 subroutine serial_fe_space_create_fe_vef_iterator ( this, fe_vef )
   implicit none
   class(serial_fe_space_t), target, intent(in)    :: this
   type(fe_vef_iterator_t)         , intent(inout) :: fe_vef
-  type(vef_iterator_t) :: vef
+  class(triangulation_t), pointer :: triangulation
+  class(vef_iterator_t), allocatable :: vef
+  triangulation => this%get_triangulation()
+  call triangulation%create_vef_iterator(vef)
   call fe_vef%free()
   call fe_vef%create(this,vef)
+  call triangulation%free_vef_iterator(vef)
 end subroutine serial_fe_space_create_fe_vef_iterator
 
 subroutine serial_fe_space_create_itfc_fe_vef_iterator ( this, fe_vef )
@@ -2316,24 +2702,28 @@ subroutine serial_fe_space_free_fe_vef_iterator ( this, fe_vef )
   call fe_vef%free()
 end subroutine serial_fe_space_free_fe_vef_iterator
 
-subroutine serial_fe_space_create_fe_face_iterator ( this, fe_face )
+subroutine serial_fe_space_create_fe_facet_iterator ( this, fe_face )
   implicit none
   class(serial_fe_space_t) , target     , intent(in)    :: this
-  class(fe_face_iterator_t), allocatable, intent(inout) :: fe_face
-  type(vef_iterator_t) :: vef
+  class(fe_facet_iterator_t), allocatable, intent(inout) :: fe_face
+  class(vef_iterator_t), allocatable :: vef
+  class(triangulation_t), pointer :: triangulation
   integer(ip)          :: istat
-  call this%free_fe_face_iterator(fe_face)
-  allocate(fe_face_iterator_t :: fe_face, stat=istat); check(istat==0)
+  call this%free_fe_facet_iterator(fe_face)
+  triangulation => this%get_triangulation()
+  call triangulation%create_vef_iterator(vef)
+  allocate(fe_facet_iterator_t :: fe_face, stat=istat); check(istat==0)
   call fe_face%create(this,vef)
-end subroutine serial_fe_space_create_fe_face_iterator
+  call triangulation%free_vef_iterator(vef)
+end subroutine serial_fe_space_create_fe_facet_iterator
 
-subroutine serial_fe_space_free_fe_face_iterator ( this, fe_face )
+subroutine serial_fe_space_free_fe_facet_iterator ( this, fe_face )
   implicit none
   class(serial_fe_space_t)              , intent(in)    :: this
-  class(fe_face_iterator_t), allocatable, intent(inout) :: fe_face
+  class(fe_facet_iterator_t), allocatable, intent(inout) :: fe_face
   integer(ip) :: istat
   if (allocated(fe_face)) then
     call fe_face%free()
     deallocate(fe_face, stat=istat); check(istat==0);
   end if
-end subroutine serial_fe_space_free_fe_face_iterator
+end subroutine serial_fe_space_free_fe_facet_iterator

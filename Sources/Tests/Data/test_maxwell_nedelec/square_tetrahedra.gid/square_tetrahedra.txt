@@ -1,0 +1,234 @@
+ENTITIES
+POINT
+Num: 1 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Coord: 0.0 0.0 0.0
+END POINT
+POINT
+Num: 2 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Coord: 1.0 0.0 0.0
+END POINT
+POINT
+Num: 3 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Coord: 1.0 1.0 0.0
+END POINT
+POINT
+Num: 4 HigherEntity: 2 conditions: 0 material: 0
+LAYER: Layer0
+Coord: 0.0 1.0 0.0
+END POINT
+STLINE
+Num: 1 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=7,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=4
+Points: 1 2
+END STLINE
+STLINE
+Num: 2 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=8,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=4
+Points: 2 3
+END STLINE
+STLINE
+Num: 3 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=9,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=4
+Points: 3 4
+END STLINE
+STLINE
+Num: 4 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=6,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=4
+Points: 4 1
+END STLINE
+NURBSURFACE
+Num: 1 HigherEntity: 0 conditions: 0 material: 0
+LAYER: Layer0
+Meshing Info: (num=5,NOE=1) Elemtype=2 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 1 Orientation: SAME1ST
+Line: 2 Orientation: SAME1ST
+Line: 3 Orientation: SAME1ST
+Line: 4 Orientation: SAME1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:0.0,0.0,0.0
+Point 1,2 coords:1.0,0.0,0.0
+Point 2,1 coords:0.0,1.0,0.0
+Point 2,2 coords:1.0,1.0,0.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 0
+Center: 0.5 0.5 0.0
+Normal: 0.0 0.0 1.0
+END NURBSURFACE
+END ENTITIES
+MESH dimension 3 ElemType Triangle Nnode 3
+Coordinates
+    1               0               1               0
+    2            0.25               1               0
+    3               0            0.75               0
+    4            0.25            0.75               0
+    5             0.5               1               0
+    6               0             0.5               0
+    7            0.25             0.5               0
+    8             0.5            0.75               0
+    9             0.5             0.5               0
+   10            0.75               1               0
+   11               0            0.25               0
+   12            0.25            0.25               0
+   13            0.75            0.75               0
+   14             0.5            0.25               0
+   15            0.75             0.5               0
+   16               0               0               0
+   17               1               1               0
+   18            0.25               0               0
+   19               1            0.75               0
+   20            0.75            0.25               0
+   21             0.5               0               0
+   22               1             0.5               0
+   23            0.75               0               0
+   24               1            0.25               0
+   25               1               0               0
+End Coordinates
+
+Elements
+1 18 12 16
+2 12 11 16
+3 21 14 18
+4 14 12 18
+5 23 20 21
+6 20 14 21
+7 25 24 23
+8 24 20 23
+9 12 7 11
+10 7 6 11
+11 14 9 12
+12 9 7 12
+13 20 15 14
+14 15 9 14
+15 24 22 20
+16 22 15 20
+17 7 4 6
+18 4 3 6
+19 9 8 7
+20 8 4 7
+21 15 13 9
+22 13 8 9
+23 22 19 15
+24 19 13 15
+25 4 2 3
+26 2 1 3
+27 8 5 4
+28 5 2 4
+29 13 10 8
+30 10 5 8
+31 19 17 13
+32 17 10 13
+End Elements
+MESH dimension 3 ElemType Linear Nnode 2
+Coordinates
+End Coordinates
+
+Elements
+33 16 18
+34 18 21
+35 21 23
+36 23 25
+37 25 24
+38 24 22
+39 22 19
+40 19 17
+41 17 10
+42 10 5
+43 5 2
+44 2 1
+45 1 3
+46 3 6
+47 6 11
+48 11 16
+End Elements
+PROBLEM DATA
+Title:  value: name
+END PROBLEM DATA
+INTERVAL NUMBER: 1
+NUMBER: 11 CONDITION: Point_id
+CONDTYPE: over points
+CONDMESHTYPE: over nodes
+QUESTION: ID:
+VALUE: 0
+QUESTION: Point_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+End Geometry Entities
+Mesh Entities
+End Mesh Entities
+NUMBER: 21 CONDITION: Line_id
+CONDTYPE: over lines
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Line_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+    1  Conds: 1 0 
+    2  Conds: 1 0 
+    3  Conds: 1 0 
+    4  Conds: 1 0 
+End Geometry Entities
+Mesh Entities
+E    33  Conds: 1 1 
+E    34  Conds: 1 1 
+E    35  Conds: 1 1 
+E    36  Conds: 1 1 
+E    37  Conds: 1 2 
+E    38  Conds: 1 2 
+E    39  Conds: 1 2 
+E    40  Conds: 1 2 
+E    41  Conds: 1 3 
+E    42  Conds: 1 3 
+E    43  Conds: 1 3 
+E    44  Conds: 1 3 
+E    45  Conds: 1 4 
+E    46  Conds: 1 4 
+E    47  Conds: 1 4 
+E    48  Conds: 1 4 
+End Mesh Entities
+NUMBER: 31 CONDITION: Surface_id
+CONDTYPE: over surfaces
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Surface_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+End Geometry Entities
+Mesh Entities
+End Mesh Entities
+NUMBER: 41 CONDITION: Volume_id
+CONDTYPE: over volumes
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Volume_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+End Geometry Entities
+Mesh Entities
+End Mesh Entities
+INTERVAL DATA
+END INTERVAL DATA

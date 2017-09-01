@@ -37,7 +37,7 @@ module poisson_unfitted_conditions_names
      class(scalar_function_t), pointer :: boundary_function  
    contains
      procedure :: set_boundary_function       => poisson_unfitted_conditions_set_boundary_function
-     procedure :: get_number_components       => poisson_unfitted_conditions_get_number_components  
+     procedure :: get_num_components       => poisson_unfitted_conditions_get_num_components  
      procedure :: get_components_code         => poisson_unfitted_conditions_get_components_code
      procedure :: get_function                => poisson_unfitted_conditions_get_function
   end type poisson_unfitted_conditions_t
@@ -53,12 +53,12 @@ contains
     this%boundary_function => boundary_function
   end subroutine poisson_unfitted_conditions_set_boundary_function
 
-  function poisson_unfitted_conditions_get_number_components(this)
+  function poisson_unfitted_conditions_get_num_components(this)
     implicit none
     class(poisson_unfitted_conditions_t), intent(in) :: this
-    integer(ip) :: poisson_unfitted_conditions_get_number_components
-    poisson_unfitted_conditions_get_number_components = 1
-  end function poisson_unfitted_conditions_get_number_components
+    integer(ip) :: poisson_unfitted_conditions_get_num_components
+    poisson_unfitted_conditions_get_num_components = 1
+  end function poisson_unfitted_conditions_get_num_components
 
   subroutine poisson_unfitted_conditions_get_components_code(this, boundary_id, components_code)
     implicit none

@@ -194,7 +194,7 @@ contains
         real(rp),    allocatable                    :: v_knots(:)
         character(gid_line_len)                     :: string
         character(gid_line_len)                     :: tmpstring
-        integer(ip)                                 :: i, j, k, pos, number_knots, error, idu, idv, counter
+        integer(ip)                                 :: i, j, k, pos, num_knots, error, idu, idv, counter
     !-----------------------------------------------------------------
         read(unit,'(a)') string
         ! Read surface ID
@@ -247,8 +247,8 @@ contains
             enddo
 
             call move_forward_to_find_string(unit, 'Number of knots in U=', 'END', string, pos)
-            read(string(pos+21:),*) number_knots
-            assert(number_knots == nu+pu+1)
+            read(string(pos+21:),*) num_knots
+            assert(num_knots == nu+pu+1)
 
             ! Read NURBS knots
             call memalloc(nu+pu+1, u_knots, __FILE__, __LINE__)
@@ -261,8 +261,8 @@ contains
             end do
 
             call move_forward_to_find_string(unit, 'Number of knots in V=', 'END', string, pos)
-            read(string(pos+21:),*) number_knots
-            assert(number_knots == nv+pv+1)
+            read(string(pos+21:),*) num_knots
+            assert(num_knots == nv+pv+1)
 
             ! Read NURBS knots
             call memalloc(nv+pv+1, v_knots, __FILE__, __LINE__)
@@ -310,7 +310,7 @@ contains
         integer(ip), allocatable                    :: surfaces_orientation(:)
         character(gid_line_len)                     :: string
         character(gid_line_len)                     :: tmpstring
-        integer(ip)                                 :: i, j, k, pos, number_knots, error, nu, nv, counter
+        integer(ip)                                 :: i, j, k, pos, num_knots, error, nu, nv, counter
     !-----------------------------------------------------------------
         read(unit,'(a)') string
         ! Read volume ID

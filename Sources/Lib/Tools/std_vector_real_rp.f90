@@ -47,8 +47,10 @@ contains
   STD_VECTOR_COPY(real,rp)
   STD_VECTOR_FREE(real,rp)
   STD_VECTOR_GET(real,rp)
+  STD_VECTOR_GET_POINTER_TO_RANGE(real,rp)
   STD_VECTOR_SET(real,rp)
   STD_VECTOR_SIZE(real,rp)
   STD_VECTOR_CAPACITY(real,rp)
-  
+  STD_VECTOR_GET_RAW_POINTER(real,rp)
+
 end module std_vector_real_rp_names

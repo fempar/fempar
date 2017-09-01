@@ -183,12 +183,12 @@ end subroutine free_timers
     integer(ip) :: num_void_neigs
 
     integer(ip)           :: ivef
-    type(vef_iterator_t)  :: vef, vef_of_vef
+    class(vef_iterator_t), allocatable  :: vef, vef_of_vef
     type(list_t), pointer :: vefs_of_vef
     type(list_t), pointer :: vertices_of_line
     type(list_iterator_t) :: vefs_of_vef_iterator
     type(list_iterator_t) :: vertices_of_line_iterator
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    class(reference_fe_t), pointer :: reference_fe_geo
     integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
@@ -205,7 +205,7 @@ end subroutine free_timers
         do while( .not. cell%has_finished() )
           if (cell%is_local()) then
             set_id = PAR_TEST_POISSON_VOID
-            call cell%get_coordinates(cell_coords)
+            call cell%get_nodes_coordinates(cell_coords)
             select case (trim(this%test_params%get_use_void_fes_case()))
             case ('half')
               y = cell_coords(1)%get(2)
@@ -217,7 +217,7 @@ end subroutine free_timers
             case ('popcorn')
               do inode = 1,cell%get_num_nodes()
                 if ( this%popcorn_fun(cell_coords(inode),&
-                  this%triangulation%get_num_dimensions()) < 0.0 ) then
+                  this%triangulation%get_num_dims()) < 0.0 ) then
                   set_id = PAR_TEST_POISSON_FULL
                   exit
                 end if
@@ -225,7 +225,7 @@ end subroutine free_timers
             case default
               check(.false.)
             end select
-            this%cell_set_ids(cell%get_lid()) = set_id
+            this%cell_set_ids(cell%get_gid()) = set_id
           end if
           call cell%next()
         end do
@@ -256,7 +256,7 @@ end subroutine free_timers
       do while ( .not. vef%has_finished() )
 
          ! If it is an INTERIOR face
-         if( vef%get_dimension() == this%triangulation%get_num_dimensions()-1 .and. vef%get_num_cells_around()==2 ) then
+         if( vef%get_dim() == this%triangulation%get_num_dims()-1 .and. vef%get_num_cells_around()==2 ) then
 
            ! Compute number of void neighbors
            num_void_neigs = 0
@@ -271,11 +271,11 @@ end subroutine free_timers
                call vef%set_set_id(1)
 
                ! Do a loop on all edges in 3D (vertex in 2D) of the face
-               ivef = vef%get_lid()
+               ivef = vef%get_gid()
                call vef%get_cell_around(1,cell) ! There is always one cell around
-               reference_fe_geo => cell%get_reference_fe_geo()
-               ivef_pos_in_cell = cell%find_lpos_vef_lid(ivef)
-               vefs_of_vef => reference_fe_geo%get_n_faces_n_face()
+               reference_fe_geo => cell%get_reference_fe()
+               ivef_pos_in_cell = cell%get_vef_lid_from_gid(ivef)
+               vefs_of_vef => reference_fe_geo%get_facets_n_face()
                vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
                do while( .not. vefs_of_vef_iterator%is_upper_bound() )
 
@@ -285,7 +285,7 @@ end subroutine free_timers
                   call vef_of_vef%set_set_id(1)
 
                   ! If 3D, traverse vertices of current line
-                  if ( this%triangulation%get_num_dimensions() == 3 ) then
+                  if ( this%triangulation%get_num_dims() == 3 ) then
                     vertices_of_line          => reference_fe_geo%get_vertices_n_face()
                     vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
                     do while( .not. vertices_of_line_iterator%is_upper_bound() )
@@ -321,7 +321,7 @@ end subroutine free_timers
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     class(cell_iterator_t), allocatable       :: cell
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    class(reference_fe_t), pointer :: reference_fe_geo
     
     if (this%test_params%get_use_void_fes()) then
       allocate(this%reference_fes(2), stat=istat)
@@ -332,17 +332,17 @@ end subroutine free_timers
     
     if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
-      reference_fe_geo => cell%get_reference_fe_geo()
+      reference_fe_geo => cell%get_reference_fe()
       this%reference_fes(PAR_TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
-                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                   num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_scalar, &
                                                    conformity = .true. )
       if (this%test_params%get_use_void_fes()) then
         this%reference_fes(PAR_TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_void, &
-                                                   number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                   num_dims = this%triangulation%get_num_dims(), &
                                                    order = -1, &
                                                    field_type = field_type_scalar, &
                                                    conformity = .true. )
@@ -366,7 +366,9 @@ end subroutine free_timers
 
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
-    
+    call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+    call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
+
     if (this%test_params%get_use_void_fes()) then
       set_ids_to_reference_fes(1,PAR_TEST_POISSON_FULL) = PAR_TEST_POISSON_FULL
       set_ids_to_reference_fes(1,PAR_TEST_POISSON_VOID) = PAR_TEST_POISSON_VOID
@@ -382,11 +384,7 @@ end subroutine free_timers
                                  conditions          = this%poisson_conditions )
     end if
     
-    call this%fe_space%initialize_fe_integration()
-    
-    call this%poisson_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
-    call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
-    call this%fe_space%interpolate_dirichlet_values(this%poisson_conditions)    
+    call this%fe_space%set_up_cell_integration()
     !call this%fe_space%print()
   end subroutine setup_fe_space
   
@@ -403,6 +401,11 @@ end subroutine free_timers
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%poisson_integration )
+    
+    call this%solution%create(this%fe_space) 
+    call this%fe_space%interpolate_dirichlet_values(this%solution)
+    call this%poisson_integration%set_fe_function(this%solution)
+    
   end subroutine setup_system
   
   subroutine setup_solver (this)
@@ -517,7 +520,7 @@ end subroutine free_timers
 
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_dof_values()
+    dof_values => this%solution%get_free_dof_values()
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)
     
@@ -630,8 +633,6 @@ end subroutine free_timers
     call this%timer_solver_setup%start()
     call this%setup_solver()
     call this%timer_solver_setup%stop()
-
-    call this%solution%create(this%fe_space) 
 
     call this%timer_solver_run%start()
     call this%solve_system()

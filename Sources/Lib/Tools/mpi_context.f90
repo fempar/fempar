@@ -864,7 +864,7 @@ contains
 
   !=============================================================================
   subroutine mpi_context_neighbours_exchange_wo_pack_unpack_ieep ( this, &
-       &                                                              number_neighbours, &
+       &                                                              num_neighbours, &
        &                                                              neighbour_ids, &
        &                                                              snd_ptrs, &
        &                                                              snd_buf, & 
@@ -872,12 +872,12 @@ contains
        &                                                              rcv_buf )
     implicit none
     class(mpi_context_t)  , intent(in)    :: this 
-    integer(ip)           , intent(in)    :: number_neighbours
-    integer(ip)           , intent(in)    :: neighbour_ids(number_neighbours)
-    integer(ip)           , intent(in)    :: snd_ptrs(number_neighbours+1)
-    integer(ieep)         , intent(in)    :: snd_buf(snd_ptrs(number_neighbours+1)-1)   
-    integer(ip)           , intent(in)    :: rcv_ptrs(number_neighbours+1)
-    integer(ieep)         , intent(out)   :: rcv_buf(rcv_ptrs(number_neighbours+1)-1)
+    integer(ip)           , intent(in)    :: num_neighbours
+    integer(ip)           , intent(in)    :: neighbour_ids(num_neighbours)
+    integer(ip)           , intent(in)    :: snd_ptrs(num_neighbours+1)
+    integer(ieep)         , intent(in)    :: snd_buf(snd_ptrs(num_neighbours+1)-1)   
+    integer(ip)           , intent(in)    :: rcv_ptrs(num_neighbours+1)
+    integer(ieep)         , intent(out)   :: rcv_buf(rcv_ptrs(num_neighbours+1)-1)
 
     ! Communication related locals 
     integer :: i, proc_to_comm, sizmsg, istat
@@ -889,11 +889,11 @@ contains
     ! Request handlers for non-blocking receives
     integer, allocatable, dimension(:) :: sndhd
 
-    call memalloc (number_neighbours, rcvhd, __FILE__,__LINE__)
-    call memalloc (number_neighbours, sndhd, __FILE__,__LINE__)
+    call memalloc (num_neighbours, rcvhd, __FILE__,__LINE__)
+    call memalloc (num_neighbours, sndhd, __FILE__,__LINE__)
 
     ! First post all the non blocking receives   
-    do i=1, number_neighbours
+    do i=1, num_neighbours
        proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be received
@@ -908,7 +908,7 @@ contains
     end do
 
     ! Secondly post all non-blocking sends
-    do i=1, number_neighbours
+    do i=1, num_neighbours
        proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be sent
@@ -923,7 +923,7 @@ contains
     end do
 
     ! Wait on all non-blocking receives
-    do i=1, number_neighbours
+    do i=1, num_neighbours
        proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be received
@@ -943,7 +943,7 @@ contains
     end do
 
     ! Finally wait on all non-blocking sends
-    do i=1, number_neighbours
+    do i=1, num_neighbours
        proc_to_comm = neighbour_ids(i) - 1
 
        ! Message size to be received

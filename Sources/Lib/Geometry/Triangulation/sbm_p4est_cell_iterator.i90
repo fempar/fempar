@@ -1,0 +1,399 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine p4est_cell_iterator_create ( this, triangulation )
+  implicit none
+  class(p4est_cell_iterator_t)  , intent(inout) :: this
+  class(triangulation_t), target, intent(in)    :: triangulation
+  call this%free()
+  call cell_iterator_create(this,triangulation)
+  select type(triangulation)
+  class is (p4est_serial_triangulation_t)
+    this%p4est_triangulation => triangulation
+  class default
+    assert(.false.)
+  end select
+end subroutine p4est_cell_iterator_create
+
+subroutine p4est_cell_iterator_free ( this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  call cell_iterator_free(this)
+  nullify ( this%p4est_triangulation )
+end subroutine p4est_cell_iterator_free
+
+subroutine p4est_cell_iterator_free_final(this)
+  implicit none
+  type(p4est_cell_iterator_t), intent(inout) :: this
+  assert(.not. associated(this%p4est_triangulation ))
+end subroutine p4est_cell_iterator_free_final
+
+function p4est_cell_iterator_get_reference_fe (this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  class(reference_fe_t), pointer     :: p4est_cell_iterator_get_reference_fe
+  p4est_cell_iterator_get_reference_fe => this%p4est_triangulation%reference_fe_geo
+end function p4est_cell_iterator_get_reference_fe
+
+function p4est_cell_iterator_get_reference_fe_id (this) 
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_cell_iterator_get_reference_fe_id
+  p4est_cell_iterator_get_reference_fe_id = 1 
+end function p4est_cell_iterator_get_reference_fe_id
+
+subroutine p4est_cell_iterator_get_nodes_coordinates (this, nodes_coordinates)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)    :: this
+  type(point_t)        ,  intent(inout) :: nodes_coordinates(:)
+  integer(ip)                    :: inode, num_vertices
+  class(reference_fe_t), pointer :: reference_fe_geo
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  assert ( allocated ( this%p4est_triangulation%per_cell_vertex_coordinates) )
+  
+  reference_fe_geo => this%get_reference_fe()
+  num_vertices  = reference_fe_geo%get_num_vertices()
+  do inode=1, num_vertices
+    nodes_coordinates(inode) = &
+        this%p4est_triangulation%per_cell_vertex_coordinates((this%get_gid()-1)*num_vertices+inode)
+  end do
+end subroutine p4est_cell_iterator_get_nodes_coordinates
+
+function p4est_cell_iterator_get_mypart (this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_cell_iterator_get_mypart
+  p4est_cell_iterator_get_mypart = 1
+end function p4est_cell_iterator_get_mypart
+
+subroutine p4est_cell_iterator_set_set_id(this,set_id)
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  integer(ip)                 ,  intent(in)   :: set_id
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  call this%p4est_triangulation%p4est_cell_set_ids%set(this%get_gid(),set_id)
+end subroutine p4est_cell_iterator_set_set_id
+
+function p4est_cell_iterator_get_set_id(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_cell_iterator_get_set_id
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_set_id = this%p4est_triangulation%p4est_cell_set_ids%get(this%get_gid())
+end function p4est_cell_iterator_get_set_id
+
+function p4est_cell_iterator_get_level(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_cell_iterator_get_level
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_level = this%p4est_triangulation%quad_level(this%get_gid())
+end function p4est_cell_iterator_get_level
+
+function p4est_cell_iterator_get_num_vefs (this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: p4est_cell_iterator_get_num_vefs
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_num_vefs = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid()+1) - &
+                                     this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())
+end function p4est_cell_iterator_get_num_vefs
+
+function p4est_cell_iterator_get_num_nodes (this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: p4est_cell_iterator_get_num_nodes
+  class(reference_fe_t), pointer :: ref_element_geo
+  ref_element_geo => this%get_reference_fe()
+  p4est_cell_iterator_get_num_nodes = ref_element_geo%get_num_shape_functions()
+end function p4est_cell_iterator_get_num_nodes
+
+function p4est_cell_iterator_get_ggid (this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(igp) :: p4est_cell_iterator_get_ggid
+  p4est_cell_iterator_get_ggid = this%get_gid()
+end function p4est_cell_iterator_get_ggid
+
+function p4est_cell_iterator_get_vef_gid (this, vef_lid)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip)                 , intent(in) :: vef_lid
+  integer(ip)                        :: p4est_cell_iterator_get_vef_gid
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_vef_gid = this%p4est_triangulation%p4est_lst_vefs_lids%get(this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())+vef_lid-1)
+end function p4est_cell_iterator_get_vef_gid
+
+function p4est_cell_iterator_get_vefs_gid (this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip)                        :: ivef
+  integer(ip), pointer               :: p4est_cell_iterator_get_vefs_gid(:)
+  integer(ip) :: spos, epos
+  spos = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())
+  epos = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid()+1)-1
+  p4est_cell_iterator_get_vefs_gid => this%p4est_triangulation%p4est_lst_vefs_lids%get_pointer_to_range(spos,epos)
+end function p4est_cell_iterator_get_vefs_gid
+
+function p4est_cell_iterator_get_vef_ggid (this, vef_lid)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip)                 , intent(in) :: vef_lid
+  integer(igp)                       :: p4est_cell_iterator_get_vef_ggid
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_vef_ggid = this%get_vef_gid(vef_lid)
+end function p4est_cell_iterator_get_vef_ggid
+
+function p4est_cell_iterator_get_vef_lid_from_gid (this, vef_gid)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip)                 , intent(in) :: vef_gid
+  integer(ip)                        :: p4est_cell_iterator_get_vef_lid_from_gid
+  integer(ip)                        :: ivef
+  p4est_cell_iterator_get_vef_lid_from_gid = -1
+  ! Find position of vef_lid in local element
+  do ivef = 1, this%get_num_vefs()
+   if ( this%get_vef_gid(ivef) == vef_gid ) then
+      p4est_cell_iterator_get_vef_lid_from_gid = ivef
+      return 
+    end if
+  end do
+end function p4est_cell_iterator_get_vef_lid_from_gid
+
+function p4est_cell_iterator_get_vef_lid_from_ggid (this, vef_ggid)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(igp)                , intent(in) :: vef_ggid
+  integer(ip)                        :: p4est_cell_iterator_get_vef_lid_from_ggid
+  integer(ip)                        :: ivef
+  p4est_cell_iterator_get_vef_lid_from_ggid = -1
+  !Find position of vef_lid in local element
+  do ivef = 1, this%get_num_vefs()
+    if ( this%get_vef_ggid(ivef) == vef_ggid ) then
+      p4est_cell_iterator_get_vef_lid_from_ggid = ivef
+      return 
+    end if
+  end do
+end function p4est_cell_iterator_get_vef_lid_from_ggid
+
+subroutine p4est_cell_iterator_get_vef (this, vef_lid, vef)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)    :: this
+  integer(ip),            intent(in)    :: vef_lid
+  class(vef_iterator_t),   intent(inout) :: vef
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  call vef%set_gid(this%get_vef_gid(vef_lid))
+end subroutine p4est_cell_iterator_get_vef
+
+function p4est_cell_iterator_is_local (this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  logical                            :: p4est_cell_iterator_is_local
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_is_local = .true.
+end function p4est_cell_iterator_is_local
+
+function p4est_cell_iterator_is_ghost (this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  logical                            :: p4est_cell_iterator_is_ghost
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_is_ghost = .false.
+end function p4est_cell_iterator_is_ghost
+
+function p4est_cell_iterator_is_ancestor(this,child_level,child_linear_id)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip)                 , intent(in) :: child_level
+  integer(ip)                 , intent(in) :: child_linear_id
+  integer(ip) :: child_quad_coords(2)
+  logical     :: p4est_cell_iterator_is_ancestor
+#ifdef ENABLE_P4EST
+  call F90_p4est_quadrant_set_morton( child_level,                    &
+                                      int(child_linear_id,c_int64_t), &
+                                      child_quad_coords(1),           &
+                                      child_quad_coords(2) )
+  p4est_cell_iterator_is_ancestor =  &
+   ( F90_p4est_is_ancestor(this%p4est_triangulation%quad_coords(1,this%get_gid()), &
+                           this%p4est_triangulation%quad_coords(2,this%get_gid()), &
+                           int(this%get_level(),c_int8_t),                         &
+                           child_quad_coords(1),                                   &
+                           child_quad_coords(2),                                   &
+                           int(child_level,c_int8_t) ) /= 0 )
+#else
+  call this%p4est_triangulation%not_enabled_error()
+#endif 
+end function p4est_cell_iterator_is_ancestor
+
+subroutine p4est_cell_iterator_set_for_coarsening(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_gid(), coarsening)
+end subroutine p4est_cell_iterator_set_for_coarsening
+
+subroutine p4est_cell_iterator_set_for_refinement(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_gid(), refinement)
+end subroutine p4est_cell_iterator_set_for_refinement
+
+subroutine p4est_cell_iterator_set_for_do_nothing(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_gid(), do_nothing)
+end subroutine p4est_cell_iterator_set_for_do_nothing
+
+function p4est_cell_iterator_get_transformation_flag(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: p4est_cell_iterator_get_transformation_flag
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_transformation_flag = this%p4est_triangulation%p4est_refinement_and_coarsening_flags%get(this%get_gid())
+end function p4est_cell_iterator_get_transformation_flag
+
+function p4est_cell_iterator_get_permutation_index(this, target_cell, source_vef_lid, target_vef_lid )
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  class(cell_iterator_t)      , intent(in) :: target_cell
+  integer(ip)                 , intent(in) :: source_vef_lid
+  integer(ip)                 , intent(in) :: target_vef_lid
+  integer(ip) :: p4est_cell_iterator_get_permutation_index
+  p4est_cell_iterator_get_permutation_index = 1
+end function p4est_cell_iterator_get_permutation_index
+
+subroutine p4est_cell_iterator_update_sub_triangulation( this )
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine p4est_cell_iterator_update_sub_triangulation
+
+function p4est_cell_iterator_get_mc_case( this ) result ( mc_case )
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)    :: this
+  integer(ip) :: mc_case
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_cell_iterator_get_mc_case
+
+function p4est_cell_iterator_get_num_subcells( this ) result ( num_subcells )
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip) :: num_subcells
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_cell_iterator_get_num_subcells
+
+function p4est_cell_iterator_get_num_subcell_nodes( this ) result ( num_nodes_subcell )
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip) :: num_nodes_subcell
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_cell_iterator_get_num_subcell_nodes
+
+subroutine p4est_cell_iterator_get_phys_coords_of_subcell( this, subcell, points)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subcell
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine p4est_cell_iterator_get_phys_coords_of_subcell
+
+subroutine p4est_cell_iterator_get_ref_coords_of_subcell( this, subcell, points)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subcell
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine p4est_cell_iterator_get_ref_coords_of_subcell
+
+function p4est_cell_iterator_get_num_subfacets( this ) result ( num_subfacets )
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)    :: this
+  integer(ip) :: num_subfacets
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_cell_iterator_get_num_subfacets
+
+function p4est_cell_iterator_get_num_subfacet_nodes( this ) result ( num_nodes_subfacet )
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)    :: this
+  integer(ip) :: num_nodes_subfacet
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_cell_iterator_get_num_subfacet_nodes
+
+subroutine p4est_cell_iterator_get_phys_coords_of_subfacet( this, subfacet, points )
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subfacet
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine p4est_cell_iterator_get_phys_coords_of_subfacet
+
+subroutine p4est_cell_iterator_get_ref_coords_of_subfacet( this, subfacet, points )
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subfacet
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end subroutine p4est_cell_iterator_get_ref_coords_of_subfacet
+ 
+function p4est_cell_iterator_is_cut(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  logical :: p4est_cell_iterator_is_cut
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_cell_iterator_is_cut
+
+function p4est_cell_iterator_is_interior(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  logical :: p4est_cell_iterator_is_interior
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_cell_iterator_is_interior
+
+function p4est_cell_iterator_is_exterior(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  logical :: p4est_cell_iterator_is_exterior
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_cell_iterator_is_exterior
+
+function p4est_cell_iterator_is_interior_subcell( this, subcell ) result ( is_in )
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subcell
+  logical :: is_in
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_cell_iterator_is_interior_subcell
+
+function p4est_cell_iterator_is_exterior_subcell( this, subcell ) result ( is_out )
+  implicit none
+  class(p4est_cell_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subcell
+  logical :: is_out
+  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+end function p4est_cell_iterator_is_exterior_subcell

@@ -25,28 +25,28 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine object_iterator_create ( this, base_static_triangulation )
+subroutine object_iterator_create ( this, triangulation )
   implicit none
   class(object_iterator_t)                  , intent(inout) :: this
-  class(base_static_triangulation_t), target, intent(in)    :: base_static_triangulation
+  class(triangulation_t), target, intent(in)    :: triangulation
   call this%free()
-  this%base_static_triangulation => base_static_triangulation
+  this%triangulation => triangulation
   call this%first()
 end subroutine object_iterator_create
 
 subroutine object_iterator_free ( this)
   implicit none
   class(object_iterator_t), intent(inout) :: this
-  this%lid = -1
-  nullify ( this%base_static_triangulation )
+  this%gid = -1
+  nullify ( this%triangulation )
   call this%vefs_object_iterator%free()
 end subroutine object_iterator_free
 
 subroutine object_iterator_free_final ( this)
   implicit none
   type(object_iterator_t), intent(inout) :: this
-  assert ( this%lid == -1 ) 
-  assert ( .not. associated(this%base_static_triangulation) )
+  assert ( this%gid == -1 ) 
+  assert ( .not. associated(this%triangulation) )
 end subroutine object_iterator_free_final
 
 
@@ -54,107 +54,107 @@ subroutine object_iterator_update_vefs_object_iterator(this)
   implicit none
   class(object_iterator_t), intent(inout) :: this
   if ( .not. this%has_finished() ) &
-    this%vefs_object_iterator = this%base_static_triangulation%vefs_object%create_iterator(this%get_lid()) 
+    this%vefs_object_iterator = this%triangulation%vefs_object%create_iterator(this%get_gid()) 
 end subroutine object_iterator_update_vefs_object_iterator
 
 subroutine object_iterator_first(this)
   implicit none
   class(object_iterator_t), intent(inout) :: this
-  this%lid = 1
+  this%gid = 1
   call this%update_vefs_object_iterator()
 end subroutine object_iterator_first
 
 subroutine object_iterator_next(this)
   implicit none
   class(object_iterator_t), intent(inout) :: this
-  this%lid = this%lid + 1
+  this%gid = this%gid + 1
   call this%update_vefs_object_iterator()
 end subroutine object_iterator_next
 
-subroutine object_iterator_set_lid(this, lid)
+subroutine object_iterator_set_gid(this, gid)
   implicit none
   class(object_iterator_t), intent(inout) :: this
-  integer(ip)             , intent(in)    :: lid
-  this%lid = lid
+  integer(ip)             , intent(in)    :: gid
+  this%gid = gid
   call this%update_vefs_object_iterator()
-end subroutine object_iterator_set_lid
+end subroutine object_iterator_set_gid
 
 function object_iterator_has_finished(this)
   implicit none
   class(object_iterator_t), intent(in) :: this
   logical :: object_iterator_has_finished
-  object_iterator_has_finished = (this%lid > this%base_static_triangulation%number_objects)
+  object_iterator_has_finished = (this%gid > this%triangulation%num_objects)
 end function object_iterator_has_finished
-
-function object_iterator_get_lid (this)
-  implicit none
-  class(object_iterator_t), intent(in) :: this
-  integer(ip) :: object_iterator_get_lid
-  object_iterator_get_lid = this%lid
-end function object_iterator_get_lid
 
 function object_iterator_get_gid (this)
   implicit none
   class(object_iterator_t), intent(in) :: this
-  integer(igp) :: object_iterator_get_gid
-  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  object_iterator_get_gid = this%base_static_triangulation%objects_gids(this%lid)
+  integer(ip) :: object_iterator_get_gid
+  object_iterator_get_gid = this%gid
 end function object_iterator_get_gid
 
-function object_iterator_get_dimension (this)
+function object_iterator_get_ggid (this)
   implicit none
   class(object_iterator_t), intent(in) :: this
-  integer(igp) :: object_iterator_get_dimension
-  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  object_iterator_get_dimension = this%base_static_triangulation%objects_dimension(this%lid)
-end function object_iterator_get_dimension
+  integer(igp) :: object_iterator_get_ggid
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  object_iterator_get_ggid = this%triangulation%objects_ggids(this%gid)
+end function object_iterator_get_ggid
 
-function object_iterator_get_number_parts_around(this)
+function object_iterator_get_dim (this)
   implicit none
   class(object_iterator_t), intent(in) :: this
-  integer(ip) :: object_iterator_get_number_parts_around
-  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  object_iterator_get_number_parts_around = this%base_static_triangulation%parts_object%get_sublist_size(this%lid)
-end function object_iterator_get_number_parts_around
+  integer(igp) :: object_iterator_get_dim
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  object_iterator_get_dim = this%triangulation%objects_dim(this%gid)
+end function object_iterator_get_dim
 
-function object_iterator_get_number_subparts_around(this)
+function object_iterator_get_num_parts_around(this)
   implicit none
   class(object_iterator_t), intent(in) :: this
-  integer(ip) :: object_iterator_get_number_subparts_around
-  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  object_iterator_get_number_subparts_around = this%base_static_triangulation%subparts_object%get_sublist_size(this%lid)
-end function object_iterator_get_number_subparts_around
+  integer(ip) :: object_iterator_get_num_parts_around
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  object_iterator_get_num_parts_around = this%triangulation%parts_object%get_sublist_size(this%gid)
+end function object_iterator_get_num_parts_around
+
+function object_iterator_get_num_subparts_around(this)
+  implicit none
+  class(object_iterator_t), intent(in) :: this
+  integer(ip) :: object_iterator_get_num_subparts_around
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  object_iterator_get_num_subparts_around = this%triangulation%subparts_object%get_sublist_size(this%gid)
+end function object_iterator_get_num_subparts_around
 
 function object_iterator_create_parts_around_iterator(this)
   implicit none
   class(object_iterator_t), intent(in) :: this
   type(list_iterator_t) :: object_iterator_create_parts_around_iterator
-  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  object_iterator_create_parts_around_iterator = this%base_static_triangulation%parts_object%create_iterator(this%lid)
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  object_iterator_create_parts_around_iterator = this%triangulation%parts_object%create_iterator(this%gid)
 end function object_iterator_create_parts_around_iterator
 
 function object_iterator_create_subparts_around_iterator(this)
   implicit none
   class(object_iterator_t), intent(in) :: this
   type(list_iterator_t) :: object_iterator_create_subparts_around_iterator
-  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  object_iterator_create_subparts_around_iterator = this%base_static_triangulation%subparts_object%create_iterator(this%lid)
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  object_iterator_create_subparts_around_iterator = this%triangulation%subparts_object%create_iterator(this%gid)
 end function object_iterator_create_subparts_around_iterator
 
 function object_iterator_get_num_vefs(this)
   implicit none
   class(object_iterator_t), intent(in) :: this
   integer(ip) :: object_iterator_get_num_vefs
-  assert ( this%lid >= 1 .and. .not. this%has_finished() )
-  object_iterator_get_num_vefs = this%base_static_triangulation%vefs_object%get_sublist_size(this%lid)
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  object_iterator_get_num_vefs = this%triangulation%vefs_object%get_sublist_size(this%gid)
 end function object_iterator_get_num_vefs
 
 subroutine object_iterator_get_vef(this, ivef, vef)
   implicit none
   class(object_iterator_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: ivef
-  type(vef_iterator_t)    , intent(inout) :: vef
-  assert ( this%lid >= 1 .and. .not. this%has_finished() )
+  class(vef_iterator_t)   , intent(inout) :: vef
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
   assert ( ivef >= 1 .and. ivef <= this%get_num_vefs() )
-  call vef%set_lid(this%vefs_object_iterator%get_from_current(ivef-1))
+  call vef%set_gid(this%vefs_object_iterator%get_from_current(ivef-1))
 end subroutine object_iterator_get_vef

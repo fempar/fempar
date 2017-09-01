@@ -92,7 +92,7 @@ module par_scalar_array_names
      procedure :: same_vector_space      => par_scalar_array_same_vector_space
      procedure :: free_in_stages         => par_scalar_array_free_in_stages
      procedure :: default_initialization => par_scalar_array_default_init
-     procedure :: get_number_blocks      => par_scalar_array_get_number_blocks
+     procedure :: get_num_blocks      => par_scalar_array_get_num_blocks
      procedure :: extract_subvector      => par_scalar_array_extract_subvector
      procedure :: insert_subvector       => par_scalar_array_insert_subvector
   end type par_scalar_array_t
@@ -158,7 +158,7 @@ contains
     this%p_env      => p_env 
     this%dof_import => dof_import
     if(.not. this%p_env%am_i_l1_task()) return
-    call this%serial_scalar_array%create (dof_import%get_number_dofs())
+    call this%serial_scalar_array%create (dof_import%get_num_dofs())
   end subroutine par_scalar_array_create
   
   !=============================================================================
@@ -569,12 +569,12 @@ contains
   end function par_scalar_array_same_vector_space
   
   !=============================================================================
-  function par_scalar_array_get_number_blocks(this) result(res)
+  function par_scalar_array_get_num_blocks(this) result(res)
    implicit none 
    class(par_scalar_array_t), intent(in)   :: this
    integer(ip) :: res
    res = 1
-  end function par_scalar_array_get_number_blocks
+  end function par_scalar_array_get_num_blocks
  
   !=============================================================================
   subroutine par_scalar_array_extract_subvector( this, &
