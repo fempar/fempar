@@ -64,6 +64,7 @@ subroutine H1_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parame
   integer(ip)  :: qpoint, num_quad_points
   real(rp)     :: factor
   integer(ip)  :: icol
+  real(rp)     :: facet_measure
 
 
   par_environment => par_fe_space%get_par_environment()
@@ -88,8 +89,22 @@ subroutine H1_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parame
 
         coarse_dof_lid = own_coarse_dofs_iterator%get_current() 
 
+        facet_measure = 0.0_rp
         ! Face coarse DoF
         if ( object%get_dimension () == triangulation%get_num_dimensions()-1) then
+           faces_object_iterator = object%create_faces_object_iterator()
+           do while ( .not. faces_object_iterator%is_upper_bound() )
+              call object%get_face(faces_object_iterator%get_current(),fe_face)
+              call fe_face%update_integration() 
+              quad     => fe_face%get_quadrature()
+              face_map => fe_face%get_face_map()
+              do qpoint = 1, quad%get_number_quadrature_points()
+                 factor = face_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+                 facet_measure = facet_measure + factor
+              end do
+              call faces_object_iterator%next()
+           end do
+           
            faces_object_iterator = object%create_faces_object_iterator()
            do while ( .not. faces_object_iterator%is_upper_bound() )
               call object%get_face(faces_object_iterator%get_current(),fe_face)
@@ -112,7 +127,7 @@ subroutine H1_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parame
               call constraint_matrix%insert(fe%get_number_dofs(), &
                                             test_elem2dof(1)%p, &
                                             coarse_dof_lid, &
-                                            facevec)
+                                            facevec/facet_measure)
               call faces_object_iterator%next()
            end do
         else    
@@ -594,7 +609,7 @@ subroutine H1_l1_setup_constraint_matrix_multiple(this, field_id, par_fe_space, 
   integer(ip), parameter :: CB = 3
   integer(ip), parameter :: CC = 4
   
-  integer(ip), parameter :: strategy = CC
+  integer(ip), parameter :: strategy = CI
   
   write(*,*) 'strategy ::', strategy
   

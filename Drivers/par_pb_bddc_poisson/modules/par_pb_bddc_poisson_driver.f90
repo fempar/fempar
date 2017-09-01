@@ -548,7 +548,7 @@ contains
     integer(ip) :: FPLError
     integer(ip) :: ilev
     integer(ip) :: iparm(64)
-    logical, parameter :: si_solver = .true.
+    logical, parameter :: si_solver = .false.
 
     if ( this%environment%get_l1_rank() == 0 ) then
       if (si_solver) then
