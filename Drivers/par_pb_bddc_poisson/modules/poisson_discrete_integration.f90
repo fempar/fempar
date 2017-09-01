@@ -83,14 +83,14 @@ contains
     integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
     real(rp)     :: factor
     real(rp)     :: source_term_value
-
+    
     class(scalar_function_t), pointer :: source_term
 
     real(rp) :: viscosity
     
-    assert (associated(this%analytical_functions))
+    assert (associated(this%analytical_functions)) 
     assert (associated(this%fe_function)) 
-    
+
     source_term => this%analytical_functions%get_source_term()
 
     call fe_space%set_up_cell_integration()
@@ -137,8 +137,16 @@ contains
              end do
           end do
           
+          ! Source term
+             call source_term%get_value(quad_coords(qpoint),source_term_value)
+             do idof = 1, num_dofs
+                elvec(idof) = elvec(idof) + factor * source_term_value *  shape_values(idof,qpoint) !* viscosity
+             end do
+          
+       end do
+          
           call fe%assembly( this%fe_function, elmat, elvec, assembler )
-       end if
+       !end if
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)

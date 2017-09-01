@@ -46,6 +46,14 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
   type(list_iterator_t)                  :: own_dofs_on_vef_iterator
   integer(ip), pointer                   :: fe_dofs(:)
   logical                                :: use_vertices, use_edges, use_faces
+  logical, parameter :: face_minus = .true.
+  
+  
+  if (face_minus) then
+    write(*,*) "face_minus: 1"
+  else
+    write(*,*) "face_minus: 0"
+  end if 
   
   par_environment => par_fe_space%get_environment()
   assert ( associated ( par_environment ) )
@@ -75,6 +83,22 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
      case (2)
        if (.not. use_faces) then
          call object%next(); cycle
+       else
+         ! Uncomment to obtain F-
+         if ( face_minus ) then
+         do ivef_within_object=1, object%get_num_vefs()
+           call object%get_vef(ivef_within_object,vef)
+           if (vef%get_dim()==2) exit
+         end do  
+         call vef%get_cell_around(1,fe)
+         if ( fe%get_set_id() == 1) then
+             call object%next(); cycle
+         end if     
+         call vef%get_cell_around(2,fe)
+         if ( fe%get_set_id() == 1) then
+           call object%next(); cycle
+         end if  
+         end if 
        end if  
      end select
     
