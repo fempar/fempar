@@ -152,12 +152,8 @@ subroutine par_fe_space_free( this )
   if ( associated (this%triangulation) ) then
      environment => this%get_environment()
      if ( environment%am_i_l1_task() ) then
-        do i=1, size(this%blocks_dof_import)
-           call this%blocks_dof_import(i)%free()
-        end do
-        deallocate(this%blocks_dof_import,stat=istat)
-        check (istat==0)
         call this%serial_fe_space_t%free()
+        call this%free_blocks_dof_import()
         call this%free_faces_object()
         call this%free_coarse_dofs()
         nullify(this%coarse_fe_space)
@@ -177,8 +173,10 @@ subroutine par_fe_space_free( this )
         end if
         nullify(this%coarse_fe_space)
         
-        deallocate(this%blocks_dof_import, stat=istat)
-        check (istat==0)
+        if ( allocated( this%blocks_dof_import ) ) then
+          deallocate(this%blocks_dof_import, stat=istat)
+          check (istat==0)
+        end if
      end if
      nullify(this%triangulation)
      nullify(this%block_layout)
@@ -287,6 +285,7 @@ subroutine par_fe_space_generate_global_dof_numbering( this, block_layout )
   type(block_layout_t), target, intent(inout) :: block_layout
 
   type(environment_t), pointer :: environment 
+  integer(ip)                  :: istat
   
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -300,7 +299,8 @@ subroutine par_fe_space_generate_global_dof_numbering( this, block_layout )
     
      ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
      ! requires that this%blocks_dof_import is allocated 
-     allocate ( this%blocks_dof_import(block_layout%get_num_blocks()) )
+     allocate ( this%blocks_dof_import( block_layout%get_num_blocks()), stat=istat ) 
+     check (istat==0)
   end if
 end subroutine par_fe_space_generate_global_dof_numbering
 
@@ -637,8 +637,9 @@ end subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
 subroutine par_fe_space_compute_blocks_dof_import ( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
-  integer(ip)                          :: iblock    
-  allocate ( this%blocks_dof_import(this%block_layout%get_num_blocks()) )
+  integer(ip)                          :: iblock, istat
+  allocate ( this%blocks_dof_import(this%block_layout%get_num_blocks()), stat=istat ) 
+  check (istat==0)
   do iblock=1, this%block_layout%get_num_blocks()
      call this%compute_dof_import(iblock)
   end do
