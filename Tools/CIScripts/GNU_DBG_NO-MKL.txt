@@ -1,9 +1,3 @@
-#echo $SHELL
-#echo $CI_BUILD_REF_NAME
-if [ $CI_BUILD_REF_NAME == experimental ]; then echo This branch is experimental, running all tests; fi
-if [ $CI_BUILD_REF_NAME != experimental ];then echo This branch is not experimental, running fast tests only;fi
-
-
 ##################################
 # GET SUBMODULE SOURCES
 ##################################
@@ -66,9 +60,7 @@ cd ..
 cd FEMPAR
 cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $MPIEXEC $MACROS -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=../THIRDPARTY ../../
 
-if [ $CI_BUILD_REF_NAME == experimental ]; then ctest -j8 -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit; fi
-
-if [ $CI_BUILD_REF_NAME != experimental ]; then ctest -j8 -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit -R fast; fi
+ctest -j8 -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
 
 cd ../
 
