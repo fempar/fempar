@@ -715,6 +715,16 @@ subroutine void_reference_fe_get_subcells_connectivity(this, num_refinements, co
 end subroutine void_reference_fe_get_subcells_connectivity
 
 !==================================================================================================
+subroutine void_reference_fe_compute_vector_function_moments(this, cell_map, vector_function, dof_values)
+  implicit none
+  class(void_reference_fe_t)   , intent(in)    :: this
+  class(cell_map_t)            , intent(in)    :: cell_map
+		class(vector_function_t)     , intent(in)    :: vector_function
+		real(rp) , allocatable       , intent(inout) :: dof_values(:) 
+  check(.false.)
+end subroutine void_reference_fe_compute_vector_function_moments
+
+!==================================================================================================
 subroutine void_reference_fe_create_data_out_quadrature ( this, num_refinements, quadrature )
   implicit none
   class(void_reference_fe_t), intent(in)    :: this

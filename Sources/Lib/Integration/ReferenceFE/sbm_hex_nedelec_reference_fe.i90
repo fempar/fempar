@@ -1221,3 +1221,109 @@ subroutine hex_nedelec_reference_fe_fill_qpoints_permutations(this, quadrature, 
                                           qpoints_perm )
   
 end subroutine hex_nedelec_reference_fe_fill_qpoints_permutations
+
+ !==================================================================================================
+subroutine hex_nedelec_reference_fe_compute_vector_function_moments(this, cell_map, vector_function, dof_values)
+  implicit none
+  class(hex_nedelec_reference_fe_t), intent(in)    :: this
+  class(cell_map_t)            , intent(in)    :: cell_map
+  class(vector_function_t)     , intent(in)    :: vector_function
+  real(rp) , allocatable       , intent(inout) :: dof_values(:) 
+
+  type(point_t)                , pointer    :: coordinates(:)
+  type(hex_lagrangian_reference_fe_t)       :: d_fe_geo
+
+  ! Edges 
+  type(hex_lagrangian_reference_fe_t) :: fe_1D
+  type(interpolation_t)               :: interpolation_1D
+  type(quadrature_t)                  :: edge_quadrature
+  type(edge_map_t)                    :: edge_map
+  type(vector_field_t)                :: tangent
+  type(list_iterator_t)               :: vertex_iterator 
+  type(point_t), pointer              :: edge_map_coordinates(:)
+  integer(ip)                         :: edge_id  
+  integer(ip)                         :: vertex_within_edge_id  
+
+  ! Common integration 
+		integer(ip)                         :: vertex_within_cell_id
+  real(rp)                            :: shape_test, factor 
+  integer(ip)                         :: idime, ishape
+  integer(ip)                         :: qpoint, num_quad_points 
+  type(vector_field_t), allocatable   :: function_values(:) 
+  type(point_t), pointer              :: quad_points_coordinates(:)
+
+  integer(ip)  :: d, istat 
+		
+  coordinates => cell_map%get_coordinates()
+
+  ! Create a 1D scalar lagrangian reference FE of order k-1
+  call fe_1D%create(topology          = this%get_topology(), &
+                    num_dims          = 1, &
+                    order             = this%order-1, &
+                    field_type        = field_type_scalar, &
+                    conformity        = .true. )
+
+  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
+  call d_fe_geo%create(topology    = this%get_topology(),    &
+                       num_dims    = this%num_dims,          &
+                       order       = 1,                      &
+                       field_type  = field_type_scalar,      &
+                       conformity  = .false. )
+
+  call this%create_edge_quadrature( edge_quadrature )
+  call edge_map%create( edge_quadrature, d_fe_geo )
+  call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
+
+  num_quad_points  = edge_quadrature%get_num_quadrature_points()
+  allocate (function_values(num_quad_points), stat=istat); check(istat==0)
+
+  d = 0
+		dof_values = 0.0_rp 
+  do edge_id = this%get_first_n_face_id_of_dim(1), this%get_first_n_face_id_of_dim(1) + this%get_num_n_faces_of_dim(1)-1
+
+     edge_map_coordinates => edge_map%get_coordinates()   
+
+     vertex_within_edge_id = 1
+     vertex_iterator = this%vertices_n_face%create_iterator(edge_id)
+     do while ( .not. vertex_iterator%is_upper_bound () )
+        vertex_within_cell_id = vertex_iterator%get_current()
+        do idime=1,this%num_dims  
+           call edge_map_coordinates(vertex_within_edge_id)%set(idime, coordinates(vertex_within_cell_id)%get(idime) )
+        end do
+        call vertex_iterator%next()
+        vertex_within_edge_id = vertex_within_edge_id + 1
+     end do
+
+     ! Update edge_map on current edge
+     call edge_map%update(local_edge_id = edge_id - this%get_first_n_face_id_of_dim(1)+1, &
+                          reference_fe  = this,                                           &
+                          quadrature    = edge_quadrature )
+
+     ! Extract quadrature points coordinates 
+     quad_points_coordinates => edge_map%get_quadrature_points_coordinates()
+
+     ! Fill vector function values restricted to edge 
+     call vector_function%get_values_set(quad_points_coordinates, function_values)
+					
+     ! Integrate edge boundary moments int_edge(f.tau q), q \in P_k-1
+     do qpoint = 1, num_quad_points
+        factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
+        call edge_map%get_tangent(qpoint, tangent)
+        do ishape=1, interpolation_1D%num_shape_functions
+           call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
+           dof_values(d+ishape) = dof_values(d+ishape) + 1.0_rp / tangent%nrm2() * function_values(qpoint) * shape_test * tangent * factor 
+        end do
+     end do
+
+     d = d + interpolation_1D%num_shape_functions
+  end do
+
+				 ! Free all local data structures required for edge moments integration
+  call d_fe_geo%free()
+  call fe_1D%free()
+  call edge_quadrature%free()
+  call interpolation_1D%free()
+  call edge_map%free()
+		deallocate (function_values, stat=istat); check(istat==0)
+	
+end subroutine hex_nedelec_reference_fe_compute_vector_function_moments

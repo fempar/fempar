@@ -637,6 +637,55 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
   call memfree ( fields_to_interpolate_, __FILE__, __LINE__ ) 
 end subroutine serial_fe_space_interpolate_dirichlet_values
 
+subroutine serial_fe_space_project_vector_function (this, analytical_function, fe_function, time)
+  implicit none
+  class(serial_fe_space_t)          , intent(in)    :: this
+  class(vector_function_t)          , intent(in)    :: analytical_function 
+  class(fe_function_t)              , intent(inout) :: fe_function
+  real(rp)                , optional, intent(in)    :: time
+
+  class(reference_fe_t)    , pointer     :: reference_fe 
+  class(fe_cell_iterator_t), allocatable :: fe 
+  type(cell_map_t)         , pointer     :: cell_map 
+
+		integer(ip)   :: field_id 
+  real(rp)      :: time_(1) 
+
+  real(rp)  , allocatable      :: dof_values(:)  
+
+  class(environment_t), pointer :: environment 
+
+  environment => this%get_environment() 
+  
+  if (.not. environment%am_i_l1_task() ) then 
+     return 
+  end if
+ 
+  if ( present(time) ) time_(1) = time 
+
+  call this%create_fe_cell_iterator(fe)
+
+		do field_id = 1,this%get_num_fields()
+		   reference_fe => fe%get_reference_fe(field_id)
+     call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
+					
+  do while (.not. fe%has_finished() )         
+        call fe%update_integration() 
+        cell_map => fe%get_cell_map() 
+
+        call reference_fe%compute_vector_function_moments( cell_map, analytical_function, dof_values )
+								
+        call fe_function%insert_nodal_values(fe, field_id, dof_values)
+
+								call fe%next()
+     end do
+					call memfree( dof_values, __FILE__, __LINE__ )
+  end do
+
+  call this%free_fe_cell_iterator(fe) 
+   
+end subroutine serial_fe_space_project_vector_function
+
 subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_function, time, fields_to_project)
   implicit none
   class(serial_fe_space_t)          , intent(inout) :: this
