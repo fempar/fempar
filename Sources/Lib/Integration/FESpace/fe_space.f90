@@ -75,6 +75,9 @@ module fe_space_names
   use par_scalar_array_names
   use par_sparse_assembler_names
   
+		use timer_names 
+		use execution_context_names
+		
   implicit none
 # include "debug.i90"
   private

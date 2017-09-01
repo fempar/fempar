@@ -238,13 +238,25 @@ subroutine Hcurl_l1_apply_weighting_operator_and_comm(this, W, x, y)
   type(serial_scalar_array_t), pointer :: y_local
   real(rp), pointer :: x_local_entries(:)
   real(rp), pointer :: y_local_entries(:)
+		
+				type(timer_t)       :: timer_solve 
+  type(environment_t), pointer        :: environment  
+		class(execution_context_t), pointer :: l1_context
+		
+		environment => x%get_par_environment() 
+		l1_context   => environment%get_l1_context()
 
   x_local         => x%get_serial_scalar_array()
   x_local_entries => x_local%get_entries()
   y_local         => y%get_serial_scalar_array()
   y_local_entries => y_local%get_entries()
 
+				call timer_solve%create( l1_context,"CHANGE BASIS")
+		call timer_solve%start() 
   call this%apply_inverse_local_change_basis( x_local, x_local )
+				call timer_solve%stop() 
+		call timer_solve%report(.true.)
+		call timer_solve%free() 
   y_local_entries = x_local_entries*W 
   call y%comm()
   call this%apply_global_change_basis( y, y )
@@ -261,7 +273,14 @@ subroutine Hcurl_l1_apply_transpose_weighting_operator(this, W, x, y)
   type(serial_scalar_array_t), pointer :: y_local
   real(rp), pointer :: x_local_entries(:)
   real(rp), pointer :: y_local_entries(:)
-
+		
+		type(timer_t)       :: timer_solve 
+  type(environment_t), pointer        :: environment  
+		class(execution_context_t), pointer :: l1_context
+		
+		environment => x%get_par_environment() 
+		l1_context   => environment%get_l1_context()
+		
   x_local         => x%get_serial_scalar_array()
   x_local_entries => x_local%get_entries()
   y_local         => y%get_serial_scalar_array()
@@ -269,7 +288,13 @@ subroutine Hcurl_l1_apply_transpose_weighting_operator(this, W, x, y)
 
   call this%apply_global_change_basis_transpose( x, x ) 
   y_local_entries = x_local_entries*W 
+		
+		call timer_solve%create( l1_context,"TRANS CHANGE BASIS")
+		call timer_solve%start() 
   call this%apply_inverse_local_change_basis_transpose( y_local, y_local )  
+		call timer_solve%stop() 
+		call timer_solve%report(.true.)
+		call timer_solve%free() 
 
 end subroutine Hcurl_l1_apply_transpose_weighting_operator
 ! -------------------------------------------------------------------------------------------------
