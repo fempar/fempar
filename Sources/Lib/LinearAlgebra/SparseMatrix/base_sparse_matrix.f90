@@ -3576,7 +3576,7 @@ contains
             end do
             nc = i2-i1+1
             ipaux = binary_search(ja,nc,this%ja(i1:i2))
-            !assert(ipaux>0) ! Entry not found
+            assert(ipaux>0) ! Entry not found
             if (ipaux>0) call apply_duplicates(input=val, output=this%val(i1+ipaux-1))
 
         elseif(this%is_by_cols()) then
