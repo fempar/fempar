@@ -689,6 +689,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   integer(ip), pointer :: h_refinement_subfacet_permutation(:,:,:)
   real(rp) :: coefficient
   integer(ip) :: num_cell_vertices, num_cell_edges, num_cell_faces
+  integer(ip) :: num_subedges_x_edge, num_subfaces_x_face
 
   field_blocks => this%get_field_blocks()
     
@@ -711,9 +712,12 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   reference_fe => fe%get_reference_fe(1)
   num_cell_vertices = reference_fe%get_num_vertices()
   if  (this%p4est_triangulation%get_num_dims() == 3) then
-    num_cell_edges = reference_fe%get_num_n_faces_of_dim(1)
+    num_cell_edges       = reference_fe%get_num_n_faces_of_dim(1)
+    num_subfaces_x_face  = 4
+    num_subedges_x_edge  = 2 
   else
-    num_cell_edges = 0
+    num_cell_edges       = 0
+    num_subfaces_x_face  = 2
   end if  
   num_cell_faces = reference_fe%get_num_facets()
   
@@ -780,10 +784,28 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   call this%p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_dirichlet_dofs)
   call this%constraining_dirichlet_dofs%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
   call this%constraining_dirichlet_dofs_coefficients%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
-    
+
+  wassert( this%p4est_triangulation%get_num_dims()==2 , 'The following code only valid for 2d cases' )
+  wassert( this%get_num_fields()==1 , 'The following code only valid for single-field cases' )
+
+  
   ! Computation of constraints     
   do improper_vef_lid = 1, this%p4est_triangulation%get_num_improper_vefs()
      call fe_vef%set_gid(-improper_vef_lid)
+
+     call fe_vef%get_cell_around(1,fe)
+     improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
+     call fe%get_field_fe_dofs(1,fe_dofs)
+
+     ! Here we need to find the first non-void coarser_fe in this field. In 2d, the first non-void coarser_fe is always the first
+     ! one (if it exists). But this is not true in 3d. Thus, taking the first coarser_fe in the next line is correct only in 2d.
+
+     ! Retrieve all data related to the first improper cell around current improper vef
+     call fe_vef%get_improper_cell_around(1,coarser_fe)
+     call coarser_fe%get_field_fe_dofs(1,coarser_fe_fe_dofs)
+     coarser_fe_ivef  = fe_vef%get_improper_cell_around_ivef()
+     coarse_fe_subvef = fe_vef%get_improper_cell_around_subvef()
+     call coarser_fe%get_vef(coarser_fe_ivef,coarser_vef)
 
      do field_id=1, this%get_num_fields()
         
@@ -795,7 +817,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
         end do
         if ( fe%is_void(field_id) ) cycle
         improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
-        call fe%get_field_fe_dofs(field_id,fe_dofs)
+        call fe%get_field_fe_dofs(1,fe_dofs)
         
         ! Retrieve all data related to the first improper cell around current improper vef
         do icell = 1,fe_vef%get_num_improper_cells_around()
@@ -838,10 +860,10 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
            
            if ( fe_vef%get_dim() == 0 ) then ! vef is a corner (2D/3D)
               if ( coarser_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3) then
-                 !qpoint = h_refinement_subedge_permutation(coarser_fe_ivef,num_subedges_x_edge,1)
+                 qpoint = h_refinement_subedge_permutation(coarser_fe_ivef-num_cell_vertices,num_subedges_x_edge,1)
               else
                  ! TODO: 2 is equal to num_subfaces_x_face ... only working in 2D!!!
-                 qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices,2,1)
+                 qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges,num_subfaces_x_face,1)
               end if
            else if ( fe_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3 ) then ! vef is an edge (only 3D)
               qpoint = h_refinement_subedge_permutation(coarser_fe_ivef-num_cell_vertices, &
