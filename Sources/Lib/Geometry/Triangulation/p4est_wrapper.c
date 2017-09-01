@@ -518,6 +518,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
               quad_to_edge[ 12*jneig[2*k] + jneig_jedge[2*k] ] = ineig_iedge[2*k];
           }
           k++;
+          if (k==2) return;
         }
     }
   }

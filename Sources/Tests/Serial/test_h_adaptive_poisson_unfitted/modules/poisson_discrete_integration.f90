@@ -40,13 +40,15 @@ module poisson_unfitted_cG_discrete_integration_names
   private
   type, extends(discrete_integration_t) :: poisson_unfitted_cG_discrete_integration_t
      type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
+     type(fe_function_t)                          , pointer :: fe_function => NULL()    
      logical :: unfitted_boundary_is_dirichlet = .true.
      logical :: is_constant_nitches_beta       = .false.
    contains
      procedure :: set_analytical_functions
+     procedure :: set_fe_function
      procedure :: set_unfitted_boundary_is_dirichlet
      procedure :: set_is_constant_nitches_beta
-     procedure :: integrate
+     procedure :: integrate_galerkin
   end type poisson_unfitted_cG_discrete_integration_t
 
   public :: poisson_unfitted_cG_discrete_integration_t
@@ -78,7 +80,15 @@ contains
   end subroutine set_is_constant_nitches_beta
 
 !========================================================================================
-  subroutine integrate ( this, fe_space, assembler )
+  subroutine set_fe_function (this, fe_function)
+     implicit none
+     class(poisson_unfitted_cG_discrete_integration_t)       , intent(inout) :: this
+     type(fe_function_t)                             , target, intent(in)    :: fe_function
+     this%fe_function => fe_function
+  end subroutine set_fe_function
+
+!========================================================================================
+  subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(poisson_unfitted_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
@@ -111,13 +121,6 @@ contains
     real(rp)     :: dV, dS
     real(rp)     :: source_term_value
 
-    integer(ip)  :: num_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: fe_dofs(:)
-    integer(ip), allocatable :: num_dofs_x_field(:)
     class(scalar_function_t), pointer :: source_term
     class(scalar_function_t), pointer :: exact_sol
 
@@ -134,16 +137,12 @@ contains
     type(gen_eigenvalue_solver_t) :: eigs
 
     assert (associated(this%analytical_functions))
+    assert (associated(this%fe_function))
 
     call fe_space%create_fe_cell_iterator(fe)
 
     source_term => this%analytical_functions%get_source_term()
     exact_sol   => this%analytical_functions%get_solution_function()
-
-    num_fields = fe_space%get_num_fields()
-    allocate( fe_dofs(num_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
 
     ! Find the first non-void FE
     ! TODO use a function in fe_space istead
@@ -158,8 +157,6 @@ contains
     num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( num_fields, num_dofs_x_field, __FILE__, __LINE__ )
-    call fe%get_num_dofs_x_field(num_dofs_x_field)
 
     !This is for the Nitsche's BCs
     ! TODO  We assume same ref element for all cells, and for all fields
@@ -188,10 +185,7 @@ contains
        cell_map          => fe%get_cell_map()
        cell_int         => fe%get_cell_integrator(1)
        num_dofs = fe%get_num_dofs()
-       call fe%get_num_dofs_x_field(num_dofs_x_field)
 
-       ! Get DoF numbering within current FE
-       call fe%get_fe_dofs(fe_dofs)
 
        ! Get quadrature coordinates to evaluate source_term
        quad_coords => cell_map%get_quadrature_points_coordinates()
@@ -282,7 +276,7 @@ contains
              lambdas => eigs%solve(elmatB,elmatV,istat)
              if (istat .ne. 0) then
                write(*,*) 'istat = ', istat
-               write(*,*) 'lid   = ', fe%get_lid()
+               write(*,*) 'lid   = ', fe%get_gid()
                write(*,*) 'elmatB = '
                do idof = 1,size(elmatB,1)
                  write(*,*) elmatB(idof,:)
@@ -339,21 +333,16 @@ contains
 
        end if ! Only for cut elems
 
-       !call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       !call assembler%assembly( num_fields, num_dofs_x_field, fe_dofs, field_blocks, field_coupling, elmat, elvec )
-       call fe%assemble(elmat, elvec, assembler)
+       call fe%assembly( this%fe_function, elmat, elvec, assembler )
        call fe%next()
 
     end do
 
-    ! TODO Why these are not allocated??
-    call memfree(shape_values, __FILE__, __LINE__)
-    call memfree(boundary_shape_values, __FILE__, __LINE__)
-    deallocate (shape_gradients, stat=istat); check(istat==0);
-    deallocate (boundary_shape_gradients, stat=istat); check(istat==0);
+    if (allocated(shape_values            )) call memfree(shape_values            , __FILE__, __LINE__)
+    if (allocated(boundary_shape_values   )) call memfree(boundary_shape_values   , __FILE__, __LINE__)
+    if (allocated(shape_gradients         )) deallocate  (shape_gradients         , stat=istat); check(istat==0);
+    if (allocated(boundary_shape_gradients)) deallocate  (boundary_shape_gradients, stat=istat); check(istat==0);
 
-    deallocate (fe_dofs, stat=istat); check(istat==0);
-    call memfree ( num_dofs_x_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( elmatB_pre, __FILE__, __LINE__ )
@@ -362,6 +351,6 @@ contains
     call memfree ( shape2mono, __FILE__, __LINE__ )
     call eigs%free()
     call fe_space%free_fe_cell_iterator(fe)
-  end subroutine integrate
+  end subroutine integrate_galerkin
 
 end module poisson_unfitted_cG_discrete_integration_names
