@@ -1,0 +1,70 @@
+##################################
+# GET SUBMODULE SOURCES
+##################################
+
+git submodule update --init --recursive
+
+##################################
+# USE SERVERCOMFUS DASHBOARD
+##################################
+
+ln -sf CMake/CTestConfig_Servercomfus.cmake CTestConfig.cmake
+
+##################################
+# BUILD TYPE (DEBUG /RELEASE)
+##################################
+
+BUILD_TYPE="RELEASE"
+
+##################################
+# FORCE ENABLE/DISABLE LIBRARIES
+##################################
+
+MACROS=""
+
+##################################
+# FORTRAN COMPILERS FULL PATHS
+# CMake find GNU compilers by default
+##################################
+
+source /opt/intel/bin/compilervars.sh intel64
+export HDF5_ROOT=/opt/hdf5/1.10.0/GNU/6.2.0/openmpi/1.8.4
+FORTRAN_COMPILER=
+FORTRAN_COMPILER_MPI=
+FORTRAN_COMPILER_MPI_INC=
+MPIEXEC="-DMPIEXEC='/opt/OpenMPI/GNU/6.2.0/bin/mpirun'"
+
+##################################
+# CREATE BUILD DIRECTORY
+##################################
+mkdir build
+cd build
+mkdir THIRDPARTY
+mkdir FEMPAR
+
+##################################
+# CONFIGURE AND COMPILE THIRDPARTY
+##################################
+
+cd THIRDPARTY
+cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $MPIEXEC $MACROS  ../../ThirdParty
+cmake --build . -- -j8
+cd ..
+
+##################################
+# CONFIGURE AND UPDATE FEMPAR
+##################################
+
+cd FEMPAR
+cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $MPIEXEC $MACROS -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=../THIRDPARTY ../../
+
+if [ $CI_BUILD_REF_NAME == experimental ]; then ctest -j8 -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit; fi
+
+if [ $CI_BUILD_REF_NAME != experimental ]; then ctest -j8 -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit -R fast; fi
+
+
+cd ../
+
+cd ../
+rm -rf build
+
