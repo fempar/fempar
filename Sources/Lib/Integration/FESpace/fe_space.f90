@@ -98,6 +98,8 @@ module fe_space_names
     ! allocation in the case of L2-Ln tasks.
     type(coarse_fe_space_t)       , pointer :: coarse_fe_space => NULL()
   contains 
+    procedure, non_overridable, private        :: free_blocks_dof_import                       => base_fe_space_free_blocks_dof_import
+    
     procedure, non_overridable                 :: get_num_fields                               => base_fe_space_get_num_fields
     procedure, non_overridable                 :: set_num_fields                               => base_fe_space_set_num_fields
     procedure, non_overridable                 :: get_fe_space_type                               => base_fe_space_get_fe_space_type
@@ -937,7 +939,6 @@ module fe_space_names
     procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_gids_field          => coarse_fe_space_count_dofs_and_fill_lst_dof_gids_field
     procedure, non_overridable, private         :: free_lst_dofs_gids                              => coarse_fe_space_free_lst_dofs_gids
     procedure, non_overridable, private         :: free_num_dofs_x_field_and_block                 => coarse_fe_space_free_num_dofs_x_field_and_block
-    procedure, non_overridable, private         :: free_blocks_dof_import                          => coarse_fe_space_free_blocks_dof_import
     procedure, non_overridable, nopass, private :: coarse_fe_size                                  => coarse_fe_space_coarse_fe_size
     procedure, non_overridable, nopass, private :: coarse_fe_pack                                  => coarse_fe_space_coarse_fe_pack
     procedure, non_overridable, nopass, private :: coarse_fe_unpack                                => coarse_fe_space_coarse_fe_unpack

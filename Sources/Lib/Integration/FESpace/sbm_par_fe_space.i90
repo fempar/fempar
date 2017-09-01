@@ -152,14 +152,8 @@ subroutine par_fe_space_free( this )
   if ( associated (this%triangulation) ) then
      environment => this%get_environment()
      if ( environment%am_i_l1_task() ) then
-        if ( allocated( this%blocks_dof_import ) ) then
-          do i=1, size(this%blocks_dof_import)
-             call this%blocks_dof_import(i)%free()
-          end do
-          deallocate(this%blocks_dof_import,stat=istat)
-          check (istat==0)
-        end if
         call this%serial_fe_space_t%free()
+        call this%free_blocks_dof_import()
         call this%free_faces_object()
         call this%free_coarse_dofs()
         nullify(this%coarse_fe_space)
