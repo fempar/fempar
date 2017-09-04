@@ -50,7 +50,6 @@ subroutine hex_lagrangian_reference_fe_create(this, &
   integer(ip)        :: num_refinements
   num_refinements = 1
   call lagrangian_reference_fe_create(this,topology,num_dims,order,field_type,conformity,continuity)
-  this%h_refinement_num_subfacets = (num_refinements+1)**(this%num_dims-1)
   call this%fill_h_refinement_interpolation()
   call this%fill_h_refinement_permutations()
 end subroutine hex_lagrangian_reference_fe_create
@@ -853,14 +852,6 @@ subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations(this, quadratur
 end subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations
 
 !==================================================================================================
-function hex_lagrangian_reference_fe_get_h_refinement_num_subfacets(this)
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip) :: hex_lagrangian_reference_fe_get_h_refinement_num_subfacets
-  hex_lagrangian_reference_fe_get_h_refinement_num_subfacets = & 
-                             this%h_refinement_num_subfacets
-end function hex_lagrangian_reference_fe_get_h_refinement_num_subfacets
-
-!==================================================================================================
 subroutine hex_lagrangian_reference_fe_free ( this )
   implicit none 
   class(hex_lagrangian_reference_fe_t), intent(inout) :: this 
@@ -871,7 +862,6 @@ subroutine hex_lagrangian_reference_fe_free ( this )
   if ( allocated(this%h_refinement_subedge_permutation) ) then
      call memfree(this%h_refinement_subedge_permutation,__FILE__,__LINE__)
   end if
-  this%h_refinement_num_subfacets = 0
   call lagrangian_reference_fe_free ( this )
 end subroutine hex_lagrangian_reference_fe_free
 

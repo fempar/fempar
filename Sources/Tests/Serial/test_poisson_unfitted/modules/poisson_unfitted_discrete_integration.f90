@@ -28,7 +28,7 @@
 module poisson_unfitted_cG_discrete_integration_names
   use fempar_names
   use unfitted_temporary_names
-  use poisson_analytical_functions_names
+  use poisson_unfitted_analytical_functions_names
   use unfitted_triangulations_names
   use unfitted_fe_spaces_names
   use piecewise_cell_map_names
@@ -39,14 +39,12 @@ module poisson_unfitted_cG_discrete_integration_names
 # include "debug.i90"
   private
   type, extends(discrete_integration_t) :: poisson_unfitted_cG_discrete_integration_t
-     type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
-     logical :: unfitted_boundary_is_dirichlet = .true.
-     logical :: is_constant_nitches_beta       = .false.
+     type(poisson_unfitted_analytical_functions_t), pointer :: analytical_functions => NULL()
+     type(fe_function_t)                          , pointer :: fe_function          => NULL()
    contains
      procedure :: set_analytical_functions
-     procedure :: set_unfitted_boundary_is_dirichlet
-     procedure :: set_is_constant_nitches_beta
-     procedure :: integrate
+     procedure :: set_fe_function
+     procedure :: integrate_galerkin
   end type poisson_unfitted_cG_discrete_integration_t
 
   public :: poisson_unfitted_cG_discrete_integration_t
@@ -57,28 +55,20 @@ contains
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
      class(poisson_unfitted_cG_discrete_integration_t)    , intent(inout) :: this
-     type(poisson_analytical_functions_t), target, intent(in)    :: analytical_functions
+     type(poisson_unfitted_analytical_functions_t), target, intent(in)    :: analytical_functions
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
 
 !========================================================================================
-  subroutine set_unfitted_boundary_is_dirichlet ( this, is_dirichlet )
+  subroutine set_fe_function (this, fe_function)
      implicit none
-     class(poisson_unfitted_cG_discrete_integration_t)    , intent(inout) :: this
-     logical, intent(in) :: is_dirichlet
-     this%unfitted_boundary_is_dirichlet = is_dirichlet
-  end subroutine set_unfitted_boundary_is_dirichlet
+     class(poisson_unfitted_cG_discrete_integration_t)        , intent(inout) :: this
+     type(fe_function_t)                              , target, intent(in)    :: fe_function
+     this%fe_function => fe_function
+  end subroutine set_fe_function
 
 !========================================================================================
-  subroutine set_is_constant_nitches_beta ( this, is_constant )
-     implicit none
-     class(poisson_unfitted_cG_discrete_integration_t)    , intent(inout) :: this
-     logical, intent(in) :: is_constant
-     this%is_constant_nitches_beta = is_constant
-  end subroutine set_is_constant_nitches_beta
-
-!========================================================================================
-  subroutine integrate ( this, fe_space, assembler )
+  subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(poisson_unfitted_cG_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
@@ -89,7 +79,6 @@ contains
     class(fe_cell_iterator_t), allocatable :: fe
 
     ! FE integration-related data types
-    type(cell_map_t)           , pointer :: cell_map
     type(piecewise_cell_map_t) , pointer :: pw_cell_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
@@ -111,13 +100,6 @@ contains
     real(rp)     :: dV, dS
     real(rp)     :: source_term_value
 
-    integer(ip)  :: num_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: fe_dofs(:)
-    integer(ip), allocatable :: num_dofs_x_field(:)
     class(scalar_function_t), pointer :: source_term
     class(scalar_function_t), pointer :: exact_sol
 
@@ -134,16 +116,13 @@ contains
     type(gen_eigenvalue_solver_t) :: eigs
 
     assert (associated(this%analytical_functions))
+    assert (associated(this%fe_function)) 
 
+    ! TODO We will delete this once implemented the fake methods in the father class
     call fe_space%create_fe_cell_iterator(fe)
 
     source_term => this%analytical_functions%get_source_term()
     exact_sol   => this%analytical_functions%get_solution_function()
-
-    num_fields = fe_space%get_num_fields()
-    allocate( fe_dofs(num_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
 
     ! Find the first non-void FE
     ! TODO use a function in fe_space istead
@@ -158,8 +137,6 @@ contains
     num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( num_fields, num_dofs_x_field, __FILE__, __LINE__ )
-    call fe%get_num_dofs_x_field(num_dofs_x_field)
 
     !This is for the Nitsche's BCs
     ! TODO  We assume same ref element for all cells, and for all fields
@@ -185,24 +162,18 @@ contains
        !WARNING This has to be inside the loop
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()
-       cell_map          => fe%get_cell_map()
-       cell_int         => fe%get_cell_integrator(1)
        num_dofs = fe%get_num_dofs()
-       call fe%get_num_dofs_x_field(num_dofs_x_field)
-
-       ! Get DoF numbering within current FE
-       call fe%get_fe_dofs(fe_dofs)
 
        ! Get quadrature coordinates to evaluate source_term
-       quad_coords => cell_map%get_quadrature_points_coordinates()
+       quad_coords => fe%get_quadrature_points_coordinates()
 
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       call cell_int%get_gradients(shape_gradients)
-       call cell_int%get_values(shape_values)
+       call fe%get_gradients(shape_gradients)
+       call fe%get_values(shape_values)
        do qpoint = 1, num_quad_points
-          dV = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           do idof = 1, num_dofs
              do jdof = 1, num_dofs
                 ! A_K(i,j) = (grad(phi_i),grad(phi_j))
@@ -217,6 +188,10 @@ contains
           end do
        end do
 
+       ! Update FE boundary integration related data structures
+       ! Only for cut elements
+       ! TODO @fverdugo FEMPAR PRIORITY LOW EFFORT HIGH
+       ! Create iterator for cut and for full elements? Then we can remove this if
        if (fe%is_cut()) then
 
          call fe%update_boundary_integration()
@@ -230,7 +205,9 @@ contains
          call cell_int%get_values(boundary_shape_values)
          call cell_int%get_gradients(boundary_shape_gradients)
 
-         if (.not. this%unfitted_boundary_is_dirichlet) then
+         ! TODO @fverdugo DRIVER PRIORITY HIGH EFFORT MEDIUM
+         ! We assume that the unfitted boundary is Nitsche
+         if (.false.) then
            ! Neumann BCs unfitted boundary
            do qpoint = 1, num_quad_points
 
@@ -258,52 +235,43 @@ contains
          else ! Nitsche on the unfitted boundary
 
            ! Nitsche beta
-           if (.not. this%is_constant_nitches_beta) then
 
-             ! Integrate the matrix associated with the normal derivatives
-             elmatB_pre(:,:)=0.0_rp
-             do qpoint = 1, num_quad_points
-               dS = pw_cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-               call pw_cell_map%get_normal(qpoint,normal_vec)
-                do idof = 1, num_dofs
-                   do jdof = 1, num_dofs
-                      ! B_K(i,j) = (n*grad(phi_i),n*grad(phi_j))_{\partial\Omega}
-                      elmatB_pre(idof,jdof) = elmatB_pre(idof,jdof) + &
-                        dS *( (normal_vec*boundary_shape_gradients(jdof,qpoint)) * (normal_vec*boundary_shape_gradients(idof,qpoint)) )
-                   end do
-                end do
-             end do
+           ! Integrate the matrix associated with the normal derivatives
+           elmatB_pre(:,:)=0.0_rp
+           do qpoint = 1, num_quad_points
+             dS = pw_cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+             call pw_cell_map%get_normal(qpoint,normal_vec)
+              do idof = 1, num_dofs
+                 do jdof = 1, num_dofs
+                    ! B_K(i,j) = (n*grad(phi_i),n*grad(phi_j))_{\partial\Omega}
+                    elmatB_pre(idof,jdof) = elmatB_pre(idof,jdof) + &
+                      dS *( (normal_vec*boundary_shape_gradients(jdof,qpoint)) * (normal_vec*boundary_shape_gradients(idof,qpoint)) )
+                 end do
+              end do
+           end do
 
-             ! Compute the matrices without the kernel
-             call At_times_B_times_A(shape2mono_fixed,elmat,elmatV)
-             call At_times_B_times_A(shape2mono_fixed,elmatB_pre,elmatB)
+           ! Compute the matrices without the kernel
+           call At_times_B_times_A(shape2mono_fixed,elmat,elmatV)
+           call At_times_B_times_A(shape2mono_fixed,elmatB_pre,elmatB)
 
-             ! Solve the eigenvalue problem
-             lambdas => eigs%solve(elmatB,elmatV,istat)
-             if (istat .ne. 0) then
-               write(*,*) 'istat = ', istat
-               write(*,*) 'lid   = ', fe%get_lid()
-               write(*,*) 'elmatB = '
-               do idof = 1,size(elmatB,1)
-                 write(*,*) elmatB(idof,:)
-               end do
-               write(*,*) 'elmatV = '
-               do idof = 1,size(elmatV,1)
-                 write(*,*) elmatV(idof,:)
-               end do
-             end if
-             check(istat == 0)
-
-             ! The eigenvalue should be real. Thus, it is save to take only the real part.
-             beta = beta_coef*maxval(lambdas(:,1))
-
-           else
-
-             beta = 100.0/cell_map%compute_h(1) 
-
+           ! Solve the eigenvalue problem
+           lambdas => eigs%solve(elmatB,elmatV,istat)
+           if (istat .ne. 0) then
+             write(*,*) 'istat = ', istat
+             write(*,*) 'lid   = ', fe%get_gid()
+           !  write(*,*) 'elmatB = '
+           !  do idof = 1,size(elmatB,1)
+           !    write(*,*) elmatB(idof,:)
+           !  end do
+           !  write(*,*) 'elmatV = '
+           !  do idof = 1,size(elmatV,1)
+           !    write(*,*) elmatV(idof,:)
+           !  end do
            end if
+           mcheck(istat == 0,'Failed to solve the generalized eigenvalue problem')
 
-
+           ! The eigenvalue should be real. Thus, it is save to take only the real part.
+           beta = beta_coef*maxval(lambdas(:,1))
            assert(beta>=0)
 
            ! Once we have the beta, we can compute Nitsche's terms
@@ -339,9 +307,7 @@ contains
 
        end if ! Only for cut elems
 
-       !call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       !call assembler%assembly( num_fields, num_dofs_x_field, fe_dofs, field_blocks, field_coupling, elmat, elvec )
-       call fe%assemble(elmat, elvec, assembler)
+       call fe%assembly( this%fe_function, elmat, elvec, assembler )
        call fe%next()
 
     end do
@@ -352,8 +318,6 @@ contains
     deallocate (shape_gradients, stat=istat); check(istat==0);
     deallocate (boundary_shape_gradients, stat=istat); check(istat==0);
 
-    deallocate (fe_dofs, stat=istat); check(istat==0);
-    call memfree ( num_dofs_x_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     call memfree ( elmatB_pre, __FILE__, __LINE__ )
@@ -362,6 +326,6 @@ contains
     call memfree ( shape2mono, __FILE__, __LINE__ )
     call eigs%free()
     call fe_space%free_fe_cell_iterator(fe)
-  end subroutine integrate
+  end subroutine integrate_galerkin
 
 end module poisson_unfitted_cG_discrete_integration_names

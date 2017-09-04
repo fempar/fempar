@@ -371,20 +371,25 @@ contains
     class(test_poisson_unfitted_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
+    integer(ip) :: iounit
     call this%fe_affine_operator%numerical_setup()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
 
     select type(matrix)
     class is (sparse_matrix_t)
-       !call matrix%print_matrix_market(6)
+       !iounit = io_open(file='matrix.mm',action='write')
+       !check(iounit>0)
+       !call matrix%print_matrix_market(iounit)
     class DEFAULT
        assert(.false.)
     end select
 
     select type(rhs)
     class is (serial_scalar_array_t)
-    !call rhs%print(6)
+      !iounit = io_open(file='vector.mm',action='write')
+      !check(iounit>0)
+      !call rhs%print(iounit)
     class DEFAULT
        assert(.false.)
     end select

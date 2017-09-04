@@ -40,8 +40,8 @@ contains
   subroutine colorize_aggregate_ids(triangulation, aggregate_ids)
 
     implicit none
-    class(base_static_triangulation_t), intent(in)    :: triangulation
-    integer(ip),                        intent(inout) :: aggregate_ids(:)
+    class(triangulation_t), intent(in)    :: triangulation
+    integer(ip),            intent(inout) :: aggregate_ids(:)
     
     type(list_t) :: graph
     integer(ip), allocatable :: aggr2color(:)
@@ -102,7 +102,7 @@ contains
   subroutine create_aggregates_dual_graph(triangulation,aggregate_ids,graph)
 
     implicit none
-    class(base_static_triangulation_t), intent(in) :: triangulation
+    class(triangulation_t), intent(in) :: triangulation
     integer(ip), intent(in) :: aggregate_ids(:)
     type(list_t), intent(inout) :: graph
 
@@ -128,15 +128,15 @@ contains
       call cell%first()
       visited_neigs(:) = .false.
       do while (.not. cell%has_finished()) 
-        if ( aggregate_ids(cell%get_lid()) == aggr_id ) then
+        if ( aggregate_ids(cell%get_gid()) == aggr_id ) then
           do ivef = 1,cell%get_num_vefs()
             call cell%get_vef(ivef,vef)
             do icell_around = 1,vef%get_num_cells_around()
               call vef%get_cell_around(icell_around,cell_around)
-              if (  (aggregate_ids(cell_around%get_lid()) /=  aggr_id ) .and.&
-                    ( .not. visited_neigs(cell_around%get_lid())      )      ) then
+              if (  (aggregate_ids(cell_around%get_gid()) /=  aggr_id ) .and.&
+                    ( .not. visited_neigs(cell_around%get_gid())      )      ) then
                 call graph%sum_to_pointer_index(aggr_id,1)
-                visited_neigs(cell_around%get_lid()) = .true.
+                visited_neigs(cell_around%get_gid()) = .true.
               end if
             end do
           end do
@@ -154,16 +154,16 @@ contains
       visited_neigs(:) = .false.
       iter = graph%create_iterator(aggr_id)
       do while (.not. cell%has_finished()) 
-        if ( aggregate_ids(cell%get_lid()) == aggr_id ) then
+        if ( aggregate_ids(cell%get_gid()) == aggr_id ) then
           do ivef = 1,cell%get_num_vefs()
             call cell%get_vef(ivef,vef)
             do icell_around = 1,vef%get_num_cells_around()
               call vef%get_cell_around(icell_around,cell_around)
-              if (  (aggregate_ids(cell_around%get_lid()) /=  aggr_id ) .and.&
-                    ( .not. visited_neigs(cell_around%get_lid())      )      ) then
-                call iter%set_current(aggregate_ids(cell_around%get_lid()))
+              if (  (aggregate_ids(cell_around%get_gid()) /=  aggr_id ) .and.&
+                    ( .not. visited_neigs(cell_around%get_gid())      )      ) then
+                call iter%set_current(aggregate_ids(cell_around%get_gid()))
                 call iter%next()
-                visited_neigs(cell_around%get_lid()) = .true.
+                visited_neigs(cell_around%get_gid()) = .true.
               end if
             end do
           end do

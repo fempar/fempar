@@ -93,7 +93,7 @@ contains
 
     integer(ip) :: num_cells, num_cell_nodes, num_subcells, num_subcell_nodes, num_dime
     integer(ip) :: istat, icell, inode, ino, isubcell
-    type(unfitted_cell_iterator_t)  :: cell
+    class(cell_iterator_t), allocatable  :: cell
     type(point_t), allocatable, dimension(:) :: cell_coords, subcell_coords
     integer(ip) :: the_cell_type, the_subcell_type
     integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
@@ -105,7 +105,7 @@ contains
     if ( .not. this%environment%am_i_l1_task() ) return
     my_part_id = this%environment%get_l1_rank() + 1
 
-    call cell%create(triangulation)
+    call triangulation%create_cell_iterator(cell)
 
     select type (triangulation)
     class is (serial_unfitted_triangulation_t)
@@ -230,7 +230,7 @@ contains
     deallocate ( subcell_coords, stat = istat ); check(istat == 0)
     call memfree ( nodes_vtk2fempar, __FILE__, __LINE__ )
     call memfree ( nodesids, __FILE__, __LINE__ )
-    call cell%free()
+    call triangulation%free_cell_iterator(cell)
 
   end subroutine  uvtkw_attach_triangulation
 
@@ -243,7 +243,7 @@ contains
   
     integer(ip) :: num_subfacets, num_subfacet_nodes, num_dime
     integer(ip) :: istat, iface, inode, ino, isubfacet
-    type(unfitted_cell_iterator_t)  :: cell
+    class(cell_iterator_t), allocatable  :: cell
     type(point_t), allocatable, dimension(:) :: subfacet_coords
     integer(ip) :: the_subfacet_type
 
@@ -252,7 +252,7 @@ contains
     this%environment => triangulation%get_environment()
     if ( .not. this%environment%am_i_l1_task() ) return
 
-    call cell%create(triangulation)
+    call triangulation%create_cell_iterator(cell)
     num_dime = triangulation%get_num_dims()
     
     select type (triangulation)
@@ -327,7 +327,7 @@ contains
     if (num_dime == 2_ip) this%z(:) = 0
   
     deallocate ( subfacet_coords, stat = istat ); check(istat == 0)
-    call cell%free()
+    call triangulation%free_cell_iterator(cell)
   
   end subroutine uvtkw_attach_boundary_faces
 

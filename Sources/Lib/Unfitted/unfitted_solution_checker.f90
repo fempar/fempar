@@ -135,6 +135,8 @@ contains
       l2_norm_boundary           = 0.0
     end if
     
+    num_dime = this%fe_space%get_num_dims()
+    num_elem_nodes =  this%fe_space%get_max_num_shape_functions()
     call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
 
 

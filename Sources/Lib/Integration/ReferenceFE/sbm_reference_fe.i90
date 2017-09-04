@@ -491,3 +491,10 @@ function reference_fe_get_normal_orientation_factor( this, facet_lid, cell_map )
      orientation_factor = -1.0_rp**(real(facet_lid))
   end if
 end function reference_fe_get_normal_orientation_factor
+
+!==================================================================================================
+function reference_fe_get_num_subfacets(this)
+  class(reference_fe_t), intent(in)    :: this
+  integer(ip) :: reference_fe_get_num_subfacets
+  reference_fe_get_num_subfacets = 2**(this%num_dims-1)
+end function reference_fe_get_num_subfacets
