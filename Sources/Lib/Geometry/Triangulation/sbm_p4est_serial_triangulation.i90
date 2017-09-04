@@ -326,6 +326,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
               ! 3. I am improper if am either corner 1 of subface 0 or corner 0 of subface 1
               if ( face_corner /= isubface ) then
                  if (is_proper) then
+                   if (this%get_num_dims() == 3 ) then
                     ! Distinguish among the situation where the corner is within a face 
                     ! or on its boundary, i.e., on top of an edge !!!
                     if ( P4EST_OPPOSITE_CORNER_2D(isubface) == face_corner ) then
@@ -358,17 +359,20 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                         ! The non_proper vef is within an edge
                         improper_cell_around_ivef = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
                     end if
-                    improper_cell_around_subvef  = -1
-                 end if
-                 is_proper = .false.
-                 call work_vector_improper_cells_around%push_back(jcell)
-              else
-                 min_cell   = min(min_cell,jcell)
-                 if (min_cell == jcell) then
-                    min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS)
-                 end if
-                 call work_vector_cells_around%push_back(jcell)
-              end if
+                   else
+                     improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)                     
+                     improper_cell_around_subvef  = -1
+                   end if
+                   is_proper = .false.
+                   call work_vector_improper_cells_around%push_back(jcell)
+                 else
+                   min_cell   = min(min_cell,jcell)
+                   if (min_cell == jcell) then
+                      min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS)
+                   end if
+                  call work_vector_cells_around%push_back(jcell)
+                end if
+             end if
            else ! Half-side neighbour 
               assert (mortar == num_subfacets_facet+1)
               ! Determine which face_corner of my face am I
