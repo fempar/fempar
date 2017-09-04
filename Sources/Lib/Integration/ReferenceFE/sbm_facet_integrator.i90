@@ -38,7 +38,7 @@ subroutine cell_map_facet_restriction_create( this, quadrature, reference_fe_geo
 
   call this%free()
   this%num_facets = reference_fe_geometry%get_num_facets()
-  this%num_subfacets = reference_fe_geometry%get_h_refinement_num_subfacets()
+  this%num_subfacets = reference_fe_geometry%get_num_subfacets()
   allocate(this%cell_map(this%num_facets*(this%num_subfacets+1)),stat = istat); check(istat == 0);
   do facet_lid = 1,this%num_facets
     do subfacet_lid = 0,this%num_subfacets
@@ -285,7 +285,7 @@ subroutine cell_integrator_facet_restriction_create(this, quadrature, reference_
   this%current_facet_lid = -1
   this%current_subfacet_lid = -1
   this%num_facets = reference_fe%get_num_facets()
-  this%num_subfacets = reference_fe%get_h_refinement_num_subfacets()
+  this%num_subfacets = reference_fe%get_num_subfacets()
   allocate(this%cell_integrator(this%num_facets*(this%num_subfacets+1)), stat = istat); check(istat==0);
   do facet_lid = 1,this%num_facets
     do subfacet_lid = 0,this%num_subfacets

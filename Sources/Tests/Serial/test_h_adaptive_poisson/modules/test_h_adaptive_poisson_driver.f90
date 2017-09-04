@@ -498,7 +498,7 @@ contains
 
        call this%triangulation%refine_and_coarsen()
        
-       call this%fe_space%refine_and_coarsen( fe_function = this%solution ) 
+       call this%fe_space%refine_and_coarsen( this%solution ) 
        
        call this%fe_space%set_up_cell_integration()
        
