@@ -61,6 +61,7 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_levelset_function_type
      character(len=:), allocatable :: default_levelset_tolerance
      character(len=:), allocatable :: default_domain_limits
+     character(len=:), allocatable :: default_only_setup
 
      type(Command_Line_Interface):: cli 
 
@@ -88,6 +89,7 @@ module test_poisson_params_names
      character(len=str_cla_len)    :: levelset_function_type
      real(rp) :: levelset_tolerance
      character(len=str_cla_len)    :: domain_limits
+     logical :: only_setup
 
    contains
      procedure, non_overridable             :: create       => test_poisson_create
@@ -114,6 +116,7 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_levelset_function_type
      procedure, non_overridable             :: get_levelset_tolerance
      procedure, non_overridable             :: get_domain_limits
+     procedure, non_overridable             :: get_only_setup
   end type test_poisson_params_t  
 
   ! Types
@@ -170,6 +173,7 @@ contains
     this%default_levelset_function_type = 'sphere'
     this%default_levelset_tolerance = '1.0e-6'
     this%default_domain_limits = '[0,1]'
+    this%default_only_setup = '.false.'
     
   end subroutine test_poisson_set_default
   
@@ -258,6 +262,9 @@ contains
     call this%cli%add(switch='--domain-limits',switch_ab='-dom',help='String with info about the domain limits',&
          &            required=.false.,act='store',def=trim(this%default_domain_limits),error=error) 
     check(error==0) 
+    call this%cli%add(switch='--only-setup',switch_ab='-osetup',help='True if compute only the setup of the problem, i.e., skip discrete integration and linear solver',&
+         &            required=.false.,act='store',def=trim(this%default_only_setup),error=error) 
+    check(error==0) 
   end subroutine test_poisson_add_to_cli
   
   subroutine test_poisson_parse(this,parameter_list)
@@ -294,6 +301,7 @@ contains
     call this%cli%get(switch='-lstype',val=this%levelset_function_type,error=istat); check(istat==0)
     call this%cli%get(switch='-lstol',val=this%levelset_tolerance,error=istat); check(istat==0)
     call this%cli%get(switch='-dom',val=this%domain_limits,error=istat); check(istat==0)
+    call this%cli%get(switch='-osetup',val=this%only_setup,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -333,6 +341,7 @@ contains
     if(allocated(this%default_levelset_function_type)) deallocate(this%default_levelset_function_type)
     if(allocated(this%default_levelset_tolerance)) deallocate(this%default_levelset_tolerance)
     if(allocated(this%default_domain_limits)) deallocate(this%default_domain_limits)
+    if(allocated(this%default_only_setup)) deallocate(this%default_only_setup)
     call this%cli%free()
   end subroutine test_poisson_free
 
@@ -487,5 +496,13 @@ contains
     character(len=:), allocatable :: get_domain_limits
     get_domain_limits = trim(this%domain_limits)
   end function get_domain_limits 
+
+  !==================================================================================================
+  function get_only_setup(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical :: get_only_setup
+    get_only_setup = this%only_setup
+  end function get_only_setup
 
 end module test_poisson_params_names

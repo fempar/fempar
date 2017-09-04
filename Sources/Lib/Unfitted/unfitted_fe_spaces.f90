@@ -200,6 +200,7 @@ module unfitted_fe_spaces_names
 
       ! Private TBPs
       procedure, private, non_overridable :: allocate_and_fill_aggregate_ids        => suhpafs_allocate_and_fill_aggregate_ids
+      procedure, private, non_overridable :: compute_aggregate_size                 => suhpafs_compute_aggregate_size
       procedure, private, non_overridable :: setup_cut_cells_constraints            => suhpafs_setup_cut_cells_constraints
       
 

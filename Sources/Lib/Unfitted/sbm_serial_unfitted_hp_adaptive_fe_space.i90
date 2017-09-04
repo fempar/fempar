@@ -67,6 +67,7 @@ subroutine suhpafs_space_create_different_ref_fes_between_cells(&
   end select
   call this%debug_info%init()
   call this%allocate_and_fill_aggregate_ids()
+  call this%compute_aggregate_size()
 end subroutine suhpafs_space_create_different_ref_fes_between_cells
 
 !========================================================================================
@@ -531,7 +532,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   call triangulation%free_cell_iterator(cell_arround)
   call triangulation%free_vef_iterator(vef)
 
-  ! Write info
+  ! Store info
   istat = this%debug_info%set(key='max_separation_id',value=max_separation_aggr_id); check(istat==0)
   istat = this%debug_info%set(key='max_separation_x',value=max_separation(1)); check(istat==0)
   istat = this%debug_info%set(key='max_separation_y',value=max_separation(2)); check(istat==0)
@@ -546,6 +547,83 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   call memfree(touched,__FILE__,__LINE__)
 
 end subroutine suhpafs_allocate_and_fill_aggregate_ids
+
+!========================================================================================
+subroutine suhpafs_compute_aggregate_size(this)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout)    :: this
+
+  class(cell_iterator_t), allocatable :: cell
+  real(rp), allocatable :: extreme_coords(:,:,:)
+  integer(ip) :: max_full_cell_id
+  type(point_t), allocatable :: coords(:)
+  integer(ip) :: inode
+  integer(ip) :: idime
+  integer(ip) :: iaggr
+  integer(ip), parameter :: XMAX=2, XMIN=1
+  real(rp) :: max_aggregate_size
+  integer(ip) :: max_aggregate_size_id
+  integer(ip) :: istat
+
+  call this%triangulation%create_cell_iterator(cell)
+
+  ! Count number of full cells
+  max_full_cell_id = 0
+  do while (.not. cell%has_finished())
+    if (cell%is_local() .and. cell%is_interior()) then
+      max_full_cell_id = max(max_full_cell_id,cell%get_gid())
+    end if
+    call cell%next()
+  end do
+
+  ! Determine the extreme coordinates
+  call memalloc(max_full_cell_id,this%triangulation%get_num_dims(),2,extreme_coords,__FILE__,__LINE__)
+  call memalloc(this%get_max_num_shape_functions(),coords,__FILE__,__LINE__)
+  extreme_coords(:,:,XMAX) = -999999999999_rp
+  extreme_coords(:,:,XMIN) = +999999999999_rp
+  call cell%first()
+  do while (.not. cell%has_finished())
+    if (cell%is_local() .and. ( cell%is_cut() .or. cell%is_interior() )) then
+      call cell%get_nodes_coordinates(coords)
+      do inode = 1,cell%get_num_nodes()
+        do idime = 1,this%triangulation%get_num_dims()
+        if (coords(inode)%get(idime)>extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMAX)) then
+          extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMAX) = coords(inode)%get(idime)
+        end if
+        if (coords(inode)%get(idime)<extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMIN)) then
+          extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMIN) = coords(inode)%get(idime)
+        end if
+        end do
+      end do
+    end if
+    call cell%next()
+  end do
+
+  ! Compute the maximum aggregate size
+  max_aggregate_size = 0
+  call cell%first()
+  do while (.not. cell%has_finished())
+    if (cell%is_local() .and. ( cell%is_cut() .or. cell%is_interior() )) then
+      iaggr = this%aggregate_ids(cell%get_gid())
+      do idime = 1, this%triangulation%get_num_dims()
+        if (max_aggregate_size<(extreme_coords(iaggr,idime,XMAX)-extreme_coords(iaggr,idime,XMIN))) then
+          max_aggregate_size = extreme_coords(iaggr,idime,XMAX)-extreme_coords(iaggr,idime,XMIN)
+          max_aggregate_size_id = iaggr
+        end if
+      end do
+    end if
+    call cell%next()
+  end do
+
+  ! Store the computed value
+  istat = this%debug_info%set(key='max_aggregate_size',value=max_aggregate_size); check(istat==0)
+  istat = this%debug_info%set(key='max_aggregate_size_id',value=max_aggregate_size_id); check(istat==0)
+
+  call this%triangulation%free_cell_iterator(cell)
+  call memfree(coords,__FILE__,__LINE__)
+  call memfree(extreme_coords,__FILE__,__LINE__)
+
+end subroutine suhpafs_compute_aggregate_size
 
 !========================================================================================
 subroutine suhpafs_setup_cut_cells_constraints(this)

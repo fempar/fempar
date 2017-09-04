@@ -351,6 +351,7 @@ contains
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
 
+    integer(ip) :: iounit
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
     set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
@@ -377,53 +378,17 @@ contains
     end if
     
     call this%fe_space%set_up_cell_integration()    
+
+    ! Write some info
+    if (this%test_params%get_write_matrix()) then
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'.csv',action='write')
+      check(iounit>0)
+      write(iounit,'(a,e32.25)'   ) 'max_separation_from_root       ;', this%fe_space%get_max_separation_from_root()
+      call this%fe_space%debug_info%print(iounit)
+      call io_close(iounit)
+    end if
     
   end subroutine setup_fe_space
-  
-!  subroutine refine_and_coarsen(this)
-!    implicit none
-!    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
-!    integer(ip) :: i
-!    
-!    integer(ip) :: set_ids_to_reference_fes(1,2)
-!
-!    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
-!    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
-!    
-!    do i=1, 10
-!       
-!       call this%triangulation%clear_refinement_and_coarsening_flags()
-!       if ( mod(i,3) == 0 ) then 
-!          call this%set_cells_for_coarsening()
-!       else
-!         call this%set_cells_for_refinement()
-!       end if
-!       !call this%fill_cells_set()
-!       call this%triangulation%refine_and_coarsen()
-!       
-!       if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-!         call this%fe_space%refine_and_coarsen(this%solution) 
-!       else
-!         mcheck(.false.,'Only tested for scalar problems')
-!         !call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,             &
-!         !                                       conditions          = this%vector_poisson_conditions, &
-!         !                                       fe_function         = this%solution,           &
-!         !                                       set_ids_to_reference_fes = set_ids_to_reference_fes)
-!       end if
-!       
-!       call this%fe_space%set_up_cell_integration()
-!       
-!       !if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-!       !  call this%check_solution()
-!       !else
-!       !  call this%check_solution_vector()
-!       !end if
-!       
-!    end do  
-!    
-!    call this%triangulation%update_cut_cells(this%level_set_function)
-!    
-!  end subroutine refine_and_coarsen
   
   subroutine setup_system (this)
     implicit none
@@ -892,47 +857,28 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
-    integer(ip) :: iounit
     call this%free()
     call this%parse_command_line_parameters()
     call this%setup_levelset()
     call this%setup_triangulation()
     call this%fill_cells_set()
     call this%setup_reference_fes()
-    
-    !! It is conter intuitive that this is needed for adapting the mesh
-    !call this%setup_fe_space()
-    !call this%setup_system()
-    !call this%assemble_system()
-    !call this%solution%create(this%fe_space) 
-    
-    !! Adapt mesh
-    !call this%refine_and_coarsen()
-    !call this%fill_cells_set()
-    
-    ! Setup fe space and co for the new mesh 
     call this%setup_fe_space()
-    
-    !if (this%test_params%get_write_matrix()) then
-    !  iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
-    !  check(iounit>0)
-    !  write(iounit,'(a,e32.25)'   ) 'max_separation_from_root       ;', this%fe_space%get_max_separation_from_root()
-    !  call this%fe_space%debug_info%print(iounit)
-    !  call io_close(iounit)
-    !end if
     
     
     call this%setup_system()
-    call this%assemble_system()
-    call this%setup_solver()
-    !call this%solution%create(this%fe_space) 
-    call this%solve_system()
-    if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-      call this%check_solution()
-    else
-      mcheck(.false.,'Only for scalar fnctions')
-    !  call this%check_solution_vector()
+
+    if ( .not. this%test_params%get_only_setup() ) then
+      call this%assemble_system()
+      call this%setup_solver()
+      call this%solve_system()
+      if ( this%test_params%get_laplacian_type() == 'scalar' ) then
+        call this%check_solution()
+      else
+        mcheck(.false.,'Only for scalar fnctions')
+      end if
     end if
+
     call this%write_solution()
     call this%write_filling_curve()
     call this%free()
