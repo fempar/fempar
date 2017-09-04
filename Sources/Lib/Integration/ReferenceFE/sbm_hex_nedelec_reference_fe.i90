@@ -991,7 +991,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
               ! This is required to transform u x n in a vector contained within the face
               do i=1,this%num_dims-1
                 call facet_map%get_jacobian_column(i,qpoint,col_jacobian)
-				col_jacobian = col_jacobian * (1.0_rp/col_jacobian%nrm2())
+			            	col_jacobian = col_jacobian * (1.0_rp/col_jacobian%nrm2())
                 call cross_product_v_shape_trial_normal_proj%set(i, col_jacobian*cross_product_v_shape_trial_normal)
               end do
               
@@ -1329,11 +1329,258 @@ subroutine hex_nedelec_reference_fe_evaluate_vector_function_moments(this, cell_
 end subroutine hex_nedelec_reference_fe_evaluate_vector_function_moments
 
 !==================================================================================================
-subroutine hex_nedelec_reference_fe_evaluate_boundary_function_moments(this, facet_map, function_scalar_components, dof_values)
+subroutine hex_nedelec_reference_fe_evaluate_boundary_function_moments(this, cell_map, vef_lid, function_scalar_components, dof_values, time)
   class(hex_nedelec_reference_fe_t)       , intent(in)    :: this
-		class(facet_map_t)                      , intent(in)    :: facet_map
-		type(p_scalar_function_t), allocatable  , intent(in)    :: function_scalar_components(:)
-		real(rp) , allocatable                  , intent(inout) :: dof_values(:) 
-		! To develop 
+  class(cell_map_t)                       , intent(in)    :: cell_map
+		integer(ip)                             , intent(in)    :: vef_lid 
+  type(p_scalar_function_t), allocatable  , intent(in)    :: function_scalar_components(:)
+  real(rp) , allocatable                  , intent(inout) :: dof_values(:)  
+		real(rp) , optional                     , intent(in)    :: time 
 
+  type(point_t)                , pointer    :: coordinates(:)
+  type(hex_lagrangian_reference_fe_t)       :: d_fe_geo
+
+  ! Edges 
+  type(hex_lagrangian_reference_fe_t) :: fe_1D
+  type(interpolation_t)               :: interpolation_1D
+  type(quadrature_t)                  :: edge_quadrature
+  type(edge_map_t)                    :: edge_map
+  type(vector_field_t)                :: tangent
+  type(list_iterator_t)               :: vertex_iterator 
+  type(point_t), pointer              :: edge_map_coordinates(:)
+  integer(ip)                         :: edge_id  
+  integer(ip)                         :: vertex_within_edge_id  
+
+  ! Faces 
+		integer(ip)                         :: facet_lid
+  type(hex_nedelec_reference_fe_t)    :: fe_2D
+		type(interpolation_t)               :: interpolation_2D 
+  type(quadrature_t)                  :: facet_quadrature
+		type(facet_map_t)                   :: facet_map
+		type(point_t), pointer              :: facet_map_coordinates(:)
+  type(vector_field_t)                :: normal
+  type(vector_field_t)                :: cross_product_function_normal
+  type(vector_field_t)                :: cross_product_function_normal_proj
+  type(vector_field_t)                :: col_jacobian
+		integer(ip)                         :: vertex_within_facet_id 
+
+  ! Common integration 
+		real(rp), allocatable               :: scalar_function_values(:,:) ! Work-space
+		real(rp)                            :: time_(1)  
+  integer(ip)                         :: vertex_within_cell_id
+  real(rp)                            :: shape_test, factor 
+		type(vector_field_t)                :: v_shape_test 
+  integer(ip)                         :: idime, ishape, idof 
+  integer(ip)                         :: qpoint, num_quad_points 
+  type(vector_field_t), allocatable   :: function_values(:,:) 
+  type(point_t), pointer              :: quad_points_coordinates(:)
+		type(list_iterator_t)               :: own_dofs
+
+  integer(ip)                         :: i, iedge, icomp, istat
+
+		! Nedelec elements do not contain DOFs on vertices 
+  if ( this%get_n_face_dim(vef_lid) == 0) then 
+		return 
+		end if 
+		
+		dof_values = 0.0_rp		
+		if ( present(time) ) time_(1) = time 	
+  coordinates => cell_map%get_coordinates()
+
+		! Create a d scalar lagrangian reference FE of order 1 (face geometry)
+  call d_fe_geo%create(topology    = this%get_topology(),    &
+                       num_dims    = this%num_dims,          &
+                       order       = 1,                      &
+                       field_type  = field_type_scalar,      &
+                       conformity  = .false. )
+		
+		if ( this%get_n_face_dim(vef_lid) == 1) then 
+		!								
+  !! Create a 1D scalar lagrangian reference FE of order k-1
+  call fe_1D%create(topology          = this%get_topology(), &
+                    num_dims          = 1, &
+                    order             = this%order-1, &
+                    field_type        = field_type_scalar, &
+                    conformity        = .true. )
+
+  call this%create_edge_quadrature( edge_quadrature )
+  call edge_map%create( edge_quadrature, d_fe_geo )
+  call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
+
+  num_quad_points = edge_quadrature%get_num_quadrature_points()
+	 call memalloc ( num_quad_points, 1, scalar_function_values, __FILE__, __LINE__); 
+  allocate ( function_values(num_quad_points,1), stat=istat); check(istat==0)
+  edge_map_coordinates => edge_map%get_coordinates()
+		
+     vertex_within_edge_id = 1
+     vertex_iterator = this%vertices_n_face%create_iterator(vef_lid)
+     do while ( .not. vertex_iterator%is_upper_bound () )
+        vertex_within_cell_id = vertex_iterator%get_current()
+        do idime=1,this%num_dims  
+           call edge_map_coordinates(vertex_within_edge_id)%set(idime, coordinates(vertex_within_cell_id)%get(idime) )
+        end do
+        call vertex_iterator%next()
+        vertex_within_edge_id = vertex_within_edge_id + 1
+     end do
+
+     ! Update edge_map on current edge
+     call edge_map%update(local_edge_id = vef_lid - this%get_first_n_face_id_of_dim(1)+1, &
+                          reference_fe  = this,                                           &
+                          quadrature    = edge_quadrature )
+
+     ! Extract quadrature points coordinates 
+     quad_points_coordinates => edge_map%get_quadrature_points_coordinates()
+
+     ! Fill vector function values restricted to edge 
+     select case(this%get_field_type())
+     case ( field_type_scalar )
+        ! reference_fe MUST BE a vector-valued FE
+        assert (.false.)
+     case ( field_type_vector )
+        do icomp=1, this%get_num_field_components()
+           if(present(time)) then
+              call function_scalar_components(icomp)%p%get_values_set_space_time(quad_points_coordinates,time_,scalar_function_values(1:num_quad_points,:))
+           else
+              call function_scalar_components(icomp)%p%get_values_set_space(quad_points_coordinates,scalar_function_values(1:num_quad_points,1))
+           end if
+           do qpoint = 1, num_quad_points
+              call function_values(qpoint,1)%set(icomp,scalar_function_values(qpoint,1))
+           end do
+        end do
+     case ( field_type_tensor )
+        ! reference_fe MUST BE a vector-valued FE
+        assert(.false.)
+     end select
+
+					own_dofs = this%own_dofs_n_face%create_iterator(vef_lid)
+     ! Integrate edge boundary moments int_edge(g·tau q), q \in P_k-1
+     do qpoint = 1, num_quad_points
+        factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
+        call edge_map%get_tangent(qpoint, tangent)								
+								call own_dofs%begin() 
+								do ishape = 1, interpolation_1D%num_shape_functions 
+								   idof = own_dofs%get_current() 
+           call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
+           dof_values(idof) = dof_values(idof) + 1.0_rp / tangent%nrm2() * function_values(qpoint,1) * shape_test * tangent * factor 
+											call own_dofs%next() 
+        end do							
+     end do
+
+		call fe_1D%free()
+  call edge_quadrature%free()
+  call interpolation_1D%free()
+  call edge_map%free()
+		call memfree(scalar_function_values, __FILE__, __LINE__) 
+		deallocate(function_values, stat=istat); check(istat==0)
+	
+		elseif ( this%get_n_face_dim(vef_lid) == 2 ) then 
+
+  	if ( this%num_dims == 3 .and. this%order > 1 ) then
+
+     call fe_2D%create(topology   = this%get_topology(), &
+                       num_dims   = 2,                   &
+                       order      = this%order-1,        &
+                       field_type = field_type_vector,   &
+                       conformity = .false. )
+     
+     call this%create_facet_quadrature( facet_quadrature )
+  			num_quad_points  =  facet_quadrature%get_num_quadrature_points()
+				 call memalloc (num_quad_points, 1, scalar_function_values, __FILE__, __LINE__)
+  			allocate (function_values(num_quad_points,1), stat=istat); check(istat==0)
+     call fe_2D%create_interpolation( facet_quadrature, interpolation_2D )
+					call facet_map%create( facet_quadrature, d_fe_geo )
+      
+					! Get face map coordinates
+     facet_map_coordinates => facet_map%get_coordinates()
+   
+     ! Extract coordinates of the vertices within the face
+     vertex_within_facet_id = 1
+     vertex_iterator = this%vertices_n_face%create_iterator(vef_lid)
+     do while ( .not. vertex_iterator%is_upper_bound () )
+        vertex_within_cell_id = vertex_iterator%get_current()
+		        do idime=1,this%num_dims 
+		        call facet_map_coordinates(vertex_within_facet_id)%set(idime, coordinates(vertex_within_cell_id)%get(idime) )
+	        	end do 
+        call vertex_iterator%next()
+        vertex_within_facet_id = vertex_within_facet_id + 1
+     end do
+
+     ! Update facet_map on current face
+     facet_lid = vef_lid - d_fe_geo%get_first_facet_id()+1
+     call facet_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(facet_lid), &
+                           quadrature             = facet_quadrature ) 
+					
+  			 ! Extract quadrature points coordinates 
+      quad_points_coordinates => facet_map%get_quadrature_points_coordinates()
+  				
+     ! Fill vector function values restricted to face 
+     select case(this%get_field_type())
+     case ( field_type_scalar )
+        ! reference_fe MUST BE a vector-valued FE
+        assert (.false.)
+     case ( field_type_vector )
+        do icomp=1, this%get_num_field_components()
+           if(present(time)) then
+              call function_scalar_components(icomp)%p%get_values_set_space_time(quad_points_coordinates,time_,scalar_function_values(1:num_quad_points,:))
+           else
+              call function_scalar_components(icomp)%p%get_values_set_space(quad_points_coordinates,scalar_function_values(1:num_quad_points,1))
+           end if
+           do qpoint = 1, num_quad_points
+              call function_values(qpoint,1)%set(icomp,scalar_function_values(qpoint,1))
+           end do
+        end do
+     case ( field_type_tensor )
+        ! reference_fe MUST BE a vector-valued FE
+        assert(.false.)
+     end select
+						
+						! Update 2D interpolation 
+					!	call this%apply_cell_map( cell_map, interpolation_2D_ref, interpolation_2D_real) 
+												         
+		     own_dofs = this%own_dofs_n_face%create_iterator(vef_lid)
+      ! Integrate face boundary moments int_Face(g x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
+      do qpoint = 1, facet_quadrature%num_quadrature_points
+         factor = facet_map%get_det_jacobian(qpoint) * facet_quadrature%get_weight(qpoint)
+         call facet_map%get_normal(qpoint, normal)
+         
+         !!!!!!!!!!!
+         !! IMPORTANT NOTE: trick to have normals associated to each pair of faces pointing
+         !!                 to the same direction. This only works provided we have an "oriented"
+         !!                 triangulation.
+         !!!!!!!!!!!
+         normal = (-1.0_rp)**(this%orientation%a(vef_lid)) * normal
+
+  							! Compute g x n
+									 call cross_product_function_normal%init(0.0_rp) 
+          cross_product_function_normal = cross_product(function_values(qpoint,1),normal)
+               
+         ! Multiply the transpose of the jacobian with normalized columns by g x n
+         ! This is required to transform g x n in a vector contained within the face
+															call cross_product_function_normal_proj%init(0.0_rp)
+               do i=1,this%num_dims-1
+                 call facet_map%get_jacobian_column(i,qpoint,col_jacobian)
+  			            col_jacobian = col_jacobian * (1.0_rp/col_jacobian%nrm2())
+                 call cross_product_function_normal_proj%set(i, col_jacobian*cross_product_function_normal)
+               end do
+		
+            do ishape=1, interpolation_2D%num_shape_functions
+		             idof = own_dofs%get_current() 
+               call fe_2D%get_value(interpolation_2D, ishape, qpoint, v_shape_test)                    
+               dof_values(idof) = dof_values(idof) + cross_product_function_normal_proj * v_shape_test * factor
+		           call own_dofs%next() 
+            end do
+         end do
+
+  ! Free Face moments integration 
+  call fe_2D%free() 
+		call facet_map%free() 
+		call facet_quadrature%free() 
+  call interpolation_2D%free() 		
+		call memfree(scalar_function_values, __FILE__, __LINE__ ) 
+		deallocate(function_values, stat=istat); check(istat==0)
+   end if
+		
+  end if 
+
+				call d_fe_geo%free()	
 end subroutine hex_nedelec_reference_fe_evaluate_boundary_function_moments

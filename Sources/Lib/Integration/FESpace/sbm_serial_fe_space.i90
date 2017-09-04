@@ -691,78 +691,98 @@ subroutine serial_fe_space_project_Dirichlet_boundary_vector_function (this, fe_
   real(rp)                , optional, intent(in)    :: time
 
   class(reference_fe_t)    , pointer        :: reference_fe 
-		class(fe_cell_iterator_t), allocatable    :: fe 
-  class(fe_facet_iterator_t), allocatable   :: fe_facet 
-  type(facet_maps_t)         , pointer      :: facet_maps
-		type(facet_map_t)          , pointer      :: facet_map
-		
+  class(fe_cell_iterator_t), allocatable    :: fe 
+  type(fe_vef_iterator_t)                   :: vef 
+  type(cell_map_t) , pointer                :: cell_map 
+  type(list_iterator_t)                     :: own_dofs_on_vef_iterator 	
+
   integer(ip)                :: field_id 
-		integer(ip)                :: component_id 
-		logical     , allocatable  :: components_code(:)
-		integer(ip) , allocatable  :: offset_component(:)
+  integer(ip)                :: icomp, component_id 
+  logical     , allocatable  :: components_code(:)
+  integer(ip) , allocatable  :: offset_component(:)
   real(rp)                   :: time_(1) 
 
-		type(p_scalar_function_t), allocatable :: function_scalar_components(:)
+  type(p_scalar_function_t), allocatable :: function_scalar_components(:)
   real(rp)  , allocatable                :: dof_values(:)  
+  integer(ip), pointer                   :: fe_dofs(:)
+  real(rp)                   , pointer   :: fixed_dof_values_entries(:)
+
+  integer(ip)              :: idof, ivef, istat
 
   class(environment_t), pointer :: environment 
 
-		integer(ip) :: istat 
-		
   environment => this%get_environment() 
 
   if (.not. environment%am_i_l1_task() ) then 
      return 
   end if
 
+  fixed_dof_values_entries => fe_function%fixed_dof_values%get_entries()
+
+  call this%allocate_and_fill_offset_component(offset_component)
+  assert(associated(this%conditions) )
+  call memalloc ( this%get_num_components(), components_code, __FILE__, __LINE__ )
+
+  allocate ( function_scalar_components(this%triangulation%get_num_dims()), & 
+       stat=istat); check(istat==0);
+
+  call this%create_fe_cell_iterator(fe)
+  call this%create_fe_vef_iterator(vef)
+
   if ( present(time) ) time_(1) = time 
-		
-		allocate ( function_scalar_components(this%triangulation%get_num_dims()), & 
-             stat=istat); check(istat==0);
-		call memalloc ( this%get_num_components(), components_code, __FILE__, __LINE__ )
-		call this%allocate_and_fill_offset_component(offset_component)
-		
-		call this%create_fe_cell_iterator(fe)
-  call this%create_fe_facet_iterator(fe_facet)
-		
   do field_id = 1,this%get_num_fields()
-		   call fe_facet%get_cell_around(1,fe)
      reference_fe => fe%get_reference_fe(field_id)
      call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
 
-     do while (.not. fe_facet%has_finished() )         
-					  if ( (fe_facet%is_at_field_boundary(field_id)) .and. (fe_facet%get_set_id() /= 0 ) ) then 
-        call fe_facet%update_integration() 
-        facet_maps  => fe_facet%get_facet_maps()  
-								facet_map   => facet_maps%get_facet_map() 
-								
-								! Get scalar boundary functions 
-								call this%conditions%get_components_code( fe_facet%get_set_id(), components_code )
-								component_id = offset_component(field_id) + 1
-								if (components_code(component_id)) then
-								
-								call this%get_function_scalar_components(fe_facet,     & 
-                                                 fe,           &
-                                                 field_id,     &
-                                                 component_id, &
-                                                 function_scalar_components)
-								
-        call reference_fe%evaluate_boundary_function_moments( facet_map, function_scalar_components, dof_values )
-        call fe_function%insert_nodal_values(fe, field_id, dof_values)
-								
-								end if 
-							end if 
-        call fe_facet%next()
+     do while (.not. fe%has_finished() )         
+        if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) ) then 
+           call fe%update_integration() 
+           cell_map  => fe%get_cell_map()  
+           call fe%get_field_fe_dofs(field_id,fe_dofs)
+
+           ! Loop over all vefs in FE
+           do ivef = 1, fe%get_num_vefs() 
+              call fe%get_vef(ivef, vef)  
+														
+														if ( vef%get_set_id() /= 0 ) then 
+              ! Get scalar boundary functions 
+              call this%conditions%get_components_code( vef%get_set_id(), components_code )
+              component_id = offset_component(field_id) + 1
+              if (components_code(component_id)) then
+														
+														  ! Retreive the scalar functions corresponding to the components of the function to be projected
+                 do icomp=1, reference_fe%get_num_field_components()
+                  call this%conditions%get_function(vef%get_set_id(), &
+                                                    component_id+icomp-1, &
+                                                    function_scalar_components(icomp)%p)
+                 end do
+
+                 call reference_fe%evaluate_boundary_function_moments( cell_map, ivef, function_scalar_components, dof_values )
+																	
+                 own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef) 
+                 do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
+                    idof = own_dofs_on_vef_iterator%get_current()   
+                    fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
+                    call own_dofs_on_vef_iterator%next()  
+                 end do
+																	call own_dofs_on_vef_iterator%free() 
+
+           end if
+											end if 
+											end do 
+        end if
+        call fe%next()
      end do
      call memfree( dof_values, __FILE__, __LINE__ )
   end do
 
-		call this%free_fe_cell_iterator(fe)
-  call this%free_fe_facet_iterator(fe_facet) 
+  call this%free_fe_cell_iterator(fe)
+  call this%free_fe_vef_iterator(vef) 
 
-		deallocate ( function_scalar_components, stat=istat); check(istat==0);
-		call memfree( components_code, __FILE__, __LINE__ ) 
-		call memfree (offset_component, __FILE__, __LINE__ )
+  deallocate ( function_scalar_components, stat=istat); check(istat==0);
+  call memfree( components_code, __FILE__, __LINE__ ) 
+  call memfree (offset_component, __FILE__, __LINE__ )
+
 end subroutine serial_fe_space_project_Dirichlet_boundary_vector_function
 
 subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_function, time, fields_to_project)

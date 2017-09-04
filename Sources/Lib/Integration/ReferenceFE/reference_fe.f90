@@ -915,13 +915,15 @@ module reference_fe_names
 								real(rp) , allocatable       , intent(inout) :: dof_values(:) 
      end subroutine evaluate_vector_function_moments_interface
 					
-						subroutine evaluate_boundary_function_moments_interface(this, facet_map, function_scalar_components, dof_values)
-        import :: reference_fe_t, facet_map_t, p_scalar_function_t, rp
+						subroutine evaluate_boundary_function_moments_interface(this, cell_map, vef_lid, function_scalar_components, dof_values, time)
+        import :: reference_fe_t, cell_map_t, ip, p_scalar_function_t, rp
         implicit none 
         class(reference_fe_t)                   , intent(in)    :: this 
-								class(facet_map_t)                      , intent(in)    :: facet_map
+								class(cell_map_t)                       , intent(in)    :: cell_map
+								integer(ip)                             , intent(in)    :: vef_lid
 								type(p_scalar_function_t), allocatable  , intent(in)    :: function_scalar_components(:) 
 								real(rp) , allocatable                  , intent(inout) :: dof_values(:) 
+								real(rp) , optional                     , intent(in)    :: time 
      end subroutine evaluate_boundary_function_moments_interface
 					
   end interface
