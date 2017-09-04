@@ -381,10 +381,9 @@ contains
 
     ! Write some info
     if (this%test_params%get_write_matrix()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_aggr_info.csv',action='write')
       check(iounit>0)
-      write(iounit,'(a,e32.25)'   ) 'max_separation_from_root       ;', this%fe_space%get_max_separation_from_root()
-      call this%fe_space%debug_info%print(iounit)
+      call this%fe_space%print_debug_info(iounit)
       call io_close(iounit)
     end if
     
@@ -585,7 +584,6 @@ contains
       write(iounit,'(a,e32.25)') 'error_h1_semi_norm_boundary    ;', error_h1_semi_norm_boundary    
       write(iounit,'(a,e32.25)') 'rel_error_l2_norm_boundary     ;', error_l2_norm_boundary      /l2_norm_boundary
       write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary;', error_h1_semi_norm_boundary /h1_semi_norm_boundary
-      write(iounit,'(a,e32.25)'   ) 'max_separation_from_root       ;', this%fe_space%get_max_separation_from_root()
       call io_close(iounit)
     end if
 
