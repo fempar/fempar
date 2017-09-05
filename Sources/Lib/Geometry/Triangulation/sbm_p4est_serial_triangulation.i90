@@ -194,7 +194,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
   integer(ip) :: num_edge_corners, num_face_corners, num_faces_at_corner, num_subfacets_facet, num_subedgets_edget
   integer(ip) :: icell, icell_iface, icell_jface, icell_icorner, icell_iedge
   integer(ip) :: jcell, jcell_iface, jcell_icorner, jcell_iedge
-  integer(ip) :: min_cell, min_icorner, min_iedge, min_iface, icorner, iedge, iface
+  integer(ip) :: min_cell, min_cell_int_edge, min_icorner, min_iedge, min_iface, icorner, iedge, iface
   integer(ip) :: iface_at_corner, iedge_at_corner, iface_at_edge
   integer(ip) :: edge_corner, face_corner, edge_face, flip, mortar
   integer(P4EST_F90_QLEVEL) :: jcell_iconn 
@@ -364,15 +364,15 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                      improper_cell_around_subvef  = -1
                    end if
                    is_proper = .false.
-                   call work_vector_improper_cells_around%push_back(jcell)
-                 else
-                   min_cell   = min(min_cell,jcell)
-                   if (min_cell == jcell) then
-                      min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS)
-                   end if
-                  call work_vector_cells_around%push_back(jcell)
+                 end if
+                 call work_vector_improper_cells_around%push_back(jcell)
+              else
+                min_cell   = min(min_cell,jcell)
+                if (min_cell == jcell) then
+                   min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS)
                 end if
-             end if
+                call work_vector_cells_around%push_back(jcell)
+              end if
            else ! Half-side neighbour 
               assert (mortar == num_subfacets_facet+1)
               ! Determine which face_corner of my face am I
@@ -533,10 +533,11 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
 
      if (this%get_num_dims() == 3) then
         do iedge=1, num_edges_x_cell
-           is_proper       = .true.
-           min_cell        = icell
-           min_iedge       = iedge
-           vef_at_boundary = .false.
+           is_proper         = .true.
+           min_cell          = icell
+           min_iedge         = iedge
+           vef_at_boundary   = .false.
+           min_cell_int_edge = 0
 
            call work_vector_cells_around%resize(0)
            call work_vector_cells_around%push_back(icell)
@@ -562,37 +563,52 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                  call work_vector_cells_around%push_back(jcell)
               else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
                  jcell      = this%quad_to_quad(icell_iface,icell)+1
-
-                 ! The current edge is for sure improper
-                 ! 1. Determine jcell_iedge
-                 jcell_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
-
-                 ! 2. Determine which subface of jcell_iface am I
+                 if ( min_cell_int_edge == 0 ) then
+                   min_cell_int_edge = jcell
+                 else
+                   min_cell_int_edge = min(min_cell_int_edge, jcell)
+                 end if
+                 
+                 ! Determine which subface of jcell_iface am I
                  do isubface = 1, num_subfacets_facet
-                    if (this%quad_to_half(isubface,this%quad_to_quad(jcell_iface, jcell)+1)+1==icell) then
-                       exit
-                    end if
+                   if (this%quad_to_half(isubface,this%quad_to_quad(jcell_iface, jcell)+1)+1==icell) then
+                      exit
+                   end if
                  end do
                  assert(isubface<=num_subfacets_facet)
-                 
-                 ! 3. Determine which edge_face of icell_iface am I
-                 do edge_face=1, NUM_FACE_EDGES_3D
-                   if (P4EST_FACE_EDGES_3D(edge_face,icell_iface) == iedge ) exit
-                 end do
-                 assert(edge_face<=NUM_FACE_EDGES_3D)
-                 
-                 if (is_proper) then
-                    improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
-                    if ( (edge_face-1)/2 == 0 ) then ! if edge_face == 1 .or. edge_face == 2
-                       if ( mod(edge_face,2) /= 0 ) then
-                         improper_cell_around_subvef  = 1
+
+                 if (this%quad_to_quad_by_edge(iedge,icell)+1 > 0) then
+                    ! The current edge is for sure improper
+                    ! 1. Determine jcell_iedge
+                    jcell_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
+
+                    ! 2. Determine which edge_face of icell_iface am I
+                    do edge_face=1, NUM_FACE_EDGES_3D
+                       if (P4EST_FACE_EDGES_3D(edge_face,icell_iface) == iedge ) exit
+                    end do
+                    assert(edge_face<=NUM_FACE_EDGES_3D)
+
+                    if (is_proper) then
+                       improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
+                       if ( (edge_face-1)/2 == 0 ) then ! if edge_face == 1 .or. edge_face == 2
+                          if ( mod(edge_face,2) /= 0 ) then
+                             improper_cell_around_subvef  = 1
+                          else
+                             improper_cell_around_subvef  = 2
+                          end if
                        else
-                         improper_cell_around_subvef  = 2
+                          improper_cell_around_subvef = (edge_face+1)/2
                        end if
-                    else
-                       improper_cell_around_subvef = (edge_face+1)/2
                     end if
+                 else
+                    if (is_proper) then
+                       improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
+                    end if
+                    if ( min_cell_int_edge == jcell ) then
+                      improper_cell_around_subvef  = -isubface
+                    end if  
                  end if
+                
                  is_proper = .false.
                  call work_vector_improper_cells_around%push_back(jcell)
               end if
@@ -622,7 +638,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                     end if
                  end do
                  assert(isubedge<=num_subedgets_edget)
-                 
+
                  if (is_proper) then
                     improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
                     improper_cell_around_subvef  = isubedge
@@ -658,24 +674,24 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                  this%num_improper_vefs = this%num_improper_vefs+1
                  call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), -this%num_improper_vefs)
 
-              ! Fill cells_around improper vefs 
-              call this%p4est_ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
-              do i=1, work_vector_cells_around%size()
-                 call this%p4est_lst_cells_around_improper_vefs%push_back(work_vector_cells_around%get(i))
-              end do
+                 ! Fill cells_around improper vefs 
+                 call this%p4est_ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
+                 do i=1, work_vector_cells_around%size()
+                    call this%p4est_lst_cells_around_improper_vefs%push_back(work_vector_cells_around%get(i))
+                 end do
 
-              ! Fill improper cells_around improper vefs
-              call this%p4est_ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
-              do i=1, work_vector_improper_cells_around%size()
-                 call this%p4est_lst_improper_cells_around%push_back(work_vector_improper_cells_around%get(i))
-              end do
+                 ! Fill improper cells_around improper vefs
+                 call this%p4est_ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
+                 do i=1, work_vector_improper_cells_around%size()
+                    call this%p4est_lst_improper_cells_around%push_back(work_vector_improper_cells_around%get(i))
+                 end do
 
-              call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(improper_cell_around_ivef)
-              call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(improper_cell_around_subvef)
+                 call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(improper_cell_around_ivef)
+                 call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(improper_cell_around_subvef)
 
-              ! Fill improper vefs dim
-              call this%p4est_improper_vefs_dim%push_back(1)
-                
+                 ! Fill improper vefs dim
+                 call this%p4est_improper_vefs_dim%push_back(1)
+
               end if
            else
               call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), &
@@ -1171,6 +1187,7 @@ subroutine p4est_serial_triangulation_update_topology_from_p4est_mesh(this)
  integer(P4EST_F90_GLOIDX) :: global_num_quadrants
  integer(P4EST_F90_GLOIDX) :: global_first_quadrant
  integer(P4EST_F90_LOCIDX) :: num_half_faces
+ integer(P4EST_F90_LOCIDX) :: num_half_edges
  type(c_ptr) :: QQ, QF, QH, QC, QQE, QE
  
 #ifdef ENABLE_P4EST
@@ -1224,14 +1241,11 @@ subroutine p4est_serial_triangulation_update_topology_from_p4est_mesh(this)
   if (allocated(this%quad_to_edge)) &
     call memfree(this%quad_to_edge, __FILE__, __LINE__)
   
-  if (allocated(this%quad_to_half_by_edge)) &
-    call memfree(this%quad_to_half_by_edge, __FILE__, __LINE__)
   
   call memalloc(3, local_num_quadrants, this%quad_coords, __FILE__, __LINE__)
   call memalloc(local_num_quadrants, this%quad_level, __FILE__, __LINE__ )
   call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_quad_by_edge, __FILE__, __LINE__ )
   call memalloc(NUM_EDGES_3D,local_num_quadrants, this%quad_to_edge, __FILE__, __LINE__ )
-  call memalloc(NUM_SUBEDGES_EDGE_3D,local_num_quadrants, this%quad_to_half_by_edge, __FILE__, __LINE__ )
   
   call F90_p8est_get_mesh_topology_arrays(this%p4est, &
                                           this%p4est_mesh, &
@@ -1240,7 +1254,8 @@ subroutine p4est_serial_triangulation_update_topology_from_p4est_mesh(this)
                                           QH, &
                                           this%quad_to_quad_by_edge,&
                                           this%quad_to_edge,&
-                                          this%quad_to_half_by_edge,&
+                                          num_half_edges,&
+                                          this%QHE,&
                                           QC, &
                                           this%quad_coords, &
                                           this%quad_level)
@@ -1249,6 +1264,7 @@ subroutine p4est_serial_triangulation_update_topology_from_p4est_mesh(this)
   call c_f_pointer(qf,this%quad_to_face,[NUM_FACES_3D,local_num_quadrants])
   if(num_half_faces>0) call c_f_pointer(qh,this%quad_to_half,[NUM_SUBFACES_FACE_3D,num_half_faces])
   call c_f_pointer(qc,this%quad_to_corner,[NUM_CORNERS_3D,local_num_quadrants])
+  call c_f_pointer(this%QHE,this%quad_to_half_by_edge,[NUM_SUBEDGES_EDGE_3D,num_half_edges])
  end if
   
 #else
@@ -1269,11 +1285,13 @@ subroutine p4est_serial_triangulation_free ( this)
     call F90_p8est_destroy(this%p4est)
     call F90_p8est_connectivity_destroy(this%p4est_connectivity)
     call F90_p8est_mesh_destroy(this%p4est_mesh)
+    call F90_p8est_QHE_destroy(this%QHE)
   end if
   
   this%p4est_connectivity = c_null_ptr
   this%p4est              = c_null_ptr
   this%p4est_mesh         = c_null_ptr
+  this%QHE                = c_null_ptr
     
   call this%p4est_lst_vefs_lids%free()
   call this%p4est_ptr_cells_around_proper_vefs%free()
@@ -1295,6 +1313,7 @@ subroutine p4est_serial_triangulation_free ( this)
   nullify(this%quad_to_quad)
   nullify(this%quad_to_face)
   nullify(this%quad_to_half)
+  nullify(this%quad_to_half_by_edge)
   
   if (allocated(this%quad_coords)) &
      call memfree(this%quad_coords, __FILE__, __LINE__)
@@ -1307,9 +1326,6 @@ subroutine p4est_serial_triangulation_free ( this)
 
   if (allocated(this%quad_to_edge)) &
     call memfree(this%quad_to_edge, __FILE__, __LINE__)
-  
-  if (allocated(this%quad_to_half_by_edge)) &
-    call memfree(this%quad_to_half_by_edge, __FILE__, __LINE__)
   
   this%num_proper_vefs = -1
   this%num_improper_vefs = -1

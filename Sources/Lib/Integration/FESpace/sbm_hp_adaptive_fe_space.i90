@@ -543,7 +543,7 @@ subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs( this, field_
   call this%create_fe_cell_iterator(fe)
   if ( fe_space_type_x_field(field_id) == fe_space_type_cg ) then
      call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_proper_vef_to_cell_map  ,  __FILE__, __LINE__ )
-     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
+     call memalloc ( 2, this%p4est_triangulation%get_num_improper_vefs(), visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
      visited_proper_vef_to_cell_map = -1
      visited_improper_vef_to_cell_map = -1
      
@@ -671,7 +671,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
   class(fe_cell_iterator_t), allocatable :: fe
   class(fe_cell_iterator_t), allocatable :: coarser_fe
-  type(fe_vef_iterator_t) :: fe_vef, coarser_vef
+  type(fe_vef_iterator_t) :: fe_vef, fe_vef_bis, coarser_vef
   type(list_iterator_t) :: fe_own_dofs_on_vef_iterator
   type(list_iterator_t) :: fe_dofs_on_vef_iterator 
   type(list_iterator_t) :: coarser_fe_dofs_on_vef_iterator
@@ -679,7 +679,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   integer(ip) :: block_id, field_id
   class(reference_fe_t), pointer :: reference_fe, coarser_reference_fe
   integer(ip), pointer :: fe_dofs(:), coarser_fe_fe_dofs(:)
-  integer(ip) :: istat, i, icell
+  integer(ip) :: istat, i, icell, min_cell_gid
   integer(ip) :: improper_dof_lid, hanging_dof_lid
   integer(ip) :: improper_vef_ivef, coarser_fe_ivef, coarse_fe_subvef
   integer(ip), pointer :: field_blocks(:)
@@ -690,6 +690,11 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   real(rp) :: coefficient
   integer(ip) :: num_cell_vertices, num_cell_edges, num_cell_faces
   integer(ip) :: num_subedges_x_edge, num_subfaces_x_face
+  integer(ip) :: vef_lid, facet_lid
+  type(list_t), pointer :: facets_n_face
+  type(list_iterator_t) :: facets_n_face_iterator
+  type(list_iterator_t) :: dofs_n_facet_iterator
+  integer(ip) :: facet_dof
 
   field_blocks => this%get_field_blocks()
     
@@ -707,6 +712,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_cell_iterator(coarser_fe)
   call this%create_fe_vef_iterator(fe_vef)
+  call this%create_fe_vef_iterator(fe_vef_bis)
   call this%create_fe_vef_iterator(coarser_vef)
   
   reference_fe => fe%get_reference_fe(1)
@@ -785,9 +791,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   call this%constraining_dirichlet_dofs%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
   call this%constraining_dirichlet_dofs_coefficients%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
 
-  wassert( this%p4est_triangulation%get_num_dims()==2 , 'The following code only valid for 2d cases' )
   wassert( this%get_num_fields()==1 , 'The following code only valid for single-field cases' )
-
   
   ! Computation of constraints     
   do improper_vef_lid = 1, this%p4est_triangulation%get_num_improper_vefs()
@@ -817,7 +821,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
         end do
         if ( fe%is_void(field_id) ) cycle
         improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
-        call fe%get_field_fe_dofs(1,fe_dofs)
+        call fe%get_field_fe_dofs(field_id,fe_dofs)
         
         ! Retrieve all data related to the first improper cell around current improper vef
         do icell = 1,fe_vef%get_num_improper_cells_around()
@@ -862,13 +866,58 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
               if ( coarser_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3) then
                  qpoint = h_refinement_subedge_permutation(coarser_fe_ivef-num_cell_vertices,num_subedges_x_edge,1)
               else
-                 ! TODO: 2 is equal to num_subfaces_x_face ... only working in 2D!!!
                  qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges,num_subfaces_x_face,1)
               end if
-           else if ( fe_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3 ) then ! vef is an edge (only 3D)
+           else if ( fe_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3 .and. coarse_fe_subvef > 0 ) then 
               qpoint = h_refinement_subedge_permutation(coarser_fe_ivef-num_cell_vertices, &
                                                         coarse_fe_subvef, &
                                                         fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
+           else if ( fe_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3 .and. coarse_fe_subvef < 0 ) then
+              assert ( fe_vef%get_num_cells_around() == 2 )
+              ! Go over cells around fe_vef(), and find the one with the minimum global identifier
+              call fe_vef%get_cell_around(1,fe)
+              min_cell_gid=fe%get_gid()
+              call fe_vef%get_cell_around(2,fe)
+              min_cell_gid=min(fe%get_gid(),min_cell_gid)
+              call fe%set_gid(min_cell_gid)
+              
+              call fe%get_field_fe_dofs(field_id,fe_dofs)
+              
+              reference_fe  => fe%get_reference_fe(field_id)    
+              facets_n_face => reference_fe%get_facets_n_face()      
+                            
+              ! Go over faces around fe_vef in cell with minimum global identifier
+              facet_loop: do facet_lid = reference_fe%get_first_facet_id(), &
+                                         reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
+                  call fe_vef_bis%set_gid(fe%get_vef_gid(facet_lid))
+                  if (.not. fe_vef_bis%is_proper()) then
+                    facets_n_face_iterator = facets_n_face%create_iterator(facet_lid)
+                    do while (.not. facets_n_face_iterator%is_upper_bound())
+                      if (fe%get_vef_gid(facets_n_face_iterator%get_current()) == fe_vef%get_gid() ) then
+                        exit facet_loop
+                      end if
+                      call facets_n_face_iterator%next()
+                    end do 
+                  end if
+              end do facet_loop
+              
+              assert(facet_lid<=reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1)
+              
+              ! Go over DoFs on facet, and locate the facet dof LID corresponding to the edge DoF 
+              facet_dof=1
+              dofs_n_facet_iterator = reference_fe%create_dofs_n_face_iterator(facet_lid)
+              do while (.not. dofs_n_facet_iterator%is_upper_bound())
+                if (fe_dofs(dofs_n_facet_iterator%get_current()) == -improper_dof_lid) then
+                  exit
+                end if  
+                call dofs_n_facet_iterator%next()
+                facet_dof = facet_dof+1
+              end do 
+              assert (.not. dofs_n_facet_iterator%is_upper_bound())
+                            
+              qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges,&
+                                                         abs(coarse_fe_subvef),&
+                                                         facet_dof)              
            else if (fe_vef%get_dim() == this%p4est_triangulation%get_num_dims()-1) then ! vef is a face (2D/3D)
               qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges, &
                                                         coarse_fe_subvef, &
@@ -876,8 +925,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
            end if
            
            coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
-           do while (.not. coarser_fe_dofs_on_vef_iterator %is_upper_bound() )
-              
+           do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
               ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current() 
               
               ! Evaluate coefficient
@@ -889,7 +937,6 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
               end select
               
               ! Set dependency and coefficient into the corresponding std_vector data structure
-                            
               if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
                 call this%constraining_dirichlet_dofs%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
                                                           coarser_fe_fe_dofs(ishape_coarser_fe))
@@ -926,6 +973,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   call this%free_fe_cell_iterator(coarser_fe)
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_vef_iterator(fe_vef)
+  call this%free_fe_vef_iterator(fe_vef_bis)
   call this%free_fe_vef_iterator(coarser_vef)
 end subroutine shpafs_setup_hanging_node_constraints 
 
