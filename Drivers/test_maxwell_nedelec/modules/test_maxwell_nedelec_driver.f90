@@ -178,8 +178,8 @@ contains
 	     call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	   end if 
 				
-    !call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
-     call this%fe_space%project_Dirichlet_boundary_vector_function(this%solution) 
+    ! call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
+    call this%fe_space%project_Dirichlet_boundary_vector_function(this%solution) 
 				
 				! H(curl) PROJECTORS *********************************************************************************
 				call this%fe_function%create(this%fe_space) 
@@ -198,7 +198,7 @@ contains
 				write(*,'(a20,e32.25)') 'l2_norm:'  ,  l2
 				write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl
 												
-						dof_values => this%fe_function%get_fixed_dof_values() 
+						dof_values => this%fe_function%get_free_dof_values() 
 							
 				select type (dof_values)
     class is (serial_scalar_array_t)  
@@ -301,7 +301,7 @@ contains
     !   assert(.false.) 
     !end select
 				
-						fixed_dof_values => this%solution%get_fixed_dof_values()
+						fixed_dof_values => this%solution%get_free_dof_values()
     
     select type (fixed_dof_values)
     class is (serial_scalar_array_t)  
