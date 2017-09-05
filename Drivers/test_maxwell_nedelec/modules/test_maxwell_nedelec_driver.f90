@@ -159,7 +159,7 @@ contains
     class(test_maxwell_nedelec_driver_t), intent(inout) :: this 
     ! Check projection  
 				type(error_norms_vector_t)     :: H_error_norm
-    real(rp)                       :: mean, hcurl 
+    real(rp)                       :: mean, l2, hcurl 
 				class(vector_t), pointer       :: dof_values
 				
 				
@@ -178,8 +178,8 @@ contains
 	     call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	   end if 
 				
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
-   ! call this%fe_space%project_Dirichlet_boundary_vector_function(this%solution) 
+    !call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
+     call this%fe_space%project_Dirichlet_boundary_vector_function(this%solution) 
 				
 				! H(curl) PROJECTORS *********************************************************************************
 				call this%fe_function%create(this%fe_space) 
@@ -188,24 +188,17 @@ contains
 				call this%fe_space%project_Dirichlet_boundary_vector_function( this%fe_Dir_function ) 
 				   
     call H_error_norm%create(this%fe_space,1)
-    mean = H_error_norm%compute(this%problem_functions%get_solution(), this%fe_function, mean_norm)  
+    mean  = H_error_norm%compute(this%problem_functions%get_solution(), this%fe_function, mean_norm)  
+				l2    = H_error_norm%compute(this%problem_functions%get_solution(), this%fe_function, l2_norm)
 				hcurl = H_error_norm%compute(this%problem_functions%get_solution(), this%fe_function, hcurl_seminorm)
     call H_error_norm%free()
 				
 				write(*,*) 'PROJECTED FUNCTION ERROR'
 				write(*,'(a20,e32.25)') 'mean_norm:',  mean
+				write(*,'(a20,e32.25)') 'l2_norm:'  ,  l2
 				write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl
-								
-								dof_values => this%solution%get_fixed_dof_values() 
-							
-				select type (dof_values)
-    class is (serial_scalar_array_t)  
-       call dof_values%print_matrix_market(6)
-    class DEFAULT
-       assert(.false.) 
-    end select
-				
-						dof_values => this%fe_Dir_function%get_fixed_dof_values() 
+												
+						dof_values => this%fe_function%get_fixed_dof_values() 
 							
 				select type (dof_values)
     class is (serial_scalar_array_t)  
@@ -308,14 +301,14 @@ contains
     !   assert(.false.) 
     !end select
 				
-				!		fixed_dof_values => this%solution%get_fixed_dof_values()
+						fixed_dof_values => this%solution%get_fixed_dof_values()
     
-    !select type (fixed_dof_values)
-    !class is (serial_scalar_array_t)  
-    !   call fixed_dof_values%print_matrix_market(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
+    select type (fixed_dof_values)
+    class is (serial_scalar_array_t)  
+       call fixed_dof_values%print_matrix_market(6)
+    class DEFAULT
+       assert(.false.) 
+    end select
   end subroutine solve_system
   
   subroutine check_solution(this)
