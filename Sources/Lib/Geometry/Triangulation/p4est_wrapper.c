@@ -518,6 +518,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
               quad_to_edge[ 12*jneig[2*k] + jneig_jedge[2*k] ] = ineig_iedge[2*k];
           }
           k++;
+          if (k==2) return;
         }
     }
   }
@@ -902,6 +903,28 @@ int F90_p4est_is_ancestor ( p4est_qcoord_t q1_x,
     q2.level = q2_level;
     
     return p4est_quadrant_is_ancestor ( &q1, &q2 );
+    
+}
+
+int F90_p4est_is_equal ( p4est_qcoord_t q1_x,
+                         p4est_qcoord_t q1_y,
+                         int8_t q1_level,
+                         p4est_qcoord_t q2_x,
+                         p4est_qcoord_t q2_y,
+                         int8_t q2_level )
+{
+    p4est_quadrant_t q1;
+    p4est_quadrant_t q2;
+    
+    q1.x = q1_x;
+    q1.y = q1_y;
+    q1.level = q1_level;
+    
+    q2.x = q2_x;
+    q2.y = q2_y;
+    q2.level = q2_level;
+    
+    return p4est_quadrant_is_equal ( &q1, &q2 );
     
 }
 

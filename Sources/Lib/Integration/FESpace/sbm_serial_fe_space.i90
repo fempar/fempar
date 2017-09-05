@@ -2302,7 +2302,7 @@ subroutine serial_fe_space_generate_global_dof_numbering( this, block_layout )
   if (.not. perform_numbering) perform_numbering = .not. (this%block_layout == block_layout)
   if ( perform_numbering ) then
     this%block_layout => block_layout
-    call memalloc( this%num_fields, this%num_dofs_x_field, __FILE__, __LINE__ )   
+    call this%allocate_num_dofs_x_field()
     if ( this%num_fields >= 1 ) then 
       call this%count_dofs()
     end if  

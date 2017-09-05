@@ -24,12 +24,12 @@ then
       final_exit_code=1
      fi
 
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -n 4 4 4 -np 2 2 2 1 1 1 -in_space .true."
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -n 4 4 4 -np 2 2 2 1 1 1 -in_space .true.
-     if [ $? -ne 0 ] 
-     then
-      final_exit_code=1
-     fi
+     #echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -n 4 4 4 -np 2 2 2 1 1 1 -in_space .true."
+     #$MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -dm 3 -n 4 4 4 -np 2 2 2 1 1 1 -in_space .true.
+     #if [ $? -ne 0 ] 
+     #then
+     # final_exit_code=1
+     #fi
 
    #else
    #   echo "$0: input data directory not found!"

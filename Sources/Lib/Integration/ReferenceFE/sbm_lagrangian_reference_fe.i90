@@ -1062,13 +1062,6 @@ function lagrangian_reference_fe_get_default_quadrature_degree(this)
 end function lagrangian_reference_fe_get_default_quadrature_degree
 
 !==================================================================================================
-function lagrangian_reference_fe_get_h_refinement_num_subfacets(this)
-  class(lagrangian_reference_fe_t), intent(in)    :: this
-  integer(ip) :: lagrangian_reference_fe_get_h_refinement_num_subfacets
-  lagrangian_reference_fe_get_h_refinement_num_subfacets = 0
-end function lagrangian_reference_fe_get_h_refinement_num_subfacets
-
-!==================================================================================================
 subroutine lagrangian_reference_fe_evaluate_vector_function_moments(this, cell_map, vector_function, dof_values)
   class(lagrangian_reference_fe_t), intent(in)    :: this
 		class(cell_map_t)            , intent(in)    :: cell_map
