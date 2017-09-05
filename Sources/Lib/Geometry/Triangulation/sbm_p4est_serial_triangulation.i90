@@ -348,7 +348,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                                cycle
                            else 
                            !   If edge at boundary or has edge neighbour we found it
-                             if ( this%quad_to_quad_by_edge(icell_iedge,icell) > 0 ) then
+                             if ( this%quad_to_quad_by_edge(icell_iedge,icell)+1 > 0 ) then
                                    exit       
                              end if
                            end if
