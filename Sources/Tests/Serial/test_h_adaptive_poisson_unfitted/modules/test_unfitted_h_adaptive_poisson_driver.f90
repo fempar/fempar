@@ -133,6 +133,8 @@ contains
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
     type(level_set_function_factory_t) :: level_set_factory
+    real(rp) :: dom1d(2)
+    real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
     massert( this%parameter_list%isPresent   (key = num_dims_key), 'Use -tt structured' )
@@ -145,12 +147,15 @@ contains
     ! Set options of the base class
     call this%level_set_function%set_num_dims(num_dime)
     call this%level_set_function%set_tolerance(this%test_params%get_levelset_tolerance())
-    if (this%test_params%get_domain_limits() == '[-1,1]') then
-      call this%level_set_function%set_domain([-1.0_rp,1.0_rp,-1.0_rp,1.0_rp,-1.0_rp,1.0_rp])
-    else if (.not. this%test_params%get_domain_limits() == '[0,1]') then
-      mcheck(.false.,'Wrong domain limits: '//this%test_params%get_domain_limits())
-    end if
-
+    dom1d = this%test_params%get_domain_limits()
+    mcheck(dom1d(2)>dom1d(1),'Upper limit has to be bigger than lower limit')
+    dom3d(1) = dom1d(1)
+    dom3d(2) = dom1d(2)
+    dom3d(3) = dom1d(1)
+    dom3d(4) = dom1d(2)
+    dom3d(5) = dom1d(1)
+    dom3d(6) = dom1d(2)
+    call this%level_set_function%set_domain(dom3d)
 
     ! Set options of the derived classes
     ! TODO a parameter list would be better to define the level set function together with its parameters

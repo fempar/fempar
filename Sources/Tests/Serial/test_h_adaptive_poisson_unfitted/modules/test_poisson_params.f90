@@ -92,7 +92,7 @@ module test_poisson_params_names
      logical :: use_constraints
      character(len=str_cla_len)    :: levelset_function_type
      real(rp) :: levelset_tolerance
-     character(len=str_cla_len)    :: domain_limits
+     real(rp)    :: domain_limits(2)
      logical :: only_setup
 
    contains
@@ -180,7 +180,7 @@ contains
     this%default_use_constraints = '.true.'
     this%default_levelset_function_type = 'sphere'
     this%default_levelset_tolerance = '1.0e-6'
-    this%default_domain_limits = '[0,1]'
+    this%default_domain_limits = '0.0 1.0'
     this%default_only_setup = '.false.'
     
   end subroutine test_poisson_set_default
@@ -273,8 +273,8 @@ contains
     call this%cli%add(switch='--levelset-tol',switch_ab='-lstol',help='Tolerance for the levelset function',&
          &            required=.false.,act='store',def=trim(this%default_levelset_tolerance),error=error) 
     check(error==0) 
-    call this%cli%add(switch='--domain-limits',switch_ab='-dom',help='String with info about the domain limits',&
-         &            required=.false.,act='store',def=trim(this%default_domain_limits),error=error) 
+    call this%cli%add(switch='--domain-limits',switch_ab='-dom',help='Info about the domain limits',&
+         &            required=.false.,act='store',def=trim(this%default_domain_limits),error=error,nargs='2') 
     check(error==0) 
     call this%cli%add(switch='--only-setup',switch_ab='-osetup',help='True if compute only the setup of the problem, i.e., skip discrete integration and linear solver',&
          &            required=.false.,act='store',def=trim(this%default_only_setup),error=error) 
@@ -527,8 +527,8 @@ contains
   function get_domain_limits(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_domain_limits
-    get_domain_limits = trim(this%domain_limits)
+    real(rp) :: get_domain_limits(2)
+    get_domain_limits = this%domain_limits
   end function get_domain_limits 
 
   !==================================================================================================
