@@ -380,7 +380,7 @@ contains
     call this%fe_space%set_up_cell_integration()    
 
     ! Write some info
-    if (this%test_params%get_write_matrix()) then
+    if (this%test_params%get_write_aggr_info()) then
       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_aggr_info.csv',action='write')
       check(iounit>0)
       call this%fe_space%print_debug_info(iounit)
@@ -569,7 +569,7 @@ contains
     write(*,'(a,e32.25)') 'rel_error_l2_norm_boundary:     ', error_l2_norm_boundary      /l2_norm_boundary
     write(*,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
-    if (this%test_params%get_write_matrix()) then
+    if (this%test_params%get_write_error_norms()) then
       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'l2_norm                ;', l2_norm
