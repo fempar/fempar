@@ -260,6 +260,7 @@ module p4est_serial_triangulation_names
     procedure                            :: get_vef                 => p4est_cell_iterator_get_vef
     procedure                            :: is_local                => p4est_cell_iterator_is_local
     procedure                            :: is_ghost                => p4est_cell_iterator_is_ghost
+    procedure                            :: is_equal                => p4est_cell_iterator_is_equal
     procedure                            :: is_ancestor             => p4est_cell_iterator_is_ancestor
     procedure                            :: set_for_coarsening      => p4est_cell_iterator_set_for_coarsening
     procedure                            :: set_for_refinement      => p4est_cell_iterator_set_for_refinement
@@ -333,21 +334,23 @@ module p4est_serial_triangulation_names
     type(c_ptr) :: p4est_connectivity = c_null_ptr
     type(c_ptr) :: p4est              = c_null_ptr
     type(c_ptr) :: p4est_mesh         = c_null_ptr
+    type(c_ptr) :: QHE                = c_null_ptr
     
     ! TODO: I am pretty sure that a type(c_ptr) :: p4est_ghost
     !       member variable will be needed (at least in the parallel realization)
     
     ! p4est quadrant connectivity (1:NUM_FACES_2D/3D,1:nQuads) => neighbor quadrant
-    integer(P4EST_F90_LOCIDX),pointer     :: quad_to_quad(:,:)   => NULL()
+    integer(P4EST_F90_LOCIDX),pointer      :: quad_to_quad(:,:)         => NULL()
     ! p4est face connectivity (1:NUM_FACES_2D/3D,1:nQuads) => neighbor faceId + orientation + non-conform info
-    integer(P4EST_F90_QLEVEL),pointer     :: quad_to_face(:,:)   => NULL()   
-    ! p4est face connectivity for mortars NUM_SUBFACES_FACE_2D/3D,1:nHalfFaces), (~small sides)
-    integer(P4EST_F90_LOCIDX),pointer     :: quad_to_half(:,:)   => NULL()
-    integer(P4EST_F90_LOCIDX),pointer     :: quad_to_corner(:,:) => NULL()
-    
+    integer(P4EST_F90_QLEVEL),pointer      :: quad_to_face(:,:)         => NULL()   
+    ! p4est face connectivity for mortars NUM_SUBFACES_FACE_2D/3D,1:nHalfFaces)
+    integer(P4EST_F90_LOCIDX),pointer      :: quad_to_half(:,:)         => NULL()
+    integer(P4EST_F90_LOCIDX),pointer      :: quad_to_corner(:,:)       => NULL()
+    ! p4est edge connectivity for mortars NUM_SUBEDGES_EDGE_3D,1:nHalfEdges)
+    integer(P4EST_F90_LOCIDX),pointer      :: quad_to_half_by_edge(:,:) => NULL()
+
     integer(P4EST_F90_LOCIDX), allocatable :: quad_to_quad_by_edge(:,:)
     integer(P4EST_F90_QLEVEL), allocatable :: quad_to_edge(:,:)
-    integer(P4EST_F90_LOCIDX), allocatable :: quad_to_half_by_edge(:,:)
 
     ! TODO: The following 2x member variables should be replaced by our F200X implementation of "std::vector<T>" 
     ! p4est Integer coordinates of first quadrant node (xy/xyz,nQuads)

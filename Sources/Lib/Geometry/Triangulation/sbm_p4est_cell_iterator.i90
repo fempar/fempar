@@ -225,6 +225,30 @@ function p4est_cell_iterator_is_ghost (this)
   p4est_cell_iterator_is_ghost = .false.
 end function p4est_cell_iterator_is_ghost
 
+function p4est_cell_iterator_is_equal(this,quad_level,quad_linear_id)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip)                 , intent(in) :: quad_level
+  integer(ip)                 , intent(in) :: quad_linear_id
+  integer(ip) :: quad_coords(2)
+  logical     :: p4est_cell_iterator_is_equal
+#ifdef ENABLE_P4EST
+  call F90_p4est_quadrant_set_morton( quad_level,                    &
+                                      int(quad_linear_id,c_int64_t), &
+                                      quad_coords(1),                &
+                                      quad_coords(2) )
+  p4est_cell_iterator_is_equal =  &
+   ( F90_p4est_is_equal(this%p4est_triangulation%quad_coords(1,this%get_gid()), &
+                           this%p4est_triangulation%quad_coords(2,this%get_gid()), &
+                           int(this%get_level(),c_int8_t),                      &
+                           quad_coords(1),                                      &
+                           quad_coords(2),                                      &
+                           int(quad_level,c_int8_t) ) /= 0 )
+#else
+  call this%p4est_triangulation%not_enabled_error()
+#endif 
+end function p4est_cell_iterator_is_equal
+
 function p4est_cell_iterator_is_ancestor(this,child_level,child_linear_id)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this

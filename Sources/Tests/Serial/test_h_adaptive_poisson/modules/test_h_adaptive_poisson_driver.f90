@@ -312,8 +312,7 @@ contains
 
     else if (this%triangulation%get_num_dims() == 3) then    
       do while ( .not. cell%has_finished() )
-          if (cell%get_level() == 0) then
-          !if ( (cell%get_gid()==8) .or. (cell%get_level() == 0) )then
+          if ( (cell%get_gid()==7) .or. (cell%get_level() == 0) )then
           call cell%set_for_refinement()
         end if
         call cell%next()
@@ -498,7 +497,7 @@ contains
 
        call this%triangulation%refine_and_coarsen()
        
-       call this%fe_space%refine_and_coarsen( fe_function = this%solution ) 
+       call this%fe_space%refine_and_coarsen( this%solution ) 
        
        call this%fe_space%set_up_cell_integration()
        
@@ -882,7 +881,7 @@ contains
     end if
     call this%refine_and_coarsen()
     call this%write_solution()
-    call this%write_filling_curve()
+    !call this%write_filling_curve()
     call this%free()
   end subroutine run_simulation
   
