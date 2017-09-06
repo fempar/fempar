@@ -57,12 +57,12 @@ function p4est_serial_triangulation_get_num_improper_vefs(this)
   p4est_serial_triangulation_get_num_improper_vefs = this%num_improper_vefs
 end function p4est_serial_triangulation_get_num_improper_vefs
 
-function p4est_st_get_p4est_refinement_and_coarsening_flags(this)
+function p4est_st_get_refinement_and_coarsening_flags(this)
   implicit none
   class(p4est_serial_triangulation_t), target, intent(in) :: this
-  type(std_vector_integer_ip_t), pointer :: p4est_st_get_p4est_refinement_and_coarsening_flags
-  p4est_st_get_p4est_refinement_and_coarsening_flags => this%p4est_refinement_and_coarsening_flags
-end function p4est_st_get_p4est_refinement_and_coarsening_flags
+  type(std_vector_integer_ip_t), pointer :: p4est_st_get_refinement_and_coarsening_flags
+  p4est_st_get_refinement_and_coarsening_flags => this%refinement_and_coarsening_flags
+end function p4est_st_get_refinement_and_coarsening_flags
 
 
 subroutine p4est_serial_triangulation_create (this, parameters)
@@ -70,7 +70,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   class(p4est_serial_triangulation_t), target, intent(inout) :: this
   type(ParameterList_t)                      , intent(inout) :: parameters
   integer(ip) :: istat
-  type(std_vector_integer_ip_t) :: old_lst_vefs_lids
+  type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   class(environment_t), pointer :: environment
   integer(ip) :: num_dims
   
@@ -101,8 +101,8 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call F90_p4est_new(this%p4est_connectivity, this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
-    call this%update_lst_vefs_lids_and_cells_around(old_lst_vefs_lids)
-    call old_lst_vefs_lids%free()
+    call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+    call old_lst_vefs_gids%free()
     call this%allocate_and_fill_x_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
@@ -112,8 +112,8 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call F90_p8est_new(this%p4est_connectivity, this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
-    call this%update_lst_vefs_lids_and_cells_around(old_lst_vefs_lids)
-    call old_lst_vefs_lids%free()
+    call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+    call old_lst_vefs_gids%free()
     call this%allocate_and_fill_x_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
@@ -129,12 +129,12 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   class(p4est_serial_triangulation_t), intent(inout) :: this
   type(c_ptr) :: p4est_old
   
-  type(std_vector_integer_ip_t) :: old_lst_vefs_lids
+  type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   integer(ip), pointer :: user_pointer(:)
 
 #ifdef ENABLE_P4EST
   if ( this%get_num_dims() == 2 ) then
-    user_pointer => this%p4est_refinement_and_coarsening_flags%get_raw_pointer()
+    user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
     call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
     p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old)
     call F90_p4est_refine(this%p4est)
@@ -143,7 +143,7 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
     call F90_p4est_update_refinement_and_coarsening_flags(p4est_old,this%p4est)
     call F90_p4est_destroy(p4est_old)
   else if ( this%get_num_dims() == 3 ) then
-    user_pointer => this%p4est_refinement_and_coarsening_flags%get_raw_pointer()
+    user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
     call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
     p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old)
     call F90_p8est_refine(this%p4est)
@@ -157,11 +157,11 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   call this%update_topology_from_p4est_mesh()
   ! Update the num of triangulation cells
   call this%set_num_local_cells(size(this%quad_level))
-  call this%update_lst_vefs_lids_and_cells_around(old_lst_vefs_lids)
+  call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
   call this%allocate_and_fill_x_cell_vertex_coordinates()
   call this%update_cell_set_ids()
-  call this%update_vef_set_ids(old_lst_vefs_lids)
-  call old_lst_vefs_lids%free()
+  call this%update_vef_set_ids(old_lst_vefs_gids)
+  call old_lst_vefs_gids%free()
 #else
   call this%not_enabled_error()
 #endif  
@@ -186,10 +186,10 @@ function p4est_serial_triangulation_get_ptr_vefs_x_cell(this, icell)
   
 end function p4est_serial_triangulation_get_ptr_vefs_x_cell
 
-subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lids)
+subroutine p4est_st_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gids)
   implicit none
   class(p4est_serial_triangulation_t), intent(inout) :: this
-  type(std_vector_integer_ip_t)      , intent(inout) :: old_lst_vefs_lids
+  type(std_vector_integer_ip_t)      , intent(inout) :: old_lst_vefs_gids
   integer(ip) :: num_corners_x_cell, num_edges_x_cell, num_faces_x_cell
   integer(ip) :: num_edge_corners, num_face_corners, num_faces_at_corner, num_subfacets_facet, num_subedgets_edget
   integer(ip) :: icell, icell_iface, icell_jface, icell_icorner, icell_iedge
@@ -246,22 +246,22 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
      P4EST_CORNER_IN_FACE    => P4EST_CORNER_IN_FACE_3D
   end if
 
-  call old_lst_vefs_lids%copy(this%p4est_lst_vefs_lids)
+  call old_lst_vefs_gids%copy(this%lst_vefs_gids)
 
-  call this%p4est_lst_vefs_lids%resize(0)
-  call this%p4est_lst_vefs_lids%resize(this%get_ptr_vefs_x_cell(this%get_num_cells()+1)-1,-1000)
+  call this%lst_vefs_gids%resize(0)
+  call this%lst_vefs_gids%resize(this%get_ptr_vefs_x_cell(this%get_num_cells()+1)-1,-1000)
 
-  call this%p4est_ptr_cells_around_proper_vefs%resize(1)
-  call this%p4est_lst_cells_around_proper_vefs%resize(0)
-  call this%p4est_ptr_cells_around_improper_vefs%resize(1)
-  call this%p4est_lst_cells_around_improper_vefs%resize(0)
-  call this%p4est_ptr_improper_cells_around%resize(1)
-  call this%p4est_lst_improper_cells_around%resize(0)
-  call this%p4est_improper_vefs_improper_cell_around_ivef%resize(0)
-  call this%p4est_improper_vefs_improper_cell_around_subvef%resize(0)
-  call this%p4est_proper_vefs_dim%resize(0)
-  call this%p4est_improper_vefs_dim%resize(0)
-  call this%p4est_proper_vefs_at_boundary%resize(0)
+  call this%ptr_cells_around_proper_vefs%resize(1)
+  call this%lst_cells_around_proper_vefs%resize(0)
+  call this%ptr_cells_around_improper_vefs%resize(1)
+  call this%lst_cells_around_improper_vefs%resize(0)
+  call this%ptr_improper_cells_around%resize(1)
+  call this%lst_improper_cells_around%resize(0)
+  call this%improper_vefs_improper_cell_around_ivef%resize(0)
+  call this%improper_vefs_improper_cell_around_subvef%resize(0)
+  call this%proper_vefs_dim%resize(0)
+  call this%improper_vefs_dim%resize(0)
+  call this%proper_vefs_at_boundary%resize(0)
 
   this%num_proper_vefs   = 0
   this%num_improper_vefs = 0
@@ -492,45 +492,45 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
         if (icell == min_cell) then
            if (is_proper) then
               this%num_proper_vefs = this%num_proper_vefs+1
-              call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), this%num_proper_vefs)
+              call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), this%num_proper_vefs)
 
-              call this%p4est_ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size())
+              call this%ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size())
               do i=1, work_vector_cells_around%size()
-                 call this%p4est_lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
+                 call this%lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
               end do
               ! Fill proper vefs dim
-              call this%p4est_proper_vefs_dim%push_back(0)
+              call this%proper_vefs_dim%push_back(0)
 
               ! Fill proper vefs at boundary
               if ( vef_at_boundary ) then
-                 call this%p4est_proper_vefs_at_boundary%push_back(1)
+                 call this%proper_vefs_at_boundary%push_back(1)
               else
-                 call this%p4est_proper_vefs_at_boundary%push_back(0)
+                 call this%proper_vefs_at_boundary%push_back(0)
               end if
            else 
               this%num_improper_vefs = this%num_improper_vefs+1
-              call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), -this%num_improper_vefs)
+              call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), -this%num_improper_vefs)
 
               ! Fill cells_around improper vefs 
-              call this%p4est_ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
+              call this%ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
               do i=1, work_vector_cells_around%size()
-                 call this%p4est_lst_cells_around_improper_vefs%push_back(work_vector_cells_around%get(i))
+                 call this%lst_cells_around_improper_vefs%push_back(work_vector_cells_around%get(i))
               end do
 
               ! Fill improper cells_around improper vefs
-              call this%p4est_ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
+              call this%ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
               do i=1, work_vector_improper_cells_around%size()
-                 call this%p4est_lst_improper_cells_around%push_back(work_vector_improper_cells_around%get(i))
-                 call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(work_vector_ivef%get(i))
-                 call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(work_vector_subvef%get(i)) 
+                 call this%lst_improper_cells_around%push_back(work_vector_improper_cells_around%get(i))
+                 call this%improper_vefs_improper_cell_around_ivef%push_back(work_vector_ivef%get(i))
+                 call this%improper_vefs_improper_cell_around_subvef%push_back(work_vector_subvef%get(i)) 
               end do
               
               ! Fill improper vefs dim
-              call this%p4est_improper_vefs_dim%push_back(0)
+              call this%improper_vefs_dim%push_back(0)
            end if
         else
-           call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), &
-                this%p4est_lst_vefs_lids%get(base_pos_min_cell+P4EST_2_FEMPAR_CORNER(min_icorner)))
+           call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), &
+                this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_CORNER(min_icorner)))
         end if
      end do ! icorner
 
@@ -657,46 +657,46 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
            if (icell == min_cell) then
               if (is_proper) then
                  this%num_proper_vefs = this%num_proper_vefs+1
-                 call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), this%num_proper_vefs)
+                 call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), this%num_proper_vefs)
 
-                 call this%p4est_ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size())
+                 call this%ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size())
                  do i=1, work_vector_cells_around%size()
-                    call this%p4est_lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
+                    call this%lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
                  end do
                  ! Fill proper vefs dim
-                 call this%p4est_proper_vefs_dim%push_back(1)
+                 call this%proper_vefs_dim%push_back(1)
 
                  ! Fill proper vefs at boundary
                  if ( vef_at_boundary ) then
-                    call this%p4est_proper_vefs_at_boundary%push_back(1)
+                    call this%proper_vefs_at_boundary%push_back(1)
                  else
-                    call this%p4est_proper_vefs_at_boundary%push_back(0)
+                    call this%proper_vefs_at_boundary%push_back(0)
                  end if
               else
                  this%num_improper_vefs = this%num_improper_vefs+1
-                 call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), -this%num_improper_vefs)
+                 call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), -this%num_improper_vefs)
 
                  ! Fill cells_around improper vefs 
-                 call this%p4est_ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
+                 call this%ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
                  do i=1, work_vector_cells_around%size()
-                    call this%p4est_lst_cells_around_improper_vefs%push_back(work_vector_cells_around%get(i))
+                    call this%lst_cells_around_improper_vefs%push_back(work_vector_cells_around%get(i))
                  end do
 
                  ! Fill improper cells_around improper vefs
-                 call this%p4est_ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
+                 call this%ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
                  do i=1, work_vector_improper_cells_around%size()
-                    call this%p4est_lst_improper_cells_around%push_back(work_vector_improper_cells_around%get(i))
-                    call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(work_vector_ivef%get(i))
-                    call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(work_vector_subvef%get(i)) 
+                    call this%lst_improper_cells_around%push_back(work_vector_improper_cells_around%get(i))
+                    call this%improper_vefs_improper_cell_around_ivef%push_back(work_vector_ivef%get(i))
+                    call this%improper_vefs_improper_cell_around_subvef%push_back(work_vector_subvef%get(i)) 
                  end do
 
                  ! Fill improper vefs dim
-                 call this%p4est_improper_vefs_dim%push_back(1)
+                 call this%improper_vefs_dim%push_back(1)
 
               end if
            else
-              call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), &
-                   this%p4est_lst_vefs_lids%get(base_pos_min_cell+P4EST_2_FEMPAR_EDGE_3D(min_iedge)))
+              call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), &
+                   this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_EDGE_3D(min_iedge)))
            end if
 
         end do ! iedge
@@ -753,56 +753,56 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
         if (icell == min_cell) then
            if (is_proper) then
               this%num_proper_vefs=this%num_proper_vefs+1
-              call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), this%num_proper_vefs)
+              call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), this%num_proper_vefs)
 
               ! Fill cells_around proper vefs
-              call this%p4est_ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size())
+              call this%ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size())
               do i=1, work_vector_cells_around%size()
-                 call this%p4est_lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
+                 call this%lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
               end do
 
               ! Fill proper vefs dim
-              call this%p4est_proper_vefs_dim%push_back(this%get_num_dims()-1)
+              call this%proper_vefs_dim%push_back(this%get_num_dims()-1)
 
               ! Fill proper vefs at boundary
               if ( vef_at_boundary ) then
-                 call this%p4est_proper_vefs_at_boundary%push_back(1)
+                 call this%proper_vefs_at_boundary%push_back(1)
               else
-                 call this%p4est_proper_vefs_at_boundary%push_back(0)
+                 call this%proper_vefs_at_boundary%push_back(0)
               end if
 
            else 
               this%num_improper_vefs=this%num_improper_vefs+1
-              call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), -this%num_improper_vefs)
+              call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), -this%num_improper_vefs)
 
               ! Fill cells_around improper vefs
-              call this%p4est_ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
+              call this%ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
               do i=1, work_vector_cells_around%size()
-                 call this%p4est_lst_cells_around_improper_vefs%push_back(work_vector_cells_around%get(i))
+                 call this%lst_cells_around_improper_vefs%push_back(work_vector_cells_around%get(i))
               end do
 
               ! Fill improper cells_around improper vefs
-              call this%p4est_ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
+              call this%ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
               do i=1, work_vector_improper_cells_around%size()
-                 call this%p4est_lst_improper_cells_around%push_back(work_vector_improper_cells_around%get(i))
-                 call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(work_vector_ivef%get(i))
-                 call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(work_vector_subvef%get(i)) 
+                 call this%lst_improper_cells_around%push_back(work_vector_improper_cells_around%get(i))
+                 call this%improper_vefs_improper_cell_around_ivef%push_back(work_vector_ivef%get(i))
+                 call this%improper_vefs_improper_cell_around_subvef%push_back(work_vector_subvef%get(i)) 
               end do
 
               ! Fill improper vefs dim
-              call this%p4est_improper_vefs_dim%push_back(this%get_num_dims()-1)
+              call this%improper_vefs_dim%push_back(this%get_num_dims()-1)
 
            end if
         else ! Borrow vef gid from owner
-           call this%p4est_lst_vefs_lids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), &
-                this%p4est_lst_vefs_lids%get(base_pos_min_cell+P4EST_2_FEMPAR_FACE(min_iface)))
+           call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), &
+                this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_FACE(min_iface)))
         end if
      end do ! iface
   end do
   call this%set_num_vefs(this%num_proper_vefs + this%num_improper_vefs)
-  call this%std_vector_transform_length_to_header(this%p4est_ptr_cells_around_proper_vefs)
-  call this%std_vector_transform_length_to_header(this%p4est_ptr_cells_around_improper_vefs)
-  call this%std_vector_transform_length_to_header(this%p4est_ptr_improper_cells_around)
+  call this%std_vector_transform_length_to_header(this%ptr_cells_around_proper_vefs)
+  call this%std_vector_transform_length_to_header(this%ptr_cells_around_improper_vefs)
+  call this%std_vector_transform_length_to_header(this%ptr_improper_cells_around)
   call work_vector_cells_around%free()
   call work_vector_improper_cells_around%free()
   call work_vector_ivef%free()
@@ -810,7 +810,7 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
 #else
   call this%not_enabled_error()
 #endif    
-end subroutine p4est_st_update_lst_vefs_lids_and_cells_around
+end subroutine p4est_st_update_lst_vefs_gids_and_cells_around
 
 
 subroutine p4est_st_update_cell_set_ids(this)
@@ -823,28 +823,28 @@ subroutine p4est_st_update_cell_set_ids(this)
   integer(ip) :: i, j
   
 #ifdef ENABLE_P4EST
-  call old_cell_set_ids%copy(this%p4est_cell_set_ids)
-  call this%p4est_cell_set_ids%resize(0)
+  call old_cell_set_ids%copy(this%cell_set_ids)
+  call this%cell_set_ids%resize(0)
   if ( this%get_num_dims() == 2 ) then
     num_children_x_cell = NUM_CORNERS_2D
   else if ( this%get_num_dims() == 3 ) then
     num_children_x_cell = NUM_CORNERS_3D
   end if
   
-  assert ( old_cell_set_ids%size() == this%p4est_refinement_and_coarsening_flags%size() )
+  assert ( old_cell_set_ids%size() == this%refinement_and_coarsening_flags%size() )
   
   i=1
   do while ( i <= old_cell_set_ids%size() )
-    transformation_flag = this%p4est_refinement_and_coarsening_flags%get(i)
+    transformation_flag = this%refinement_and_coarsening_flags%get(i)
     old_cell_set_id     = old_cell_set_ids%get(i)
     if ( transformation_flag == do_nothing ) then
-      call this%p4est_cell_set_ids%push_back(old_cell_set_id)
+      call this%cell_set_ids%push_back(old_cell_set_id)
     else if ( transformation_flag == refinement ) then
       do j=1, num_children_x_cell
-        call this%p4est_cell_set_ids%push_back(old_cell_set_id)
+        call this%cell_set_ids%push_back(old_cell_set_id)
       end do
     else if ( transformation_flag == coarsening ) then
-      call this%p4est_cell_set_ids%push_back(old_cell_set_id)
+      call this%cell_set_ids%push_back(old_cell_set_id)
       do j=1, num_children_x_cell
         i=i+1
       end do
@@ -861,17 +861,17 @@ subroutine p4est_st_update_cell_set_ids(this)
   
 end subroutine p4est_st_update_cell_set_ids
 
-subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
+subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_gids)
   implicit none
   class(p4est_serial_triangulation_t), intent(inout) :: this
-  type(std_vector_integer_ip_t)      , intent(in)    :: old_lst_vefs_lids
+  type(std_vector_integer_ip_t)      , intent(in)    :: old_lst_vefs_gids
   
   integer(ip) :: old_num_cells
   integer(ip) :: old_cell_id, new_cell_id, old_cell_base_pos
   integer(ip) :: transformation_flag
   integer(ip) :: num_corners
   integer(ip) :: ivef, iface, j, iedge
-  integer(ip) :: old_vef_lid, old_vef_set_id
+  integer(ip) :: old_vef_gid, old_vef_set_id
   class(cell_iterator_t), allocatable :: cell
   class(vef_iterator_t) , allocatable :: vef
   !type(std_vector_integer_ip_t) :: old_vef_set_ids
@@ -896,22 +896,22 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
     num_edges_ref_elem_geo = this%reference_fe_geo%get_num_n_faces_of_dim(1)
   end if
   
-  call old_proper_vefs_set_ids%copy(this%p4est_proper_vefs_set_ids)
-  call old_improper_vefs_set_ids%copy(this%p4est_improper_vefs_set_ids)
+  call old_proper_vefs_set_ids%copy(this%proper_vefs_set_ids)
+  call old_improper_vefs_set_ids%copy(this%improper_vefs_set_ids)
   
   call this%clear_vef_set_ids()
   
   call this%create_cell_iterator(cell)
   call this%create_vef_iterator(vef)
   
-  old_num_cells = old_lst_vefs_lids%size()/(this%get_ptr_vefs_x_cell(1)-this%get_ptr_vefs_x_cell(0))
+  old_num_cells = old_lst_vefs_gids%size()/(this%get_ptr_vefs_x_cell(1)-this%get_ptr_vefs_x_cell(0))
  
   vertices_n_face => this%reference_fe_geo%get_vertices_n_face()
   old_cell_id = 1
   new_cell_id = 1
   do while (old_cell_id <= old_num_cells)
     
-    transformation_flag = this%p4est_refinement_and_coarsening_flags%get(old_cell_id)
+    transformation_flag = this%refinement_and_coarsening_flags%get(old_cell_id)
     old_cell_base_pos   = this%get_ptr_vefs_x_cell(old_cell_id)
     
     call cell%set_gid(new_cell_id)
@@ -919,8 +919,8 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
     if ( transformation_flag == do_nothing ) then
       do ivef=1, cell%get_num_vefs()
         call cell%get_vef(ivef,vef)
-        old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
-        old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+        old_vef_gid = old_lst_vefs_gids%get(old_cell_base_pos+ivef-1)
+        old_vef_set_id = get_vef_set_id( old_vef_gid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
         call vef%set_set_id(old_vef_set_id)
       end do
       new_cell_id = new_cell_id + 1
@@ -930,8 +930,8 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
       do j=1, this%reference_fe_geo%get_num_n_faces_of_dim(0) !num_children_x_cell 
         call cell%set_gid(new_cell_id+j-1)
         call cell%get_vef(j,vef)
-        old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+j-1)
-        old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+        old_vef_gid = old_lst_vefs_gids%get(old_cell_base_pos+j-1)
+        old_vef_set_id = get_vef_set_id( old_vef_gid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
         call vef%set_set_id(old_vef_set_id)
       end do
 
@@ -941,14 +941,14 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
            do j=1, NUM_SUBCELLS_IN_TOUCH_EDGE_3D
               call cell%set_gid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_EDGE_3D(j,iedge)-1)
               call cell%get_vef(ivef,vef)
-              old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
-              old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+              old_vef_gid = old_lst_vefs_gids%get(old_cell_base_pos+ivef-1)
+              old_vef_set_id = get_vef_set_id( old_vef_gid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
               call vef%set_set_id(old_vef_set_id)
            end do
            vertices_x_n_face_iterator = vertices_n_face%create_iterator(ivef)
            call cell%get_vef(vertices_x_n_face_iterator%get_current(),vef)
-           old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
-           old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+           old_vef_gid = old_lst_vefs_gids%get(old_cell_base_pos+ivef-1)
+           old_vef_set_id = get_vef_set_id( old_vef_gid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
            call vef%set_set_id(old_vef_set_id)
         end do
       end if
@@ -958,8 +958,8 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
          do j=1, NUM_SUBCELLS_IN_TOUCH_FACE
             call cell%set_gid(new_cell_id + FEMPAR_SUBCELLS_IN_TOUCH_FACE(j,iface)-1)
             call cell%get_vef(ivef,vef)
-            old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
-            old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+            old_vef_gid = old_lst_vefs_gids%get(old_cell_base_pos+ivef-1)
+            old_vef_set_id = get_vef_set_id( old_vef_gid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
             call vef%set_set_id(old_vef_set_id)
             if (this%get_num_dims() == 3) then
               iedge = FEMPAR_EDGE_OF_SUBCELLS_IN_TOUCH_FACE_3D(j,iface)
@@ -969,8 +969,8 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
          end do
          vertices_x_n_face_iterator = vertices_n_face%create_iterator(ivef)
          call cell%get_vef(vertices_x_n_face_iterator%get_current(),vef)
-         old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ivef-1)
-         old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+         old_vef_gid = old_lst_vefs_gids%get(old_cell_base_pos+ivef-1)
+         old_vef_set_id = get_vef_set_id( old_vef_gid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
          call vef%set_set_id(old_vef_set_id)
       end do
       new_cell_id = new_cell_id + this%reference_fe_geo%get_num_n_faces_of_dim(0)
@@ -979,8 +979,8 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
       ! Transfer set_id's of refined cells vertices from refined to coarse cells
       do j=1, this%reference_fe_geo%get_num_n_faces_of_dim(0) ! (num_children_x_cell)
         call cell%get_vef(j,vef)
-        old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ (j-1)*this%reference_fe_geo%get_num_n_faces() + j-1)
-        old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+        old_vef_gid = old_lst_vefs_gids%get(old_cell_base_pos+ (j-1)*this%reference_fe_geo%get_num_n_faces() + j-1)
+        old_vef_set_id = get_vef_set_id( old_vef_gid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
         call vef%set_set_id(old_vef_set_id)
       end do
       
@@ -990,9 +990,9 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
            call cell%get_vef(ivef,vef)
            ! The VEF set id of a edge in the coarse cell is extracted (arbitrarily) from
            ! the refined cell corresponding to its first sub-edge
-           old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+&
+           old_vef_gid = old_lst_vefs_gids%get(old_cell_base_pos+&
              (FEMPAR_SUBCELLS_IN_TOUCH_EDGE_3D(1,iedge)-1)*this%reference_fe_geo%get_num_n_faces() + ivef-1)
-           old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+           old_vef_set_id = get_vef_set_id( old_vef_gid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
            call vef%set_set_id(old_vef_set_id)
         end do
       end if
@@ -1001,8 +1001,8 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
          ivef = this%reference_fe_geo%get_num_n_faces_of_dim(0) + num_edges_ref_elem_geo  + iface
          call cell%get_vef(ivef,vef)
          ! The VEF set id of a face in the coarse cell is extracted (arbitrarily) from the refined cell corresponding to its first subface
-         old_vef_lid = old_lst_vefs_lids%get(old_cell_base_pos+ (FEMPAR_SUBCELLS_IN_TOUCH_FACE(1,iface)-1)*this%reference_fe_geo%get_num_n_faces() + ivef-1)
-         old_vef_set_id = get_vef_set_id( old_vef_lid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
+         old_vef_gid = old_lst_vefs_gids%get(old_cell_base_pos+ (FEMPAR_SUBCELLS_IN_TOUCH_FACE(1,iface)-1)*this%reference_fe_geo%get_num_n_faces() + ivef-1)
+         old_vef_set_id = get_vef_set_id( old_vef_gid, old_proper_vefs_set_ids, old_improper_vefs_set_ids)
          call vef%set_set_id(old_vef_set_id)
       end do
       old_cell_id = old_cell_id + this%reference_fe_geo%get_num_n_faces_of_dim(0)
@@ -1022,19 +1022,19 @@ subroutine p4est_st_update_vef_set_ids(this, old_lst_vefs_lids)
 #endif        
   
 contains
-  function get_vef_set_id( vef_lid, proper_vefs_set_ids, improper_vefs_set_ids)
+  function get_vef_set_id( vef_gid, proper_vefs_set_ids, improper_vefs_set_ids)
     implicit none
-    integer(ip), intent(in) :: vef_lid
+    integer(ip), intent(in) :: vef_gid
     ! TODO It seems that the 2 last arguments are not being used
     !      The function is actually consuming data from the caller, not the passed arguments...
     !      Is this the behavior we want?
     type(std_vector_integer_ip_t), intent(in) :: proper_vefs_set_ids
     type(std_vector_integer_ip_t), intent(in) :: improper_vefs_set_ids
     integer(ip) :: get_vef_set_id
-    if ( vef_lid > 0 ) then
-        get_vef_set_id = old_proper_vefs_set_ids%get(vef_lid)
+    if ( vef_gid > 0 ) then
+        get_vef_set_id = old_proper_vefs_set_ids%get(vef_gid)
     else
-        get_vef_set_id = old_improper_vefs_set_ids%get(abs(vef_lid))
+        get_vef_set_id = old_improper_vefs_set_ids%get(abs(vef_gid))
     end if
   end function get_vef_set_id
   
@@ -1119,8 +1119,8 @@ subroutine p4est_st_clear_refinement_and_coarsening_flags(this)
    class(p4est_serial_triangulation_t), intent(inout)    :: this
   integer(ip) :: istat
 #ifdef ENABLE_P4EST
-  call this%p4est_refinement_and_coarsening_flags%resize(0)
-  call this%p4est_refinement_and_coarsening_flags%resize(this%get_num_cells(), do_nothing)
+  call this%refinement_and_coarsening_flags%resize(0)
+  call this%refinement_and_coarsening_flags%resize(this%get_num_cells(), do_nothing)
 #else
   call this%not_enabled_error()
 #endif        
@@ -1131,8 +1131,8 @@ subroutine p4est_st_clear_cell_set_ids(this)
    class(p4est_serial_triangulation_t), intent(inout)    :: this
   integer(ip) :: istat
 #ifdef ENABLE_P4EST
-  call this%p4est_cell_set_ids%resize(0)
-  call this%p4est_cell_set_ids%resize(this%get_num_cells(), 0)
+  call this%cell_set_ids%resize(0)
+  call this%cell_set_ids%resize(this%get_num_cells(), 0)
 #else
   call this%not_enabled_error()
 #endif        
@@ -1143,11 +1143,11 @@ subroutine p4est_st_clear_vef_set_ids(this)
    class(p4est_serial_triangulation_t), intent(inout)    :: this
   integer(ip) :: istat
 #ifdef ENABLE_P4EST
-  call this%p4est_proper_vefs_set_ids%resize(0)
-  call this%p4est_proper_vefs_set_ids%resize(this%num_proper_vefs, 0)
+  call this%proper_vefs_set_ids%resize(0)
+  call this%proper_vefs_set_ids%resize(this%num_proper_vefs, 0)
   
-  call this%p4est_improper_vefs_set_ids%resize(0)
-  call this%p4est_improper_vefs_set_ids%resize(this%num_improper_vefs, 0)
+  call this%improper_vefs_set_ids%resize(0)
+  call this%improper_vefs_set_ids%resize(this%num_improper_vefs, 0)
 #else
   call this%not_enabled_error()
 #endif        
@@ -1160,9 +1160,9 @@ subroutine p4est_st_fill_cells_set (this, cells_set)
   integer(ip)  :: i 
 #ifdef ENABLE_P4EST
   
-  assert ( size(cells_set) == this%p4est_cell_set_ids%size() )
+  assert ( size(cells_set) == this%cell_set_ids%size() )
   do i=1, size(cells_set)
-    call this%p4est_cell_set_ids%set(i,cells_set(i))
+    call this%cell_set_ids%set(i,cells_set(i))
   end do
   
 #else
@@ -1297,22 +1297,22 @@ subroutine p4est_serial_triangulation_free ( this)
   this%p4est_mesh         = c_null_ptr
   this%QHE                = c_null_ptr
     
-  call this%p4est_lst_vefs_lids%free()
-  call this%p4est_ptr_cells_around_proper_vefs%free()
-  call this%p4est_lst_cells_around_proper_vefs%free()
-  call this%p4est_ptr_cells_around_improper_vefs%free()
-  call this%p4est_lst_cells_around_improper_vefs%free()
-  call this%p4est_ptr_improper_cells_around%free()
-  call this%p4est_lst_improper_cells_around%free()
-  call this%p4est_improper_vefs_improper_cell_around_ivef%free()
-  call this%p4est_improper_vefs_improper_cell_around_subvef%free()
-  call this%p4est_proper_vefs_dim%free()
-  call this%p4est_improper_vefs_dim%free()
-  call this%p4est_proper_vefs_at_boundary%free()
-  call this%p4est_refinement_and_coarsening_flags%free()
-  call this%p4est_cell_set_ids%free()
-  call this%p4est_proper_vefs_set_ids%free()
-  call this%p4est_improper_vefs_set_ids%free()
+  call this%lst_vefs_gids%free()
+  call this%ptr_cells_around_proper_vefs%free()
+  call this%lst_cells_around_proper_vefs%free()
+  call this%ptr_cells_around_improper_vefs%free()
+  call this%lst_cells_around_improper_vefs%free()
+  call this%ptr_improper_cells_around%free()
+  call this%lst_improper_cells_around%free()
+  call this%improper_vefs_improper_cell_around_ivef%free()
+  call this%improper_vefs_improper_cell_around_subvef%free()
+  call this%proper_vefs_dim%free()
+  call this%improper_vefs_dim%free()
+  call this%proper_vefs_at_boundary%free()
+  call this%refinement_and_coarsening_flags%free()
+  call this%cell_set_ids%free()
+  call this%proper_vefs_set_ids%free()
+  call this%improper_vefs_set_ids%free()
   
   nullify(this%quad_to_quad)
   nullify(this%quad_to_face)

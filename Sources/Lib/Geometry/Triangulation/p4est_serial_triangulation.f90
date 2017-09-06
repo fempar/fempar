@@ -359,30 +359,30 @@ module p4est_serial_triangulation_names
     integer(P4EST_F90_QLEVEL), allocatable :: quad_level(:)
    
     
-    type(std_vector_integer_ip_t)          :: p4est_lst_vefs_lids
+    type(std_vector_integer_ip_t)          :: lst_vefs_gids
     
-    type(std_vector_integer_ip_t)          :: p4est_ptr_cells_around_proper_vefs
-    type(std_vector_integer_ip_t)          :: p4est_lst_cells_around_proper_vefs
-    type(std_vector_integer_ip_t)          :: p4est_ptr_cells_around_improper_vefs
-    type(std_vector_integer_ip_t)          :: p4est_lst_cells_around_improper_vefs
-    type(std_vector_integer_ip_t)          :: p4est_ptr_improper_cells_around
-    type(std_vector_integer_ip_t)          :: p4est_lst_improper_cells_around
-    type(std_vector_integer_ip_t)          :: p4est_improper_vefs_improper_cell_around_ivef
-    type(std_vector_integer_ip_t)          :: p4est_improper_vefs_improper_cell_around_subvef
-    type(std_vector_integer_ip_t)          :: p4est_proper_vefs_dim
-    type(std_vector_integer_ip_t)          :: p4est_improper_vefs_dim
-    type(std_vector_integer_ip_t)          :: p4est_proper_vefs_at_boundary
-    type(std_vector_integer_ip_t)          :: p4est_refinement_and_coarsening_flags
-    type(std_vector_integer_ip_t)          :: p4est_cell_set_ids
-    type(std_vector_integer_ip_t)          :: p4est_proper_vefs_set_ids
-    type(std_vector_integer_ip_t)          :: p4est_improper_vefs_set_ids
+    type(std_vector_integer_ip_t)          :: ptr_cells_around_proper_vefs
+    type(std_vector_integer_ip_t)          :: lst_cells_around_proper_vefs
+    type(std_vector_integer_ip_t)          :: ptr_cells_around_improper_vefs
+    type(std_vector_integer_ip_t)          :: lst_cells_around_improper_vefs
+    type(std_vector_integer_ip_t)          :: ptr_improper_cells_around
+    type(std_vector_integer_ip_t)          :: lst_improper_cells_around
+    type(std_vector_integer_ip_t)          :: improper_vefs_improper_cell_around_ivef
+    type(std_vector_integer_ip_t)          :: improper_vefs_improper_cell_around_subvef
+    type(std_vector_integer_ip_t)          :: proper_vefs_dim
+    type(std_vector_integer_ip_t)          :: improper_vefs_dim
+    type(std_vector_integer_ip_t)          :: proper_vefs_at_boundary
+    type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
+    type(std_vector_integer_ip_t)          :: cell_set_ids
+    type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
+    type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
   contains
     ! Getters
     procedure                                   :: get_num_reference_fes                         => p4est_serial_triangulation_get_num_reference_fes
     procedure                                   :: get_max_num_shape_functions                   => p4est_serial_triangulation_get_max_num_shape_functions
     procedure                                   :: get_num_proper_vefs                           => p4est_serial_triangulation_get_num_proper_vefs
     procedure                                   :: get_num_improper_vefs                         => p4est_serial_triangulation_get_num_improper_vefs
-    procedure                                   :: get_p4est_refinement_and_coarsening_flags     => p4est_st_get_p4est_refinement_and_coarsening_flags
+    procedure                                   :: get_refinement_and_coarsening_flags     => p4est_st_get_refinement_and_coarsening_flags
     
     ! Set up related methods
     procedure, private                          :: p4est_serial_triangulation_create
@@ -392,7 +392,7 @@ module p4est_serial_triangulation_names
     procedure, private        , non_overridable :: update_p4est_mesh                             => p4est_serial_triangulation_update_p4est_mesh
     procedure, private        , non_overridable :: update_topology_from_p4est_mesh               => p4est_serial_triangulation_update_topology_from_p4est_mesh
     procedure, private        , non_overridable :: get_ptr_vefs_x_cell                           => p4est_serial_triangulation_get_ptr_vefs_x_cell
-    procedure, private        , non_overridable :: update_lst_vefs_lids_and_cells_around         => p4est_st_update_lst_vefs_lids_and_cells_around
+    procedure, private        , non_overridable :: update_lst_vefs_gids_and_cells_around         => p4est_st_update_lst_vefs_gids_and_cells_around
     procedure, private        , non_overridable :: update_cell_set_ids                           => p4est_st_update_cell_set_ids
     procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_st_update_vef_set_ids
     procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_st_std_vector_transform_length_to_header

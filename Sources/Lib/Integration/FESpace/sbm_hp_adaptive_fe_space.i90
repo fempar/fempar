@@ -965,7 +965,7 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
   class(triangulation_t), pointer     :: triangulation
-  type(std_vector_integer_ip_t)     , pointer     :: p4est_refinement_and_coarsening_flags
+  type(std_vector_integer_ip_t)     , pointer     :: refinement_and_coarsening_flags
   class(fe_cell_iterator_t)              , allocatable :: new_fe
   class(reference_fe_t)             , pointer     :: reference_fe
   integer(ip)                       , allocatable :: old_field_cell_to_ref_fes(:,:)
@@ -980,7 +980,7 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
   triangulation => this%get_triangulation()
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
-    p4est_refinement_and_coarsening_flags => triangulation%get_p4est_refinement_and_coarsening_flags()
+    refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
   class default
     assert(.false.)
   end select
@@ -998,7 +998,7 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
   old_cell_lid = 1
   new_cell_lid = 1
   do while ( old_cell_lid .le. old_num_cells )
-    transformation_flag = p4est_refinement_and_coarsening_flags%get(old_cell_lid)
+    transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
     call new_fe%set_gid(new_cell_lid)
     do field_id = 1,this%get_num_fields()
       current_old_cell_lid = old_cell_lid
@@ -1056,7 +1056,7 @@ subroutine shpafs_refine_and_coarsen_single_fe_function( this, fe_function )
   type(fe_function_t)                 , intent(inout) :: fe_function
   class(triangulation_t), pointer     :: triangulation
   type(fe_function_t)                             :: transformed_fe_function
-  type(std_vector_integer_ip_t)     , pointer     :: p4est_refinement_and_coarsening_flags
+  type(std_vector_integer_ip_t)     , pointer     :: refinement_and_coarsening_flags
   integer(ip)                       , allocatable :: old_ptr_dofs_x_fe(:,:)
   integer(ip)              , target , allocatable :: old_lst_dofs_gids(:)
   integer(ip)                       , pointer     :: old_field_fe_dofs(:)
@@ -1076,16 +1076,16 @@ subroutine shpafs_refine_and_coarsen_single_fe_function( this, fe_function )
   triangulation => this%get_triangulation()
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
-    p4est_refinement_and_coarsening_flags => triangulation%get_p4est_refinement_and_coarsening_flags()
+    refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
   class default
     assert(.false.)
   end select
   
-  old_num_cells = p4est_refinement_and_coarsening_flags%size()
+  old_num_cells = refinement_and_coarsening_flags%size()
   
   call this%move_alloc_ptr_dofs_x_fe_out(old_ptr_dofs_x_fe)
   call this%move_alloc_lst_dofs_gids_out(old_lst_dofs_gids)
-  massert ( old_num_cells == (size(old_ptr_dofs_x_fe,2)-1), 'Incorrect size of p4est_refinement_and_coarsening_flags' )
+  massert ( old_num_cells == (size(old_ptr_dofs_x_fe,2)-1), 'Incorrect size of refinement_and_coarsening_flags' )
   
   call this%project_field_cell_to_ref_fes()
   !call this%check_cell_vs_fe_topology_consistency()
@@ -1115,7 +1115,7 @@ subroutine shpafs_refine_and_coarsen_single_fe_function( this, fe_function )
   old_cell_lid = 1
   new_cell_lid = 1
   do while ( old_cell_lid .le. old_num_cells )
-    transformation_flag = p4est_refinement_and_coarsening_flags%get(old_cell_lid)
+    transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
     call new_fe%set_gid(new_cell_lid)
     do field_id = 1,this%get_num_fields()
       current_old_cell_lid = old_cell_lid
@@ -1225,7 +1225,7 @@ subroutine shpafs_refine_and_coarsen_fe_function_array( this, fe_functions )
   type(p_fe_function_t)               , intent(inout) :: fe_functions(:)
   class(triangulation_t), pointer     :: triangulation
   type(fe_function_t)                             :: transformed_fe_function
-  type(std_vector_integer_ip_t)     , pointer     :: p4est_refinement_and_coarsening_flags
+  type(std_vector_integer_ip_t)     , pointer     :: refinement_and_coarsening_flags
   integer(ip)                       , allocatable :: old_ptr_dofs_x_fe(:,:)
   integer(ip)              , target , allocatable :: old_lst_dofs_gids(:)
   integer(ip)                       , pointer     :: old_field_fe_dofs(:)
@@ -1246,16 +1246,16 @@ subroutine shpafs_refine_and_coarsen_fe_function_array( this, fe_functions )
   triangulation => this%get_triangulation()
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
-    p4est_refinement_and_coarsening_flags => triangulation%get_p4est_refinement_and_coarsening_flags()
+    refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
   class default
     assert(.false.)
   end select
   
-  old_num_cells = p4est_refinement_and_coarsening_flags%size()
+  old_num_cells = refinement_and_coarsening_flags%size()
   
   call this%move_alloc_ptr_dofs_x_fe_out(old_ptr_dofs_x_fe)
   call this%move_alloc_lst_dofs_gids_out(old_lst_dofs_gids)
-  massert ( old_num_cells == (size(old_ptr_dofs_x_fe,2)-1), 'Incorrect size of p4est_refinement_and_coarsening_flags' )
+  massert ( old_num_cells == (size(old_ptr_dofs_x_fe,2)-1), 'Incorrect size of refinement_and_coarsening_flags' )
   
   call this%project_field_cell_to_ref_fes()
   !call this%check_cell_vs_fe_topology_consistency()
@@ -1287,7 +1287,7 @@ subroutine shpafs_refine_and_coarsen_fe_function_array( this, fe_functions )
     old_cell_lid = 1
     new_cell_lid = 1
     do while ( old_cell_lid .le. old_num_cells )
-      transformation_flag = p4est_refinement_and_coarsening_flags%get(old_cell_lid)
+      transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
       call new_fe%set_gid(new_cell_lid)
       do field_id = 1,this%get_num_fields()
         current_old_cell_lid = old_cell_lid

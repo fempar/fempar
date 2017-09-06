@@ -148,9 +148,9 @@ subroutine p4est_vef_iterator_set_set_id(this,set_id)
   integer(ip)          , intent(in) :: set_id
   assert ( this%is_within_valid_range() )
   if ( this%is_proper() ) then
-    call this%p4est_triangulation%p4est_proper_vefs_set_ids%set(this%get_gid(),set_id)
+    call this%p4est_triangulation%proper_vefs_set_ids%set(this%get_gid(),set_id)
   else 
-    call this%p4est_triangulation%p4est_improper_vefs_set_ids%set(abs(this%get_gid()),set_id)
+    call this%p4est_triangulation%improper_vefs_set_ids%set(abs(this%get_gid()),set_id)
   end if
 end subroutine p4est_vef_iterator_set_set_id  
 
@@ -168,9 +168,9 @@ function p4est_vef_iterator_get_set_id(this)
   integer(ip) :: p4est_vef_iterator_get_set_id
   assert ( this%is_within_valid_range() )
   if ( this%is_proper() ) then
-    p4est_vef_iterator_get_set_id = this%p4est_triangulation%p4est_proper_vefs_set_ids%get(this%get_gid())
+    p4est_vef_iterator_get_set_id = this%p4est_triangulation%proper_vefs_set_ids%get(this%get_gid())
   else 
-    p4est_vef_iterator_get_set_id = this%p4est_triangulation%p4est_improper_vefs_set_ids%get(abs(this%get_gid()))
+    p4est_vef_iterator_get_set_id = this%p4est_triangulation%improper_vefs_set_ids%get(abs(this%get_gid()))
   end if
   
 end function p4est_vef_iterator_get_set_id  
@@ -233,9 +233,9 @@ function p4est_vef_iterator_get_dim(this)
   integer(ip) :: p4est_vef_iterator_get_dim
   assert ( this%is_within_valid_range() )
   if ( this%is_proper() ) then
-    p4est_vef_iterator_get_dim  = this%p4est_triangulation%p4est_proper_vefs_dim%get(this%get_gid())
+    p4est_vef_iterator_get_dim  = this%p4est_triangulation%proper_vefs_dim%get(this%get_gid())
   else
-    p4est_vef_iterator_get_dim  = this%p4est_triangulation%p4est_improper_vefs_dim%get(abs(this%get_gid()))
+    p4est_vef_iterator_get_dim  = this%p4est_triangulation%improper_vefs_dim%get(abs(this%get_gid()))
   end if
 end function p4est_vef_iterator_get_dim
 
@@ -246,7 +246,7 @@ function p4est_vef_iterator_is_at_boundary (this)
   assert ( this%is_within_valid_range()  )
   p4est_vef_iterator_is_at_boundary  = .false.
   if ( this%get_gid() > 0 ) then
-    p4est_vef_iterator_is_at_boundary = (this%p4est_triangulation%p4est_proper_vefs_at_boundary%get(this%get_gid()) == 1)
+    p4est_vef_iterator_is_at_boundary = (this%p4est_triangulation%proper_vefs_at_boundary%get(this%get_gid()) == 1)
   end if 
 end function p4est_vef_iterator_is_at_boundary
 
@@ -312,11 +312,11 @@ function p4est_vef_iterator_get_num_cells_around (this)
   integer(ip) :: p4est_vef_iterator_get_num_cells_around
   assert ( this%is_within_valid_range() )
   if ( this%is_proper() ) then
-   p4est_vef_iterator_get_num_cells_around  =  this%p4est_triangulation%p4est_ptr_cells_around_proper_vefs%get(this%get_gid()+1)-&
-                                                this%p4est_triangulation%p4est_ptr_cells_around_proper_vefs%get(this%get_gid())
+   p4est_vef_iterator_get_num_cells_around  =  this%p4est_triangulation%ptr_cells_around_proper_vefs%get(this%get_gid()+1)-&
+                                                this%p4est_triangulation%ptr_cells_around_proper_vefs%get(this%get_gid())
   else                                          
-   p4est_vef_iterator_get_num_cells_around  =  this%p4est_triangulation%p4est_ptr_cells_around_improper_vefs%get(abs(this%get_gid())+1)-&
-                                                this%p4est_triangulation%p4est_ptr_cells_around_improper_vefs%get(abs(this%get_gid()))
+   p4est_vef_iterator_get_num_cells_around  =  this%p4est_triangulation%ptr_cells_around_improper_vefs%get(abs(this%get_gid())+1)-&
+                                                this%p4est_triangulation%ptr_cells_around_improper_vefs%get(abs(this%get_gid()))
   end if
 end function p4est_vef_iterator_get_num_cells_around
 
@@ -330,11 +330,11 @@ subroutine p4est_vef_iterator_get_cell_around (this, icell_around, cell)
   assert ( this%is_within_valid_range() )
   assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
   if ( this%is_proper() ) then  
-    position_in_lst_cells_around = this%p4est_triangulation%p4est_ptr_cells_around_proper_vefs%get(this%get_gid()) + icell_around-1
-    icell = this%p4est_triangulation%p4est_lst_cells_around_proper_vefs%get(position_in_lst_cells_around)
+    position_in_lst_cells_around = this%p4est_triangulation%ptr_cells_around_proper_vefs%get(this%get_gid()) + icell_around-1
+    icell = this%p4est_triangulation%lst_cells_around_proper_vefs%get(position_in_lst_cells_around)
   else
-    position_in_lst_cells_around = this%p4est_triangulation%p4est_ptr_cells_around_improper_vefs%get(abs(this%get_gid())) + icell_around-1
-    icell = this%p4est_triangulation%p4est_lst_cells_around_improper_vefs%get(position_in_lst_cells_around)
+    position_in_lst_cells_around = this%p4est_triangulation%ptr_cells_around_improper_vefs%get(abs(this%get_gid())) + icell_around-1
+    icell = this%p4est_triangulation%lst_cells_around_improper_vefs%get(position_in_lst_cells_around)
   end if
   call cell%set_gid(icell)
 end subroutine p4est_vef_iterator_get_cell_around
@@ -347,8 +347,8 @@ function p4est_vef_iterator_get_num_improper_cells_around (this)
   if ( this%is_proper() ) then
    p4est_vef_iterator_get_num_improper_cells_around  =  0
   else                                          
-   p4est_vef_iterator_get_num_improper_cells_around  =  this%p4est_triangulation%p4est_ptr_improper_cells_around%get(abs(this%get_gid())+1)-&
-                                                         this%p4est_triangulation%p4est_ptr_improper_cells_around%get(abs(this%get_gid()))
+   p4est_vef_iterator_get_num_improper_cells_around  =  this%p4est_triangulation%ptr_improper_cells_around%get(abs(this%get_gid())+1)-&
+                                                         this%p4est_triangulation%ptr_improper_cells_around%get(abs(this%get_gid()))
   end if
 end function p4est_vef_iterator_get_num_improper_cells_around
 
@@ -362,8 +362,8 @@ subroutine p4est_vef_iterator_get_improper_cell_around (this, icell_around, cell
   assert ( this%is_within_valid_range() )
   assert ( .not. this%is_proper() )
   assert ( icell_around >= 1 .and. icell_around <= this%get_num_improper_cells_around() )
-  position_in_lst_cells_around = this%p4est_triangulation%p4est_ptr_improper_cells_around%get(abs(this%get_gid())) + icell_around-1
-  icell = this%p4est_triangulation%p4est_lst_improper_cells_around%get(position_in_lst_cells_around)
+  position_in_lst_cells_around = this%p4est_triangulation%ptr_improper_cells_around%get(abs(this%get_gid())) + icell_around-1
+  icell = this%p4est_triangulation%lst_improper_cells_around%get(position_in_lst_cells_around)
   call cell%set_gid(icell)
 end subroutine p4est_vef_iterator_get_improper_cell_around
 
@@ -376,8 +376,8 @@ function p4est_vef_iterator_get_improper_cell_around_ivef(this, icell_around)
   assert ( this%is_within_valid_range() )
   assert ( .not. this%is_proper() )
   assert ( icell_around >= 1 .and. icell_around <= this%get_num_improper_cells_around() )
-  position_in_lst_cells_around = this%p4est_triangulation%p4est_ptr_improper_cells_around%get(abs(this%get_gid())) + icell_around-1
-  p4est_vef_iterator_get_improper_cell_around_ivef = this%p4est_triangulation%p4est_improper_vefs_improper_cell_around_ivef%get(position_in_lst_cells_around)
+  position_in_lst_cells_around = this%p4est_triangulation%ptr_improper_cells_around%get(abs(this%get_gid())) + icell_around-1
+  p4est_vef_iterator_get_improper_cell_around_ivef = this%p4est_triangulation%improper_vefs_improper_cell_around_ivef%get(position_in_lst_cells_around)
 end function p4est_vef_iterator_get_improper_cell_around_ivef
 
 function p4est_vef_iterator_get_improper_cell_around_subvef(this, icell_around)
@@ -389,6 +389,6 @@ function p4est_vef_iterator_get_improper_cell_around_subvef(this, icell_around)
   assert ( this%is_within_valid_range() )
   assert ( .not. this%is_proper() )
   assert ( icell_around >= 1 .and. icell_around <= this%get_num_improper_cells_around() )
-  position_in_lst_cells_around = this%p4est_triangulation%p4est_ptr_improper_cells_around%get(abs(this%get_gid())) + icell_around-1
-  p4est_vef_iterator_get_improper_cell_around_subvef = this%p4est_triangulation%p4est_improper_vefs_improper_cell_around_subvef%get(position_in_lst_cells_around)
+  position_in_lst_cells_around = this%p4est_triangulation%ptr_improper_cells_around%get(abs(this%get_gid())) + icell_around-1
+  p4est_vef_iterator_get_improper_cell_around_subvef = this%p4est_triangulation%improper_vefs_improper_cell_around_subvef%get(position_in_lst_cells_around)
 end function p4est_vef_iterator_get_improper_cell_around_subvef
