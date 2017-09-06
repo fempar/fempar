@@ -197,7 +197,7 @@ contains
 				write(*,'(a20,e32.25)') 'mean_norm:',  mean
 				write(*,'(a20,e32.25)') 'l2_norm:'  ,  l2
 				write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl
-												
+							
 						dof_values => this%fe_function%get_free_dof_values() 
 							
 				select type (dof_values)
@@ -206,7 +206,7 @@ contains
     class DEFAULT
        assert(.false.) 
     end select
-		
+						
 				call this%fe_function%free() 
 				call this%fe_Dir_function%free() 
 				! ****************************************************************************************************
@@ -309,6 +309,7 @@ contains
     class DEFAULT
        assert(.false.) 
     end select
+				
   end subroutine solve_system
   
   subroutine check_solution(this)

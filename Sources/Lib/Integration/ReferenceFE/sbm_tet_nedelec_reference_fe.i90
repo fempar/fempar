@@ -1153,6 +1153,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
   type(allocatable_array_ip2_t), allocatable :: own_node_permutations(:)
   integer(ip) :: icomp, orient, offcomponent 
+		
+		type(point_t), pointer              :: quad_points_coordinates(:)
 
   assert ( .not. this%basis_changed )
   assert ( this%conformity .and. this%continuity )
@@ -1168,18 +1170,18 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
        __LINE__)
 
   ! Create a 1D scalar lagrangian reference FE of order k-1,  ! P_{k-1}
-  call fe_1D%create(topology          = this%get_topology(), &
-       num_dims = 1,                   &
-       order             = this%order-1,        & 
-       field_type        = field_type_scalar,   &
-       conformity        = .true. )
+  call fe_1D%create(topology    = this%get_topology(), &
+                    num_dims    = 1,                   &
+                    order       = this%order-1,        & 
+                    field_type  = field_type_scalar,   &
+                    conformity  = .true. )
 
   ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
   call d_fe_geo%create(topology          = this%get_topology(), &
-       num_dims = this%num_dims, &
-       order             = 1, &
-       field_type        = field_type_scalar, &
-       conformity        = .true. )
+                       num_dims = this%num_dims, &
+                       order             = 1, &
+                       field_type        = field_type_scalar, &
+                       conformity        = .false. )
 
   call this%create_edge_quadrature( edge_quadrature )
 
@@ -1227,7 +1229,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
            do jshape=1, edget_interpolation%num_shape_functions
               call this%get_value(edget_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
-                   + shape_test * v_shape_trial * tangent * factor
+                                                        + shape_test * v_shape_trial * tangent * factor
            end do
         end do
      end do
@@ -1236,11 +1238,11 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
   if ( this%num_dims == 3 .and. this%order > 1 ) then 
      ! Create a 2D scalar reference_fe of order P_{k-2,k-2} x P_{k-2,k-2}
-     call fe_2D%create(topology          = this%get_topology(), &
-          num_dims = 2,                   &
-          order             = this%order-2,        &
-          field_type        = field_type_scalar,   &
-          conformity        = .true. )
+     call fe_2D%create(topology    = this%get_topology(), &
+                       num_dims    = 2,                   &
+                       order       = this%order-2,        &
+                       field_type  = field_type_scalar,   &
+                       conformity  = .true. )
 
      call this%create_facet_quadrature( facet_quadrature )
      call fe_2D%create_interpolation( facet_quadrature, interpolation_2D )
@@ -1303,11 +1305,11 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   if ( num_interior_moments > 0 ) then 
 
      ! Create dim-D Lagrangian polynomial of order k-d 
-     call fe%create(topology           = this%get_topology(),               &
-          num_dims  = this%num_dims,            &
-          order              = this%order-this%num_dims, &
-          field_type         = field_type_vector,                 &
-          conformity         = .true.                            )
+     call fe%create(topology    = this%get_topology(),      &
+                    num_dims    = this%num_dims,            &
+                    order       = this%order-this%num_dims, &
+                    field_type  = field_type_vector,        &
+                    conformity  = .true.                    )
 
      call this%create_quadrature( cell_quadrature )
      call fe%create_interpolation( cell_quadrature, interpolation )
@@ -1323,9 +1325,11 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      end do
      call cell_map%update(cell_quadrature)
 
+					quad_points_coordinates => cell_map%get_quadrature_points_coordinates() 
+					
      ! Integration of interior moments 
-     ! 2D CASE: int_K (u·q), q \in P_{k-2,k-2} x Q_{k-2,k-2} 
-     ! 3D CASE: int_K (u·q), q \in P_{k-3,k-3,k-3} x Q_{k-3,k-3,k-3} x Q_{k-3,k-3,k-3}     
+     ! 2D CASE: int_K (u·q), q \in P_{k-2,k-2} x P_{k-2,k-2} 
+     ! 3D CASE: int_K (u·q), q \in P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3}     
      do qpoint = 1, cell_quadrature%num_quadrature_points
         factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
         do ishape=1, interpolation%num_shape_functions*fe%num_dims
@@ -1469,7 +1473,6 @@ subroutine tet_nedelec_reference_fe_evaluate_vector_function_moments(this, cell_
 		integer(ip)                         :: facet_id, facet_lid
   type(tet_lagrangian_reference_fe_t) :: fe_2D
 		type(interpolation_t)               :: interpolation_2D 
-		type(cell_map_t)                    :: cell_map_2D 
   type(quadrature_t)                  :: facet_quadrature
 		type(facet_map_t)                   :: facet_map
 		type(point_t), pointer              :: facet_map_coordinates(:)
@@ -1482,9 +1485,10 @@ subroutine tet_nedelec_reference_fe_evaluate_vector_function_moments(this, cell_
 		  ! Local variables required by interior moments integration
   type(tet_lagrangian_reference_fe_t) :: fe
   type(quadrature_t)                  :: cell_quadrature
-  type(interpolation_t)               :: interpolation
+  type(interpolation_t)               :: interpolation 
   integer(ip)                         :: num_interior_moments
   type(vector_field_t)                :: v_shape_test
+		type(vector_field_t)                :: mapped_shape_test 
 
   ! Common integration 
 		integer(ip)                         :: vertex_within_cell_id
@@ -1553,7 +1557,7 @@ subroutine tet_nedelec_reference_fe_evaluate_vector_function_moments(this, cell_
         call edge_map%get_tangent(qpoint, tangent)
         do ishape=1, interpolation_1D%num_shape_functions
            call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
-           dof_values(d+ishape) = dof_values(d+ishape) + 1.0_rp / tangent%nrm2() * function_values(qpoint) * shape_test * tangent * factor 
+           dof_values(d+ishape) = dof_values(d+ishape) + function_values(qpoint) * shape_test * tangent * factor 
         end do
      end do
 
@@ -1623,6 +1627,7 @@ subroutine tet_nedelec_reference_fe_evaluate_vector_function_moments(this, cell_
 					call fe_2D%free() 
 					call interpolation_2D%free() 
 					call facet_map%free() 
+					call facet_quadrature%free()
 					deallocate( function_values, stat=istat); check(istat==0) 
   end if
 					
@@ -1640,7 +1645,7 @@ subroutine tet_nedelec_reference_fe_evaluate_vector_function_moments(this, cell_
                     num_dims   = this%num_dims,            &
                     order      = this%order-this%num_dims, &
                     field_type = field_type_vector,        &
-                    conformity = .true.                      )
+                    conformity = .true.                    )
 
      call this%create_quadrature( cell_quadrature )
      call fe%create_interpolation( cell_quadrature, interpolation )
@@ -1654,15 +1659,18 @@ subroutine tet_nedelec_reference_fe_evaluate_vector_function_moments(this, cell_
      call vector_function%get_values_set(quad_points_coordinates, function_values)
 
      ! Integration of interior moments 
-     ! 2D CASE: int_K (u·q), q \in P_{k-2,k-2} x Q_{k-2,k-2} 
-     ! 3D CASE: int_K (u·q), q \in P_{k-3,k-3,k-3} x Q_{k-3,k-3,k-3} x Q_{k-3,k-3,k-3}     
+     ! 2D CASE: int_K (g·q), q \in P_{k-2,k-2} x Q_{k-2,k-2} 
+     ! 3D CASE: int_K (g·q), q \in P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3}     
      do qpoint = 1, cell_quadrature%num_quadrature_points
         factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
-        do ishape=1, interpolation%num_shape_functions*fe%num_dims
+        do ishape=1, interpolation%num_shape_functions*fe%num_dims 
            call fe%get_value(interpolation, ishape, qpoint, v_shape_test)
-              dof_values(d+ishape) = dof_values(d+ishape) + function_values(qpoint) * v_shape_test * factor
+											mapped_shape_test = 1.0_rp/cell_map%get_det_jacobian(qpoint) * cell_map%apply_jacobian( qpoint, v_shape_test ) 
+           dof_values(d+ishape) = dof_values(d+ishape) + function_values(qpoint) * mapped_shape_test * factor 
         end do
+								!end do 
      end do
+
      call fe%free() 
 					call interpolation%free() 
 					call cell_quadrature%free() 
@@ -1812,7 +1820,7 @@ subroutine tet_nedelec_reference_fe_evaluate_boundary_function_moments(this, cel
 								do ishape = 1, interpolation_1D%num_shape_functions 
 								   idof = own_dofs%get_current() 
            call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
-           dof_values(idof) = dof_values(idof) + 1.0_rp / tangent%nrm2() * function_values(qpoint,1) * shape_test * tangent * factor 
+           dof_values(idof) = dof_values(idof) + function_values(qpoint,1) * shape_test * tangent * factor 
 											call own_dofs%next() 
         end do							
      end do
