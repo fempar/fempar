@@ -695,6 +695,8 @@ contains
     character(len=:), allocatable            :: prefix
     real(rp),allocatable :: cell_vector(:)
     real(rp),allocatable :: cell_vector_set_ids(:)
+    real(rp), allocatable :: cell_rel_pos(:)
+    real(rp), allocatable :: cell_in_aggregate(:)
     integer(ip) :: N, P, pid, i
     class(cell_iterator_t), allocatable :: cell
     
@@ -714,6 +716,8 @@ contains
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
         call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),cell_vector_set_ids,__FILE__,__LINE__)
+        call memalloc(this%triangulation%get_num_cells(),cell_rel_pos,__FILE__,__LINE__)
+        call memalloc(this%triangulation%get_num_cells(),cell_in_aggregate,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggrs_ids,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggrs_ids_color,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggregate_ids_color,__FILE__,__LINE__)
@@ -738,16 +742,38 @@ contains
         end do
         call this%triangulation%free_cell_iterator(cell)
 
+        cell_rel_pos(:) = 0.0_rp
         call this%triangulation%create_cell_iterator(cell)
         do while (.not. cell%has_finished())
           cell_vector_set_ids(cell%get_gid()) = cell%get_set_id()
+          if (cell%is_cut()) then
+            cell_rel_pos(cell%get_gid()) = 0.0_rp
+          else if (cell%is_interior()) then
+            cell_rel_pos(cell%get_gid()) = -1.0_rp
+          else if (cell%is_exterior()) then
+            cell_rel_pos(cell%get_gid()) = 1.0_rp
+          else
+            mcheck(.false.,'Cell can only be either interior, exterior or cut')
+          end if
           call cell%next()
         end do
-        call this%triangulation%free_cell_iterator(cell)
 
+        cell_in_aggregate(:) = 0.0_rp
+        call cell%first()
+        do while (.not. cell%has_finished())
+          if (cell%is_cut()) then
+            cell_in_aggregate(cell%get_gid()) = 1.0_rp
+            cell_in_aggregate(aggregate_ids(cell%get_gid())) = 1.0_rp
+          end if
+          call cell%next()
+        end do
+
+        call this%triangulation%free_cell_iterator(cell)
 
         call oh%add_cell_vector(cell_vector,'cell_ids')
         call oh%add_cell_vector(cell_vector_set_ids,'cell_set_ids')
+        call oh%add_cell_vector(cell_rel_pos,'cell_rel_pos')
+        call oh%add_cell_vector(cell_in_aggregate,'cell_in_aggregate')
         
         call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
         call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
@@ -758,6 +784,8 @@ contains
         call oh%free()
         call memfree(cell_vector,__FILE__,__LINE__)
         call memfree(cell_vector_set_ids,__FILE__,__LINE__)
+        call memfree(cell_rel_pos,__FILE__,__LINE__)
+        call memfree(cell_in_aggregate,__FILE__,__LINE__)
         call memfree(aggrs_ids,__FILE__,__LINE__)
         call memfree(aggrs_ids_color,__FILE__,__LINE__)
         call memfree(aggregate_ids_color,__FILE__,__LINE__)
