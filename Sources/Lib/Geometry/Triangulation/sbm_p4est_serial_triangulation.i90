@@ -591,13 +591,13 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                     if (is_proper) then
                        improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
                        if ( (edge_face-1)/2 == 0 ) then ! if edge_face == 1 .or. edge_face == 2
-                          if ( mod(edge_face,2) /= 0 ) then
-                             improper_cell_around_subvef  = 1
-                          else
-                             improper_cell_around_subvef  = 2
-                          end if
+                          improper_cell_around_subvef = (isubface+1)/2
                        else
-                          improper_cell_around_subvef = (edge_face+1)/2
+                         if ( mod(isubface,2) /= 0 ) then
+                           improper_cell_around_subvef  = 1
+                         else
+                           improper_cell_around_subvef  = 2
+                         end if
                        end if
                     end if
                  else

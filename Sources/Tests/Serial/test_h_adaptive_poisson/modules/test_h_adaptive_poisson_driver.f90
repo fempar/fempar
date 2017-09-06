@@ -140,6 +140,20 @@ contains
     integer(ip) :: i
     
     call this%triangulation%create(this%parameter_list)
+    
+    if ( .not. this%test_params%get_use_void_fes() ) then
+      call this%triangulation%create_vef_iterator(vef)
+      do while ( .not. vef%has_finished() )
+        if(vef%is_at_boundary()) then
+          call vef%set_set_id(1)
+        else
+          call vef%set_set_id(0)
+        end if
+        call vef%next()
+      end do
+      call this%triangulation%free_vef_iterator(vef)
+    end if 
+   
     do i = 1,2
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
@@ -250,18 +264,6 @@ contains
         call this%triangulation%free_vef_iterator(vef_of_vef)
         call this%triangulation%free_cell_iterator(cell)
         
-      else
-      
-         call this%triangulation%create_vef_iterator(vef)
-         do while ( .not. vef%has_finished() )
-            if(vef%is_at_boundary()) then
-               call vef%set_set_id(1)
-            else
-               call vef%set_set_id(0)
-            end if
-            call vef%next()
-         end do
-         call this%triangulation%free_vef_iterator(vef)
       end if
     
     end if
@@ -312,7 +314,7 @@ contains
 
     else if (this%triangulation%get_num_dims() == 3) then    
       do while ( .not. cell%has_finished() )
-          if ( (cell%get_gid()==7) .or. (cell%get_level() == 0) )then
+          if ( (cell%get_gid()==6) .or. (cell%get_level() == 0) )then
           call cell%set_for_refinement()
         end if
         call cell%next()
