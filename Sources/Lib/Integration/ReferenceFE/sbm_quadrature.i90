@@ -197,7 +197,7 @@ function get_from_hex(this)
   end if
 end function get_from_hex
 
-subroutine quadrature_fill_tet_gauss_legendre_hard_coded ( this ) 
+subroutine quadrature_fill_tet_gauss_legendre_symmetric_hard_coded ( this ) 
   !-----------------------------------------------------------------------
   ! 
   !     This routine sets up the integration constants of open rules for
@@ -754,7 +754,7 @@ subroutine quadrature_fill_tet_gauss_legendre_hard_coded ( this )
      end if
   end if
 
-end subroutine quadrature_fill_tet_gauss_legendre_hard_coded
+end subroutine quadrature_fill_tet_gauss_legendre_symmetric_hard_coded
 
 subroutine quadrature_fill_hex_gauss_legendre(this)
   implicit none
@@ -842,20 +842,18 @@ subroutine legendre_compute_glr ( n, x, w )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) N, the order.
+!    Input, integer ( ip ) N, the order.
 !
-!    Output, real ( kind = 8 ) X(N), the abscissas.
+!    Output, real ( rp ) X(N), the abscissas.
 !
-!    Output, real ( kind = 8 ) W(N), the weights.
+!    Output, real ( rp ) W(N), the weights.
 !
   implicit none
-
-  integer ( kind = 4 ) n
-
-  real ( kind = 8 ) p
-  real ( kind = 8 ) pp
-  real ( kind = 8 ) w(n)
-  real ( kind = 8 ) x(n)
+  integer(ip), intent(in)  :: n
+  real(rp)   , intent(out) :: w(n)
+  real(rp)   , intent(out) :: x(n)
+  real(rp) :: p
+  real(rp) :: pp
 !
 !  Get the value and derivative of the N-th Legendre polynomial at 0.0.
 !
@@ -887,7 +885,6 @@ subroutine legendre_compute_glr ( n, x, w )
 
   w(1:n) = 2.0_rp * w(1:n) / sum ( w(1:n) )
 
-  return
 end subroutine legendre_compute_glr
 
 subroutine legendre_compute_glr0 ( n, p, pp )
@@ -918,23 +915,22 @@ subroutine legendre_compute_glr0 ( n, p, pp )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) N, the order of the Legendre polynomial.
+!    Input, integer ( ip ) N, the order of the Legendre polynomial.
 !
-!    Output, real ( kind = 8 ) P, PP, the value of the N-th Legendre polynomial
+!    Output, real ( rp ) P, PP, the value of the N-th Legendre polynomial
 !    and its derivative at 0.
 !
   implicit none
+  integer(ip), intent(in)  :: n
+  real(rp)   , intent(out) :: p
+  real(rp)   , intent(out) :: pp
 
-  integer ( kind = 4 ) n
-
-  integer ( kind = 4 ) k
-  real ( kind = 8 ) p
-  real ( kind = 8 ) pm1
-  real ( kind = 8 ) pm2
-  real ( kind = 8 ) pp
-  real ( kind = 8 ) ppm1
-  real ( kind = 8 ) ppm2
-  real ( kind = 8 ) rk
+  integer(ip) :: k
+  real(rp)    :: pm1
+  real(rp)    :: pm2
+  real(rp)    :: ppm1
+  real(rp)    :: ppm2
+  real(rp)    :: rk
 !
 !  Compute coefficients of P_m(0), Pm'(0), m = 0,..,N
 !
@@ -944,7 +940,7 @@ subroutine legendre_compute_glr0 ( n, p, pp )
   ppm1 = 0.0_rp
 
   do k = 0, n - 1
-    rk = real ( k, kind = 8 )
+    rk = real ( k, rp )
     p = - rk * pm2 / ( rk + 1.0_rp )
     pp = ( ( 2.0_rp * rk + 1.0_rp ) * pm1 &
                      - rk             * ppm2 ) &
@@ -955,7 +951,6 @@ subroutine legendre_compute_glr0 ( n, p, pp )
     ppm1 = pp
   end do
 
-  return
 end subroutine legendre_compute_glr0
 
 subroutine legendre_compute_glr1 ( n, x, w )
@@ -992,41 +987,37 @@ subroutine legendre_compute_glr1 ( n, x, w )
 !
 !  Parameters:
 !
-!    Input, integer ( kind = 4 ) N, the order of the Legendre polynomial.
+!    Input, integer ( ip ) N, the order of the Legendre polynomial.
 !
-!    Input/output, real ( kind = 8 ) X(N).  On input, a starting value
+!    Input/output, real(rp)    :: X(N).  On input, a starting value
 !    has been set in one entry.  On output, the roots of the Legendre 
 !    polynomial.
 !
-!    Input/output, real ( kind = 8 ) W(N).  On input, a starting value
+!    Input/output, real(rp)    :: W(N).  On input, a starting value
 !    has been set in one entry.  On output, the derivatives of the Legendre 
 !    polynomial at the zeros.
 !
 !  Local Parameters:
 !
-!    Local, integer ( kind = 4 ) M, the number of terms in the Taylor expansion.
+!    Local, integer ( ip ) M, the number of terms in the Taylor expansion.
 !
   implicit none
+  integer(ip), intent(in)  :: n
+  real(rp)   , intent(out) :: w(n)
+  real(rp)   , intent(out) :: x(n)
+  integer(ip), parameter   :: m = 30
 
-  integer ( kind = 4 ), parameter :: m = 30
-  integer ( kind = 4 ) n
-
-  real ( kind = 8 ) dk
-  real ( kind = 8 ) dn
-  real ( kind = 8 ) h
-  integer ( kind = 4 ) j
-  integer ( kind = 4 ) k
-  integer ( kind = 4 ) l
-  integer ( kind = 4 ) n2
-  real ( kind = 8 ), parameter :: pi = 3.141592653589793_rp
-  !real ( kind = 8 ) rk2_leg
-  integer ( kind = 4 ) s
-  !real ( kind = 8 ) ts_mult
-  real ( kind = 8 ) u(m+2)
-  real ( kind = 8 ) up(m+1)
-  real ( kind = 8 ) w(n)
-  real ( kind = 8 ) x(n)
-  real ( kind = 8 ) xp
+  real(rp)    :: dk
+  real(rp)    :: dn
+  real(rp)    :: h
+  integer(ip) :: j
+  integer(ip) :: k
+  integer(ip) :: l
+  integer(ip) :: n2
+  integer(ip) :: s
+  real(rp)    :: u(m+2)
+  real(rp)    :: up(m+1)
+  real(rp)    :: xp
 
   if ( mod ( n, 2 ) == 1 ) then
     n2 = ( n - 1 ) / 2 - 1
@@ -1036,7 +1027,7 @@ subroutine legendre_compute_glr1 ( n, x, w )
     s = 0
   end if
 
-  dn = real ( n, kind = 8 )
+  dn = real ( n, rp )
 
   do j = n2 + 1, n - 2
 
@@ -1053,7 +1044,7 @@ subroutine legendre_compute_glr1 ( n, x, w )
 
     do k = 0, m - 2
 
-      dk = real ( k, kind = 8 )
+      dk = real ( k, rp )
 
       u(k+4) = &
       ( &
@@ -1080,7 +1071,6 @@ subroutine legendre_compute_glr1 ( n, x, w )
     w(k+1) = w(n-1-k+1)
   end do
 
-  return
 end subroutine legendre_compute_glr1
 
 subroutine legendre_compute_glr2 ( pn0, n, x1, d1 )
@@ -1115,49 +1105,47 @@ subroutine legendre_compute_glr2 ( pn0, n, x1, d1 )
 !
 !  Parameters:
 !
-!    Input, real ( kind = 8 ) PN0, the value of the N-th Legendre polynomial
+!    Input, real(rp)    :: PN0, the value of the N-th Legendre polynomial
 !    at 0.
 !
-!    Input, integer ( kind = 4 ) N, the order of the Legendre polynomial.
+!    Input, integer(ip) :: N, the order of the Legendre polynomial.
 !
-!    Output, real ( kind = 8 ) X1, the first real root.
+!    Output, real(rp)    :: X1, the first real root.
 !
-!    Output, real ( kind = 8 ) D1, the derivative at X1.
+!    Output, real(rp)    :: D1, the derivative at X1.
 !
 !  Local Parameters:
 !
-!    Local, integer ( kind = 4 ) M, the number of terms in the Taylor expansion.
+!    Local, integer(ip) :: M, the number of terms in the Taylor expansion.
 !
   implicit none
+  real(rp)   , intent(in)  :: pn0
+  integer(ip), intent(in)  :: n
+  real(rp)   , intent(out) :: x1
+  real(rp)   , intent(out) :: d1
+  integer(ip), parameter   :: m = 30
 
-  integer ( kind = 4 ), parameter :: m = 30
-
-  real ( kind = 8 ) d1
-  real ( kind = 8 ) eps
-  integer ( kind = 4 ) i
-  integer ( kind = 4 ) k
-  integer ( kind = 4 ) kk
-  integer ( kind = 4 ) l
-  integer ( kind = 4 ) n
-  real ( kind = 8 ), parameter :: pi = 3.141592653589793_rp
-  real ( kind = 8 ) pn0
-  real ( kind = 8 ) rk
-  real ( kind = 8 ) rn
-  real ( kind = 8 ) scale
-  real ( kind = 8 ) step
-  real ( kind = 8 ) theta
-  real ( kind = 8 ) u(m+1)
-  real ( kind = 8 ) up(m+1)
-  real ( kind = 8 ) x1
-  real ( kind = 8 ) x1k(m+1)
+  real(rp)    :: eps
+  integer(ip) :: i
+  integer(ip) :: k
+  integer(ip) :: kk
+  integer(ip) :: l
+  real(rp)    :: rk
+  real(rp)    :: rn
+  real(rp)    :: scale
+  real(rp)    :: step
+  real(rp)    :: theta
+  real(rp)    :: u(m+1)
+  real(rp)    :: up(m+1)
+  real(rp)    :: x1k(m+1)
 
   k = ( n + 1 ) / 2
 
-  theta = pi * real ( 4 * k - 1, kind = 8 ) / real ( 4 * n + 2, kind = 8 )
+  theta = pi * real ( 4 * k - 1, rp ) / real ( 4 * n + 2, rp )
 
-  x1 = ( 1.0_rp - real ( n - 1, kind = 8 ) &
-    / real ( 8 * n * n * n, kind = 8 ) &
-    - 1.0_rp / real ( 384 * n * n * n * n, kind = 4 ) &
+  x1 = ( 1.0_rp - real ( n - 1, rp ) &
+    / real ( 8 * n * n * n, rp ) &
+    - 1.0_rp / real ( 384 * n * n * n * n, ip ) &
     * ( 39.0_rp - 28.0_rp / ( sin ( theta ) * sin ( theta ) ) ) ) &
     * cos ( theta )
 !
@@ -1170,13 +1158,13 @@ subroutine legendre_compute_glr2 ( pn0, n, x1, d1 )
   u(1:m+1) = 0.0_rp
   up(1:m+1) = 0.0_rp
 
-  rn = real ( n, kind = 8 )
+  rn = real ( n, rp )
 
   u(1) = pn0
 
   do k = 0, m - 2, 2
 
-    rk = real ( k, kind = 8 )
+    rk = real ( k, rp )
 
     u(k+3) = ( rk * ( rk + 1.0_rp ) - rn * ( rn + 1.0_rp ) ) * u(k+1) &
       / ( rk + 1.0_rp ) / ( rk + 2.0_rp ) / scale / scale
@@ -1214,7 +1202,6 @@ subroutine legendre_compute_glr2 ( pn0, n, x1, d1 )
 
   d1 = dot_product ( up(1:m+1), x1k(1:m+1) )
 
-  return
 end subroutine legendre_compute_glr2
 
 function rk2_leg ( t1, t2, x, n )
@@ -1238,35 +1225,35 @@ function rk2_leg ( t1, t2, x, n )
 !
 !  Parameters:
 !
-!    Input, real ( kind = 8 ) T1, T2, the range of the integration interval.
+!    Input, real(rp)    :: T1, T2, the range of the integration interval.
 !
-!    Input, real ( kind = 8 ) X, the value of X at T1.
+!    Input, real(rp)    :: X, the value of X at T1.
 !
-!    Input, integer ( kind = 4 ) N, the number of steps to take.
+!    Input, integer(ip) :: N, the number of steps to take.
 !
-!    Output, real ( kind = 8 ) RK2_LEG, the value of X at T2.
+!    Output, real(rp)    :: RK2_LEG, the value of X at T2.
 !
   implicit none
+  real(rp)   , intent(in) :: t1
+  real(rp)   , intent(in) :: t2
+  real(rp)   , intent(in) :: x
+  integer(ip), intent(in) :: n
+  integer(ip), parameter  :: m = 10
 
-  real ( kind = 8 ) f
-  real ( kind = 8 ) h
-  integer ( kind = 4 ) j
-  real ( kind = 8 ) k1
-  real ( kind = 8 ) k2
-  integer ( kind = 4 ), parameter :: m = 10
-  integer ( kind = 4 ) n
-  real ( kind = 8 ) rk2_leg
-  real ( kind = 8 ) snn1
-  real ( kind = 8 ) t
-  real ( kind = 8 ) t1
-  real ( kind = 8 ) t2
-  real ( kind = 8 ) x
-  real ( kind = 8 ) x2
+  real(rp)    :: f
+  real(rp)    :: h
+  integer(ip) :: j
+  real(rp)    :: k1
+  real(rp)    :: k2
+  real(rp)    :: rk2_leg
+  real(rp)    :: snn1
+  real(rp)    :: t
+  real(rp)    :: x2
 
   x2 = x
 
-  h = ( t2 - t1 ) / real ( m, kind = 8 )
-  snn1 = sqrt ( real ( n * ( n + 1 ), kind = 8 ) )
+  h = ( t2 - t1 ) / real ( m, rp )
+  snn1 = sqrt ( real ( n * ( n + 1 ), rp ) )
   t = t1
 
   do j = 0, m - 1
@@ -1285,7 +1272,6 @@ function rk2_leg ( t1, t2, x, n )
 
   rk2_leg = x2
 
-  return
 end function rk2_leg
 
 function ts_mult ( u, h, n )
@@ -1309,25 +1295,24 @@ function ts_mult ( u, h, n )
 !
 !  Parameters:
 !
-!    Input, real ( kind = 8 ) U(N+1), the polynomial coefficients.
+!    Input, real(rp)    :: U(N+1), the polynomial coefficients.
 !    U(1) is ignored.
 !
-!    Input, real ( kind = 8 ) H, the polynomial argument.
+!    Input, real(rp)    :: H, the polynomial argument.
 !
-!    Input, integer ( kind = 4 ) N, the number of terms to compute.
+!    Input, integer(ip) :: N, the number of terms to compute.
 !
-!    Output, real ( kind = 8 ) TS_MULT, the value of the polynomial.
+!    Output, real(rp)    :: TS_MULT, the value of the polynomial.
 !
   implicit none
+  integer(ip), intent(in) :: n
+  real(rp)   , intent(in) :: h
+  real(rp)   , intent(in) :: u(n+1)
 
-  integer ( kind = 4 ) n
-
-  real ( kind = 8 ) h
-  real ( kind = 8 ) hk
-  integer ( kind = 4 ) k
-  real ( kind = 8 ) ts
-  real ( kind = 8 ) ts_mult
-  real ( kind = 8 ) u(n+1)
+  real(rp)    :: hk
+  integer(ip) :: k
+  real(rp)    :: ts
+  real(rp)    :: ts_mult
   
   ts = 0.0_rp
   hk = 1.0_rp
@@ -1338,5 +1323,4 @@ function ts_mult ( u, h, n )
 
   ts_mult = ts
 
-  return
 end function ts_mult

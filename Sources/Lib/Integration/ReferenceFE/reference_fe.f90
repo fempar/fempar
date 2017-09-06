@@ -94,7 +94,7 @@ module reference_fe_names
      procedure, non_overridable :: get_weights => quadrature_get_weights
 
      procedure, non_overridable          :: fill_tet_gauss_legendre            => quadrature_fill_tet_gauss_legendre
-     procedure, non_overridable, private :: fill_tet_gauss_legendre_hard_coded => quadrature_fill_tet_gauss_legendre_hard_coded
+     procedure, non_overridable, private :: fill_tet_gauss_legendre_hard_coded => quadrature_fill_tet_gauss_legendre_symmetric_hard_coded
      procedure, non_overridable          :: fill_hex_gauss_legendre            => quadrature_fill_hex_gauss_legendre
   end type quadrature_t
 
