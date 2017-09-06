@@ -191,7 +191,7 @@ function hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around(this, icell_a
   integer(ip)                          , intent(in)    :: icell_around
   integer(ip)                                          :: facet_lpos_within_cell_around
   if ( .not. this%is_proper() .and. icell_around == 2 ) then
-    facet_lpos_within_cell_around = this%get_improper_cell_around_ivef()
+    facet_lpos_within_cell_around = this%get_improper_cell_around_ivef(1)
   else
     facet_lpos_within_cell_around = &
       this%fe_facet_iterator_t%get_lpos_within_cell_around(icell_around)
@@ -205,7 +205,7 @@ function hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around ( this, icel
   integer(ip)                                          :: subfacet_lid
   subfacet_lid = 0
   if ( .not. this%is_proper() .and. icell_around == 2 ) then
-    subfacet_lid = this%get_improper_cell_around_subvef()
+    subfacet_lid = this%get_improper_cell_around_subvef(1)
   end if 
 end function hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around 
 
@@ -752,7 +752,7 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
            if ( .not. coarser_fe%is_void(field_id) ) exit
         end do
         if ( coarser_fe%is_void(field_id) ) cycle
-        coarser_fe_ivef = fe_vef%get_improper_cell_around_ivef()
+        coarser_fe_ivef = fe_vef%get_improper_cell_around_ivef(icell)
         call coarser_fe%get_field_fe_dofs(field_id,coarser_fe_fe_dofs)
         
         reference_fe => fe%get_reference_fe(field_id)
@@ -790,26 +790,10 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
   call this%p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_dirichlet_dofs)
   call this%constraining_dirichlet_dofs%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
   call this%constraining_dirichlet_dofs_coefficients%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
-
-  wassert( this%get_num_fields()==1 , 'The following code only valid for single-field cases' )
   
   ! Computation of constraints     
   do improper_vef_lid = 1, this%p4est_triangulation%get_num_improper_vefs()
      call fe_vef%set_gid(-improper_vef_lid)
-
-     call fe_vef%get_cell_around(1,fe)
-     improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
-     call fe%get_field_fe_dofs(1,fe_dofs)
-
-     ! Here we need to find the first non-void coarser_fe in this field. In 2d, the first non-void coarser_fe is always the first
-     ! one (if it exists). But this is not true in 3d. Thus, taking the first coarser_fe in the next line is correct only in 2d.
-
-     ! Retrieve all data related to the first improper cell around current improper vef
-     call fe_vef%get_improper_cell_around(1,coarser_fe)
-     call coarser_fe%get_field_fe_dofs(1,coarser_fe_fe_dofs)
-     coarser_fe_ivef  = fe_vef%get_improper_cell_around_ivef()
-     coarse_fe_subvef = fe_vef%get_improper_cell_around_subvef()
-     call coarser_fe%get_vef(coarser_fe_ivef,coarser_vef)
 
      do field_id=1, this%get_num_fields()
         
@@ -829,8 +813,8 @@ subroutine shpafs_setup_hanging_node_constraints ( this )
            if ( .not. coarser_fe%is_void(field_id) ) exit
         end do
         if ( coarser_fe%is_void(field_id) ) cycle
-        coarser_fe_ivef  = fe_vef%get_improper_cell_around_ivef()
-        coarse_fe_subvef = fe_vef%get_improper_cell_around_subvef()
+        coarser_fe_ivef  = fe_vef%get_improper_cell_around_ivef(icell)
+        coarse_fe_subvef = fe_vef%get_improper_cell_around_subvef(icell)
         call coarser_fe%get_field_fe_dofs(field_id,coarser_fe_fe_dofs)
         call coarser_fe%get_vef(coarser_fe_ivef,coarser_vef)
 

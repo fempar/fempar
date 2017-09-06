@@ -203,6 +203,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
   integer(ip) :: base_pos_icell, base_pos_min_cell
   type(std_vector_integer_ip_t) :: work_vector_cells_around
   type(std_vector_integer_ip_t) :: work_vector_improper_cells_around
+  type(std_vector_integer_ip_t) :: work_vector_ivef
+  type(std_vector_integer_ip_t) :: work_vector_subvef
   integer(ip) :: improper_cell_around_ivef
   integer(ip) :: improper_cell_around_subvef
   integer(ip) :: i
@@ -275,6 +277,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
         call work_vector_cells_around%resize(0)
         call work_vector_cells_around%push_back(icell)
         call work_vector_improper_cells_around%resize(0)
+        call work_vector_ivef%resize(0)
+        call work_vector_subvef%resize(0)
 
         ! Find face neighbours
         do iface_at_corner=1, num_faces_at_corner
@@ -325,7 +329,6 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
 
               ! 3. I am improper if am either corner 1 of subface 0 or corner 0 of subface 1
               if ( face_corner /= isubface ) then
-                 if (is_proper) then
                    if (this%get_num_dims() == 3 ) then
                     ! Distinguish among the situation where the corner is within a face 
                     ! or on its boundary, i.e., on top of an edge !!!
@@ -363,9 +366,10 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                      improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)                     
                      improper_cell_around_subvef  = -1
                    end if
-                   is_proper = .false.
-                 end if
+                 is_proper = .false.
                  call work_vector_improper_cells_around%push_back(jcell)
+                 call work_vector_ivef%push_back(improper_cell_around_ivef)
+                 call work_vector_subvef%push_back(improper_cell_around_subvef)
               else
                 min_cell   = min(min_cell,jcell)
                 if (min_cell == jcell) then
@@ -437,12 +441,12 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
 
                  !! 3. I am improper if am either corner 1 of subedge 0 or corner 0 of subedge 1
                  if ( edge_corner /= isubedge ) then
-                    if (is_proper) then
-                       improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
-                       improper_cell_around_subvef  = -1
-                    end if
+                    improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
+                    improper_cell_around_subvef  = -1
                     is_proper = .false.
                     call work_vector_improper_cells_around%push_back(jcell)
+                    call work_vector_ivef%push_back(improper_cell_around_ivef)
+                    call work_vector_subvef%push_back(improper_cell_around_subvef)
                  else
                     min_cell   = min(min_cell,jcell)
                     if (min_cell == jcell) then
@@ -517,11 +521,10 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
               call this%p4est_ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
               do i=1, work_vector_improper_cells_around%size()
                  call this%p4est_lst_improper_cells_around%push_back(work_vector_improper_cells_around%get(i))
+                 call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(work_vector_ivef%get(i))
+                 call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(work_vector_subvef%get(i)) 
               end do
-
-              call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(improper_cell_around_ivef)
-              call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(improper_cell_around_subvef)
-
+              
               ! Fill improper vefs dim
               call this%p4est_improper_vefs_dim%push_back(0)
            end if
@@ -542,6 +545,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
            call work_vector_cells_around%resize(0)
            call work_vector_cells_around%push_back(icell)
            call work_vector_improper_cells_around%resize(0)
+           call work_vector_ivef%resize(0)
+           call work_vector_subvef%resize(0)
 
            ! Find face neighbors
            do iface_at_edge=1, num_faces_at_edge_3d
@@ -588,22 +593,18 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                     end do
                     assert(edge_face<=NUM_FACE_EDGES_3D)
 
-                    if (is_proper) then
-                       improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
-                       if ( (edge_face-1)/2 == 0 ) then ! if edge_face == 1 .or. edge_face == 2
-                          improper_cell_around_subvef = (isubface+1)/2
+                    improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
+                    if ( (edge_face-1)/2 == 0 ) then ! if edge_face == 1 .or. edge_face == 2
+                       improper_cell_around_subvef = (isubface+1)/2
+                    else
+                       if ( mod(isubface,2) /= 0 ) then
+                         improper_cell_around_subvef  = 1
                        else
-                         if ( mod(isubface,2) /= 0 ) then
-                           improper_cell_around_subvef  = 1
-                         else
-                           improper_cell_around_subvef  = 2
-                         end if
+                         improper_cell_around_subvef  = 2
                        end if
                     end if
                  else
-                    if (is_proper) then
-                       improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
-                    end if
+                    improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
                     if ( min_cell_int_edge == jcell ) then
                       improper_cell_around_subvef  = -isubface
                     end if  
@@ -611,6 +612,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                 
                  is_proper = .false.
                  call work_vector_improper_cells_around%push_back(jcell)
+                 call work_vector_ivef%push_back(improper_cell_around_ivef)
+                 call work_vector_subvef%push_back(improper_cell_around_subvef)
               end if
            end do ! iface_at_edge
 
@@ -638,13 +641,12 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                     end if
                  end do
                  assert(isubedge<=num_subedgets_edget)
-
-                 if (is_proper) then
-                    improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
-                    improper_cell_around_subvef  = isubedge
-                 end if
+                 improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
+                 improper_cell_around_subvef  = isubedge
                  is_proper = .false.
                  call work_vector_improper_cells_around%push_back(jcell)
+                 call work_vector_ivef%push_back(improper_cell_around_ivef)
+                 call work_vector_subvef%push_back(improper_cell_around_subvef)
               end if
            end if
 
@@ -684,10 +686,9 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
                  call this%p4est_ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
                  do i=1, work_vector_improper_cells_around%size()
                     call this%p4est_lst_improper_cells_around%push_back(work_vector_improper_cells_around%get(i))
+                    call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(work_vector_ivef%get(i))
+                    call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(work_vector_subvef%get(i)) 
                  end do
-
-                 call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(improper_cell_around_ivef)
-                 call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(improper_cell_around_subvef)
 
                  ! Fill improper vefs dim
                  call this%p4est_improper_vefs_dim%push_back(1)
@@ -710,6 +711,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
         call work_vector_cells_around%resize(0)
         call work_vector_cells_around%push_back(icell)
         call work_vector_improper_cells_around%resize(0)
+        call work_vector_ivef%resize(0)
+        call work_vector_subvef%resize(0)
 
         jcell_iconn = this%quad_to_face(iface,icell)         
 
@@ -734,13 +737,13 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
               vef_at_boundary = .true.
            end if
         else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
-           if (is_proper) then
-              improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
-              improper_cell_around_subvef  = mortar
-           end if
+           improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
+           improper_cell_around_subvef  = mortar
            jcell      = this%quad_to_quad(iface,icell)+1
            is_proper = .false. 
            call work_vector_improper_cells_around%push_back(jcell)
+           call work_vector_ivef%push_back(improper_cell_around_ivef)
+           call work_vector_subvef%push_back(improper_cell_around_subvef)
         end if
 
         base_pos_icell    = this%get_ptr_vefs_x_cell(icell)-1    + num_corners_x_cell + num_edges_x_cell
@@ -782,10 +785,9 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
               call this%p4est_ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
               do i=1, work_vector_improper_cells_around%size()
                  call this%p4est_lst_improper_cells_around%push_back(work_vector_improper_cells_around%get(i))
+                 call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(work_vector_ivef%get(i))
+                 call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(work_vector_subvef%get(i)) 
               end do
-
-              call this%p4est_improper_vefs_improper_cell_around_ivef%push_back(improper_cell_around_ivef)
-              call this%p4est_improper_vefs_improper_cell_around_subvef%push_back(improper_cell_around_subvef)
 
               ! Fill improper vefs dim
               call this%p4est_improper_vefs_dim%push_back(this%get_num_dims()-1)
@@ -803,6 +805,8 @@ subroutine p4est_st_update_lst_vefs_lids_and_cells_around(this, old_lst_vefs_lid
   call this%std_vector_transform_length_to_header(this%p4est_ptr_improper_cells_around)
   call work_vector_cells_around%free()
   call work_vector_improper_cells_around%free()
+  call work_vector_ivef%free()
+  call work_vector_subvef%free()
 #else
   call this%not_enabled_error()
 #endif    
