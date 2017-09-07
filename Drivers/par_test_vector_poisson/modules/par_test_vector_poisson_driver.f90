@@ -340,14 +340,14 @@ end subroutine free_timers
                                                    fe_type = fe_type_lagrangian, &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
-                                                   field_type = field_type_scalar, &
+                                                   field_type = field_type_vector, &
                                                    conformity = .true. )
       if (this%test_params%get_use_void_fes()) then
         this%reference_fes(PAR_TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_void, &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = -1, &
-                                                   field_type = field_type_scalar, &
+                                                   field_type = field_type_vector, &
                                                    conformity = .true. )
       end if
       call this%triangulation%free_cell_iterator(cell)
@@ -388,6 +388,7 @@ end subroutine free_timers
     end if
     
     call this%fe_space%set_up_cell_integration()
+    call this%fe_space%set_up_facet_integration()
     !call this%fe_space%print()
   end subroutine setup_fe_space
   
@@ -569,17 +570,19 @@ end subroutine free_timers
     error_tolerance = 1.0e-06
 #endif    
     
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+    if ( this%par_environment%am_i_l1_root() ) then
+      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+    end if
     call error_norm%free()
   end subroutine check_solution_vector
   
