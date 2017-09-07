@@ -26,6 +26,19 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+subroutine base_fe_space_free_blocks_dof_import ( this )
+  implicit none
+  class(base_fe_space_t), intent(inout) :: this 
+  integer(ip) :: i, istat
+  if ( allocated ( this%blocks_dof_import ) ) then
+    do i=1, size(this%blocks_dof_import)
+      call this%blocks_dof_import(i)%free()
+    end do
+    deallocate(this%blocks_dof_import, stat=istat)
+    check(istat == 0)
+  end if
+end subroutine base_fe_space_free_blocks_dof_import 
+
 ! IMPORTANT NOTE: this%num_fields is set and consistent on ALL MPI tasks
 !                 therefore no need to do MPI task-level dispatching 
 function base_fe_space_get_num_fields ( this )

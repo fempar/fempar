@@ -95,7 +95,7 @@ subroutine p4est_cell_iterator_set_set_id(this,set_id)
   class(p4est_cell_iterator_t), intent(inout) :: this
   integer(ip)                 ,  intent(in)   :: set_id
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  call this%p4est_triangulation%p4est_cell_set_ids%set(this%get_gid(),set_id)
+  call this%p4est_triangulation%cell_set_ids%set(this%get_gid(),set_id)
 end subroutine p4est_cell_iterator_set_set_id
 
 function p4est_cell_iterator_get_set_id(this)
@@ -103,7 +103,7 @@ function p4est_cell_iterator_get_set_id(this)
   class(p4est_cell_iterator_t), intent(in) :: this
   integer(ip) :: p4est_cell_iterator_get_set_id
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_get_set_id = this%p4est_triangulation%p4est_cell_set_ids%get(this%get_gid())
+  p4est_cell_iterator_get_set_id = this%p4est_triangulation%cell_set_ids%get(this%get_gid())
 end function p4est_cell_iterator_get_set_id
 
 function p4est_cell_iterator_get_level(this)
@@ -145,7 +145,7 @@ function p4est_cell_iterator_get_vef_gid (this, vef_lid)
   integer(ip)                 , intent(in) :: vef_lid
   integer(ip)                        :: p4est_cell_iterator_get_vef_gid
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_get_vef_gid = this%p4est_triangulation%p4est_lst_vefs_lids%get(this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())+vef_lid-1)
+  p4est_cell_iterator_get_vef_gid = this%p4est_triangulation%lst_vefs_gids%get(this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())+vef_lid-1)
 end function p4est_cell_iterator_get_vef_gid
 
 function p4est_cell_iterator_get_vefs_gid (this)
@@ -156,7 +156,7 @@ function p4est_cell_iterator_get_vefs_gid (this)
   integer(ip) :: spos, epos
   spos = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())
   epos = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid()+1)-1
-  p4est_cell_iterator_get_vefs_gid => this%p4est_triangulation%p4est_lst_vefs_lids%get_pointer_to_range(spos,epos)
+  p4est_cell_iterator_get_vefs_gid => this%p4est_triangulation%lst_vefs_gids%get_pointer_to_range(spos,epos)
 end function p4est_cell_iterator_get_vefs_gid
 
 function p4est_cell_iterator_get_vef_ggid (this, vef_lid)
@@ -225,6 +225,30 @@ function p4est_cell_iterator_is_ghost (this)
   p4est_cell_iterator_is_ghost = .false.
 end function p4est_cell_iterator_is_ghost
 
+function p4est_cell_iterator_is_equal(this,quad_level,quad_linear_id)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip)                 , intent(in) :: quad_level
+  integer(ip)                 , intent(in) :: quad_linear_id
+  integer(ip) :: quad_coords(2)
+  logical     :: p4est_cell_iterator_is_equal
+#ifdef ENABLE_P4EST
+  call F90_p4est_quadrant_set_morton( quad_level,                    &
+                                      int(quad_linear_id,c_int64_t), &
+                                      quad_coords(1),                &
+                                      quad_coords(2) )
+  p4est_cell_iterator_is_equal =  &
+   ( F90_p4est_is_equal(this%p4est_triangulation%quad_coords(1,this%get_gid()), &
+                           this%p4est_triangulation%quad_coords(2,this%get_gid()), &
+                           int(this%get_level(),c_int8_t),                      &
+                           quad_coords(1),                                      &
+                           quad_coords(2),                                      &
+                           int(quad_level,c_int8_t) ) /= 0 )
+#else
+  call this%p4est_triangulation%not_enabled_error()
+#endif 
+end function p4est_cell_iterator_is_equal
+
 function p4est_cell_iterator_is_ancestor(this,child_level,child_linear_id)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
@@ -253,21 +277,21 @@ subroutine p4est_cell_iterator_set_for_coarsening(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_gid(), coarsening)
+  call this%p4est_triangulation%refinement_and_coarsening_flags%set(this%get_gid(), coarsening)
 end subroutine p4est_cell_iterator_set_for_coarsening
 
 subroutine p4est_cell_iterator_set_for_refinement(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_gid(), refinement)
+  call this%p4est_triangulation%refinement_and_coarsening_flags%set(this%get_gid(), refinement)
 end subroutine p4est_cell_iterator_set_for_refinement
 
 subroutine p4est_cell_iterator_set_for_do_nothing(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  call this%p4est_triangulation%p4est_refinement_and_coarsening_flags%set(this%get_gid(), do_nothing)
+  call this%p4est_triangulation%refinement_and_coarsening_flags%set(this%get_gid(), do_nothing)
 end subroutine p4est_cell_iterator_set_for_do_nothing
 
 function p4est_cell_iterator_get_transformation_flag(this)
@@ -275,7 +299,7 @@ function p4est_cell_iterator_get_transformation_flag(this)
   class(p4est_cell_iterator_t), intent(inout) :: this
   integer(ip) :: p4est_cell_iterator_get_transformation_flag
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_get_transformation_flag = this%p4est_triangulation%p4est_refinement_and_coarsening_flags%get(this%get_gid())
+  p4est_cell_iterator_get_transformation_flag = this%p4est_triangulation%refinement_and_coarsening_flags%get(this%get_gid())
 end function p4est_cell_iterator_get_transformation_flag
 
 function p4est_cell_iterator_get_permutation_index(this, target_cell, source_vef_lid, target_vef_lid )

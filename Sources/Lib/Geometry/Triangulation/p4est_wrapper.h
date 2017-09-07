@@ -77,6 +77,7 @@ typedef struct edge_info
   p4est_locidx_t *quad_to_quad_by_edge;
   int8_t         *quad_to_edge;
   p4est_locidx_t *quad_to_half_by_edge; 
+  p4est_locidx_t quad_to_half_by_edge_size;
 }
 edge_info_t;
 

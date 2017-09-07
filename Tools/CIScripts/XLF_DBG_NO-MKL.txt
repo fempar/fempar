@@ -1,0 +1,131 @@
+##################################
+# GET SUBMODULE SOURCES
+##################################
+
+FEMPARTGZ=fempar.tgz
+FEMPARDIR=fempar
+
+git submodule update --init --recursive
+
+tar czvf fempar.tgz .git *
+
+scp -i /usr/share/vsande_ssh/id_rsa_vsande fempar.tgz hhv005@juqueen4.fz-juelich.de:/homea/hhv00/hhv005/
+rm fempar.tgz 
+
+##################################
+# THE FOLLOWING COMMANDS RUN 
+# REMOTELY ON JUQUEEN USING
+# A SSH SESSION
+##################################
+
+ssh -T -i /usr/share/vsande_ssh/id_rsa_vsande hhv005@juqueen4.fz-juelich.de  << EOF
+
+##################################
+# LOAD MODULES
+##################################
+
+module load cmake
+module load lapack
+
+##################################
+# BUILD TYPE (DEBUG /RELEASE)
+##################################
+
+# Build type
+BUILD_TYPE=DEBUG;
+# Directory where to build the project
+BUILD_DIR=/homea/hhv00/hhv005/fempar/build;
+# Directory where to find the sources
+SOURCES_DIR=/homea/hhv00/hhv005/fempar;
+# Current directory
+CURR_DIR=/homea/hhv00/hhv005/;
+
+##################################
+# FORCE ENABLE/DISABLE LIBRARIES
+##################################
+
+MACROS=-DFEMPAR_ENABLE_MKL=OFF;
+
+##################################
+# LIBRARIES/INCLUDES PATHS
+##################################
+
+# LAPACK LIB
+LAPACKLIB=/bgsys/local/lapack/3.4.2/lib/liblapack.a;
+# BLAS LIB
+BLASLIB=/bgsys/local/lib/libesslbg.a;
+#HSL MI20 LIB
+HSLMI20LIB=/homea/hhv00/hhv005/libs/hsl_mi20-1.5.1-install/lib/libhsl_mi20.a;
+#HSL MI20 INCLUDE
+HSLMI20INC=/homea/hhv00/hhv005/libs/hsl_mi20-1.5.1-install/modules;
+#HSL MA87 LIB
+HSLMA87LIB=/homea/hhv00/hhv005/libs/hsl_ma87-2.2.0-install/lib/libhsl_ma87.a;
+#HSL MA87 INCLUDE
+HSLMA87INC=/homea/hhv00/hhv005/libs/hsl_ma87-2.2.0-install/modules;
+#METIS LIB
+METISLIB=/homea/hhv00/hhv005/libs/metis-5.1.0-install/lib/libmetis.a;
+#METIS INCLUDE
+METISINC=/homea/hhv00/hhv005/libs/metis-5.1.0-install/include;
+
+##################################
+# FORTRAN COMPILERS FULL PATHS
+# CMake find GNU compilers by default
+##################################
+
+# MPI Fortran compiler
+FORTRAN_COMPILER=-DCMAKE_Fortran_COMPILER=/bgsys/drivers/ppcfloor/comm/xl/bin/mpixlf2008_r;
+FORTRAN_COMPILER_MPI=-DMPI_Fortran_COMPILER=/bgsys/drivers/ppcfloor/comm/xl/bin/mpixlf2008_r;
+
+##################################
+# CREATE BUILD DIRECTORY
+##################################
+
+mkdir fempar;
+cd fempar;
+tar xzvf ../fempar.tgz;
+
+# Creating a clean BUILD_DIR
+rm -rf build;
+mkdir build;
+cd build;
+
+
+##################################
+# CONFIGURE, COMPILE AND TEST
+##################################
+
+cmake -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_Fortran_COMPILER=/bgsys/drivers/ppcfloor/comm/xl/bin/mpixlf2008_r -DMPI_Fortran_COMPILER=/bgsys/drivers/ppcfloor/comm/xl/bin/mpixlf2008_r -DLAPACK_LIBRARIES=/bgsys/local/lapack/3.4.2/lib/liblapack.a -DBLAS_LIBRARIES=/bgsys/local/lib/libesslbg.a -DHSL_MI20_LIBS=/homea/hhv00/hhv005/libs/hsl_mi20-1.5.1-install/lib/libhsl_mi20.a -DHSL_MI20_INCLUDES=/homea/hhv00/hhv005/libs/hsl_mi20-1.5.1-install/modules -DHSL_MA87_LIBS=/homea/hhv00/hhv005/libs/hsl_ma87-2.2.0-install/lib/libhsl_ma87.a -DHSL_MA87_INCLUDES=/homea/hhv00/hhv005/libs/hsl_ma87-2.2.0-install/modules -DMETIS_LIBS=/homea/hhv00/hhv005/libs/metis-5.1.0-install/lib/libmetis.a -DMETIS_INCLUDES=/homea/hhv00/hhv005/libs/metis-5.1.0-install/include -DFEMPAR_ENABLE_TESTS=ON ../Sources
+
+EOF
+
+ssh -i /usr/share/vsande_ssh/id_rsa_vsande hhv005@juqueen4.fz-juelich.de  "cd /homea/hhv00/hhv005/fempar/build; ctest -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild"
+
+ssh -T -i /usr/share/vsande_ssh/id_rsa_vsande hhv005@juqueen4.fz-juelich.de  << EOF
+
+cd /homea/hhv00/hhv005/
+tar czvf fempar.tgz fempar; 
+rm -rf /homea/hhv00/hhv005/fempar;
+
+EOF
+##################################
+# END OF THE SSH SESSION
+##################################
+
+scp -i /usr/share/vsande_ssh/id_rsa_vsande hhv005@juqueen4.fz-juelich.de:/homea/hhv00/hhv005//fempar.tgz fempar.tgz
+ssh -i /usr/share/vsande_ssh/id_rsa_vsande hhv005@juqueen4.fz-juelich.de rm -rf /homea/hhv00/hhv005//fempar.tgz
+tar xzvf fempar.tgz
+
+cd fempar/build
+
+##################################
+# MODIFY DART CONFIGURATION
+# AND SUBMIT
+##################################
+
+sed -i "s?SourceDirectory:.*?SourceDirectory: "$PWD"/..?g" DartConfiguration.tcl
+sed -i "s?BuildDirectory:.*?BuildDirectory: "$PWD"?g" DartConfiguration.tcl
+
+ctest -V -D ExperimentalSubmit
+
+cd ../..
+rm -rf fempar

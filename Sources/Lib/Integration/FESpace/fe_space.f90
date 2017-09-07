@@ -98,6 +98,8 @@ module fe_space_names
     ! allocation in the case of L2-Ln tasks.
     type(coarse_fe_space_t)       , pointer :: coarse_fe_space => NULL()
   contains 
+    procedure, non_overridable, private        :: free_blocks_dof_import                       => base_fe_space_free_blocks_dof_import
+    
     procedure, non_overridable                 :: get_num_fields                               => base_fe_space_get_num_fields
     procedure, non_overridable                 :: set_num_fields                               => base_fe_space_set_num_fields
     procedure, non_overridable                 :: get_fe_space_type                               => base_fe_space_get_fe_space_type
@@ -829,7 +831,7 @@ module fe_space_names
     private
     real(rp), public :: diffusion_inclusion
   contains
-	   procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix
+	   procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix_multiple
 	   procedure :: setup_weighting_operator => H1_l1_setup_weighting_operator
   end type H1_l1_coarse_fe_handler_t
   
@@ -937,7 +939,6 @@ module fe_space_names
     procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_gids_field          => coarse_fe_space_count_dofs_and_fill_lst_dof_gids_field
     procedure, non_overridable, private         :: free_lst_dofs_gids                              => coarse_fe_space_free_lst_dofs_gids
     procedure, non_overridable, private         :: free_num_dofs_x_field_and_block                 => coarse_fe_space_free_num_dofs_x_field_and_block
-    procedure, non_overridable, private         :: free_blocks_dof_import                          => coarse_fe_space_free_blocks_dof_import
     procedure, non_overridable, nopass, private :: coarse_fe_size                                  => coarse_fe_space_coarse_fe_size
     procedure, non_overridable, nopass, private :: coarse_fe_pack                                  => coarse_fe_space_coarse_fe_pack
     procedure, non_overridable, nopass, private :: coarse_fe_unpack                                => coarse_fe_space_coarse_fe_unpack
@@ -1037,8 +1038,12 @@ module fe_space_names
      procedure, non_overridable          :: free                           => fe_function_free
      generic                             :: assignment(=)                  => copy
   end type fe_function_t 
-   
-  public :: fe_function_t  
+  
+  type :: p_fe_function_t
+    class(fe_function_t), pointer :: p
+  end type p_fe_function_t
+  
+  public :: fe_function_t, p_fe_function_t
   
   type, extends(serial_fe_space_t) :: serial_hp_adaptive_fe_space_t
      !private ! UNDER QUARANTINE
@@ -1096,7 +1101,10 @@ module fe_space_names
      procedure          :: project_field_cell_to_ref_fes                               => shpafs_project_field_cell_to_ref_fes
      procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
      procedure          :: project_facet_integration_arrays                     => shpafs_project_facet_integration_arrays
-     procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
+     procedure          :: shpafs_refine_and_coarsen_single_fe_function
+     procedure          :: shpafs_refine_and_coarsen_fe_function_array
+     generic            :: refine_and_coarsen                                   => shpafs_refine_and_coarsen_single_fe_function, &
+                                                                                   shpafs_refine_and_coarsen_fe_function_array
  end type serial_hp_adaptive_fe_space_t  
  
  type, extends(fe_cell_iterator_t) :: hp_adaptive_fe_cell_iterator_t

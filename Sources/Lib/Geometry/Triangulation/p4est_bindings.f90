@@ -211,6 +211,7 @@ module p4est_bindings_names
                                                    quad_to_half, &
                                                    quad_to_quad_by_edge,&
                                                    quad_to_edge,&
+                                                   num_half_edges, &
                                                    quad_to_half_by_edge, & 
                                                    quad_to_corner, &
                                                    quadcoords, &
@@ -225,7 +226,8 @@ module p4est_bindings_names
        type(c_ptr)              , intent(out)    :: quad_to_half
        integer(P4EST_F90_LOCIDX), intent(out)    :: quad_to_quad_by_edge(12,*)
        integer(P4EST_F90_QLEVEL), intent(out)    :: quad_to_edge(12,*)
-       integer(P4EST_F90_LOCIDX), intent(out)    :: quad_to_half_by_edge(2,*)
+       integer(P4EST_F90_LOCIDX), intent(out)    :: num_half_edges
+       type(c_ptr)              , intent(inout)  :: quad_to_half_by_edge
        type(c_ptr)              , intent(out)    :: quad_to_corner
        integer(P4EST_F90_QCOORD), intent(out)    :: quadcoords(3,*)
        integer(P4EST_F90_QLEVEL), intent(out)    :: quadlevel(*)
@@ -382,6 +384,15 @@ module p4est_bindings_names
        type(c_ptr), intent(inout)  :: p8est_mesh
      end subroutine F90_p8est_mesh_destroy
      
+     !=================================================================================================================================
+     !> summary: Frees all dynamic memory involved in the quad_to_half_by_edge(:,:) work array
+     !=================================================================================================================================
+     subroutine F90_p8est_QHE_destroy(QHE) bind(c, name="F90_p8est_QHE_destroy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: QHE
+     end subroutine F90_p8est_QHE_destroy
+     
      !===========================================================================================================================
      !> summary: Provides in vxyz the coordinates in real space of a vertex given a quadrant(x,y,l) and corner ID within quadrant
      !===========================================================================================================================
@@ -429,7 +440,7 @@ module p4est_bindings_names
      end subroutine F90_p8est_get_quadrant_vertex_coordinates
      
      !=================================================================================================================================
-     !> summary: Test if a quadrant q1 is an ancestor of another quadrant q2.
+     !> summary: Return true if quadrant q1 is unequal to and an ancestor of another quadrant q2.
      !=================================================================================================================================
      function F90_p4est_is_ancestor(q1_x,q1_y,q1_level,q2_x,q2_y,q2_level) bind(c, name="F90_p4est_is_ancestor")
        use, intrinsic :: iso_c_binding
@@ -443,6 +454,22 @@ module p4est_bindings_names
        integer(P4EST_F90_QLEVEL) , value, intent(in)     :: q2_level
        integer(c_int)                                    :: F90_p4est_is_ancestor
      end function F90_p4est_is_ancestor
+     
+     !=================================================================================================================================
+     !> summary: Return true if quadrant q1 describes the same quadrant as q2.
+     !=================================================================================================================================
+     function F90_p4est_is_equal(q1_x,q1_y,q1_level,q2_x,q2_y,q2_level) bind(c, name="F90_p4est_is_equal")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       implicit none
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q1_x
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q1_y
+       integer(P4EST_F90_QLEVEL) , value, intent(in)     :: q1_level
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q2_x
+       integer(P4EST_F90_QCOORD) , value, intent(in)     :: q2_y
+       integer(P4EST_F90_QLEVEL) , value, intent(in)     :: q2_level
+       integer(c_int)                                    :: F90_p4est_is_equal
+     end function F90_p4est_is_equal
      
      !=================================================================================================================================
      !> summary: Set quadrant q Morton indices based on linear position id in uniform grid of level l.
