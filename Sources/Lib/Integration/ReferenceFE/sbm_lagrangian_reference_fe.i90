@@ -1064,11 +1064,59 @@ end function lagrangian_reference_fe_get_default_quadrature_degree
 !==================================================================================================
 subroutine lagrangian_reference_fe_evaluate_vector_function_moments(this, cell_map, vector_function, dof_values)
   class(lagrangian_reference_fe_t), intent(in)    :: this
-		class(cell_map_t)            , intent(in)    :: cell_map
-		class(vector_function_t)     , intent(in)    :: vector_function
-		real(rp) , allocatable       , intent(inout) :: dof_values(:) 
-		! To develop with nodal values 
-		check(.false.)  
+  class(cell_map_t)               , intent(in)    :: cell_map
+  class(vector_function_t)        , intent(in)    :: vector_function
+  real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+
+  type(hex_lagrangian_reference_fe_t) :: d_fe_geo 
+  type(quadrature_t), pointer         :: nodal_quadrature 
+  type(cell_map_t)                    :: cell_nodal_map  
+  type(point_t) , pointer             :: source_coordinates(:)  
+  type(point_t) , pointer             :: nodal_coordinates(:)
+  type(point_t) , pointer             :: cell_coordinates(:)
+  integer(ip)                         :: n_nodal_q_points
+  integer(ip)                         :: inode, idime 
+
+  type(vector_field_t), allocatable   :: function_values(:)
+  integer(ip)                         :: icomp, inode_scalar
+  integer(ip)                         :: istat 
+
+  dof_values = 0.0_rp 
+  source_coordinates => cell_map%get_coordinates()
+
+  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
+  call d_fe_geo%create(topology    = this%get_topology(),    &
+                       num_dims    = this%num_dims,          &
+                       order       = 1,                      &
+                       field_type  = field_type_scalar,      &
+                       conformity  = .false. )
+
+  nodal_quadrature => this%get_nodal_quadrature()				
+  n_nodal_q_points = nodal_quadrature%get_num_quadrature_points()
+  call cell_nodal_map%create(nodal_quadrature, d_fe_geo)				
+  cell_coordinates => cell_nodal_map%get_coordinates()
+  do inode = 1, size(cell_coordinates)
+     do idime = 1, this%num_dims 
+        call	cell_coordinates(inode)%set( idime, source_coordinates(inode)%get(idime) ) 
+     end do
+  end do
+  call cell_nodal_map%compute_quadrature_points_coordinates()
+  nodal_coordinates => cell_nodal_map%get_quadrature_points_coordinates()
+
+  ! Fill vector function values restricted to edge 
+  allocate ( function_values( n_nodal_q_points ), stat=istat); check(istat==0) 
+  call vector_function%get_values_set(nodal_coordinates, function_values)
+
+  ! Fill nodal_values from fe_function_values
+  do inode=1, this%num_shape_functions 
+     icomp             = this%get_component_node(inode) 
+     inode_scalar      = this%get_scalar_from_vector_node(inode)
+     dof_values(inode) = function_values(inode_scalar)%get(icomp)
+  end do
+
+  deallocate( function_values, stat=istat); check(istat==0)
+  call cell_nodal_map%free() 
+  call d_fe_geo%free() 
 end subroutine lagrangian_reference_fe_evaluate_vector_function_moments
 
 !==================================================================================================
@@ -1079,8 +1127,83 @@ subroutine lagrangian_reference_fe_evaluate_boundary_function_moments(this, cell
 		type(p_scalar_function_t), allocatable   , intent(in)    :: function_scalar_components(:)
 		real(rp) , allocatable                   , intent(inout) :: dof_values(:) 
 		real(rp) , optional                      , intent(in)    :: time 
-		! To develop 
-		check(.false.)  
+
+		type(hex_lagrangian_reference_fe_t) :: d_fe_geo 
+  type(quadrature_t), pointer         :: nodal_quadrature 
+  type(cell_map_t)                    :: cell_nodal_map  
+  type(point_t) , pointer             :: source_coordinates(:)  
+  type(point_t) , pointer             :: nodal_coordinates(:)
+  type(point_t) , pointer             :: cell_coordinates(:)
+  integer(ip)                         :: n_nodal_q_points
+  integer(ip)                         :: qpoint, inode, idime 
+
+		real(rp)                            :: time_(1)
+		real(rp), allocatable               :: scalar_function_values(:,:) ! Work-space
+		type(vector_field_t), allocatable   :: function_values(:,:)
+		type(list_iterator_t)               :: own_dofs
+  integer(ip)                         :: idof, icomp, inode_scalar
+  integer(ip)                         :: istat 
+		
+		dof_values = 0.0_rp 
+  source_coordinates => cell_map%get_coordinates()
+		if ( present(time) ) time_(1) = time
+		
+  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
+  call d_fe_geo%create(topology    = this%get_topology(),    &
+                       num_dims    = this%num_dims,          &
+                       order       = 1,                      &
+                       field_type  = field_type_scalar,      &
+                       conformity  = .false. )
+
+  nodal_quadrature => this%get_nodal_quadrature()				
+  n_nodal_q_points = nodal_quadrature%get_num_quadrature_points()
+		allocate ( function_values(n_nodal_q_points,1), stat=istat); check(istat==0)
+		call memalloc ( n_nodal_q_points, 1, scalar_function_values, __FILE__, __LINE__)
+  call cell_nodal_map%create(nodal_quadrature, d_fe_geo)				
+  cell_coordinates => cell_nodal_map%get_coordinates()
+  do inode = 1, size(cell_coordinates)
+     do idime = 1, this%num_dims 
+        call	cell_coordinates(inode)%set( idime, source_coordinates(inode)%get(idime) ) 
+     end do
+  end do
+  call cell_nodal_map%compute_quadrature_points_coordinates()
+  nodal_coordinates => cell_nodal_map%get_quadrature_points_coordinates()
+		
+				     ! Fill vector function values restricted to edge 
+     select case(this%get_field_type())
+     case ( field_type_scalar )
+        ! reference_fe MUST BE a vector-valued FE
+        assert (.false.)
+     case ( field_type_vector )
+        do icomp=1, this%get_num_field_components()
+           if(present(time)) then
+              call function_scalar_components(icomp)%p%get_values_set_space_time(nodal_coordinates,time_,scalar_function_values(1:n_nodal_q_points,:))
+           else
+              call function_scalar_components(icomp)%p%get_values_set_space(nodal_coordinates,scalar_function_values(1:n_nodal_q_points,1))
+           end if
+           do qpoint = 1, n_nodal_q_points
+              call function_values(qpoint,1)%set(icomp,scalar_function_values(qpoint,1))
+           end do
+        end do
+     case ( field_type_tensor )
+        ! reference_fe MUST BE a vector-valued FE
+        assert(.false.)
+     end select
+
+						own_dofs = this%own_dofs_n_face%create_iterator(vef_lid)
+     ! Evaluate function values at points 
+								do while ( .not. own_dofs%is_upper_bound() ) 
+								   idof         = own_dofs%get_current() 
+											icomp        = this%get_component_node(idof)
+											inode_scalar = this%get_scalar_from_vector_node(idof)
+           dof_values(idof) = function_values(inode_scalar,1)%get(icomp)
+											call own_dofs%next() 
+        end do							
+								
+		call memfree(scalar_function_values, __FILE__, __LINE__ )
+  deallocate( function_values, stat=istat); check(istat==0)
+  call cell_nodal_map%free() 
+  call d_fe_geo%free() 
 end subroutine lagrangian_reference_fe_evaluate_boundary_function_moments
 
 !**************************************************************************************************

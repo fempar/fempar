@@ -502,7 +502,6 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
      reference_fe                   => this%get_reference_fe(field_id-1)
      offset_component(field_id)     =  offset_component(field_id-1) + reference_fe%get_num_field_components() 
   end do
-
   
   assert ( associated(this%conditions) )
   call memalloc ( num_components, components_code, __FILE__, __LINE__ )
@@ -646,9 +645,8 @@ subroutine serial_fe_space_project_vector_function (this, analytical_function, f
 
   class(reference_fe_t)    , pointer     :: reference_fe 
   class(fe_cell_iterator_t), allocatable :: fe 
-  type(cell_map_t)         , pointer     :: cell_map 
 
-  integer(ip)   :: field_id 
+  integer(ip)   :: field_id, i 
   real(rp)      :: time_(1) 
 
   real(rp)  , allocatable      :: dof_values(:)  
@@ -670,9 +668,8 @@ subroutine serial_fe_space_project_vector_function (this, analytical_function, f
      call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )				
      do while (.not. fe%has_finished() )  
         if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then
-           call fe%update_integration() 
-           cell_map => fe%get_cell_map() 
-           call reference_fe%evaluate_vector_function_moments( cell_map, analytical_function, dof_values )
+           call fe%update_integration() 											
+           call reference_fe%evaluate_vector_function_moments( fe%get_cell_map(), analytical_function, dof_values )
            call fe_function%insert_nodal_values(fe, field_id, dof_values)
         end if
         call fe%next()
@@ -693,7 +690,6 @@ subroutine serial_fe_space_project_Dirichlet_boundary_vector_function (this, fe_
   class(reference_fe_t)    , pointer        :: reference_fe 
   class(fe_cell_iterator_t), allocatable    :: fe 
   type(fe_vef_iterator_t)                   :: vef 
-  type(cell_map_t) , pointer                :: cell_map 
   type(list_iterator_t)                     :: own_dofs_on_vef_iterator 	
 
   integer(ip)                :: field_id 
@@ -737,7 +733,6 @@ subroutine serial_fe_space_project_Dirichlet_boundary_vector_function (this, fe_
      do while (.not. fe%has_finished() )         
         if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) ) then 
            call fe%update_integration() 
-           cell_map  => fe%get_cell_map()  
            call fe%get_field_fe_dofs(field_id,fe_dofs)
 
            ! Loop over all vefs in FE
@@ -757,7 +752,7 @@ subroutine serial_fe_space_project_Dirichlet_boundary_vector_function (this, fe_
                                                     function_scalar_components(icomp)%p)
                  end do
 
-                 call reference_fe%evaluate_boundary_function_moments( cell_map, ivef, function_scalar_components, dof_values )
+                 call reference_fe%evaluate_boundary_function_moments( fe%get_cell_map(), ivef, function_scalar_components, dof_values )
 																	
                  own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef) 
                  do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
@@ -1482,8 +1477,8 @@ subroutine serial_fe_space_interpolate_vector( this, &
        ! Evaluate scalar function
        if(present(time)) then
          call function%get_values_set_space_time(nodal_coordinates, &
-                                                        time_, &
-                                                        fe_function_values(1:n_nodal_q_points,1:1))
+                                                 time_, &
+                                                 fe_function_values(1:n_nodal_q_points,1:1))
        else
          call function%get_values_set_space(nodal_coordinates, &
                                                    fe_function_values(1:n_nodal_q_points,1))

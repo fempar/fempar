@@ -1532,7 +1532,6 @@ subroutine hex_nedelec_reference_fe_evaluate_boundary_function_moments(this, cel
 		integer(ip)                         :: facet_lid
   type(hex_nedelec_reference_fe_t)    :: fe_2D
 		type(interpolation_t)               :: interpolation_2D 
-		type(cell_map_t)                    :: cell_map_2D 
   type(quadrature_t)                  :: facet_quadrature
 		type(facet_map_t)                   :: facet_map
 		type(point_t), pointer              :: facet_map_coordinates(:)
@@ -1586,7 +1585,7 @@ subroutine hex_nedelec_reference_fe_evaluate_boundary_function_moments(this, cel
   call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
 
   num_quad_points = edge_quadrature%get_num_quadrature_points()
-	 call memalloc ( num_quad_points, 1, scalar_function_values, __FILE__, __LINE__); 
+	 call memalloc ( num_quad_points, 1, scalar_function_values, __FILE__, __LINE__)
   allocate ( function_values(num_quad_points,1), stat=istat); check(istat==0)
   edge_map_coordinates => edge_map%get_coordinates()
 		

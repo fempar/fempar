@@ -118,11 +118,11 @@ contains
     call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe()
 	
-    this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
-                                                 fe_type = fe_type_nedelec,                                   &
-                                                 num_dims = this%triangulation%get_num_dims(), &
-                                                 order = this%test_params%get_reference_fe_order(),           &
-                                                 field_type = field_type_vector,                              &
+    this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),           &
+                                                 fe_type = fe_type_lagrangian,                         &
+                                                 num_dims = this%triangulation%get_num_dims(),         &
+                                                 order = this%test_params%get_reference_fe_order(),    &
+                                                 field_type = field_type_vector,                       &
                                                  conformity = .true. ) 
     
     call this%triangulation%free_cell_iterator(cell)
@@ -178,8 +178,9 @@ contains
 	     call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	   end if 
 				
+				! call this%fe_space%interpolate_dirichlet_values(this%solution) 
     ! call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
-    call this%fe_space%project_Dirichlet_boundary_vector_function(this%solution) 
+     call this%fe_space%project_Dirichlet_boundary_vector_function(this%solution) 
 				
 				! H(curl) PROJECTORS *********************************************************************************
 				call this%fe_function%create(this%fe_space) 
@@ -198,7 +199,18 @@ contains
 				write(*,'(a20,e32.25)') 'l2_norm:'  ,  l2
 				write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl
 							
+				WRITE(*,*) ' PROJECTED VALUES **************************************' 
 						dof_values => this%fe_function%get_free_dof_values() 
+							
+				select type (dof_values)
+    class is (serial_scalar_array_t)  
+       call dof_values%print_matrix_market(6)
+    class DEFAULT
+       assert(.false.) 
+    end select
+				
+								WRITE(*,*) ' PROJECTED BOUNDARY VALUES ********************' 
+						dof_values => this%fe_Dir_function%get_fixed_dof_values() 
 							
 				select type (dof_values)
     class is (serial_scalar_array_t)  
@@ -301,7 +313,18 @@ contains
     !   assert(.false.) 
     !end select
 				
+				WRITE(*,*) ' ANALYTICAL SOLUTION VALUES --------------------'
 						fixed_dof_values => this%solution%get_free_dof_values()
+    
+    select type (fixed_dof_values)
+    class is (serial_scalar_array_t)  
+       call fixed_dof_values%print_matrix_market(6)
+    class DEFAULT
+       assert(.false.) 
+    end select
+				
+					WRITE(*,*) ' ANALYTICAL SOLUTION BOUNDARY VALUES  ---------'
+						fixed_dof_values => this%solution%get_fixed_dof_values()
     
     select type (fixed_dof_values)
     class is (serial_scalar_array_t)  

@@ -109,15 +109,12 @@ contains
     type(vector_field_t)    , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
 
-    !call result%set(1, -point%get(2) )
-    !call result%set(2,  point%get(1))
-    !if ( this%num_dims == 3 ) then
-    !   call result%set(3, 0.0_rp) 
-    !end if
-												
-				call result%set(1, 1.0_rp) 
-				call result%set(2, 1.0_rp)
-				call result%set(3, 0.0_rp)
+    call result%set(1, -point%get(2) )
+    call result%set(2,  point%get(1))
+    if ( this%num_dims == 3 ) then
+       call result%set(3, 0.0_rp) 
+    end if
+											
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -137,15 +134,12 @@ contains
     type(vector_field_t)    , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
 
-    !call result%set(1, -point%get(2))
-    !call result%set(2,  point%get(1))  
-    !if ( this%num_dims == 3 ) then
-    !   call result%set(3, 0.0_rp)
-    !end if
-				
-				call result%set(1, 1.0_rp) 
-				call result%set(2, 1.0_rp)
-				call result%set(3, 0.0_rp)
+    call result%set(1, -point%get(2))
+    call result%set(2,  point%get(1))  
+    if ( this%num_dims == 3 ) then
+       call result%set(3, 0.0_rp)
+    end if
+
   end subroutine solution_get_value_space
 
   !===============================================================================================
@@ -155,8 +149,8 @@ contains
     type(point_t)           , intent(in)    :: point
     type(tensor_field_t), intent(inout) :: result
 				call result%init(0.0_rp) 
-    !call result%set(2,1, -1.0_rp)
-	   !call result%set(1,2,  1.0_rp)
+    call result%set(2,1, -1.0_rp)
+	   call result%set(1,2,  1.0_rp)
   end subroutine solution_get_gradient_space
   
   !===============================================================================================
@@ -165,8 +159,7 @@ contains
     class(boundary_function_Hx_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    !result = -point%get(2)
-				 result = 1.0_rp 
+    result = -point%get(2)
   end subroutine boundary_function_Hx_get_value_space
 
   !===============================================================================================
@@ -175,8 +168,7 @@ contains
     class(boundary_function_Hy_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    ! result = point%get(1)
-				 result = 1.0_rp 
+     result = point%get(1)
   end subroutine boundary_function_Hy_get_value_space
 
   !===============================================================================================
