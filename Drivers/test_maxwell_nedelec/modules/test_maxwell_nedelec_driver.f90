@@ -68,7 +68,6 @@ module test_maxwell_nedelec_driver_names
      ! Poisson problem solution FE function
      type(fe_function_t)                         :: solution
 					type(fe_function_t)                         :: fe_function
-					type(fe_function_t)                         :: fe_Dir_function 
 
    contains
      procedure                  :: run_simulation
@@ -182,11 +181,10 @@ contains
     ! call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
      call this%fe_space%project_Dirichlet_boundary_vector_function(this%solution) 
 				
-				! H(curl) PROJECTORS *********************************************************************************
+				! HX PROJECTORS CHECKER
 				call this%fe_function%create(this%fe_space) 
-				call this%fe_Dir_function%create(this%fe_space) 
 				call this%fe_space%project_vector_function( this%problem_functions%get_solution(), this%fe_function ) 
-				call this%fe_space%project_Dirichlet_boundary_vector_function( this%fe_Dir_function ) 
+				call this%fe_space%project_Dirichlet_boundary_vector_function( this%fe_function )
 				   
     call H_error_norm%create(this%fe_space,1)
     mean  = H_error_norm%compute(this%problem_functions%get_solution(), this%fe_function, mean_norm)  
@@ -195,7 +193,7 @@ contains
     call H_error_norm%free()
 				
 				write(*,*) 'PROJECTED FUNCTION ERROR'
-				write(*,'(a20,e32.25)') 'mean_norm:',  mean
+				write(*,'(a20,e32.25)') 'mean_norm:',  mean 
 				write(*,'(a20,e32.25)') 'l2_norm:'  ,  l2
 				write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl
 							
@@ -210,7 +208,7 @@ contains
     end select
 				
 								WRITE(*,*) ' PROJECTED BOUNDARY VALUES ********************' 
-						dof_values => this%fe_Dir_function%get_fixed_dof_values() 
+						dof_values => this%fe_function%get_fixed_dof_values() 
 							
 				select type (dof_values)
     class is (serial_scalar_array_t)  
@@ -220,7 +218,6 @@ contains
     end select
 						
 				call this%fe_function%free() 
-				call this%fe_Dir_function%free() 
 				! ****************************************************************************************************
 				call this%maxwell_nedelec_integration%set_fe_function(this%solution)
 				

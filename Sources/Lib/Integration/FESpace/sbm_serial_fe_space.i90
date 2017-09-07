@@ -719,8 +719,7 @@ subroutine serial_fe_space_project_Dirichlet_boundary_vector_function (this, fe_
   assert(associated(this%conditions) )
   call memalloc ( this%get_num_components(), components_code, __FILE__, __LINE__ )
 
-  allocate ( function_scalar_components(this%triangulation%get_num_dims()), & 
-       stat=istat); check(istat==0);
+  allocate ( function_scalar_components(this%triangulation%get_num_dims()), stat=istat); check(istat==0);
 
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_vef_iterator(vef)
