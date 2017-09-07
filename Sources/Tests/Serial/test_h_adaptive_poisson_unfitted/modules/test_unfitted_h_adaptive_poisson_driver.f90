@@ -198,11 +198,17 @@ contains
       ! Refine one level uniformly
       call this%triangulation%create_cell_iterator(cell)
       do while (.not. cell%has_finished())
+        !if (cell%is_interior() .or. cell%is_cut()) then
+        !  call cell%set_for_refinement()
+        !else
+        !  call cell%set_for_coarsening()
+        !end if
         call cell%set_for_refinement()
         call cell%next()
       end do
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%clear_refinement_and_coarsening_flags()
+      !call this%triangulation%update_cut_cells(this%level_set_function)
       call this%triangulation%free_cell_iterator(cell)
     end do
     
@@ -722,12 +728,13 @@ contains
         call memalloc(this%triangulation%get_num_cells(),aggrs_ids_color,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggregate_ids_color,__FILE__,__LINE__)
         
-        aggregate_ids => this%fe_space%get_aggregate_ids()
-        aggrs_ids(:) = real(aggregate_ids,kind=rp)
-
-        aggregate_ids_color(:) = aggregate_ids
-        call colorize_aggregate_ids(this%triangulation,aggregate_ids_color)
-        aggrs_ids_color(:) = real(aggregate_ids_color,kind=rp)
+        if (this%test_params%get_use_constraints()) then
+          aggregate_ids => this%fe_space%get_aggregate_ids()
+          aggrs_ids(:) = real(aggregate_ids,kind=rp)
+          aggregate_ids_color(:) = aggregate_ids
+          call colorize_aggregate_ids(this%triangulation,aggregate_ids_color)
+          aggrs_ids_color(:) = real(aggregate_ids_color,kind=rp)
+        end if
         
         N=this%triangulation%get_num_cells()
         P=6
@@ -757,26 +764,31 @@ contains
           end if
           call cell%next()
         end do
-
-        cell_in_aggregate(:) = 0.0_rp
-        call cell%first()
-        do while (.not. cell%has_finished())
-          if (cell%is_cut()) then
-            cell_in_aggregate(cell%get_gid()) = 1.0_rp
-            cell_in_aggregate(aggregate_ids(cell%get_gid())) = 1.0_rp
-          end if
-          call cell%next()
-        end do
+        
+        if (this%test_params%get_use_constraints()) then
+          cell_in_aggregate(:) = 0.0_rp
+          call cell%first()
+          do while (.not. cell%has_finished())
+            if (cell%is_cut()) then
+              cell_in_aggregate(cell%get_gid()) = 1.0_rp
+              cell_in_aggregate(aggregate_ids(cell%get_gid())) = 1.0_rp
+            end if
+            call cell%next()
+          end do
+        end if
 
         call this%triangulation%free_cell_iterator(cell)
 
         call oh%add_cell_vector(cell_vector,'cell_ids')
         call oh%add_cell_vector(cell_vector_set_ids,'cell_set_ids')
         call oh%add_cell_vector(cell_rel_pos,'cell_rel_pos')
-        call oh%add_cell_vector(cell_in_aggregate,'cell_in_aggregate')
         
-        call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
-        call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
+        if (this%test_params%get_use_constraints()) then
+          call oh%add_cell_vector(cell_in_aggregate,'cell_in_aggregate')
+        
+          call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
+          call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
+        end if
 
         call oh%open(path, prefix)
         call oh%write()
