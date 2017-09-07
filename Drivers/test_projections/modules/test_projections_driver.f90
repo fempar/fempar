@@ -36,6 +36,9 @@ module test_projections_driver_names
   implicit none
   private
 
+		integer(ip), parameter :: MAGNETIC_FIELD_ID = 1
+  integer(ip), parameter :: PRESSURE_FIELD_ID = 2
+		
   type test_projections_driver_t 
      private 
 
@@ -98,18 +101,25 @@ contains
     class(reference_fe_t), pointer :: reference_fe_geo
 
 
-    allocate(this%reference_fes(1), stat=istat)
+    allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
 
     call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe()
 	
-    this%reference_fes(1) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
-                                                 fe_type    = fe_type_nedelec,                           &
-                                                 num_dims   = this%triangulation%get_num_dims(),         &
-                                                 order      = this%test_params%get_reference_fe_order(), &
-                                                 field_type = field_type_vector,                         &
-                                                 conformity = .true. ) 
+    this%reference_fes(MAGNETIC_FIELD_ID) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
+                                                                 fe_type    = fe_type_nedelec,                           &
+                                                                 num_dims   = this%triangulation%get_num_dims(),         &
+                                                                 order      = this%test_params%get_reference_fe_order(), &
+                                                                 field_type = field_type_vector,                         &
+                                                                 conformity = .true. ) 
+				
+				this%reference_fes(PRESSURE_FIELD_ID) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
+                                                                 fe_type    = fe_type_lagrangian,                        &
+                                                                 num_dims   = this%triangulation%get_num_dims(),         &
+                                                                 order      = this%test_params%get_reference_fe_order(), &
+                                                                 field_type = field_type_scalar,                         &
+                                                                 conformity = .true. ) 
     
     call this%triangulation%free_cell_iterator(cell)
 		
@@ -130,9 +140,9 @@ contains
 
   subroutine setup_fe_space(this)
     implicit none
-    class(test_projections_driver_t), intent(inout) :: this
-
-    call this%projections_conditions%set_num_dims(this%triangulation%get_num_dims())
+    class(test_projections_driver_t), intent(inout) :: this 
+				
+    call this%projections_conditions%set_num_dims(this%triangulation%get_num_dims() + 1)
     call this%fe_space%create( triangulation       = this%triangulation, &
                                reference_fes       = this%reference_fes, &
                                conditions          = this%projections_conditions )
@@ -151,7 +161,8 @@ contains
   subroutine project_analytical_function (this)
     implicit none
     class(test_projections_driver_t), intent(inout) :: this 
-					
+				class(vector_t) , pointer :: dof_values
+									
     call this%problem_functions%set_num_dims(this%triangulation%get_num_dims())
 				
 				! Set boundary conditions 
@@ -160,11 +171,23 @@ contains
 	   if ( this%triangulation%get_num_dims() == 3) then 
 	   call this%projections_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	   end if 
+				call this%projections_conditions%set_boundary_function_pressure(this%problem_functions%get_boundary_function_pressure()) 
 
 				! Project functions 
 				call this%solution%create(this%fe_space)
-				call this%fe_space%project_function( this%problem_functions%get_solution(), this%solution ) 
+				call this%fe_space%project_function( this%problem_functions%get_magnetic_field_solution(), this%solution , MAGNETIC_FIELD_ID) 
+				call this%fe_space%project_function( this%problem_functions%get_pressure_solution(), this%solution , PRESSURE_FIELD_ID)
 				call this%fe_space%project_Dirichlet_boundary_function( this%solution )
+				
+				!				WRITE(*,*) ' PROJECTED VALUES **************************************' 
+				!		dof_values => this%solution%get_fixed_dof_values() 
+				!			
+				!select type (dof_values)
+    !class is (serial_scalar_array_t)  
+    !   call dof_values%print_matrix_market(6)
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
 				
   end subroutine project_analytical_function 
 
@@ -172,14 +195,19 @@ contains
     implicit none
     class(test_projections_driver_t), intent(inout) :: this
     class(vector_function_t), pointer :: H_exact_function
+				class(scalar_function_t), pointer :: p_exact_function
     type(error_norms_vector_t) :: H_error_norm
+				type(error_norms_scalar_t) :: p_error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, hcurl, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: error_tolerance
     
-    H_exact_function => this%problem_functions%get_solution()
-				
-    call H_error_norm%create(this%fe_space,1)
-    write(*,*) 'PROJECTED FUNCTION ERROR NORMS'
+    H_exact_function => this%problem_functions%get_magnetic_field_solution()
+				p_exact_function => this%problem_functions%get_pressure_solution() 
+			
+				error_tolerance = 1.0e-06 
+							
+				call H_error_norm%create(this%fe_space, MAGNETIC_FIELD_ID )
+    write(*,*) 'PROJECTED MAGNETIC FIELD FUNCTION ERROR NORMS *************'
     mean = H_error_norm%compute(H_exact_function, this%solution, mean_norm)   
     l1 = H_error_norm%compute(H_exact_function, this%solution, l1_norm)   
     l2 = H_error_norm%compute(H_exact_function, this%solution, l2_norm)   
@@ -192,9 +220,7 @@ contains
     w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm)   
     w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
     w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm)
-    
-    error_tolerance = 1.0e-06  
-    
+     
     write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
     write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
     write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
@@ -207,8 +233,37 @@ contains
     write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
     write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
     write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+				call H_error_norm%free()
+								
+							
+				call p_error_norm%create(this%fe_space, PRESSURE_FIELD_ID )
+				write(*,*) 'PROJECTED SCALAR PRESSURE FUNCTION ERROR NORMS ************************'
+    mean = p_error_norm%compute(p_exact_function, this%solution, mean_norm)   
+    l1 = p_error_norm%compute(p_exact_function, this%solution, l1_norm)   
+    l2 = p_error_norm%compute(p_exact_function, this%solution, l2_norm)   
+    lp = p_error_norm%compute(p_exact_function, this%solution, lp_norm)   
+    linfty = p_error_norm%compute(p_exact_function, this%solution, linfty_norm)   
+    h1_s = p_error_norm%compute(p_exact_function, this%solution, h1_seminorm) 
+    h1 = p_error_norm%compute(p_exact_function, this%solution, h1_norm) 
+    w1p_s = p_error_norm%compute(p_exact_function, this%solution, w1p_seminorm)   
+    w1p = p_error_norm%compute(p_exact_function, this%solution, w1p_norm)   
+    w1infty_s = p_error_norm%compute(p_exact_function, this%solution, w1infty_seminorm) 
+    w1infty = p_error_norm%compute(p_exact_function, this%solution, w1infty_norm)
     
-    call H_error_norm%free()
+    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+   
+				call p_error_norm%free() 
+				
   end subroutine check_solution 
   
   subroutine write_solution(this)
@@ -218,7 +273,8 @@ contains
     if(this%test_params%get_write_solution()) then
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'solution')
+        call oh%add_fe_function(this%solution, MAGNETIC_FIELD_ID, 'H-solution')
+								call oh%add_fe_function(this%solution, PRESSURE_FIELD_ID, 'p-solution')
         call oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())
         call oh%write()
         call oh%close()
@@ -250,8 +306,7 @@ contains
        do i=1, size(this%reference_fes)
           call this%reference_fes(i)%p%free()
        end do
-       deallocate(this%reference_fes, stat=istat)
-       check(istat==0)
+       deallocate(this%reference_fes, stat=istat); check(istat==0)
     end if
     call this%triangulation%free()
     call this%test_params%free()

@@ -1075,10 +1075,7 @@ subroutine lagrangian_reference_fe_evaluate_scalar_function_moments(this, cell_m
   type(point_t) , pointer             :: nodal_coordinates(:)
   type(point_t) , pointer             :: cell_coordinates(:)
   integer(ip)                         :: n_nodal_q_points
-  integer(ip)                         :: inode, idime 
-
-  integer(ip)                         :: icomp, inode_scalar
-  integer(ip)                         :: istat 
+		integer(ip)                         :: idime, inode 
 
   dof_values = 0.0_rp 
   source_coordinates => cell_map%get_coordinates()
@@ -1107,7 +1104,7 @@ subroutine lagrangian_reference_fe_evaluate_scalar_function_moments(this, cell_m
   end do
   call cell_nodal_map%compute_quadrature_points_coordinates()
   nodal_coordinates => cell_nodal_map%get_quadrature_points_coordinates()
-
+  
 		! Evaluate scalar function on nodal coordinates 
   call scalar_function%get_values_set(nodal_coordinates, dof_values)
 
@@ -1238,8 +1235,16 @@ subroutine lagrangian_reference_fe_evaluate_boundary_function_moments(this, cell
 				     ! Fill vector function values restricted to edge 
      select case(this%get_field_type())
      case ( field_type_scalar )
-        ! reference_fe MUST BE a vector-valued FE
-        assert (.false.)
+					    do icomp=1, this%get_num_field_components()
+           if(present(time)) then
+              call function_scalar_components(icomp)%p%get_values_set_space_time(nodal_coordinates,time_,scalar_function_values(1:n_nodal_q_points,:))
+           else
+              call function_scalar_components(icomp)%p%get_values_set_space(nodal_coordinates,scalar_function_values(1:n_nodal_q_points,1))
+           end if
+											 do qpoint = 1, n_nodal_q_points
+              dof_values(qpoint) = scalar_function_values(qpoint,1)
+           end do
+									end do 
      case ( field_type_vector )
         do icomp=1, this%get_num_field_components()
            if(present(time)) then
@@ -1251,8 +1256,7 @@ subroutine lagrangian_reference_fe_evaluate_boundary_function_moments(this, cell
               call function_values(qpoint,1)%set(icomp,scalar_function_values(qpoint,1))
            end do
         end do
-     end select
-
+								
 						own_dofs = this%own_dofs_n_face%create_iterator(vef_lid)
      ! Evaluate function values at points 
 								do while ( .not. own_dofs%is_upper_bound() ) 
@@ -1261,8 +1265,12 @@ subroutine lagrangian_reference_fe_evaluate_boundary_function_moments(this, cell
 											inode_scalar = this%get_scalar_from_vector_node(idof)
            dof_values(idof) = function_values(inode_scalar,1)%get(icomp)
 											call own_dofs%next() 
-        end do							
+        end do			
 								
+					case DEFAULT 
+					check(.false.) 
+     end select
+												
 		call memfree(scalar_function_values, __FILE__, __LINE__ )
   deallocate( function_values, stat=istat); check(istat==0)
   call cell_nodal_map%free() 
