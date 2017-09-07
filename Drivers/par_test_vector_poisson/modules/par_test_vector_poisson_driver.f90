@@ -56,7 +56,8 @@ module par_test_vector_poisson_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                        :: fe_space 
      type(p_reference_fe_t), allocatable         :: reference_fes(:) 
-     type(standard_l1_coarse_fe_handler_t)       :: coarse_fe_handler
+     type(standard_l1_coarse_fe_handler_t)       :: standard_coarse_fe_handler
+     type(vector_laplacian_l1_coarse_fe_handler_t):: vector_laplacian_coarse_fe_handler
      type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
      type(vector_poisson_discrete_integration_t) :: vector_poisson_integration
      type(vector_poisson_conditions_t)           :: vector_poisson_conditions
@@ -360,7 +361,12 @@ end subroutine free_timers
     integer(ip) :: istat
     allocate(this%coarse_fe_handlers(1), stat=istat)
     check(istat==0)
-    this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
+        
+    if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
+       this%coarse_fe_handlers(1)%p => this%vector_laplacian_coarse_fe_handler
+    else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
+       this%coarse_fe_handlers(1)%p => this%standard_coarse_fe_handler
+    end if
   end subroutine setup_coarse_fe_handlers
 
   subroutine setup_fe_space(this)
