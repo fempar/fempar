@@ -163,8 +163,8 @@ contains
 
 				! Project functions 
 				call this%solution%create(this%fe_space)
-				call this%fe_space%project_vector_function( this%problem_functions%get_solution(), this%solution ) 
-				call this%fe_space%project_Dirichlet_boundary_vector_function( this%solution )
+				call this%fe_space%project_function( this%problem_functions%get_solution(), this%solution ) 
+				call this%fe_space%project_Dirichlet_boundary_function( this%solution )
 				
   end subroutine project_analytical_function 
 

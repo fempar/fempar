@@ -1451,7 +1451,7 @@ end function tet_nedelec_reference_fe_permute_dof_LID_n_face
 subroutine tet_nedelec_reference_fe_evaluate_vector_function_moments(this, cell_map, vector_function, dof_values)
   implicit none
   class(tet_nedelec_reference_fe_t), intent(in)    :: this
-  class(cell_map_t)            , intent(in)    :: cell_map
+  type(cell_map_t)             , intent(in)    :: cell_map
   class(vector_function_t)     , intent(in)    :: vector_function
   real(rp) , allocatable       , intent(inout) :: dof_values(:) 
 

@@ -949,3 +949,13 @@ subroutine nedelec_apply_change_basis_matrix_to_interpolation(this, interpolatio
   end do
   
 end subroutine nedelec_apply_change_basis_matrix_to_interpolation
+
+!==================================================================================================
+subroutine nedelec_reference_fe_evaluate_scalar_function_moments(this, cell_map, scalar_function, dof_values)
+  class(nedelec_reference_fe_t)   , intent(in)    :: this
+  type(cell_map_t)                , intent(in)    :: cell_map
+  class(scalar_function_t)        , intent(in)    :: scalar_function
+  real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+		! Does not apply to Nedelec elements 
+  check(.false.) 
+end subroutine nedelec_reference_fe_evaluate_scalar_function_moments

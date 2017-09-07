@@ -1062,9 +1062,63 @@ function lagrangian_reference_fe_get_default_quadrature_degree(this)
 end function lagrangian_reference_fe_get_default_quadrature_degree
 
 !==================================================================================================
+subroutine lagrangian_reference_fe_evaluate_scalar_function_moments(this, cell_map, scalar_function, dof_values)
+  class(lagrangian_reference_fe_t), intent(in)    :: this
+  type(cell_map_t)                , intent(in)    :: cell_map
+  class(scalar_function_t)        , intent(in)    :: scalar_function
+  real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+
+  class(lagrangian_reference_fe_t), allocatable :: d_fe_geo 
+  type(quadrature_t), pointer         :: nodal_quadrature 
+  type(cell_map_t)                    :: cell_nodal_map  
+  type(point_t) , pointer             :: source_coordinates(:)  
+  type(point_t) , pointer             :: nodal_coordinates(:)
+  type(point_t) , pointer             :: cell_coordinates(:)
+  integer(ip)                         :: n_nodal_q_points
+  integer(ip)                         :: inode, idime 
+
+  integer(ip)                         :: icomp, inode_scalar
+  integer(ip)                         :: istat 
+
+  dof_values = 0.0_rp 
+  source_coordinates => cell_map%get_coordinates()
+
+		if ( this%get_topology() == topology_tet ) then 
+		allocate ( tet_lagrangian_reference_fe_t :: d_fe_geo ) 
+		elseif ( this%get_topology() == topology_hex ) then 
+		allocate ( hex_lagrangian_reference_fe_t :: d_fe_geo ) 
+		end if 
+		
+  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
+  call d_fe_geo%create(topology    = this%get_topology(),    &
+                       num_dims    = this%num_dims,          &
+                       order       = 1,                      &
+                       field_type  = field_type_scalar,      &
+                       conformity  = .false. )
+
+  nodal_quadrature => this%get_nodal_quadrature()				
+  n_nodal_q_points = nodal_quadrature%get_num_quadrature_points()
+  call cell_nodal_map%create(nodal_quadrature, d_fe_geo)				
+  cell_coordinates => cell_nodal_map%get_coordinates()
+  do inode = 1, size(cell_coordinates)
+     do idime = 1, this%num_dims 
+        call	cell_coordinates(inode)%set( idime, source_coordinates(inode)%get(idime) ) 
+     end do
+  end do
+  call cell_nodal_map%compute_quadrature_points_coordinates()
+  nodal_coordinates => cell_nodal_map%get_quadrature_points_coordinates()
+
+		! Evaluate scalar function on nodal coordinates 
+  call scalar_function%get_values_set(nodal_coordinates, dof_values)
+
+  call cell_nodal_map%free() 
+  call d_fe_geo%free() 
+end subroutine lagrangian_reference_fe_evaluate_scalar_function_moments
+
+! =============================================================================================================
 subroutine lagrangian_reference_fe_evaluate_vector_function_moments(this, cell_map, vector_function, dof_values)
   class(lagrangian_reference_fe_t), intent(in)    :: this
-  class(cell_map_t)               , intent(in)    :: cell_map
+  type(cell_map_t)                , intent(in)    :: cell_map
   class(vector_function_t)        , intent(in)    :: vector_function
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
 

@@ -75,18 +75,18 @@ module projections_analytical_functions_names
   
   type projections_analytical_functions_t
      private
-     type(source_term_t)                     :: source_term
-     type(solution_t)                        :: solution
+  type(source_term_t)                     :: source_term
+  type(solution_t)                        :: solution
 	 type(boundary_function_Hx_t)            :: boundary_function_Hx
 	 type(boundary_function_Hy_t)            :: boundary_function_Hy
 	 type(boundary_function_Hz_t)            :: boundary_function_Hz
    contains
-     procedure :: set_num_dims               => mn_set_num_dims
-     procedure :: get_source_term                  => mn_get_source_term
-     procedure :: get_solution                     => mn_get_solution
-	 procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
-	 procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
-	 procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
+  procedure :: set_num_dims                => mn_set_num_dims
+  procedure :: get_source_term             => mn_get_source_term
+  procedure :: get_solution                => mn_get_solution
+	 procedure :: get_boundary_function_Hx    => mn_get_boundary_function_Hx
+	 procedure :: get_boundary_function_Hy    => mn_get_boundary_function_Hy
+	 procedure :: get_boundary_function_Hz    => mn_get_boundary_function_Hz
   end type projections_analytical_functions_t
 
   public :: projections_analytical_functions_t
