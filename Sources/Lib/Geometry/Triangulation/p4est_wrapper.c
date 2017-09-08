@@ -256,6 +256,15 @@ void F90_p8est_mesh_destroy(p8est_mesh_t **p8est_mesh)
     }   
 }
 
+void F90_p8est_QHE_destroy(p4est_locidx_t **QHE)
+{
+    if (*QHE) 
+    {    
+        free(*QHE);
+    }   
+}
+
+
 void F90_p4est_get_mesh_info (p4est_t        *p4est,
                               p4est_mesh_t   *mesh,
                               p4est_locidx_t *local_num_quadrants,
@@ -336,7 +345,8 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
                                          p4est_locidx_t **quad_to_half, 
                                          p4est_locidx_t *quad_to_quad_by_edge,
                                          int8_t         *quad_to_edge,
-                                         p4est_locidx_t *quad_to_half_by_edge,
+                                         p4est_locidx_t *num_half_edges,
+                                         p4est_locidx_t **quad_to_half_by_edge,
                                          p4est_locidx_t **quad_to_corner,
                                          p4est_qcoord_t *quadcoords,
                                          int8_t         *quadlevel ) 
@@ -365,15 +375,13 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
     quad_to_quad_by_edge[i] = -1;
     quad_to_edge[i] = -1;
   }
-  for(int i=0;i<2*(mesh->local_num_quadrants);i++)
-  {
-    quad_to_half_by_edge[i] = -1;
-  }
-
-
-  edge_info.quad_to_quad_by_edge = quad_to_quad_by_edge;
-  edge_info.quad_to_edge         = quad_to_edge;
-  edge_info.quad_to_half_by_edge = quad_to_half_by_edge;
+  // Allocate to maximum possible size. All edges are half-size edge
+  *quad_to_half_by_edge = (p4est_locidx_t *) malloc( (size_t) 2*12*mesh->local_num_quadrants*sizeof(p4est_locidx_t) );
+  
+  edge_info.quad_to_quad_by_edge      = quad_to_quad_by_edge;
+  edge_info.quad_to_edge              = quad_to_edge;
+  edge_info.quad_to_half_by_edge      = *quad_to_half_by_edge;
+  edge_info.quad_to_half_by_edge_size = 0;
   p8est_iterate(p8est, NULL, &edge_info, NULL, NULL,edge_callback, NULL);
 
   *quad_to_quad=mesh->quad_to_quad;
@@ -381,6 +389,9 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
   *quad_to_half = NULL;
   if(mesh->quad_to_half->elem_count>0) *quad_to_half = (p4est_locidx_t *) mesh->quad_to_half->array;
   *quad_to_corner=mesh->quad_to_corner;
+  
+  *quad_to_half_by_edge = (p4est_locidx_t *) realloc( *quad_to_half_by_edge, (size_t) 2*edge_info.quad_to_half_by_edge_size*sizeof(p4est_locidx_t) );  
+  *num_half_edges = edge_info.quad_to_half_by_edge_size;
 }
 
 void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
@@ -485,10 +496,11 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
           else if (! cells_around[i].is_hanging && cells_around[j].is_hanging) 
           {
               // i side
-              quad_to_quad_by_edge[ 12*ineig[2*k] + ineig_iedge[2*k] ] = ineig[2*k];
+              quad_to_quad_by_edge[ 12*ineig[2*k] + ineig_iedge[2*k] ] = edge_info->quad_to_half_by_edge_size;
               quad_to_edge        [ 12*ineig[2*k] + ineig_iedge[2*k] ] = jneig_jedge[2*k]-24;
-              quad_to_half_by_edge[ 2*ineig[2*k]                     ] = jneig[2*k];
-              quad_to_half_by_edge[ 2*ineig[2*k] +                 1 ] = jneig[2*k+1];
+              quad_to_half_by_edge[ 2*edge_info->quad_to_half_by_edge_size     ] = jneig[2*k];
+              quad_to_half_by_edge[ 2*edge_info->quad_to_half_by_edge_size + 1 ] = jneig[2*k+1];
+              edge_info->quad_to_half_by_edge_size++;
               
               //j side
               quad_to_quad_by_edge[ 12*jneig[2*k]   + jneig_jedge[2*k] ] = ineig[2*k];
@@ -505,10 +517,11 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
               quad_to_edge        [ 12*ineig[2*k+1] + ineig_iedge[2*k] ] = 48+jneig_jedge[2*k];
              
               //j side
-              quad_to_quad_by_edge[ 12*jneig[2*k] + jneig_jedge[2*k] ] = jneig[2*k];
+              quad_to_quad_by_edge[ 12*jneig[2*k] + jneig_jedge[2*k] ] = edge_info->quad_to_half_by_edge_size;
               quad_to_edge        [ 12*jneig[2*k] + jneig_jedge[2*k] ] = ineig_iedge[2*k]-24;
-              quad_to_half_by_edge[ 2*jneig[2*k]                     ] = ineig[2*k];
-              quad_to_half_by_edge[ 2*jneig[2*k] +                 1 ] = ineig[2*k+1];
+              quad_to_half_by_edge[ 2*edge_info->quad_to_half_by_edge_size ] = ineig[2*k];
+              quad_to_half_by_edge[ 2*edge_info->quad_to_half_by_edge_size + 1 ] = ineig[2*k+1];
+              edge_info->quad_to_half_by_edge_size++;
           }   
           else // !cells_around[i].is_hanging && !cells_around[j].is_hanging
           {

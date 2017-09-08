@@ -602,8 +602,8 @@ subroutine H1_l1_setup_constraint_matrix_multiple(this, field_id, par_fe_space, 
   
   integer(ip), parameter :: strategy = CI
   
-  write(*,*) 'strategy ::', strategy
-  
+  !write(*,*) 'strategy ::', strategy
+  !mwarn(.false.,'strategy ::'//strategy)
   if (strategy == CA) then
     ! Algebraic facet constraints (1/card) not including DOFs on the boundary of the facet that belong to 
     ! other coarse corners, edges

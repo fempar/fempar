@@ -270,16 +270,18 @@ subroutine bst_vef_iterator_get_improper_cell_around (this, icell_around, cell)
   mcheck(.false., "bst_vef_iterator_t does not have improper cells around")
 end subroutine bst_vef_iterator_get_improper_cell_around
 
-function bst_vef_iterator_get_improper_cell_around_ivef(this)
+function bst_vef_iterator_get_improper_cell_around_ivef(this, icell_around)
   implicit none
   class(bst_vef_iterator_t) , intent(in)    :: this
+  integer(ip)               , intent(in)    :: icell_around
   integer(ip) :: bst_vef_iterator_get_improper_cell_around_ivef
   mcheck(.false., "bst_vef_iterator_t does not have improper cells around")
 end function bst_vef_iterator_get_improper_cell_around_ivef
 
-function bst_vef_iterator_get_improper_cell_around_subvef(this)
+function bst_vef_iterator_get_improper_cell_around_subvef(this, icell_around)
   implicit none
   class(bst_vef_iterator_t) , intent(in)    :: this
+  integer(ip)               , intent(in)    :: icell_around
   integer(ip) :: bst_vef_iterator_get_improper_cell_around_subvef
   mcheck(.false., "bst_vef_iterator_t does not have improper cells around")
 end function bst_vef_iterator_get_improper_cell_around_subvef
