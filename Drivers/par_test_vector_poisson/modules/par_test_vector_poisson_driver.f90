@@ -361,7 +361,6 @@ end subroutine free_timers
     check(istat==0)
         
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
-       write(*,*)'now here'
        this%coarse_fe_handlers(1)%p => this%vector_laplacian_coarse_fe_handler
     else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
        this%coarse_fe_handlers(1)%p => this%standard_coarse_fe_handler
