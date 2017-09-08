@@ -1773,8 +1773,94 @@ public :: facet_integrator_t, p_facet_integrator_t
 
 public :: make_reference_fe
 
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+  ! Abstract projector
+  type, abstract :: projector_t
+     private
+					character(:), allocatable :: topology
+					integer(ip)               :: num_dims 
+					integer(ip)               :: order 
+					type(point_t)           , pointer        :: cell_coordinates(:)    ! Current cell coordinates       
+   contains                                                  
+					! Deferred TBPs 
+					procedure(projector_init_interface)                              , deferred :: init 
+					procedure(projector_update_interface)                            , deferred :: update 
+					procedure(projector_evaluate_vector_function_moments_interface)  , deferred :: evaluate_vector_function_moments 
+					!procedure(projector_evaluate_scalar_function_moments)  , private, deferred :: evaluate_scalar_function_moments
+					!generic :: get_function_moments => evaluate_scalar_function_moments, evaluate_vector_function_moments
+					!procedure(projector_evaluate_boundary_function_moments), private, deferred :: evaluate_boundary_function_moments 
+					procedure(projector_free_interface)                              , deferred :: free 			
+			end type projector_t 
+			
+			public :: projector_t
+
+			abstract interface 
+			
+			subroutine projector_init_interface( this )
+			import :: projector_t, reference_fe_t
+   implicit none
+   class(projector_t)    , intent(inout) :: this
+   end subroutine projector_init_interface
+			
+			subroutine projector_update_interface( this, cell_map )
+			import :: projector_t, cell_map_t  
+   implicit none
+   class(projector_t)           , intent(inout) :: this
+			type(cell_map_t)             , intent(in)    :: cell_map 
+   end subroutine projector_update_interface
+			
+			subroutine projector_evaluate_vector_function_moments_interface( this, vector_function, dof_values )
+			import :: projector_t, vector_function_t, rp   
+   implicit none
+   class(projector_t)           , intent(inout) :: this
+			class(vector_function_t)     , intent(in)    :: vector_function
+			real(rp) , allocatable       , intent(inout) :: dof_values(:) 
+   end subroutine projector_evaluate_vector_function_moments_interface
+			
+						subroutine projector_free_interface( this )
+			import :: projector_t, cell_map_t  
+   implicit none
+   class(projector_t)           , intent(inout) :: this
+   end subroutine projector_free_interface
+			
+			end interface
+						
+			type, extends(projector_t) :: hex_Hcurl_projector_t 
+			private 
+			! Maps 
+			type(edge_map_t)       :: edge_map 
+			type(facet_map_t)      :: facet_map 
+			type(cell_map_t)       :: cell_map 
+			! Quadratures 
+			type(quadrature_t )    :: edge_quadrature 
+			type(quadrature_t )    :: facet_quadrature 
+			type(quadrature_t )    :: cell_quadrature 
+			! Interpolation 
+			type(interpolation_t ) :: edge_interpolation
+			type(interpolation_t ) :: facet_interpolation 
+			type(interpolation_t ) :: cell_interpolation 
+			! Function values arrays 
+			type(vector_field_t), allocatable :: edge_function_values(:) 
+			type(vector_field_t), allocatable :: facet_function_values(:) 
+			type(vector_field_t), allocatable :: cell_function_values(:)
+			! Probably deferred 
+			type(hex_nedelec_reference_fe_t)             :: reference_fe      
+			type(hex_lagrangian_reference_fe_t)          :: d_fe_geo 
+			type(hex_lagrangian_reference_fe_t)          :: fe_1D 
+			type(hex_nedelec_reference_fe_t)             :: fe_2D 
+			type(hex_raviart_thomas_reference_fe_t )     :: fe 
+			contains 
+			procedure :: init                             => hex_Hcurl_projector_init 
+			procedure :: update                           => hex_Hcurl_projector_update
+			procedure :: evaluate_vector_function_moments => hex_Hcurl_projector_evaluate_vector_function_moments 
+			procedure :: free                             => hex_Hcurl_projector_free
+			end type hex_Hcurl_projector_t
+			
+			public :: hex_Hcurl_projector_t 
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+			
+			public :: create_projector
+			
 contains
 
   ! Includes with all the TBP and supporting subroutines for the types above.
@@ -1821,5 +1907,7 @@ contains
 #include "sbm_facet_integrator.i90"
 
 #include "sbm_reference_fe_factory.i90"
+
+#include "sbm_hex_Hcurl_projector.i90" 
 
 end module reference_fe_names

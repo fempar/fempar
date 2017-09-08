@@ -118,7 +118,7 @@ contains
     reference_fe_geo => cell%get_reference_fe()
 	
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),           &
-                                                 fe_type = fe_type_lagrangian,                         &
+                                                 fe_type = fe_type_nedelec,                            &
                                                  num_dims = this%triangulation%get_num_dims(),         &
                                                  order = this%test_params%get_reference_fe_order(),    &
                                                  field_type = field_type_vector,                       &
@@ -179,12 +179,12 @@ contains
 				
 				! call this%fe_space%interpolate_dirichlet_values(this%solution) 
     ! call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
-     call this%fe_space%project_Dirichlet_boundary_vector_function(this%solution) 
+     call this%fe_space%project_Dirichlet_boundary_function(this%solution) 
 				
 				! HX PROJECTORS CHECKER
 				call this%fe_function%create(this%fe_space) 
-				call this%fe_space%project_vector_function( this%problem_functions%get_solution(), this%fe_function ) 
-				call this%fe_space%project_Dirichlet_boundary_vector_function( this%fe_function )
+				call this%fe_space%project_function( this%problem_functions%get_solution(), this%fe_function, field_id=1 ) 
+				call this%fe_space%project_Dirichlet_boundary_function( this%fe_function )
 				   
     call H_error_norm%create(this%fe_space,1)
     mean  = H_error_norm%compute(this%problem_functions%get_solution(), this%fe_function, mean_norm)  
@@ -197,25 +197,25 @@ contains
 				write(*,'(a20,e32.25)') 'l2_norm:'  ,  l2
 				write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl
 							
-				WRITE(*,*) ' PROJECTED VALUES **************************************' 
-						dof_values => this%fe_function%get_free_dof_values() 
-							
-				select type (dof_values)
-    class is (serial_scalar_array_t)  
-       call dof_values%print_matrix_market(6)
-    class DEFAULT
-       assert(.false.) 
-    end select
+				!WRITE(*,*) ' PROJECTED VALUES **************************************' 
+				!		dof_values => this%fe_function%get_free_dof_values() 
+				!			
+				!select type (dof_values)
+    !class is (serial_scalar_array_t)  
+    !   call dof_values%print_matrix_market(6)
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
 				
-								WRITE(*,*) ' PROJECTED BOUNDARY VALUES ********************' 
-						dof_values => this%fe_function%get_fixed_dof_values() 
-							
-				select type (dof_values)
-    class is (serial_scalar_array_t)  
-       call dof_values%print_matrix_market(6)
-    class DEFAULT
-       assert(.false.) 
-    end select
+				!				WRITE(*,*) ' PROJECTED BOUNDARY VALUES ********************' 
+				!		dof_values => this%fe_function%get_fixed_dof_values() 
+				!			
+				!select type (dof_values)
+    !class is (serial_scalar_array_t)  
+    !   call dof_values%print_matrix_market(6)
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
 						
 				call this%fe_function%free() 
 				! ****************************************************************************************************
@@ -310,25 +310,25 @@ contains
     !   assert(.false.) 
     !end select
 				
-				WRITE(*,*) ' ANALYTICAL SOLUTION VALUES --------------------'
-						fixed_dof_values => this%solution%get_free_dof_values()
+				!WRITE(*,*) ' ANALYTICAL SOLUTION VALUES --------------------'
+				!		fixed_dof_values => this%solution%get_free_dof_values()
     
-    select type (fixed_dof_values)
-    class is (serial_scalar_array_t)  
-       call fixed_dof_values%print_matrix_market(6)
-    class DEFAULT
-       assert(.false.) 
-    end select
+    !select type (fixed_dof_values)
+    !class is (serial_scalar_array_t)  
+    !   call fixed_dof_values%print_matrix_market(6)
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
 				
-					WRITE(*,*) ' ANALYTICAL SOLUTION BOUNDARY VALUES  ---------'
-						fixed_dof_values => this%solution%get_fixed_dof_values()
+				!	WRITE(*,*) ' ANALYTICAL SOLUTION BOUNDARY VALUES  ---------'
+				!		fixed_dof_values => this%solution%get_fixed_dof_values()
     
-    select type (fixed_dof_values)
-    class is (serial_scalar_array_t)  
-       call fixed_dof_values%print_matrix_market(6)
-    class DEFAULT
-       assert(.false.) 
-    end select
+    !select type (fixed_dof_values)
+    !class is (serial_scalar_array_t)  
+    !   call fixed_dof_values%print_matrix_market(6)
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
 				
   end subroutine solve_system
   

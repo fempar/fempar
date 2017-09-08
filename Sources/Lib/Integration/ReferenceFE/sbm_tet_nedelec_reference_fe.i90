@@ -1532,10 +1532,8 @@ subroutine tet_nedelec_reference_fe_evaluate_vector_function_moments(this, cell_
      vertex_within_edge_id = 1
      vertex_iterator = this%vertices_n_face%create_iterator(edge_id)
      do while ( .not. vertex_iterator%is_upper_bound () )
-        vertex_within_cell_id = vertex_iterator%get_current()
-        do idime=1,this%num_dims  
-           call edge_map_coordinates(vertex_within_edge_id)%set(idime, coordinates(vertex_within_cell_id)%get(idime) )
-        end do
+        vertex_within_cell_id = vertex_iterator%get_current()								
+								call edge_map_coordinates(vertex_within_edge_id)%init( coordinates(vertex_within_cell_id)%get_value() )
         call vertex_iterator%next()
         vertex_within_edge_id = vertex_within_edge_id + 1
      end do
@@ -1590,9 +1588,7 @@ subroutine tet_nedelec_reference_fe_evaluate_vector_function_moments(this, cell_
      vertex_iterator = this%vertices_n_face%create_iterator(facet_id)
      do while ( .not. vertex_iterator%is_upper_bound () )
         vertex_within_cell_id = vertex_iterator%get_current()
-		        do idime=1,this%num_dims 
-		        call facet_map_coordinates(vertex_within_facet_id)%set(idime, coordinates(vertex_within_cell_id)%get(idime) )
-	        	end do 
+								call facet_map_coordinates(vertex_within_edge_id)%init( coordinates(vertex_within_cell_id)%get_value() )
         call vertex_iterator%next()
         vertex_within_facet_id = vertex_within_facet_id + 1
      end do
@@ -1775,9 +1771,7 @@ subroutine tet_nedelec_reference_fe_evaluate_boundary_function_moments(this, cel
      vertex_iterator = this%vertices_n_face%create_iterator(vef_lid)
      do while ( .not. vertex_iterator%is_upper_bound () )
         vertex_within_cell_id = vertex_iterator%get_current()
-        do idime=1,this%num_dims  
-           call edge_map_coordinates(vertex_within_edge_id)%set(idime, coordinates(vertex_within_cell_id)%get(idime) )
-        end do
+								call edge_map_coordinates(vertex_within_edge_id)%init( coordinates(vertex_within_cell_id)%get_value() )
         call vertex_iterator%next()
         vertex_within_edge_id = vertex_within_edge_id + 1
      end do
@@ -1857,9 +1851,7 @@ subroutine tet_nedelec_reference_fe_evaluate_boundary_function_moments(this, cel
      vertex_iterator = this%vertices_n_face%create_iterator(vef_lid)
      do while ( .not. vertex_iterator%is_upper_bound () )
         vertex_within_cell_id = vertex_iterator%get_current()
-		        do idime=1,this%num_dims 
-		        call facet_map_coordinates(vertex_within_facet_id)%set(idime, coordinates(vertex_within_cell_id)%get(idime) )
-	        	end do 
+								call facet_map_coordinates(vertex_within_edge_id)%init( coordinates(vertex_within_cell_id)%get_value() )
         call vertex_iterator%next()
         vertex_within_facet_id = vertex_within_facet_id + 1
      end do

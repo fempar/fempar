@@ -1220,7 +1220,6 @@ subroutine lagrangian_reference_fe_evaluate_boundary_function_moments(this, cell
 
   nodal_quadrature => this%get_nodal_quadrature()				
   n_nodal_q_points = nodal_quadrature%get_num_quadrature_points()
-		allocate ( function_values(n_nodal_q_points,1), stat=istat); check(istat==0)
 		call memalloc ( n_nodal_q_points, 1, scalar_function_values, __FILE__, __LINE__)
   call cell_nodal_map%create(nodal_quadrature, d_fe_geo)				
   cell_coordinates => cell_nodal_map%get_coordinates()
@@ -1235,17 +1234,19 @@ subroutine lagrangian_reference_fe_evaluate_boundary_function_moments(this, cell
 				     ! Fill vector function values restricted to edge 
      select case(this%get_field_type())
      case ( field_type_scalar )
-					    do icomp=1, this%get_num_field_components()
+
            if(present(time)) then
-              call function_scalar_components(icomp)%p%get_values_set_space_time(nodal_coordinates,time_,scalar_function_values(1:n_nodal_q_points,:))
+              call function_scalar_components(1)%p%get_values_set_space_time(nodal_coordinates,time_,scalar_function_values(1:n_nodal_q_points,:))
            else
-              call function_scalar_components(icomp)%p%get_values_set_space(nodal_coordinates,scalar_function_values(1:n_nodal_q_points,1))
+              call function_scalar_components(1)%p%get_values_set_space(nodal_coordinates,scalar_function_values(1:n_nodal_q_points,1))
            end if
 											 do qpoint = 1, n_nodal_q_points
               dof_values(qpoint) = scalar_function_values(qpoint,1)
            end do
-									end do 
+
      case ( field_type_vector )
+					
+					  	allocate ( function_values(n_nodal_q_points,1), stat=istat); check(istat==0)
         do icomp=1, this%get_num_field_components()
            if(present(time)) then
               call function_scalar_components(icomp)%p%get_values_set_space_time(nodal_coordinates,time_,scalar_function_values(1:n_nodal_q_points,:))
@@ -1267,12 +1268,12 @@ subroutine lagrangian_reference_fe_evaluate_boundary_function_moments(this, cell
 											call own_dofs%next() 
         end do			
 								
+								deallocate( function_values, stat=istat); check(istat==0)
 					case DEFAULT 
 					check(.false.) 
      end select
 												
 		call memfree(scalar_function_values, __FILE__, __LINE__ )
-  deallocate( function_values, stat=istat); check(istat==0)
   call cell_nodal_map%free() 
   call d_fe_geo%free() 
 end subroutine lagrangian_reference_fe_evaluate_boundary_function_moments

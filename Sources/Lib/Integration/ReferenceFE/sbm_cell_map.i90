@@ -65,7 +65,7 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry )
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
-end subroutine cell_map_create
+end subroutine cell_map_create 
 
 !==================================================================================================
 subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadrature, reference_fe_geometry )

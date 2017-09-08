@@ -641,7 +641,7 @@ subroutine serial_fe_space_project_scalar_function (this, analytical_function, f
   class(serial_fe_space_t)         , intent(in)    :: this
   class(scalar_function_t)         , intent(in)    :: analytical_function 
   type(fe_function_t)              , intent(inout) :: fe_function
-		integer(ip)                      , intent(in)    :: field_id 
+  integer(ip)                      , intent(in)    :: field_id 
   real(rp)               , optional, intent(in)    :: time
 
   class(reference_fe_t)    , pointer     :: reference_fe 
@@ -661,18 +661,18 @@ subroutine serial_fe_space_project_scalar_function (this, analytical_function, f
 
   call this%create_fe_cell_iterator(fe)
 
-     reference_fe => fe%get_reference_fe(field_id)
+  reference_fe => fe%get_reference_fe(field_id)
 
-     call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )				
-     do while (.not. fe%has_finished() )  
-        if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then
-           call fe%update_integration() 											
-           call reference_fe%evaluate_scalar_function_moments( fe%get_cell_map(), analytical_function, dof_values )
-           call fe_function%insert_nodal_values(fe, field_id, dof_values)
-        end if
-        call fe%next()
-     end do
-     call memfree( dof_values, __FILE__, __LINE__ )
+  call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )				
+  do while (.not. fe%has_finished() )  
+     if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then									
+        call fe%update_integration()
+        call reference_fe%evaluate_scalar_function_moments( fe%get_cell_map(), analytical_function, dof_values )
+        call fe_function%insert_nodal_values(fe, field_id, dof_values)
+     end if
+     call fe%next()
+  end do
+  call memfree( dof_values, __FILE__, __LINE__ )
 
   call this%free_fe_cell_iterator(fe) 
 
@@ -683,15 +683,17 @@ subroutine serial_fe_space_project_vector_function (this, analytical_function, f
   class(serial_fe_space_t)         , intent(in)    :: this
   class(vector_function_t)         , intent(in)    :: analytical_function 
   type(fe_function_t)              , intent(inout) :: fe_function
-		integer(ip)                      , intent(in)    :: field_id 
+  integer(ip)                      , intent(in)    :: field_id 
   real(rp)               , optional, intent(in)    :: time
 
+  type(cell_map_t)         , pointer     :: cell_map 
   class(reference_fe_t)    , pointer     :: reference_fe 
-  class(fe_cell_iterator_t), allocatable :: fe 
-		
-  real(rp)      :: time_(1) 
-  real(rp)  , allocatable      :: dof_values(:)  
-  class(environment_t), pointer :: environment 
+  class(fe_cell_iterator_t), allocatable :: fe 	
+  real(rp)                               :: time_(1) 
+  real(rp)  , allocatable                :: dof_values(:)  
+  class(environment_t), pointer          :: environment 
+
+  class(projector_t), allocatable :: projector 
 
   environment => this%get_environment() 
 
@@ -702,20 +704,25 @@ subroutine serial_fe_space_project_vector_function (this, analytical_function, f
   if ( present(time) ) time_(1) = time 
 
   call this%create_fe_cell_iterator(fe)
+  reference_fe => fe%get_reference_fe(field_id)
+  call create_projector( projector, reference_fe ) 
+  call projector%init() 				
+  call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )				
 
-     reference_fe => fe%get_reference_fe(field_id)
-     call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )				
-     do while (.not. fe%has_finished() )  
-        if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then
-           call fe%update_integration() 											
-           call reference_fe%evaluate_vector_function_moments( fe%get_cell_map(), analytical_function, dof_values )
-           call fe_function%insert_nodal_values(fe, field_id, dof_values)
-        end if
-        call fe%next()
-     end do
-     call memfree( dof_values, __FILE__, __LINE__ )
+  do while (.not. fe%has_finished() )  
+     if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then 
+        call fe%update_integration()
+        call projector%update( fe%get_cell_map() )			
+        call projector%evaluate_vector_function_moments( analytical_function, dof_values )
+        !  call reference_fe%evaluate_vector_function_moments( fe%get_cell_map(), analytical_function, dof_values )
+        call fe_function%insert_nodal_values(fe, field_id, dof_values)
+     end if
+     call fe%next()
+  end do
 
+  call memfree( dof_values, __FILE__, __LINE__ )
   call this%free_fe_cell_iterator(fe) 
+  call projector%free() 
 
 end subroutine serial_fe_space_project_vector_function
 
@@ -763,51 +770,51 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
   call this%create_fe_vef_iterator(vef)
 
   if ( present(time) ) time_(1) = time 
-     do while (.not. fe%has_finished() )     
-					
-						do field_id = 1, this%get_num_fields()
-       if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) ) then 
-							call fe%update_integration()
-							
-       reference_fe => fe%get_reference_fe(field_id)
-       call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
-            
+  do while (.not. fe%has_finished() )     
+
+     do field_id = 1, this%get_num_fields()
+        if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) ) then 
+           call fe%update_integration()
+
+           reference_fe => fe%get_reference_fe(field_id)
+           call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
+
            call fe%get_field_fe_dofs(field_id,fe_dofs)
 
            ! Loop over all vefs in FE
            do ivef = 1, fe%get_num_vefs() 
               call fe%get_vef(ivef, vef)  
-														
-														if ( vef%get_set_id() /= 0 ) then 
-              ! Get scalar boundary functions 
-              call this%conditions%get_components_code( vef%get_set_id(), components_code )
-              component_id = offset_component(field_id) + 1
-              if (components_code(component_id)) then
-														
-														  ! Retreive the scalar functions corresponding to the components of the function to be projected
-                 do icomp=1, reference_fe%get_num_field_components()
-                  call this%conditions%get_function(vef%get_set_id(), &
-                                                    component_id+icomp-1, &
-                                                    function_scalar_components(icomp)%p)
-                 end do
 
-                 call reference_fe%evaluate_boundary_function_moments( fe%get_cell_map(), ivef, function_scalar_components, dof_values )
-																	
-                 own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef) 
-                 do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
-                    idof = own_dofs_on_vef_iterator%get_current()   
-                    fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
-                    call own_dofs_on_vef_iterator%next()  
-                 end do
-																	call own_dofs_on_vef_iterator%free() 
+              if ( vef%get_set_id() /= 0 ) then 
+                 ! Get scalar boundary functions 
+                 call this%conditions%get_components_code( vef%get_set_id(), components_code )
+                 component_id = offset_component(field_id) + 1
+                 if (components_code(component_id)) then
 
-           end if
-											end if 
-											end do 
-							 call memfree( dof_values, __FILE__, __LINE__ )
-													end if
+                    ! Retreive the scalar functions corresponding to the components of the function to be projected
+                    do icomp=1, reference_fe%get_num_field_components()
+                       call this%conditions%get_function(vef%get_set_id(), &
+                            component_id+icomp-1, &
+                            function_scalar_components(icomp)%p)
+                    end do
+
+                    call reference_fe%evaluate_boundary_function_moments( fe%get_cell_map(), ivef, function_scalar_components, dof_values )
+
+                    own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef) 
+                    do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
+                       idof = own_dofs_on_vef_iterator%get_current()   
+                       fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
+                       call own_dofs_on_vef_iterator%next()  
+                    end do
+                    call own_dofs_on_vef_iterator%free() 
+
+                 end if
+              end if
+           end do
+           call memfree( dof_values, __FILE__, __LINE__ )
+        end if
      end do
-					call fe%next()									
+     call fe%next()									
   end do
 
   call this%free_fe_cell_iterator(fe)
@@ -817,7 +824,7 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
   call memfree( components_code, __FILE__, __LINE__ ) 
   call memfree (offset_component, __FILE__, __LINE__ )
 
-end subroutine serial_fe_space_project_Dirichlet_boundary_function 
+end subroutine serial_fe_space_project_Dirichlet_boundary_function
 
 subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_function, time, fields_to_project)
   implicit none

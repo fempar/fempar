@@ -164,7 +164,7 @@ contains
 				class(vector_t) , pointer :: dof_values
 									
     call this%problem_functions%set_num_dims(this%triangulation%get_num_dims())
-				
+
 				! Set boundary conditions 
 	   call this%projections_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
 	   call this%projections_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
