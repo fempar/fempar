@@ -94,7 +94,7 @@ contains
     class(vector_t)    , pointer       :: dof_values
     type(fe_function_t), pointer       :: argument
     argument   => this%discrete_integration%get_fe_function()
-    dof_values => argument%get_dof_values()
+    dof_values => argument%get_free_dof_values()
     dof_values = x
     call this%discrete_integration%set_terms_to_integrate(translation_terms)
     call this%residual%numerical_setup()
@@ -116,7 +116,7 @@ contains
     class(vector_t)    , pointer       :: dof_values
     type(fe_function_t), pointer       :: argument
     argument   => this%discrete_integration%get_fe_function()
-    dof_values => argument%get_dof_values()
+    dof_values => argument%get_free_dof_values()
     dof_values = x
     call this%discrete_integration%set_terms_to_integrate(translation_terms)
     call this%residual%numerical_setup()
@@ -144,7 +144,7 @@ contains
     type(fe_function_t) , pointer           :: argument
     if(present(x)) then
        argument   => this%discrete_integration%get_fe_function()
-       dof_values => argument%get_dof_values()
+       dof_values => argument%get_free_dof_values()
        dof_values = x
        call this%discrete_integration%set_terms_to_integrate(tangent_terms)
        call this%residual%numerical_setup()

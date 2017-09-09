@@ -78,8 +78,9 @@ module fempar_sm_analytical_functions_names
 
   type, extends(base_vector_function_t) :: solution_function_u_t
    contains
-     procedure :: get_value_space    => solution_function_u_get_value_space
-     procedure :: get_gradient_space => solution_function_u_get_gradient_space
+     procedure :: get_value_space      => solution_function_u_get_value_space
+     procedure :: get_value_space_time => solution_function_u_get_value_space_time
+     procedure :: get_gradient_space   => solution_function_u_get_gradient_space
   end type solution_function_u_t
   !===============================================================================================
 
@@ -186,6 +187,16 @@ contains
     end if
   end subroutine solution_function_u_get_value_space
 
+  subroutine solution_function_u_get_value_space_time ( this, point, time, result )
+    implicit none
+    class(solution_function_u_t), intent(in)    :: this
+    type(point_t)               , intent(in)    :: point
+    real(rp)                    , intent(in)    :: time
+    type(vector_field_t)        , intent(inout) :: result
+    ! Steady state solution
+    call this%get_value_space(point,result)
+  end subroutine solution_function_u_get_value_space_time  
+  
   !===============================================================================================
   subroutine solution_function_p_get_gradient_space ( this, point, result )
     implicit none

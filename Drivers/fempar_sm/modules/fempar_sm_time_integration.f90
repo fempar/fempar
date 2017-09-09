@@ -89,13 +89,13 @@ module fempar_sm_time_integration_names
      subroutine initialize_time_step_interface(this,fe_space, solution)
        import :: time_integration_t, serial_fe_space_t, fe_function_t
        class(time_integration_t), intent(inout) :: this
-       class(serial_fe_space_t) , intent(in)    :: fe_space
+       class(serial_fe_space_t) , intent(inout) :: fe_space
        class(fe_function_t)     , intent(inout) :: solution
      end subroutine initialize_time_step_interface
      subroutine update_solution_interface(this,fe_space,solution)
        import :: time_integration_t, serial_fe_space_t, vector_t, fe_function_t
        class(time_integration_t), intent(inout) :: this
-       class(serial_fe_space_t) , intent(in)    :: fe_space
+       class(serial_fe_space_t) , intent(inout) :: fe_space
        class(fe_function_t)     , intent(inout) :: solution
      end subroutine update_solution_interface
      function get_coefficient_interface(this)
@@ -208,7 +208,7 @@ contains
        call this%discrete_integration%set_current_time        (this%current_time)
 
        ! Solve time step
-       dof_values => solution%get_dof_values() ! initial guess is the previous step
+       dof_values => solution%get_free_dof_values() ! initial guess is the previous step
        call this%nonlinear_solver%solve(this%nonlinear_operator,dof_values)
 
        ! Check if converged
@@ -258,28 +258,26 @@ contains
   subroutine theta_time_integration_initialize_time_step(this,fe_space,solution)
     implicit none
     class(theta_time_integration_t), intent(inout) :: this
-    class(serial_fe_space_t)       , intent(in)    :: fe_space
+    class(serial_fe_space_t)       , intent(inout) :: fe_space
     class(fe_function_t)           , intent(inout) :: solution
     this%current_step = this%current_step + 1
     this%current_time = this%current_time + this%time_step
     ! Update strong Dirichlet Bcs at current time
-    !call fe_space%interpolate_dirichlet_values   (this%current_time)
-    call solution%update_strong_dirichlet_values (fe_space)
+    call fe_space%interpolate_dirichlet_values (solution, this%current_time)
   end subroutine theta_time_integration_initialize_time_step
 
   subroutine theta_time_integration_update_solution(this,fe_space,solution)
     implicit none
     class(theta_time_integration_t), intent(inout) :: this
-    class(serial_fe_space_t), intent(in)    :: fe_space
+    class(serial_fe_space_t), intent(inout) :: fe_space
     class(fe_function_t)    , intent(inout) :: solution
     class(vector_t)         , pointer       :: dof_values_current
     class(vector_t)         , pointer       :: dof_values_old
-    dof_values_current  => solution%get_dof_values()
-    dof_values_old      => this%solution_old%get_dof_values()
+    dof_values_current  => solution%get_free_dof_values()
+    dof_values_old      => this%solution_old%get_free_dof_values()
     dof_values_current = (1.0_rp/this%theta) * ( dof_values_current - (1.0_rp-this%theta) * dof_values_old )
     ! Update strong Dirichlet Bcs at the end of the step time
-    !call fe_space%interpolate_dirichlet_values   ( this%current_time + (1.0_rp-this%theta) * this%time_step )
-    call solution%update_strong_dirichlet_values ( fe_space )
+    call fe_space%interpolate_dirichlet_values   ( solution, this%current_time + (1.0_rp-this%theta) * this%time_step )
     ! Store solution
     this%solution_old = solution
   end subroutine theta_time_integration_update_solution
@@ -296,19 +294,18 @@ contains
   subroutine bdf2_time_integration_initialize_time_step(this, fe_space,solution)
     implicit none
     class(bdf2_time_integration_t), intent(inout) :: this
-    class(serial_fe_space_t)      , intent(in)    :: fe_space
+    class(serial_fe_space_t)      , intent(inout) :: fe_space
     class(fe_function_t)          , intent(inout) :: solution
     this%current_step = this%current_step + 1
     this%current_time = this%current_time + this%time_step
     ! Update strong Dirichlet Bcs
-    !call fe_space%interpolate_dirichlet_values   (this%current_time + this%time_step)
-    call solution%update_strong_dirichlet_values (fe_space)
+    call fe_space%interpolate_dirichlet_values(solution, this%current_time + this%time_step)
   end subroutine bdf2_time_integration_initialize_time_step
 
   subroutine bdf2_time_integration_update_solution(this,fe_space,solution)
     implicit none
     class(bdf2_time_integration_t), intent(inout) :: this
-    class(serial_fe_space_t), intent(in)    :: fe_space
+    class(serial_fe_space_t), intent(inout) :: fe_space
     class(fe_function_t)    , intent(inout) :: solution
     ! Store solution
     this%solution_n_1 = this%solution_n

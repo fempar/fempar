@@ -219,7 +219,7 @@ end subroutine free_timers
   subroutine setup_triangulation(this)
     implicit none
     class(fempar_sm_fe_driver_t), intent(inout) :: this
-    type(vef_iterator_t)  :: vef
+    class(vef_iterator_t), allocatable :: vef
     logical :: fixed_pressure
     
     call this%triangulation%create(this%parameter_list, this%par_environment)
@@ -258,7 +258,7 @@ end subroutine free_timers
        write(*,*) discrete_integration_type_irreducible
        mcheck(.false.,'Discrete integration not available')
    end if
-   call this%fempar_sm_integration%create(this%triangulation%get_num_dimensions(),this%fempar_sm_analytical_functions)
+   call this%fempar_sm_integration%create(this%triangulation%get_num_dims(),this%fempar_sm_analytical_functions)
    !call this%fempar_sm_integration%set_solution(this%solution)
    
   end subroutine setup_discrete_integration
@@ -269,18 +269,18 @@ end subroutine free_timers
     class(fempar_sm_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat, field_id
     class(cell_iterator_t), allocatable       :: cell
-    class(lagrangian_reference_fe_t), pointer :: reference_fe_geo
+    class(reference_fe_t), pointer :: reference_fe_geo
     
     allocate(this%reference_fes(this%fempar_sm_integration%get_number_fields()), stat=istat)
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
-      reference_fe_geo => cell%get_reference_fe_geo()
+      reference_fe_geo => cell%get_reference_fe()
       do field_id = 1, this%fempar_sm_integration%get_number_fields()
          this%reference_fes(field_id) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                              fe_type = this%fempar_sm_integration%get_fe_type(field_id), &
-                                                             number_dimensions = this%triangulation%get_num_dimensions(), &
+                                                             num_dims = this%triangulation%get_num_dims(), &
                                                              order = this%test_params%get_reference_fe_order(), &
                                                              field_type = this%fempar_sm_integration%get_field_type(field_id), &
                                                              conformity = .true. )
@@ -308,20 +308,18 @@ end subroutine free_timers
     class(fempar_sm_fe_driver_t), target, intent(inout) :: this
     class(reference_fe_t)       , pointer       :: reference_fe
     
-    call this%fempar_sm_analytical_functions%set_num_dimensions(this%triangulation%get_num_dimensions())
+    call this%fempar_sm_analytical_functions%set_num_dimensions(this%triangulation%get_num_dims())
     call this%fempar_sm_conditions%set_number_components(this%fempar_sm_integration%get_number_components())
-    call this%fempar_sm_conditions%set_number_dimensions(this%triangulation%get_num_dimensions())    
-    ! B.C. taken from the exact solution
+    call this%fempar_sm_conditions%set_number_dimensions(this%triangulation%get_num_dims())    
+    ! Store exact function to define B.C. in FE space
     call this%fempar_sm_conditions%set_boundary_function(this%fempar_sm_analytical_functions%get_solution_function_u())
-
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%fempar_sm_conditions, &
                                reference_fes       = this%reference_fes, &
                                coarse_fe_handlers  = this%coarse_fe_handlers)
-    
+   
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-    call this%fe_space%initialize_fe_integration()
-    call this%fe_space%interpolate_dirichlet_values(this%fempar_sm_conditions)    
+    call this%fe_space%set_up_cell_integration()
 
   end subroutine setup_fe_space
 
@@ -367,12 +365,12 @@ end subroutine free_timers
     call this%zero_vector%create(zero_vector_field)
     do field_id = 1, this%fempar_sm_integration%get_number_fields()
        if(this%fempar_sm_integration%get_field_type(field_id) == field_type_vector) then
-         call this%solution%interpolate_function(this%fe_space, field_id, this%zero_vector)
+         call this%fe_space%interpolate(field_id, this%zero_vector, this%solution)
        else if( this%fempar_sm_integration%get_field_type(field_id) == field_type_scalar) then
-         call this%solution%interpolate_function(this%fe_space, field_id, this%zero_scalar)
+         call this%fe_space%interpolate(field_id, this%zero_scalar, this%solution)
        end if
     end do
-    call this%solution%update_strong_dirichlet_values(this%fe_space)
+    call this%fe_space%interpolate_dirichlet_values(this%solution)    
     call this%fempar_sm_integration%set_fe_function(this%solution)
         
     ! BDDC preconditioner

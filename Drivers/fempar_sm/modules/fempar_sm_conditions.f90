@@ -46,6 +46,7 @@ module fempar_sm_conditions_names
      procedure :: set_number_components       => fempar_sm_conditions_set_number_components
      procedure :: set_number_dimensions       => fempar_sm_conditions_set_number_dimensions
      procedure :: get_number_components       => fempar_sm_conditions_get_number_components  
+     procedure :: get_num_components          => fempar_sm_conditions_get_num_components
      procedure :: get_components_code         => fempar_sm_conditions_get_components_code
      procedure :: get_function                => fempar_sm_conditions_get_function
   end type fempar_sm_conditions_t
@@ -99,6 +100,13 @@ contains
     !  components_code(1:this%number_dimensions) = .true.
     !end if
   end subroutine fempar_sm_conditions_get_components_code
+  
+  function fempar_sm_conditions_get_num_components(this)
+    implicit none
+    class(fempar_sm_conditions_t), intent(in)  :: this
+    integer(ip) :: fempar_sm_conditions_get_num_components
+    fempar_sm_conditions_get_num_components = this%number_components 
+  end function fempar_sm_conditions_get_num_components
   
   subroutine fempar_sm_conditions_get_function ( this, boundary_id, component_id, function )
     implicit none

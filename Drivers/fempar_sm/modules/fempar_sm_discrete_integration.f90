@@ -128,20 +128,20 @@ module fempar_sm_discrete_integration_names
   type, extends(fempar_sm_discrete_integration_t) :: irreducible_discrete_integration_t
      private
    contains
-     procedure :: create        => irreducible_discrete_integration_create
-     procedure :: integrate     => irreducible_discrete_integration_integrate
-     procedure :: is_symmetric  => irreducible_discrete_integration_is_symmetric
-     procedure :: is_coercive   => irreducible_discrete_integration_is_coercive
+     procedure :: create             => irreducible_discrete_integration_create
+     procedure :: integrate_galerkin => irreducible_discrete_integration_integrate
+     procedure :: is_symmetric       => irreducible_discrete_integration_is_symmetric
+     procedure :: is_coercive        => irreducible_discrete_integration_is_coercive
      !procedure :: init_solution => irreducible_discrete_integration_init_solution
   end type irreducible_discrete_integration_t
 
   type, extends(fempar_sm_discrete_integration_t) :: mixed_u_p_discrete_integration_t
      private
    contains
-     procedure :: create        => mixed_u_p_discrete_integration_create
-     procedure :: integrate     => mixed_u_p_discrete_integration_integrate
-     procedure :: is_symmetric  => mixed_u_p_discrete_integration_is_symmetric
-     procedure :: is_coercive   => mixed_u_p_discrete_integration_is_coercive     
+     procedure :: create              => mixed_u_p_discrete_integration_create
+     procedure :: integrate_galerkin  => mixed_u_p_discrete_integration_integrate
+     procedure :: is_symmetric        => mixed_u_p_discrete_integration_is_symmetric
+     procedure :: is_coercive         => mixed_u_p_discrete_integration_is_coercive     
      !procedure :: init_solution => mixed_u_p_discrete_integration_init_solution
   end type mixed_u_p_discrete_integration_t
 
