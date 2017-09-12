@@ -1060,15 +1060,18 @@ subroutine p4est_st_allocate_and_fill_x_cell_vertex_coordinates(this)
   class(p4est_serial_triangulation_t), intent(inout)    :: this
   integer(ip) :: idime, icell, istat, num_corners, current, corner
   real(rp) :: vxyz(3)
+  type(point_t), pointer :: raw_per_cell_vertex_coordinates(:)
   
 #ifdef ENABLE_P4EST
-  call this%free_x_cell_vertex_coordinates()
   if ( this%get_num_dims() == 2 ) then
     num_corners = NUM_CORNERS_2D
   else if ( this%get_num_dims() == 3 ) then
     num_corners = NUM_CORNERS_3D
   end if
-  allocate(this%per_cell_vertex_coordinates(this%get_num_cells()*num_corners), stat=istat); check(istat==0);  
+  call this%per_cell_vertex_coordinates%resize(0)
+  call this%per_cell_vertex_coordinates%resize(this%get_num_cells()*num_corners)
+  
+  raw_per_cell_vertex_coordinates => this%per_cell_vertex_coordinates%get_raw_pointer()
   
   current = 1 
   do icell=1, this%get_num_cells()
@@ -1091,7 +1094,7 @@ subroutine p4est_st_allocate_and_fill_x_cell_vertex_coordinates(this)
                                                         corner,&
                                                         vxyz)
        end if
-       call this%per_cell_vertex_coordinates(current)%init(vxyz)
+       call raw_per_cell_vertex_coordinates(current)%init(vxyz)
        current = current + 1 
      end do  
   end do
@@ -1099,20 +1102,6 @@ subroutine p4est_st_allocate_and_fill_x_cell_vertex_coordinates(this)
   call this%not_enabled_error()
 #endif        
 end subroutine p4est_st_allocate_and_fill_x_cell_vertex_coordinates
-
-subroutine p4est_st_free_x_cell_vertex_coordinates(this)
-  implicit none
-  class(p4est_serial_triangulation_t), intent(inout)    :: this
-  integer(ip) :: istat
-#ifdef ENABLE_P4EST
-  if ( allocated(this%per_cell_vertex_coordinates) ) then
-    deallocate(this%per_cell_vertex_coordinates, stat=istat)
-    check(istat==0)
-  end if  
-#else
-  call this%not_enabled_error()
-#endif        
-end subroutine p4est_st_free_x_cell_vertex_coordinates
 
 subroutine p4est_st_clear_refinement_and_coarsening_flags(this)
    implicit none
@@ -1296,7 +1285,9 @@ subroutine p4est_serial_triangulation_free ( this)
   this%p4est              = c_null_ptr
   this%p4est_mesh         = c_null_ptr
   this%QHE                = c_null_ptr
-    
+  
+  call this%per_cell_vertex_coordinates%free()
+  
   call this%lst_vefs_gids%free()
   call this%ptr_cells_around_proper_vefs%free()
   call this%lst_cells_around_proper_vefs%free()

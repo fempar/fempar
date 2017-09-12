@@ -37,8 +37,9 @@ module p4est_serial_triangulation_names
   use p4est_bindings_names
   use reference_fe_names
   use triangulation_names
-  use std_vector_integer_ip_names
   use field_names
+  use std_vector_integer_ip_names
+  use std_vector_point_names
   
   use FPL
 
@@ -328,7 +329,7 @@ module p4est_serial_triangulation_names
     integer(ip) :: num_improper_vefs        = -1 
     
     type(hex_lagrangian_reference_fe_t) :: reference_fe_geo
-    type(point_t), allocatable          :: per_cell_vertex_coordinates(:)
+    type(std_vector_point_t)            :: per_cell_vertex_coordinates
     
     ! p4est-related data
     type(c_ptr) :: p4est_connectivity = c_null_ptr
@@ -397,7 +398,6 @@ module p4est_serial_triangulation_names
     procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_st_update_vef_set_ids
     procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_st_std_vector_transform_length_to_header
     procedure, private        , non_overridable :: allocate_and_fill_x_cell_vertex_coordinates => p4est_st_allocate_and_fill_x_cell_vertex_coordinates
-    procedure, private        , non_overridable :: free_x_cell_vertex_coordinates              => p4est_st_free_x_cell_vertex_coordinates
     procedure                 , non_overridable :: clear_refinement_and_coarsening_flags         => p4est_st_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable :: clear_cell_set_ids                            => p4est_st_clear_cell_set_ids
     procedure                                   :: fill_cells_set                                => p4est_st_fill_cells_set

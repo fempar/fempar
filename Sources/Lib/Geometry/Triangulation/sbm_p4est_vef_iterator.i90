@@ -102,7 +102,6 @@ subroutine p4est_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
   type(list_iterator_t)                         :: dofs_on_vef_iterator
   
   assert ( this%get_gid() <= this%p4est_triangulation%num_proper_vefs .and. .not. this%has_finished() )
-  assert ( allocated ( this%p4est_triangulation%per_cell_vertex_coordinates ) )
   
   call cell%create(this%p4est_triangulation)
   call this%get_cell_around(1, cell)
@@ -113,7 +112,7 @@ subroutine p4est_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
   do while (.not. dofs_on_vef_iterator%is_upper_bound())     
     inode_within_cell = dofs_on_vef_iterator%get_current()
     nodes_coordinates(inode_within_vef) =                     &
-      this%p4est_triangulation%per_cell_vertex_coordinates( & 
+      this%p4est_triangulation%per_cell_vertex_coordinates%get( & 
            (cell%get_gid()-1)*num_vertices+inode_within_cell)
     call dofs_on_vef_iterator%next()
     inode_within_vef = inode_within_vef + 1
