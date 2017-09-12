@@ -397,7 +397,7 @@ module p4est_serial_triangulation_names
     procedure, private        , non_overridable :: update_cell_set_ids                           => p4est_st_update_cell_set_ids
     procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_st_update_vef_set_ids
     procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_st_std_vector_transform_length_to_header
-    procedure, private        , non_overridable :: allocate_and_fill_x_cell_vertex_coordinates => p4est_st_allocate_and_fill_x_cell_vertex_coordinates
+    procedure, private        , non_overridable :: fill_x_cell_vertex_coordinates                => p4est_st_fill_x_cell_vertex_coordinates
     procedure                 , non_overridable :: clear_refinement_and_coarsening_flags         => p4est_st_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable :: clear_cell_set_ids                            => p4est_st_clear_cell_set_ids
     procedure                                   :: fill_cells_set                                => p4est_st_fill_cells_set

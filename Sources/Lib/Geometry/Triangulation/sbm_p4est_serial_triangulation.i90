@@ -103,7 +103,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
-    call this%allocate_and_fill_x_cell_vertex_coordinates()
+    call this%fill_x_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
@@ -114,7 +114,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
-    call this%allocate_and_fill_x_cell_vertex_coordinates()
+    call this%fill_x_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
@@ -158,7 +158,7 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   ! Update the num of triangulation cells
   call this%set_num_local_cells(size(this%quad_level))
   call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-  call this%allocate_and_fill_x_cell_vertex_coordinates()
+  call this%fill_x_cell_vertex_coordinates()
   call this%update_cell_set_ids()
   call this%update_vef_set_ids(old_lst_vefs_gids)
   call old_lst_vefs_gids%free()
@@ -1055,7 +1055,7 @@ subroutine p4est_st_std_vector_transform_length_to_header(this,std_vector_intege
 #endif      
 end subroutine p4est_st_std_vector_transform_length_to_header
 
-subroutine p4est_st_allocate_and_fill_x_cell_vertex_coordinates(this)
+subroutine p4est_st_fill_x_cell_vertex_coordinates(this)
   implicit none
   class(p4est_serial_triangulation_t), intent(inout)    :: this
   integer(ip) :: idime, icell, istat, num_corners, current, corner
@@ -1068,7 +1068,6 @@ subroutine p4est_st_allocate_and_fill_x_cell_vertex_coordinates(this)
   else if ( this%get_num_dims() == 3 ) then
     num_corners = NUM_CORNERS_3D
   end if
-  call this%per_cell_vertex_coordinates%resize(0)
   call this%per_cell_vertex_coordinates%resize(this%get_num_cells()*num_corners)
   
   raw_per_cell_vertex_coordinates => this%per_cell_vertex_coordinates%get_raw_pointer()
@@ -1101,7 +1100,7 @@ subroutine p4est_st_allocate_and_fill_x_cell_vertex_coordinates(this)
 #else
   call this%not_enabled_error()
 #endif        
-end subroutine p4est_st_allocate_and_fill_x_cell_vertex_coordinates
+end subroutine p4est_st_fill_x_cell_vertex_coordinates
 
 subroutine p4est_st_clear_refinement_and_coarsening_flags(this)
    implicit none
