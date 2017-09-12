@@ -34,23 +34,23 @@ module std_vector_real_rp_names
   implicit none
   private
   
-  STD_VECTOR_TYPE(real,rp)
+  STD_VECTOR_TYPE(real(rp),real_rp)
     
   public :: std_vector_real_rp_t
   
 contains
   
-  STD_VECTOR_PUSH_BACK(real,rp)
-  STD_VECTOR_ERASE(real,rp)
-  STD_VECTOR_RESIZE(real,rp)
-  STD_VECTOR_SHRINK_TO_FIT(real,rp)
-  STD_VECTOR_COPY(real,rp)
-  STD_VECTOR_FREE(real,rp)
-  STD_VECTOR_GET(real,rp)
-  STD_VECTOR_GET_POINTER_TO_RANGE(real,rp)
-  STD_VECTOR_SET(real,rp)
-  STD_VECTOR_SIZE(real,rp)
-  STD_VECTOR_CAPACITY(real,rp)
-  STD_VECTOR_GET_RAW_POINTER(real,rp)
+  STD_VECTOR_PUSH_BACK(real(rp),real_rp)
+  STD_VECTOR_ERASE(real(rp),real_rp)
+  STD_VECTOR_RESIZE(real(rp),real_rp)
+  STD_VECTOR_SHRINK_TO_FIT(real(rp),real_rp)
+  STD_VECTOR_COPY(real(rp),real_rp)
+  STD_VECTOR_FREE(real(rp),real_rp)
+  STD_VECTOR_GET(real(rp),real_rp)
+  STD_VECTOR_GET_POINTER_TO_RANGE(real(rp),real_rp)
+  STD_VECTOR_SET(real(rp),real_rp)
+  STD_VECTOR_SIZE(real(rp),real_rp)
+  STD_VECTOR_CAPACITY(real(rp),real_rp)
+  STD_VECTOR_GET_RAW_POINTER(real(rp),real_rp)
 
 end module std_vector_real_rp_names
