@@ -1844,14 +1844,14 @@ subroutine tet_nedelec_reference_fe_evaluate_boundary_function_moments(this, cel
 					call facet_map%create( facet_quadrature, d_fe_geo )
       
 					! Get face map coordinates
-     facet_map_coordinates   => facet_map%get_coordinates()
+     facet_map_coordinates   => facet_map%get_coordinates() 
    
      ! Extract coordinates of the vertices within the face
      vertex_within_facet_id = 1
      vertex_iterator = this%vertices_n_face%create_iterator(vef_lid)
      do while ( .not. vertex_iterator%is_upper_bound () )
         vertex_within_cell_id = vertex_iterator%get_current()
-								call facet_map_coordinates(vertex_within_edge_id)%init( coordinates(vertex_within_cell_id)%get_value() )
+								call facet_map_coordinates(vertex_within_facet_id)%init( coordinates(vertex_within_cell_id)%get_value() )
         call vertex_iterator%next()
         vertex_within_facet_id = vertex_within_facet_id + 1
      end do

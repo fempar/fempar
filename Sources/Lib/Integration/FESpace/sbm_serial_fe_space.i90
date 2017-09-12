@@ -747,17 +747,16 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
   real(rp)  , allocatable                :: dof_values(:)  
   integer(ip), pointer                   :: fe_dofs(:)
   real(rp)                   , pointer   :: fixed_dof_values_entries(:)
-
-  integer(ip)              :: idof, ivef, istat
-
-  class(environment_t), pointer :: environment 
-
+  integer(ip)              :: idof, vef_lid, istat
+  class(environment_t), pointer     :: environment 
+  class(projector_t)  , allocatable :: projector 
+		
   environment => this%get_environment() 
 
   if (.not. environment%am_i_l1_task() ) then 
      return 
   end if
-
+		
   fixed_dof_values_entries => fe_function%fixed_dof_values%get_entries()
 
   call this%allocate_and_fill_offset_component(offset_component)
@@ -768,22 +767,26 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
 
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_vef_iterator(vef)
-
+  ! Create and initialize projector 
+		
   if ( present(time) ) time_(1) = time 
   do while (.not. fe%has_finished() )     
 
      do field_id = 1, this%get_num_fields()
-        if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) ) then 
+      
+					if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) ) then 
            call fe%update_integration()
-
-           reference_fe => fe%get_reference_fe(field_id)
+											reference_fe => fe%get_reference_fe(field_id)
+		         call create_projector( projector, reference_fe )
+		         call projector%init()
+											call projector%update( fe%get_cell_map() )
            call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
 
            call fe%get_field_fe_dofs(field_id,fe_dofs)
 
            ! Loop over all vefs in FE
-           do ivef = 1, fe%get_num_vefs() 
-              call fe%get_vef(ivef, vef)  
+           do vef_lid = 1, fe%get_num_vefs() 
+              call fe%get_vef(vef_lid, vef)  
 
               if ( vef%get_set_id() /= 0 ) then 
                  ! Get scalar boundary functions 
@@ -798,9 +801,10 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
                             function_scalar_components(icomp)%p)
                     end do
 
-                    call reference_fe%evaluate_boundary_function_moments( fe%get_cell_map(), ivef, function_scalar_components, dof_values )
+																	!			call projector%evaluate_boundary_function_moments( vef_lid, function_scalar_components, dof_values )
+                    call reference_fe%evaluate_boundary_function_moments( fe%get_cell_map(), vef_lid, function_scalar_components, dof_values )
 
-                    own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef) 
+                    own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
                     do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
                        idof = own_dofs_on_vef_iterator%get_current()   
                        fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
@@ -813,6 +817,7 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
            end do
            call memfree( dof_values, __FILE__, __LINE__ )
         end if
+										call projector%free()
      end do
      call fe%next()									
   end do
