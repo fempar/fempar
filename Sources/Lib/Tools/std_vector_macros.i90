@@ -78,8 +78,9 @@ SUBROUTINE push_back(T,i)                     ;\
   CLASS_DERIVED_DATA_TYPE_NAME(TINCTYPE,TKIND), intent(inout) :: T  ;\
   BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND)  , intent(in)    :: i  ;\
   BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND),ALLOCATABLE::v_aux(:)  ;\
+  integer(ip) :: error ;\
   IF(.NOT.ALLOCATED(T%v)) THEN      ;\
-    call memalloc(1, T%v, __FILE__, __LINE__) ;\
+    ALLOCATE( T%v(1), STAT = error ) ; check( error == 0 ) ;\
     T%size_ = 1                      ;\
     T%capacity_ = 1                  ;\
     T%v(1)=i                        ;\
@@ -88,10 +89,10 @@ SUBROUTINE push_back(T,i)                     ;\
     T%v(T%size_)=i                   ;\
   ELSE                              ;\
     T%capacity_ = (T%size_*3)/2+1     ;\
-    call memalloc(T%capacity_, v_aux, __FILE__, __LINE__) ;\
+    ALLOCATE( v_aux(T%capacity_), STAT = error ) ; check( error == 0 ) ;\
     v_aux(1:T%size_) = T%v(1:T%size_) ;\
-    call memfree(T%v, __FILE__, __LINE__) ;\
-    call memmovealloc(v_aux,T%v)      ;\
+    DEALLOCATE( T%v, STAT = error ) ; check( error == 0 ) ;\
+    call move_alloc( from=v_aux, to=T%v ) ;\
     T%size_ = T%size_ + 1             ;\
     T%v(T%size_) = i                 ;\
   ENDIF                             ;\
@@ -115,10 +116,11 @@ SUBROUTINE resize(T,size,i)  ;\
   integer(ip)                                   ,  intent(in)   :: size  ;\
   BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND), optional, intent(in)    :: i  ;\
   BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND),ALLOCATABLE::v_aux(:)  ;\
+  integer(ip) :: error ;\
   assert (size>=0) ;\
   IF(.NOT.ALLOCATED(T%v)) THEN ;\
     IF(size>0)THEN            ;\
-      call memalloc(size,T%v,__FILE__,__LINE__) ;\
+      ALLOCATE( T%v(size), STAT = error ) ; check( error == 0 ) ;\
     ENDIF                     ;\
     T%size_ = size             ;\
     T%capacity_ = size         ;\
@@ -132,10 +134,10 @@ SUBROUTINE resize(T,size,i)  ;\
     T%size_ = size             ;\
   ELSE                        ;\
     T%capacity_ = size         ;\
-    call memalloc(T%capacity_, v_aux, __FILE__, __LINE__);\
+    ALLOCATE( v_aux(T%capacity_), STAT = error ) ; check( error == 0 ) ;\
     v_aux (1:T%size_) = T%v(1:T%size_) ;\
-    call memfree(T%v, __FILE__, __LINE__ ) ;\
-    call memmovealloc(v_aux,T%v);\
+    DEALLOCATE( T%v, STAT = error ) ; check( error == 0 ) ;\
+    call move_alloc( from=v_aux, to=T%v ) ;\
     IF(PRESENT(i))THEN        ;\
       T%v(T%size_+1:size)=i   ;\
     ENDIF                     ;\
@@ -148,13 +150,14 @@ SUBROUTINE shrink_to_fit(T)  ;\
   IMPLICIT NONE                 ;\
   CLASS_DERIVED_DATA_TYPE_NAME(TINCTYPE,TKIND)  , intent(inout) :: T  ;\
   BASE_ARRAY_DATA_TYPE(TINCTYPE,TKIND),ALLOCATABLE::v_aux(:)  ;\
+  integer(ip) :: error ;\
   assert (T%size_ <= T%capacity_) ;\
   IF( ALLOCATED(T%v) .and. T%size_ < T%capacity_ ) THEN ;\
     T%capacity_ = T%size_         ;\
-    call memalloc(T%capacity_, v_aux, __FILE__, __LINE__);\
+    ALLOCATE( v_aux(T%capacity_), STAT = error ) ; check( error == 0 ) ;\
     v_aux (1:T%size_) = T%v(1:T%size_) ;\
-    call memfree(T%v, __FILE__, __LINE__ ) ;\
-    call memmovealloc(v_aux,T%v);\
+    DEALLOCATE( T%v, STAT = error ) ; check( error == 0 ) ;\
+    call move_alloc( from=v_aux, to=T%v ) ;\
   ENDIF                       ;\
 END SUBROUTINE                ;\
 
@@ -163,10 +166,11 @@ SUBROUTINE copy(T,T2)  ;\
   IMPLICIT NONE                 ;\
   CLASS_DERIVED_DATA_TYPE_NAME(TINCTYPE,TKIND)  , intent(inout) :: T  ;\
   CLASS_DERIVED_DATA_TYPE_NAME(TINCTYPE,TKIND)  , intent(in)    :: T2  ;\
+  integer(ip) :: error ;\
   call T%free() ;\
   T%capacity_= T2%size_       ;\
   T%size_    = T2%size_       ;\
-  call memalloc(T%capacity_, T%v, __FILE__, __LINE__)     ;\
+  ALLOCATE( T%v(T%capacity_), STAT = error ) ; check( error == 0 ) ;\
   if (allocated(T2%v)) then ;\
     if (T%size_ >0) T%v(1:T%size_) = T2%v(1:T%size_) ;\
   end if  ;\
@@ -176,7 +180,10 @@ END SUBROUTINE  ;\
 SUBROUTINE free(T)  ;\
   IMPLICIT NONE                 ;\
   CLASS_DERIVED_DATA_TYPE_NAME(TINCTYPE,TKIND)  , intent(inout) :: T  ;\
-  if (allocated(t%v)) call memfree(T%v, __FILE__, __LINE__) ;\
+  integer(ip) :: error ;\
+  if (allocated(T%v)) then ;\
+    DEALLOCATE( T%v, STAT = error ) ; check( error == 0 ) ;\
+  end if ;\
   T%size_ = 0 ;\
   T%capacity_ = 0 ;\
 END SUBROUTINE  ;\
