@@ -444,7 +444,7 @@ function fe_facet_iterator_get_facet_integrator(this, field_id)
  
   reference_fes_id(2) = 0 
   do icell_around = 1, this%get_num_cells_around()
-     reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id, this%fes_around(icell_around)%p%get_gid())
+     reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id)%get(this%fes_around(icell_around)%p%get_gid())
   end do
   
   facet_integrators_position_key = &
@@ -473,7 +473,7 @@ subroutine fe_facet_iterator_update_facet_integrators(this)
   do field_id = 1, this%fe_space%num_fields
      reference_fes_id(2) = 0 
      do icell_around = 1, this%get_num_cells_around()
-        reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id, this%fes_around(icell_around)%p%get_gid())
+        reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id)%get(this%fes_around(icell_around)%p%get_gid())
      end do
      facet_integrators_position_key = &
         this%fe_space%generate_facet_integrators_position_key(this%get_quadrature_degree(), &

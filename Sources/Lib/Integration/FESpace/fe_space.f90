@@ -456,7 +456,7 @@ module fe_space_names
      integer(ip)                   , allocatable :: cell_quadratures_degree(:)
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
-     integer(ip)                   , allocatable :: field_cell_to_ref_fes(:,:)         ! (num_fields, num_fes)
+     type(std_vector_integer_ip_t) , allocatable :: field_cell_to_ref_fes(:)
      integer(ip)                   , allocatable :: max_order_reference_fe_id_x_cell(:) ! Stores Key=max_order_reference_fe_id for all FEs
      type(hash_table_ip_ip_t)                    :: cell_quadratures_and_maps_position    ! Key = [geo_reference_fe_id,quadrature_degree]
      type(hash_table_ip_ip_t)                    :: cell_integrators_position      ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
@@ -506,10 +506,10 @@ module fe_space_names
      procedure, non_overridable          :: allocate_and_fill_reference_fes              => serial_fe_space_allocate_and_fill_reference_fes
      procedure, non_overridable, private :: free_reference_fes                           => serial_fe_space_free_reference_fes
      
-     procedure, non_overridable          :: allocate_field_cell_to_ref_fes                    => serial_fe_space_allocate_field_cell_to_ref_fes
-     procedure, non_overridable          :: move_alloc_field_cell_to_ref_fes                  => serial_fe_space_move_alloc_field_cell_to_ref_fes
-     procedure, non_overridable, private :: free_field_cell_to_ref_fes                        => serial_fe_space_free_field_cell_to_ref_fes
-     procedure, non_overridable          :: fill_field_cell_to_ref_fes_same_on_all_cells      => serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells
+     procedure, non_overridable          :: allocate_field_cell_to_ref_fes               => serial_fe_space_allocate_field_cell_to_ref_fes
+     procedure, non_overridable          :: copy_field_cell_to_ref_fes                   => serial_fe_space_copy_field_cell_to_ref_fes
+     procedure, non_overridable, private :: free_field_cell_to_ref_fes                   => serial_fe_space_free_field_cell_to_ref_fes
+     procedure, non_overridable          :: fill_field_cell_to_ref_fes_same_on_all_cells => serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells
      procedure, non_overridable          :: fill_field_cell_to_ref_fes_different_ref_fes_between_cells => sfes_fill_field_cell_to_ref_fes_different_ref_fes_between_cells
      
      procedure, non_overridable          :: check_cell_vs_fe_topology_consistency        => serial_fe_space_check_cell_vs_fe_topology_consistency

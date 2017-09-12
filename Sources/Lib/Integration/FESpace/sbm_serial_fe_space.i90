@@ -539,7 +539,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
            reference_fe => fe%get_reference_fe(field_id)
 
            if ( fe%at_strong_dirichlet_boundary(field_id) ) then
-              reference_fe_id = this%field_cell_to_ref_fes(field_id, fe%get_gid()) 
+              reference_fe_id = this%field_cell_to_ref_fes(field_id)%get(fe%get_gid()) 
               if ( .not. reference_fes_touched(reference_fe_id) ) then
                  reference_fes_touched(reference_fe_id) = .true.
                  nodal_quadratures(reference_fe_id)%p => reference_fe%get_nodal_quadrature()
@@ -1433,41 +1433,54 @@ subroutine serial_fe_space_free_reference_fes ( this )
 end subroutine serial_fe_space_free_reference_fes
 
 subroutine serial_fe_space_allocate_field_cell_to_ref_fes ( this )
-  class(serial_fe_space_t), intent(inout) :: this
-  call memalloc (this%num_fields, &
-       this%triangulation%get_num_cells(), &
-       this%field_cell_to_ref_fes, &
-       __FILE__, __LINE__)
+  implicit none
+  class(serial_fe_space_t)          , intent(inout) :: this
+  integer(ip) :: error, field_id
+  if ( .not. allocated(this%field_cell_to_ref_fes) ) then
+    allocate( this%field_cell_to_ref_fes(this%num_fields) , stat = error ); check( error == 0 )
+    do field_id = 1,this%num_fields
+      call this%field_cell_to_ref_fes(field_id)%resize(this%triangulation%get_num_cells())
+    end do
+  end if
 end subroutine serial_fe_space_allocate_field_cell_to_ref_fes
 
-subroutine serial_fe_space_move_alloc_field_cell_to_ref_fes ( this, field_cell_to_ref_fes )
+subroutine serial_fe_space_copy_field_cell_to_ref_fes ( this, field_cell_to_ref_fes )
   implicit none
-  class(serial_fe_space_t)             , intent(inout) :: this
-  integer(ip)             , allocatable, intent(inout) :: field_cell_to_ref_fes(:,:)
+  class(serial_fe_space_t)                  , intent(inout) :: this
+  type(std_vector_integer_ip_t), allocatable, intent(inout) :: field_cell_to_ref_fes(:)
+  integer(ip) :: field_id, error
   assert ( .not. allocated(field_cell_to_ref_fes) )
   if ( allocated(this%field_cell_to_ref_fes) ) then
-     call move_alloc( to=field_cell_to_ref_fes, from=this%field_cell_to_ref_fes )
+    allocate( field_cell_to_ref_fes(this%get_num_fields()), stat = error ); check( error == 0 )
+    do field_id = 1,this%num_fields
+      call field_cell_to_ref_fes(field_id)%copy(this%field_cell_to_ref_fes(field_id))
+    end do
   end if
-end subroutine serial_fe_space_move_alloc_field_cell_to_ref_fes
+end subroutine serial_fe_space_copy_field_cell_to_ref_fes
 
 subroutine serial_fe_space_free_field_cell_to_ref_fes ( this )
-  class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%field_cell_to_ref_fes)) then
-     call memfree (this%field_cell_to_ref_fes, &
-          __FILE__, __LINE__)
+  implicit none
+  class(serial_fe_space_t)          , intent(inout) :: this
+  integer(ip) :: error, field_id
+  if ( allocated(this%field_cell_to_ref_fes) ) then
+    do field_id = 1,this%num_fields
+      call this%field_cell_to_ref_fes(field_id)%free()
+    end do
+    deallocate( this%field_cell_to_ref_fes, stat = error ); check( error == 0 )
   end if
 end subroutine serial_fe_space_free_field_cell_to_ref_fes
 
 subroutine serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells ( this )
   implicit none
   class(serial_fe_space_t)          , intent(inout) :: this
-
-  integer(ip) :: ifield
-  integer(ip) :: ife
-
-  do ife=1, this%triangulation%get_num_cells()
-     do ifield=1, this%num_fields
-        this%field_cell_to_ref_fes(ifield,ife) = ifield
+  integer(ip), pointer :: current_field_cell_to_ref_fes(:)
+  integer(ip)          :: ifield
+  integer(ip)          :: ife
+  
+  do ifield=1, this%num_fields
+     current_field_cell_to_ref_fes => this%field_cell_to_ref_fes(ifield)%get_raw_pointer()
+     do ife=1, this%triangulation%get_num_cells()
+        current_field_cell_to_ref_fes(ife) = ifield
      end do
   end do
 
@@ -1477,16 +1490,18 @@ subroutine sfes_fill_field_cell_to_ref_fes_different_ref_fes_between_cells ( thi
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: set_ids_to_reference_fes(:,:)
-
-  integer(ip) :: ifield
-  class(cell_iterator_t),allocatable :: cell
-
+  integer(ip)            , pointer     :: current_field_cell_to_ref_fes(:)
+  integer(ip)                          :: ifield
+  class(cell_iterator_t) , allocatable :: cell
+  
   call this%triangulation%create_cell_iterator(cell)
-  do while (.not. cell%has_finished())
-    do ifield=1, this%num_fields
-      this%field_cell_to_ref_fes(ifield,cell%get_gid()) = set_ids_to_reference_fes(ifield,cell%get_set_id())
+  do ifield=1, this%num_fields
+    call cell%first()
+    current_field_cell_to_ref_fes => this%field_cell_to_ref_fes(ifield)%get_raw_pointer()
+    do while (.not. cell%has_finished())
+      current_field_cell_to_ref_fes(cell%get_gid()) = set_ids_to_reference_fes(ifield,cell%get_set_id())
+      call cell%next()
     end do
-    call cell%next()
   end do
   call this%triangulation%free_cell_iterator(cell)
 
@@ -1615,7 +1630,7 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
         cell_integrators_position_key = &
              this%generate_cell_integrators_position_key(fe%get_reference_fe_geo_id(), &
                                                  fe%get_quadrature_degree(), &
-                                                 this%field_cell_to_ref_fes(field_id, fe%get_gid()))
+                                                 this%field_cell_to_ref_fes(field_id)%get(fe%get_gid()))
 
         call this%cell_integrators_position%put(key=cell_integrators_position_key, &
                                                      val=current_cell_integrator, &
@@ -1666,7 +1681,7 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
         cell_integrators_position_key = &
              this%generate_cell_integrators_position_key(fe%get_reference_fe_geo_id(), &
                                                               fe%get_quadrature_degree(), &
-                                                              this%field_cell_to_ref_fes(field_id, fe%get_gid()))
+                                                              this%field_cell_to_ref_fes(field_id)%get(fe%get_gid()))
         
         call this%cell_integrators_position%put(key=cell_integrators_position_key, &
                                                      val=current_cell_integrator, &
@@ -1936,7 +1951,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
         reference_fes_id(2) = 0  
         do icell_around = 1, fe_face%get_num_cells_around()
            call fe_face%get_cell_around(icell_around, fe)
-           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id, fe%get_gid())
+           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id)%get(fe%get_gid())
         end do
 
         facet_integrators_position_key = &
@@ -2003,7 +2018,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
         nullify(reference_fes(2)%p)
         do icell_around = 1, fe_face%get_num_cells_around()
            call fe_face%get_cell_around(icell_around, fe)
-           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id, fe%get_gid())
+           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id)%get(fe%get_gid())
            reference_fes(icell_around)%p => fe%get_reference_fe(field_id)
         end do
 

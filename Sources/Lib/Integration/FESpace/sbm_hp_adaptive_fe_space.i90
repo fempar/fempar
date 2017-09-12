@@ -968,7 +968,7 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
   type(std_vector_integer_ip_t)     , pointer     :: refinement_and_coarsening_flags
   class(fe_cell_iterator_t)              , allocatable :: new_fe
   class(reference_fe_t)             , pointer     :: reference_fe
-  integer(ip)                       , allocatable :: old_field_cell_to_ref_fes(:,:)
+  type(std_vector_integer_ip_t)     , allocatable :: old_field_cell_to_ref_fes(:)
   integer(ip)                                     :: old_num_cells
   integer(ip)                                     :: num_children_x_cell
   integer(ip)                                     :: subcell_id, old_cell_lid, new_cell_lid
@@ -976,6 +976,7 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
   integer(ip)                                     :: field_id
   integer(ip)                                     :: transformation_flag
   integer(ip)                                     :: old_reference_fe_id
+  integer(ip)                                     :: error
   
   triangulation => this%get_triangulation()
   select type(triangulation)
@@ -985,10 +986,13 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
     assert(.false.)
   end select
   
-  call this%move_alloc_field_cell_to_ref_fes(old_field_cell_to_ref_fes)
-  call this%allocate_field_cell_to_ref_fes()
+  call this%copy_field_cell_to_ref_fes(old_field_cell_to_ref_fes)
   
-  old_num_cells = size(old_field_cell_to_ref_fes,2)
+  do field_id = 1,this%num_fields
+    call this%field_cell_to_ref_fes(field_id)%resize(this%triangulation%get_num_cells())
+  end do
+  
+  old_num_cells = old_field_cell_to_ref_fes(this%num_fields)%size()
   
   call this%create_fe_cell_iterator(new_fe)
   
@@ -1000,10 +1004,10 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
   do while ( old_cell_lid .le. old_num_cells )
     transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
     call new_fe%set_gid(new_cell_lid)
-    do field_id = 1,this%get_num_fields()
+    do field_id = 1,this%num_fields
       current_old_cell_lid = old_cell_lid
       current_new_cell_lid = new_cell_lid
-      old_reference_fe_id  = old_field_cell_to_ref_fes(field_id,current_old_cell_lid)
+      old_reference_fe_id  = old_field_cell_to_ref_fes(field_id)%get(current_old_cell_lid)
       if ( transformation_flag == do_nothing ) then
         call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
         current_new_cell_lid = current_new_cell_lid + 1
@@ -1016,7 +1020,7 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
       else if ( transformation_flag == coarsening ) then
         do subcell_id = 1,num_children_x_cell-1
           current_old_cell_lid = current_old_cell_lid + 1
-          if ( old_reference_fe_id /= old_field_cell_to_ref_fes(field_id,current_old_cell_lid) ) then
+          if ( old_reference_fe_id /= old_field_cell_to_ref_fes(field_id)%get(current_old_cell_lid) ) then
             massert(.false.,'Coarsened subcells do not have the same reference FE id')
           end if
         end do
@@ -1034,7 +1038,11 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
   massert ( new_cell_lid - 1 == this%p4est_triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
   
   call this%free_fe_cell_iterator(new_fe)
-  call memfree(old_field_cell_to_ref_fes,__FILE__,__LINE__)
+  
+  do field_id = 1,this%num_fields
+    call old_field_cell_to_ref_fes(field_id)%free()
+  end do
+  deallocate( old_field_cell_to_ref_fes, stat = error ); check ( error == 0 )
   
 end subroutine shpafs_project_field_cell_to_ref_fes
 
