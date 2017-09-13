@@ -1808,20 +1808,22 @@ abstract interface
      class(projector_t)    , intent(inout) :: this
    end subroutine projector_init_interface
 
-   subroutine projector_evaluate_scalar_function_moments_interface( this, scalar_function, dof_values )
+   subroutine projector_evaluate_scalar_function_moments_interface( this, scalar_function, dof_values, time )
      import :: projector_t, scalar_function_t, rp   
      implicit none
      class(projector_t)           , intent(inout) :: this
      class(scalar_function_t)     , intent(in)    :: scalar_function
      real(rp) , allocatable       , intent(inout) :: dof_values(:) 
+					real(rp) , optional          , intent(in)    :: time 
    end subroutine projector_evaluate_scalar_function_moments_interface
 
-   subroutine projector_evaluate_vector_function_moments_interface( this, vector_function, dof_values )
+   subroutine projector_evaluate_vector_function_moments_interface( this, vector_function, dof_values, time )
      import :: projector_t, vector_function_t, rp   
      implicit none
      class(projector_t)           , intent(inout) :: this
      class(vector_function_t)     , intent(in)    :: vector_function
      real(rp) , allocatable       , intent(inout) :: dof_values(:) 
+					real(rp) , optional          , intent(in)    :: time
    end subroutine projector_evaluate_vector_function_moments_interface
 
    subroutine projector_evaluate_boundary_function_moments_interface( this, vef_lid, function_scalar_components, dof_values, time)
@@ -1858,9 +1860,9 @@ type(interpolation_t ) :: edge_interpolation
 type(interpolation_t ) :: facet_interpolation 
 type(interpolation_t ) :: cell_interpolation 
 ! Function values arrays 
-type(vector_field_t), allocatable :: edge_function_values(:) 
-type(vector_field_t), allocatable :: facet_function_values(:) 
-type(vector_field_t), allocatable :: cell_function_values(:)
+type(vector_field_t), allocatable :: edge_function_values(:,:) 
+type(vector_field_t), allocatable :: facet_function_values(:,:) 
+type(vector_field_t), allocatable :: cell_function_values(:,:)
 ! Boundary values array 
 real(rp), allocatable             :: scalar_function_values_on_edge(:,:)
 real(rp), allocatable             :: scalar_function_values_on_facet(:,:)
@@ -1906,7 +1908,7 @@ type(cell_map_t)                :: cell_map
 type(quadrature_t) , pointer    :: nodal_quadrature  
 ! Boundary values array 
 real(rp), allocatable             :: scalar_function_values(:,:)
-type(vector_field_t), allocatable :: function_values(:)
+type(vector_field_t), allocatable :: function_values(:,:)
 contains 
 procedure :: init                               => H1_projector_init
 procedure :: evaluate_scalar_function_moments   => H1_projector_evaluate_scalar_function_moments

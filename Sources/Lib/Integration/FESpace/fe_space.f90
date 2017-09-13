@@ -758,9 +758,9 @@ module fe_space_names
    procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
 			procedure                                   :: project_scalar_function                         => par_fe_space_project_scalar_function
 			procedure                                   :: project_vector_function                         => par_fe_space_project_vector_function  
-			generic                                     :: project_function                                => project_scalar_function, project_vector_function 
-   procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
+			generic                                     :: project_function                                => project_scalar_function, project_vector_function
 			procedure                                   :: project_Dirichlet_boundary_function             => par_fe_space_project_Dirichlet_boundary_function
+   procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    procedure                                   :: project_dirichlet_values_curl_conforming        => par_fe_space_project_dirichlet_values_curl_conforming
    
    procedure        , non_overridable, private :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs

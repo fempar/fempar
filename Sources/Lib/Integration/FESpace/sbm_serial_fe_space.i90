@@ -669,7 +669,7 @@ subroutine serial_fe_space_project_scalar_function (this, analytical_function, f
         call fe%get_nodes_coordinates(coordinates)	
         call projector%update( coordinates )	
 
-        call projector%evaluate_scalar_function_moments( analytical_function, dof_values )
+        call projector%evaluate_scalar_function_moments( analytical_function, dof_values, time )
         call fe_function%insert_nodal_values(fe, field_id, dof_values)
      end if
      call fe%next()
@@ -713,7 +713,7 @@ subroutine serial_fe_space_project_vector_function (this, analytical_function, f
         call fe%get_nodes_coordinates(coordinates)	
         call projector%update( coordinates )	
 
-        call projector%evaluate_vector_function_moments( analytical_function, dof_values )
+        call projector%evaluate_vector_function_moments( analytical_function, dof_values, time )
         call fe_function%insert_nodal_values(fe, field_id, dof_values)
      end if
      call fe%next()
@@ -802,7 +802,7 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
                             function_scalar_components(icomp)%p)
                     end do
 
-                    call projectors(field_id)%p%evaluate_boundary_function_moments( vef_lid, function_scalar_components, dof_values )
+                    call projectors(field_id)%p%evaluate_boundary_function_moments( vef_lid, function_scalar_components, dof_values, time )
 
                     own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
                     do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 

@@ -61,6 +61,8 @@ module test_projections_driver_names
 
      ! Problem solution FE function
      type(fe_function_t)                         :: solution
+					type(fe_function_t)                         :: time_solution 
+					real(rp)                                    :: time 
 
    contains
      procedure                  :: run_simulation
@@ -70,6 +72,7 @@ module test_projections_driver_names
      procedure        , private :: setup_fe_space
      procedure        , private :: project_analytical_function 
      procedure        , private :: check_solution
+					procedure        , private :: check_time_solution
      procedure        , private :: write_solution
      procedure        , private :: free
   end type test_projections_driver_t
@@ -162,6 +165,7 @@ contains
     implicit none
     class(test_projections_driver_t), intent(inout) :: this 
 				class(vector_t) , pointer :: dof_values
+				real(rp) :: time_ 
 									
     call this%problem_functions%set_num_dims(this%triangulation%get_num_dims())
 
@@ -179,15 +183,19 @@ contains
 				call this%fe_space%project_scalar_function( this%problem_functions%get_pressure_solution(), this%solution , PRESSURE_FIELD_ID)
 				call this%fe_space%project_Dirichlet_boundary_function( this%solution )
 				
-				!				WRITE(*,*) ' PROJECTED VALUES **************************************' 
-				!		dof_values => this%solution%get_fixed_dof_values() 
-				!			
-				!select type (dof_values)
-    !class is (serial_scalar_array_t)  
-    !   call dof_values%print_matrix_market(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
+				! Project transient functions 
+			 this%time = 0.0_rp 
+				call this%time_solution%create(this%fe_space)
+				call this%fe_space%project_vector_function( analytical_function = this%problem_functions%get_magnetic_field_solution(), & 
+																																															 fe_function         = this%time_solution ,                                  & 
+																																																field_id            = MAGNETIC_FIELD_ID,                                    & 
+																																																time                = this%time ) 
+				call this%fe_space%project_scalar_function( analytical_function = this%problem_functions%get_pressure_solution(),       & 
+																																															 fe_function         = this%time_solution ,                                  & 
+																																																field_id            = PRESSURE_FIELD_ID,                                    & 
+																																																time                = this%time)
+				call this%fe_space%project_Dirichlet_boundary_function( fe_function = this%time_solution, & 
+																																																											 time        = this%time )
 				
   end subroutine project_analytical_function 
 
@@ -265,6 +273,81 @@ contains
 				call p_error_norm%free() 
 				
   end subroutine check_solution 
+		
+		subroutine check_time_solution(this)
+    implicit none
+    class(test_projections_driver_t), intent(inout) :: this
+    class(vector_function_t), pointer :: H_exact_function
+				class(scalar_function_t), pointer :: p_exact_function
+    type(error_norms_vector_t) :: H_error_norm
+				type(error_norms_scalar_t) :: p_error_norm 
+    real(rp) :: mean, l1, l2, lp, linfty, h1, hcurl, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    real(rp) :: error_tolerance, time_
+    
+    H_exact_function => this%problem_functions%get_magnetic_field_solution()
+				p_exact_function => this%problem_functions%get_pressure_solution() 
+			
+				error_tolerance = 1.0e-06 
+							
+				call H_error_norm%create(this%fe_space, MAGNETIC_FIELD_ID )
+    write(*,*) 'PROJECTED TRANSIENT MAGNETIC FIELD FUNCTION ERROR NORMS *************'
+    mean = H_error_norm%compute(H_exact_function, this%solution, mean_norm, time=this%time)   
+    l1 = H_error_norm%compute(H_exact_function, this%solution, l1_norm, time=this%time)   
+    l2 = H_error_norm%compute(H_exact_function, this%solution, l2_norm, time=this%time)   
+    lp = H_error_norm%compute(H_exact_function, this%solution, lp_norm, time=this%time)   
+    linfty = H_error_norm%compute(H_exact_function, this%solution, linfty_norm, time=this%time)   
+    h1_s = H_error_norm%compute(H_exact_function, this%solution, h1_seminorm, time=this%time) 
+    h1 = H_error_norm%compute(H_exact_function, this%solution, h1_norm, time=this%time) 
+    hcurl = H_error_norm%compute(H_exact_function, this%solution, hcurl_seminorm, time=this%time) 
+    w1p_s = H_error_norm%compute(H_exact_function, this%solution, w1p_seminorm, time=this%time)   
+    w1p = H_error_norm%compute(H_exact_function, this%solution, w1p_norm, time=this%time)   
+    w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm, time=this%time) 
+    w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm, time=this%time)
+     
+    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; check ( hcurl < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+				call H_error_norm%free()
+								
+							
+				call p_error_norm%create(this%fe_space, PRESSURE_FIELD_ID )
+				write(*,*) 'PROJECTED TRANSIENT SCALAR PRESSURE FUNCTION ERROR NORMS ************************'
+    mean = p_error_norm%compute(p_exact_function, this%solution, mean_norm, time=this%time)   
+    l1 = p_error_norm%compute(p_exact_function, this%solution, l1_norm, time=this%time)   
+    l2 = p_error_norm%compute(p_exact_function, this%solution, l2_norm, time=this%time)   
+    lp = p_error_norm%compute(p_exact_function, this%solution, lp_norm, time=this%time)   
+    linfty = p_error_norm%compute(p_exact_function, this%solution, linfty_norm, time=this%time)   
+    h1_s = p_error_norm%compute(p_exact_function, this%solution, h1_seminorm, time=this%time) 
+    h1 = p_error_norm%compute(p_exact_function, this%solution, h1_norm, time=this%time) 
+    w1p_s = p_error_norm%compute(p_exact_function, this%solution, w1p_seminorm, time=this%time)   
+    w1p = p_error_norm%compute(p_exact_function, this%solution, w1p_norm, time=this%time)   
+    w1infty_s = p_error_norm%compute(p_exact_function, this%solution, w1infty_seminorm, time=this%time) 
+    w1infty = p_error_norm%compute(p_exact_function, this%solution, w1infty_norm, time=this%time)
+    
+    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+   
+				call p_error_norm%free() 
+				
+  end subroutine check_time_solution 
   
   subroutine write_solution(this)
     implicit none
@@ -293,6 +376,7 @@ contains
     call this%project_analytical_function()
     call this%write_solution()
     call this%check_solution()
+				call this%check_time_solution() 
     call this%free()
   end subroutine run_simulation
 
@@ -300,7 +384,8 @@ contains
     implicit none
     class(test_projections_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
-    call this%solution%free()   
+    call this%solution%free() 
+				call this%time_solution%free() 
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
        do i=1, size(this%reference_fes)

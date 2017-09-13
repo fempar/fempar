@@ -67,11 +67,12 @@ subroutine projector_update( this, coordinates )
 end subroutine projector_update
 
 ! ================================================================================
-subroutine Hcurl_projector_evaluate_scalar_function_moments( this, scalar_function, dof_values ) 
+subroutine Hcurl_projector_evaluate_scalar_function_moments( this, scalar_function, dof_values, time ) 
   implicit none
   class(Hcurl_projector_t)        , intent(inout) :: this
   class(scalar_function_t)     , intent(in)    :: scalar_function
   real(rp) , allocatable       , intent(inout) :: dof_values(:) 
+		real(rp) , optional          , intent(in)    :: time
 		! Does not apply for vector FEs
   assert(.false.) 
 end subroutine Hcurl_projector_evaluate_scalar_function_moments

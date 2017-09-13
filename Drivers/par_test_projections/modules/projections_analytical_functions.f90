@@ -142,6 +142,23 @@ contains
 											
   end subroutine source_term_get_value_space
 		
+		  !===============================================================================================
+  subroutine source_term_get_value_space_time ( this, point, time, result )
+    implicit none
+    class(source_term_t), intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+				real(rp)                , intent(in)    :: time
+    type(vector_field_t)    , intent(inout) :: result
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+
+    call result%set(1, -point%get(2) * time )
+    call result%set(2,  point%get(1) * time )
+    if ( this%num_dims == 3 ) then
+       call result%set(3, 0.0_rp) 
+    end if
+											
+  end subroutine source_term_get_value_space_time
+		
   !===============================================================================================
   subroutine magnetic_field_solution_get_value_space ( this, point, result )
     implicit none
@@ -157,6 +174,23 @@ contains
     end if
 
   end subroutine magnetic_field_solution_get_value_space
+		
+		  !===============================================================================================
+  subroutine magnetic_field_solution_get_value_space_time ( this, point, time, result )
+    implicit none
+    class(magnetic_field_solution_t), intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+				real(rp)                , intent(in)    :: time 
+    type(vector_field_t)    , intent(inout) :: result
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+
+    call result%set(1, -point%get(2) * time)
+    call result%set(2,  point%get(1) * time)  
+    if ( this%num_dims == 3 ) then
+       call result%set(3, 0.0_rp)
+    end if
+
+  end subroutine magnetic_field_solution_get_value_space_time
 
   !===============================================================================================
   subroutine magnetic_field_solution_get_gradient_space ( this, point, result )
@@ -168,6 +202,18 @@ contains
     call result%set(2,1, -1.0_rp)
 	   call result%set(1,2,  1.0_rp)
   end subroutine magnetic_field_solution_get_gradient_space
+		
+		  !===============================================================================================
+  subroutine magnetic_field_solution_get_gradient_space_time ( this, point, time, result )
+    implicit none
+    class(magnetic_field_solution_t), intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+				real(rp)                , intent(in)    :: time 
+    type(tensor_field_t), intent(inout) :: result
+				call result%init(0.0_rp) 
+    call result%set(2,1, -1.0_rp * time)
+	   call result%set(1,2,  1.0_rp * time)
+  end subroutine magnetic_field_solution_get_gradient_space_time
 		
 		  !===============================================================================================
   subroutine pressure_solution_get_value_space ( this, point, result )

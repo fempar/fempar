@@ -58,7 +58,7 @@ subroutine hex_Hcurl_projector_init( this )
   call this%reference_fe%create_edge_quadrature( this%edge_quadrature )
   call this%edge_map%create( this%edge_quadrature, this%d_fe_geo )
   call this%fe_1D%create_interpolation( this%edge_quadrature, this%edge_interpolation )
-  allocate (this%edge_function_values(this%edge_quadrature%get_num_quadrature_points()), stat=istat); check(istat==0)
+  allocate (this%edge_function_values(this%edge_quadrature%get_num_quadrature_points(),1), stat=istat); check(istat==0)
 		call memalloc ( this%edge_quadrature%get_num_quadrature_points(), 1, this%scalar_function_values_on_edge, __FILE__, __LINE__)
 
   if ( this%num_dims == 3 .and. this%order > 1 ) then 
@@ -72,7 +72,7 @@ subroutine hex_Hcurl_projector_init( this )
    call this%reference_fe%create_facet_quadrature( this%facet_quadrature )
    call this%fe_2D%create_interpolation( this%facet_quadrature, this%facet_interpolation )
    call this%facet_map%create( this%facet_quadrature, this%d_fe_geo )
-   allocate (this%facet_function_values(this%facet_quadrature%get_num_quadrature_points()), stat=istat); check(istat==0)
+   allocate (this%facet_function_values(this%facet_quadrature%get_num_quadrature_points(),1), stat=istat); check(istat==0)
    call memalloc ( this%facet_quadrature%get_num_quadrature_points(), 1, this%scalar_function_values_on_facet, __FILE__, __LINE__)
 
   end if 
@@ -111,18 +111,19 @@ subroutine hex_Hcurl_projector_init( this )
                                                         reduced_order_vector)
 
    call this%cell_map%create( this%cell_quadrature, this%d_fe_geo )
-   allocate (this%cell_function_values(this%cell_quadrature%get_num_quadrature_points()), stat=istat); check(istat==0)
+   allocate (this%cell_function_values(this%cell_quadrature%get_num_quadrature_points(),1), stat=istat); check(istat==0)
 
   end if 
 
 end subroutine hex_Hcurl_projector_init
 
 ! ================================================================================
-subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_function, dof_values ) 
+subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_function, dof_values, time ) 
   implicit none
   class(hex_Hcurl_projector_t) , intent(inout) :: this
   class(vector_function_t)     , intent(in)    :: vector_function
   real(rp) , allocatable       , intent(inout) :: dof_values(:) 
+		real(rp) , optional          , intent(in)    :: time
 
   ! Edge moments evaluation 
   type(vector_field_t)                :: tangent 
@@ -153,8 +154,11 @@ subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_fu
   type(vector_field_t), allocatable   :: function_values(:) 
   type(point_t), pointer              :: quad_points_coordinates(:)
 
+		real(rp)    :: time_(1) 
   integer(ip) :: d, istat 
 
+			if (present(time)) time_(1) = time
+			
   d = 0
   dof_values = 0.0_rp 
   do edge_id = this%reference_fe%get_first_n_face_id_of_dim(1), & 
@@ -177,19 +181,24 @@ subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_fu
           quadrature    = this%edge_quadrature )
 
      ! Extract quadrature points coordinates 
+					num_quad_points         = this%edge_quadrature%get_num_quadrature_points()
      quad_points_coordinates => this%edge_map%get_quadrature_points_coordinates()
 
      ! Fill vector function values restricted to edge 
-     call vector_function%get_values_set(quad_points_coordinates, this%edge_function_values)
-
+					if ( present(time) ) then 
+					call vector_function%get_values_set(quad_points_coordinates, time_, this%edge_function_values(1:num_quad_points,1:1))
+					else
+     call vector_function%get_values_set(quad_points_coordinates, this%edge_function_values(1:num_quad_points,1))
+     end if 
+					
      ! Integrate edge boundary moments int_edge(f.tau q), q \in P_k-1
-     do qpoint = 1, this%edge_quadrature%get_num_quadrature_points() 
+     do qpoint = 1, num_quad_points 
         factor = this%edge_map%get_det_jacobian(qpoint) * this%edge_quadrature%get_weight(qpoint)
         call this%edge_map%get_tangent(qpoint, tangent)
         do ishape=1, this%edge_interpolation%num_shape_functions
            call this%fe_1D%get_value(this%edge_interpolation, ishape, qpoint, shape_test)
            dof_values(d+ishape) = dof_values(d+ishape) + 1.0_rp / tangent%nrm2() * & 
-                this%edge_function_values(qpoint) * shape_test * tangent * factor 
+                this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
         end do
      end do
 
@@ -220,20 +229,25 @@ subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_fu
              quadrature             = this%facet_quadrature ) 
 
         ! Extract quadrature points coordinates 
+								num_quad_points = this%facet_quadrature%get_num_quadrature_points()
         quad_points_coordinates => this%facet_map%get_quadrature_points_coordinates()
 
-        ! Fill vector function values restricted to edge 
-        call vector_function%get_values_set(quad_points_coordinates, this%facet_function_values)
+        ! Fill vector function values restricted to facet
+								if ( present(time) ) then 
+								call vector_function%get_values_set(quad_points_coordinates, time_, this%facet_function_values(1:num_quad_points,1:1) )
+								else 
+        call vector_function%get_values_set(quad_points_coordinates, this%facet_function_values(1:num_quad_points,1) )
+								end if 
         call cross_product_function_normal_proj%init(0.0_rp)
 
         ! Integrate face boundary moments int_Face(u x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
-        do qpoint = 1, this%facet_quadrature%get_num_quadrature_points()
+        do qpoint = 1, num_quad_points
            factor = this%facet_map%get_det_jacobian(qpoint) * this%facet_quadrature%get_weight(qpoint)
            call this%facet_map%get_normal(qpoint, normal)   
            normal = (-1.0_rp)**(this%reference_fe%orientation%a(facet_id)) * normal
 
            ! Compute g x n
-           cross_product_function_normal = cross_product(this%facet_function_values(qpoint),normal)
+           cross_product_function_normal = cross_product(this%facet_function_values(qpoint,1),normal)
            do idime=1,this%num_dims-1 
               call this%facet_map%get_jacobian_column(idime,qpoint,col_jacobian)
               col_jacobian = col_jacobian * (1.0_rp/col_jacobian%nrm2()) 
@@ -268,21 +282,26 @@ subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_fu
      call this%cell_map%update(this%cell_quadrature)
 
      ! Extract quadrature points coordinates 
+					num_quad_points  = this%cell_quadrature%num_quadrature_points
      quad_points_coordinates => this%cell_map%get_quadrature_points_coordinates()
 
      ! Fill vector function values restricted to edge 
-     call vector_function%get_values_set(quad_points_coordinates, this%cell_function_values)
+					if ( present(time) ) then 
+     call vector_function%get_values_set(quad_points_coordinates, time_, this%cell_function_values(1:num_quad_points,1:1) )
+					else 
+					call vector_function%get_values_set(quad_points_coordinates, this%cell_function_values(1:num_quad_points,1) )
+					end if 
 
      ! Update interpolation on the physical space 
      call mapped_cell_interpolation%clone( this%cell_interpolation ) 
      call this%fe%apply_cell_map( this%cell_map, this%cell_interpolation, mapped_cell_interpolation) 
 
      ! Integration of interior moments int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}
-     do qpoint = 1, this%cell_quadrature%num_quadrature_points
+     do qpoint = 1, num_quad_points
         factor = this%cell_map%get_det_jacobian(qpoint) * this%cell_quadrature%get_weight(qpoint)
         do ishape=1, mapped_cell_interpolation%num_shape_functions
            call this%reference_fe%get_value(mapped_cell_interpolation, ishape, qpoint, v_shape_test)
-           dof_values(d+ishape) = dof_values(d+ishape) + this%cell_function_values(qpoint) * v_shape_test * factor
+           dof_values(d+ishape) = dof_values(d+ishape) + this%cell_function_values(qpoint,1) * v_shape_test * factor
         end do
      end do
 
@@ -326,7 +345,8 @@ subroutine hex_Hcurl_projector_evaluate_boundary_function_moments(this, vef_lid,
   type(list_iterator_t)               :: own_dofs
 
   integer(ip)                         :: i, iedge, icomp, istat
-
+  if (present(time)) time_(1) = time
+			
   ! Nedelec elements do not contain DOFs on vertices 
   if ( this%reference_fe%get_n_face_dim(vef_lid) == 0) then 
      return 
@@ -370,7 +390,7 @@ subroutine hex_Hcurl_projector_evaluate_boundary_function_moments(this, vef_lid,
               call function_scalar_components(icomp)%p%get_values_set_space(quad_points_coordinates,this%scalar_function_values_on_edge(1:num_quad_points,1))
            end if
            do qpoint = 1, num_quad_points
-              call this%edge_function_values(qpoint)%set(icomp,this%scalar_function_values_on_edge(qpoint,1))
+              call this%edge_function_values(qpoint,1)%set(icomp,this%scalar_function_values_on_edge(qpoint,1))
            end do
         end do
      case ( field_type_tensor )
@@ -387,7 +407,7 @@ subroutine hex_Hcurl_projector_evaluate_boundary_function_moments(this, vef_lid,
         do ishape = 1, this%edge_interpolation%num_shape_functions 
            idof = own_dofs%get_current() 
            call this%fe_1D%get_value(this%edge_interpolation, ishape, qpoint, shape_test)
-           dof_values(idof) = dof_values(idof) + 1.0_rp / tangent%nrm2() * this%edge_function_values(qpoint) * shape_test * tangent * factor 
+           dof_values(idof) = dof_values(idof) + 1.0_rp / tangent%nrm2() * this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
            call own_dofs%next() 
         end do
      end do
@@ -431,7 +451,7 @@ subroutine hex_Hcurl_projector_evaluate_boundary_function_moments(this, vef_lid,
                  call function_scalar_components(icomp)%p%get_values_set_space(quad_points_coordinates,this%scalar_function_values_on_facet(1:num_quad_points,1))
               end if
               do qpoint = 1, num_quad_points
-                 call this%facet_function_values(qpoint)%set(icomp,this%scalar_function_values_on_facet(qpoint,1))
+                 call this%facet_function_values(qpoint,1)%set(icomp,this%scalar_function_values_on_facet(qpoint,1))
               end do
            end do
         case ( field_type_tensor )
@@ -451,7 +471,7 @@ subroutine hex_Hcurl_projector_evaluate_boundary_function_moments(this, vef_lid,
 
            ! Compute g x n
            call cross_product_function_normal%init(0.0_rp) 
-           cross_product_function_normal = cross_product(this%facet_function_values(qpoint),normal)
+           cross_product_function_normal = cross_product(this%facet_function_values(qpoint,1),normal)
 
            ! Multiply the transpose of the jacobian with normalized columns by g x n
            ! This is required to transform g x n in a vector contained within the face
