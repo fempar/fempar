@@ -454,7 +454,7 @@ module fe_space_names
      type(quadrature_t)            , allocatable :: cell_quadratures(:)
      type(cell_map_t)              , allocatable :: cell_maps(:)
      type(cell_integrator_t)       , allocatable :: cell_integrators(:)
-     integer(ip)                   , allocatable :: cell_quadratures_degree(:)
+     type(std_vector_integer_ip_t)               :: cell_quadratures_degree
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
      type(std_vector_integer_ip_t) , allocatable :: field_cell_to_ref_fes(:)
@@ -466,7 +466,7 @@ module fe_space_names
      type(quadrature_t)            , allocatable :: facet_quadratures(:)
      type(facet_maps_t)            , allocatable :: facet_maps(:)
      type(facet_integrator_t)      , allocatable :: facet_integrators(:)
-     integer(ip)                   , allocatable :: facet_quadratures_degree(:)
+     type(std_vector_integer_ip_t)               :: facet_quadratures_degree
      
      
      ! Mapping of Finite Faces and integration containers
@@ -543,9 +543,8 @@ module fe_space_names
                                                                      interpolate_vector, &
                                                                      interpolate_tensor
      
-     procedure, non_overridable, private :: allocate_cell_quadratures_degree               => serial_fe_space_allocate_cell_quadratures_degree
+     procedure, non_overridable, private :: allocate_and_init_cell_quadratures_degree      => serial_fe_space_allocate_and_init_cell_quadratures_degree
      procedure, non_overridable, private :: free_cell_quadratures_degree                   => serial_fe_space_free_cell_quadratures_degree
-     procedure, non_overridable          :: clear_cell_quadratures_degree                  => serial_fe_space_clear_cell_quadratures_degree
      
      procedure, non_overridable, private :: allocate_max_order_reference_fe_id_x_cell    => serial_fe_space_allocate_max_order_reference_fe_id_x_cell
      procedure, non_overridable, private :: free_max_order_reference_fe_id_x_cell        => serial_fe_space_free_max_order_reference_fe_id_x_cell
@@ -556,9 +555,8 @@ module fe_space_names
      procedure, non_overridable, private :: generate_cell_quadratures_position_key         => serial_fe_space_generate_cell_quadratures_position_key
      procedure, non_overridable, private :: generate_cell_integrators_position_key  => serial_fe_space_generate_cell_integrators_position_key
 
-     procedure, non_overridable, private :: allocate_facet_quadratures_degree          => serial_fe_space_allocate_facet_quadratures_degree
+     procedure, non_overridable, private :: allocate_and_init_facet_quadratures_degree => serial_fe_space_allocate_and_init_facet_quadratures_degree
      procedure, non_overridable, private :: free_facet_quadratures_degree              => serial_fe_space_free_facet_quadratures_degree
-     procedure, non_overridable          :: clear_facet_quadratures_degree             => serial_fe_space_clear_facet_quadratures_degree
      
      procedure, non_overridable, private :: allocate_max_order_field_cell_to_ref_fes_face => serial_fe_space_allocate_max_order_field_cell_to_ref_fes_face
      procedure, non_overridable, private :: free_max_order_field_cell_to_ref_fes_face     => serial_fe_space_free_max_order_field_cell_to_ref_fes_face

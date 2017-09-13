@@ -1532,24 +1532,17 @@ subroutine serial_fe_space_check_cell_vs_fe_topology_consistency(this)
 
 end subroutine serial_fe_space_check_cell_vs_fe_topology_consistency
 
-subroutine serial_fe_space_allocate_cell_quadratures_degree ( this ) 
+subroutine serial_fe_space_allocate_and_init_cell_quadratures_degree ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%free_cell_quadratures_degree()
-  call memalloc ( this%triangulation%get_num_cells(), this%cell_quadratures_degree, __FILE__, __LINE__ )
-end subroutine serial_fe_space_allocate_cell_quadratures_degree 
-
-subroutine serial_fe_space_clear_cell_quadratures_degree ( this ) 
-  implicit none
-  class(serial_fe_space_t), intent(inout) :: this
-  assert ( allocated(this%cell_quadratures_degree) )
-  this%cell_quadratures_degree = fe_space_default_quadrature_degree_flag
-end subroutine serial_fe_space_clear_cell_quadratures_degree
+  call this%cell_quadratures_degree%resize(0)
+  call this%cell_quadratures_degree%resize(this%triangulation%get_num_cells(),fe_space_default_quadrature_degree_flag)
+end subroutine serial_fe_space_allocate_and_init_cell_quadratures_degree 
 
 subroutine serial_fe_space_free_cell_quadratures_degree ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%cell_quadratures_degree)) call memfree ( this%cell_quadratures_degree, __FILE__, __LINE__ )
+  call this%cell_quadratures_degree%free()
 end subroutine serial_fe_space_free_cell_quadratures_degree
 
 subroutine serial_fe_space_allocate_max_order_reference_fe_id_x_cell ( this )
@@ -1770,24 +1763,17 @@ function serial_fe_space_generate_cell_integrators_position_key ( this, geo_refe
        this%generate_cell_quadratures_position_key(geo_reference_fe_id,quadrature_degree) * this%get_num_reference_fes()
 end function serial_fe_space_generate_cell_integrators_position_key
 
-subroutine serial_fe_space_allocate_facet_quadratures_degree ( this ) 
+subroutine serial_fe_space_allocate_and_init_facet_quadratures_degree ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%free_facet_quadratures_degree()
-  call memalloc ( this%facet_gids%size(), this%facet_quadratures_degree, __FILE__, __LINE__ )
-end subroutine serial_fe_space_allocate_facet_quadratures_degree 
-
-subroutine serial_fe_space_clear_facet_quadratures_degree ( this ) 
-  implicit none
-  class(serial_fe_space_t), intent(inout) :: this
-  assert ( allocated(this%facet_quadratures_degree) )
-  this%facet_quadratures_degree = fe_space_default_quadrature_degree_flag
-end subroutine serial_fe_space_clear_facet_quadratures_degree
+  call this%facet_quadratures_degree%resize(0)
+  call this%facet_quadratures_degree%resize(this%facet_gids%size(),fe_space_default_quadrature_degree_flag)
+end subroutine serial_fe_space_allocate_and_init_facet_quadratures_degree 
 
 subroutine serial_fe_space_free_facet_quadratures_degree ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%facet_quadratures_degree)) call memfree ( this%facet_quadratures_degree, __FILE__, __LINE__ )
+  call this%facet_quadratures_degree%free()
 end subroutine serial_fe_space_free_facet_quadratures_degree
 
 subroutine serial_fe_space_allocate_max_order_field_cell_to_ref_fes_face ( this )

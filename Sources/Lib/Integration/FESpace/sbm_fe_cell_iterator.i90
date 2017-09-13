@@ -708,10 +708,10 @@ function fe_cell_iterator_get_quadrature_degree ( this )
   implicit none
   class(fe_cell_iterator_t), intent(in) :: this
   integer(ip) :: fe_cell_iterator_get_quadrature_degree
-  if ( allocated(this%fe_space%cell_quadratures_degree) ) then
-     fe_cell_iterator_get_quadrature_degree = this%fe_space%cell_quadratures_degree(this%get_gid())
+  if ( this%fe_space%cell_quadratures_degree%size() > 0 ) then
+     fe_cell_iterator_get_quadrature_degree = this%fe_space%cell_quadratures_degree%get(this%get_gid())
   end if
-  if ( .not. allocated(this%fe_space%cell_quadratures_degree) .or. &
+  if ( this%fe_space%cell_quadratures_degree%size() == 0 .or. &
        fe_cell_iterator_get_quadrature_degree == fe_space_default_quadrature_degree_flag ) then
      fe_cell_iterator_get_quadrature_degree = this%get_default_quadrature_degree()
   end if
@@ -733,11 +733,10 @@ subroutine fe_cell_iterator_set_quadrature_degree ( this, quadrature_degree )
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip)         , intent(in)    :: quadrature_degree
   assert ( quadrature_degree >= -1 )
-  if ( .not. allocated ( this%fe_space%cell_quadratures_degree) ) then
-     call this%fe_space%allocate_cell_quadratures_degree()
-     call this%fe_space%clear_cell_quadratures_degree()
+  if ( this%fe_space%cell_quadratures_degree%size() == 0 ) then
+     call this%fe_space%allocate_and_init_cell_quadratures_degree()
   end if
-  this%fe_space%cell_quadratures_degree(this%get_gid()) = quadrature_degree
+  call this%fe_space%cell_quadratures_degree%set(this%get_gid(),quadrature_degree)
 end subroutine fe_cell_iterator_set_quadrature_degree
 
 function fe_cell_iterator_get_quadrature ( this )
