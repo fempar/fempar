@@ -964,19 +964,17 @@ end subroutine shpafs_setup_hanging_node_constraints
 subroutine shpafs_project_field_cell_to_ref_fes(this)
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
-  class(triangulation_t), pointer     :: triangulation
-  type(std_vector_integer_ip_t)     , pointer     :: refinement_and_coarsening_flags
-  class(fe_cell_iterator_t)              , allocatable :: new_fe
-  class(reference_fe_t)             , pointer     :: reference_fe
-  type(std_vector_integer_ip_t)     , allocatable :: old_field_cell_to_ref_fes(:)
-  integer(ip)                                     :: old_num_cells
-  integer(ip)                                     :: num_children_x_cell
-  integer(ip)                                     :: subcell_id, old_cell_lid, new_cell_lid
-  integer(ip)                                     :: current_old_cell_lid, current_new_cell_lid
-  integer(ip)                                     :: field_id
-  integer(ip)                                     :: transformation_flag
-  integer(ip)                                     :: old_reference_fe_id
-  integer(ip)                                     :: error
+  class(triangulation_t)       , pointer     :: triangulation
+  type(std_vector_integer_ip_t), pointer     :: refinement_and_coarsening_flags
+  class(fe_cell_iterator_t)    , allocatable :: new_fe
+  class(reference_fe_t)        , pointer     :: reference_fe
+  type(std_vector_integer_ip_t)              :: old_field_cell_to_ref_fes
+  integer(ip)                                :: old_num_cells
+  integer(ip)                                :: num_children_x_cell
+  integer(ip)                                :: subcell_id, old_cell_lid, new_cell_lid
+  integer(ip)                                :: field_id
+  integer(ip)                                :: transformation_flag
+  integer(ip)                                :: old_reference_fe_id
   
   triangulation => this%get_triangulation()
   select type(triangulation)
@@ -986,63 +984,50 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
     assert(.false.)
   end select
   
-  call this%copy_field_cell_to_ref_fes(old_field_cell_to_ref_fes)
-  
-  do field_id = 1,this%num_fields
-    call this%field_cell_to_ref_fes(field_id)%resize(this%triangulation%get_num_cells())
-  end do
-  
-  old_num_cells = old_field_cell_to_ref_fes(this%num_fields)%size()
-  
   call this%create_fe_cell_iterator(new_fe)
   
   reference_fe => new_fe%get_reference_fe_geo()
   num_children_x_cell = reference_fe%get_num_n_faces_of_dim(0)
   
-  old_cell_lid = 1
-  new_cell_lid = 1
-  do while ( old_cell_lid .le. old_num_cells )
-    transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
-    call new_fe%set_gid(new_cell_lid)
-    do field_id = 1,this%num_fields
-      current_old_cell_lid = old_cell_lid
-      current_new_cell_lid = new_cell_lid
-      old_reference_fe_id  = old_field_cell_to_ref_fes(field_id)%get(current_old_cell_lid)
+  do field_id = 1,this%num_fields
+    old_cell_lid = 1
+    new_cell_lid = 1
+    call old_field_cell_to_ref_fes%copy(this%field_cell_to_ref_fes(field_id))
+    old_num_cells        = old_field_cell_to_ref_fes%size()
+    old_reference_fe_id  = old_field_cell_to_ref_fes%get(old_cell_lid)
+    call this%field_cell_to_ref_fes(field_id)%resize(this%triangulation%get_num_cells())
+    do while ( old_cell_lid .le. old_num_cells )
+      transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
+      call new_fe%set_gid(new_cell_lid)
       if ( transformation_flag == do_nothing ) then
         call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
-        current_new_cell_lid = current_new_cell_lid + 1
+        new_cell_lid = new_cell_lid + 1
       else if ( transformation_flag == refinement ) then
         do subcell_id = 0,num_children_x_cell-1
           call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
-          current_new_cell_lid = current_new_cell_lid + 1
-          call new_fe%set_gid(current_new_cell_lid)
+          new_cell_lid = new_cell_lid + 1
+          call new_fe%set_gid(new_cell_lid)
         end do
       else if ( transformation_flag == coarsening ) then
         do subcell_id = 1,num_children_x_cell-1
-          current_old_cell_lid = current_old_cell_lid + 1
-          if ( old_reference_fe_id /= old_field_cell_to_ref_fes(field_id)%get(current_old_cell_lid) ) then
+          old_cell_lid = old_cell_lid + 1
+          if ( old_reference_fe_id /= old_field_cell_to_ref_fes%get(old_cell_lid) ) then
             massert(.false.,'Coarsened subcells do not have the same reference FE id')
           end if
         end do
         call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
-        current_new_cell_lid = current_new_cell_lid + 1
+        new_cell_lid = new_cell_lid + 1
       else
         massert(.false.,'Unrecognised refinement and coarsening flag')
       end if
+      old_cell_lid = old_cell_lid + 1
     end do
-    old_cell_lid = current_old_cell_lid
-    new_cell_lid = current_new_cell_lid
-    old_cell_lid = old_cell_lid + 1
   end do
   
   massert ( new_cell_lid - 1 == this%p4est_triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
   
   call this%free_fe_cell_iterator(new_fe)
-  
-  do field_id = 1,this%num_fields
-    call old_field_cell_to_ref_fes(field_id)%free()
-  end do
-  deallocate( old_field_cell_to_ref_fes, stat = error ); check ( error == 0 )
+  call old_field_cell_to_ref_fes%free()
   
 end subroutine shpafs_project_field_cell_to_ref_fes
 

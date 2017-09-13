@@ -1444,20 +1444,6 @@ subroutine serial_fe_space_allocate_field_cell_to_ref_fes ( this )
   end if
 end subroutine serial_fe_space_allocate_field_cell_to_ref_fes
 
-subroutine serial_fe_space_copy_field_cell_to_ref_fes ( this, field_cell_to_ref_fes )
-  implicit none
-  class(serial_fe_space_t)                  , intent(inout) :: this
-  type(std_vector_integer_ip_t), allocatable, intent(inout) :: field_cell_to_ref_fes(:)
-  integer(ip) :: field_id, error
-  assert ( .not. allocated(field_cell_to_ref_fes) )
-  if ( allocated(this%field_cell_to_ref_fes) ) then
-    allocate( field_cell_to_ref_fes(this%get_num_fields()), stat = error ); check( error == 0 )
-    do field_id = 1,this%num_fields
-      call field_cell_to_ref_fes(field_id)%copy(this%field_cell_to_ref_fes(field_id))
-    end do
-  end if
-end subroutine serial_fe_space_copy_field_cell_to_ref_fes
-
 subroutine serial_fe_space_free_field_cell_to_ref_fes ( this )
   implicit none
   class(serial_fe_space_t)          , intent(inout) :: this

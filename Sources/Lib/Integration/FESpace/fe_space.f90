@@ -507,7 +507,6 @@ module fe_space_names
      procedure, non_overridable, private :: free_reference_fes                           => serial_fe_space_free_reference_fes
      
      procedure, non_overridable          :: allocate_field_cell_to_ref_fes               => serial_fe_space_allocate_field_cell_to_ref_fes
-     procedure, non_overridable          :: copy_field_cell_to_ref_fes                   => serial_fe_space_copy_field_cell_to_ref_fes
      procedure, non_overridable, private :: free_field_cell_to_ref_fes                   => serial_fe_space_free_field_cell_to_ref_fes
      procedure, non_overridable          :: fill_field_cell_to_ref_fes_same_on_all_cells => serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells
      procedure, non_overridable          :: fill_field_cell_to_ref_fes_different_ref_fes_between_cells => sfes_fill_field_cell_to_ref_fes_different_ref_fes_between_cells
