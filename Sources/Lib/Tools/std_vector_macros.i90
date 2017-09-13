@@ -201,8 +201,6 @@ FUNCTION get_pointer_to_range(T,spos,epos) ;\
   integer(ip)                                                , intent(in) :: epos  ;\
   BASE_DATA_TYPE, pointer :: get_pointer_to_range(:)  ;\
   assert ( allocated(T%v) ) ;\
-  assert ( spos>=1 .and. spos<= T%size_ ) ;\
-  assert ( epos>=1 .and. epos<= T%size_ ) ;\
   get_pointer_to_range => T%v(spos:epos) ;\
 END FUNCTION  ;\
 

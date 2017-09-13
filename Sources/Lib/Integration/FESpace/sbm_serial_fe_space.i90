@@ -173,59 +173,61 @@ subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs_gids(this)
   integer(ip)                    :: field_id
   class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: reference_fe
+  integer(ip)                    :: error
 
-  call this%free_ptr_lst_dofs()
+  if ( .not. allocated(this%ptr_dofs_x_fe) ) then
+    allocate( this%ptr_dofs_x_fe(this%num_fields), stat = error ); check ( error == 0 )
+  end if
   
-  call memalloc ( this%num_fields, &
-       this%triangulation%get_num_cells()+1, &
-       this%ptr_dofs_x_fe, __FILE__, __LINE__ )
-
-  this%ptr_dofs_x_fe(1,1) = 1 
+  do field_id = 1,this%num_fields
+    call this%ptr_dofs_x_fe(field_id)%resize(this%triangulation%get_num_cells()+1)
+  end do
+  
+  call this%ptr_dofs_x_fe(1)%set(1,1) 
   call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
      do field_id=1, fe%get_num_fields()-1
         reference_fe => fe%get_reference_fe(field_id)
-        this%ptr_dofs_x_fe(field_id+1,fe%get_gid()) = & 
-             this%ptr_dofs_x_fe(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
+        call this%ptr_dofs_x_fe(field_id+1)%set( fe%get_gid(), & 
+             this%ptr_dofs_x_fe(field_id)%get(fe%get_gid()) + reference_fe%get_num_shape_functions() )
      end do
      reference_fe => fe%get_reference_fe(field_id)
-     this%ptr_dofs_x_fe(1,fe%get_gid()+1) = & 
-          this%ptr_dofs_x_fe(field_id,fe%get_gid()) + reference_fe%get_num_shape_functions()
+     call this%ptr_dofs_x_fe(1)%set( fe%get_gid()+1, & 
+          this%ptr_dofs_x_fe(field_id)%get(fe%get_gid()) + reference_fe%get_num_shape_functions() )
      call fe%next()
   end do
   call this%free_fe_cell_iterator(fe) 
+  
+  call this%lst_dofs_gids%resize(0)
+  call this%lst_dofs_gids%resize(this%ptr_dofs_x_fe(1)%get(this%triangulation%get_num_cells()+1)-1,0)
 
-  call memalloc ( this%ptr_dofs_x_fe(1,this%triangulation%get_num_cells()+1)-1,&
-       this%lst_dofs_gids, &
-       __FILE__, __LINE__ )
-  this%lst_dofs_gids = 0
 end subroutine serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
 
-subroutine serial_fe_space_move_alloc_ptr_dofs_x_fe_out ( this, ptr_dofs_x_fe )
+subroutine serial_fe_space_copy_ptr_lst_dofs ( this, ptr_dofs_x_fe, lst_dofs_gids )
   implicit none
-  class(serial_fe_space_t)             , intent(inout) :: this
-  integer(ip)             , allocatable, intent(inout) :: ptr_dofs_x_fe(:,:)
+  class(serial_fe_space_t)                  , intent(inout) :: this
+  type(std_vector_integer_ip_t), allocatable, intent(inout) :: ptr_dofs_x_fe(:)
+  type(std_vector_integer_ip_t)             , intent(inout) :: lst_dofs_gids
+  integer(ip) :: field_id, error
   assert ( .not. allocated(ptr_dofs_x_fe) )
-  if ( allocated(this%ptr_dofs_x_fe) ) then
-     call move_alloc( to=ptr_dofs_x_fe, from=this%ptr_dofs_x_fe )
-  end if
-end subroutine serial_fe_space_move_alloc_ptr_dofs_x_fe_out
-
-subroutine serial_fe_space_move_alloc_lst_dofs_gids_out ( this, lst_dofs_gids )
-  implicit none
-  class(serial_fe_space_t)             , intent(inout) :: this
-  integer(ip)             , allocatable, intent(inout) :: lst_dofs_gids(:)
-  assert ( .not. allocated(lst_dofs_gids) )
-  if ( allocated(this%lst_dofs_gids) ) then
-     call move_alloc( to=lst_dofs_gids, from=this%lst_dofs_gids )
-  end if
-end subroutine serial_fe_space_move_alloc_lst_dofs_gids_out
+  allocate( ptr_dofs_x_fe(this%num_fields), stat = error ); check( error == 0 )
+  do field_id = 1,this%num_fields
+    call ptr_dofs_x_fe(field_id)%copy(this%ptr_dofs_x_fe(field_id))
+  end do
+  call lst_dofs_gids%copy(this%lst_dofs_gids)
+end subroutine serial_fe_space_copy_ptr_lst_dofs
 
 subroutine serial_fe_space_free_ptr_lst_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%ptr_dofs_x_fe)) call memfree ( this%ptr_dofs_x_fe, __FILE__, __LINE__ )
-  if (allocated(this%lst_dofs_gids)) call memfree ( this%lst_dofs_gids, __FILE__, __LINE__ )
+  integer(ip) :: field_id, error
+  if ( allocated(this%ptr_dofs_x_fe) ) then
+    do field_id = 1,this%num_fields
+      call this%ptr_dofs_x_fe(field_id)%free()
+    end do
+    deallocate( this%ptr_dofs_x_fe, stat = error ) ; check( error == 0 )
+  end if
+  call this%lst_dofs_gids%free()
 end subroutine serial_fe_space_free_ptr_lst_dofs
 
 subroutine serial_fe_space_allocate_and_init_at_strong_dirichlet_bound(this)

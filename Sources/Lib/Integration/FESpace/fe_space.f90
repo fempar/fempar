@@ -482,8 +482,8 @@ module fe_space_names
      type(std_vector_integer_ip_t)               :: facet_permutation_indices
      
      ! DoF identifiers associated to each FE and field within FE
-     integer(ip)                   , allocatable :: ptr_dofs_x_fe(:,:) ! (num_fields, num_fes+1)
-     integer(ip)                   , allocatable :: lst_dofs_gids(:)
+     type(std_vector_integer_ip_t) , allocatable :: ptr_dofs_x_fe(:)
+     type(std_vector_integer_ip_t)               :: lst_dofs_gids
      
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
@@ -515,11 +515,11 @@ module fe_space_names
      
      procedure, non_overridable          :: allocate_and_fill_fe_space_type_x_field      => serial_fe_space_allocate_and_fill_fe_space_type_x_field
      procedure, non_overridable, private :: free_fe_space_type_x_field                   => serial_fe_space_free_fe_space_type_x_field
-     procedure, non_overridable          :: allocate_and_init_ptr_lst_dofs_gids               => serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
-     procedure, non_overridable          :: move_alloc_ptr_dofs_x_fe_out         => serial_fe_space_move_alloc_ptr_dofs_x_fe_out     
-     procedure, non_overridable          :: move_alloc_lst_dofs_gids_out                 => serial_fe_space_move_alloc_lst_dofs_gids_out
      
+     procedure, non_overridable          :: allocate_and_init_ptr_lst_dofs_gids               => serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
+     procedure, non_overridable          :: copy_ptr_lst_dofs                            => serial_fe_space_copy_ptr_lst_dofs
      procedure, non_overridable, private :: free_ptr_lst_dofs                            => serial_fe_space_free_ptr_lst_dofs
+     
      procedure, non_overridable          :: allocate_and_init_at_strong_dirichlet_bound  => serial_fe_space_allocate_and_init_at_strong_dirichlet_bound  
      procedure, non_overridable, private :: free_at_strong_dirichlet_boundary               => serial_fe_space_free_at_strong_dirichlet_boundary
      procedure, non_overridable          :: allocate_and_init_has_fixed_dofs             => serial_fe_space_allocate_and_init_has_fixed_dofs

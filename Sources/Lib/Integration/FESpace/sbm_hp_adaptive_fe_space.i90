@@ -994,10 +994,10 @@ subroutine shpafs_project_field_cell_to_ref_fes(this)
     new_cell_lid = 1
     call old_field_cell_to_ref_fes%copy(this%field_cell_to_ref_fes(field_id))
     old_num_cells        = old_field_cell_to_ref_fes%size()
-    old_reference_fe_id  = old_field_cell_to_ref_fes%get(old_cell_lid)
     call this%field_cell_to_ref_fes(field_id)%resize(this%triangulation%get_num_cells())
     do while ( old_cell_lid .le. old_num_cells )
       transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
+      old_reference_fe_id  = old_field_cell_to_ref_fes%get(old_cell_lid)
       call new_fe%set_gid(new_cell_lid)
       if ( transformation_flag == do_nothing ) then
         call new_fe%set_reference_fe_id(field_id,old_reference_fe_id)
@@ -1050,8 +1050,8 @@ subroutine shpafs_refine_and_coarsen_single_fe_function( this, fe_function )
   class(triangulation_t), pointer     :: triangulation
   type(fe_function_t)                             :: transformed_fe_function
   type(std_vector_integer_ip_t)     , pointer     :: refinement_and_coarsening_flags
-  integer(ip)                       , allocatable :: old_ptr_dofs_x_fe(:,:)
-  integer(ip)              , target , allocatable :: old_lst_dofs_gids(:)
+  type(std_vector_integer_ip_t)     , allocatable :: old_ptr_dofs_x_fe(:)
+  type(std_vector_integer_ip_t)                   :: old_lst_dofs_gids
   integer(ip)                       , pointer     :: old_field_fe_dofs(:)
   integer(ip)                                     :: num_children_x_cell
   integer(ip)                                     :: transformation_flag
@@ -1059,12 +1059,13 @@ subroutine shpafs_refine_and_coarsen_single_fe_function( this, fe_function )
   integer(ip)                                     :: current_old_cell_lid, current_new_cell_lid
   integer(ip)                                     :: old_num_cells
   integer(ip)                                     :: field_id
-  class(fe_cell_iterator_t)              , allocatable :: new_fe
+  class(fe_cell_iterator_t)         , allocatable :: new_fe
   real(rp)                          , allocatable :: old_nodal_values(:,:)
   real(rp)                          , allocatable :: new_nodal_values(:)
   class(reference_fe_t)             , pointer     :: reference_fe
   integer(ip)                                     :: num_nodes_field
   type(block_layout_t)              , pointer     :: block_layout
+  integer(ip)                                     :: error
   
   triangulation => this%get_triangulation()
   select type(triangulation)
@@ -1076,9 +1077,8 @@ subroutine shpafs_refine_and_coarsen_single_fe_function( this, fe_function )
   
   old_num_cells = refinement_and_coarsening_flags%size()
   
-  call this%move_alloc_ptr_dofs_x_fe_out(old_ptr_dofs_x_fe)
-  call this%move_alloc_lst_dofs_gids_out(old_lst_dofs_gids)
-  massert ( old_num_cells == (size(old_ptr_dofs_x_fe,2)-1), 'Incorrect size of refinement_and_coarsening_flags' )
+  call this%copy_ptr_lst_dofs(old_ptr_dofs_x_fe,old_lst_dofs_gids)
+  massert ( old_num_cells == (old_ptr_dofs_x_fe(1)%size()-1), 'Incorrect size of refinement_and_coarsening_flags' )
   
   call this%project_field_cell_to_ref_fes()
   !call this%check_cell_vs_fe_topology_consistency()
@@ -1192,8 +1192,11 @@ subroutine shpafs_refine_and_coarsen_single_fe_function( this, fe_function )
   call transformed_fe_function%free()
   call memfree(old_nodal_values,__FILE__,__LINE__)
   call memfree(new_nodal_values,__FILE__,__LINE__)
-  call memfree(old_ptr_dofs_x_fe,__FILE__,__LINE__)
-  call memfree(old_lst_dofs_gids,__FILE__,__LINE__)
+  do field_id = 1,this%num_fields
+    call old_ptr_dofs_x_fe(field_id)%free()
+  end do
+  deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
+  call old_lst_dofs_gids%free()
   
 contains
   
@@ -1201,13 +1204,13 @@ contains
     implicit none
     integer(ip), pointer     :: get_field_fe_dofs(:)
     integer(ip)              :: spos, epos
-    spos = old_ptr_dofs_x_fe(field_id,current_old_cell_lid)
+    spos = old_ptr_dofs_x_fe(field_id)%get(current_old_cell_lid)
     if ( field_id == this%get_num_fields() ) then
-      epos = old_ptr_dofs_x_fe(1,current_old_cell_lid+1)-1
+      epos = old_ptr_dofs_x_fe(1)%get(current_old_cell_lid+1)-1
     else
-      epos = old_ptr_dofs_x_fe(field_id+1,current_old_cell_lid)-1
+      epos = old_ptr_dofs_x_fe(field_id+1)%get(current_old_cell_lid)-1
     end if
-    get_field_fe_dofs => old_lst_dofs_gids(spos:epos)    
+    get_field_fe_dofs => old_lst_dofs_gids%get_pointer_to_range(spos,epos)
   end function get_field_fe_dofs
   
 end subroutine shpafs_refine_and_coarsen_single_fe_function
@@ -1219,8 +1222,8 @@ subroutine shpafs_refine_and_coarsen_fe_function_array( this, fe_functions )
   class(triangulation_t), pointer     :: triangulation
   type(fe_function_t)                             :: transformed_fe_function
   type(std_vector_integer_ip_t)     , pointer     :: refinement_and_coarsening_flags
-  integer(ip)                       , allocatable :: old_ptr_dofs_x_fe(:,:)
-  integer(ip)              , target , allocatable :: old_lst_dofs_gids(:)
+  type(std_vector_integer_ip_t)     , allocatable :: old_ptr_dofs_x_fe(:)
+  type(std_vector_integer_ip_t)                   :: old_lst_dofs_gids
   integer(ip)                       , pointer     :: old_field_fe_dofs(:)
   integer(ip)                                     :: num_children_x_cell
   integer(ip)                                     :: transformation_flag
@@ -1235,6 +1238,7 @@ subroutine shpafs_refine_and_coarsen_fe_function_array( this, fe_functions )
   integer(ip)                                     :: num_nodes_field
   type(block_layout_t)              , pointer     :: block_layout
   integer(ip)                                     :: ifunc
+  integer(ip)                                     :: error
   
   triangulation => this%get_triangulation()
   select type(triangulation)
@@ -1246,9 +1250,8 @@ subroutine shpafs_refine_and_coarsen_fe_function_array( this, fe_functions )
   
   old_num_cells = refinement_and_coarsening_flags%size()
   
-  call this%move_alloc_ptr_dofs_x_fe_out(old_ptr_dofs_x_fe)
-  call this%move_alloc_lst_dofs_gids_out(old_lst_dofs_gids)
-  massert ( old_num_cells == (size(old_ptr_dofs_x_fe,2)-1), 'Incorrect size of refinement_and_coarsening_flags' )
+  call this%copy_ptr_lst_dofs(old_ptr_dofs_x_fe,old_lst_dofs_gids)
+  massert ( old_num_cells == (old_ptr_dofs_x_fe(1)%size()-1), 'Incorrect size of refinement_and_coarsening_flags' )
   
   call this%project_field_cell_to_ref_fes()
   !call this%check_cell_vs_fe_topology_consistency()
@@ -1366,8 +1369,11 @@ subroutine shpafs_refine_and_coarsen_fe_function_array( this, fe_functions )
   call transformed_fe_function%free()
   call memfree(old_nodal_values,__FILE__,__LINE__)
   call memfree(new_nodal_values,__FILE__,__LINE__)
-  call memfree(old_ptr_dofs_x_fe,__FILE__,__LINE__)
-  call memfree(old_lst_dofs_gids,__FILE__,__LINE__)
+  do field_id = 1,this%num_fields
+    call old_ptr_dofs_x_fe(field_id)%free()
+  end do
+  deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
+  call old_lst_dofs_gids%free()
   
 contains
   
@@ -1375,13 +1381,13 @@ contains
     implicit none
     integer(ip), pointer     :: get_field_fe_dofs(:)
     integer(ip)              :: spos, epos
-    spos = old_ptr_dofs_x_fe(field_id,current_old_cell_lid)
+    spos = old_ptr_dofs_x_fe(field_id)%get(current_old_cell_lid)
     if ( field_id == this%get_num_fields() ) then
-      epos = old_ptr_dofs_x_fe(1,current_old_cell_lid+1)-1
+      epos = old_ptr_dofs_x_fe(1)%get(current_old_cell_lid+1)-1
     else
-      epos = old_ptr_dofs_x_fe(field_id+1,current_old_cell_lid)-1
+      epos = old_ptr_dofs_x_fe(field_id+1)%get(current_old_cell_lid)-1
     end if
-    get_field_fe_dofs => old_lst_dofs_gids(spos:epos)    
+    get_field_fe_dofs => old_lst_dofs_gids%get_pointer_to_range(spos,epos)
   end function get_field_fe_dofs
   
 end subroutine shpafs_refine_and_coarsen_fe_function_array
