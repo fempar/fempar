@@ -33,6 +33,8 @@ module fe_space_names
   use sort_names
   use allocatable_array_names
   use std_vector_integer_ip_names
+  use std_vector_real_rp_names
+  use std_vector_logical_names
   use hash_table_names
   use FPL
 
@@ -64,7 +66,6 @@ module fe_space_names
   use piecewise_cell_map_names
   
   ! Adaptivity
-  use std_vector_real_rp_names
   use p4est_serial_triangulation_names
 
   ! Parallel modules
@@ -488,8 +489,8 @@ module fe_space_names
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
      integer(ip)                                 :: num_fixed_dofs
-     logical                       , allocatable :: at_strong_dirichlet_boundary_x_fe(:,:)
-     logical                       , allocatable :: has_fixed_dofs_x_fe(:,:)
+     type(std_vector_logical_t)    , allocatable :: at_strong_dirichlet_boundary_x_fe(:)
+     type(std_vector_logical_t)    , allocatable :: has_fixed_dofs_x_fe(:)
      
      ! Descriptor of the block layout selected for the PDE system at hand
      type(block_layout_t)              , pointer :: block_layout  => NULL()
@@ -1056,7 +1057,7 @@ module fe_space_names
      integer(ip)                                 :: num_dirichlet_dofs = -1
      
      ! Acceleration array to skip cells without handing DOFs
-     logical                       , allocatable :: has_hanging_dofs_x_fe(:,:)
+     type(std_vector_logical_t)    , allocatable :: has_hanging_dofs_x_fe(:)
      
      ! The two prev arrays will be eliminated when the development in issue 179 will be finished
      type(std_vector_integer_ip_t)               :: ptr_constraining_free_dofs

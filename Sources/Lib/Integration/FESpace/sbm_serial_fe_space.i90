@@ -233,36 +233,50 @@ end subroutine serial_fe_space_free_ptr_lst_dofs
 subroutine serial_fe_space_allocate_and_init_at_strong_dirichlet_bound(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%free_at_strong_dirichlet_boundary()
-  call memalloc ( this%num_fields, &
-       this%triangulation%get_num_cells(), &
-       this%at_strong_dirichlet_boundary_x_fe, __FILE__, __LINE__ )
-  this%at_strong_dirichlet_boundary_x_fe = .false. 
+  integer(ip) :: field_id, error
+  if ( .not. allocated( this%at_strong_dirichlet_boundary_x_fe ) ) then
+    allocate( this%at_strong_dirichlet_boundary_x_fe(this%num_fields), stat = error ) ; check( error == 0 )
+  end if
+  do field_id = 1,this%num_fields
+    call this%at_strong_dirichlet_boundary_x_fe(field_id)%resize(0)
+    call this%at_strong_dirichlet_boundary_x_fe(field_id)%resize(this%triangulation%get_num_cells(),.false.)
+  end do
 end subroutine serial_fe_space_allocate_and_init_at_strong_dirichlet_bound
 
 subroutine serial_fe_space_free_at_strong_dirichlet_boundary (this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%at_strong_dirichlet_boundary_x_fe)) then
-     call memfree ( this%at_strong_dirichlet_boundary_x_fe, __FILE__, __LINE__ )
+  integer(ip) :: field_id, error
+  if ( allocated(this%at_strong_dirichlet_boundary_x_fe) ) then
+    do field_id = 1,this%num_fields
+      call this%at_strong_dirichlet_boundary_x_fe(field_id)%free()
+    end do
+    deallocate( this%at_strong_dirichlet_boundary_x_fe, stat = error ) ; check ( error == 0 )
   end if
 end subroutine serial_fe_space_free_at_strong_dirichlet_boundary
 
 subroutine serial_fe_space_allocate_and_init_has_fixed_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  call this%free_has_fixed_dofs()
-  call memalloc ( this%num_fields, &
-       this%triangulation%get_num_cells(), &
-       this%has_fixed_dofs_x_fe, __FILE__, __LINE__ )
-  this%has_fixed_dofs_x_fe = .false. 
+  integer(ip) :: field_id, error
+  if ( .not. allocated( this%has_fixed_dofs_x_fe ) ) then
+    allocate( this%has_fixed_dofs_x_fe(this%num_fields), stat = error ) ; check( error == 0 )
+  end if
+  do field_id = 1,this%num_fields
+    call this%has_fixed_dofs_x_fe(field_id)%resize(0)
+    call this%has_fixed_dofs_x_fe(field_id)%resize(this%triangulation%get_num_cells(),.false.)
+  end do
 end subroutine serial_fe_space_allocate_and_init_has_fixed_dofs
 
 subroutine serial_fe_space_free_has_fixed_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%has_fixed_dofs_x_fe)) then
-     call memfree ( this%has_fixed_dofs_x_fe, __FILE__, __LINE__ )
+  integer(ip) :: field_id, error
+  if ( allocated(this%has_fixed_dofs_x_fe) ) then
+    do field_id = 1,this%num_fields
+      call this%has_fixed_dofs_x_fe(field_id)%free()
+    end do
+    deallocate( this%has_fixed_dofs_x_fe, stat = error ) ; check ( error == 0 )
   end if
 end subroutine serial_fe_space_free_has_fixed_dofs
 

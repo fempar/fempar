@@ -97,7 +97,7 @@ function hpafeci_has_hanging_dofs ( this, field_id )
   class(hp_adaptive_fe_cell_iterator_t), intent(in) :: this
   integer(ip)                          , intent(in) :: field_id
   logical                                           :: hpafeci_has_hanging_dofs
-  hpafeci_has_hanging_dofs = this%hp_adaptive_fe_space%has_hanging_dofs_x_fe(field_id,this%get_gid())
+  hpafeci_has_hanging_dofs = this%hp_adaptive_fe_space%has_hanging_dofs_x_fe(field_id)%get(this%get_gid())
 end function hpafeci_has_hanging_dofs
 
 subroutine hpafeci_set_has_hanging_dofs ( this, field_id )
@@ -107,10 +107,9 @@ subroutine hpafeci_set_has_hanging_dofs ( this, field_id )
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: i 
   call this%get_field_fe_dofs(field_id, fe_dofs)
-  this%hp_adaptive_fe_space%has_hanging_dofs_x_fe(field_id,this%get_gid()) = .false.
   do i=1, size(fe_dofs)
     if ( this%is_hanging_dof(fe_dofs(i)) ) then
-      this%hp_adaptive_fe_space%has_hanging_dofs_x_fe(field_id,this%get_gid()) = .true.
+      call this%hp_adaptive_fe_space%has_hanging_dofs_x_fe(field_id)%set(this%get_gid(),.true.)
       exit
     end if  
   end do  
@@ -651,18 +650,25 @@ end subroutine serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
 subroutine shpafs_allocate_and_init_has_hanging_dofs_x_fe(this)
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
-  call this%free_has_hanging_dofs_x_fe()
-  call memalloc ( this%num_fields,                          &
-                  this%p4est_triangulation%get_num_cells(), &
-                  this%has_hanging_dofs_x_fe, __FILE__, __LINE__ )
-  this%has_hanging_dofs_x_fe = .false. 
+  integer(ip) :: field_id, error
+  if ( .not. allocated( this%has_hanging_dofs_x_fe ) ) then
+    allocate( this%has_hanging_dofs_x_fe(this%num_fields), stat = error ) ; check( error == 0 )
+  end if
+  do field_id = 1,this%num_fields
+    call this%has_hanging_dofs_x_fe(field_id)%resize(0)
+    call this%has_hanging_dofs_x_fe(field_id)%resize(this%triangulation%get_num_cells(),.false.)
+  end do
 end subroutine shpafs_allocate_and_init_has_hanging_dofs_x_fe
 
 subroutine shpafs_free_has_hanging_dofs_x_fe(this)
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
-  if (allocated(this%has_hanging_dofs_x_fe)) then
-     call memfree ( this%has_hanging_dofs_x_fe, __FILE__, __LINE__ )
+  integer(ip) :: field_id, error
+  if ( allocated(this%has_hanging_dofs_x_fe) ) then
+    do field_id = 1,this%num_fields
+      call this%has_hanging_dofs_x_fe(field_id)%free()
+    end do
+    deallocate( this%has_hanging_dofs_x_fe, stat = error ) ; check ( error == 0 )
   end if
 end subroutine shpafs_free_has_hanging_dofs_x_fe
 
