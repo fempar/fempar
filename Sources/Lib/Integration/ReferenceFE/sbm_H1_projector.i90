@@ -29,45 +29,45 @@
 subroutine H1_projector_init( this )
   implicit none
   class(H1_projector_t)      , intent(inout) :: this 
-		integer(ip) :: num_nodal_qpoints, istat 
-    		
-		 select case ( this%topology ) 
-			case ( topology_tet ) 
-			allocate ( tet_lagrangian_reference_fe_t :: this%reference_fe )
-			allocate ( tet_lagrangian_reference_fe_t :: this%d_fe_geo )
-			case ( topology_hex ) 
-			allocate ( hex_lagrangian_reference_fe_t :: this%reference_fe )
-			allocate ( hex_lagrangian_reference_fe_t :: this%d_fe_geo )
-			case DEFAULT 
-			check(.false.) 
-			end select 
-						
-		  ! Create a d-dim Lagrangian reference FE. Conformity=.true. needed
-			 ! for own_dof_x_vef construction 
+  integer(ip) :: num_nodal_qpoints, istat 
+
+  select case ( this%topology ) 
+  case ( topology_tet ) 
+     allocate ( tet_lagrangian_reference_fe_t :: this%reference_fe )
+     allocate ( tet_lagrangian_reference_fe_t :: this%d_fe_geo )
+  case ( topology_hex ) 
+     allocate ( hex_lagrangian_reference_fe_t :: this%reference_fe )
+     allocate ( hex_lagrangian_reference_fe_t :: this%d_fe_geo )
+  case DEFAULT 
+     check(.false.) 
+  end select
+
+  ! Create a d-dim Lagrangian reference FE. Conformity=.true. needed
+  ! for own_dof_x_vef construction 
   call this%reference_fe%create(topology    = this%topology,       &
-                                num_dims    = this%num_dims,       &
-                                order       = this%order,          &
-                                field_type  = this%field_type,     &
-                                conformity  = .true. )
-		
-		  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
+       num_dims    = this%num_dims,       &
+       order       = this%order,          &
+       field_type  = this%field_type,     &
+       conformity  = .true. )
+
+  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
   call this%d_fe_geo%create(topology    = this%topology,     &
-                            num_dims    = this%num_dims,     &
-                            order       = 1,                 &
-                            field_type  = field_type_scalar, &
-                            conformity  = .false. )
-		
-		this%nodal_quadrature => this%reference_fe%get_nodal_quadrature()	
-		
-		num_nodal_qpoints = this%nodal_quadrature%get_num_quadrature_points()
-		call memalloc ( num_nodal_qpoints, 1, this%scalar_function_values, __FILE__, __LINE__)
-		if ( this%reference_fe%get_field_type() == field_type_vector ) then 
-		allocate ( this%function_values(num_nodal_qpoints), stat=istat); check(istat==0)
-		end if 
-		
-		! Cell map with nodal quadrature 
-		call this%cell_map%create(this%nodal_quadrature, this%d_fe_geo)
-		
+       num_dims    = this%num_dims,     &
+       order       = 1,                 &
+       field_type  = field_type_scalar, &
+       conformity  = .false. )
+
+  this%nodal_quadrature => this%reference_fe%get_nodal_quadrature()	
+
+  num_nodal_qpoints = this%nodal_quadrature%get_num_quadrature_points()
+  call memalloc ( num_nodal_qpoints, 1, this%scalar_function_values, __FILE__, __LINE__)
+  if ( this%reference_fe%get_field_type() == field_type_vector ) then 
+     allocate ( this%function_values(num_nodal_qpoints), stat=istat); check(istat==0)
+  end if
+
+  ! Cell map with nodal quadrature 
+  call this%cell_map%create(this%nodal_quadrature, this%d_fe_geo)
+
 end subroutine H1_projector_init
 
 ! ================================================================================
@@ -76,23 +76,23 @@ subroutine H1_projector_evaluate_scalar_function_moments( this, scalar_function,
   class(H1_projector_t)        , intent(inout) :: this
   class(scalar_function_t)     , intent(in)    :: scalar_function
   real(rp) , allocatable       , intent(inout) :: dof_values(:) 
- 
-		type(point_t) , pointer  :: cell_coordinates(:) 
+
+  type(point_t) , pointer  :: cell_coordinates(:) 
   type(point_t) , pointer  :: nodal_coordinates(:)
-		integer(ip)              :: inode, num_nodal_qpoints
-		integer(ip)              :: icomp, inode_scalar 
-		
-		dof_values = 0.0_rp 
-			
+  integer(ip)              :: inode, num_nodal_qpoints
+  integer(ip)              :: icomp, inode_scalar 
+
+  dof_values = 0.0_rp 
+
   num_nodal_qpoints = this%nodal_quadrature%get_num_quadrature_points()	
   cell_coordinates => this%cell_map%get_coordinates()
   do inode = 1, size(this%cell_coordinates)
- 	call cell_coordinates(inode)%init( this%cell_coordinates(inode)%get_value() )
+     call cell_coordinates(inode)%init( this%cell_coordinates(inode)%get_value() )
   end do
   call this%cell_map%compute_quadrature_points_coordinates()
   nodal_coordinates => this%cell_map%get_quadrature_points_coordinates()
-  
-		! Evaluate scalar function on nodal coordinates 
+
+  ! Evaluate scalar function on nodal coordinates 
   call scalar_function%get_values_set(nodal_coordinates, dof_values)
 
 end subroutine H1_projector_evaluate_scalar_function_moments
@@ -103,18 +103,18 @@ subroutine H1_projector_evaluate_vector_function_moments( this, vector_function,
   class(H1_projector_t)        , intent(inout) :: this
   class(vector_function_t)     , intent(in)    :: vector_function
   real(rp) , allocatable       , intent(inout) :: dof_values(:) 
- 
-		type(point_t) , pointer  :: cell_coordinates(:) 
+
+  type(point_t) , pointer  :: cell_coordinates(:) 
   type(point_t) , pointer  :: nodal_coordinates(:)
-		integer(ip)              :: inode, num_nodal_qpoints
-		integer(ip)              :: icomp, inode_scalar 
-		
-		dof_values = 0.0_rp 
+  integer(ip)              :: inode, num_nodal_qpoints
+  integer(ip)              :: icomp, inode_scalar 
+
+  dof_values = 0.0_rp 
 
   num_nodal_qpoints = this%nodal_quadrature%get_num_quadrature_points()
   cell_coordinates => this%cell_map%get_coordinates()
   do inode = 1, size(this%cell_coordinates)
- 	call cell_coordinates(inode)%init( this%cell_coordinates(inode)%get_value() )
+     call cell_coordinates(inode)%init( this%cell_coordinates(inode)%get_value() )
   end do
   call this%cell_map%compute_quadrature_points_coordinates()
   nodal_coordinates => this%cell_map%get_quadrature_points_coordinates()
@@ -134,73 +134,73 @@ end subroutine H1_projector_evaluate_vector_function_moments
 !==================================================================================================
 subroutine H1_projector_evaluate_boundary_function_moments(this, vef_lid, function_scalar_components, dof_values, time)
   class(H1_projector_t)                  , intent(inout) :: this
-		integer(ip)                            , intent(in)    :: vef_lid
-		type(p_scalar_function_t), allocatable , intent(in)    :: function_scalar_components(:)
-		real(rp) , allocatable                 , intent(inout) :: dof_values(:) 
-		real(rp) , optional                    , intent(in)    :: time 
-		
-		type(point_t) , pointer             :: cell_coordinates(:) 
+  integer(ip)                            , intent(in)    :: vef_lid
+  type(p_scalar_function_t), allocatable , intent(in)    :: function_scalar_components(:)
+  real(rp) , allocatable                 , intent(inout) :: dof_values(:) 
+  real(rp) , optional                    , intent(in)    :: time 
+
+  type(point_t) , pointer             :: cell_coordinates(:) 
   type(point_t) , pointer             :: nodal_coordinates(:)
   integer(ip)                         :: num_nodal_qpoints
   integer(ip)                         :: qpoint, inode, idime 
 
-		real(rp)                            :: time_(1)
-		type(list_iterator_t)               :: own_dofs
+  real(rp)                            :: time_(1)
+  type(list_iterator_t)               :: own_dofs
   integer(ip)                         :: idof, icomp, inode_scalar
   integer(ip)                         :: istat 
-		
-		dof_values = 0.0_rp 
-		if ( present(time) ) time_(1) = time
- 			
+
+  dof_values = 0.0_rp 
+  if ( present(time) ) time_(1) = time
+
   num_nodal_qpoints = this%nodal_quadrature%get_num_quadrature_points() 				
-		cell_coordinates => this%cell_map%get_coordinates()
+  cell_coordinates => this%cell_map%get_coordinates()
   do inode = 1, size(this%cell_coordinates)
-		call cell_coordinates(inode)%init( this%cell_coordinates(inode)%get_value() )
+     call cell_coordinates(inode)%init( this%cell_coordinates(inode)%get_value() )
   end do
   call this%cell_map%compute_quadrature_points_coordinates()
   nodal_coordinates => this%cell_map%get_quadrature_points_coordinates()
 
-				     ! Fill vector function values 
-     select case(this%reference_fe%get_field_type())
-     case ( field_type_scalar )
+  ! Fill vector function values 
+  select case(this%reference_fe%get_field_type())
+  case ( field_type_scalar )
 
-           if(present(time)) then
-              call function_scalar_components(1)%p%get_values_set_space_time(nodal_coordinates,time_,this%scalar_function_values(1:num_nodal_qpoints,:))
-           else
-              call function_scalar_components(1)%p%get_values_set_space(nodal_coordinates,this%scalar_function_values(1:num_nodal_qpoints,1))
-           end if
-											 do qpoint = 1, num_nodal_qpoints
-              dof_values(qpoint) = this%scalar_function_values(qpoint,1)
-           end do
+     if(present(time)) then
+        call function_scalar_components(1)%p%get_values_set_space_time(nodal_coordinates,time_,this%scalar_function_values(1:num_nodal_qpoints,:))
+     else
+        call function_scalar_components(1)%p%get_values_set_space(nodal_coordinates,this%scalar_function_values(1:num_nodal_qpoints,1))
+     end if
+     do qpoint = 1, num_nodal_qpoints
+        dof_values(qpoint) = this%scalar_function_values(qpoint,1)
+     end do
 
-     case ( field_type_vector )
-					
-        do icomp=1, this%reference_fe%get_num_field_components()
-           if(present(time)) then
-              call function_scalar_components(icomp)%p%get_values_set_space_time(nodal_coordinates,time_,this%scalar_function_values(1:num_nodal_qpoints,:))
-           else
-              call function_scalar_components(icomp)%p%get_values_set_space(nodal_coordinates,this%scalar_function_values(1:num_nodal_qpoints,1))
-           end if
-											
-           do qpoint = 1, num_nodal_qpoints
-              call this%function_values(qpoint)%set(icomp,this%scalar_function_values(qpoint,1))
-           end do
+  case ( field_type_vector )
+
+     do icomp=1, this%reference_fe%get_num_field_components()
+        if(present(time)) then
+           call function_scalar_components(icomp)%p%get_values_set_space_time(nodal_coordinates,time_,this%scalar_function_values(1:num_nodal_qpoints,:))
+        else
+           call function_scalar_components(icomp)%p%get_values_set_space(nodal_coordinates,this%scalar_function_values(1:num_nodal_qpoints,1))
+        end if
+
+        do qpoint = 1, num_nodal_qpoints
+           call this%function_values(qpoint)%set(icomp,this%scalar_function_values(qpoint,1))
         end do
-								
-						own_dofs = this%reference_fe%own_dofs_n_face%create_iterator(vef_lid)
-     ! Evaluate function values at points 
-								do while ( .not. own_dofs%is_upper_bound() ) 
-								   idof             = own_dofs%get_current() 
-											icomp            = this%reference_fe%get_component_node(idof)
-											inode_scalar     = this%reference_fe%get_scalar_from_vector_node(idof)
-           dof_values(idof) = this%function_values(inode_scalar)%get(icomp)
-											call own_dofs%next() 
-        end do			
+     end do
 
-					case DEFAULT 
-					check(.false.) 
-     end select
-		
+     own_dofs = this%reference_fe%own_dofs_n_face%create_iterator(vef_lid)
+     ! Evaluate function values at points 
+     do while ( .not. own_dofs%is_upper_bound() ) 
+        idof             = own_dofs%get_current() 
+        icomp            = this%reference_fe%get_component_node(idof)
+        inode_scalar     = this%reference_fe%get_scalar_from_vector_node(idof)
+        dof_values(idof) = this%function_values(inode_scalar)%get(icomp)
+        call own_dofs%next() 
+     end do
+
+  case DEFAULT 
+     check(.false.) 
+  end select
+
 end subroutine H1_projector_evaluate_boundary_function_moments
 
 ! ================================================================================
@@ -209,11 +209,11 @@ subroutine H1_projector_free( this )
   class(H1_projector_t)   , intent(inout) :: this
   integer(ip) :: istat 
 
-		call this%reference_fe%free() 
+  call this%reference_fe%free() 
   call this%d_fe_geo%free() 
-		nullify( this%nodal_quadrature )
-		call memfree ( this%scalar_function_values, __FILE__, __LINE__)
-		if (allocated(this%function_values)) deallocate ( this%function_values, stat=istat); check(istat==0)		
-		call this%cell_map%free()
-		
+  nullify( this%nodal_quadrature )
+  call memfree ( this%scalar_function_values, __FILE__, __LINE__)
+  if (allocated(this%function_values)) deallocate ( this%function_values, stat=istat); check(istat==0)		
+  call this%cell_map%free()
+
 end subroutine H1_projector_free

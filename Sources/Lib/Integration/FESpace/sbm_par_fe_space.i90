@@ -1554,6 +1554,47 @@ subroutine par_fe_space_create_dof_values(this, dof_values)
   
 end subroutine par_fe_space_create_dof_values
 
+subroutine par_fe_space_project_scalar_function(this, analytical_function, fe_function, field_id, time )
+  implicit none
+  class(par_fe_space_t)          , intent(in)    :: this
+		class(scalar_function_t)       , intent(in)    :: analytical_function
+  type(fe_function_t)            , intent(inout) :: fe_function
+		integer(ip)                    , intent(in)    :: field_id 
+		real(rp)             , optional, intent(in)    :: time
+  type(environment_t), pointer :: environment
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    call this%serial_fe_space_t%project_scalar_function(analytical_function, fe_function, field_id, time)
+  end if
+end subroutine par_fe_space_project_scalar_function
+
+subroutine par_fe_space_project_vector_function(this, analytical_function, fe_function, field_id, time )
+  implicit none
+  class(par_fe_space_t)          , intent(in)    :: this
+		class(vector_function_t)       , intent(in)    :: analytical_function
+  type(fe_function_t)            , intent(inout) :: fe_function
+		integer(ip)                    , intent(in)    :: field_id 
+		real(rp)             , optional, intent(in)    :: time
+  type(environment_t), pointer :: environment
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    call this%serial_fe_space_t%project_vector_function(analytical_function, fe_function, field_id, time)
+  end if
+end subroutine par_fe_space_project_vector_function
+
+subroutine par_fe_space_project_Dirichlet_boundary_function (this, fe_function, time)
+  implicit none
+  class(par_fe_space_t)          , intent(in)    :: this
+  type(fe_function_t)            , intent(inout) :: fe_function
+		real(rp)             , optional, intent(in)    :: time
+  type(environment_t), pointer :: environment
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    call this%serial_fe_space_t%project_Dirichlet_boundary_function(fe_function, time)
+  end if
+end subroutine par_fe_space_project_Dirichlet_boundary_function
+
+
 subroutine par_fe_space_interpolate_dirichlet_values(this, fe_function, time, fields_to_interpolate)
   implicit none
   class(par_fe_space_t)          , intent(inout) :: this

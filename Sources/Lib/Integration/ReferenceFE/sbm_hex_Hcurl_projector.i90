@@ -25,56 +25,6 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-subroutine create_projector( projector, reference_fe, projector_type)  
-  implicit none 
-  class(projector_t) , allocatable        , intent(inout) :: projector
-  class(reference_fe_t)                   , intent(in)    :: reference_fe 
-  integer(ip), optional                   , intent(in)    :: projector_type   
-
-		! Allocation of projector_t based on the reference_fe. Other projections 
-		! could be implemented not depending on the reference_fe, then an optional 
-		! argument must be passed indicating projector_type
-		select type ( reference_fe ) 
-		class is (hex_nedelec_reference_fe_t ) 
-  allocate( hex_Hcurl_projector_t :: projector )
-		class is ( tet_nedelec_reference_fe_t ) 
-		allocate( tet_Hcurl_projector_t :: projector ) 
-		class is ( hex_lagrangian_reference_fe_t ) 
-		allocate ( H1_projector_t :: projector ) 
-		class is ( tet_lagrangian_reference_fe_t ) 
-		allocate ( H1_projector_t :: projector ) 
-		class DEFAULT
-		check(.false.) 
-		end select 
-		
-		! Init variables
-		projector%topology   = reference_fe%topology   
-  projector%num_dims   = reference_fe%num_dims 
-  projector%order      = reference_fe%order
-		projector%field_type = reference_fe%field_type  
-
-end subroutine create_projector
-
-! ================================================================================
-subroutine projector_update( this, cell_map )
-  implicit none
-  class(projector_t)          , intent(inout) :: this
-  type(cell_map_t)            , intent(in)    :: cell_map 
-
-  this%cell_coordinates => cell_map%get_coordinates()
-
-end subroutine projector_update
-
-! ================================================================================
-subroutine Hcurl_projector_evaluate_scalar_function_moments( this, scalar_function, dof_values ) 
-  implicit none
-  class(Hcurl_projector_t)        , intent(inout) :: this
-  class(scalar_function_t)     , intent(in)    :: scalar_function
-  real(rp) , allocatable       , intent(inout) :: dof_values(:) 
-		! Does not apply for vector FEs
-  assert(.false.) 
-end subroutine Hcurl_projector_evaluate_scalar_function_moments
-
 ! ================================================================================
 subroutine hex_Hcurl_projector_init( this )
   implicit none
@@ -123,7 +73,7 @@ subroutine hex_Hcurl_projector_init( this )
    call this%fe_2D%create_interpolation( this%facet_quadrature, this%facet_interpolation )
    call this%facet_map%create( this%facet_quadrature, this%d_fe_geo )
    allocate (this%facet_function_values(this%facet_quadrature%get_num_quadrature_points()), stat=istat); check(istat==0)
-			call memalloc ( this%facet_quadrature%get_num_quadrature_points(), 1, this%scalar_function_values_on_facet, __FILE__, __LINE__)
+   call memalloc ( this%facet_quadrature%get_num_quadrature_points(), 1, this%scalar_function_values_on_facet, __FILE__, __LINE__)
 
   end if 
 
@@ -173,7 +123,7 @@ subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_fu
   class(hex_Hcurl_projector_t) , intent(inout) :: this
   class(vector_function_t)     , intent(in)    :: vector_function
   real(rp) , allocatable       , intent(inout) :: dof_values(:) 
-  
+
   ! Edge moments evaluation 
   type(vector_field_t)                :: tangent 
   type(list_iterator_t)               :: vertex_iterator 
@@ -190,7 +140,7 @@ subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_fu
   integer(ip)                         :: facet_id, facet_lid
   integer(ip)                         :: vertex_within_facet_id
 
- ! Local variables required by interior moments integration
+  ! Local variables required by interior moments integration
   type(point_t), pointer              :: cell_map_coordinates(:)
   type(interpolation_t)               :: mapped_cell_interpolation
   type(vector_field_t)                :: v_shape_test
@@ -249,7 +199,7 @@ subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_fu
   if ( this%num_dims == 3 .and. this%order > 1 ) then
 
      do facet_id = this%reference_fe%get_first_facet_id(), & 
-                   this%reference_fe%get_first_facet_id() + this%reference_fe%get_num_facets()-1
+          this%reference_fe%get_first_facet_id() + this%reference_fe%get_num_facets()-1
 
         ! Get face map coordinates
         facet_map_coordinates => this%facet_map%get_coordinates()
@@ -267,7 +217,7 @@ subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_fu
         ! Update facet_map on current face
         facet_lid = facet_id - this%d_fe_geo%get_first_facet_id()+1
         call this%facet_map%update(reorientation_factor   = this%d_fe_geo%get_normal_orientation_factor(facet_lid), &
-                                   quadrature             = this%facet_quadrature ) 
+             quadrature             = this%facet_quadrature ) 
 
         ! Extract quadrature points coordinates 
         quad_points_coordinates => this%facet_map%get_quadrature_points_coordinates()
@@ -308,15 +258,15 @@ subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_fu
   end if
 
   if ( this%order>1 ) then 
-      ! Get cell map coordinates
-        cell_map_coordinates => this%cell_map%get_coordinates()
-        do vertex_within_cell_id = 1, size(this%cell_coordinates) 
+     ! Get cell map coordinates
+     cell_map_coordinates => this%cell_map%get_coordinates()
+     do vertex_within_cell_id = 1, size(this%cell_coordinates) 
         call cell_map_coordinates(vertex_within_cell_id)%init( this%cell_coordinates(vertex_within_cell_id)%get_value() )
-        end do 
+     end do
 
      ! Update cell map 
-       call this%cell_map%update(this%cell_quadrature)
- 
+     call this%cell_map%update(this%cell_quadrature)
+
      ! Extract quadrature points coordinates 
      quad_points_coordinates => this%cell_map%get_quadrature_points_coordinates()
 
@@ -335,7 +285,7 @@ subroutine hex_Hcurl_projector_evaluate_vector_function_moments( this, vector_fu
            dof_values(d+ishape) = dof_values(d+ishape) + this%cell_function_values(qpoint) * v_shape_test * factor
         end do
      end do
-  
+
      call mapped_cell_interpolation%free() 
   end if
 
@@ -394,7 +344,7 @@ subroutine hex_Hcurl_projector_evaluate_boundary_function_moments(this, vef_lid,
      vertex_iterator = this%reference_fe%vertices_n_face%create_iterator(vef_lid)
      do while ( .not. vertex_iterator%is_upper_bound () )
         vertex_within_cell_id = vertex_iterator%get_current()
-								call edge_map_coordinates(vertex_within_edge_id)%init( this%cell_coordinates(vertex_within_cell_id)%get_value() )
+        call edge_map_coordinates(vertex_within_edge_id)%init( this%cell_coordinates(vertex_within_cell_id)%get_value() )
         call vertex_iterator%next()
         vertex_within_edge_id = vertex_within_edge_id + 1
      end do
@@ -446,7 +396,7 @@ subroutine hex_Hcurl_projector_evaluate_boundary_function_moments(this, vef_lid,
 
      if ( this%num_dims == 3 .and. this%order > 1 ) then
 
-					   ! Get face map coordinates
+        ! Get face map coordinates
         num_quad_points  =  this%facet_quadrature%get_num_quadrature_points()
         facet_map_coordinates   => this%facet_map%get_coordinates()
 
@@ -455,7 +405,7 @@ subroutine hex_Hcurl_projector_evaluate_boundary_function_moments(this, vef_lid,
         vertex_iterator = this%reference_fe%vertices_n_face%create_iterator(vef_lid)
         do while ( .not. vertex_iterator%is_upper_bound () )
            vertex_within_cell_id = vertex_iterator%get_current()
-											call facet_map_coordinates(vertex_within_facet_id)%init( this%cell_coordinates(vertex_within_cell_id)%get_value() )
+           call facet_map_coordinates(vertex_within_facet_id)%init( this%cell_coordinates(vertex_within_cell_id)%get_value() )
            call vertex_iterator%next()
            vertex_within_facet_id = vertex_within_facet_id + 1
         end do
@@ -463,7 +413,7 @@ subroutine hex_Hcurl_projector_evaluate_boundary_function_moments(this, vef_lid,
         ! Update facet_map on current face
         facet_lid = vef_lid - this%d_fe_geo%get_first_facet_id()+1
         call this%facet_map%update(reorientation_factor   = this%d_fe_geo%get_normal_orientation_factor(facet_lid), &
-                                   quadrature             = this%facet_quadrature ) 
+             quadrature             = this%facet_quadrature ) 
 
         ! Extract quadrature points coordinates 
         quad_points_coordinates => this%facet_map%get_quadrature_points_coordinates()
@@ -541,7 +491,7 @@ subroutine hex_Hcurl_projector_free( this )
 
   call this%reference_fe%free() 
   call this%d_fe_geo%free()
- 
+
   ! Edge related data  
   call this%fe_1D%free()
   call this%edge_quadrature%free() 
@@ -564,8 +514,8 @@ subroutine hex_Hcurl_projector_free( this )
   if ( allocated(this%edge_function_values))  deallocate( this%edge_function_values , stat=istat); check(istat==0) 
   if ( allocated(this%facet_function_values)) deallocate( this%facet_function_values , stat=istat); check(istat==0) 
   if ( allocated(this%cell_function_values))  deallocate( this%cell_function_values , stat=istat); check(istat==0) 
-		
-		if ( allocated(this%scalar_function_values_on_edge) )  call memfree( this%scalar_function_values_on_edge, __FILE__, __LINE__ ) 
-		if ( allocated(this%scalar_function_values_on_facet) ) call memfree( this%scalar_function_values_on_facet, __FILE__, __LINE__ )
+
+  if ( allocated(this%scalar_function_values_on_edge) )  call memfree( this%scalar_function_values_on_edge, __FILE__, __LINE__ ) 
+  if ( allocated(this%scalar_function_values_on_facet) ) call memfree( this%scalar_function_values_on_facet, __FILE__, __LINE__ )
 
 end subroutine hex_Hcurl_projector_free

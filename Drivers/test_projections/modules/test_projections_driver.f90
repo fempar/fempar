@@ -108,7 +108,7 @@ contains
     reference_fe_geo => cell%get_reference_fe()
 	
     this%reference_fes(MAGNETIC_FIELD_ID) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
-                                                                 fe_type    = fe_type_lagrangian,                        &
+                                                                 fe_type    = fe_type_nedelec,                           &
                                                                  num_dims   = this%triangulation%get_num_dims(),         &
                                                                  order      = this%test_params%get_reference_fe_order(), &
                                                                  field_type = field_type_vector,                         &
@@ -175,8 +175,8 @@ contains
 
 				! Project functions 
 				call this%solution%create(this%fe_space)
-				call this%fe_space%project_function( this%problem_functions%get_magnetic_field_solution(), this%solution , MAGNETIC_FIELD_ID) 
-				call this%fe_space%project_function( this%problem_functions%get_pressure_solution(), this%solution , PRESSURE_FIELD_ID)
+				call this%fe_space%project_vector_function( this%problem_functions%get_magnetic_field_solution(), this%solution , MAGNETIC_FIELD_ID) 
+				call this%fe_space%project_scalar_function( this%problem_functions%get_pressure_solution(), this%solution , PRESSURE_FIELD_ID)
 				call this%fe_space%project_Dirichlet_boundary_function( this%solution )
 				
 				!				WRITE(*,*) ' PROJECTED VALUES **************************************' 

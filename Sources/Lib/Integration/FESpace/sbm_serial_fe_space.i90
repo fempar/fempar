@@ -649,14 +649,8 @@ subroutine serial_fe_space_project_scalar_function (this, analytical_function, f
 
   real(rp)                        :: time_(1) 
   real(rp)  , allocatable         :: dof_values(:)  
-  class(environment_t), pointer   :: environment 
+  type(point_t) , pointer         :: coordinates(:)
   class(projector_t), allocatable :: projector
-		
-  environment => this%get_environment() 
-
-  if (.not. environment%am_i_l1_task() ) then 
-     return 
-  end if
 
   if ( present(time) ) time_(1) = time 
 
@@ -666,13 +660,16 @@ subroutine serial_fe_space_project_scalar_function (this, analytical_function, f
   call create_projector( projector, reference_fe ) 
   call projector%init() 	
   call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )				
-		
+
   do while (.not. fe%has_finished() )  
      if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then									
-        call fe%update_integration()
-								call projector%update( fe%get_cell_map() )			
+        ! Update nodal coordinates of the fe
+        call fe%update_cell_map()
+        coordinates => fe%cell_map%get_coordinates()
+        call fe%get_nodes_coordinates(coordinates)	
+        call projector%update( coordinates )	
+
         call projector%evaluate_scalar_function_moments( analytical_function, dof_values )
-      !  call reference_fe%evaluate_scalar_function_moments( fe%get_cell_map(), analytical_function, dof_values )
         call fe_function%insert_nodal_values(fe, field_id, dof_values)
      end if
      call fe%next()
@@ -681,7 +678,7 @@ subroutine serial_fe_space_project_scalar_function (this, analytical_function, f
 
   call this%free_fe_cell_iterator(fe) 
   call projector%free() 
-		
+
 end subroutine serial_fe_space_project_scalar_function
 
 subroutine serial_fe_space_project_vector_function (this, analytical_function, fe_function, field_id, time)
@@ -696,16 +693,9 @@ subroutine serial_fe_space_project_vector_function (this, analytical_function, f
   class(reference_fe_t)    , pointer     :: reference_fe 
   class(fe_cell_iterator_t), allocatable :: fe 	
   real(rp)                               :: time_(1) 
-  real(rp)  , allocatable                :: dof_values(:)  
-  class(environment_t), pointer          :: environment 
-
+  real(rp)  , allocatable                :: dof_values(:) 
+  type(point_t) , pointer                :: coordinates(:) 
   class(projector_t), allocatable :: projector 
-
-  environment => this%get_environment() 
-
-  if (.not. environment%am_i_l1_task() ) then 
-     return 
-  end if
 
   if ( present(time) ) time_(1) = time 
 
@@ -717,10 +707,13 @@ subroutine serial_fe_space_project_vector_function (this, analytical_function, f
 
   do while (.not. fe%has_finished() )  
      if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then 
-        call fe%update_integration()
-        call projector%update( fe%get_cell_map() )			
+        ! Update nodal coordinates of the fe
+        call fe%update_cell_map()
+        coordinates => fe%cell_map%get_coordinates()
+        call fe%get_nodes_coordinates(coordinates)	
+        call projector%update( coordinates )	
+
         call projector%evaluate_vector_function_moments( analytical_function, dof_values )
-        !  call reference_fe%evaluate_vector_function_moments( fe%get_cell_map(), analytical_function, dof_values )
         call fe_function%insert_nodal_values(fe, field_id, dof_values)
      end if
      call fe%next()
@@ -735,7 +728,7 @@ end subroutine serial_fe_space_project_vector_function
 subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_function, time)
   implicit none
   class(serial_fe_space_t)          , intent(in)    :: this
-  class(fe_function_t)              , intent(inout) :: fe_function
+  type(fe_function_t)               , intent(inout) :: fe_function
   real(rp)                , optional, intent(in)    :: time
 
   class(reference_fe_t)    , pointer        :: reference_fe 
@@ -753,16 +746,10 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
   real(rp)  , allocatable                :: dof_values(:)  
   integer(ip), pointer                   :: fe_dofs(:)
   real(rp)                   , pointer   :: fixed_dof_values_entries(:)
-  integer(ip)              :: idof, vef_lid, istat
-  class(environment_t), pointer     :: environment
-		type(p_projector_t),  allocatable :: projectors(:) 
-		
-  environment => this%get_environment() 
+  integer(ip)                            :: idof, vef_lid, istat
+  type(point_t) , pointer           :: coordinates(:)
+  type(p_projector_t),  allocatable :: projectors(:) 
 
-  if (.not. environment%am_i_l1_task() ) then 
-     return 
-  end if
-		
   fixed_dof_values_entries => fe_function%fixed_dof_values%get_entries()
 
   call this%allocate_and_fill_offset_component(offset_component)
@@ -773,24 +760,27 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
 
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_vef_iterator(vef)
-		
+
   ! Create and initialize projector 
-		allocate ( projectors(this%get_num_fields()), stat=istat); check(istat==0)  
-		do field_id = 1, this%get_num_fields() 
-		reference_fe => fe%get_reference_fe(field_id) 
-		call create_projector( projectors(field_id)%p, fe%get_reference_fe(field_id) )  
-		call projectors(field_id)%p%init()
-		end do 
-				
+  allocate ( projectors(this%get_num_fields()), stat=istat); check(istat==0)  
+  do field_id = 1, this%get_num_fields() 
+     call create_projector( projectors(field_id)%p, fe%get_reference_fe(field_id) )  
+     call projectors(field_id)%p%init()
+  end do
+
   if ( present(time) ) time_(1) = time 
   do while (.not. fe%has_finished() )     
 
      do field_id = 1, this%get_num_fields()
-      
-					if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) ) then 
-           call fe%update_integration()
-											reference_fe => fe%get_reference_fe(field_id)
-										 call projectors(field_id)%p%update( fe%get_cell_map() )
+
+        if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) ) then 
+           ! Update nodal coordinates of the fe
+           call fe%update_cell_map()
+           coordinates => fe%cell_map%get_coordinates()
+           call fe%get_nodes_coordinates(coordinates)	
+           call projectors(field_id)%p%update( coordinates )
+
+           reference_fe => fe%get_reference_fe(field_id)					 
            call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
 
            call fe%get_field_fe_dofs(field_id,fe_dofs)
@@ -808,13 +798,12 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
                     ! Retreive the scalar functions corresponding to the components of the function to be projected
                     do icomp=1, reference_fe%get_num_field_components()
                        call this%conditions%get_function(vef%get_set_id(), &
-                                                         component_id+icomp-1, &
-                                                         function_scalar_components(icomp)%p)
+                            component_id+icomp-1, &
+                            function_scalar_components(icomp)%p)
                     end do
 
-																				call projectors(field_id)%p%evaluate_boundary_function_moments( vef_lid, function_scalar_components, dof_values )
-																			!	call reference_fe%evaluate_boundary_function_moments( fe%get_cell_map(), vef_lid, function_scalar_components, dof_values )
-																				
+                    call projectors(field_id)%p%evaluate_boundary_function_moments( vef_lid, function_scalar_components, dof_values )
+
                     own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
                     do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
                        idof = own_dofs_on_vef_iterator%get_current()   
@@ -834,13 +823,12 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
 
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_vef_iterator(vef) 
-		
-		do field_id = 1, this%get_num_fields() 
-		call projectors(field_id)%p%free() 
-		end do 
-		
+
+  do field_id = 1, this%get_num_fields() 
+     call projectors(field_id)%p%free() 
+  end do
   deallocate( projectors, stat=istat); check(istat==0) 
-		
+
   deallocate ( function_scalar_components, stat=istat); check(istat==0);
   call memfree( components_code, __FILE__, __LINE__ ) 
   call memfree (offset_component, __FILE__, __LINE__ )
