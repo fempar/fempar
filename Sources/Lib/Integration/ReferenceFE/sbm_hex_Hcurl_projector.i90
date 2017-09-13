@@ -27,39 +27,53 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 subroutine create_projector( projector, reference_fe, projector_type)  
   implicit none 
-  class(projector_t) , allocatable       , intent(inout) :: projector
-  class(reference_fe_t) , target         , intent(in)    :: reference_fe 
-  integer(ip), optional                  , intent(in)    :: projector_type   
+  class(projector_t) , allocatable        , intent(inout) :: projector
+  class(reference_fe_t)                   , intent(in)    :: reference_fe 
+  integer(ip), optional                   , intent(in)    :: projector_type   
 
-		!select type ( reference_fe ) 
-		!class is (hex_nedelec_reference_fe_t ) 
+		! Allocation of projector_t based on the reference_fe. Other projections 
+		! could be implemented not depending on the reference_fe, then an optional 
+		! argument must be passed indicating projector_type
+		select type ( reference_fe ) 
+		class is (hex_nedelec_reference_fe_t ) 
   allocate( hex_Hcurl_projector_t :: projector )
-		!class is ( tet_nedelec_reference_fe_t ) 
-		!allocate( tet_Hcurl_projector_t :: projector ) 
-		!class is ( hex_lagrangian_reference_fe_t ) 
-		!allocate ( H1_projector_t :: projector ) 
-		!class is ( tet_lagrangian_reference_fe_t ) 
-		!allocate ( H1_projector_reference_fe_t ) 
-		!class DEFAULT
-		!check(.false.) 
-		!end select 
+		class is ( tet_nedelec_reference_fe_t ) 
+		allocate( tet_Hcurl_projector_t :: projector ) 
+		class is ( hex_lagrangian_reference_fe_t ) 
+		allocate ( H1_projector_t :: projector ) 
+		class is ( tet_lagrangian_reference_fe_t ) 
+		allocate ( H1_projector_t :: projector ) 
+		class DEFAULT
+		check(.false.) 
+		end select 
 		
 		! Init variables
-  projector%topology = reference_fe%topology   
-  projector%num_dims = reference_fe%num_dims 
-  projector%order    = reference_fe%order 
+		projector%topology   = reference_fe%topology   
+  projector%num_dims   = reference_fe%num_dims 
+  projector%order      = reference_fe%order
+		projector%field_type = reference_fe%field_type  
 
 end subroutine create_projector
 
 ! ================================================================================
-subroutine Hcurl_projector_update( this, cell_map )
+subroutine projector_update( this, cell_map )
   implicit none
-  class(Hcurl_projector_t)          , intent(inout) :: this
-  type(cell_map_t)                  , intent(in)    :: cell_map 
+  class(projector_t)          , intent(inout) :: this
+  type(cell_map_t)            , intent(in)    :: cell_map 
 
   this%cell_coordinates => cell_map%get_coordinates()
 
-end subroutine Hcurl_projector_update
+end subroutine projector_update
+
+! ================================================================================
+subroutine Hcurl_projector_evaluate_scalar_function_moments( this, scalar_function, dof_values ) 
+  implicit none
+  class(Hcurl_projector_t)        , intent(inout) :: this
+  class(scalar_function_t)     , intent(in)    :: scalar_function
+  real(rp) , allocatable       , intent(inout) :: dof_values(:) 
+		! Does not apply for vector FEs
+  assert(.false.) 
+end subroutine Hcurl_projector_evaluate_scalar_function_moments
 
 ! ================================================================================
 subroutine hex_Hcurl_projector_init( this )
@@ -69,25 +83,26 @@ subroutine hex_Hcurl_projector_init( this )
   integer(ip)                         :: num_interior_moments
   integer(ip)                         :: idime, istat 
 
-  ! Create a d-dim Nedelec reference FE
+   ! Create a d-dim Nedelec reference FE. Conformity=true  
+	 	! is important to compute own_dofs_x_vef information 
   call this%reference_fe%create(topology    = this%topology,       &
                                 num_dims    = this%num_dims,       &
                                 order       = this%order,          &
                                 field_type  = field_type_vector,   &
-                                conformity  = .false. )
+                                conformity  = .true. )
 
   ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
-  call this%d_fe_geo%create(topology    = this%reference_fe%get_topology(),    &
-                            num_dims    = this%reference_fe%num_dims,          &
-                            order       = 1,                                   &
-                            field_type  = field_type_scalar,                   &
+  call this%d_fe_geo%create(topology    = this%topology,          &
+                            num_dims    = this%num_dims,          &
+                            order       = 1,                      &
+                            field_type  = field_type_scalar,      &
                             conformity  = .false. )
 
   ! Create a 1D scalar lagrangian reference FE of order k-1
-  call this%fe_1D%create(topology          = this%reference_fe%get_topology(), &
-                         num_dims          = 1,                                &
-                         order             = this%reference_fe%order-1,        &
-                         field_type        = field_type_scalar,                &
+  call this%fe_1D%create(topology          = this%topology,       &
+                         num_dims          = 1,                   &
+                         order             = this%order-1,        &
+                         field_type        = field_type_scalar,   &
                          conformity        = .true. )
 
   call this%reference_fe%create_edge_quadrature( this%edge_quadrature )
