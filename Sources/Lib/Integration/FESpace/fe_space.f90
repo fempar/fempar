@@ -32,10 +32,8 @@ module fe_space_names
   use memor_names
   use sort_names
   use allocatable_array_names
-  use std_vector_integer_ip_names
-  use std_vector_real_rp_names
-  use std_vector_logical_names
   use hash_table_names
+  use std_vector_names
   use FPL
 
   use environment_names
