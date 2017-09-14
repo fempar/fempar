@@ -461,13 +461,13 @@ module fe_space_names
      type(hash_table_ip_ip_t)                    :: cell_integrators_position      ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
      
      ! Finite Face-related integration containers
-     type(quadrature_t)            , allocatable :: facet_quadratures(:)
-     type(facet_maps_t)            , allocatable :: facet_maps(:)
-     type(facet_integrator_t)      , allocatable :: facet_integrators(:)
+     type(std_vector_quadrature_t)               :: facet_quadratures
+     type(std_vector_facet_maps_t)               :: facet_maps
+     type(std_vector_facet_integrator_t)         :: facet_integrators
      type(std_vector_integer_ip_t)               :: facet_quadratures_degree
      
      ! Mapping of Finite Faces and integration containers
-     integer(ip)                   , allocatable :: max_order_field_cell_to_ref_fes_face(:) ! Stores max_order_field_cell_to_ref_fes_face for all faces
+     type(std_vector_integer_ip_t)               :: max_order_field_cell_to_ref_fes_face ! Stores max_order_field_cell_to_ref_fes_face for all faces
      type(hash_table_ip_ip_t)                    :: facet_quadratures_position  ! Key = [quadrature_degree, 
                                                                                   !       left_geo_reference_fe_id,
                                                                                   !       right_geo_reference_fe_id (with 0 for boundary faces)]
@@ -554,7 +554,6 @@ module fe_space_names
      procedure, non_overridable, private :: allocate_and_init_facet_quadratures_degree => serial_fe_space_allocate_and_init_facet_quadratures_degree
      procedure, non_overridable, private :: free_facet_quadratures_degree              => serial_fe_space_free_facet_quadratures_degree
      
-     procedure, non_overridable, private :: allocate_max_order_field_cell_to_ref_fes_face => serial_fe_space_allocate_max_order_field_cell_to_ref_fes_face
      procedure, non_overridable, private :: free_max_order_field_cell_to_ref_fes_face     => serial_fe_space_free_max_order_field_cell_to_ref_fes_face
      procedure, non_overridable, private :: compute_max_order_field_cell_to_ref_fes_face  => serial_fe_space_compute_max_order_field_cell_to_ref_fes_face   
      

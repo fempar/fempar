@@ -328,8 +328,7 @@ function fe_facet_iterator_get_default_quadrature_degree ( this )
   class(fe_facet_iterator_t), intent(in) :: this
   integer(ip) :: fe_facet_iterator_get_default_quadrature_degree
   integer(ip) :: reference_fe_id
-  assert( allocated(this%fe_space%max_order_field_cell_to_ref_fes_face) )
-  reference_fe_id = this%fe_space%max_order_field_cell_to_ref_fes_face(this%facet_gid)
+  reference_fe_id = this%fe_space%max_order_field_cell_to_ref_fes_face%get(this%facet_gid)
   fe_facet_iterator_get_default_quadrature_degree = & 
     this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
 end function fe_facet_iterator_get_default_quadrature_degree
@@ -371,7 +370,7 @@ function fe_facet_iterator_get_quadrature ( this )
                                                       val=facet_quadratures_position, &
                                                       stat=istat)
   assert ( .not. istat == key_not_found )
-  fe_facet_iterator_get_quadrature => this%fe_space%facet_quadratures(facet_quadratures_position)
+  fe_facet_iterator_get_quadrature => this%fe_space%facet_quadratures%get_pointer(facet_quadratures_position)
 end function fe_facet_iterator_get_quadrature
 
 !==================================================================================================
@@ -398,7 +397,7 @@ function fe_facet_iterator_get_facet_map(this)
                                                       val=facet_maps_position, &
                                                       stat=istat)
   assert ( .not. istat == key_not_found )
-  fe_facet_iterator_get_facet_map => this%fe_space%facet_maps(facet_maps_position)
+  fe_facet_iterator_get_facet_map => this%fe_space%facet_maps%get_pointer(facet_maps_position)
 end function fe_facet_iterator_get_facet_map
 
 
@@ -425,7 +424,7 @@ subroutine fe_facet_iterator_update_facet_maps(this)
                                                       val=facet_maps_position, &
                                                       stat=istat)
   assert ( .not. istat == key_not_found )
-  this%facet_maps => this%fe_space%facet_maps(facet_maps_position)
+  this%facet_maps => this%fe_space%facet_maps%get_pointer(facet_maps_position)
 end subroutine fe_facet_iterator_update_facet_maps
 
 !==================================================================================================
@@ -456,7 +455,7 @@ function fe_facet_iterator_get_facet_integrator(this, field_id)
                                                       stat=istat)
   assert ( .not. istat == key_not_found )
   
-  fe_facet_iterator_get_facet_integrator => this%fe_space%facet_integrators(facet_integrators_position)
+  fe_facet_iterator_get_facet_integrator => this%fe_space%facet_integrators%get_pointer(facet_integrators_position)
 end function fe_facet_iterator_get_facet_integrator
 
 !==================================================================================================
@@ -484,7 +483,7 @@ subroutine fe_facet_iterator_update_facet_integrators(this)
                                                       stat=istat)
      assert ( .not. istat == key_not_found )
   
-     this%facet_integrators(field_id)%p => this%fe_space%facet_integrators(facet_integrators_position)
+     this%facet_integrators(field_id)%p => this%fe_space%facet_integrators%get_pointer(facet_integrators_position)
   end do
 end subroutine fe_facet_iterator_update_facet_integrators
 

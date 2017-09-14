@@ -1720,17 +1720,10 @@ subroutine serial_fe_space_free_facet_quadratures_degree ( this )
   call this%facet_quadratures_degree%free()
 end subroutine serial_fe_space_free_facet_quadratures_degree
 
-subroutine serial_fe_space_allocate_max_order_field_cell_to_ref_fes_face ( this )
-  implicit none
-  class(serial_fe_space_t), intent(inout) :: this
-  call this%free_max_order_field_cell_to_ref_fes_face()
-  call memalloc ( this%facet_gids%size(), this%max_order_field_cell_to_ref_fes_face , __FILE__, __LINE__ )
-end subroutine serial_fe_space_allocate_max_order_field_cell_to_ref_fes_face  
-
 subroutine serial_fe_space_free_max_order_field_cell_to_ref_fes_face  ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%max_order_field_cell_to_ref_fes_face)) call memfree ( this%max_order_field_cell_to_ref_fes_face , __FILE__, __LINE__ )
+  call this%max_order_field_cell_to_ref_fes_face%free()
 end subroutine serial_fe_space_free_max_order_field_cell_to_ref_fes_face  
 
 subroutine serial_fe_space_compute_max_order_field_cell_to_ref_fes_face ( this )
@@ -1738,9 +1731,13 @@ subroutine serial_fe_space_compute_max_order_field_cell_to_ref_fes_face ( this )
   class(serial_fe_space_t), intent(inout) :: this
   class(fe_facet_iterator_t), allocatable :: fe_face
   class(fe_cell_iterator_t)     , allocatable :: fe
-  integer(ip) :: max_order, max_order_reference_fe_id, reference_fe_id
-  integer(ip) :: max_order_fes_around_fe_face
-  integer(ip) :: field_id, icell_around
+  integer(ip), pointer :: max_order_field_cell_to_ref_fes_face(:)
+  integer(ip)          :: max_order, max_order_reference_fe_id, reference_fe_id
+  integer(ip)          :: max_order_fes_around_fe_face
+  integer(ip)          :: field_id, icell_around
+  
+  call this%max_order_field_cell_to_ref_fes_face%resize(this%facet_gids%size())
+  max_order_field_cell_to_ref_fes_face => this%max_order_field_cell_to_ref_fes_face%get_pointer()
   
   call this%create_fe_facet_iterator(fe_face)
   call this%create_fe_cell_iterator(fe)
@@ -1756,7 +1753,7 @@ subroutine serial_fe_space_compute_max_order_field_cell_to_ref_fes_face ( this )
            end if
         end do
      end do
-     this%max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) = max_order_reference_fe_id 
+     max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) = max_order_reference_fe_id 
      call fe_face%next()
   end do
   call this%free_fe_facet_iterator(fe_face)
@@ -1823,9 +1820,9 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   class(fe_facet_iterator_t), allocatable :: fe_face
   class(fe_cell_iterator_t)     , allocatable :: fe
 
-  integer(ip) :: current_facet_quadrature
-  integer(ip) :: current_facet_map
-  integer(ip) :: current_facet_integrator
+  integer(ip) :: facet_quadrature_position
+  integer(ip) :: facet_maps_position
+  integer(ip) :: facet_integrator_position
 
   integer(ip)            :: max_order_fes_around_fe_face
   integer(ip)            :: reference_fes_geo_id(2)
@@ -1840,83 +1837,27 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   integer(ip) :: field_id, istat, icell_around
 
   class(reference_fe_t), pointer :: reference_fe
+  integer(ip)          , pointer :: max_order_field_cell_to_ref_fes_face(:)
 
-  call this%free_facet_integration()
+  type(quadrature_t)       :: current_facet_quadrature
+  type(facet_maps_t)       :: current_facet_maps
+  type(facet_integrator_t) :: current_facet_integrator
 
   call this%compute_facet_permutation_indices()
-  
-  call this%allocate_max_order_field_cell_to_ref_fes_face()
   call this%compute_max_order_field_cell_to_ref_fes_face()
+  max_order_field_cell_to_ref_fes_face => this%max_order_field_cell_to_ref_fes_face%get_pointer()
   
-  ! Determine the size of facet_quadratures, facet_maps, 
-  ! and facet_integrators while filling the corresponding hash tables
   call this%facet_quadratures_position%init()
   call this%facet_integrators_position%init()
-  current_facet_quadrature = 1
-  current_facet_map = 1
-  current_facet_integrator = 1
+  call this%facet_quadratures%resize(0)
+  call this%facet_maps%resize(0)
+  call this%facet_integrators%resize(0)
+  facet_quadrature_position = 1
+  facet_maps_position = 1
+  facet_integrator_position = 1
 
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_facet_iterator(fe_face)
-  do while ( .not. fe_face%has_finished() ) 
-     reference_fes_geo_id(2) = 0 
-     do icell_around = 1, fe_face%get_num_cells_around()
-        call fe_face%get_cell_around(icell_around, fe)
-        reference_fes_geo_id(icell_around) = fe%get_reference_fe_geo_id()
-     end do
-
-     facet_quadratures_position_key = &
-          this%generate_facet_quadratures_position_key(fe_face%get_quadrature_degree(), &
-                                                         reference_fes_geo_id(1), &
-                                                         reference_fes_geo_id(2) )
-          
-     call this%facet_quadratures_position%put(key  = facet_quadratures_position_key, &
-                                                val  = current_facet_quadrature, &
-                                                stat = istat)  
-     
-     if (istat == now_stored) then
-        current_facet_quadrature = current_facet_quadrature + 1
-        current_facet_map = current_facet_map + 1
-     end if
-
-     do field_id=1, this%get_num_fields()
-        reference_fes_id(2) = 0  
-        do icell_around = 1, fe_face%get_num_cells_around()
-           call fe_face%get_cell_around(icell_around, fe)
-           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id)%get(fe%get_gid())
-        end do
-
-        facet_integrators_position_key = &
-             this%generate_facet_integrators_position_key(fe_face%get_quadrature_degree(), &
-                                                            reference_fes_id(1), &
-                                                            reference_fes_id(2) )
-
-        call this%facet_integrators_position%put(key=facet_integrators_position_key, &
-                                                   val=current_facet_integrator, &
-                                                   stat=istat)
-        if (istat == now_stored) then
-           current_facet_integrator = current_facet_integrator + 1
-        end if
-     end do
-     call fe_face%next()
-  end do
-
-  allocate ( this%facet_quadratures(current_facet_quadrature-1), stat=istat)
-  check (istat==0)
-
-  allocate ( this%facet_maps(current_facet_map-1), stat=istat)
-  check (istat==0)
-
-  allocate ( this%facet_integrators(current_facet_integrator-1), stat=istat)
-  check (istat==0)
-
-  call this%facet_quadratures_position%init()
-  call this%facet_integrators_position%init()
-  current_facet_quadrature = 1
-  current_facet_map = 1
-  current_facet_integrator = 1
-
-  call fe_face%first()
   do while ( .not. fe_face%has_finished() ) 
      reference_fes_geo_id(2) = 0
      nullify(reference_fes_geo(2)%p)
@@ -1933,16 +1874,18 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
      
      
      call this%facet_quadratures_position%put(key  = facet_quadratures_position_key, &
-                                                val  = current_facet_quadrature, &
+                                                val  = facet_quadrature_position, &
                                                 stat = istat)  
      if (istat == now_stored) then
-        reference_fe=>this%reference_fes( this%max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) )%p
-        call reference_fe%create_facet_quadrature(this%facet_quadratures(current_facet_quadrature),fe_face%get_quadrature_degree())
-        call this%facet_maps(current_facet_map)%create(fe_face%get_quadrature(), &
-                                                           reference_fes_geo(1)%p, &
-                                                           reference_fes_geo(2)%p )
-        current_facet_quadrature = current_facet_quadrature + 1
-        current_facet_map = current_facet_map + 1
+        reference_fe=>this%reference_fes( max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) )%p
+        call reference_fe%create_facet_quadrature(current_facet_quadrature,fe_face%get_quadrature_degree())
+        call this%facet_quadratures%push_back(current_facet_quadrature)
+        call current_facet_maps%create(fe_face%get_quadrature(), &
+                                       reference_fes_geo(1)%p,   &
+                                       reference_fes_geo(2)%p )
+        call this%facet_maps%push_back(current_facet_maps)
+        facet_quadrature_position = facet_quadrature_position + 1
+        facet_maps_position = facet_maps_position + 1
      end if
 
      do field_id=1, this%get_num_fields()
@@ -1960,19 +1903,25 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
                                                             reference_fes_id(2) )
 
         call this%facet_integrators_position%put(key=facet_integrators_position_key, &
-                                                   val=current_facet_integrator, &
+                                                   val=facet_integrator_position, &
                                                    stat=istat)
         if (istat == now_stored) then
-           call this%facet_integrators(current_facet_integrator)%create(fe_face%get_quadrature(), &
+           call current_facet_integrator%create(fe_face%get_quadrature(), &
                 reference_fes(1)%p, &
                 reference_fes(2)%p )
-           current_facet_integrator = current_facet_integrator + 1
+           call this%facet_integrators%push_back(current_facet_integrator)
+           facet_integrator_position = facet_integrator_position + 1
         end if
      end do
      call fe_face%next()
   end do
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_facet_iterator(fe_face)
+  
+  call current_facet_quadrature%free()
+  call current_facet_maps%free()
+  call current_facet_integrator%free()
+  
 end subroutine serial_fe_space_set_up_facet_integration
 
 subroutine serial_fe_space_free_facet_integration ( this )
@@ -1980,34 +1929,12 @@ subroutine serial_fe_space_free_facet_integration ( this )
   class(serial_fe_space_t), intent(inout) :: this
   integer(ip) :: i, istat
 
-  !if (allocated(this%max_order_x_fe_face)) call memfree ( this%max_order_x_fe_face, __FILE__, __LINE__ )
-
   call this%facet_quadratures_position%free()
   call this%facet_integrators_position%free()
 
-  if (allocated(this%facet_quadratures)) then
-     do i=1, size(this%facet_quadratures)
-        call this%facet_quadratures(i)%free()
-     end do
-     deallocate(this%facet_quadratures, stat=istat)
-     check(istat==0)
-  end if
-
-  if (allocated(this%facet_maps)) then
-     do i=1, size(this%facet_maps)
-        call this%facet_maps(i)%free()
-     end do
-     deallocate(this%facet_maps, stat=istat)
-     check(istat==0)
-  end if
-
-  if (allocated(this%facet_integrators)) then
-     do i=1, size(this%facet_integrators)
-        call this%facet_integrators(i)%free()
-     end do
-     deallocate(this%facet_integrators, stat=istat)
-     check(istat==0)
-  end if
+  call this%facet_quadratures%free()
+  call this%facet_maps%free()
+  call this%facet_integrators%free()
   
   call this%free_facet_quadratures_degree()
   call this%free_max_order_field_cell_to_ref_fes_face()
@@ -2446,12 +2373,14 @@ function serial_fe_space_get_max_num_facet_quadrature_points( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
   integer(ip) :: serial_fe_space_get_max_num_facet_quadrature_points
-  integer(ip) :: iquad
+  type(quadrature_t), pointer :: facet_quadratures(:)
+  integer(ip)                 :: iquad
   serial_fe_space_get_max_num_facet_quadrature_points = 0
-  do iquad = 1, size(this%facet_quadratures)
+  facet_quadratures => this%facet_quadratures%get_pointer()
+  do iquad = 1, size(facet_quadratures)
      serial_fe_space_get_max_num_facet_quadrature_points =       & 
           max(serial_fe_space_get_max_num_facet_quadrature_points, &
-          this%facet_quadratures(iquad)%get_num_quadrature_points())
+          facet_quadratures(iquad)%get_num_quadrature_points())
   end do
 end function serial_fe_space_get_max_num_facet_quadrature_points
 
