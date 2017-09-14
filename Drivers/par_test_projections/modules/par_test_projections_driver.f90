@@ -63,6 +63,8 @@ module par_test_projections_driver_names
 
      ! projections problem solution FE function
      type(fe_function_t)                   :: solution
+					type(fe_function_t)                   :: time_solution 
+					real(rp)                              :: time 
      
      ! Environment required for fe_affine_operator + vtk_handler
      type(environment_t)                    :: par_environment
@@ -76,6 +78,7 @@ module par_test_projections_driver_names
      procedure        , private :: setup_fe_space
      procedure        , private :: project_analytical_functions 
      procedure        , private :: check_solution
+					procedure        , private :: check_time_solution 
      procedure        , private :: write_solution
      procedure                  :: run_simulation
      procedure        , private :: free
@@ -216,6 +219,20 @@ contains
 				call this%fe_space%project_vector_function( this%problem_functions%get_magnetic_field_solution(), this%solution , MAGNETIC_FIELD_ID) 
 				call this%fe_space%project_scalar_function( this%problem_functions%get_pressure_solution(), this%solution , PRESSURE_FIELD_ID)
 				call this%fe_space%project_Dirichlet_boundary_function( this%solution )
+				
+				! Project time functions 
+			 this%time = 0.123_rp 
+				call this%time_solution%create(this%fe_space)
+				call this%fe_space%project_function( analytical_function = this%problem_functions%get_magnetic_field_solution(), & 
+																														 									 fe_function         = this%time_solution ,                                  & 
+																															  								field_id            = MAGNETIC_FIELD_ID,                                    & 
+																																									time                = this%time ) 
+				call this%fe_space%project_function( analytical_function = this%problem_functions%get_pressure_solution(),       & 
+																																								 fe_function         = this%time_solution ,                                  & 
+																																									field_id            = PRESSURE_FIELD_ID,                                    & 
+																																									time                = this%time)
+				call this%fe_space%project_Dirichlet_boundary_function( fe_function = this%time_solution, & 
+																																																											 time        = this%time )
 		
   end subroutine project_analytical_functions
      
@@ -232,7 +249,6 @@ contains
     H_exact_function => this%problem_functions%get_magnetic_field_solution()
 				p_exact_function => this%problem_functions%get_pressure_solution() 
     error_tolerance = 1.0e-06
-				write(*,*) 'PROJECTED MAGNETIC FIELD FUNCTION ERROR NORMS *************'
     call H_error_norm%create(this%fe_space,1)    
     mean = H_error_norm%compute(H_exact_function, this%solution, mean_norm)   
     l1 = H_error_norm%compute(H_exact_function, this%solution, l1_norm)   
@@ -246,6 +262,7 @@ contains
     w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
     w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
+						write(*,*) 'PROJECTED MAGNETIC FIELD FUNCTION ERROR NORMS *************'
       write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
       write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
       write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance)
@@ -260,7 +277,7 @@ contains
     end if  
     call H_error_norm%free()
 				
-				write(*,*) 'PROJECTED SCALAR PRESSURE FUNCTION ERROR NORMS ************************'
+	
 				call p_error_norm%create(this%fe_space,2)    
     mean = p_error_norm%compute(p_exact_function, this%solution, mean_norm)   
     l1 = p_error_norm%compute(p_exact_function, this%solution, l1_norm)   
@@ -274,6 +291,7 @@ contains
     w1infty_s = p_error_norm%compute(p_exact_function, this%solution, w1infty_seminorm) 
     w1infty = p_error_norm%compute(p_exact_function, this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
+						write(*,*) 'PROJECTED SCALAR PRESSURE FUNCTION ERROR NORMS ************************'
       write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
       write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
       write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance)
@@ -289,6 +307,84 @@ contains
     call p_error_norm%free()
 								
   end subroutine check_solution
+		
+			subroutine check_time_solution(this)
+    implicit none
+    class(par_test_projections_driver_t), intent(inout) :: this
+    class(vector_function_t), pointer :: H_exact_function
+				class(scalar_function_t), pointer :: p_exact_function
+    type(error_norms_vector_t) :: H_error_norm
+				type(error_norms_scalar_t) :: p_error_norm 
+    real(rp) :: mean, l1, l2, lp, linfty, h1, hcurl, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    real(rp) :: error_tolerance, time_
+    
+    H_exact_function => this%problem_functions%get_magnetic_field_solution()
+				p_exact_function => this%problem_functions%get_pressure_solution() 
+			
+				error_tolerance = 1.0e-06 
+							
+				call H_error_norm%create(this%fe_space, MAGNETIC_FIELD_ID )
+    
+    mean = H_error_norm%compute(H_exact_function, this%time_solution, mean_norm, time=this%time)   
+    l1 = H_error_norm%compute(H_exact_function, this%time_solution, l1_norm, time=this%time)   
+    l2 = H_error_norm%compute(H_exact_function, this%time_solution, l2_norm, time=this%time)   
+    lp = H_error_norm%compute(H_exact_function, this%time_solution, lp_norm, time=this%time)   
+    linfty = H_error_norm%compute(H_exact_function, this%time_solution, linfty_norm, time=this%time)   
+    h1_s = H_error_norm%compute(H_exact_function, this%time_solution, h1_seminorm, time=this%time) 
+    h1 = H_error_norm%compute(H_exact_function, this%time_solution, h1_norm, time=this%time) 
+    hcurl = H_error_norm%compute(H_exact_function, this%time_solution, hcurl_seminorm, time=this%time) 
+    w1p_s = H_error_norm%compute(H_exact_function, this%time_solution, w1p_seminorm, time=this%time)   
+    w1p = H_error_norm%compute(H_exact_function, this%time_solution, w1p_norm, time=this%time)   
+    w1infty_s = H_error_norm%compute(H_exact_function, this%time_solution, w1infty_seminorm, time=this%time) 
+    w1infty = H_error_norm%compute(H_exact_function, this%time_solution, w1infty_norm, time=this%time)
+    if ( this%par_environment%am_i_l1_root() ) then
+				write(*,*) 'PROJECTED TRANSIENT MAGNETIC FIELD FUNCTION ERROR NORMS *************'
+    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; check ( hcurl < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+				end if 
+				call H_error_norm%free()
+								
+							
+				call p_error_norm%create(this%fe_space, PRESSURE_FIELD_ID )
+    mean = p_error_norm%compute(p_exact_function, this%time_solution, mean_norm, time=this%time)   
+    l1 = p_error_norm%compute(p_exact_function, this%time_solution, l1_norm, time=this%time)   
+    l2 = p_error_norm%compute(p_exact_function, this%time_solution, l2_norm, time=this%time)   
+    lp = p_error_norm%compute(p_exact_function, this%time_solution, lp_norm, time=this%time)   
+    linfty = p_error_norm%compute(p_exact_function, this%time_solution, linfty_norm, time=this%time)   
+    h1_s = p_error_norm%compute(p_exact_function, this%time_solution, h1_seminorm, time=this%time) 
+    h1 = p_error_norm%compute(p_exact_function, this%time_solution, h1_norm, time=this%time) 
+    w1p_s = p_error_norm%compute(p_exact_function, this%time_solution, w1p_seminorm, time=this%time)   
+    w1p = p_error_norm%compute(p_exact_function, this%time_solution, w1p_norm, time=this%time)   
+    w1infty_s = p_error_norm%compute(p_exact_function, this%time_solution, w1infty_seminorm, time=this%time) 
+    w1infty = p_error_norm%compute(p_exact_function, this%time_solution, w1infty_norm, time=this%time)
+    
+				if ( this%par_environment%am_i_l1_root() ) then
+				write(*,*) 'PROJECTED TRANSIENT SCALAR PRESSURE FUNCTION ERROR NORMS ************************'
+    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+    end if 
+				call p_error_norm%free() 
+				
+  end subroutine check_time_solution
   
   subroutine write_solution(this)
     implicit none
@@ -336,6 +432,7 @@ contains
     call this%setup_fe_space()
     call this%project_analytical_functions()
     call this%check_solution()
+				call this%check_time_solution() 
     call this%write_solution()
     
     call this%free()
@@ -347,17 +444,10 @@ contains
     integer(ip) :: i, istat
     
     call this%solution%free()
+				call this%time_solution%free() 
     call this%fe_affine_operator%free()
 	
 	if ( this%par_environment%am_i_l1_task() ) then 
- !do i=1,2 
-	!select class ( this%coarse_fe_handlers(i)%p )
-	!type is (standard_l1_coarse_fe_handler_t)
-	!call this%coarse_fe_handlers(i)%free() 
-	!type DEFAULT 
-	!check(.false.) 
-	!end select 
-	!end do 
 	deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
 	end if 
 	
