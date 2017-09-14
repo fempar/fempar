@@ -341,9 +341,6 @@ module fe_space_names
      procedure                           :: free                              => fe_vef_iterator_free
      final                               :: fe_vef_iterator_final
      
-     procedure, non_overridable          :: set_vef_lid_of_fe_face            => fe_vef_iterator_set_vef_lid_of_fe_face
-     procedure, non_overridable          :: push_back_vef_lid_of_fe_face      => fe_vef_iterator_push_back_vef_lid_of_fe_face
-     
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
      
      procedure                 , private :: fe_vef_iterator_get_fe_around
@@ -592,7 +589,6 @@ module fe_space_names
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure, non_overridable          :: set_triangulation                            => serial_fe_space_set_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
-     procedure, non_overridable          :: get_vef_gids_of_fe_faces                     => serial_fe_space_get_vef_gids_of_fe_faces
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure                           :: get_num_fixed_dofs             => serial_fe_space_get_num_fixed_dofs

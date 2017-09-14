@@ -1773,7 +1773,6 @@ subroutine serial_fe_space_fill_facet_gids ( this )
     call fe_vef%next()
   end do
   call this%free_fe_vef_iterator(fe_vef)
-  call this%facet_gids%shrink_to_fit()
 end subroutine serial_fe_space_fill_facet_gids
 
 subroutine serial_fe_space_free_facet_gids ( this )
@@ -2417,13 +2416,6 @@ function serial_fe_space_get_environment(this) result(environment)
   class(environment_t), pointer:: environment 
   environment => this%triangulation%get_environment()
 end function serial_fe_space_get_environment
-
-function serial_fe_space_get_vef_gids_of_fe_faces( this) result(facet_gids)
-  implicit none
-  class(serial_fe_space_t), target, intent(in) :: this 
-  type(std_vector_integer_ip_t), pointer :: facet_gids
-  facet_gids => this%facet_gids
-end function serial_fe_space_get_vef_gids_of_fe_faces
 
 function serial_fe_space_get_conditions( this) result(conditions)
   implicit none

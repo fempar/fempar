@@ -54,20 +54,6 @@ subroutine fe_vef_iterator_final ( this )
   assert (.not. associated(this%fe_space)) 
 end subroutine fe_vef_iterator_final 
 
-subroutine fe_vef_iterator_set_vef_lid_of_fe_face ( this, facet_lid )
-  implicit none
-  class(fe_vef_iterator_t), intent(inout) :: this
-  integer(ip)             , intent(in)    :: facet_lid
-  assert ( facet_lid >= 1 .and. facet_lid <= this%fe_space%facet_gids%size() )
-  call this%fe_space%facet_gids%set(facet_lid,this%get_gid())
-end subroutine fe_vef_iterator_set_vef_lid_of_fe_face
-
-subroutine fe_vef_iterator_push_back_vef_lid_of_fe_face ( this )
-  implicit none
-  class(fe_vef_iterator_t), intent(inout) :: this
-  call this%fe_space%facet_gids%push_back(this%get_gid())
-end subroutine fe_vef_iterator_push_back_vef_lid_of_fe_face
-
 function fe_vef_iterator_is_proper ( this ) 
   implicit none
   class(fe_vef_iterator_t), intent(in) :: this
