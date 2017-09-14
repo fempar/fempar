@@ -115,50 +115,6 @@ subroutine hpafeci_set_has_hanging_dofs ( this, field_id )
   end do  
 end subroutine hpafeci_set_has_hanging_dofs
 
-subroutine hp_adaptive_fe_facet_iterator_create ( this, fe_space, vef )
-  implicit none
-  class(hp_adaptive_fe_facet_iterator_t), target, intent(inout) :: this
-  class(serial_fe_space_t)             , target, intent(in)    :: fe_space
-  class(vef_iterator_t)                        , intent(in)    :: vef
-  select type(fe_space)
-  class is (serial_hp_adaptive_fe_space_t)
-    this%hp_adaptive_fe_space => fe_space
-  class default
-    assert(.false.)
-  end select
-  call this%fe_facet_iterator_t%create(fe_space,vef)
-end subroutine hp_adaptive_fe_facet_iterator_create
-
-subroutine hp_adaptive_fe_facet_iterator_free ( this )
-  implicit none
-  class(hp_adaptive_fe_facet_iterator_t), intent(inout) :: this
-  integer(ip) :: istat
-  call this%fe_facet_iterator_t%free()
-  nullify(this%hp_adaptive_fe_space)
-end subroutine hp_adaptive_fe_facet_iterator_free
-
-function hp_adaptive_fe_facet_iterator_get_num_cells_around (this) result (num_cells_around)
-  implicit none
-  class(hp_adaptive_fe_facet_iterator_t), intent(in)    :: this
-  integer(ip)                                          :: num_cells_around
-  num_cells_around = this%base_fe_vef_iterator_t%get_num_cells_around()
-  if ( .not. this%is_proper() ) then
-    num_cells_around = num_cells_around + this%get_num_improper_cells_around()
-  end if 
-end function hp_adaptive_fe_facet_iterator_get_num_cells_around
-
-subroutine hp_adaptive_fe_facet_iterator_get_fe_around (this, ife_around, fe)
-  implicit none
-  class(hp_adaptive_fe_facet_iterator_t), intent(in)     :: this
-  integer(ip)                          , intent(in)     :: ife_around
-  class(fe_cell_iterator_t)                 , intent(inout)  :: fe
-  if ( .not. this%is_proper() .and. ife_around == 2 ) then
-    call this%fe_vef_iterator_t%get_improper_cell_around(1,fe)
-  else
-    call this%fe_vef_iterator_t%get_cell_around(ife_around,fe)
-  end if
-end subroutine hp_adaptive_fe_facet_iterator_get_fe_around
-
 !function hpafefi_compute_fe_facet_permutation_index (this,first_fe,second_fe) result (fe_facet_permutation_index)
 !  implicit none
 !  class(hp_adaptive_fe_facet_iterator_t), intent(inout) :: this
@@ -184,30 +140,6 @@ end subroutine hp_adaptive_fe_facet_iterator_get_fe_around
 !  fe_facet_permutation_index = 1
 !end function hpafefi_compute_fe_facet_permutation_index
 
-function hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) result(facet_lpos_within_cell_around)
-  implicit none
-  class(hp_adaptive_fe_facet_iterator_t), intent(inout) :: this
-  integer(ip)                          , intent(in)    :: icell_around
-  integer(ip)                                          :: facet_lpos_within_cell_around
-  if ( .not. this%is_proper() .and. icell_around == 2 ) then
-    facet_lpos_within_cell_around = this%get_improper_cell_around_ivef(1)
-  else
-    facet_lpos_within_cell_around = &
-      this%fe_facet_iterator_t%get_lpos_within_cell_around(icell_around)
-  end if
-end function hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around
-
-function hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around ( this, icell_around ) result( subfacet_lid )
-  implicit none
-  class(hp_adaptive_fe_facet_iterator_t), intent(in)    :: this
-  integer(ip)                          , intent(in)    :: icell_around
-  integer(ip)                                          :: subfacet_lid
-  subfacet_lid = 0
-  if ( .not. this%is_proper() .and. icell_around == 2 ) then
-    subfacet_lid = this%get_improper_cell_around_subvef(1)
-  end if 
-end function hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around 
-
 subroutine serial_hp_adaptive_fe_space_create_fe_vef_iterator ( this, fe_vef )
   implicit none
   class(serial_hp_adaptive_fe_space_t), target, intent(in)    :: this
@@ -226,17 +158,6 @@ subroutine serial_hp_adaptive_fe_space_create_fe_cell_iterator ( this, fe )
   allocate(hp_adaptive_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
 end subroutine serial_hp_adaptive_fe_space_create_fe_cell_iterator
-
-subroutine serial_hp_adaptive_fe_space_create_fe_facet_iterator ( this, fe_face )
-  implicit none
-  class(serial_hp_adaptive_fe_space_t), target     , intent(in)    :: this
-  class(fe_facet_iterator_t)           , allocatable, intent(inout) :: fe_face
-  type(p4est_vef_iterator_t) :: vef
-  integer(ip)                :: istat
-  call this%free_fe_facet_iterator(fe_face)
-  allocate(hp_adaptive_fe_facet_iterator_t :: fe_face, stat=istat); check(istat==0)
-  call fe_face%create(this,vef)
-end subroutine serial_hp_adaptive_fe_space_create_fe_facet_iterator
 
 subroutine shpafs_create_same_reference_fes_on_all_cells ( this,          &
                                                            triangulation, &

@@ -376,6 +376,8 @@ module fe_space_names
     procedure, non_overridable          :: get_gid                        => fe_facet_iterator_get_gid
     procedure, non_overridable          :: is_at_field_boundary          => fe_facet_iterator_is_at_field_boundary
     procedure, non_overridable          :: is_at_field_interior          => fe_facet_iterator_is_at_field_interior
+    procedure, non_overridable          :: get_num_cells_around          => fe_facet_iterator_get_num_cells_around
+    procedure, non_overridable, private :: fe_vef_iterator_get_fe_around => fe_facet_iterator_get_fe_around
     procedure, non_overridable, private :: update_fes_around             => fe_facet_iterator_update_fes_around
     procedure, non_overridable          :: update_integration            => fe_facet_iterator_update_integration
     procedure, non_overridable          :: get_num_dofs_field            => fe_facet_iterator_get_num_dofs_field
@@ -398,9 +400,9 @@ module fe_space_names
     procedure, non_overridable, private :: get_facet_integrator          => fe_facet_iterator_get_facet_integrator
     procedure, non_overridable          :: compute_surface                => fe_facet_iterator_compute_surface
     procedure                 , private :: compute_fe_facet_permutation_index => fe_facet_iterator_compute_fe_facet_permutation_index
-    procedure                           :: get_lpos_within_cell_around    => fe_facet_iterator_get_lpos_within_cell_around
-    procedure, non_overridable          :: get_facet_permutation_index     => fe_facet_iterator_get_fe_facet_permutation_index 
-    procedure                 , private :: get_subfacet_lid_cell_around    => fe_facet_iterator_get_subfacet_lid_cell_around
+    procedure, non_overridable          :: get_lpos_within_cell_around   => fe_facet_iterator_get_lpos_within_cell_around
+    procedure, non_overridable          :: get_facet_permutation_index   => fe_facet_iterator_get_fe_facet_permutation_index 
+    procedure, non_overridable, private :: get_subfacet_lid_cell_around  => fe_facet_iterator_get_subfacet_lid_cell_around
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_facet_iterator_get_quadrature_points_coordinates
     procedure, non_overridable :: get_normals                       => fe_facet_iterator_get_normals
@@ -608,7 +610,7 @@ module fe_space_names
      procedure                           :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator     
      procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => serial_fe_space_create_itfc_fe_vef_iterator     
      procedure, non_overridable          :: free_fe_vef_iterator                         => serial_fe_space_free_fe_vef_iterator
-     procedure                           :: create_fe_facet_iterator                      => serial_fe_space_create_fe_facet_iterator
+     procedure, non_overridable          :: create_fe_facet_iterator                      => serial_fe_space_create_fe_facet_iterator
      procedure, non_overridable          :: free_fe_facet_iterator                        => serial_fe_space_free_fe_facet_iterator
  end type serial_fe_space_t  
  
@@ -1061,7 +1063,6 @@ module fe_space_names
    contains
      procedure          :: create_fe_vef_iterator                                 => serial_hp_adaptive_fe_space_create_fe_vef_iterator
      procedure          :: create_fe_cell_iterator                                     => serial_hp_adaptive_fe_space_create_fe_cell_iterator
-     procedure          :: create_fe_facet_iterator                                => serial_hp_adaptive_fe_space_create_fe_facet_iterator
      
      procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
      procedure          :: serial_fe_space_create_different_ref_fes_between_cells => shpafs_create_different_ref_fes_between_cells
@@ -1118,18 +1119,6 @@ module fe_space_names
    procedure, private :: assembly_matrix_array => hpafeci_assembly_matrix_array
    procedure, private :: assembly_matrix_array_with_strong_bcs => hpafeci_assembly_matrix_array_with_strong_bcs
  end type hp_adaptive_fe_cell_iterator_t
- 
- type, extends(fe_facet_iterator_t) :: hp_adaptive_fe_facet_iterator_t
-   private 
-   type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
- contains
-   procedure          :: create                         => hp_adaptive_fe_facet_iterator_create
-   procedure          :: free                           => hp_adaptive_fe_facet_iterator_free
-   procedure          :: get_num_cells_around           => hp_adaptive_fe_facet_iterator_get_num_cells_around
-   procedure, private :: fe_vef_iterator_get_fe_around  => hp_adaptive_fe_facet_iterator_get_fe_around
-   procedure          :: get_lpos_within_cell_around    => hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around
-   procedure, private :: get_subfacet_lid_cell_around    => hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around
- end type hp_adaptive_fe_facet_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t, hp_adaptive_fe_cell_iterator_t
 

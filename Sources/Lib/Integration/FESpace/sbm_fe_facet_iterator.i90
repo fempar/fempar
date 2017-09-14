@@ -146,6 +146,28 @@ function fe_facet_iterator_is_at_field_interior ( this, field_id )
   fe_facet_iterator_is_at_field_interior = facet_int%get_is_at_field_interior()
 end function fe_facet_iterator_is_at_field_interior
 
+function fe_facet_iterator_get_num_cells_around (this) result (num_cells_around)
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  integer(ip)                               :: num_cells_around
+  num_cells_around = this%base_fe_vef_iterator_t%get_num_cells_around()
+  if ( .not. this%is_proper() ) then
+    num_cells_around = num_cells_around + this%get_num_improper_cells_around()
+  end if 
+end function fe_facet_iterator_get_num_cells_around
+
+subroutine fe_facet_iterator_get_fe_around (this, ife_around, fe)
+  implicit none
+  class(fe_facet_iterator_t), intent(in)     :: this
+  integer(ip)               , intent(in)     :: ife_around
+  class(fe_cell_iterator_t) , intent(inout)  :: fe
+  if ( .not. this%is_proper() .and. ife_around == 2 ) then
+    call this%fe_vef_iterator_t%get_improper_cell_around(1,fe)
+  else
+    call this%fe_vef_iterator_t%get_cell_around(ife_around,fe)
+  end if
+end subroutine fe_facet_iterator_get_fe_around
+
 function fe_facet_iterator_get_num_dofs_field(this, icell_around, field_id)
   implicit none
   class(fe_facet_iterator_t), intent(inout) :: this
@@ -531,24 +553,30 @@ end function fe_facet_iterator_get_fe_facet_permutation_index
 
 function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) result(facet_lpos_within_cell_around)
   implicit none
-  class(fe_facet_iterator_t) , intent(inout) :: this
+  class(fe_facet_iterator_t), intent(inout) :: this
   integer(ip)               , intent(in)    :: icell_around
   integer(ip)                               :: facet_lpos_within_cell_around
   class(reference_fe_t), pointer :: reference_fe_geo
-  integer(ip)                               :: vef_gid_of_face
-  reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
-  vef_gid_of_face = this%base_fe_vef_iterator_t%get_gid()
-
-  assert ( this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face) /= -1 )
-  facet_lpos_within_cell_around = this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face)
+  integer(ip)                    :: vef_gid_of_face
+  if ( .not. this%is_proper() .and. icell_around == 2 ) then
+    facet_lpos_within_cell_around = this%get_improper_cell_around_ivef(1)
+  else
+    reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
+    vef_gid_of_face = this%base_fe_vef_iterator_t%get_gid()
+    assert ( this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face) /= -1 )
+    facet_lpos_within_cell_around = this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face)
+  end if
 end function fe_facet_iterator_get_lpos_within_cell_around
 
 function fe_facet_iterator_get_subfacet_lid_cell_around ( this, icell_around ) result( subfacet_lid )
   implicit none
   class(fe_facet_iterator_t), intent(in) :: this
-  integer(ip)              , intent(in) :: icell_around
-  integer(ip)                           :: subfacet_lid
+  integer(ip)               , intent(in) :: icell_around
+  integer(ip)                            :: subfacet_lid
   subfacet_lid = 0
+  if ( .not. this%is_proper() .and. icell_around == 2 ) then
+    subfacet_lid = this%get_improper_cell_around_subvef(1)
+  end if 
 end function fe_facet_iterator_get_subfacet_lid_cell_around 
 
 !==================================================================================================
