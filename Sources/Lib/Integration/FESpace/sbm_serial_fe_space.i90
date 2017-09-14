@@ -1582,16 +1582,17 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
   class(serial_fe_space_t)          , intent(inout) :: this
 
   class(fe_cell_iterator_t), allocatable :: fe
-  integer(ip)         :: current_quadrature_and_map
-  integer(ip)         :: current_cell_integrator_pos
 
+  integer(ip)         :: cell_quadrature_and_map_position
+  integer(ip)         :: cell_integrator_position
+  
   integer(ip)         :: field_id
   integer(ip)         :: max_order, max_order_reference_fe_id_within_fe
   integer(ip)         :: cell_quadrature_and_map_key
   integer(ip)         :: cell_integrators_position_key
   integer(ip)         :: istat
-  type(quadrature_t), pointer :: quadrature
-
+  
+  type(quadrature_t)   , pointer :: quadrature
   class(reference_fe_t), pointer :: reference_fe
   integer(ip)          , pointer :: max_order_reference_fe_id_x_cell(:)
 
@@ -1602,85 +1603,48 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
   call this%compute_max_order_reference_fe_id_x_cell()
   max_order_reference_fe_id_x_cell => this%max_order_reference_fe_id_x_cell%get_pointer()
   
-  ! Determine the size of cell_quadratures, cell_maps, and cell_integrators 
-  ! while filling the corresponding hash tables
   call this%cell_quadratures_and_maps_position%init()
   call this%cell_integrators_position%init()
-  current_quadrature_and_map = 1
-  current_cell_integrator_pos  = 1
-  
+  call this%cell_quadratures%resize(0)
+  call this%cell_maps%resize(0)
+  call this%cell_integrators%resize(0)
+  cell_quadrature_and_map_position = 1
+  cell_integrator_position = 1
+
   call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
-     cell_quadrature_and_map_key = this%generate_cell_quadratures_position_key(fe%get_reference_fe_geo_id(),&
-                                                                           fe%get_quadrature_degree())
-
-     call this%cell_quadratures_and_maps_position%put(key = cell_quadrature_and_map_key,  &
-                                                    val = current_quadrature_and_map, &
-                                                    stat= istat)
-     if (istat == now_stored) then
-        current_quadrature_and_map = current_quadrature_and_map + 1
-     end if
-
-     do field_id=1, this%get_num_fields()
-        cell_integrators_position_key = &
-             this%generate_cell_integrators_position_key(fe%get_reference_fe_geo_id(), &
-                                                 fe%get_quadrature_degree(), &
-                                                 this%field_cell_to_ref_fes(field_id)%get(fe%get_gid()))
-
-        call this%cell_integrators_position%put(key=cell_integrators_position_key, &
-                                                     val=current_cell_integrator_pos, &
-                                                     stat=istat)
-        if (istat == now_stored) then
-           current_cell_integrator_pos = current_cell_integrator_pos + 1
-        end if
-     end do
-
-     call fe%next()
-  end do
-
-  call this%cell_quadratures%resize(current_quadrature_and_map-1)
-  call this%cell_maps%resize(current_quadrature_and_map-1)
-  call this%cell_integrators%resize(current_cell_integrator_pos-1)
-
-  call this%cell_quadratures_and_maps_position%init()
-  call this%cell_integrators_position%init()
-  current_quadrature_and_map = 1
-  current_cell_integrator_pos  = 1
-
-  call fe%first()
-  do while ( .not. fe%has_finished())
    
-     cell_quadrature_and_map_key = this%generate_cell_quadratures_position_key(fe%get_reference_fe_geo_id(),&
-                                                                           fe%get_quadrature_degree())
+     cell_quadrature_and_map_key = this%generate_cell_quadratures_position_key(fe%get_reference_fe_geo_id(), &
+                                                                               fe%get_quadrature_degree())
      
-     call this%cell_quadratures_and_maps_position%put(key = cell_quadrature_and_map_key,  &
-                                                    val = current_quadrature_and_map, &
-                                                    stat= istat)
+     call this%cell_quadratures_and_maps_position%put(key = cell_quadrature_and_map_key,      &
+                                                      val = cell_quadrature_and_map_position, &
+                                                      stat= istat)
      if (istat == now_stored) then
         ! Create quadrature and cell_map associated to current max_order_within_fe
         max_order_reference_fe_id_within_fe = max_order_reference_fe_id_x_cell(fe%get_gid()) 
         reference_fe => this%reference_fes(max_order_reference_fe_id_within_fe)%p
-        call reference_fe%create_quadrature(this%cell_quadratures%get_pointer(current_quadrature_and_map))!, &
-                                            !fe%get_quadrature_degree())
-        call current_cell_map%create(this%cell_quadratures%get_pointer(current_quadrature_and_map),fe%get_reference_fe_geo())
-        call this%cell_maps%set(current_quadrature_and_map,current_cell_map)
-        current_quadrature_and_map = current_quadrature_and_map + 1
+        call reference_fe%create_quadrature(current_quadrature)
+        call this%cell_quadratures%push_back(current_quadrature)
+        call current_cell_map%create(current_quadrature,fe%get_reference_fe_geo())
+        call this%cell_maps%push_back(current_cell_map)
+        cell_quadrature_and_map_position = cell_quadrature_and_map_position + 1
      end if
 
      do field_id=1, this%get_num_fields()
         cell_integrators_position_key = &
              this%generate_cell_integrators_position_key(fe%get_reference_fe_geo_id(), &
-                                                              fe%get_quadrature_degree(), &
-                                                              this%field_cell_to_ref_fes(field_id)%get(fe%get_gid()))
+                                                         fe%get_quadrature_degree(),   &
+                                                         this%field_cell_to_ref_fes(field_id)%get(fe%get_gid()))
         
         call this%cell_integrators_position%put(key=cell_integrators_position_key, &
-                                                     val=current_cell_integrator_pos, &
-                                                     stat=istat)
+                                                val=cell_integrator_position,      &
+                                                stat=istat)
         if (istat == now_stored) then 
            quadrature => fe%get_quadrature()
            call current_cell_integrator%create(quadrature,fe%get_reference_fe(field_id))
-           call this%cell_integrators%set(current_cell_integrator_pos,current_cell_integrator)
-           current_cell_integrator_pos = current_cell_integrator_pos + 1
+           call this%cell_integrators%push_back(current_cell_integrator)
+           cell_integrator_position = cell_integrator_position + 1
         end if
      end do
      call fe%next()
