@@ -722,8 +722,7 @@ function fe_cell_iterator_get_default_quadrature_degree ( this )
   class(fe_cell_iterator_t), intent(in) :: this
   integer(ip) :: fe_cell_iterator_get_default_quadrature_degree
   integer(ip) :: reference_fe_id
-  assert( allocated(this%fe_space%max_order_reference_fe_id_x_cell) )
-  reference_fe_id = this%fe_space%max_order_reference_fe_id_x_cell(this%get_gid())
+  reference_fe_id = this%fe_space%max_order_reference_fe_id_x_cell%get(this%get_gid())
   fe_cell_iterator_get_default_quadrature_degree = & 
     this%fe_space%reference_fes(reference_fe_id)%p%get_default_quadrature_degree()
 end function fe_cell_iterator_get_default_quadrature_degree
@@ -753,7 +752,7 @@ function fe_cell_iterator_get_quadrature ( this )
                                                           val=cell_quadratures_position, &
                                                           stat=istat)
   assert ( .not. istat == key_not_found )
-  fe_cell_iterator_get_quadrature => this%fe_space%cell_quadratures(cell_quadratures_position)
+  fe_cell_iterator_get_quadrature => this%fe_space%cell_quadratures%get_pointer(cell_quadratures_position)
 end function fe_cell_iterator_get_quadrature
 
 function fe_cell_iterator_get_cell_map ( this )
@@ -778,7 +777,7 @@ subroutine fe_cell_iterator_update_cell_map ( this )
                                                           stat=istat)
   
   assert ( .not. istat == key_not_found )
-  this%cell_map => this%fe_space%cell_maps(cell_maps_position)
+  this%cell_map => this%fe_space%cell_maps%get_pointer(cell_maps_position)
   
 end subroutine fe_cell_iterator_update_cell_map
 
@@ -798,7 +797,7 @@ subroutine fe_cell_iterator_update_cell_integrators ( this )
                                                            val=cell_integrators_position, &
                                                            stat=istat)
      assert ( .not. istat == key_not_found )
-     this%cell_integrators(field_id)%p => this%fe_space%cell_integrators(cell_integrators_position) 
+     this%cell_integrators(field_id)%p => this%fe_space%cell_integrators%get_pointer(cell_integrators_position) 
   end do  
 end subroutine fe_cell_iterator_update_cell_integrators
 

@@ -449,14 +449,14 @@ module fe_space_names
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
      
      ! Finite Element-related integration containers
-     type(quadrature_t)            , allocatable :: cell_quadratures(:)
-     type(cell_map_t)              , allocatable :: cell_maps(:)
-     type(cell_integrator_t)       , allocatable :: cell_integrators(:)
+     type(std_vector_quadrature_t)               :: cell_quadratures
+     type(std_vector_cell_map_t)                 :: cell_maps
+     type(std_vector_cell_integrator_t)          :: cell_integrators
      type(std_vector_integer_ip_t)               :: cell_quadratures_degree
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
      type(std_vector_integer_ip_t) , allocatable :: field_cell_to_ref_fes(:)
-     integer(ip)                   , allocatable :: max_order_reference_fe_id_x_cell(:) ! Stores Key=max_order_reference_fe_id for all FEs
+     type(std_vector_integer_ip_t)               :: max_order_reference_fe_id_x_cell      ! Stores Key=max_order_reference_fe_id for all FEs
      type(hash_table_ip_ip_t)                    :: cell_quadratures_and_maps_position    ! Key = [geo_reference_fe_id,quadrature_degree]
      type(hash_table_ip_ip_t)                    :: cell_integrators_position      ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
      
@@ -543,7 +543,6 @@ module fe_space_names
      procedure, non_overridable, private :: allocate_and_init_cell_quadratures_degree      => serial_fe_space_allocate_and_init_cell_quadratures_degree
      procedure, non_overridable, private :: free_cell_quadratures_degree                   => serial_fe_space_free_cell_quadratures_degree
      
-     procedure, non_overridable, private :: allocate_max_order_reference_fe_id_x_cell    => serial_fe_space_allocate_max_order_reference_fe_id_x_cell
      procedure, non_overridable, private :: free_max_order_reference_fe_id_x_cell        => serial_fe_space_free_max_order_reference_fe_id_x_cell
      procedure, non_overridable, private :: compute_max_order_reference_fe_id_x_cell     => serial_fe_space_compute_max_order_reference_fe_id_x_cell         
      

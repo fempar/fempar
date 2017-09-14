@@ -1545,25 +1545,22 @@ subroutine serial_fe_space_free_cell_quadratures_degree ( this )
   call this%cell_quadratures_degree%free()
 end subroutine serial_fe_space_free_cell_quadratures_degree
 
-subroutine serial_fe_space_allocate_max_order_reference_fe_id_x_cell ( this )
-  implicit none
-  class(serial_fe_space_t), intent(inout) :: this
-  call this%free_max_order_reference_fe_id_x_cell()
-  call memalloc ( this%triangulation%get_num_cells(), this%max_order_reference_fe_id_x_cell, __FILE__, __LINE__ )
-end subroutine serial_fe_space_allocate_max_order_reference_fe_id_x_cell 
-
 subroutine serial_fe_space_free_max_order_reference_fe_id_x_cell ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  if (allocated(this%max_order_reference_fe_id_x_cell)) call memfree ( this%max_order_reference_fe_id_x_cell, __FILE__, __LINE__ )
+  call this%max_order_reference_fe_id_x_cell%free()
 end subroutine serial_fe_space_free_max_order_reference_fe_id_x_cell 
 
 subroutine serial_fe_space_compute_max_order_reference_fe_id_x_cell ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   class(fe_cell_iterator_t), allocatable :: fe
-  integer(ip) :: max_order, max_order_reference_fe_id_within_fe
-  integer(ip) :: field_id
+  integer(ip), pointer :: max_order_reference_fe_id_x_cell(:)
+  integer(ip)          :: max_order, max_order_reference_fe_id_within_fe
+  integer(ip)          :: field_id
+  
+  call this%max_order_reference_fe_id_x_cell%resize(this%triangulation%get_num_cells())
+  max_order_reference_fe_id_x_cell => this%max_order_reference_fe_id_x_cell%get_pointer()
   
   call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
@@ -1574,7 +1571,7 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_x_cell ( this )
            max_order_reference_fe_id_within_fe = fe%get_reference_fe_id(field_id)
         end if
      end do
-     this%max_order_reference_fe_id_x_cell(fe%get_gid()) = max_order_reference_fe_id_within_fe
+     max_order_reference_fe_id_x_cell(fe%get_gid()) = max_order_reference_fe_id_within_fe
      call fe%next()
   end do
   call this%free_fe_cell_iterator(fe) 
@@ -1586,7 +1583,7 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
 
   class(fe_cell_iterator_t), allocatable :: fe
   integer(ip)         :: current_quadrature_and_map
-  integer(ip)         :: current_cell_integrator
+  integer(ip)         :: current_cell_integrator_pos
 
   integer(ip)         :: field_id
   integer(ip)         :: max_order, max_order_reference_fe_id_within_fe
@@ -1596,18 +1593,21 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
   type(quadrature_t), pointer :: quadrature
 
   class(reference_fe_t), pointer :: reference_fe
+  integer(ip)          , pointer :: max_order_reference_fe_id_x_cell(:)
 
-  call this%free_fe_integration()
+  type(quadrature_t)      :: current_quadrature
+  type(cell_map_t)        :: current_cell_map
+  type(cell_integrator_t) :: current_cell_integrator
   
-  call this%allocate_max_order_reference_fe_id_x_cell()
   call this%compute_max_order_reference_fe_id_x_cell()
+  max_order_reference_fe_id_x_cell => this%max_order_reference_fe_id_x_cell%get_pointer()
   
   ! Determine the size of cell_quadratures, cell_maps, and cell_integrators 
   ! while filling the corresponding hash tables
   call this%cell_quadratures_and_maps_position%init()
   call this%cell_integrators_position%init()
   current_quadrature_and_map = 1
-  current_cell_integrator  = 1
+  current_cell_integrator_pos  = 1
   
   call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
@@ -1628,29 +1628,24 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
                                                  this%field_cell_to_ref_fes(field_id)%get(fe%get_gid()))
 
         call this%cell_integrators_position%put(key=cell_integrators_position_key, &
-                                                     val=current_cell_integrator, &
+                                                     val=current_cell_integrator_pos, &
                                                      stat=istat)
         if (istat == now_stored) then
-           current_cell_integrator = current_cell_integrator + 1
+           current_cell_integrator_pos = current_cell_integrator_pos + 1
         end if
      end do
 
      call fe%next()
   end do
 
-  allocate ( this%cell_quadratures(current_quadrature_and_map-1), stat=istat)
-  check (istat==0)
-
-  allocate ( this%cell_maps(current_quadrature_and_map-1), stat=istat)
-  check (istat==0)
-
-  allocate ( this%cell_integrators(current_cell_integrator-1), stat=istat)
-  check (istat==0)
+  call this%cell_quadratures%resize(current_quadrature_and_map-1)
+  call this%cell_maps%resize(current_quadrature_and_map-1)
+  call this%cell_integrators%resize(current_cell_integrator_pos-1)
 
   call this%cell_quadratures_and_maps_position%init()
   call this%cell_integrators_position%init()
   current_quadrature_and_map = 1
-  current_cell_integrator  = 1
+  current_cell_integrator_pos  = 1
 
   call fe%first()
   do while ( .not. fe%has_finished())
@@ -1663,12 +1658,12 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
                                                     stat= istat)
      if (istat == now_stored) then
         ! Create quadrature and cell_map associated to current max_order_within_fe
-        max_order_reference_fe_id_within_fe = this%max_order_reference_fe_id_x_cell(fe%get_gid()) 
+        max_order_reference_fe_id_within_fe = max_order_reference_fe_id_x_cell(fe%get_gid()) 
         reference_fe => this%reference_fes(max_order_reference_fe_id_within_fe)%p
-        call reference_fe%create_quadrature(this%cell_quadratures(current_quadrature_and_map))!, &
+        call reference_fe%create_quadrature(this%cell_quadratures%get_pointer(current_quadrature_and_map))!, &
                                             !fe%get_quadrature_degree())
-        call this%cell_maps(current_quadrature_and_map)%create(this%cell_quadratures(current_quadrature_and_map),&
-                                                             fe%get_reference_fe_geo())
+        call current_cell_map%create(this%cell_quadratures%get_pointer(current_quadrature_and_map),fe%get_reference_fe_geo())
+        call this%cell_maps%set(current_quadrature_and_map,current_cell_map)
         current_quadrature_and_map = current_quadrature_and_map + 1
      end if
 
@@ -1679,18 +1674,23 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
                                                               this%field_cell_to_ref_fes(field_id)%get(fe%get_gid()))
         
         call this%cell_integrators_position%put(key=cell_integrators_position_key, &
-                                                     val=current_cell_integrator, &
+                                                     val=current_cell_integrator_pos, &
                                                      stat=istat)
         if (istat == now_stored) then 
            quadrature => fe%get_quadrature()
-           call this%cell_integrators(current_cell_integrator)%create(quadrature,&
-                                                                             fe%get_reference_fe(field_id))
-           current_cell_integrator = current_cell_integrator + 1
+           call current_cell_integrator%create(quadrature,fe%get_reference_fe(field_id))
+           call this%cell_integrators%set(current_cell_integrator_pos,current_cell_integrator)
+           current_cell_integrator_pos = current_cell_integrator_pos + 1
         end if
      end do
      call fe%next()
   end do
   call this%free_fe_cell_iterator(fe)
+  
+  call current_cell_integrator%free()
+  call current_cell_map%free()
+  call current_quadrature%free()
+  
 end subroutine serial_fe_space_set_up_cell_integration
 
 subroutine serial_fe_space_free_fe_integration ( this )
@@ -1703,33 +1703,13 @@ subroutine serial_fe_space_free_fe_integration ( this )
   call this%cell_quadratures_and_maps_position%free()
   call this%cell_integrators_position%free()
 
-  if (allocated(this%cell_quadratures)) then
-     do i=1, size(this%cell_quadratures)
-        call this%cell_quadratures(i)%free()
-     end do
-     deallocate(this%cell_quadratures, stat=istat)
-     check(istat==0)
-  end if
+  call this%cell_quadratures%free()
+  call this%cell_maps%free()
+  call this%cell_integrators%free()
 
-  if (allocated(this%cell_maps)) then
-     do i=1, size(this%cell_maps)
-        call this%cell_maps(i)%free()
-     end do
-     deallocate(this%cell_maps, stat=istat)
-     check(istat==0)
-  end if
-
-  if (allocated(this%cell_integrators)) then
-     do i=1, size(this%cell_integrators)
-        call this%cell_integrators(i)%free()
-     end do
-     deallocate(this%cell_integrators, stat=istat)
-     check(istat==0)
-  end if
-  
   call this%free_cell_quadratures_degree()
   call this%free_max_order_reference_fe_id_x_cell()
-  
+
 end subroutine serial_fe_space_free_fe_integration
 
 
@@ -2469,12 +2449,14 @@ function serial_fe_space_get_max_num_quadrature_points( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
   integer(ip) :: serial_fe_space_get_max_num_quadrature_points
-  integer(ip) :: iquad
+  type(quadrature_t), pointer :: cell_quadratures(:)
+  integer(ip)                 :: iquad
   serial_fe_space_get_max_num_quadrature_points = 0
-  do iquad = 1, size(this%cell_quadratures)
-     serial_fe_space_get_max_num_quadrature_points =       & 
+  cell_quadratures => this%cell_quadratures%get_pointer()
+  do iquad = 1, size(cell_quadratures)
+     serial_fe_space_get_max_num_quadrature_points =         &
           max(serial_fe_space_get_max_num_quadrature_points, &
-          this%cell_quadratures(iquad)%get_num_quadrature_points())
+          cell_quadratures(iquad)%get_num_quadrature_points())
   end do
 end function serial_fe_space_get_max_num_quadrature_points
 
