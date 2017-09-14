@@ -493,6 +493,25 @@ module fe_space_names
      
      ! ( Polymorphic ) pointer to a triangulation it was created from
      class(triangulation_t)            , pointer :: triangulation => NULL()
+     
+     ! Objects that give support to h-adaptivity
+     integer(ip)                                 :: num_hanging_dofs = -1
+     integer(ip)                                 :: num_dirichlet_dofs = -1
+     
+     ! Acceleration array to skip cells without handing DOFs
+     type(std_vector_logical_t)    , allocatable :: has_hanging_dofs_x_fe(:)
+     
+     ! The two prev arrays will be eliminated when the development in issue 179 will be finished
+     type(std_vector_integer_ip_t)               :: ptr_constraining_free_dofs
+     type(std_vector_integer_ip_t)               :: ptr_constraining_dirichlet_dofs
+     type(std_vector_integer_ip_t)               :: constraining_free_dofs
+     type(std_vector_real_rp_t)                  :: constraining_free_dofs_coefficients
+     type(std_vector_integer_ip_t)               :: constraining_dirichlet_dofs
+     type(std_vector_real_rp_t)                  :: constraining_dirichlet_dofs_coefficients
+     type(std_vector_real_rp_t)                  :: constraints_independent_term
+     
+     type(p4est_serial_triangulation_t), pointer :: p4est_triangulation =>  NULL()
+     
    contains
      procedure,                  private :: serial_fe_space_create_same_reference_fes_on_all_cells
      procedure,                  private :: serial_fe_space_create_different_ref_fes_between_cells
@@ -607,11 +626,35 @@ module fe_space_names
      ! fes, fe_vefs and fe_faces traversals-related TBPs
      procedure                           :: create_fe_cell_iterator                           => serial_fe_space_create_fe_cell_iterator
      procedure                           :: free_fe_cell_iterator                             => serial_fe_space_free_fe_cell_iterator
-     procedure                           :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator     
+     procedure, non_overridable          :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator     
      procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => serial_fe_space_create_itfc_fe_vef_iterator     
      procedure, non_overridable          :: free_fe_vef_iterator                         => serial_fe_space_free_fe_vef_iterator
      procedure, non_overridable          :: create_fe_facet_iterator                      => serial_fe_space_create_fe_facet_iterator
      procedure, non_overridable          :: free_fe_facet_iterator                        => serial_fe_space_free_fe_facet_iterator
+
+     procedure, non_overridable          :: allocate_and_init_has_hanging_dofs_x_fe       => serial_fe_space_allocate_and_init_has_hanging_dofs_x_fe
+     procedure, non_overridable, private :: free_has_hanging_dofs_x_fe                    => serial_fe_space_free_has_hanging_dofs_x_fe
+     
+     procedure, non_overridable, private :: free_constraining_dofs_arrays                 => serial_fe_space_free_constraining_dofs_arrays
+     procedure, non_overridable, private :: free_ptr_constraining_free_dofs               => serial_fe_space_free_ptr_constraining_free_dofs
+     procedure, non_overridable, private :: free_constraining_free_dofs                   => serial_fe_space_free_constraining_free_dofs
+     procedure, non_overridable, private :: free_constraining_free_dofs_coefficients      => serial_fe_space_free_constraining_free_dofs_coefficients
+     procedure, non_overridable, private :: free_ptr_constraining_dirichlet_dofs          => serial_fe_space_free_ptr_constraining_dirichlet_dofs
+     procedure, non_overridable, private :: free_constraining_dirichlet_dofs              => serial_fe_space_free_constraining_dirichlet_dofs
+     procedure, non_overridable, private :: free_constraining_dirichlet_dofs_coefficients => serial_fe_space_free_constraining_dirichlet_dofs_coefficients
+     procedure, non_overridable, private :: free_constraints_independent_term             => serial_fe_space_free_constraints_independent_term
+
+     procedure, non_overridable, private :: project_field_cell_to_ref_fes                 => serial_fe_space_project_field_cell_to_ref_fes
+     procedure, non_overridable, private :: project_fe_integration_arrays                 => serial_fe_space_project_fe_integration_arrays
+     procedure, non_overridable, private :: project_facet_integration_arrays              => serial_fe_space_project_facet_integration_arrays
+
+     procedure, non_overridable, private :: serial_fe_space_refine_and_coarsen_single_fe_function
+     procedure, non_overridable, private :: serial_fe_space_refine_and_coarsen_fe_function_array
+     generic                             :: refine_and_coarsen                            => serial_fe_space_refine_and_coarsen_single_fe_function, &
+                                                                                             serial_fe_space_refine_and_coarsen_fe_function_array
+
+     procedure, non_overridable          :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
+
  end type serial_fe_space_t  
  
  public :: serial_fe_space_t, serial_fe_space_set_up_strong_dirichlet_bcs, serial_fe_space_interpolate_dirichlet_values
@@ -1037,64 +1080,18 @@ module fe_space_names
   public :: fe_function_t, p_fe_function_t
   
   type, extends(serial_fe_space_t) :: serial_hp_adaptive_fe_space_t
-     !private ! UNDER QUARANTINE
-     !list_t :: constraints 
-     ! Hanging and strong Dirichlet data
-     ! ptr_constraint_dofs         : pointer to constraints
-     ! l1                          : constraint DOFs dependencies (0 for independent term)
-     ! constraint_dofs_coefficients: constraint DoFs coefficients (also independent term)
-     ! u_fixed = sum u_dep w_dep + c
-     integer(ip)                                 :: num_hanging_dofs = -1
-     integer(ip)                                 :: num_dirichlet_dofs = -1
-     
-     ! Acceleration array to skip cells without handing DOFs
-     type(std_vector_logical_t)    , allocatable :: has_hanging_dofs_x_fe(:)
-     
-     ! The two prev arrays will be eliminated when the development in issue 179 will be finished
-     type(std_vector_integer_ip_t)               :: ptr_constraining_free_dofs
-     type(std_vector_integer_ip_t)               :: ptr_constraining_dirichlet_dofs
-     type(std_vector_integer_ip_t)               :: constraining_free_dofs
-     type(std_vector_real_rp_t)                  :: constraining_free_dofs_coefficients
-     type(std_vector_integer_ip_t)               :: constraining_dirichlet_dofs
-     type(std_vector_real_rp_t)                  :: constraining_dirichlet_dofs_coefficients
-     type(std_vector_real_rp_t)                  :: constraints_independent_term
-     
-     type(p4est_serial_triangulation_t), pointer :: p4est_triangulation =>  NULL()
    contains
-     procedure          :: create_fe_vef_iterator                                 => serial_hp_adaptive_fe_space_create_fe_vef_iterator
      procedure          :: create_fe_cell_iterator                                     => serial_hp_adaptive_fe_space_create_fe_cell_iterator
-     
-     procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
-     procedure          :: serial_fe_space_create_different_ref_fes_between_cells => shpafs_create_different_ref_fes_between_cells
-     procedure          :: free                                                   => serial_hp_adaptive_fe_space_free
      
      procedure          :: generate_global_dof_numbering                                          => serial_hp_adaptive_fe_space_generate_global_dof_numbering
      ! UNDER QUARANTINE
      procedure          :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
      
-     procedure          :: allocate_and_init_has_hanging_dofs_x_fe                => shpafs_allocate_and_init_has_hanging_dofs_x_fe
-     procedure, private :: free_has_hanging_dofs_x_fe                             => shpafs_free_has_hanging_dofs_x_fe
-     
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
-     procedure          :: free_ptr_constraining_free_dofs                        => shpafs_free_ptr_constraining_free_dofs
-     procedure          :: free_constraining_free_dofs                            => shpafs_free_constraining_free_dofs
-     procedure          :: free_constraining_free_dofs_coefficients               => shpafs_free_constraining_free_dofs_coefficients
-     procedure          :: free_ptr_constraining_dirichlet_dofs                   => shpafs_free_ptr_constraining_dirichlet_dofs
-     procedure          :: free_constraining_dirichlet_dofs                       => shpafs_free_constraining_dirichlet_dofs
-     procedure          :: free_constraining_dirichlet_dofs_coefficients          => shpafs_free_constraining_dirichlet_dofs_coefficients
-     procedure          :: free_constraints_independent_term                      => shpafs_free_constraints_independent_term
      procedure          :: set_up_strong_dirichlet_bcs                            => shpafs_set_up_strong_dirichlet_bcs
-     procedure          :: update_hanging_dof_values                              => shpafs_update_hanging_dof_values
      
      procedure, private :: fill_facet_gids                              => shpafs_fill_facet_gids
      
-     procedure          :: project_field_cell_to_ref_fes                               => shpafs_project_field_cell_to_ref_fes
-     procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
-     procedure          :: project_facet_integration_arrays                     => shpafs_project_facet_integration_arrays
-     procedure          :: shpafs_refine_and_coarsen_single_fe_function
-     procedure          :: shpafs_refine_and_coarsen_fe_function_array
-     generic            :: refine_and_coarsen                                   => shpafs_refine_and_coarsen_single_fe_function, &
-                                                                                   shpafs_refine_and_coarsen_fe_function_array
  end type serial_hp_adaptive_fe_space_t  
  
  type, extends(fe_cell_iterator_t) :: hp_adaptive_fe_cell_iterator_t
