@@ -47,11 +47,12 @@ contains
   STD_VECTOR_SHRINK_TO_FIT(type(point_t),point)
   STD_VECTOR_COPY(type(point_t),point)
   STD_VECTOR_FREE(type(point_t),point)
-  STD_VECTOR_GET(type(point_t),point)
-  STD_VECTOR_GET_POINTER_TO_RANGE(type(point_t),point)
   STD_VECTOR_SET(type(point_t),point)
   STD_VECTOR_SIZE(type(point_t),point)
   STD_VECTOR_CAPACITY(type(point_t),point)
+  STD_VECTOR_GET(type(point_t),point)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(type(point_t),point)
+  STD_VECTOR_GET_POINTER_TO_RANGE(type(point_t),point)
   STD_VECTOR_GET_RAW_POINTER(type(point_t),point)
   
 end module std_vector_point_names

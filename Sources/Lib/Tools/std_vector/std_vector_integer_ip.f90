@@ -46,11 +46,12 @@ contains
   STD_VECTOR_SHRINK_TO_FIT(integer(ip),integer_ip)
   STD_VECTOR_COPY(integer(ip),integer_ip)
   STD_VECTOR_FREE(integer(ip),integer_ip)
-  STD_VECTOR_GET(integer(ip),integer_ip)
-  STD_VECTOR_GET_POINTER_TO_RANGE(integer(ip),integer_ip)
   STD_VECTOR_SET(integer(ip),integer_ip)
   STD_VECTOR_SIZE(integer(ip),integer_ip)
   STD_VECTOR_CAPACITY(integer(ip),integer_ip)
+  STD_VECTOR_GET(integer(ip),integer_ip)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(integer(ip),integer_ip)
+  STD_VECTOR_GET_POINTER_TO_RANGE(integer(ip),integer_ip)
   STD_VECTOR_GET_RAW_POINTER(integer(ip),integer_ip)
   
 end module std_vector_integer_ip_names

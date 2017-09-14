@@ -46,24 +46,26 @@
 ! std_vector_integer_ip, std_vector_real_rp, etc.
 !--------------------------------------------------------
 #define STD_VECTOR_TYPE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)   \
-type DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)         ;\
- private                                                 ;\
- integer(ip) :: size_     = 0                            ;\
- integer(ip) :: capacity_ = 0                            ;\
- BASE_DATA_TYPE, allocatable :: v(:)                     ;\
-contains                                                 ;\
- procedure, non_overridable :: push_back                 ;\
- procedure, non_overridable :: erase                     ;\
- procedure, non_overridable :: resize                    ;\
- procedure, non_overridable :: shrink_to_fit             ;\
- procedure, non_overridable :: copy                      ;\
- procedure, non_overridable :: free                      ;\
- procedure, non_overridable :: get                       ;\
- procedure, non_overridable :: get_pointer_to_range      ;\
- procedure, non_overridable :: set                       ;\
- procedure, non_overridable :: size => std_vector_size   ;\
- procedure, non_overridable :: capacity                  ;\
- procedure, non_overridable :: get_raw_pointer           ;\
+type DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)                  ;\
+ private                                                          ;\
+ integer(ip) :: size_     = 0                                     ;\
+ integer(ip) :: capacity_ = 0                                     ;\
+ BASE_DATA_TYPE, allocatable :: v(:)                              ;\
+contains                                                          ;\
+ procedure, non_overridable          :: push_back                 ;\
+ procedure, non_overridable          :: erase                     ;\
+ procedure, non_overridable          :: resize                    ;\
+ procedure, non_overridable          :: shrink_to_fit             ;\
+ procedure, non_overridable          :: copy                      ;\
+ procedure, non_overridable          :: free                      ;\
+ procedure, non_overridable          :: set                       ;\
+ procedure, non_overridable          :: size => std_vector_size   ;\
+ procedure, non_overridable          :: capacity                  ;\
+ procedure, non_overridable          :: get                       ;\
+ procedure, non_overridable, private :: get_pointer_single_entry  ;\
+ procedure, non_overridable, private :: get_pointer_to_range      ;\
+ procedure, non_overridable, private :: get_raw_pointer           ;\
+ generic :: get_pointer => get_pointer_single_entry, get_pointer_to_range, get_raw_pointer ;\
 end type                                                 ;\
 
 #define STD_VECTOR_PUSH_BACK(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)                  \
@@ -182,28 +184,6 @@ SUBROUTINE free(T)  ;\
   T%capacity_ = 0 ;\
 END SUBROUTINE  ;\
 
-#define STD_VECTOR_GET(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME) \
-FUNCTION get(T,pos) ;\
-  IMPLICIT NONE                 ;\
-  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(in) :: T    ;\
-  integer(ip)                                        , intent(in) :: pos  ;\
-  BASE_DATA_TYPE :: get  ;\
-  assert ( allocated(T%v) ) ;\
-  assert ( pos>=1 .and. pos<= T%size_ ) ;\
-  get = T%v(pos) ;\
-END FUNCTION  ;\
-
-#define STD_VECTOR_GET_POINTER_TO_RANGE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME) \
-FUNCTION get_pointer_to_range(T,spos,epos) ;\
-  IMPLICIT NONE                 ;\
-  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , target, intent(in) :: T     ;\
-  integer(ip)                                                , intent(in) :: spos  ;\
-  integer(ip)                                                , intent(in) :: epos  ;\
-  BASE_DATA_TYPE, pointer :: get_pointer_to_range(:)  ;\
-  assert ( allocated(T%v) ) ;\
-  get_pointer_to_range => T%v(spos:epos) ;\
-END FUNCTION  ;\
-
 #define STD_VECTOR_SET(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME) \
 SUBROUTINE set(T,pos,i)  ;\
   IMPLICIT NONE                 ;\
@@ -229,6 +209,39 @@ FUNCTION capacity(T) ;\
   CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(in) :: T  ;\
   integer(ip) :: capacity  ;\
   capacity = T%capacity_ ;\
+END FUNCTION  ;\
+
+#define STD_VECTOR_GET(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME) \
+FUNCTION get(T,pos) ;\
+  IMPLICIT NONE                 ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(in) :: T    ;\
+  integer(ip)                                        , intent(in) :: pos  ;\
+  BASE_DATA_TYPE :: get  ;\
+  assert ( allocated(T%v) ) ;\
+  assert ( pos>=1 .and. pos<= T%size_ ) ;\
+  get = T%v(pos) ;\
+END FUNCTION  ;\
+
+#define STD_VECTOR_GET_POINTER_SINGLE_ENTRY(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME) \
+FUNCTION get_pointer_single_entry(T,pos) ;\
+  IMPLICIT NONE                 ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , target, intent(in) :: T    ;\
+  integer(ip)                                                , intent(in) :: pos  ;\
+  BASE_DATA_TYPE, pointer :: get_pointer_single_entry  ;\
+  assert ( allocated(T%v) ) ;\
+  assert ( pos>=1 .and. pos<= T%size_ ) ;\
+  get_pointer_single_entry => T%v(pos) ;\
+END FUNCTION  ;\
+
+#define STD_VECTOR_GET_POINTER_TO_RANGE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME) \
+FUNCTION get_pointer_to_range(T,spos,epos) ;\
+  IMPLICIT NONE                 ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , target, intent(in) :: T     ;\
+  integer(ip)                                                , intent(in) :: spos  ;\
+  integer(ip)                                                , intent(in) :: epos  ;\
+  BASE_DATA_TYPE, pointer :: get_pointer_to_range(:)  ;\
+  assert ( allocated(T%v) ) ;\
+  get_pointer_to_range => T%v(spos:epos) ;\
 END FUNCTION  ;\
 
 #define STD_VECTOR_GET_RAW_POINTER(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME) \

@@ -1480,7 +1480,7 @@ subroutine serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells ( this )
   integer(ip)          :: ife
   
   do ifield=1, this%num_fields
-     current_field_cell_to_ref_fes => this%field_cell_to_ref_fes(ifield)%get_raw_pointer()
+     current_field_cell_to_ref_fes => this%field_cell_to_ref_fes(ifield)%get_pointer()
      do ife=1, this%triangulation%get_num_cells()
         current_field_cell_to_ref_fes(ife) = ifield
      end do
@@ -1499,7 +1499,7 @@ subroutine sfes_fill_field_cell_to_ref_fes_different_ref_fes_between_cells ( thi
   call this%triangulation%create_cell_iterator(cell)
   do ifield=1, this%num_fields
     call cell%first()
-    current_field_cell_to_ref_fes => this%field_cell_to_ref_fes(ifield)%get_raw_pointer()
+    current_field_cell_to_ref_fes => this%field_cell_to_ref_fes(ifield)%get_pointer()
     do while (.not. cell%has_finished())
       current_field_cell_to_ref_fes(cell%get_gid()) = set_ids_to_reference_fes(ifield,cell%get_set_id())
       call cell%next()

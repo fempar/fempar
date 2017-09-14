@@ -468,7 +468,6 @@ module fe_space_names
      type(facet_integrator_t)      , allocatable :: facet_integrators(:)
      type(std_vector_integer_ip_t)               :: facet_quadratures_degree
      
-     
      ! Mapping of Finite Faces and integration containers
      integer(ip)                   , allocatable :: max_order_field_cell_to_ref_fes_face(:) ! Stores max_order_field_cell_to_ref_fes_face for all faces
      type(hash_table_ip_ip_t)                    :: facet_quadratures_position  ! Key = [quadrature_degree, 

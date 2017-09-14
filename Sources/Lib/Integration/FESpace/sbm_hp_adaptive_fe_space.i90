@@ -1216,7 +1216,7 @@ contains
     else
       epos = old_ptr_dofs_x_fe(field_id+1)%get(current_old_cell_lid)-1
     end if
-    get_field_fe_dofs => old_lst_dofs_gids%get_pointer_to_range(spos,epos)
+    get_field_fe_dofs => old_lst_dofs_gids%get_pointer(spos,epos)
   end function get_field_fe_dofs
   
 end subroutine shpafs_refine_and_coarsen_single_fe_function
@@ -1393,7 +1393,7 @@ contains
     else
       epos = old_ptr_dofs_x_fe(field_id+1)%get(current_old_cell_lid)-1
     end if
-    get_field_fe_dofs => old_lst_dofs_gids%get_pointer_to_range(spos,epos)
+    get_field_fe_dofs => old_lst_dofs_gids%get_pointer(spos,epos)
   end function get_field_fe_dofs
   
 end subroutine shpafs_refine_and_coarsen_fe_function_array
@@ -1568,7 +1568,7 @@ subroutine hp_adaptive_fe_cell_iterator_apply_constraints(this,elmat,elvec)
               end if
            end do
            ! Update the fe_dofs array with the extended ones
-           this%fe_dofs(ifield)%p => this%extended_fe_dofs(ifield)%get_raw_pointer()
+           this%fe_dofs(ifield)%p => this%extended_fe_dofs(ifield)%get_pointer()
         end if
         
      end do

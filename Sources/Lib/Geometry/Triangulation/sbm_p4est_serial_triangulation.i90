@@ -134,7 +134,7 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
 
 #ifdef ENABLE_P4EST
   if ( this%get_num_dims() == 2 ) then
-    user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
+    user_pointer => this%refinement_and_coarsening_flags%get_pointer()
     call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
     p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old)
     call F90_p4est_refine(this%p4est)
@@ -143,7 +143,7 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
     call F90_p4est_update_refinement_and_coarsening_flags(p4est_old,this%p4est)
     call F90_p4est_destroy(p4est_old)
   else if ( this%get_num_dims() == 3 ) then
-    user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
+    user_pointer => this%refinement_and_coarsening_flags%get_pointer()
     call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
     p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old)
     call F90_p8est_refine(this%p4est)
@@ -1070,7 +1070,7 @@ subroutine p4est_st_fill_x_cell_vertex_coordinates(this)
   end if
   call this%per_cell_vertex_coordinates%resize(this%get_num_cells()*num_corners)
   
-  raw_per_cell_vertex_coordinates => this%per_cell_vertex_coordinates%get_raw_pointer()
+  raw_per_cell_vertex_coordinates => this%per_cell_vertex_coordinates%get_pointer()
   
   current = 1 
   do icell=1, this%get_num_cells()

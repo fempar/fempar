@@ -46,11 +46,12 @@ contains
   STD_VECTOR_SHRINK_TO_FIT(logical,logical)
   STD_VECTOR_COPY(logical,logical)
   STD_VECTOR_FREE(logical,logical)
-  STD_VECTOR_GET(logical,logical)
-  STD_VECTOR_GET_POINTER_TO_RANGE(logical,logical)
   STD_VECTOR_SET(logical,logical)
   STD_VECTOR_SIZE(logical,logical)
   STD_VECTOR_CAPACITY(logical,logical)
+  STD_VECTOR_GET(logical,logical)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(logical,logical)
+  STD_VECTOR_GET_POINTER_TO_RANGE(logical,logical)
   STD_VECTOR_GET_RAW_POINTER(logical,logical)
   
 end module std_vector_logical_names

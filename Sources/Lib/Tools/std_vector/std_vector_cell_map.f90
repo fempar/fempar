@@ -47,11 +47,12 @@ contains
   STD_VECTOR_SHRINK_TO_FIT(type(cell_map_t),cell_map)
   STD_VECTOR_COPY(type(cell_map_t),cell_map)
   STD_VECTOR_FREE(type(cell_map_t),cell_map)
-  STD_VECTOR_GET(type(cell_map_t),cell_map)
-  STD_VECTOR_GET_POINTER_TO_RANGE(type(cell_map_t),cell_map)
   STD_VECTOR_SET(type(cell_map_t),cell_map)
   STD_VECTOR_SIZE(type(cell_map_t),cell_map)
   STD_VECTOR_CAPACITY(type(cell_map_t),cell_map)
+  STD_VECTOR_GET(type(cell_map_t),cell_map)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(type(cell_map_t),cell_map)
+  STD_VECTOR_GET_POINTER_TO_RANGE(type(cell_map_t),cell_map)
   STD_VECTOR_GET_RAW_POINTER(type(cell_map_t),cell_map)
   
 end module std_vector_cell_map_names

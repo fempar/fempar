@@ -155,7 +155,7 @@ function p4est_cell_iterator_get_vefs_gid (this)
   integer(ip) :: spos, epos
   spos = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())
   epos = this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid()+1)-1
-  p4est_cell_iterator_get_vefs_gid => this%p4est_triangulation%lst_vefs_gids%get_pointer_to_range(spos,epos)
+  p4est_cell_iterator_get_vefs_gid => this%p4est_triangulation%lst_vefs_gids%get_pointer(spos,epos)
 end function p4est_cell_iterator_get_vefs_gid
 
 function p4est_cell_iterator_get_vef_ggid (this, vef_lid)

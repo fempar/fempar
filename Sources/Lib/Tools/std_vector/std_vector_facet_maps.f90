@@ -47,11 +47,12 @@ contains
   STD_VECTOR_SHRINK_TO_FIT(type(facet_maps_t),facet_maps)
   STD_VECTOR_COPY(type(facet_maps_t),facet_maps)
   STD_VECTOR_FREE(type(facet_maps_t),facet_maps)
-  STD_VECTOR_GET(type(facet_maps_t),facet_maps)
-  STD_VECTOR_GET_POINTER_TO_RANGE(type(facet_maps_t),facet_maps)
   STD_VECTOR_SET(type(facet_maps_t),facet_maps)
   STD_VECTOR_SIZE(type(facet_maps_t),facet_maps)
   STD_VECTOR_CAPACITY(type(facet_maps_t),facet_maps)
+  STD_VECTOR_GET(type(facet_maps_t),facet_maps)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(type(facet_maps_t),facet_maps)
+  STD_VECTOR_GET_POINTER_TO_RANGE(type(facet_maps_t),facet_maps)
   STD_VECTOR_GET_RAW_POINTER(type(facet_maps_t),facet_maps)
   
 end module std_vector_facet_maps_names

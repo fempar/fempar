@@ -46,11 +46,12 @@ contains
   STD_VECTOR_SHRINK_TO_FIT(real(rp),real_rp)
   STD_VECTOR_COPY(real(rp),real_rp)
   STD_VECTOR_FREE(real(rp),real_rp)
-  STD_VECTOR_GET(real(rp),real_rp)
-  STD_VECTOR_GET_POINTER_TO_RANGE(real(rp),real_rp)
   STD_VECTOR_SET(real(rp),real_rp)
   STD_VECTOR_SIZE(real(rp),real_rp)
   STD_VECTOR_CAPACITY(real(rp),real_rp)
+  STD_VECTOR_GET(real(rp),real_rp)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(real(rp),real_rp)
+  STD_VECTOR_GET_POINTER_TO_RANGE(real(rp),real_rp)
   STD_VECTOR_GET_RAW_POINTER(real(rp),real_rp)
 
 end module std_vector_real_rp_names
