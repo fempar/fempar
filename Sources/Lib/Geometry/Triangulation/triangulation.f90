@@ -551,15 +551,17 @@ module triangulation_names
        integer(ip)                          :: icell
      end subroutine get_improper_cell_around_interface
 
-     function get_improper_cell_around_ivef_interface(this)
+     function get_improper_cell_around_ivef_interface(this, icell_around)
        import :: vef_iterator_t, ip
        class(vef_iterator_t) , intent(in)    :: this
+       integer(ip)           , intent(in)    :: icell_around
        integer(ip) :: get_improper_cell_around_ivef_interface
      end function get_improper_cell_around_ivef_interface
 
-     function get_improper_cell_around_subvef_interface(this)
+     function get_improper_cell_around_subvef_interface(this, icell_around)
        import :: vef_iterator_t, ip
        class(vef_iterator_t) , intent(in)    :: this
+       integer(ip)           , intent(in)    :: icell_around
        integer(ip) :: get_improper_cell_around_subvef_interface
      end function get_improper_cell_around_subvef_interface
   end interface

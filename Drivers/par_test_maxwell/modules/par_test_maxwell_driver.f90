@@ -292,7 +292,7 @@ end subroutine free_timers
 
 	select type ( ch=> this%coarse_fe_handler ) 
 	class is ( Hcurl_l1_coarse_fe_handler_t ) 
-	call this%coarse_fe_handler%compute_change_basis_matrix( this%fe_space ) 
+	call this%coarse_fe_handler%setup_tools( this%fe_space )
 	end select 
 	
 	   call this%fe_space%setup_coarse_fe_space(this%parameter_list)

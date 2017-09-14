@@ -101,6 +101,8 @@ module fe_space_names
     ! allocation in the case of L2-Ln tasks.
     type(coarse_fe_space_t)       , pointer :: coarse_fe_space => NULL()
   contains 
+    procedure, non_overridable, private        :: free_blocks_dof_import                       => base_fe_space_free_blocks_dof_import
+    
     procedure, non_overridable                 :: get_num_fields                               => base_fe_space_get_num_fields
     procedure, non_overridable                 :: set_num_fields                               => base_fe_space_set_num_fields
     procedure, non_overridable                 :: get_fe_space_type                               => base_fe_space_get_fe_space_type
@@ -781,9 +783,9 @@ module fe_space_names
   type, abstract :: l1_coarse_fe_handler_t
   contains
     ! Deferred methods
-       procedure (l1_free)                                  , deferred :: free 
-       procedure (l1_compute_change_basis_matrix)           , deferred :: compute_change_basis_matrix 
-       procedure (l1_get_num_coarse_dofs_interface)         , deferred :: get_num_coarse_dofs
+    procedure (l1_free)                                  , deferred :: free 
+    procedure (l1_setup_tools)                           , deferred :: setup_tools  
+    procedure (l1_get_num_coarse_dofs_interface)         , deferred :: get_num_coarse_dofs
 	   procedure (l1_setup_constraint_matrix)               , deferred :: setup_constraint_matrix
 	   procedure (l1_setup_weighting_operator)              , deferred :: setup_weighting_operator
 	   procedure (l1_apply_weighting_operator_and_comm)     , deferred :: apply_weighting_operator_and_comm
@@ -798,11 +800,11 @@ module fe_space_names
 	class(l1_coarse_fe_handler_t), intent(inout) :: this
 	end subroutine l1_free
 	
-    subroutine l1_compute_change_basis_matrix( this, par_fe_space ) 
+    subroutine l1_setup_tools( this, par_fe_space ) 
 	import :: l1_coarse_fe_handler_t, par_fe_space_t
 	class(l1_coarse_fe_handler_t), intent(inout) :: this
     type(par_fe_space_t)         , intent(inout) :: par_fe_space 
-	end subroutine l1_compute_change_basis_matrix 
+	end subroutine l1_setup_tools 
 	
     ! Returns the number of coarse DoFs that the object customizing
     ! l1_coarse_fe_handler_t requires to introduce on the subdomain 
@@ -855,7 +857,7 @@ module fe_space_names
   type, extends(l1_coarse_fe_handler_t) :: standard_l1_coarse_fe_handler_t
      private
    contains
-     procedure             :: compute_change_basis_matrix               => standard_l1_compute_change_basis_matrix    
+     procedure             :: setup_tools                               => standard_l1_setup_tools     
      procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
      procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
      procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
@@ -869,7 +871,7 @@ module fe_space_names
     private
     real(rp), public :: diffusion_inclusion
   contains
-	   procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix
+	   procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix_multiple
 	   procedure :: setup_weighting_operator => H1_l1_setup_weighting_operator
   end type H1_l1_coarse_fe_handler_t
      
@@ -886,20 +888,24 @@ module fe_space_names
 	   
   contains
        ! Overriding procedures 
-    procedure                           :: free                                          => Hcurl_l1_free 
+    procedure                           :: free                                          => Hcurl_l1_free
+				procedure                           :: setup_tools                                   => Hcurl_l1_setup_tools 
 	   procedure                           :: get_num_coarse_dofs                           => Hcurl_l1_get_num_coarse_dofs 
 	   procedure                           :: setup_constraint_matrix                       => Hcurl_l1_setup_constraint_matrix
 	   procedure, private, nopass          :: get_BDDC_edge_continuity_algorithm_case       => Hcurl_l1_get_BDDC_edge_continuity_algorithm_case
 	   procedure, non_overridable, private :: compute_first_order_moment_in_edges           => Hcurl_l1_compute_first_order_moment_in_edges
 	   procedure                           :: apply_weighting_operator_and_comm             => Hcurl_l1_apply_weighting_operator_and_comm   
 	   procedure                           :: apply_transpose_weighting_operator            => Hcurl_l1_apply_transpose_weighting_operator  
-	   ! Counting&Splitting coarse edges procedures 
-	   procedure, non_overridable, private :: count_and_fill_coarse_subedges_and_owned_fine_edges => Hcurl_l1_count_and_fill_coarse_subedges_and_owned_fine_edges
+	   ! Counting & Splitting coarse edges procedures
+				procedure, non_overridable, private :: compute_subedges_info                      => Hcurl_l1_compute_subedges_info
+				procedure, non_overridable, private :: count_coarse_edges_and_owned_fine_edges    => Hcurl_l1_count_coarse_edges_and_owned_fine_edges
+	   procedure, non_overridable, private :: fill_coarse_subedges_and_owned_fine_edges  => Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges
+				procedure, non_overridable, private :: fill_edges_lists                           => Hcurl_l1_fill_edges_lists
 	   ! Computation of elemental data     
 	   procedure, non_overridable, private :: compute_edge_discrete_gradient_elmat          => Hcurl_l1_compute_edge_discrete_gradient_elmat
 	   procedure, non_overridable, private :: compute_edge_lagrangian_average_elvec         => Hcurl_l1_compute_edge_lagrangian_average_elvec
 	    ! Fill change of basis operator  
-	   procedure                           :: compute_change_basis_matrix                      => Hcurl_l1_compute_change_basis_matrix
+	   procedure, non_overridable, private :: compute_change_basis_matrix                      => Hcurl_l1_compute_change_basis_matrix
 	   procedure, non_overridable, private :: fill_edge_local_change_of_basis                  => Hcurl_l1_fill_edge_local_change_of_basis 
 	   procedure, non_overridable, private :: fill_edge_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis
 	   procedure (Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis) , private, deferred :: fill_face_coupled_to_edges_local_change_of_basis
@@ -1091,7 +1097,6 @@ module fe_space_names
     procedure, non_overridable, private         :: count_dofs_and_fill_lst_dof_gids_field          => coarse_fe_space_count_dofs_and_fill_lst_dof_gids_field
     procedure, non_overridable, private         :: free_lst_dofs_gids                              => coarse_fe_space_free_lst_dofs_gids
     procedure, non_overridable, private         :: free_num_dofs_x_field_and_block                 => coarse_fe_space_free_num_dofs_x_field_and_block
-    procedure, non_overridable, private         :: free_blocks_dof_import                          => coarse_fe_space_free_blocks_dof_import
     procedure, non_overridable, nopass, private :: coarse_fe_size                                  => coarse_fe_space_coarse_fe_size
     procedure, non_overridable, nopass, private :: coarse_fe_pack                                  => coarse_fe_space_coarse_fe_pack
     procedure, non_overridable, nopass, private :: coarse_fe_unpack                                => coarse_fe_space_coarse_fe_unpack
@@ -1191,8 +1196,12 @@ module fe_space_names
      procedure, non_overridable          :: free                           => fe_function_free
      generic                             :: assignment(=)                  => copy
   end type fe_function_t 
-   
-  public :: fe_function_t  
+  
+  type :: p_fe_function_t
+    class(fe_function_t), pointer :: p
+  end type p_fe_function_t
+  
+  public :: fe_function_t, p_fe_function_t
   
   type, extends(serial_fe_space_t) :: serial_hp_adaptive_fe_space_t
      !private ! UNDER QUARANTINE
@@ -1250,7 +1259,10 @@ module fe_space_names
      procedure          :: project_field_cell_to_ref_fes                               => shpafs_project_field_cell_to_ref_fes
      procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
      procedure          :: project_facet_integration_arrays                     => shpafs_project_facet_integration_arrays
-     procedure          :: refine_and_coarsen                                     => serial_hp_adaptive_fe_space_refine_and_coarsen
+     procedure          :: shpafs_refine_and_coarsen_single_fe_function
+     procedure          :: shpafs_refine_and_coarsen_fe_function_array
+     generic            :: refine_and_coarsen                                   => shpafs_refine_and_coarsen_single_fe_function, &
+                                                                                   shpafs_refine_and_coarsen_fe_function_array
  end type serial_hp_adaptive_fe_space_t  
  
  type, extends(fe_cell_iterator_t) :: hp_adaptive_fe_cell_iterator_t

@@ -321,7 +321,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
             ! Check whether a set_id different from 0 has been set for current vef. 
             ! TO-DO: Should we also ask whether current vef is at the boundary?
             !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
-            if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )
+            if ( vef%get_set_id() /= 0 .and. vef%get_gid() > 0 ) then ! .and. vef%at_boundary()??? )
 
                ! Get components code corresponding to set_id assigned to current vef
                ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
@@ -2155,7 +2155,7 @@ subroutine serial_fe_space_generate_global_dof_numbering( this, block_layout )
   if (.not. perform_numbering) perform_numbering = .not. (this%block_layout == block_layout)
   if ( perform_numbering ) then
     this%block_layout => block_layout
-    call memalloc( this%num_fields, this%num_dofs_x_field, __FILE__, __LINE__ )   
+    call this%allocate_num_dofs_x_field()
     if ( this%num_fields >= 1 ) then 
       call this%count_dofs()
     end if  

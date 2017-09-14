@@ -1,0 +1,66 @@
+##################################
+# GET SUBMODULE SOURCES
+##################################
+
+git submodule update --init --recursive
+
+##################################
+# USE SERVERCOMFUS DASHBOARD
+##################################
+
+ln -sf CMake/CTestConfig_Servercomfus.cmake CTestConfig.cmake
+
+##################################
+# BUILD TYPE (DEBUG /RELEASE)
+##################################
+
+BUILD_TYPE="RELEASE"
+
+##################################
+# FORCE ENABLE/DISABLE LIBRARIES
+##################################
+
+MACROS=""
+
+##################################
+# FORTRAN COMPILERS FULL PATHS
+# CMake find GNU compilers by default
+##################################
+
+source /opt/intel/bin/compilervars.sh intel64
+FORTRAN_COMPILER="-DCMAKE_Fortran_COMPILER=ifort"
+FORTRAN_COMPILER_MPI="-DMPI_Fortran_COMPILER=/opt/OpenMPI/INTEL/16.0.0/bin/mpif90"
+FORTRAN_COMPILER_MPI_INC="-DMPI_Fortran_INCLUDE_PATH='/opt/OpenMPI/INTEL/16.0.0/include;/opt/OpenMPI/INTEL/16.0.0/bin'"
+MPIEXEC="-DMPIEXEC='/opt/OpenMPI/INTEL/16.0.0/bin/mpirun'"
+
+##################################
+# CREATE BUILD DIRECTORY
+##################################
+mkdir build
+cd build
+mkdir THIRDPARTY
+mkdir FEMPAR
+
+##################################
+# CONFIGURE AND COMPILE THIRDPARTY
+##################################
+
+cd THIRDPARTY
+cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $MPIEXEC $MACROS  ../../ThirdParty
+cmake --build . -- -j8
+cd ..
+
+##################################
+# CONFIGURE, COMPILE AND TEST FEMPAR
+##################################
+
+cd FEMPAR
+cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $MPIEXEC $MACROS -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=../THIRDPARTY ../../
+
+ctest -j8 -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+
+cd ../
+
+cd ../
+rm -rf build
+

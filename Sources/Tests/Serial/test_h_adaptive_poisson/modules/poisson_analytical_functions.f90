@@ -86,7 +86,7 @@ contains
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 ) 
     if ( this%num_dims == 2 ) then
       result = -4.0_rp 
     else if ( this%num_dims == 3 ) then
@@ -136,7 +136,7 @@ contains
     else if ( this%num_dims == 3 ) then
       call result%set( 1, point%get(1)*2 ) 
       call result%set( 2, point%get(2)*2 )
-      call result%set( 3, point%get(3)*2 ) 
+      call result%set( 3, point%get(3)*2 )
     end if
   end subroutine solution_function_get_gradient_space
   

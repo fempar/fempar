@@ -92,6 +92,10 @@ module reference_fe_names
      procedure, non_overridable :: get_coordinates_as_points => quadrature_get_coordinates_as_points
      procedure, non_overridable :: get_weight => quadrature_get_weight
      procedure, non_overridable :: get_weights => quadrature_get_weights
+
+     procedure, non_overridable          :: fill_tet_gauss_legendre            => quadrature_fill_tet_gauss_legendre
+     procedure, non_overridable, private :: fill_tet_gauss_legendre_hard_coded => quadrature_fill_tet_gauss_legendre_symmetric_hard_coded
+     procedure, non_overridable          :: fill_hex_gauss_legendre            => quadrature_fill_hex_gauss_legendre
   end type quadrature_t
 
   type p_quadrature_t
@@ -477,7 +481,6 @@ module reference_fe_names
      procedure (create_data_out_quadrature_interface), deferred :: create_data_out_quadrature 
      procedure (get_num_subcells_interface      )    , deferred :: get_num_subcells
      procedure (get_subcells_connectivity_interface) , deferred :: get_subcells_connectivity
-     procedure(get_h_refinement_num_subfacets_interface), private, deferred :: get_h_refinement_num_subfacets
 
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
@@ -531,6 +534,7 @@ module reference_fe_names
      procedure :: compute_permutation_index     => reference_fe_compute_permutation_index
      procedure :: permute_dof_LID_n_face        => reference_fe_permute_dof_LID_n_face
      procedure :: get_normal_orientation_factor => reference_fe_get_normal_orientation_factor
+     procedure :: get_num_subfacets => reference_fe_get_num_subfacets
 
   end type reference_fe_t
 
@@ -897,12 +901,6 @@ module reference_fe_names
         integer(ip),                      intent(inout) :: connectivity(:,:)
      end subroutine get_subcells_connectivity_interface
 
-     function get_h_refinement_num_subfacets_interface(this)
-        import :: reference_fe_t, ip
-        implicit none
-        class(reference_fe_t)        , intent(in)    :: this 
-        integer(ip) :: get_h_refinement_num_subfacets_interface
-     end function get_h_refinement_num_subfacets_interface
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -988,8 +986,6 @@ contains
        & => lagrangian_reference_fe_apply_cell_map_to_interpolation
   procedure  :: get_default_quadrature_degree &
        & => lagrangian_reference_fe_get_default_quadrature_degree
-  procedure, private :: get_h_refinement_num_subfacets &
-       & => lagrangian_reference_fe_get_h_refinement_num_subfacets
 end type lagrangian_reference_fe_t
 
 abstract interface
@@ -1319,7 +1315,6 @@ public :: tet_raviart_thomas_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(lagrangian_reference_fe_t) :: hex_lagrangian_reference_fe_t
 private
-integer(ip)              :: h_refinement_num_subfacets
 type(interpolation_t)    :: h_refinement_interpolation
 integer(ip), allocatable :: h_refinement_subfacet_permutation(:,:,:)
 integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:)
@@ -1375,8 +1370,6 @@ procedure, private :: compute_num_quadrature_points                   &
 & => hex_lagrangian_reference_fe_compute_num_quadrature_points
 procedure :: fill_qpoints_permutations                                   &
 & => hex_lagrangian_reference_fe_fill_qpoints_permutations
-procedure, private :: get_h_refinement_num_subfacets &
-& => hex_lagrangian_reference_fe_get_h_refinement_num_subfacets
 end type hex_lagrangian_reference_fe_t
 
 public :: hex_lagrangian_reference_fe_t
@@ -1526,7 +1519,6 @@ contains
   procedure :: fill_qpoints_permutations            => void_reference_fe_fill_qpoints_permutations     
   procedure :: free                                 => void_reference_fe_free
   procedure :: get_default_quadrature_degree        => void_reference_fe_get_default_quadrature_degree
-  procedure, private :: get_h_refinement_num_subfacets => void_reference_fe_get_h_refinement_num_subfacets
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                        => void_reference_fe_fill
   procedure :: create_data_out_quadrature  => void_reference_fe_create_data_out_quadrature
