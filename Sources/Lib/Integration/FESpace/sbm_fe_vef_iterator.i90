@@ -105,23 +105,25 @@ subroutine fe_vef_iterator_get_improper_fe_around (this, ife_around, fe)
   implicit none
   class(fe_vef_iterator_t)          , intent(in)     :: this
   integer(ip)                       , intent(in)     :: ife_around
-  class(fe_cell_iterator_t)              , intent(inout)  :: fe
+  class(fe_cell_iterator_t)         , intent(inout)  :: fe
   assert(allocated(this%vef))
   assert(allocated(fe%cell))
   call this%vef%get_improper_cell_around(ife_around,fe%cell)
 end subroutine fe_vef_iterator_get_improper_fe_around
 
-function fe_vef_iterator_get_improper_cell_around_ivef(this)
+function fe_vef_iterator_get_improper_cell_around_ivef(this, ife_around)
   implicit none
   class(fe_vef_iterator_t) , intent(in)    :: this
+  integer(ip)              , intent(in)    :: ife_around
   integer(ip) :: fe_vef_iterator_get_improper_cell_around_ivef
-  fe_vef_iterator_get_improper_cell_around_ivef = this%vef%get_improper_cell_around_ivef()
+  fe_vef_iterator_get_improper_cell_around_ivef = this%vef%get_improper_cell_around_ivef(ife_around)
 end function fe_vef_iterator_get_improper_cell_around_ivef
 
-function fe_vef_iterator_get_improper_cell_around_subvef(this)
+function fe_vef_iterator_get_improper_cell_around_subvef(this, ife_around)
   implicit none
   class(fe_vef_iterator_t) , intent(in)    :: this
+  integer(ip)              , intent(in)    :: ife_around
   integer(ip) :: fe_vef_iterator_get_improper_cell_around_subvef
-  fe_vef_iterator_get_improper_cell_around_subvef = this%vef%get_improper_cell_around_subvef()
+  fe_vef_iterator_get_improper_cell_around_subvef = this%vef%get_improper_cell_around_subvef(ife_around)
 end function fe_vef_iterator_get_improper_cell_around_subvef
 
