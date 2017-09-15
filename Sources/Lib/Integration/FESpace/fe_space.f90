@@ -351,6 +351,7 @@ module fe_space_names
      final                               :: fe_vef_iterator_final
      
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
+     procedure, non_overridable          :: is_fe_facet                       => fe_vef_iterator_is_fe_facet
      
      procedure                 , private :: fe_vef_iterator_get_fe_around
      generic                             :: get_cell_around                   => fe_vef_iterator_get_fe_around
@@ -1098,8 +1099,6 @@ module fe_space_names
      
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
      procedure          :: set_up_strong_dirichlet_bcs                            => shpafs_set_up_strong_dirichlet_bcs
-     
-     procedure, private :: fill_facet_gids                              => shpafs_fill_facet_gids
      
  end type serial_hp_adaptive_fe_space_t  
  

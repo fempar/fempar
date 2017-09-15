@@ -78,35 +78,6 @@ subroutine shpafs_set_up_strong_dirichlet_bcs( this )
   this%num_dirichlet_dofs = this%get_num_fixed_dofs()  
 end subroutine shpafs_set_up_strong_dirichlet_bcs
 
-subroutine shpafs_fill_facet_gids ( this )
-  implicit none
-  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
-  class(triangulation_t), pointer     :: triangulation
-  type(std_vector_integer_ip_t)     , pointer     :: facet_gids
-  type(fe_vef_iterator_t)                         :: fe_vef
-  triangulation => this%get_triangulation()
-  call this%facet_gids%resize(0)
-  call this%create_fe_vef_iterator(fe_vef)
-  do while ( .not. fe_vef%has_finished() )
-    if ( is_fe_face() ) then
-      call this%facet_gids%push_back(fe_vef%get_gid())
-    end if
-    call fe_vef%next()
-  end do
-  call this%free_fe_vef_iterator(fe_vef)
-  
-  contains
-  
-    function is_fe_face()
-      implicit none
-      logical :: is_fe_face
-      is_fe_face = fe_vef%is_facet() .and. ( ( .not. fe_vef%is_proper() ) .or.                         &
-                                            ( fe_vef%is_proper() .and. ( fe_vef%is_at_boundary() .or. &
-                                                                         fe_vef%get_num_cells_around() > 1 ) ) )
-    end function is_fe_face
-  
-end subroutine shpafs_fill_facet_gids
-
 subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering( this, block_layout )
   implicit none
   class(serial_hp_adaptive_fe_space_t), intent(inout) :: this 
