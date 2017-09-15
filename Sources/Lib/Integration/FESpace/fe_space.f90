@@ -178,10 +178,14 @@ module fe_space_names
     private
     class(serial_fe_space_t) , pointer     :: fe_space => NULL()
     ! Scratch data to support FE integration
-    integer(ip)              , allocatable :: num_cell_dofs_x_field(:)
-    type(i1p_t)              , allocatable :: fe_dofs(:)
-    type(cell_map_t)         , pointer     :: cell_map => NULL()
-    type(p_cell_integrator_t), allocatable :: cell_integrators(:)
+    integer(ip)                        , allocatable :: num_cell_dofs_x_field(:)
+    type(i1p_t)                        , allocatable :: fe_dofs(:)
+    type(cell_map_t)                   , pointer     :: cell_map => NULL()
+    type(p_cell_integrator_t)          , allocatable :: cell_integrators(:)
+    type(std_vector_integer_ip_t)      , allocatable :: extended_fe_dofs(:)
+    type(allocatable_array_ip1_t)      , allocatable :: gid_to_lid_map(:)
+    type(allocatable_array_rp2_t)                    :: extended_elmat
+    type(allocatable_array_rp1_t)                    :: extended_elvec
   contains
   
     procedure                           :: create                                     => fe_cell_iterator_create
@@ -192,6 +196,7 @@ module fe_space_names
     procedure                           :: set_fe_space                               => fe_cell_iterator_set_fe_space
     procedure                           :: nullify_fe_space                           => fe_cell_iterator_nullify_fe_space
     procedure, non_overridable          :: allocate_scratch_data                      => fe_cell_iterator_allocate_scratch_data
+    procedure, non_overridable          :: allocate_block_based_scratch_data          => fe_cell_iterator_allocate_block_based_scratch_data
     procedure, non_overridable          :: free_scratch_data                          => fe_cell_iterator_free_scratch_data
     ! Now, after merging with experimental, we have to assemble in the code !!!
     procedure                           :: assemble                                   => fe_cell_iterator_assemble
@@ -233,6 +238,7 @@ module fe_space_names
                                                                                          get_max_order_all_fields
     procedure, non_overridable          :: at_strong_dirichlet_boundary               => fe_cell_iterator_at_strong_dirichlet_boundary
     procedure, non_overridable          :: has_fixed_dofs                             => fe_cell_iterator_has_fixed_dofs
+    procedure, non_overridable          :: has_hanging_dofs                           => fe_cell_iterator_has_hanging_dofs
     procedure, non_overridable          :: fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field
     procedure, non_overridable          :: fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields
     generic                             :: determine_at_strong_dirichlet_boundary     => fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field, &
@@ -242,6 +248,7 @@ module fe_space_names
     procedure                           :: is_free_dof                                => fe_cell_iterator_is_free_dof
     procedure                           :: is_strong_dirichlet_dof                    => fe_cell_iterator_is_strong_dirichlet_dof   
     procedure, non_overridable          :: is_fixed_dof                               => fe_cell_iterator_is_fixed_dof
+    procedure                           :: is_hanging_dof                             => fe_cell_iterator_is_hanging_dof
     procedure, non_overridable          :: compute_volume                             => fe_cell_iterator_compute_volume
     
     procedure, non_overridable          :: get_default_quadrature_degree              => fe_cell_iterator_get_default_quadrature_degree
@@ -301,6 +308,8 @@ module fe_space_names
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_gradient_fe_function_vector
     generic :: evaluate_gradient_fe_function => fe_cell_iterator_evaluate_gradient_fe_function_scalar, &
     & fe_cell_iterator_evaluate_gradient_fe_function_vector
+
+    procedure, non_overridable, private :: apply_constraints                          => fe_cell_iterator_apply_constraints
 
   end type fe_cell_iterator_t
    
@@ -1096,21 +1105,9 @@ module fe_space_names
  
  type, extends(fe_cell_iterator_t) :: hp_adaptive_fe_cell_iterator_t
    private 
-   type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
-   type(std_vector_integer_ip_t), allocatable :: extended_fe_dofs(:)
-   type(allocatable_array_ip1_t), allocatable :: gid_to_lid_map(:)
-   type(allocatable_array_rp2_t) :: extended_elmat
-   type(allocatable_array_rp1_t) :: extended_elvec
  contains
-   procedure          :: create                     => hp_adaptive_fe_cell_iterator_create
-   procedure          :: free                       => hp_adaptive_fe_cell_iterator_free
    procedure          :: is_strong_dirichlet_dof    => hpafeci_is_strong_dirichlet_dof
-   procedure          :: is_hanging_dof             => hpafeci_is_hanging_dof
-   procedure, non_overridable :: has_hanging_dofs           => hpafeci_has_hanging_dofs
-   procedure                  :: determine_has_hanging_dofs => hpafeci_set_has_hanging_dofs
-   procedure, non_overridable, private :: apply_constraints => hp_adaptive_fe_cell_iterator_apply_constraints
    procedure, private :: hpafeci_impose_strong_dirichlet_bcs
-   procedure, private :: hpafeci_allocate_block_based_scratch_data
    procedure, private :: assembly_array =>  hpafeci_assembly_array
    procedure, private :: assembly_matrix => hpafeci_assembly_matrix
    procedure, private :: assembly_matrix_array => hpafeci_assembly_matrix_array
