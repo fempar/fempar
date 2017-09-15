@@ -245,7 +245,7 @@ module fe_space_names
                                                                                          fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields
     procedure, non_overridable          :: determine_has_fixed_dofs                   => fe_cell_iterator_set_has_fixed_dofs
     procedure                           :: determine_has_hanging_dofs                 => fe_cell_iterator_set_has_hanging_dofs
-    procedure                           :: is_free_dof                                => fe_cell_iterator_is_free_dof
+    procedure, non_overridable          :: is_free_dof                                => fe_cell_iterator_is_free_dof
     procedure                           :: is_strong_dirichlet_dof                    => fe_cell_iterator_is_strong_dirichlet_dof   
     procedure, non_overridable          :: is_fixed_dof                               => fe_cell_iterator_is_fixed_dof
     procedure                           :: is_hanging_dof                             => fe_cell_iterator_is_hanging_dof
@@ -495,8 +495,11 @@ module fe_space_names
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
      integer(ip)                                 :: num_fixed_dofs
+     integer(ip)                                 :: num_hanging_dofs
+     integer(ip)                                 :: num_dirichlet_dofs
      type(std_vector_logical_t)    , allocatable :: at_strong_dirichlet_boundary_x_fe(:)
      type(std_vector_logical_t)    , allocatable :: has_fixed_dofs_x_fe(:)
+     type(std_vector_logical_t)    , allocatable :: has_hanging_dofs_x_fe(:)
      
      ! Descriptor of the block layout selected for the PDE system at hand
      type(block_layout_t)              , pointer :: block_layout  => NULL()
@@ -504,14 +507,7 @@ module fe_space_names
      ! ( Polymorphic ) pointer to a triangulation it was created from
      class(triangulation_t)            , pointer :: triangulation => NULL()
      
-     ! Objects that give support to h-adaptivity
-     integer(ip)                                 :: num_hanging_dofs = -1
-     integer(ip)                                 :: num_dirichlet_dofs = -1
-     
-     ! Acceleration array to skip cells without handing DOFs
-     type(std_vector_logical_t)    , allocatable :: has_hanging_dofs_x_fe(:)
-     
-     ! The two prev arrays will be eliminated when the development in issue 179 will be finished
+     ! Constraining DOFs arrays to give support to h-adaptivity
      type(std_vector_integer_ip_t)               :: ptr_constraining_free_dofs
      type(std_vector_integer_ip_t)               :: ptr_constraining_dirichlet_dofs
      type(std_vector_integer_ip_t)               :: constraining_free_dofs
@@ -622,7 +618,9 @@ module fe_space_names
      procedure                           :: get_environment                              => serial_fe_space_get_environment
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
-     procedure                           :: get_num_fixed_dofs             => serial_fe_space_get_num_fixed_dofs
+     procedure                           :: get_num_fixed_dofs                           => serial_fe_space_get_num_fixed_dofs
+     procedure                           :: get_num_dirichlet_dofs                       => serial_fe_space_get_num_dirichlet_dofs
+     procedure                           :: get_num_hanging_dofs                         => serial_fe_space_get_num_hanging_dofs
      procedure                           :: get_num_blocks                            => serial_fe_space_get_num_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling
@@ -1098,14 +1096,12 @@ module fe_space_names
      procedure          :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
      
      procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
-     procedure          :: set_up_strong_dirichlet_bcs                            => shpafs_set_up_strong_dirichlet_bcs
      
  end type serial_hp_adaptive_fe_space_t  
  
  type, extends(fe_cell_iterator_t) :: hp_adaptive_fe_cell_iterator_t
    private 
  contains
-   procedure          :: is_strong_dirichlet_dof    => hpafeci_is_strong_dirichlet_dof
    procedure, private :: hpafeci_impose_strong_dirichlet_bcs
    procedure, private :: assembly_array =>  hpafeci_assembly_array
    procedure, private :: assembly_matrix => hpafeci_assembly_matrix

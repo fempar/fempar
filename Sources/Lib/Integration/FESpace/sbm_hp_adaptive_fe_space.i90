@@ -26,14 +26,6 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-function hpafeci_is_strong_dirichlet_dof ( this, dof_lid )
-  implicit none
-  class(hp_adaptive_fe_cell_iterator_t), intent(in) :: this
-  integer(ip)                          , intent(in) :: dof_lid
-  logical :: hpafeci_is_strong_dirichlet_dof
-  hpafeci_is_strong_dirichlet_dof = (dof_lid < 0 .and. dof_lid >= -this%fe_space%num_dirichlet_dofs )
-end function hpafeci_is_strong_dirichlet_dof
-
 !function hpafefi_compute_fe_facet_permutation_index (this,first_fe,second_fe) result (fe_facet_permutation_index)
 !  implicit none
 !  class(hp_adaptive_fe_facet_iterator_t), intent(inout) :: this
@@ -68,15 +60,6 @@ subroutine serial_hp_adaptive_fe_space_create_fe_cell_iterator ( this, fe )
   allocate(hp_adaptive_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
 end subroutine serial_hp_adaptive_fe_space_create_fe_cell_iterator
-
-subroutine shpafs_set_up_strong_dirichlet_bcs( this )
-  implicit none
-  class(serial_hp_adaptive_fe_space_t), intent(inout) :: this
-  integer(ip) :: i
-  
-  call serial_fe_space_set_up_strong_dirichlet_bcs(this)
-  this%num_dirichlet_dofs = this%get_num_fixed_dofs()  
-end subroutine shpafs_set_up_strong_dirichlet_bcs
 
 subroutine serial_hp_adaptive_fe_space_generate_global_dof_numbering( this, block_layout )
   implicit none
