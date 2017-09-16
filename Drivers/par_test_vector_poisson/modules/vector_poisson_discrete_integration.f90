@@ -35,6 +35,7 @@ module vector_poisson_discrete_integration_names
      private
      class(vector_function_t), pointer :: source_term
      type(fe_function_t)     , pointer :: fe_function          => NULL()
+     real(rp), public :: diffusion_inclusion
    contains
      procedure :: set_source_term
      procedure :: set_fe_function
@@ -81,7 +82,7 @@ contains
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
     integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
-    real(rp)     :: factor, source_term_value
+    real(rp)     :: factor, source_term_value, diffusion
     
     type(vector_field_t) :: source_term
     
@@ -105,6 +106,15 @@ contains
        ! Get quadrature coordinates to evaluate boundary value
        quad_coords => fe%get_quadrature_points_coordinates()
        
+       ! Get subset_id
+       if ( fe%get_set_id() <= 1 ) then
+          diffusion = 1.0_rp
+       else 
+          diffusion = this%diffusion_inclusion
+       end if
+          
+       !if (diffusion == 0.0_rp) diffusion = 1.0_rp
+       
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
@@ -118,7 +128,7 @@ contains
           do idof = 1, num_dofs
              do jdof = 1, num_dofs
                 ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                elmat(idof,jdof) = elmat(idof,jdof) + factor * double_contract(shape_gradients(jdof,qpoint),shape_gradients(idof,qpoint))
+                elmat(idof,jdof) = elmat(idof,jdof) + factor * double_contract(shape_gradients(jdof,qpoint),shape_gradients(idof,qpoint)) * diffusion
              end do
           end do
           
