@@ -352,6 +352,7 @@ module fe_space_names
      
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
      procedure, non_overridable          :: is_fe_facet                       => fe_vef_iterator_is_fe_facet
+     procedure, non_overridable, private :: has_free_dofs                     => fe_vef_iterator_has_free_dofs
      
      procedure                 , private :: fe_vef_iterator_get_fe_around
      generic                             :: get_cell_around                   => fe_vef_iterator_get_fe_around
@@ -651,6 +652,8 @@ module fe_space_names
      procedure, non_overridable, private :: free_constraining_dirichlet_dofs              => serial_fe_space_free_constraining_dirichlet_dofs
      procedure, non_overridable, private :: free_constraining_dirichlet_dofs_coefficients => serial_fe_space_free_constraining_dirichlet_dofs_coefficients
      procedure, non_overridable, private :: free_constraints_independent_term             => serial_fe_space_free_constraints_independent_term
+
+     procedure, non_overridable          :: setup_hanging_node_constraints               => serial_fe_space_setup_hanging_node_constraints
 
      procedure, non_overridable, private :: project_field_cell_to_ref_fes                 => serial_fe_space_project_field_cell_to_ref_fes
      procedure, non_overridable, private :: project_fe_integration_arrays                 => serial_fe_space_project_fe_integration_arrays
@@ -1091,11 +1094,7 @@ module fe_space_names
    contains
      procedure          :: create_fe_cell_iterator                                     => serial_hp_adaptive_fe_space_create_fe_cell_iterator
      
-     procedure          :: generate_global_dof_numbering                                          => serial_hp_adaptive_fe_space_generate_global_dof_numbering
-     ! UNDER QUARANTINE
      procedure          :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
-     
-     procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
      
  end type serial_hp_adaptive_fe_space_t  
  

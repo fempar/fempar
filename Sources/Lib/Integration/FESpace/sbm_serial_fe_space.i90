@@ -405,8 +405,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   do while (.not. fe%has_finished() )
     if ( fe%is_local() ) then
       do field_id = 1, this%get_num_fields()
-         call fe%determine_at_strong_dirichlet_boundary(field_id)
-         call fe%determine_has_fixed_dofs(field_id)
+        call fe%determine_at_strong_dirichlet_boundary(field_id)
       end do
     end if
     call fe%next()
@@ -2066,6 +2065,7 @@ subroutine serial_fe_space_generate_global_dof_numbering( this, block_layout )
       call this%count_dofs()
     end if  
     call this%list_dofs()
+    call this%setup_hanging_node_constraints()
   else
     call block_layout%copy_num_dofs_x_block(this%block_layout)
   end if
@@ -2075,17 +2075,23 @@ end subroutine serial_fe_space_generate_global_dof_numbering
 subroutine serial_fe_space_count_dofs ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this   
-  logical, allocatable :: per_field_vefs_visited(:,:)
+  logical, allocatable :: per_field_proper_vefs_visited(:,:)
+  logical, allocatable :: per_field_improper_vefs_visited(:,:)
   integer(ip) :: field_id, vef_lid, ivef, num_own_dofs_on_vef, iblock
-  class(fe_cell_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe, coarser_fe
+  type(fe_vef_iterator_t) :: vef
   
   ! Count #DoFs per field
   this%num_dofs_x_field = 0
   
-  call memalloc ( this%num_fields, this%triangulation%get_num_vefs(), per_field_vefs_visited,  __FILE__, __LINE__ )
-  per_field_vefs_visited = .false.
+  call memalloc ( this%num_fields, this%triangulation%get_num_proper_vefs(), per_field_proper_vefs_visited,  __FILE__, __LINE__ )
+  call memalloc ( this%num_fields, this%triangulation%get_num_improper_vefs(), per_field_improper_vefs_visited,  __FILE__, __LINE__ )
+  per_field_proper_vefs_visited = .false.
+  per_field_improper_vefs_visited = .false.
 
   call this%create_fe_cell_iterator(fe)
+  call this%create_fe_vef_iterator(vef)
+  call this%create_fe_cell_iterator(coarser_fe)
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
         do field_id=1, this%num_fields
@@ -2094,17 +2100,28 @@ subroutine serial_fe_space_count_dofs ( this )
                                                       fe%count_own_dofs_cell(field_id)
             if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
                do ivef = 1, fe%get_num_vefs()
-                 vef_lid = fe%get_vef_gid(ivef)
-                 if ( .not. per_field_vefs_visited (field_id,vef_lid) ) then
-                    num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
-                    if (num_own_dofs_on_vef>0) then
-                      per_field_vefs_visited (field_id,vef_lid) = .true.
-                      this%num_dofs_x_field(field_id) = this%num_dofs_x_field(field_id) + &
-                                                                  num_own_dofs_on_vef 
-                    end if
+                 call fe%get_vef(ivef,vef)
+                 if ( .not. vef%has_free_dofs(field_id,coarser_fe) ) cycle
+                 vef_lid = abs(fe%get_vef_gid(ivef))
+                 if ( vef%is_proper() ) then
+                   if ( .not. per_field_proper_vefs_visited (field_id,vef_lid) ) then
+                     num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
+                     if (num_own_dofs_on_vef>0) then
+                       per_field_proper_vefs_visited (field_id,vef_lid) = .true.
+                       this%num_dofs_x_field(field_id) = this%num_dofs_x_field(field_id) + &
+                                                                   num_own_dofs_on_vef 
+                     end if
+                   end if
+                 else if ( .not. per_field_improper_vefs_visited (field_id,vef_lid) ) then
+                   num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
+                   if (num_own_dofs_on_vef>0) then
+                     per_field_improper_vefs_visited (field_id,vef_lid) = .true.
+                     this%num_dofs_x_field(field_id) = this%num_dofs_x_field(field_id) + &
+                                                                 num_own_dofs_on_vef 
+                   end if
                  end if
-               end do           
-            end if                                       
+               end do
+            end if
           end if
         end do
      end if
@@ -2118,28 +2135,45 @@ subroutine serial_fe_space_count_dofs ( this )
     call this%block_layout%add_to_block_num_dofs(iblock,this%num_dofs_x_field(field_id))     
   end do
   
+  call this%free_fe_cell_iterator(coarser_fe)
+  call this%free_fe_vef_iterator(vef)
   call this%free_fe_cell_iterator(fe)
-  call memfree ( per_field_vefs_visited,  __FILE__, __LINE__ )
+  call memfree ( per_field_proper_vefs_visited,  __FILE__, __LINE__ )
+  call memfree ( per_field_improper_vefs_visited,  __FILE__, __LINE__ )
 end subroutine serial_fe_space_count_dofs 
 
 subroutine serial_fe_space_list_dofs ( this ) 
   implicit none
   class(serial_fe_space_t), intent(inout) :: this   
   
-  integer(ip), allocatable :: owner_cell_gid_x_field_and_vef(:,:)
-  integer(ip), allocatable :: per_field_vef_lid_in_owner_cell (:,:)
+  integer(ip), allocatable :: owner_cell_gid_x_field_and_proper_vef(:,:)
+  integer(ip), allocatable :: owner_cell_gid_x_field_and_improper_vef(:,:)
+  integer(ip), allocatable :: per_field_proper_vef_lid_in_owner_cell (:,:)
+  integer(ip), allocatable :: per_field_improper_vef_lid_in_owner_cell (:,:)
   integer(ip), allocatable :: blocks_current_num_dofs(:)
   integer(ip), allocatable :: fields_current_dof(:)
-  class(fe_cell_iterator_t), allocatable :: fe, source_fe
+  class(fe_cell_iterator_t), allocatable :: fe, source_fe, coarser_fe
+  type(fe_vef_iterator_t)  :: vef
   integer(ip) :: block_id, field_id
   integer(ip) :: ivef, vef_lid
   integer(ip) :: previous_dof_block
+  integer(ip) :: current_fixed_dof, previous_fixed_dof
+  integer(ip) :: source_cell_id, source_vef_lid
+  logical     :: is_owner
   
-  call memalloc ( this%get_num_fields(), this%triangulation%get_num_vefs(), owner_cell_gid_x_field_and_vef,  __FILE__, __LINE__ )
-  owner_cell_gid_x_field_and_vef = -1
+  current_fixed_dof = this%num_fixed_dofs
   
-  call memalloc ( this%get_num_fields(), this%triangulation%get_num_vefs(), per_field_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
-  per_field_vef_lid_in_owner_cell = -1
+  call memalloc ( this%get_num_fields(), this%triangulation%get_num_vefs(), owner_cell_gid_x_field_and_proper_vef,  __FILE__, __LINE__ )
+  owner_cell_gid_x_field_and_proper_vef = -1
+  
+  call memalloc ( this%get_num_fields(), this%triangulation%get_num_vefs(), owner_cell_gid_x_field_and_improper_vef,  __FILE__, __LINE__ )
+  owner_cell_gid_x_field_and_improper_vef = -1
+  
+  call memalloc ( this%get_num_fields(), this%triangulation%get_num_vefs(), per_field_proper_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
+  per_field_proper_vef_lid_in_owner_cell = -1
+  
+  call memalloc ( this%get_num_fields(), this%triangulation%get_num_vefs(), per_field_improper_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
+  per_field_improper_vef_lid_in_owner_cell = -1
   
   call memalloc( this%block_layout%get_num_blocks(), blocks_current_num_dofs, __FILE__, __LINE__ )
   blocks_current_num_dofs = 0
@@ -2155,31 +2189,74 @@ subroutine serial_fe_space_list_dofs ( this )
     end do
   end if
   
+  call this%create_fe_cell_iterator(coarser_fe)
   call this%create_fe_cell_iterator(source_fe)
   call this%create_fe_cell_iterator(fe)
+  call this%create_fe_vef_iterator(vef)
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
        do field_id=1, this%get_num_fields()
          if ( .not. fe%is_void(field_id)) then
            call fe%generate_own_dofs_cell ( field_id, fields_current_dof(field_id) )
            do ivef = 1, fe%get_num_vefs()
-             vef_lid = fe%get_vef_gid(ivef)
-             if ( owner_cell_gid_x_field_and_vef( field_id, vef_lid ) == -1 ) then
-                previous_dof_block = fields_current_dof(field_id)
-                call fe%generate_own_dofs_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true.  )
-                if (previous_dof_block < fields_current_dof(field_id)) then
-                  owner_cell_gid_x_field_and_vef( field_id, vef_lid ) = fe%get_gid() 
-                  per_field_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
-                end if
-             else 
-                call source_fe%set_gid(owner_cell_gid_x_field_and_vef(field_id, vef_lid))
-                call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
-                                                              source_fe, &
-                                                              per_field_vef_lid_in_owner_cell(field_id,vef_lid), &
-                                                              field_id) 
+             call fe%get_vef(ivef,vef)
+             if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+               
+               vef_lid = abs(fe%get_vef_gid(ivef))
+               
+               is_owner = .false.
+               if ( vef%is_proper() ) then
+                 is_owner = ( owner_cell_gid_x_field_and_proper_vef( field_id, vef_lid ) == -1 )
+               else 
+                 is_owner = ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 )
+               end if
+               
+               if ( is_owner ) then
+                 previous_dof_block = fields_current_dof(field_id)
+                 call fe%generate_own_dofs_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true. )
+                 if ( previous_dof_block < fields_current_dof(field_id) ) then
+                   if ( vef%is_proper() ) then
+                     owner_cell_gid_x_field_and_proper_vef ( field_id, vef_lid ) = fe%get_gid() 
+                     per_field_proper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                   else
+                     owner_cell_gid_x_field_and_improper_vef ( field_id, vef_lid ) = fe%get_gid() 
+                     per_field_improper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                   end if
+                 end if
+               else
+                 if ( vef%is_proper() ) then
+                   source_cell_id = owner_cell_gid_x_field_and_proper_vef(field_id, vef_lid)
+                   source_vef_lid = per_field_proper_vef_lid_in_owner_cell(field_id,vef_lid)
+                 else
+                   source_cell_id = owner_cell_gid_x_field_and_improper_vef(field_id, vef_lid)
+                   source_vef_lid = per_field_improper_vef_lid_in_owner_cell(field_id,vef_lid)
+                 end if
+                 call source_fe%set_gid( source_cell_id )
+                 call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
+               end if
+             else
+               assert ( fe%get_vef_gid(ivef) < 0 )
+               vef_lid = abs(fe%get_vef_gid(ivef))
+               if ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 ) then
+                  previous_fixed_dof = current_fixed_dof
+                  call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.)
+                  if (previous_fixed_dof < current_fixed_dof) then
+                    owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) = fe%get_gid()
+                    per_field_improper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                  end if
+               else 
+                 call source_fe%set_gid(owner_cell_gid_x_field_and_improper_vef(field_id, vef_lid))
+                 call fe%fetch_own_dofs_vef_from_source_fe ( ivef,      &
+                                                             source_fe, &
+                                                             per_field_improper_vef_lid_in_owner_cell(field_id,vef_lid), &
+                                                             field_id ) 
+               end if
+               
              end if
            end do
          end if
+         call fe%determine_has_fixed_dofs(field_id)
+         call fe%determine_has_hanging_dofs(field_id)
        end do
      end if
      call fe%next()
@@ -2194,12 +2271,19 @@ subroutine serial_fe_space_list_dofs ( this )
     call this%block_layout%set_block_num_dofs(block_id,this%num_dofs_x_field(field_id))
   end if
   
+  this%num_hanging_dofs = current_fixed_dof - this%num_fixed_dofs
+  this%num_fixed_dofs   = current_fixed_dof
+  
+  call this%free_fe_cell_iterator(coarser_fe)
   call this%free_fe_cell_iterator(source_fe)
   call this%free_fe_cell_iterator(fe)
+  call this%free_fe_vef_iterator(vef)
   call memfree( blocks_current_num_dofs, __FILE__, __LINE__ )
   call memfree( fields_current_dof     , __FILE__, __LINE__ )
-  call memfree ( owner_cell_gid_x_field_and_vef,  __FILE__, __LINE__ )
-  call memfree ( per_field_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
+  call memfree ( owner_cell_gid_x_field_and_proper_vef,  __FILE__, __LINE__ )
+  call memfree ( owner_cell_gid_x_field_and_improper_vef,  __FILE__, __LINE__ )
+  call memfree ( per_field_proper_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
+  call memfree ( per_field_improper_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
 end subroutine serial_fe_space_list_dofs 
 
 subroutine serial_fe_space_allocate_num_dofs_x_field( this )
@@ -2715,6 +2799,309 @@ subroutine serial_fe_space_free_constraints_independent_term( this )
   integer(ip) :: istat, block_id
   call this%constraints_independent_term%free()   
 end subroutine serial_fe_space_free_constraints_independent_term
+
+subroutine serial_fe_space_setup_hanging_node_constraints ( this )
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this 
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: coarser_fe
+  type(fe_vef_iterator_t) :: fe_vef, fe_vef_bis, coarser_vef
+  type(list_iterator_t) :: fe_own_dofs_on_vef_iterator
+  type(list_iterator_t) :: fe_dofs_on_vef_iterator 
+  type(list_iterator_t) :: coarser_fe_dofs_on_vef_iterator
+  integer(ip) :: improper_vef_lid
+  integer(ip) :: block_id, field_id
+  class(reference_fe_t), pointer :: reference_fe, coarser_reference_fe
+  integer(ip), pointer :: fe_dofs(:), coarser_fe_fe_dofs(:)
+  integer(ip) :: istat, i, icell, min_cell_gid
+  integer(ip) :: improper_dof_lid, hanging_dof_lid
+  integer(ip) :: improper_vef_ivef, coarser_fe_ivef, coarse_fe_subvef
+  integer(ip), pointer :: field_blocks(:)
+  integer(ip) :: qpoint, ishape_fe, ishape_coarser_fe
+  type(interpolation_t), pointer :: h_refinement_interpolation
+  integer(ip), pointer :: h_refinement_subedge_permutation(:,:,:)
+  integer(ip), pointer :: h_refinement_subfacet_permutation(:,:,:)
+  real(rp) :: coefficient
+  integer(ip) :: num_cell_vertices, num_cell_edges, num_cell_faces
+  integer(ip) :: num_subedges_x_edge, num_subfaces_x_face
+  integer(ip) :: vef_lid, facet_lid
+  type(list_t), pointer :: facets_n_face
+  type(list_iterator_t) :: facets_n_face_iterator
+  type(list_iterator_t) :: dofs_n_facet_iterator
+  integer(ip) :: facet_dof
+    
+  ! Re-size to 0 to force re-initialization during second resize (to the actual/correct size)
+  call this%ptr_constraining_free_dofs%resize(0)
+  call this%ptr_constraining_dirichlet_dofs%resize(0)
+  call this%constraining_free_dofs%resize(0)
+  call this%constraining_free_dofs_coefficients%resize(0)
+  call this%constraining_dirichlet_dofs%resize(0)
+  call this%constraining_dirichlet_dofs_coefficients%resize(0)
+  call this%constraints_independent_term%resize(0)
+  
+  if ( this%num_hanging_dofs == 0 ) return
+  
+  field_blocks => this%get_field_blocks()
+  
+  call this%ptr_constraining_free_dofs%resize(this%num_hanging_dofs+1,0)
+  call this%ptr_constraining_dirichlet_dofs%resize(this%num_hanging_dofs+1,0)
+  call this%constraining_free_dofs%resize(this%num_hanging_dofs)
+  call this%constraining_free_dofs_coefficients%resize(this%num_hanging_dofs)
+  call this%constraining_dirichlet_dofs%resize(this%num_hanging_dofs)
+  call this%constraining_dirichlet_dofs_coefficients%resize(this%num_hanging_dofs)
+  call this%constraints_independent_term%resize(this%num_hanging_dofs)
+
+  call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(coarser_fe)
+  call this%create_fe_vef_iterator(fe_vef)
+  call this%create_fe_vef_iterator(fe_vef_bis)
+  call this%create_fe_vef_iterator(coarser_vef)
+  
+  reference_fe => fe%get_reference_fe(1)
+  num_cell_vertices = reference_fe%get_num_vertices()
+  if  (this%p4est_triangulation%get_num_dims() == 3) then
+    num_cell_edges       = reference_fe%get_num_n_faces_of_dim(1)
+    num_subfaces_x_face  = 4
+    num_subedges_x_edge  = 2 
+  else
+    num_cell_edges       = 0
+    num_subfaces_x_face  = 2
+  end if  
+  num_cell_faces = reference_fe%get_num_facets()
+  
+  allocate(fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
+  allocate(coarser_fe_fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
+
+  ! Computation of constraints     
+  do improper_vef_lid = 1, this%p4est_triangulation%get_num_improper_vefs()
+     call fe_vef%set_gid(-improper_vef_lid)
+
+     do field_id=1, this%get_num_fields()
+        
+        ! Retrieve all data related to the current improper vef 
+        ! and one of the cells that owns it
+        do icell = 1,fe_vef%get_num_cells_around()
+           call fe_vef%get_cell_around(icell,fe)
+           if ( .not. fe%is_void(field_id) ) exit
+        end do
+        if ( fe%is_void(field_id) ) cycle
+        improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
+        call fe%get_field_fe_dofs(field_id,fe_dofs)
+        
+        ! Retrieve all data related to the first improper cell around current improper vef
+        do icell = 1,fe_vef%get_num_improper_cells_around()
+           call fe_vef%get_improper_cell_around(icell,coarser_fe)
+           if ( .not. coarser_fe%is_void(field_id) ) exit
+        end do
+        if ( coarser_fe%is_void(field_id) ) cycle
+        coarser_fe_ivef = fe_vef%get_improper_cell_around_ivef(icell)
+        call coarser_fe%get_field_fe_dofs(field_id,coarser_fe_fe_dofs)
+        
+        reference_fe => fe%get_reference_fe(field_id)
+        coarser_reference_fe  => coarser_fe%get_reference_fe(field_id)
+        block_id = field_blocks(field_id)
+        fe_own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(improper_vef_ivef)
+        do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
+           improper_dof_lid = fe_dofs(fe_own_dofs_on_vef_iterator%get_current())
+
+           if ( fe%is_free_dof(improper_dof_lid) ) exit
+
+           improper_dof_lid = abs(improper_dof_lid)
+           hanging_dof_lid  = improper_dof_lid - this%num_dirichlet_dofs
+
+           coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
+           do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
+              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
+                call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, &
+                                                              this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+1)
+              else
+                call this%ptr_constraining_free_dofs%set(hanging_dof_lid+1, &
+                                                         this%ptr_constraining_free_dofs%get(hanging_dof_lid+1)+1)
+              end if
+              call coarser_fe_dofs_on_vef_iterator%next()
+           end do
+           call fe_own_dofs_on_vef_iterator%next() 
+        end do
+     end do
+  end do
+   
+  call this%p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_free_dofs)
+  call this%constraining_free_dofs%resize(this%ptr_constraining_free_dofs%get(this%ptr_constraining_free_dofs%size())-1)
+  call this%constraining_free_dofs_coefficients%resize(this%ptr_constraining_free_dofs%get(this%ptr_constraining_free_dofs%size())-1)
+  
+  call this%p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_dirichlet_dofs)
+  call this%constraining_dirichlet_dofs%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
+  call this%constraining_dirichlet_dofs_coefficients%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
+  
+  ! Computation of constraints     
+  do improper_vef_lid = 1, this%p4est_triangulation%get_num_improper_vefs()
+     call fe_vef%set_gid(-improper_vef_lid)
+
+     do field_id=1, this%get_num_fields()
+        
+        ! Retrieve all data related to the current improper vef 
+        ! and one of the cells that owns it
+        do icell = 1,fe_vef%get_num_cells_around()
+           call fe_vef%get_cell_around(icell,fe)
+           if ( .not. fe%is_void(field_id) ) exit
+        end do
+        if ( fe%is_void(field_id) ) cycle
+        improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
+        call fe%get_field_fe_dofs(field_id,fe_dofs)
+        
+        ! Retrieve all data related to the first improper cell around current improper vef
+        do icell = 1,fe_vef%get_num_improper_cells_around()
+           call fe_vef%get_improper_cell_around(icell,coarser_fe)
+           if ( .not. coarser_fe%is_void(field_id) ) exit
+        end do
+        if ( coarser_fe%is_void(field_id) ) cycle
+        coarser_fe_ivef  = fe_vef%get_improper_cell_around_ivef(icell)
+        coarse_fe_subvef = fe_vef%get_improper_cell_around_subvef(icell)
+        call coarser_fe%get_field_fe_dofs(field_id,coarser_fe_fe_dofs)
+        call coarser_fe%get_vef(coarser_fe_ivef,coarser_vef)
+
+        reference_fe => fe%get_reference_fe(field_id)
+        coarser_reference_fe => coarser_fe%get_reference_fe(field_id)
+        
+        select type(coarser_reference_fe)
+        type is (hex_lagrangian_reference_fe_t)
+           h_refinement_subedge_permutation => coarser_reference_fe%get_h_refinement_subedget_permutation()
+           h_refinement_subfacet_permutation => coarser_reference_fe%get_h_refinement_subfacet_permutation()
+        class default
+          assert(.false.)
+        end select
+        
+        block_id = field_blocks(field_id)
+        fe_own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(improper_vef_ivef)
+        fe_dofs_on_vef_iterator = reference_fe%create_dofs_on_n_face_iterator(improper_vef_ivef)
+        do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
+           ishape_fe = fe_own_dofs_on_vef_iterator%get_current()
+           improper_dof_lid = fe_dofs(ishape_fe)
+           assert ( fe%is_fixed_dof(improper_dof_lid) )
+           improper_dof_lid = abs(improper_dof_lid)
+           hanging_dof_lid  = improper_dof_lid - this%num_dirichlet_dofs
+           
+           call fe_dofs_on_vef_iterator%begin() 
+           do while (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
+             if ( fe_dofs_on_vef_iterator%get_current() == ishape_fe ) exit
+             call fe_dofs_on_vef_iterator%next() 
+           end do
+           assert (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
+           
+           if ( fe_vef%get_dim() == 0 ) then ! vef is a corner (2D/3D)
+              if ( coarser_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3) then
+                 qpoint = h_refinement_subedge_permutation(coarser_fe_ivef-num_cell_vertices,num_subedges_x_edge,1)
+              else
+                 qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges,num_subfaces_x_face,1)
+              end if
+           else if ( fe_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3 .and. coarse_fe_subvef > 0 ) then 
+              qpoint = h_refinement_subedge_permutation(coarser_fe_ivef-num_cell_vertices, &
+                                                        coarse_fe_subvef, &
+                                                        fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
+           else if ( fe_vef%get_dim()  == 1 .and. this%p4est_triangulation%get_num_dims() == 3 .and. coarse_fe_subvef < 0 ) then
+              assert ( fe_vef%get_num_cells_around() == 2 )
+              ! Go over cells around fe_vef(), and find the one with the minimum global identifier
+              call fe_vef%get_cell_around(1,fe)
+              min_cell_gid=fe%get_gid()
+              call fe_vef%get_cell_around(2,fe)
+              min_cell_gid=min(fe%get_gid(),min_cell_gid)
+              call fe%set_gid(min_cell_gid)
+              
+              call fe%get_field_fe_dofs(field_id,fe_dofs)
+              
+              reference_fe  => fe%get_reference_fe(field_id)    
+              facets_n_face => reference_fe%get_facets_n_face()      
+                            
+              ! Go over faces around fe_vef in cell with minimum global identifier
+              facet_loop: do facet_lid = reference_fe%get_first_facet_id(), &
+                                         reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
+                  call fe_vef_bis%set_gid(fe%get_vef_gid(facet_lid))
+                  if (.not. fe_vef_bis%is_proper()) then
+                    facets_n_face_iterator = facets_n_face%create_iterator(facet_lid)
+                    do while (.not. facets_n_face_iterator%is_upper_bound())
+                      if (fe%get_vef_gid(facets_n_face_iterator%get_current()) == fe_vef%get_gid() ) then
+                        exit facet_loop
+                      end if
+                      call facets_n_face_iterator%next()
+                    end do 
+                  end if
+              end do facet_loop
+              
+              assert(facet_lid<=reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1)
+              
+              ! Go over DoFs on facet, and locate the facet dof LID corresponding to the edge DoF 
+              facet_dof=1
+              dofs_n_facet_iterator = reference_fe%create_dofs_n_face_iterator(facet_lid)
+              do while (.not. dofs_n_facet_iterator%is_upper_bound())
+                if (fe_dofs(dofs_n_facet_iterator%get_current()) == -improper_dof_lid) then
+                  exit
+                end if  
+                call dofs_n_facet_iterator%next()
+                facet_dof = facet_dof+1
+              end do 
+              assert (.not. dofs_n_facet_iterator%is_upper_bound())
+                            
+              qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges,&
+                                                         abs(coarse_fe_subvef),&
+                                                         facet_dof)              
+           else if (fe_vef%get_dim() == this%p4est_triangulation%get_num_dims()-1) then ! vef is a face (2D/3D)
+              qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges, &
+                                                        coarse_fe_subvef, &
+                                                        fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
+           end if
+           
+           coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
+           do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
+              ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current() 
+              
+              ! Evaluate coefficient
+              select type(coarser_reference_fe)
+                type is (hex_lagrangian_reference_fe_t)
+                call coarser_reference_fe%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient) 
+              class default
+                assert(.false.)
+              end select
+              
+              ! Set dependency and coefficient into the corresponding std_vector data structure
+              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
+                call this%constraining_dirichlet_dofs%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                                                          coarser_fe_fe_dofs(ishape_coarser_fe))
+                call this%constraining_dirichlet_dofs_coefficients%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                                                                       coefficient)
+                call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, &
+                                                              this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
+              else
+                call this%constraining_free_dofs%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                                                     coarser_fe_fe_dofs(ishape_coarser_fe))
+                call this%constraining_free_dofs_coefficients%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                                                                  coefficient)
+                call this%ptr_constraining_free_dofs%set(hanging_dof_lid, &
+                                                         this%ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
+              end if
+              
+              call coarser_fe_dofs_on_vef_iterator%next()
+           end do
+           call fe_own_dofs_on_vef_iterator%next() 
+        end do
+     end do
+  end do
+  
+  do i=this%ptr_constraining_free_dofs%size(),2,-1
+    call this%ptr_constraining_free_dofs%set(i, this%ptr_constraining_free_dofs%get(i-1))
+  end do
+  call this%ptr_constraining_free_dofs%set(1,1)
+  
+  do i=this%ptr_constraining_dirichlet_dofs%size(),2,-1
+    call this%ptr_constraining_dirichlet_dofs%set(i, this%ptr_constraining_dirichlet_dofs%get(i-1))
+  end do
+  call this%ptr_constraining_dirichlet_dofs%set(1,1)
+  
+  call this%free_fe_cell_iterator(coarser_fe)
+  call this%free_fe_cell_iterator(fe)
+  call this%free_fe_vef_iterator(fe_vef)
+  call this%free_fe_vef_iterator(fe_vef_bis)
+  call this%free_fe_vef_iterator(coarser_vef)
+end subroutine serial_fe_space_setup_hanging_node_constraints 
 
 subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
   implicit none

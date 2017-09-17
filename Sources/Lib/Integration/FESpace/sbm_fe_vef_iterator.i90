@@ -71,6 +71,23 @@ function fe_vef_iterator_is_fe_facet ( this )
          this%vef%get_num_cells_around() > 1 ) ) )
 end function fe_vef_iterator_is_fe_facet 
 
+function fe_vef_iterator_has_free_dofs ( this, field_id, coarser_fe ) 
+  implicit none
+  class(fe_vef_iterator_t) , intent(in)    :: this
+  integer(ip)              , intent(in)    :: field_id
+  class(fe_cell_iterator_t), intent(inout) :: coarser_fe
+  logical                                  :: fe_vef_iterator_has_free_dofs
+  integer(ip) :: icell_improper_around
+  fe_vef_iterator_has_free_dofs = .true.
+  do icell_improper_around=1, this%get_num_improper_cells_around()
+    call this%get_improper_cell_around(icell_improper_around,coarser_fe)
+    if (.not. coarser_fe%is_void(field_id)) then 
+       fe_vef_iterator_has_free_dofs = .false.
+       return
+    end if
+  end do
+end function fe_vef_iterator_has_free_dofs
+
 subroutine fe_vef_iterator_get_fe_around (this, ife_around, fe)
   implicit none
   class(fe_vef_iterator_t)          , intent(in)     :: this
