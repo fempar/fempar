@@ -1465,7 +1465,7 @@ procedure, private :: fill_quadrature                                    &
 & => hex_nedelec_reference_fe_fill_quadrature
 procedure, private :: fill_interpolation                                 &
 & => hex_nedelec_reference_fe_fill_interpolation
-procedure, private :: fill_interpolation_pre_basis                       &
+procedure :: fill_interpolation_pre_basis                       &
 & => hex_nedelec_reference_fe_fill_interpolation_pre_basis
 procedure, private :: fill_interp_restricted_to_facet                            &
 & => hex_nedelec_reference_fe_fill_interp_restricted_to_facet
@@ -1511,7 +1511,7 @@ procedure, private :: create_and_fill_basis_Sk_indices                   &
 & => tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices
 procedure, private :: fill_interpolation                                 &
 & => tet_nedelec_reference_fe_fill_interpolation
-procedure, private :: fill_interpolation_pre_basis                       &
+procedure :: fill_interpolation_pre_basis                       &
 & => tet_nedelec_reference_fe_fill_interpolation_pre_basis   
 procedure, private :: fill_interp_restricted_to_facet                            &
 & => tet_nedelec_reference_fe_fill_interp_restricted_to_facet
