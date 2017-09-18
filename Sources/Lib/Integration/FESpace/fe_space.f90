@@ -520,8 +520,6 @@ module fe_space_names
      type(std_vector_real_rp_t)                  :: constraining_dirichlet_dofs_coefficients
      type(std_vector_real_rp_t)                  :: constraints_independent_term
      
-     type(p4est_serial_triangulation_t), pointer :: p4est_triangulation =>  NULL()
-     
    contains
      procedure,                  private :: serial_fe_space_create_same_reference_fes_on_all_cells
      procedure,                  private :: serial_fe_space_create_different_ref_fes_between_cells
@@ -1093,18 +1091,6 @@ module fe_space_names
   
   public :: fe_function_t, p_fe_function_t
   
-  type, extends(serial_fe_space_t) :: serial_hp_adaptive_fe_space_t
-   contains
-     procedure :: fill_fe_dofs_and_count_dofs => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
- end type serial_hp_adaptive_fe_space_t  
- 
- type, extends(fe_cell_iterator_t) :: hp_adaptive_fe_cell_iterator_t
-   private 
- contains
- end type hp_adaptive_fe_cell_iterator_t
- 
- public :: serial_hp_adaptive_fe_space_t, hp_adaptive_fe_cell_iterator_t
-
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
@@ -1128,7 +1114,5 @@ contains
 #include "sbm_coarse_fe_vef_iterator.i90"
 
 #include "sbm_fe_function.i90"
-
-#include "sbm_hp_adaptive_fe_space.i90"
 
 end module fe_space_names

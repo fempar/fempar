@@ -33,6 +33,7 @@ module unfitted_fe_spaces_names
   use block_layout_names
   
   use triangulation_names
+  use p4est_serial_triangulation_names
   use reference_fe_names
   use environment_names
   use fe_space_names
@@ -85,7 +86,7 @@ module unfitted_fe_spaces_names
   end type unfitted_fe_cell_iterator_t
 
   type, extends(unfitted_fe_cell_iterator_t) :: unfitted_hp_adaptive_fe_cell_iterator_t
-      type (hp_adaptive_fe_cell_iterator_t) :: adaptive_fe
+      type (fe_cell_iterator_t) :: adaptive_fe
     contains
 
       procedure :: create               => uhpafeci_create
@@ -170,7 +171,7 @@ module unfitted_fe_spaces_names
 
   end type serial_unfitted_fe_space_t
 
-  type, extends(serial_hp_adaptive_fe_space_t) :: serial_unfitted_hp_adaptive_fe_space_t
+  type, extends(serial_fe_space_t) :: serial_unfitted_hp_adaptive_fe_space_t
     private
       class(unfitted_p4est_serial_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
       type(unfitted_integration_manager_t) :: unfitted_integration
