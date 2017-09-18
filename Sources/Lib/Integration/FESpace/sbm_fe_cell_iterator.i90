@@ -992,12 +992,12 @@ function fe_cell_iterator_create_own_dofs_on_vef_iterator ( this, ivef, field_id
   list_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
 end function fe_cell_iterator_create_own_dofs_on_vef_iterator
 
-subroutine fe_cell_iterator_impose_strong_dirichlet_bcs ( this, fe_function, elmat, elvec )
+subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_conforming ( this, fe_function, elmat, elvec )
   implicit none
   class(fe_cell_iterator_t), intent(in)    :: this
-  type(fe_function_t) , intent(in)    :: fe_function
-  real(rp)            , intent(in)    :: elmat(:,:)
-  real(rp)            , intent(inout) :: elvec(:)
+  type(fe_function_t)      , intent(in)    :: fe_function
+  real(rp)                 , intent(in)    :: elmat(:,:)
+  real(rp)                 , intent(inout) :: elvec(:)
   
   integer(ip) :: idof, elmat_col, field_id, spos
   
@@ -1022,88 +1022,221 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs ( this, fe_function, elm
     end if
   end do
   
-end subroutine fe_cell_iterator_impose_strong_dirichlet_bcs
+end subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_conforming
+
+subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming ( this, fe_function )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  type(fe_function_t)      , intent(in)    :: fe_function
+  
+  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+  real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
+  integer(ip) :: ifield, i_lid, i_gid, i_gid_hanging, k_lid, k_gid, pos, spos, epos
+  real(rp) :: weight
+  
+  strong_dirichlet_values         => fe_function%get_fixed_dof_values()
+  strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+  do ifield=1, this%get_num_fields() 
+     do i_lid=1, this%num_cell_dofs_x_field(ifield)
+        i_gid = this%fe_dofs(ifield)%p(i_lid)
+        ! i is a hanging DoF?
+        if ( this%is_hanging_dof(i_gid) ) then
+           ! Traverse constraining dirichlet DoFs of i
+           i_gid_hanging = abs(i_gid) - this%fe_space%num_dirichlet_dofs
+           spos = this%fe_space%ptr_constraining_dirichlet_dofs%get(i_gid_hanging)
+           epos = this%fe_space%ptr_constraining_dirichlet_dofs%get(i_gid_hanging+1)-1
+           do pos=spos, epos 
+              k_gid = this%fe_space%constraining_dirichlet_dofs%get(pos)
+              weight = this%fe_space%constraining_dirichlet_dofs_coefficients%get(pos)
+              ! add the hanging dof column * weighting * dirichlet dof value * -1 to the RHS (for extended elvec)
+              this%extended_elvec%a(:) = this%extended_elvec%a(:)-weight*this%extended_elmat%a(:,i_lid)*strong_dirichlet_values_entries(abs(k_gid))
+           end do
+        ! i is dirichlet dof, proceed as usual
+        else if ( this%is_strong_dirichlet_dof(i_gid) ) then
+           this%extended_elvec%a(:) = this%extended_elvec%a(:)-this%extended_elmat%a(:,i_lid)*strong_dirichlet_values_entries(abs(i_gid))
+        end if
+     end do
+  end do
+  
+end subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming
 
 subroutine fe_cell_iterator_assembly_array ( this,  &
-                                        elvec, &
-                                        assembler )
+                                             elvec, &
+                                             assembler )
   implicit none
-  class(fe_cell_iterator_t)           , intent(inout) :: this
-  real(rp)                       , intent(in)    :: elvec(:)
-  class(assembler_t), intent(inout) :: assembler
+  class(fe_cell_iterator_t), intent(inout) :: this
+  real(rp)                 , intent(in)    :: elvec(:)
+  class(assembler_t)       , intent(inout) :: assembler
+  
+#ifdef DEBUG  
+  logical     :: no_hanging_node_constraints
+  integer(ip) :: ifield
+  
+  no_hanging_node_constraints = .true.
+  do ifield=1, this%fe_space%num_fields
+    if ( this%has_hanging_dofs(ifield) ) then
+      massert(.false.,'fe_cell_iterator_assembly_array not implemented for non-conforming meshes')
+    end if
+  end do
+#endif  
   
   call this%update_scratch_data()
-  call assembler%assembly_array( this%fe_space%num_fields,         &
-                                              this%fe_space%get_field_blocks(),    &
-                                              this%fe_space%get_field_coupling(),  &
-                                              this%num_cell_dofs_x_field,          &
-                                              this%fe_dofs,                       &
-                                              elvec )
+  call assembler%assembly_array( this%fe_space%num_fields,           &
+                                 this%fe_space%get_field_blocks(),   &
+                                 this%fe_space%get_field_coupling(), &
+                                 this%num_cell_dofs_x_field,         &
+                                 this%fe_dofs,                       &
+                                 elvec )
   
 end subroutine fe_cell_iterator_assembly_array
 
 subroutine fe_cell_iterator_assembly_matrix ( this,  &
-                                         elmat, &
-                                         assembler )
+                                              elmat, &
+                                              assembler )
   implicit none
-  class(fe_cell_iterator_t)           , intent(inout) :: this
-  real(rp)                       , intent(in)    :: elmat(:,:)
-  class(assembler_t), intent(inout) :: assembler
+  class(fe_cell_iterator_t), intent(inout) :: this
+  real(rp)                 , intent(in)    :: elmat(:,:)
+  class(assembler_t)       , intent(inout) :: assembler
+  
+#ifdef DEBUG  
+  logical     :: no_hanging_node_constraints
+  integer(ip) :: ifield
+  
+  no_hanging_node_constraints = .true.
+  do ifield=1, this%fe_space%num_fields
+    if ( this%has_hanging_dofs(ifield) ) then
+      massert(.false.,'fe_cell_iterator_assembly_matrix not implemented for non-conforming meshes')
+    end if
+  end do
+#endif  
   
   call this%update_scratch_data()
-  call assembler%assembly_matrix( this%fe_space%num_fields,        &
+  call assembler%assembly_matrix( this%fe_space%num_fields,                        &
                                                this%fe_space%get_field_blocks(),   &
                                                this%fe_space%get_field_coupling(), &
                                                this%num_cell_dofs_x_field,         &
                                                this%num_cell_dofs_x_field,         &
-                                               this%fe_dofs,                      &
-                                               this%fe_dofs,                      &
+                                               this%fe_dofs,                       &
+                                               this%fe_dofs,                       &
                                                elmat )
   
 end subroutine fe_cell_iterator_assembly_matrix
 
 subroutine fe_cell_iterator_assembly_matrix_array ( this,  &
-                                               elmat, &
-                                               elvec, &
-                                               assembler )
+                                                    elmat, &
+                                                    elvec, &
+                                                    assembler )
   implicit none
-  class(fe_cell_iterator_t)           , intent(inout) :: this
-  real(rp)                       , intent(in)    :: elmat(:,:)
-  real(rp)                       , intent(in)    :: elvec(:)
-  class(assembler_t), intent(inout) :: assembler
+  class(fe_cell_iterator_t), intent(inout) :: this
+  real(rp)                 , intent(in)    :: elmat(:,:)
+  real(rp)                 , intent(in)    :: elvec(:)
+  class(assembler_t)       , intent(inout) :: assembler
+  
+  logical     :: no_hanging_node_constraints
+  integer(ip) :: ifield
+  
+  no_hanging_node_constraints = .true.
+  do ifield=1, this%fe_space%num_fields
+     if ( this%has_hanging_dofs(ifield) ) then
+        no_hanging_node_constraints = .false.
+        exit
+     end if
+  end do
   
   call this%update_scratch_data()
-  call assembler%assembly_matrix( this%fe_space%num_fields,        &
-                                               this%fe_space%get_field_blocks(),   &
-                                               this%fe_space%get_field_coupling(), &
-                                               this%num_cell_dofs_x_field,         &
-                                               this%num_cell_dofs_x_field,         &
-                                               this%fe_dofs,                      &
-                                               this%fe_dofs,                      &
-                                               elmat )
-  call assembler%assembly_array( this%fe_space%num_fields,         &
-                                              this%fe_space%get_field_blocks(),    &
-                                              this%fe_space%get_field_coupling(),  &
-                                              this%num_cell_dofs_x_field,          &
-                                              this%fe_dofs,                       &
-                                              elvec )
+  if ( no_hanging_node_constraints ) then
+    call assembler%assembly_matrix( this%fe_space%num_fields,           &
+                                    this%fe_space%get_field_blocks(),   &
+                                    this%fe_space%get_field_coupling(), &
+                                    this%num_cell_dofs_x_field,         &
+                                    this%num_cell_dofs_x_field,         &
+                                    this%fe_dofs,                       &
+                                    this%fe_dofs,                       &
+                                    elmat )
+    call assembler%assembly_array( this%fe_space%num_fields,            &
+                                   this%fe_space%get_field_blocks(),    &
+                                   this%fe_space%get_field_coupling(),  &
+                                   this%num_cell_dofs_x_field,          &
+                                   this%fe_dofs,                        &
+                                   elvec )
+  else
+     call this%apply_constraints ( elmat, elvec )
+     call assembler%assembly_matrix( this%fe_space%num_fields,           &
+                                     this%fe_space%get_field_blocks(),   &
+                                     this%fe_space%get_field_coupling(), &
+                                     this%num_cell_dofs_x_field,         &
+                                     this%num_cell_dofs_x_field,         &
+                                     this%fe_dofs,                       &
+                                     this%fe_dofs,                       &
+                                     this%extended_elmat%a )
+     call assembler%assembly_array( this%fe_space%num_fields,           &
+                                    this%fe_space%get_field_blocks(),   &
+                                    this%fe_space%get_field_coupling(), &
+                                    this%num_cell_dofs_x_field,         &
+                                    this%fe_dofs,                       &
+                                    this%extended_elvec%a )
+  end if
   
 end subroutine fe_cell_iterator_assembly_matrix_array
 
 subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,        &
-                                                               fe_function, &
-                                                               elmat,       &
-                                                               elvec,       &
-                                                               assembler )
+                                                                    fe_function, &
+                                                                    elmat,       &
+                                                                    elvec,       &
+                                                                    assembler )
   implicit none
-  class(fe_cell_iterator_t)           , intent(inout) :: this
-  type(fe_function_t)            , intent(in)    :: fe_function
-  real(rp)                       , intent(in)    :: elmat(:,:)
-  real(rp)                       , intent(inout) :: elvec(:)
-  class(assembler_t), intent(inout) :: assembler
+  class(fe_cell_iterator_t), intent(inout) :: this
+  type(fe_function_t)      , intent(in)    :: fe_function
+  real(rp)                 , intent(in)    :: elmat(:,:)
+  real(rp)                 , intent(inout) :: elvec(:)
+  class(assembler_t)       , intent(inout) :: assembler
   
-  call this%impose_strong_dirichlet_bcs(fe_function,elmat,elvec)
-  call this%assembly_matrix_array(elmat,elvec,assembler)
+  logical :: no_hanging_node_constraints
+  integer(ip) :: ifield
+  
+  no_hanging_node_constraints = .true.
+  do ifield=1, this%fe_space%num_fields
+     if ( this%has_hanging_dofs(ifield) ) then
+        no_hanging_node_constraints = .false.
+        exit
+     end if
+  end do
+  
+  call this%update_scratch_data()
+  if ( no_hanging_node_constraints ) then
+    call this%impose_strong_dirichlet_bcs ( fe_function, elmat, elvec )
+    call assembler%assembly_matrix( this%fe_space%num_fields,           &
+                                    this%fe_space%get_field_blocks(),   &
+                                    this%fe_space%get_field_coupling(), &
+                                    this%num_cell_dofs_x_field,         &
+                                    this%num_cell_dofs_x_field,         &
+                                    this%fe_dofs,                       &
+                                    this%fe_dofs,                       &
+                                    elmat )
+    call assembler%assembly_array( this%fe_space%num_fields,            &
+                                   this%fe_space%get_field_blocks(),    &
+                                   this%fe_space%get_field_coupling(),  &
+                                   this%num_cell_dofs_x_field,          &
+                                   this%fe_dofs,                        &
+                                   elvec )
+  else
+     call this%apply_constraints ( elmat, elvec )
+     call this%impose_strong_dirichlet_bcs ( fe_function )
+     call assembler%assembly_matrix( this%fe_space%num_fields,           &
+                                     this%fe_space%get_field_blocks(),   &
+                                     this%fe_space%get_field_coupling(), &
+                                     this%num_cell_dofs_x_field,         &
+                                     this%num_cell_dofs_x_field,         &
+                                     this%fe_dofs,                       &
+                                     this%fe_dofs,                       &
+                                     this%extended_elmat%a )
+     call assembler%assembly_array( this%fe_space%num_fields,           &
+                                    this%fe_space%get_field_blocks(),   &
+                                    this%fe_space%get_field_coupling(), &
+                                    this%num_cell_dofs_x_field,         &
+                                    this%fe_dofs,                       &
+                                    this%extended_elvec%a )
+  end if
   
 end subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs
 

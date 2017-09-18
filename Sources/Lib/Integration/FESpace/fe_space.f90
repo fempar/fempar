@@ -267,7 +267,10 @@ module fe_space_names
     procedure, non_overridable          :: set_reference_fe_id                        => fe_cell_iterator_set_reference_fe_id
     procedure, non_overridable          :: is_void                                    => fe_cell_iterator_is_void
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_cell_iterator_create_own_dofs_on_vef_iterator
-    procedure, non_overridable, private :: impose_strong_dirichlet_bcs                => fe_cell_iterator_impose_strong_dirichlet_bcs
+    procedure                 , private :: fe_cell_iterator_impose_strong_dirichlet_bcs_conforming
+    procedure                 , private :: fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming
+    generic                             :: impose_strong_dirichlet_bcs                => fe_cell_iterator_impose_strong_dirichlet_bcs_conforming, &
+                                                                                         fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming
     procedure, private :: assembly_array => fe_cell_iterator_assembly_array
     procedure, private :: assembly_matrix => fe_cell_iterator_assembly_matrix
     procedure, private :: assembly_matrix_array => fe_cell_iterator_assembly_matrix_array
@@ -1092,20 +1095,12 @@ module fe_space_names
   
   type, extends(serial_fe_space_t) :: serial_hp_adaptive_fe_space_t
    contains
-     procedure          :: create_fe_cell_iterator                                     => serial_hp_adaptive_fe_space_create_fe_cell_iterator
-     
-     procedure          :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
-     
+     procedure :: fill_fe_dofs_and_count_dofs => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
  end type serial_hp_adaptive_fe_space_t  
  
  type, extends(fe_cell_iterator_t) :: hp_adaptive_fe_cell_iterator_t
    private 
  contains
-   procedure, private :: hpafeci_impose_strong_dirichlet_bcs
-   procedure, private :: assembly_array =>  hpafeci_assembly_array
-   procedure, private :: assembly_matrix => hpafeci_assembly_matrix
-   procedure, private :: assembly_matrix_array => hpafeci_assembly_matrix_array
-   procedure, private :: assembly_matrix_array_with_strong_bcs => hpafeci_assembly_matrix_array_with_strong_bcs
  end type hp_adaptive_fe_cell_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t, hp_adaptive_fe_cell_iterator_t
