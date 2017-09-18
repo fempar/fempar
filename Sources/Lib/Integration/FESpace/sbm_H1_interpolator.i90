@@ -26,54 +26,38 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 ! ================================================================================
-subroutine H1_projector_init( this )
+subroutine H1_interpolator_create( this, fe_space, field_id  )
   implicit none
-  class(H1_projector_t)      , intent(inout) :: this 
+  class(H1_interpolator_t) , intent(inout) :: this 
+  class(serial_fe_space_t) , intent(in)    :: fe_space
+  integer(ip)              , intent(in)    :: field_id
   integer(ip) :: num_nodal_qpoints, istat 
-
-  select case ( this%topology ) 
-  case ( topology_tet ) 
-     allocate ( tet_lagrangian_reference_fe_t :: this%reference_fe )
-     allocate ( tet_lagrangian_reference_fe_t :: this%d_fe_geo )
-  case ( topology_hex ) 
-     allocate ( hex_lagrangian_reference_fe_t :: this%reference_fe )
-     allocate ( hex_lagrangian_reference_fe_t :: this%d_fe_geo )
-  case DEFAULT 
-     check(.false.) 
-  end select
-
-  ! Create a d-dim Lagrangian reference FE. Conformity=.true. needed
-  ! for own_dof_x_vef construction 
-  call this%reference_fe%create(topology    = this%topology,       &
-       num_dims    = this%num_dims,       &
-       order       = this%order,          &
-       field_type  = this%field_type,     &
-       conformity  = .true. )
-
-  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
-  call this%d_fe_geo%create(topology    = this%topology,     &
-       num_dims    = this%num_dims,     &
-       order       = 1,                 &
-       field_type  = field_type_scalar, &
-       conformity  = .false. )
-
-  this%nodal_quadrature => this%reference_fe%get_nodal_quadrature()	
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(reference_fe_t), pointer :: reference_fe
+  
+  this%field_id = field_id
+  
+  ! TO-DO: support for the variable degree and/or ref FE case!
+  call fe_space%create_fe_cell_iterator(fe)
+  reference_fe => fe%get_reference_fe(field_id)
+  this%nodal_quadrature => reference_fe%get_nodal_quadrature()	
 
   num_nodal_qpoints = this%nodal_quadrature%get_num_quadrature_points()
   call memalloc ( num_nodal_qpoints, 1, this%scalar_function_values, __FILE__, __LINE__)
-  if ( this%reference_fe%get_field_type() == field_type_vector ) then 
+  if ( reference_fe%get_field_type() == field_type_vector ) then 
      allocate ( this%function_values(num_nodal_qpoints,1), stat=istat); check(istat==0)
   end if
 
   ! Cell map with nodal quadrature 
-  call this%cell_map%create(this%nodal_quadrature, this%d_fe_geo)
-
-end subroutine H1_projector_init
+  call this%cell_map%create(this%nodal_quadrature, fe%get_ref_fe_geo())
+  
+  call fe_space%free_fe_cell_iterator(fe)
+end subroutine H1_interpolator_create
 
 ! ================================================================================
-subroutine H1_projector_evaluate_scalar_function_moments( this, scalar_function, dof_values, time ) 
+subroutine H1_interpolator_evaluate_scalar_function_moments( this, scalar_function, dof_values, time ) 
   implicit none
-  class(H1_projector_t)        , intent(inout) :: this
+  class(H1_interpolator_t)        , intent(inout) :: this
   class(scalar_function_t)     , intent(in)    :: scalar_function
   real(rp) , allocatable       , intent(inout) :: dof_values(:) 
 		real(rp) , optional          , intent(in)    :: time
@@ -103,12 +87,12 @@ subroutine H1_projector_evaluate_scalar_function_moments( this, scalar_function,
 		call scalar_function%get_values_set(nodal_coordinates, dof_values)
 	 end if 
 		
-end subroutine H1_projector_evaluate_scalar_function_moments
+end subroutine H1_interpolator_evaluate_scalar_function_moments
 
 ! ================================================================================
-subroutine H1_projector_evaluate_vector_function_moments( this, vector_function, dof_values, time ) 
+subroutine H1_interpolator_evaluate_vector_function_moments( this, vector_function, dof_values, time ) 
   implicit none
-  class(H1_projector_t)        , intent(inout) :: this
+  class(H1_interpolator_t)        , intent(inout) :: this
   class(vector_function_t)     , intent(in)    :: vector_function
   real(rp) , allocatable       , intent(inout) :: dof_values(:) 
 		real(rp) , optional          , intent(in)    :: time
@@ -144,11 +128,11 @@ subroutine H1_projector_evaluate_vector_function_moments( this, vector_function,
      dof_values(inode) = this%function_values(inode_scalar,1)%get(icomp)
   end do
 
-end subroutine H1_projector_evaluate_vector_function_moments
+end subroutine H1_interpolator_evaluate_vector_function_moments
 
 !==================================================================================================
-subroutine H1_projector_evaluate_boundary_function_moments(this, vef_lid, function_scalar_components, dof_values, time)
-  class(H1_projector_t)                  , intent(inout) :: this
+subroutine H1_interpolator_evaluate_boundary_function_moments(this, vef_lid, function_scalar_components, dof_values, time)
+  class(H1_interpolator_t)                  , intent(inout) :: this
   integer(ip)                            , intent(in)    :: vef_lid
   type(p_scalar_function_t), allocatable , intent(in)    :: function_scalar_components(:)
   real(rp) , allocatable                 , intent(inout) :: dof_values(:) 
@@ -214,12 +198,12 @@ subroutine H1_projector_evaluate_boundary_function_moments(this, vef_lid, functi
      check(.false.) 
   end select
 
-end subroutine H1_projector_evaluate_boundary_function_moments
+end subroutine H1_interpolator_evaluate_boundary_function_moments
 
 ! ================================================================================
-subroutine H1_projector_free( this ) 
+subroutine H1_interpolator_free( this ) 
   implicit none
-  class(H1_projector_t)   , intent(inout) :: this
+  class(H1_interpolator_t)   , intent(inout) :: this
   integer(ip) :: istat 
 
   call this%reference_fe%free() 
@@ -229,4 +213,4 @@ subroutine H1_projector_free( this )
   if (allocated(this%function_values)) deallocate ( this%function_values, stat=istat); check(istat==0)		
   call this%cell_map%free()
 
-end subroutine H1_projector_free
+end subroutine H1_interpolator_free

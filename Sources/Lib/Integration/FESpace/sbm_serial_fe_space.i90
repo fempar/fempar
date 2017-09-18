@@ -636,99 +636,111 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
   call memfree ( fields_to_interpolate_, __FILE__, __LINE__ ) 
 end subroutine serial_fe_space_interpolate_dirichlet_values
 
-subroutine serial_fe_space_project_scalar_function (this, analytical_function, fe_function, field_id, time)
+function select_default_interpolator_type(reference_fe) 
+  implicit none
+  class(reference_fe_t), intent(in) :: reference_fe
+  character(:), allocatable :: select_default_interpolator_type
+  
+  select type ( reference_fe )
+		class is (nedelec_reference_fe_t ) 
+    select_default_interpolator_type = interpolator_type_Hcurl
+		class is (lagrangian_reference_fe_t)
+    select_default_interpolator_type = interpolator_type_H1  
+  class is (void_reference_fe_t)
+    check(.false.)
+		class DEFAULT
+		check(.false.) 
+		end select 
+end function select_default_interpolator_type 
+
+subroutine serial_fe_space_project_scalar_function (this, function, field_id, fe_function, interpolator_type, time)
   implicit none
   class(serial_fe_space_t)         , intent(in)    :: this
-  class(scalar_function_t)         , intent(in)    :: analytical_function 
-  type(fe_function_t)              , intent(inout) :: fe_function
+  class(scalar_function_t)         , intent(in)    :: function 
   integer(ip)                      , intent(in)    :: field_id 
+  type(fe_function_t)              , intent(inout) :: fe_function
+  character(*)           , optional, intent(in)    :: interpolator_type
   real(rp)               , optional, intent(in)    :: time
 
   class(reference_fe_t)    , pointer     :: reference_fe 
   class(fe_cell_iterator_t), allocatable :: fe 
-
-  real(rp)                        :: time_(1) 
-  real(rp)  , allocatable         :: dof_values(:)  
-  type(point_t) , pointer         :: coordinates(:)
-  class(projector_t), allocatable :: projector
-
-  if ( present(time) ) time_(1) = time 
-
+  real(rp)                 , allocatable :: dof_values(:)
+  class(interpolator_t)    , allocatable :: interpolator
+  character(:)             , allocatable :: interpolator_type_
+  
+  ! Extract reference_fe_t instance associated to field_id on the
+  ! first cell of the mesh. TO-DO: what happens if is it void?
   call this%create_fe_cell_iterator(fe)
-
   reference_fe => fe%get_reference_fe(field_id)
-  call create_projector( projector, reference_fe ) 
-  call projector%init() 	
-  call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )				
-
+  
+  ! Process optional arguments
+  if ( present(interpolator_type) ) then
+    interpolator_type_ = interpolator_type
+  else
+    interpolator_type_  = select_default_interpolator_type(reference_fe)
+  end if
+  
+  call make_interpolator  (interpolator_type_, reference_fe%get_topology(), interpolator )
+  call interpolator%create(this, field_id)
   do while (.not. fe%has_finished() )  
-     if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then									
-        ! Update nodal coordinates of the fe
-        call fe%update_cell_map()
-        coordinates => fe%cell_map%get_coordinates()
-        call fe%get_nodes_coordinates(coordinates)	
-        call projector%update( coordinates )	
-
-        call projector%evaluate_scalar_function_moments( analytical_function, dof_values, time )
+     if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then
+        call interpolator%evaluate_scalar_function_moments( fe, function, dof_values, time=time )
         call fe_function%insert_nodal_values(fe, field_id, dof_values)
      end if
      call fe%next()
   end do
   call memfree( dof_values, __FILE__, __LINE__ )
-
   call this%free_fe_cell_iterator(fe) 
-  call projector%free() 
-
+  call interpolator%free() 
 end subroutine serial_fe_space_project_scalar_function
 
-subroutine serial_fe_space_project_vector_function (this, analytical_function, fe_function, field_id, time)
+subroutine serial_fe_space_project_vector_function (this, function, field_id, fe_function, interpolator_type, time)
   implicit none
   class(serial_fe_space_t)         , intent(in)    :: this
-  class(vector_function_t)         , intent(in)    :: analytical_function 
-  type(fe_function_t)              , intent(inout) :: fe_function
+  class(vector_function_t)         , intent(in)    :: function 
   integer(ip)                      , intent(in)    :: field_id 
+  type(fe_function_t)              , intent(inout) :: fe_function
+  character(*)           , optional, intent(in)    :: interpolator_type
   real(rp)               , optional, intent(in)    :: time
-
-  type(cell_map_t)         , pointer     :: cell_map 
+  
   class(reference_fe_t)    , pointer     :: reference_fe 
-  class(fe_cell_iterator_t), allocatable :: fe 	
-  real(rp)                               :: time_(1) 
-  real(rp)  , allocatable                :: dof_values(:) 
-  type(point_t) , pointer                :: coordinates(:) 
-  class(projector_t), allocatable :: projector 
-
-  if ( present(time) ) time_(1) = time 
-
+  class(fe_cell_iterator_t), allocatable :: fe 
+  real(rp)                 , allocatable :: dof_values(:)
+  class(interpolator_t)    , allocatable :: interpolator
+  character(:)             , allocatable :: interpolator_type_
+  
+  ! Extract reference_fe_t instance associated to field_id on the
+  ! first cell of the mesh. TO-DO: what happens if is it void?
   call this%create_fe_cell_iterator(fe)
   reference_fe => fe%get_reference_fe(field_id)
-  call create_projector( projector, reference_fe ) 
-  call projector%init() 				
-  call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )				
-
+  
+  ! Process optional arguments
+  if ( present(interpolator_type) ) then
+    interpolator_type_ = interpolator_type
+  else
+    interpolator_type_  = select_default_interpolator_type(reference_fe)
+  end if
+  
+  call make_interpolator  (interpolator_type_, reference_fe%get_topology() )
+  call interpolator%create(this, field_id)
   do while (.not. fe%has_finished() )  
-     if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then 
-        ! Update nodal coordinates of the fe
-        call fe%update_cell_map()
-        coordinates => fe%cell_map%get_coordinates()
-        call fe%get_nodes_coordinates(coordinates)	
-        call projector%update( coordinates )	
-
-        call projector%evaluate_vector_function_moments( analytical_function, dof_values, time )
+     if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then
+        call interpolator%evaluate_vector_function_moments( function, fe, dof_values, time=time )
         call fe_function%insert_nodal_values(fe, field_id, dof_values)
      end if
      call fe%next()
   end do
-
   call memfree( dof_values, __FILE__, __LINE__ )
   call this%free_fe_cell_iterator(fe) 
-  call projector%free() 
+  call interpolator%free() 
 
 end subroutine serial_fe_space_project_vector_function
 
-subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_function, time)
+subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_function, interpolator_type, time)
   implicit none
   class(serial_fe_space_t)          , intent(in)    :: this
   type(fe_function_t)               , intent(inout) :: fe_function
+  character(*)            , optional, intent(in)    :: interpolator_type(:)
   real(rp)                , optional, intent(in)    :: time
 
   class(reference_fe_t)    , pointer        :: reference_fe 
@@ -748,7 +760,8 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
   real(rp)                   , pointer   :: fixed_dof_values_entries(:)
   integer(ip)                            :: idof, vef_lid, istat
   type(point_t) , pointer           :: coordinates(:)
-  type(p_projector_t),  allocatable :: projectors(:) 
+  type(p_interpolator_t),  allocatable :: interpolators(:) 
+  character(:)             , allocatable :: interpolator_type_
 
   fixed_dof_values_entries => fe_function%fixed_dof_values%get_entries()
 
@@ -761,11 +774,18 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_vef_iterator(vef)
 
-  ! Create and initialize projector 
-  allocate ( projectors(this%get_num_fields()), stat=istat); check(istat==0)  
+  ! Create and initialize interpolator 
+  allocate ( interpolators(this%get_num_fields()), stat=istat); check(istat==0)  
   do field_id = 1, this%get_num_fields() 
-     call create_projector( projectors(field_id)%p, fe%get_reference_fe(field_id) )  
-     call projectors(field_id)%p%init()
+     reference_fe => fe%get_reference_fe(field_id)
+     
+     if ( present(interpolator_type) ) then
+       interpolation_type_ = interpolator_type(field_id)
+     else
+       interpolator_type_  = select_default_interpolator_type(reference_fe)
+     end if
+     
+     call make_interpolator( interpolator_type_, reference_fe%get_topology(), interpolators(field_id)%p )  
   end do
 
   if ( present(time) ) time_(1) = time 
@@ -774,12 +794,6 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
      do field_id = 1, this%get_num_fields()
 
         if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) ) then 
-           ! Update nodal coordinates of the fe
-           call fe%update_cell_map()
-           coordinates => fe%cell_map%get_coordinates()
-           call fe%get_nodes_coordinates(coordinates)	
-           call projectors(field_id)%p%update( coordinates )
-
            reference_fe => fe%get_reference_fe(field_id)					 
            call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
 
@@ -802,7 +816,10 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
                             function_scalar_components(icomp)%p)
                     end do
 
-                    call projectors(field_id)%p%evaluate_boundary_function_moments( vef_lid, function_scalar_components, dof_values, time )
+                    call interpolators(field_id)%p%evaluate_vector_function_scalar_components_moments( fe, &
+                                                                                                       function_scalar_components, &
+                                                                                                       dof_values, &
+                                                                                                       time=time )
 
                     own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
                     do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
@@ -811,7 +828,6 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
                        call own_dofs_on_vef_iterator%next()  
                     end do
                     call own_dofs_on_vef_iterator%free() 
-
                  end if
               end if
            end do
@@ -825,9 +841,9 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
   call this%free_fe_vef_iterator(vef) 
 
   do field_id = 1, this%get_num_fields() 
-     call projectors(field_id)%p%free() 
+     call interpolators(field_id)%p%free() 
   end do
-  deallocate( projectors, stat=istat); check(istat==0) 
+  deallocate( interpolators, stat=istat); check(istat==0) 
 
   deallocate ( function_scalar_components, stat=istat); check(istat==0);
   call memfree( components_code, __FILE__, __LINE__ ) 

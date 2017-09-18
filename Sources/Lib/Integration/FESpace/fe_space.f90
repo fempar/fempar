@@ -1150,6 +1150,136 @@ module fe_space_names
  end type hp_adaptive_fe_facet_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t, hp_adaptive_fe_cell_iterator_t
+ 
+ character(*), parameter :: interpolator_type_H1    = "interpolator_type_H1"
+ character(*), parameter :: interpolator_type_Hcurl = "interpolator_type_Hcurl"
+ 
+ ! Abstract interpolator
+ type, abstract :: interpolator_t
+    private
+    integer(ip) :: field_id
+  contains        
+    ! Deferred TBPs 
+    procedure(interpolator_create_interface)                                            , deferred :: create
+    procedure :: evaluate_scalar_function_moments =>  interpolator_evaluate_scalar_function_moments
+    procedure(interpolator_evaluate_vector_function_moments_interface)                  , deferred :: evaluate_vector_function_moments 
+    procedure(interpolator_evaluate_function_components_moments_interface), deferred :: evaluate_vector_function_scalar_components_moments
+    procedure(interpolator_free_interface)                                              , deferred :: free 			
+ end type interpolator_t
+
+ type p_interpolator_t
+    class(interpolator_t), allocatable :: p 
+  contains
+ end type p_interpolator_t
+
+ abstract interface 
+
+    subroutine interpolator_create_interface( this, fe_space, field_id )
+      import :: interpolator_t, reference_fe_t, ip, serial_fe_space_t
+      implicit none
+      class(interpolator_t)    , intent(inout) :: this
+      class(serial_fe_space_t) , intent(in)    :: fe_space
+      integer(ip)              , intent(in)    :: field_id
+    end subroutine interpolator_create_interface
+
+    subroutine interpolator_evaluate_vector_function_moments_interface( this, fe, vector_function, dof_values, n_face_mask, time )
+      import :: interpolator_t, vector_function_t, fe_cell_iterator_t, rp   
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(vector_function_t)        , intent(in)    :: vector_function
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      logical  , optional             , intent(in)    :: n_face_mask(:)
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_vector_function_moments_interface
+
+    subroutine interpolator_evaluate_boundary_function_moments_interface( this, fe, vector_function_scalar_components, dof_values, n_face_mask, time )
+      import :: interpolator_t, ip, p_scalar_function_t, fe_cell_iterator_t, rp 
+      implicit none 
+      class(interpolator_t)           , intent(inout) :: this
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:)
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      logical  , optional             , intent(in)    :: n_face_mask(:)
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_boundary_function_moments_interface
+
+    subroutine interpolator_free_interface( this )
+      import :: interpolator_t, cell_map_t  
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+    end subroutine interpolator_free_interface
+ end interface
+
+ type, extends(interpolator_t), abstract :: Hcurl_interpolator_t 
+ private 
+ ! Maps 
+ type(edge_map_t)       :: edge_map 
+ type(facet_map_t)      :: facet_map 
+ type(cell_map_t)       :: cell_map 
+ ! Quadratures 
+ type(quadrature_t )    :: edge_quadrature 
+ type(quadrature_t )    :: facet_quadrature 
+ type(quadrature_t )    :: cell_quadrature 
+ ! Interpolation 
+ type(interpolation_t ) :: edge_interpolation
+ type(interpolation_t ) :: facet_interpolation 
+ type(interpolation_t ) :: cell_interpolation 
+ ! Function values arrays 
+ type(vector_field_t), allocatable :: edge_function_values(:,:) 
+ type(vector_field_t), allocatable :: facet_function_values(:,:) 
+ type(vector_field_t), allocatable :: cell_function_values(:,:)
+ ! Boundary values array 
+ real(rp), allocatable             :: scalar_function_values_on_edge(:,:)
+ real(rp), allocatable             :: scalar_function_values_on_facet(:,:)
+contains   
+ procedure :: evaluate_scalar_function_moments => Hcurl_interpolator_evaluate_scalar_function_moments 
+end type Hcurl_interpolator_t
+
+type, extends(Hcurl_interpolator_t) :: hex_Hcurl_interpolator_t 
+private       
+type(hex_nedelec_reference_fe_t)             :: reference_fe
+type(hex_lagrangian_reference_fe_t)          :: d_fe_geo 
+type(hex_lagrangian_reference_fe_t)          :: fe_1D 
+type(hex_nedelec_reference_fe_t)             :: fe_2D 
+type(hex_raviart_thomas_reference_fe_t )     :: fe 
+contains 
+procedure :: init                               => hex_Hcurl_interpolator_init
+procedure :: evaluate_vector_function_moments   => hex_Hcurl_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_boundary_function_moments => hex_Hcurl_interpolator_evaluate_boundary_function_moments
+procedure :: free                               => hex_Hcurl_interpolator_free
+end type hex_Hcurl_interpolator_t
+
+type, extends(Hcurl_interpolator_t) :: tet_Hcurl_interpolator_t 
+private       
+type(tet_nedelec_reference_fe_t)             :: reference_fe
+type(tet_lagrangian_reference_fe_t)          :: d_fe_geo 
+type(tet_lagrangian_reference_fe_t)          :: fe_1D 
+type(tet_lagrangian_reference_fe_t)          :: fe_2D 
+type(tet_lagrangian_reference_fe_t )         :: fe 
+contains 
+procedure :: init                               => tet_Hcurl_interpolator_init
+procedure :: evaluate_vector_function_moments   => tet_Hcurl_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_boundary_function_moments => tet_Hcurl_interpolator_evaluate_boundary_function_moments
+procedure :: free                               => tet_Hcurl_interpolator_free
+end type tet_Hcurl_interpolator_t
+
+type, extends(interpolator_t) :: H1_interpolator_t 
+private 
+class(lagrangian_reference_fe_t), allocatable :: reference_fe
+class(lagrangian_reference_fe_t), allocatable :: d_fe_geo 
+type(cell_map_t)                :: cell_map
+type(quadrature_t) , pointer    :: nodal_quadrature  
+! Boundary values array 
+real(rp), allocatable             :: scalar_function_values(:,:)
+type(vector_field_t), allocatable :: function_values(:,:)
+contains 
+procedure :: create                                             => H1_interpolator_create
+procedure :: evaluate_vector_function_moments                   => H1_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_vector_function_scalar_components_moments => H1_interpolator_evaluate_vector_function_scalar_components_moments
+procedure :: free                                               => H1_interpolator_free
+end type H1_interpolator_t 
+ 
 
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
@@ -1176,5 +1306,10 @@ contains
 #include "sbm_fe_function.i90"
 
 #include "sbm_hp_adaptive_fe_space.i90"
+
+#include "sbm_interpolator.i90"
+#include "sbm_hex_Hcurl_interpolator.i90" 
+#include "sbm_tet_Hcurl_interpolator.i90"
+#include "sbm_H1_interpolator.i90"
 
 end module fe_space_names
