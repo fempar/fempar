@@ -672,7 +672,8 @@ subroutine serial_fe_space_project_scalar_function (this, function, field_id, fe
   ! first cell of the mesh. TO-DO: what happens if is it void?
   call this%create_fe_cell_iterator(fe)
   reference_fe => fe%get_reference_fe(field_id)
-  
+  call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
+		
   ! Process optional arguments
   if ( present(interpolator_type) ) then
     interpolator_type_ = interpolator_type
@@ -713,6 +714,7 @@ subroutine serial_fe_space_project_vector_function (this, function, field_id, fe
   ! first cell of the mesh. TO-DO: what happens if is it void?
   call this%create_fe_cell_iterator(fe)
   reference_fe => fe%get_reference_fe(field_id)
+		call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
   
   ! Process optional arguments
   if ( present(interpolator_type) ) then
@@ -786,6 +788,7 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
      end if
      
      call make_interpolator( interpolator_type_, reference_fe%get_topology(), interpolators(field_id)%p )  
+					call interpolators(field_id)%p%create( this, field_id ) 
   end do
 
   if ( present(time) ) time_(1) = time 

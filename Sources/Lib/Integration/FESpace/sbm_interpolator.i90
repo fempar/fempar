@@ -45,7 +45,7 @@ subroutine make_interpolator( interpolator_type, topology, interpolator )
     if ( topology == topology_hex ) then
       allocate( hex_Hcurl_interpolator_t :: interpolator ) 
     else if ( topology == topology_tet ) then
-   !   allocate( tet_Hcurl_interpolator_t :: interpolator )     
+      allocate( tet_Hcurl_interpolator_t :: interpolator )     
     end if
   end if
 end subroutine make_interpolator

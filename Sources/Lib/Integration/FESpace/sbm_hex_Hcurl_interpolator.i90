@@ -90,7 +90,10 @@ subroutine hex_Hcurl_interpolator_create( this, fe_space, field_id  )
      num_interior_moments = num_interior_moments*(reduced_order_vector(idime)+1)
   end do
   num_interior_moments = num_interior_moments*reference_fe%get_num_dims() 
-
+		
+		call reference_fe%create_quadrature( this%cell_quadrature )
+		call this%cell_map%create( this%cell_quadrature, fe%get_reference_fe_geo() )
+		
   if ( num_interior_moments > 0 ) then 
 
       ! Create a Raviart-Thomas reference FE of order k-2
@@ -100,7 +103,7 @@ subroutine hex_Hcurl_interpolator_create( this, fe_space, field_id  )
                          field_type        = field_type_vector,             &
                          conformity        = .false. )
 
-   call reference_fe%create_quadrature( this%cell_quadrature )
+   
 
     ! create reduced order interpolation
      call this%cell_interpolation%create( reference_fe%get_num_dims(),                &
@@ -118,7 +121,6 @@ subroutine hex_Hcurl_interpolator_create( this, fe_space, field_id  )
 			check(.false.) 
 			end select 
 
-   call this%cell_map%create( this%cell_quadrature, fe%get_reference_fe_geo() )
    allocate (this%cell_function_values(this%cell_quadrature%get_num_quadrature_points(),1), stat=istat); check(istat==0)
 
   end if 
@@ -153,7 +155,6 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   integer(ip)                         :: vertex_within_facet_id
 
   ! Local variables required by interior moments integration
-  type(point_t), pointer              :: cell_map_coordinates(:)
   type(interpolation_t)               :: mapped_cell_interpolation
   type(vector_field_t)                :: v_shape_test
 
@@ -179,7 +180,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
 		! Extract cell coordinates 
 		cell_coordinates => this%cell_map%get_coordinates() 
 		call fe%get_nodes_coordinates( cell_coordinates ) 
-			
+
   d = 0
   do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
                reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
@@ -292,10 +293,6 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   end if 
 
   if ( reference_fe%get_order() > 1 ) then 
-     ! Get cell map coordinates
-		   cell_map_coordinates => this%cell_map%get_coordinates()
-		   call fe%get_nodes_coordinates( cell_map_coordinates ) 
-
      ! Update cell map 
      call this%cell_map%update(this%cell_quadrature)
 
@@ -330,7 +327,7 @@ end subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments
 
 !==================================================================================================
 subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, fe, vector_function_scalar_components, dof_values, n_face_mask, time)
-  class(hex_Hcurl_interpolator_t)         , intent(inout) :: this
+  class(hex_Hcurl_interpolator_t) , intent(inout) :: this
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:)
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
@@ -367,12 +364,10 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, fe,
   type(list_iterator_t)               :: own_dofs
 
   integer(ip)                         :: d, i, iedge, icomp, istat
-  
-		if (present(time)) time_(1) = time
-			
+  			
   dof_values = 0.0_rp		
   if ( present(time) ) time_(1) = time 	
-  reference_fe => fe%get_reference_fe( this%field_id ) 
+  reference_fe     => fe%get_reference_fe( this%field_id ) 
 		reference_fe_geo => fe%get_reference_fe_geo()
 		
 		! Extract cell coordinates 

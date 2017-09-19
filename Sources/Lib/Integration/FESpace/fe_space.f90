@@ -1248,17 +1248,17 @@ procedure :: evaluate_function_scalar_components_moments        => hex_Hcurl_int
 procedure :: free                                               => hex_Hcurl_interpolator_free
 end type hex_Hcurl_interpolator_t
 
-!type, extends(Hcurl_interpolator_t) :: tet_Hcurl_interpolator_t 
-!private       
-!type(tet_lagrangian_reference_fe_t)          :: fe_1D 
-!type(tet_lagrangian_reference_fe_t)          :: fe_2D 
-!type(tet_lagrangian_reference_fe_t )         :: fe 
-!contains 
-!procedure :: create                                             => tet_Hcurl_interpolator_create
-!procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments		
-!procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_interpolator_evaluate_boundary_function_moments
-!procedure :: free                                               => tet_Hcurl_interpolator_free
-!end type tet_Hcurl_interpolator_t
+type, extends(Hcurl_interpolator_t) :: tet_Hcurl_interpolator_t 
+private       
+type(tet_lagrangian_reference_fe_t)          :: fe_1D 
+type(tet_lagrangian_reference_fe_t)          :: fe_2D 
+type(tet_lagrangian_reference_fe_t )         :: fe 
+contains 
+procedure :: create                                             => tet_Hcurl_interpolator_create
+procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_interpolator_evaluate_function_components_moments
+procedure :: free                                               => tet_Hcurl_interpolator_free
+end type tet_Hcurl_interpolator_t
 
 type, extends(interpolator_t) :: H1_interpolator_t 
 private 
@@ -1303,7 +1303,7 @@ contains
 
 #include "sbm_interpolator.i90"
 #include "sbm_hex_Hcurl_interpolator.i90" 
-!#include "sbm_tet_Hcurl_interpolator.i90"
+#include "sbm_tet_Hcurl_interpolator.i90"
 #include "sbm_H1_interpolator.i90"
 
 end module fe_space_names

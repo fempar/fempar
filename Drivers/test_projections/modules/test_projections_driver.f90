@@ -179,21 +179,21 @@ contains
 
 				! Project functions 
 				call this%solution%create(this%fe_space)
-				call this%fe_space%project_vector_function( this%problem_functions%get_magnetic_field_solution(), this%solution , MAGNETIC_FIELD_ID) 
-				call this%fe_space%project_scalar_function( this%problem_functions%get_pressure_solution(), this%solution , PRESSURE_FIELD_ID)
+				call this%fe_space%project_vector_function( this%problem_functions%get_magnetic_field_solution(), MAGNETIC_FIELD_ID, this%solution ) 
+				call this%fe_space%project_scalar_function( this%problem_functions%get_pressure_solution(), PRESSURE_FIELD_ID, this%solution )
 				call this%fe_space%project_Dirichlet_boundary_function( this%solution )
 				
 				! Project transient functions 
-			 this%time = 0.123_rp 
+			 call random_number( this%time ) 
 				call this%time_solution%create(this%fe_space)
-				call this%fe_space%project_vector_function( analytical_function = this%problem_functions%get_magnetic_field_solution(), & 
-																																															 fe_function         = this%time_solution ,                                  & 
-																																																field_id            = MAGNETIC_FIELD_ID,                                    & 
-																																																time                = this%time ) 
-				call this%fe_space%project_scalar_function( analytical_function = this%problem_functions%get_pressure_solution(),       & 
-																																															 fe_function         = this%time_solution ,                                  & 
-																																																field_id            = PRESSURE_FIELD_ID,                                    & 
-																																																time                = this%time)
+				call this%fe_space%project_vector_function( function     = this%problem_functions%get_magnetic_field_solution(), & 
+																																																field_id     = MAGNETIC_FIELD_ID,                                    & 
+																																															 fe_function  = this%time_solution ,                                  & 
+																																																time         = this%time ) 
+				call this%fe_space%project_scalar_function( function     = this%problem_functions%get_pressure_solution(),       & 
+																																																field_id     = PRESSURE_FIELD_ID,                                    &
+																																															 fe_function  = this%time_solution ,                                  &  
+																																																time         = this%time)
 				call this%fe_space%project_Dirichlet_boundary_function( fe_function = this%time_solution, & 
 																																																											 time        = this%time )
 				

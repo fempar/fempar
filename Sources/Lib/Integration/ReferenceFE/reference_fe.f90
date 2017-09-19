@@ -34,7 +34,6 @@ module reference_fe_names
   use memor_names
   use sort_names
   use polynomial_names
-  use function_names 
   
 #ifdef ENABLE_BLAS
  use blas77_interfaces_names
@@ -482,10 +481,6 @@ module reference_fe_names
      procedure (create_data_out_quadrature_interface), deferred :: create_data_out_quadrature 
      procedure (get_num_subcells_interface      )    , deferred :: get_num_subcells
      procedure (get_subcells_connectivity_interface) , deferred :: get_subcells_connectivity
-					procedure(evaluate_scalar_function_moments_interface), deferred   :: evaluate_scalar_function_moments
-					procedure(evaluate_vector_function_moments_interface), deferred   :: evaluate_vector_function_moments 
-					generic :: evaluate_function_moments => evaluate_scalar_function_moments, evaluate_vector_function_moments 
-					procedure(evaluate_boundary_function_moments_interface), deferred :: evaluate_boundary_function_moments
 
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
@@ -906,36 +901,7 @@ module reference_fe_names
         integer(ip),                      intent(in)    :: num_refinements
         integer(ip),                      intent(inout) :: connectivity(:,:)
      end subroutine get_subcells_connectivity_interface
-					
-				subroutine evaluate_scalar_function_moments_interface(this, cell_map, scalar_function, dof_values)
-        import :: reference_fe_t, cell_map_t, scalar_function_t, rp
-        implicit none 
-        class(reference_fe_t)        , intent(in)    :: this 
-								type(cell_map_t)             , intent(in)    :: cell_map
-								class(scalar_function_t)      , intent(in)   :: scalar_function
-								real(rp) , allocatable       , intent(inout) :: dof_values(:) 
-     end subroutine evaluate_scalar_function_moments_interface
-				
-				subroutine evaluate_vector_function_moments_interface(this, cell_map, vector_function, dof_values)
-        import :: reference_fe_t, cell_map_t, vector_function_t, rp
-        implicit none 
-        class(reference_fe_t)        , intent(in)    :: this 
-								type(cell_map_t)             , intent(in)    :: cell_map
-								class(vector_function_t)     , intent(in)    :: vector_function
-								real(rp) , allocatable       , intent(inout) :: dof_values(:) 
-     end subroutine evaluate_vector_function_moments_interface
-					
-						subroutine evaluate_boundary_function_moments_interface(this, cell_map, vef_lid, function_scalar_components, dof_values, time)
-        import :: reference_fe_t, cell_map_t, ip, p_scalar_function_t, rp
-        implicit none 
-        class(reference_fe_t)                   , intent(in)    :: this 
-								class(cell_map_t)                       , intent(in)    :: cell_map
-								integer(ip)                             , intent(in)    :: vef_lid
-								type(p_scalar_function_t), allocatable  , intent(in)    :: function_scalar_components(:) 
-								real(rp) , allocatable                  , intent(inout) :: dof_values(:) 
-								real(rp) , optional                     , intent(in)    :: time 
-     end subroutine evaluate_boundary_function_moments_interface
-					
+										
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -1021,12 +987,6 @@ contains
        & => lagrangian_reference_fe_apply_cell_map_to_interpolation
   procedure  :: get_default_quadrature_degree &
        & => lagrangian_reference_fe_get_default_quadrature_degree
-		procedure :: evaluate_scalar_function_moments &
-		     & => lagrangian_reference_fe_evaluate_scalar_function_moments 
-		procedure :: evaluate_vector_function_moments &
-		     & => lagrangian_reference_fe_evaluate_vector_function_moments 
-		procedure :: evaluate_boundary_function_moments &
-		     & => lagrangian_reference_fe_evaluate_boundary_function_moments
 end type lagrangian_reference_fe_t
 
 abstract interface
@@ -1144,8 +1104,6 @@ procedure, private :: apply_change_basis_matrix_to_interpolation &
     & => rt_apply_change_basis_matrix_to_interpolation 
 procedure          :: apply_change_basis_matrix_to_nodal_values &
     & => rt_apply_change_basis_matrix_to_nodal_values
-procedure :: evaluate_scalar_function_moments & 
-=> rt_reference_fe_evaluate_scalar_function_moments
 end type raviart_thomas_reference_fe_t 
 
 abstract interface
@@ -1217,7 +1175,6 @@ procedure          :: apply_change_basis_matrix_to_nodal_values &
     & => nedelec_apply_change_basis_matrix_to_nodal_values
   procedure :: get_component_node           => nedelec_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node  => nedelec_reference_fe_get_scalar_from_vector_node
-		procedure :: evaluate_scalar_function_moments => nedelec_reference_fe_evaluate_scalar_function_moments
 end type nedelec_reference_fe_t 
 
 abstract interface
@@ -1477,11 +1434,6 @@ procedure, private :: change_basis &
 & => hex_nedelec_reference_fe_change_basis
 procedure :: fill_qpoints_permutations           &
 & =>  hex_nedelec_reference_fe_fill_qpoints_permutations 
-procedure :: evaluate_vector_function_moments &
-& => hex_nedelec_reference_fe_evaluate_vector_function_moments
-procedure :: evaluate_boundary_function_moments &
-& => hex_nedelec_reference_fe_evaluate_boundary_function_moments
-
 end type hex_nedelec_reference_fe_t
 
 public :: hex_nedelec_reference_fe_t
@@ -1525,10 +1477,6 @@ procedure :: compute_permutation_index                                   &
 & => tet_nedelec_reference_fe_compute_permutation_index
 procedure :: permute_dof_LID_n_face                                      &
 & => tet_nedelec_reference_fe_permute_dof_LID_n_face
-procedure :: evaluate_vector_function_moments                             &
-& => tet_nedelec_reference_fe_evaluate_vector_function_moments
-procedure :: evaluate_boundary_function_moments &
-& => tet_nedelec_reference_fe_evaluate_boundary_function_moments
 end type tet_nedelec_reference_fe_t
 
 public :: tet_nedelec_reference_fe_t
@@ -1576,9 +1524,6 @@ contains
   procedure :: create_data_out_quadrature  => void_reference_fe_create_data_out_quadrature
   procedure :: get_num_subcells            => void_reference_fe_get_num_subcells
   procedure :: get_subcells_connectivity   => void_reference_fe_get_subcells_connectivity
-		procedure :: evaluate_scalar_function_moments => void_reference_fe_evaluate_scalar_function_moments
-		procedure :: evaluate_vector_function_moments => void_reference_fe_evaluate_vector_function_moments 
-		procedure :: evaluate_boundary_function_moments => void_reference_fe_evaluate_boundary_function_moments
 end type void_reference_fe_t
 
 public :: void_reference_fe_t
