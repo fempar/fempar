@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module p4est_serial_triangulation_names
+module p4est_triangulation_names
   use, intrinsic :: iso_c_binding
   
   use types_names
@@ -238,7 +238,7 @@ module p4est_serial_triangulation_names
   
   type, extends(cell_iterator_t) :: p4est_cell_iterator_t
     private
-    type(p4est_serial_triangulation_t), pointer :: p4est_triangulation => NULL()
+    type(p4est_base_triangulation_t), pointer :: p4est_triangulation => NULL()
   contains
     procedure                            :: create                  => p4est_cell_iterator_create
     procedure                            :: free                    => p4est_cell_iterator_free
@@ -287,7 +287,7 @@ module p4est_serial_triangulation_names
   
   type, extends(vef_iterator_t) :: p4est_vef_iterator_t
     private
-    type(p4est_serial_triangulation_t), pointer :: p4est_triangulation => NULL()
+    type(p4est_base_triangulation_t), pointer :: p4est_triangulation => NULL()
   contains
      procedure                           :: create                    => p4est_vef_iterator_create
      procedure                           :: free                      => p4est_vef_iterator_free
@@ -322,7 +322,7 @@ module p4est_serial_triangulation_names
   
   ! TODO: this data type should extend an abstract triangulation,
   !       and implement its corresponding accessors
-  type, extends(triangulation_t) ::  p4est_serial_triangulation_t
+  type, extends(triangulation_t) ::  p4est_base_triangulation_t
     private
     integer(ip) :: num_proper_vefs          = -1 
     integer(ip) :: num_improper_vefs        = -1 
@@ -378,30 +378,27 @@ module p4est_serial_triangulation_names
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
   contains
     ! Getters
-    procedure                                   :: get_num_reference_fes                         => p4est_serial_triangulation_get_num_reference_fes
-    procedure                                   :: get_max_num_shape_functions                   => p4est_serial_triangulation_get_max_num_shape_functions
-    procedure                                   :: get_num_proper_vefs                           => p4est_serial_triangulation_get_num_proper_vefs
-    procedure                                   :: get_num_improper_vefs                         => p4est_serial_triangulation_get_num_improper_vefs
-    procedure                                   :: get_refinement_and_coarsening_flags     => p4est_st_get_refinement_and_coarsening_flags
+    procedure                                   :: get_num_reference_fes                         => p4est_base_triangulation_get_num_reference_fes
+    procedure                                   :: get_max_num_shape_functions                   => p4est_base_triangulation_get_max_num_shape_functions
+    procedure                                   :: get_num_proper_vefs                           => p4est_base_triangulation_get_num_proper_vefs
+    procedure                                   :: get_num_improper_vefs                         => p4est_base_triangulation_get_num_improper_vefs
+    procedure                                   :: get_refinement_and_coarsening_flags           => p4est_bt_get_refinement_and_coarsening_flags
     
     ! Set up related methods
-    procedure, private                          :: p4est_serial_triangulation_create
-    generic                                     :: create                                        => p4est_serial_triangulation_create
-    procedure                                   :: free                                          => p4est_serial_triangulation_free
-    procedure                 , non_overridable :: refine_and_coarsen                            => p4est_serial_triangulation_refine_and_coarsen
-    procedure, private        , non_overridable :: update_p4est_mesh                             => p4est_serial_triangulation_update_p4est_mesh
-    procedure, private        , non_overridable :: update_topology_from_p4est_mesh               => p4est_serial_triangulation_update_topology_from_p4est_mesh
-    procedure, private        , non_overridable :: get_ptr_vefs_x_cell                           => p4est_serial_triangulation_get_ptr_vefs_x_cell
-    procedure, private        , non_overridable :: update_lst_vefs_gids_and_cells_around         => p4est_st_update_lst_vefs_gids_and_cells_around
-    procedure, private        , non_overridable :: update_cell_set_ids                           => p4est_st_update_cell_set_ids
-    procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_st_update_vef_set_ids
-    procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_st_std_vector_transform_length_to_header
-    procedure, private        , non_overridable :: allocate_and_fill_x_cell_vertex_coordinates => p4est_st_allocate_and_fill_x_cell_vertex_coordinates
-    procedure, private        , non_overridable :: free_x_cell_vertex_coordinates              => p4est_st_free_x_cell_vertex_coordinates
-    procedure                 , non_overridable :: clear_refinement_and_coarsening_flags         => p4est_st_clear_refinement_and_coarsening_flags
-    procedure                 , non_overridable :: clear_cell_set_ids                            => p4est_st_clear_cell_set_ids
-    procedure                                   :: fill_cells_set                                => p4est_st_fill_cells_set
-    procedure                 , non_overridable :: clear_vef_set_ids                             => p4est_st_clear_vef_set_ids
+    procedure                 , non_overridable :: refine_and_coarsen                            => p4est_base_triangulation_refine_and_coarsen
+    procedure, private        , non_overridable :: update_p4est_mesh                             => p4est_base_triangulation_update_p4est_mesh
+    procedure, private        , non_overridable :: update_topology_from_p4est_mesh               => p4est_base_triangulation_update_topology_from_p4est_mesh
+    procedure, private        , non_overridable :: get_ptr_vefs_x_cell                           => p4est_base_triangulation_get_ptr_vefs_x_cell
+    procedure, private        , non_overridable :: update_lst_vefs_gids_and_cells_around         => p4est_bt_update_lst_vefs_gids_and_cells_around
+    procedure, private        , non_overridable :: update_cell_set_ids                           => p4est_bt_update_cell_set_ids
+    procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_bt_update_vef_set_ids
+    procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_bt_std_vector_transform_length_to_header
+    procedure, private        , non_overridable :: allocate_and_fill_x_cell_vertex_coordinates   => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
+    procedure, private        , non_overridable :: free_x_cell_vertex_coordinates                => p4est_bt_free_x_cell_vertex_coordinates
+    procedure                 , non_overridable :: clear_refinement_and_coarsening_flags         => p4est_bt_clear_refinement_and_coarsening_flags
+    procedure                 , non_overridable :: clear_cell_set_ids                            => p4est_bt_clear_cell_set_ids
+    procedure                                   :: fill_cells_set                                => p4est_bt_fill_cells_set
+    procedure                 , non_overridable :: clear_vef_set_ids                             => p4est_bt_clear_vef_set_ids
 
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator
@@ -412,16 +409,28 @@ module p4est_serial_triangulation_names
     procedure                                   :: free_vef_iterator                     => p4est_free_vef_iterator
 
 #ifndef ENABLE_P4EST
-    procedure, non_overridable :: not_enabled_error => p4est_serial_triangulation_not_enabled_error
+    procedure, non_overridable :: not_enabled_error => p4est_base_triangulation_not_enabled_error
 #endif
+  end type p4est_base_triangulation_t
+  
+  public :: p4est_base_triangulation_t, p4est_cell_iterator_t, p4est_vef_iterator_t
+  public :: refinement, coarsening, do_nothing
+  
+  type, extends(p4est_base_triangulation_t) ::  p4est_serial_triangulation_t
+    private
+  contains
+    procedure, private                          :: p4est_serial_triangulation_create
+    generic                                     :: create                                        => p4est_serial_triangulation_create
+    procedure                                   :: free                                          => p4est_serial_triangulation_free    
   end type p4est_serial_triangulation_t
   
-  public :: p4est_serial_triangulation_t, p4est_cell_iterator_t, p4est_vef_iterator_t
-  public :: refinement, coarsening, do_nothing
+  public :: p4est_serial_triangulation_t
+
   
 contains
 
-#include "sbm_p4est_serial_triangulation.i90"
+#include "sbm_p4est_base_triangulation.i90"
 #include "sbm_p4est_cell_iterator.i90"
 #include "sbm_p4est_vef_iterator.i90"
-end module p4est_serial_triangulation_names
+#include "sbm_p4est_serial_triangulation.i90"
+end module p4est_triangulation_names

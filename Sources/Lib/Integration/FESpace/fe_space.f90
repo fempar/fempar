@@ -65,7 +65,7 @@ module fe_space_names
   
   ! Adaptivity
   use std_vector_real_rp_names
-  use p4est_serial_triangulation_names
+  use p4est_triangulation_names
 
   ! Parallel modules
   use environment_names

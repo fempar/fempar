@@ -32,7 +32,7 @@ subroutine p4est_cell_iterator_create ( this, triangulation )
   call this%free()
   call cell_iterator_create(this,triangulation)
   select type(triangulation)
-  class is (p4est_serial_triangulation_t)
+  class is (p4est_base_triangulation_t)
     this%p4est_triangulation => triangulation
   class default
     assert(.false.)
