@@ -47,7 +47,8 @@ module test_projections_driver_names
      type(ParameterList_t)                :: parameter_list
 
      ! Cells and lower dimension objects container
-     type(serial_triangulation_t)                :: triangulation
+     type(serial_triangulation_t)              :: triangulation
+					integer(ip), allocatable                  :: cell_set_ids(:)
 
      ! Analytical functions of the problem
      type(projections_analytical_functions_t) :: problem_functions
@@ -55,6 +56,7 @@ module test_projections_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(serial_fe_space_t)                     :: fe_space 
      type(p_reference_fe_t) , allocatable        :: reference_fes(:) 
+					integer(ip)            , allocatable        :: set_ids_to_reference_fes(:,:)
      type(projections_conditions_t)              :: projections_conditions
 					type(fe_affine_operator_t)                  :: fe_affine_operator
 					type(projections_discrete_integration_t)    :: projections_integration
@@ -92,7 +94,26 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_projections_driver_t), intent(inout) :: this
+				class(cell_iterator_t)            , allocatable :: cell
+				integer(ip)                                     :: set_id 
+				
     call this%triangulation%create(this%parameter_list)
+				
+				! Set the cell ids to use void fes
+    if ( .not. this%test_params%get_conformity() ) then
+        call memalloc(this%triangulation%get_num_local_cells(), this%cell_set_ids)
+        call this%triangulation%create_cell_iterator(cell)
+        do while( .not. cell%has_finished() )
+          if (cell%is_local()) then
+            set_id = mod( cell%get_gid(),2 ) + 1 
+            this%cell_set_ids(cell%get_gid()) = set_id
+          end if
+          call cell%next()
+        end do
+        call this%triangulation%free_cell_iterator(cell)
+        call this%triangulation%fill_cells_set(this%cell_set_ids)
+    end if
+				
   end subroutine setup_triangulation
 
   subroutine setup_reference_fes(this)
@@ -103,13 +124,15 @@ contains
     class(cell_iterator_t), allocatable       :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
 
-
+				call this%triangulation%create_cell_iterator(cell)
+    reference_fe_geo => cell%get_reference_fe()
+				
+    if ( this%test_params%get_conformity() ) then 
     allocate(this%reference_fes(2), stat=istat)
     check(istat==0)
 
-    call this%triangulation%create_cell_iterator(cell)
-    reference_fe_geo => cell%get_reference_fe()
-	
+
+					
     this%reference_fes(MAGNETIC_FIELD_ID) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
                                                                  fe_type    = fe_type_nedelec,                           &
                                                                  num_dims   = this%triangulation%get_num_dims(),         &
@@ -123,6 +146,45 @@ contains
                                                                  order      = this%test_params%get_reference_fe_order(), &
                                                                  field_type = field_type_scalar,                         &
                                                                  conformity = .true. ) 
+				
+				else
+				allocate(this%reference_fes(4), stat=istat); check(istat==0)
+				call memalloc( 2, 2, this%set_ids_to_reference_fes, __FILE__, __LINE__ ) 
+				this%set_ids_to_reference_fes(MAGNETIC_FIELD_ID,1) = 1  ! vector_field k
+    this%set_ids_to_reference_fes(MAGNETIC_FIELD_ID,2) = 2  ! vector_field k+1
+				this%set_ids_to_reference_fes(PRESSURE_FIELD_ID,1) = 3  ! scalar_field k
+				this%set_ids_to_reference_fes(PRESSURE_FIELD_ID,2) = 4  ! scalar_field k+1
+				
+				    this%reference_fes(1) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),                       &
+                                                                 fe_type    = fe_type_lagrangian,                        &
+                                                                 num_dims   = this%triangulation%get_num_dims(),         &
+                                                                 order      = this%test_params%get_reference_fe_order(), &
+                                                                 field_type = field_type_vector,                         &
+                                                                 conformity = .false. ) 
+								
+								 this%reference_fes(2) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),                          &
+                                                                 fe_type    = fe_type_lagrangian,                            &
+                                                                 num_dims   = this%triangulation%get_num_dims(),             &
+                                                                 order      = this%test_params%get_reference_fe_order() + 1, &
+                                                                 field_type = field_type_vector,                             &
+                                                                 conformity = .false. ) 
+				
+				    this%reference_fes(3) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),                       &
+                                                                 fe_type    = fe_type_lagrangian,                        &
+                                                                 num_dims   = this%triangulation%get_num_dims(),         &
+                                                                 order      = this%test_params%get_reference_fe_order(), &
+                                                                 field_type = field_type_scalar,                         &
+                                                                 conformity = .false. ) 
+								
+								this%reference_fes(4) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),                         &
+                                                                 fe_type    = fe_type_lagrangian,                          &
+                                                                 num_dims   = this%triangulation%get_num_dims(),           &
+                                                                 order      = this%test_params%get_reference_fe_order()+1, &
+                                                                 field_type = field_type_scalar,                           &
+                                                                 conformity = .false. ) 
+				
+				
+				end if 
     
     call this%triangulation%free_cell_iterator(cell)
 		
@@ -146,9 +208,16 @@ contains
     class(test_projections_driver_t), intent(inout) :: this 
 				
     call this%projections_conditions%set_num_dims(this%triangulation%get_num_dims() + 1)
+				if ( this%test_params%get_conformity() ) then 
     call this%fe_space%create( triangulation       = this%triangulation, &
                                reference_fes       = this%reference_fes, &
                                conditions          = this%projections_conditions )
+				else 
+				call this%fe_space%create( triangulation             = this%triangulation,            &
+                               reference_fes             = this%reference_fes,            &
+																															set_ids_to_reference_fes  = this%set_ids_to_reference_fes, &
+                               conditions                = this%projections_conditions )
+				end if 
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()
 				
@@ -396,6 +465,9 @@ contains
     call this%triangulation%free()
     call this%test_params%free()
 				call this%fe_affine_operator%free() 
-  end subroutine free
+				if ( allocated( this%set_ids_to_reference_fes ) ) then 
+				call memfree(this%set_ids_to_reference_fes, __FILE__, __LINE__ )
+				end if 
+				end subroutine free
 
 end module test_projections_driver_names

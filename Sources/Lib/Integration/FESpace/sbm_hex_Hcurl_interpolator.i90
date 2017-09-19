@@ -40,8 +40,7 @@ subroutine hex_Hcurl_interpolator_create( this, fe_space, field_id  )
   integer(ip)                         :: idime, istat 
 
 	 this%field_id = field_id
-  
-  ! TO-DO: support for the variable degree and/or ref FE case!
+
   call fe_space%create_fe_cell_iterator(fe)
   reference_fe => fe%get_reference_fe(field_id)
 		
@@ -326,12 +325,12 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
 end subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments
 
 !==================================================================================================
-subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, fe, vector_function_scalar_components, dof_values, n_face_mask, time)
+subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, vef_lid, fe, vector_function_scalar_components, dof_values, time)
   class(hex_Hcurl_interpolator_t) , intent(inout) :: this
+		integer(ip)                     , intent(in)    :: vef_lid 
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:)
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
-  logical  , optional             , intent(in)    :: n_face_mask(:)
   real(rp) , optional             , intent(in)    :: time 
 
   ! Edges 
@@ -369,20 +368,22 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, fe,
   if ( present(time) ) time_(1) = time 	
   reference_fe     => fe%get_reference_fe( this%field_id ) 
 		reference_fe_geo => fe%get_reference_fe_geo()
+				
+		! Nedelec elements do not contain DOFs on vertices 
+		if ( reference_fe%get_n_face_dim( vef_lid ) == 0 ) then 
+		return 
+		end if 
 		
 		! Extract cell coordinates 
 		cell_coordinates => this%cell_map%get_coordinates() 
 		call fe%get_nodes_coordinates( cell_coordinates ) 
-
-		d = 0
-  do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
-               reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
-		
+	
      num_quad_points = this%edge_quadrature%get_num_quadrature_points()
      edge_map_coordinates => this%edge_map%get_coordinates()
 
+			if ( reference_fe%get_n_face_dim( vef_lid ) == 1 ) then 
      vertex_within_edge_id = 1
-     vertex_iterator = reference_fe%create_vertices_n_face_iterator(edge_id)
+     vertex_iterator = reference_fe%create_vertices_n_face_iterator(vef_lid)
      do while ( .not. vertex_iterator%is_upper_bound () )
         vertex_within_cell_id = vertex_iterator%get_current()
         call edge_map_coordinates(vertex_within_edge_id)%init( cell_coordinates(vertex_within_cell_id)%get_value() )
@@ -391,7 +392,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, fe,
      end do
 
      ! Update edge_map on current edge
-     call this%edge_map%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
+     call this%edge_map%update(local_edge_id = vef_lid - reference_fe%get_first_n_face_id_of_dim(1)+1, &
                                reference_fe  = reference_fe,                                           &
                                quadrature    = this%edge_quadrature )
 
@@ -421,7 +422,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, fe,
         assert(.false.)
      end select
 
-     own_dofs = reference_fe%create_dofs_n_face_iterator(edge_id)
+     own_dofs = reference_fe%create_dofs_n_face_iterator(vef_lid)
      ! Integrate edge boundary moments int_edge(g·tau q), q \in P_k-1
      do qpoint = 1, num_quad_points
         factor = this%edge_map%get_det_jacobian(qpoint) * this%edge_quadrature%get_weight(qpoint)
@@ -434,13 +435,10 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, fe,
            call own_dofs%next() 
         end do
      end do
-
-		end do 
+					
+				elseif ( reference_fe%get_n_face_dim( vef_lid ) == 2) then  
 		
      if ( reference_fe%get_num_dims() == 3 .and. reference_fe%get_order() > 1 ) then
-
-					   do facet_id = reference_fe%get_first_facet_id(), & 
-                      reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
 																			
         ! Get face map coordinates
         num_quad_points         =  this%facet_quadrature%get_num_quadrature_points()
@@ -448,7 +446,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, fe,
 
         ! Extract coordinates of the vertices within the face
         vertex_within_facet_id = 1
-        vertex_iterator = reference_fe%create_vertices_n_face_iterator(facet_id)
+        vertex_iterator = reference_fe%create_vertices_n_face_iterator(vef_lid)
         do while ( .not. vertex_iterator%is_upper_bound () )
            vertex_within_cell_id = vertex_iterator%get_current()
            call facet_map_coordinates(vertex_within_facet_id)%init( cell_coordinates(vertex_within_cell_id)%get_value() )
@@ -457,7 +455,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, fe,
         end do
 
         ! Update facet_map on current face
-        facet_lid = facet_id - reference_fe_geo%get_first_facet_id()+1
+        facet_lid = vef_lid - reference_fe_geo%get_first_facet_id()+1
         call this%facet_map%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &
                                    quadrature             = this%facet_quadrature ) 
 
@@ -511,7 +509,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, fe,
            end do
 
            ! Apply face_map to v_shape_test 
-           own_dofs = reference_fe%create_dofs_n_face_iterator(facet_id)
+           own_dofs = reference_fe%create_dofs_n_face_iterator(vef_lid)
            do ishape=1, this%fe_2D%get_num_shape_functions() 
               idof = own_dofs%get_current() 
               call this%fe_2D%get_value(this%facet_interpolation, ishape, qpoint, v_shape_test)    
@@ -525,9 +523,8 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, fe,
               call own_dofs%next() 
            end do
         end do
-
-								end do 
      end if
+					end if 
 
 end subroutine hex_Hcurl_interpolator_evaluate_function_components_moments
 

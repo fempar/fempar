@@ -40,7 +40,7 @@ subroutine make_interpolator( interpolator_type, topology, interpolator )
   end if
   
   if ( interpolator_type == interpolator_type_H1 ) then
-    allocate ( H1_interpolator_t :: interpolator, stat=istat ); check(istat==0)  
+    allocate ( H1_dG_interpolator_t :: interpolator, stat=istat ); check(istat==0)  
   else if ( interpolator_type == interpolator_type_Hcurl  ) then
     if ( topology == topology_hex ) then
       allocate( hex_Hcurl_interpolator_t :: interpolator ) 
@@ -50,32 +50,12 @@ subroutine make_interpolator( interpolator_type, topology, interpolator )
   end if
 end subroutine make_interpolator
 
-    subroutine interpolator_evaluate_scalar_function_moments (this, fe, scalar_function, dof_values, n_face_mask, time )
-      implicit none
-      class(interpolator_t)           , intent(inout) :: this
-      class(fe_cell_iterator_t)       , intent(in)    :: fe
-      class(scalar_function_t), target, intent(in)    :: scalar_function
-      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
-      logical  , optional             , intent(in)    :: n_face_mask(:)
-      real(rp) , optional             , intent(in)    :: time 
-      type(p_scalar_function_t) :: scalar_function_single_component(1)
-      class(reference_fe_t), pointer :: reference_fe
-      scalar_function_single_component(1)%p => scalar_function
-#ifdef DEBUG
-      reference_fe => fe%get_reference_fe(this%field_id)
-      if ( present(n_face_mask) ) then
-        massert ( size(n_face_mask) == reference_fe%get_num_n_faces()+1, "evaluate_scalar_function_moments::n_face_mask is not of correct size" )
-      end if
-#endif
-      call this%evaluate_function_scalar_components_moments(fe, scalar_function_single_component, dof_values, n_face_mask, time )
-    end subroutine interpolator_evaluate_scalar_function_moments 
-
 ! ================================================================================
 subroutine Hcurl_interpolator_evaluate_scalar_function_moments(this, fe, scalar_function, dof_values, n_face_mask, time ) 
      implicit none
       class(Hcurl_interpolator_t)           , intent(inout) :: this
       class(fe_cell_iterator_t)             , intent(in)    :: fe
-      class(scalar_function_t), target      , intent(in)    :: scalar_function
+      class(scalar_function_t)              , intent(in)    :: scalar_function
       real(rp) , allocatable                , intent(inout) :: dof_values(:) 
       logical  , optional                   , intent(in)    :: n_face_mask(:)
       real(rp) , optional                   , intent(in)    :: time 

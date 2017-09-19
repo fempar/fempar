@@ -754,15 +754,14 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
   integer(ip)                :: icomp, component_id 
   logical     , allocatable  :: components_code(:)
   integer(ip) , allocatable  :: offset_component(:)
-  real(rp)                   :: time_(1) 
 
   type(p_scalar_function_t), allocatable :: function_scalar_components(:)
-  real(rp)  , allocatable                :: dof_values(:)  
-  integer(ip), pointer                   :: fe_dofs(:)
-  real(rp)                   , pointer   :: fixed_dof_values_entries(:)
+  real(rp)                 , allocatable :: dof_values(:)  
+  integer(ip)              , pointer     :: fe_dofs(:)
+  real(rp)                 , pointer     :: fixed_dof_values_entries(:)
   integer(ip)                            :: idof, vef_lid, istat
-  type(point_t) , pointer           :: coordinates(:)
-  type(p_interpolator_t),  allocatable :: interpolators(:) 
+  type(point_t)            , pointer     :: coordinates(:)
+  type(p_interpolator_t)   , allocatable :: interpolators(:) 
   character(:)             , allocatable :: interpolator_type_
 
   fixed_dof_values_entries => fe_function%fixed_dof_values%get_entries()
@@ -775,7 +774,7 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
 
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_vef_iterator(vef)
-
+											
   ! Create and initialize interpolator 
   allocate ( interpolators(this%get_num_fields()), stat=istat); check(istat==0)  
   do field_id = 1, this%get_num_fields() 
@@ -791,10 +790,9 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
 					call interpolators(field_id)%p%create( this, field_id ) 
   end do
 
-  if ( present(time) ) time_(1) = time 
   do while (.not. fe%has_finished() )     
 
-     do field_id = 1, this%get_num_fields()
+     do field_id = 1, this%get_num_fields() 
 
         if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) ) then 
            reference_fe => fe%get_reference_fe(field_id)					 
@@ -815,14 +813,15 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
                     ! Retreive the scalar functions corresponding to the components of the function to be projected
                     do icomp=1, reference_fe%get_num_field_components()
                        call this%conditions%get_function(vef%get_set_id(), &
-                            component_id+icomp-1, &
-                            function_scalar_components(icomp)%p)
+                                                         component_id+icomp-1, &
+                                                         function_scalar_components(icomp)%p)
                     end do
 
-                    call interpolators(field_id)%p%evaluate_function_scalar_components_moments( fe, &
+                    call interpolators(field_id)%p%evaluate_function_scalar_components_moments( vef_lid,                    & 
+																																																																																															 fe,                         &
                                                                                                 function_scalar_components, &
-                                                                                                dof_values, &
-                                                                                                time=time )
+                                                                                                dof_values,                 &
+                                                                                                time = time )
 
                     own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
                     do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 

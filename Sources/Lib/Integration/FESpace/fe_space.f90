@@ -1150,7 +1150,6 @@ module fe_space_names
  end type hp_adaptive_fe_facet_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t, hp_adaptive_fe_cell_iterator_t
- 
  character(*), parameter :: interpolator_type_H1    = "interpolator_type_H1"
  character(*), parameter :: interpolator_type_Hcurl = "interpolator_type_Hcurl"
  
@@ -1160,11 +1159,11 @@ module fe_space_names
     integer(ip) :: field_id
   contains        
     ! Deferred TBPs 
-    procedure(interpolator_create_interface)                                            , deferred :: create
-    procedure :: evaluate_scalar_function_moments =>  interpolator_evaluate_scalar_function_moments
-    procedure(interpolator_evaluate_vector_function_moments_interface)                  , deferred :: evaluate_vector_function_moments 
-    procedure(interpolator_evaluate_function_components_moments_interface)              , deferred :: evaluate_function_scalar_components_moments
-    procedure(interpolator_free_interface)                                              , deferred :: free 			
+    procedure(interpolator_create_interface)                               , deferred :: create
+    procedure(interpolator_evaluate_scalar_function_moments_interface)     , deferred :: evaluate_scalar_function_moments
+    procedure(interpolator_evaluate_vector_function_moments_interface)     , deferred :: evaluate_vector_function_moments 
+    procedure(interpolator_evaluate_function_components_moments_interface) , deferred :: evaluate_function_scalar_components_moments
+    procedure(interpolator_free_interface)                                 , deferred :: free 			
  end type interpolator_t
 
  type p_interpolator_t
@@ -1182,6 +1181,17 @@ module fe_space_names
       integer(ip)              , intent(in)    :: field_id
     end subroutine interpolator_create_interface
 
+				subroutine interpolator_evaluate_scalar_function_moments_interface( this, fe, scalar_function, dof_values, n_face_mask, time )
+      import :: interpolator_t, scalar_function_t, fe_cell_iterator_t, rp   
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(scalar_function_t)        , intent(in)    :: scalar_function
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      logical  , optional             , intent(in)    :: n_face_mask(:)
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_scalar_function_moments_interface
+				
     subroutine interpolator_evaluate_vector_function_moments_interface( this, fe, vector_function, dof_values, n_face_mask, time )
       import :: interpolator_t, vector_function_t, fe_cell_iterator_t, rp   
       implicit none
@@ -1193,14 +1203,14 @@ module fe_space_names
       real(rp) , optional             , intent(in)    :: time 
     end subroutine interpolator_evaluate_vector_function_moments_interface
 
-    subroutine interpolator_evaluate_function_components_moments_interface( this, fe, vector_function_scalar_components, dof_values, n_face_mask, time )
+    subroutine interpolator_evaluate_function_components_moments_interface( this, vef_lid, fe, vector_function_scalar_components, dof_values, time )
       import :: interpolator_t, fe_cell_iterator_t, p_scalar_function_t, rp, ip 
       implicit none 
       class(interpolator_t)           , intent(inout) :: this
+						integer(ip)                     , intent(in)    :: vef_lid 
       class(fe_cell_iterator_t)       , intent(in)    :: fe
       class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:)
       real(rp) , allocatable          , intent(inout) :: dof_values(:) 
-      logical  , optional             , intent(in)    :: n_face_mask(:)
       real(rp) , optional             , intent(in)    :: time 
     end subroutine interpolator_evaluate_function_components_moments_interface
 
@@ -1262,17 +1272,33 @@ end type tet_Hcurl_interpolator_t
 
 type, extends(interpolator_t) :: H1_interpolator_t 
 private 
-type(cell_map_t)                :: cell_map
-type(quadrature_t) , pointer    :: nodal_quadrature  
-! Boundary values array 
+type(cell_map_t)             :: cell_map 
+type(quadrature_t) , pointer :: nodal_quadrature   
+ ! Boundary values array 
 real(rp), allocatable             :: scalar_function_values(:,:)
 type(vector_field_t), allocatable :: function_values(:,:)
 contains 
 procedure :: create                                             => H1_interpolator_create
+procedure :: evaluate_scalar_function_moments                   => H1_interpolator_evaluate_scalar_function_moments 
 procedure :: evaluate_vector_function_moments                   => H1_interpolator_evaluate_vector_function_moments		
 procedure :: evaluate_function_scalar_components_moments        => H1_interpolator_evaluate_function_scalar_components_moments
 procedure :: free                                               => H1_interpolator_free
 end type H1_interpolator_t 
+
+type, extends(interpolator_t) :: H1_dG_interpolator_t 
+private 
+type(cell_map_t)     , allocatable  :: cell_maps(:) 
+type(p_quadrature_t) , allocatable  :: nodal_quadratures(:)   
+ ! Boundary values array 
+real(rp), allocatable             :: scalar_function_values(:,:)
+type(vector_field_t), allocatable :: function_values(:,:)
+contains 
+procedure :: create                                             => H1_dG_interpolator_create
+procedure :: evaluate_scalar_function_moments                   => H1_dG_interpolator_evaluate_scalar_function_moments 
+procedure :: evaluate_vector_function_moments                   => H1_dG_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_function_scalar_components_moments        => H1_dG_interpolator_evaluate_function_scalar_components_moments
+procedure :: free                                               => H1_dG_interpolator_free
+end type H1_dG_interpolator_t 
  
 
 contains
@@ -1305,5 +1331,6 @@ contains
 #include "sbm_hex_Hcurl_interpolator.i90" 
 #include "sbm_tet_Hcurl_interpolator.i90"
 #include "sbm_H1_interpolator.i90"
+#include "sbm_H1_dG_interpolator.i90"
 
 end module fe_space_names

@@ -49,8 +49,8 @@ module projections_params_names
      character(len=:), allocatable :: default_is_periodic_in_y
      character(len=:), allocatable :: default_is_periodic_in_z
      character(len=:), allocatable :: default_write_solution
-
-     
+					character(len=:), allocatable :: default_conformity
+ 
      type(Command_Line_Interface):: cli 
 
      ! IO parameters
@@ -64,6 +64,7 @@ module projections_params_names
      integer(ip)                   :: num_cells_x_dir(0:SPACE_DIM-1)
      integer(ip)                   :: is_dir_periodic(0:SPACE_DIM-1)
      logical                       :: write_solution
+					logical                       :: conformity
      
    contains
      procedure, non_overridable             :: create       => projections_create
@@ -78,6 +79,7 @@ module projections_params_names
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_write_solution
+					procedure, non_overridable             :: get_conformity
   end type projections_params_t
 
   ! Types
@@ -122,6 +124,7 @@ contains
     this%default_is_periodic_in_y = '0'
     this%default_is_periodic_in_z = '0'
     this%default_write_solution = '.false.'
+				this%default_conformity='.true.'
   end subroutine projections_set_default
   
   !==================================================================================================
@@ -176,6 +179,9 @@ contains
     call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
          &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
     check(error==0)  
+				  call this%cli%add(switch='--conformity',switch_ab='-conformity',help='Conformity to integrate cG or dG spaces',&
+         &            required=.false.,act='store',def=trim(this%default_conformity),error=error) 
+    check(error==0)
     
   end subroutine projections_add_to_cli
   
@@ -202,6 +208,7 @@ contains
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
     call this%cli%get(switch='-wsolution',val=this%write_solution,error=istat); check(istat==0)
+				call this%cli%get(switch='-conformity',val=this%conformity, error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -288,6 +295,13 @@ contains
     character(:), pointer :: get_triangulation_type
     get_triangulation_type => this%triangulation_type
   end function get_triangulation_type
-  
+		
+		  !==================================================================================================
+  function get_conformity(this)
+    implicit none
+    class(projections_params_t) , intent(in) :: this
+    logical :: get_conformity
+    get_conformity = this%conformity
+  end function get_conformity
   
 end module projections_params_names
