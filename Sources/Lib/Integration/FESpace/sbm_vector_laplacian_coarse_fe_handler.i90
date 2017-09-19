@@ -63,8 +63,6 @@ subroutine vector_laplacian_l1_setup_constraint_matrix_CI(this, field_id, par_fe
   integer(ip)  :: qpoint, num_quad_points
   real(rp)     :: factor
   type(vector_field_t), allocatable  :: shape_values(:,:)
-  type(vector_field_t), allocatable  :: unit_vector_field(:,:)
-  real(rp) :: unit_value(SPACE_DIM) = 1.0_rp
   real(rp)     :: facet_measure
 
   !! Currently cannot not initialize a unit_vector_field 
@@ -90,9 +88,6 @@ subroutine vector_laplacian_l1_setup_constraint_matrix_CI(this, field_id, par_fe
      if ( object%get_num_coarse_dofs(field_id) > 0 ) then
 
         own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
-        !assert ( own_coarse_dofs_iterator%get_size() == 1 )
-        write(*,*)'own_coarse_dofs_iterator%get_size()',own_coarse_dofs_iterator%get_size()
-
         coarse_dof_lid = own_coarse_dofs_iterator%get_current() 
 
         facet_measure = 0.0_rp
@@ -114,32 +109,30 @@ subroutine vector_laplacian_l1_setup_constraint_matrix_CI(this, field_id, par_fe
            do while ( .not. faces_object_iterator%is_upper_bound() )
               call object%get_face(faces_object_iterator%get_current(),fe_face)
               quad     => fe_face%get_quadrature()
-              write(*,*)'fe_face%get_num_cells_around()', fe_face%get_num_cells_around()
-              !do icell_around=1, fe_face%get_num_cells_around() 
-              do icell_around=1, 1
+              do icell_around=1, fe_face%get_num_cells_around()              
                  call fe_face%get_cell_around(icell_around,fe)
+                 if (fe%is_local()) then
                  facevec = 0.0_rp
                  call fe_face%update_integration() 
                  call fe_face%get_values(1,shape_values,field_id)
                  
-                 
-                 write(*,*)'fe%get_num_dofs()',fe%get_num_dofs()
                  do qpoint = 1, quad%get_num_quadrature_points()
                     factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
                     
                     do idof = 1, fe%get_num_dofs()
-                       !facevec(idof) = facevec(idof) + shape_values(idof,qpoint)*factor
-                       !Testing
-                       facevec(idof) = facevec(idof) + factor*shape_values(idof,qpoint)*shape_values(idof,qpoint)
+                       facevec(idof) = facevec(idof) + shape_values(idof,qpoint)%get(field_id)*factor                       
                     end do
                  end do
-                 write(*,*)'facet_measure',facet_measure,'coarse_dof_lid', coarse_dof_lid 
-                 
+                                  
                  call fe_face%get_fe_dofs(icell_around, test_fe_dofs)
+                 !reference_fe => fe%get_reference_fe(field_id)
+                 !assert ( own_coarse_dofs_iterator%get_size() ==  reference_fe%get_num_field_components())
+                 !icomp   = reference_fe%get_component_node(idof)
                  call constraint_matrix%insert(fe%get_num_dofs(), &
                                             test_fe_dofs(1)%p, &
                                             coarse_dof_lid, &
                                             facevec/facet_measure)
+                 end if
               end do
               call faces_object_iterator%next()
            end do
@@ -209,7 +202,9 @@ subroutine vector_laplacian_l1_setup_constraint_matrix_CI(this, field_id, par_fe
   call par_fe_space%free_fe_vef_iterator(vef)
   deallocate (test_fe_dofs, stat=istat); check(istat==0);
   call memfree(facevec, __FILE__, __LINE__ )
-  deallocate(shape_values, stat=istat); check(istat==0);  
+  if (allocated(shape_values)) then
+     deallocate(shape_values, stat=istat); check(istat==0);  
+  end if
   !call memfree(shape_values, __FILE__, __LINE__)
   
 end subroutine vector_laplacian_l1_setup_constraint_matrix_CI
