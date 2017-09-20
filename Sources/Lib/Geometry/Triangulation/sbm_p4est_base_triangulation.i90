@@ -140,8 +140,11 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   integer(P4EST_F90_QLEVEL) :: jcell_iconn 
   logical :: is_proper, vef_at_boundary
   integer(ip) :: isubface, isubedge
-  integer(ip) :: base_pos_icell, base_pos_min_cell
+  integer(ip) :: base_pos_icell, base_pos_min_cell, base_pos_ghost_cell
   type(std_vector_integer_ip_t) :: work_vector_cells_around
+  type(std_vector_integer_ip_t) :: work_vector_ghost_cells_around
+  type(std_vector_integer_ip_t) :: work_vector_ghost_cells_around_ivef
+  
   type(std_vector_integer_ip_t) :: work_vector_improper_cells_around
   type(std_vector_integer_ip_t) :: work_vector_ivef
   type(std_vector_integer_ip_t) :: work_vector_subvef
@@ -154,6 +157,8 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   integer(ip), pointer :: P4EST_OPPOSITE_CORNER(:)
   integer(ip), pointer :: P4EST_2_FEMPAR_FACE(:)
   integer(ip), pointer :: P4EST_CORNER_IN_FACE(:,:)
+  logical, allocatable :: faces_visited(:)
+  logical :: create_improper_vef
 
 #ifdef ENABLE_P4EST  
   if ( this%get_num_dims() == 2 ) then
@@ -188,8 +193,10 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
 
   call old_lst_vefs_gids%copy(this%lst_vefs_gids)
 
+  ! Set to zero all global VEF GiDs. Those corresponding to ghost 
+  ! VEFs will remain zero after the whole process is perfomed
   call this%lst_vefs_gids%resize(0)
-  call this%lst_vefs_gids%resize(this%get_ptr_vefs_x_cell(this%get_num_cells()+1)-1,-1000)
+  call this%lst_vefs_gids%resize(this%get_ptr_vefs_x_cell(this%get_num_cells()+1)-1,0)
 
   call this%ptr_cells_around_proper_vefs%resize(1)
   call this%lst_cells_around_proper_vefs%resize(0)
@@ -206,8 +213,10 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   this%num_proper_vefs   = 0
   this%num_improper_vefs = 0
 
-  do icell=1, this%get_num_cells()
+  call memalloc ( num_faces_x_cell, faces_visited, __FILE__, __LINE__ )
 
+  do icell=1, this%get_num_local_cells()
+     faces_visited = .false.
      do icorner=1, num_corners_x_cell
         is_proper       = .true.
         min_cell        = icell
@@ -216,6 +225,10 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
 
         call work_vector_cells_around%resize(0)
         call work_vector_cells_around%push_back(icell)
+        
+        call work_vector_ghost_cells_around%resize(0)
+        call work_vector_ghost_cells_around_ivef%resize(0)
+        
         call work_vector_improper_cells_around%resize(0)
         call work_vector_ivef%resize(0)
         call work_vector_subvef%resize(0)
@@ -246,7 +259,13 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
               if (min_cell == jcell) then
                  min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS)
               end if
-              call work_vector_cells_around%push_back(jcell)
+        
+              if ( jcell > this%get_num_local_cells() ) then ! If neighbour cell is ghost
+                call work_vector_ghost_cells_around%push_back(jcell)
+                call work_vector_ghost_cells_around_ivef%push_back(p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS))
+              else                                           ! If neighbour cell is local
+                call work_vector_cells_around%push_back(jcell)
+              end if
            else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
               jcell      = this%quad_to_quad(icell_iface,icell)+1
 
@@ -315,7 +334,14 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
                 if (min_cell == jcell) then
                    min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS)
                 end if
-                call work_vector_cells_around%push_back(jcell)
+                
+                if ( jcell > this%get_num_local_cells() ) then ! If neighbour cell is ghost
+                  call work_vector_ghost_cells_around%push_back(jcell)
+                  call work_vector_ghost_cells_around_ivef%push_back(p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS))
+                else                                           ! If neighbour cell is local
+                  call work_vector_cells_around%push_back(jcell)
+                end if
+                
               end if
            else ! Half-side neighbour 
               assert (mortar == num_subfacets_facet+1)
@@ -326,12 +352,55 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
                  end if
               end do
               assert(face_corner<=num_face_corners)
-              jcell       = this%quad_to_half(face_corner,this%quad_to_quad(icell_iface,icell)+1)+1
+              jcell      = this%quad_to_half(face_corner,this%quad_to_quad(icell_iface,icell)+1)+1
               min_cell   = min(min_cell,jcell)
               if (min_cell == jcell) then
                  min_icorner=p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS)
               end if
-              call work_vector_cells_around%push_back(jcell)
+              
+              if ( jcell > this%get_num_local_cells() ) then ! If neighbour cell is ghost
+                call work_vector_ghost_cells_around%push_back(jcell)
+                call work_vector_ghost_cells_around_ivef%push_back(p4est_get_jcell_icorner(icell_iface,jcell_iface,icorner,P4EST_CORNER_IN_FACE,P4EST_FACE_CORNERS))
+              else                                           ! If neighbour cell is local
+                call work_vector_cells_around%push_back(jcell)
+              end if
+ 
+              
+              if ( .not. faces_visited(icell_iface) ) then
+                faces_visited(icell_iface) = .true.
+                
+                ! Go over the half neighbours and determine whether a new improper vertex must be created right here
+                create_improper_vef = .true.
+                do isubface = 1, num_subfacets_facet
+                  jcell = this%quad_to_half(isubface,this%quad_to_quad(icell_iface,icell)+1)+1
+                  if ( jcell <= this%get_num_local_cells() ) then
+                     create_improper_vef = .false.
+                     exit
+                  end if
+                end do
+                
+                if ( create_improper_vef ) then
+                  ! The code which comes is currently tailored for 2D!
+                  assert (this%get_num_dims() == 2)
+                  this%num_improper_vefs = this%num_improper_vefs+1
+                  call this%ptr_cells_around_improper_vefs%push_back(num_subfacets_facet)
+                  ! Introduce new improvef vef in cell around
+                  do isubface = 1, num_subfacets_facet
+                    jcell          = this%quad_to_half(isubface,this%quad_to_quad(icell_iface,icell)+1)+1
+                    base_pos_icell = this%get_ptr_vefs_x_cell(jcell)-1
+                    call this%lst_vefs_gids%set(base_pos_icell+P4EST_FACES_SUBFACE_IMPROPER_VERTEX_LID_2D(icell_iface,isubface), -this%num_improper_vefs)
+                    call this%lst_cells_around_improper_vefs%push_back(jcell)
+                  end do
+                  
+                  ! Fill improper cells_around improper vefs
+                  call this%ptr_improper_cells_around%push_back(icell)
+                  call this%improper_vefs_improper_cell_around_ivef%push_back(icell_iface)
+                  call this%improper_vefs_improper_cell_around_subvef%push_back(-1) 
+                  
+                  ! Fill improper vefs dim
+                  call this%improper_vefs_dim%push_back(0)
+                end if
+              end if
            end if
         end do  ! End loop faces at corner
 
@@ -379,7 +448,7 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
                  end do
                  assert(edge_corner<=num_edge_corners)
 
-                 !! 3. I am improper if am either corner 1 of subedge 0 or corner 0 of subedge 1
+                 ! 3. I am improper if am either corner 1 of subedge 0 or corner 0 of subedge 1
                  if ( edge_corner /= isubedge ) then
                     improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
                     improper_cell_around_subvef  = -1
@@ -422,7 +491,12 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
            if (min_cell == jcell) then
               min_icorner=jcell_icorner
            end if
-           call work_vector_cells_around%push_back(jcell)
+           if ( jcell > this%get_num_local_cells() ) then ! If neighbour cell is ghost
+              call work_vector_ghost_cells_around%push_back(jcell)
+              call work_vector_ghost_cells_around_ivef%push_back(jcell_icorner)
+           else                                           ! If neighbour cell is local
+              call work_vector_cells_around%push_back(jcell)
+           end if
         end if
 
         base_pos_icell    = this%get_ptr_vefs_x_cell(icell)-1
@@ -434,10 +508,22 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
               this%num_proper_vefs = this%num_proper_vefs+1
               call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), this%num_proper_vefs)
 
-              call this%ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size())
+              call this%ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size()+&
+                                                               work_vector_ghost_cells_around%size())
+              
+              ! Process local cells around
               do i=1, work_vector_cells_around%size()
                  call this%lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
               end do
+              
+              ! Process ghost cells around
+              do i=1, work_vector_ghost_cells_around%size()
+                 call this%lst_cells_around_proper_vefs%push_back(work_vector_ghost_cells_around%get(i))
+                 base_pos_ghost_cell = this%get_ptr_vefs_x_cell(work_vector_ghost_cells_around%get(i))-1
+                 call this%lst_vefs_gids%set(base_pos_ghost_cell+P4EST_2_FEMPAR_CORNER(work_vector_ghost_cells_around_ivef%get(i)), &
+                      this%lst_vefs_gids%get(base_pos_min_cell  +P4EST_2_FEMPAR_CORNER(min_icorner)))
+              end do
+              
               ! Fill proper vefs dim
               call this%proper_vefs_dim%push_back(0)
 
@@ -451,12 +537,21 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
               this%num_improper_vefs = this%num_improper_vefs+1
               call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), -this%num_improper_vefs)
 
-              ! Fill cells_around improper vefs 
-              call this%ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
+              ! Fill local cells_around improper vefs 
+              call this%ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size()+&
+                                                                 work_vector_ghost_cells_around%size())
               do i=1, work_vector_cells_around%size()
                  call this%lst_cells_around_improper_vefs%push_back(work_vector_cells_around%get(i))
               end do
-
+              
+              ! Fill ghost cells_around improper vefs 
+              do i=1, work_vector_ghost_cells_around%size()
+                 call this%lst_cells_around_improper_vefs%push_back(work_vector_ghost_cells_around%get(i))
+                 base_pos_ghost_cell = this%get_ptr_vefs_x_cell(work_vector_ghost_cells_around%get(i))-1
+                 call this%lst_vefs_gids%set(base_pos_ghost_cell+P4EST_2_FEMPAR_CORNER(work_vector_ghost_cells_around_ivef%get(i)), &
+                      this%lst_vefs_gids%get(base_pos_min_cell  +P4EST_2_FEMPAR_CORNER(min_icorner)))
+              end do
+              
               ! Fill improper cells_around improper vefs
               call this%ptr_improper_cells_around%push_back(work_vector_improper_cells_around%size())
               do i=1, work_vector_improper_cells_around%size()
@@ -642,6 +737,7 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
         end do ! iedge
      end if
 
+     faces_visited = .false.
      do iface=1, num_faces_x_cell
         is_proper       = .true.
         min_cell        = icell
@@ -653,6 +749,8 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
         call work_vector_improper_cells_around%resize(0)
         call work_vector_ivef%resize(0)
         call work_vector_subvef%resize(0)
+        call work_vector_ghost_cells_around%resize(0)
+        call work_vector_ghost_cells_around_ivef%resize(0)
 
         jcell_iconn = this%quad_to_face(iface,icell)         
 
@@ -672,7 +770,12 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
               min_iface=this%quad_to_face(iface,icell)+1 
            end if
            if ( jcell /= icell ) then ! Skip myself if at boundary
-              call work_vector_cells_around%push_back(jcell)
+              if ( jcell > this%get_num_local_cells() ) then ! If neighbour cell is ghost
+                 call work_vector_ghost_cells_around%push_back(jcell)
+                 call work_vector_ghost_cells_around_ivef%push_back(this%quad_to_face(iface,icell)+1)
+              else 
+                 call work_vector_cells_around%push_back(jcell)
+              end if
            else
               vef_at_boundary = .true.
            end if
@@ -684,6 +787,28 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
            call work_vector_improper_cells_around%push_back(jcell)
            call work_vector_ivef%push_back(improper_cell_around_ivef)
            call work_vector_subvef%push_back(improper_cell_around_subvef)
+        else ! Half-size neighbour           
+           do isubface = 1, num_subfacets_facet
+              jcell = this%quad_to_half(isubface,this%quad_to_quad(iface,icell)+1)+1
+              ! Introduce new improvef vef in cell around
+              if ( jcell > this%get_num_local_cells() ) then ! If neighbour cell is ghost
+                 assert ( this%get_num_dims() == 2 )
+                 this%num_improper_vefs = this%num_improper_vefs+1
+                 
+                 base_pos_icell = this%get_ptr_vefs_x_cell(jcell)-1
+                 call this%lst_vefs_gids%set(base_pos_icell+num_corners_x_cell+num_edges_x_cell+P4EST_FACES_IN_TOUCH_2D(iface), -this%num_improper_vefs)
+                 call this%ptr_cells_around_improper_vefs%push_back(1)
+                 call this%lst_cells_around_improper_vefs%push_back(jcell)
+                 
+                 ! Fill improper cells_around improper vefs
+                 call this%ptr_improper_cells_around%push_back(icell)
+                 call this%improper_vefs_improper_cell_around_ivef%push_back(iface)
+                 call this%improper_vefs_improper_cell_around_subvef%push_back(isubface)
+                 
+                 ! Fill improper vefs dim
+                 call this%improper_vefs_dim%push_back(0)
+              end if
+           end do
         end if
 
         base_pos_icell    = this%get_ptr_vefs_x_cell(icell)-1    + num_corners_x_cell + num_edges_x_cell
@@ -695,10 +820,18 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
               this%num_proper_vefs=this%num_proper_vefs+1
               call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), this%num_proper_vefs)
 
-              ! Fill cells_around proper vefs
+              ! Fill local cells_around proper vefs
               call this%ptr_cells_around_proper_vefs%push_back(work_vector_cells_around%size())
               do i=1, work_vector_cells_around%size()
                  call this%lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
+              end do
+
+              ! Process ghost cells around
+              do i=1, work_vector_ghost_cells_around%size()
+                 call this%lst_cells_around_proper_vefs%push_back(work_vector_ghost_cells_around%get(i))
+                 base_pos_ghost_cell = this%get_ptr_vefs_x_cell(work_vector_ghost_cells_around%get(i))-1
+                 call this%lst_vefs_gids%set(base_pos_ghost_cell+P4EST_2_FEMPAR_FACE(work_vector_ghost_cells_around_ivef%get(i)), &
+                      this%lst_vefs_gids%get(base_pos_min_cell  +P4EST_2_FEMPAR_FACE(min_iface)))
               end do
 
               ! Fill proper vefs dim
@@ -719,6 +852,14 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
               call this%ptr_cells_around_improper_vefs%push_back(work_vector_cells_around%size())
               do i=1, work_vector_cells_around%size()
                  call this%lst_cells_around_improper_vefs%push_back(work_vector_cells_around%get(i))
+              end do
+
+              ! Fill ghost cells_around improper vefs 
+              do i=1, work_vector_ghost_cells_around%size()
+                 call this%lst_cells_around_improper_vefs%push_back(work_vector_ghost_cells_around%get(i))
+                 base_pos_ghost_cell = this%get_ptr_vefs_x_cell(work_vector_ghost_cells_around%get(i))-1
+                 call this%lst_vefs_gids%set(base_pos_ghost_cell+ num_corners_x_cell + num_edges_x_cell + P4EST_2_FEMPAR_FACE(work_vector_ghost_cells_around_ivef%get(i)), &
+                      this%lst_vefs_gids%get(base_pos_min_cell  + num_corners_x_cell + num_edges_x_cell + P4EST_2_FEMPAR_FACE(min_iface)))
               end do
 
               ! Fill improper cells_around improper vefs
@@ -747,6 +888,7 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   call work_vector_improper_cells_around%free()
   call work_vector_ivef%free()
   call work_vector_subvef%free()
+  call memfree ( faces_visited, __FILE__, __LINE__ )
 #else
   call this%not_enabled_error()
 #endif    

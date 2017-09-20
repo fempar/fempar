@@ -81,6 +81,12 @@ module p4est_triangulation_names
   integer(ip), target :: P4EST_OPPOSITE_CORNER_2D(NUM_CORNERS_2D) = [ 4, 3, 2, 1 ]
   integer(ip), target :: P4EST_2_FEMPAR_CORNER_2D(NUM_CORNERS_2D) = [ 1, 2, 3, 4 ]
   integer(ip), target :: P4EST_2_FEMPAR_FACE_2D  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
+  
+  integer(ip), target :: P4EST_FACES_SUBFACE_IMPROPER_VERTEX_LID_2D(NUM_FACES_2D,NUM_SUBFACES_FACE_2D) = & 
+                                                  reshape([ 4, 3, 4, 2, &
+                                                            2, 1, 3, 1 ] ,[NUM_FACES_2D,NUM_SUBFACES_FACE_2D])
+                                                  
+  integer(ip), target :: P4EST_FACES_IN_TOUCH_2D(NUM_FACES_2D) = [ 2, 1, 4, 3 ]
 
   ! For 3D
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_FACE_3D = 4
