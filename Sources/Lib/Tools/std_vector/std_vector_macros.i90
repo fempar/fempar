@@ -68,7 +68,113 @@ contains                                                          ;\
  generic :: get_pointer => get_pointer_single_entry, get_pointer_to_range, get_raw_pointer ;\
 end type                                                 ;\
 
-#define STD_VECTOR_PUSH_BACK(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)                  \
+#ifdef HAS_DYNAMIC_MEMORY
+
+#define STD_VECTOR_PUSH_BACK(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)   \
+SUBROUTINE push_back(T,i)                     ;\
+  IMPLICIT NONE                                               ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME), intent(inout) :: T  ;\
+  BASE_DATA_TYPE                                   , intent(in)    :: i  ;\
+  BASE_DATA_TYPE, ALLOCATABLE :: v_aux(:)  ;\
+  integer(ip) :: error, pos ;\
+  IF(.NOT.ALLOCATED(T%v)) THEN      ;\
+    ALLOCATE( T%v(1), STAT = error ) ; check( error == 0 ) ;\
+    T%size_ = 1                      ;\
+    T%capacity_ = 1                  ;\
+    T%v(1)=i                        ;\
+  ELSEIF(T%size_ < T%capacity_)THEN  ;\
+    T%size_ = T%size_ + 1             ;\
+    T%v(T%size_)=i                   ;\
+  ELSE                              ;\
+    T%capacity_ = (T%size_*3)/2+1     ;\
+    ALLOCATE( v_aux(T%capacity_), STAT = error ) ; check( error == 0 ) ;\
+    v_aux(1:T%size_) = T%v(1:T%size_) ;\
+    DO pos = 1, T%size_    ;\
+      CALL T%v(pos)%free() ;\
+    ENDDO                  ;\
+    DEALLOCATE( T%v, STAT = error ) ; check( error == 0 ) ;\
+    call move_alloc( from=v_aux, to=T%v ) ;\
+    T%size_ = T%size_ + 1             ;\
+    T%v(T%size_) = i                 ;\
+  ENDIF                             ;\
+END SUBROUTINE push_back            ;\
+
+#define STD_VECTOR_RESIZE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)   \
+SUBROUTINE resize(T,size,i)  ;\
+  IMPLICIT NONE                 ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(inout) :: T     ;\
+  integer(ip)                                        , intent(in)    :: size  ;\
+  BASE_DATA_TYPE                           , optional, intent(in)    :: i     ;\
+  BASE_DATA_TYPE, ALLOCATABLE :: v_aux(:)  ;\
+  integer(ip) :: error, pos ;\
+  assert (size>=0) ;\
+  IF(.NOT.ALLOCATED(T%v)) THEN ;\
+    IF(size>0)THEN            ;\
+      ALLOCATE( T%v(size), STAT = error ) ; check( error == 0 ) ;\
+    ENDIF                     ;\
+    T%size_ = size             ;\
+    T%capacity_ = size         ;\
+    IF(PRESENT(i))THEN        ;\
+      T%v(1:size)=i           ;\
+    ENDIF                     ;\
+  ELSEIF(T%capacity_ >= size)THEN ;\
+    IF(PRESENT(i))THEN        ;\
+      T%v(T%size_+1:size)=i    ;\
+    ENDIF                     ;\
+    T%size_ = size             ;\
+  ELSE                        ;\
+    ALLOCATE( v_aux(size), STAT = error ) ; check( error == 0 ) ;\
+    v_aux (1:T%size_) = T%v(1:T%size_) ;\
+    DO pos = 1, T%capacity_ ;\
+      CALL T%v(pos)%free()  ;\
+    ENDDO                   ;\
+    T%capacity_ = size         ;\
+    DEALLOCATE( T%v, STAT = error ) ; check( error == 0 ) ;\
+    call move_alloc( from=v_aux, to=T%v ) ;\
+    IF(PRESENT(i))THEN        ;\
+      T%v(T%size_+1:size)=i   ;\
+    ENDIF                     ;\
+    T%size_ = size             ;\
+  ENDIF                       ;\
+END SUBROUTINE                ;\
+
+#define STD_VECTOR_SHRINK_TO_FIT(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)   \
+SUBROUTINE shrink_to_fit(T)  ;\
+  IMPLICIT NONE                 ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(inout) :: T  ;\
+  BASE_DATA_TYPE, ALLOCATABLE :: v_aux(:)  ;\
+  integer(ip) :: error, pos ;\
+  assert (T%size_ <= T%capacity_) ;\
+  IF( ALLOCATED(T%v) .and. T%size_ < T%capacity_ ) THEN ;\
+    ALLOCATE( v_aux(T%size_), STAT = error ) ; check( error == 0 ) ;\
+    v_aux (1:T%size_) = T%v(1:T%size_) ;\
+    DO pos = 1, T%capacity_ ;\
+      CALL T%v(pos)%free()  ;\
+    ENDDO                   ;\
+    T%capacity_ = T%size_         ;\
+    DEALLOCATE( T%v, STAT = error ) ; check( error == 0 ) ;\
+    call move_alloc( from=v_aux, to=T%v ) ;\
+  ENDIF                       ;\
+END SUBROUTINE                ;\
+
+#define STD_VECTOR_FREE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)   \
+SUBROUTINE free(T)  ;\
+  IMPLICIT NONE                 ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(inout) :: T  ;\
+  integer(ip) :: error, pos ;\
+  if (allocated(T%v)) then ;\
+    DO pos = 1, T%capacity_ ;\
+      CALL T%v(pos)%free()  ;\
+    ENDDO                   ;\
+    DEALLOCATE( T%v, STAT = error ) ; check( error == 0 ) ;\
+  end if ;\
+  T%size_ = 0 ;\
+  T%capacity_ = 0 ;\
+END SUBROUTINE  ;\
+
+#else
+
+#define STD_VECTOR_PUSH_BACK(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)   \
 SUBROUTINE push_back(T,i)                     ;\
   IMPLICIT NONE                                               ;\
   CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME), intent(inout) :: T  ;\
@@ -94,18 +200,7 @@ SUBROUTINE push_back(T,i)                     ;\
   ENDIF                             ;\
 END SUBROUTINE push_back            ;\
 
-#define STD_VECTOR_ERASE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)                  \
-SUBROUTINE erase(T,pos)                     ;\
-  IMPLICIT NONE                                               ;\
-  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME), intent(inout) :: T  ;\
-  integer(ip), intent(in)    :: pos  ;\
-  assert ( allocated(T%v) ) ;\
-  assert ( pos>=1 .and. pos<= T%size_ ) ;\
-  T%v(pos:T%size_-1) = T%v(pos+1:T%size_) ;\
-  T%size_ = T%size_ -1 ;\
-END SUBROUTINE erase ;\
-
-#define STD_VECTOR_RESIZE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)  \
+#define STD_VECTOR_RESIZE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)   \
 SUBROUTINE resize(T,size,i)  ;\
   IMPLICIT NONE                 ;\
   CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(inout) :: T     ;\
@@ -141,7 +236,7 @@ SUBROUTINE resize(T,size,i)  ;\
   ENDIF                       ;\
 END SUBROUTINE                ;\
 
-#define STD_VECTOR_SHRINK_TO_FIT(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)  \
+#define STD_VECTOR_SHRINK_TO_FIT(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)   \
 SUBROUTINE shrink_to_fit(T)  ;\
   IMPLICIT NONE                 ;\
   CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(inout) :: T  ;\
@@ -157,6 +252,31 @@ SUBROUTINE shrink_to_fit(T)  ;\
   ENDIF                       ;\
 END SUBROUTINE                ;\
 
+#define STD_VECTOR_FREE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)   \
+SUBROUTINE free(T)  ;\
+  IMPLICIT NONE                 ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(inout) :: T  ;\
+  integer(ip) :: error ;\
+  if (allocated(T%v)) then ;\
+    DEALLOCATE( T%v, STAT = error ) ; check( error == 0 ) ;\
+  end if ;\
+  T%size_ = 0 ;\
+  T%capacity_ = 0 ;\
+END SUBROUTINE  ;\
+
+#endif
+
+#define STD_VECTOR_ERASE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)                  \
+SUBROUTINE erase(T,pos)                     ;\
+  IMPLICIT NONE                                               ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME), intent(inout) :: T  ;\
+  integer(ip), intent(in)    :: pos  ;\
+  assert ( allocated(T%v) ) ;\
+  assert ( pos>=1 .and. pos<= T%size_ ) ;\
+  T%v(pos:T%size_-1) = T%v(pos+1:T%size_) ;\
+  T%size_ = T%size_ -1 ;\
+END SUBROUTINE erase ;\
+
 #define STD_VECTOR_COPY(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME)  \
 SUBROUTINE copy(T,T2)  ;\
   IMPLICIT NONE                 ;\
@@ -170,18 +290,6 @@ SUBROUTINE copy(T,T2)  ;\
   if (allocated(T2%v)) then ;\
     if (T%size_ >0) T%v(1:T%size_) = T2%v(1:T%size_) ;\
   end if  ;\
-END SUBROUTINE  ;\
-
-#define STD_VECTOR_FREE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME) \
-SUBROUTINE free(T)  ;\
-  IMPLICIT NONE                 ;\
-  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(inout) :: T  ;\
-  integer(ip) :: error ;\
-  if (allocated(T%v)) then ;\
-    DEALLOCATE( T%v, STAT = error ) ; check( error == 0 ) ;\
-  end if ;\
-  T%size_ = 0 ;\
-  T%capacity_ = 0 ;\
 END SUBROUTINE  ;\
 
 #define STD_VECTOR_SET(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME) \

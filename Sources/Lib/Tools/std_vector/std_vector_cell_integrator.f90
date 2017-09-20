@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 #include "debug.i90"
+#define HAS_DYNAMIC_MEMORY
 #include "std_vector_macros.i90"
 module std_vector_cell_integrator_names
   use types_names
@@ -41,12 +42,13 @@ module std_vector_cell_integrator_names
   
 contains
   
+#define HAS_DYNAMIC_MEMORY
   STD_VECTOR_PUSH_BACK(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_ERASE(type(cell_integrator_t),cell_integrator)
   STD_VECTOR_RESIZE(type(cell_integrator_t),cell_integrator)
   STD_VECTOR_SHRINK_TO_FIT(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_COPY(type(cell_integrator_t),cell_integrator)
   STD_VECTOR_FREE(type(cell_integrator_t),cell_integrator)
+  STD_VECTOR_ERASE(type(cell_integrator_t),cell_integrator)
+  STD_VECTOR_COPY(type(cell_integrator_t),cell_integrator)
   STD_VECTOR_SET(type(cell_integrator_t),cell_integrator)
   STD_VECTOR_SIZE(type(cell_integrator_t),cell_integrator)
   STD_VECTOR_CAPACITY(type(cell_integrator_t),cell_integrator)

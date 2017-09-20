@@ -41,11 +41,11 @@ module std_vector_logical_names
 contains
   
   STD_VECTOR_PUSH_BACK(logical,logical)
-  STD_VECTOR_ERASE(logical,logical)
   STD_VECTOR_RESIZE(logical,logical)
   STD_VECTOR_SHRINK_TO_FIT(logical,logical)
-  STD_VECTOR_COPY(logical,logical)
   STD_VECTOR_FREE(logical,logical)
+  STD_VECTOR_ERASE(logical,logical)
+  STD_VECTOR_COPY(logical,logical)
   STD_VECTOR_SET(logical,logical)
   STD_VECTOR_SIZE(logical,logical)
   STD_VECTOR_CAPACITY(logical,logical)

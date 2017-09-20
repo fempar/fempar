@@ -41,11 +41,11 @@ module std_vector_integer_ip_names
 contains
   
   STD_VECTOR_PUSH_BACK(integer(ip),integer_ip)
-  STD_VECTOR_ERASE(integer(ip),integer_ip)
   STD_VECTOR_RESIZE(integer(ip),integer_ip)
   STD_VECTOR_SHRINK_TO_FIT(integer(ip),integer_ip)
-  STD_VECTOR_COPY(integer(ip),integer_ip)
   STD_VECTOR_FREE(integer(ip),integer_ip)
+  STD_VECTOR_ERASE(integer(ip),integer_ip)
+  STD_VECTOR_COPY(integer(ip),integer_ip)
   STD_VECTOR_SET(integer(ip),integer_ip)
   STD_VECTOR_SIZE(integer(ip),integer_ip)
   STD_VECTOR_CAPACITY(integer(ip),integer_ip)

@@ -42,11 +42,11 @@ module std_vector_point_names
 contains
   
   STD_VECTOR_PUSH_BACK(type(point_t),point)
-  STD_VECTOR_ERASE(type(point_t),point)
   STD_VECTOR_RESIZE(type(point_t),point)
   STD_VECTOR_SHRINK_TO_FIT(type(point_t),point)
-  STD_VECTOR_COPY(type(point_t),point)
   STD_VECTOR_FREE(type(point_t),point)
+  STD_VECTOR_ERASE(type(point_t),point)
+  STD_VECTOR_COPY(type(point_t),point)
   STD_VECTOR_SET(type(point_t),point)
   STD_VECTOR_SIZE(type(point_t),point)
   STD_VECTOR_CAPACITY(type(point_t),point)

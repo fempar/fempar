@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 #include "debug.i90"
+#define HAS_DYNAMIC_MEMORY
 #include "std_vector_macros.i90"
 module std_vector_facet_maps_names
   use types_names
@@ -41,12 +42,13 @@ module std_vector_facet_maps_names
   
 contains
   
+#define HAS_DYNAMIC_MEMORY
   STD_VECTOR_PUSH_BACK(type(facet_maps_t),facet_maps)
-  STD_VECTOR_ERASE(type(facet_maps_t),facet_maps)
   STD_VECTOR_RESIZE(type(facet_maps_t),facet_maps)
   STD_VECTOR_SHRINK_TO_FIT(type(facet_maps_t),facet_maps)
-  STD_VECTOR_COPY(type(facet_maps_t),facet_maps)
   STD_VECTOR_FREE(type(facet_maps_t),facet_maps)
+  STD_VECTOR_ERASE(type(facet_maps_t),facet_maps)
+  STD_VECTOR_COPY(type(facet_maps_t),facet_maps)
   STD_VECTOR_SET(type(facet_maps_t),facet_maps)
   STD_VECTOR_SIZE(type(facet_maps_t),facet_maps)
   STD_VECTOR_CAPACITY(type(facet_maps_t),facet_maps)

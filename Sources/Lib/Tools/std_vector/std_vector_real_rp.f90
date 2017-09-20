@@ -41,11 +41,11 @@ module std_vector_real_rp_names
 contains
   
   STD_VECTOR_PUSH_BACK(real(rp),real_rp)
-  STD_VECTOR_ERASE(real(rp),real_rp)
   STD_VECTOR_RESIZE(real(rp),real_rp)
   STD_VECTOR_SHRINK_TO_FIT(real(rp),real_rp)
-  STD_VECTOR_COPY(real(rp),real_rp)
   STD_VECTOR_FREE(real(rp),real_rp)
+  STD_VECTOR_ERASE(real(rp),real_rp)
+  STD_VECTOR_COPY(real(rp),real_rp)
   STD_VECTOR_SET(real(rp),real_rp)
   STD_VECTOR_SIZE(real(rp),real_rp)
   STD_VECTOR_CAPACITY(real(rp),real_rp)

@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 #include "debug.i90"
+#define HAS_DYNAMIC_MEMORY
 #include "std_vector_macros.i90"
 module std_vector_quadrature_names
   use types_names
@@ -41,12 +42,13 @@ module std_vector_quadrature_names
   
 contains
   
+#define HAS_DYNAMIC_MEMORY
   STD_VECTOR_PUSH_BACK(type(quadrature_t),quadrature)
-  STD_VECTOR_ERASE(type(quadrature_t),quadrature)
   STD_VECTOR_RESIZE(type(quadrature_t),quadrature)
   STD_VECTOR_SHRINK_TO_FIT(type(quadrature_t),quadrature)
-  STD_VECTOR_COPY(type(quadrature_t),quadrature)
   STD_VECTOR_FREE(type(quadrature_t),quadrature)
+  STD_VECTOR_ERASE(type(quadrature_t),quadrature)
+  STD_VECTOR_COPY(type(quadrature_t),quadrature)
   STD_VECTOR_SET(type(quadrature_t),quadrature)
   STD_VECTOR_SIZE(type(quadrature_t),quadrature)
   STD_VECTOR_CAPACITY(type(quadrature_t),quadrature)
