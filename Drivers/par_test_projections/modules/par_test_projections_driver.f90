@@ -29,8 +29,8 @@ module par_test_projections_driver_names
   use fempar_names
   use par_test_projections_params_names
   use projections_discrete_integration_names
-  use projections_conditions_names
-  use projections_analytical_functions_names
+  use interpolators_conditions_names
+  use interpolators_analytical_functions_names
 # include "debug.i90"
 
   implicit none
@@ -50,7 +50,7 @@ module par_test_projections_driver_names
      type(par_triangulation_t)             :: triangulation
      
 					! Analytical functions for the test problem 
-					type(projections_analytical_functions_t)      :: problem_functions
+					type(interpolators_analytical_functions_t)      :: problem_functions
 										
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                          :: fe_space 
@@ -58,7 +58,7 @@ module par_test_projections_driver_names
      type(standard_l1_coarse_fe_handler_t)         :: coarse_fe_handler 
 	    type(p_l1_coarse_fe_handler_t), allocatable   :: coarse_fe_handlers(:)
 	    type(projections_CG_discrete_integration_t)   :: projections_integration
-     type(projections_conditions_t)                :: projections_conditions
+     type(interpolators_conditions_t)                :: projections_conditions
 					type(fe_affine_operator_t)                    :: fe_affine_operator
 
      ! projections problem solution FE function

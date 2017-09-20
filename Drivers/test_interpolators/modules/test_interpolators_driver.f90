@@ -25,12 +25,11 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_projections_driver_names
+module test_interpolators_driver_names
   use fempar_names
-  use projections_params_names
-  use projections_analytical_functions_names
-		use projections_discrete_integration_names 
-  use projections_conditions_names
+  use interpolators_params_names
+  use interpolators_analytical_functions_names
+  use interpolators_conditions_names
 # include "debug.i90"
 
   implicit none
@@ -39,11 +38,11 @@ module test_projections_driver_names
 		integer(ip), parameter :: MAGNETIC_FIELD_ID = 1
   integer(ip), parameter :: PRESSURE_FIELD_ID = 2
 		
-  type test_projections_driver_t 
+  type test_interpolators_driver_t 
      private 
 
      ! Place-holder for parameter-value set provided through command-line interface
-     type(projections_params_t)           :: test_params
+     type(interpolators_params_t)         :: test_params
      type(ParameterList_t)                :: parameter_list
 
      ! Cells and lower dimension objects container
@@ -51,16 +50,17 @@ module test_projections_driver_names
 					integer(ip), allocatable                  :: cell_set_ids(:)
 
      ! Analytical functions of the problem
-     type(projections_analytical_functions_t) :: problem_functions
+     type(interpolators_analytical_functions_t) :: problem_functions
 
      ! Discrete weak problem integration-related data type instances 
      type(serial_fe_space_t)                     :: fe_space 
      type(p_reference_fe_t) , allocatable        :: reference_fes(:) 
 					integer(ip)            , allocatable        :: set_ids_to_reference_fes(:,:)
-     type(projections_conditions_t)              :: projections_conditions
-					type(fe_affine_operator_t)                  :: fe_affine_operator
-					type(projections_discrete_integration_t)    :: projections_integration
+     type(interpolators_conditions_t)            :: interpolators_conditions
 
+					! Operators related data 
+					type(block_layout_t)                        :: block_layout 
+					
      ! Problem solution FE function
      type(fe_function_t)                         :: solution
 					type(fe_function_t)                         :: time_solution 
@@ -72,28 +72,28 @@ module test_projections_driver_names
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
-     procedure        , private :: project_analytical_function 
+     procedure        , private :: interpolate_analytical_functions 
      procedure        , private :: check_solution
 					procedure        , private :: check_time_solution
      procedure        , private :: write_solution
      procedure        , private :: free
-  end type test_projections_driver_t
+  end type test_interpolators_driver_t
 
   ! Types
-  public :: test_projections_driver_t
+  public :: test_interpolators_driver_t
 
 contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(test_projections_driver_t ), intent(inout) :: this
+    class(test_interpolators_driver_t ), intent(inout) :: this
     call this%test_params%create()
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
 
   subroutine setup_triangulation(this)
     implicit none
-    class(test_projections_driver_t), intent(inout) :: this
+    class(test_interpolators_driver_t), intent(inout) :: this
 				class(cell_iterator_t)            , allocatable :: cell
 				integer(ip)                                     :: set_id 
 				
@@ -101,7 +101,7 @@ contains
 				
 				! Set the cell ids to use void fes
     if ( .not. this%test_params%get_conformity() ) then
-        call memalloc(this%triangulation%get_num_local_cells(), this%cell_set_ids)
+        call memalloc(this%triangulation%get_num_local_cells(), this%cell_set_ids, __FILE__, __LINE__ )
         call this%triangulation%create_cell_iterator(cell)
         do while( .not. cell%has_finished() )
           if (cell%is_local()) then
@@ -112,13 +112,15 @@ contains
         end do
         call this%triangulation%free_cell_iterator(cell)
         call this%triangulation%fill_cells_set(this%cell_set_ids)
-    end if
+    
+					   call memfree( this%cell_set_ids, __FILE__, __LINE__ ) 			
+					end if
 				
   end subroutine setup_triangulation
 
   subroutine setup_reference_fes(this)
     implicit none
-    class(test_projections_driver_t), intent(inout) :: this
+    class(test_interpolators_driver_t), intent(inout) :: this
     integer(ip) :: istat
     class(vef_iterator_t), allocatable  :: vef
     class(cell_iterator_t), allocatable       :: cell
@@ -182,8 +184,7 @@ contains
                                                                  order      = this%test_params%get_reference_fe_order()+1, &
                                                                  field_type = field_type_scalar,                           &
                                                                  conformity = .false. ) 
-				
-				
+							
 				end if 
     
     call this%triangulation%free_cell_iterator(cell)
@@ -205,46 +206,42 @@ contains
 
   subroutine setup_fe_space(this)
     implicit none
-    class(test_projections_driver_t), intent(inout) :: this 
+    class(test_interpolators_driver_t), intent(inout) :: this 
 				
-    call this%projections_conditions%set_num_dims(this%triangulation%get_num_dims() + 1)
+    call this%interpolators_conditions%set_num_dims(this%triangulation%get_num_dims() + 1)
 				if ( this%test_params%get_conformity() ) then 
     call this%fe_space%create( triangulation       = this%triangulation, &
                                reference_fes       = this%reference_fes, &
-                               conditions          = this%projections_conditions )
+                               conditions          = this%interpolators_conditions )
 				else 
 				call this%fe_space%create( triangulation             = this%triangulation,            &
                                reference_fes             = this%reference_fes,            &
 																															set_ids_to_reference_fes  = this%set_ids_to_reference_fes, &
-                               conditions                = this%projections_conditions )
+                               conditions                = this%interpolators_conditions )
 				end if 
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()
 				
-				call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .false.  ], &
-                                          diagonal_blocks_symmetric         = [ .false. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_UNKNOWN ], &
-                                          fe_space                          = this%fe_space,           &
-                                          discrete_integration              = this%projections_integration )
-								
+				! Operators related data needed for fe_function 
+				call this%block_layout%create( this%fe_space%get_num_fields() )
+				call this%fe_space%generate_global_dof_numbering(this%block_layout)								
   end subroutine setup_fe_space
 
-  subroutine project_analytical_function (this)
+  subroutine interpolate_analytical_functions (this)
     implicit none
-    class(test_projections_driver_t), intent(inout) :: this 
+    class(test_interpolators_driver_t), intent(inout) :: this 
 				class(vector_t) , pointer :: dof_values
 				real(rp) :: time_ 
 									
     call this%problem_functions%set_num_dims(this%triangulation%get_num_dims())
 
 				! Set boundary conditions 
-	   call this%projections_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
-	   call this%projections_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
+	   call this%interpolators_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
+	   call this%interpolators_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
 	   if ( this%triangulation%get_num_dims() == 3) then 
-	   call this%projections_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
+	   call this%interpolators_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
 	   end if 
-				call this%projections_conditions%set_boundary_function_pressure(this%problem_functions%get_boundary_function_pressure()) 
+				call this%interpolators_conditions%set_boundary_function_pressure(this%problem_functions%get_boundary_function_pressure()) 
 
 				! Project functions 
 				call this%solution%create(this%fe_space)
@@ -266,11 +263,11 @@ contains
 				call this%fe_space%project_Dirichlet_boundary_function( fe_function = this%time_solution, & 
 																																																											 time        = this%time )
 				
-  end subroutine project_analytical_function 
+  end subroutine interpolate_analytical_functions 
 
   subroutine check_solution(this)
     implicit none
-    class(test_projections_driver_t), intent(inout) :: this
+    class(test_interpolators_driver_t), intent(inout) :: this
     class(vector_function_t), pointer :: H_exact_function
 				class(scalar_function_t), pointer :: p_exact_function
     type(error_norms_vector_t) :: H_error_norm
@@ -345,7 +342,7 @@ contains
 		
 		subroutine check_time_solution(this)
     implicit none
-    class(test_projections_driver_t), intent(inout) :: this
+    class(test_interpolators_driver_t), intent(inout) :: this
     class(vector_function_t), pointer :: H_exact_function
 				class(scalar_function_t), pointer :: p_exact_function
     type(error_norms_vector_t) :: H_error_norm
@@ -420,7 +417,7 @@ contains
   
   subroutine write_solution(this)
     implicit none
-    class(test_projections_driver_t), intent(in) :: this
+    class(test_interpolators_driver_t), intent(in) :: this
     type(output_handler_t)                           :: oh
     if(this%test_params%get_write_solution()) then
         call oh%create()
@@ -436,13 +433,13 @@ contains
 
   subroutine run_simulation(this) 
     implicit none
-    class(test_projections_driver_t), intent(inout) :: this
+    class(test_interpolators_driver_t), intent(inout) :: this
     call this%free()
     call this%parse_command_line_parameters()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
-    call this%project_analytical_function()
+    call this%interpolate_analytical_functions()
     call this%write_solution()
     call this%check_solution()
 				call this%check_time_solution() 
@@ -451,8 +448,10 @@ contains
 
   subroutine free(this)
     implicit none
-    class(test_projections_driver_t), intent(inout) :: this
+    class(test_interpolators_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
+				
+				call this%block_layout%free() 
     call this%solution%free() 
 				call this%time_solution%free() 
     call this%fe_space%free()
@@ -464,10 +463,10 @@ contains
     end if
     call this%triangulation%free()
     call this%test_params%free()
-				call this%fe_affine_operator%free() 
 				if ( allocated( this%set_ids_to_reference_fes ) ) then 
 				call memfree(this%set_ids_to_reference_fes, __FILE__, __LINE__ )
 				end if 
+
 				end subroutine free
 
-end module test_projections_driver_names
+end module test_interpolators_driver_names

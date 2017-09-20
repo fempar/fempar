@@ -645,7 +645,7 @@ function select_default_interpolator_type(reference_fe)
 		class is (nedelec_reference_fe_t ) 
     select_default_interpolator_type = interpolator_type_Hcurl
 		class is (lagrangian_reference_fe_t)
-    select_default_interpolator_type = interpolator_type_H1  
+    select_default_interpolator_type = interpolator_type_nodal  
   class is (void_reference_fe_t)
     check(.false.)
 		class DEFAULT
@@ -671,6 +671,7 @@ subroutine serial_fe_space_project_scalar_function (this, function, field_id, fe
   ! Extract reference_fe_t instance associated to field_id on the
   ! first cell of the mesh. TO-DO: what happens if is it void?
   call this%create_fe_cell_iterator(fe)
+		
   reference_fe => fe%get_reference_fe(field_id)
   call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
 		
@@ -713,6 +714,7 @@ subroutine serial_fe_space_project_vector_function (this, function, field_id, fe
   ! Extract reference_fe_t instance associated to field_id on the
   ! first cell of the mesh. TO-DO: what happens if is it void?
   call this%create_fe_cell_iterator(fe)
+		
   reference_fe => fe%get_reference_fe(field_id)
 		call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
   
@@ -772,7 +774,7 @@ subroutine serial_fe_space_project_Dirichlet_boundary_function (this, fe_functio
 
   allocate ( function_scalar_components(this%triangulation%get_num_dims()), stat=istat); check(istat==0);
 
-  call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(fe)	
   call this%create_fe_vef_iterator(vef)
 											
   ! Create and initialize interpolator 

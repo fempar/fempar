@@ -25,13 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module projections_conditions_names
+module interpolators_conditions_names
   use fempar_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(conditions_t) :: projections_conditions_t
+  type, extends(conditions_t) :: interpolators_conditions_t
      private
      integer(ip)                    :: num_dims
 	 class(scalar_function_t), pointer :: boundary_function_Hx

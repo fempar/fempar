@@ -25,14 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module projections_params_names
+module interpolators_params_names
   use fempar_names
 # include "debug.i90"
 
   implicit none
   private
 
-  type projections_params_t 
+  type interpolators_params_t 
      private 
      ! IO parameters
      character(len=:), allocatable :: default_dir_path
@@ -67,11 +67,11 @@ module projections_params_names
 					logical                       :: conformity
      
    contains
-     procedure, non_overridable             :: create       => projections_create
-     procedure, non_overridable, private    :: set_default  => projections_set_default
-     procedure, non_overridable, private    :: add_to_cli   => projections_add_to_cli
-     procedure, non_overridable             :: parse        => projections_parse 
-     procedure, non_overridable             :: free         => projections_free
+     procedure, non_overridable             :: create       => interpolators_create
+     procedure, non_overridable, private    :: set_default  => interpolators_set_default
+     procedure, non_overridable, private    :: add_to_cli   => interpolators_add_to_cli
+     procedure, non_overridable             :: parse        => interpolators_parse 
+     procedure, non_overridable             :: free         => interpolators_free
      procedure, non_overridable             :: get_dir_path
      procedure, non_overridable             :: get_prefix
      procedure, non_overridable             :: get_dir_path_out
@@ -80,35 +80,35 @@ module projections_params_names
      procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_write_solution
 					procedure, non_overridable             :: get_conformity
-  end type projections_params_t
+  end type interpolators_params_t
 
   ! Types
-  public :: projections_params_t
+  public :: interpolators_params_t
 
 contains
 
-  subroutine projections_create(this)
+  subroutine interpolators_create(this)
     implicit none
-    class(projections_params_t), intent(inout) :: this
+    class(interpolators_params_t), intent(inout) :: this
     
     call this%free()
     
      ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'projections',                                                     &
+    call this%cli%init(progname    = 'interpolators',                                                     &
          &        version     = '',                                                                 &
          &        authors     = '',                                                                 &
          &        license     = '',                                                                 &
          &        description =  'FEMPAR test to solve the 2D Mixed Laplacian PDE with known analytical solution. &
                                   Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', &
-         &        examples    = ['projections -h  ', 'projections -h  ' ])
+         &        examples    = ['interpolators -h  ', 'interpolators -h  ' ])
     
     call this%set_default()
     call this%add_to_cli()
-  end subroutine projections_create
+  end subroutine interpolators_create
   
-  subroutine projections_set_default(this)
+  subroutine interpolators_set_default(this)
     implicit none
-    class(projections_params_t), intent(inout) :: this
+    class(interpolators_params_t), intent(inout) :: this
     ! IO parameters
     this%default_dir_path       = 'data/'
     this%default_prefix         = 'square'
@@ -125,12 +125,12 @@ contains
     this%default_is_periodic_in_z = '0'
     this%default_write_solution = '.false.'
 				this%default_conformity='.true.'
-  end subroutine projections_set_default
+  end subroutine interpolators_set_default
   
   !==================================================================================================
-  subroutine projections_add_to_cli(this)
+  subroutine interpolators_add_to_cli(this)
     implicit none
-    class(projections_params_t) , intent(inout) :: this
+    class(interpolators_params_t) , intent(inout) :: this
 
     ! Locals
     integer(ip) :: error
@@ -183,11 +183,11 @@ contains
          &            required=.false.,act='store',def=trim(this%default_conformity),error=error) 
     check(error==0)
     
-  end subroutine projections_add_to_cli
+  end subroutine interpolators_add_to_cli
   
-  subroutine projections_parse(this,parameter_list)
+  subroutine interpolators_parse(this,parameter_list)
     implicit none
-    class(projections_params_t), intent(inout) :: this
+    class(interpolators_params_t), intent(inout) :: this
     type(ParameterList_t)       , intent(inout) :: parameter_list
     integer(ip) :: istat
     
@@ -227,23 +227,23 @@ contains
     end if
     check(istat==0)
     
-  end subroutine projections_parse  
+  end subroutine interpolators_parse  
 
-  subroutine projections_free(this)
+  subroutine interpolators_free(this)
     implicit none
-    class(projections_params_t), intent(inout) :: this
+    class(interpolators_params_t), intent(inout) :: this
     if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
     if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
     if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
     if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
     if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
     call this%cli%free()
-  end subroutine projections_free
+  end subroutine interpolators_free
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(projections_params_t) , intent(in) :: this
+    class(interpolators_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_dir_path
     get_dir_path = trim(this%dir_path)
   end function get_dir_path
@@ -251,7 +251,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(projections_params_t) , intent(in) :: this
+    class(interpolators_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_prefix
     get_prefix = trim(this%prefix)
   end function get_prefix
@@ -259,7 +259,7 @@ contains
   !==================================================================================================
   function get_dir_path_out(this)
     implicit none
-    class(projections_params_t) , intent(in) :: this
+    class(interpolators_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_dir_path_out
     get_dir_path_out = trim(this%dir_path_out)
   end function get_dir_path_out
@@ -267,7 +267,7 @@ contains
   !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
-    class(projections_params_t) , intent(in) :: this
+    class(interpolators_params_t) , intent(in) :: this
     integer(ip) :: get_reference_fe_geo_order
     get_reference_fe_geo_order = this%reference_fe_geo_order
   end function get_reference_fe_geo_order
@@ -275,7 +275,7 @@ contains
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
-    class(projections_params_t) , intent(in) :: this
+    class(interpolators_params_t) , intent(in) :: this
     integer(ip) :: get_reference_fe_order
     get_reference_fe_order = this%reference_fe_order
   end function get_reference_fe_order
@@ -283,7 +283,7 @@ contains
   !==================================================================================================
   function get_write_solution(this)
     implicit none
-    class(projections_params_t) , intent(in) :: this
+    class(interpolators_params_t) , intent(in) :: this
     logical :: get_write_solution
     get_write_solution = this%write_solution
   end function get_write_solution
@@ -291,7 +291,7 @@ contains
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
-    class(projections_params_t) , target, intent(in) :: this
+    class(interpolators_params_t) , target, intent(in) :: this
     character(:), pointer :: get_triangulation_type
     get_triangulation_type => this%triangulation_type
   end function get_triangulation_type
@@ -299,9 +299,9 @@ contains
 		  !==================================================================================================
   function get_conformity(this)
     implicit none
-    class(projections_params_t) , intent(in) :: this
+    class(interpolators_params_t) , intent(in) :: this
     logical :: get_conformity
     get_conformity = this%conformity
   end function get_conformity
   
-end module projections_params_names
+end module interpolators_params_names

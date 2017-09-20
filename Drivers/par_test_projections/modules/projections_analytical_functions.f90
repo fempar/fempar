@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module projections_analytical_functions_names
+module interpolators_analytical_functions_names
   use fempar_names
   implicit none
 # include "debug.i90"
@@ -95,7 +95,7 @@ module projections_analytical_functions_names
   end type boundary_function_pressure_t 
   
   
-  type projections_analytical_functions_t
+  type interpolators_analytical_functions_t
      private
   type(source_term_t)                     :: source_term
   type(magnetic_field_solution_t)         :: magnetic_field_solution

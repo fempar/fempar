@@ -1150,7 +1150,7 @@ module fe_space_names
  end type hp_adaptive_fe_facet_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t, hp_adaptive_fe_cell_iterator_t
- character(*), parameter :: interpolator_type_H1    = "interpolator_type_H1"
+ character(*), parameter :: interpolator_type_nodal = "interpolator_type_nodal"
  character(*), parameter :: interpolator_type_Hcurl = "interpolator_type_Hcurl"
  
  ! Abstract interpolator
@@ -1221,6 +1221,21 @@ module fe_space_names
     end subroutine interpolator_free_interface
  end interface
 
+	type, extends(interpolator_t) :: nodal_interpolator_t 
+private 
+type(cell_map_t)     , allocatable  :: cell_maps(:) 
+type(p_quadrature_t) , allocatable  :: nodal_quadratures(:)   
+ ! Boundary values array 
+real(rp), allocatable             :: scalar_function_values(:,:)
+type(vector_field_t), allocatable :: function_values(:,:)
+contains 
+procedure :: create                                             => nodal_interpolator_create
+procedure :: evaluate_scalar_function_moments                   => nodal_interpolator_evaluate_scalar_function_moments 
+procedure :: evaluate_vector_function_moments                   => nodal_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_function_scalar_components_moments        => nodal_interpolator_evaluate_function_scalar_components_moments
+procedure :: free                                               => nodal_interpolator_free
+end type nodal_interpolator_t
+
  type, extends(interpolator_t), abstract :: Hcurl_interpolator_t 
  private 
  ! Maps 
@@ -1251,6 +1266,7 @@ private
 type(hex_lagrangian_reference_fe_t)          :: fe_1D 
 type(hex_nedelec_reference_fe_t)             :: fe_2D 
 type(hex_raviart_thomas_reference_fe_t )     :: fe 
+type(interpolation_t)                        :: real_cell_interpolation
 contains 
 procedure :: create                                             => hex_Hcurl_interpolator_create
 procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments		
@@ -1269,38 +1285,7 @@ procedure :: evaluate_vector_function_moments                   => tet_Hcurl_int
 procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_interpolator_evaluate_function_components_moments
 procedure :: free                                               => tet_Hcurl_interpolator_free
 end type tet_Hcurl_interpolator_t
-
-type, extends(interpolator_t) :: H1_interpolator_t 
-private 
-type(cell_map_t)             :: cell_map 
-type(quadrature_t) , pointer :: nodal_quadrature   
- ! Boundary values array 
-real(rp), allocatable             :: scalar_function_values(:,:)
-type(vector_field_t), allocatable :: function_values(:,:)
-contains 
-procedure :: create                                             => H1_interpolator_create
-procedure :: evaluate_scalar_function_moments                   => H1_interpolator_evaluate_scalar_function_moments 
-procedure :: evaluate_vector_function_moments                   => H1_interpolator_evaluate_vector_function_moments		
-procedure :: evaluate_function_scalar_components_moments        => H1_interpolator_evaluate_function_scalar_components_moments
-procedure :: free                                               => H1_interpolator_free
-end type H1_interpolator_t 
-
-type, extends(interpolator_t) :: H1_dG_interpolator_t 
-private 
-type(cell_map_t)     , allocatable  :: cell_maps(:) 
-type(p_quadrature_t) , allocatable  :: nodal_quadratures(:)   
- ! Boundary values array 
-real(rp), allocatable             :: scalar_function_values(:,:)
-type(vector_field_t), allocatable :: function_values(:,:)
-contains 
-procedure :: create                                             => H1_dG_interpolator_create
-procedure :: evaluate_scalar_function_moments                   => H1_dG_interpolator_evaluate_scalar_function_moments 
-procedure :: evaluate_vector_function_moments                   => H1_dG_interpolator_evaluate_vector_function_moments		
-procedure :: evaluate_function_scalar_components_moments        => H1_dG_interpolator_evaluate_function_scalar_components_moments
-procedure :: free                                               => H1_dG_interpolator_free
-end type H1_dG_interpolator_t 
  
-
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
@@ -1328,9 +1313,8 @@ contains
 #include "sbm_hp_adaptive_fe_space.i90"
 
 #include "sbm_interpolator.i90"
+#include "sbm_nodal_interpolator.i90"
 #include "sbm_hex_Hcurl_interpolator.i90" 
 #include "sbm_tet_Hcurl_interpolator.i90"
-#include "sbm_H1_interpolator.i90"
-#include "sbm_H1_dG_interpolator.i90"
 
 end module fe_space_names

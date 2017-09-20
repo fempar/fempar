@@ -25,28 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module projections_discrete_integration_names
-  use fempar_names
-  
-  implicit none
-# include "debug.i90"
-  private
-  type, extends(discrete_integration_t) :: projections_discrete_integration_t
-     private
-   contains
-     procedure :: integrate_galerkin
-  end type projections_discrete_integration_t
-  
-  public :: projections_discrete_integration_t
-  
-contains
 
-  subroutine integrate_galerkin ( this, fe_space, assembler )
-    implicit none
-    class(projections_discrete_integration_t)   , intent(in)    :: this
-    class(serial_fe_space_t)                    , intent(inout) :: fe_space
-    class(assembler_t)                          , intent(inout) :: assembler
-    check(.false.) 
-  end subroutine integrate_galerkin
-  
-end module projections_discrete_integration_names
+!****************************************************************************************************
+program test_interpolators
+  use fempar_names
+  use test_interpolators_driver_names  
+  implicit none
+  type(test_interpolators_driver_t) :: test_driver
+  call fempar_init()
+  call test_driver%run_simulation()
+  call fempar_finalize()
+contains
+end program test_interpolators

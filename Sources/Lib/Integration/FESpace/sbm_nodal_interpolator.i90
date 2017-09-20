@@ -26,42 +26,56 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 ! ================================================================================
-subroutine H1_dG_interpolator_create( this, fe_space, field_id  )
+subroutine nodal_interpolator_create( this, fe_space, field_id  )
   implicit none
-  class(H1_dG_interpolator_t) , intent(inout) :: this 
+  class(nodal_interpolator_t) , intent(inout) :: this 
   class(serial_fe_space_t) , intent(in)    :: fe_space
   integer(ip)              , intent(in)    :: field_id
   integer(ip) :: num_nodal_qpoints, istat 
   class(fe_cell_iterator_t), allocatable :: fe
+		class(reference_fe_t), pointer :: source_reference_fe 
   class(reference_fe_t), pointer :: reference_fe
  
-		integer(ip) :: reference_fe_id, lowest_ref_id
+		integer(ip) :: reference_fe_id
 		integer(ip) :: num_reference_fes 
+		logical     :: reference_fe_type_is_nodal 
 		
   this%field_id = field_id
  
 		call fe_space%create_fe_cell_iterator(fe) 
+		source_reference_fe => fe%get_reference_fe(field_id) 
 		num_reference_fes = fe_space%get_num_reference_fes()
 		allocate ( this%cell_maps(num_reference_fes), stat=istat); check(istat==0)
 		allocate ( this%nodal_quadratures(num_reference_fes), stat=istat); check(istat==0)
 	
-		lowest_ref_id = num_reference_fes 
   do reference_fe_id = 1, num_reference_fes 
 		reference_fe => fe_space%get_reference_fe(reference_fe_id) 
-		if ( .not. reference_fe%get_conformity() ) then 
-		if ( reference_fe_id < lowest_ref_id ) lowest_ref_id = reference_fe_id  
-  this%nodal_quadratures(reference_fe_id)%p => reference_fe%get_nodal_quadrature()	
+		
+		! Only order may change in the field_id projection, only fill reference_fes that share topology and type
+		massert ( reference_fe%get_topology() == source_reference_fe%get_topology(), 'create_nodal_interpolator :: mixed topology FEs in the same field' )
+		 
+  reference_fe_type_is_nodal = .false. 
+		select type( reference_fe ) 
+  type is (hex_lagrangian_reference_fe_t) 
+		reference_fe_type_is_nodal = .true. 
+		type is (tet_lagrangian_reference_fe_t)  
+		reference_fe_type_is_nodal = .true.
+		end select 
+		
+		if ( reference_fe_type_is_nodal .and. (source_reference_fe%get_field_type() == reference_fe%get_field_type()) ) then 
+		this%nodal_quadratures(reference_fe_id)%p => reference_fe%get_nodal_quadrature()	
   call this%cell_maps(reference_fe_id)%create(this%nodal_quadratures(reference_fe_id)%p, fe%get_reference_fe_geo())
 		end if 
+		
 		end do 
 
 		call fe_space%free_fe_cell_iterator(fe)
-end subroutine H1_dG_interpolator_create
+end subroutine nodal_interpolator_create
 
 ! ================================================================================
-subroutine H1_dG_interpolator_evaluate_scalar_function_moments( this, fe, scalar_function, dof_values, n_face_mask, time ) 
+subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar_function, dof_values, n_face_mask, time ) 
   implicit none
-  class(H1_dG_interpolator_t)        , intent(inout) :: this
+  class(nodal_interpolator_t)        , intent(inout) :: this
   class(fe_cell_iterator_t)          , intent(in)    :: fe
   class(scalar_function_t)           , intent(in)    :: scalar_function
   real(rp) , allocatable             , intent(inout) :: dof_values(:) 
@@ -114,12 +128,12 @@ subroutine H1_dG_interpolator_evaluate_scalar_function_moments( this, fe, scalar
      call scalar_function%get_values_set(nodal_coordinates, dof_values)
   end if
 
-end subroutine H1_dG_interpolator_evaluate_scalar_function_moments
+end subroutine nodal_interpolator_evaluate_scalar_function_moments
 
 ! ================================================================================
-subroutine H1_dG_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, n_face_mask, time ) 
+subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, n_face_mask, time ) 
   implicit none
-  class(H1_dG_interpolator_t)        , intent(inout) :: this
+  class(nodal_interpolator_t)        , intent(inout) :: this
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(vector_function_t)        , intent(in)    :: vector_function
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
@@ -151,8 +165,10 @@ subroutine H1_dG_interpolator_evaluate_vector_function_moments( this, fe, vector
 		 reallocate = .false.
   if (allocated(dof_values)) reallocate = ( size(dof_values) < reference_fe%get_num_shape_functions() )                                      
   if ( (.not. allocated(dof_values)) .or. reallocate) then
-     if (allocated(dof_values)) call memfree(dof_values, __FILE__,__LINE__);       
-     call memalloc(reference_fe%get_num_shape_functions(), dof_values, __FILE__,__LINE__);
+     if (allocated(dof_values)) then 
+					call memfree(dof_values, __FILE__,__LINE__);       
+     end if 
+					call memalloc(reference_fe%get_num_shape_functions(), dof_values, __FILE__,__LINE__);
   end if
 		
 				 ! Realloc vector function values 
@@ -179,11 +195,11 @@ subroutine H1_dG_interpolator_evaluate_vector_function_moments( this, fe, vector
      dof_values(inode) = this%function_values(inode_scalar,1)%get(icomp)
   end do
 
-end subroutine H1_dG_interpolator_evaluate_vector_function_moments
+end subroutine nodal_interpolator_evaluate_vector_function_moments
 
 !==================================================================================================
-subroutine H1_dG_interpolator_evaluate_function_scalar_components_moments(this, vef_lid, fe, vector_function_scalar_components, dof_values, time)
-  class(H1_dG_interpolator_t)     , intent(inout) :: this
+subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, vef_lid, fe, vector_function_scalar_components, dof_values, time)
+  class(nodal_interpolator_t)     , intent(inout) :: this
   integer(ip)                     , intent(in)    :: vef_lid 
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:)
@@ -259,12 +275,12 @@ subroutine H1_dG_interpolator_evaluate_function_scalar_components_moments(this, 
      call own_dofs%next()
   end do
 
-end subroutine H1_dG_interpolator_evaluate_function_scalar_components_moments
+end subroutine nodal_interpolator_evaluate_function_scalar_components_moments
 
 ! ================================================================================
-subroutine H1_dG_interpolator_free( this ) 
+subroutine nodal_interpolator_free( this ) 
   implicit none
-  class(H1_dG_interpolator_t)   , intent(inout) :: this
+  class(nodal_interpolator_t)   , intent(inout) :: this
   integer(ip) :: i, istat 
 
 		do i=1, size(this%cell_maps) 
@@ -277,12 +293,8 @@ subroutine H1_dG_interpolator_free( this )
 		end do 
 		deallocate( this%nodal_quadratures, stat=istat); check(istat==0) 
 
-  if (allocated(this%scalar_function_values) ) then 
-		call memfree ( this%scalar_function_values, __FILE__, __LINE__)
-  end if 
+  if (allocated(this%scalar_function_values) ) call memfree ( this%scalar_function_values, __FILE__, __LINE__)
+		if (allocated(this%function_values)) deallocate ( this%function_values, stat=istat); check(istat==0)		
+
 		
-		if (allocated(this%function_values)) then
-		deallocate ( this%function_values, stat=istat); check(istat==0)		
-  end if 
-		
-end subroutine H1_dG_interpolator_free
+end subroutine nodal_interpolator_free

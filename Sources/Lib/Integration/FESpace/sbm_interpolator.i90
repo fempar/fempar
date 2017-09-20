@@ -32,15 +32,15 @@ subroutine make_interpolator( interpolator_type, topology, interpolator )
   class(interpolator_t) , allocatable, intent(inout) :: interpolator
   integer(ip) :: istat
   
-  assert ( interpolator_type == interpolator_type_H1 .or. interpolator_type == interpolator_type_Hcurl )
+  assert ( interpolator_type == interpolator_type_nodal .or. interpolator_type == interpolator_type_Hcurl )
   assert ( topology == topology_hex .or. topology == topology_tet ) 
   if ( allocated(interpolator) ) then
       call interpolator%free()
       deallocate(interpolator,stat=istat); check (istat==0);
   end if
   
-  if ( interpolator_type == interpolator_type_H1 ) then
-    allocate ( H1_dG_interpolator_t :: interpolator, stat=istat ); check(istat==0)  
+  if ( interpolator_type == interpolator_type_nodal ) then
+    allocate ( nodal_interpolator_t :: interpolator, stat=istat ); check(istat==0)  
   else if ( interpolator_type == interpolator_type_Hcurl  ) then
     if ( topology == topology_hex ) then
       allocate( hex_Hcurl_interpolator_t :: interpolator ) 

@@ -25,8 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-module projections_analytical_functions_names
+module interpolators_analytical_functions_names
   use fempar_names
   implicit none
 # include "debug.i90"
@@ -95,7 +94,7 @@ module projections_analytical_functions_names
   end type boundary_function_pressure_t 
   
   
-  type projections_analytical_functions_t
+  type interpolators_analytical_functions_t
      private
   type(source_term_t)                     :: source_term
   type(magnetic_field_solution_t)         :: magnetic_field_solution
@@ -113,9 +112,9 @@ module projections_analytical_functions_names
 	 procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
 	 procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
 		procedure :: get_boundary_function_pressure   => mn_get_boundary_function_pressure
-  end type projections_analytical_functions_t
+  end type interpolators_analytical_functions_t
 
-  public :: projections_analytical_functions_t
+  public :: interpolators_analytical_functions_t
 
 contains  
 
@@ -343,7 +342,7 @@ contains
   !===============================================================================================
   subroutine mn_set_num_dims ( this, num_dims )
     implicit none
-    class(projections_analytical_functions_t), intent(inout)    :: this
+    class(interpolators_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dims
     call this%source_term%set_num_dims(num_dims)
     call this%magnetic_field_solution%set_num_dims(num_dims)
@@ -353,7 +352,7 @@ contains
   !===============================================================================================
   function mn_get_magnetic_field_solution ( this )
     implicit none
-    class(projections_analytical_functions_t), target, intent(in)    :: this
+    class(interpolators_analytical_functions_t), target, intent(in)    :: this
     class(vector_function_t), pointer :: mn_get_magnetic_field_solution
     mn_get_magnetic_field_solution => this%magnetic_field_solution
   end function mn_get_magnetic_field_solution
@@ -361,7 +360,7 @@ contains
 		  !===============================================================================================
   function mn_get_pressure_solution ( this )
     implicit none
-    class(projections_analytical_functions_t), target, intent(in)    :: this
+    class(interpolators_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: mn_get_pressure_solution
     mn_get_pressure_solution => this%pressure_solution
   end function mn_get_pressure_solution
@@ -369,7 +368,7 @@ contains
   !===============================================================================================
   function mn_get_source_term ( this )
     implicit none
-    class(projections_analytical_functions_t), target, intent(in)    :: this
+    class(interpolators_analytical_functions_t), target, intent(in)    :: this
     class(vector_function_t), pointer :: mn_get_source_term
     mn_get_source_term => this%source_term
   end function mn_get_source_term
@@ -377,7 +376,7 @@ contains
   !===============================================================================================
   function mn_get_boundary_function_Hx ( this )
     implicit none
-    class(projections_analytical_functions_t), target, intent(in)    :: this
+    class(interpolators_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hx
     mn_get_boundary_function_Hx => this%boundary_function_Hx 
   end function mn_get_boundary_function_Hx
@@ -385,7 +384,7 @@ contains
   !===============================================================================================
   function mn_get_boundary_function_Hy ( this )
     implicit none
-    class(projections_analytical_functions_t), target, intent(in)    :: this
+    class(interpolators_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hy
     mn_get_boundary_function_Hy => this%boundary_function_Hy 
   end function mn_get_boundary_function_Hy
@@ -393,7 +392,7 @@ contains
   !===============================================================================================
   function mn_get_boundary_function_Hz ( this )
     implicit none
-    class(projections_analytical_functions_t), target, intent(in)    :: this
+    class(interpolators_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hz
     mn_get_boundary_function_Hz => this%boundary_function_Hz 
   end function mn_get_boundary_function_Hz
@@ -401,12 +400,12 @@ contains
 		  !===============================================================================================
   function mn_get_boundary_function_pressure ( this )
     implicit none
-    class(projections_analytical_functions_t), target, intent(in)    :: this
+    class(interpolators_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: mn_get_boundary_function_pressure
     mn_get_boundary_function_pressure => this%boundary_function_pressure 
   end function mn_get_boundary_function_pressure
 
-end module projections_analytical_functions_names
+end module interpolators_analytical_functions_names
 !***************************************************************************************************
 
 

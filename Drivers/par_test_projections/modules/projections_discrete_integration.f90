@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module projections_discrete_integration_names
   use fempar_names
-  use projections_analytical_functions_names
+  use interpolators_analytical_functions_names
   
   implicit none
 # include "debug.i90"
