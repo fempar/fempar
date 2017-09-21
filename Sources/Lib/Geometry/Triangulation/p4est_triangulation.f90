@@ -33,6 +33,8 @@ module p4est_triangulation_names
   use stdio_names
   use memor_names
   use environment_names
+  use execution_context_names
+  use mpi_context_names
   use uniform_hex_mesh_generator_names
   use p4est_bindings_names
   use reference_fe_names

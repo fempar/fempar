@@ -33,7 +33,8 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
   type(environment_t),    optional, target, intent(in)    :: environment
   integer(ip) :: istat
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
-  class(environment_t), pointer :: p_environment
+  class(environment_t)      , pointer :: p_environment
+  class(execution_context_t), pointer :: context
   integer(ip) :: num_dims
   
 #ifdef ENABLE_P4EST
@@ -64,7 +65,16 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
                                         1, &
                                         field_type_scalar, & 
                                         conformity=.true.)  
-
+     
+     context => p_environment%get_l1_context()
+     select type(context)
+     class is (mpi_context_t)
+       call F90_p4est_init(context%get_icontxt())
+     class default
+       mcheck(.false., "mpi_context_t required by p4est_par_triangulation")
+     end select
+     
+     
      if ( this%get_num_dims() == 2 ) then
         call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
         call F90_p4est_new(this%p4est_connectivity, this%p4est)
@@ -98,6 +108,7 @@ subroutine p4est_par_triangulation_free ( this)
   implicit none
   class(p4est_par_triangulation_t), target, intent(inout) :: this
   class(environment_t), pointer :: p_environment
+  class(execution_context_t), pointer :: context
 #ifdef ENABLE_P4EST
   p_environment => this%get_environment()
   if ( p_environment%am_i_l1_task() ) then
@@ -155,6 +166,15 @@ subroutine p4est_par_triangulation_free ( this)
      this%num_improper_vefs = -1
 
      call this%reference_fe_geo%free()
+     
+     context => p_environment%get_l1_context()
+     select type(context)
+     class is (mpi_context_t)
+       call F90_p4est_finalize()
+     class default
+       mcheck(.false., "mpi_context_t required by p4est_par_triangulation")
+     end select
+     
   end if
   
   call this%free_environment()

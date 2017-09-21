@@ -25,6 +25,10 @@
 
 #ifdef ENABLE_P4EST
 
+#ifdef SC_ENABLE_MPI
+#include <mpi.h>
+#endif
+
 #include <sc.h>
 #include <p4est.h>
 #include <p4est_extended.h>
@@ -37,14 +41,19 @@
 #include <p8est_mesh.h>
 #include <p8est_bits.h>
 #ifndef SC_ENABLE_MPI
-  static int sc_mpi_initialized = 0;
+  static int sc_mpi_initialized   = 0;
 #else
+  static int sc_p4est_initialized = 0;
 #endif
 
 // Init p4est environment 
-// TODO: pass a Fortran communicator and transform it into a C communicator
-//       http://stackoverflow.com/questions/42530620/how-to-pass-mpi-communicator-handle-from-fortran-to-c-using-iso-c-binding
-void F90_p4est_init()
+// Gets a Fortran communicator and transform it into a C communicator
+// http://stackoverflow.com/questions/42530620/how-to-pass-mpi-communicator-handle-from-fortran-to-c-using-iso-c-binding
+#ifdef SC_ENABLE_MPI
+void F90_p4est_init(const MPI_Fint Fcomm)
+#else
+void F90_p4est_init(const int dummy)
+#endif
 {
 #ifndef SC_ENABLE_MPI
   /* Initialize MPI; see sc_mpi.h.
@@ -60,16 +69,25 @@ void F90_p4est_init()
   {
     mpiret = sc_MPI_Init (&argc, &argv);
     SC_CHECK_MPI (mpiret==1);
-    
     /* These 2x functions are optional.  If called they store the MPI rank as a
      * static variable so subsequent global p4est log messages are only issued
      * from processor zero.  Here we turn off most of the logging; see sc.h. */
     sc_init (sc_MPI_COMM_WORLD, 1, 1, NULL, SC_LP_ESSENTIAL);
-    p4est_init (NULL, SC_LP_PRODUCTION);
-    
+    p4est_init (NULL, SC_LP_PRODUCTION);  
     sc_mpi_initialized = 1;
   }
 #else
+  /* These 2x functions are optional.  If called they store the MPI rank as a
+   * static variable so subsequent global p4est log messages are only issued
+   * from processor zero.  Here we turn off most of the logging; see sc.h. */
+  if (!sc_p4est_initialized) 
+  {
+    MPI_Comm Ccomm;
+    Ccomm = MPI_Comm_f2c(Fcomm); // Convert Fortran->C communicator
+    sc_init (Ccomm, 1, 1, NULL, SC_LP_ESSENTIAL);
+    p4est_init (NULL, SC_LP_PRODUCTION);
+    sc_p4est_initialized = 1;
+  }
 #endif  
 }
 
@@ -83,8 +101,14 @@ void F90_p4est_finalize()
         sc_finalize ();   
         mpiret = sc_MPI_Finalize ();
         SC_CHECK_MPI (mpiret);    
+        sc_mpi_initialized = 0;
     } 
 #else  
+    if ( sc_p4est_initialized )
+    {
+      sc_finalize ();
+      sc_p4est_initialized = 0;
+    }
 #endif    
 }
 
