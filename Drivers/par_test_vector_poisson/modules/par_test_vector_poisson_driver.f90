@@ -39,9 +39,6 @@ module par_test_vector_poisson_driver_names
   implicit none
   private
 
-  integer(ip), parameter :: PAR_TEST_POISSON_FULL = 1 ! Has to be == 1
-  integer(ip), parameter :: PAR_TEST_POISSON_VOID = 2
-
   type par_test_vector_poisson_fe_driver_t 
      private 
      
@@ -107,7 +104,6 @@ module par_test_vector_poisson_driver_names
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
-     procedure, nopass, private :: popcorn_fun => par_test_vector_poisson_driver_popcorn_fun
   end type par_test_vector_poisson_fe_driver_t
 
   ! Types
@@ -179,64 +175,14 @@ end subroutine free_timers
     class(par_test_vector_poisson_fe_driver_t), intent(inout) :: this
 
     class(cell_iterator_t), allocatable :: cell
-    type(point_t), allocatable :: cell_coords(:)
     integer(ip) :: istat
     integer(ip) :: set_id
-    real(rp) :: x, y
-    integer(ip) :: num_void_neigs
-
+    
     integer(ip)           :: ivef
-    class(vef_iterator_t), allocatable  :: vef, vef_of_vef
-    type(list_t), pointer :: vefs_of_vef
-    type(list_t), pointer :: vertices_of_line
-    type(list_iterator_t) :: vefs_of_vef_iterator
-    type(list_iterator_t) :: vertices_of_line_iterator
-    class(reference_fe_t), pointer :: reference_fe_geo
-    integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
-    integer(ip) :: vertex_pos_in_cell, icell_arround
-    integer(ip) :: inode, num
-
-
+    class(vef_iterator_t), allocatable  :: vef
+        
+    
     call this%triangulation%create(this%parameter_list, this%par_environment)
-
-    ! Set the cell ids to use void fes
-    if (this%test_params%get_use_void_fes()) then
-      if ( this%par_environment%am_i_l1_task() ) then
-        call memalloc(this%triangulation%get_num_local_cells(),this%cell_set_ids)
-        call this%triangulation%create_cell_iterator(cell)
-        allocate(cell_coords(1:cell%get_num_nodes()),stat=istat); check(istat == 0)
-        do while( .not. cell%has_finished() )
-          if (cell%is_local()) then
-            set_id = PAR_TEST_POISSON_VOID
-            call cell%get_nodes_coordinates(cell_coords)
-            select case (trim(this%test_params%get_use_void_fes_case()))
-            case ('half')
-              y = cell_coords(1)%get(2)
-              if (y>=0.5) set_id = PAR_TEST_POISSON_FULL
-            case ('quarter')
-              x = cell_coords(1)%get(1)
-              y = cell_coords(1)%get(2)
-              if (x>=0.5 .and. y>=0.5) set_id = PAR_TEST_POISSON_FULL
-            case ('popcorn')
-              do inode = 1,cell%get_num_nodes()
-                if ( this%popcorn_fun(cell_coords(inode),&
-                  this%triangulation%get_num_dims()) < 0.0 ) then
-                  set_id = PAR_TEST_POISSON_FULL
-                  exit
-                end if
-              end do
-            case default
-              check(.false.)
-            end select
-            this%cell_set_ids(cell%get_gid()) = set_id
-          end if
-          call cell%next()
-        end do
-        deallocate(cell_coords, stat = istat); check(istat == 0)
-        call this%triangulation%fill_cells_set(this%cell_set_ids)
-      end if
-        call this%triangulation%free_cell_iterator(cell)
-    end if
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
@@ -251,70 +197,7 @@ end subroutine free_timers
        call this%triangulation%free_vef_iterator(vef)
     end if  
 
-    ! Set all the vefs on the interface between full/void if there are void fes
-    if (this%test_params%get_use_void_fes()) then
-      call this%triangulation%create_vef_iterator(vef)
-      call this%triangulation%create_vef_iterator(vef_of_vef)
-      call this%triangulation%create_cell_iterator(cell)
-      do while ( .not. vef%has_finished() )
-
-         ! If it is an INTERIOR face
-         if( vef%get_dim() == this%triangulation%get_num_dims()-1 .and. vef%get_num_cells_around()==2 ) then
-
-           ! Compute number of void neighbors
-           num_void_neigs = 0
-           do icell_arround = 1,vef%get_num_cells_around()
-             call vef%get_cell_around(icell_arround,cell)
-             if (cell%get_set_id() == PAR_TEST_POISSON_VOID) num_void_neigs = num_void_neigs + 1
-           end do
-
-           if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
-
-               ! Set this face as Dirichlet boundary
-               call vef%set_set_id(1)
-
-               ! Do a loop on all edges in 3D (vertex in 2D) of the face
-               ivef = vef%get_gid()
-               call vef%get_cell_around(1,cell) ! There is always one cell around
-               reference_fe_geo => cell%get_reference_fe()
-               ivef_pos_in_cell = cell%get_vef_lid_from_gid(ivef)
-               vefs_of_vef => reference_fe_geo%get_facets_n_face()
-               vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef_pos_in_cell)
-               do while( .not. vefs_of_vef_iterator%is_upper_bound() )
-
-                  ! Set edge (resp. vertex) as Dirichlet
-                  vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
-                  call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
-                  call vef_of_vef%set_set_id(1)
-
-                  ! If 3D, traverse vertices of current line
-                  if ( this%triangulation%get_num_dims() == 3 ) then
-                    vertices_of_line          => reference_fe_geo%get_vertices_n_face()
-                    vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
-                    do while( .not. vertices_of_line_iterator%is_upper_bound() )
-
-                      ! Set vertex as Dirichlet
-                      vertex_pos_in_cell = vertices_of_line_iterator%get_current()
-                      call cell%get_vef(vertex_pos_in_cell, vef_of_vef)
-                      call vef_of_vef%set_set_id(1)
-
-                      call vertices_of_line_iterator%next()
-                    end do ! Loop in vertices in 3D only
-                  end if
-
-                  call vefs_of_vef_iterator%next()
-               end do ! Loop in edges (resp. vertices)
-
-           end if ! If face on void/full boundary
-         end if ! If vef is an interior face
-
-         call vef%next()
-      end do ! Loop in vefs
-      call this%triangulation%free_cell_iterator(cell)
-      call this%triangulation%free_vef_iterator(vef)
-      call this%triangulation%free_vef_iterator(vef_of_vef)
-    end if
-
+    
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
       call this%setup_cell_set_ids() 
     end if  
@@ -668,30 +551,18 @@ end subroutine free_timers
     class(cell_iterator_t), allocatable       :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
     
-    if (this%test_params%get_use_void_fes()) then
-      allocate(this%reference_fes(2), stat=istat)
-    else
-      allocate(this%reference_fes(1), stat=istat)
-    end if
+    allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
     if ( this%par_environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe()
-      this%reference_fes(PAR_TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+      this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                    fe_type = fe_type_lagrangian, &
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_vector, &
                                                    conformity = .true. )
-      if (this%test_params%get_use_void_fes()) then
-        this%reference_fes(PAR_TEST_POISSON_VOID) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_void, &
-                                                   num_dims = this%triangulation%get_num_dims(), &
-                                                   order = -1, &
-                                                   field_type = field_type_vector, &
-                                                   conformity = .true. )
-      end if
       call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine setup_reference_fes
@@ -719,20 +590,11 @@ end subroutine free_timers
     call this%vector_poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function())
 
-    if (this%test_params%get_use_void_fes()) then
-      set_ids_to_reference_fes(1,PAR_TEST_POISSON_FULL) = PAR_TEST_POISSON_FULL
-      set_ids_to_reference_fes(1,PAR_TEST_POISSON_VOID) = PAR_TEST_POISSON_VOID
-      call this%fe_space%create( triangulation            = this%triangulation,       &
-                                 reference_fes            = this%reference_fes,       &
-                                 set_ids_to_reference_fes = set_ids_to_reference_fes, &
-                                 coarse_fe_handlers       = this%coarse_fe_handlers,  &
-                                 conditions               = this%vector_poisson_conditions )
-    else
-      call this%fe_space%create( triangulation       = this%triangulation,      &
+          call this%fe_space%create( triangulation       = this%triangulation,      &
                                  reference_fes       = this%reference_fes,      &
                                  coarse_fe_handlers  = this%coarse_fe_handlers, &
                                  conditions          = this%vector_poisson_conditions )
-    end if
+    
     
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()
@@ -952,21 +814,13 @@ end subroutine free_timers
 
     if(this%test_params%get_write_solution()) then
       if (this%par_environment%am_i_l1_task()) then
-
-        if (this%test_params%get_use_void_fes()) then
-          call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
-          cell_vector(:) = this%cell_set_ids(:)
-        end if
-
+      
         call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
         mypart_vector(:) = this%par_environment%get_l1_rank()
 
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
-        if (this%test_params%get_use_void_fes()) then
-          call oh%add_cell_vector(cell_vector,'cell_set_ids')
-        end if
         call oh%add_cell_vector(mypart_vector,'l1_rank')
         call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
         call oh%write()
@@ -1047,45 +901,5 @@ end subroutine free_timers
     call this%test_params%free()
   end subroutine free_command_line_parameters
 
-  function par_test_vector_poisson_driver_popcorn_fun(point,num_dim) result (val)
-    implicit none
-    type(point_t), intent(in) :: point
-    integer(ip),   intent(in) :: num_dim
-    real(rp) :: val
-    type(point_t) :: p
-    real(rp) :: x, y, z
-    real(rp) :: xk, yk, zk
-    real(rp) :: r0, sg, A
-    integer(ip) :: k
-    p = point
-    if (num_dim < 3) call p%set(3,0.62)
-    x = ( 2.0*p%get(1) - 1.0 )
-    y = ( 2.0*p%get(2) - 1.0 )
-    z = ( 2.0*p%get(3) - 1.0 )
-    r0 = 0.6
-    sg = 0.2
-    A  = 2.0
-    val = sqrt(x**2 + y**2 + z**2) - r0
-    do k = 0,11
-        if (0 <= k .and. k <= 4) then
-            xk = (r0/sqrt(5.0))*2.0*cos(2.0*k*pi/5.0)
-            yk = (r0/sqrt(5.0))*2.0*sin(2.0*k*pi/5.0)
-            zk = (r0/sqrt(5.0))
-        else if (5 <= k .and. k <= 9) then
-            xk = (r0/sqrt(5.0))*2.0*cos((2.0*(k-5)-1.0)*pi/5.0)
-            yk = (r0/sqrt(5.0))*2.0*sin((2.0*(k-5)-1.0)*pi/5.0)
-            zk =-(r0/sqrt(5.0))
-        else if (k == 10) then
-            xk = 0
-            yk = 0
-            zk = r0
-        else
-            xk = 0
-            yk = 0
-            zk = -r0
-        end if
-        val = val - A*exp( -( (x - xk)**2  + (y - yk)**2 + (z - zk)**2 )/(sg**2) )
-    end do
-  end function par_test_vector_poisson_driver_popcorn_fun
-  
+    
 end module par_test_vector_poisson_driver_names
