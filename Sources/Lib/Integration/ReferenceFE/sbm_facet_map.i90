@@ -146,6 +146,36 @@ subroutine facet_map_free( this )
 end subroutine facet_map_free
 
 !==================================================================================================
+subroutine assign_facet_map( this, other )
+  implicit none
+  type(facet_map_t), intent(inout) :: this
+  type(facet_map_t), intent(in)    :: other
+  call this%free()
+  call this%base_map_t%copy(other%base_map_t)
+  call memalloc(this%num_dims,   &
+                this%num_dims-1, &
+                this%num_quadrature_points, &
+                this%jacobian,__FILE__,__LINE__)
+  this%jacobian = other%jacobian
+  call memalloc(this%num_dims, &
+                this%num_quadrature_points, &
+                this%normals,__FILE__,__LINE__)
+  this%normals = other%normals
+end subroutine assign_facet_map
+
+!==================================================================================================
+subroutine assign_facet_map_array ( facet_map_array1, facet_map_array2 ) 
+  implicit none       
+  type(facet_map_t), intent(inout) :: facet_map_array1(:)
+  type(facet_map_t), intent(in)    :: facet_map_array2(:)
+  integer(ip) :: i
+  assert( size(facet_map_array1) == size(facet_map_array2) )
+  do i = 1,size(facet_map_array1)
+    call assign_facet_map(facet_map_array1(i),facet_map_array2(i))
+  end do
+end subroutine assign_facet_map_array
+
+!==================================================================================================
 subroutine facet_map_get_normal(this, qpoint, normal)
  implicit none
  class(facet_map_t)     , intent(in)    :: this

@@ -552,3 +552,29 @@ subroutine btdbma(aglob,aloca,bmatr,n1,n2)
   end do
 
 end subroutine btdbma
+
+!==================================================================================================
+subroutine assign_cell_integrator( this, other )
+  implicit none
+  ! Parameters
+  type(cell_integrator_t), intent(inout) :: this 
+  type(cell_integrator_t), intent(in)    :: other 
+  call this%free()
+  this%num_shape_functions = other%num_shape_functions
+  this%num_quadrature_points = other%num_quadrature_points
+  this%reference_fe => other%reference_fe
+  call this%interpolation_reference_cell%copy(other%interpolation_reference_cell)
+  call this%interpolation_real_cell%copy(other%interpolation_real_cell)
+end subroutine assign_cell_integrator
+
+!==================================================================================================
+subroutine assign_cell_integrator_array ( cell_integrator_array1, cell_integrator_array2 ) 
+  implicit none       
+  type(cell_integrator_t), intent(inout) :: cell_integrator_array1(:)
+  type(cell_integrator_t), intent(in)    :: cell_integrator_array2(:)
+  integer(ip) :: i
+  assert( size(cell_integrator_array1) == size(cell_integrator_array2) )
+  do i = 1,size(cell_integrator_array1)
+    call assign_cell_integrator(cell_integrator_array1(i),cell_integrator_array2(i))
+  end do
+end subroutine assign_cell_integrator_array

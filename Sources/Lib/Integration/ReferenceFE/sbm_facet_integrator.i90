@@ -86,6 +86,26 @@ subroutine cell_map_facet_restriction_free( this)
 end subroutine cell_map_facet_restriction_free
 
 !==================================================================================================
+subroutine cell_map_facet_restriction_copy( this, other )
+  implicit none
+  ! Parameters
+  class(cell_map_facet_restriction_t), intent(inout) :: this
+  type (cell_map_facet_restriction_t), intent(in)    :: other
+  integer(ip) :: i, istat
+  call this%free()
+  this%num_facets = other%num_facets
+  this%num_subfacets = other%num_subfacets
+  this%current_facet_lid = other%current_facet_lid
+  this%current_subfacet_lid = other%current_subfacet_lid
+  if (allocated(other%cell_map)) then
+    allocate( this%cell_map(size(other%cell_map)), stat = istat ); check(istat==0);
+    do i = 1, size(this%cell_map)
+      call assign_cell_map(this%cell_map(i),other%cell_map(i))
+    end do
+  end if
+end subroutine cell_map_facet_restriction_copy
+
+!==================================================================================================
 function cell_map_facet_restriction_get_coordinates(this,facet_lid,subfacet_lid)
   implicit none
   ! Parameters
@@ -272,6 +292,32 @@ function facet_maps_get_facet_map ( this )
   facet_maps_get_facet_map => this%facet_map
 end function facet_maps_get_facet_map
 
+!==================================================================================================
+subroutine assign_facet_maps(this,other)
+  implicit none
+  ! Parameters
+  type(facet_maps_t), intent(inout) :: this
+  type(facet_maps_t), intent(in)    :: other
+  call this%free()
+  this%is_at_boundary = other%is_at_boundary
+  call assign_facet_map(this%facet_map,other%facet_map)
+  call this%cell_maps(1)%copy(other%cell_maps(1))
+  call this%cell_maps(2)%copy(other%cell_maps(2))
+  this%num_dims = other%num_dims
+end subroutine assign_facet_maps
+
+!==================================================================================================
+subroutine assign_facet_maps_array ( facet_maps_array1, facet_maps_array2 ) 
+  implicit none       
+  type(facet_maps_t), intent(inout) :: facet_maps_array1(:)
+  type(facet_maps_t), intent(in)    :: facet_maps_array2(:)
+  integer(ip) :: i
+  assert( size(facet_maps_array1) == size(facet_maps_array2) )
+  do i = 1,size(facet_maps_array1)
+    call assign_facet_maps(facet_maps_array1(i),facet_maps_array2(i))
+  end do
+end subroutine assign_facet_maps_array
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !cell_integrator_facet_restriction_t type bound procedures
 subroutine cell_integrator_facet_restriction_create(this, quadrature, reference_fe)
@@ -325,6 +371,27 @@ subroutine cell_integrator_facet_restriction_free(this)
   this%current_subfacet_lid = 0
 end subroutine cell_integrator_facet_restriction_free
 
+!==================================================================================================
+subroutine cell_integrator_facet_restriction_copy(this, other)
+  implicit none
+  ! Parameters
+  class(cell_integrator_facet_restriction_t), intent(inout) :: this
+  type (cell_integrator_facet_restriction_t), intent(in)    :: other
+  integer(ip) :: i, istat
+  call this%free()
+  this%num_facets = other%num_facets
+  this%num_subfacets = other%num_subfacets
+  this%current_facet_lid = other%current_facet_lid
+  this%current_subfacet_lid = other%current_subfacet_lid
+  if (allocated(other%cell_integrator)) then
+    allocate( this%cell_integrator(size(other%cell_integrator)), stat = istat ); check(istat==0);
+    do i = 1, size(this%cell_integrator)
+      call assign_cell_integrator(this%cell_integrator(i),other%cell_integrator(i))
+    end do
+  end if
+end subroutine cell_integrator_facet_restriction_copy
+
+!==================================================================================================
 function cell_integrator_facet_restriction_get_current_cell_integrator(this)
   implicit none
   ! Parameters
@@ -724,3 +791,34 @@ subroutine facet_integrator_evaluate_gradient_fe_function_vector ( this,        
   cell_integrator => this%cell_integrator_facet_restriction(neighbour_id)%get_current_cell_integrator()
   call cell_integrator%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
 end subroutine facet_integrator_evaluate_gradient_fe_function_vector
+
+!==================================================================================================
+subroutine assign_facet_integrator(this,other)
+  implicit none
+  type(facet_integrator_t)     , intent(inout) :: this
+  type(facet_integrator_t)     , intent(in)    :: other
+  call this%free()
+  this%is_at_boundary = other%is_at_boundary
+  this%is_at_field_boundary = other%is_at_field_boundary
+  this%is_at_field_interior = other%is_at_field_interior
+  this%active_cell_id = other%active_cell_id
+  call this%cell_integrator_facet_restriction(1)%copy(other%cell_integrator_facet_restriction(1))
+  call this%cell_integrator_facet_restriction(2)%copy(other%cell_integrator_facet_restriction(2))
+  this%reference_fe(1)%p => other%reference_fe(1)%p
+  this%reference_fe(2)%p => other%reference_fe(2)%p
+  this%current_permutation_index = other%current_permutation_index
+  call this%qpoints_perm%create(other%qpoints_perm%nd1,other%qpoints_perm%nd2)
+  this%qpoints_perm%a = other%qpoints_perm%a
+end subroutine assign_facet_integrator
+
+!==================================================================================================
+subroutine assign_facet_integrator_array ( facet_integrator_array1, facet_integrator_array2 ) 
+  implicit none       
+  type(facet_integrator_t), intent(inout) :: facet_integrator_array1(:)
+  type(facet_integrator_t), intent(in)    :: facet_integrator_array2(:)
+  integer(ip) :: i
+  assert( size(facet_integrator_array1) == size(facet_integrator_array2) )
+  do i = 1,size(facet_integrator_array1)
+    call assign_facet_integrator(facet_integrator_array1(i),facet_integrator_array2(i))
+  end do
+end subroutine assign_facet_integrator_array
