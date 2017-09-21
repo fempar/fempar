@@ -172,12 +172,6 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
   integer(ip) :: source_vef_lid  
   integer(ip) :: icell_improper_around
 
-  if (.not. this%use_constraints) then
-    ! Call the father
-    call this%serial_fe_space_t%fill_fe_dofs_and_count_dofs(field_id)
-    return
-  end if
-
   field_blocks            => this%get_field_blocks()
   fe_space_type_x_field => this%get_fe_space_type()
   iblock            = field_blocks(field_id)

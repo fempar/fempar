@@ -167,7 +167,7 @@ module unfitted_fe_spaces_names
       
       ! Creation of constrained degrees of freedom
       procedure          :: generate_global_dof_numbering                                           => suhpafs_generate_global_dof_numbering 
-      procedure          :: fill_fe_dofs_and_count_dofs                            => suhpafs_procedure_fill_fe_dofs_and_count_dofs
+      procedure, non_overridable :: fill_fe_dofs_and_count_dofs                            => suhpafs_procedure_fill_fe_dofs_and_count_dofs
 
       ! Getters
       procedure, non_overridable :: get_aggregate_ids                               => suhpafs_get_aggregate_ids

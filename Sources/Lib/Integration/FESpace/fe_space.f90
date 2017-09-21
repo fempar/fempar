@@ -599,8 +599,6 @@ module fe_space_names
      procedure                           :: allocate_num_dofs_x_field               =>  serial_fe_space_allocate_num_dofs_x_field
      procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
      procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
-     ! UNDER QUARANTINE
-     procedure                           :: fill_fe_dofs_and_count_dofs                 => serial_fe_space_fill_fe_dofs_and_count_dofs
      procedure                 , private :: renum_dofs_block                          => serial_fe_space_renum_dofs_block
  
      ! Getters
