@@ -1,0 +1,164 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine p4est_par_triangulation_create (this, parameters, environment)
+  implicit none
+  class(p4est_par_triangulation_t), target, intent(inout) :: this
+  type(ParameterList_t)                   , intent(inout) :: parameters
+  type(environment_t),    optional, target, intent(in)    :: environment
+  integer(ip) :: istat
+  type(std_vector_integer_ip_t) :: old_lst_vefs_gids
+  class(environment_t), pointer :: p_environment
+  integer(ip) :: num_dims
+  
+#ifdef ENABLE_P4EST
+  call this%free()
+  
+  if(present(environment)) then
+     call this%set_environment(environment)
+  else
+     istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
+     istat = parameters%set(key = environment_type_key , value = p4est) ; check(istat==0)
+     call this%allocate_environment()
+  end if
+  
+  p_environment => this%get_environment()
+  call p_environment%create(parameters)
+
+  if ( p_environment%am_i_l1_task() ) then  
+     ! Get num_dims from FPL
+     massert(parameters%isAssignable(num_dims_key, num_dims ),'num_dims not found or un-usable.')
+     istat = parameters%get(key = num_dims_key, value = num_dims); assert(istat==0)
+     call this%set_num_dims(num_dims)
+
+     call this%set_num_local_cells(1)
+     call this%set_num_ghost_cells(0)
+
+     call this%reference_fe_geo%create( topology_hex, &
+                                        this%get_num_dims(), &
+                                        1, &
+                                        field_type_scalar, & 
+                                        conformity=.true.)  
+
+     if ( this%get_num_dims() == 2 ) then
+        call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
+        call F90_p4est_new(this%p4est_connectivity, this%p4est)
+        call this%update_p4est_mesh()
+        call this%update_topology_from_p4est_mesh()
+        call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+        call old_lst_vefs_gids%free()
+        call this%allocate_and_fill_x_cell_vertex_coordinates()
+        call this%clear_refinement_and_coarsening_flags()
+        call this%clear_cell_set_ids()
+        call this%clear_vef_set_ids()
+     else if ( this%get_num_dims() == 3 ) then
+        call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
+        call F90_p8est_new(this%p4est_connectivity, this%p4est)
+        call this%update_p4est_mesh()
+        call this%update_topology_from_p4est_mesh()
+        call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+        call old_lst_vefs_gids%free()
+        call this%allocate_and_fill_x_cell_vertex_coordinates()
+        call this%clear_refinement_and_coarsening_flags()
+        call this%clear_cell_set_ids()
+        call this%clear_vef_set_ids()
+     end if
+  end if 
+#else
+  call this%not_enabled_error()
+#endif
+end subroutine p4est_par_triangulation_create  
+
+subroutine p4est_par_triangulation_free ( this)
+  implicit none
+  class(p4est_par_triangulation_t), target, intent(inout) :: this
+  class(environment_t), pointer :: p_environment
+#ifdef ENABLE_P4EST
+  p_environment => this%get_environment()
+  if ( p_environment%am_i_l1_task() ) then
+     if ( this%get_num_dims() == 2 ) then
+        call F90_p4est_destroy(this%p4est)
+        call F90_p4est_connectivity_destroy(this%p4est_connectivity)
+        call F90_p4est_mesh_destroy(this%p4est_mesh)
+     else if ( this%get_num_dims() == 3 ) then  
+        call F90_p8est_destroy(this%p4est)
+        call F90_p8est_connectivity_destroy(this%p4est_connectivity)
+        call F90_p8est_mesh_destroy(this%p4est_mesh)
+        call F90_p8est_QHE_destroy(this%QHE)
+     end if
+
+     this%p4est_connectivity = c_null_ptr
+     this%p4est              = c_null_ptr
+     this%p4est_mesh         = c_null_ptr
+     this%QHE                = c_null_ptr
+
+     call this%lst_vefs_gids%free()
+     call this%ptr_cells_around_proper_vefs%free()
+     call this%lst_cells_around_proper_vefs%free()
+     call this%ptr_cells_around_improper_vefs%free()
+     call this%lst_cells_around_improper_vefs%free()
+     call this%ptr_improper_cells_around%free()
+     call this%lst_improper_cells_around%free()
+     call this%improper_vefs_improper_cell_around_ivef%free()
+     call this%improper_vefs_improper_cell_around_subvef%free()
+     call this%proper_vefs_dim%free()
+     call this%improper_vefs_dim%free()
+     call this%proper_vefs_at_boundary%free()
+     call this%refinement_and_coarsening_flags%free()
+     call this%cell_set_ids%free()
+     call this%proper_vefs_set_ids%free()
+     call this%improper_vefs_set_ids%free()
+
+     nullify(this%quad_to_quad)
+     nullify(this%quad_to_face)
+     nullify(this%quad_to_half)
+     nullify(this%quad_to_half_by_edge)
+
+     if (allocated(this%quad_coords)) &
+          call memfree(this%quad_coords, __FILE__, __LINE__)
+
+     if (allocated(this%quad_level)) &
+          call memfree(this%quad_level, __FILE__, __LINE__)
+
+     if (allocated(this%quad_to_quad_by_edge)) &
+          call memfree(this%quad_to_quad_by_edge, __FILE__, __LINE__)
+
+     if (allocated(this%quad_to_edge)) &
+          call memfree(this%quad_to_edge, __FILE__, __LINE__)
+
+     this%num_proper_vefs = -1
+     this%num_improper_vefs = -1
+
+     call this%reference_fe_geo%free()
+  end if
+  
+  call this%free_environment()
+#else
+  call this%not_enabled_error()
+#endif     
+end subroutine p4est_par_triangulation_free

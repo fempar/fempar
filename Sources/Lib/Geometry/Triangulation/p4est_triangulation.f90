@@ -404,7 +404,7 @@ module p4est_triangulation_names
     procedure                 , non_overridable :: clear_refinement_and_coarsening_flags         => p4est_bt_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable :: clear_cell_set_ids                            => p4est_bt_clear_cell_set_ids
     procedure                                   :: fill_cells_set                                => p4est_bt_fill_cells_set
-    procedure                 , non_overridable :: clear_vef_set_ids                             => p4est_bt_clear_vef_set_ids
+    procedure, private       , non_overridable :: clear_vef_set_ids                              => p4est_bt_clear_vef_set_ids
 
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator
@@ -431,7 +431,17 @@ module p4est_triangulation_names
   end type p4est_serial_triangulation_t
   
   public :: p4est_serial_triangulation_t
-
+  
+  type, extends(p4est_base_triangulation_t) ::  p4est_par_triangulation_t
+    private
+  contains
+    procedure, private                          :: p4est_par_triangulation_create
+    generic                                     :: create                                        => p4est_par_triangulation_create
+    procedure                                   :: free                                          => p4est_par_triangulation_free    
+  end type p4est_par_triangulation_t
+  
+  public :: p4est_par_triangulation_t
+  
   
 contains
 
@@ -439,4 +449,6 @@ contains
 #include "sbm_p4est_cell_iterator.i90"
 #include "sbm_p4est_vef_iterator.i90"
 #include "sbm_p4est_serial_triangulation.i90"
+#include "sbm_p4est_par_triangulation.i90"
+
 end module p4est_triangulation_names

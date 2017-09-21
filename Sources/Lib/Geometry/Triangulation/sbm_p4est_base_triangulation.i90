@@ -71,37 +71,41 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
   
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   integer(ip), pointer :: user_pointer(:)
+  class(environment_t), pointer :: p_environment
 
 #ifdef ENABLE_P4EST
-  if ( this%get_num_dims() == 2 ) then
-    user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
-    call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
-    p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old)
-    call F90_p4est_refine(this%p4est)
-    call F90_p4est_coarsen(this%p4est)
-    call F90_p4est_balance(this%p4est)
-    call F90_p4est_update_refinement_and_coarsening_flags(p4est_old,this%p4est)
-    call F90_p4est_destroy(p4est_old)
-  else if ( this%get_num_dims() == 3 ) then
-    user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
-    call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
-    p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old)
-    call F90_p8est_refine(this%p4est)
-    call F90_p8est_coarsen(this%p4est)
-    call F90_p8est_balance(this%p4est)
-    call F90_p8est_update_refinement_and_coarsening_flags(p4est_old,this%p4est)
-    call F90_p8est_destroy(p4est_old)
-  end if
-
-  call this%update_p4est_mesh()
-  call this%update_topology_from_p4est_mesh()
-  ! Update the num of triangulation cells
-  call this%set_num_local_cells(size(this%quad_level))
-  call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-  call this%allocate_and_fill_x_cell_vertex_coordinates()
-  call this%update_cell_set_ids()
-  call this%update_vef_set_ids(old_lst_vefs_gids)
-  call old_lst_vefs_gids%free()
+  
+  p_environment => this%get_environment()
+  if ( p_environment%am_i_l1_task () ) then
+    if ( this%get_num_dims() == 2 ) then
+      user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
+      call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old)
+      call F90_p4est_refine(this%p4est)
+      call F90_p4est_coarsen(this%p4est)
+      call F90_p4est_balance(this%p4est)
+      call F90_p4est_update_refinement_and_coarsening_flags(p4est_old,this%p4est)
+      call F90_p4est_destroy(p4est_old)
+    else if ( this%get_num_dims() == 3 ) then
+      user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
+      call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old)
+      call F90_p8est_refine(this%p4est)
+      call F90_p8est_coarsen(this%p4est)
+      call F90_p8est_balance(this%p4est)
+      call F90_p8est_update_refinement_and_coarsening_flags(p4est_old,this%p4est)
+      call F90_p8est_destroy(p4est_old)
+    end if
+    call this%update_p4est_mesh()
+    call this%update_topology_from_p4est_mesh()
+    ! Update the num of triangulation cells
+    call this%set_num_local_cells(size(this%quad_level))
+    call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+    call this%allocate_and_fill_x_cell_vertex_coordinates()
+    call this%update_cell_set_ids()
+    call this%update_vef_set_ids(old_lst_vefs_gids)
+    call old_lst_vefs_gids%free()
+  end if 
 #else
   call this%not_enabled_error()
 #endif  
@@ -1197,39 +1201,50 @@ subroutine p4est_bt_free_x_cell_vertex_coordinates(this)
 end subroutine p4est_bt_free_x_cell_vertex_coordinates
 
 subroutine p4est_bt_clear_refinement_and_coarsening_flags(this)
-   implicit none
-   class(p4est_base_triangulation_t), intent(inout)    :: this
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)    :: this
   integer(ip) :: istat
+  class(environment_t), pointer :: environment
 #ifdef ENABLE_P4EST
-  call this%refinement_and_coarsening_flags%resize(0)
-  call this%refinement_and_coarsening_flags%resize(this%get_num_cells(), do_nothing)
+  environment => this%get_environment()
+  if (environment%am_i_l1_task()) then
+    call this%refinement_and_coarsening_flags%resize(0)
+    call this%refinement_and_coarsening_flags%resize(this%get_num_cells(), do_nothing)
+  end if  
 #else
   call this%not_enabled_error()
 #endif        
 end subroutine p4est_bt_clear_refinement_and_coarsening_flags
 
 subroutine p4est_bt_clear_cell_set_ids(this)
-   implicit none
-   class(p4est_base_triangulation_t), intent(inout)    :: this
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)    :: this
   integer(ip) :: istat
+  class(environment_t), pointer :: environment
 #ifdef ENABLE_P4EST
-  call this%cell_set_ids%resize(0)
-  call this%cell_set_ids%resize(this%get_num_cells(), 0)
+  environment => this%get_environment()
+  if (environment%am_i_l1_task()) then
+    call this%cell_set_ids%resize(0)
+    call this%cell_set_ids%resize(this%get_num_cells(), 0)
+  end if  
 #else
   call this%not_enabled_error()
 #endif        
 end subroutine p4est_bt_clear_cell_set_ids
 
 subroutine p4est_bt_clear_vef_set_ids(this)
-   implicit none
-   class(p4est_base_triangulation_t), intent(inout)    :: this
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)    :: this
   integer(ip) :: istat
+  class(environment_t), pointer :: environment
 #ifdef ENABLE_P4EST
-  call this%proper_vefs_set_ids%resize(0)
-  call this%proper_vefs_set_ids%resize(this%num_proper_vefs, 0)
-  
-  call this%improper_vefs_set_ids%resize(0)
-  call this%improper_vefs_set_ids%resize(this%num_improper_vefs, 0)
+  environment => this%get_environment()
+  if (environment%am_i_l1_task()) then
+    call this%proper_vefs_set_ids%resize(0)
+    call this%proper_vefs_set_ids%resize(this%num_proper_vefs, 0)
+    call this%improper_vefs_set_ids%resize(0)
+    call this%improper_vefs_set_ids%resize(this%num_improper_vefs, 0)
+  end if
 #else
   call this%not_enabled_error()
 #endif        
@@ -1240,13 +1255,15 @@ subroutine p4est_bt_fill_cells_set (this, cells_set)
   class(p4est_base_triangulation_t), intent(inout) :: this
   integer(ip)                        , intent(in)    :: cells_set(:)
   integer(ip)  :: i 
+  class(environment_t), pointer :: environment
 #ifdef ENABLE_P4EST
-  
-  assert ( size(cells_set) == this%cell_set_ids%size() )
-  do i=1, size(cells_set)
-    call this%cell_set_ids%set(i,cells_set(i))
-  end do
-  
+  environment => this%get_environment()
+  if (environment%am_i_l1_task()) then
+    assert ( size(cells_set) == this%cell_set_ids%size() )
+    do i=1, size(cells_set)
+      call this%cell_set_ids%set(i,cells_set(i))
+    end do
+  end if
 #else
   call this%not_enabled_error()
 #endif        

@@ -58,9 +58,11 @@ module environment_names
 
   integer(ip)     , parameter :: structured   = 0
   integer(ip)     , parameter :: unstructured = 1
+  integer(ip)     , parameter :: p4est        = 2 
   character(len=*), parameter :: environment_type_key = 'environment_type'
   public :: structured
   public :: unstructured
+  public :: p4est
   public :: environment_type_key
 
   ! This type manages the assigment of tasks to different levels as well as
@@ -359,10 +361,24 @@ contains
 
        ! Recursively create multilevel environment
        call this%fill_contexts()
-
        call uniform_hex_mesh%free()
-
+    else if(environment_type==p4est) then
+        ! This part is absolutely temporary. To re-think for num_levels > 2
+        num_levels = 2
+        call memalloc( num_levels, num_parts_x_level, __FILE__, __LINE__ )
+        num_parts_x_level(1) = this%world_context%get_num_tasks()-1
+        num_parts_x_level(2) = 1
+        
+        call memalloc( num_levels, parts_mapping, __FILE__, __LINE__ )
+        parts_mapping(1) = this%world_context%get_current_task()+1
+        parts_mapping(2) = 1
+        call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
+        
+        call memfree(num_parts_x_level,__FILE__,__LINE__)
+        call memfree(parts_mapping,__FILE__,__LINE__)
+        check(this%get_num_tasks() <= this%world_context%get_num_tasks()) 
     end if
+    
     this%state = created_from_scratch
 
   end subroutine environment_create
