@@ -997,6 +997,7 @@ module triangulation_names
   end type coarse_triangulation_t
   
   public :: triangulation_t, serial_triangulation_t, par_triangulation_t, coarse_triangulation_t
+  public :: triangulation_free
   public :: cell_iterator_t
   public :: vef_iterator_t
   public :: itfc_vef_iterator_t, object_iterator_t

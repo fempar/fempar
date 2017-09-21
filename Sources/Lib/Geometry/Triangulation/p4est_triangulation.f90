@@ -326,8 +326,6 @@ module p4est_triangulation_names
      procedure                           :: get_improper_cell_around_subvef => p4est_vef_iterator_get_improper_cell_around_subvef
   end type p4est_vef_iterator_t
   
-  
-  
   ! TODO: this data type should extend an abstract triangulation,
   !       and implement its corresponding accessors
   type, extends(triangulation_t) ::  p4est_base_triangulation_t

@@ -42,18 +42,18 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
   
   if(present(environment)) then
      call this%set_environment(environment)
+     p_environment => this%get_environment()
   else
      istat = parameters%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
      istat = parameters%set(key = environment_type_key , value = p4est) ; check(istat==0)
      call this%allocate_environment()
+     p_environment => this%get_environment()
+     call p_environment%create(parameters)
   end if
-  
-  p_environment => this%get_environment()
-  call p_environment%create(parameters)
 
   if ( p_environment%am_i_l1_task() ) then  
      ! Get num_dims from FPL
-     massert(parameters%isAssignable(num_dims_key, num_dims ),'num_dims not found or un-usable.')
+     massert(parameters%isAssignable(num_dims_key, num_dims), 'num_dims not found or un-usable')
      istat = parameters%get(key = num_dims_key, value = num_dims); assert(istat==0)
      call this%set_num_dims(num_dims)
 
@@ -73,7 +73,6 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
      class default
        mcheck(.false., "mpi_context_t required by p4est_par_triangulation")
      end select
-     
      
      if ( this%get_num_dims() == 2 ) then
         call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
@@ -111,73 +110,74 @@ subroutine p4est_par_triangulation_free ( this)
   class(execution_context_t), pointer :: context
 #ifdef ENABLE_P4EST
   p_environment => this%get_environment()
-  if ( p_environment%am_i_l1_task() ) then
-     if ( this%get_num_dims() == 2 ) then
-        call F90_p4est_destroy(this%p4est)
-        call F90_p4est_connectivity_destroy(this%p4est_connectivity)
-        call F90_p4est_mesh_destroy(this%p4est_mesh)
-     else if ( this%get_num_dims() == 3 ) then  
-        call F90_p8est_destroy(this%p4est)
-        call F90_p8est_connectivity_destroy(this%p4est_connectivity)
-        call F90_p8est_mesh_destroy(this%p4est_mesh)
-        call F90_p8est_QHE_destroy(this%QHE)
+  if ( associated(p_environment) ) then
+     if ( p_environment%am_i_l1_task() ) then
+        if ( this%get_num_dims() == 2 ) then
+           call F90_p4est_destroy(this%p4est)
+           call F90_p4est_connectivity_destroy(this%p4est_connectivity)
+           call F90_p4est_mesh_destroy(this%p4est_mesh)
+        else if ( this%get_num_dims() == 3 ) then  
+           call F90_p8est_destroy(this%p4est)
+           call F90_p8est_connectivity_destroy(this%p4est_connectivity)
+           call F90_p8est_mesh_destroy(this%p4est_mesh)
+           call F90_p8est_QHE_destroy(this%QHE)
+        end if
+
+        this%p4est_connectivity = c_null_ptr
+        this%p4est              = c_null_ptr
+        this%p4est_mesh         = c_null_ptr
+        this%QHE                = c_null_ptr
+
+        call this%lst_vefs_gids%free()
+        call this%ptr_cells_around_proper_vefs%free()
+        call this%lst_cells_around_proper_vefs%free()
+        call this%ptr_cells_around_improper_vefs%free()
+        call this%lst_cells_around_improper_vefs%free()
+        call this%ptr_improper_cells_around%free()
+        call this%lst_improper_cells_around%free()
+        call this%improper_vefs_improper_cell_around_ivef%free()
+        call this%improper_vefs_improper_cell_around_subvef%free()
+        call this%proper_vefs_dim%free()
+        call this%improper_vefs_dim%free()
+        call this%proper_vefs_at_boundary%free()
+        call this%refinement_and_coarsening_flags%free()
+        call this%cell_set_ids%free()
+        call this%proper_vefs_set_ids%free()
+        call this%improper_vefs_set_ids%free()
+
+        nullify(this%quad_to_quad)
+        nullify(this%quad_to_face)
+        nullify(this%quad_to_half)
+        nullify(this%quad_to_half_by_edge)
+
+        if (allocated(this%quad_coords)) &
+             call memfree(this%quad_coords, __FILE__, __LINE__)
+
+        if (allocated(this%quad_level)) &
+             call memfree(this%quad_level, __FILE__, __LINE__)
+
+        if (allocated(this%quad_to_quad_by_edge)) &
+             call memfree(this%quad_to_quad_by_edge, __FILE__, __LINE__)
+
+        if (allocated(this%quad_to_edge)) &
+             call memfree(this%quad_to_edge, __FILE__, __LINE__)
+
+        this%num_proper_vefs = -1
+        this%num_improper_vefs = -1
+
+        call this%reference_fe_geo%free()
+
+        context => p_environment%get_l1_context()
+        select type(context)
+           class is (mpi_context_t)
+           call F90_p4est_finalize()
+           class default
+           mcheck(.false., "mpi_context_t required by p4est_par_triangulation")
+        end select
+
      end if
-
-     this%p4est_connectivity = c_null_ptr
-     this%p4est              = c_null_ptr
-     this%p4est_mesh         = c_null_ptr
-     this%QHE                = c_null_ptr
-
-     call this%lst_vefs_gids%free()
-     call this%ptr_cells_around_proper_vefs%free()
-     call this%lst_cells_around_proper_vefs%free()
-     call this%ptr_cells_around_improper_vefs%free()
-     call this%lst_cells_around_improper_vefs%free()
-     call this%ptr_improper_cells_around%free()
-     call this%lst_improper_cells_around%free()
-     call this%improper_vefs_improper_cell_around_ivef%free()
-     call this%improper_vefs_improper_cell_around_subvef%free()
-     call this%proper_vefs_dim%free()
-     call this%improper_vefs_dim%free()
-     call this%proper_vefs_at_boundary%free()
-     call this%refinement_and_coarsening_flags%free()
-     call this%cell_set_ids%free()
-     call this%proper_vefs_set_ids%free()
-     call this%improper_vefs_set_ids%free()
-
-     nullify(this%quad_to_quad)
-     nullify(this%quad_to_face)
-     nullify(this%quad_to_half)
-     nullify(this%quad_to_half_by_edge)
-
-     if (allocated(this%quad_coords)) &
-          call memfree(this%quad_coords, __FILE__, __LINE__)
-
-     if (allocated(this%quad_level)) &
-          call memfree(this%quad_level, __FILE__, __LINE__)
-
-     if (allocated(this%quad_to_quad_by_edge)) &
-          call memfree(this%quad_to_quad_by_edge, __FILE__, __LINE__)
-
-     if (allocated(this%quad_to_edge)) &
-          call memfree(this%quad_to_edge, __FILE__, __LINE__)
-
-     this%num_proper_vefs = -1
-     this%num_improper_vefs = -1
-
-     call this%reference_fe_geo%free()
-     
-     context => p_environment%get_l1_context()
-     select type(context)
-     class is (mpi_context_t)
-       call F90_p4est_finalize()
-     class default
-       mcheck(.false., "mpi_context_t required by p4est_par_triangulation")
-     end select
-     
   end if
-  
-  call this%free_environment()
+  call triangulation_free(this)
 #else
   call this%not_enabled_error()
 #endif     

@@ -373,10 +373,12 @@ contains
         parts_mapping(1) = this%world_context%get_current_task()+1
         parts_mapping(2) = 1
         call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
+        call this%fill_contexts()
         
         call memfree(num_parts_x_level,__FILE__,__LINE__)
         call memfree(parts_mapping,__FILE__,__LINE__)
         check(this%get_num_tasks() <= this%world_context%get_num_tasks()) 
+        
     end if
     
     this%state = created_from_scratch
