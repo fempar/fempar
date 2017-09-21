@@ -96,7 +96,7 @@ subroutine suhpafs_create_fe_cell_iterator(this, fe)
   class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
   integer(ip) :: istat
   call this%free_fe_cell_iterator(fe)
-  allocate(unfitted_hp_adaptive_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
+  allocate(unfitted_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
 end subroutine suhpafs_create_fe_cell_iterator
 

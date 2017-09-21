@@ -85,29 +85,6 @@ module unfitted_fe_spaces_names
 
   end type unfitted_fe_cell_iterator_t
 
-  type, extends(unfitted_fe_cell_iterator_t) :: unfitted_hp_adaptive_fe_cell_iterator_t
-      type (fe_cell_iterator_t) :: adaptive_fe
-    contains
-
-      procedure :: create               => uhpafeci_create
-      procedure :: free                 => uhpafeci_free
-      procedure :: next                 => uhpafeci_next
-      procedure :: first                => uhpafeci_first
-      procedure :: set_gid              => uhpafeci_set_gid
-
-      procedure                  :: is_strong_dirichlet_dof    => uhpafeci_is_strong_dirichlet_dof
-      procedure                  :: is_hanging_dof             => uhpafeci_is_hanging_dof
-      !procedure, non_overridable :: has_hanging_dofs           => uhpafeci_has_hanging_dofs
-      procedure                  :: determine_has_hanging_dofs => uhpafeci_set_has_hanging_dofs
-      !procedure, non_overridable, private :: apply_constraints => uhpafeci_apply_constraints
-      procedure, private :: assembly_array =>  uhpafeci_assembly_array
-      procedure, private :: assembly_matrix => uhpafeci_assembly_matrix
-      procedure, private :: assembly_matrix_array => uhpafeci_assembly_matrix_array
-      procedure, private :: assembly_matrix_array_with_strong_bcs => uhpafeci_assembly_matrix_array_with_strong_bcs
-
-  end type unfitted_hp_adaptive_fe_cell_iterator_t
-
-
   type :: unfitted_integration_manager_t
 
     private
@@ -223,7 +200,6 @@ module unfitted_fe_spaces_names
 
 
   public :: unfitted_fe_cell_iterator_t
-  public :: unfitted_hp_adaptive_fe_cell_iterator_t
   public :: serial_unfitted_fe_space_t
   public :: serial_unfitted_hp_adaptive_fe_space_t
   public :: par_unfitted_fe_space_t
@@ -231,7 +207,6 @@ module unfitted_fe_spaces_names
 contains
 
 #include "../Unfitted/sbm_unfitted_fe_cell_iterator.i90"
-#include "../Unfitted/sbm_unfitted_hp_adaptive_fe_cell_iterator.i90"
 #include "../Unfitted/sbm_unfitted_integration_manager.i90"
 #include "../Unfitted/sbm_serial_unfitted_fe_space.i90"
 #include "../Unfitted/sbm_serial_unfitted_hp_adaptive_fe_space.i90"
