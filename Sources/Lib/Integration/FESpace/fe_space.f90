@@ -1266,7 +1266,10 @@ private
 type(hex_lagrangian_reference_fe_t)          :: fe_1D 
 type(hex_nedelec_reference_fe_t)             :: fe_2D 
 type(hex_raviart_thomas_reference_fe_t )     :: fe 
+type(interpolation_t)                        :: real_facet_interpolation
 type(interpolation_t)                        :: real_cell_interpolation
+type(hex_lagrangian_reference_fe_t)          :: fe_2D_geo 
+type(cell_map_t)                             :: cell_map_2D 
 contains 
 procedure :: create                                             => hex_Hcurl_interpolator_create
 procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments		

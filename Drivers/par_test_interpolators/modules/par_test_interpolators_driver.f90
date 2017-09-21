@@ -42,19 +42,21 @@ module test_interpolators_driver_names
      private 
 
      ! Place-holder for parameter-value set provided through command-line interface
-     type(par_interpolators_params_t)         :: test_params
+     type(par_interpolators_params_t)     :: test_params
      type(ParameterList_t)                :: parameter_list
 
      ! Cells and lower dimension objects container
-     type(serial_triangulation_t)              :: triangulation
+     type(par_serial_triangulation_t)          :: triangulation
 					integer(ip), allocatable                  :: cell_set_ids(:)
 
      ! Analytical functions of the problem
      type(interpolators_analytical_functions_t) :: problem_functions
 
      ! Discrete weak problem integration-related data type instances 
-     type(serial_fe_space_t)                     :: fe_space 
+     type(par_fe_space_t)                        :: fe_space 
      type(p_reference_fe_t) , allocatable        :: reference_fes(:) 
+					type(standard_l1_coarse_fe_handler_t)       :: coarse_fe_handler 
+	    type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
 					integer(ip)            , allocatable        :: set_ids_to_reference_fes(:,:)
      type(interpolators_conditions_t)            :: interpolators_conditions
 
@@ -65,10 +67,13 @@ module test_interpolators_driver_names
      type(fe_function_t)                         :: solution
 					type(fe_function_t)                         :: time_solution 
 					real(rp)                                    :: time 
+					
+					type(environment_t)                    :: par_environment
 
    contains
      procedure                  :: run_simulation
-     procedure        , private :: parse_command_line_parameters
+					procedure                  :: setup_environment
+     procedure                  :: parse_command_line_parameters
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -90,6 +95,20 @@ contains
     call this%test_params%create()
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
+		
+		!========================================================================================
+  subroutine setup_environment(this)
+    implicit none
+    class(par_test_projections_driver_t), intent(inout) :: this
+    integer(ip) :: istat
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+       istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
+    else
+       istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
+    end if
+    istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
+    call this%par_environment%create (this%parameter_list)
+  end subroutine setup_environment
 
   subroutine setup_triangulation(this)
     implicit none
