@@ -461,9 +461,11 @@ subroutine serial_fe_space_interpolate_scalar_function (this, field_id, function
   class(interpolator_t)    , allocatable :: interpolator
   character(:)             , allocatable :: interpolator_type_
   
-  ! Extract reference_fe_t instance associated to field_id on the
-  ! first cell of the mesh. TO-DO: what happens if is it void?
+  ! Extract reference_fe_t instance associated to field_id for the first non-void element 
   call this%create_fe_cell_iterator(fe)
+		do while ( fe%is_void(field_id) ) 
+		call fe%next() 
+		end do 
 		
   reference_fe => fe%get_reference_fe(field_id)
   call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
@@ -504,9 +506,11 @@ subroutine serial_fe_space_interpolate_vector_function (this, field_id, function
   class(interpolator_t)    , allocatable :: interpolator
   character(:)             , allocatable :: interpolator_type_
   
-  ! Extract reference_fe_t instance associated to field_id on the
-  ! first cell of the mesh. TO-DO: what happens if is it void?
+  ! Extract reference_fe_t instance associated to field_id for the first non-void element 
   call this%create_fe_cell_iterator(fe)
+		do while ( fe%is_void(field_id) ) 
+		call fe%next() 
+		end do 
 		
   reference_fe => fe%get_reference_fe(field_id)
 		call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
@@ -573,6 +577,9 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   ! Create and initialize interpolator 
   allocate ( interpolators(this%get_num_fields()), stat=istat); check(istat==0)  
   do field_id = 1, this%get_num_fields() 
+		   do while ( fe%is_void(field_id) )
+					call fe%next() 
+					end do 
      reference_fe => fe%get_reference_fe(field_id)
      
      if ( present(interpolator_type) ) then
@@ -583,13 +590,15 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
      
      call make_interpolator( interpolator_type_, reference_fe%get_topology(), interpolators(field_id)%p )  
 					call interpolators(field_id)%p%create( this, field_id ) 
+					
+					call fe%first() 
   end do
 
   do while (.not. fe%has_finished() )     
 
      do field_id = 1, this%get_num_fields() 
 
-        if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) ) then 
+        if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) .and. (.not. fe%is_void(field_id)) ) then 
            reference_fe => fe%get_reference_fe(field_id)					 
            call memalloc ( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
 
