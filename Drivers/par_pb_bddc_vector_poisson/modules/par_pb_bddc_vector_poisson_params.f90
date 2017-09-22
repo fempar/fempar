@@ -213,7 +213,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(par_pb_bddc_vector_poissonson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_prefix
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
