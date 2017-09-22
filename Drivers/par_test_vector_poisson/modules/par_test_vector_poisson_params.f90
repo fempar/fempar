@@ -1,4 +1,4 @@
-module par_test_vector_poisson_params_names
+module par_pb_bddc_vector_poisson_params_names
   use fempar_names
   implicit none
 #include "debug.i90" 
@@ -17,10 +17,10 @@ module par_test_vector_poisson_params_names
   character(len=*), parameter :: nchannel_x_direction_key = 'nchannel_x_direction' 
   character(len=*), parameter :: nparts_with_channels_key   = 'nparts_with_channels' 
 
-  type, extends(parameter_handler_t) :: par_test_vector_poisson_params_t
+  type, extends(parameter_handler_t) :: par_pb_bddc_vector_poisson_params_t
      private
      contains
-       procedure                              :: define_parameters  => par_test_vector_poisson_params_define_parameters
+       procedure                              :: define_parameters  => par_pb_bddc_vector_poisson_params_define_parameters
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_dir_path_out
        procedure, non_overridable             :: get_prefix
@@ -36,17 +36,17 @@ module par_test_vector_poisson_params_names
        procedure, non_overridable             :: get_nparts_with_channels
        procedure, non_overridable             :: get_nparts
        !procedure, non_overridable             :: get_num_dims
-  end type par_test_vector_poisson_params_t
+  end type par_pb_bddc_vector_poisson_params_t
 
   ! Types
-  public :: par_test_vector_poisson_params_t, standard_bddc, pb_bddc
+  public :: par_pb_bddc_vector_poisson_params_t, standard_bddc, pb_bddc
 
 contains
 
   !==================================================================================================
-  subroutine par_test_vector_poisson_params_define_parameters(this)
+  subroutine par_pb_bddc_vector_poisson_params_define_parameters(this)
     implicit none
-    class(par_test_vector_poisson_params_t), intent(inout) :: this
+    class(par_pb_bddc_vector_poisson_params_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
     integer(ip)    :: error
     character(len=:), allocatable            :: msg
@@ -182,12 +182,12 @@ contains
     error = required%set(key = nparts_with_channels_key      , value = .false.) ; check(error==0)
 
 
-  end subroutine par_test_vector_poisson_params_define_parameters
+  end subroutine par_pb_bddc_vector_poisson_params_define_parameters
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_dir_path
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -200,7 +200,7 @@ contains
   ! GETTERS *****************************************************************************************
   function get_dir_path_out(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_dir_path_out
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -213,7 +213,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poissonson_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_prefix
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -226,7 +226,7 @@ contains
     !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     integer(ip)                                   :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -239,7 +239,7 @@ contains
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     integer(ip)                                   :: get_reference_fe_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -249,10 +249,10 @@ contains
     assert(error==0)
   end function get_reference_fe_order
   
-  !==========================================================================================par_test_vector_poisson_params_t========
+  !==========================================================================================par_pb_bddc_vector_poisson_params_t========
   function get_write_solution(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     logical                                       :: get_write_solution
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -262,10 +262,10 @@ contains
     check(error==0)
   end function get_write_solution
   
-  !==========================================================================================par_test_vector_poisson_params_t========
+  !==========================================================================================par_pb_bddc_vector_poisson_params_t========
   function get_write_matrices(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     logical                                       :: get_write_matrices
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -278,7 +278,7 @@ contains
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     integer(ip)                                   :: get_triangulation_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -291,7 +291,7 @@ contains
   !==================================================================================================
   function get_jump(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     integer(ip)                                   :: get_jump
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -304,7 +304,7 @@ contains
   !==================================================================================================
   function get_inclusion(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     integer(ip)                                   :: get_inclusion
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -316,7 +316,7 @@ contains
   
   function get_coarse_fe_handler_type(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_coarse_fe_handler_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -329,7 +329,7 @@ contains
   !==================================================================================================
   function get_nchannel_x_direction(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     integer(ip)                                   :: get_nchannel_x_direction(3)
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -342,7 +342,7 @@ contains
   !==================================================================================================
   function get_nparts_with_channels(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     integer(ip)                                   :: get_nparts_with_channels(3)
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -355,7 +355,7 @@ contains
   !==================================================================================================
   function get_nparts(this)
     implicit none
-    class(par_test_vector_poisson_params_t) , intent(in) :: this
+    class(par_pb_bddc_vector_poisson_params_t) , intent(in) :: this
     integer(ip)                                   :: num_levels
     integer(ip)                                   :: get_nparts(3)
     integer(ip), allocatable :: num_parts_x_dir(:) ! 0:SPACE_DIM-1)
@@ -379,4 +379,4 @@ contains
   end function get_nparts
   
  
-end module par_test_vector_poisson_params_names
+end module par_pb_bddc_vector_poisson_params_names
