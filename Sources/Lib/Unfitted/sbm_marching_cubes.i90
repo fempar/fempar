@@ -258,6 +258,28 @@ function marching_cubes_get_total_num_subfacets( this ) result ( total_num )
 end function marching_cubes_get_total_num_subfacets
 
 !========================================================================================
+function marching_cubes_get_total_num_fitted_sub_facets( this ) result ( total_num )
+
+  implicit none
+  class(marching_cubes_t), intent(in)    :: this
+  integer(ip) :: total_num
+
+  class(vef_iterator_t), allocatable  :: vef
+
+  total_num = 0_ip
+  call this%triangulation%create_vef_iterator(vef)
+  do while ( .not. vef%has_finished() )
+    if ( vef%is_facet() ) then
+      call vef%update_sub_triangulation()
+      total_num = total_num + vef%get_num_subvefs()
+    end if
+    call vef%next()
+  end do
+  call this%triangulation%free_vef_iterator(vef)
+
+end function marching_cubes_get_total_num_fitted_sub_facets
+
+!========================================================================================
 function marching_cubes_get_max_num_subnodes_in_cell( this ) result ( max_subnodes_in_cell )
   implicit none
   class(marching_cubes_t), intent(in)    :: this
@@ -440,8 +462,10 @@ subroutine marching_cubes_mc_tables_create(this)
   ! Fill in the sizes of the tables
   if (num_dim == 2_ip) then
     this%mc_table_num_cases         = MC_QUA4_NUM_CASES
+    this%mc_table_num_facets         = MC_QUA4_NUM_FACETS
     this%mc_table_max_num_sub_cells  = MC_QUA4_MAX_NUM_SUBCELLS
     this%mc_table_max_num_unfitted_sub_facets  = MC_QUA4_MAX_NUM_SUBFACES
+    this%mc_table_max_num_fitted_sub_facets_in_facet = MC_QUA4_MAX_NUM_FITTED_SUB_FACETS_IN_FACET
     this%mc_table_max_num_cut_edges = MC_QUA4_MAX_NUM_CUT_EDGES
     this%mc_table_num_nodes_in_sub_cell = MC_QUA4_NUM_NODES_PER_SUBCELL
     this%mc_table_num_nodes_in_sub_facet = MC_QUA4_NUM_NODES_PER_SUBFACE
@@ -473,6 +497,18 @@ subroutine marching_cubes_mc_tables_create(this)
   call memalloc (this%mc_table_num_nodes_in_sub_facet, this%mc_table_max_num_unfitted_sub_facets, this%mc_table_num_cases, &
                  this%mc_table_unfitted_sub_facets_node_ids_x_case, __FILE__, __LINE__ )
 
+  call memalloc (this%mc_table_num_facets, this%mc_table_num_cases, &
+                 this%mc_table_num_fitted_sub_facets_x_case_and_facet, __FILE__, __LINE__ )
+
+  call memalloc (this%mc_table_num_facets, this%mc_table_num_cases, &
+                 this%mc_table_facet_status_x_case_and_facet, __FILE__, __LINE__ )
+
+  call memalloc (this%mc_table_max_num_fitted_sub_facets_in_facet,this%mc_table_num_facets, this%mc_table_num_cases, &
+                 this%mc_table_fitted_sub_facets_status_x_case_and_facet, __FILE__, __LINE__ )
+
+  call memalloc (this%mc_table_num_nodes_in_sub_facet,this%mc_table_max_num_fitted_sub_facets_in_facet,this%mc_table_num_facets, this%mc_table_num_cases, &
+                 this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet, __FILE__, __LINE__ )
+
   ! Fill tables for the selected element type
   if (num_dim == 2_ip) then
     this%mc_table_num_sub_cells_x_case(:)      = MC_QUA4_NUM_SUBCELLS_PER_CASE(:)
@@ -481,6 +517,10 @@ subroutine marching_cubes_mc_tables_create(this)
     this%mc_table_sub_cells_status_x_case(:,:)    = MC_QUA4_INOUT_SUBCELLS_PER_CASE(:,:)
     this%mc_table_sub_cells_node_ids_x_case(:,:,:)  = MC_QUA4_SUBCELL_NODE_IDS_PER_CASE(:,:,:)
     this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,:)  = MC_QUA4_SUBFACE_NODE_IDS_PER_CASE(:,:,:)
+    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,:) = MC_QUA4_NUM_SUB_FACETS_PER_CASE_AND_FACET(:,:)
+    this%mc_table_facet_status_x_case_and_facet(:,:) = MC_QUA4_FACET_TYPE_PER_CASE_AND_FACET(:,:)
+    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,:) = MC_QUA4_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET(:,:,:)
+    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,:) = MC_QUA4_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET(:,:,:,:)
   else
     this%mc_table_num_sub_cells_x_case(:)      = MC_HEX8_NUM_SUBCELLS_PER_CASE(:)
     this%mc_table_num_unfitted_sub_facets_x_case(:)      = MC_HEX8_NUM_SUBFACES_PER_CASE(:)
@@ -548,6 +588,14 @@ subroutine marching_cubes_mc_tables_free(this)
   if (allocated (this%mc_table_sub_cells_status_x_case  )) call memfree (this%mc_table_sub_cells_status_x_case  , __FILE__, __LINE__)
   if (allocated (this%mc_table_sub_cells_node_ids_x_case)) call memfree (this%mc_table_sub_cells_node_ids_x_case, __FILE__, __LINE__)
   if (allocated (this%mc_table_unfitted_sub_facets_node_ids_x_case)) call memfree (this%mc_table_unfitted_sub_facets_node_ids_x_case, __FILE__, __LINE__)
+  if (allocated (this%mc_table_num_fitted_sub_facets_x_case_and_facet)) &
+    call memfree( this%mc_table_num_fitted_sub_facets_x_case_and_facet, __FILE__,__LINE__ )
+  if (allocated (this%mc_table_facet_status_x_case_and_facet)) &
+    call memfree (this%mc_table_facet_status_x_case_and_facet, __FILE__,__LINE__ )
+  if (allocated (this%mc_table_fitted_sub_facets_status_x_case_and_facet))&
+    call memfree (this%mc_table_fitted_sub_facets_status_x_case_and_facet, __FILE__,__LINE__ )
+  if (allocated (this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet))&
+    call memfree (this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet, __FILE__,__LINE__ )
 
   this%mc_tables_init = .false.
 
@@ -1019,6 +1067,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   n_nodes_subfacet = this%get_max_num_nodes_in_subfacet()
   call memalloc(n_nodes_subcell,n_subcells,this%sub_cells_node_ids,__FILE__,__LINE__)
   call memalloc(n_nodes_subfacet,n_subfacets,this%unfitted_sub_facets_node_ids,__FILE__,__LINE__)
+  call memalloc(n_nodes_subfacet,this%mc_table_max_num_fitted_sub_facets_in_facet,this%mc_table_num_facets,this%fitted_sub_facets_node_ids_x_facet,__FILE__,__LINE__)
   call memalloc(n_subcells,this%sub_cell_has_been_reoriented,__FILE__,__LINE__)
   allocate( this%subnodes_ref_coords(1:n_subnodes) , stat=istat); check(istat==0_ip)
 
@@ -1052,6 +1101,7 @@ subroutine marching_cubes_subnodes_data_free( this )
 
   if(allocated(this%sub_cells_node_ids  )) call memfree(this%sub_cells_node_ids  ,__FILE__,__LINE__)
   if(allocated(this%unfitted_sub_facets_node_ids  )) call memfree(this%unfitted_sub_facets_node_ids  ,__FILE__,__LINE__)
+  if(allocated(this%fitted_sub_facets_node_ids_x_facet  )) call memfree(this%fitted_sub_facets_node_ids_x_facet  ,__FILE__,__LINE__)
   if(allocated(this%sub_cell_has_been_reoriented)) call memfree(this%sub_cell_has_been_reoriented,__FILE__,__LINE__)
 
 end subroutine marching_cubes_subnodes_data_free

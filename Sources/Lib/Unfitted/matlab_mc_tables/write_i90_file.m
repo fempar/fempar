@@ -54,6 +54,7 @@ fprintf(fid,'\n');
 fprintf(fid,'integer(ip), parameter :: MC_%s_NUM_CASES = %d\n',elem_type,mc_ncases);
 fprintf(fid,'integer(ip), parameter :: MC_%s_MAX_NUM_SUBCELLS = %d\n',elem_type,mc_max_sub_cells);
 fprintf(fid,'integer(ip), parameter :: MC_%s_MAX_NUM_SUBFACES = %d\n',elem_type,mc_max_sub_faces);
+fprintf(fid,'integer(ip), parameter :: MC_%s_NUM_FACETS = %d\n',elem_type,mc_num_facets);
 fprintf(fid,'integer(ip), parameter :: MC_%s_MAX_NUM_FITTED_SUB_FACETS_IN_FACET = %d\n',elem_type,mc_max_sub_vefs);
 fprintf(fid,'integer(ip), parameter :: MC_%s_MAX_NUM_CUT_EDGES = %d\n',elem_type,mc_max_num_cut_edges);
 fprintf(fid,'integer(ip), parameter :: MC_%s_NUM_NODES_PER_SUBCELL = %d\n',elem_type,mc_num_nodes_per_subcell);

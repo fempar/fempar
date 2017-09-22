@@ -565,6 +565,10 @@ contains
       call vtk_writer%attach_boundary_faces(this%triangulation)
       call vtk_writer%write_to_vtk_file('out_mesh_boundary.vtu')
       call vtk_writer%free()
+      
+      call vtk_writer%attach_fitted_faces(this%triangulation)
+      call vtk_writer%write_to_vtk_file('out_mesh_facets.vtu')
+      call vtk_writer%free()
 
       call vtk_writer%attach_boundary_quadrature_points(this%fe_space)
       call vtk_writer%write_to_vtk_file('out_mesh_boundary_normals.vtu')

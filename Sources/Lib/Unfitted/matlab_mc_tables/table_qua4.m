@@ -96,49 +96,55 @@ for n1 = 1:2
                     
                     Piface = Pe(Eedges(iface,:));
                     
-                    if ( Piface(1)*Piface(2) < 0 )                        
+                    if ( Piface(1)*Piface(2) < 0 )
                         mc_facet_type_per_case_and_facet(icase,iface) = 0;
                     elseif  Piface(1) > 0
-                        mc_facet_type_per_case_and_facet(icase,iface) = 1;                        
+                        mc_facet_type_per_case_and_facet(icase,iface) = 1;
                     else
                         mc_facet_type_per_case_and_facet(icase,iface) = -1;
                     end
-                    
-                    v1 = [0 0];
-                    
-                    v = Xe(Eedges(iface,2),:) - Xe(Eedges(iface,1),:);
-                    
-                    v1(1) =  v(2);
-                    v1(2) = -v(1);
                     
                     Ttris_faces_i = [];
                     Ttris_faces_inout_i = [];
                     
                     num_sub_vefs = 0;
                     
-                    for jface = 1:size(Tf,1)
+                    if mc_facet_type_per_case_and_facet(icase,iface) == 0
                         
-                        Xf = Xtris(Tf(jface,:),:);
+                        v1 = [0 0];
                         
-                        two_nodes_on = 1;
-                        for inod = 1:size(Xf,1)
-                            v2 = Xf(inod,:) - Xe(Eedges(iface,1),:);
-                            if ( abs(dot(v1,v2)) > 1e-12 )
-                                two_nodes_on = 0;
+                        v = Xe(Eedges(iface,2),:) - Xe(Eedges(iface,1),:);
+                        
+                        v1(1) =  v(2);
+                        v1(2) = -v(1);
+                        
+                        
+                        
+                        for jface = 1:size(Tf,1)
+                            
+                            Xf = Xtris(Tf(jface,:),:);
+                            
+                            two_nodes_on = 1;
+                            for inod = 1:size(Xf,1)
+                                v2 = Xf(inod,:) - Xe(Eedges(iface,1),:);
+                                if ( abs(dot(v1,v2)) > 1e-12 )
+                                    two_nodes_on = 0;
+                                end
                             end
+                            
+                            if (two_nodes_on == 1)
+                                
+                                inout = Ptris(Tf_neigs(jface,1));
+                                
+                                Ttris_faces_inout_i = [Ttris_faces_inout_i; inout];
+                                Ttris_faces_i = [Ttris_faces_i; Tf(jface,:)];
+                                
+                            end
+                            
+                            num_sub_vefs = size(Ttris_faces_i,1);
+                            mc_max_sub_vefs = max([mc_max_sub_vefs num_sub_vefs]);
+                            
                         end
-                        
-                        if (two_nodes_on == 1)
-                            
-                            inout = Ptris(Tf_neigs(jface,1));
-                            
-                            Ttris_faces_inout_i = [Ttris_faces_inout_i; inout];
-                            Ttris_faces_i = [Ttris_faces_i; Tf(jface,:)];
-                            
-                        end
-                        
-                        num_sub_vefs = size(Ttris_faces_i,1);
-                        mc_max_sub_vefs = max([mc_max_sub_vefs num_sub_vefs]);
                         
                     end
                     

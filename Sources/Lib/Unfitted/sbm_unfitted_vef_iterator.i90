@@ -1,0 +1,284 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!========================================================================================
+subroutine unfitted_vef_iterator_create ( this, triangulation )
+  
+  implicit none
+  class(unfitted_vef_iterator_t)           , intent(inout) :: this
+  class(triangulation_t)            , target, intent(in)    :: triangulation
+
+  class(marching_cubes_t), pointer :: marching_cubes
+
+  call this%free()
+  select type (triangulation)
+  class is (serial_unfitted_triangulation_t)
+    marching_cubes => triangulation%get_marching_cubes()
+    call this%bst_vef_iterator_t%create(triangulation)
+  class is (unfitted_p4est_serial_triangulation_t)
+    marching_cubes => triangulation%get_marching_cubes()
+    call vef_iterator_create(this,triangulation)
+  class is (par_unfitted_triangulation_t)
+    marching_cubes => triangulation%get_marching_cubes()
+    call this%bst_vef_iterator_t%create(triangulation)
+  class default
+    check(.false.)
+  end select
+  assert(associated(marching_cubes%triangulation))
+  this%marching_cubes => marching_cubes
+  call this%marching_cubes%triangulation%create_cell_iterator(this%unfitted_cell)
+
+end subroutine unfitted_vef_iterator_create
+
+!========================================================================================
+subroutine unfitted_vef_iterator_free ( this )
+  implicit none
+  class(unfitted_vef_iterator_t), intent(inout) :: this
+
+  if (associated(this%marching_cubes)) then
+    assert(associated(this%marching_cubes%triangulation))
+    call this%marching_cubes%triangulation%free_cell_iterator(this%unfitted_cell)
+  end if
+  this%marching_cubes => null()
+  call this%bst_vef_iterator_t%free()
+
+end subroutine unfitted_vef_iterator_free
+
+!========================================================================================
+subroutine unfitted_vef_iterator_update_sub_triangulation( this )
+
+  implicit none
+  class(unfitted_vef_iterator_t), intent(inout) :: this
+
+  integer(ip) :: vef_lid
+  class(reference_fe_t), pointer :: reference_fe
+
+  assert(allocated(this%unfitted_cell))
+
+  call this%get_cell_around(1,this%unfitted_cell)
+  assert(this%unfitted_cell%is_local())
+  vef_lid = this%unfitted_cell%get_vef_lid_from_gid(this%get_gid())
+  reference_fe =>  this%unfitted_cell%get_reference_fe()
+  this%facet_lid = vef_lid - reference_fe%get_first_facet_id() + 1
+  call this%unfitted_cell%update_sub_triangulation()
+
+end subroutine unfitted_vef_iterator_update_sub_triangulation
+
+!========================================================================================
+function unfitted_vef_iterator_get_num_subvefs( this ) result ( num_subvefs )
+  implicit none
+
+  class(unfitted_vef_iterator_t), intent(in)    :: this
+  integer(ip) :: num_subvefs
+
+  integer(ip) :: mc_case
+
+  massert(this%is_facet(),'This procedure is only implemeted for facets')
+  assert(associated(this%marching_cubes))
+  assert(allocated(this%unfitted_cell))
+
+  mc_case = this%unfitted_cell%get_mc_case()
+  num_subvefs = this%marching_cubes%mc_table_num_fitted_sub_facets_x_case_and_facet(this%facet_lid,mc_case)
+
+end function unfitted_vef_iterator_get_num_subvefs
+
+!========================================================================================
+function unfitted_vef_iterator_get_num_subvef_nodes( this ) result ( num_nodes_subvef )
+
+  implicit none
+  class(unfitted_vef_iterator_t), intent(in)    :: this
+  integer(ip) :: num_nodes_subvef
+
+  massert(this%is_facet(),'This procedure is only implemeted for facets')
+  assert(associated(this%marching_cubes))
+  assert(allocated(this%unfitted_cell))
+
+  num_nodes_subvef = this%unfitted_cell%get_num_subfacet_nodes()
+
+end function unfitted_vef_iterator_get_num_subvef_nodes
+
+!========================================================================================
+subroutine unfitted_vef_iterator_get_phys_coords_of_subvef( this, subvef, points )
+
+  implicit none
+  class(unfitted_vef_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subvef
+  type(point_t),                   intent(inout) :: points(:)
+
+  integer(ip) :: num_nodes_subfacet, mc_case
+  type(point_t), pointer :: subnodes_phys_coords(:)
+  type(cell_map_t), pointer :: cell_map
+  integer(ip), pointer ::  subfacet_node_ids(:)
+
+  massert(this%is_facet(),'This procedure is only implemeted for facets')
+  assert(associated(this%marching_cubes))
+  assert(allocated(this%unfitted_cell))
+
+  assert(this%marching_cubes%mc_runtime_init)
+  num_nodes_subfacet = this%unfitted_cell%get_num_subfacet_nodes()
+  assert( size(points) == num_nodes_subfacet)
+  assert(this%is_cut())
+  assert( (1_ip <= subvef) .and. (subvef <= this%unfitted_cell%get_num_subfacet_nodes())  )
+
+  mc_case = this%unfitted_cell%get_mc_case()
+  cell_map => this%marching_cubes%sub_nodes_cell_maps(mc_case)
+  subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
+  subfacet_node_ids =>  this%marching_cubes%fitted_sub_facets_node_ids_x_facet(:,subvef,this%facet_lid)
+  points(:) = subnodes_phys_coords(subfacet_node_ids(:))
+
+end subroutine unfitted_vef_iterator_get_phys_coords_of_subvef
+
+!========================================================================================
+subroutine unfitted_vef_iterator_get_ref_coords_of_subvef( this, subvef, points )
+
+  implicit none
+  class(unfitted_vef_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subvef
+  type(point_t),                   intent(inout) :: points(:)
+
+  integer(ip) :: num_nodes_subfacet, mc_case
+  type(point_t), pointer :: subnodes_ref_coords(:)
+  type(cell_map_t), pointer :: cell_map
+  integer(ip), pointer ::  subfacet_node_ids(:)
+
+  massert(this%is_facet(),'This procedure is only implemeted for facets')
+  assert(associated(this%marching_cubes))
+  assert(allocated(this%unfitted_cell))
+
+  assert(this%marching_cubes%mc_runtime_init)
+  num_nodes_subfacet = this%unfitted_cell%get_num_subfacet_nodes()
+  assert( size(points) == num_nodes_subfacet)
+  assert(this%is_cut())
+  assert( (1_ip <= subvef) .and. (subvef <= this%unfitted_cell%get_num_subfacet_nodes())  )
+
+  mc_case = this%unfitted_cell%get_mc_case()
+  subnodes_ref_coords => this%marching_cubes%subnodes_ref_coords
+  subfacet_node_ids =>  this%marching_cubes%fitted_sub_facets_node_ids_x_facet(:,subvef,this%facet_lid)
+  points(:) = subnodes_ref_coords(subfacet_node_ids(:))
+
+end subroutine unfitted_vef_iterator_get_ref_coords_of_subvef
+
+!========================================================================================
+function unfitted_vef_iterator_is_cut( this ) result ( is_cut )
+
+  implicit none
+  class(unfitted_vef_iterator_t), intent(in)    :: this
+  logical :: is_cut
+
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+
+  massert(this%is_facet(),'This procedure is only implemeted for facets')
+  assert(associated(this%marching_cubes))
+  assert(allocated(this%unfitted_cell))
+
+  mc_case = this%unfitted_cell%get_mc_case()
+  istat = this%marching_cubes%mc_table_facet_status_x_case_and_facet(this%facet_lid,mc_case)
+  is_cut = (istat == 0_ip)
+
+end function unfitted_vef_iterator_is_cut
+
+!========================================================================================
+function unfitted_vef_iterator_is_interior( this ) result ( is_interior )
+  implicit none
+  class(unfitted_vef_iterator_t), intent(in)  :: this
+  logical :: is_interior
+
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+
+  massert(this%is_facet(),'This procedure is only implemeted for facets')
+  assert(associated(this%marching_cubes))
+  assert(allocated(this%unfitted_cell))
+
+  mc_case = this%unfitted_cell%get_mc_case()
+  istat = this%marching_cubes%mc_table_facet_status_x_case_and_facet(this%facet_lid,mc_case)
+  is_interior = (istat == -1_ip)
+
+end function unfitted_vef_iterator_is_interior
+
+!========================================================================================
+function unfitted_vef_iterator_is_exterior( this ) result ( is_exterior )
+  implicit none
+  class(unfitted_vef_iterator_t), intent(in)  :: this
+  logical :: is_exterior
+
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+
+  massert(this%is_facet(),'This procedure is only implemeted for facets')
+  assert(associated(this%marching_cubes))
+  assert(allocated(this%unfitted_cell))
+
+  mc_case = this%unfitted_cell%get_mc_case()
+  istat = this%marching_cubes%mc_table_facet_status_x_case_and_facet(this%facet_lid,mc_case)
+  is_exterior = (istat == 1_ip)
+
+end function unfitted_vef_iterator_is_exterior
+
+!========================================================================================
+function unfitted_vef_iterator_is_interior_subvef( this, subvef ) result ( is_in )
+  implicit none
+  class(unfitted_vef_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subvef
+  logical :: is_in
+
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+
+  massert(this%is_facet(),'This procedure is only implemeted for facets')
+  assert(associated(this%marching_cubes))
+  assert(allocated(this%unfitted_cell))
+
+  mc_case = this%unfitted_cell%get_mc_case()
+  istat = this%marching_cubes%mc_table_fitted_sub_facets_status_x_case_and_facet(subvef,this%facet_lid,mc_case)
+  is_in = (istat == -1_ip)
+
+end function unfitted_vef_iterator_is_interior_subvef
+
+!========================================================================================
+function unfitted_vef_iterator_is_exterior_subvef( this, subvef ) result ( is_out )
+  implicit none
+  class(unfitted_vef_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subvef
+  logical :: is_out
+
+  integer(ip) :: mc_case
+  integer(ip) :: istat
+
+  massert(this%is_facet(),'This procedure is only implemeted for facets')
+  assert(associated(this%marching_cubes))
+  assert(allocated(this%unfitted_cell))
+
+  mc_case = this%unfitted_cell%get_mc_case()
+  istat = this%marching_cubes%mc_table_fitted_sub_facets_status_x_case_and_facet(subvef,this%facet_lid,mc_case)
+  is_out = (istat == 1_ip)
+
+end function unfitted_vef_iterator_is_exterior_subvef
+
+

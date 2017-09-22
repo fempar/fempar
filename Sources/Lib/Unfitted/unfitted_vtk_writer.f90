@@ -71,6 +71,7 @@ module unfitted_vtk_writer_names
 
     procedure, non_overridable :: attach_triangulation  => uvtkw_attach_triangulation
     procedure, non_overridable :: attach_boundary_faces => uvtkw_attach_boundary_faces
+    procedure, non_overridable :: attach_fitted_faces => uvtkw_attach_fitted_faces
     procedure, non_overridable :: attach_boundary_quadrature_points => uvtkw_attach_boundary_quadrature_points
     procedure, non_overridable :: attach_fe_function    => uvtkw_attach_fe_function
     procedure, non_overridable :: write_to_vtk_file     => uvtkw_write_to_vtk_file
@@ -330,6 +331,151 @@ contains
     call triangulation%free_cell_iterator(cell)
   
   end subroutine uvtkw_attach_boundary_faces
+
+
+!========================================================================================
+  subroutine uvtkw_attach_fitted_faces( this, triangulation )
+  
+    implicit none
+    class(unfitted_vtk_writer_t),   intent(inout) :: this
+    class(triangulation_t), intent(in)    :: triangulation
+
+    integer(ip) :: num_facets, num_facet_nodes, num_subfacets, num_subfacet_nodes, num_dime
+    integer(ip) :: istat, ifacet, inode, ino, isubfacet
+    class(vef_iterator_t), allocatable  :: vef
+    type(point_t), allocatable, dimension(:) :: facet_coords, subfacet_coords
+    integer(ip) :: the_facet_type, the_subfacet_type
+    integer(ip) :: my_part_id
+    
+    call this%free()
+
+    this%environment => triangulation%get_environment()
+    if ( .not. this%environment%am_i_l1_task() ) return
+    my_part_id = this%environment%get_l1_rank() + 1
+
+
+    select type (triangulation)
+    class is (serial_unfitted_triangulation_t)
+      num_subfacets = triangulation%get_total_num_fitted_sub_facets()
+      num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    class is (par_unfitted_triangulation_t)
+      mcheck(.false.,'Not yet implemented')
+      !!num_subfacets = triangulation%get_total_num_fitted_sub_facets()
+      !!num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    class is (unfitted_p4est_serial_triangulation_t)
+      mcheck(.false.,'Not yet implemented')
+      !!num_subfacets = triangulation%get_total_num_fitted_sub_facets()
+      !!num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    class default
+      check(.false.)
+    end select
+
+    num_dime = triangulation%get_num_dims()
+    num_facets = 0
+    call triangulation%create_vef_iterator(vef)
+    do while (.not. vef%has_finished())
+      if (vef%is_facet()) then
+        num_facets = num_facets + 1
+        num_facet_nodes = vef%get_num_nodes()
+      end if
+      call vef%next()
+    end do
+    this%Ne = num_facets + num_subfacets
+    this%Nn = num_facet_nodes*num_facets  + num_subfacet_nodes*num_subfacets
+
+    call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%z, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_type, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%offset   , __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_data , __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%pid       , __FILE__, __LINE__ )
+    allocate ( facet_coords(1:num_facet_nodes), stat = istat ); check(istat == 0)
+    allocate ( subfacet_coords(1:num_subfacet_nodes), stat = istat ); check(istat == 0)
+
+    select case (num_dime)
+      case(3)
+        the_subfacet_type = 5_I1P
+      case(2)
+        the_subfacet_type = 3_I1P
+      case default
+      check(.false.)
+    end select
+
+    ! Fill date to be passed to vtkio
+    call vef%first()
+    ifacet = 1
+    inode = 1
+    do while ( .not. vef%has_finished() )
+
+      if (.not. vef%is_facet()) then
+        call vef%next(); cycle
+      end if
+
+      call vef%update_sub_triangulation()
+
+      call vef%get_nodes_coordinates( facet_coords )
+
+      do ino = 1, num_facet_nodes !TODO is it possible to avoid loops like this one?
+        this%x(inode) = facet_coords(ino)%get(1)
+        this%y(inode) = facet_coords(ino)%get(2)
+        this%z(inode) = facet_coords(ino)%get(3)
+        this%connect(inode) =  inode -1
+        inode = inode + 1
+      end do
+
+      this%offset(ifacet)        = inode - 1
+      this%cell_type(ifacet)     = the_facet_type
+
+      if ( vef%is_interior() ) then
+        this%cell_data( ifacet )  = -1
+      else if ( vef%is_cut() ) then
+        this%cell_data( ifacet )  = 0
+      else
+        this%cell_data( ifacet )  = 1
+      end if
+
+      this%pid(ifacet) = real(my_part_id,kind=rp)
+
+      ifacet = ifacet + 1
+
+      do isubfacet = 1, vef%get_num_subvefs()
+        call vef%get_phys_coords_of_subvef(isubfacet,subfacet_coords)
+
+        do ino = 1, num_subfacet_nodes
+          this%x(inode) = subfacet_coords(ino)%get(1)
+          this%y(inode) = subfacet_coords(ino)%get(2)
+          this%z(inode) = subfacet_coords(ino)%get(3)
+          this%connect(inode) = inode - 1
+          inode = inode + 1
+        end do
+
+        this%offset(ifacet)        = inode - 1
+        this%cell_type(ifacet)     = the_subfacet_type
+
+        if ( vef%is_interior_subvef(isubfacet) ) then
+          this%cell_data( ifacet )  = -2
+        else
+          this%cell_data( ifacet )  = 2
+        end if
+
+        this%pid(ifacet) = real(my_part_id,kind=rp)
+
+        ifacet = ifacet + 1
+
+      end do
+
+      call vef%next()
+    end do
+
+    if (num_dime == 2_ip) this%z(:) = 0
+
+    deallocate ( facet_coords, stat = istat ); check(istat == 0)
+    deallocate ( subfacet_coords, stat = istat ); check(istat == 0)
+    call triangulation%free_vef_iterator(vef)
+  
+  end subroutine uvtkw_attach_fitted_faces
 
 !========================================================================================  
   subroutine  uvtkw_attach_fe_function(this,fe_function,fe_space)
