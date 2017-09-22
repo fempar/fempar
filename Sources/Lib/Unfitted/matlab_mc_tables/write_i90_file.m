@@ -1,6 +1,7 @@
 function fc = write_i90_file(file_name, mc_ncases, mc_max_sub_cells, mc_max_num_cut_edges, mc_num_sub_cells_per_case,...
     mc_subcells_per_case, mc_inout_subcells_per_case, mc_num_nodes_per_subcell,mc_num_cut_edges_per_case,elem_type,...
-    mc_num_nodes_per_subface,mc_max_sub_faces,mc_num_sub_faces_per_case,mc_subfacets_per_case)
+    mc_num_nodes_per_subface,mc_max_sub_faces,mc_num_sub_faces_per_case,mc_subfacets_per_case,...
+mc_max_sub_vefs,mc_num_sub_vefs_per_case,mc_subvefs_per_case,mc_subvefs_inout_per_case,mc_num_facets,mc_facet_type_per_case_and_facet)
 
 % Falta el num d'intersection points
 
@@ -53,6 +54,7 @@ fprintf(fid,'\n');
 fprintf(fid,'integer(ip), parameter :: MC_%s_NUM_CASES = %d\n',elem_type,mc_ncases);
 fprintf(fid,'integer(ip), parameter :: MC_%s_MAX_NUM_SUBCELLS = %d\n',elem_type,mc_max_sub_cells);
 fprintf(fid,'integer(ip), parameter :: MC_%s_MAX_NUM_SUBFACES = %d\n',elem_type,mc_max_sub_faces);
+fprintf(fid,'integer(ip), parameter :: MC_%s_MAX_NUM_FITTED_SUB_FACETS_IN_FACET = %d\n',elem_type,mc_max_sub_vefs);
 fprintf(fid,'integer(ip), parameter :: MC_%s_MAX_NUM_CUT_EDGES = %d\n',elem_type,mc_max_num_cut_edges);
 fprintf(fid,'integer(ip), parameter :: MC_%s_NUM_NODES_PER_SUBCELL = %d\n',elem_type,mc_num_nodes_per_subcell);
 fprintf(fid,'integer(ip), parameter :: MC_%s_NUM_NODES_PER_SUBFACE = %d\n',elem_type,mc_num_nodes_per_subface);
@@ -81,6 +83,23 @@ fprintf(fid,['integer(ip), parameter :: MC_%s_NUM_SUBFACES_PER_CASE(%d) = ' enda
 
 write_long_vector(fid,mc_num_sub_faces_per_case,width,0);
 fprintf(fid,'\n');
+
+varname = sprintf('MC_%s_NUM_SUB_FACETS_PER_CASE_AND_FACET',elem_type);
+write_long_variable_2D(fid,mc_num_sub_vefs_per_case,mc_num_facets,varname,mc_num_facets,mc_ncases);
+
+
+
+varname = sprintf('MC_%s_FACET_TYPE_PER_CASE_AND_FACET',elem_type);
+write_long_variable_2D(fid,mc_facet_type_per_case_and_facet,mc_num_facets,varname,mc_num_facets,mc_ncases);
+
+
+varname = sprintf('MC_%s_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET',elem_type);
+write_long_variable_3D(fid,mc_subvefs_inout_per_case,width,varname,mc_max_sub_vefs,mc_num_facets,mc_ncases);
+
+
+varname = sprintf('MC_%s_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET',elem_type);
+write_long_variable_4D(fid,mc_subvefs_per_case,width,varname,mc_num_nodes_per_subface,mc_max_sub_vefs,mc_num_facets,mc_ncases);
+
 
 fprintf(fid,['integer(ip), parameter :: MC_%s_NUM_CUT_EDGES_PER_CASE(%d) = ' endaux],elem_type,mc_ncases);
 write_long_vector(fid,mc_num_cut_edges_per_case,width,0);
@@ -138,6 +157,15 @@ else
     write_long_vector(fid,data,width,10);
     fprintf(fid,' , [%d,%d,%d] )\n',d1,d2,d3);
 end
+
+
+function write_long_variable_4D(fid,mc_data,width,varname,d1,d2,d3,d4)
+
+    fprintf(fid,'integer(ip), parameter :: %s(%d,%d,%d,%d) = &\nreshape( ',varname,d1,d2,d3,d4);
+    data = permute(mc_data,[4 3 2 1]);
+    write_long_vector(fid,data,width,10);
+    fprintf(fid,' , [%d,%d,%d,%d] )\n',d1,d2,d3,d4);
+
 
 
 function write_long_variable_2D(fid,mc_data,width,varname,d1,d2)
