@@ -33,11 +33,11 @@ program par_test_interpolators
   implicit none
   type(par_test_interpolators_driver_t) :: test_driver
   call fempar_init()
-		call test_driver%parse_command_line_parameters()
-		call test_driver%setup_environment()
+  call test_driver%parse_command_line_parameters()
+  call test_driver%setup_environment()
   call test_driver%run_simulation()
-		call test_driver%free_command_line_parameters()
-		call test_driver%free_environment()
+  call test_driver%free_command_line_parameters()
+  call test_driver%free_environment()
   call fempar_finalize()
 contains
 end program par_test_interpolators

@@ -1,307 +1,230 @@
-! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
-!
-! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
-!
-! FEMPAR is free software: you can redistribute it and/or modify
-! it under the terms of the GNU General Public License as published by
-! the Free Software Foundation, either version 3 of the License, or
-! (at your option) any later version.
-!
-! FEMPAR is distributed in the hope that it will be useful,
-! but WITHOUT ANY WARRANTY; without even the implied warranty of
-! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-! GNU General Public License for more details.
-!
-! You should have received a copy of the GNU General Public License
-! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
-!
-! Additional permission under GNU GPL version 3 section 7
-!
-! If you modify this Program, or any covered work, by linking or combining it 
-! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
-! and/or the HSL Mathematical Software Library (or a modified version of them), 
-! containing parts covered by the terms of their respective licenses, the
-! licensors of this Program grant you additional permission to convey the 
-! resulting work. 
-!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_interpolators_params_names
+module par_test_interpolators_params_names
   use fempar_names
-# include "debug.i90"
 
   implicit none
+#include "debug.i90" 
   private
 
-  type par_interpolators_params_t 
-     private 
-     ! IO parameters
-     character(len=:), allocatable :: default_dir_path
-     character(len=:), allocatable :: default_prefix
-     character(len=:), allocatable :: default_dir_path_out
-     character(len=:), allocatable :: default_reference_fe_geo_order
-     character(len=:), allocatable :: default_reference_fe_order
-     character(len=:), allocatable :: default_triangulation_type
-     character(len=:), allocatable :: default_num_dims
-     character(len=:), allocatable :: default_nx
-     character(len=:), allocatable :: default_ny
-     character(len=:), allocatable :: default_nz
-     character(len=:), allocatable :: default_is_periodic_in_x
-     character(len=:), allocatable :: default_is_periodic_in_y
-     character(len=:), allocatable :: default_is_periodic_in_z
-     character(len=:), allocatable :: default_write_solution
-					character(len=:), allocatable :: default_conformity
- 
-     type(Command_Line_Interface):: cli 
-
-     ! IO parameters
-     character(len=str_cla_len)    :: dir_path
-     character(len=str_cla_len)    :: prefix
-     character(len=str_cla_len)    :: dir_path_out
-     integer(ip)                   :: reference_fe_geo_order
-     integer(ip)                   :: reference_fe_order
-     character(len=str_cla_len)    :: triangulation_type
-     integer(ip)                   :: num_dims     
-     integer(ip)                   :: num_cells_x_dir(0:SPACE_DIM-1)
-     integer(ip)                   :: is_dir_periodic(0:SPACE_DIM-1)
-     logical                       :: write_solution
-					logical                       :: conformity
-     
-   contains
-     procedure, non_overridable             :: create       => interpolators_create
-     procedure, non_overridable, private    :: set_default  => interpolators_set_default
-     procedure, non_overridable, private    :: add_to_cli   => interpolators_add_to_cli
-     procedure, non_overridable             :: parse        => interpolators_parse 
-     procedure, non_overridable             :: free         => interpolators_free
-     procedure, non_overridable             :: get_dir_path
-     procedure, non_overridable             :: get_prefix
-     procedure, non_overridable             :: get_dir_path_out
-     procedure, non_overridable             :: get_reference_fe_geo_order
-     procedure, non_overridable             :: get_reference_fe_order
-     procedure, non_overridable             :: get_triangulation_type
-     procedure, non_overridable             :: get_write_solution
-					procedure, non_overridable             :: get_conformity
-  end type par_interpolators_params_t
+  character(len=*), parameter :: reference_fe_geo_order_key      = 'reference_fe_geo_order'
+  character(len=*), parameter :: reference_fe_order_key          = 'reference_fe_order'    
+  character(len=*), parameter :: write_solution_key              = 'write_solution'        
+  character(len=*), parameter :: triangulation_type_key          = 'triangulation_type'    
+		character(len=*), parameter :: variable_degree_within_field_key  = 'variable_degree_within_field'
+  
+  type, extends(parameter_handler_t) :: par_test_interpolators_params_t
+     private
+     contains
+       procedure :: define_parameters  => par_test_interpolators_params_define_parameters
+       procedure, non_overridable             :: get_dir_path
+       procedure, non_overridable             :: get_prefix
+       procedure, non_overridable             :: get_reference_fe_geo_order
+       procedure, non_overridable             :: get_reference_fe_order
+       procedure, non_overridable             :: get_write_solution
+       procedure, non_overridable             :: get_triangulation_type
+							procedure, non_overridable             :: get_is_variable_degree_within_field
+  end type par_test_interpolators_params_t
 
   ! Types
-  public :: par_interpolators_params_t
+  public :: par_test_interpolators_params_t
 
 contains
 
-  subroutine interpolators_create(this)
-    implicit none
-    class(par_interpolators_params_t), intent(inout) :: this
-    
-    call this%free()
-    
-     ! Initialize Command Line Interface
-    call this%cli%init(progname    = 'interpolators',                                                     &
-         &        version     = '',                                                                 &
-         &        authors     = '',                                                                 &
-         &        license     = '',                                                                 &
-         &        description =  'FEMPAR test to solve the 2D Mixed Laplacian PDE with known analytical solution. &
-                                  Boundary set ID 1 MUST BE ASSIGNED to the whole boundary.', &
-         &        examples    = ['interpolators -h  ', 'interpolators -h  ' ])
-    
-    call this%set_default()
-    call this%add_to_cli()
-  end subroutine interpolators_create
-  
-  subroutine interpolators_set_default(this)
-    implicit none
-    class(par_interpolators_params_t), intent(inout) :: this
-    ! IO parameters
-    this%default_dir_path       = 'data/'
-    this%default_prefix         = 'square'
-    this%default_dir_path_out   = 'output/'
-    this%default_reference_fe_geo_order = '1'
-    this%default_reference_fe_order = '1'
-    this%default_triangulation_type = 'unstructured'
-    this%default_num_dims = '2'
-    this%default_nx = '1'
-    this%default_ny = '1'
-    this%default_nz = '1'
-    this%default_is_periodic_in_x = '0'
-    this%default_is_periodic_in_y = '0'
-    this%default_is_periodic_in_z = '0'
-    this%default_write_solution = '.false.'
-				this%default_conformity='.true.'
-  end subroutine interpolators_set_default
-  
   !==================================================================================================
-  subroutine interpolators_add_to_cli(this)
+  subroutine par_test_interpolators_params_define_parameters(this)
     implicit none
-    class(par_interpolators_params_t) , intent(inout) :: this
+    class(par_test_interpolators_params_t), intent(inout) :: this
+    type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
+    integer(ip)    :: error
+    character(len=:), allocatable            :: msg
 
-    ! Locals
-    integer(ip) :: error
+    list        => this%get_values()
+    switches    => this%get_switches()
+    switches_ab => this%get_switches_ab()
+    helpers     => this%get_helpers()
+    required    => this%get_required()
 
-    ! IO parameters
-    call this%cli%add(switch='--dir-path',switch_ab='-d',                              &
-         &            help='Directory of the source files',required=.false., act='store',                &
-         &            def=trim(this%default_dir_path),error=error)
-    check(error==0)
-    call this%cli%add(switch='--prefix',switch_ab='-p',help='Name of the GiD files',  &
-         &            required=.false.,act='store',def=trim(this%default_prefix),error=error) 
-    check(error==0)
-    call this%cli%add(switch='--dir-path-out',switch_ab='-o',help='Output Directory',&
-         &            required=.false.,act='store',def=trim(this%default_dir_path_out),error=error)
-    check(error==0)
-    call this%cli%add(switch='--reference-fe-geo-order',switch_ab='-gorder',help='Order of the triangulation reference fe',&
-         &            required=.false.,act='store',def=trim(this%default_reference_fe_geo_order),error=error)
-    check(error==0)  
-    call this%cli%add(switch='--reference-fe-order',switch_ab='-order',help='Order of the fe space reference fe',&
-         &            required=.false.,act='store',def=trim(this%default_reference_fe_order),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--triangulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
-         &            required=.false.,act='store',def=trim(this%default_triangulation_type),choices='structured,unstructured',error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_dims',switch_ab='-dim',help='Number of space dimensions',&
-         &            required=.false.,act='store',def=trim(this%default_num_dims),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_cells_in_x',switch_ab='-nx',help='Number of cells in x',&
-         &            required=.false.,act='store',def=trim(this%default_nx),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_cells_in_y',switch_ab='-ny',help='Number of cells in y',&
-         &            required=.false.,act='store',def=trim(this%default_ny),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--num_cells_in_z',switch_ab='-nz',help='Number of cells in z',&
-         &            required=.false.,act='store',def=trim(this%default_nz),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--periodic_in_x',switch_ab='-px',help='Is the mesh periodic in x',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_x),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--periodic_in_y',switch_ab='-py',help='Is the mesh periodic in y',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_y),error=error) 
-    check(error==0) 
-    call this%cli%add(switch='--periodic_in_z',switch_ab='-pz',help='Is the mesh periodic in z',&
-         &            required=.false.,act='store',def=trim(this%default_is_periodic_in_z),error=error) 
-    check(error==0)
-    call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
-         &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
-    check(error==0)  
-				  call this%cli%add(switch='--conformity',switch_ab='-conformity',help='Conformity to integrate cG or dG spaces',&
-         &            required=.false.,act='store',def=trim(this%default_conformity),error=error) 
-    check(error==0)
-    
-  end subroutine interpolators_add_to_cli
-  
-  subroutine interpolators_parse(this,parameter_list)
-    implicit none
-    class(par_interpolators_params_t), intent(inout) :: this
-    type(ParameterList_t)       , intent(inout) :: parameter_list
-    integer(ip) :: istat
-    
-    call this%cli%parse(error=istat); check(istat==0)
-    
-    ! IO parameters
-    call this%cli%get(switch='-d',val=this%dir_path    ,error=istat); check(istat==0)
-    call this%cli%get(switch='-p',val=this%prefix      ,error=istat); check(istat==0)
-    call this%cli%get(switch='-o',val=this%dir_path_out,error=istat); check(istat==0)
-    call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=istat); check(istat==0)
-    call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
-    call this%cli%get(switch='-tt',val=this%triangulation_type,error=istat); check(istat==0)
-    call this%cli%get(switch='-dim',val=this%num_dims,error=istat); check(istat==0)
-    call this%cli%get(switch='-nx',val=this%num_cells_x_dir(0),error=istat); check(istat==0)
-    call this%cli%get(switch='-ny',val=this%num_cells_x_dir(1),error=istat); check(istat==0)
-    call this%cli%get(switch='-nz',val=this%num_cells_x_dir(2),error=istat); check(istat==0)
-    call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
-    call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
-    call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
-    call this%cli%get(switch='-wsolution',val=this%write_solution,error=istat); check(istat==0)
-				call this%cli%get(switch='-conformity',val=this%conformity, error=istat); check(istat==0)
+    error = list%set(key = dir_path_key            , value = '.')      ; check(error==0)
+    error = list%set(key = prefix_key              , value = 'square') ; check(error==0)
+    error = list%set(key = dir_path_out_key        , value = '.')      ; check(error==0)
+    error = list%set(key = num_dims_key            , value =  2)       ; check(error==0)
+	   !error = list%set(key = hex_mesh_domain_limits_key        , value =  [0,1,0,1,0,1])       ; check(error==0)      
+    error = list%set(key = num_cells_x_dir_key     , value =  [12,12,12])          ; check(error==0)
+    error = list%set(key = is_dir_periodic_key     , value =  [0,0,0])             ; check(error==0)
+    error = list%set(key = num_levels_key          , value =  3)                   ; check(error==0)
+    error = list%set(key = num_parts_x_dir_key     , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
+    error = list%set(key = reference_fe_geo_order_key        , value =  1)                   ; check(error==0)
+    error = list%set(key = reference_fe_order_key            , value =  1)                   ; check(error==0)
+    error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
+    error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
+    error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
+				error = list%set(key = variable_degree_within_field_key , value =  .false.)                      ; check(error==0)
+ 
+    ! Only some of them are controlled from cli
+    error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
+    error = switches%set(key = prefix_key                    , value = '--prefix')                   ; check(error==0)
+    error = switches%set(key = dir_path_out_key              , value = '--dir-path-out')             ; check(error==0)
+    error = switches%set(key = num_dims_key                  , value = '--dim')                      ; check(error==0)
+	!error = switches%set(key = hex_mesh_domain_limits_key    , value = '--domain_limits')            ; check(error==0)
+    error = switches%set(key = num_cells_x_dir_key           , value = '--number_of_cells')          ; check(error==0)
+    error = switches%set(key = num_levels_key                , value = '--number_of_levels')         ; check(error==0)
+    error = switches%set(key = num_parts_x_dir_key   , value = '--number_of_parts_per_dir')  ; check(error==0)
+    error = switches%set(key = reference_fe_geo_order_key    , value = '--reference-fe-geo-order')   ; check(error==0)
+    error = switches%set(key = reference_fe_order_key        , value = '--reference-fe-order'    )   ; check(error==0)
+    error = switches%set(key = write_solution_key            , value = '--write-solution'        )   ; check(error==0)
+    error = switches%set(key = triangulation_generate_key    , value = '--trinagulation-type'    )   ; check(error==0)
+    error = switches%set(key = execution_context_key         , value = '--execution_context'    )    ; check(error==0)
+				error = switches%set(key = variable_degree_within_field_key, value = '--variable_degree'    )    ; check(error==0)
+                                                             
+    error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
+    error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
+    error = switches_ab%set(key = dir_path_out_key           , value = '-o')        ; check(error==0) 
+    error = switches_ab%set(key = num_dims_key               , value = '-dm')       ; check(error==0)
+	!error = switches_ab%set(key = hex_mesh_domain_limits_key , value = '-dl')       ; check(error==0)
+    error = switches_ab%set(key = num_cells_x_dir_key        , value = '-n')        ; check(error==0) 
+    error = switches_ab%set(key = num_levels_key             , value = '-l')        ; check(error==0)
+    error = switches_ab%set(key = num_parts_x_dir_key, value = '-np')       ; check(error==0)
+    error = switches_ab%set(key = reference_fe_geo_order_key , value = '-gorder')   ; check(error==0)
+    error = switches_ab%set(key = reference_fe_order_key     , value = '-order')    ; check(error==0)
+    error = switches_ab%set(key = write_solution_key         , value = '-wsolution'); check(error==0)
+    error = switches_ab%set(key = triangulation_generate_key , value = '-tt')       ; check(error==0)
+    error = switches_ab%set(key = execution_context_key      , value = '-exe')       ; check(error==0)
+				error = switches_ab%set(key = variable_degree_within_field_key      , value = '-variable_degree')       ; check(error==0)
 
-    call parameter_list%init()
-    istat = 0
-    istat = istat + parameter_list%set(key = dir_path_key, value = this%dir_path)
-    istat = istat + parameter_list%set(key = prefix_key  , value = this%prefix)
-    istat = istat + parameter_list%set(key = geometry_interpolation_order_key  , value = this%reference_fe_geo_order)
-    check(istat==0)
+    error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
+    error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
+    error = helpers%set(key = dir_path_out_key               , value = 'Output Directory')                         ; check(error==0)
+    error = helpers%set(key = num_dims_key                   , value = 'Number of space dimensions')               ; check(error==0)
+	!error = helpers%set(key = hex_mesh_domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
+    error = helpers%set(key = num_cells_x_dir_key            , value = 'Number of cells per dir')                  ; check(error==0)
+    error = helpers%set(key = num_levels_key                 , value = 'Number of levels')                         ; check(error==0)
+    error = helpers%set(key = num_parts_x_dir_key            , value = 'Number of parts per dir and per level')    ; check(error==0)
+    error = helpers%set(key = reference_fe_geo_order_key     , value = 'Order of the triangulation reference fe')  ; check(error==0)
+    error = helpers%set(key = reference_fe_order_key         , value = 'Order of the fe space reference fe')       ; check(error==0)
+    error = helpers%set(key = write_solution_key             , value = 'Write solution in VTK format')             ; check(error==0)
+				error = helpers%set(key = variable_degree_within_field_key , value = 'Different order Reference_fes are considered for the same field'); check(error==0)
     
-    if(trim(this%triangulation_type)=='unstructured') then
-       istat = parameter_list%set(key = triangulation_generate_key, value = triangulation_generate_from_mesh)
-    else if(trim(this%triangulation_type)=='structured') then
-       istat = parameter_list%set(key = triangulation_generate_key         , value = triangulation_generate_structured)
-       istat = istat + parameter_list%set(key = num_dims_key   , value = this%num_dims)
-       istat = istat + parameter_list%set(key = num_cells_x_dir_key, value = this%num_cells_x_dir)
-       istat = istat + parameter_list%set(key = is_dir_periodic_key        , value = this%is_dir_periodic)
-    end if
-    check(istat==0)
+    msg = 'structured (*) or unstructured (*) triangulation?'
+    write(msg(13:13),'(i1)') triangulation_generate_structured
+    write(msg(33:33),'(i1)') triangulation_generate_from_mesh
+    error = helpers%set(key = triangulation_generate_key     , value = msg)  ; check(error==0)
     
-  end subroutine interpolators_parse  
+    msg = 'serial (*) or mpi (*) context?'
+    write(msg(9:9),'(i1)') serial_context
+    write(msg(20:20),'(i1)') mpi_context
+    error = helpers%set(key = execution_context_key     , value = msg)  ; check(error==0)
+	
+    error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
+    error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
+    error = required%set(key = dir_path_out_key              , value = .false.) ; check(error==0)
+    error = required%set(key = num_dims_key                  , value = .false.) ; check(error==0)
+	!error = required%set(key = hex_mesh_domain_limits_key    , value = .false.) ; check(error==0)
+    error = required%set(key = num_cells_x_dir_key           , value = .false.) ; check(error==0)
+    error = required%set(key = num_levels_key                , value = .false.) ; check(error==0)
+    error = required%set(key = num_parts_x_dir_key   , value = .false.) ; check(error==0)
+    error = required%set(key = reference_fe_geo_order_key       , value = .false.) ; check(error==0)
+    error = required%set(key = reference_fe_order_key           , value = .false.) ; check(error==0)
+    error = required%set(key = write_solution_key               , value = .false.) ; check(error==0)
+    error = required%set(key = triangulation_generate_key       , value = .false.) ; check(error==0)
+    error = required%set(key = execution_context_key            , value = .false.) ; check(error==0)
+				error = required%set(key = variable_degree_within_field_key , value = .false.) ; check(error==0)
 
-  subroutine interpolators_free(this)
-    implicit none
-    class(par_interpolators_params_t), intent(inout) :: this
-    if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
-    if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
-    if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
-    if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
-    if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
-    call this%cli%free()
-  end subroutine interpolators_free
+  end subroutine par_test_interpolators_params_define_parameters
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(par_interpolators_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_dir_path
-    get_dir_path = trim(this%dir_path)
+    class(par_test_interpolators_params_t) , intent(in) :: this
+    character(len=:),      allocatable            :: get_dir_path
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(dir_path_key, 'string'))
+    error = list%GetAsString(key = dir_path_key, string = get_dir_path)
+    assert(error==0)
   end function get_dir_path
 
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(par_interpolators_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_prefix
-    get_prefix = trim(this%prefix)
+    class(par_test_interpolators_params_t) , intent(in) :: this
+    character(len=:),      allocatable            :: get_prefix
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(prefix_key, 'string'))
+    error = list%GetAsString(key = prefix_key, string = get_prefix)
+    assert(error==0)
   end function get_prefix
 
-  !==================================================================================================
-  function get_dir_path_out(this)
-    implicit none
-    class(par_interpolators_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_dir_path_out
-    get_dir_path_out = trim(this%dir_path_out)
-  end function get_dir_path_out
-  
-  !==================================================================================================
+    !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
-    class(par_interpolators_params_t) , intent(in) :: this
-    integer(ip) :: get_reference_fe_geo_order
-    get_reference_fe_geo_order = this%reference_fe_geo_order
+    class(par_test_interpolators_params_t) , intent(in) :: this
+    integer(ip)                                   :: get_reference_fe_geo_order
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(reference_fe_geo_order_key, get_reference_fe_geo_order))
+    error = list%Get(key = reference_fe_geo_order_key, Value = get_reference_fe_geo_order)
+    assert(error==0)
   end function get_reference_fe_geo_order
   
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
-    class(par_interpolators_params_t) , intent(in) :: this
-    integer(ip) :: get_reference_fe_order
-    get_reference_fe_order = this%reference_fe_order
+    class(par_test_interpolators_params_t) , intent(in) :: this
+    integer(ip)                                   :: get_reference_fe_order
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(reference_fe_order_key, get_reference_fe_order))
+    error = list%Get(key = reference_fe_order_key, Value = get_reference_fe_order)
+    assert(error==0)
   end function get_reference_fe_order
-
+  
   !==================================================================================================
   function get_write_solution(this)
     implicit none
-    class(par_interpolators_params_t) , intent(in) :: this
-    logical :: get_write_solution
-    get_write_solution = this%write_solution
+    class(par_test_interpolators_params_t) , intent(in) :: this
+    logical                                       :: get_write_solution
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    logical                                       :: is_present
+    logical                                       :: same_data_type
+    integer(ip), allocatable                      :: shape(:)
+    list  => this%get_values()
+    assert(list%isAssignable(write_solution_key, get_write_solution))
+    error = list%Get(key = write_solution_key, Value = get_write_solution)
+    assert(error==0)
   end function get_write_solution
-  
+
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
-    class(par_interpolators_params_t) , target, intent(in) :: this
-    character(:), pointer :: get_triangulation_type
-    get_triangulation_type => this%triangulation_type
-  end function get_triangulation_type
+    class(par_test_interpolators_params_t) , intent(in) :: this
+    integer(ip)                                   :: get_triangulation_type
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(triangulation_generate_key, get_triangulation_type))
+    error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
+    assert(error==0)
+  end function get_triangulation_type 
 		
 		  !==================================================================================================
-  function get_conformity(this)
+  function get_is_variable_degree_within_field(this)
     implicit none
-    class(par_interpolators_params_t) , intent(in) :: this
-    logical :: get_conformity
-    get_conformity = this%conformity
-  end function get_conformity
-  
-end module par_interpolators_params_names
+    class(par_test_interpolators_params_t) , intent(in) :: this
+    logical                                       :: get_is_variable_degree_within_field
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    logical                                       :: is_present
+    logical                                       :: same_data_type
+    integer(ip), allocatable                      :: shape(:)
+    list  => this%get_values()
+    assert(list%isAssignable(variable_degree_within_field_key, get_is_variable_degree_within_field))
+    error = list%Get(key = variable_degree_within_field_key, Value = get_is_variable_degree_within_field)
+    assert(error==0)
+  end function get_is_variable_degree_within_field
+
+end module par_test_interpolators_params_names

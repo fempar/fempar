@@ -527,10 +527,10 @@ module fe_space_names
      procedure, non_overridable, private :: free_has_fixed_dofs                          => serial_fe_space_free_has_fixed_dofs
      procedure                           :: set_up_strong_dirichlet_bcs                  => serial_fe_space_set_up_strong_dirichlet_bcs
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs_on_vef_and_field => serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
-     procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
-					procedure                           :: project_scalar_function                      => serial_fe_space_project_scalar_function 
-					procedure                           :: project_vector_function                      => serial_fe_space_project_vector_function
-					procedure                           :: project_Dirichlet_boundary_function          => serial_fe_space_project_Dirichlet_boundary_function
+					procedure                           :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function 
+					procedure                           :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
+					generic                             :: interpolate                                  => interpolate_scalar_function, interpolate_vector_function					
+					procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
      procedure                           :: project_dirichlet_values_curl_conforming     => serial_fe_space_project_dirichlet_values_curl_conforming
      procedure, non_overridable, private :: allocate_and_fill_fields_to_project_         => serial_fe_space_allocate_and_fill_fields_to_project_
      procedure, non_overridable, private :: allocate_and_fill_offset_component           => serial_fe_space_allocate_and_fill_offset_component
@@ -538,14 +538,7 @@ module fe_space_names
      procedure, non_overridable, private :: get_function_scalar_components               => serial_fe_space_get_function_scalar_components
      procedure, non_overridable, private :: evaluate_vector_function_scalar_components   => serial_fe_space_evaluate_vector_function_scalar_components
      procedure, non_overridable, private :: project_curl_conforming_compute_elmat_elvec  => serial_fe_space_project_curl_conforming_compute_elmat_elvec
-     
-     procedure, private, non_overridable :: interpolate_scalar    => serial_fe_space_interpolate_scalar
-     procedure, private, non_overridable :: interpolate_vector    => serial_fe_space_interpolate_vector
-     procedure, private, non_overridable :: interpolate_tensor    => serial_fe_space_interpolate_tensor
-     generic                             :: interpolate           => interpolate_scalar, &
-                                                                     interpolate_vector, &
-                                                                     interpolate_tensor
-     
+          
      procedure, non_overridable, private :: allocate_cell_quadratures_degree               => serial_fe_space_allocate_cell_quadratures_degree
      procedure, non_overridable, private :: free_cell_quadratures_degree                   => serial_fe_space_free_cell_quadratures_degree
      procedure, non_overridable          :: clear_cell_quadratures_degree                  => serial_fe_space_clear_cell_quadratures_degree
@@ -626,7 +619,7 @@ module fe_space_names
      procedure, non_overridable          :: free_fe_facet_iterator                        => serial_fe_space_free_fe_facet_iterator
  end type serial_fe_space_t  
  
- public :: serial_fe_space_t, serial_fe_space_set_up_strong_dirichlet_bcs, serial_fe_space_interpolate_dirichlet_values
+ public :: serial_fe_space_t, serial_fe_space_set_up_strong_dirichlet_bcs
  public :: fe_space_type_cg, fe_space_type_dg
  public :: fe_cell_iterator_t
  public :: fe_vef_iterator_t
@@ -756,11 +749,10 @@ module fe_space_names
    procedure                                   :: print                                           => par_fe_space_print
    procedure                                   :: free                                            => par_fe_space_free
    procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
-			procedure                                   :: project_scalar_function                         => par_fe_space_project_scalar_function
-			procedure                                   :: project_vector_function                         => par_fe_space_project_vector_function  
-			generic                                     :: project_function                                => project_scalar_function, project_vector_function
-			procedure                                   :: project_Dirichlet_boundary_function             => par_fe_space_project_Dirichlet_boundary_function
-   procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
+			procedure                                   :: interpolate_scalar_function                     => par_fe_space_interpolate_scalar_function
+			procedure                                   :: interpolate_vector_function                     => par_fe_space_interpolate_vector_function  
+			generic                                     :: interpolate_function                            => interpolate_scalar_function, interpolate_vector_function
+			procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    procedure                                   :: project_dirichlet_values_curl_conforming        => par_fe_space_project_dirichlet_values_curl_conforming
    
    procedure        , non_overridable, private :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs

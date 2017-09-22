@@ -230,7 +230,6 @@ contains
   subroutine interpolate_analytical_functions (this)
     implicit none
     class(par_test_interpolators_driver_t), intent(inout) :: this 
-				class(vector_t) , pointer :: dof_values
 				real(rp) :: time_ 
 									
     call this%problem_functions%set_num_dims(this%triangulation%get_num_dims())
@@ -245,23 +244,23 @@ contains
 
 				! Project functions 
 				call this%solution%create(this%fe_space)
-				call this%fe_space%project_vector_function( this%problem_functions%get_magnetic_field_solution(), MAGNETIC_FIELD_ID, this%solution ) 
-				call this%fe_space%project_scalar_function( this%problem_functions%get_pressure_solution(), PRESSURE_FIELD_ID, this%solution )
-				call this%fe_space%project_Dirichlet_boundary_function( this%solution )
+				call this%fe_space%interpolate_vector_function( MAGNETIC_FIELD_ID, this%problem_functions%get_magnetic_field_solution(), this%solution ) 
+				call this%fe_space%interpolate_scalar_function( PRESSURE_FIELD_ID, this%problem_functions%get_pressure_solution(), this%solution )
+				call this%fe_space%interpolate_dirichlet_values( this%solution )
 				
 				! Project transient functions 
 			 call random_number( this%time ) 
 				call this%time_solution%create(this%fe_space)
-				call this%fe_space%project_vector_function( function     = this%problem_functions%get_magnetic_field_solution(), & 
-																																																field_id     = MAGNETIC_FIELD_ID,                                    & 
-																																															 fe_function  = this%time_solution ,                                  & 
-																																																time         = this%time ) 
-				call this%fe_space%project_scalar_function( function     = this%problem_functions%get_pressure_solution(),       & 
-																																																field_id     = PRESSURE_FIELD_ID,                                    &
-																																															 fe_function  = this%time_solution ,                                  &  
-																																																time         = this%time)
-				call this%fe_space%project_Dirichlet_boundary_function( fe_function = this%time_solution, & 
-																																																											 time        = this%time )
+				call this%fe_space%interpolate( field_id     = MAGNETIC_FIELD_ID,                                    &
+																																		  function     = this%problem_functions%get_magnetic_field_solution(), &  
+																																		  fe_function  = this%time_solution ,                                  & 
+																																			 time         = this%time ) 
+				call this%fe_space%interpolate( field_id     = PRESSURE_FIELD_ID,                                    &
+																																		  function     = this%problem_functions%get_pressure_solution(),       & 
+																																			 fe_function  = this%time_solution ,                                  &  
+																																			 time         = this%time)
+				call this%fe_space%interpolate_dirichlet_values( fe_function = this%time_solution, & 
+																																									    							 time        = this%time )
 				
   end subroutine interpolate_analytical_functions 
 
@@ -419,6 +418,12 @@ contains
     implicit none
     class(par_test_interpolators_driver_t), intent(in) :: this
     type(output_handler_t)                           :: oh
+				class(vector_t) , pointer :: dof_values
+				class(vector_t) , pointer :: fixed_values 
+				
+				dof_values => this%solution%get_free_dof_values() 
+				fixed_values => this%solution%get_fixed_dof_values() 
+
     if(this%test_params%get_write_solution()) then
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
