@@ -28,11 +28,16 @@
 
 module vector_poisson_analytical_functions_names
   use fempar_names
-  use poisson_analytical_functions_names
   implicit none
 # include "debug.i90"
   private
 
+  type, extends(scalar_function_t) :: base_scalar_function_t
+    integer(ip) :: num_dims = -1  
+  contains
+    procedure :: set_num_dims    => base_scalar_function_set_num_dims
+  end type base_scalar_function_t
+  
   type, extends(vector_function_t) :: base_vector_function_t
     integer(ip) :: num_dims = -1  
   contains
@@ -71,6 +76,15 @@ module vector_poisson_analytical_functions_names
   public :: vector_poisson_analytical_functions_t, boundary_function_t
 
 contains  
+
+  subroutine base_scalar_function_set_num_dims ( this, num_dims )
+    implicit none
+    class(base_scalar_function_t), intent(inout)    :: this
+    integer(ip), intent(in) ::  num_dims
+    this%num_dims = num_dims
+  end subroutine base_scalar_function_set_num_dims
+
+  !===============================================================================================
 
   subroutine base_vector_function_set_num_dims ( this, num_dims )
     implicit none
