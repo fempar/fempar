@@ -244,8 +244,8 @@ contains
 
 				! Project functions 
 				call this%solution%create(this%fe_space)
-				call this%fe_space%interpolate_vector_function( MAGNETIC_FIELD_ID, this%problem_functions%get_magnetic_field_solution(), this%solution ) 
-				call this%fe_space%interpolate_scalar_function( PRESSURE_FIELD_ID, this%problem_functions%get_pressure_solution(), this%solution )
+				call this%fe_space%interpolate( MAGNETIC_FIELD_ID, this%problem_functions%get_magnetic_field_solution(), this%solution ) 
+				call this%fe_space%interpolate( PRESSURE_FIELD_ID, this%problem_functions%get_pressure_solution(), this%solution )
 				call this%fe_space%interpolate_dirichlet_values( this%solution )
 				
 				! Project transient functions 
