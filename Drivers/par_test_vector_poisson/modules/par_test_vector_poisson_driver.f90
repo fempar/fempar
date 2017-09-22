@@ -28,7 +28,6 @@
 module par_test_vector_poisson_driver_names
   use fempar_names
   use par_test_vector_poisson_params_names
-  use poisson_analytical_functions_names
   
   use vector_poisson_discrete_integration_names
   use vector_poisson_conditions_names
@@ -54,7 +53,7 @@ module par_test_vector_poisson_driver_names
      type(par_fe_space_t)                        :: fe_space 
      type(p_reference_fe_t), allocatable         :: reference_fes(:) 
      type(standard_l1_coarse_fe_handler_t)       :: standard_coarse_fe_handler
-     type(vector_laplacian_l1_coarse_fe_handler_t):: vector_laplacian_coarse_fe_handler
+     type(vector_laplacian_pb_bddc_l1_coarse_fe_handler_t):: vector_laplacian_coarse_fe_handler
      type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
      type(vector_poisson_discrete_integration_t) :: vector_poisson_integration
      type(vector_poisson_conditions_t)           :: vector_poisson_conditions
