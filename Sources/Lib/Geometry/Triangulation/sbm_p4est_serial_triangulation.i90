@@ -34,6 +34,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   class(environment_t), pointer :: environment
   integer(ip) :: num_dims
+  integer(ip) :: dummy_comm
   
 #ifdef ENABLE_P4EST
   call this%free()
@@ -59,7 +60,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
-    call F90_p4est_new(this%p4est_connectivity, this%p4est)
+    call F90_p4est_new(dummy_comm,this%p4est_connectivity, this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
@@ -70,7 +71,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%clear_vef_set_ids()
   else if ( this%get_num_dims() == 3 ) then
     call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
-    call F90_p8est_new(this%p4est_connectivity, this%p4est)
+    call F90_p8est_new(dummy_comm,this%p4est_connectivity, this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
@@ -118,6 +119,7 @@ subroutine p4est_serial_triangulation_free ( this)
   call this%proper_vefs_dim%free()
   call this%improper_vefs_dim%free()
   call this%proper_vefs_at_boundary%free()
+  call this%proper_vefs_at_interface%free()
   call this%refinement_and_coarsening_flags%free()
   call this%cell_set_ids%free()
   call this%proper_vefs_set_ids%free()

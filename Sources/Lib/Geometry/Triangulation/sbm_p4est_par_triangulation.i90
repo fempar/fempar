@@ -35,6 +35,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   class(environment_t)      , pointer :: p_environment
   class(execution_context_t), pointer :: context
+  type(mpi_context_t)       , pointer :: mpi_context
   integer(ip) :: num_dims
   
 #ifdef ENABLE_P4EST
@@ -57,9 +58,6 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
      istat = parameters%get(key = num_dims_key, value = num_dims); assert(istat==0)
      call this%set_num_dims(num_dims)
 
-     call this%set_num_local_cells(1)
-     call this%set_num_ghost_cells(0)
-
      call this%reference_fe_geo%create( topology_hex, &
                                         this%get_num_dims(), &
                                         1, &
@@ -69,14 +67,15 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
      context => p_environment%get_l1_context()
      select type(context)
      class is (mpi_context_t)
-       call F90_p4est_init(context%get_icontxt())
+       mpi_context => context
      class default
        mcheck(.false., "mpi_context_t required by p4est_par_triangulation")
      end select
+     call F90_p4est_init(mpi_context%get_icontxt())
      
      if ( this%get_num_dims() == 2 ) then
         call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
-        call F90_p4est_new(this%p4est_connectivity, this%p4est)
+        call F90_p4est_new(mpi_context%get_icontxt(),this%p4est_connectivity, this%p4est)
         call this%update_p4est_mesh()
         call this%update_topology_from_p4est_mesh()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
@@ -87,7 +86,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%clear_vef_set_ids()
      else if ( this%get_num_dims() == 3 ) then
         call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
-        call F90_p8est_new(this%p4est_connectivity, this%p4est)
+        call F90_p8est_new(mpi_context%get_icontxt(),this%p4est_connectivity, this%p4est)
         call this%update_p4est_mesh()
         call this%update_topology_from_p4est_mesh()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
@@ -140,6 +139,7 @@ subroutine p4est_par_triangulation_free ( this)
         call this%proper_vefs_dim%free()
         call this%improper_vefs_dim%free()
         call this%proper_vefs_at_boundary%free()
+        call this%proper_vefs_at_interface%free()
         call this%refinement_and_coarsening_flags%free()
         call this%cell_set_ids%free()
         call this%proper_vefs_set_ids%free()
@@ -182,3 +182,30 @@ subroutine p4est_par_triangulation_free ( this)
   call this%not_enabled_error()
 #endif     
 end subroutine p4est_par_triangulation_free
+
+subroutine p4est_par_triangulation_partition ( this )
+  implicit none
+  class(p4est_par_triangulation_t), intent(inout) :: this
+  class(environment_t), pointer :: p_environment
+  type(std_vector_integer_ip_t) :: old_lst_vefs_gids
+  
+  p_environment => this%get_environment()
+  if ( p_environment%am_i_l1_task() ) then
+    if ( this%get_num_dims() == 2 ) then
+      call F90_p4est_partition(this%p4est)
+    else if ( this%get_num_dims() == 3 ) then
+      call F90_p8est_partition(this%p4est)
+    end if
+    call this%update_p4est_mesh()
+    call this%update_topology_from_p4est_mesh()
+    call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+    call this%allocate_and_fill_x_cell_vertex_coordinates()
+    ! These two calls involve communications !!!
+    !call this%update_cell_set_ids()
+    !call this%update_vef_set_ids(old_lst_vefs_gids)
+    call this%clear_cell_set_ids()
+    call this%clear_vef_set_ids()
+    call old_lst_vefs_gids%free()
+  end if
+
+end subroutine p4est_par_triangulation_partition

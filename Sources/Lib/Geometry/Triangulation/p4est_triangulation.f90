@@ -40,6 +40,7 @@ module p4est_triangulation_names
   use reference_fe_names
   use triangulation_names
   use std_vector_integer_ip_names
+  use std_vector_integer_igp_names
   use field_names
   
   use FPL
@@ -378,10 +379,12 @@ module p4est_triangulation_names
     type(std_vector_integer_ip_t)          :: proper_vefs_dim
     type(std_vector_integer_ip_t)          :: improper_vefs_dim
     type(std_vector_integer_ip_t)          :: proper_vefs_at_boundary
+    type(std_vector_integer_ip_t)          :: proper_vefs_at_interface
     type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
     type(std_vector_integer_ip_t)          :: cell_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
+    type(std_vector_integer_igp_t)         :: cells_ggids
   contains
     ! Getters
     procedure                                   :: get_num_reference_fes                         => p4est_base_triangulation_get_num_reference_fes
@@ -437,7 +440,8 @@ module p4est_triangulation_names
   contains
     procedure, private                          :: p4est_par_triangulation_create
     generic                                     :: create                                        => p4est_par_triangulation_create
-    procedure                                   :: free                                          => p4est_par_triangulation_free    
+    procedure                                   :: free                                          => p4est_par_triangulation_free 
+    procedure                                   :: partition                                     => p4est_par_triangulation_partition
   end type p4est_par_triangulation_t
   
   public :: p4est_par_triangulation_t

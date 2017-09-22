@@ -126,29 +126,51 @@ void F90_p8est_connectivity_new_unitcube(p8est_connectivity_t **p8est_connectivi
   P4EST_ASSERT (p8est_connectivity_is_valid (*p8est_connectivity));
 }
 
-void F90_p4est_new ( p4est_connectivity_t *conn,
+#ifdef SC_ENABLE_MPI
+void F90_p4est_new ( const MPI_Fint Fcomm, 
+                     p4est_connectivity_t *conn,
                      p4est_t              **p4est_out)
+#else
+void F90_p4est_new ( const int dummy_comm,
+                     p4est_connectivity_t *conn,
+                     p4est_t              **p4est_out)
+#endif
 {
   p4est_t* p4est;
   P4EST_ASSERT (p4est_connectivity_is_valid (conn));
-  
-  // TODO: from where are we going to extract the MPI communicator in case
-  //       SC_ENABLE_MPI is defined???
+#ifndef SC_ENABLE_MPI
   /* Create a forest that is not refined; it consists of the root octant. */                                        
   p4est = p4est_new (sc_MPI_COMM_WORLD, conn, 0, NULL, NULL);
+#else
+  MPI_Comm Ccomm;                       // Should we remove the MPI_Comm once created??? Not done yet ...
+  Ccomm = MPI_Comm_f2c(Fcomm);          // Convert Fortran->C communicator
+  p4est = p4est_new (Ccomm, conn, 0, NULL, NULL);
+#endif
   *p4est_out = p4est;
 }
 
-void F90_p8est_new ( p8est_connectivity_t *conn,
+#ifdef SC_ENABLE_MPI
+void F90_p8est_new ( const MPI_Fint Fcomm, 
+                     p8est_connectivity_t *conn,
                      p8est_t              **p8est_out)
+#else
+void F90_p8est_new ( const int dummy_comm,
+                     p8est_connectivity_t *conn,
+                     p8est_t              **p8est_out)
+#endif
 {
   p8est_t* p8est;
   P4EST_ASSERT (p8est_connectivity_is_valid (conn));
-  
-  // TODO: from where are we going to extract the MPI communicator in case
-  //       SC_ENABLE_MPI is defined???
+#ifndef SC_ENABLE_MPI
   /* Create a forest that is not refined; it consists of the root octant. */                                        
   p8est = p8est_new (sc_MPI_COMM_WORLD, conn, 0, NULL, NULL);
+#else
+  MPI_Comm Ccomm;                       // Should we remove the MPI_Comm once created??? Not done yet ...
+  Ccomm = MPI_Comm_f2c(Fcomm);          // Convert Fortran->C communicator
+  p8est = p8est_new (Ccomm, conn, 0, NULL, NULL);
+#endif
+  
+  
   *p8est_out = p8est;
 }
 
@@ -292,6 +314,7 @@ void F90_p8est_QHE_destroy(p4est_locidx_t **QHE)
 void F90_p4est_get_mesh_info (p4est_t        *p4est,
                               p4est_mesh_t   *mesh,
                               p4est_locidx_t *local_num_quadrants,
+                              p4est_locidx_t *ghost_num_quadrants,
                               p4est_gloidx_t *global_num_quadrants,
                               p4est_gloidx_t *global_first_quadrant,
                               p4est_locidx_t *num_half_faces)
@@ -304,6 +327,7 @@ void F90_p4est_get_mesh_info (p4est_t        *p4est,
                      "p4est with more [%ld] than one tree!", p4est->trees->elem_count);
     
     *local_num_quadrants   = p4est->local_num_quadrants;
+    *ghost_num_quadrants   = mesh->ghost_num_quadrants;
     *global_num_quadrants  = p4est->global_num_quadrants;
     *global_first_quadrant = p4est->global_first_quadrant[p4est->mpirank];
     *num_half_faces        = mesh->quad_to_half->elem_count;
@@ -312,6 +336,7 @@ void F90_p4est_get_mesh_info (p4est_t        *p4est,
 void F90_p8est_get_mesh_info (p8est_t        *p8est,
                               p8est_mesh_t   *mesh,
                               p4est_locidx_t *local_num_quadrants,
+                              p4est_locidx_t *ghost_num_quadrants,
                               p4est_gloidx_t *global_num_quadrants,
                               p4est_gloidx_t *global_first_quadrant,
                               p4est_locidx_t *num_half_faces)
@@ -324,6 +349,7 @@ void F90_p8est_get_mesh_info (p8est_t        *p8est,
                      "p8est with more [%ld] than one tree!", p8est->trees->elem_count);
     
     *local_num_quadrants   = p8est->local_num_quadrants;
+    *ghost_num_quadrants   = mesh->ghost_num_quadrants;
     *global_num_quadrants  = p8est->global_num_quadrants;
     *global_first_quadrant = p8est->global_first_quadrant[p8est->mpirank];
     *num_half_faces        = mesh->quad_to_half->elem_count;
@@ -691,6 +717,31 @@ void F90_p8est_balance( p8est_t * p8est )
 {
   p8est_balance(p8est, P8EST_CONNECT_FULL, NULL);
 }
+
+void F90_p4est_partition ( p4est_t * p4est )
+{
+    /*
+    * \param [in,out] p4est      The forest that will be partitioned.
+    * \param [in]     allow_for_coarsening Slightly modify partition such that
+    *                            quadrant families are not split between ranks.
+    * \param [in]     weight_fn  A weighting function or NULL
+    *                            for uniform partitioning.
+    */
+    p4est_partition(p4est, 1, NULL);
+}
+
+void F90_p8est_partition ( p8est_t * p8est )
+{
+    /*
+    * \param [in,out] p4est      The forest that will be partitioned.
+    * \param [in]     allow_for_coarsening Slightly modify partition such that
+    *                            quadrant families are not split between ranks.
+    * \param [in]     weight_fn  A weighting function or NULL
+    *                            for uniform partitioning.
+    */
+    p8est_partition(p8est, 1, NULL);
+}
+
 
 void F90_p4est_update_refinement_and_coarsening_flags(p4est_t * p4est_old, p4est_t * p4est_new)
 {

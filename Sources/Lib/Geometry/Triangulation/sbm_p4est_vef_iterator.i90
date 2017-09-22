@@ -270,7 +270,11 @@ function p4est_vef_iterator_is_at_interface (this)
   class(p4est_vef_iterator_t), intent(in) :: this
   logical :: p4est_vef_iterator_is_at_interface 
   assert ( this%is_within_valid_range() )
-  p4est_vef_iterator_is_at_interface  = .false.
+  if ( this%is_proper() ) then
+   p4est_vef_iterator_is_at_interface  = (this%p4est_triangulation%proper_vefs_at_interface%get(this%get_gid()) == 1)
+  else
+    p4est_vef_iterator_is_at_interface = .false.
+  end if
 end function p4est_vef_iterator_is_at_interface
 
 !function p4est_vef_iterator_is_face (this)
@@ -286,7 +290,7 @@ function p4est_vef_iterator_is_ghost (this)
   class(p4est_vef_iterator_t), intent(in) :: this
   logical :: p4est_vef_iterator_is_ghost 
   assert ( this%is_within_valid_range() )
-  p4est_vef_iterator_is_ghost  = .false.
+  p4est_vef_iterator_is_ghost  = (this%get_gid() == 0) 
 end function p4est_vef_iterator_is_ghost
 
 function p4est_vef_iterator_is_proper(this)
@@ -302,6 +306,7 @@ function p4est_vef_iterator_is_within_valid_range(this)
   class(p4est_vef_iterator_t), intent(in) :: this
   logical :: p4est_vef_iterator_is_within_valid_range
   p4est_vef_iterator_is_within_valid_range = & 
+          (this%get_gid() == 0) .or. & 
           (this%get_gid() > 0 .and. this%get_gid() <= this%p4est_triangulation%num_proper_vefs) & 
           .or. (this%get_gid() < 0 .and. this%get_gid() >= -this%p4est_triangulation%num_improper_vefs)
 end function p4est_vef_iterator_is_within_valid_range

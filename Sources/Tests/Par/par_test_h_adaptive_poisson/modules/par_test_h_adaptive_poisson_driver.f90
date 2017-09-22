@@ -105,6 +105,7 @@ module par_test_h_adaptive_poisson_driver_names
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
      procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_poisson_driver_popcorn_fun
+     procedure                  :: set_cells_for_refinement
   end type par_test_h_adaptive_poisson_fe_driver_t
 
   ! Types
@@ -177,6 +178,7 @@ end subroutine free_timers
     integer(ip) :: set_id
     real(rp) :: x, y
     integer(ip) :: num_void_neigs
+    integer(ip) :: i
 
     integer(ip)           :: ivef
     class(vef_iterator_t), allocatable  :: vef, vef_of_vef
@@ -307,9 +309,15 @@ end subroutine free_timers
     !  call this%triangulation%free_vef_iterator(vef)
     !  call this%triangulation%free_vef_iterator(vef_of_vef)
     !end if
+    
+    do i = 1,1
+      call this%set_cells_for_refinement()
+      call this%triangulation%refine_and_coarsen()
+      call this%triangulation%partition()
+      call this%triangulation%clear_refinement_and_coarsening_flags()
+    end do
 
     call this%triangulation%setup_coarse_triangulation()
-
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -716,5 +724,44 @@ end subroutine free_timers
         val = val - A*exp( -( (x - xk)**2  + (y - yk)**2 + (z - zk)**2 )/(sg**2) )
     end do
   end function par_test_h_adaptive_poisson_driver_popcorn_fun
+  
+  subroutine set_cells_for_refinement(this)
+    implicit none
+    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(cell_iterator_t), allocatable :: cell
+    class(environment_t), pointer :: environment
+    environment => this%triangulation%get_environment()
+    if ( environment%am_i_l1_task() ) then
+      call this%triangulation%create_cell_iterator(cell)
+      do while ( .not. cell%has_finished() )
+        if ( cell%is_local() ) then
+          if ( (cell%get_ggid()==4) .or. (cell%get_level() == 0) )then
+            call cell%set_for_refinement()
+          end if
+        end if  
+        call cell%next()
+      end do
+      call this%triangulation%free_cell_iterator(cell)
+    end if
+  end subroutine set_cells_for_refinement
+  
+  subroutine set_cells_for_coarsening(this)
+    implicit none
+    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(cell_iterator_t)      , allocatable :: cell
+    class(environment_t), pointer :: environment
+    environment => this%triangulation%get_environment()
+    if ( environment%am_i_l1_task() ) then
+      call this%triangulation%create_cell_iterator(cell)
+      do while ( .not. cell%has_finished() )
+        if ( cell%is_local() ) then
+          call cell%set_for_coarsening()
+          call cell%next()
+        end if  
+      end do
+      call this%triangulation%free_cell_iterator(cell)
+    end if
+  end subroutine set_cells_for_coarsening
+  
   
 end module par_test_h_adaptive_poisson_driver_names

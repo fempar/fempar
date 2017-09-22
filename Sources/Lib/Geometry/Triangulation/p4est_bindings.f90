@@ -84,9 +84,10 @@ module p4est_bindings_names
      !=================================================================================================================================
      !> summary: Creates unrefined p4est (it will contain a single root octant)
      !=================================================================================================================================
-     subroutine F90_p4est_new(p4est_connectivity, p4est) bind(c,name="F90_p4est_new")
+     subroutine F90_p4est_new(mpi_comm, p4est_connectivity, p4est) bind(c,name="F90_p4est_new")
        use, intrinsic :: iso_c_binding
        implicit none
+       integer    , value, intent(in)     :: mpi_comm
        type(c_ptr), value, intent(in)     :: p4est_connectivity
        type(c_ptr)       , intent(inout)  :: p4est
      end subroutine F90_p4est_new
@@ -94,9 +95,10 @@ module p4est_bindings_names
      !=================================================================================================================================
      !> summary: Creates unrefined p8est (it will contain a single root octant)
      !=================================================================================================================================
-     subroutine F90_p8est_new(p8est_connectivity, p8est) bind(c,name="F90_p8est_new")
+     subroutine F90_p8est_new(mpi_comm, p8est_connectivity, p8est) bind(c,name="F90_p8est_new")
        use, intrinsic :: iso_c_binding
        implicit none
+       integer    , value, intent(in)     :: mpi_comm
        type(c_ptr), value, intent(in)     :: p8est_connectivity
        type(c_ptr)       , intent(inout)  :: p8est
      end subroutine F90_p8est_new
@@ -147,6 +149,7 @@ module p4est_bindings_names
      subroutine F90_p4est_get_mesh_info (p4est, &
                                          p4est_mesh, &
                                          local_num_quadrants, &
+                                         ghost_num_quadrants, &
                                          global_num_quadrants, &
                                          global_first_quadrant, &
                                          num_half_faces) bind(c,name="F90_p4est_get_mesh_info")
@@ -155,6 +158,7 @@ module p4est_bindings_names
        type(c_ptr), value       , intent(in)     :: p4est
        type(c_ptr), value       , intent(in)     :: p4est_mesh
        integer(P4EST_F90_LOCIDX), intent(out)    :: local_num_quadrants
+       integer(P4EST_F90_LOCIDX), intent(out)    :: ghost_num_quadrants
        integer(P4EST_F90_GLOIDX), intent(out)    :: global_num_quadrants
        integer(P4EST_F90_GLOIDX), intent(out)    :: global_first_quadrant
        integer(P4EST_F90_LOCIDX), intent(out)    :: num_half_faces
@@ -166,6 +170,7 @@ module p4est_bindings_names
      subroutine F90_p8est_get_mesh_info (p8est, &
                                          p8est_mesh, &
                                          local_num_quadrants, &
+                                         ghost_num_quadrants, &
                                          global_num_quadrants, &
                                          global_first_quadrant, &
                                          num_half_faces) bind(c,name="F90_p8est_get_mesh_info")
@@ -174,6 +179,7 @@ module p4est_bindings_names
        type(c_ptr), value       , intent(in)     :: p8est
        type(c_ptr), value       , intent(in)     :: p8est_mesh
        integer(P4EST_F90_LOCIDX), intent(out)    :: local_num_quadrants
+       integer(P4EST_F90_LOCIDX), intent(out)    :: ghost_num_quadrants
        integer(P4EST_F90_GLOIDX), intent(out)    :: global_num_quadrants
        integer(P4EST_F90_GLOIDX), intent(out)    :: global_first_quadrant
        integer(P4EST_F90_LOCIDX), intent(out)    :: num_half_faces
@@ -309,6 +315,27 @@ module p4est_bindings_names
        implicit none
        type(c_ptr), value       , intent(in)     :: p8est
      end subroutine F90_p8est_balance
+     
+     !=================================================================================================================================
+     !> summary: Equally partition the forest. The forest will be partitioned between processors such that they have an approximately 
+     !>          equal number of quadrants (or sum of weights).
+     !=================================================================================================================================
+     subroutine F90_p4est_partition(p4est) bind(c,name="F90_p4est_partition")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p4est
+     end subroutine F90_p4est_partition
+
+     !=================================================================================================================================
+     !> summary: Equally partition the forest. The forest will be partitioned between processors such that they have an approximately 
+     !>          equal number of quadrants (or sum of weights).
+     !=================================================================================================================================
+     subroutine F90_p8est_partition(p8est) bind(c,name="F90_p8est_partition")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p8est
+     end subroutine F90_p8est_partition
+     
      
      !=================================================================================================================================
      !> summary: compares p4est_old with p4est_new and updates refinement+coarsening flags of the former accordingly to how  
