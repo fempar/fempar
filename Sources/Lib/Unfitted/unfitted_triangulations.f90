@@ -179,17 +179,17 @@ module unfitted_triangulations_names
 
     ! Look up-tables (precomputed off-line, for each cell type)
     integer(ip)                :: mc_table_num_cases
-    integer(ip)                :: mc_table_max_num_subcells
-    integer(ip)                :: mc_table_max_num_subfacets
+    integer(ip)                :: mc_table_max_num_sub_cells
+    integer(ip)                :: mc_table_max_num_unfitted_sub_facets
     integer(ip)                :: mc_table_max_num_cut_edges
-    integer(ip)                :: mc_table_num_nodes_subcell
-    integer(ip)                :: mc_table_num_nodes_subfacet
-    integer(ip),   allocatable :: mc_table_num_subcells_x_case(:)
-    integer(ip),   allocatable :: mc_table_num_subfacets_x_case(:)
+    integer(ip)                :: mc_table_num_nodes_in_sub_cell
+    integer(ip)                :: mc_table_num_nodes_in_sub_facet
+    integer(ip),   allocatable :: mc_table_num_sub_cells_x_case(:)
+    integer(ip),   allocatable :: mc_table_num_unfitted_sub_facets_x_case(:)
     integer(ip),   allocatable :: mc_table_num_cut_edges_x_case(:)
-    integer(ip),   allocatable :: mc_table_inout_subcells_x_case(:,:)
-    integer(ip),   allocatable :: mc_table_subcell_node_ids_x_case(:,:,:)
-    integer(ip),   allocatable :: mc_table_subfacet_node_ids_x_case(:,:,:)
+    integer(ip),   allocatable :: mc_table_sub_cells_status_x_case(:,:)
+    integer(ip),   allocatable :: mc_table_sub_cells_node_ids_x_case(:,:,:)
+    integer(ip),   allocatable :: mc_table_unfitted_sub_facets_node_ids_x_case(:,:,:)
     logical :: mc_tables_init = .false.
 
     ! Info related to cut cells on this triangulation (this is computed at runtime)
@@ -201,14 +201,14 @@ module unfitted_triangulations_names
     ! Info related to the sub-tessellation
     ! When located on a cell, and the sub-triangulation is updated,
     ! these memeber variables contain info about the current sub-tessalation
-    integer(ip),        allocatable :: subcells_nodal_connectivities(:,:)
-    integer(ip),        allocatable :: subfacets_nodal_connectivities(:,:)
+    integer(ip),        allocatable :: sub_cells_node_ids(:,:)
+    integer(ip),        allocatable :: unfitted_sub_facets_node_ids(:,:)
     type(point_t),      allocatable :: subnodes_ref_coords(:)
-    logical,            allocatable :: subcell_has_been_reoriented(:)
+    logical,            allocatable :: sub_cell_has_been_reoriented(:)
     
     ! Auxiliary work data
-    type(quadrature_t), allocatable :: subnodes_nodal_quadratures(:)
-    type(cell_map_t),     allocatable :: subnodes_cell_maps(:)
+    type(quadrature_t), allocatable :: sub_nodes_nodal_quadratures(:)
+    type(cell_map_t),   allocatable :: sub_nodes_cell_maps(:)
 
   contains
 
