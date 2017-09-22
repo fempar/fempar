@@ -1,10 +1,10 @@
-program par_pb_bddc_vector_poisson
+program par_pb_bddc_linear_elasticity
   use fempar_names
-  use par_pb_bddc_vector_poisson_driver_names
+  use par_pb_bddc_linear_elasticity_driver_names
   !$ use omp_lib
   implicit none
   integer(ip) :: i
-  type(par_pb_bddc_vector_poisson_fe_driver_t), save :: test_driver 
+  type(par_pb_bddc_linear_elasticity_fe_driver_t), save :: test_driver 
   !$OMP THREADPRIVATE(test_driver)
 
   !call sleep(20)
@@ -24,4 +24,4 @@ program par_pb_bddc_vector_poisson
   call test_driver%free_environment()
   call fempar_finalize()
   !$OMP END PARALLEL   
-end program par_pb_bddc_vector_poisson
+end program par_pb_bddc_linear_elasticity

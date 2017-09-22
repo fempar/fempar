@@ -25,44 +25,44 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module vector_poisson_conditions_names
+module linear_elasticity_conditions_names
   use fempar_names
-  use vector_poisson_analytical_functions_names
+  use linear_elasticity_analytical_functions_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(conditions_t) :: vector_poisson_conditions_t
+  type, extends(conditions_t) :: linear_elasticity_conditions_t
      private
      type(boundary_function_t), pointer :: boundary_function
    contains
-     procedure :: set_boundary_function       => vector_poisson_conditions_set_boundary_function
-     procedure :: get_num_components       => vector_poisson_conditions_get_num_components  
-     procedure :: get_components_code         => vector_poisson_conditions_get_components_code
-     procedure :: get_function                => vector_poisson_conditions_get_function
-  end type vector_poisson_conditions_t
+     procedure :: set_boundary_function       => linear_elasticity_conditions_set_boundary_function
+     procedure :: get_num_components       => linear_elasticity_conditions_get_num_components  
+     procedure :: get_components_code         => linear_elasticity_conditions_get_components_code
+     procedure :: get_function                => linear_elasticity_conditions_get_function
+  end type linear_elasticity_conditions_t
   
-  public :: vector_poisson_conditions_t
+  public :: linear_elasticity_conditions_t
   
 contains
   
-  subroutine vector_poisson_conditions_set_boundary_function (this, boundary_function)
+  subroutine linear_elasticity_conditions_set_boundary_function (this, boundary_function)
     implicit none
-    class(vector_poisson_conditions_t), intent(inout)      :: this
+    class(linear_elasticity_conditions_t), intent(inout)      :: this
     type(boundary_function_t)          , target, intent(in) :: boundary_function
     this%boundary_function => boundary_function
-  end subroutine vector_poisson_conditions_set_boundary_function
+  end subroutine linear_elasticity_conditions_set_boundary_function
 
-  function vector_poisson_conditions_get_num_components(this)
+  function linear_elasticity_conditions_get_num_components(this)
     implicit none
-    class(vector_poisson_conditions_t), intent(in) :: this
-    integer(ip) :: vector_poisson_conditions_get_num_components
-    vector_poisson_conditions_get_num_components = this%boundary_function%num_dims
-  end function vector_poisson_conditions_get_num_components
+    class(linear_elasticity_conditions_t), intent(in) :: this
+    integer(ip) :: linear_elasticity_conditions_get_num_components
+    linear_elasticity_conditions_get_num_components = this%boundary_function%num_dims
+  end function linear_elasticity_conditions_get_num_components
 
-  subroutine vector_poisson_conditions_get_components_code(this, boundary_id, components_code)
+  subroutine linear_elasticity_conditions_get_components_code(this, boundary_id, components_code)
     implicit none
-    class(vector_poisson_conditions_t), intent(in)  :: this
+    class(linear_elasticity_conditions_t), intent(in)  :: this
     integer(ip)                       , intent(in)  :: boundary_id
     logical                           , intent(out) :: components_code(:)
     assert ( size(components_code) == 2 .or. size(components_code) == 3 )
@@ -70,11 +70,11 @@ contains
     if ( boundary_id == 1 ) then
       components_code(1:size(components_code)) = .true.
     end if
-  end subroutine vector_poisson_conditions_get_components_code
+  end subroutine linear_elasticity_conditions_get_components_code
   
-  subroutine vector_poisson_conditions_get_function ( this, boundary_id, component_id, function )
+  subroutine linear_elasticity_conditions_get_function ( this, boundary_id, component_id, function )
     implicit none
-    class(vector_poisson_conditions_t), target     , intent(in)  :: this
+    class(linear_elasticity_conditions_t), target     , intent(in)  :: this
     integer(ip)                                    , intent(in)  :: boundary_id
     integer(ip)                                    , intent(in)  :: component_id
     class(scalar_function_t)          , pointer    , intent(out) :: function
@@ -83,6 +83,6 @@ contains
     if ( boundary_id == 1 ) then
       function => this%boundary_function
     end if  
-  end subroutine vector_poisson_conditions_get_function 
+  end subroutine linear_elasticity_conditions_get_function 
 
-end module vector_poisson_conditions_names
+end module linear_elasticity_conditions_names

@@ -25,13 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module vector_poisson_discrete_integration_names
+module linear_elasticity_discrete_integration_names
   use fempar_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(discrete_integration_t) :: vector_poisson_discrete_integration_t
+  type, extends(discrete_integration_t) :: linear_elasticity_discrete_integration_t
      private
      class(vector_function_t), pointer :: source_term
      type(fe_function_t)     , pointer :: fe_function          => NULL()
@@ -40,29 +40,29 @@ module vector_poisson_discrete_integration_names
      procedure :: set_source_term
      procedure :: set_fe_function
      procedure :: integrate_galerkin
-  end type vector_poisson_discrete_integration_t
+  end type linear_elasticity_discrete_integration_t
   
-  public :: vector_poisson_discrete_integration_t
+  public :: linear_elasticity_discrete_integration_t
   
 contains
    
   subroutine set_source_term (this, vector_function)
     implicit none
-    class(vector_poisson_discrete_integration_t)        , intent(inout) :: this
+    class(linear_elasticity_discrete_integration_t)        , intent(inout) :: this
     class(vector_function_t)                    , target, intent(in)    :: vector_function
     this%source_term => vector_function
   end subroutine set_source_term
 
   subroutine set_fe_function (this, fe_function)
      implicit none
-     class(vector_poisson_discrete_integration_t)        , intent(inout) :: this
+     class(linear_elasticity_discrete_integration_t)        , intent(inout) :: this
      type(fe_function_t)                         , target, intent(in)    :: fe_function
      this%fe_function => fe_function
   end subroutine set_fe_function
 
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
-    class(vector_poisson_discrete_integration_t), intent(in)    :: this
+    class(linear_elasticity_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
     class(assembler_t)             , intent(inout) :: assembler
 
@@ -150,4 +150,4 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
   
-end module vector_poisson_discrete_integration_names
+end module linear_elasticity_discrete_integration_names

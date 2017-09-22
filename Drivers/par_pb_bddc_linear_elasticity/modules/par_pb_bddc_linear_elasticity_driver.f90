@@ -25,24 +25,24 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_pb_bddc_vector_poisson_driver_names
+module par_pb_bddc_linear_elasticity_driver_names
   use fempar_names
-  use par_pb_bddc_vector_poisson_params_names
+  use par_pb_bddc_linear_elasticity_params_names
   
-  use vector_poisson_discrete_integration_names
-  use vector_poisson_conditions_names
+  use linear_elasticity_discrete_integration_names
+  use linear_elasticity_conditions_names
   
-  use vector_poisson_analytical_functions_names
+  use linear_elasticity_analytical_functions_names
 # include "debug.i90"
 
   implicit none
   private
 
-  type par_pb_bddc_vector_poisson_fe_driver_t 
+  type par_pb_bddc_linear_elasticity_fe_driver_t 
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(par_pb_bddc_vector_poisson_params_t)      :: test_params
+     type(par_pb_bddc_linear_elasticity_params_t)      :: test_params
      type(ParameterList_t), pointer       :: parameter_list
      
      ! Cells and lower dimension objects container
@@ -55,9 +55,9 @@ module par_pb_bddc_vector_poisson_driver_names
      type(standard_l1_coarse_fe_handler_t)       :: standard_coarse_fe_handler
      type(vector_laplacian_pb_bddc_l1_coarse_fe_handler_t):: vector_laplacian_coarse_fe_handler
      type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
-     type(vector_poisson_discrete_integration_t) :: vector_poisson_integration
-     type(vector_poisson_conditions_t)           :: vector_poisson_conditions
-     type(vector_poisson_analytical_functions_t) :: vector_poisson_analytical_functions
+     type(linear_elasticity_discrete_integration_t) :: linear_elasticity_integration
+     type(linear_elasticity_conditions_t)           :: linear_elasticity_conditions
+     type(linear_elasticity_analytical_functions_t) :: linear_elasticity_analytical_functions
 
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
@@ -103,16 +103,16 @@ module par_pb_bddc_vector_poisson_driver_names
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
-  end type par_pb_bddc_vector_poisson_fe_driver_t
+  end type par_pb_bddc_linear_elasticity_fe_driver_t
 
   ! Types
-  public :: par_pb_bddc_vector_poisson_fe_driver_t
+  public :: par_pb_bddc_linear_elasticity_fe_driver_t
 
 contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
@@ -120,7 +120,7 @@ contains
 !========================================================================================
 subroutine setup_timers(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(execution_context_t), pointer :: w_context
     w_context => this%par_environment%get_w_context()
     call this%timer_triangulation%create(w_context,"SETUP TRIANGULATION")
@@ -133,7 +133,7 @@ end subroutine setup_timers
 !========================================================================================
 subroutine report_timers(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%report(.true.)
     call this%timer_fe_space%report(.false.)
     call this%timer_assemply%report(.false.)
@@ -147,7 +147,7 @@ end subroutine report_timers
 !========================================================================================
 subroutine free_timers(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%free()
     call this%timer_fe_space%free()
     call this%timer_assemply%free()
@@ -158,7 +158,7 @@ end subroutine free_timers
 !========================================================================================
   subroutine setup_environment(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
@@ -171,7 +171,7 @@ end subroutine free_timers
    
   subroutine setup_triangulation(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
 
     class(cell_iterator_t), allocatable :: cell
     integer(ip) :: istat
@@ -210,7 +210,7 @@ end subroutine free_timers
 
   subroutine setup_cell_set_ids(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable       :: cell
     integer(ip)                               :: istat, idummy
     integer(ip), allocatable                  :: cells_set(:)
@@ -219,7 +219,7 @@ end subroutine free_timers
     integer(ip)   :: inode, l1_rank  
     real(rp), allocatable:: px1(:), px2(:), py1(:), py2(:),  pz1(:), pz2(:)
 
-    this%vector_poisson_integration%diffusion_inclusion = this%test_params%get_jump()    
+    this%linear_elasticity_integration%diffusion_inclusion = this%test_params%get_jump()    
     this%vector_laplacian_coarse_fe_handler%diffusion_inclusion = this%test_params%get_jump()
 
     if ( this%par_environment%am_i_l1_task() ) then
@@ -545,7 +545,7 @@ end subroutine free_timers
   
   subroutine setup_reference_fes(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     class(cell_iterator_t), allocatable       :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
@@ -568,7 +568,7 @@ end subroutine free_timers
   
   subroutine setup_coarse_fe_handlers(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), target, intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat
     allocate(this%coarse_fe_handlers(1), stat=istat)
     check(istat==0)
@@ -582,17 +582,17 @@ end subroutine free_timers
 
   subroutine setup_fe_space(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
 
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
-    call this%vector_poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
-    call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function())
+    call this%linear_elasticity_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+    call this%linear_elasticity_conditions%set_boundary_function(this%linear_elasticity_analytical_functions%get_boundary_function())
 
           call this%fe_space%create( triangulation       = this%triangulation,      &
                                  reference_fes       = this%reference_fes,      &
                                  coarse_fe_handlers  = this%coarse_fe_handlers, &
-                                 conditions          = this%vector_poisson_conditions )
+                                 conditions          = this%linear_elasticity_conditions )
     
     
     call this%fe_space%set_up_cell_integration()
@@ -602,9 +602,9 @@ end subroutine free_timers
   
   subroutine setup_system (this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     
-    call this%vector_poisson_integration%set_source_term(this%vector_poisson_analytical_functions%get_source_term())
+    call this%linear_elasticity_integration%set_source_term(this%linear_elasticity_analytical_functions%get_source_term())
     
     ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
@@ -612,18 +612,18 @@ end subroutine free_timers
                                           diagonal_blocks_symmetric         = [ .true. ], &
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
-                                          discrete_integration              = this%vector_poisson_integration )
+                                          discrete_integration              = this%linear_elasticity_integration )
     
     call this%solution%create(this%fe_space) 
     call this%fe_space%interpolate_dirichlet_values(this%solution)
-    call this%vector_poisson_integration%set_fe_function(this%solution)
+    call this%linear_elasticity_integration%set_fe_function(this%solution)
     
   end subroutine setup_system
   
   subroutine setup_solver (this)
     implicit none
     
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(parameterlist_t) :: parameter_list
     type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
     integer(ip) :: FPLError
@@ -714,7 +714,7 @@ end subroutine free_timers
   
   subroutine assemble_system (this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%numerical_setup()
@@ -739,7 +739,7 @@ end subroutine free_timers
   
   subroutine solve_system(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
@@ -768,23 +768,23 @@ end subroutine free_timers
     
   subroutine check_solution_vector(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(error_norms_vector_t) :: error_norm
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: error_tolerance
     
     call error_norm%create(this%fe_space,1)
-    mean = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    l1 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    l2 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    lp = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    linfty = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    h1_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    h1 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    w1p_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+    mean = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, mean_norm)   
+    l1 = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+    l2 = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+    lp = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+    linfty = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+    h1_s = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+    h1 = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+    w1p_s = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+    w1p = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+    w1infty_s = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+    w1infty = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
 
     error_tolerance = 1.0e-06
     
@@ -806,7 +806,7 @@ end subroutine free_timers
   
   subroutine write_solution(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(output_handler_t)                          :: oh
     real(rp),allocatable :: cell_vector(:)
     real(rp),allocatable :: mypart_vector(:)
@@ -835,7 +835,7 @@ end subroutine free_timers
   
   subroutine run_simulation(this) 
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
 
     call this%timer_triangulation%start()
     call this%setup_triangulation()
@@ -867,7 +867,7 @@ end subroutine free_timers
   
   subroutine free(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
     call this%solution%free() 
@@ -889,16 +889,16 @@ end subroutine free_timers
   !========================================================================================
   subroutine free_environment(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
 
   !========================================================================================
   subroutine free_command_line_parameters(this)
     implicit none
-    class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%test_params%free()
   end subroutine free_command_line_parameters
 
     
-end module par_pb_bddc_vector_poisson_driver_names
+end module par_pb_bddc_linear_elasticity_driver_names
