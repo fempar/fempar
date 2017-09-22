@@ -91,7 +91,6 @@ subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar
   real(rp)                         :: time_(1) 
 		logical                          :: reallocate 
 
-  dof_values = 0.0_rp 
   if ( present(time) ) time_(1) = time 
 		reference_fe_id =  fe%get_reference_fe_id(this%field_id)
   reference_fe    => fe%get_reference_fe(this%field_id) 
@@ -109,7 +108,8 @@ subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar
      if (allocated(dof_values)) call memfree(dof_values, __FILE__,__LINE__); 
      call memalloc(num_nodal_qpoints, dof_values, __FILE__,__LINE__);
   end if
-		
+		  dof_values = 0.0_rp 
+				
 				! Realloc scalar_function values if necessary 
 		 reallocate = .false.
   if (allocated(this%scalar_function_values)) reallocate = ( size(this%scalar_function_values,1) < num_nodal_qpoints )                                      
@@ -149,8 +149,7 @@ subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector
   real(rp)                         :: time_(1) 
 		logical                          :: reallocate 
 		integer(ip)                      :: istat
-
-  dof_values = 0.0_rp 
+ 
   if ( present(time) ) time_(1) = time 
 		reference_fe_id =  fe%get_reference_fe_id(this%field_id)
   reference_fe    => fe%get_reference_fe(this%field_id) 
@@ -170,7 +169,8 @@ subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector
      end if 
 					call memalloc(reference_fe%get_num_shape_functions(), dof_values, __FILE__,__LINE__);
   end if
-		
+		  dof_values = 0.0_rp
+				
 				 ! Realloc vector function values 
 				 reallocate = .false.
   if (allocated(this%function_values)) reallocate = ( size(this%function_values,1) < num_nodal_qpoints )                                      
@@ -219,7 +219,6 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
   integer(ip)                         :: istat 
   logical                             :: reallocate 
 		
-  dof_values = 0.0_rp 
   if ( present(time) ) time_(1) = time
 		reference_fe_id =  fe%get_reference_fe_id(this%field_id) 
   reference_fe    => fe%get_reference_fe(this%field_id)
@@ -237,6 +236,7 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
      if (allocated(dof_values)) call memfree(dof_values, __FILE__,__LINE__); 
      call memalloc(reference_fe%get_num_shape_functions(), dof_values, __FILE__,__LINE__);
   end if
+		  dof_values = 0.0_rp 
 		
 		 ! Realloc scalar function values 
 				 reallocate = .false.
