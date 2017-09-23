@@ -53,8 +53,10 @@ module par_pb_bddc_linear_elasticity_driver_names
      type(par_fe_space_t)                        :: fe_space 
      type(p_reference_fe_t), allocatable         :: reference_fes(:) 
      type(standard_l1_coarse_fe_handler_t)       :: standard_coarse_fe_handler
+!!! Need to change this
      type(vector_laplacian_pb_bddc_l1_coarse_fe_handler_t):: vector_laplacian_coarse_fe_handler
      type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
+!!! Need to change this
      type(linear_elasticity_discrete_integration_t) :: linear_elasticity_integration
      type(linear_elasticity_conditions_t)           :: linear_elasticity_conditions
      type(linear_elasticity_analytical_functions_t) :: linear_elasticity_analytical_functions
@@ -172,22 +174,24 @@ end subroutine free_timers
   subroutine setup_triangulation(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
-
-    class(cell_iterator_t), allocatable :: cell
-    integer(ip) :: istat
-    integer(ip) :: set_id
-    
-    integer(ip)           :: ivef
     class(vef_iterator_t), allocatable  :: vef
+      !!! Do we really need this  
+    logical :: fixed_pressure
         
     
     call this%triangulation%create(this%parameter_list, this%par_environment)
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+       fixed_pressure = .false.
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
+             !!! Do we really need this
+             if(.not.fixed_pressure) then
+                fixed_pressure = .true.
+                call vef%set_set_id(2)
+             end if
           else
              call vef%set_set_id(0)
           end if

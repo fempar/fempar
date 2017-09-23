@@ -28,16 +28,25 @@
 module linear_elasticity_conditions_names
   use fempar_names
   use linear_elasticity_analytical_functions_names
-  
+
   implicit none
 # include "debug.i90"
   private
+
   type, extends(conditions_t) :: linear_elasticity_conditions_t
      private
-     type(boundary_function_t), pointer :: boundary_function
-   contains
+     integer(ip)                       :: number_components
+     integer(ip)                       :: number_dimensions
+     class(vector_function_t), pointer :: boundary_function   ! This is indeed not needed
+     type(vector_component_function_t) :: boundary_function_x
+     type(vector_component_function_t) :: boundary_function_y
+     type(vector_component_function_t) :: boundary_function_z
+  contains
      procedure :: set_boundary_function       => linear_elasticity_conditions_set_boundary_function
-     procedure :: get_num_components       => linear_elasticity_conditions_get_num_components  
+     procedure :: set_number_components       => linear_elasticity_conditions_set_number_components
+     procedure :: set_number_dimensions       => linear_elasticity_conditions_set_number_dimensions
+     procedure :: get_number_components       => linear_elasticity_conditions_get_number_components  
+     procedure :: get_num_components          => linear_elasticity_conditions_get_num_components
      procedure :: get_components_code         => linear_elasticity_conditions_get_components_code
      procedure :: get_function                => linear_elasticity_conditions_get_function
   end type linear_elasticity_conditions_t
@@ -45,44 +54,96 @@ module linear_elasticity_conditions_names
   public :: linear_elasticity_conditions_t
   
 contains
-  
-  subroutine linear_elasticity_conditions_set_boundary_function (this, boundary_function)
-    implicit none
-    class(linear_elasticity_conditions_t), intent(inout)      :: this
-    type(boundary_function_t)          , target, intent(in) :: boundary_function
-    this%boundary_function => boundary_function
-  end subroutine linear_elasticity_conditions_set_boundary_function
 
-  function linear_elasticity_conditions_get_num_components(this)
+  function linear_elasticity_conditions_get_number_components(this)
     implicit none
     class(linear_elasticity_conditions_t), intent(in) :: this
-    integer(ip) :: linear_elasticity_conditions_get_num_components
-    linear_elasticity_conditions_get_num_components = this%boundary_function%num_dims
-  end function linear_elasticity_conditions_get_num_components
+    integer(ip) :: linear_elasticity_conditions_get_number_components
+    linear_elasticity_conditions_get_number_components = this%number_components
+  end function linear_elasticity_conditions_get_number_components
+  
+  subroutine linear_elasticity_conditions_set_number_components (this, number_components)
+    implicit none
+    class(linear_elasticity_conditions_t), intent(inout) :: this
+    integer(ip)            , intent(in)    :: number_components
+    this%number_components = number_components
+  end subroutine linear_elasticity_conditions_set_number_components
+
+  subroutine linear_elasticity_conditions_set_number_dimensions (this, number_dimensions)
+    implicit none
+    class(linear_elasticity_conditions_t), intent(inout) :: this
+    integer(ip)                  , intent(in)    :: number_dimensions
+    this%number_dimensions = number_dimensions
+  end subroutine linear_elasticity_conditions_set_number_dimensions
+  
+  subroutine linear_elasticity_conditions_set_boundary_function(this,boundary_function)
+    implicit none
+    class(linear_elasticity_conditions_t), intent(inout) :: this
+    class(vector_function_t), target, intent(in) :: boundary_function
+    this%boundary_function => boundary_function
+    call this%boundary_function_x%set(boundary_function,1)
+    call this%boundary_function_y%set(boundary_function,2)
+    call this%boundary_function_z%set(boundary_function,SPACE_DIM)
+  end subroutine linear_elasticity_conditions_set_boundary_function
 
   subroutine linear_elasticity_conditions_get_components_code(this, boundary_id, components_code)
     implicit none
     class(linear_elasticity_conditions_t), intent(in)  :: this
-    integer(ip)                       , intent(in)  :: boundary_id
-    logical                           , intent(out) :: components_code(:)
-    assert ( size(components_code) == 2 .or. size(components_code) == 3 )
-    components_code(1:size(components_code)) = .false.
-    if ( boundary_id == 1 ) then
-      components_code(1:size(components_code)) = .true.
-    end if
+    integer(ip)                  , intent(in)  :: boundary_id
+    logical                      , intent(out) :: components_code(:)
+    assert ( size(components_code) >= this%number_components )
+    components_code(1:this%number_components) = .false.
+    if(boundary_id >= 1 ) components_code(1:this%number_dimensions) = .true.
+    !if ( boundary_id == 1 ) then
+    !  components_code(1:this%number_dimensions) = .true.
+    !else  if ( boundary_id == 2 ) then
+    !  components_code(1:this%number_dimensions) = .true.
+    !end if
   end subroutine linear_elasticity_conditions_get_components_code
+  
+  function linear_elasticity_conditions_get_num_components(this)
+    implicit none
+    class(linear_elasticity_conditions_t), intent(in)  :: this
+    integer(ip) :: linear_elasticity_conditions_get_num_components
+    linear_elasticity_conditions_get_num_components = this%number_components 
+  end function linear_elasticity_conditions_get_num_components
   
   subroutine linear_elasticity_conditions_get_function ( this, boundary_id, component_id, function )
     implicit none
-    class(linear_elasticity_conditions_t), target     , intent(in)  :: this
-    integer(ip)                                    , intent(in)  :: boundary_id
-    integer(ip)                                    , intent(in)  :: component_id
-    class(scalar_function_t)          , pointer    , intent(out) :: function
-    assert ( component_id == 1 .or. component_id == 2 .or.  component_id == 3 )
+    class(linear_elasticity_conditions_t), target, intent(in)  :: this
+    integer(ip)                        , intent(in)  :: boundary_id
+    integer(ip)                        , intent(in)  :: component_id
+    class(scalar_function_t), pointer  , intent(out) :: function
+
     nullify(function)
-    if ( boundary_id == 1 ) then
-      function => this%boundary_function
-    end if  
-  end subroutine linear_elasticity_conditions_get_function 
+    if ( boundary_id >= 1 ) then
+       ! Dirichlet conditions using the exact solution
+       if(this%number_dimensions==2) then
+          select case ( component_id )
+          case (1)
+             function => this%boundary_function_x
+          case (2)
+             function => this%boundary_function_y
+          case default
+             check(.false.)
+          end select
+       else if(this%number_dimensions==3) then
+          select case ( component_id )
+          case (1)
+             function => this%boundary_function_x
+          case (2)
+             function => this%boundary_function_y
+          case (3)
+             function => this%boundary_function_z
+          case default
+             check(.false.)
+          end select
+       else
+          ! Think about how to code other Dirichlet conditions
+          check(.false.)
+       end if
+    end if
+     
+   end subroutine linear_elasticity_conditions_get_function 
 
 end module linear_elasticity_conditions_names

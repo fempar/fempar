@@ -172,11 +172,6 @@ end subroutine free_timers
   subroutine setup_triangulation(this)
     implicit none
     class(par_pb_bddc_vector_poisson_fe_driver_t), intent(inout) :: this
-
-    class(cell_iterator_t), allocatable :: cell
-    integer(ip) :: istat
-    integer(ip) :: set_id
-    
     integer(ip)           :: ivef
     class(vef_iterator_t), allocatable  :: vef
         
