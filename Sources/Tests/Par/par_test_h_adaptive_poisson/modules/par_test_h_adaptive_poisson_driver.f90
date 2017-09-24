@@ -255,7 +255,7 @@ end subroutine free_timers
 
     !     ! If it is an INTERIOR face
     !     if( vef%get_dim() == this%triangulation%get_num_dims()-1 .and. vef%get_num_cells_around()==2 ) then
-
+ 
     !       ! Compute number of void neighbors
     !       num_void_neigs = 0
     !       do icell_arround = 1,vef%get_num_cells_around()
@@ -310,14 +310,14 @@ end subroutine free_timers
     !  call this%triangulation%free_vef_iterator(vef_of_vef)
     !end if
     
-    do i = 1,1
+    do i = 1,3
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%partition()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
 
-    call this%triangulation%setup_coarse_triangulation()
+    !call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)

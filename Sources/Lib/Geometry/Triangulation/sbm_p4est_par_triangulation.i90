@@ -180,7 +180,7 @@ subroutine p4est_par_triangulation_free ( this)
   call triangulation_free(this)
 #else
   call this%not_enabled_error()
-#endif     
+#endif
 end subroutine p4est_par_triangulation_free
 
 subroutine p4est_par_triangulation_partition ( this )
@@ -188,7 +188,8 @@ subroutine p4est_par_triangulation_partition ( this )
   class(p4est_par_triangulation_t), intent(inout) :: this
   class(environment_t), pointer :: p_environment
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
-  
+
+#ifdef ENABLE_P4EST  
   p_environment => this%get_environment()
   if ( p_environment%am_i_l1_task() ) then
     if ( this%get_num_dims() == 2 ) then
@@ -207,5 +208,7 @@ subroutine p4est_par_triangulation_partition ( this )
     call this%clear_vef_set_ids()
     call old_lst_vefs_gids%free()
   end if
-
+#else
+  call this%not_enabled_error()
+#endif
 end subroutine p4est_par_triangulation_partition

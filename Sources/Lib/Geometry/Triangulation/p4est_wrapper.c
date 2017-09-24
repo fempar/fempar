@@ -1027,6 +1027,38 @@ void F90_p4est_quadrant_set_morton ( int level,
     *q_y = q.y;
 }
 
+int F90_p4est_quadrant_child_id ( p4est_qcoord_t q_x,
+                                  p4est_qcoord_t q_y,
+                                  int8_t q_level )
+{
+    p4est_quadrant_t q;
+    q.x     = q_x;
+    q.y     = q_y;
+    q.level = q_level;
+    return p4est_quadrant_child_id ( &q );
+}
+
+int F90_p8est_quadrant_child_id ( p4est_qcoord_t q_x,
+                                  p4est_qcoord_t q_y,
+                                  p4est_qcoord_t q_z,
+                                  int8_t q_level )
+{
+    p8est_quadrant_t q;
+    q.x     = q_x;
+    q.y     = q_y;
+    q.z     = q_z;
+    q.level = q_level;
+    return p8est_quadrant_child_id ( &q );
+}
+
+
+
+/** Compute the position of this child within its siblings.
+ * \return Returns its child id in 0..3
+ */
+int                 p4est_quadrant_child_id (const p4est_quadrant_t * q);
+
+
 //void p4_savemesh ( char    filename[],
 //                   p4est_t *p4est)
 //{

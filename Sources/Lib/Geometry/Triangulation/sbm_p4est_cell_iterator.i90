@@ -214,7 +214,7 @@ function p4est_cell_iterator_is_local (this)
   class(p4est_cell_iterator_t), intent(in) :: this
   logical                            :: p4est_cell_iterator_is_local
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_is_local = .true.
+  p4est_cell_iterator_is_local = (this%get_gid() <= this%p4est_triangulation%get_num_local_cells())
 end function p4est_cell_iterator_is_local
 
 function p4est_cell_iterator_is_ghost (this)

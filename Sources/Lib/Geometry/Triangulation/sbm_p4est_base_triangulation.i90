@@ -159,8 +159,10 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   integer(ip), pointer :: P4EST_OPPOSITE_CORNER(:)
   integer(ip), pointer :: P4EST_2_FEMPAR_FACE(:)
   integer(ip), pointer :: P4EST_CORNER_IN_FACE(:,:)
+  integer(ip), pointer :: FEMPAR_SUBCELLS_IN_TOUCH_FACE(:,:)
   logical, allocatable :: faces_visited(:)
   logical :: create_improper_vef
+  integer :: child_id
 
 #ifdef ENABLE_P4EST  
   if ( this%get_num_dims() == 2 ) then
@@ -176,6 +178,7 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
      P4EST_OPPOSITE_CORNER   => P4EST_OPPOSITE_CORNER_2D
      P4EST_2_FEMPAR_FACE     => P4EST_2_FEMPAR_FACE_2D
      P4EST_CORNER_IN_FACE    => P4EST_CORNER_IN_FACE_2D
+     FEMPAR_SUBCELLS_IN_TOUCH_FACE => FEMPAR_SUBCELLS_IN_TOUCH_FACE_2D
   else if ( this%get_num_dims() == 3 ) then
      num_corners_x_cell      =  NUM_CORNERS_3D
      num_edges_x_cell        =  NUM_EDGES_3D
@@ -191,6 +194,7 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
      P4EST_OPPOSITE_CORNER   => P4EST_OPPOSITE_CORNER_3D
      P4EST_2_FEMPAR_FACE     => P4EST_2_FEMPAR_FACE_3D
      P4EST_CORNER_IN_FACE    => P4EST_CORNER_IN_FACE_3D
+     FEMPAR_SUBCELLS_IN_TOUCH_FACE => FEMPAR_SUBCELLS_IN_TOUCH_FACE_3D
   end if
 
   call old_lst_vefs_gids%copy(this%lst_vefs_gids)
@@ -276,8 +280,19 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
 
               ! Determine whether this corner is improper
               ! 1. Go to coarser neighbour and find across which subface am I neighbour
+              if (this%get_num_dims() == 2) then
+                child_id = F90_p4est_quadrant_child_id(this%quad_coords(1,icell), &
+                                                       this%quad_coords(2,icell), &
+                                                       this%quad_level(icell)) + 1
+              else
+                child_id = F90_p8est_quadrant_child_id(this%quad_coords(1,icell), &
+                                                       this%quad_coords(2,icell), &
+                                                       this%quad_coords(3,icell), &
+                                                       this%quad_level(icell)) + 1
+              end if
+                            
               do isubface = 1, num_subfacets_facet
-                 if (this%quad_to_half(isubface,this%quad_to_quad(jcell_iface, jcell)+1)+1==icell) then
+                 if (FEMPAR_SUBCELLS_IN_TOUCH_FACE(isubface,P4EST_2_FEMPAR_FACE(icell_iface)) == child_id) then
                     exit
                  end if
               end do
@@ -906,7 +921,9 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   call this%std_vector_transform_length_to_header(this%ptr_cells_around_improper_vefs)
   call this%std_vector_transform_length_to_header(this%ptr_improper_cells_around)
   call work_vector_cells_around%free()
+  call work_vector_ghost_cells_around_ivef%free()
   call work_vector_improper_cells_around%free()
+  call work_vector_ghost_cells_around%free()
   call work_vector_ivef%free()
   call work_vector_subvef%free()
   call memfree ( faces_visited, __FILE__, __LINE__ )

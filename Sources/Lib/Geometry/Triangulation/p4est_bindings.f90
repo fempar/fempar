@@ -513,6 +513,33 @@ module p4est_bindings_names
        integer(P4EST_F90_QCOORD)       , intent(out)    :: q_y
      end subroutine F90_p4est_quadrant_set_morton
      
+     !=================================================================================================================================
+     !> summary: Compute the position of this child within its sibling. Returns its child id in 0..3
+     !=================================================================================================================================
+     function F90_p4est_quadrant_child_id(q_x,q_y,level) bind(c, name="F90_p4est_quadrant_child_id")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       implicit none
+       integer(P4EST_F90_QCOORD), value, intent(in)    :: q_x
+       integer(P4EST_F90_QCOORD), value, intent(in)    :: q_y
+       integer(P4EST_F90_QLEVEL), value, intent(in)    :: level
+       integer(c_int) :: F90_p4est_quadrant_child_id
+     end function F90_p4est_quadrant_child_id
+     
+     !=================================================================================================================================
+     !> summary: Compute the position of this child within its sibling. Returns its child id in 0..7
+     !=================================================================================================================================
+     function F90_p8est_quadrant_child_id(q_x,q_y,q_z,level) bind(c, name="F90_p8est_quadrant_child_id")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       implicit none
+       integer(P4EST_F90_QCOORD), value, intent(in)    :: q_x
+       integer(P4EST_F90_QCOORD), value, intent(in)    :: q_y
+       integer(P4EST_F90_QCOORD), value, intent(in)    :: q_z
+       integer(P4EST_F90_QLEVEL), value, intent(in)    :: level
+        integer(c_int) :: F90_p8est_quadrant_child_id
+     end function F90_p8est_quadrant_child_id
+     
      !subroutine p4_savemesh(filename, p4est) bind(c)
      !  !=================================================================================================================================
      !  ! save the p4est data  to a p4est state file 
