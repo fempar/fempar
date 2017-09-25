@@ -364,7 +364,8 @@ module p4est_triangulation_names
     integer(P4EST_F90_LOCIDX), allocatable :: quad_coords(:,:)
     ! p4est Integer Level of quadrant
     integer(P4EST_F90_QLEVEL), allocatable :: quad_level(:)
-   
+    
+    integer(P4EST_F90_GLOIDX)              :: global_first_quadrant
     
     type(std_vector_integer_ip_t)          :: lst_vefs_gids
     
@@ -384,7 +385,7 @@ module p4est_triangulation_names
     type(std_vector_integer_ip_t)          :: cell_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
-    type(std_vector_integer_igp_t)         :: cells_ggids
+    type(std_vector_integer_igp_t)         :: cell_ggids
   contains
     ! Getters
     procedure                                   :: get_num_reference_fes                         => p4est_base_triangulation_get_num_reference_fes
@@ -399,6 +400,7 @@ module p4est_triangulation_names
     procedure, private        , non_overridable :: update_topology_from_p4est_mesh               => p4est_base_triangulation_update_topology_from_p4est_mesh
     procedure, private        , non_overridable :: get_ptr_vefs_x_cell                           => p4est_base_triangulation_get_ptr_vefs_x_cell
     procedure, private        , non_overridable :: update_lst_vefs_gids_and_cells_around         => p4est_bt_update_lst_vefs_gids_and_cells_around
+    procedure, private        , non_overridable :: update_cell_ggids                             => p4est_base_triangulation_update_cell_ggids
     procedure, private        , non_overridable :: update_cell_set_ids                           => p4est_bt_update_cell_set_ids
     procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_bt_update_vef_set_ids
     procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_bt_std_vector_transform_length_to_header

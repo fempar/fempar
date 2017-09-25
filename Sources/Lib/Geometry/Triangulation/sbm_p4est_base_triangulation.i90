@@ -99,6 +99,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+    call this%update_cell_ggids()
     call this%allocate_and_fill_x_cell_vertex_coordinates()
     !call this%update_cell_set_ids()
     !call this%update_vef_set_ids(old_lst_vefs_gids)
@@ -414,7 +415,9 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
                   end do
                   
                   ! Fill improper cells_around improper vefs
-                  call this%ptr_improper_cells_around%push_back(icell)
+                  call this%ptr_improper_cells_around%push_back(1)
+                  call this%lst_improper_cells_around%push_back(icell)
+                  
                   call this%improper_vefs_improper_cell_around_ivef%push_back(icell_iface)
                   call this%improper_vefs_improper_cell_around_subvef%push_back(-1) 
                   
@@ -537,13 +540,13 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
               do i=1, work_vector_cells_around%size()
                  call this%lst_cells_around_proper_vefs%push_back(work_vector_cells_around%get(i))
               end do
-              
+                            
               ! Process ghost cells around
               do i=1, work_vector_ghost_cells_around%size()
                  call this%lst_cells_around_proper_vefs%push_back(work_vector_ghost_cells_around%get(i))
                  base_pos_ghost_cell = this%get_ptr_vefs_x_cell(work_vector_ghost_cells_around%get(i))-1
                  call this%lst_vefs_gids%set(base_pos_ghost_cell+P4EST_2_FEMPAR_CORNER(work_vector_ghost_cells_around_ivef%get(i)), &
-                      this%lst_vefs_gids%get(base_pos_min_cell  +P4EST_2_FEMPAR_CORNER(min_icorner)))
+                      this%lst_vefs_gids%get(base_pos_icell  +P4EST_2_FEMPAR_CORNER(icorner)))
               end do
               
               ! Fill proper vefs dim
@@ -826,18 +829,20 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
                  assert ( this%get_num_dims() == 2 )
                  this%num_improper_vefs = this%num_improper_vefs+1
                  
-                 base_pos_icell = this%get_ptr_vefs_x_cell(jcell)-1
-                 call this%lst_vefs_gids%set(base_pos_icell+num_corners_x_cell+num_edges_x_cell+P4EST_FACES_IN_TOUCH_2D(iface), -this%num_improper_vefs)
+                 base_pos_icell = this%get_ptr_vefs_x_cell(jcell)-1+num_corners_x_cell+num_edges_x_cell
+                 call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(P4EST_FACES_IN_TOUCH_2D(iface)), -this%num_improper_vefs)
                  call this%ptr_cells_around_improper_vefs%push_back(1)
                  call this%lst_cells_around_improper_vefs%push_back(jcell)
                  
+                 
                  ! Fill improper cells_around improper vefs
-                 call this%ptr_improper_cells_around%push_back(icell)
+                 call this%ptr_improper_cells_around%push_back(1)
+                 call this%lst_improper_cells_around%push_back(icell)
                  call this%improper_vefs_improper_cell_around_ivef%push_back(iface)
                  call this%improper_vefs_improper_cell_around_subvef%push_back(isubface)
                  
                  ! Fill improper vefs dim
-                 call this%improper_vefs_dim%push_back(0)
+                 call this%improper_vefs_dim%push_back(this%get_num_dims()-1)
               end if
            end do
         end if
@@ -860,7 +865,7 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
               ! Process ghost cells around
               do i=1, work_vector_ghost_cells_around%size()
                  call this%lst_cells_around_proper_vefs%push_back(work_vector_ghost_cells_around%get(i))
-                 base_pos_ghost_cell = this%get_ptr_vefs_x_cell(work_vector_ghost_cells_around%get(i))-1
+                 base_pos_ghost_cell = this%get_ptr_vefs_x_cell(work_vector_ghost_cells_around%get(i))-1+num_corners_x_cell+num_edges_x_cell
                  call this%lst_vefs_gids%set(base_pos_ghost_cell+P4EST_2_FEMPAR_FACE(work_vector_ghost_cells_around_ivef%get(i)), &
                       this%lst_vefs_gids%get(base_pos_min_cell  +P4EST_2_FEMPAR_FACE(min_iface)))
               end do
@@ -1327,6 +1332,7 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
  integer(P4EST_F90_LOCIDX) :: num_half_faces
  integer(P4EST_F90_LOCIDX) :: num_half_edges
  type(c_ptr) :: QQ, QF, QH, QC, QQE, QE
+ integer(ip) :: i
  
 #ifdef ENABLE_P4EST
  if ( this%get_num_dims() == 2 ) then
@@ -1410,16 +1416,22 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   ! Update the num of triangulation cells
   call this%set_num_local_cells(local_num_quadrants)
   call this%set_num_ghost_cells(ghost_num_quadrants)
-  
-  
-  !do i=1, this%get_num_local_cells()
-  write(*,*) 'XXX', global_first_quadrant, this%get_num_local_cells(), this%get_num_ghost_cells()
-  !end do
-  
+  this%global_first_quadrant = global_first_quadrant 
 #else
   call this%not_enabled_error()
 #endif
 end subroutine p4est_base_triangulation_update_topology_from_p4est_mesh
+
+subroutine p4est_base_triangulation_update_cell_ggids ( this )
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  integer(ip) :: i
+  ! Update the cell global identifiers
+  call this%cell_ggids%resize(this%get_num_local_cells()+this%get_num_ghost_cells())
+  do i=1, this%get_num_local_cells()
+    call this%cell_ggids%set(i,this%global_first_quadrant+i)
+  end do
+end subroutine p4est_base_triangulation_update_cell_ggids 
 
 subroutine p4est_create_cell_iterator ( this, cell )
   implicit none
