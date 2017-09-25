@@ -2,7 +2,7 @@ subroutine  irreducible_discrete_integration_create(this,number_dimensions,analy
   implicit none
   class(irreducible_discrete_integration_t)     , intent(inout) :: this
   integer(ip)                                   , intent(in)    :: number_dimensions
-  type(test_elasticity_analytical_functions_t), target, intent(in)    :: analytical_functions
+  type(linear_elasticity_analytical_functions_t), target, intent(in)    :: analytical_functions
   integer(ip) :: istat
 
   this%number_dimensions = number_dimensions

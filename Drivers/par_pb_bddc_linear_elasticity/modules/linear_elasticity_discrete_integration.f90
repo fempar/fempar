@@ -133,21 +133,24 @@ module linear_elasticity_discrete_integration_names
      !procedure :: init_solution => irreducible_discrete_integration_init_solution
   end type irreducible_discrete_integration_t
 
-  type, extends(linear_elasticity_discrete_integration_t) :: mixed_u_p_discrete_integration_t
-     private
-   contains
-     procedure :: create              => mixed_u_p_discrete_integration_create
-     procedure :: integrate_galerkin  => mixed_u_p_discrete_integration_integrate
-     procedure :: is_symmetric        => mixed_u_p_discrete_integration_is_symmetric
-     procedure :: is_coercive         => mixed_u_p_discrete_integration_is_coercive     
-     !procedure :: init_solution => mixed_u_p_discrete_integration_init_solution
-  end type mixed_u_p_discrete_integration_t
+  !type, extends(linear_elasticity_discrete_integration_t) :: mixed_u_p_discrete_integration_t
+  !   private
+  ! contains
+  !   procedure :: create              => mixed_u_p_discrete_integration_create
+  !   procedure :: integrate_galerkin  => mixed_u_p_discrete_integration_integrate
+  !   procedure :: is_symmetric        => mixed_u_p_discrete_integration_is_symmetric
+  !   procedure :: is_coercive         => mixed_u_p_discrete_integration_is_coercive     
+  !   !procedure :: init_solution => mixed_u_p_discrete_integration_init_solution
+  !end type mixed_u_p_discrete_integration_t
 
   character(*), parameter :: discrete_integration_type_irreducible = 'irreducible'
   character(*), parameter :: discrete_integration_type_mixed_u_p   = 'mixed_u_p'
 
-  public :: linear_elasticity_discrete_integration_t, irreducible_discrete_integration_t, mixed_u_p_discrete_integration_t
-  public :: discrete_integration_type_irreducible, discrete_integration_type_mixed_u_p
+  public :: linear_elasticity_discrete_integration_t, irreducible_discrete_integration_t
+  public :: discrete_integration_type_irreducible
+  
+  !public :: linear_elasticity_discrete_integration_t, irreducible_discrete_integration_t, mixed_u_p_discrete_integration_t
+  !public :: discrete_integration_type_irreducible, discrete_integration_type_mixed_u_p
   
 contains
 
@@ -307,6 +310,6 @@ contains
   end function get_field_name
 
 #include "sbm_irreducible_discrete_integration.i90"
-#include "sbm_mixed_u_p_discrete_integration.i90"
+!#include "sbm_mixed_u_p_discrete_integration.i90"
   
 end module linear_elasticity_discrete_integration_names
