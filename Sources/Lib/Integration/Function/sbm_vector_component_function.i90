@@ -1,0 +1,89 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine vector_component_function_set(this,vector_function,component)
+  implicit none
+  class(vector_component_function_t), intent(inout) :: this
+  class(vector_function_t), target  , intent(in)    :: vector_function
+  integer(ip)                       , intent(in)    :: component
+  this%vector_function => vector_function
+  this%component = component
+end subroutine vector_component_function_set
+
+subroutine vector_component_function_get_value_space( this, point, result )
+  implicit none
+  class(vector_component_function_t), intent(in)    :: this
+  type(point_t)                     , intent(in)    :: point
+  real(rp)                          , intent(inout) :: result
+  type(vector_field_t)                    :: vector_field
+  assert( associated(this%vector_function) )
+  assert( this%component >= 0 .and. this%component <= SPACE_DIM)
+  call this%vector_function%get_value(point,vector_field)
+  result = vector_field%get(this%component)
+end subroutine vector_component_function_get_value_space
+
+subroutine vector_component_function_get_value_space_time( this, point, time, result )
+  implicit none
+  class(vector_component_function_t), intent(in)    :: this
+  type(point_t)                     , intent(in)    :: point
+  real(rp)                          , intent(in)    :: time
+  real(rp)                          , intent(inout) :: result
+  type(vector_field_t)                    :: vector_field
+  assert( associated(this%vector_function) )
+  assert( this%component >= 0 .and. this%component <= SPACE_DIM)
+  call this%vector_function%get_value(point, time, vector_field)
+  result = vector_field%get(this%component)
+end subroutine vector_component_function_get_value_space_time
+
+subroutine vector_component_function_get_gradient_space( this, point, result )
+  implicit none
+  class(vector_component_function_t), intent(in)    :: this
+  type(point_t)                     , intent(in)    :: point
+  type(vector_field_t)              , intent(inout) :: result
+  type(tensor_field_t)                    :: tensor_field
+  assert( associated(this%vector_function) )
+  assert( this%component >= 0 .and. this%component <= SPACE_DIM)
+  call this%vector_function%get_gradient(point, tensor_field)
+  call result%set(1,tensor_field%get(this%component,1))
+  call result%set(2,tensor_field%get(this%component,2))
+  call result%set(SPACE_DIM,tensor_field%get(this%component,SPACE_DIM))
+end subroutine vector_component_function_get_gradient_space
+
+subroutine vector_component_function_get_gradient_space_time( this, point, time, result )
+  implicit none
+  class(vector_component_function_t), intent(in)    :: this
+  type(point_t)                     , intent(in)    :: point
+  real(rp)                          , intent(in)    :: time
+  type(vector_field_t)              , intent(inout) :: result
+  type(tensor_field_t)                    :: tensor_field
+  assert( associated(this%vector_function) )
+  assert( this%component >= 0 .and. this%component <= SPACE_DIM)
+  call this%vector_function%get_gradient(point, tensor_field)
+  call result%set(1,tensor_field%get(this%component,1))
+  call result%set(2,tensor_field%get(this%component,2))
+  call result%set(SPACE_DIM,tensor_field%get(this%component,SPACE_DIM))
+end subroutine vector_component_function_get_gradient_space_time

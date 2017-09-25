@@ -147,5 +147,7 @@ contains
 ! root tensor_function_t. For efficiency purposes, these functions can also be filled in user
 ! defined functions that inherit from tensor_function_t
 #include "sbm_tensor_function.i90"
+! One only needs to call set to assign the vector it gets the values from
+#include "sbm_vector_component_function.i90"
 
 end module function_names
