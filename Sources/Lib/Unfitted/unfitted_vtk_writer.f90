@@ -396,8 +396,10 @@ contains
 
     select case (num_dime)
       case(3)
+        the_facet_type    = 9_I1P
         the_subfacet_type = 5_I1P
       case(2)
+        the_facet_type    = 3_I1P
         the_subfacet_type = 3_I1P
       case default
       check(.false.)
