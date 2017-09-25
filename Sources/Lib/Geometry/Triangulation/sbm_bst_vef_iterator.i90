@@ -60,10 +60,12 @@ function bst_vef_iterator_get_num_nodes(this)
   type(bst_cell_iterator_t) :: cell
   class(reference_fe_t), pointer :: reference_fe
   type(list_iterator_t) :: dofs_on_bst_vef_iterator
+  call cell%create(this%triangulation)
   call this%get_cell_around(1, cell)
   reference_fe => cell%get_reference_fe()
   dofs_on_bst_vef_iterator = reference_fe%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
   bst_vef_iterator_get_num_nodes = dofs_on_bst_vef_iterator%get_size()
+  call cell%free()
 end function bst_vef_iterator_get_num_nodes
 
 subroutine bst_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
