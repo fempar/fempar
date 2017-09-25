@@ -93,6 +93,10 @@ module function_names
      generic                    :: get_gradients_set            => get_gradients_set_space, get_gradients_set_space_time     
   end type vector_function_t
 
+  type :: p_vector_function_t
+    class(vector_function_t), pointer :: p => NULL()
+  end type p_vector_function_t
+  
   type :: tensor_function_t
      private
    contains
@@ -104,11 +108,23 @@ module function_names
      generic                    :: get_values_set            => get_values_set_space, get_values_set_space_time     
   end type tensor_function_t
 
+  type, extends(scalar_function_t) :: vector_component_function_t
+     private
+     class(vector_function_t), pointer :: vector_function => NULL()
+     integer(ip)                       :: component = 0
+   contains
+     procedure                  :: set                          => vector_component_function_set
+     procedure                  :: get_value_space              => vector_component_function_get_value_space
+     procedure                  :: get_value_space_time         => vector_component_function_get_value_space_time
+     procedure                  :: get_gradient_space           => vector_component_function_get_gradient_space
+     procedure                  :: get_gradient_space_time      => vector_component_function_get_gradient_space_time
+   end type vector_component_function_t
+
   ! Functions
-  public :: array_function_t, scalar_function_t, vector_function_t, tensor_function_t
+  public :: array_function_t, scalar_function_t, vector_function_t, tensor_function_t, vector_component_function_t
   
   ! Pointer to functions
-  public :: p_scalar_function_t
+  public :: p_scalar_function_t, p_vector_function_t
 
 contains
 ! One only needs to fill array_get_component_value_space or array_get_component_value_space_time
