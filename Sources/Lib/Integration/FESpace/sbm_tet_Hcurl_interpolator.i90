@@ -29,78 +29,78 @@
 subroutine tet_Hcurl_interpolator_create( this, fe_space, field_id )
   implicit none
   class(tet_Hcurl_interpolator_t)      , intent(inout) :: this 
-		class(serial_fe_space_t)             , intent(in)    :: fe_space
+  class(serial_fe_space_t)             , intent(in)    :: fe_space
   integer(ip)                          , intent(in)    :: field_id
-		
-		class(fe_cell_iterator_t), allocatable :: fe
-		class(reference_fe_t)    , pointer     :: reference_fe 
+
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(reference_fe_t)    , pointer     :: reference_fe 
   integer(ip)                            :: reduced_order_vector(SPACE_DIM)
   integer(ip)                            :: num_interior_moments
   integer(ip)                            :: idime, istat 
 
-   this%field_id = field_id
+  this%field_id = field_id
 
   call fe_space%create_fe_cell_iterator(fe)
   reference_fe => fe%get_reference_fe(field_id)
-		
+
   ! Create a 1D scalar lagrangian reference FE of order k-1
   call this%fe_1D%create(topology          = reference_fe%get_topology(),  &
-                         num_dims          = 1,                            &
-                         order             = reference_fe%get_order()-1,   &
-                         field_type        = field_type_scalar,            &
-                         conformity        = .true. )
+       num_dims          = 1,                            &
+       order             = reference_fe%get_order()-1,   &
+       field_type        = field_type_scalar,            &
+       conformity        = .true. )
 
-		select type ( reference_fe ) 
-		class is ( tet_nedelec_reference_fe_t ) 
-  call reference_fe%create_edge_quadrature( this%edge_quadrature )
-		class DEFAULT 
-		check(.false.) 
-		end select 
-		
+  select type ( reference_fe ) 
+     class is ( tet_nedelec_reference_fe_t ) 
+     call reference_fe%create_edge_quadrature( this%edge_quadrature )
+     class DEFAULT 
+     check(.false.) 
+  end select
+
   call this%edge_map%create( this%edge_quadrature, fe%get_reference_fe_geo() )
   call this%fe_1D%create_interpolation( this%edge_quadrature, this%edge_interpolation )
   allocate (this%edge_function_values(this%edge_quadrature%get_num_quadrature_points(),1), stat=istat); check(istat==0)
-		call memalloc ( this%edge_quadrature%get_num_quadrature_points(), 1, this%scalar_function_values_on_edge, __FILE__, __LINE__)
+  call memalloc ( this%edge_quadrature%get_num_quadrature_points(), 1, this%scalar_function_values_on_edge, __FILE__, __LINE__)
 
   if ( reference_fe%get_num_dims() == 3 .and. reference_fe%get_order() > 1 ) then 
-  ! Create a 2D Lagrangian reference FE of order k-1
-    call this%fe_2D%create(topology   = reference_fe%get_topology(),  &
-                           num_dims   = 2,                            &
-                           order      = reference_fe%get_order()-2,           &
-                           field_type = field_type_scalar,            &
-                           conformity = .true. )
+     ! Create a 2D Lagrangian reference FE of order k-1
+     call this%fe_2D%create(topology   = reference_fe%get_topology(),  &
+          num_dims   = 2,                            &
+          order      = reference_fe%get_order()-2,           &
+          field_type = field_type_scalar,            &
+          conformity = .true. )
 
-   call reference_fe%create_facet_quadrature( this%facet_quadrature )
-   call this%fe_2D%create_interpolation( this%facet_quadrature, this%facet_interpolation )
-   call this%facet_map%create( this%facet_quadrature, fe%get_reference_fe_geo() )
-   allocate (this%facet_function_values(this%facet_quadrature%get_num_quadrature_points(),1), stat=istat); check(istat==0)
-			call memalloc ( this%facet_quadrature%get_num_quadrature_points(), 1, this%scalar_function_values_on_facet, __FILE__, __LINE__)
+     call reference_fe%create_facet_quadrature( this%facet_quadrature )
+     call this%fe_2D%create_interpolation( this%facet_quadrature, this%facet_interpolation )
+     call this%facet_map%create( this%facet_quadrature, fe%get_reference_fe_geo() )
+     allocate (this%facet_function_values(this%facet_quadrature%get_num_quadrature_points(),1), stat=istat); check(istat==0)
+     call memalloc ( this%facet_quadrature%get_num_quadrature_points(), 1, this%scalar_function_values_on_facet, __FILE__, __LINE__)
 
-  end if 
+  end if
 
-		! Compute number interior shape functions shape functions
-		num_interior_moments = reference_fe%get_order()
-		do idime=1, reference_fe%get_num_dims()-1
-		num_interior_moments = num_interior_moments * ( reference_fe%get_order()-idime )/idime 
-		end do 
+  ! Compute number interior shape functions shape functions
+  num_interior_moments = reference_fe%get_order()
+  do idime=1, reference_fe%get_num_dims()-1
+     num_interior_moments = num_interior_moments * ( reference_fe%get_order()-idime )/idime 
+  end do
 
-		call reference_fe%create_quadrature( this%cell_quadrature )
-		call this%cell_map%create( this%cell_quadrature, fe%get_reference_fe_geo() )
-		
+  call reference_fe%create_quadrature( this%cell_quadrature )
+  call this%cell_map%create( this%cell_quadrature, fe%get_reference_fe_geo() )
+
   if ( num_interior_moments > 0 ) then 
 
-      ! Create a D-DIM Lagrangian reference FE of order k-D
+     ! Create a D-DIM Lagrangian reference FE of order k-D
      call this%fe%create(topology          = reference_fe%get_topology(),                           &
-                         num_dims          = reference_fe%get_num_dims(),                           &
-                         order             = reference_fe%get_order()-reference_fe%get_num_dims(),  &
-                         field_type        = field_type_vector,                                     &
-                         conformity        = .true. )
+          num_dims          = reference_fe%get_num_dims(),                           &
+          order             = reference_fe%get_order()-reference_fe%get_num_dims(),  &
+          field_type        = field_type_vector,                                     &
+          conformity        = .true. )
 
-   call this%fe%create_interpolation( this%cell_quadrature, this%cell_interpolation)
-   allocate (this%cell_function_values(this%cell_quadrature%get_num_quadrature_points(),1), stat=istat); check(istat==0)
+     call this%fe%create_interpolation( this%cell_quadrature, this%cell_interpolation)
+     allocate (this%cell_function_values(this%cell_quadrature%get_num_quadrature_points(),1), stat=istat); check(istat==0)
 
-  end if 
-		
+  end if
+
   call fe_space%free_fe_cell_iterator( fe )
 end subroutine tet_Hcurl_interpolator_create
 
@@ -134,9 +134,9 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   integer(ip)                         :: num_interior_moments 
 
   ! Common integration 
-		class(reference_fe_t), pointer      :: reference_fe 
-		class(reference_fe_t), pointer      :: reference_fe_geo 
-		type(point_t)        , pointer      :: cell_coordinates(:)
+  class(reference_fe_t), pointer      :: reference_fe 
+  class(reference_fe_t), pointer      :: reference_fe_geo 
+  type(point_t)        , pointer      :: cell_coordinates(:)
   integer(ip)                         :: vertex_within_cell_id
   real(rp)                            :: shape_test, factor 
   integer(ip)                         :: idime, ishape
@@ -144,21 +144,21 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   type(vector_field_t), allocatable   :: function_values(:) 
   type(point_t), pointer              :: quad_points_coordinates(:)
 
-		real(rp)    :: time_(1) 
+  real(rp)    :: time_(1) 
   integer(ip) :: c, d, istat 
-		
-		if (present(time)) time_(1) = time
-		reference_fe     => fe%get_reference_fe(this%field_id)
-		reference_fe_geo => fe%get_reference_fe_geo()
-		
-			! Extract cell coordinates 
-		cell_coordinates => this%cell_map%get_coordinates() 
-		call fe%get_nodes_coordinates( cell_coordinates ) 
+
+  if (present(time)) time_(1) = time
+  reference_fe     => fe%get_reference_fe(this%field_id)
+  reference_fe_geo => fe%get_reference_fe_geo()
+
+  ! Extract cell coordinates 
+  cell_coordinates => this%cell_map%get_coordinates() 
+  call fe%get_nodes_coordinates( cell_coordinates ) 
 
   d = 0
   dof_values = 0.0_rp 
   do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
-               reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
+       reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
 
      edge_map_coordinates => this%edge_map%get_coordinates()   
 
@@ -173,20 +173,20 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
 
      ! Update edge_map on current edge
      call this%edge_map%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
-                               reference_fe  = reference_fe,                                           &
-                               quadrature    = this%edge_quadrature )
+          reference_fe  = reference_fe,                                           &
+          quadrature    = this%edge_quadrature )
 
      ! Extract quadrature points coordinates 
-					num_quad_points = this%edge_quadrature%get_num_quadrature_points()
+     num_quad_points = this%edge_quadrature%get_num_quadrature_points()
      quad_points_coordinates => this%edge_map%get_quadrature_points_coordinates()
 
      ! Fill vector function values restricted to edge 
-					if ( present(time) ) then 
-     call vector_function%get_values_set(quad_points_coordinates, time_, this%edge_function_values(1:num_quad_points,1:1) )
-					else 
-					call vector_function%get_values_set(quad_points_coordinates, this%edge_function_values(1:num_quad_points,1) )
-					end if 
-																																									
+     if ( present(time) ) then 
+        call vector_function%get_values_set(quad_points_coordinates, time_, this%edge_function_values(1:num_quad_points,1:1) )
+     else 
+        call vector_function%get_values_set(quad_points_coordinates, this%edge_function_values(1:num_quad_points,1) )
+     end if
+
 
      ! Integrate edge boundary moments int_edge(f.tau q), q \in P_k-1
      do qpoint = 1, num_quad_points 
@@ -205,7 +205,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   if ( reference_fe%get_num_dims() == 3 .and. reference_fe%get_order() > 1 ) then
 
      do facet_id = reference_fe%get_first_facet_id(), & 
-                   reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
+          reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
 
         ! Get face map coordinates
         facet_map_coordinates => this%facet_map%get_coordinates()
@@ -223,18 +223,18 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
         ! Update facet_map on current face
         facet_lid = facet_id - reference_fe_geo%get_first_facet_id()+1
         call this%facet_map%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &
-                                   quadrature             = this%facet_quadrature ) 
+             quadrature             = this%facet_quadrature ) 
 
         ! Extract quadrature points coordinates 
-								num_quad_points = this%facet_quadrature%num_quadrature_points
+        num_quad_points = this%facet_quadrature%num_quadrature_points
         quad_points_coordinates => this%facet_map%get_quadrature_points_coordinates()
 
         ! Fill vector function values restricted to edge 
-								if ( present(time) ) then 
-        call vector_function%get_values_set(quad_points_coordinates, time_, this%facet_function_values(1:num_quad_points,1:1) )
-								else 
-								call vector_function%get_values_set(quad_points_coordinates, this%facet_function_values(1:num_quad_points,1) )
-								end if 
+        if ( present(time) ) then 
+           call vector_function%get_values_set(quad_points_coordinates, time_, this%facet_function_values(1:num_quad_points,1:1) )
+        else 
+           call vector_function%get_values_set(quad_points_coordinates, this%facet_function_values(1:num_quad_points,1) )
+        end if
 
         ! Integrate face boundary moments int_Face(g, q·tau), q \in P_{k-2}
         do qpoint = 1, num_quad_points
@@ -254,12 +254,12 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
      end do
 
   end if
-		
-		! Compute number interior shape functions shape functions
-		num_interior_moments = reference_fe%get_order()
-		do idime=1, reference_fe%get_num_dims()-1
-		num_interior_moments = num_interior_moments * ( reference_fe%get_order()-idime )/idime 
-		end do 
+
+  ! Compute number interior shape functions shape functions
+  num_interior_moments = reference_fe%get_order()
+  do idime=1, reference_fe%get_num_dims()-1
+     num_interior_moments = num_interior_moments * ( reference_fe%get_order()-idime )/idime 
+  end do
 
   if ( num_interior_moments > 0 ) then 
 
@@ -267,16 +267,16 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
      call this%cell_map%update(this%cell_quadrature)
 
      ! Extract quadrature points coordinates 
-					num_quad_points = this%cell_quadrature%num_quadrature_points
+     num_quad_points = this%cell_quadrature%num_quadrature_points
      quad_points_coordinates => this%cell_map%get_quadrature_points_coordinates()
 
      ! Fill vector function values restricted to cell 
-					if ( present(time) ) then 
-     call vector_function%get_values_set(quad_points_coordinates, time_, this%cell_function_values(1:num_quad_points, 1:1) ) 
-					else 
-					call vector_function%get_values_set(quad_points_coordinates, this%cell_function_values(1:num_quad_points, 1) )
-					end if 
-																																								
+     if ( present(time) ) then 
+        call vector_function%get_values_set(quad_points_coordinates, time_, this%cell_function_values(1:num_quad_points, 1:1) ) 
+     else 
+        call vector_function%get_values_set(quad_points_coordinates, this%cell_function_values(1:num_quad_points, 1) )
+     end if
+
      ! Integration of interior moments 
      ! 2D CASE: int_K (g·q), q \in P_{k-2,k-2} x P_{k-2,k-2} 
      ! 3D CASE: int_K (g·q), q \in P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3}     
@@ -294,11 +294,11 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
 end subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments
 
 !==================================================================================================
-subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, vef_lid, fe, vector_function_scalar_components, dof_values, time)
+subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_face_mask, fe, vector_function_scalar_components, dof_values, time)
   class(tet_Hcurl_interpolator_t) , intent(inout) :: this
-		integer(ip)                     , intent(in)    :: vef_lid 
+  logical                         , intent(in)    :: n_face_mask(:)  
   class(fe_cell_iterator_t)       , intent(in)    :: fe
-  class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:)
+  class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
   real(rp) , optional             , intent(in)    :: time 
 
@@ -318,9 +318,9 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, vef
   integer(ip)                         :: direction
 
   ! Common integration 
-		class(reference_fe_t), pointer      :: reference_fe 
-		class(reference_fe_t), pointer      :: reference_fe_geo
-		type(point_t)        , pointer      :: cell_coordinates(:) 
+  class(reference_fe_t), pointer      :: reference_fe 
+  class(reference_fe_t), pointer      :: reference_fe_geo
+  type(point_t)        , pointer      :: cell_coordinates(:) 
   real(rp)                            :: time_(1)  
   integer(ip)                         :: vertex_within_cell_id
   real(rp)                            :: shape_test, factor 
@@ -333,103 +333,37 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, vef
 
   dof_values = 0.0_rp		
   if ( present(time) ) time_(1) = time 	
-		reference_fe     => fe%get_reference_fe( this%field_id ) 
-		reference_fe_geo => fe%get_reference_fe_geo()
-		
-		! Nedelec elements do not contain DOFs on vertices 
-		if ( reference_fe%get_n_face_dim( vef_lid ) == 0 ) then 
-		return 
-		end if 
-		
-		! Extract cell coordinates 
-		cell_coordinates => this%cell_map%get_coordinates() 
-		call fe%get_nodes_coordinates( cell_coordinates ) 
+  reference_fe     => fe%get_reference_fe( this%field_id ) 
+  reference_fe_geo => fe%get_reference_fe_geo()
 
-  if ( reference_fe%get_n_face_dim( vef_lid ) == 1 ) then 
+  ! Extract cell coordinates 
+  cell_coordinates => this%cell_map%get_coordinates() 
+  call fe%get_nodes_coordinates( cell_coordinates ) 
 
-     num_quad_points = this%edge_quadrature%get_num_quadrature_points()
-     edge_map_coordinates => this%edge_map%get_coordinates()
+  do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
+       reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
+     if ( n_face_mask(edge_id) ) then 
+        num_quad_points = this%edge_quadrature%get_num_quadrature_points()
+        edge_map_coordinates => this%edge_map%get_coordinates()
 
-     vertex_within_edge_id = 1
-     vertex_iterator = reference_fe %create_vertices_n_face_iterator(vef_lid)
-     do while ( .not. vertex_iterator%is_upper_bound () )
-        vertex_within_cell_id = vertex_iterator%get_current()
-        call edge_map_coordinates(vertex_within_edge_id)%init( cell_coordinates(vertex_within_cell_id)%get_value() )
-        call vertex_iterator%next()
-        vertex_within_edge_id = vertex_within_edge_id + 1
-     end do
-
-     ! Update edge_map on current edge
-     call this%edge_map%update(local_edge_id = vef_lid - reference_fe%get_first_n_face_id_of_dim(1)+1, &
-                               reference_fe  = reference_fe,                                           &
-                               quadrature    = this%edge_quadrature )
-
-     ! Extract quadrature points coordinates 
-     quad_points_coordinates => this%edge_map%get_quadrature_points_coordinates()
-
-     ! Fill vector function values restricted to edge 
-     select case(reference_fe %get_field_type())
-     case ( field_type_scalar )
-        ! reference_fe MUST BE a vector-valued FE
-        assert (.false.)
-     case ( field_type_vector )
-        do icomp=1, reference_fe %get_num_field_components()
-           if(present(time)) then
-              call vector_function_scalar_components(icomp)%p%get_values_set_space_time(quad_points_coordinates,  & 
-																																																																																								time_,                    & 
-																																																																																								this%scalar_function_values_on_edge(1:num_quad_points,:))
-           else
-              call vector_function_scalar_components(icomp)%p%get_values_set_space(quad_points_coordinates,this%scalar_function_values_on_edge(1:num_quad_points,1))
-           end if
-           do qpoint = 1, num_quad_points
-              call this%edge_function_values(qpoint,1)%set(icomp,this%scalar_function_values_on_edge(qpoint,1))
-           end do
-        end do
-     case ( field_type_tensor )
-        ! reference_fe MUST BE a vector-valued FE
-        assert(.false.)
-     end select
-
-     ! Integrate edge boundary moments int_edge(g·tau q), q \in P_k-1
-     own_dofs = reference_fe%create_dofs_n_face_iterator(vef_lid)
-     do qpoint = 1, num_quad_points
-        factor = this%edge_map%get_det_jacobian(qpoint) * this%edge_quadrature%get_weight(qpoint)
-        call this%edge_map%get_tangent(qpoint, tangent)								
-        call own_dofs%begin() 
-        do ishape = 1, this%fe_1D%get_num_shape_functions() 
-           idof = own_dofs%get_current() 
-           call this%fe_1D%get_value(this%edge_interpolation, ishape, qpoint, shape_test)
-           dof_values(idof) = dof_values(idof) + this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
-           call own_dofs%next() 
-        end do
-     end do
-
-					elseif ( reference_fe%get_n_face_dim( vef_lid ) == 2 ) then 
-     if ( reference_fe%get_num_dims() == 3 .and. reference_fe%get_order() > 1 ) then
-      
-								! Get face map coordinates
-        num_quad_points        =  this%facet_quadrature%get_num_quadrature_points()
-        facet_map_coordinates  => this%facet_map%get_coordinates() 
-
-        ! Extract coordinates of the vertices within the face
-        vertex_within_facet_id = 1
-        vertex_iterator = reference_fe%create_vertices_n_face_iterator(vef_lid)
+        vertex_within_edge_id = 1
+        vertex_iterator = reference_fe%create_vertices_n_face_iterator(edge_id)
         do while ( .not. vertex_iterator%is_upper_bound () )
            vertex_within_cell_id = vertex_iterator%get_current()
-           call facet_map_coordinates(vertex_within_facet_id)%init( cell_coordinates(vertex_within_cell_id)%get_value() )
+           call edge_map_coordinates(vertex_within_edge_id)%init( cell_coordinates(vertex_within_cell_id)%get_value() )
            call vertex_iterator%next()
-           vertex_within_facet_id = vertex_within_facet_id + 1
+           vertex_within_edge_id = vertex_within_edge_id + 1
         end do
 
-        ! Update facet_map on current face
-        facet_lid = vef_lid - reference_fe_geo%get_first_facet_id()+1
-        call this%facet_map%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &
-                                   quadrature             = this%facet_quadrature ) 
+        ! Update edge_map on current edge
+        call this%edge_map%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
+             reference_fe  = reference_fe,                                           &
+             quadrature    = this%edge_quadrature )
 
         ! Extract quadrature points coordinates 
-        quad_points_coordinates => this%facet_map%get_quadrature_points_coordinates()
+        quad_points_coordinates => this%edge_map%get_quadrature_points_coordinates()
 
-        ! Fill vector function values restricted to face 
+        ! Fill vector function values restricted to edge 
         select case(reference_fe %get_field_type())
         case ( field_type_scalar )
            ! reference_fe MUST BE a vector-valued FE
@@ -437,14 +371,14 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, vef
         case ( field_type_vector )
            do icomp=1, reference_fe %get_num_field_components()
               if(present(time)) then
-                 call vector_function_scalar_components(icomp)%p%get_values_set_space_time(quad_points_coordinates,  & 
-																																																																																											time_,                    & 
-																																																																																											this%scalar_function_values_on_facet(1:num_quad_points,:))
+                 call vector_function_scalar_components(icomp, edge_id)%p%get_values_set_space_time(quad_points_coordinates,  & 
+                      time_,                    & 
+                      this%scalar_function_values_on_edge(1:num_quad_points,:))
               else
-                 call vector_function_scalar_components(icomp)%p%get_values_set_space(quad_points_coordinates,this%scalar_function_values_on_facet(1:num_quad_points,1))
+                 call vector_function_scalar_components(icomp, edge_id)%p%get_values_set_space(quad_points_coordinates,this%scalar_function_values_on_edge(1:num_quad_points,1))
               end if
               do qpoint = 1, num_quad_points
-                 call this%facet_function_values(qpoint,1)%set(icomp,this%scalar_function_values_on_facet(qpoint,1))
+                 call this%edge_function_values(qpoint,1)%set(icomp,this%scalar_function_values_on_edge(qpoint,1))
               end do
            end do
         case ( field_type_tensor )
@@ -452,26 +386,96 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, vef
            assert(.false.)
         end select
 
-        ! Integrate face boundary moments int_Face(g x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
-        do qpoint = 1, this%facet_quadrature%num_quadrature_points
-           factor = this%facet_map%get_det_jacobian(qpoint) * this%facet_quadrature%get_weight(qpoint)
-           facet_area = 0.5_rp * this%facet_map%get_det_jacobian(qpoint) 
-
-           own_dofs = reference_fe%create_dofs_n_face_iterator(vef_lid)
-           do direction = 1, this%fe_2D%get_num_dims() 
-              call this%facet_map%get_jacobian_column(direction,qpoint,tangent) ! x_i - x^0_i (not normalized)
-              do ishape=1, this%fe_2D%get_num_shape_functions()
-                 idof = own_dofs%get_current() 
-                 call this%fe_2D%get_value(this%facet_interpolation, ishape, qpoint, shape_test)    
-                 dof_values(idof) = dof_values(idof) + 1/facet_area * this%facet_function_values(qpoint,1) * shape_test * tangent * factor
-                 call own_dofs%next() 
-              end do
+        ! Integrate edge boundary moments int_edge(g·tau q), q \in P_k-1
+        own_dofs = reference_fe%create_dofs_n_face_iterator(edge_id)
+        do qpoint = 1, num_quad_points
+           factor = this%edge_map%get_det_jacobian(qpoint) * this%edge_quadrature%get_weight(qpoint)
+           call this%edge_map%get_tangent(qpoint, tangent)								
+           call own_dofs%begin() 
+           do ishape = 1, this%fe_1D%get_num_shape_functions() 
+              idof = own_dofs%get_current() 
+              call this%fe_1D%get_value(this%edge_interpolation, ishape, qpoint, shape_test)
+              dof_values(idof) = dof_values(idof) + this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
+              call own_dofs%next() 
            end do
-
         end do
      end if
+  end do
 
-					end if 
+  if ( reference_fe%get_num_dims() == 3 .and. reference_fe%get_order() > 1 ) then
+
+     do facet_id = reference_fe%get_first_facet_id(), & 
+          reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
+
+        if ( n_face_mask(facet_id) ) then 
+
+           ! Get face map coordinates
+           num_quad_points        =  this%facet_quadrature%get_num_quadrature_points()
+           facet_map_coordinates  => this%facet_map%get_coordinates() 
+
+           ! Extract coordinates of the vertices within the face
+           vertex_within_facet_id = 1
+           vertex_iterator = reference_fe%create_vertices_n_face_iterator(facet_id)
+           do while ( .not. vertex_iterator%is_upper_bound () )
+              vertex_within_cell_id = vertex_iterator%get_current()
+              call facet_map_coordinates(vertex_within_facet_id)%init( cell_coordinates(vertex_within_cell_id)%get_value() )
+              call vertex_iterator%next()
+              vertex_within_facet_id = vertex_within_facet_id + 1
+           end do
+
+           ! Update facet_map on current face
+           facet_lid = facet_id - reference_fe_geo%get_first_facet_id()+1
+           call this%facet_map%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &
+                quadrature             = this%facet_quadrature ) 
+
+           ! Extract quadrature points coordinates 
+           quad_points_coordinates => this%facet_map%get_quadrature_points_coordinates()
+
+           ! Fill vector function values restricted to face 
+           select case(reference_fe %get_field_type())
+           case ( field_type_scalar )
+              ! reference_fe MUST BE a vector-valued FE
+              assert (.false.)
+           case ( field_type_vector )
+              do icomp=1, reference_fe %get_num_field_components()
+                 if(present(time)) then
+                    call vector_function_scalar_components(icomp, facet_id)%p%get_values_set_space_time(quad_points_coordinates,  & 
+                         time_,                    & 
+                         this%scalar_function_values_on_facet(1:num_quad_points,:))
+                 else
+                    call vector_function_scalar_components(icomp, facet_id)%p%get_values_set_space(quad_points_coordinates,this%scalar_function_values_on_facet(1:num_quad_points,1))
+                 end if
+                 do qpoint = 1, num_quad_points
+                    call this%facet_function_values(qpoint,1)%set(icomp,this%scalar_function_values_on_facet(qpoint,1))
+                 end do
+              end do
+           case ( field_type_tensor )
+              ! reference_fe MUST BE a vector-valued FE
+              assert(.false.)
+           end select
+
+           ! Integrate face boundary moments int_Face(g x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
+           do qpoint = 1, this%facet_quadrature%num_quadrature_points
+              factor = this%facet_map%get_det_jacobian(qpoint) * this%facet_quadrature%get_weight(qpoint)
+              facet_area = 0.5_rp * this%facet_map%get_det_jacobian(qpoint) 
+
+              own_dofs = reference_fe%create_dofs_n_face_iterator(facet_id)
+              do direction = 1, this%fe_2D%get_num_dims() 
+                 call this%facet_map%get_jacobian_column(direction,qpoint,tangent) ! x_i - x^0_i (not normalized)
+                 do ishape=1, this%fe_2D%get_num_shape_functions()
+                    idof = own_dofs%get_current() 
+                    call this%fe_2D%get_value(this%facet_interpolation, ishape, qpoint, shape_test)    
+                    dof_values(idof) = dof_values(idof) + 1/facet_area * this%facet_function_values(qpoint,1) * shape_test * tangent * factor
+                    call own_dofs%next() 
+                 end do
+              end do
+
+           end do
+
+        end if
+     end do
+  end if
+
 end subroutine tet_Hcurl_interpolator_evaluate_function_components_moments
 
 ! ================================================================================

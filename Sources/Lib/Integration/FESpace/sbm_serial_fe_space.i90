@@ -572,7 +572,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   logical     , allocatable  :: components_code(:)
   integer(ip) , allocatable  :: offset_component(:)
 
-  type(p_scalar_function_t), allocatable :: function_scalar_components(:)
+  type(p_scalar_function_t), allocatable :: function_scalar_components(:,:)
   real(rp)                 , allocatable :: dof_values(:)  
   integer(ip)              , pointer     :: fe_dofs(:)
   real(rp)                 , pointer     :: fixed_dof_values_entries(:)
@@ -581,6 +581,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   type(p_interpolator_t)   , allocatable :: interpolators(:) 
   character(:)             , allocatable :: interpolator_type_
   logical                  , allocatable :: is_void_field(:) 
+  logical                  , allocatable :: n_face_mask(:) 
+  logical                                :: reallocate 
 
   call this%create_fe_cell_iterator(fe)	
   call memalloc( this%get_num_fields(), is_void_field, __FILE__, __LINE__ ) 
@@ -620,7 +622,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   assert(associated(this%conditions) )
   call memalloc ( this%get_num_components(), components_code, __FILE__, __LINE__ )
 
-  allocate ( function_scalar_components(this%triangulation%get_num_dims()), stat=istat); check(istat==0);
+  allocate ( function_scalar_components(this%triangulation%get_num_dims(), fe%get_num_vefs()), stat=istat); check(istat==0);
+  call memalloc( fe%get_num_vefs(), n_face_mask, __FILE__, __LINE__ ) 
 
   do field_id = 1, this%get_num_fields()
      if ( .not. is_void_field(field_id) ) then 
@@ -628,11 +631,22 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
         do while (.not. fe%has_finished() )     
 
            if ( fe%is_local() .and. fe%at_strong_dirichlet_boundary(field_id) .and. (.not. fe%is_void(field_id)) ) then 
+
               reference_fe => fe%get_reference_fe(field_id)	
+              ! Allocate field-dependent values at the first non-void FE 
               if ( .not. (allocated(dof_values) )) call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )	
+              ! Reallocate FE dependent arrays if necessary. Mixed topology case ..? 
+              reallocate = .false.
+              if (allocated(n_face_mask)) reallocate = ( size(n_face_mask) < fe%get_num_vefs() )                                      
+              if ( (.not. allocated(n_face_mask)) .or. reallocate) then
+                 if (allocated(n_face_mask)) call memfree(n_face_mask, __FILE__,__LINE__); 
+                 call memalloc(fe%get_num_vefs(), n_face_mask, __FILE__,__LINE__);
+              end if
+
               call fe%get_field_fe_dofs(field_id,fe_dofs)
 
-              ! Loop over all vefs in FE
+              ! Loop over all vefs in to extract scalar function components over every vef 
+              n_face_mask = .false.
               do vef_lid = 1, fe%get_num_vefs() 
                  call fe%get_vef(vef_lid, vef)  
 
@@ -641,30 +655,38 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
                     call this%conditions%get_components_code( vef%get_set_id(), components_code )
                     component_id = offset_component(field_id) + 1
                     if (components_code(component_id)) then
-
+                       n_face_mask(vef_lid) = .true. 
                        ! Retreive the scalar functions corresponding to the components of the function to be projected
                        do icomp=1, reference_fe%get_num_field_components()
-                          call this%conditions%get_function(vef%get_set_id(), &
-                               component_id+icomp-1, &
-                               function_scalar_components(icomp)%p)
+                          call this%conditions%get_function(vef%get_set_id(),                 &
+                               component_id+icomp-1,             &
+                               function_scalar_components(icomp, vef_lid)%p)
                        end do
-
-                       call interpolators(field_id)%p%evaluate_function_scalar_components_moments( vef_lid,                    & 
-                                                                                                   fe,                         &
-                                                                                                   function_scalar_components, &
-                                                                                                   dof_values,                 &
-                                                                                                   time = time )
-
-                       own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
-                       do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
-                          idof = own_dofs_on_vef_iterator%get_current()   
-                          fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
-                          call own_dofs_on_vef_iterator%next()  
-                       end do
-                       call own_dofs_on_vef_iterator%free() 
                     end if
                  end if
               end do
+
+              ! Evaluate moments on the FE dirichlet boundary 
+              call interpolators(field_id)%p%evaluate_function_scalar_components_moments( n_face_mask,                & 
+                   fe,                         &
+                   function_scalar_components, &
+                   dof_values,                 &
+                   time = time )
+
+
+              ! Insert nodal values on vefs at the dirichlet boundary 
+              do vef_lid = 1, fe%get_num_vefs() 
+                 if ( n_face_mask(vef_lid) ) then 
+                    own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
+                    do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
+                       idof = own_dofs_on_vef_iterator%get_current()   
+                       fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
+                       call own_dofs_on_vef_iterator%next()  
+                    end do
+                    call own_dofs_on_vef_iterator%free() 
+                 end if
+              end do
+
            end if
            call fe%next()		
         end do
@@ -680,10 +702,11 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   end do
   deallocate( interpolators, stat=istat); check(istat==0) 
 
-  deallocate ( function_scalar_components, stat=istat); check(istat==0);
+  deallocate( function_scalar_components, stat=istat); check(istat==0);
   call memfree( components_code, __FILE__, __LINE__ ) 
-  call memfree (offset_component, __FILE__, __LINE__ )
-  call memfree (is_void_field, __FILE__, __LINE__ )
+  call memfree( offset_component, __FILE__, __LINE__ )
+  call memfree( is_void_field, __FILE__, __LINE__ )
+  call memfree( n_face_mask, __FILE__, __LINE__ )
 
 end subroutine serial_fe_space_interpolate_dirichlet_values
 
