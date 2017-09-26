@@ -101,7 +101,7 @@ module par_pb_bddc_linear_elasticity_driver_names
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
-     !procedure        , private :: check_solution_vector
+     procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure                  :: run_simulation
      procedure        , private :: free
@@ -656,6 +656,18 @@ end subroutine free_timers
     integer(ip) :: iparm(64)
     logical, parameter :: si_solver = .false.
 
+    call this%iterative_linear_solver%create(this%fe_space%get_environment())
+    call this%iterative_linear_solver%set_type_from_string(cg_name)
+    call parameter_list%init()
+    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-9_rp)
+    assert(FPLError == 0)
+    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    assert(FPLError == 0)
+    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    call parameter_list%free()
+    
+    return
     if ( this%par_environment%get_l1_rank() == 0 ) then
       if (si_solver) then
         write(*,*) "si_solver:: 1"
@@ -664,6 +676,7 @@ end subroutine free_timers
       end if 
     end if
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    
     
     ! Prepare the internal parameter list of pardiso
     ! See https://software.intel.com/en-us/node/470298 for details
@@ -791,43 +804,47 @@ end subroutine free_timers
     !end select
   end subroutine solve_system
     
-  !subroutine check_solution_vector(this)
-  !  implicit none
-  !  class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
-  !  type(error_norms_vector_t) :: error_norm
-  !  real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
-  !  real(rp) :: error_tolerance
-  !  
-  !  call error_norm%create(this%fe_space,1)
-  !  mean = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-  !  l1 = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-  !  l2 = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-  !  lp = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-  !  linfty = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-  !  h1_s = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-  !  h1 = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-  !  w1p_s = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-  !  w1p = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-  !  w1infty_s = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-  !  w1infty = error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+  subroutine check_solution(this)
+    implicit none
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    type(error_norms_scalar_t) :: scalar_error_norm 
+    type(error_norms_vector_t) :: vector_error_norm 
+    real(rp)    :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    integer(ip) :: field_id
 
-  !  error_tolerance = 1.0e-06
-  !  
-  !  if ( this%par_environment%am_i_l1_root() ) then
-  !    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
-  !    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
-  !    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-  !    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
-  !    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-  !    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
-  !    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-  !    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-  !    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-  !    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-  !    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
-  !  end if
-  !  call error_norm%free()
-  !end subroutine check_solution_vector
+    do field_id = 1, this%linear_elasticity_integration%get_number_fields()
+
+        call vector_error_norm%create(this%fe_space,field_id)    
+          mean      = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, mean_norm)   
+          l1        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, l1_norm)   
+          l2        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, l2_norm)   
+          lp        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, lp_norm)   
+          linfty    = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, linfty_norm)   
+          h1_s      = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, h1_seminorm) 
+          h1        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, h1_norm) 
+          w1p_s     = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1p_seminorm)   
+          w1p       = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1p_norm)   
+          w1infty_s = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1infty_seminorm) 
+          w1infty   = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1infty_norm)  
+          if ( this%par_environment%am_i_l1_root() ) then
+             write(*,'(a12,a8)')      this%linear_elasticity_integration%get_field_name(field_id), ' field: '
+             write(*,'(a20,e32.25)') 'mean_norm:', mean             ; check ( abs(mean) < 1.0e-04 ) 
+             write(*,'(a20,e32.25)') 'l1_norm:', l1                 ; check ( l1 < 1.0e-04 )        
+             write(*,'(a20,e32.25)') 'l2_norm:', l2                 ; check ( l2 < 1.0e-04 )        
+             write(*,'(a20,e32.25)') 'lp_norm:', lp                 ; check ( lp < 1.0e-04 )        
+             write(*,'(a20,e32.25)') 'linfnty_norm:', linfty        ; check ( linfty < 1.0e-04 )    
+             write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s           ; check ( h1_s < 1.0e-04 )      
+             write(*,'(a20,e32.25)') 'h1_norm:', h1                 ; check ( h1 < 1.0e-04 )        
+             write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s         ; check ( w1p_s < 1.0e-04 )     
+             write(*,'(a20,e32.25)') 'w1p_norm:', w1p               ; check ( w1p < 1.0e-04 )       
+             write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s ; check ( w1infty_s < 1.0e-04 ) 
+             write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty       ; check ( w1infty < 1.0e-04 )   
+          end if
+          call vector_error_norm%free()
+     end do
+  end subroutine check_solution
+  
+  !========================================================================================
   
   subroutine write_solution(this)
     implicit none
@@ -847,7 +864,7 @@ end subroutine free_timers
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
         call oh%add_cell_vector(mypart_vector,'l1_rank')
-        call oh%add_cell_vector(set_id_cell_vector, 'set_id')
+        !call oh%add_cell_vector(set_id_cell_vector, 'set_id')
         call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
         call oh%write()
         call oh%close()
@@ -888,7 +905,7 @@ end subroutine free_timers
     call this%solve_system()
     call this%timer_solver_run%stop()
 
-    !call this%check_solution_vector()
+    call this%check_solution()
     call this%write_solution()
     call this%free()
   end subroutine run_simulation
