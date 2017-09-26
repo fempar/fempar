@@ -498,7 +498,6 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, vef
            call cross_product_function_normal%init(0.0_rp) 
            cross_product_function_normal = cross_product(this%facet_function_values(qpoint,1),normal)
 											
-           ! Apply face_map to v_shape_test 
            own_dofs = reference_fe%create_dofs_n_face_iterator(vef_lid)
            do ishape=1, this%fe_2D%get_num_shape_functions() 
               idof = own_dofs%get_current() 
@@ -514,7 +513,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, vef
 														! Apply Piola J^(-t) transormation to test_function ( J diagonal = scaling ) 
 														do idime=1, reference_fe%get_num_dims()  
 														call this%cell_map%get_jacobian_column(idime,qpoint,col_jacobian)
-														call mapped_shape_test%set(idime, 1.0_rp/col_jacobian%nrm2()*mapped_shape_test%get(idime) ) 
+														call mapped_shape_test%set(idime, 1.0_rp/col_jacobian%get(idime)*mapped_shape_test%get(idime) ) 
 														end do 
 
               dof_values(idof) = dof_values(idof) + cross_product_function_normal * mapped_shape_test * factor

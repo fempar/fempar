@@ -650,10 +650,10 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
                        end do
 
                        call interpolators(field_id)%p%evaluate_function_scalar_components_moments( vef_lid,                    & 
-                            fe,                         &
-                            function_scalar_components, &
-                            dof_values,                 &
-                            time = time )
+                                                                                                   fe,                         &
+                                                                                                   function_scalar_components, &
+                                                                                                   dof_values,                 &
+                                                                                                   time = time )
 
                        own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
                        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
@@ -668,7 +668,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
            end if
            call fe%next()		
         end do
-        if ( allocated(dof_values) ) call memfree( dof_values, __FILE__, __LINE__ )
+        if (allocated(dof_values)) call memfree( dof_values, __FILE__, __LINE__ )
      end if
   end do
 

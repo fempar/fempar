@@ -751,7 +751,6 @@ module fe_space_names
    procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
 			procedure                                   :: interpolate_scalar_function                     => par_fe_space_interpolate_scalar_function
 			procedure                                   :: interpolate_vector_function                     => par_fe_space_interpolate_vector_function  
-			generic                                     :: interpolate_function                            => interpolate_scalar_function, interpolate_vector_function
 			procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    procedure                                   :: project_dirichlet_values_curl_conforming        => par_fe_space_project_dirichlet_values_curl_conforming
    
