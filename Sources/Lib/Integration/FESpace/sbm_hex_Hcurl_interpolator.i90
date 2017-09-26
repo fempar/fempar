@@ -294,7 +294,8 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   end if 
 
   if ( reference_fe%get_order() > 1 ) then 
-
+     call this%cell_map%update( this%cell_quadrature ) 
+		
      ! Extract quadrature points coordinates 
 					num_quad_points  = this%cell_quadrature%num_quadrature_points
      quad_points_coordinates => this%cell_map%get_quadrature_points_coordinates()
