@@ -80,6 +80,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%update_topology_from_p4est_mesh()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
         call this%update_cell_ggids()
+        call this%update_cell_myparts()
         call old_lst_vefs_gids%free()
         call this%allocate_and_fill_x_cell_vertex_coordinates()
         call this%clear_refinement_and_coarsening_flags()
@@ -92,6 +93,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%update_topology_from_p4est_mesh()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
         call this%update_cell_ggids()
+        call this%update_cell_myparts()
         call old_lst_vefs_gids%free()
         call this%allocate_and_fill_x_cell_vertex_coordinates()
         call this%clear_refinement_and_coarsening_flags()
@@ -117,11 +119,13 @@ subroutine p4est_par_triangulation_free ( this)
            call F90_p4est_destroy(this%p4est)
            call F90_p4est_connectivity_destroy(this%p4est_connectivity)
            call F90_p4est_mesh_destroy(this%p4est_mesh)
+           call F90_p4est_ghost_destroy(this%p4est_ghost)
         else if ( this%get_num_dims() == 3 ) then  
            call F90_p8est_destroy(this%p4est)
            call F90_p8est_connectivity_destroy(this%p4est_connectivity)
            call F90_p8est_mesh_destroy(this%p4est_mesh)
            call F90_p8est_QHE_destroy(this%QHE)
+           call F90_p8est_ghost_destroy(this%p4est_ghost)
         end if
 
         this%p4est_connectivity = c_null_ptr
@@ -131,6 +135,7 @@ subroutine p4est_par_triangulation_free ( this)
 
         call this%lst_vefs_gids%free()
         call this%cell_ggids%free()
+        call this%cell_myparts%free()
         call this%ptr_cells_around_proper_vefs%free()
         call this%lst_cells_around_proper_vefs%free()
         call this%ptr_cells_around_improper_vefs%free()
@@ -164,6 +169,9 @@ subroutine p4est_par_triangulation_free ( this)
 
         if (allocated(this%quad_to_edge)) &
              call memfree(this%quad_to_edge, __FILE__, __LINE__)
+             
+        if (allocated(this%global_first_quadrant)) &
+             call memfree(this%global_first_quadrant, __FILE__, __LINE__)     
 
         this%num_proper_vefs = -1
         this%num_improper_vefs = -1
@@ -204,6 +212,7 @@ subroutine p4est_par_triangulation_partition ( this )
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call this%update_cell_ggids()
+    call this%update_cell_myparts()
     call this%allocate_and_fill_x_cell_vertex_coordinates()
     ! These two calls involve communications !!!
     !call this%update_cell_set_ids()

@@ -126,20 +126,22 @@ module p4est_bindings_names
      !=================================================================================================================================
      !> summary: Creates p4est_mesh from p4est
      !=================================================================================================================================
-     subroutine F90_p4est_mesh_new(p4est, p4est_mesh) bind(c,name="F90_p4est_mesh_new")
+     subroutine F90_p4est_mesh_new(p4est, p4est_ghost, p4est_mesh) bind(c,name="F90_p4est_mesh_new")
        use, intrinsic :: iso_c_binding
        implicit none
        type(c_ptr), value, intent(in)     :: p4est
+       type(c_ptr)       , intent(inout)  :: p4est_ghost
        type(c_ptr)       , intent(inout)  :: p4est_mesh
      end subroutine F90_p4est_mesh_new
      
      !=================================================================================================================================
      !> summary: Creates p8est_mesh from p8est
      !=================================================================================================================================
-     subroutine F90_p8est_mesh_new(p8est, p8est_mesh) bind(c,name="F90_p8est_mesh_new")
+     subroutine F90_p8est_mesh_new(p8est, p8est_ghost, p8est_mesh) bind(c,name="F90_p8est_mesh_new")
        use, intrinsic :: iso_c_binding
        implicit none
        type(c_ptr), value, intent(in)     :: p8est
+       type(c_ptr)       , intent(inout)  :: p8est_ghost
        type(c_ptr)       , intent(inout)  :: p8est_mesh
      end subroutine F90_p8est_mesh_new
      
@@ -160,7 +162,7 @@ module p4est_bindings_names
        integer(P4EST_F90_LOCIDX), intent(out)    :: local_num_quadrants
        integer(P4EST_F90_LOCIDX), intent(out)    :: ghost_num_quadrants
        integer(P4EST_F90_GLOIDX), intent(out)    :: global_num_quadrants
-       integer(P4EST_F90_GLOIDX), intent(out)    :: global_first_quadrant
+       integer(P4EST_F90_GLOIDX), intent(out)    :: global_first_quadrant(*)
        integer(P4EST_F90_LOCIDX), intent(out)    :: num_half_faces
      end subroutine F90_p4est_get_mesh_info 
      
@@ -181,7 +183,7 @@ module p4est_bindings_names
        integer(P4EST_F90_LOCIDX), intent(out)    :: local_num_quadrants
        integer(P4EST_F90_LOCIDX), intent(out)    :: ghost_num_quadrants
        integer(P4EST_F90_GLOIDX), intent(out)    :: global_num_quadrants
-       integer(P4EST_F90_GLOIDX), intent(out)    :: global_first_quadrant
+       integer(P4EST_F90_GLOIDX), intent(out)    :: global_first_quadrant(*)
        integer(P4EST_F90_LOCIDX), intent(out)    :: num_half_faces
      end subroutine F90_p8est_get_mesh_info 
      
@@ -414,6 +416,24 @@ module p4est_bindings_names
      end subroutine F90_p8est_mesh_destroy
      
      !=================================================================================================================================
+     !> summary: Frees all dynamic memory involved in p4ghost_t
+     !=================================================================================================================================
+     subroutine F90_p4est_ghost_destroy(p4est_ghost) bind(c, name="F90_p4est_ghost_destroy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p4est_ghost
+     end subroutine F90_p4est_ghost_destroy
+     
+     !=================================================================================================================================
+     !> summary: Frees all dynamic memory involved in p8ghost_t
+     !=================================================================================================================================
+     subroutine F90_p8est_ghost_destroy(p8est_ghost) bind(c, name="F90_p8est_ghost_destroy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: p8est_ghost
+     end subroutine F90_p8est_ghost_destroy
+     
+     !=================================================================================================================================
      !> summary: Frees all dynamic memory involved in the quad_to_half_by_edge(:,:) work array
      !=================================================================================================================================
      subroutine F90_p8est_QHE_destroy(QHE) bind(c, name="F90_p8est_QHE_destroy")
@@ -539,6 +559,29 @@ module p4est_bindings_names
        integer(P4EST_F90_QLEVEL), value, intent(in)    :: level
         integer(c_int) :: F90_p8est_quadrant_child_id
      end function F90_p8est_quadrant_child_id
+     
+     !=================================================================================================================================
+     !> summary: Fills the remote processor identifiers of the ghost cells of this processor in 1..P
+     !=================================================================================================================================
+     subroutine F90_p4est_fill_ghost_procs(p4est_ghost,ghost_procs) bind(c, name="F90_p4est_fill_ghost_procs")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX
+       implicit none
+       type(c_ptr)       , value, intent(in) :: p4est_ghost
+       integer(P4EST_F90_LOCIDX), intent(in) :: ghost_procs(*)
+     end subroutine F90_p4est_fill_ghost_procs
+
+     !=================================================================================================================================
+     !> summary: Fills the global identifiers of the ghost cells of this processor
+     !=================================================================================================================================
+     subroutine F90_p4est_fill_ghost_ggids(p4est_ghost,first_global_quadrant,ghost_ggids) bind(c, name="F90_p4est_fill_ghost_ggids")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX, P4EST_F90_GLOIDX
+       implicit none
+       type(c_ptr)       , value, intent(in)  :: p4est_ghost
+       integer(P4EST_F90_GLOIDX), intent(in)  :: first_global_quadrant(*)
+       integer(P4EST_F90_GLOIDX), intent(out) :: ghost_ggids(*)
+     end subroutine F90_p4est_fill_ghost_ggids
      
      !subroutine p4_savemesh(filename, p4est) bind(c)
      !  !=================================================================================================================================

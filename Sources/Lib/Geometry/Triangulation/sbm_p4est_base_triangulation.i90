@@ -100,6 +100,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call this%update_cell_ggids()
+    call this%update_cell_myparts()
     call this%allocate_and_fill_x_cell_vertex_coordinates()
     !call this%update_cell_set_ids()
     !call this%update_vef_set_ids(old_lst_vefs_gids)
@@ -1313,9 +1314,9 @@ subroutine p4est_base_triangulation_update_p4est_mesh(this)
   class(p4est_base_triangulation_t), intent(inout) :: this
 #ifdef ENABLE_P4EST
   if ( this%get_num_dims() == 2 ) then
-    call F90_p4est_mesh_new(this%p4est, this%p4est_mesh)
+    call F90_p4est_mesh_new(this%p4est, this%p4est_ghost, this%p4est_mesh)
   else if ( this%get_num_dims() == 3 ) then
-    call F90_p8est_mesh_new(this%p4est, this%p4est_mesh)
+    call F90_p8est_mesh_new(this%p4est, this%p4est_ghost, this%p4est_mesh)
   end if
 #else
   call this%not_enabled_error()
@@ -1328,20 +1329,29 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
  integer(P4EST_F90_LOCIDX) :: local_num_quadrants
  integer(P4EST_F90_LOCIDX) :: ghost_num_quadrants
  integer(P4EST_F90_GLOIDX) :: global_num_quadrants
- integer(P4EST_F90_GLOIDX) :: global_first_quadrant
  integer(P4EST_F90_LOCIDX) :: num_half_faces
  integer(P4EST_F90_LOCIDX) :: num_half_edges
  type(c_ptr) :: QQ, QF, QH, QC, QQE, QE
  integer(ip) :: i
- 
+ class(environment_t), pointer :: environment
 #ifdef ENABLE_P4EST
+ 
+ if (allocated(this%global_first_quadrant)) then
+   call memfree(this%global_first_quadrant, __FILE__, __LINE__ )
+ end if
+ 
+ environment => this%get_environment()
+ call memalloc(environment%get_l1_size()+1, &
+               this%global_first_quadrant, &
+               __FILE__, __LINE__ )
+ 
  if ( this%get_num_dims() == 2 ) then
   call F90_p4est_get_mesh_info(this%p4est, &
                                this%p4est_mesh, &
                                local_num_quadrants, &
                                ghost_num_quadrants, &
                                global_num_quadrants, &
-                               global_first_quadrant, &
+                               this%global_first_quadrant, &
                                num_half_faces)
  
   if (allocated(this%quad_coords)) &
@@ -1372,7 +1382,7 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
                                local_num_quadrants, &
                                ghost_num_quadrants, &
                                global_num_quadrants, &
-                               global_first_quadrant, &
+                               this%global_first_quadrant, &
                                num_half_faces)
  
   if (allocated(this%quad_coords)) &
@@ -1416,7 +1426,6 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   ! Update the num of triangulation cells
   call this%set_num_local_cells(local_num_quadrants)
   call this%set_num_ghost_cells(ghost_num_quadrants)
-  this%global_first_quadrant = global_first_quadrant 
 #else
   call this%not_enabled_error()
 #endif
@@ -1426,12 +1435,61 @@ subroutine p4est_base_triangulation_update_cell_ggids ( this )
   implicit none
   class(p4est_base_triangulation_t), intent(inout) :: this
   integer(ip) :: i
-  ! Update the cell global identifiers
+  class(environment_t), pointer :: environment
+  integer(igp), pointer :: global_ggids(:)
+  environment => this%get_environment()
+#ifdef ENABLE_P4EST  
+  ! Update the cell global identifiers of local cells
   call this%cell_ggids%resize(this%get_num_local_cells()+this%get_num_ghost_cells())
   do i=1, this%get_num_local_cells()
-    call this%cell_ggids%set(i,this%global_first_quadrant+i)
+    call this%cell_ggids%set(i,this%global_first_quadrant(environment%get_l1_rank()+1)+i)
   end do
+  global_ggids => this%cell_ggids%get_raw_pointer()
+  
+  if ( this%get_num_dims() == 2 ) then
+    call F90_p4est_fill_ghost_ggids(this%p4est_ghost,&
+                                    this%global_first_quadrant, &
+                                    global_ggids(this%get_num_local_cells()+1:))
+  else if ( this%get_num_dims() == 3 ) then
+    check(.false.)
+    !call F90_p8est_fill_ghost_ggids(this%p4est_ghost,&
+    !                                this%first_global_quadrant, &
+    !                                global_ggids(this%get_num_local_cells()+1))
+  end if
+#else  
+  call this%not_enabled_error()
+#endif  
 end subroutine p4est_base_triangulation_update_cell_ggids 
+
+subroutine p4est_base_triangulation_update_cell_myparts ( this )
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  integer(ip) :: i
+  class(environment_t), pointer :: environment
+  integer(ip), pointer :: global_myparts(:)
+  environment => this%get_environment()
+#ifdef ENABLE_P4EST  
+  ! Update the cell global identifiers of local cells
+  call this%cell_myparts%resize(this%get_num_local_cells()+this%get_num_ghost_cells())
+  do i=1, this%get_num_local_cells()
+    call this%cell_myparts%set(i,environment%get_l1_rank()+1)
+  end do
+  global_myparts => this%cell_myparts%get_raw_pointer()
+  if ( this%get_num_dims() == 2 ) then
+    call F90_p4est_fill_ghost_procs(this%p4est_ghost,&                           
+                                      global_myparts(this%get_num_local_cells()+1:)) 
+  else if ( this%get_num_dims() == 3 ) then
+    check(.false.)
+    !call F90_p8est_fill_ghost_myparts(this%p4est_ghost,&
+    !                                this%first_global_quadrant, &
+    !                                global_myparts(this%get_num_local_cells()+1))
+  end if
+#else  
+  call this%not_enabled_error()
+#endif  
+end subroutine p4est_base_triangulation_update_cell_myparts 
+
+
 
 subroutine p4est_create_cell_iterator ( this, cell )
   implicit none

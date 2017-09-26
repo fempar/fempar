@@ -342,9 +342,7 @@ module p4est_triangulation_names
     type(c_ptr) :: p4est              = c_null_ptr
     type(c_ptr) :: p4est_mesh         = c_null_ptr
     type(c_ptr) :: QHE                = c_null_ptr
-    
-    ! TODO: I am pretty sure that a type(c_ptr) :: p4est_ghost
-    !       member variable will be needed (at least in the parallel realization)
+    type(c_ptr) :: p4est_ghost        = c_null_ptr
     
     ! p4est quadrant connectivity (1:NUM_FACES_2D/3D,1:nQuads) => neighbor quadrant
     integer(P4EST_F90_LOCIDX),pointer      :: quad_to_quad(:,:)         => NULL()
@@ -365,7 +363,7 @@ module p4est_triangulation_names
     ! p4est Integer Level of quadrant
     integer(P4EST_F90_QLEVEL), allocatable :: quad_level(:)
     
-    integer(P4EST_F90_GLOIDX)              :: global_first_quadrant
+    integer(P4EST_F90_GLOIDX), allocatable :: global_first_quadrant(:)
     
     type(std_vector_integer_ip_t)          :: lst_vefs_gids
     
@@ -385,6 +383,7 @@ module p4est_triangulation_names
     type(std_vector_integer_ip_t)          :: cell_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
+    type(std_vector_integer_ip_t)          :: cell_myparts
     type(std_vector_integer_igp_t)         :: cell_ggids
   contains
     ! Getters
@@ -401,6 +400,7 @@ module p4est_triangulation_names
     procedure, private        , non_overridable :: get_ptr_vefs_x_cell                           => p4est_base_triangulation_get_ptr_vefs_x_cell
     procedure, private        , non_overridable :: update_lst_vefs_gids_and_cells_around         => p4est_bt_update_lst_vefs_gids_and_cells_around
     procedure, private        , non_overridable :: update_cell_ggids                             => p4est_base_triangulation_update_cell_ggids
+    procedure, private        , non_overridable :: update_cell_myparts                           => p4est_base_triangulation_update_cell_myparts
     procedure, private        , non_overridable :: update_cell_set_ids                           => p4est_bt_update_cell_set_ids
     procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_bt_update_vef_set_ids
     procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_bt_std_vector_transform_length_to_header
@@ -409,7 +409,7 @@ module p4est_triangulation_names
     procedure                 , non_overridable :: clear_refinement_and_coarsening_flags         => p4est_bt_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable :: clear_cell_set_ids                            => p4est_bt_clear_cell_set_ids
     procedure                                   :: fill_cells_set                                => p4est_bt_fill_cells_set
-    procedure, private       , non_overridable :: clear_vef_set_ids                              => p4est_bt_clear_vef_set_ids
+    procedure, private       , non_overridable  :: clear_vef_set_ids                              => p4est_bt_clear_vef_set_ids
 
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator

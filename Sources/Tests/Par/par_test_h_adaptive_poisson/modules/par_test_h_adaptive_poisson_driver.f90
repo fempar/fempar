@@ -317,7 +317,7 @@ end subroutine free_timers
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
 
-    !call this%triangulation%setup_coarse_triangulation()
+    call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)

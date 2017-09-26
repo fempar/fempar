@@ -230,40 +230,42 @@ void F90_p8est_set_user_pointer(int * user_data, p8est_t * p8est)
     p8est_reset_data(p8est,sizeof(int),init_fn_callback_3d,(void *)user_data);
 }
 
-void F90_p4est_mesh_new(p4est_t  *p4est,
+void F90_p4est_mesh_new(p4est_t        *p4est,
+                        p4est_ghost_t **ghost_out,
                         p4est_mesh_t  **mesh_out )
 {
   p4est_mesh_t       *mesh;
   p4est_ghost_t      *ghost;
   
   F90_p4est_mesh_destroy(mesh_out);
+  F90_p4est_ghost_destroy(ghost_out);
 
   //create ghost layer and mesh
   ghost = p4est_ghost_new (p4est, P4EST_CONNECT_FULL);
   mesh = p4est_mesh_new (p4est,ghost,P4EST_CONNECT_FULL);
-
-  p4est_ghost_destroy(ghost);
   
-  //return mesh as pointer address;
+  //return mesh and ghost as pointer address;
   *mesh_out=(p4est_mesh_t *)mesh;
+  *ghost_out=(p4est_ghost_t *)ghost;
 }
 
-void F90_p8est_mesh_new(p8est_t  *p8est,
+void F90_p8est_mesh_new(p8est_t        *p8est,
+                        p8est_ghost_t **ghost_out,
                         p8est_mesh_t  **mesh_out )
 {
   p8est_mesh_t       *mesh;
   p8est_ghost_t      *ghost;
   
   F90_p8est_mesh_destroy(mesh_out);
+  F90_p8est_ghost_destroy(ghost_out);
 
   //create ghost layer and mesh
   ghost = p8est_ghost_new (p8est, P8EST_CONNECT_FULL);
   mesh = p8est_mesh_new (p8est,ghost,P8EST_CONNECT_FULL);
-
-  p8est_ghost_destroy(ghost);
   
-  //return mesh as pointer address;
+  //return mesh and ghost as pointer address;
   *mesh_out=(p8est_mesh_t *)mesh;
+  *ghost_out=(p8est_ghost_t *)ghost;
 }
 
 void F90_p4est_connectivity_destroy(p4est_connectivity_t **p4est_connectivity)
@@ -302,6 +304,22 @@ void F90_p8est_mesh_destroy(p8est_mesh_t **p8est_mesh)
     }   
 }
 
+void F90_p4est_ghost_destroy(p4est_ghost_t **p4est_ghost)
+{
+    if (*p4est_ghost) 
+    {    
+        p4est_ghost_destroy(*p4est_ghost);
+    }   
+}
+
+void F90_p8est_ghost_destroy(p8est_ghost_t **p8est_ghost)
+{
+    if (*p8est_ghost) 
+    {    
+        p8est_ghost_destroy(*p8est_ghost);
+    }   
+}
+
 void F90_p8est_QHE_destroy(p4est_locidx_t **QHE)
 {
     if (*QHE) 
@@ -329,7 +347,11 @@ void F90_p4est_get_mesh_info (p4est_t        *p4est,
     *local_num_quadrants   = p4est->local_num_quadrants;
     *ghost_num_quadrants   = mesh->ghost_num_quadrants;
     *global_num_quadrants  = p4est->global_num_quadrants;
-    *global_first_quadrant = p4est->global_first_quadrant[p4est->mpirank];
+    
+    for ( int i=0; i <= p4est->mpisize; i++ ) 
+    {
+      global_first_quadrant[i] = p4est->global_first_quadrant[i];
+    }
     *num_half_faces        = mesh->quad_to_half->elem_count;
 }
 
@@ -343,7 +365,7 @@ void F90_p8est_get_mesh_info (p8est_t        *p8est,
 {
     SC_CHECK_ABORTF (mesh->local_num_quadrants == p8est->local_num_quadrants,
                      "mesh->local_num_quadrants [%d] and p8est->local_num_quadrants mismatch [%d]!",
-                     mesh->local_num_quadrants,  p8est->local_num_quadrants);
+                     mesh->local_num_quadrants,  p8est->local_num_quadrants); 
     
     SC_CHECK_ABORTF (p8est->trees->elem_count == 1,
                      "p8est with more [%ld] than one tree!", p8est->trees->elem_count);
@@ -351,7 +373,10 @@ void F90_p8est_get_mesh_info (p8est_t        *p8est,
     *local_num_quadrants   = p8est->local_num_quadrants;
     *ghost_num_quadrants   = mesh->ghost_num_quadrants;
     *global_num_quadrants  = p8est->global_num_quadrants;
-    *global_first_quadrant = p8est->global_first_quadrant[p8est->mpirank];
+    for ( int i=0; i <= p8est->mpisize; i++ ) 
+    {
+      global_first_quadrant[i] = p8est->global_first_quadrant[i];
+    }
     *num_half_faces        = mesh->quad_to_half->elem_count;
 }
 
@@ -1051,7 +1076,32 @@ int F90_p8est_quadrant_child_id ( p4est_qcoord_t q_x,
     return p8est_quadrant_child_id ( &q );
 }
 
+void F90_p4est_fill_ghost_procs ( p4est_ghost_t  * p4est_ghost,
+                                  p4est_locidx_t * ghost_procs )
+                                   
+{
+  for (int i=0; i < p4est_ghost->mpisize; i++)
+  {
+    for (int j=p4est_ghost->proc_offsets[i]; j<p4est_ghost->proc_offsets[i+1]; j++)
+    {
+       ghost_procs[j] = i+1;
+    }
+  }  
+}
 
+void F90_p4est_fill_ghost_ggids( p4est_ghost_t  * p4est_ghost,
+                                 p4est_gloidx_t * first_global_quadrant,
+                                 p4est_gloidx_t * ghost_ggids )
+{
+    p4est_quadrant_t * ghost_quadrants = (p4est_quadrant_t *) p4est_ghost->ghosts.array;
+    for (int i=0; i < p4est_ghost->mpisize; i++)
+    {
+        for (int j=p4est_ghost->proc_offsets[i]; j<p4est_ghost->proc_offsets[i+1]; j++)
+        {
+            ghost_ggids[j] = first_global_quadrant[i] + (p4est_gloidx_t) (ghost_quadrants[j].p.piggy3.local_num+1) ;
+        }
+    }   
+}
 
 /** Compute the position of this child within its siblings.
  * \return Returns its child id in 0..3

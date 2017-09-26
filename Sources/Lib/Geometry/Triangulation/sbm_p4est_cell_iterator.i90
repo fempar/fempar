@@ -87,7 +87,7 @@ function p4est_cell_iterator_get_mypart (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
   integer(ip) :: p4est_cell_iterator_get_mypart
-  p4est_cell_iterator_get_mypart = 1
+  p4est_cell_iterator_get_mypart = this%p4est_triangulation%cell_myparts%get(this%get_gid())
 end function p4est_cell_iterator_get_mypart
 
 subroutine p4est_cell_iterator_set_set_id(this,set_id)
@@ -136,7 +136,7 @@ function p4est_cell_iterator_get_ggid (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
   integer(igp) :: p4est_cell_iterator_get_ggid
-  p4est_cell_iterator_get_ggid = this%get_gid()
+  p4est_cell_iterator_get_ggid = this%p4est_triangulation%cell_ggids%get(this%get_gid())
 end function p4est_cell_iterator_get_ggid
 
 function p4est_cell_iterator_get_vef_gid (this, vef_lid)
