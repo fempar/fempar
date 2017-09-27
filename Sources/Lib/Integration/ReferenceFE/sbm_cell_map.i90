@@ -149,6 +149,7 @@ subroutine cell_map_update( this, quadrature)
   nnode = size(this%interpolation%shape_functions,2)
   nlocs = this%interpolation%num_quadrature_points
 
+		this%measure = 0.0_rp 
   do ilocs=1,nlocs
      ! Matmul is not thread safe
      !map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
@@ -164,6 +165,7 @@ subroutine cell_map_update( this, quadrature)
      end do
      ! J^(-t)
      call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),ndime)
+				 this%measure = this%measure + this%det_jacobian(ilocs) * quadrature%get_weight(ilocs)
   end do
   ! When using oriented tetrahedral meshes |J| may become negative, absolute value should be used
   ! to ensure positiveness

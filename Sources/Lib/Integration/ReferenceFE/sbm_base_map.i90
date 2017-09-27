@@ -120,3 +120,11 @@ function base_map_get_reference_h ( this )
   real(rp) :: base_map_get_reference_h
   base_map_get_reference_h = this%reference_fe_characteristic_length
 end function base_map_get_reference_h
+
+!==================================================================================================
+function base_map_get_measure( this )
+  implicit none
+  class(base_map_t), intent(in) :: this
+  real(rp) :: base_map_get_measure
+  base_map_get_measure = this%measure
+end function base_map_get_measure
