@@ -656,18 +656,18 @@ end subroutine free_timers
     integer(ip) :: iparm(64)
     logical, parameter :: si_solver = .false.
 
-    call this%iterative_linear_solver%create(this%fe_space%get_environment())
-    call this%iterative_linear_solver%set_type_from_string(cg_name)
-    call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-9_rp)
-    assert(FPLError == 0)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
-    assert(FPLError == 0)
-    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-    call parameter_list%free()
+    !call this%iterative_linear_solver%create(this%fe_space%get_environment())
+    !call this%iterative_linear_solver%set_type_from_string(cg_name)
+    !call parameter_list%init()
+    !FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-9_rp)
+    !assert(FPLError == 0)
+    !FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    !assert(FPLError == 0)
+    !call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+    !call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    !call parameter_list%free()
+    !return
     
-    return
     if ( this%par_environment%get_l1_rank() == 0 ) then
       if (si_solver) then
         write(*,*) "si_solver:: 1"
@@ -784,9 +784,11 @@ end subroutine free_timers
 
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
+    write(*,*)'2-norm',rhs%nrm2()
     dof_values => this%solution%get_free_dof_values()
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)
+    write(*,*)'solution',dof_values%nrm2()
     
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
@@ -905,7 +907,7 @@ end subroutine free_timers
     call this%solve_system()
     call this%timer_solver_run%stop()
 
-    call this%check_solution()
+    !call this%check_solution()
     call this%write_solution()
     call this%free()
   end subroutine run_simulation
