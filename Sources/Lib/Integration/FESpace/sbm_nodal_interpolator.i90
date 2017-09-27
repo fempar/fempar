@@ -50,9 +50,6 @@ subroutine nodal_interpolator_create( this, fe_space, field_id  )
 	
   do reference_fe_id = 1, num_reference_fes 
 		reference_fe => fe_space%get_reference_fe(reference_fe_id) 
-		
-		! Only order may change in the field_id projection, only fill reference_fes that share topology and type
-		massert ( reference_fe%get_topology() == source_reference_fe%get_topology(), 'create_nodal_interpolator :: mixed topology FEs in the same field' )
 		 
   reference_fe_type_is_nodal = .false. 
 		select type( reference_fe ) 
@@ -133,7 +130,7 @@ end subroutine nodal_interpolator_evaluate_scalar_function_moments
 ! ================================================================================
 subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, n_face_mask, time ) 
   implicit none
-  class(nodal_interpolator_t)        , intent(inout) :: this
+  class(nodal_interpolator_t)     , intent(inout) :: this
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(vector_function_t)        , intent(in)    :: vector_function
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 

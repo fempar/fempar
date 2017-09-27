@@ -1241,17 +1241,17 @@ end type nodal_interpolator_t
  type, extends(interpolator_t), abstract :: Hcurl_interpolator_t 
  private 
  ! Maps 
- type(edge_map_t)       :: edge_map 
- type(facet_map_t)      :: facet_map 
- type(cell_map_t)       :: cell_map 
+ type(edge_map_t)  , allocatable  :: edge_maps(:) 
+ type(facet_map_t) , allocatable  :: facet_maps(:) 
+ type(cell_map_t)  , allocatable  :: cell_maps(:) 
  ! Quadratures 
- type(quadrature_t )    :: edge_quadrature 
- type(quadrature_t )    :: facet_quadrature 
- type(quadrature_t )    :: cell_quadrature 
+ type(quadrature_t)  , allocatable  :: edge_quadratures(:) 
+ type(quadrature_t)  , allocatable  :: facet_quadratures(:) 
+ type(quadrature_t)  , allocatable  :: cell_quadratures(:)  
  ! Interpolation 
- type(interpolation_t ) :: edge_interpolation
- type(interpolation_t ) :: facet_interpolation 
- type(interpolation_t ) :: cell_interpolation 
+ type(interpolation_t) , allocatable :: edge_interpolations(:)
+ type(interpolation_t) , allocatable :: facet_interpolations(:) 
+ type(interpolation_t) , allocatable :: cell_interpolations(:)  
  ! Function values arrays 
  type(vector_field_t), allocatable :: edge_function_values(:,:) 
  type(vector_field_t), allocatable :: facet_function_values(:,:) 
@@ -1260,18 +1260,18 @@ end type nodal_interpolator_t
  real(rp), allocatable             :: scalar_function_values_on_edge(:,:)
  real(rp), allocatable             :: scalar_function_values_on_facet(:,:)
 contains   
- procedure :: evaluate_scalar_function_moments => Hcurl_interpolator_evaluate_scalar_function_moments 
-end type Hcurl_interpolator_t
+ procedure :: evaluate_scalar_function_moments    => Hcurl_interpolator_evaluate_scalar_function_moments 
+	procedure :: reallocate_function_arrays          => Hcurl_interpolator_reallocate_function_arrays
+	procedure :: reallocate_boundary_function_arrays => Hcurl_interpolator_reallocate_boundary_function_arrays 
+	generic :: reallocate_arrays                     => reallocate_function_arrays, reallocate_boundary_function_arrays 
+end type Hcurl_interpolator_t 
 
 type, extends(Hcurl_interpolator_t) :: hex_Hcurl_interpolator_t 
 private       
-type(hex_lagrangian_reference_fe_t)          :: fe_1D 
-type(hex_nedelec_reference_fe_t)             :: fe_2D 
-type(hex_raviart_thomas_reference_fe_t )     :: fe 
-type(interpolation_t)                        :: real_facet_interpolation
-type(interpolation_t)                        :: real_cell_interpolation
-type(hex_lagrangian_reference_fe_t)          :: fe_2D_geo 
-type(cell_map_t)                             :: cell_map_2D 
+type(hex_lagrangian_reference_fe_t)       , allocatable   :: fes_1D(:) 
+type(hex_nedelec_reference_fe_t)          , allocatable   :: fes_2D(:) 
+type(hex_raviart_thomas_reference_fe_t )  , allocatable   :: fes_rt(:) 
+type(interpolation_t)                     , allocatable   :: real_cell_interpolations(:) 
 contains 
 procedure :: create                                             => hex_Hcurl_interpolator_create
 procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments		
@@ -1281,9 +1281,9 @@ end type hex_Hcurl_interpolator_t
 
 type, extends(Hcurl_interpolator_t) :: tet_Hcurl_interpolator_t 
 private       
-type(tet_lagrangian_reference_fe_t)          :: fe_1D 
-type(tet_lagrangian_reference_fe_t)          :: fe_2D 
-type(tet_lagrangian_reference_fe_t )         :: fe 
+type(tet_lagrangian_reference_fe_t)    , allocatable      :: fes_1D(:)
+type(tet_lagrangian_reference_fe_t)    , allocatable      :: fes_2D(:) 
+type(tet_lagrangian_reference_fe_t )   , allocatable      :: fes_lagrangian(:) 
 contains 
 procedure :: create                                             => tet_Hcurl_interpolator_create
 procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments		
@@ -1320,6 +1320,7 @@ contains
 
 #include "sbm_interpolator.i90"
 #include "sbm_nodal_interpolator.i90"
+#include "sbm_Hcurl_interpolator.i90"
 #include "sbm_hex_Hcurl_interpolator.i90" 
 #include "sbm_tet_Hcurl_interpolator.i90"
 
