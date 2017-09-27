@@ -305,6 +305,24 @@ function marching_cubes_get_max_num_shape_functions(this)
 end function marching_cubes_get_max_num_shape_functions
 
 !========================================================================================
+function marching_cubes_get_num_facets(this)
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  integer(ip) :: marching_cubes_get_num_facets 
+  marching_cubes_get_num_facets = this%mc_table_num_facets
+end function marching_cubes_get_num_facets
+
+!========================================================================================
+function marching_cubes_get_num_fitted_sub_facets(this,ifacet,icase)
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  integer(ip), intent(in) :: ifacet
+  integer(ip), intent(in) :: icase
+  integer(ip) :: marching_cubes_get_num_fitted_sub_facets 
+  marching_cubes_get_num_fitted_sub_facets = this%mc_table_num_fitted_sub_facets_x_case_and_facet(ifacet,icase)
+end function marching_cubes_get_num_fitted_sub_facets
+
+!========================================================================================
 function marching_cubes_get_num_dims(this) result (val)
   implicit none
   class(marching_cubes_t), intent(in)    :: this

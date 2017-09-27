@@ -159,8 +159,9 @@ subroutine uim_init_reference_subelem( this )
   ! 2*d*p Needed for the penalty terms 
   call this%geo_reference_subelem%create_facet_quadrature(this%quadrature_subfacet,degree=2*num_dim*p)
   
-  ! Create the fe map
+  ! Create the fe maps
   call this%cell_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
+  call this%facet_map_subfacet%create( this%quadrature_subfacet, this%geo_reference_subelem )
 
 end subroutine uim_init_reference_subelem
 
@@ -168,6 +169,7 @@ end subroutine uim_init_reference_subelem
 subroutine uim_free_reference_subelem( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
+  call this%facet_map_subfacet%free()
   call this%cell_map_subelem%free()
   call this%geo_reference_subelem%free()
   call this%quadrature_subelem%free()
@@ -413,3 +415,87 @@ subroutine uim_free_cut_boundary_integration( this )
   call this%empty_piecewise_cell_map%free()
 
 end subroutine uim_free_cut_boundary_integration
+
+!========================================================================================
+subroutine uim_init_cut_fitted_facets_integration( this )
+  implicit none
+  class(unfitted_integration_manager_t), intent(inout) :: this
+
+  ! TODO
+
+  integer(ip) :: num_dim, num_gp, num_gp_subfacet, num_subfacets, num_fields
+  integer(ip) :: mc_case, mc_num_cases, istat, mc_num_facets, mc_facet
+
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(reference_fe_t), pointer :: geo_reference_elem
+
+  call this%free_cut_fitted_facets_integration()
+
+  num_dim = this%marching_cubes%get_num_dims()
+  num_gp_subfacet = this%quadrature_subfacet%get_num_quadrature_points()
+  mc_num_cases = this%marching_cubes%get_num_mc_cases()
+  mc_num_facets = this%marching_cubes%get_num_facets()
+
+  allocate( this%cut_fitted_facet_quadratures(mc_num_facets,mc_num_cases), stat=istat ); check(istat==0_ip)
+  do mc_case = 1, mc_num_cases
+    do mc_facet = 1, mc_num_facets
+      num_subfacets = this%marching_cubes%get_num_fitted_sub_facets(mc_num_facets,mc_case)
+      num_gp = num_gp_subfacet*num_subfacets
+      call this%cut_fitted_facet_quadratures(mc_facet,mc_case)%create( num_dim, num_gp )
+    end do
+  end do
+
+  ! We assume that the same geom ref element is in all the mesh
+  ! We assume that the same ref element is in all the mesh (but can be different amnong fields)
+  call this%fe_space%create_fe_cell_iterator(fe)
+  geo_reference_elem => fe%get_reference_fe_geo()
+
+  allocate( this%cut_fitted_facet_maps(mc_num_facets,mc_num_cases), stat=istat ); check(istat==0_ip)
+  do mc_case = 1, mc_num_cases
+    do mc_facet = 1, mc_num_facets
+      call this%cut_fitted_facet_maps(mc_facet,mc_case)%create(&
+        this%cut_fitted_facet_quadratures(mc_facet,mc_case), geo_reference_elem, geo_reference_elem )
+    end do
+  end do
+
+  ! cell integrators
+  !allocate( this%cut_cell_integrators(mc_num_facets,mc_num_cases), stat=istat ); check(istat==0_ip)
+
+end subroutine uim_init_cut_fitted_facets_integration
+
+!========================================================================================
+subroutine uim_free_cut_fitted_facets_integration( this )
+
+  implicit none
+  class(unfitted_integration_manager_t), intent(inout) :: this
+
+  integer(ip) :: id, istat, jd
+
+  if ( allocated( this%cut_fitted_facet_quadratures ) ) then
+    do id = 1, size(this%cut_fitted_facet_quadratures,1)
+      do jd = 1, size(this%cut_fitted_facet_quadratures,2)
+        call this%cut_fitted_facet_quadratures(id,jd)%free()
+      end do
+    end do
+    deallocate( this%cut_fitted_facet_quadratures , stat = istat ); check(istat==0)
+  end if
+
+  if ( allocated( this%cut_fitted_facet_maps ) ) then
+    do id = 1, size(this%cut_fitted_facet_maps,1)
+      do jd = 1, size(this%cut_fitted_facet_maps,2)
+        call this%cut_fitted_facet_maps(id,jd)%free()
+      end do
+    end do
+    deallocate( this%cut_fitted_facet_maps , stat = istat ); check(istat==0)
+  end if
+
+  if ( allocated( this%cut_fitted_facet_integrators ) ) then
+    do id = 1, size(this%cut_fitted_facet_integrators,1 )
+      do jd = 1, size(this%cut_fitted_facet_integrators,2 )
+      call this%cut_fitted_facet_integrators(id,jd)%free()
+      end do
+    end do
+    deallocate( this%cut_fitted_facet_integrators , stat = istat ); check(istat==0)
+  end if
+
+end subroutine uim_free_cut_fitted_facets_integration

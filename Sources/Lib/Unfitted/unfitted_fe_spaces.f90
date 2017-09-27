@@ -106,6 +106,24 @@ module unfitted_fe_spaces_names
 
   end type unfitted_hp_adaptive_fe_cell_iterator_t
 
+ type, extends(fe_facet_iterator_t) :: unfitted_fe_facet_iterator_t
+    private
+    class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
+    type(facet_maps_t), pointer :: unfitted_facet_maps => NULL()
+  contains
+
+    procedure :: create                               => unfitted_fe_facet_iterator_create
+    procedure :: free                                 => unfitted_fe_facet_iterator_free
+    procedure :: update_integration                   => unfitted_fe_facet_iterator_update_integration
+    procedure, private :: update_quadrature           => unfitted_fe_facet_iterator_update_quadrature
+    procedure :: get_quadrature                       => unfitted_fe_facet_iterator_get_quadrature
+    procedure :: update_facet_maps                    => unfitted_fe_facet_iterator_update_facet_maps
+    procedure :: get_quadrature_points_coordinates    => unfitted_fe_facet_iterator_get_quadrature_points_coordinates
+    procedure :: get_normals                          => unfitted_fe_facet_iterator_get_normals
+    procedure :: get_det_jacobian                     => unfitted_fe_facet_iterator_get_det_jacobian
+    procedure :: compute_characteristic_length        => unfitted_fe_facet_iterator_compute_characteristic_length
+
+  end type unfitted_fe_facet_iterator_t
 
   type :: unfitted_integration_manager_t
 
@@ -129,6 +147,12 @@ module unfitted_fe_spaces_names
     type(cell_map_t),            allocatable :: cut_boundary_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_boundary_cell_integrators(:,:)    
 
+    ! All the machinery to integrate in fitted subfacets
+    type(facet_map_t)                     :: facet_map_subfacet
+    type(quadrature_t),       allocatable :: cut_fitted_facet_quadratures(:,:)
+    type(facet_maps_t),       allocatable :: cut_fitted_facet_maps(:,:)
+    type(facet_integrator_t), allocatable :: cut_fitted_facet_integrators(:,:)
+
     ! Auxiliary dummy empty quadratures
     type(quadrature_t)             :: empty_quadrature
     type(cell_map_t)                 :: empty_cell_map
@@ -149,6 +173,8 @@ module unfitted_fe_spaces_names
       procedure, non_overridable, private :: free_cut_integration   => uim_free_cut_integration
       procedure, non_overridable, private :: init_cut_boundary_integration   => uim_init_cut_boundary_integration
       procedure, non_overridable, private :: free_cut_boundary_integration   => uim_free_cut_boundary_integration
+      procedure, non_overridable, private :: init_cut_fitted_facets_integration   => uim_init_cut_fitted_facets_integration
+      procedure, non_overridable, private :: free_cut_fitted_facets_integration   => uim_free_cut_fitted_facets_integration
 
   end type unfitted_integration_manager_t
 
@@ -230,6 +256,7 @@ module unfitted_fe_spaces_names
 contains
 
 #include "../Unfitted/sbm_unfitted_fe_cell_iterator.i90"
+#include "../Unfitted/sbm_unfitted_fe_facet_iterator.i90"
 #include "../Unfitted/sbm_unfitted_hp_adaptive_fe_cell_iterator.i90"
 #include "../Unfitted/sbm_unfitted_integration_manager.i90"
 #include "../Unfitted/sbm_serial_unfitted_fe_space.i90"

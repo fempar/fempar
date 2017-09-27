@@ -116,6 +116,20 @@ subroutine vef_iterator_update_sub_triangulation( this )
   mcheck(.false.,'This procedure can only be called by some child derived data types')
 end subroutine vef_iterator_update_sub_triangulation
 
+function vef_iterator_get_mc_case(this)
+  implicit none
+  class(vef_iterator_t), intent(in) :: this
+  integer(ip) :: vef_iterator_get_mc_case
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end function vef_iterator_get_mc_case
+
+function vef_iterator_get_facet_lid(this)
+  implicit none
+  class(vef_iterator_t), intent(in) :: this
+  integer(ip) :: vef_iterator_get_facet_lid
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end function vef_iterator_get_facet_lid
+
 function vef_iterator_get_num_subvefs( this ) result ( num_subvefs )
   implicit none
   class(vef_iterator_t), intent(in)    :: this

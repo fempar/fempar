@@ -138,6 +138,15 @@ subroutine facet_map_update(this,reorientation_factor,quadrature)
 end subroutine facet_map_update
 
 !==================================================================================================
+subroutine facet_map_update_interpolation( this, quadrature, reference_fe_geometry )
+  implicit none
+  class(facet_map_t)               , intent(inout) :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
+  call reference_fe_geometry%create_facet_interpolation( quadrature, this%interpolation )
+end subroutine facet_map_update_interpolation
+
+!==================================================================================================
 subroutine facet_map_free( this )
   implicit none
   class(facet_map_t), intent(inout) :: this

@@ -182,6 +182,8 @@ module triangulation_names
      !procedure(is_exterior_subvef_interface)           , deferred :: is_exterior_subvef
      !procedure(is_interior_subvef_interface)           , deferred :: is_interior_subvef
      procedure               :: update_sub_triangulation  => vef_iterator_update_sub_triangulation
+     procedure               :: get_mc_case               => vef_iterator_get_mc_case
+     procedure               :: get_facet_lid             => vef_iterator_get_facet_lid
      procedure               :: get_num_subvefs           => vef_iterator_get_num_subvefs
      procedure               :: get_num_subvef_nodes      => vef_iterator_get_num_subvef_nodes
      procedure               :: get_phys_coords_of_subvef => vef_iterator_get_phys_coords_of_subvef

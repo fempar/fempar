@@ -307,7 +307,9 @@ module fe_space_names
    
   type p_fe_cell_iterator_t
     class(fe_cell_iterator_t), pointer :: p 
-  end type p_fe_cell_iterator_t
+  end type p_fe_cell_iterator_t 
+  
+  public :: p_fe_cell_iterator_t
   
   type :: base_fe_vef_iterator_t
     private
@@ -328,6 +330,19 @@ module fe_space_names
      procedure, non_overridable          :: is_ghost                  => base_fe_vef_iterator_is_ghost
      procedure, non_overridable          :: is_at_interface           => base_fe_vef_iterator_is_at_interface
      procedure, non_overridable          :: is_facet                   => base_fe_vef_iterator_is_facet
+     
+     procedure, non_overridable          :: update_sub_triangulation  => base_fe_vef_iterator_update_sub_triangulation
+     procedure, non_overridable          :: get_mc_case               => base_fe_vef_iterator_get_mc_case
+     procedure, non_overridable          :: get_facet_lid             => base_fe_vef_iterator_get_facet_lid
+     procedure, non_overridable          :: get_num_subvefs           => base_fe_vef_iterator_get_num_subvefs
+     procedure, non_overridable          :: get_num_subvef_nodes      => base_fe_vef_iterator_get_num_subvef_nodes
+     procedure, non_overridable          :: get_phys_coords_of_subvef => base_fe_vef_iterator_get_phys_coords_of_subvef
+     procedure, non_overridable          :: get_ref_coords_of_subvef  => base_fe_vef_iterator_get_ref_coords_of_subvef
+     procedure, non_overridable          :: is_cut                    => base_fe_vef_iterator_is_cut
+     procedure, non_overridable          :: is_exterior               => base_fe_vef_iterator_is_exterior
+     procedure, non_overridable          :: is_interior               => base_fe_vef_iterator_is_interior
+     procedure, non_overridable          :: is_exterior_subvef        => base_fe_vef_iterator_is_exterior_subvef
+     procedure, non_overridable          :: is_interior_subvef        => base_fe_vef_iterator_is_interior_subvef
      
      procedure                           :: get_num_cells_around      => base_fe_vef_iterator_get_num_cells_around
      procedure, non_overridable          :: base_fe_vef_iterator_get_cell_around
@@ -366,7 +381,7 @@ module fe_space_names
     class(fe_cell_iterator_t) , allocatable  :: fe1
     class(fe_cell_iterator_t) , allocatable  :: fe2
     type(p_fe_cell_iterator_t)               :: fes_around(2)
-    type(facet_maps_t)  , pointer           :: facet_maps => NULL()
+    type(facet_maps_t), pointer              :: facet_maps => NULL()
     type(p_facet_integrator_t), allocatable :: facet_integrators(:)
    contains
     procedure                           :: create                         => fe_facet_iterator_create
@@ -381,7 +396,7 @@ module fe_space_names
     procedure, non_overridable          :: is_at_field_boundary          => fe_facet_iterator_is_at_field_boundary
     procedure, non_overridable          :: is_at_field_interior          => fe_facet_iterator_is_at_field_interior
     procedure, non_overridable, private :: update_fes_around             => fe_facet_iterator_update_fes_around
-    procedure, non_overridable          :: update_integration            => fe_facet_iterator_update_integration
+    procedure                           :: update_integration            => fe_facet_iterator_update_integration
     procedure, non_overridable          :: get_num_dofs_field            => fe_facet_iterator_get_num_dofs_field
     procedure, non_overridable, private :: fe_facet_iterator_assembly_array
     procedure, non_overridable, private :: fe_facet_iterator_assembly_matrix
@@ -394,22 +409,24 @@ module fe_space_names
     procedure, non_overridable          :: get_default_quadrature_degree  => fe_facet_iterator_get_default_quadrature_degree
     procedure, non_overridable          :: get_quadrature_degree          => fe_facet_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree          => fe_facet_iterator_set_quadrature_degree
-    procedure, non_overridable          :: get_quadrature                 => fe_facet_iterator_get_quadrature
+    procedure                           :: get_quadrature                 => fe_facet_iterator_get_quadrature
 
     procedure, non_overridable, private :: get_facet_maps                => fe_facet_iterator_get_facet_map
-    procedure, non_overridable          :: update_facet_maps             => fe_facet_iterator_update_facet_maps
+    procedure                           :: update_facet_maps             => fe_facet_iterator_update_facet_maps
     procedure, non_overridable          :: update_facet_integrators      => fe_facet_iterator_update_facet_integrators
     procedure, non_overridable, private :: get_facet_integrator          => fe_facet_iterator_get_facet_integrator
     procedure, non_overridable          :: compute_surface                => fe_facet_iterator_compute_surface
     procedure                 , private :: compute_fe_facet_permutation_index => fe_facet_iterator_compute_fe_facet_permutation_index
     procedure                           :: get_lpos_within_cell_around    => fe_facet_iterator_get_lpos_within_cell_around
     procedure, non_overridable          :: get_facet_permutation_index     => fe_facet_iterator_get_fe_facet_permutation_index 
-    procedure                 , private :: get_subfacet_lid_cell_around    => fe_facet_iterator_get_subfacet_lid_cell_around
+    procedure                           :: get_subfacet_lid_cell_around    => fe_facet_iterator_get_subfacet_lid_cell_around
     
-    procedure, non_overridable :: get_quadrature_points_coordinates => fe_facet_iterator_get_quadrature_points_coordinates
-    procedure, non_overridable :: get_normals                       => fe_facet_iterator_get_normals
-    procedure, non_overridable :: get_det_jacobian                  => fe_facet_iterator_get_det_jacobian
-    procedure, non_overridable :: compute_characteristic_length     => fe_facet_iterator_compute_characteristic_length
+    procedure                           :: get_quadrature_points_coordinates => fe_facet_iterator_get_quadrature_points_coordinates
+    procedure                           :: get_normals                       => fe_facet_iterator_get_normals
+    procedure                           :: get_det_jacobian                  => fe_facet_iterator_get_det_jacobian
+    procedure                           :: compute_characteristic_length     => fe_facet_iterator_compute_characteristic_length
+    
+    procedure                           :: get_fes_around  => fe_facet_iterator_get_fes_around
     
     
     procedure, non_overridable :: get_values_scalar     => fe_facet_iterator_get_values_scalar
@@ -1139,7 +1156,7 @@ module fe_space_names
    procedure          :: get_num_cells_around           => hp_adaptive_fe_facet_iterator_get_num_cells_around
    procedure, private :: fe_vef_iterator_get_fe_around  => hp_adaptive_fe_facet_iterator_get_fe_around
    procedure          :: get_lpos_within_cell_around    => hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around
-   procedure, private :: get_subfacet_lid_cell_around    => hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around
+   procedure          :: get_subfacet_lid_cell_around    => hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around
  end type hp_adaptive_fe_facet_iterator_t
  
  public :: serial_hp_adaptive_fe_space_t, hp_adaptive_fe_cell_iterator_t

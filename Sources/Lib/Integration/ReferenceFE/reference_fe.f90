@@ -158,7 +158,7 @@ module reference_fe_names
     real(rp)                    :: reference_fe_characteristic_length
   contains
     procedure                  :: free                              => base_map_free
-    procedure, non_overridable :: update_interpolation              => base_map_update_interpolation
+    procedure                  :: update_interpolation              => base_map_update_interpolation
     procedure, non_overridable :: get_coordinates                   => base_map_get_coordinates
     procedure, non_overridable :: get_quadrature_points_coordinates => base_map_get_quadrature_points_coordinates
     procedure, non_overridable :: compute_quadrature_points_coordinates    => base_map_compute_quadrature_points_coordinates
@@ -184,6 +184,7 @@ module reference_fe_names
      procedure, non_overridable :: restricted_to_facet                    => cell_map_restricted_to_facet
      procedure                  :: free                              => cell_map_free
      procedure, non_overridable :: update                            => cell_map_update
+     procedure, non_overridable :: update_interpolation_restricted_to_facet => cell_map_update_interpolation_restricted_to_facet
      procedure, non_overridable :: print                             => cell_map_print
      procedure, non_overridable :: compute_h                         => cell_map_compute_h
      procedure, non_overridable :: compute_h_min                     => cell_map_compute_h_min
@@ -202,6 +203,7 @@ module reference_fe_names
    contains
      procedure, non_overridable :: create            => facet_map_create
      procedure, non_overridable :: update            => facet_map_update
+     procedure                  :: update_interpolation => facet_map_update_interpolation
      procedure                  :: free              => facet_map_free
      procedure, non_overridable :: get_normal        => facet_map_get_normal
      procedure, non_overridable :: get_raw_normals   => facet_map_get_raw_normals
@@ -241,10 +243,13 @@ module reference_fe_names
    contains
      procedure, non_overridable :: create               => cell_map_facet_restriction_create
      procedure, non_overridable :: update               => cell_map_facet_restriction_update
+     procedure, non_overridable :: update_interpolation => cell_map_facet_restriction_update_interpolation
      procedure, non_overridable :: free                 => cell_map_facet_restriction_free
      procedure, non_overridable :: get_coordinates      => cell_map_facet_restriction_get_coordinates
      procedure, non_overridable :: get_current_cell_map => cell_map_facet_restriction_get_current_cell_map 
   end type cell_map_facet_restriction_t
+  
+  public :: cell_map_facet_restriction_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
   type polytope_t
@@ -1663,6 +1668,7 @@ contains
   procedure, non_overridable :: get_normals          => facet_maps_get_normals
   procedure, non_overridable :: get_det_jacobian     => facet_maps_get_det_jacobian
   procedure, non_overridable :: get_facet_map        => facet_maps_get_facet_map
+  procedure, non_overridable :: get_cell_maps        => facet_maps_get_cell_maps
 end type facet_maps_t
 
 public :: facet_maps_t

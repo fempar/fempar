@@ -67,6 +67,30 @@ subroutine cell_map_facet_restriction_update( this, facet_lid, subfacet_lid, qua
 end subroutine cell_map_facet_restriction_update
 
 !==================================================================================================
+subroutine cell_map_facet_restriction_update_interpolation( this, quadrature, reference_fe_geometry )
+  implicit none
+  ! Parameters
+  class(cell_map_facet_restriction_t), intent(inout) :: this
+  type(quadrature_t)           , intent(in)    :: quadrature
+  class(reference_fe_t)           , intent(in)    :: reference_fe_geometry
+
+  integer(ip)           :: facet_lid, subfacet_lid, cell_map_index, istat
+
+  call this%free()
+  this%num_facets = reference_fe_geometry%get_num_facets()
+  this%num_subfacets = reference_fe_geometry%get_num_subfacets()
+  do facet_lid = 1,this%num_facets
+    do subfacet_lid = 0,this%num_subfacets
+      cell_map_index = facet_lid + subfacet_lid*this%num_facets
+      call this%cell_map(cell_map_index)%update_interpolation_restricted_to_facet( facet_lid,      &
+                                                     subfacet_lid-1, &
+                                                     quadrature,    &
+                                                     reference_fe_geometry )
+    end do
+  end do
+end subroutine cell_map_facet_restriction_update_interpolation
+
+!==================================================================================================
 subroutine cell_map_facet_restriction_free( this)
   implicit none
   ! Parameters
@@ -271,6 +295,13 @@ function facet_maps_get_facet_map ( this )
   type(facet_map_t), pointer :: facet_maps_get_facet_map
   facet_maps_get_facet_map => this%facet_map
 end function facet_maps_get_facet_map
+
+function facet_maps_get_cell_maps ( this )
+  implicit none
+  class(facet_maps_t), target, intent(in) :: this
+  type(cell_map_facet_restriction_t), pointer :: facet_maps_get_cell_maps(:)
+  facet_maps_get_cell_maps => this%cell_maps
+end function facet_maps_get_cell_maps
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !cell_integrator_facet_restriction_t type bound procedures
