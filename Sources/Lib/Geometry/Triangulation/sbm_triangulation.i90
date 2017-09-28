@@ -826,7 +826,8 @@ subroutine triangulation_compute_num_global_objs_and_their_gids ( this )
        list_snd,&
        snd_ptrs,&
        pack_idx,&
-       this%objects_ggids )
+       this%objects_ggids,&
+       this%objects_ggids)
 
   call memfree ( list_rcv, __FILE__, __LINE__ )
   call memfree ( rcv_ptrs, __FILE__, __LINE__ )

@@ -1655,7 +1655,7 @@ subroutine p4est_base_triangulation_comm_cell_ggids ( this )
                                             cell_import%get_neighbours_ids(),&
                                             cell_import%get_snd_ptrs(),&
                                             cell_import%get_snd_leids(),&
-                                            cell_ggids )
+                                            cell_ggids, cell_ggids )
 #else  
   call this%not_enabled_error()
 #endif  
@@ -1708,7 +1708,8 @@ subroutine p4est_base_triangulation_comm_cell_myparts ( this )
                                             cell_import%get_neighbours_ids(),&
                                             cell_import%get_snd_ptrs(),&
                                             cell_import%get_snd_leids(),&
-                                            cell_myparts )
+                                            cell_myparts,&
+                                            cell_myparts)
 #else  
   call this%not_enabled_error()
 #endif  

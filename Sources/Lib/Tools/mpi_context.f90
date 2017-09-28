@@ -445,7 +445,7 @@ contains
   subroutine mpi_context_neighbours_exchange_rp ( this, & 
        &                                          num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
-       &                                          alpha, beta, x)
+       &                                          alpha, beta, x, y)
     implicit none
     class(mpi_context_t), intent(in) :: this
 
@@ -459,7 +459,8 @@ contains
 
     ! Floating point data
     real(rp), intent(in)    :: alpha, beta
-    real(rp), intent(inout) :: x(:)
+    real(rp), intent(in)    :: x(:)
+    real(rp), intent(inout) :: y(:)
 
     ! Communication related locals 
     integer :: i, proc_to_comm, sizmsg, istat
@@ -548,7 +549,7 @@ contains
     end do
 
     ! Unpack recv buffers
-    call unpack_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, x )
+    call unpack_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, y )
 
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
@@ -564,7 +565,7 @@ contains
   subroutine mpi_context_neighbours_exchange_ip ( this, & 
        &                                          num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
-       &                                          x,chunk_size)
+       &                                          x,y,chunk_size)
     implicit none
     class(mpi_context_t), intent(in)    :: this
     ! Control info to receive
@@ -574,7 +575,8 @@ contains
     integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
     integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
     ! Raw data to be exchanged
-    integer(ip)             , intent(inout) :: x(:)
+    integer(ip)             , intent(in)    :: x(:)
+    integer(ip)             , intent(inout) :: y(:)
     integer(ip)   , optional, intent(in)    :: chunk_size
 
     ! Communication related locals 
@@ -673,7 +675,7 @@ contains
     end do
 
     ! Unpack recv buffers
-    call unpack_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, x )
+    call unpack_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y )
 
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
@@ -686,7 +688,7 @@ contains
   subroutine mpi_context_neighbours_exchange_igp ( this, & 
        &                                           num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        &                                           num_snd, list_snd, snd_ptrs, pack_idx,   &
-       &                                           x, chunk_size, mask)
+       &                                           x, y, chunk_size, mask)
     implicit none
     class(mpi_context_t), intent(in)    :: this
     ! Control info to receive
@@ -696,7 +698,8 @@ contains
     integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
     integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
     ! Raw data to be exchanged
-    integer(igp)            , intent(inout) :: x(:)
+    integer(igp)            , intent(in)    :: x(:)
+    integer(igp)            , intent(inout) :: y(:)
     integer(ip)   , optional, intent(in)    :: chunk_size
     integer(igp)  , optional, intent(in)    :: mask
 
@@ -795,7 +798,7 @@ contains
     end do
 
     ! Unpack recv buffers
-    call unpack_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, x, mask )
+    call unpack_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y, mask )
 
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
@@ -852,6 +855,7 @@ contains
          list_neighbours,   &
          ptrs,              &
          pack_idx,          &
+         buffer,            &
          buffer )
 
     output_data = buffer(2:)

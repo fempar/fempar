@@ -508,7 +508,8 @@ contains
                                            op%dof_import%get_pack_idx(),   &
                                            1.0_rp,                         &
                                            1.0_rp,                         &
-                                           data ) 
+                                           data,                           &
+                                           data) 
 
     ! Second stage: owners send, non-owners receive/insert
     call op%p_env%l1_neighbours_exchange ( op%dof_import%get_num_snd(),    &
@@ -521,6 +522,7 @@ contains
                                            op%dof_import%get_unpack_idx(), &
                                            1.0_rp,                         &
                                            0.0_rp,                         &
+                                           data,                           &  
                                            data )
   end subroutine par_scalar_array_comm
 
