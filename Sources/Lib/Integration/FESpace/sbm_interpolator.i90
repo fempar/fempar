@@ -51,6 +51,62 @@ subroutine make_interpolator( interpolator_type, topology, interpolator )
 end subroutine make_interpolator
 
 ! ================================================================================
+subroutine interpolator_t_reallocate_vector_function_values( this, requested_size, function_values ) 
+  implicit none 
+  class(interpolator_t )            , intent(inout) :: this 
+  integer(ip)                       , intent(in)    :: requested_size 
+  type(vector_field_t), allocatable , intent(inout) :: function_values(:,:) 
+  logical     :: reallocate 
+  integer(ip) :: istat 
+
+  reallocate = .false.
+  if (allocated(function_values)) reallocate = ( size(function_values,1) < requested_size )                                      
+  if ( (.not. allocated(function_values)) .or. reallocate) then
+     if (allocated(function_values)) then 
+        deallocate(function_values, stat=istat); check(istat==0) 
+     end if
+     allocate( function_values(requested_size,1), stat=istat ); check(istat==0) 
+  end if
+
+end subroutine interpolator_t_reallocate_vector_function_values
+
+! ================================================================================
+subroutine interpolator_t_reallocate_scalar_function_values( this, requested_size, function_values ) 
+  implicit none 
+  class(interpolator_t )            , intent(inout) :: this 
+  integer(ip)                       , intent(in)    :: requested_size 
+  real(rp)            , allocatable , intent(inout) :: function_values(:,:)
+  logical     :: reallocate 
+
+  reallocate = .false.
+  if (allocated(function_values)) reallocate = ( size(function_values,1) < requested_size )                                      
+  if ( (.not. allocated(function_values)) .or. reallocate) then
+     if (allocated(function_values)) then 
+        call memfree(function_values, __FILE__, __LINE__)
+     end if
+     call memalloc(requested_size, 1, function_values, __FILE__, __LINE__); 
+  end if
+
+end subroutine interpolator_t_reallocate_scalar_function_values
+
+! ================================================================================
+subroutine interpolator_t_reallocate_array( this, requested_size, array ) 
+  implicit none 
+  class(interpolator_t)             , intent(inout) :: this 
+  integer(ip)                       , intent(in)    :: requested_size 
+  real(rp)            , allocatable , intent(inout) :: array(:) 
+  logical     :: reallocate 
+
+  reallocate = .false.
+  if (allocated(array)) reallocate = ( size(array) < requested_size )                                      
+  if ( (.not. allocated(array)) .or. reallocate) then
+     if (allocated(array)) call memfree(array, __FILE__,__LINE__); 
+     call memalloc(requested_size, array, __FILE__,__LINE__);
+  end if
+
+end subroutine interpolator_t_reallocate_array
+
+! ================================================================================
 subroutine interpolator_t_get_vector_function_values( this, vector_function, quad_points_coordinates, function_values, time)
   implicit none 
   class(interpolator_t)          , intent(inout) :: this 

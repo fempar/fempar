@@ -98,26 +98,10 @@ subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar
   call this%cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
   nodal_coordinates => this%cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
 
-  ! Realloc dof_values values if necessary 
-  reallocate = .false.
-  if (allocated(dof_values)) reallocate = ( size(dof_values) < reference_fe%get_num_shape_functions() )                                      
-  if ( (.not. allocated(dof_values)) .or. reallocate) then
-     if (allocated(dof_values)) call memfree(dof_values, __FILE__,__LINE__); 
-     call memalloc(num_nodal_qpoints, dof_values, __FILE__,__LINE__);
-  end if
+  call this%reallocate_if_needed( num_nodal_qpoints, this%scalar_function_values ) 
+  call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values )
   dof_values = 0.0_rp 
 
-  ! Realloc scalar_function values if necessary 
-  reallocate = .false.
-  if (allocated(this%scalar_function_values)) reallocate = ( size(this%scalar_function_values,1) < num_nodal_qpoints )                                      
-  if ( (.not. allocated(this%scalar_function_values)) .or. reallocate) then
-     if (allocated(this%scalar_function_values)) then 
-        call memfree(this%scalar_function_values, __FILE__, __LINE__)
-     end if
-     call memalloc(num_nodal_qpoints, 1, this%scalar_function_values, __FILE__, __LINE__); 
-  end if
-
-  ! Fill vector function values restricted to edge 
   if ( present(time) ) then 
      call scalar_function%get_values_set(nodal_coordinates, time_, this%scalar_function_values(1:num_nodal_qpoints, 1:1) )
      dof_values(1:num_nodal_qpoints) = this%scalar_function_values(1:num_nodal_qpoints, 1) 
@@ -157,30 +141,12 @@ subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector
   call this%cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
   nodal_coordinates => this%cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
 
-  ! Realloc dof_values/function_values values if necessary 
-  reallocate = .false.
-  if (allocated(dof_values)) reallocate = ( size(dof_values) < reference_fe%get_num_shape_functions() )                                      
-  if ( (.not. allocated(dof_values)) .or. reallocate) then
-     if (allocated(dof_values)) then 
-        call memfree(dof_values, __FILE__,__LINE__);       
-     end if
-     call memalloc(reference_fe%get_num_shape_functions(), dof_values, __FILE__,__LINE__);
-  end if
-  dof_values = 0.0_rp
-
-  ! Realloc vector function values 
-  reallocate = .false.
-  if (allocated(this%function_values)) reallocate = ( size(this%function_values,1) < num_nodal_qpoints )                                      
-  if ( (.not. allocated(this%function_values)) .or. reallocate) then
-     if (allocated(this%function_values)) then 
-        deallocate( this%function_values, stat=istat); check(istat==0) 
-     end if
-     allocate( this%function_values(num_nodal_qpoints,1), stat=istat ); check(istat==0) 
-  end if
+  call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values )
+  call this%reallocate_if_needed( num_nodal_qpoints, this%function_values) 
 
   call this%get_function_values( vector_function, nodal_coordinates, this%function_values, time)
 
-  ! Fill nodal_values from fe_function_values
+  dof_values = 0.0_rp
   do inode=1, reference_fe%get_num_shape_functions() 
      icomp             = reference_fe%get_component_node(inode) 
      inode_scalar      = reference_fe%get_scalar_from_vector_node(inode)
@@ -222,23 +188,10 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
   call this%cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
   nodal_coordinates => this%cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
 
-  ! Realloc dof_values/scalar_function_values values if necessary 
-  reallocate = .false.
-  if (allocated(dof_values)) reallocate = ( size(dof_values) < reference_fe%get_num_shape_functions() )                                      
-  if ( (.not. allocated(dof_values)) .or. reallocate) then
-     if (allocated(dof_values)) call memfree(dof_values, __FILE__,__LINE__); 
-     call memalloc(reference_fe%get_num_shape_functions(), dof_values, __FILE__,__LINE__);
-  end if
+  call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values) 
+  call this%reallocate_if_needed( num_nodal_qpoints, this%scalar_function_values) 
+
   dof_values = 0.0_rp 
-
-  ! Realloc scalar function values 
-  reallocate = .false.
-  if (allocated(this%scalar_function_values)) reallocate = ( size(this%scalar_function_values,1) < num_nodal_qpoints )                                      
-  if ( (.not. allocated(this%scalar_function_values)) .or. reallocate) then
-     if (allocated(this%scalar_function_values)) call memfree(this%scalar_function_values, __FILE__, __LINE__); 
-     call memalloc(num_nodal_qpoints, 1, this%scalar_function_values, __FILE__, __LINE__); 
-  end if
-
   do vef_lid = 1, fe%get_num_vefs() 
      if ( n_face_mask(vef_lid) .eqv. .true. ) then 
 

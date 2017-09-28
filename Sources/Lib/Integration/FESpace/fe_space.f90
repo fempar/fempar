@@ -1163,6 +1163,10 @@ module fe_space_names
     procedure, private  :: get_function_values_from_scalar_components => interpolator_t_get_function_values_from_scalar_components
     procedure, private  :: get_vector_function_values                 => interpolator_t_get_vector_function_values 
     generic             :: get_function_values                        => get_vector_function_values 
+    procedure, private  :: reallocate_vector_function_values          => interpolator_t_reallocate_vector_function_values 
+    procedure, private  :: reallocate_scalar_function_values          => interpolator_t_reallocate_scalar_function_values
+    procedure, private  :: reallocate_array                           => interpolator_t_reallocate_array 
+    generic             :: reallocate_if_needed => reallocate_vector_function_values, reallocate_scalar_function_values, reallocate_array 
     ! Deferred TBPs 
     procedure(interpolator_create_interface)                               , deferred :: create
     procedure(interpolator_evaluate_scalar_function_moments_interface)     , deferred :: evaluate_scalar_function_moments
@@ -1267,9 +1271,6 @@ procedure :: evaluate_scalar_function_moments    => Hcurl_interpolator_evaluate_
 procedure, private :: update_edge_map_coordinates    => Hcurl_interpolator_update_edge_map_coordinates
 procedure, private :: update_facet_map_coordinates   => Hcurl_interpolator_update_facet_map_coordinates
 generic            :: update_map_coordinates         => update_edge_map_coordinates, update_facet_map_coordinates
-procedure, private :: reallocate_function_arrays     => Hcurl_interpolator_reallocate_function_arrays
-procedure, private :: reallocate_boundary_function_arrays => Hcurl_interpolator_reallocate_boundary_function_arrays 
-generic :: reallocate_arrays   => reallocate_function_arrays, reallocate_boundary_function_arrays 
 end type Hcurl_interpolator_t 
 
 type, extends(Hcurl_interpolator_t) :: hex_Hcurl_interpolator_t 
