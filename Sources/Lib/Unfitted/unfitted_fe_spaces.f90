@@ -193,6 +193,7 @@ module unfitted_fe_spaces_names
 
       ! Creation of the iterator
       procedure :: create_fe_cell_iterator           => sufs_create_fe_cell_iterator
+      procedure :: create_fe_facet_iterator          => sufs_create_fe_facet_iterator
 
   end type serial_unfitted_fe_space_t
 

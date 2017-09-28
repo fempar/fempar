@@ -109,6 +109,11 @@ module unfitted_triangulations_names
     ! Creation / deletion methods
     procedure :: create => unfitted_vef_iterator_create
     procedure :: free   => unfitted_vef_iterator_free
+
+    ! TBPs that change the gid
+    procedure :: first        => unfitted_vef_iterator_first
+    procedure :: next         => unfitted_vef_iterator_next
+    procedure :: set_gid      => unfitted_vef_iterator_set_gid
     
     ! Updater: to be called each time the lid changes
     procedure :: update_sub_triangulation    => unfitted_vef_iterator_update_sub_triangulation
@@ -129,6 +134,9 @@ module unfitted_triangulations_names
     procedure :: is_exterior => unfitted_vef_iterator_is_exterior
     procedure :: is_interior_subvef => unfitted_vef_iterator_is_interior_subvef
     procedure :: is_exterior_subvef => unfitted_vef_iterator_is_exterior_subvef
+
+    ! Private TBP's
+    procedure, private, non_overridable :: update_unfitted_cell  => unfitted_vef_iterator_update_unfitted_cell
 
   end type unfitted_vef_iterator_t
 

@@ -1893,6 +1893,8 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   integer(ip) :: field_id, istat, icell_around
 
   class(reference_fe_t), pointer :: reference_fe
+  
+  type(quadrature_t), pointer :: quadrature
 
   call this%free_facet_integration()
 
@@ -1991,7 +1993,8 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
      if (istat == now_stored) then
         reference_fe=>this%reference_fes( this%max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) )%p
         call reference_fe%create_facet_quadrature(this%facet_quadratures(current_facet_quadrature),fe_face%get_quadrature_degree())
-        call this%facet_maps(current_facet_map)%create(fe_face%get_quadrature(), &
+        quadrature => fe_face%get_quadrature()
+        call this%facet_maps(current_facet_map)%create(quadrature, &
                                                            reference_fes_geo(1)%p, &
                                                            reference_fes_geo(2)%p )
         current_facet_quadrature = current_facet_quadrature + 1
@@ -2016,7 +2019,8 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
                                                    val=current_facet_integrator, &
                                                    stat=istat)
         if (istat == now_stored) then
-           call this%facet_integrators(current_facet_integrator)%create(fe_face%get_quadrature(), &
+           quadrature => fe_face%get_quadrature()
+           call this%facet_integrators(current_facet_integrator)%create(quadrature, &
                 reference_fes(1)%p, &
                 reference_fes(2)%p )
            current_facet_integrator = current_facet_integrator + 1

@@ -52,6 +52,7 @@ subroutine unfitted_vef_iterator_create ( this, triangulation )
   assert(associated(marching_cubes%triangulation))
   this%marching_cubes => marching_cubes
   call this%marching_cubes%triangulation%create_cell_iterator(this%unfitted_cell)
+  call this%update_unfitted_cell()
 
 end subroutine unfitted_vef_iterator_create
 
@@ -70,23 +71,35 @@ subroutine unfitted_vef_iterator_free ( this )
 end subroutine unfitted_vef_iterator_free
 
 !========================================================================================
-subroutine unfitted_vef_iterator_update_sub_triangulation( this )
-
+subroutine unfitted_vef_iterator_first(this)
   implicit none
   class(unfitted_vef_iterator_t), intent(inout) :: this
+  call this%bst_vef_iterator_t%first()
+  call this%update_unfitted_cell()
+end subroutine unfitted_vef_iterator_first
 
-  integer(ip) :: vef_lid
-  class(reference_fe_t), pointer :: reference_fe
+!========================================================================================
+subroutine unfitted_vef_iterator_next(this)
+  implicit none
+  class(unfitted_vef_iterator_t), intent(inout) :: this
+  call this%bst_vef_iterator_t%next()
+  call this%update_unfitted_cell()
+end subroutine unfitted_vef_iterator_next
 
-  assert(allocated(this%unfitted_cell))
+!========================================================================================
+subroutine unfitted_vef_iterator_set_gid(this,gid)
+  implicit none
+  class(unfitted_vef_iterator_t), intent(inout) :: this
+  integer(ip)           , intent(in)    :: gid
+  call this%bst_vef_iterator_t%set_gid(gid)
+  call this%update_unfitted_cell()
+end subroutine unfitted_vef_iterator_set_gid
 
-  call this%get_cell_around(1,this%unfitted_cell)
-  assert(this%unfitted_cell%is_local())
-  vef_lid = this%unfitted_cell%get_vef_lid_from_gid(this%get_gid())
-  reference_fe =>  this%unfitted_cell%get_reference_fe()
-  this%facet_lid = vef_lid - reference_fe%get_first_facet_id() + 1
+!========================================================================================
+subroutine unfitted_vef_iterator_update_sub_triangulation( this )
+  implicit none
+  class(unfitted_vef_iterator_t), intent(inout) :: this
   call this%unfitted_cell%update_sub_triangulation()
-
 end subroutine unfitted_vef_iterator_update_sub_triangulation
 
 !========================================================================================
@@ -296,5 +309,25 @@ function unfitted_vef_iterator_is_exterior_subvef( this, subvef ) result ( is_ou
   is_out = (istat == 1_ip)
 
 end function unfitted_vef_iterator_is_exterior_subvef
+
+!========================================================================================
+subroutine unfitted_vef_iterator_update_unfitted_cell(this)
+
+  implicit none
+  class(unfitted_vef_iterator_t), intent(inout)  :: this
+
+  integer(ip) :: vef_lid
+  class(reference_fe_t), pointer :: reference_fe
+
+  assert(allocated(this%unfitted_cell))
+  if (.not. this%has_finished()) then
+    call this%get_cell_around(1,this%unfitted_cell)
+    assert(this%unfitted_cell%is_local())
+    vef_lid = this%unfitted_cell%get_vef_lid_from_gid(this%get_gid())
+    reference_fe =>  this%unfitted_cell%get_reference_fe()
+    this%facet_lid = vef_lid - reference_fe%get_first_facet_id() + 1
+  end if
+
+end subroutine unfitted_vef_iterator_update_unfitted_cell
 
 

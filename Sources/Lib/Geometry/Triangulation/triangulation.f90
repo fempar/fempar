@@ -147,7 +147,7 @@ module triangulation_names
      procedure                           :: next                      => vef_iterator_next
      procedure                           :: has_finished              => vef_iterator_has_finished
      procedure, non_overridable          :: get_gid                   => vef_iterator_get_gid
-     procedure, non_overridable          :: set_gid                   => vef_iterator_set_gid
+     procedure                           :: set_gid                   => vef_iterator_set_gid
      procedure, non_overridable          :: get_triangulation         => vef_iterator_get_triangulation
      procedure, non_overridable          :: is_facet                  => vef_iterator_is_facet
      

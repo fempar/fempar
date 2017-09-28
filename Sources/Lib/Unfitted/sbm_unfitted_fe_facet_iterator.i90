@@ -81,11 +81,12 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
   if (.not. this%is_cut() ) then
     return
   end if
-
+  
+  call this%update_sub_triangulation()
   call this%update_quadrature()
   call this%update_facet_maps()
 
-  fes_around = this%get_fes_around()
+  fes_around => this%get_fes_around()
   coords => this%unfitted_facet_maps%get_facet_coordinates()
   call this%get_nodes_coordinates(coords)
 
@@ -118,7 +119,7 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
   type(quadrature_t), pointer :: quadrature
   real(rp),           pointer :: quadrature_points_coordinates(:,:)
   real(rp),           pointer :: quadrature_weights(:)
-  integer(ip)                 :: num_gp, igp, num_dim
+  integer(ip)                 :: num_gp, igp, num_dim_facet
   type(quadrature_t), pointer :: quadrature_subfacet
   real(rp),           pointer :: quadrature_weights_subfacet(:)
   integer(ip)                 :: num_gp_subfacet, igp_subfacet, num_dim_subfacet
@@ -138,7 +139,7 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
   quadrature_points_coordinates => quadrature%get_coordinates()
   quadrature_weights     => quadrature%get_weights()
   num_gp                 =  quadrature%get_num_quadrature_points()
-  num_dim                =  quadrature%get_num_dims()
+  num_dim_facet          =  quadrature%get_num_dims()
 
   ! Recover info about the quadrature of the sub-facet
   quadrature_subfacet => this%unfitted_integration_manager%quadrature_subfacet
@@ -147,7 +148,7 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
   num_dim_subfacet                =  quadrature_subfacet%get_num_dims()
 
   ! Check that both quadratures are compatible in size
-  assert( num_dim == num_dim_subfacet )
+  assert( num_dim_facet == num_dim_subfacet )
   assert( num_gp  == num_gp_subfacet*this%get_num_subvefs() )
 
   ! Recover the fe map between the reference sub-element and the reference element
@@ -181,7 +182,7 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
       quadrature_weights(igp) = coef*dV_subfacet*quadrature_weights_subfacet(igp_subfacet)
 
       ! Map the coordinates
-      do idi = 1, num_dim
+      do idi = 1, (num_dim_facet + 1)
         quadrature_points_coordinates(idi,igp) = mapped_quadrature_coords_subfacet(igp_subfacet)%get(idi)
       end do
 
@@ -239,8 +240,9 @@ function unfitted_fe_facet_iterator_get_quadrature(this) result (quadrature)
   else if ( this%is_interior() ) then
     quadrature => this%fe_facet_iterator_t%get_quadrature()
   else if ( this%is_exterior() ) then
+    !quadrature => this%unfitted_integration_manager%empty_quadrature
+    !assert(quadrature%get_num_quadrature_points() == 0)
     quadrature => this%fe_facet_iterator_t%get_quadrature()
-    assert(quadrature%get_num_quadrature_points() == 0)
   else
     check(.false.)
   end if
@@ -252,11 +254,11 @@ function unfitted_fe_facet_iterator_get_quadrature_points_coordinates(this)
   class(unfitted_fe_facet_iterator_t),target,  intent(in) :: this
   type(point_t), pointer :: unfitted_fe_facet_iterator_get_quadrature_points_coordinates(:)
   if ( this%is_cut() ) then
-    unfitted_fe_facet_iterator_get_quadrature_points_coordinates = this%unfitted_facet_maps%get_quadrature_points_coordinates()
+    unfitted_fe_facet_iterator_get_quadrature_points_coordinates => this%unfitted_facet_maps%get_quadrature_points_coordinates()
   else if ( this%is_interior() ) then
-    unfitted_fe_facet_iterator_get_quadrature_points_coordinates = this%fe_facet_iterator_t%get_quadrature_points_coordinates()
+    unfitted_fe_facet_iterator_get_quadrature_points_coordinates => this%fe_facet_iterator_t%get_quadrature_points_coordinates()
   else if ( this%is_exterior() ) then
-    unfitted_fe_facet_iterator_get_quadrature_points_coordinates = this%fe_facet_iterator_t%get_quadrature_points_coordinates()
+    unfitted_fe_facet_iterator_get_quadrature_points_coordinates => this%fe_facet_iterator_t%get_quadrature_points_coordinates()
   else
     check(.false.)
   end if

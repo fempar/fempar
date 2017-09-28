@@ -76,7 +76,6 @@ subroutine cell_map_facet_restriction_update_interpolation( this, quadrature, re
 
   integer(ip)           :: facet_lid, subfacet_lid, cell_map_index, istat
 
-  call this%free()
   this%num_facets = reference_fe_geometry%get_num_facets()
   this%num_subfacets = reference_fe_geometry%get_num_subfacets()
   do facet_lid = 1,this%num_facets

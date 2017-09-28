@@ -46,6 +46,7 @@ subroutine uim_create(this,fe_space,marching_cubes)
     call this%init_reference_subelem()
     call this%init_cut_integration()
     call this%init_cut_boundary_integration()
+    call this%init_cut_fitted_facets_integration()
   end if
 end subroutine uim_create
 
@@ -56,6 +57,7 @@ subroutine uim_free( this )
   call this%free_reference_subelem()
   call this%free_cut_integration()
   call this%free_cut_boundary_integration()
+  call this%free_cut_fitted_facets_integration()
   this%fe_space => null()
   this%marching_cubes => null()
 end subroutine uim_free
@@ -431,7 +433,7 @@ subroutine uim_init_cut_fitted_facets_integration( this )
 
   call this%free_cut_fitted_facets_integration()
 
-  num_dim = this%marching_cubes%get_num_dims()
+  num_dim = this%quadrature_subfacet%get_num_dims()
   num_gp_subfacet = this%quadrature_subfacet%get_num_quadrature_points()
   mc_num_cases = this%marching_cubes%get_num_mc_cases()
   mc_num_facets = this%marching_cubes%get_num_facets()
@@ -439,7 +441,7 @@ subroutine uim_init_cut_fitted_facets_integration( this )
   allocate( this%cut_fitted_facet_quadratures(mc_num_facets,mc_num_cases), stat=istat ); check(istat==0_ip)
   do mc_case = 1, mc_num_cases
     do mc_facet = 1, mc_num_facets
-      num_subfacets = this%marching_cubes%get_num_fitted_sub_facets(mc_num_facets,mc_case)
+      num_subfacets = this%marching_cubes%get_num_fitted_sub_facets(mc_facet,mc_case)
       num_gp = num_gp_subfacet*num_subfacets
       call this%cut_fitted_facet_quadratures(mc_facet,mc_case)%create( num_dim, num_gp )
     end do
@@ -460,6 +462,8 @@ subroutine uim_init_cut_fitted_facets_integration( this )
 
   ! cell integrators
   !allocate( this%cut_cell_integrators(mc_num_facets,mc_num_cases), stat=istat ); check(istat==0_ip)
+
+  call this%fe_space%free_fe_cell_iterator(fe)
 
 end subroutine uim_init_cut_fitted_facets_integration
 
