@@ -107,7 +107,7 @@ subroutine p4est_serial_triangulation_free ( this)
     call F90_p8est_destroy(this%p4est)
     call F90_p8est_connectivity_destroy(this%p4est_connectivity)
     call F90_p8est_mesh_destroy(this%p4est_mesh)
-    call F90_p8est_QHE_destroy(this%QHE)
+    call F90_p4est_locidx_buffer_destroy(this%QHE)
     call F90_p8est_ghost_destroy(this%p4est_ghost)
   end if
   

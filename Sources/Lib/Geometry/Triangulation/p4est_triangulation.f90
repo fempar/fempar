@@ -386,6 +386,7 @@ module p4est_triangulation_names
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: cell_myparts
     type(std_vector_integer_igp_t)         :: cell_ggids
+    
   contains
     ! Getters
     procedure                                   :: get_num_reference_fes                         => p4est_base_triangulation_get_num_reference_fes
@@ -445,11 +446,30 @@ module p4est_triangulation_names
   
   type, extends(p4est_base_triangulation_t) ::  p4est_par_triangulation_t
     private
+    ! Scratch data required for migration. Should it be packed in a data type ???
+    ! EXPORT SIDE
+    integer(P4EST_F90_LOCIDX) :: num_snd
+    type(c_ptr) :: p_lst_snd  = c_null_ptr
+    type(c_ptr) :: p_snd_ptrs = c_null_ptr
+    type(c_ptr) :: p_pack_idx = c_null_ptr
+    integer(P4EST_F90_LOCIDX), pointer :: lst_snd(:)
+    integer(P4EST_F90_LOCIDX), pointer :: snd_ptrs(:)
+    integer(P4EST_F90_LOCIDX), pointer :: pack_idx(:)
+    
+    ! IMPORT SIDE
+    integer(P4EST_F90_LOCIDX) :: num_rcv
+    type(c_ptr) :: p_lst_rcv    = c_null_ptr
+    type(c_ptr) :: p_rcv_ptrs   = c_null_ptr
+    type(c_ptr) :: p_unpack_idx = c_null_ptr
+    integer(P4EST_F90_LOCIDX), pointer :: lst_rcv(:)
+    integer(P4EST_F90_LOCIDX), pointer :: rcv_ptrs(:)
+    integer(P4EST_F90_LOCIDX), pointer :: unpack_idx(:)
   contains
     procedure, private                          :: p4est_par_triangulation_create
     generic                                     :: create                                        => p4est_par_triangulation_create
     procedure                                   :: free                                          => p4est_par_triangulation_free 
     procedure                                   :: partition                                     => p4est_par_triangulation_partition
+    procedure                                   :: update_migration_control_data                 => p4est_par_triangulation_update_migration_control_data
   end type p4est_par_triangulation_t
   
   public :: p4est_par_triangulation_t

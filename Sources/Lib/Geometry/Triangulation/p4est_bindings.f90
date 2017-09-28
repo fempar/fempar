@@ -434,13 +434,22 @@ module p4est_bindings_names
      end subroutine F90_p8est_ghost_destroy
      
      !=================================================================================================================================
-     !> summary: Frees all dynamic memory involved in the quad_to_half_by_edge(:,:) work array
+     !> summary: Frees all dynamic memory in a p4est_locidx_t work array
      !=================================================================================================================================
-     subroutine F90_p8est_QHE_destroy(QHE) bind(c, name="F90_p8est_QHE_destroy")
+     subroutine F90_p4est_locidx_buffer_destroy(buffer) bind(c, name="F90_p4est_locidx_buffer_destroy")
        use, intrinsic :: iso_c_binding
        implicit none
-       type(c_ptr), intent(inout)  :: QHE
-     end subroutine F90_p8est_QHE_destroy
+       type(c_ptr), intent(inout)  :: buffer
+     end subroutine F90_p4est_locidx_buffer_destroy
+     
+     !=================================================================================================================================
+     !> summary: Frees all dynamic memory in a int8_t work array
+     !=================================================================================================================================
+     subroutine F90_p4est_int8_buffer_destroy(buffer) bind(c, name="F90_p4est_int8_buffer_destroy")
+       use, intrinsic :: iso_c_binding
+       implicit none
+       type(c_ptr), intent(inout)  :: buffer
+     end subroutine F90_p4est_int8_buffer_destroy
      
      !===========================================================================================================================
      !> summary: Provides in vxyz the coordinates in real space of a vertex given a quadrant(x,y,l) and corner ID within quadrant
@@ -582,6 +591,20 @@ module p4est_bindings_names
        integer(P4EST_F90_GLOIDX), intent(in)  :: first_global_quadrant(*)
        integer(P4EST_F90_GLOIDX), intent(out) :: ghost_ggids(*)
      end subroutine F90_p4est_fill_ghost_ggids
+     
+     subroutine F90_p4est_compute_migration_control_data (p4est_old, p4est_new, num_ranks, lst_ranks, ptr_ranks, local_ids) &
+          bind(c, name="F90_p4est_compute_migration_control_data")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p4est_old
+       type(c_ptr), value       , intent(in)     :: p4est_new
+       integer(P4EST_F90_LOCIDX), intent(out)    :: num_ranks
+       type(c_ptr)              , intent(inout)  :: lst_ranks
+       type(c_ptr)              , intent(inout)  :: ptr_ranks
+       type(c_ptr)              , intent(inout)  :: local_ids
+    end subroutine F90_p4est_compute_migration_control_data
+     
      
      !subroutine p4_savemesh(filename, p4est) bind(c)
      !  !=================================================================================================================================

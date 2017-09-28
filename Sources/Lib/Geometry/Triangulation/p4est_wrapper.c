@@ -35,6 +35,7 @@
 #include <p4est_mesh.h>
 #include <p4est_bits.h>
 #include <p4est_base.h>
+#include <p4est_communication.h>
 #include "p4est_wrapper.h"
 #include <p8est.h>
 #include <p8est_extended.h>
@@ -320,14 +321,15 @@ void F90_p8est_ghost_destroy(p8est_ghost_t **p8est_ghost)
     }   
 }
 
-void F90_p8est_QHE_destroy(p4est_locidx_t **QHE)
+void F90_p4est_locidx_buffer_destroy(p4est_locidx_t **buffer)
 {
-    if (*QHE) 
-    {    
-        free(*QHE);
-    }   
+  if (*buffer) free(*buffer);
 }
 
+void F90_p4est_int8_buffer_destroy(int8_t **buffer)
+{
+  if (*buffer) free(*buffer);
+}
 
 void F90_p4est_get_mesh_info (p4est_t        *p4est,
                               p4est_mesh_t   *mesh,
@@ -1103,10 +1105,94 @@ void F90_p4est_fill_ghost_ggids( p4est_ghost_t  * p4est_ghost,
     }   
 }
 
-/** Compute the position of this child within its siblings.
- * \return Returns its child id in 0..3
- */
-int                 p4est_quadrant_child_id (const p4est_quadrant_t * q);
+
+void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old, 
+                                               p4est_t   * p4est_new,
+                                               int             * num_ranks, // How many processors involved?
+                                               p4est_locidx_t ** lst_ranks, // Identifiers of processors involved from 1..P
+                                               int            ** ptr_ranks, // Pointers to [start,end] of local_ids for each P in num_ranks
+                                               p4est_locidx_t ** local_ids)
+{
+    p4est_tree_t       *tree_old;
+    p4est_quadrant_t   *q_old;
+    sc_array_t         *quadrants_old;
+    int                old_quadrant_index;
+    
+    p4est_locidx_t     my_rank;
+    p4est_locidx_t     new_rank;
+    
+    p4est_locidx_t   * ranks_visited;
+    p4est_locidx_t   * ranks_count;
+
+            
+    // Extract references to the first (and uniquely allowed) trees
+    tree_old = p4est_tree_array_index (p4est_old->trees,0);
+    quadrants_old = &(tree_old->quadrants);
+    
+    ranks_count   = (p4est_locidx_t *) malloc( (size_t) p4est_old->mpisize );
+    ranks_visited = (p4est_locidx_t *) malloc( (size_t) p4est_old->mpisize );
+    P4EST_ASSERT(ranks_visited != NULL);
+    for (my_rank=0; my_rank < p4est_old->mpisize; my_rank++)
+    {
+      ranks_count[my_rank] = 0;
+    }
+    
+    // Calculate num_ranks
+    *num_ranks = 0;
+    my_rank    = p4est_old->mpirank;
+    for (old_quadrant_index=0; old_quadrant_index < quadrants_old->elem_count;old_quadrant_index++)
+    {
+        q_old = p4est_quadrant_array_index(quadrants_old, old_quadrant_index);        
+        new_rank = p4est_comm_find_owner (p4est_new,0,q_old,0);
+        if ( new_rank != my_rank ) 
+        {
+            if (ranks_count[my_rank] == 0)
+            {
+              ranks_visited[*num_ranks] = new_rank;
+              (*num_ranks)++;
+            }
+            ranks_count[*num_ranks]++;
+        }
+    }
+    
+    if ( ! *lst_ranks ) free(*lst_ranks);
+    *lst_ranks = (p4est_locidx_t *) malloc( (size_t) *num_ranks );
+    
+    if ( ! *ptr_ranks ) free(*ptr_ranks);
+    *ptr_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks+1) );
+    
+    *ptr_ranks[0]=1;
+    for (my_rank=0; my_rank < *num_ranks; my_rank++)
+    {
+        *lst_ranks[my_rank]   = ranks_visited[my_rank]+1;
+        *ptr_ranks[my_rank+1] = *ptr_ranks[my_rank] + ranks_count[ranks_visited[my_rank]] ;
+    }
+
+    free(ranks_count);
+    free(ranks_visited);
+    
+    if ( ! *local_ids ) free(*local_ids);
+    *local_ids = (p4est_locidx_t *) malloc( (size_t) ptr_ranks[(*num_ranks+1)]-1 );
+    
+    my_rank = p4est_old->mpirank;
+    for (old_quadrant_index=0; old_quadrant_index < quadrants_old->elem_count; old_quadrant_index++)
+    {
+        q_old = p4est_quadrant_array_index(quadrants_old, old_quadrant_index);        
+        new_rank = p4est_comm_find_owner(p4est_new,0,q_old,0);
+        if ( new_rank != my_rank ) 
+        {
+            (*local_ids)[(*ptr_ranks)[new_rank]-1] = old_quadrant_index;
+            (*ptr_ranks)[new_rank] = (*ptr_ranks)[new_rank] + 1;
+        }
+    }
+    
+    for (my_rank=*num_ranks; my_rank >= 1; my_rank--) 
+    {
+        (*ptr_ranks)[my_rank] = (*ptr_ranks)[my_rank-1];
+    }
+    (*ptr_ranks)[0] = 1;
+}
+
 
 
 //void p4_savemesh ( char    filename[],

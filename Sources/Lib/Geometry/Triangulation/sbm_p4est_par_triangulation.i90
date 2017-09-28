@@ -130,7 +130,7 @@ subroutine p4est_par_triangulation_free ( this)
            call F90_p8est_destroy(this%p4est)
            call F90_p8est_connectivity_destroy(this%p4est_connectivity)
            call F90_p8est_mesh_destroy(this%p4est_mesh)
-           call F90_p8est_QHE_destroy(this%QHE)
+           call F90_p4est_locidx_buffer_destroy(this%QHE)
            call F90_p8est_ghost_destroy(this%p4est_ghost)
         end if
 
@@ -194,7 +194,28 @@ subroutine p4est_par_triangulation_free ( this)
            class default
            mcheck(.false., "mpi_context_t required by p4est_par_triangulation")
         end select
-
+        
+        this%num_snd = -1
+        call F90_p4est_locidx_buffer_destroy(this%p_lst_snd)
+        this%p_lst_snd  = c_null_ptr
+        call F90_p4est_locidx_buffer_destroy(this%p_snd_ptrs)
+        this%p_snd_ptrs = c_null_ptr
+        call F90_p4est_locidx_buffer_destroy(this%p_pack_idx)
+        this%p_pack_idx = c_null_ptr
+        nullify(this%lst_snd)
+        nullify(this%snd_ptrs)
+        nullify(this%pack_idx)
+    
+        this%num_rcv = -1
+        call F90_p4est_locidx_buffer_destroy(this%p_lst_rcv)
+        this%p_lst_rcv    = c_null_ptr
+        call F90_p4est_locidx_buffer_destroy(this%p_rcv_ptrs)
+        this%p_rcv_ptrs   = c_null_ptr
+        call F90_p4est_locidx_buffer_destroy(this%p_unpack_idx)
+        this%p_unpack_idx = c_null_ptr
+        nullify(this%lst_rcv)
+        nullify(this%rcv_ptrs)
+        nullify(this%unpack_idx)
      end if
   end if
   call triangulation_free(this)
@@ -208,13 +229,16 @@ subroutine p4est_par_triangulation_partition ( this )
   class(p4est_par_triangulation_t), intent(inout) :: this
   class(environment_t), pointer :: p_environment
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
+  type(c_ptr) :: p4est_old
 
 #ifdef ENABLE_P4EST  
   p_environment => this%get_environment()
   if ( p_environment%am_i_l1_task() ) then
     if ( this%get_num_dims() == 2 ) then
+      p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old) 
       call F90_p4est_partition(this%p4est)
     else if ( this%get_num_dims() == 3 ) then
+      p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old) 
       call F90_p8est_partition(this%p4est)
     end if
     call this%update_p4est_mesh()
@@ -224,14 +248,45 @@ subroutine p4est_par_triangulation_partition ( this )
     call this%comm_cell_ggids()
     call this%comm_cell_myparts()
     call this%allocate_and_fill_x_cell_vertex_coordinates()
+    call this%update_migration_control_data(p4est_old)
     ! These two calls involve communications !!!
     !call this%update_cell_set_ids()
     !call this%update_vef_set_ids(old_lst_vefs_gids)
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
     call old_lst_vefs_gids%free()
+    
+    if ( this%get_num_dims() == 2 ) then
+      call F90_p4est_destroy(p4est_old)
+    else if ( this%get_num_dims() == 3 ) then
+      call F90_p8est_destroy(p4est_old)
+    end if
   end if
 #else
   call this%not_enabled_error()
 #endif
 end subroutine p4est_par_triangulation_partition
+
+
+subroutine p4est_par_triangulation_update_migration_control_data(this, p4est_old)
+  implicit none
+  class(p4est_par_triangulation_t), intent(inout) :: this
+  type(c_ptr)                     , intent(in)    :: p4est_old
+#ifdef ENABLE_P4EST
+  call F90_p4est_compute_migration_control_data (p4est_old, &
+                                                 this%p4est, &
+                                                 this%num_snd, &
+                                                 this%p_lst_snd, &
+                                                 this%p_snd_ptrs, &
+                                                 this%p_pack_idx)
+  
+  call F90_p4est_compute_migration_control_data (this%p4est, &
+                                                 p4est_old, &
+                                                 this%num_rcv, &
+                                                 this%p_lst_rcv, &
+                                                 this%p_rcv_ptrs, &
+                                                 this%p_unpack_idx)
+#else
+  call this%not_enabled_error()
+#endif
+end subroutine p4est_par_triangulation_update_migration_control_data
