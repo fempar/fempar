@@ -90,7 +90,7 @@ subroutine edge_map_update(this,local_edge_id,reference_fe,quadrature)
 
   ! Initialize values
   this%jacobian           = 0.0_rp
-		this%measure            = 0.0_rp 
+  this%measure            = 0.0_rp 
   do evaluation_point_id = 1, quadrature%num_quadrature_points
      ! Updating the Jacobian Matrix
      do jdime=1, num_edge_dims
@@ -113,7 +113,7 @@ subroutine edge_map_update(this,local_edge_id,reference_fe,quadrature)
           &                                          this%tangents(:,evaluation_point_id)))
  
       this%tangents (:, evaluation_point_id) = this%tangents (:, evaluation_point_id)/this%det_jacobian(evaluation_point_id)
-						this%measure = this%measure + this%det_jacobian(evaluation_point_id) * quadrature%get_weight(evaluation_point_id)
+      this%measure = this%measure + this%det_jacobian(evaluation_point_id) * quadrature%get_weight(evaluation_point_id)
   end do
 		
 end subroutine edge_map_update

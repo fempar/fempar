@@ -157,8 +157,8 @@ module reference_fe_names
     ! Characteristic length of the reference element
     real(rp)                    :: reference_fe_characteristic_length
 				
-				! Measure of the map of the real element 
-				real(rp)                    :: measure 
+    ! Measure of the map of the real element 
+    real(rp)                    :: measure 
   contains
     procedure                  :: free                              => base_map_free
     procedure, non_overridable :: update_interpolation              => base_map_update_interpolation
@@ -169,7 +169,7 @@ module reference_fe_names
     procedure, non_overridable :: get_det_jacobians                 => base_map_get_det_jacobians
     procedure, non_overridable :: get_jacobian_column               => base_map_get_jacobian_column
     procedure, non_overridable :: get_reference_h                   => base_map_get_reference_h
-				procedure, non_overridable :: get_measure                       => base_map_get_measure 
+    procedure, non_overridable :: get_measure                       => base_map_get_measure 
   end type base_map_t
   
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
