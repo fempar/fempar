@@ -25,6 +25,108 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine elasticity_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
+  implicit none
+  class(elasticity_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
+  
+  integer(ip)                            :: ivef_within_cell
+  integer(ip)                            :: ivef_within_object
+  integer(ip)                            :: icell_around
+  integer(ip)                            :: idof, dof_lid
+  integer(ip)                            :: num_dims, num_coarse_dofs_x_object
+  integer(ip)                            :: num_coarse_dofs_x_vertex, num_coarse_dofs_x_edge, num_coarse_dofs_x_face
+  logical                                :: dofs_on_vef
+  type(environment_t), pointer           :: par_environment
+  type(fe_object_iterator_t)             :: object
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_cell_iterator_t), allocatable      :: fe
+  class(reference_fe_t), pointer         :: reference_fe
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator
+  integer(ip), pointer                   :: fe_dofs(:)
+  logical                                :: use_vertices, use_edges, use_faces
+  
+  par_environment => par_fe_space%get_environment()
+  assert ( associated ( par_environment ) )
+  assert ( par_environment%am_i_l1_task() )
+  assert ( size(num_coarse_dofs) == par_fe_space%get_num_fe_objects() )
+  
+  num_dims = par_fe_space%get_num_dims()
+  num_coarse_dofs_x_vertex = num_dims
+  num_coarse_dofs_x_edge = num_dims+ num_dims*(num_dims-1)/2
+  num_coarse_dofs_x_face = num_dims+ num_dims*(num_dims-1)/2
+  
+  call this%get_coarse_space_use_vertices_edges_faces(parameter_list,& 
+                                                      use_vertices, &
+                                                      use_edges, &
+                                                      use_faces)
+
+  ! First, count how many coarse_dofs there are on the interface of my subdomain
+  num_coarse_dofs = 0
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_cell_iterator(fe)
+  call par_fe_space%create_fe_vef_iterator(vef)
+  do while ( .not. object%has_finished() )
+     select case ( object%get_dim() )
+     case (0)
+       if (.not. use_vertices) then
+         call object%next(); cycle
+       end if
+       num_coarse_dofs_x_object = num_coarse_dofs_x_vertex
+     case (1)
+       if (.not. use_edges) then
+         call object%next(); cycle
+       end if  
+       num_coarse_dofs_x_object = num_coarse_dofs_x_edge
+     case (2)
+       if (.not. use_faces) then
+         call object%next(); cycle
+       end if
+       num_coarse_dofs_x_object = num_coarse_dofs_x_face
+     end select
+    
+     dofs_on_vef = .false.
+     do ivef_within_object=1, object%get_num_vefs()
+        call object%get_vef(ivef_within_object,vef)
+        reference_fe => fe%get_reference_fe(field_id)
+        do icell_around=1, vef%get_num_cells_around()
+           call vef%get_cell_around(icell_around,fe)
+           if ( fe%is_ghost() ) then 
+              !Get GID of dofs on cell fe
+              call fe%get_field_fe_dofs(field_id, fe_dofs)
+              ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
+
+              own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                 idof    = own_dofs_on_vef_iterator%get_current()
+                 dof_lid = fe_dofs(idof)
+                 if ( dof_lid > 0 ) then
+                    dofs_on_vef = .true.
+                    exit
+                 end if
+                 call own_dofs_on_vef_iterator%next()
+              end do
+           
+           end if
+        end do
+        
+        if ( dofs_on_vef ) then
+           ! It must be thought for more general cases (vectors, tensor product...)
+           num_coarse_dofs(object%get_gid()) = num_coarse_dofs(object%get_gid()) + num_coarse_dofs_x_object
+           exit
+        end if
+
+     end do
+     call object%next()
+  end do
+  call par_fe_space%free_fe_vef_iterator(vef)
+  call par_fe_space%free_fe_cell_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+end subroutine elasticity_l1_get_num_coarse_dofs
+
 subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
   implicit none
   class(elasticity_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this

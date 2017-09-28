@@ -836,7 +836,6 @@ module fe_space_names
   end type H1_l1_coarse_fe_handler_t
   
   type, extends(standard_l1_coarse_fe_handler_t) :: vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
-
     private
     real(rp), public :: diffusion_inclusion
   contains
@@ -845,10 +844,10 @@ module fe_space_names
   end type vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
 
   type, extends(standard_l1_coarse_fe_handler_t) :: elasticity_pb_bddc_l1_coarse_fe_handler_t
-
     private
     real(rp), public :: elastic_modulus
   contains
+    procedure :: get_num_coarse_dofs      => elasticity_l1_get_num_coarse_dofs  
 	   procedure :: setup_constraint_matrix  => elasticity_l1_setup_constraint_matrix_multiple
 	   procedure :: setup_weighting_operator => elasticity_l1_setup_weighting_operator
   end type elasticity_pb_bddc_l1_coarse_fe_handler_t
