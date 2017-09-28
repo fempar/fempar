@@ -178,7 +178,7 @@ subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector
 					allocate( this%function_values(num_nodal_qpoints,1), stat=istat ); check(istat==0) 
   end if
 		
-  ! Fill vector function values restricted to edge 
+  ! Fill vector function values 
   if ( present(time) ) then 
      call vector_function%get_values_set(nodal_coordinates, time_, this%function_values(1:num_nodal_qpoints, 1:1) )
   else 

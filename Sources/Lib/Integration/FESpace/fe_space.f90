@@ -1261,8 +1261,11 @@ end type nodal_interpolator_t
  real(rp), allocatable             :: scalar_function_values_on_facet(:,:)
 contains   
  procedure :: evaluate_scalar_function_moments    => Hcurl_interpolator_evaluate_scalar_function_moments 
-	procedure :: reallocate_function_arrays          => Hcurl_interpolator_reallocate_function_arrays
-	procedure :: reallocate_boundary_function_arrays => Hcurl_interpolator_reallocate_boundary_function_arrays 
+	procedure, private :: update_edge_map_coordinates    => Hcurl_interpolator_update_edge_map_coordinates
+	procedure, private :: update_facet_map_coordinates   => Hcurl_interpolator_update_facet_map_coordinates
+	generic            :: update_map_coordinates         => update_edge_map_coordinates, update_facet_map_coordinates
+	procedure, private :: reallocate_function_arrays     => Hcurl_interpolator_reallocate_function_arrays
+	procedure, private :: reallocate_boundary_function_arrays => Hcurl_interpolator_reallocate_boundary_function_arrays 
 	generic :: reallocate_arrays                     => reallocate_function_arrays, reallocate_boundary_function_arrays 
 end type Hcurl_interpolator_t 
 
