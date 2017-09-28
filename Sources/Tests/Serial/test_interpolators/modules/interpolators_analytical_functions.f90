@@ -30,88 +30,88 @@ module interpolators_analytical_functions_names
   implicit none
 # include "debug.i90"
   private
- 
- type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dims = -1  
-  contains
-    procedure :: set_num_dims    => base_vector_function_set_num_dims
+
+  type, extends(vector_function_t) :: base_vector_function_t
+     integer(ip) :: num_dims = -1  
+   contains
+     procedure :: set_num_dims    => base_vector_function_set_num_dims
   end type base_vector_function_t
-		
-		type, extends(scalar_function_t) :: base_scalar_function_t
-    integer(ip) :: num_dims = -1  
-  contains
-		procedure :: set_num_dims => base_scalar_function_set_num_dims 
+
+  type, extends(scalar_function_t) :: base_scalar_function_t
+     integer(ip) :: num_dims = -1  
+   contains
+     procedure :: set_num_dims => base_scalar_function_set_num_dims 
   end type base_scalar_function_t
-  
+
   type, extends(base_vector_function_t) :: source_term_t
    contains
      procedure :: get_value_space      => source_term_get_value_space
-					procedure :: get_value_space_time => source_term_get_value_space_time
+     procedure :: get_value_space_time => source_term_get_value_space_time
   end type source_term_t
-  
+
   type, extends(base_vector_function_t) :: magnetic_field_solution_t
    contains
      procedure :: get_value_space         => magnetic_field_solution_get_value_space
-					procedure :: get_value_space_time    => magnetic_field_solution_get_value_space_time
+     procedure :: get_value_space_time    => magnetic_field_solution_get_value_space_time
      procedure :: get_gradient_space      => magnetic_field_solution_get_gradient_space
-					procedure :: get_gradient_space_time => magnetic_field_solution_get_gradient_space_time 
+     procedure :: get_gradient_space_time => magnetic_field_solution_get_gradient_space_time 
   end type magnetic_field_solution_t
-		
-		  type, extends(base_scalar_function_t) :: pressure_solution_t
+
+  type, extends(base_scalar_function_t) :: pressure_solution_t
    contains
      procedure :: get_value_space         => pressure_solution_get_value_space
-					procedure :: get_value_space_time    => pressure_solution_get_value_space_time
+     procedure :: get_value_space_time    => pressure_solution_get_value_space_time
      procedure :: get_gradient_space      => pressure_solution_get_gradient_space
-					procedure :: get_gradient_space_time => pressure_solution_get_gradient_space_time
+     procedure :: get_gradient_space_time => pressure_solution_get_gradient_space_time
   end type pressure_solution_t
-  
+
   type, extends(base_scalar_function_t) :: boundary_function_Hx_t
-    private 
+     private 
    contains
      procedure :: get_value_space         => boundary_function_Hx_get_value_space
-					procedure :: get_value_space_time    => boundary_function_Hx_get_value_space_time
-  end type boundary_function_Hx_t 
-  
-    type, extends(base_scalar_function_t) :: boundary_function_Hy_t
-    private 
+     procedure :: get_value_space_time    => boundary_function_Hx_get_value_space_time
+  end type boundary_function_Hx_t
+
+  type, extends(base_scalar_function_t) :: boundary_function_Hy_t
+     private 
    contains
      procedure :: get_value_space         => boundary_function_Hy_get_value_space
-					procedure :: get_value_space_time    => boundary_function_Hy_get_value_space_time
-  end type boundary_function_Hy_t 
-  
-   type, extends(base_scalar_function_t) :: boundary_function_Hz_t
-    private 
+     procedure :: get_value_space_time    => boundary_function_Hy_get_value_space_time
+  end type boundary_function_Hy_t
+
+  type, extends(base_scalar_function_t) :: boundary_function_Hz_t
+     private 
    contains
-		 	procedure :: get_value_space         => boundary_function_Hz_get_value_space
-    procedure :: get_value_space_time    => boundary_function_Hz_get_value_space_time
-  end type boundary_function_Hz_t 
-		
-		   type, extends(base_scalar_function_t) :: boundary_function_pressure_t
-    private 
+     procedure :: get_value_space         => boundary_function_Hz_get_value_space
+     procedure :: get_value_space_time    => boundary_function_Hz_get_value_space_time
+  end type boundary_function_Hz_t
+
+  type, extends(base_scalar_function_t) :: boundary_function_pressure_t
+     private 
    contains
      procedure :: get_value_space         => boundary_function_pressure_get_value_space 
-					procedure :: get_value_space_time    => boundary_function_pressure_get_value_space_time
-  end type boundary_function_pressure_t 
-  
-  
+     procedure :: get_value_space_time    => boundary_function_pressure_get_value_space_time
+  end type boundary_function_pressure_t
+
+
   type interpolators_analytical_functions_t
      private
-  type(source_term_t)                     :: source_term
-  type(magnetic_field_solution_t)         :: magnetic_field_solution
-		type(pressure_solution_t)               :: pressure_solution
-	 type(boundary_function_Hx_t)            :: boundary_function_Hx
-	 type(boundary_function_Hy_t)            :: boundary_function_Hy
-	 type(boundary_function_Hz_t)            :: boundary_function_Hz
-		type(boundary_function_pressure_t)      :: boundary_function_pressure 
+     type(source_term_t)                     :: source_term
+     type(magnetic_field_solution_t)         :: magnetic_field_solution
+     type(pressure_solution_t)               :: pressure_solution
+     type(boundary_function_Hx_t)            :: boundary_function_Hx
+     type(boundary_function_Hy_t)            :: boundary_function_Hy
+     type(boundary_function_Hz_t)            :: boundary_function_Hz
+     type(boundary_function_pressure_t)      :: boundary_function_pressure 
    contains
-  procedure :: set_num_dims                     => mn_set_num_dims
-  procedure :: get_source_term                  => mn_get_source_term
-  procedure :: get_magnetic_field_solution      => mn_get_magnetic_field_solution
-		procedure :: get_pressure_solution            => mn_get_pressure_solution
-	 procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
-	 procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
-	 procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
-		procedure :: get_boundary_function_pressure   => mn_get_boundary_function_pressure
+     procedure :: set_num_dims                     => mn_set_num_dims
+     procedure :: get_source_term                  => mn_get_source_term
+     procedure :: get_magnetic_field_solution      => mn_get_magnetic_field_solution
+     procedure :: get_pressure_solution            => mn_get_pressure_solution
+     procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
+     procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
+     procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
+     procedure :: get_boundary_function_pressure   => mn_get_boundary_function_pressure
   end type interpolators_analytical_functions_t
 
   public :: interpolators_analytical_functions_t
@@ -125,8 +125,8 @@ contains
     integer(ip), intent(in) ::  num_dims
     this%num_dims = num_dims
   end subroutine base_vector_function_set_num_dims
-		
-		  !===============================================================================================
+
+  !===============================================================================================
   subroutine base_scalar_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -147,15 +147,15 @@ contains
     if ( this%num_dims == 3 ) then
        call result%set(3, 0.0_rp) 
     end if
-											
+
   end subroutine source_term_get_value_space
-		
-		  !===============================================================================================
+
+  !===============================================================================================
   subroutine source_term_get_value_space_time ( this, point, time, result )
     implicit none
     class(source_term_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
-				real(rp)                , intent(in)    :: time 
+    real(rp)                , intent(in)    :: time 
     type(vector_field_t)    , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
 
@@ -164,10 +164,10 @@ contains
     if ( this%num_dims == 3 ) then
        call result%set(3, 0.0_rp) 
     end if
-											
+
   end subroutine source_term_get_value_space_time
-		
-		  !===============================================================================================
+
+  !===============================================================================================
   subroutine magnetic_field_solution_get_value_space ( this, point, result )
     implicit none
     class(magnetic_field_solution_t), intent(in)    :: this
@@ -182,13 +182,13 @@ contains
     end if
 
   end subroutine magnetic_field_solution_get_value_space
-		
+
   !===============================================================================================
   subroutine magnetic_field_solution_get_value_space_time ( this, point, time, result )
     implicit none
     class(magnetic_field_solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
-				real(rp)                , intent(in)    :: time 
+    real(rp)                , intent(in)    :: time 
     type(vector_field_t)    , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
 
@@ -206,24 +206,24 @@ contains
     class(magnetic_field_solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
     type(tensor_field_t), intent(inout) :: result
-				call result%init(0.0_rp) 
+    call result%init(0.0_rp) 
     call result%set(2,1, -1.0_rp)
-	   call result%set(1,2,  1.0_rp)
+    call result%set(1,2,  1.0_rp)
   end subroutine magnetic_field_solution_get_gradient_space
-		
-				  !===============================================================================================
+
+  !===============================================================================================
   subroutine magnetic_field_solution_get_gradient_space_time ( this, point, time, result )
     implicit none
     class(magnetic_field_solution_t), intent(in)    :: this
     type(point_t)           , intent(in)    :: point
-				real(rp)                , intent(in)    :: time 
+    real(rp)                , intent(in)    :: time 
     type(tensor_field_t), intent(inout) :: result
-				call result%init(0.0_rp) 
+    call result%init(0.0_rp) 
     call result%set(2,1, -1.0_rp * time)
-	   call result%set(1,2,  1.0_rp * time)
+    call result%set(1,2,  1.0_rp * time)
   end subroutine magnetic_field_solution_get_gradient_space_time
-		
-		  !===============================================================================================
+
+  !===============================================================================================
   subroutine pressure_solution_get_value_space ( this, point, result )
     implicit none
     class(pressure_solution_t), intent(in)    :: this
@@ -231,38 +231,38 @@ contains
     real(rp)                  , intent(inout) :: result
     result = point%get(1)+point%get(2)
   end subroutine pressure_solution_get_value_space
-		
-				  !===============================================================================================
+
+  !===============================================================================================
   subroutine pressure_solution_get_value_space_time ( this, point, time, result )
     implicit none
     class(pressure_solution_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
-				real(rp)                  , intent(in)    :: time 
+    real(rp)                  , intent(in)    :: time 
     real(rp)                  , intent(inout) :: result
     result = (point%get(1)+point%get(2)) * time
   end subroutine pressure_solution_get_value_space_time
 
-		  !===============================================================================================
+  !===============================================================================================
   subroutine pressure_solution_get_gradient_space ( this, point, result )
     implicit none
     class(pressure_solution_t)   , intent(in)    :: this
     type(point_t)                , intent(in)    :: point
     type(vector_field_t)         , intent(inout) :: result
-				call result%set(1, 1.0_rp ) 
-				call result%set(2, 1.0_rp ) 
+    call result%set(1, 1.0_rp ) 
+    call result%set(2, 1.0_rp ) 
   end subroutine pressure_solution_get_gradient_space
-		
+
   !===============================================================================================
   subroutine pressure_solution_get_gradient_space_time ( this, point, time, result )
     implicit none
     class(pressure_solution_t)   , intent(in)    :: this
     type(point_t)                , intent(in)    :: point
-				real(rp)                     , intent(in)    :: time 
+    real(rp)                     , intent(in)    :: time 
     type(vector_field_t)         , intent(inout) :: result
-				call result%set(1, 1.0_rp * time ) 
-				call result%set(2, 1.0_rp * time ) 
+    call result%set(1, 1.0_rp * time ) 
+    call result%set(2, 1.0_rp * time ) 
   end subroutine pressure_solution_get_gradient_space_time
-  
+
   !===============================================================================================
   subroutine boundary_function_Hx_get_value_space( this, point, result )
     implicit none 
@@ -271,13 +271,13 @@ contains
     real(rp)                       , intent(inout) :: result 
     result = -point%get(2)
   end subroutine boundary_function_Hx_get_value_space
-		
-		 !===============================================================================================
+
+  !===============================================================================================
   subroutine boundary_function_Hx_get_value_space_time( this, point, time, result )
     implicit none 
     class(boundary_function_Hx_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
-				real(rp)                       , intent(in)    :: time 
+    real(rp)                       , intent(in)    :: time 
     real(rp)                       , intent(inout) :: result 
     result = -point%get(2) * time
   end subroutine boundary_function_Hx_get_value_space_time
@@ -288,17 +288,17 @@ contains
     class(boundary_function_Hy_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-     result = point%get(1)
+    result = point%get(1)
   end subroutine boundary_function_Hy_get_value_space
-		
-		 !===============================================================================================
+
+  !===============================================================================================
   subroutine boundary_function_Hy_get_value_space_time( this, point, time, result )
     implicit none 
     class(boundary_function_Hy_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
-				real(rp)                       , intent(in)    :: time 
+    real(rp)                       , intent(in)    :: time 
     real(rp)                       , intent(inout) :: result 
-     result = point%get(1) * time 
+    result = point%get(1) * time 
   end subroutine boundary_function_Hy_get_value_space_time
 
   !===============================================================================================
@@ -309,18 +309,18 @@ contains
     real(rp)                       , intent(inout) :: result 
     result = 0.0_rp          
   end subroutine boundary_function_Hz_get_value_space
-		
-		  !===============================================================================================
+
+  !===============================================================================================
   subroutine boundary_function_Hz_get_value_space_time( this, point, time, result )
     implicit none 
     class(boundary_function_Hz_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
-				real(rp)                       , intent(in)    :: time 
+    real(rp)                       , intent(in)    :: time 
     real(rp)                       , intent(inout) :: result 
     result = 0.0_rp          
   end subroutine boundary_function_Hz_get_value_space_time
-		
-		  !===============================================================================================
+
+  !===============================================================================================
   subroutine boundary_function_pressure_get_value_space( this, point, result )
     implicit none 
     class(boundary_function_pressure_t)  , intent(in)    :: this 
@@ -328,13 +328,13 @@ contains
     real(rp)                       , intent(inout) :: result 
     result = point%get(1) + point%get(2) 
   end subroutine boundary_function_pressure_get_value_space
-		
-		  !===============================================================================================
+
+  !===============================================================================================
   subroutine boundary_function_pressure_get_value_space_time( this, point, time, result )
     implicit none 
     class(boundary_function_pressure_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
-				real(rp)                       , intent(in)    :: time 
+    real(rp)                       , intent(in)    :: time 
     real(rp)                       , intent(inout) :: result 
     result = (point%get(1) + point%get(2)) * time 
   end subroutine boundary_function_pressure_get_value_space_time
@@ -346,7 +346,7 @@ contains
     integer(ip), intent(in) ::  num_dims
     call this%source_term%set_num_dims(num_dims)
     call this%magnetic_field_solution%set_num_dims(num_dims)
-				call this%pressure_solution%set_num_dims(num_dims)
+    call this%pressure_solution%set_num_dims(num_dims)
   end subroutine mn_set_num_dims
 
   !===============================================================================================
@@ -356,8 +356,8 @@ contains
     class(vector_function_t), pointer :: mn_get_magnetic_field_solution
     mn_get_magnetic_field_solution => this%magnetic_field_solution
   end function mn_get_magnetic_field_solution
-		
-		  !===============================================================================================
+
+  !===============================================================================================
   function mn_get_pressure_solution ( this )
     implicit none
     class(interpolators_analytical_functions_t), target, intent(in)    :: this
@@ -396,8 +396,8 @@ contains
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hz
     mn_get_boundary_function_Hz => this%boundary_function_Hz 
   end function mn_get_boundary_function_Hz
-		
-		  !===============================================================================================
+
+  !===============================================================================================
   function mn_get_boundary_function_pressure ( this )
     implicit none
     class(interpolators_analytical_functions_t), target, intent(in)    :: this
