@@ -844,8 +844,16 @@ module fe_space_names
 	   procedure :: setup_weighting_operator => vector_laplacian_l1_setup_weighting_operator
   end type vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
 
+  type, extends(standard_l1_coarse_fe_handler_t) :: elasticity_pb_bddc_l1_coarse_fe_handler_t
+
+    private
+    real(rp), public :: elastic_modulus
+  contains
+	   procedure :: setup_constraint_matrix  => elasticity_l1_setup_constraint_matrix_multiple
+	   procedure :: setup_weighting_operator => elasticity_l1_setup_weighting_operator
+  end type elasticity_pb_bddc_l1_coarse_fe_handler_t
   
-  public :: p_l1_coarse_fe_handler_t, l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
+  public :: p_l1_coarse_fe_handler_t, l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, vector_laplacian_pb_bddc_l1_coarse_fe_handler_t, elasticity_pb_bddc_l1_coarse_fe_handler_t 
 
     
   type , extends(base_fe_cell_iterator_t) :: coarse_fe_cell_iterator_t
@@ -1172,6 +1180,7 @@ contains
 #include "sbm_standard_coarse_fe_handler.i90"
 #include "sbm_H1_coarse_fe_handler.i90"
 #include "sbm_vector_laplacian_coarse_fe_handler.i90"
+#include "sbm_elasticity_coarse_fe_handler.i90"
 
 #include "sbm_coarse_fe_space.i90"
 #include "sbm_coarse_fe_object_iterator.i90"
