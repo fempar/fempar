@@ -79,8 +79,9 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%update_p4est_mesh()
         call this%update_topology_from_p4est_mesh()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-        call this%update_cell_ggids()
-        call this%update_cell_myparts()
+        call this%update_cell_import()
+        call this%comm_cell_ggids()
+        call this%comm_cell_myparts()
         call old_lst_vefs_gids%free()
         call this%allocate_and_fill_x_cell_vertex_coordinates()
         call this%clear_refinement_and_coarsening_flags()
@@ -92,8 +93,9 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%update_p4est_mesh()
         call this%update_topology_from_p4est_mesh()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-        call this%update_cell_ggids()
-        call this%update_cell_myparts()
+        call this%update_cell_import()
+        call this%comm_cell_ggids()
+        call this%comm_cell_myparts()
         call old_lst_vefs_gids%free()
         call this%allocate_and_fill_x_cell_vertex_coordinates()
         call this%clear_refinement_and_coarsening_flags()
@@ -111,10 +113,14 @@ subroutine p4est_par_triangulation_free ( this)
   class(p4est_par_triangulation_t), target, intent(inout) :: this
   class(environment_t), pointer :: p_environment
   class(execution_context_t), pointer :: context
+  type(cell_import_t), pointer :: cell_import
+  
 #ifdef ENABLE_P4EST
   p_environment => this%get_environment()
   if ( associated(p_environment) ) then
      if ( p_environment%am_i_l1_task() ) then
+        
+     
         if ( this%get_num_dims() == 2 ) then
            call F90_p4est_destroy(this%p4est)
            call F90_p4est_connectivity_destroy(this%p4est_connectivity)
@@ -152,6 +158,9 @@ subroutine p4est_par_triangulation_free ( this)
         call this%cell_set_ids%free()
         call this%proper_vefs_set_ids%free()
         call this%improper_vefs_set_ids%free()
+        
+        cell_import => this%get_cell_import()
+        call cell_import%free()
 
         nullify(this%quad_to_quad)
         nullify(this%quad_to_face)
@@ -211,8 +220,9 @@ subroutine p4est_par_triangulation_partition ( this )
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%update_cell_ggids()
-    call this%update_cell_myparts()
+    call this%update_cell_import()
+    call this%comm_cell_ggids()
+    call this%comm_cell_myparts()
     call this%allocate_and_fill_x_cell_vertex_coordinates()
     ! These two calls involve communications !!!
     !call this%update_cell_set_ids()

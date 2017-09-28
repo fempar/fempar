@@ -42,8 +42,9 @@ module p4est_triangulation_names
   use std_vector_integer_ip_names
   use std_vector_integer_igp_names
   use field_names
-  
+  use cell_import_names
   use FPL
+  use hash_table_names
 
   implicit none
 # include "debug.i90"
@@ -400,7 +401,9 @@ module p4est_triangulation_names
     procedure, private        , non_overridable :: get_ptr_vefs_x_cell                           => p4est_base_triangulation_get_ptr_vefs_x_cell
     procedure, private        , non_overridable :: update_lst_vefs_gids_and_cells_around         => p4est_bt_update_lst_vefs_gids_and_cells_around
     procedure, private        , non_overridable :: update_cell_ggids                             => p4est_base_triangulation_update_cell_ggids
+    procedure, private        , non_overridable :: comm_cell_ggids                               => p4est_base_triangulation_comm_cell_ggids
     procedure, private        , non_overridable :: update_cell_myparts                           => p4est_base_triangulation_update_cell_myparts
+    procedure, private        , non_overridable :: comm_cell_myparts                             => p4est_base_triangulation_comm_cell_myparts
     procedure, private        , non_overridable :: update_cell_set_ids                           => p4est_bt_update_cell_set_ids
     procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_bt_update_vef_set_ids
     procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_bt_std_vector_transform_length_to_header
@@ -409,7 +412,10 @@ module p4est_triangulation_names
     procedure                 , non_overridable :: clear_refinement_and_coarsening_flags         => p4est_bt_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable :: clear_cell_set_ids                            => p4est_bt_clear_cell_set_ids
     procedure                                   :: fill_cells_set                                => p4est_bt_fill_cells_set
-    procedure, private       , non_overridable  :: clear_vef_set_ids                              => p4est_bt_clear_vef_set_ids
+    procedure, private       , non_overridable  :: clear_vef_set_ids                             => p4est_bt_clear_vef_set_ids
+    procedure, private       , non_overridable  :: update_cell_import                            => p4est_bt_update_cell_import
+    
+    
 
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator

@@ -99,8 +99,9 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%update_cell_ggids()
-    call this%update_cell_myparts()
+    call this%update_cell_import()
+    call this%comm_cell_ggids()
+    call this%comm_cell_myparts()
     call this%allocate_and_fill_x_cell_vertex_coordinates()
     !call this%update_cell_set_ids()
     !call this%update_vef_set_ids(old_lst_vefs_gids)
@@ -1290,6 +1291,181 @@ subroutine p4est_bt_clear_vef_set_ids(this)
 #endif        
 end subroutine p4est_bt_clear_vef_set_ids
 
+subroutine p4est_bt_update_cell_import(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  type(cell_import_t), pointer :: cell_import
+  integer(igp) :: ielem, jelem
+  integer(ip)  :: my_part, jpart
+  type(hash_table_ip_igp_t) :: external_visited
+  integer(ip) :: istat
+  integer(ip) :: touch
+  integer(ip) :: iebou, nebou, nexte, nextn
+  integer(ip) :: icell_around
+  integer(ip) :: vef_lid
+  type(p4est_cell_iterator_t) :: cell, neighbour_cell
+  type(p4est_vef_iterator_t) :: vef
+  integer(ip), allocatable :: local_visited(:)
+  integer(ip)   , allocatable ::  lebou(:)    ! List of boundary elements
+  integer(ip)   , allocatable ::  lnbou(:)    ! List of boundary nodes
+  integer(ip)   , allocatable ::  pextn(:)    ! Pointers to the lextn
+  integer(igp)  , allocatable ::  lextn(:)    ! List of (GID of) external neighbors
+  integer(ip)   , allocatable ::  lextp(:)    ! List of parts of external neighbors
+ 
+  class(environment_t), pointer :: environment
+  
+  call this%update_cell_ggids()
+  call this%update_cell_myparts()
+  
+  cell_import => this%get_cell_import()
+  call cell_import%free()
+  
+  environment => this%get_environment()
+  my_part = environment%get_l1_rank() + 1
+ 
+  ! As the dual mesh is given with global IDs we need a hash table to do the touch.
+  call memalloc(this%get_num_local_cells(), local_visited,__FILE__,__LINE__)
+  local_visited = 0
+  call external_visited%init(20)
+    
+  ! 1) Count boundary elements and external edges
+  touch = 1
+  nebou = 0 ! number of boundary elements
+  nextn = 0 ! number of external edges
+  call cell%create(this)
+  call neighbour_cell%create(this)
+  call vef%create(this)
+  do while ( .not. cell%has_finished() ) 
+    nexte = 0   ! number of external neighbours of this element
+    if ( cell%is_local() ) then
+       ielem = cell%get_ggid()
+       do vef_lid=1, cell%get_num_vefs()
+         call cell%get_vef(vef_lid,vef)
+         do icell_around=1, vef%get_num_cells_around()
+           call vef%get_cell_around(icell_around, neighbour_cell)
+           jelem = neighbour_cell%get_ggid()
+           if(jelem/=ielem) then
+             jpart = neighbour_cell%get_my_part()
+             if(jpart/=my_part) then                                       ! This is an external element
+                if(local_visited(cell%get_gid()) == 0) nebou = nebou +1    ! Count it
+                   call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
+                   if(istat==now_stored) nexte = nexte + 1                    ! Count external neighbours of lelem
+                   local_visited(cell%get_gid()) = nexte                      ! Touch lelem also storing the number
+                end if                                                        ! of external neighbours it has
+              end if
+            end do  
+         end do
+         
+         nextn = nextn + nexte
+         ! Clean hash table
+         if(local_visited(cell%get_gid()) /= 0 ) then 
+           do vef_lid=1, cell%get_num_vefs()
+            call cell%get_vef(vef_lid,vef)
+            do icell_around=1, vef%get_num_cells_around()
+              call vef%get_cell_around(icell_around, neighbour_cell)
+              jelem = neighbour_cell%get_ggid()
+              if(jelem/=ielem) then
+                jpart = neighbour_cell%get_my_part()
+                if(jpart/=my_part) then
+                 call external_visited%del(key=jelem, stat=istat)
+                end if
+              end if
+            end do
+           end do
+         end if
+         call external_visited%print()
+       end if
+       call cell%next()
+    end do
+    
+    !! 2) Allocate arrays and store list and pointers to externals
+    call memalloc(nebou  , lebou,__FILE__,__LINE__)
+    call memalloc(nebou+1, pextn,__FILE__,__LINE__)
+    call memalloc(nextn  , lextn,__FILE__,__LINE__)
+    call memalloc(nextn  , lextp,__FILE__,__LINE__)
+
+    iebou = 0
+    pextn(1) = 1
+    call cell%first()
+    do while ( .not. cell%has_finished() ) 
+      if ( cell%is_local() ) then
+        if(local_visited(cell%get_gid()) /= 0 ) then
+          iebou = iebou + 1
+          lebou(iebou) = cell%get_gid()
+          pextn(iebou+1) = + pextn(iebou)+local_visited(cell%get_gid()) 
+        end if
+      end if  
+      call cell%next()
+    end do
+
+    ! 3) Store boundary elements and external edges
+    do iebou = 1, nebou
+       call cell%set_gid(lebou(iebou))
+       ielem = cell%get_ggid()
+       nexte = 0   ! number of external neighbours of this element
+       
+       do vef_lid=1, cell%get_num_vefs()
+        call cell%get_vef(vef_lid,vef)
+        do icell_around=1, vef%get_num_cells_around()
+           call vef%get_cell_around(icell_around, neighbour_cell)
+           jelem = neighbour_cell%get_ggid()
+           if(jelem/=ielem) then
+              jpart = neighbour_cell%get_my_part()
+              if(jpart/=my_part) then                                   ! This is an external element
+                call external_visited%put(key=jelem,val=touch, stat=istat) ! Touch jelem as external neighbor of lelem.
+                if(istat==now_stored) then
+                   lextn(pextn(iebou)+nexte) = jelem
+                   lextp(pextn(iebou)+nexte) = jpart
+                   nexte = nexte + 1
+                end if
+              end if
+           end if
+         end do
+       end do
+       do vef_lid=1, cell%get_num_vefs()
+         call cell%get_vef(vef_lid,vef)
+         do icell_around=1, vef%get_num_cells_around()
+           call vef%get_cell_around(icell_around, neighbour_cell)
+           jelem = neighbour_cell%get_ggid()
+           if(jelem/=ielem) then
+             jpart = neighbour_cell%get_my_part()
+             if(jpart/=my_part) then
+               call external_visited%del(key=jelem, stat=istat)
+             end if
+            end if
+         end do
+       end do
+    end do
+
+    !write(*,*) '>>>', this%get_num_local_cells(), this%get_num_ghost_cells()
+    !write(*,*) 'XXX', lebou
+    !write(*,*) 'YYY', pextn
+    !write(*,*) 'ZZZ', lextn
+    !write(*,*) 'TTT', lextp
+   
+    call cell_import%create  ( environment%get_l1_rank()+1, &
+                               environment%get_l1_size(), &
+                               this%get_num_local_cells(), &
+                               nebou, &
+                               lebou, &
+                               pextn, &
+                               lextn, &
+                               lextp)
+  
+    call cell_import%print(6)
+ 
+    call memfree(lebou,__FILE__,__LINE__)
+    call memfree(pextn,__FILE__,__LINE__)
+    call memfree(lextn,__FILE__,__LINE__)
+    call memfree(lextp,__FILE__,__LINE__)
+    
+    call external_visited%free()
+    call memfree(local_visited,__FILE__,__LINE__)
+    call cell%free()
+    call neighbour_cell%free()
+    call vef%free()
+end subroutine p4est_bt_update_cell_import
+
 subroutine p4est_bt_fill_cells_set (this, cells_set)
   implicit none
   class(p4est_base_triangulation_t), intent(inout) :: this
@@ -1461,6 +1637,31 @@ subroutine p4est_base_triangulation_update_cell_ggids ( this )
 #endif  
 end subroutine p4est_base_triangulation_update_cell_ggids 
 
+subroutine p4est_base_triangulation_comm_cell_ggids ( this )
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  class(environment_t), pointer :: environment
+  class(cell_import_t), pointer :: cell_import 
+  integer(igp), pointer :: cell_ggids(:)
+#ifdef ENABLE_P4EST  
+  environment => this%get_environment()
+  cell_ggids => this%cell_ggids%get_raw_pointer()
+  cell_import => this%get_cell_import()
+  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_rcv_ptrs(),&
+                                            cell_import%get_rcv_leids(),&
+                                            cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_snd_ptrs(),&
+                                            cell_import%get_snd_leids(),&
+                                            cell_ggids )
+  write(*,*) 'XXX', cell_ggids
+#else  
+  call this%not_enabled_error()
+#endif  
+end subroutine p4est_base_triangulation_comm_cell_ggids
+
 subroutine p4est_base_triangulation_update_cell_myparts ( this )
   implicit none
   class(p4est_base_triangulation_t), intent(inout) :: this
@@ -1490,6 +1691,30 @@ subroutine p4est_base_triangulation_update_cell_myparts ( this )
 end subroutine p4est_base_triangulation_update_cell_myparts 
 
 
+subroutine p4est_base_triangulation_comm_cell_myparts ( this )
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  class(environment_t), pointer :: environment
+  class(cell_import_t), pointer :: cell_import 
+  integer(ip), pointer :: cell_myparts(:)
+#ifdef ENABLE_P4EST  
+  environment => this%get_environment()
+  cell_myparts => this%cell_myparts%get_raw_pointer()
+  cell_import => this%get_cell_import()
+  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_rcv_ptrs(),&
+                                            cell_import%get_rcv_leids(),&
+                                            cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_snd_ptrs(),&
+                                            cell_import%get_snd_leids(),&
+                                            cell_myparts )
+#else  
+  call this%not_enabled_error()
+#endif  
+ 
+end subroutine p4est_base_triangulation_comm_cell_myparts
 
 subroutine p4est_create_cell_iterator ( this, cell )
   implicit none

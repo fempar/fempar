@@ -64,8 +64,9 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%update_cell_ggids()
-    call this%update_cell_myparts()
+    call this%update_cell_import()
+    call this%comm_cell_ggids()
+    call this%comm_cell_myparts()
     call old_lst_vefs_gids%free()
     call this%allocate_and_fill_x_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
@@ -77,16 +78,15 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%update_cell_ggids()
-    call this%update_cell_myparts()
+    call this%update_cell_import()
+    call this%comm_cell_ggids()
+    call this%comm_cell_myparts()
     call old_lst_vefs_gids%free()
     call this%allocate_and_fill_x_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
   end if  
-  
-  
 #else
   call this%not_enabled_error()
 #endif
@@ -95,7 +95,8 @@ end subroutine p4est_serial_triangulation_create
 subroutine p4est_serial_triangulation_free ( this)
   implicit none
   class(p4est_serial_triangulation_t), target, intent(inout) :: this
-
+  type(cell_import_t), pointer :: cell_import
+  
 #ifdef ENABLE_P4EST
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_destroy(this%p4est)
@@ -133,6 +134,9 @@ subroutine p4est_serial_triangulation_free ( this)
   call this%cell_set_ids%free()
   call this%proper_vefs_set_ids%free()
   call this%improper_vefs_set_ids%free()
+  
+  cell_import => this%get_cell_import()
+  call cell_import%free()
   
   nullify(this%quad_to_quad)
   nullify(this%quad_to_face)
