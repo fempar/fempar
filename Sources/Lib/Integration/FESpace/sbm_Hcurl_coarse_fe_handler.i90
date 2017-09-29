@@ -2131,8 +2131,8 @@ subroutine Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges( this, par_fe_spac
                 node_list, nodes_counter, nodes_type, first_fine_edge )   
 
            call build_path_from_starting_node_and_direction_till_end_node(this, iedge_coarse, num_fine_edges_x_coarse_edge(iedge_coarse), fine_edges_list,    &
-                vertices_in_edge, nodes_counter, nodes_type, start_node_gid, first_fine_edge,        &
-                num_nodes_each_type, num_fine_edges_found, offcomponent_fine_edges )
+                                                                          vertices_in_edge, nodes_counter, nodes_type, start_node_gid, first_fine_edge,       &
+                                                                          num_nodes_each_type, num_fine_edges_found, offcomponent_fine_edges )
 
            offcomponent_fine_edges = offcomponent_fine_edges + num_fine_edges_found 
            call num_fine_edges_x_subedge%put( key=total_num_subedges, val=num_fine_edges_found, stat=istat ); check(istat==now_stored) 
@@ -2440,7 +2440,7 @@ subroutine build_path_from_starting_node_and_direction_till_end_node(this, iedge
 
   integer(ip) :: i 
   integer(ip) :: edge_gid_buffer
-  integer(ip) :: node_gid_buffer 
+  integer(ip) :: nodes_gid_buffer(2) 
 
   perm = (/ 2,1 /) 
   num_fine_edges_found = 0
@@ -2448,7 +2448,6 @@ subroutine build_path_from_starting_node_and_direction_till_end_node(this, iedge
 
   ! Loop till an end node is found 
   do while ( (num_fine_edges_found==0) .or. (.not. is_end_node(nodes_type, following_node_gid)) )
-
      start_node_gid = following_node_gid
      call update_nodes_counter_and_type( start_node_gid, nodes_counter, nodes_type, num_nodes_each_type )
 
@@ -2489,14 +2488,12 @@ subroutine build_path_from_starting_node_and_direction_till_end_node(this, iedge
      fine_edges_list( iedge_coarse, offcomponent_fine_edges+num_fine_edges_found ) = fine_edges_list( iedge_coarse, iedge )
      fine_edges_list( iedge_coarse, iedge ) = edge_gid_buffer 
 
-     do i=1,2 
-        node_gid_buffer = vertices_in_edge(offcomponent_fine_edges+num_fine_edges_found, i)  
-        vertices_in_edge(offcomponent_fine_edges+num_fine_edges_found, i) = vertices_in_edge(iedge, i)
-        vertices_in_edge(iedge, i) = node_gid_buffer 
-     end do
-
+     nodes_gid_buffer = vertices_in_edge(offcomponent_fine_edges+num_fine_edges_found, :)  
+     vertices_in_edge(offcomponent_fine_edges+num_fine_edges_found, :) = vertices_in_edge(iedge, :)
+     vertices_in_edge(iedge, :) = nodes_gid_buffer 
   end do
 
+		! Update last node counter and type found in the chain 
   call update_nodes_counter_and_type( following_node_gid, nodes_counter, nodes_type, num_nodes_each_type )
 
 end subroutine build_path_from_starting_node_and_direction_till_end_node
@@ -2507,8 +2504,7 @@ subroutine update_nodes_counter_and_type ( node_id, nodes_counter, nodes_type, n
   !   NODE_TYPE     |   NODE_COUNTER       ||        UPDATED NODE_TYPE   |  UPDATED NODE_COUNTER 
   ! ----------------------------------------------------------------------------------------------
   !   edge_boundary         1           ---- >                   -                    0
-  !   interior            n={1,2}       ---- >      n=2          -                    0
-  !                                                 n=1          -                    0
+  !   interior              2           ---- >                   -                    0
   !   n-furcation           n           ---- >     (n>2)   n-furcation               n-1    
   !                                     ----->     (n=2)   edge_boundary              1
   !   not_owned             2           ---- >             edge_boundary              1
