@@ -83,10 +83,8 @@ subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar
   class(reference_fe_t) , pointer  :: reference_fe 
   type(point_t)         , pointer  :: cell_coordinates(:) 
   type(point_t)         , pointer  :: nodal_coordinates(:)
-  integer(ip)                      :: inode, num_nodal_qpoints
-  integer(ip)                      :: icomp, inode_scalar 
+  integer(ip)                      :: num_nodal_qpoints
   real(rp)                         :: time_(1) 
-  logical                          :: reallocate 
 
   if ( present(time) ) time_(1) = time 
   reference_fe_id =  fe%get_reference_fe_id(this%field_id)
@@ -128,8 +126,6 @@ subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector
   integer(ip)                      :: inode, num_nodal_qpoints
   integer(ip)                      :: icomp, inode_scalar 
   real(rp)                         :: time_(1) 
-  logical                          :: reallocate 
-  integer(ip)                      :: istat
 
   if ( present(time) ) time_(1) = time 
   reference_fe_id =  fe%get_reference_fe_id(this%field_id)

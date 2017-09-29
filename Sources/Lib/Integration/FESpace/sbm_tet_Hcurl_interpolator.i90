@@ -37,9 +37,8 @@ subroutine tet_Hcurl_interpolator_create( this, fe_space, field_id )
   integer(ip)                            :: reduced_order_vector(SPACE_DIM)
   integer(ip)                            :: num_interior_moments
   integer(ip)                            :: idime, istat 
-
-  integer(ip) :: reference_fe_id  
-  integer(ip) :: num_reference_fes
+  integer(ip)                            :: reference_fe_id  
+  integer(ip)                            :: num_reference_fes
 
   this%field_id = field_id
   call fe_space%create_fe_cell_iterator(fe)
@@ -150,39 +149,28 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
 
   ! Edge moments evaluation 
   type(vector_field_t)                :: tangent 
-  type(list_iterator_t)               :: vertex_iterator 
-  type(point_t), pointer              :: edge_map_coordinates(:)
   integer(ip)                         :: edge_id  
-  integer(ip)                         :: vertex_within_edge_id 
   real(rp)                            :: edge_measure 
-
   ! Faces moments integration  
-  type(point_t), pointer              :: facet_map_coordinates(:)
   integer(ip)                         :: facet_id, facet_lid
-  integer(ip)                         :: vertex_within_facet_id
   integer(ip)                         :: direction 
   real(rp)                            :: facet_measure 
-
-  ! Local variables required by interior moments integration
+  ! Interior moments integration
   type(vector_field_t)                :: v_shape_test
   type(vector_field_t)                :: mapped_shape_test 
   integer(ip)                         :: num_interior_moments 
   real(rp)                            :: cell_measure 
-
   ! Common integration 
   class(reference_fe_t), pointer      :: reference_fe 
   class(reference_fe_t), pointer      :: reference_fe_geo 
   type(point_t)        , pointer      :: cell_coordinates(:)
-  integer(ip)                         :: vertex_within_cell_id
   real(rp)                            :: shape_test, factor 
   integer(ip)                         :: idime, ishape
   integer(ip)                         :: qpoint, num_quad_points 
-  type(vector_field_t), allocatable   :: function_values(:) 
-  type(point_t), pointer              :: quad_points_coordinates(:)
-
-  integer(ip) :: reference_fe_id 
-  real(rp)    :: time_(1) 
-  integer(ip) :: c, d, istat 
+  type(point_t)        , pointer      :: quad_points_coordinates(:)
+  integer(ip)                         :: reference_fe_id 
+  real(rp)                            :: time_(1) 
+  integer(ip)                         :: c, d
 
   if (present(time)) time_(1) = time
   reference_fe     => fe%get_reference_fe(this%field_id)
@@ -300,36 +288,27 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
   real(rp) , optional             , intent(in)    :: time 
 
-  ! Edges 
+  ! Edge moments evaluation 
   type(vector_field_t)                :: tangent
-  type(list_iterator_t)               :: vertex_iterator 
-  type(point_t), pointer              :: edge_map_coordinates(:)
   integer(ip)                         :: edge_id  
-  integer(ip)                         :: vertex_within_edge_id  
   real(rp)                            :: edge_measure 
-
-  ! Faces 
+  ! Faces moments evaluation
   integer(ip)                         :: facet_id, facet_lid
-  type(point_t), pointer              :: facet_map_coordinates(:)
   type(vector_field_t)                :: col_jacobian
-  integer(ip)                         :: vertex_within_facet_id 
   real(rp)                            :: facet_measure  
   integer(ip)                         :: direction
-
   ! Common integration 
   class(reference_fe_t), pointer      :: reference_fe 
   class(reference_fe_t), pointer      :: reference_fe_geo
   type(point_t)        , pointer      :: cell_coordinates(:) 
   real(rp)                            :: time_(1)  
-  integer(ip)                         :: vertex_within_cell_id
   real(rp)                            :: shape_test, factor 
   type(vector_field_t)                :: v_shape_test 
   integer(ip)                         :: idime, ishape, idof 
   integer(ip)                         :: qpoint, num_quad_points 
-  type(point_t), pointer              :: quad_points_coordinates(:)
+  type(point_t)        , pointer      :: quad_points_coordinates(:)
   type(list_iterator_t)               :: own_dofs
-  integer(ip)                         :: i, d, iedge, icomp, istat
-  integer(ip)                         :: reference_fe_id 
+  integer(ip)                         :: reference_fe_id
 
   if ( present(time) ) time_(1) = time 	
   reference_fe_id  =  fe%get_reference_fe_id(this%field_id)
