@@ -338,6 +338,22 @@ subroutine cell_integrator_facet_restriction_update(this, cell_map, facet_lid, s
 end subroutine cell_integrator_facet_restriction_update
 
 !==================================================================================================
+subroutine cell_integrator_facet_restriction_update_interpolation(this, quadrature, reference_fe)
+  implicit none
+  ! Parameters
+  class(cell_integrator_facet_restriction_t), intent(inout) :: this
+  type(quadrature_t)                       , intent(in)    :: quadrature
+  class(reference_fe_t)                    , intent(in)    :: reference_fe
+  integer(ip) :: facet_lid, subfacet_lid, cell_int_index
+  do facet_lid = 1,this%num_facets
+    do subfacet_lid = 0,this%num_subfacets
+      cell_int_index = facet_lid + subfacet_lid*this%num_facets
+      call this%cell_integrator(cell_int_index)%update_interpolation_restricted_to_facet(quadrature,reference_fe,facet_lid,subfacet_lid-1)
+    end do
+  end do
+end subroutine cell_integrator_facet_restriction_update_interpolation
+
+!==================================================================================================
 subroutine cell_integrator_facet_restriction_free(this)
   implicit none
   ! Parameters
@@ -425,6 +441,20 @@ subroutine facet_integrator_update(this,facet_lid,subfacet_lid,facet_map,permuta
                                                            facet_lid(2), subfacet_lid(2) )
   end if
 end subroutine facet_integrator_update
+
+!==================================================================================================
+subroutine facet_integrator_update_interpolation(this,quadrature)
+  implicit none
+  ! Parameters
+  class(facet_integrator_t)      , intent(inout) :: this
+  type(quadrature_t)            , intent(in)    :: quadrature
+  assert(associated(this%reference_fe(1)%p))
+  call this%cell_integrator_facet_restriction(1)%update_interpolation( quadrature,this%reference_fe(1)%p )  
+  if (.not. this%is_at_boundary) then
+     assert(associated(this%reference_fe(2)%p))
+     call this%cell_integrator_facet_restriction(2)%update_interpolation(quadrature,this%reference_fe(2)%p)
+  end if
+  end subroutine facet_integrator_update_interpolation
 
 !==================================================================================================
 subroutine facet_integrator_set_is_at_boundary_and_active_cell_id (this,left_reference_fe,right_reference_fe)

@@ -1551,6 +1551,7 @@ procedure, non_overridable :: free           => cell_integrator_free
 procedure, non_overridable :: update         => cell_integrator_update
 procedure, non_overridable :: print          => cell_integrator_print
 procedure, non_overridable :: update_interpolation  => cell_integrator_update_interpolation
+procedure, non_overridable :: update_interpolation_restricted_to_facet  => cell_integrator_update_interpolation_restricted_to_facet
 
 procedure, non_overridable :: get_interpolation_reference_cell =>                               &
 &                                   cell_integrator_get_interpolation_reference_cell
@@ -1640,6 +1641,7 @@ public :: cell_integrator_t, p_cell_integrator_t
    contains
      procedure, non_overridable :: create                      => cell_integrator_facet_restriction_create
      procedure, non_overridable :: update                      => cell_integrator_facet_restriction_update
+     procedure, non_overridable :: update_interpolation        => cell_integrator_facet_restriction_update_interpolation
      procedure, non_overridable :: free                        => cell_integrator_facet_restriction_free
      procedure, non_overridable :: get_current_cell_integrator => cell_integrator_facet_restriction_get_current_cell_integrator
   end type cell_integrator_facet_restriction_t
@@ -1686,8 +1688,9 @@ type facet_integrator_t
   type(allocatable_array_ip2_t)             :: qpoints_perm
 contains
   procedure, non_overridable :: create             => facet_integrator_create
-  procedure, non_overridable :: update             => facet_integrator_update
   procedure, non_overridable :: free               => facet_integrator_free
+  procedure, non_overridable :: update             => facet_integrator_update
+  procedure, non_overridable :: update_interpolation => facet_integrator_update_interpolation
   procedure, non_overridable :: set_is_at_boundary_and_active_cell_id &
     => facet_integrator_set_is_at_boundary_and_active_cell_id
   procedure, non_overridable :: get_is_at_boundary => facet_integrator_get_is_at_boundary

@@ -115,6 +115,7 @@ module unfitted_fe_spaces_names
     private
     class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
     type(facet_maps_t), pointer :: unfitted_facet_maps => NULL()
+    type(p_facet_integrator_t)  :: unfitted_facet_integrators(1)
   contains
 
     procedure :: create                               => unfitted_fe_facet_iterator_create
@@ -122,11 +123,17 @@ module unfitted_fe_spaces_names
     procedure :: update_integration                   => unfitted_fe_facet_iterator_update_integration
     procedure, private :: update_quadrature           => unfitted_fe_facet_iterator_update_quadrature
     procedure :: get_quadrature                       => unfitted_fe_facet_iterator_get_quadrature
-    procedure :: update_facet_maps                    => unfitted_fe_facet_iterator_update_facet_maps
+    procedure, non_overridable :: update_facet_maps_interpolation  => unfitted_fe_facet_iterator_update_facet_maps_interpolation
+    procedure, non_overridable :: update_facet_integrators_interpolation => uffi_update_facet_integrators_interpolation
     procedure :: get_quadrature_points_coordinates    => unfitted_fe_facet_iterator_get_quadrature_points_coordinates
     procedure :: get_normals                          => unfitted_fe_facet_iterator_get_normals
     procedure :: get_det_jacobian                     => unfitted_fe_facet_iterator_get_det_jacobian
     procedure :: compute_characteristic_length        => unfitted_fe_facet_iterator_compute_characteristic_length
+
+    procedure :: get_values_scalar     => unfitted_fe_facet_iterator_get_values_scalar
+    procedure :: get_values_vector     => unfitted_fe_facet_iterator_get_values_vector
+    procedure :: get_gradients_scalar  => unfitted_fe_facet_iterator_get_gradients_scalar
+    procedure :: get_curls             => unfitted_fe_facet_iterator_get_curls_vector 
 
   end type unfitted_fe_facet_iterator_t
 
@@ -157,7 +164,7 @@ module unfitted_fe_spaces_names
     type(cell_map_t)                     :: cell_map_subfacet
     type(quadrature_t),       allocatable :: cut_fitted_facet_quadratures(:,:)
     type(facet_maps_t),       allocatable :: cut_fitted_facet_maps(:,:,:)
-    type(facet_integrator_t), allocatable :: cut_fitted_facet_integrators(:,:)
+    type(facet_integrator_t), allocatable :: cut_fitted_facet_integrators(:,:,:)
 
     ! Auxiliary dummy empty quadratures
     type(quadrature_t)             :: empty_quadrature
@@ -166,7 +173,7 @@ module unfitted_fe_spaces_names
     type(cell_integrator_t), allocatable  :: empty_cell_integrator(:)
     type(quadrature_t)             :: empty_facet_quadrature
     type(facet_maps_t)             :: empty_facet_maps(pos_map_max_id)
-    type(facet_integrator_t)       :: empty_facet_integrators
+    type(facet_integrator_t)       :: empty_facet_integrators(pos_map_max_id)
     
     contains
 

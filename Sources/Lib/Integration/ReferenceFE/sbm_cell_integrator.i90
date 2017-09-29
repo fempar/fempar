@@ -101,6 +101,19 @@ subroutine cell_integrator_update_interpolation( this, quadrature )
 end subroutine cell_integrator_update_interpolation
 
 !==================================================================================================
+subroutine cell_integrator_update_interpolation_restricted_to_facet( this, quadrature, reference_fe, facet_lid, subfacet_lid )
+  implicit none
+  ! Parameters
+  class(cell_integrator_t)      , intent(inout) :: this 
+  type(quadrature_t)            , intent(in)    :: quadrature
+  class(reference_fe_t), target , intent(in)    :: reference_fe  
+  integer(ip)                   , intent(in)    :: facet_lid
+  integer(ip)                   , intent(in)    :: subfacet_lid
+  call reference_fe%create_interpolation_restricted_to_facet( facet_lid, subfacet_lid, quadrature, this%interpolation_reference_cell )
+  call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
+end subroutine cell_integrator_update_interpolation_restricted_to_facet
+
+!==================================================================================================
 function cell_integrator_get_interpolation_reference_cell(this)
   implicit none
   class(cell_integrator_t), target, intent(in):: this

@@ -412,7 +412,7 @@ module fe_space_names
     procedure                           :: get_quadrature                 => fe_facet_iterator_get_quadrature
 
     procedure, non_overridable, private :: get_facet_maps                => fe_facet_iterator_get_facet_map
-    procedure                           :: update_facet_maps             => fe_facet_iterator_update_facet_maps
+    procedure, non_overridable          :: update_facet_maps             => fe_facet_iterator_update_facet_maps
     procedure, non_overridable          :: update_facet_integrators      => fe_facet_iterator_update_facet_integrators
     procedure, non_overridable, private :: get_facet_integrator          => fe_facet_iterator_get_facet_integrator
     procedure, non_overridable          :: compute_surface                => fe_facet_iterator_compute_surface
@@ -429,12 +429,12 @@ module fe_space_names
     procedure                           :: get_fes_around  => fe_facet_iterator_get_fes_around
     
     
-    procedure, non_overridable :: get_values_scalar     => fe_facet_iterator_get_values_scalar
-    procedure, non_overridable :: get_values_vector     => fe_facet_iterator_get_values_vector
-    generic                    :: get_values            => get_values_scalar, get_values_vector
-    procedure, non_overridable :: get_gradients_scalar  => fe_facet_iterator_get_gradients_scalar
-    generic                    :: get_gradients         => get_gradients_scalar
-    procedure, non_overridable :: get_curls             => fe_facet_iterator_get_curls_vector 
+    procedure :: get_values_scalar     => fe_facet_iterator_get_values_scalar
+    procedure :: get_values_vector     => fe_facet_iterator_get_values_vector
+    generic   :: get_values            => get_values_scalar, get_values_vector
+    procedure :: get_gradients_scalar  => fe_facet_iterator_get_gradients_scalar
+    generic   :: get_gradients         => get_gradients_scalar
+    procedure :: get_curls             => fe_facet_iterator_get_curls_vector 
     
     procedure, non_overridable :: get_active_cell_id    => fe_facet_iterator_get_active_cell_id
     
