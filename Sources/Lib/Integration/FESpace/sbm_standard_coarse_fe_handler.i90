@@ -88,14 +88,11 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
      dofs_on_vef = .false.
      do ivef_within_object=1, object%get_num_vefs()
         call object%get_vef(ivef_within_object,vef)
-        call vef%get_cell_around(1,fe)
         reference_fe => fe%get_reference_fe(field_id)
-        call fe%get_field_fe_dofs(field_id, fe_dofs)
-        ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
         do icell_around=1, vef%get_num_cells_around()
            call vef%get_cell_around(icell_around,fe)
            if ( fe%is_ghost() ) then 
-           
+              !Get GID of dofs on cell fe
               call fe%get_field_fe_dofs(field_id, fe_dofs)
               ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
 
