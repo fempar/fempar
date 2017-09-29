@@ -173,7 +173,7 @@ contains
     integer(ip) :: set_id
 
     ! Create a structured mesh with a custom domain
-    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
+    !istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
 
     ! New call for unfitted triangulation
     call this%triangulation%create(this%parameter_list,this%level_set_function)

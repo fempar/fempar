@@ -148,6 +148,13 @@ subroutine uim_init_reference_subelem( this )
                                       conformity = .true., &
                                       continuity = .false. )
   
+  call this%geo_reference_subfacet%create( topology = topology_tet,&
+                                      num_dims = num_dim-1,&
+                                      order = 1,&
+                                      field_type = field_type_scalar,&
+                                      conformity = .true., &
+                                      continuity = .false. )
+  
   ! Find the max degree
   p = this%fe_space%get_max_order()
   
@@ -163,7 +170,7 @@ subroutine uim_init_reference_subelem( this )
   
   ! Create the fe maps
   call this%cell_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
-  call this%facet_map_subfacet%create( this%quadrature_subfacet, this%geo_reference_subelem )
+  call this%cell_map_subfacet%create( this%quadrature_subfacet, this%geo_reference_subfacet )
 
 end subroutine uim_init_reference_subelem
 
@@ -171,8 +178,9 @@ end subroutine uim_init_reference_subelem
 subroutine uim_free_reference_subelem( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
-  call this%facet_map_subfacet%free()
+  call this%cell_map_subfacet%free()
   call this%cell_map_subelem%free()
+  call this%geo_reference_subfacet%free()
   call this%geo_reference_subelem%free()
   call this%quadrature_subelem%free()
   call this%quadrature_subfacet%free()
@@ -430,6 +438,7 @@ subroutine uim_init_cut_fitted_facets_integration( this )
 
   class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t), pointer :: geo_reference_elem
+  class(reference_fe_t), pointer :: geo_reference_elem_null
 
   call this%free_cut_fitted_facets_integration()
 
@@ -451,17 +460,30 @@ subroutine uim_init_cut_fitted_facets_integration( this )
   ! We assume that the same ref element is in all the mesh (but can be different amnong fields)
   call this%fe_space%create_fe_cell_iterator(fe)
   geo_reference_elem => fe%get_reference_fe_geo()
+  geo_reference_elem_null => null()
 
-  allocate( this%cut_fitted_facet_maps(mc_num_facets,mc_num_cases), stat=istat ); check(istat==0_ip)
+  allocate( this%cut_fitted_facet_maps(pos_map_max_id,mc_num_facets,mc_num_cases), stat=istat ); check(istat==0_ip)
   do mc_case = 1, mc_num_cases
     do mc_facet = 1, mc_num_facets
-      call this%cut_fitted_facet_maps(mc_facet,mc_case)%create(&
+      
+      ! For the interior facets
+      call this%cut_fitted_facet_maps(pos_map_in_domain,mc_facet,mc_case)%create(&
         this%cut_fitted_facet_quadratures(mc_facet,mc_case), geo_reference_elem, geo_reference_elem )
+      
+      ! For the boundary facets
+      call this%cut_fitted_facet_maps(pos_map_on_boundary,mc_facet,mc_case)%create(&
+        this%cut_fitted_facet_quadratures(mc_facet,mc_case), geo_reference_elem, geo_reference_elem_null )
     end do
   end do
 
   ! cell integrators
   !allocate( this%cut_cell_integrators(mc_num_facets,mc_num_cases), stat=istat ); check(istat==0_ip)
+  
+  ! Cerate dummy objects
+  call this%empty_facet_quadrature%create(num_dim,0)
+  call this%empty_facet_maps(pos_map_in_domain)%create(this%empty_facet_quadrature,geo_reference_elem, geo_reference_elem)
+  call this%empty_facet_maps(pos_map_on_boundary)%create(this%empty_facet_quadrature,geo_reference_elem, geo_reference_elem_null)
+  !empty_facet_integrators
 
   call this%fe_space%free_fe_cell_iterator(fe)
 
@@ -473,7 +495,7 @@ subroutine uim_free_cut_fitted_facets_integration( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
 
-  integer(ip) :: id, istat, jd
+  integer(ip) :: id, istat, jd, kd
 
   if ( allocated( this%cut_fitted_facet_quadratures ) ) then
     do id = 1, size(this%cut_fitted_facet_quadratures,1)
@@ -485,9 +507,11 @@ subroutine uim_free_cut_fitted_facets_integration( this )
   end if
 
   if ( allocated( this%cut_fitted_facet_maps ) ) then
-    do id = 1, size(this%cut_fitted_facet_maps,1)
+    do kd = 1, size(this%cut_fitted_facet_maps,3)
       do jd = 1, size(this%cut_fitted_facet_maps,2)
-        call this%cut_fitted_facet_maps(id,jd)%free()
+        do id = 1, size(this%cut_fitted_facet_maps,1)
+          call this%cut_fitted_facet_maps(id,jd,kd)%free()
+        end do
       end do
     end do
     deallocate( this%cut_fitted_facet_maps , stat = istat ); check(istat==0)
@@ -501,5 +525,11 @@ subroutine uim_free_cut_fitted_facets_integration( this )
     end do
     deallocate( this%cut_fitted_facet_integrators , stat = istat ); check(istat==0)
   end if
+  
+    ! Cerate dummy objects
+  call this%empty_facet_quadrature%free()
+  call this%empty_facet_maps(pos_map_in_domain)%free()
+  call this%empty_facet_maps(pos_map_on_boundary)%free()
+  !empty_facet_integrators
 
 end subroutine uim_free_cut_fitted_facets_integration

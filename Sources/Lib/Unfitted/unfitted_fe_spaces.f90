@@ -45,7 +45,12 @@ module unfitted_fe_spaces_names
   implicit none
 # include "debug.i90"
   private
-
+  
+  
+  integer(ip), parameter :: pos_map_in_domain = 1
+  integer(ip), parameter :: pos_map_on_boundary = 2
+  integer(ip), parameter :: pos_map_max_id = 2
+  
  ! Types from unfitted branch that are *** UNDER QUARANTINE ***
  type, extends(fe_cell_iterator_t) :: unfitted_fe_cell_iterator_t
     private
@@ -148,9 +153,10 @@ module unfitted_fe_spaces_names
     type(cell_integrator_t),   allocatable :: cut_boundary_cell_integrators(:,:)    
 
     ! All the machinery to integrate in fitted subfacets
-    type(facet_map_t)                     :: facet_map_subfacet
+    type(tet_lagrangian_reference_fe_t)   :: geo_reference_subfacet
+    type(cell_map_t)                     :: cell_map_subfacet
     type(quadrature_t),       allocatable :: cut_fitted_facet_quadratures(:,:)
-    type(facet_maps_t),       allocatable :: cut_fitted_facet_maps(:,:)
+    type(facet_maps_t),       allocatable :: cut_fitted_facet_maps(:,:,:)
     type(facet_integrator_t), allocatable :: cut_fitted_facet_integrators(:,:)
 
     ! Auxiliary dummy empty quadratures
@@ -158,6 +164,9 @@ module unfitted_fe_spaces_names
     type(cell_map_t)                 :: empty_cell_map
     type(piecewise_cell_map_t)       :: empty_piecewise_cell_map
     type(cell_integrator_t), allocatable  :: empty_cell_integrator(:)
+    type(quadrature_t)             :: empty_facet_quadrature
+    type(facet_maps_t)             :: empty_facet_maps(pos_map_max_id)
+    type(facet_integrator_t)       :: empty_facet_integrators
     
     contains
 

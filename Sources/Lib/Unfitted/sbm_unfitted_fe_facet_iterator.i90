@@ -76,9 +76,19 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
   type(facet_integrator_t), pointer :: facet_integrator
   class(reference_fe_t), pointer    :: reference_fe_geo
   type(p_fe_cell_iterator_t), pointer :: fes_around(:)
-
-  call this%fe_facet_iterator_t%update_integration()
+  
   if (.not. this%is_cut() ) then
+    if (this%is_interior()) then
+      call this%fe_facet_iterator_t%update_integration()
+    else if (this%is_exterior()) then
+      if (this%is_at_boundary()) then
+        this%unfitted_facet_maps => this%unfitted_integration_manager%empty_facet_maps(pos_map_on_boundary)
+      else
+        this%unfitted_facet_maps => this%unfitted_integration_manager%empty_facet_maps(pos_map_in_domain)
+      end if
+    else
+      check(.false.)
+    end if
     return
   end if
   
@@ -123,7 +133,7 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
   type(quadrature_t), pointer :: quadrature_subfacet
   real(rp),           pointer :: quadrature_weights_subfacet(:)
   integer(ip)                 :: num_gp_subfacet, igp_subfacet, num_dim_subfacet
-  type(facet_map_t),  pointer :: facet_map_subfacet
+  type(cell_map_t),  pointer :: cell_map_subfacet
   type(point_t),      pointer :: nodal_coords_subfacet(:)
   type(point_t),      pointer :: mapped_quadrature_coords_subfacet(:)
   integer(ip)                 :: isubfacet, idi
@@ -152,9 +162,9 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
   assert( num_gp  == num_gp_subfacet*this%get_num_subvefs() )
 
   ! Recover the fe map between the reference sub-element and the reference element
-  facet_map_subfacet                => this%unfitted_integration_manager%facet_map_subfacet
-  nodal_coords_subfacet             => facet_map_subfacet%get_coordinates()
-  mapped_quadrature_coords_subfacet => facet_map_subfacet%get_quadrature_points_coordinates()
+  cell_map_subfacet                 => this%unfitted_integration_manager%cell_map_subfacet
+  nodal_coords_subfacet             => cell_map_subfacet%get_coordinates()
+  mapped_quadrature_coords_subfacet => cell_map_subfacet%get_quadrature_points_coordinates()
 
   ! Compute modified quadrature for the facet
   igp = 1
@@ -164,7 +174,7 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
     call this%get_ref_coords_of_subvef( isubfacet, nodal_coords_subfacet )
 
     ! Compute the Jacobian of the mapping between the ref sub-element and ref element
-    call facet_map_subfacet%update(1.0_rp, quadrature_subfacet )
+    call cell_map_subfacet%update(quadrature_subfacet )
 
     ! Determine if the current sub-cell is interior or exterior
     if ( this%is_interior_subvef(isubfacet) ) then
@@ -178,7 +188,7 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
     do igp_subfacet = 1, num_gp_subfacet
 
       ! Correct the weights
-      dV_subfacet = facet_map_subfacet%get_det_jacobian(igp_subfacet)
+      dV_subfacet = cell_map_subfacet%get_det_jacobian(igp_subfacet)
       quadrature_weights(igp) = coef*dV_subfacet*quadrature_weights_subfacet(igp_subfacet)
 
       ! Map the coordinates
@@ -204,15 +214,25 @@ subroutine unfitted_fe_facet_iterator_update_facet_maps(this)
   class(reference_fe_t), pointer :: geo_reference_elem
   type(quadrature_t), pointer :: quadrature
   integer(ip) :: icell
+  integer(ip) :: num_active_cell_maps
   type(p_fe_cell_iterator_t), pointer :: fes_around(:)
 
-  call this%fe_facet_iterator_t%update_facet_maps()
   assert(this%is_local())
   if ( .not. this%is_cut() ) then
+    if (this%is_interior()) then
+      call this%fe_facet_iterator_t%update_facet_maps()
+    end if
     return
   end if
-
-  this%unfitted_facet_maps => this%unfitted_integration_manager%cut_fitted_facet_maps(this%get_facet_lid(),this%get_mc_case())
+  
+  if (this%is_at_boundary()) then
+    num_active_cell_maps = 1
+    this%unfitted_facet_maps => this%unfitted_integration_manager%cut_fitted_facet_maps(pos_map_on_boundary,this%get_facet_lid(),this%get_mc_case())
+  else
+    num_active_cell_maps = 2
+    this%unfitted_facet_maps => this%unfitted_integration_manager%cut_fitted_facet_maps(pos_map_in_domain,this%get_facet_lid(),this%get_mc_case())
+  end if
+  
   facet_map  => this%unfitted_facet_maps%get_facet_map()
   cell_maps  => this%unfitted_facet_maps%get_cell_maps()
 
@@ -220,7 +240,7 @@ subroutine unfitted_fe_facet_iterator_update_facet_maps(this)
   fes_around => this%get_fes_around()
   geo_reference_elem => fes_around(1)%p%get_reference_fe_geo()
   call facet_map%update_interpolation( quadrature, geo_reference_elem )
-  do icell = 1,size(cell_maps)
+  do icell = 1, num_active_cell_maps
     call cell_maps(icell)%update_interpolation(quadrature,geo_reference_elem)
   end do
 
@@ -240,9 +260,9 @@ function unfitted_fe_facet_iterator_get_quadrature(this) result (quadrature)
   else if ( this%is_interior() ) then
     quadrature => this%fe_facet_iterator_t%get_quadrature()
   else if ( this%is_exterior() ) then
-    !quadrature => this%unfitted_integration_manager%empty_quadrature
-    !assert(quadrature%get_num_quadrature_points() == 0)
-    quadrature => this%fe_facet_iterator_t%get_quadrature()
+    quadrature => this%unfitted_integration_manager%empty_facet_quadrature
+    assert(quadrature%get_num_quadrature_points() == 0)
+    !quadrature => this%fe_facet_iterator_t%get_quadrature()
   else
     check(.false.)
   end if
@@ -258,7 +278,7 @@ function unfitted_fe_facet_iterator_get_quadrature_points_coordinates(this)
   else if ( this%is_interior() ) then
     unfitted_fe_facet_iterator_get_quadrature_points_coordinates => this%fe_facet_iterator_t%get_quadrature_points_coordinates()
   else if ( this%is_exterior() ) then
-    unfitted_fe_facet_iterator_get_quadrature_points_coordinates => this%fe_facet_iterator_t%get_quadrature_points_coordinates()
+    unfitted_fe_facet_iterator_get_quadrature_points_coordinates => this%unfitted_facet_maps%get_quadrature_points_coordinates()
   else
     check(.false.)
   end if
@@ -275,7 +295,7 @@ subroutine unfitted_fe_facet_iterator_get_normals(this, qpoint, normal)
   else if ( this%is_interior() ) then
     call this%fe_facet_iterator_t%get_normals(qpoint, normal)
   else if ( this%is_exterior() ) then
-    call this%fe_facet_iterator_t%get_normals(qpoint, normal)
+    call this%unfitted_facet_maps%get_normals(qpoint, normal)
   else
     check(.false.)
   end if
@@ -292,7 +312,7 @@ function unfitted_fe_facet_iterator_get_det_jacobian( this, i )
   else if ( this%is_interior() ) then
     unfitted_fe_facet_iterator_get_det_jacobian = this%fe_facet_iterator_t%get_det_jacobian(i)
   else if ( this%is_exterior() ) then
-    unfitted_fe_facet_iterator_get_det_jacobian = this%fe_facet_iterator_t%get_det_jacobian(i)
+    unfitted_fe_facet_iterator_get_det_jacobian = this%unfitted_facet_maps%get_det_jacobian(i)
   else
     check(.false.)
   end if
@@ -309,7 +329,7 @@ function unfitted_fe_facet_iterator_compute_characteristic_length(this,qpoint)
   else if ( this%is_interior() ) then
     unfitted_fe_facet_iterator_compute_characteristic_length = this%fe_facet_iterator_t%compute_characteristic_length(qpoint)
   else if ( this%is_exterior() ) then
-    unfitted_fe_facet_iterator_compute_characteristic_length = this%fe_facet_iterator_t%compute_characteristic_length(qpoint)
+    unfitted_fe_facet_iterator_compute_characteristic_length = this%unfitted_facet_maps%compute_characteristic_length(qpoint)
   else
     check(.false.)
   end if
