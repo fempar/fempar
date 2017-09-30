@@ -146,8 +146,10 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
   integer(ip)                            :: off
   integer(ip) :: num_rows, num_cols
   integer(ip) :: num_fine_dofs_on_coarse_dof
+  integer(ip) :: num_dims, num_coarse_dofs
   integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid, icell_around, icomp
   type(hash_table_ip_ip_t) :: visited_dofs
+  real(rp), pointer :: quad_coords(:,:)
 
   class(triangulation_t), pointer :: triangulation
 
@@ -172,7 +174,8 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
   type(vector_field_t), allocatable  :: shape_values(:,:)
   real(rp)     :: facet_measure
 
- 
+  num_dims = par_fe_space%get_num_dims()
+  
   par_environment => par_fe_space%get_environment()
   assert (associated(par_environment))
   assert (par_environment%am_i_l1_task())
@@ -194,13 +197,15 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
   
   ! Loop in objects (associated with coarse dofs?)
   do while ( .not. object%has_finished() )
-     if ( object%get_num_coarse_dofs(field_id) > 0 ) then
+     num_coarse_dofs = object%get_num_coarse_dofs(field_id) 
+     if ( num_coarse_dofs > 0 ) then
 
         own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
         coarse_dof_lid = own_coarse_dofs_iterator%get_current()-1 
 
         ! Face coarse DoF
         if ( object%get_dim () == triangulation%get_num_dims()-1) then
+           ! Compute the mesuarement (area, length) of the object
            facet_measure = 0.0_rp
            faces_object_iterator = object%create_faces_object_iterator()
            do while ( .not. faces_object_iterator%is_upper_bound() )
@@ -218,15 +223,17 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
            do while ( .not. faces_object_iterator%is_upper_bound() )
               call object%get_face(faces_object_iterator%get_current(),fe_face)
               quad     => fe_face%get_quadrature()
+              quad_coords => quad%get_coordinates()
+              assert(quad%get_num_dims==num_dims)
               do icell_around=1, fe_face%get_num_cells_around()              
                  call fe_face%get_cell_around(icell_around,fe)
                  if (fe%is_local()) then
                     reference_fe => fe%get_reference_fe(field_id)
-                    
-                    facevec = 0.0_rp
                     call fe_face%update_integration() 
                     call fe_face%get_values(icell_around,shape_values,field_id)
-                    
+                    ! Go over coarse-DoFs functionals
+                    do ifunc = 1:num_coarse_dofs 
+                    facevec = 0.0_rp
                     do qpoint = 1, quad%get_num_quadrature_points()
                        factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
                        do idof = 1, fe%get_num_dofs()
@@ -253,6 +260,7 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
                                                   mask, &
                                                   coarse_dof_lid+icomp, &
                                                   facevec/facet_measure)
+                    end do
                     end do
                  end if
               end do
@@ -327,6 +335,27 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
      deallocate(shape_values, stat=istat); check(istat==0);  
   end if
   !call memfree(shape_values, __FILE__, __LINE__)
+  
+  contains
+  function rigid_body_mode_get_value (ifunc,idof,icomp,num_dims,quad_coords)
+    implicit none
+    integer(ip)       ,intent(in) :: ifunc, idof, num_dims
+    real(rp)          ,intent(in) :: quad_coards
+    
+    select case (ifunc)
+        
+    case(:num_dims)
+      if ( ifunc==icomp) then
+         rigid_body_mode_get_value =1
+      else
+         rigid_body_mode_get_value =0
+      endif
+      
+     case(num_dims+1:)
+     
+    end select  
+    
+  end function rigid_body_mode_get_value
   
 end subroutine elasticity_l1_setup_constraint_matrix_CI
 
