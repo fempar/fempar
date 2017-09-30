@@ -56,13 +56,15 @@ subroutine elasticity_l1_get_num_coarse_dofs(this, field_id, par_fe_space, param
   
   num_dims = par_fe_space%get_num_dims()
   num_coarse_dofs_x_vertex = num_dims
-  num_coarse_dofs_x_edge = num_dims+ num_dims*(num_dims-1)/2
+  num_coarse_dofs_x_edge = num_dims+ num_dims*(num_dims-1)/2 ! This need to be revisited. Do we use edges?
   num_coarse_dofs_x_face = num_dims+ num_dims*(num_dims-1)/2
   
   call this%get_coarse_space_use_vertices_edges_faces(parameter_list,& 
                                                       use_vertices, &
                                                       use_edges, &
                                                       use_faces)
+  ! Currently do not use edge constraints
+  assert(.not.(use_edges))
 
   ! First, count how many coarse_dofs there are on the interface of my subdomain
   num_coarse_dofs = 0

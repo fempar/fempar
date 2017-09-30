@@ -74,7 +74,7 @@ contains
     error = list%set(key = jump_key                          , value =  1)  ; check(error==0)
     error = list%set(key = inclusion_key                     , value =  1)  ; check(error==0)
     error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                      ; check(error==0)
-    error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                      ; check(error==0)
+    error = list%set(key = coarse_space_use_edges_key        , value =  .false.)                      ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = coarse_fe_handler_type_key        , value =  pb_bddc)                     ; check(error==0)
     error = list%set(key = nchannel_x_direction_key        , value = [1,1,1])                      ; check(error==0)
