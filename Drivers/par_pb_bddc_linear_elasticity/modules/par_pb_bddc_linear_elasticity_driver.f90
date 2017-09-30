@@ -28,10 +28,10 @@
 module par_pb_bddc_linear_elasticity_driver_names
   use fempar_names
   use par_pb_bddc_linear_elasticity_params_names
-  
+
   use linear_elasticity_discrete_integration_names
   use linear_elasticity_conditions_names
-  
+
   use linear_elasticity_analytical_functions_names
 # include "debug.i90"
 
@@ -40,15 +40,15 @@ module par_pb_bddc_linear_elasticity_driver_names
 
   type par_pb_bddc_linear_elasticity_fe_driver_t 
      private 
-     
+
      ! Place-holder for parameter-value set provided through command-line interface
      type(par_pb_bddc_linear_elasticity_params_t)      :: test_params
      type(ParameterList_t), pointer       :: parameter_list
-     
+
      ! Cells and lower dimension objects container
      type(par_triangulation_t)             :: triangulation
      integer(ip), allocatable              :: cell_set_ids(:)
-     
+
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                        :: fe_space 
      type(p_reference_fe_t), allocatable         :: reference_fes(:) 
@@ -61,20 +61,20 @@ module par_pb_bddc_linear_elasticity_driver_names
      type(linear_elasticity_conditions_t)           :: linear_elasticity_conditions
      type(linear_elasticity_analytical_functions_t) :: linear_elasticity_analytical_functions
 
-     
+
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
-     
+
      ! MLBDDC preconditioner
      type(mlbddc_t)                            :: mlbddc
-    
+
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
- 
+
      ! Poisson problem solution FE function
      type(fe_function_t)                   :: solution
      type(constant_vector_function_t)      :: zero_vector
-     
+
      ! Environment required for fe_affine_operator + vtk_handler
      type(environment_t)                    :: par_environment
 
@@ -121,8 +121,8 @@ contains
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
 
-!========================================================================================
-subroutine setup_timers(this)
+  !========================================================================================
+  subroutine setup_timers(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(execution_context_t), pointer :: w_context
@@ -132,10 +132,10 @@ subroutine setup_timers(this)
     call this%timer_assemply%create(     w_context,"FE INTEGRATION AND ASSEMBLY")
     call this%timer_solver_setup%create( w_context,"SETUP SOLVER AND PRECONDITIONER")
     call this%timer_solver_run%create(   w_context,"SOLVER RUN")
-end subroutine setup_timers
+  end subroutine setup_timers
 
-!========================================================================================
-subroutine report_timers(this)
+  !========================================================================================
+  subroutine report_timers(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%report(.true.)
@@ -144,12 +144,12 @@ subroutine report_timers(this)
     call this%timer_solver_setup%report(.false.)
     call this%timer_solver_run%report(.false.)
     if (this%par_environment%get_l1_rank() == 0) then
-      write(*,*)
+       write(*,*)
     end if
-end subroutine report_timers
+  end subroutine report_timers
 
-!========================================================================================
-subroutine free_timers(this)
+  !========================================================================================
+  subroutine free_timers(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%free()
@@ -157,9 +157,9 @@ subroutine free_timers(this)
     call this%timer_assemply%free()
     call this%timer_solver_setup%free()
     call this%timer_solver_run%free()
-end subroutine free_timers
+  end subroutine free_timers
 
-!========================================================================================
+  !========================================================================================
   subroutine setup_environment(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
@@ -172,15 +172,15 @@ end subroutine free_timers
     istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
     call this%par_environment%create (this%parameter_list)
   end subroutine setup_environment
-   
+
   subroutine setup_triangulation(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(vef_iterator_t), allocatable  :: vef
-      !!! Do we really need this  
+!!! Do we really need this  
     logical :: fixed_pressure
-        
-    
+
+
     call this%triangulation%create(this%parameter_list, this%par_environment)
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
@@ -189,7 +189,7 @@ end subroutine free_timers
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
-             !!! Do we really need this
+!!! Do we really need this
              if(.not.fixed_pressure) then
                 fixed_pressure = .true.
                 call vef%set_set_id(2)
@@ -200,18 +200,18 @@ end subroutine free_timers
           call vef%next()
        end do
        call this%triangulation%free_vef_iterator(vef)
-    end if  
+    end if
 
-    
+
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
-      call this%setup_cell_set_ids() 
-    end if  
+       call this%setup_cell_set_ids() 
+    end if
     call this%triangulation%setup_coarse_triangulation()
     !write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_num_objects()
     if ( this%test_params%get_coarse_fe_handler_type() == standard_bddc ) then
-      call this%setup_cell_set_ids() 
+       call this%setup_cell_set_ids() 
     end if
-    
+
   end subroutine setup_triangulation
 
   subroutine setup_cell_set_ids(this)
@@ -255,16 +255,16 @@ end subroutine free_timers
        call memfree( cells_set, __FILE__, __LINE__ )
        call this%triangulation%free_cell_iterator(cell)
     end if
-    
+
     if ( allocated(px1) ) call memfree( px1, __FILE__, __LINE__ )
     if ( allocated(px2) ) call memfree( px2, __FILE__, __LINE__ )
     if ( allocated(py1) ) call memfree( py1, __FILE__, __LINE__ )
     if ( allocated(py2) ) call memfree( py2, __FILE__, __LINE__ )
     if ( allocated(pz1) ) call memfree( pz1, __FILE__, __LINE__ )
     if ( allocated(pz2) ) call memfree( pz2, __FILE__, __LINE__ )
-    
+
   contains
-    
+
     function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,nparts)
       implicit none
       type(point_t), intent(in)  :: coord
@@ -516,13 +516,13 @@ end subroutine free_timers
          j = mod(mod(l1_rank,nparts(1)*nparts(2))/nparts(1),2)
          k = mod(l1_rank/(nparts(1)*nparts(2)),2)
          if (((i==0) .and. (j==0) .and. (k==0)).or.&
-             (i==0 .and. j==1 .and. k==0).or.&
-             (i==1 .and. j==0 .and. k==0).or.&
-             ((i==0) .and. (j==0) .and. (k==1))) then
+              (i==0 .and. j==1 .and. k==0).or.&
+              (i==1 .and. j==0 .and. k==0).or.&
+              ((i==0) .and. (j==0) .and. (k==1))) then
             cell_set_id=2
          else 
             cell_set_id=1
-         end if  
+         end if
 
       end if
 
@@ -544,51 +544,53 @@ end subroutine free_timers
          end if
       end do
     end function is_point_in_rectangle
-    
+
   end subroutine setup_cell_set_ids
 
-!========================================================================================
+  !========================================================================================
 
   subroutine setup_discrete_integration(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    integer(ip) :: istat
 
+    !allocate(irreducible_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
     call this%linear_elasticity_integration%create(this%triangulation%get_num_dims(),this%linear_elasticity_analytical_functions)
-   
+
   end subroutine setup_discrete_integration
 
-!========================================================================================
-  
+  !========================================================================================
+
   subroutine setup_reference_fes(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     class(cell_iterator_t), allocatable       :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
-    
-    allocate(this%reference_fes(1), stat=istat)
+
+    allocate(this%reference_fes(this%linear_elasticity_integration%get_number_fields()), stat=istat)
     check(istat==0)
-    
+
     if ( this%par_environment%am_i_l1_task() ) then
-      call this%triangulation%create_cell_iterator(cell)
-      reference_fe_geo => cell%get_reference_fe()
-      this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_lagrangian, &
-                                                   num_dims = this%triangulation%get_num_dims(), &
-                                                   order = this%test_params%get_reference_fe_order(), &
-                                                   field_type = field_type_vector, &
-                                                   conformity = .true. )
-      call this%triangulation%free_cell_iterator(cell)
+       call this%triangulation%create_cell_iterator(cell)
+       reference_fe_geo => cell%get_reference_fe()
+       this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
+            fe_type = fe_type_lagrangian, &
+            num_dims = this%triangulation%get_num_dims(), &
+            order = this%test_params%get_reference_fe_order(), &
+            field_type = field_type_vector, &
+            conformity = .true. )
+       call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine setup_reference_fes
-  
+
   subroutine setup_coarse_fe_handlers(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat
     allocate(this%coarse_fe_handlers(1), stat=istat)
     check(istat==0)
-        
+
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
        this%coarse_fe_handlers(1)%p => this%vector_laplacian_coarse_fe_handler
     else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
@@ -608,46 +610,46 @@ end subroutine free_timers
     call this%linear_elasticity_conditions%set_boundary_function(this%linear_elasticity_analytical_functions%get_solution_function_u())
 
     call this%fe_space%create( triangulation       = this%triangulation,      &
-                               reference_fes       = this%reference_fes,      &
-                               coarse_fe_handlers  = this%coarse_fe_handlers, &
-                               conditions          = this%linear_elasticity_conditions )
-    
-    
+         reference_fes       = this%reference_fes,      &
+         coarse_fe_handlers  = this%coarse_fe_handlers, &
+         conditions          = this%linear_elasticity_conditions )
+
+
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()
     !call this%fe_space%print()
   end subroutine setup_fe_space
-  
+
   subroutine setup_system (this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(vector_field_t) :: zero_vector_field
-    
-    !!! Do we really need this
+
+!!! Do we really need this
     !call this%linear_elasticity_integration%set_source_term(this%linear_elasticity_analytical_functions%get_source_term())
-    
+
     ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true. ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          fe_space                          = this%fe_space, &
-                                          discrete_integration              = this%linear_elasticity_integration, &
-                                          field_blocks                      = this%linear_elasticity_integration%get_field_blocks(), &
-                                          field_coupling                    = this%linear_elasticity_integration%get_field_coupling()) 
-    
+         diagonal_blocks_symmetric_storage = [ .true. ], &
+         diagonal_blocks_symmetric         = [ .true. ], &
+         diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+         fe_space                          = this%fe_space, &
+         discrete_integration              = this%linear_elasticity_integration, &
+         field_blocks                      = this%linear_elasticity_integration%get_field_blocks(), &
+         field_coupling                    = this%linear_elasticity_integration%get_field_coupling()) 
+
     call this%solution%create(this%fe_space) 
     call zero_vector_field%init(0.0_rp)
     call this%zero_vector%create(zero_vector_field)
     call this%fe_space%interpolate(1, this%zero_vector, this%solution)
     call this%fe_space%interpolate_dirichlet_values(this%solution)
     call this%linear_elasticity_integration%set_fe_function(this%solution)
-    
+
   end subroutine setup_system
-  
+
   subroutine setup_solver (this)
     implicit none
-    
+
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(parameterlist_t) :: parameter_list
     type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
@@ -655,29 +657,32 @@ end subroutine free_timers
     integer(ip) :: ilev
     integer(ip) :: iparm(64)
     logical, parameter :: si_solver = .false.
+    logical, parameter :: use_bddc_preconditioner = .true.
 
-    !call this%iterative_linear_solver%create(this%fe_space%get_environment())
-    !call this%iterative_linear_solver%set_type_from_string(cg_name)
-    !call parameter_list%init()
-    !FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-9_rp)
-    !assert(FPLError == 0)
-    !FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
-    !assert(FPLError == 0)
-    !call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    !call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-    !call parameter_list%free()
-    !return
-    
+    if (.not.(use_bddc_preconditioner)) then
+       call this%iterative_linear_solver%create(this%fe_space%get_environment())
+       call this%iterative_linear_solver%set_type_from_string(cg_name)
+       call parameter_list%init()
+       FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-9_rp)
+       assert(FPLError == 0)
+       FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+       assert(FPLError == 0)
+       call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+       call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+       call parameter_list%free()
+       return
+    end if
+
     if ( this%par_environment%get_l1_rank() == 0 ) then
-      if (si_solver) then
-        write(*,*) "si_solver:: 1"
-      else 
-        write(*,*) "si_solver:: 0"
-      end if 
+       if (si_solver) then
+          write(*,*) "si_solver:: 1"
+       else 
+          write(*,*) "si_solver:: 0"
+       end if
     end if
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-    
-    
+
+
     ! Prepare the internal parameter list of pardiso
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
@@ -710,7 +715,7 @@ end subroutine free_timers
           !FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
           !FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
        end if
-       
+
        ! Set current level Neumann solver parameters
        neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
        FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
@@ -719,7 +724,7 @@ end subroutine free_timers
           FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
           FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
        end if
-     
+
        coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
        plist  => coarse 
     end do
@@ -730,8 +735,8 @@ end subroutine free_timers
        !FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        !FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
     end if
-    
-    
+
+
     ! Set-up MLBDDC preconditioner
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
@@ -748,8 +753,8 @@ end subroutine free_timers
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
     call parameter_list%free()
   end subroutine setup_solver
-  
-  
+
+
   subroutine assemble_system (this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
@@ -758,14 +763,14 @@ end subroutine free_timers
     call this%fe_affine_operator%numerical_setup()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
-    
+
     !select type(matrix)
     !class is (sparse_matrix_t)  
     !   call matrix%print_matrix_market(6) 
     !class DEFAULT
     !   assert(.false.) 
     !end select
-    
+
     !select type(rhs)
     !class is (serial_scalar_array_t)  
     !   call rhs%print(6) 
@@ -773,8 +778,8 @@ end subroutine free_timers
     !   assert(.false.) 
     !end select
   end subroutine assemble_system
-  
-  
+
+
   subroutine solve_system(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
@@ -784,19 +789,19 @@ end subroutine free_timers
 
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
-    write(*,*)'2-norm',rhs%nrm2()
+    !write(*,*)'2-norm',rhs%nrm2()
     dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-                                            dof_values)
-    write(*,*)'solution',dof_values%nrm2()
-    
+    call this%iterative_linear_solver%solve(-this%fe_affine_operator%get_translation(), &
+         dof_values)
+    !write(*,*)'solution',dof_values%nrm2()
+
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
     !   call dof_values%print(6)
     !class DEFAULT
     !   assert(.false.) 
     !end select
-    
+
     !select type (matrix)
     !class is (sparse_matrix_t)  
     !   call this%direct_solver%update_matrix(matrix, same_nonzero_pattern=.true.)
@@ -805,7 +810,7 @@ end subroutine free_timers
     !   assert(.false.) 
     !end select
   end subroutine solve_system
-    
+
   subroutine check_solution(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
@@ -816,38 +821,38 @@ end subroutine free_timers
 
     do field_id = 1, this%linear_elasticity_integration%get_number_fields()
 
-        call vector_error_norm%create(this%fe_space,field_id)    
-          mean      = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, mean_norm)   
-          l1        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, l1_norm)   
-          l2        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, l2_norm)   
-          lp        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, lp_norm)   
-          linfty    = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, linfty_norm)   
-          h1_s      = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, h1_seminorm) 
-          h1        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, h1_norm) 
-          w1p_s     = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1p_seminorm)   
-          w1p       = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1p_norm)   
-          w1infty_s = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1infty_seminorm) 
-          w1infty   = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1infty_norm)  
-          if ( this%par_environment%am_i_l1_root() ) then
-             write(*,'(a12,a8)')      this%linear_elasticity_integration%get_field_name(field_id), ' field: '
-             write(*,'(a20,e32.25)') 'mean_norm:', mean             ; check ( abs(mean) < 1.0e-04 ) 
-             write(*,'(a20,e32.25)') 'l1_norm:', l1                 ; check ( l1 < 1.0e-04 )        
-             write(*,'(a20,e32.25)') 'l2_norm:', l2                 ; check ( l2 < 1.0e-04 )        
-             write(*,'(a20,e32.25)') 'lp_norm:', lp                 ; check ( lp < 1.0e-04 )        
-             write(*,'(a20,e32.25)') 'linfnty_norm:', linfty        ; check ( linfty < 1.0e-04 )    
-             write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s           ; check ( h1_s < 1.0e-04 )      
-             write(*,'(a20,e32.25)') 'h1_norm:', h1                 ; check ( h1 < 1.0e-04 )        
-             write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s         ; check ( w1p_s < 1.0e-04 )     
-             write(*,'(a20,e32.25)') 'w1p_norm:', w1p               ; check ( w1p < 1.0e-04 )       
-             write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s ; check ( w1infty_s < 1.0e-04 ) 
-             write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty       ; check ( w1infty < 1.0e-04 )   
-          end if
-          call vector_error_norm%free()
-     end do
+       call vector_error_norm%create(this%fe_space,field_id)    
+       mean      = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, mean_norm)   
+       l1        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, l1_norm)   
+       l2        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, l2_norm)   
+       lp        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, lp_norm)   
+       linfty    = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, linfty_norm)   
+       h1_s      = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, h1_seminorm) 
+       h1        = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, h1_norm) 
+       w1p_s     = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1p_seminorm)   
+       w1p       = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1p_norm)   
+       w1infty_s = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1infty_seminorm) 
+       w1infty   = vector_error_norm%compute(this%linear_elasticity_analytical_functions%get_solution_function_u(), this%solution, w1infty_norm)  
+       if ( this%par_environment%am_i_l1_root() ) then
+          write(*,'(a12,a8)')      this%linear_elasticity_integration%get_field_name(field_id), ' field: '
+          write(*,'(a20,e32.25)') 'mean_norm:', mean             ; check ( abs(mean) < 1.0e-04 ) 
+          write(*,'(a20,e32.25)') 'l1_norm:', l1                 ; check ( l1 < 1.0e-04 )        
+          write(*,'(a20,e32.25)') 'l2_norm:', l2                 ; check ( l2 < 1.0e-04 )        
+          write(*,'(a20,e32.25)') 'lp_norm:', lp                 ; check ( lp < 1.0e-04 )        
+          write(*,'(a20,e32.25)') 'linfnty_norm:', linfty        ; check ( linfty < 1.0e-04 )    
+          write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s           ; check ( h1_s < 1.0e-04 )      
+          write(*,'(a20,e32.25)') 'h1_norm:', h1                 ; check ( h1 < 1.0e-04 )        
+          write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s         ; check ( w1p_s < 1.0e-04 )     
+          write(*,'(a20,e32.25)') 'w1p_norm:', w1p               ; check ( w1p < 1.0e-04 )       
+          write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s ; check ( w1infty_s < 1.0e-04 ) 
+          write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty       ; check ( w1infty < 1.0e-04 )   
+       end if
+       call vector_error_norm%free()
+    end do
   end subroutine check_solution
-  
+
   !========================================================================================
-  
+
   subroutine write_solution(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
@@ -857,28 +862,28 @@ end subroutine free_timers
     real(rp), allocatable :: set_id_cell_vector(:)
 
     if(this%test_params%get_write_solution()) then
-      if (this%par_environment%am_i_l1_task()) then
-      
-        call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
-        mypart_vector(:) = this%par_environment%get_l1_rank()
+       if (this%par_environment%am_i_l1_task()) then
 
-        call oh%create()
-        call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'solution')
-        call oh%add_cell_vector(mypart_vector,'l1_rank')
-        !call oh%add_cell_vector(set_id_cell_vector, 'set_id')
-        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
-        call oh%write()
-        call oh%close()
-        call oh%free()
+          call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
+          mypart_vector(:) = this%par_environment%get_l1_rank()
 
-        if (allocated(cell_vector)) call memfree(cell_vector,__FILE__,__LINE__)
-        call memfree(mypart_vector,__FILE__,__LINE__)
+          call oh%create()
+          call oh%attach_fe_space(this%fe_space)
+          call oh%add_fe_function(this%solution, 1, 'solution')
+          call oh%add_cell_vector(mypart_vector,'l1_rank')
+          !call oh%add_cell_vector(set_id_cell_vector, 'set_id')
+          call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+          call oh%write()
+          call oh%close()
+          call oh%free()
 
-      end if
+          if (allocated(cell_vector)) call memfree(cell_vector,__FILE__,__LINE__)
+          call memfree(mypart_vector,__FILE__,__LINE__)
+
+       end if
     endif
   end subroutine write_solution
-  
+
   subroutine run_simulation(this) 
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
@@ -907,32 +912,32 @@ end subroutine free_timers
     call this%solve_system()
     call this%timer_solver_run%stop()
 
-    !call this%check_solution()
+    call this%check_solution()
     call this%write_solution()
     call this%free()
   end subroutine run_simulation
-  
+
   subroutine free(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
-    
+
     call this%solution%free() 
     call this%mlbddc%free()
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
-      do i=1, size(this%reference_fes)
-        call this%reference_fes(i)%free()
-      end do
-      deallocate(this%reference_fes, stat=istat)
-      check(istat==0)
+       do i=1, size(this%reference_fes)
+          call this%reference_fes(i)%free()
+       end do
+       deallocate(this%reference_fes, stat=istat)
+       check(istat==0)
     end if
     call this%triangulation%free()
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
     call this%linear_elasticity_integration%free()
-  end subroutine free  
+  end subroutine free
 
   !========================================================================================
   subroutine free_environment(this)
@@ -948,5 +953,5 @@ end subroutine free_timers
     call this%test_params%free()
   end subroutine free_command_line_parameters
 
-    
+
 end module par_pb_bddc_linear_elasticity_driver_names
