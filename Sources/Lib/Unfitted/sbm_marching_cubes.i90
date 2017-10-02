@@ -489,8 +489,10 @@ subroutine marching_cubes_mc_tables_create(this)
     this%mc_table_num_nodes_in_sub_facet = MC_QUA4_NUM_NODES_PER_SUBFACE
   else
     this%mc_table_num_cases         = MC_HEX8_NUM_CASES
+    this%mc_table_num_facets         = MC_HEX8_NUM_FACETS
     this%mc_table_max_num_sub_cells  = MC_HEX8_MAX_NUM_SUBCELLS
     this%mc_table_max_num_unfitted_sub_facets  = MC_HEX8_MAX_NUM_SUBFACES
+    this%mc_table_max_num_fitted_sub_facets_in_facet = MC_HEX8_MAX_NUM_FITTED_SUB_FACETS_IN_FACET
     this%mc_table_max_num_cut_edges = MC_HEX8_MAX_NUM_CUT_EDGES
     this%mc_table_num_nodes_in_sub_cell = MC_HEX8_NUM_NODES_PER_SUBCELL
     this%mc_table_num_nodes_in_sub_facet = MC_HEX8_NUM_NODES_PER_SUBFACE
@@ -589,6 +591,28 @@ subroutine marching_cubes_mc_tables_create(this)
     this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,136:180) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL4(:,:,:)
     this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,181:225) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL5(:,:,:)
     this%mc_table_unfitted_sub_facets_node_ids_x_case(:,:,226:256) = MC_HEX8_SUBFACE_NODE_IDS_PER_CASE_BL6(:,:,:)
+    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,1:36) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL1(:,:)
+    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,37:72) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL2(:,:)
+    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,73:108) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL3(:,:)
+    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,109:144) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL4(:,:)
+    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,145:180) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL5(:,:)
+    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,181:216) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL6(:,:)
+    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,217:252) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL7(:,:)
+    this%mc_table_num_fitted_sub_facets_x_case_and_facet(:,253:256) = MC_HEX8_NUM_SUB_FACETS_PER_CASE_AND_FACET_BL8(:,:)
+    this%mc_table_facet_status_x_case_and_facet(:,1:36) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL1(:,:)
+    this%mc_table_facet_status_x_case_and_facet(:,37:72) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL2(:,:)
+    this%mc_table_facet_status_x_case_and_facet(:,73:108) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL3(:,:)
+    this%mc_table_facet_status_x_case_and_facet(:,109:144) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL4(:,:)
+    this%mc_table_facet_status_x_case_and_facet(:,145:180) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL5(:,:)
+    this%mc_table_facet_status_x_case_and_facet(:,181:216) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL6(:,:)
+    this%mc_table_facet_status_x_case_and_facet(:,217:252) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL7(:,:)
+    this%mc_table_facet_status_x_case_and_facet(:,253:256) = MC_HEX8_FACET_TYPE_PER_CASE_AND_FACET_BL8(:,:)
+    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,1:45) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL1(:,:,:)
+    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,46:90) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL2(:,:,:)
+    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,91:135) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL3(:,:,:)
+    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,136:180) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL4(:,:,:)
+    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,181:225) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL5(:,:,:)
+    this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,226:256) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL6(:,:,:)
   endif
 
   this%mc_tables_init = .true.
