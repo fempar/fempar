@@ -716,6 +716,10 @@ contains
     type(vector_field_t)  :: normal_vec(2)
     integer(ip), parameter :: the_point_type = 1
     real(rp) :: mystatus
+    real(rp) :: dS
+    type(vector_field_t), allocatable  :: shape_gradients(:,:)
+    real(rp)            , allocatable  :: shape_values(:,:)
+    integer(ip) :: num_cells_arround, ineigh, istat
 
     class(triangulation_t), pointer :: triangulation
 
@@ -785,8 +789,14 @@ contains
        else
          check(.false.)
        end if
+
+       do ineigh = 1, fe_facet%get_num_cells_around()
+         call fe_facet%get_gradients(ineigh,shape_gradients,1)
+         call fe_facet%get_values   (ineigh,shape_values,1)
+       end do
   
        do qpoint = 1, num_quad_points
+         dS =  fe_facet%get_det_jacobian(qpoint)*quadrature%get_weight(qpoint)
          this%x(ipoint) = quadrature_points_coordinates(qpoint)%get(1)
          this%y(ipoint) = quadrature_points_coordinates(qpoint)%get(2)
          this%z(ipoint) = quadrature_points_coordinates(qpoint)%get(3)
@@ -807,6 +817,8 @@ contains
     if (num_dime == 2_ip) this%z(:) = 0
     if (num_dime == 2_ip) this%v_z(:) = 0
     call fe_space%free_fe_facet_iterator(fe_facet)
+    call memfree(shape_values, __FILE__, __LINE__)
+    deallocate (shape_gradients, stat=istat); check(istat==0);
   
   end subroutine uvtkw_attach_facets_quadrature_points
 

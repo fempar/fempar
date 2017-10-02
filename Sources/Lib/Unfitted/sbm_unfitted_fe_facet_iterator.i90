@@ -79,29 +79,28 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
   type(facet_integrator_t), pointer :: facet_integrator
   class(reference_fe_t), pointer    :: reference_fe_geo
   type(p_fe_cell_iterator_t), pointer :: fes_around(:)
+   
   
-  if (.not. this%is_cut() ) then
-    if (this%is_interior()) then
-      call this%fe_facet_iterator_t%update_integration()
-    else if (this%is_exterior()) then
-      if (this%is_at_boundary()) then
-        this%unfitted_facet_maps => this%unfitted_integration_manager%empty_facet_maps(pos_map_on_boundary)
-        this%unfitted_facet_integrators(1)%p => this%unfitted_integration_manager%empty_facet_integrators(pos_map_on_boundary)
-      else
-        this%unfitted_facet_maps => this%unfitted_integration_manager%empty_facet_maps(pos_map_in_domain)
-        this%unfitted_facet_integrators(1)%p => this%unfitted_integration_manager%empty_facet_integrators(pos_map_in_domain)
-      end if
-    else
-      check(.false.)
-    end if
+  if (this%is_interior()) then
+    call this%fe_facet_iterator_t%update_integration()
     return
+  else if (this%is_exterior()) then
+    if (this%is_at_boundary()) then
+      this%unfitted_facet_maps => this%unfitted_integration_manager%empty_facet_maps(pos_map_on_boundary)
+      this%unfitted_facet_integrators(1)%p => this%unfitted_integration_manager%empty_facet_integrators(pos_map_on_boundary)
+    else
+      this%unfitted_facet_maps => this%unfitted_integration_manager%empty_facet_maps(pos_map_in_domain)
+      this%unfitted_facet_integrators(1)%p => this%unfitted_integration_manager%empty_facet_integrators(pos_map_in_domain)
+    end if
+  else if (this%is_cut()) then
+    call this%update_sub_triangulation()
+    call this%update_quadrature()
+    call this%update_facet_maps_interpolation()
+    call this%update_facet_integrators_interpolation()
+  else
+    check(.false.)
   end if
   
-  call this%update_sub_triangulation()
-  call this%update_quadrature()
-  call this%update_facet_maps_interpolation()
-  call this%update_facet_integrators_interpolation()
-
   fes_around => this%get_fes_around()
   coords => this%unfitted_facet_maps%get_facet_coordinates()
   call this%get_nodes_coordinates(coords)
