@@ -54,7 +54,7 @@ module par_pb_bddc_linear_elasticity_driver_names
      type(p_reference_fe_t), allocatable         :: reference_fes(:) 
      type(standard_l1_coarse_fe_handler_t)       :: standard_coarse_fe_handler
 !!! Need to change this
-     type(vector_laplacian_pb_bddc_l1_coarse_fe_handler_t):: vector_laplacian_coarse_fe_handler
+     type(elasticity_pb_bddc_l1_coarse_fe_handler_t):: elasticity_coarse_fe_handler
      type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
 !!! Need to change this
      type(irreducible_discrete_integration_t) :: linear_elasticity_integration
@@ -227,7 +227,7 @@ contains
 
 !!! Need to change this
     !!this%linear_elasticity_integration%diffusion_inclusion = this%test_params%get_jump()    
-    !!this%vector_laplacian_coarse_fe_handler%diffusion_inclusion = this%test_params%get_jump()
+    !!this%elasticity_coarse_fe_handler%diffusion_inclusion = this%test_params%get_jump()
 
     if ( this%par_environment%am_i_l1_task() ) then
        l1_rank = this%par_environment%get_l1_rank()
@@ -592,7 +592,7 @@ contains
     check(istat==0)
 
     if ( this%test_params%get_coarse_fe_handler_type() == pb_bddc ) then
-       this%coarse_fe_handlers(1)%p => this%vector_laplacian_coarse_fe_handler
+       this%coarse_fe_handlers(1)%p => this%elasticity_coarse_fe_handler
     else if (this%test_params%get_coarse_fe_handler_type() == standard_bddc) then
        this%coarse_fe_handlers(1)%p => this%standard_coarse_fe_handler
     end if
