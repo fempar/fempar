@@ -149,7 +149,7 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
   integer(ip) :: num_dims, num_coarse_dofs, ifunc
   integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid, icell_around, icomp
   type(hash_table_ip_ip_t) :: visited_dofs
-  real(rp), pointer :: quad_coords(:,:)
+  type(point_t), pointer :: quad_coords (:)
 
   class(triangulation_t), pointer :: triangulation
 
@@ -223,14 +223,15 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
            do while ( .not. faces_object_iterator%is_upper_bound() )
               call object%get_face(faces_object_iterator%get_current(),fe_face)
               quad     => fe_face%get_quadrature()
-              quad_coords => quad%get_coordinates()
-              assert(quad%get_num_dims() == num_dims)
+              !assert(quad%get_num_dims() == num_dims)
               do icell_around=1, fe_face%get_num_cells_around()              
                  call fe_face%get_cell_around(icell_around,fe)
                  if (fe%is_local()) then
                     reference_fe => fe%get_reference_fe(field_id)
                     call fe_face%update_integration() 
                     call fe_face%get_values(icell_around,shape_values,field_id)
+                    quad_coords => fe_face%get_quadrature_points_coordinates()
+                    !write(*,*) quad_coords(1)%get(1),quad_coords(1)%get(2), quad_coords(1)%get(3)
                     ! Go over coarse-DoFs functionals
                     do ifunc = 1,num_coarse_dofs 
                        facevec = 0.0_rp
@@ -329,7 +330,7 @@ contains
   real(rp) function rigid_body_mode_get_value (ifunc,icomp,num_dims,qpoint,quad_coords)
     implicit none
     integer(ip)       ,intent(in) :: ifunc, icomp, num_dims, qpoint
-    real(rp)          ,intent(in) :: quad_coords(:,:)
+    type (point_t)    ,intent(in) :: quad_coords(:)
     integer(ip), parameter :: icoord(3,3) =reshape((/2, 1, 3, 3, 2, 1, 1, 3, 2/),(/3,3/))
     integer(ip), parameter :: sign_factor(3,3)   =reshape((/1, -1, 0, -1, 0, 1, 0, 1, -1/), (/3,3/))
 
@@ -342,8 +343,7 @@ contains
        endif
        ! Rotation modes  
     else      
-       rigid_body_mode_get_value = sign_factor(ifunc-num_dims,icomp)*quad_coords(icoord(ifunc-num_dims,icomp),qpoint)
-
+       rigid_body_mode_get_value = sign_factor(ifunc-num_dims,icomp)*quad_coords(qpoint)%get(icoord(ifunc-num_dims,icomp))
     end if
 
   end function rigid_body_mode_get_value
