@@ -384,12 +384,21 @@ end function cell_integrator_facet_restriction_get_current_cell_integrator
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !facet_integrator_t type procedures
-subroutine facet_integrator_create(this,quadrature,left_reference_fe,right_reference_fe)
+subroutine facet_integrator_create(this,quadrature,left_reference_fe,right_reference_fe,is_identity_perm)
   implicit none
   ! Parameters
   class(facet_integrator_t)      , intent(inout) :: this
   type(quadrature_t)            , intent(in)    :: quadrature
   class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
+  logical, optional :: is_identity_perm
+  
+  integer(ip) :: i
+  logical :: is_identity_perm_
+  
+  is_identity_perm_ = .false.
+  if (present(is_identity_perm)) then
+    is_identity_perm_ = is_identity_perm
+  end if
   
   call this%free()
   
@@ -405,8 +414,13 @@ subroutine facet_integrator_create(this,quadrature,left_reference_fe,right_refer
   
   this%current_permutation_index = 1
   
-  call this%reference_fe(this%active_cell_id(1))%p%fill_qpoints_permutations( quadrature, &
-                                                                              this%qpoints_perm )
+  if (is_identity_perm_) then
+    call this%qpoints_perm%create(quadrature%get_num_quadrature_points(),1)
+    forall (i = 1:this%qpoints_perm%nd1) this%qpoints_perm%a(i,:) = i
+  else
+    call this%reference_fe(this%active_cell_id(1))%p%fill_qpoints_permutations( quadrature, this%qpoints_perm )
+  end if
+  
 end subroutine facet_integrator_create
 
 !==================================================================================================
