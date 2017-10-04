@@ -1,7 +1,7 @@
 function fc = write_i90_file(file_name, mc_ncases, mc_max_sub_cells, mc_max_num_cut_edges, mc_num_sub_cells_per_case,...
     mc_subcells_per_case, mc_inout_subcells_per_case, mc_num_nodes_per_subcell,mc_num_cut_edges_per_case,elem_type,...
     mc_num_nodes_per_subface,mc_max_sub_faces,mc_num_sub_faces_per_case,mc_subfacets_per_case,...
-mc_max_sub_vefs,mc_num_sub_vefs_per_case,mc_subvefs_per_case,mc_subvefs_inout_per_case,mc_num_facets,mc_facet_type_per_case_and_facet)
+    mc_max_sub_vefs,mc_num_sub_vefs_per_case,mc_subvefs_per_case,mc_subvefs_inout_per_case,mc_num_facets,mc_facet_type_per_case_and_facet)
 
 % Falta el num d'intersection points
 
@@ -162,10 +162,31 @@ end
 
 function write_long_variable_4D(fid,mc_data,width,varname,d1,d2,d3,d4)
 
+if d4 == 256
+    aux = 9;
+    bunch_cases = AUX_compute_cell_bunch(256,aux);
+    disp(' ')
+    
+    for ibunch = 1:length(bunch_cases)
+        d4bunch = length(bunch_cases{ibunch});
+        fprintf(fid,'integer(ip), parameter :: %s_BL%d(%d,%d,%d,%d) = &\nreshape( ',varname,ibunch,d1,d2,d3,d4bunch);
+        data = permute(mc_data(bunch_cases{ibunch},:,:,:),[4 3 2 1]);
+        write_long_vector(fid,data,width,10);
+        fprintf(fid,' , [%d,%d,%d,%d] )\n',d1,d2,d3,d4bunch);
+        varname_fempar = lower(strrep(varname,'MC_HEX8','MC_TABLE'));
+        fprintf('this%%%s(:,:,:,%d:%d) = %s_BL%d(:,:,:,:)\n',varname_fempar,bunch_cases{ibunch}(1),bunch_cases{ibunch}(end),varname,ibunch)
+        
+    end
+    
+else
+    
+    
     fprintf(fid,'integer(ip), parameter :: %s(%d,%d,%d,%d) = &\nreshape( ',varname,d1,d2,d3,d4);
     data = permute(mc_data,[4 3 2 1]);
     write_long_vector(fid,data,width,10);
     fprintf(fid,' , [%d,%d,%d,%d] )\n',d1,d2,d3,d4);
+    
+end
 
 
 
@@ -183,7 +204,7 @@ if d2 == 256
         data = (mc_data(bunch_cases{ibunch},:)).';
         write_long_vector(fid,data,width,10);
         fprintf(fid,' , [%d,%d] )\n',d1,d2bunch);
-        varname_fempar = lower(strrep(varname,'MC_HEX8','MC_TABLE'));        
+        varname_fempar = lower(strrep(varname,'MC_HEX8','MC_TABLE'));
         fprintf('this%%%s(:,%d:%d) = %s_BL%d(:,:)\n',varname_fempar,bunch_cases{ibunch}(1),bunch_cases{ibunch}(end),varname,ibunch)
     end
     
