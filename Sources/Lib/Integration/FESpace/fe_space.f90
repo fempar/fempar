@@ -910,7 +910,7 @@ module fe_space_names
 	   procedure, non_overridable, private :: fill_edge_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis
 	   procedure (Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis) , private, deferred :: fill_face_coupled_to_edges_local_change_of_basis
 	   procedure (Hcurl_l1_compute_face_discrete_gradient_elmat)             , private, deferred :: compute_face_discrete_gradient_elmat
-	   procedure (Hcurl_l1_assemble_face_coupled_to_edges_B_elmat)           , private, deferred :: assemble_face_coupled_to_edges_B_elmat 
+	  ! procedure (Hcurl_l1_assemble_face_coupled_to_edges_B_elmat)           , private, deferred :: assemble_face_coupled_to_edges_B_elmat 
 	   ! Change of basis application 
 	   procedure, non_overridable, private :: apply_global_change_basis                     => Hcurl_l1_apply_global_change_basis
 	   procedure, non_overridable, private :: apply_global_change_basis_transpose           => Hcurl_l1_apply_global_change_basis_transpose
@@ -946,16 +946,16 @@ module fe_space_names
     real(rp), allocatable                 , intent(inout)    :: elmat(:,:) 
 	end subroutine Hcurl_l1_compute_face_discrete_gradient_elmat
 	
-	subroutine Hcurl_l1_assemble_face_coupled_to_edges_B_elmat( this, par_fe_space, elmat, fe_face, fine_edge, coarse_edge, vef)
-	import :: Hcurl_l1_coarse_fe_handler_t, par_fe_space_t, fe_facet_iterator_t, fe_vef_iterator_t, rp, ip 
-  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
-  type(par_fe_space_t)                  , intent(in)       :: par_fe_space 
-  real(rp), allocatable                 , intent(in)       :: elmat(:,:) 
-  type(fe_facet_iterator_t)             , intent(in)       :: fe_face
-  integer(ip)                           , intent(in)       :: fine_edge
-  integer(ip)                           , intent(in)       :: coarse_edge 
-  type(fe_vef_iterator_t)               , intent(in)       :: vef
-  end subroutine Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
+	!subroutine Hcurl_l1_assemble_face_coupled_to_edges_B_elmat( this, par_fe_space, elmat, fe_face, fine_edge, coarse_edge, vef)
+	!import :: Hcurl_l1_coarse_fe_handler_t, par_fe_space_t, fe_facet_iterator_t, fe_vef_iterator_t, rp, ip 
+ ! class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
+ ! type(par_fe_space_t)                  , intent(in)       :: par_fe_space 
+ ! real(rp), allocatable                 , intent(in)       :: elmat(:,:) 
+ ! type(fe_facet_iterator_t)             , intent(in)       :: fe_face
+ ! integer(ip)                           , intent(in)       :: fine_edge
+ ! integer(ip)                           , intent(in)       :: coarse_edge 
+ ! type(fe_vef_iterator_t)               , intent(in)       :: vef
+ ! end subroutine Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
 	
   end interface 
   
