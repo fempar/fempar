@@ -28,16 +28,25 @@
 module hts_discrete_integration_names
   use fempar_names
   use hts_analytical_functions_names
+		use hts_theta_method_names 
   
   implicit none
 # include "debug.i90"
   private
+		
+		integer(ip), parameter :: hts = 1
+  integer(ip), parameter :: air = 2
+		
+		
   type, extends(discrete_integration_t) :: hts_cG_discrete_integration_t
   type(hts_analytical_functions_t), pointer :: analytical_functions => NULL()
-	 type(fe_function_t)             , pointer :: fe_function          => NULL()
+	 type(fe_function_t)             , pointer :: H_current          => NULL()
+		type(fe_function_t)             , pointer :: H_previous         => NULL()
+		type(theta_method_t)            , pointer :: theta_method       => NULL() 
    contains
      procedure :: set_analytical_functions
-	    procedure :: set_fe_function 
+	    procedure :: set_fe_functions 
+					procedure :: set_theta_method 
      procedure :: integrate_galerkin 
   end type hts_cG_discrete_integration_t
   
@@ -52,13 +61,23 @@ contains
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
   
-  subroutine set_fe_function (this, fe_function)
+  subroutine set_fe_functions (this, H_previous, H_current)
     implicit none
     class(hts_cG_discrete_integration_t), intent(inout)       :: this
-    type(fe_function_t)                     , target, intent(in)  :: fe_function
-    this%fe_function => fe_function
-  end subroutine set_fe_function
+    type(fe_function_t)  , target, intent(in)  :: H_previous
+				type(fe_function_t)  , target, intent(in)  :: H_current 
+				
+    this%H_previous => H_previous 
+				this%H_current  => H_current 
+  end subroutine set_fe_functions
 
+		  subroutine set_theta_method (this, theta_method)
+    implicit none
+    class(hts_cG_discrete_integration_t), intent(inout)    :: this
+				type(theta_method_t) , target       , intent(in)       :: theta_method
+    this%theta_method => theta_method 
+  end subroutine set_theta_method
+		
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(hts_cG_discrete_integration_t), intent(in)    :: this
@@ -73,6 +92,8 @@ contains
     type(point_t)            , pointer :: quad_coords(:)
     type(vector_field_t), allocatable  :: shape_curls(:,:)
     type(vector_field_t), allocatable  :: shape_values(:,:)
+				type(vector_field_t)               :: H_value_previous
+				type(fe_cell_function_vector_t)    :: fe_cell_function_previous
 
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
@@ -80,45 +101,50 @@ contains
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
     integer(ip)  :: idof, jdof, num_dofs, max_num_dofs 
-    real(rp)     :: factor
-    type(vector_field_t), allocatable  :: source_term_values(:)
+    real(rp)     :: factor, time_factor 
+    type(vector_field_t), allocatable :: source_term_values(:,:)
+				real(rp)     :: current_time(1)
 
     integer(ip)  :: number_fields
     class(vector_function_t), pointer :: source_term
     
     assert (associated(this%analytical_functions)) 
-	   assert (associated(this%fe_function))
+	   assert (associated(this%H_previous))
+				assert (associated(this%H_current))
 
     source_term => this%analytical_functions%get_source_term()
 	
-	call fe_space%set_up_cell_integration()
+	   call fe_space%set_up_cell_integration()
     call fe_space%create_fe_cell_iterator(fe)
+				call fe_cell_function_previous%create(fe_space, 1)
     
     max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
-	call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
+	   call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
+				current_time(1) = this%theta_method%get_current_time()
 	
 	quad            => fe%get_quadrature()
 	num_quad_points = quad%get_num_quadrature_points()
-	allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
+	allocate (source_term_values(num_quad_points,1), stat=istat); check(istat==0)
+	time_factor = this%theta_method%get_theta() * this%theta_method%get_time_step() 
 
     do while ( .not. fe%has_finished())
        if ( fe%is_local() ) then
 	   
           ! Update FE-integration related data structures
           call fe%update_integration()
-       
-          ! Very important: this has to be inside the loop, as different FEs can be present! Study the multifield case, what happens with source term? 
+          call fe_cell_function_previous%update(fe, this%H_previous)
+
           quad            => fe%get_quadrature()
           num_quad_points =  quad%get_num_quadrature_points()
           num_dofs        =  fe%get_num_dofs()
 		          
           ! Get quadrature coordinates to evaluate source_term
 										quad_coords => fe%get_quadrature_points_coordinates()
-		  
-		        ! Evaluate pressure source term at quadrature points
-          call source_term%get_values_set(quad_coords, source_term_values)
-                    
+							
+										! Evaluate pressure source term at quadrature points
+          call source_term%get_values_set( quad_coords, current_time, source_term_values)
+										                    
           ! Compute element matrix and vector
           elmat = 0.0_rp
           elvec = 0.0_rp
@@ -126,21 +152,26 @@ contains
           call fe%get_values(shape_values)
           do qpoint = 1, num_quad_points
              factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+													
+										! Previous solution to integrate RHS contribution 
+          call fe_cell_function_previous%get_value( qpoint, H_value_previous )
+										
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
                    ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( shape_curls(jdof,qpoint)*shape_curls(idof,qpoint) + shape_values(jdof,qpoint)*shape_values(idof,qpoint) )
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( 1.0_rp/time_factor * shape_values(jdof,qpoint)*shape_values(idof,qpoint) + & 
+																																																																			                      shape_curls(jdof,qpoint)*shape_curls(idof,qpoint))
                 end do
              end do
              
              do idof = 1, num_dofs
 			       ! F_K(i) = (f(i),phi_i)
-                elvec(idof) = elvec(idof) + factor * source_term_values(qpoint)*shape_values(idof,qpoint)
+                elvec(idof) = elvec(idof) + factor * (source_term_values(qpoint,1) + 1.0_rp/time_factor*H_value_previous) * shape_values(idof,qpoint)
              end do
           end do
           
           ! Apply boundary conditions
-		  call fe%assembly( this%fe_function, elmat, elvec, assembler )
+		  call fe%assembly( this%H_current, elmat, elvec, assembler )
        end if
        call fe%next()
     end do
@@ -148,9 +179,10 @@ contains
 
     deallocate (shape_values, stat=istat);       check(istat==0)
     deallocate (shape_curls, stat=istat);        check(istat==0)
-	deallocate (source_term_values, stat=istat); check(istat==0)
+	   deallocate (source_term_values, stat=istat); check(istat==0)
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
+				call fe_cell_function_previous%free() 
   end subroutine integrate_galerkin
   
 end module hts_discrete_integration_names

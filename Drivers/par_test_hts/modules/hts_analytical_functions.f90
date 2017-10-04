@@ -41,19 +41,22 @@ module hts_analytical_functions_names
     type, extends(base_scalar_function_t) :: boundary_function_Hx_t
     private 
    contains
-     procedure :: get_value_space    => boundary_function_Hx_get_value_space
+     procedure :: get_value_space         => boundary_function_Hx_get_value_space
+					procedure :: get_value_space_time    => boundary_function_Hx_get_value_space_time
   end type boundary_function_Hx_t 
   
     type, extends(base_scalar_function_t) :: boundary_function_Hy_t
     private 
    contains
-     procedure :: get_value_space    => boundary_function_Hy_get_value_space
+     procedure :: get_value_space          => boundary_function_Hy_get_value_space
+					 procedure :: get_value_space_time    => boundary_function_Hy_get_value_space_time 
   end type boundary_function_Hy_t 
   
    type, extends(base_scalar_function_t) :: boundary_function_Hz_t
     private 
    contains
-     procedure :: get_value_space    => boundary_function_Hz_get_value_space
+     procedure :: get_value_space         => boundary_function_Hz_get_value_space
+					procedure :: get_value_space_time    => boundary_function_Hz_get_value_space_time
   end type boundary_function_Hz_t 
   
   ! Vector functions 
@@ -65,13 +68,16 @@ module hts_analytical_functions_names
   
     type, extends(base_vector_function_t) :: source_term_t
    contains
-     procedure :: get_value_space => source_term_get_value_space
+     procedure :: get_value_space      => source_term_get_value_space
+					procedure :: get_value_space_time => source_term_get_value_space_time
   end type source_term_t
 
    type, extends(base_vector_function_t) :: solution_t
    contains
-     procedure :: get_value_space    => solution_get_value_space
-     procedure :: get_gradient_space => solution_get_gradient_space
+     procedure :: get_value_space         => solution_get_value_space
+					procedure :: get_value_space_time    => solution_get_value_space_time 
+     procedure :: get_gradient_space      => solution_get_gradient_space
+					procedure :: get_gradient_space_time => solution_get_gradient_space_time 
   end type solution_t
   
   type hts_analytical_functions_t
@@ -112,6 +118,20 @@ contains
 	result = -y
 
   end subroutine boundary_function_Hx_get_value_space
+		
+		    !===============================================================================================
+  subroutine boundary_function_Hx_get_value_space_time( this, point, time , result )
+    implicit none 
+    class(boundary_function_Hx_t)  , intent(in)    :: this 
+    type(point_t)                  , intent(in)    :: point 
+				real(rp)                       , intent(in)    :: time 
+    real(rp)                       , intent(inout) :: result 
+				
+		real(rp) :: x,y,z 
+	x = point%get(1); y=point%get(2); z=point%get(3)
+	result = -time*y
+
+  end subroutine boundary_function_Hx_get_value_space_time
 
   !===============================================================================================
   subroutine boundary_function_Hy_get_value_space( this, point, result )
@@ -124,6 +144,20 @@ contains
      result = x
 
   end subroutine boundary_function_Hy_get_value_space
+		
+				    !===============================================================================================
+  subroutine boundary_function_Hy_get_value_space_time( this, point, time, result )
+    implicit none 
+    class(boundary_function_Hy_t)  , intent(in)    :: this 
+    type(point_t)                  , intent(in)    :: point 
+				real(rp)                       , intent(in)    :: time 
+    real(rp)                       , intent(inout) :: result 
+				
+		real(rp) :: x,y,z 
+	x = point%get(1); y=point%get(2); z=point%get(3)
+	result = time*x
+
+  end subroutine boundary_function_Hy_get_value_space_time
 
   !===============================================================================================
   subroutine boundary_function_Hz_get_value_space( this, point, result )
@@ -135,6 +169,20 @@ contains
 	x = point%get(1); y=point%get(2); z=point%get(3)
     result = 0.0_rp
   end subroutine boundary_function_Hz_get_value_space
+		
+						    !===============================================================================================
+  subroutine boundary_function_Hz_get_value_space_time( this, point, time, result )
+    implicit none 
+    class(boundary_function_Hz_t)  , intent(in)    :: this 
+    type(point_t)                  , intent(in)    :: point 
+				real(rp)                       , intent(in)    :: time 
+    real(rp)                       , intent(inout) :: result 
+				
+		real(rp) :: x,y,z 
+	x = point%get(1); y=point%get(2); z=point%get(3)
+	result = 0.0_rp
+
+  end subroutine boundary_function_Hz_get_value_space_time
 
  !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
@@ -148,11 +196,30 @@ contains
 	assert ( this%num_dims == 2 .or. this%num_dims == 3 )
 	x = point%get(1); y=point%get(2); z=point%get(3)     
 	 call result%init(0.0_rp) 
+	 call result%set(1,  0.0_rp ) 
+	 call result%set(2,  0.0_rp ) 
+	 call result%set(3,  0.0_rp )
+
+  end subroutine source_term_get_value_space
+		
+		 !===============================================================================================
+  subroutine source_term_get_value_space_time ( this, point, time, result )
+    implicit none
+    class(source_term_t)    , intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+				real(rp)                , intent(in)    :: time 
+    type(vector_field_t)    , intent(inout) :: result
+ 
+	real(rp) :: x,y,z 
+	
+	assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+	x = point%get(1); y=point%get(2); z=point%get(3)     
+	 call result%init(0.0_rp) 
 	 call result%set(1, -y ) 
 	 call result%set(2,  x ) 
 	 call result%set(3,  0.0_rp )
 
-  end subroutine source_term_get_value_space
+  end subroutine source_term_get_value_space_time 
 
   !===============================================================================================
   subroutine solution_get_value_space ( this, point, result )
@@ -170,6 +237,24 @@ contains
 	 call result%set(3,  0.0_rp )
 	 
   end subroutine solution_get_value_space
+		
+		  !===============================================================================================
+  subroutine solution_get_value_space_time ( this, point, time, result )
+    implicit none
+    class(solution_t)       , intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+				real(rp)                , intent(in)    :: time
+    type(vector_field_t)    , intent(inout) :: result
+	
+    real(rp) :: x,y,z 
+	assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+	x = point%get(1); y=point%get(2); z=point%get(3) 
+	 call result%init(0.0_rp) 
+	 call result%set(1, -y*time ) 
+	 call result%set(2,  x*time ) 
+	 call result%set(3,  0.0_rp )
+	 
+  end subroutine solution_get_value_space_time
 
   !===============================================================================================
   subroutine solution_get_gradient_space ( this, point, result )
@@ -181,10 +266,26 @@ contains
 	real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
 	call result%init(0.0_rp) 	
-	call result%set(2,1, -1.0_rp)
-	call result%set(1,2,  1.0_rp)
+	call result%set(2,1, -1.0_rp )
+	call result%set(1,2,  1.0_rp )
 
   end subroutine solution_get_gradient_space
+		
+		  !===============================================================================================
+  subroutine solution_get_gradient_space_time ( this, point, time, result )
+    implicit none
+    class(solution_t)   , intent(in)    :: this
+    type(point_t)       , intent(in)    :: point
+				real(rp)            , intent(in)    :: time 
+    type(tensor_field_t), intent(inout) :: result
+	
+	real(rp) :: x,y,z 
+	x = point%get(1); y=point%get(2); z=point%get(3)
+	call result%init(0.0_rp) 	
+	call result%set(2,1, -1.0_rp * time)
+	call result%set(1,2,  1.0_rp * time)
+
+  end subroutine solution_get_gradient_space_time 
   
   !===============================================================================================
   subroutine mn_set_num_dims ( this, num_dims )

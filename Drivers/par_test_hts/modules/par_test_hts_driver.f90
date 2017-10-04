@@ -31,6 +31,7 @@ module par_test_hts_driver_names
   use hts_discrete_integration_names
   use hts_conditions_names
   use hts_analytical_functions_names
+		use hts_theta_method_names
 # include "debug.i90"
 
   implicit none
@@ -41,7 +42,7 @@ module par_test_hts_driver_names
      
      ! Place-holder for parameter-value set provided through command-line interface
      type(par_test_hts_params_t)      :: test_params
-     type(ParameterList_t), pointer       :: parameter_list
+     type(ParameterList_t), pointer   :: parameter_list
      
      ! Cells and lower dimension objects container
      type(par_triangulation_t)             :: triangulation
@@ -67,35 +68,37 @@ module par_test_hts_driver_names
      type(iterative_linear_solver_t)           :: iterative_linear_solver
  
      ! maxwell problem solution FE function
-     type(fe_function_t)                   :: solution
+     type(fe_function_t)                   :: H_current
+					type(fe_function_t)                   :: H_previous 
      
      ! Environment required for fe_affine_operator + vtk_handler
      type(environment_t)                    :: par_environment
-
-     ! Timers
-     type(timer_t) :: timer_triangulation
-     type(timer_t) :: timer_fe_space
-     type(timer_t) :: timer_assemply
-     type(timer_t) :: timer_solver_setup
-     type(timer_t) :: timer_solver_run
+					
+					! Time integration 
+					type(theta_method_t)                   :: theta_method 
+				
+					! Output handler 
+					real(rp), allocatable                  :: set_id_cell_vector(:)
+					type(output_handler_t)                 :: oh	
+				
 
    contains
      procedure                  :: parse_command_line_parameters
-     procedure                  :: setup_timers
-     procedure                  :: report_timers
-     procedure                  :: free_timers
      procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
 	    procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
+					procedure        , private :: setup_theta_method 
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
      procedure        , private :: check_solution
-     procedure        , private :: write_solution
-     procedure                  :: run_simulation
+     procedure        , private :: initialize_output
+     procedure        , private :: write_time_step_solution 
+					procedure        , private :: finalize_output 
+					procedure                  :: run_simulation
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
@@ -112,43 +115,6 @@ contains
     call this%test_params%create()
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
-
-!========================================================================================
-subroutine setup_timers(this)
-    implicit none
-    class(par_test_hts_fe_driver_t), intent(inout) :: this
-    class(execution_context_t), pointer :: w_context
-    w_context => this%par_environment%get_w_context()
-    call this%timer_triangulation%create(w_context,"SETUP TRIANGULATION")
-    call this%timer_fe_space%create(     w_context,"SETUP FE SPACE")
-    call this%timer_assemply%create(     w_context,"FE INTEGRATION AND ASSEMBLY")
-    call this%timer_solver_setup%create( w_context,"SETUP SOLVER AND PRECONDITIONER")
-    call this%timer_solver_run%create(   w_context,"SOLVER RUN")
-end subroutine setup_timers
-
-!========================================================================================
-subroutine report_timers(this)
-    implicit none
-    class(par_test_hts_fe_driver_t), intent(inout) :: this
-
-    call this%timer_triangulation%report(.false.)
-    call this%timer_fe_space%report(.false.)
-    call this%timer_assemply%report(.false.)
-    call this%timer_solver_setup%report(.false.)
-    call this%timer_solver_run%report(.false.)
-
-end subroutine report_timers
-
-!========================================================================================
-subroutine free_timers(this)
-    implicit none
-    class(par_test_hts_fe_driver_t), intent(inout) :: this
-    call this%timer_triangulation%free()
-    call this%timer_fe_space%free()
-    call this%timer_assemply%free()
-    call this%timer_solver_setup%free()
-    call this%timer_solver_run%free()
-end subroutine free_timers
 
 !========================================================================================
   subroutine setup_environment(this)
@@ -211,6 +177,20 @@ end subroutine free_timers
 		 
   end subroutine setup_reference_fes
   
+  subroutine setup_theta_method(this) 
+  implicit none 
+  class(par_test_hts_fe_driver_t), intent(inout) :: this
+  
+    call this%theta_method%create( this%test_params%get_theta_value(),          &               
+                                   this%test_params%get_initial_time(),         &
+                                   this%test_params%get_final_time(),           & 
+                                   this%test_params%get_num_time_steps(),       &
+                                   this%test_params%get_max_time_step(),        & 
+                                   this%test_params%get_min_time_step(),        &
+                                   this%test_params%get_save_solution_n_steps() )
+  
+  end subroutine setup_theta_method 
+		
   subroutine setup_coarse_fe_handlers(this)
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
@@ -243,10 +223,20 @@ end subroutine free_timers
     class(par_test_hts_fe_driver_t), intent(inout) :: this
 	
 	call this%hts_conditions%set_num_dims(this%triangulation%get_num_dims())
+	
+		! Set-up Dirichlet boundary conditions  
+ call this%hts_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+	call this%hts_conditions%set_boundary_function_Hx(this%hts_analytical_functions%get_boundary_function_Hx())
+	call this%hts_conditions%set_boundary_function_Hy(this%hts_analytical_functions%get_boundary_function_Hy())
+	if ( this%triangulation%get_num_dims() == 3) then 
+	call this%hts_conditions%set_boundary_function_Hz(this%hts_analytical_functions%get_boundary_function_Hz())
+	end if 
+	
+				! Create FE SPACE 
     call this%fe_space%create( triangulation       = this%triangulation,      &
                                reference_fes       = this%reference_fes,      &
                                coarse_fe_handlers  = this%coarse_fe_handlers, & 
-							   conditions          = this%hts_conditions  )
+							                        conditions          = this%hts_conditions  )
     
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()   
@@ -255,8 +245,13 @@ end subroutine free_timers
   subroutine setup_system (this)
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
-    	
+				! Need to initialize dof_values, no interpolation available in Nedelec
+    class(vector_t) , pointer :: dof_values_current 
+    class(vector_t) , pointer :: dof_values_previous
+        	
     call this%hts_integration%set_analytical_functions(this%hts_analytical_functions)
+				call this%hts_integration%set_fe_functions(this%H_previous, this%H_current)
+				call this%hts_integration%set_theta_method(this%theta_method) 
     
     ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
@@ -265,19 +260,18 @@ end subroutine free_timers
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%hts_integration )
-	
-	! Set-up solution with Dirichlet boundary conditions  
- call this%hts_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
-	call this%hts_conditions%set_boundary_function_Hx(this%hts_analytical_functions%get_boundary_function_Hx())
-	call this%hts_conditions%set_boundary_function_Hy(this%hts_analytical_functions%get_boundary_function_Hy())
-	if ( this%triangulation%get_num_dims() == 3) then 
-	call this%hts_conditions%set_boundary_function_Hz(this%hts_analytical_functions%get_boundary_function_Hz())
-	end if 
-	
-	call this%solution%create(this%fe_space)
-	call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
-	call this%hts_integration%set_fe_function(this%solution)
 		
+	! Initialize previous time step fe_functions 
+	call this%H_previous%create(this%fe_space)
+ dof_values_previous => this%H_previous%get_free_dof_values()  
+ call dof_values_previous%init(0.0_rp) 
+	
+	! Current time step fe_function 
+	 call this%H_current%create(this%fe_space)
+		call this%fe_space%project_dirichlet_values_curl_conforming(this%H_current, time=this%theta_method%get_current_time())
+		dof_values_current => this%H_current%get_free_dof_values()
+	 call dof_values_current%init(0.0_rp)
+		     						
   end subroutine setup_system
   
   subroutine setup_solver (this)
@@ -295,8 +289,7 @@ end subroutine free_timers
 	end select 
 	
 	   call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-		
-!#ifdef ENABLE_MKL  
+
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
     iparm(1)   = 1 ! no solver default
@@ -337,29 +330,17 @@ end subroutine free_timers
     FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-
-!#ifdef ENABLE_MKL   
+ 
     ! Set-up MLBDDC preconditioner
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
-!#endif    
-   
+
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
-!#ifdef ENABLE_MKL
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
-!#else
-!    call parameter_list%init()
-!    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-!    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
-!    assert(FPLError == 0)
-!    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-!    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-!    call parameter_list%free()
-!#endif   
-    
+   
   end subroutine setup_solver
   
   
@@ -369,22 +350,7 @@ end subroutine free_timers
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%numerical_setup()
-    rhs                => this%fe_affine_operator%get_translation()
-    matrix             => this%fe_affine_operator%get_matrix()
-    
-    !select type(matrix)
-    !class is (par_sparse_matrix_t)  
-    !   call matrix%print_matrix_market(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    
-    !select type(rhs)
-    !class is (par_scalar_array_t)  
-    !   call rhs%print(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
+
   end subroutine assemble_system
   
   
@@ -397,15 +363,21 @@ end subroutine free_timers
 
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
-    dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
-    
-    !select type (dof_values)
-    !class is (par_scalar_array_t)  
-    !   call dof_values%print(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
+    dof_values => this%H_current%get_free_dof_values()
+				
+				 temporal: do while ( .not. this%theta_method%finished() ) 
+     call this%theta_method%print(6) 
+     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)		
+					call this%theta_method%update_solutions(this%H_current, this%H_previous)
+					call this%write_time_step_solution()
+					call this%theta_method%move_time_forward()
+					
+					if (.not. this%theta_method%finished() ) then 
+        call this%fe_space%project_dirichlet_values_curl_conforming(this%H_current,time=this%theta_method%get_current_time(), fields_to_project=(/ 1 /) )
+        call this%assemble_system() 
+     end if
+					
+					end do temporal 
    
   end subroutine solve_system
    
@@ -413,101 +385,108 @@ end subroutine free_timers
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
     type(error_norms_vector_t) :: error_norm 
-    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+				class(vector_function_t), pointer :: H_exact_function
+				real(rp) :: l2, linfty, h1_s, hcurl 
+				real(rp) :: error_tolerance 
     
-    call error_norm%create(this%fe_space,1)    
-    mean = error_norm%compute(this%hts_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    !l1 = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    !l2 = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    !lp = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    !linfty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    !h1_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    !h1 = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    !w1p_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    !w1p = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    !w1infty_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    !w1infty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
+				error_tolerance = 1.0e-3_rp 
+    call error_norm%create(this%fe_space,1)   
+				H_exact_function => this%hts_analytical_functions%get_solution_function()
+				
+    l2 = error_norm%compute(H_exact_function, this%H_current, l2_norm)     
+    linfty = error_norm%compute(H_exact_function, this%H_current, linfty_norm)   
+    h1_s = error_norm%compute(H_exact_function, this%H_current, h1_seminorm) 
+				hcurl = error_norm%compute(H_exact_function, this%H_current, hcurl_seminorm)
     if ( this%par_environment%am_i_l1_root() ) then
-      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-03 )
+      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+						write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; check ( hcurl < error_tolerance )
     end if  
     call error_norm%free()
   end subroutine check_solution
   
-  subroutine write_solution(this)
+  subroutine initialize_output(this)
     implicit none
-    class(par_test_hts_fe_driver_t), intent(in)    :: this
-    type(output_handler_t)                             :: oh	
-	real(rp), allocatable                              :: set_id_cell_vector(:)
-	integer(ip)                                        :: i, istat
-	
-	 if ( this%par_environment%am_i_l1_task() ) then
-    if(this%test_params%get_write_solution()) then
-	    call build_set_id_cell_vector()
-        call oh%create()
-        call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'solution')
-		call oh%add_cell_vector(set_id_cell_vector, 'set_id')
-        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
-        call oh%write()
-        call oh%close()
-        call oh%free()
-		call free_set_id_cell_vector()
-    end if
-	end if 
-	
+    class(par_test_hts_fe_driver_t), intent(inout)    :: this
+	   integer(ip)                                       :: i, istat
+
+		 if ( .not. this%par_environment%am_i_l1_task() ) then
+			return 
+			end if 
+			
+	    if(this%test_params%get_write_solution()) then
+				  	call build_set_id_cell_vector()
+       call  this%oh%create(VTK) 
+       call  this%oh%attach_fe_space(this%fe_space)
+       call  this%oh%add_fe_function(this%H_current, 1, 'H')
+       call  this%oh%add_fe_function(this%H_current, 1, 'J', curl_diff_operator)
+							call this%oh%add_cell_vector(this%set_id_cell_vector, 'set_id')
+       call  this%oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+    endif
+
   contains 
       subroutine build_set_id_cell_vector()
-      call memalloc(this%triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
+      call memalloc(this%triangulation%get_num_local_cells(), this%set_id_cell_vector, __FILE__, __LINE__)
       do i=1, this%triangulation%get_num_local_cells()
-            set_id_cell_vector(i) = this%par_environment%get_l1_rank() + 1
+            this%set_id_cell_vector(i) = this%par_environment%get_l1_rank() + 1
       enddo
     end subroutine build_set_id_cell_vector
-
-    subroutine free_set_id_cell_vector()
-      call memfree(set_id_cell_vector, __FILE__, __LINE__)
-    end subroutine free_set_id_cell_vector
 	
-	end subroutine write_solution
-  
+	end subroutine initialize_output
+	
+	  ! -----------------------------------------------------------------------------------------------
+  subroutine write_time_step_solution(this)
+    implicit none
+    class(par_test_hts_fe_driver_t), intent(inout)    :: this
+    integer(ip)                                       :: err
+    
+			if ( .not. this%par_environment%am_i_l1_task() ) then
+			return 
+			end if 
+			
+    if( this%test_params%get_write_solution() .and. this%theta_method%print_this_step() ) then
+        call this%oh%append_time_step(this%theta_method%get_current_time())
+        call this%oh%write()
+        call this%theta_method%update_time_to_be_printed() 
+    endif
+   
+  end subroutine write_time_step_solution
+		
+	  ! -----------------------------------------------------------------------------------------------
+  subroutine finalize_output(this)
+    implicit none
+    class(par_test_hts_fe_driver_t), intent(inout)    :: this
+    integer(ip)                                       :: err
+				
+			if ( .not. this%par_environment%am_i_l1_task() ) then
+			return 
+			end if 
+			
+    if(this%test_params%get_write_solution()) then
+    call this%oh%close()
+    call this%oh%free()
+				call memfree( this%set_id_cell_vector, __FILE__, __LINE__ )
+    endif
+  end subroutine finalize_output
+		
+  ! ***********************************************************************************************
   subroutine run_simulation(this) 
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
 
-    call this%timer_triangulation%start()
     call this%setup_triangulation()
-    call this%timer_triangulation%stop()
-
-    call this%timer_fe_space%start()
     call this%setup_reference_fes()
-	call this%setup_coarse_fe_handlers()
+				call this%setup_theta_method()
+	   call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
-    call this%timer_fe_space%stop()
-
-    call this%timer_assemply%start()
     call this%setup_system()
     call this%assemble_system()
-    call this%timer_assemply%stop()
-
-    call this%timer_solver_setup%start()
     call this%setup_solver()
-    call this%timer_solver_setup%stop()
-
-    call this%timer_solver_run%start()
+				call this%initialize_output() 
     call this%solve_system()
-    call this%timer_solver_run%stop()
-
+				call this%finalize_output()
     call this%check_solution()
-    call this%write_solution()
     
     call this%free()
   end subroutine run_simulation
@@ -517,10 +496,9 @@ end subroutine free_timers
     class(par_test_hts_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
-    call this%solution%free()
-!#ifdef ENABLE_MKL    
-    call this%mlbddc%free()
-!#endif    
+    call this%H_current%free() 
+				call this%H_previous%free() 
+    call this%mlbddc%free() 
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
 	
