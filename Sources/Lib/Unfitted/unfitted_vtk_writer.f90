@@ -346,6 +346,7 @@ contains
     class(vef_iterator_t), allocatable  :: vef
     type(point_t), allocatable, dimension(:) :: facet_coords, subfacet_coords
     integer(ip) :: the_facet_type, the_subfacet_type
+    integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
     integer(ip) :: my_part_id
     
     call this%free()
@@ -392,6 +393,8 @@ contains
     call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
     call memalloc ( this%Ne, this%cell_data , __FILE__, __LINE__ )
     call memalloc ( this%Ne, this%pid       , __FILE__, __LINE__ )
+    call memalloc ( num_facet_nodes, nodes_vtk2fempar, __FILE__, __LINE__ )
+    call memalloc ( num_facet_nodes, nodesids        , __FILE__, __LINE__ )
     allocate ( facet_coords(1:num_facet_nodes), stat = istat ); check(istat == 0)
     allocate ( subfacet_coords(1:num_subfacet_nodes), stat = istat ); check(istat == 0)
 
@@ -399,9 +402,11 @@ contains
       case(3)
         the_facet_type    = 9_I1P
         the_subfacet_type = 5_I1P
+        nodes_vtk2fempar(:) = [1, 2 , 4, 3]
       case(2)
         the_facet_type    = 3_I1P
         the_subfacet_type = 3_I1P
+        nodes_vtk2fempar(:) = [1, 2]
       case default
       check(.false.)
     end select
@@ -424,9 +429,11 @@ contains
         this%x(inode) = facet_coords(ino)%get(1)
         this%y(inode) = facet_coords(ino)%get(2)
         this%z(inode) = facet_coords(ino)%get(3)
-        this%connect(inode) =  inode -1
+        nodesids(ino) = inode
         inode = inode + 1
       end do
+
+      this%connect(nodesids(:)) = nodesids( nodes_vtk2fempar(:) ) - 1
 
       this%offset(ifacet)        = inode - 1
       this%cell_type(ifacet)     = the_facet_type
@@ -474,6 +481,8 @@ contains
 
     if (num_dime == 2_ip) this%z(:) = 0
 
+    call memfree ( nodes_vtk2fempar, __FILE__, __LINE__ )
+    call memfree ( nodesids, __FILE__, __LINE__ )
     deallocate ( facet_coords, stat = istat ); check(istat == 0)
     deallocate ( subfacet_coords, stat = istat ); check(istat == 0)
     call triangulation%free_vef_iterator(vef)
@@ -609,8 +618,8 @@ contains
     type(quadrature_t), pointer :: quadrature
     type(point_t), pointer :: quadrature_points_coordinates(:)
     type(piecewise_cell_map_t),     pointer :: cell_map
-    integer(ip) :: num_dime, num_subfacets, num_gp_subfacet
-    integer(ip) :: qpoint, num_quad_points
+    integer(ip) :: num_dime
+    integer(ip) :: qpoint, num_quad_points, total_num_quad_points
     integer(ip) :: ipoint
     type(vector_field_t)  :: normal_vec
     integer(ip), parameter :: the_point_type = 1
@@ -625,27 +634,20 @@ contains
     if ( .not. this%environment%am_i_l1_task() ) return
 
     num_dime       = triangulation%get_num_dims()
-
-    select type(triangulation)
-      class is (serial_unfitted_triangulation_t)
-        num_subfacets   = triangulation%get_total_num_subfacets()
-      class default
-      check(.false.)
-    end select
   
     call fe_space%create_fe_cell_iterator(fe)
 
-    num_gp_subfacet = 0
+    total_num_quad_points = 0
     do while ( .not. fe%has_finished() )
        call fe%update_boundary_integration()
        quadrature => fe%get_boundary_quadrature()
-       num_gp_subfacet = quadrature%get_num_quadrature_points()
-       if (num_gp_subfacet > 0) exit
+       num_quad_points = quadrature%get_num_quadrature_points()
+       total_num_quad_points = total_num_quad_points + num_quad_points
        call fe%next()
     end do
   
-    this%Ne = num_subfacets*num_gp_subfacet
-    this%Nn = num_subfacets*num_gp_subfacet
+    this%Ne = total_num_quad_points
+    this%Nn = total_num_quad_points
   
     call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
