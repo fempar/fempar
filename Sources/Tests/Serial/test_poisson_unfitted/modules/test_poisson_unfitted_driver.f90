@@ -562,24 +562,24 @@ contains
       call vtk_writer%write_to_vtk_file('out_mesh.vtu')
       call vtk_writer%free()
 
+      call vtk_writer%attach_fe_function(this%solution,this%fe_space)
+      call vtk_writer%write_to_vtk_file('out_mesh_solution.vtu')
+      call vtk_writer%free()
+      
       call vtk_writer%attach_boundary_faces(this%triangulation)
       call vtk_writer%write_to_vtk_file('out_mesh_boundary.vtu')
+      call vtk_writer%free()
+      
+      call vtk_writer%attach_boundary_quadrature_points(this%fe_space)
+      call vtk_writer%write_to_vtk_file('out_mesh_boundary_normals.vtu')
       call vtk_writer%free()
       
       call vtk_writer%attach_fitted_faces(this%triangulation)
       call vtk_writer%write_to_vtk_file('out_mesh_facets.vtu')
       call vtk_writer%free()
-
-      call vtk_writer%attach_boundary_quadrature_points(this%fe_space)
-      call vtk_writer%write_to_vtk_file('out_mesh_boundary_normals.vtu')
-      call vtk_writer%free()
       
       call vtk_writer%attach_facets_quadrature_points(this%fe_space)
       call vtk_writer%write_to_vtk_file('out_mesh_fitted_facets_boundary_normals.vtu')
-      call vtk_writer%free()
-
-      call vtk_writer%attach_fe_function(this%solution,this%fe_space)
-      call vtk_writer%write_to_vtk_file('out_mesh_solution.vtu')
       call vtk_writer%free()
 
     end if

@@ -168,9 +168,11 @@ subroutine uim_init_reference_subelem( this )
   ! 2*d*p Needed for the penalty terms 
   call this%geo_reference_subelem%create_facet_quadrature(this%quadrature_subfacet,degree=2*num_dim*p)
   
+  call this%geo_reference_subelem%create_facet_quadrature(this%quadrature_fitted_subfacet,degree=2*(num_dim-1)*p)
+  
   ! Create the fe maps
   call this%cell_map_subelem%create( this%quadrature_subelem, this%geo_reference_subelem )
-  call this%cell_map_subfacet%create( this%quadrature_subfacet, this%geo_reference_subfacet )
+  call this%cell_map_subfacet%create( this%quadrature_fitted_subfacet, this%geo_reference_subfacet )
 
 end subroutine uim_init_reference_subelem
 
@@ -184,6 +186,7 @@ subroutine uim_free_reference_subelem( this )
   call this%geo_reference_subelem%free()
   call this%quadrature_subelem%free()
   call this%quadrature_subfacet%free()
+  call this%quadrature_fitted_subfacet%free()
 end subroutine uim_free_reference_subelem
 
 !========================================================================================
@@ -431,8 +434,6 @@ subroutine uim_init_cut_fitted_facets_integration( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
 
-  ! TODO
-
   integer(ip) :: num_dim, num_gp, num_gp_subfacet, num_subfacets, num_fields
   integer(ip) :: mc_case, mc_num_cases, istat, mc_num_facets, mc_facet
   integer(ip) :: max_num_fitted_sub_facets, ipos, max_pos, inum
@@ -445,8 +446,8 @@ subroutine uim_init_cut_fitted_facets_integration( this )
 
   call this%free_cut_fitted_facets_integration()
 
-  num_dim = this%quadrature_subfacet%get_num_dims()
-  num_gp_subfacet = this%quadrature_subfacet%get_num_quadrature_points()
+  num_dim = this%quadrature_fitted_subfacet%get_num_dims()
+  num_gp_subfacet = this%quadrature_fitted_subfacet%get_num_quadrature_points()
   mc_num_cases = this%marching_cubes%get_num_mc_cases()
   mc_num_facets = this%marching_cubes%get_num_facets()
 
@@ -509,10 +510,10 @@ subroutine uim_init_cut_fitted_facets_integration( this )
       this%cut_fitted_facet_quadratures(ipos), geo_reference_elem, geo_reference_elem_null )
 
     call this%cut_fitted_facet_integrators(pos_map_in_domain,ipos)%create(&
-      this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem )
+      this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem, is_identity_perm = .true. )
     
     call this%cut_fitted_facet_integrators(pos_map_on_boundary,ipos)%create(&
-      this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem_null )
+      this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem_null, is_identity_perm = .true. )
 
   end do
   

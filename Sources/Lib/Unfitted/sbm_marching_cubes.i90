@@ -613,6 +613,7 @@ subroutine marching_cubes_mc_tables_create(this)
     this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,136:180) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL4(:,:,:)
     this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,181:225) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL5(:,:,:)
     this%mc_table_fitted_sub_facets_status_x_case_and_facet(:,:,226:256) = MC_HEX8_INOUT_FITTED_SUB_FACETS_PER_CASE_AND_FACET_BL6(:,:,:)
+    this%mc_table_fitted_sub_facets_node_ids_x_case_and_facet(:,:,:,:) = MC_HEX8_FITTED_SUB_FACETS_NODE_IDS_PER_CASE_AND_FACET(:,:,:,:)
   endif
 
   this%mc_tables_init = .true.

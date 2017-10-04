@@ -164,7 +164,7 @@ subroutine unfitted_fe_facet_iterator_update_quadrature(this)
   num_dim_facet          =  quadrature%get_num_dims()
 
   ! Recover info about the quadrature of the sub-facet
-  quadrature_subfacet => this%unfitted_integration_manager%quadrature_subfacet
+  quadrature_subfacet => this%unfitted_integration_manager%quadrature_fitted_subfacet
   quadrature_weights_subfacet     => quadrature_subfacet%get_weights()
   num_gp_subfacet                 =  quadrature_subfacet%get_num_quadrature_points()
   num_dim_subfacet                =  quadrature_subfacet%get_num_dims()
