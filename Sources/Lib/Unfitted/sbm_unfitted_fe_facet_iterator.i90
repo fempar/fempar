@@ -228,15 +228,20 @@ subroutine unfitted_fe_facet_iterator_update_facet_maps_interpolation(this)
   integer(ip) :: icell
   integer(ip) :: num_active_cell_maps
   type(p_fe_cell_iterator_t), pointer :: fes_around(:)
+  integer(ip) :: num_fitted_sub_facets, ipos
 
   assert(this%is_local())
+  assert(this%is_cut())
+
+  num_fitted_sub_facets = this%get_num_subvefs()
+  ipos = this%unfitted_integration_manager%num_fitted_sub_facets_to_pos(num_fitted_sub_facets)
   
   if (this%is_at_boundary()) then
     num_active_cell_maps = 1
-    this%unfitted_facet_maps => this%unfitted_integration_manager%cut_fitted_facet_maps(pos_map_on_boundary,this%get_facet_lid(),this%get_mc_case())
+    this%unfitted_facet_maps => this%unfitted_integration_manager%cut_fitted_facet_maps(pos_map_on_boundary,ipos)
   else
     num_active_cell_maps = 2
-    this%unfitted_facet_maps => this%unfitted_integration_manager%cut_fitted_facet_maps(pos_map_in_domain,this%get_facet_lid(),this%get_mc_case())
+    this%unfitted_facet_maps => this%unfitted_integration_manager%cut_fitted_facet_maps(pos_map_in_domain,ipos)
   end if
   
   facet_map  => this%unfitted_facet_maps%get_facet_map()
@@ -261,16 +266,23 @@ subroutine uffi_update_facet_integrators_interpolation(this)
   type(cell_integrator_facet_restriction_t), pointer :: cell_integrator(:)
   type(quadrature_t), pointer :: quadrature
   integer(ip) :: field_id
+  integer(ip) :: num_fitted_sub_facets, ipos
 
   assert(this%is_local())
+  assert(this%is_cut())
+
+  num_fitted_sub_facets = this%get_num_subvefs()
+  ipos = this%unfitted_integration_manager%num_fitted_sub_facets_to_pos(num_fitted_sub_facets)
 
   assert(this%unfitted_integration_manager%fe_space%get_num_fields() == 1)
   field_id = 1
   
   if (this%is_at_boundary()) then
-    this%unfitted_facet_integrators(field_id)%p => this%unfitted_integration_manager%cut_fitted_facet_integrators(pos_map_on_boundary,this%get_facet_lid(),this%get_mc_case())
+    this%unfitted_facet_integrators(field_id)%p => &
+      this%unfitted_integration_manager%cut_fitted_facet_integrators(pos_map_on_boundary,ipos)
   else
-    this%unfitted_facet_integrators(field_id)%p => this%unfitted_integration_manager%cut_fitted_facet_integrators(pos_map_in_domain,this%get_facet_lid(),this%get_mc_case())
+    this%unfitted_facet_integrators(field_id)%p => &
+      this%unfitted_integration_manager%cut_fitted_facet_integrators(pos_map_in_domain,ipos)
   end if
 
   quadrature => this%get_quadrature()
@@ -283,12 +295,12 @@ function unfitted_fe_facet_iterator_get_quadrature(this) result (quadrature)
   implicit none
   class(unfitted_fe_facet_iterator_t),  intent(inout) :: this
   type(quadrature_t),              pointer   :: quadrature
-  integer(ip) :: mc_case, facet_lid
+  integer(ip) :: num_fitted_sub_facets, ipos
   assert(this%is_local())
   if ( this%is_cut() ) then
-    mc_case = this%get_mc_case()
-    facet_lid = this%get_facet_lid()
-    quadrature => this%unfitted_integration_manager%cut_fitted_facet_quadratures(facet_lid,mc_case)
+    num_fitted_sub_facets = this%get_num_subvefs()
+    ipos = this%unfitted_integration_manager%num_fitted_sub_facets_to_pos(num_fitted_sub_facets)
+    quadrature => this%unfitted_integration_manager%cut_fitted_facet_quadratures(ipos)
   else if ( this%is_interior() ) then
     quadrature => this%fe_facet_iterator_t%get_quadrature()
   else if ( this%is_exterior() ) then

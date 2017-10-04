@@ -162,9 +162,10 @@ module unfitted_fe_spaces_names
     ! All the machinery to integrate in fitted subfacets
     type(tet_lagrangian_reference_fe_t)   :: geo_reference_subfacet
     type(cell_map_t)                     :: cell_map_subfacet
-    type(quadrature_t),       allocatable :: cut_fitted_facet_quadratures(:,:)
-    type(facet_maps_t),       allocatable :: cut_fitted_facet_maps(:,:,:)
-    type(facet_integrator_t), allocatable :: cut_fitted_facet_integrators(:,:,:)
+    type(quadrature_t),       allocatable :: cut_fitted_facet_quadratures(:)
+    type(facet_maps_t),       allocatable :: cut_fitted_facet_maps(:,:)
+    type(facet_integrator_t), allocatable :: cut_fitted_facet_integrators(:,:)
+    integer(ip), allocatable :: num_fitted_sub_facets_to_pos(:)
 
     ! Auxiliary dummy empty quadratures
     type(quadrature_t)             :: empty_quadrature
