@@ -128,22 +128,6 @@ subroutine base_fe_vef_iterator_update_sub_triangulation( this )
   call this%vef%update_sub_triangulation()
 end subroutine base_fe_vef_iterator_update_sub_triangulation
 
-function base_fe_vef_iterator_get_mc_case(this)
-  implicit none
-  class(base_fe_vef_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_vef_iterator_get_mc_case
-  assert(allocated(this%vef))
-  base_fe_vef_iterator_get_mc_case = this%vef%get_mc_case()
-end function base_fe_vef_iterator_get_mc_case
-
-function base_fe_vef_iterator_get_facet_lid(this)
-  implicit none
-  class(base_fe_vef_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_vef_iterator_get_facet_lid
-  assert(allocated(this%vef))
-  base_fe_vef_iterator_get_facet_lid = this%vef%get_facet_lid()
-end function base_fe_vef_iterator_get_facet_lid
-
 function base_fe_vef_iterator_get_num_subvefs( this ) result ( num_subvefs )
   implicit none
   class(base_fe_vef_iterator_t), intent(in)    :: this

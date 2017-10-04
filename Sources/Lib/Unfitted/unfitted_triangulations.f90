@@ -118,10 +118,6 @@ module unfitted_triangulations_names
     ! Updater: to be called each time the lid changes
     procedure :: update_sub_triangulation    => unfitted_vef_iterator_update_sub_triangulation
     
-    ! Auxilirary
-    procedure :: get_mc_case  => unfitted_vef_iterator_get_mc_case
-    procedure :: get_facet_lid  => unfitted_vef_iterator_get_facet_lid
-    
     ! Getters related with the subvefs
     procedure :: get_num_subvefs      => unfitted_vef_iterator_get_num_subvefs
     procedure :: get_num_subvef_nodes => unfitted_vef_iterator_get_num_subvef_nodes

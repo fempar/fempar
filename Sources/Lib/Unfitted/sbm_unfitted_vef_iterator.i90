@@ -103,22 +103,6 @@ subroutine unfitted_vef_iterator_update_sub_triangulation( this )
 end subroutine unfitted_vef_iterator_update_sub_triangulation
 
 !========================================================================================
-function unfitted_vef_iterator_get_mc_case(this)
-  implicit none
-  class(unfitted_vef_iterator_t), intent(in) :: this
-  integer(ip) :: unfitted_vef_iterator_get_mc_case
-  unfitted_vef_iterator_get_mc_case = this%unfitted_cell%get_mc_case()
-end function unfitted_vef_iterator_get_mc_case
-
-!========================================================================================
-function unfitted_vef_iterator_get_facet_lid(this)
-  implicit none
-  class(unfitted_vef_iterator_t), intent(in) :: this
-  integer(ip) :: unfitted_vef_iterator_get_facet_lid
-  unfitted_vef_iterator_get_facet_lid = this%facet_lid
-end function unfitted_vef_iterator_get_facet_lid
-
-!========================================================================================
 function unfitted_vef_iterator_get_num_subvefs( this ) result ( num_subvefs )
   implicit none
 

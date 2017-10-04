@@ -332,8 +332,6 @@ module fe_space_names
      procedure, non_overridable          :: is_facet                   => base_fe_vef_iterator_is_facet
      
      procedure, non_overridable          :: update_sub_triangulation  => base_fe_vef_iterator_update_sub_triangulation
-     procedure, non_overridable          :: get_mc_case               => base_fe_vef_iterator_get_mc_case
-     procedure, non_overridable          :: get_facet_lid             => base_fe_vef_iterator_get_facet_lid
      procedure, non_overridable          :: get_num_subvefs           => base_fe_vef_iterator_get_num_subvefs
      procedure, non_overridable          :: get_num_subvef_nodes      => base_fe_vef_iterator_get_num_subvef_nodes
      procedure, non_overridable          :: get_phys_coords_of_subvef => base_fe_vef_iterator_get_phys_coords_of_subvef
