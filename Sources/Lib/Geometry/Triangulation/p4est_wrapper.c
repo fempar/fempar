@@ -107,7 +107,7 @@ void F90_p4est_finalize()
 #else  
     if ( sc_p4est_initialized )
     {
-      //sc_finalize ();
+      sc_finalize ();
       sc_p4est_initialized = 0;
     }
 #endif    
