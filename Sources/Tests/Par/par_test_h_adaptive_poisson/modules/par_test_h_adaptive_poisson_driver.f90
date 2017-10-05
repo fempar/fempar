@@ -106,6 +106,7 @@ module par_test_h_adaptive_poisson_driver_names
      procedure                  :: free_environment
      procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_poisson_driver_popcorn_fun
      procedure                  :: set_cells_for_refinement
+     procedure                  :: set_cells_set_ids
   end type par_test_h_adaptive_poisson_fe_driver_t
 
   ! Types
@@ -190,6 +191,7 @@ end subroutine free_timers
     integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
+    class(environment_t), pointer :: environment
 
 
     call this%triangulation%create(this%parameter_list, this%par_environment)
@@ -234,16 +236,19 @@ end subroutine free_timers
     !end if
 
     !if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-    !   call this%triangulation%create_vef_iterator(vef)
-    !   do while ( .not. vef%has_finished() )
-    !      if(vef%is_at_boundary()) then
-    !         call vef%set_set_id(1)
-    !      else
-    !         call vef%set_set_id(0)
-    !      end if
-    !      call vef%next()
-    !   end do
-    !   call this%triangulation%free_vef_iterator(vef)
+       environment => this%triangulation%get_environment()
+       if (environment%am_i_l1_task()) then
+         call this%triangulation%create_vef_iterator(vef)
+         do while ( .not. vef%has_finished() )
+           if(vef%is_at_boundary()) then
+             call vef%set_set_id(1)
+           else
+             call vef%set_set_id(0)
+           end if
+           call vef%next()
+         end do
+         call this%triangulation%free_vef_iterator(vef)
+       end if  
     !end if  
 
     !! Set all the vefs on the interface between full/void if there are void fes
@@ -310,14 +315,14 @@ end subroutine free_timers
     !  call this%triangulation%free_vef_iterator(vef_of_vef)
     !end if
     
-    do i = 1,3
+    do i = 1,2
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
+      call this%set_cells_set_ids()
       call this%triangulation%partition()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
-
-    call this%triangulation%setup_coarse_triangulation()
+    !call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -744,6 +749,22 @@ end subroutine free_timers
       call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine set_cells_for_refinement
+  
+  subroutine set_cells_set_ids(this)
+    implicit none
+    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(cell_iterator_t), allocatable :: cell
+    class(environment_t), pointer :: environment
+    environment => this%triangulation%get_environment()
+    if ( environment%am_i_l1_task() ) then
+      call this%triangulation%create_cell_iterator(cell)
+      do while ( .not. cell%has_finished() )
+        call cell%set_set_id(int(cell%get_ggid(),ip))
+        call cell%next()
+      end do
+      call this%triangulation%free_cell_iterator(cell)
+    end if
+  end subroutine set_cells_set_ids
   
   subroutine set_cells_for_coarsening(this)
     implicit none

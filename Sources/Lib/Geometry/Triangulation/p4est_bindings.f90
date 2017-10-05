@@ -592,7 +592,7 @@ module p4est_bindings_names
        integer(P4EST_F90_GLOIDX), intent(out) :: ghost_ggids(*)
      end subroutine F90_p4est_fill_ghost_ggids
      
-     subroutine F90_p4est_compute_migration_control_data (p4est_old, p4est_new, num_ranks, lst_ranks, ptr_ranks, local_ids) &
+     subroutine F90_p4est_compute_migration_control_data (p4est_old, p4est_new, num_ranks, lst_ranks, ptr_ranks, local_ids, old2new) &
           bind(c, name="F90_p4est_compute_migration_control_data")
        use, intrinsic :: iso_c_binding
        import :: P4EST_F90_LOCIDX
@@ -603,8 +603,18 @@ module p4est_bindings_names
        type(c_ptr)              , intent(inout)  :: lst_ranks
        type(c_ptr)              , intent(inout)  :: ptr_ranks
        type(c_ptr)              , intent(inout)  :: local_ids
+       type(c_ptr)              , intent(inout)  :: old2new
     end subroutine F90_p4est_compute_migration_control_data
-     
+
+    subroutine F90_p4est_fill_proc_offsets_and_ghost_gids_remote_neighbours ( p4est_ghost, proc_offsets, ghost_gids_remote_neighbours ) &
+          bind(c, name="F90_p4est_fill_proc_offsets_and_ghost_gids_remote_neighbours")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p4est_ghost
+       integer(P4EST_F90_LOCIDX), intent(out)    :: proc_offsets(*) 
+       integer(P4EST_F90_LOCIDX), intent(out)    :: ghost_gids_remote_neighbours(*) 
+    end subroutine F90_p4est_fill_proc_offsets_and_ghost_gids_remote_neighbours 
      
      !subroutine p4_savemesh(filename, p4est) bind(c)
      !  !=================================================================================================================================

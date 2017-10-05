@@ -107,7 +107,7 @@ void F90_p4est_finalize()
 #else  
     if ( sc_p4est_initialized )
     {
-      sc_finalize ();
+      //sc_finalize ();
       sc_p4est_initialized = 0;
     }
 #endif    
@@ -1111,69 +1111,90 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
                                                int             * num_ranks, // How many processors involved?
                                                p4est_locidx_t ** lst_ranks, // Identifiers of processors involved from 1..P
                                                int            ** ptr_ranks, // Pointers to [start,end] of local_ids for each P in num_ranks
-                                               p4est_locidx_t ** local_ids)
+                                               p4est_locidx_t ** local_ids,
+                                               p4est_locidx_t ** old2new)
 {
     p4est_tree_t       *tree_old;
     p4est_quadrant_t   *q_old;
     sc_array_t         *quadrants_old;
-    int                old_quadrant_index;
+    int                old_quadrant_index, 
+                       new_quadrant_index;
     
     p4est_locidx_t     my_rank;
     p4est_locidx_t     new_rank;
     
     p4est_locidx_t   * ranks_visited;
     p4est_locidx_t   * ranks_count;
+    p4est_locidx_t   * ranks_lids;
 
             
     // Extract references to the first (and uniquely allowed) trees
     tree_old = p4est_tree_array_index (p4est_old->trees,0);
     quadrants_old = &(tree_old->quadrants);
     
-    ranks_count   = (p4est_locidx_t *) malloc( (size_t) p4est_old->mpisize );
-    ranks_visited = (p4est_locidx_t *) malloc( (size_t) p4est_old->mpisize );
-    P4EST_ASSERT(ranks_visited != NULL);
+    ranks_count   = (p4est_locidx_t *) malloc( (size_t) p4est_old->mpisize*sizeof(p4est_locidx_t) ); P4EST_ASSERT(ranks_count != NULL);
+    ranks_visited = (p4est_locidx_t *) malloc( (size_t) p4est_old->mpisize*sizeof(p4est_locidx_t) ); P4EST_ASSERT(ranks_visited != NULL);
+    ranks_lids    = (p4est_locidx_t *) malloc( (size_t) p4est_old->mpisize*sizeof(p4est_locidx_t) ); P4EST_ASSERT(ranks_lids != NULL);
     for (my_rank=0; my_rank < p4est_old->mpisize; my_rank++)
     {
       ranks_count[my_rank] = 0;
     }
     
+    if ( ! *old2new ) free(*old2new);
+    *old2new = (p4est_locidx_t *) malloc( (size_t) quadrants_old->elem_count*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*old2new) != NULL);
+    old_quadrant_index=0;
+    while (old_quadrant_index < quadrants_old->elem_count)
+    {
+       (*old2new)[old_quadrant_index] = -1;    
+       old_quadrant_index++;
+    }
+    
     // Calculate num_ranks
     *num_ranks = 0;
     my_rank    = p4est_old->mpirank;
+    new_quadrant_index = 1;
     for (old_quadrant_index=0; old_quadrant_index < quadrants_old->elem_count;old_quadrant_index++)
     {
-        q_old = p4est_quadrant_array_index(quadrants_old, old_quadrant_index);        
+        q_old    = p4est_quadrant_array_index(quadrants_old, old_quadrant_index);        
         new_rank = p4est_comm_find_owner (p4est_new,0,q_old,0);
         if ( new_rank != my_rank ) 
         {
-            if (ranks_count[my_rank] == 0)
+            if (ranks_count[new_rank] == 0)
             {
               ranks_visited[*num_ranks] = new_rank;
+              ranks_lids[new_rank]   = *num_ranks;
               (*num_ranks)++;
+              ranks_count[new_rank] =0;
             }
-            ranks_count[*num_ranks]++;
+            ranks_count[new_rank]++;
+            (*old2new)[old_quadrant_index]=0;
+        }
+        else {
+            (*old2new)[old_quadrant_index]=new_quadrant_index;
+            new_quadrant_index++;
         }
     }
     
     if ( ! *lst_ranks ) free(*lst_ranks);
-    *lst_ranks = (p4est_locidx_t *) malloc( (size_t) *num_ranks );
+    *lst_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks)*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*lst_ranks) != NULL);
     
     if ( ! *ptr_ranks ) free(*ptr_ranks);
-    *ptr_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks+1) );
+    *ptr_ranks = (p4est_locidx_t *) malloc( (size_t) (*num_ranks+1)*sizeof(p4est_locidx_t) ); P4EST_ASSERT((*ptr_ranks) != NULL);
     
-    *ptr_ranks[0]=1;
+    
+    (*ptr_ranks)[0]=1;
     for (my_rank=0; my_rank < *num_ranks; my_rank++)
     {
-        *lst_ranks[my_rank]   = ranks_visited[my_rank]+1;
-        *ptr_ranks[my_rank+1] = *ptr_ranks[my_rank] + ranks_count[ranks_visited[my_rank]] ;
+        (*lst_ranks)[my_rank]   = ranks_visited[my_rank]+1;
+        (*ptr_ranks)[my_rank+1] = (*ptr_ranks)[my_rank] + ranks_count[ranks_visited[my_rank]] ;
     }
 
     free(ranks_count);
     free(ranks_visited);
     
     if ( ! *local_ids ) free(*local_ids);
-    *local_ids = (p4est_locidx_t *) malloc( (size_t) ptr_ranks[(*num_ranks+1)]-1 );
-    
+    *local_ids = (p4est_locidx_t *) malloc( (size_t) ((*ptr_ranks)[(*num_ranks)]-1)*sizeof(p4est_locidx_t) );
+        
     my_rank = p4est_old->mpirank;
     for (old_quadrant_index=0; old_quadrant_index < quadrants_old->elem_count; old_quadrant_index++)
     {
@@ -1181,10 +1202,11 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
         new_rank = p4est_comm_find_owner(p4est_new,0,q_old,0);
         if ( new_rank != my_rank ) 
         {
-            (*local_ids)[(*ptr_ranks)[new_rank]-1] = old_quadrant_index;
-            (*ptr_ranks)[new_rank] = (*ptr_ranks)[new_rank] + 1;
+            (*local_ids)[(*ptr_ranks)[ranks_lids[new_rank]]-1] = old_quadrant_index+1;
+            (*ptr_ranks)[ranks_lids[new_rank]] = (*ptr_ranks)[ranks_lids[new_rank]] + 1;
         }
     }
+    free(ranks_lids);
     
     for (my_rank=*num_ranks; my_rank >= 1; my_rank--) 
     {
@@ -1192,6 +1214,23 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
     }
     (*ptr_ranks)[0] = 1;
 }
+
+
+void F90_p4est_fill_proc_offsets_and_ghost_gids_remote_neighbours( p4est_ghost_t  * p4est_ghost,
+                                                                   p4est_locidx_t * proc_offsets, 
+                                                                   p4est_locidx_t * ghost_gids_remote_neighbours )
+{
+    p4est_quadrant_t * ghost_quadrants = (p4est_quadrant_t *) p4est_ghost->ghosts.array;
+    for (int i=0; i < p4est_ghost->ghosts.elem_count; i++)
+    {
+      ghost_gids_remote_neighbours[i] = (ghost_quadrants[i].p.piggy3.local_num+1) ;
+    }
+    for (int i=0; i <= p4est_ghost->mpisize; i++)
+    {
+        proc_offsets[i] = p4est_ghost->proc_offsets[i]+1; 
+    } 
+}
+
 
 
 

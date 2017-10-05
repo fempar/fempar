@@ -74,7 +74,10 @@ function p4est_vef_iterator_has_finished(this)
   implicit none
   class(p4est_vef_iterator_t), intent(in) :: this
   logical :: p4est_vef_iterator_has_finished
-  p4est_vef_iterator_has_finished = (this%get_gid() < 0 .and. this%get_gid() < -this%p4est_triangulation%num_improper_vefs)
+  p4est_vef_iterator_has_finished = ((this%p4est_triangulation%num_improper_vefs==0) .and. (this%p4est_triangulation%num_proper_vefs==0))
+  if ( .not. p4est_vef_iterator_has_finished ) then 
+    p4est_vef_iterator_has_finished = (this%get_gid() < 0 .and. this%get_gid() < -this%p4est_triangulation%num_improper_vefs)
+  end if  
 end function p4est_vef_iterator_has_finished
 
 function p4est_vef_iterator_get_num_nodes(this)

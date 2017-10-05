@@ -44,9 +44,6 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   environment => this%get_environment()
   call environment%create(parameters)
   
-  call this%set_num_local_cells(1)
-  call this%set_num_ghost_cells(0)
-
   ! Get num_dims from FPL
   massert(parameters%isAssignable(num_dims_key, num_dims ),'num_dims not found or un-usable.')
   istat = parameters%get(key = num_dims_key, value = num_dims); assert(istat==0)
@@ -160,6 +157,8 @@ subroutine p4est_serial_triangulation_free ( this)
     
   this%num_proper_vefs = -1
   this%num_improper_vefs = -1
+  this%previous_num_local_cells = -1
+  this%previous_num_ghost_cells = -1
   
   call this%reference_fe_geo%free()
   call this%free_environment()

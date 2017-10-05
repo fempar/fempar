@@ -334,6 +334,9 @@ module p4est_triangulation_names
     private
     integer(ip) :: num_proper_vefs          = -1 
     integer(ip) :: num_improper_vefs        = -1 
+ 
+    integer(ip) :: previous_num_local_cells = -1
+    integer(ip) :: previous_num_ghost_cells = -1
     
     type(hex_lagrangian_reference_fe_t) :: reference_fe_geo
     type(point_t), allocatable          :: per_cell_vertex_coordinates(:)
@@ -415,9 +418,8 @@ module p4est_triangulation_names
     procedure                                   :: fill_cells_set                                => p4est_bt_fill_cells_set
     procedure, private       , non_overridable  :: clear_vef_set_ids                             => p4est_bt_clear_vef_set_ids
     procedure, private       , non_overridable  :: update_cell_import                            => p4est_bt_update_cell_import
-    
-    
-
+    procedure, private       , non_overridable  :: match_cell_import_rcv_control_data            => p4est_bt_match_cell_import_rcv_control_data
+   
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator
     procedure                                   :: free_cell_iterator                    => p4est_free_cell_iterator
@@ -464,12 +466,22 @@ module p4est_triangulation_names
     integer(P4EST_F90_LOCIDX), pointer :: lst_rcv(:)
     integer(P4EST_F90_LOCIDX), pointer :: rcv_ptrs(:)
     integer(P4EST_F90_LOCIDX), pointer :: unpack_idx(:)
+    
+    type(std_vector_integer_ip_t) :: old_vef_set_ids
+    type(std_vector_integer_ip_t) :: new_vef_set_ids
+    
+    type(c_ptr) :: p_old2new = c_null_ptr
+    type(c_ptr) :: p_new2old = c_null_ptr
+    integer(P4EST_F90_LOCIDX), pointer :: old2new(:)
+    integer(P4EST_F90_LOCIDX), pointer :: new2old(:)
   contains
     procedure, private                          :: p4est_par_triangulation_create
     generic                                     :: create                                        => p4est_par_triangulation_create
     procedure                                   :: free                                          => p4est_par_triangulation_free 
     procedure                                   :: partition                                     => p4est_par_triangulation_partition
     procedure                                   :: update_migration_control_data                 => p4est_par_triangulation_update_migration_control_data
+    procedure                                   :: migrate_cell_set_ids                          => p4est_par_triangulation_migrate_cell_set_ids
+    procedure                                   :: migrate_vef_set_ids                           => p4est_par_triangulation_migrate_vef_set_ids
   end type p4est_par_triangulation_t
   
   public :: p4est_par_triangulation_t

@@ -158,6 +158,8 @@ subroutine p4est_par_triangulation_free ( this)
         call this%cell_set_ids%free()
         call this%proper_vefs_set_ids%free()
         call this%improper_vefs_set_ids%free()
+        call this%new_vef_set_ids%free()
+        call this%old_vef_set_ids%free()
         
         cell_import => this%get_cell_import()
         call cell_import%free()
@@ -184,6 +186,8 @@ subroutine p4est_par_triangulation_free ( this)
 
         this%num_proper_vefs = -1
         this%num_improper_vefs = -1
+        this%previous_num_local_cells = -1
+        this%previous_num_ghost_cells = -1
 
         call this%reference_fe_geo%free()
 
@@ -202,9 +206,12 @@ subroutine p4est_par_triangulation_free ( this)
         this%p_snd_ptrs = c_null_ptr
         call F90_p4est_locidx_buffer_destroy(this%p_pack_idx)
         this%p_pack_idx = c_null_ptr
+        call F90_p4est_locidx_buffer_destroy(this%p_old2new)
+        this%p_old2new  = c_null_ptr
         nullify(this%lst_snd)
         nullify(this%snd_ptrs)
         nullify(this%pack_idx)
+        nullify(this%old2new)
     
         this%num_rcv = -1
         call F90_p4est_locidx_buffer_destroy(this%p_lst_rcv)
@@ -213,9 +220,12 @@ subroutine p4est_par_triangulation_free ( this)
         this%p_rcv_ptrs   = c_null_ptr
         call F90_p4est_locidx_buffer_destroy(this%p_unpack_idx)
         this%p_unpack_idx = c_null_ptr
+        call F90_p4est_locidx_buffer_destroy(this%p_new2old)
+        this%p_new2old  = c_null_ptr
         nullify(this%lst_rcv)
         nullify(this%rcv_ptrs)
         nullify(this%unpack_idx)
+        nullify(this%new2old)
      end if
   end if
   call triangulation_free(this)
@@ -250,17 +260,14 @@ subroutine p4est_par_triangulation_partition ( this )
     call this%allocate_and_fill_x_cell_vertex_coordinates()
     call this%update_migration_control_data(p4est_old)
     ! These two calls involve communications !!!
-    !call this%update_cell_set_ids()
-    !call this%update_vef_set_ids(old_lst_vefs_gids)
-    call this%clear_cell_set_ids()
-    call this%clear_vef_set_ids()
-    call old_lst_vefs_gids%free()
-    
+    call this%migrate_cell_set_ids()
+    call this%migrate_vef_set_ids(old_lst_vefs_gids)
     if ( this%get_num_dims() == 2 ) then
       call F90_p4est_destroy(p4est_old)
     else if ( this%get_num_dims() == 3 ) then
       call F90_p8est_destroy(p4est_old)
     end if
+    call old_lst_vefs_gids%free()
   end if
 #else
   call this%not_enabled_error()
@@ -278,15 +285,188 @@ subroutine p4est_par_triangulation_update_migration_control_data(this, p4est_old
                                                  this%num_snd, &
                                                  this%p_lst_snd, &
                                                  this%p_snd_ptrs, &
-                                                 this%p_pack_idx)
-  
+                                                 this%p_pack_idx, &
+                                                 this%p_old2new)
+  call c_f_pointer(this%p_lst_snd, &
+                   this%lst_snd, &
+                   [this%num_snd])
+  call c_f_pointer(this%p_snd_ptrs, &
+                   this%snd_ptrs,&
+                   [this%num_snd+1])
+  call c_f_pointer(this%p_pack_idx , &
+                   this%pack_idx, &
+                   [this%snd_ptrs(this%num_snd+1)-1])
+  call c_f_pointer(this%p_old2new, &
+                   this%old2new, &
+                   [this%previous_num_local_cells])
+                   
   call F90_p4est_compute_migration_control_data (this%p4est, &
                                                  p4est_old, &
                                                  this%num_rcv, &
                                                  this%p_lst_rcv, &
                                                  this%p_rcv_ptrs, &
-                                                 this%p_unpack_idx)
+                                                 this%p_unpack_idx, &
+                                                 this%p_new2old)
+  call c_f_pointer(this%p_lst_rcv, &
+                   this%lst_rcv, &
+                   [this%num_rcv])
+  call c_f_pointer(this%p_rcv_ptrs,&
+                   this%rcv_ptrs,& 
+                   [this%num_rcv+1])
+  call c_f_pointer(this%p_unpack_idx,& 
+                   this%unpack_idx,& 
+                   [this%rcv_ptrs(this%num_rcv+1)-1] )
+  call c_f_pointer(this%p_new2old, &
+                   this%new2old, &
+                   [this%get_num_local_cells()])
+  
+  
 #else
   call this%not_enabled_error()
 #endif
 end subroutine p4est_par_triangulation_update_migration_control_data
+
+subroutine p4est_par_triangulation_migrate_cell_set_ids(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(inout) :: this
+  type(std_vector_integer_ip_t) :: old_cell_set_ids
+  integer(ip), pointer :: p_old_cell_set_ids(:)
+  integer(ip), pointer :: p_cell_set_ids(:)
+  class(environment_t), pointer :: environment
+  class(cell_import_t), pointer :: cell_import
+  integer(ip) :: i 
+#ifdef ENABLE_P4EST
+  
+  environment => this%get_environment()
+  
+  call old_cell_set_ids%copy(this%cell_set_ids)
+  call this%cell_set_ids%resize(0)
+  call this%cell_set_ids%resize(this%get_num_local_cells()+this%get_num_ghost_cells(),-1)
+  
+  p_old_cell_set_ids => old_cell_set_ids%get_raw_pointer()
+  p_cell_set_ids     => this%cell_set_ids%get_raw_pointer()
+  do i=1, this%get_num_local_cells()
+    if (this%new2old(i) /= 0) then
+      p_cell_set_ids (i) = p_old_cell_set_ids(this%new2old(i))
+    end if  
+  end do
+  call environment%l1_neighbours_exchange (this%num_rcv, this%lst_rcv, this%rcv_ptrs , this%unpack_idx, &
+                                           this%num_snd, this%lst_snd, this%snd_ptrs, this%pack_idx, &
+                                           p_old_cell_set_ids, p_cell_set_ids )
+ 
+  ! Retrieve set IDs from ghost cells
+  cell_import => this%get_cell_import()
+  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_rcv_ptrs(),&
+                                            cell_import%get_rcv_leids(),&
+                                            cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_snd_ptrs(),&
+                                            cell_import%get_snd_leids(),&
+                                            p_cell_set_ids, p_cell_set_ids )  
+  call old_cell_set_ids%free()
+#else
+  call this%not_enabled_error()
+#endif
+end subroutine p4est_par_triangulation_migrate_cell_set_ids
+
+subroutine p4est_par_triangulation_migrate_vef_set_ids(this, old_lst_vefs_gids)
+  implicit none
+  class(p4est_par_triangulation_t), intent(inout) :: this
+  type(std_vector_integer_ip_t)   , intent(in)    :: old_lst_vefs_gids
+  type(p4est_cell_iterator_t) :: cell
+  type(p4est_vef_iterator_t)  :: vef  
+  integer(ip) :: i, vef_lid
+  integer(ip), pointer :: data_buffer(:)
+  integer(ip) :: base_pos_old
+  integer(ip) :: base_pos_new
+  integer(ip) :: old_vef_set_id, new_vef_set_id
+  integer(ip) :: old_vef_gid
+  integer(ip), pointer :: p_old_vef_set_ids(:)
+  integer(ip), pointer :: p_new_vef_set_ids(:)
+  class(environment_t), pointer :: environment
+  class(cell_import_t), pointer :: cell_import
+  integer(ip) :: num_vefs
+
+#ifdef ENABLE_P4EST
+  environment => this%get_environment()
+  num_vefs = this%get_ptr_vefs_x_cell(2)-this%get_ptr_vefs_x_cell(1)
+  ! Re-build cell-wise old vef set IDs
+  call this%old_vef_set_ids%resize(0)
+  do i=1, this%previous_num_local_cells
+    base_pos_old = this%get_ptr_vefs_x_cell(i)-1
+    do vef_lid=1, num_vefs
+      old_vef_gid = old_lst_vefs_gids%get(base_pos_old+vef_lid)
+      if ( old_vef_gid > 0 ) then ! VEF is proper
+        old_vef_set_id = this%proper_vefs_set_ids%get(old_vef_gid)
+      else                        ! VEF is improper
+        old_vef_set_id = this%improper_vefs_set_ids%get(abs(old_vef_gid))
+      end if
+      call this%old_vef_set_ids%push_back(old_vef_set_id)
+    end do
+  end do
+  p_old_vef_set_ids => this%old_vef_set_ids%get_raw_pointer()
+  
+  call this%improper_vefs_set_ids%resize(0)
+  call this%improper_vefs_set_ids%resize(this%num_improper_vefs,0)
+  
+  call this%proper_vefs_set_ids%resize(0)
+  call this%proper_vefs_set_ids%resize(this%num_proper_vefs,0)
+  
+  call this%new_vef_set_ids%resize(0)
+  call this%new_vef_set_ids%resize((this%get_num_local_cells()+this%get_num_ghost_cells())*num_vefs,0)
+  p_new_vef_set_ids => this%new_vef_set_ids%get_raw_pointer()
+  
+  call cell%create(this)
+  ! Transfer vef set IDs of local cells
+  do i=1, this%get_num_local_cells()
+    if (this%new2old(i) /= 0) then
+       call cell%set_gid(i)
+       base_pos_old = this%get_ptr_vefs_x_cell(this%new2old(i))-1
+       base_pos_new = this%get_ptr_vefs_x_cell(i)-1
+       do vef_lid=1, num_vefs
+         old_vef_set_id = p_old_vef_set_ids(base_pos_old+vef_lid)
+         p_new_vef_set_ids(base_pos_new+vef_lid) = old_vef_set_id
+       end do
+    end if  
+  end do
+  
+  ! Transfer vef set IDs of remote cells
+  call environment%l1_neighbours_exchange (this%num_rcv, this%lst_rcv, this%rcv_ptrs , this%unpack_idx, &
+                                           this%num_snd, this%lst_snd, this%snd_ptrs, this%pack_idx, &
+                                           p_old_vef_set_ids, p_new_vef_set_ids, num_vefs )
+  
+  ! Retrieve set IDs from ghost cells
+  cell_import => this%get_cell_import()
+  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_rcv_ptrs(),&
+                                            cell_import%get_rcv_leids(),&
+                                            cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_snd_ptrs(),&
+                                            cell_import%get_snd_leids(),&
+                                            p_new_vef_set_ids, p_new_vef_set_ids, num_vefs )  
+  
+  call vef%create(this)
+  call cell%first()
+  do while ( .not. cell%has_finished() )
+    base_pos_new    = this%get_ptr_vefs_x_cell(cell%get_gid())-1
+    do vef_lid=1, num_vefs
+      call cell%get_vef(vef_lid,vef)
+      if (cell%is_local()) then
+        new_vef_set_id  = p_new_vef_set_ids(base_pos_new+vef_lid)
+        call vef%set_set_id(new_vef_set_id)
+      end if  
+    end do
+    call cell%next()
+  end do
+  
+  call cell%free()
+  call vef%free()
+#else
+  call this%not_enabled_error()
+#endif
+  
+end subroutine p4est_par_triangulation_migrate_vef_set_ids
