@@ -12,7 +12,7 @@ module par_test_hts_params_names
   character(len=*), parameter :: bddc_edge_continuity_algorithm_key   = 'bddc_edge_continuity_algorithm'
 
   ! MESHING parameters 
-  character(len=*), parameter :: domain_length_key             = 'domain_length'
+		character(len=*), parameter :: domain_limits_key             = 'domain_limits'
   character(len=*), parameter :: hts_domain_length_key         = 'hts_domain_length'
 
   ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
@@ -23,6 +23,7 @@ module par_test_hts_params_names
   character(len=*), parameter :: apply_current_density_constraint_key       = 'apply_current_density_constraint' 
 
   ! PHYSICAL PROPERTIES parameters
+		character(len=*), parameter :: is_analytical_solution_key     = 'is_analytical_solution'
   character(len=*), parameter :: air_permeability_key           = 'air_permeability'
   character(len=*), parameter :: air_resistivity_key            = 'air_resistivity' 
   character(len=*), parameter :: hts_permeability_key           = 'hts_permeability' 
@@ -35,7 +36,7 @@ module par_test_hts_params_names
   character(len=*), parameter :: theta_value_key                = 'theta_value' 
   character(len=*), parameter :: initial_time_key               = 'initial_time' 
   character(len=*), parameter :: final_time_key                 = 'final_time' 
-  character(len=*), parameter :: num_time_steps_key          = 'num_time_steps' 
+  character(len=*), parameter :: num_time_steps_key             = 'num_time_steps' 
   character(len=*), parameter :: is_adaptive_time_stepping_key  = 'is_adaptive_time_stepping' 
   character(len=*), parameter :: stepping_parameter_key         = 'stepping_parameter' 
   character(len=*), parameter :: max_time_step_key              = 'max_time_step' 
@@ -58,9 +59,9 @@ contains
   procedure, non_overridable             :: get_reference_fe_order
   procedure, non_overridable             :: get_write_solution
   procedure, non_overridable             :: get_triangulation_type
-  !procedure, non_overridable             :: get_num_dimensions
-  procedure, non_overridable             :: get_domain_length 
+		procedure, non_overridable             :: get_domain_limits
   procedure, non_overridable             :: get_hts_domain_length
+		procedure, non_overridable             :: get_is_analytical_solution 
   procedure, non_overridable             :: get_external_magnetic_field_amplitude
   procedure, non_overridable             :: get_external_magnetic_field_frequency
   procedure, non_overridable             :: get_external_current_amplitude
@@ -111,8 +112,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = list%set(key = dir_path_key            , value = '.')      ; check(error==0)
  error = list%set(key = prefix_key              , value = 'square') ; check(error==0)
  error = list%set(key = dir_path_out_key        , value = '.')      ; check(error==0)
- error = list%set(key = num_dims_key            , value =  2)       ; check(error==0)
- !error = list%set(key = hex_mesh_domain_limits_key        , value =  [0,1,0,1,0,1])       ; check(error==0)      
+ error = list%set(key = num_dims_key            , value =  2)       ; check(error==0)      
  error = list%set(key = num_cells_x_dir_key     , value =  [12,12,12])          ; check(error==0)
  error = list%set(key = is_dir_periodic_key     , value =  [0,0,0])             ; check(error==0)
  error = list%set(key = num_levels_key          , value =  3)                   ; check(error==0)
@@ -128,17 +128,18 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = list%set(key = bddc_edge_continuity_algorithm_key, value =  tangential_average_and_first_order_moment) ; check(error==0)
 
  ! Domain length 
- error = list%set(key = domain_length_key          , value =  [1.0,1.0,1.0])                     ; check(error==0)
- error = list%set(key = hts_domain_length_key      , value =  [0.5,0.5,0.5])                     ; check(error==0)
+ error = list%set(key = domain_limits_key     , value = [0.0,1.0,0.0,1.0,0.0,1.0]) ; check(error==0)
+ error = list%set(key = hts_domain_length_key , value = [0.5,0.5,0.5]) ; check(error==0)
 
  ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
  error = list%set(key = external_magnetic_field_amplitude_key , value = [0.0,0.0,0.0]) ; check(error==0) 
- error = list%set(key = external_magnetic_field_frequency_key , value = 50.0)      ; check(error==0)
- error = list%set(key = external_current_amplitude_key , value = [0.0,0.0,0.0])        ; check(error==0) 
- error = list%set(key = external_current_frequency_key , value = 50.0)             ; check(error==0)
- error = list%set(key = apply_current_density_constraint_key , value = .false.)  ; check(error==0)
+ error = list%set(key = external_magnetic_field_frequency_key , value = 50.0)          ; check(error==0)
+ error = list%set(key = external_current_amplitude_key        , value = [0.0,0.0,0.0]) ; check(error==0) 
+ error = list%set(key = external_current_frequency_key        , value = 50.0)          ; check(error==0)
+ error = list%set(key = apply_current_density_constraint_key  , value = .false.)       ; check(error==0)
 
  ! PHYSICAL PROPERTIES parameters
+	error = list%set(key = is_analytical_solution_key, value = .false.)    ; check(error==0)
  error = list%set(key = air_permeability_key        , value = 1.0)      ; check(error==0)
  error = list%set(key = air_resistivity_key         , value = 1.0)      ; check(error==0)
  error = list%set(key = hts_permeability_key        , value = 1.0)      ; check(error==0)
@@ -151,7 +152,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = list%set(key = theta_value_key              , value = 1.0)      ; check(error==0)
  error = list%set(key = initial_time_key             , value = 0.0)      ; check(error==0)
  error = list%set(key = final_time_key               , value = 1.0)      ; check(error==0)
- error = list%set(key = num_time_steps_key        , value = 10)       ; check(error==0)
+ error = list%set(key = num_time_steps_key           , value = 10)       ; check(error==0)
  error = list%set(key = is_adaptive_time_stepping_key, value = .true.)   ; check(error==0)
  error = list%set(key = stepping_parameter_key       , value = 10)       ; check(error==0)
  error = list%set(key = max_time_step_key            , value = 0.1)      ; check(error==0)
@@ -170,14 +171,13 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches%set(key = prefix_key                    , value = '--prefix')                   ; check(error==0)
  error = switches%set(key = dir_path_out_key              , value = '--dir-path-out')             ; check(error==0)
  error = switches%set(key = num_dims_key                  , value = '--dim')                      ; check(error==0)
- !error = switches%set(key = hex_mesh_domain_limits_key    , value = '--domain_limits')            ; check(error==0)
  error = switches%set(key = num_cells_x_dir_key           , value = '--number_of_cells')          ; check(error==0)
  error = switches%set(key = num_levels_key                , value = '--number_of_levels')         ; check(error==0)
  error = switches%set(key = num_parts_x_dir_key   , value = '--number_of_parts_per_dir')  ; check(error==0)
  error = switches%set(key = reference_fe_geo_order_key    , value = '--reference-fe-geo-order')   ; check(error==0)
  error = switches%set(key = reference_fe_order_key        , value = '--reference-fe-order'    )   ; check(error==0)
  error = switches%set(key = write_solution_key            , value = '--write-solution'        )   ; check(error==0)
- error = switches%set(key = triangulation_generate_key    , value = '--trinagulation-type'    )   ; check(error==0)
+ error = switches%set(key = triangulation_generate_key    , value = '--triangulation-type'    )   ; check(error==0)
  error = switches%set(key = execution_context_key         , value = '--execution_context'    )    ; check(error==0)
  error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
  error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
@@ -185,7 +185,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches%set(key = bddc_edge_continuity_algorithm_key , value = '--BDDC_edge_continuity_algorithm' ) ; check(error==0)
 
  ! Domain length 
- error = switches%set(key = domain_length_key             , value = '--domain_length')     ; check(error==0)
+ error = switches%set(key = domain_limits_key    , value = '--domain_limits')     ; check(error==0)
  error = switches%set(key = hts_domain_length_key         , value = '--hts_domain_length') ; check(error==0)
 
  ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
@@ -196,6 +196,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches%set(key = apply_current_density_constraint_key , value = '--apply_current_density_constraint')  ; check(error==0)
 
  ! PHYSICAL PROPERTIES parameters
+	error = switches%set(key = is_analytical_solution_key, value ='--is_analytical_solution') ; check(error==0)
  error = switches%set(key = air_permeability_key        , value = '--air_permeability')        ; check(error==0)
  error = switches%set(key = air_resistivity_key         , value = '--air_resistivity')         ; check(error==0)
  error = switches%set(key = hts_permeability_key        , value = '--hts_permeability')        ; check(error==0)
@@ -226,7 +227,6 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
  error = switches_ab%set(key = dir_path_out_key           , value = '-o')        ; check(error==0) 
  error = switches_ab%set(key = num_dims_key               , value = '-dm')       ; check(error==0)
- !error = switches_ab%set(key = hex_mesh_domain_limits_key , value = '-dl')       ; check(error==0)
  error = switches_ab%set(key = num_cells_x_dir_key        , value = '-n')        ; check(error==0) 
  error = switches_ab%set(key = num_levels_key             , value = '-l')        ; check(error==0)
  error = switches_ab%set(key = num_parts_x_dir_key, value = '-np')       ; check(error==0)
@@ -241,7 +241,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches_ab%set(key = bddc_edge_continuity_algorithm_key , value = '-edge_cont' )  ; check(error==0)
 
  ! Domain length 
- error = switches_ab%set(key = domain_length_key          , value = '-dl')        ; check(error==0)
+	error = switches_ab%set(key = domain_limits_key          , value = '-dl')       ; check(error==0)
  error = switches_ab%set(key = hts_domain_length_key      , value = '-hts_dl')    ; check(error==0)
 
  ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
@@ -252,6 +252,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches_ab%set(key = apply_current_density_constraint_key  , value = '-cdc')  ; check(error==0)
 
  ! PHYSICAL PROPERTIES parameters
+	error = switches_ab%set(key = is_analytical_solution_key, value = '-analytical_solution')   ; check(error==0)
  error = switches_ab%set(key = air_permeability_key        , value = '-mu_air')     ; check(error==0)
  error = switches_ab%set(key = air_resistivity_key         , value = '-rho_air')    ; check(error==0)
  error = switches_ab%set(key = hts_permeability_key        , value = '-mu_hts')     ; check(error==0)
@@ -283,7 +284,6 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
  error = helpers%set(key = dir_path_out_key               , value = 'Output Directory')                         ; check(error==0)
  error = helpers%set(key = num_dims_key                   , value = 'Number of space dimensions')               ; check(error==0)
- !error = helpers%set(key = hex_mesh_domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
  error = helpers%set(key = num_cells_x_dir_key            , value = 'Number of cells per dir')                  ; check(error==0)
  error = helpers%set(key = num_levels_key                 , value = 'Number of levels')                         ; check(error==0)
  error = helpers%set(key = num_parts_x_dir_key            , value = 'Number of parts per dir and per level')    ; check(error==0)
@@ -311,10 +311,11 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = helpers%set(key = bddc_edge_continuity_algorithm_key  , value = msg)  ; check(error==0)
 
  ! Domain length parameters 
- error = helpers%set(key = domain_length_key              , value = 'Domain length for each direction')   ; check(error==0)
- error = helpers%set(key = hts_domain_length_key          , value = 'High Temperature Superconductor Device length ( concentric with the domain) ') ; check(error==0)
+	error = helpers%set(key = domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
+ error = helpers%set(key = hts_domain_length_key , value = 'High Temperature Superconductor Device length ( concentric with the domain) ') ; check(error==0)
 
  ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
+	error = helpers%set(key = is_analytical_solution_key, value ='Solve with analytical solution?'); check(error==0)
  error = helpers%set(key = external_magnetic_field_amplitude_key , value = 'External magnetic field amplitude per direction') ; check(error==0) 
  error = helpers%set(key = external_magnetic_field_frequency_key , value = 'External magnetic field frequency' ) ; check(error==0)
  error = helpers%set(key = external_current_amplitude_key , value = 'External current amplitude') ; check(error==0) 
@@ -352,7 +353,6 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
  error = required%set(key = dir_path_out_key              , value = .false.) ; check(error==0)
  error = required%set(key = num_dims_key                  , value = .false.) ; check(error==0)
- !error = required%set(key = hex_mesh_domain_limits_key    , value = .false.) ; check(error==0)
  error = required%set(key = num_cells_x_dir_key           , value = .false.) ; check(error==0)
  error = required%set(key = num_levels_key                , value = .false.) ; check(error==0)
  error = required%set(key = num_parts_x_dir_key   , value = .false.) ; check(error==0)
@@ -367,10 +367,11 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = required%set(key = bddc_edge_continuity_algorithm_key , value = .false.) ; check(error==0)
 
  ! Domain length 
- error = required%set(key = domain_length_key          , value = .false.)  ; check(error==0)
- error = required%set(key = hts_domain_length_key      , value = .false.)  ; check(error==0)
+ error = required%set(key = domain_limits_key     , value = .false.) ; check(error==0)
+ error = required%set(key = hts_domain_length_key , value = .false.)  ; check(error==0)
 
  ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
+	error = required%set(key = is_analytical_solution_key, value =.false.)    ; check(error==0)
  error = required%set(key = external_magnetic_field_amplitude_key , value = .false.)  ; check(error==0) 
  error = required%set(key = external_magnetic_field_frequency_key , value = .false.)  ; check(error==0)
  error = required%set(key = external_current_amplitude_key        , value = .false.)  ; check(error==0) 
@@ -487,30 +488,43 @@ function get_triangulation_type(this)
 end function get_triangulation_type
 
 !==================================================================================================
-function get_domain_length(this)
+function get_domain_limits(this)
  implicit none
  class(par_test_hts_params_t) , intent(in) :: this
- real(rp)                                      :: get_domain_length(0:SPACE_DIM-1)
- type(ParameterList_t), pointer                :: list
- integer(ip)                                   :: error
+ real(rp)                                  :: get_domain_limits(6)
+ type(ParameterList_t), pointer            :: list
+ integer(ip)                               :: error
  list  => this%get_values()
- assert(list%isAssignable(domain_length_key, get_domain_length))
- error = list%Get(key = domain_length_key, Value = get_domain_length)
+ assert(list%isAssignable(domain_limits_key, get_domain_limits))
+ error = list%Get(key = domain_limits_key, Value = get_domain_limits)
  assert(error==0)
-end function get_domain_length
+end function get_domain_limits
 
 !==================================================================================================
 function get_hts_domain_length(this)
  implicit none
  class(par_test_hts_params_t) , intent(in) :: this
- real(rp)                                      :: get_hts_domain_length(0:SPACE_DIM-1)
- type(ParameterList_t), pointer                :: list
- integer(ip)                                   :: error
+ real(rp)                                  :: get_hts_domain_length(0:SPACE_DIM-1)
+ type(ParameterList_t), pointer            :: list
+ integer(ip)                               :: error
  list  => this%get_values()
  assert(list%isAssignable(hts_domain_length_key, get_hts_domain_length))
  error = list%Get(key = hts_domain_length_key, Value = get_hts_domain_length)
  assert(error==0)
 end function get_hts_domain_length
+
+!==================================================================================================
+function get_is_analytical_solution(this)
+ implicit none
+ class(par_test_hts_params_t) , intent(in) :: this
+ logical                                  :: get_is_analytical_solution    
+ type(ParameterList_t), pointer           :: list
+ integer(ip)                              :: error
+ list  => this%get_values()
+ assert(list%isAssignable(is_analytical_solution_key, get_is_analytical_solution  ))
+ error = list%Get(key=is_analytical_solution_key, Value = get_is_analytical_solution  )
+ assert(error==0)
+end function get_is_analytical_solution
 
 !==================================================================================================
 function get_external_magnetic_field_amplitude(this)

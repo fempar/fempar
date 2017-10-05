@@ -27,8 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module hts_discrete_integration_names
   use fempar_names
-  use hts_analytical_functions_names
 		use hts_theta_method_names 
+		use par_test_hts_params_names
   
   implicit none
 # include "debug.i90"
@@ -39,26 +39,40 @@ module hts_discrete_integration_names
 		
 		
   type, extends(discrete_integration_t) :: hts_cG_discrete_integration_t
-  type(hts_analytical_functions_t), pointer :: analytical_functions => NULL()
+		class(vector_function_t)        , pointer :: source_term        => NULL() 
 	 type(fe_function_t)             , pointer :: H_current          => NULL()
 		type(fe_function_t)             , pointer :: H_previous         => NULL()
-		type(theta_method_t)            , pointer :: theta_method       => NULL() 
+		type(theta_method_t)            , pointer :: theta_method       => NULL()
+		
+		! Parameter values 
+		real(rp)                          :: air_resistivity
+  real(rp)                          :: hts_resistivity
+  real(rp)                          :: air_permeability
+  real(rp)                          :: hts_permeability 
+  real(rp)                          :: critical_electric_field 
+  real(rp)                          :: critical_current
+  real(rp)                          :: nonlinear_exponent
+		character(len=:), allocatable     :: integration_type
    contains
      procedure :: set_analytical_functions
 	    procedure :: set_fe_functions 
 					procedure :: set_theta_method 
+					procedure :: set_parameter_values 
+					procedure :: set_integration_type 
      procedure :: integrate_galerkin 
+					procedure :: compute_resistivity 
+					procedure :: compute_tangent_resistivity
   end type hts_cG_discrete_integration_t
   
   public :: hts_cG_discrete_integration_t
   
 contains
    
-  subroutine set_analytical_functions ( this, analytical_functions )
+  subroutine set_analytical_functions ( this, source_term )
      implicit none
      class(hts_cG_discrete_integration_t)    ,intent(inout)  :: this
-     type(hts_analytical_functions_t), target, intent(in)    :: analytical_functions
-     this%analytical_functions => analytical_functions
+					class(vector_function_t), target,        intent(in)     :: source_term
+     this%source_term => source_term 
   end subroutine set_analytical_functions
   
   subroutine set_fe_functions (this, H_previous, H_current)
@@ -78,6 +92,31 @@ contains
     this%theta_method => theta_method 
   end subroutine set_theta_method
 		
+		subroutine set_parameter_values( this, test_params ) 
+				implicit none 
+   class(hts_cG_discrete_integration_t), intent(inout)       :: this
+			type(par_test_hts_params_t)         , intent(in)          :: test_params
+			
+  this%air_resistivity         = test_params%get_air_resistivity() 
+  this%hts_resistivity         = test_params%get_hts_resistivity() 
+  this%air_permeability        = test_params%get_air_permeability() 
+  this%hts_permeability        = test_params%get_hts_permeability()
+  this%critical_electric_field = test_params%get_critical_electric_field()
+  this%critical_current        = test_params%get_critical_current()
+  this%nonlinear_exponent      = test_params%get_nonlinear_exponent()
+		this%integration_type        = 'regular'
+			end subroutine set_parameter_values  
+			
+					subroutine set_integration_type( this, integration_type  ) 
+				implicit none 
+   class(hts_cG_discrete_integration_t), intent(inout)       :: this
+			character(len=*)                         , intent(in)     :: integration_type  
+			  
+   assert( (integration_type == 'regular') .or. (integration_type=='add_tangent_terms') ) 
+   this%integration_type = integration_type 
+
+			end subroutine set_integration_type 
+		
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(hts_cG_discrete_integration_t), intent(in)    :: this
@@ -93,7 +132,9 @@ contains
     type(vector_field_t), allocatable  :: shape_curls(:,:)
     type(vector_field_t), allocatable  :: shape_values(:,:)
 				type(vector_field_t)               :: H_value_previous
+				type(vector_field_t) , allocatable :: H_current_curl_values(:)
 				type(fe_cell_function_vector_t)    :: fe_cell_function_previous
+				type(fe_cell_function_vector_t)    :: fe_cell_function_current
 
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
@@ -104,19 +145,24 @@ contains
     real(rp)     :: factor, time_factor 
     type(vector_field_t), allocatable :: source_term_values(:,:)
 				real(rp)     :: current_time(1)
+				
+				! Parameter values 
+				real(rp) :: permeability 
+				real(rp) :: resistivity 
+				real(rp) :: tangent_resistivity 
+				type(tensor_field_t) :: resistivity_tensor
+				type(tensor_field_t) :: tangent_resistivity_tensor
 
     integer(ip)  :: number_fields
-    class(vector_function_t), pointer :: source_term
     
-    assert (associated(this%analytical_functions)) 
+    assert (associated(this%source_term)) 
 	   assert (associated(this%H_previous))
 				assert (associated(this%H_current))
-
-    source_term => this%analytical_functions%get_source_term()
 	
 	   call fe_space%set_up_cell_integration()
     call fe_space%create_fe_cell_iterator(fe)
 				call fe_cell_function_previous%create(fe_space, 1)
+				call fe_cell_function_current%create(fe_space, 1) 
     
     max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
 	   call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
@@ -126,6 +172,7 @@ contains
 	quad            => fe%get_quadrature()
 	num_quad_points = quad%get_num_quadrature_points()
 	allocate (source_term_values(num_quad_points,1), stat=istat); check(istat==0)
+	allocate (H_current_curl_values(num_quad_points), stat=istat); check(istat==0)
 	time_factor = this%theta_method%get_theta() * this%theta_method%get_time_step() 
 
     do while ( .not. fe%has_finished())
@@ -134,6 +181,7 @@ contains
           ! Update FE-integration related data structures
           call fe%update_integration()
           call fe_cell_function_previous%update(fe, this%H_previous)
+										call fe_cell_function_current%update(fe, this%H_current) 
 
           quad            => fe%get_quadrature()
           num_quad_points =  quad%get_num_quadrature_points()
@@ -143,7 +191,10 @@ contains
 										quad_coords => fe%get_quadrature_points_coordinates()
 							
 										! Evaluate pressure source term at quadrature points
-          call source_term%get_values_set( quad_coords, current_time, source_term_values)
+          call this%source_term%get_values_set( quad_coords, current_time, source_term_values)
+										
+										! Evaluate current curl values  
+          call fe_cell_function_current%compute_quadrature_points_curl_values(H_current_curl_values)
 										                    
           ! Compute element matrix and vector
           elmat = 0.0_rp
@@ -153,20 +204,41 @@ contains
           do qpoint = 1, num_quad_points
              factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
 													
+										! Compute nonlinear resistivity
+          resistivity = this%compute_resistivity( H_current_curl_values(qpoint), fe%get_set_id() ) 
+          permeability = this%air_permeability
+										
+										call resistivity_tensor%init(0.0_rp) 
+										call resistivity_tensor%set(1,1,resistivity) 
+										call resistivity_tensor%set(2,2,resistivity)
+										call resistivity_tensor%set(3,3,1.0_rp)
+										
 										! Previous solution to integrate RHS contribution 
           call fe_cell_function_previous%get_value( qpoint, H_value_previous )
 										
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
                    ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( 1.0_rp/time_factor * shape_values(jdof,qpoint)*shape_values(idof,qpoint) + & 
-																																																																			                      shape_curls(jdof,qpoint)*shape_curls(idof,qpoint))
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( permeability/time_factor * shape_values(jdof,qpoint)*shape_values(idof,qpoint) + & 
+																																																																			       resistivity_tensor * shape_curls(jdof,qpoint)*shape_curls(idof,qpoint))
+																			
+																	 if ( this%integration_type=='add_tangent_terms' .and. fe%get_set_id()== hts ) then 
+                   tangent_resistivity = this%compute_tangent_resistivity(H_current_curl_values(qpoint), shape_curls(jdof,qpoint)) 
+																			
+																			call tangent_resistivity_tensor%init(0.0_rp)
+																			call tangent_resistivity_tensor%set(1,1, tangent_resistivity)
+										         call tangent_resistivity_tensor%set(2,2, tangent_resistivity)
+										         call tangent_resistivity_tensor%set(3,3, 0.0_rp)
+										
+                   elmat(idof,jdof) = elmat(idof,jdof) + tangent_resistivity_tensor *shape_curls(idof,qpoint)*H_current_curl_values(qpoint)*factor                    
+                  end if    
+																		
                 end do
              end do
              
              do idof = 1, num_dofs
 			       ! F_K(i) = (f(i),phi_i)
-                elvec(idof) = elvec(idof) + factor * (source_term_values(qpoint,1) + 1.0_rp/time_factor*H_value_previous) * shape_values(idof,qpoint)
+                elvec(idof) = elvec(idof) + factor * (source_term_values(qpoint,1) + permeability/time_factor*H_value_previous) * shape_values(idof,qpoint)
              end do
           end do
           
@@ -183,6 +255,59 @@ contains
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
 				call fe_cell_function_previous%free() 
+				call fe_cell_function_current%free() 
+				deallocate ( H_current_curl_values, stat=istat); check(istat==0)
   end subroutine integrate_galerkin
+		
+		  ! -----------------------------------------------------------------------------------------------
+  function compute_resistivity(this, curl_H, material) result(resistivity)
+  implicit none 
+  class(hts_cG_discrete_integration_t), intent(in)    :: this
+  type(vector_field_t)                        , intent(inout)    :: curl_H 
+  integer                                     , intent(in)       :: material
+  real(rp)                                                       :: resistivity 
+  ! Locals
+  real(rp) :: Ec, Jc, n 
+  
+  Ec = this%critical_electric_field 
+  Jc = this%critical_current 
+  n  = this%nonlinear_exponent 
+
+  if ( material == hts ) then ! HTS DOMAIN: Nonlinear resistivity = Ec/Jc*|| curl(H) / Jc ||**n 
+     if (this%nonlinear_exponent .ge. 1 ) then 
+        resistivity = Ec/Jc*(curl_H%nrm2()/Jc)**n + 1e-12_rp
+     else
+        resistivity = this%hts_resistivity
+     end if
+  else if ( material == air ) then ! Air domain 
+     resistivity = this%air_resistivity 
+  else 
+     assert(.false.) 
+  end if
+
+  end function compute_resistivity
+		
+		 ! -----------------------------------------------------------------------------------------------
+  function compute_tangent_resistivity(this, curl_H, curl_shape) result(tangent_resistivity) 
+  implicit none 
+  class(hts_cG_discrete_integration_t), intent(in)    :: this
+  type(vector_field_t)                , intent(inout) :: curl_H 
+  type(vector_field_t)                , intent(in)    :: curl_shape 
+  real(rp)                                            :: tangent_resistivity 
+   ! Locals
+  real(rp) :: Ec, Jc, n 
+  
+  Ec = this%critical_electric_field 
+  Jc = this%critical_current 
+  n  = this%nonlinear_exponent 
+  
+  ! Tangent Nonlinear resistivity = Ec/Jc * n *|| curl(H) / Jc ||**(n-2) < curl(H)/Jc | curl(Phi)/Jc >
+  if (this%nonlinear_exponent .ge. 1 ) then 
+      tangent_resistivity = n*Ec/Jc*( curl_H%nrm2()/Jc )**(n-2.0_rp) * ((1.0_rp/Jc)*curl_H) * ((1.0_rp/Jc)*curl_shape) 
+  else
+      tangent_resistivity = 0.0_rp 
+  end if 
+  
+  end function compute_tangent_resistivity
   
 end module hts_discrete_integration_names

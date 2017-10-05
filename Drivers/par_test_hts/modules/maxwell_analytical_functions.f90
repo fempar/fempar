@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module hts_analytical_functions_names
+module maxwell_analytical_functions_names
   use fempar_names
   implicit none
 # include "debug.i90"
@@ -40,8 +40,6 @@ module hts_analytical_functions_names
   
     type, extends(base_scalar_function_t) :: boundary_function_Hx_t
     private 
-				real(rp) :: amplitude
-    real(rp) :: frequency 	
    contains
      procedure :: get_value_space         => boundary_function_Hx_get_value_space
 					procedure :: get_value_space_time    => boundary_function_Hx_get_value_space_time
@@ -49,8 +47,6 @@ module hts_analytical_functions_names
   
     type, extends(base_scalar_function_t) :: boundary_function_Hy_t
     private 
-				real(rp) :: amplitude
-    real(rp) :: frequency 
    contains
      procedure :: get_value_space          => boundary_function_Hy_get_value_space
 					 procedure :: get_value_space_time    => boundary_function_Hy_get_value_space_time 
@@ -58,8 +54,6 @@ module hts_analytical_functions_names
   
    type, extends(base_scalar_function_t) :: boundary_function_Hz_t
     private 
-				real(rp) :: amplitude
-    real(rp) :: frequency 
    contains
      procedure :: get_value_space         => boundary_function_Hz_get_value_space
 					procedure :: get_value_space_time    => boundary_function_Hz_get_value_space_time
@@ -77,23 +71,32 @@ module hts_analytical_functions_names
      procedure :: get_value_space      => source_term_get_value_space
 					procedure :: get_value_space_time => source_term_get_value_space_time
   end type source_term_t
- 
-  type hts_analytical_functions_t
+
+   type, extends(base_vector_function_t) :: solution_t
+   contains
+     procedure :: get_value_space         => solution_get_value_space
+					procedure :: get_value_space_time    => solution_get_value_space_time 
+     procedure :: get_gradient_space      => solution_get_gradient_space
+					procedure :: get_gradient_space_time => solution_get_gradient_space_time 
+  end type solution_t
+  
+  type maxwell_analytical_functions_t
      private
 	  type(boundary_function_Hx_t)            :: boundary_function_Hx
 	  type(boundary_function_Hy_t)            :: boundary_function_Hy
 	  type(boundary_function_Hz_t)            :: boundary_function_Hz
    type(source_term_t)                     :: source_term
+   type(solution_t)                        :: solution
    contains
-			procedure :: get_parameter_values             => mn_get_parameter_values 
    procedure :: set_num_dims                     => mn_set_num_dims
 	  procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
 	  procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
 	  procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
    procedure :: get_source_term                  => mn_get_source_term
-  end type hts_analytical_functions_t
+   procedure :: get_solution_function            => mn_get_solution_function
+  end type maxwell_analytical_functions_t
 
-  public :: hts_analytical_functions_t
+  public :: maxwell_analytical_functions_t
 
 contains  
   !===============================================================================================
@@ -112,7 +115,7 @@ contains
     real(rp)                       , intent(inout) :: result 
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-	result = 0.0_rp 
+	result = -y
 
   end subroutine boundary_function_Hx_get_value_space
 		
@@ -126,7 +129,7 @@ contains
 				
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-	result = 0.0_rp 
+	result = -time*y
 
   end subroutine boundary_function_Hx_get_value_space_time
 
@@ -138,7 +141,7 @@ contains
     real(rp)                       , intent(inout) :: result 
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-     result = 0.0_rp
+     result = x
 
   end subroutine boundary_function_Hy_get_value_space
 		
@@ -152,7 +155,7 @@ contains
 				
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-	result = 0.0_rp
+	result = time*x
 
   end subroutine boundary_function_Hy_get_value_space_time
 
@@ -164,10 +167,10 @@ contains
     real(rp)                       , intent(inout) :: result 
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
-    result = 0.0_rp 
+    result = 0.0_rp
   end subroutine boundary_function_Hz_get_value_space
 		
-		!===============================================================================================
+						    !===============================================================================================
   subroutine boundary_function_Hz_get_value_space_time( this, point, time, result )
     implicit none 
     class(boundary_function_Hz_t)  , intent(in)    :: this 
@@ -175,9 +178,9 @@ contains
 				real(rp)                       , intent(in)    :: time 
     real(rp)                       , intent(inout) :: result 
 				
-	  real(rp) :: x,y,z 
-	  x = point%get(1); y=point%get(2); z=point%get(3)
-	  result = this%amplitude*sin(2.0_rp*pi*this%frequency*time)
+		real(rp) :: x,y,z 
+	x = point%get(1); y=point%get(2); z=point%get(3)
+	result = 0.0_rp
 
   end subroutine boundary_function_Hz_get_value_space_time
 
@@ -212,40 +215,91 @@ contains
 	assert ( this%num_dims == 2 .or. this%num_dims == 3 )
 	x = point%get(1); y=point%get(2); z=point%get(3)     
 	 call result%init(0.0_rp) 
-	 call result%set(1,  0.0_rp ) 
-	 call result%set(2,  0.0_rp ) 
+	 call result%set(1, -y ) 
+	 call result%set(2,  x ) 
 	 call result%set(3,  0.0_rp )
 
   end subroutine source_term_get_value_space_time 
-		
-		    !===============================================================================================
-  subroutine mn_get_parameter_values ( this, H, wH  )
+
+  !===============================================================================================
+  subroutine solution_get_value_space ( this, point, result )
     implicit none
-    class(hts_analytical_functions_t), intent(inout) :: this
-    real(rp)                         , intent(in)    :: H(0:SPACE_DIM-1) 
-    real(rp)                         , intent(in)    :: wH
-    
-    this%boundary_function_Hx%amplitude = H(0) 
-    this%boundary_function_Hx%frequency = wH
-    this%boundary_function_Hy%amplitude = H(1) 
-    this%boundary_function_Hy%frequency = wH
-    this%boundary_function_Hz%amplitude = H(2) 
-    this%boundary_function_Hz%frequency = wH
+    class(solution_t)       , intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+    type(vector_field_t)    , intent(inout) :: result
+	
+    real(rp) :: x,y,z 
+	assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+	x = point%get(1); y=point%get(2); z=point%get(3) 
+	 call result%init(0.0_rp) 
+	 call result%set(1, -y ) 
+	 call result%set(2,  x ) 
+	 call result%set(3,  0.0_rp )
+	 
+  end subroutine solution_get_value_space
+		
+		  !===============================================================================================
+  subroutine solution_get_value_space_time ( this, point, time, result )
+    implicit none
+    class(solution_t)       , intent(in)    :: this
+    type(point_t)           , intent(in)    :: point
+				real(rp)                , intent(in)    :: time
+    type(vector_field_t)    , intent(inout) :: result
+	
+    real(rp) :: x,y,z 
+	assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+	x = point%get(1); y=point%get(2); z=point%get(3) 
+	 call result%init(0.0_rp) 
+	 call result%set(1, -y*time ) 
+	 call result%set(2,  x*time ) 
+	 call result%set(3,  0.0_rp )
+	 
+  end subroutine solution_get_value_space_time
 
-  end subroutine mn_get_parameter_values 
+  !===============================================================================================
+  subroutine solution_get_gradient_space ( this, point, result )
+    implicit none
+    class(solution_t)   , intent(in)    :: this
+    type(point_t)       , intent(in)    :: point
+    type(tensor_field_t), intent(inout) :: result
+	
+	real(rp) :: x,y,z 
+	x = point%get(1); y=point%get(2); z=point%get(3)
+	call result%init(0.0_rp) 	
+	call result%set(2,1, -1.0_rp )
+	call result%set(1,2,  1.0_rp )
 
+  end subroutine solution_get_gradient_space
+		
+		  !===============================================================================================
+  subroutine solution_get_gradient_space_time ( this, point, time, result )
+    implicit none
+    class(solution_t)   , intent(in)    :: this
+    type(point_t)       , intent(in)    :: point
+				real(rp)            , intent(in)    :: time 
+    type(tensor_field_t), intent(inout) :: result
+	
+	real(rp) :: x,y,z 
+	x = point%get(1); y=point%get(2); z=point%get(3)
+	call result%init(0.0_rp) 	
+	call result%set(2,1, -1.0_rp * time)
+	call result%set(1,2,  1.0_rp * time)
+
+  end subroutine solution_get_gradient_space_time 
+  
   !===============================================================================================
   subroutine mn_set_num_dims ( this, num_dims )
     implicit none
-    class(hts_analytical_functions_t), intent(inout)    :: this
+    class(maxwell_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dims
     call this%source_term%set_num_dims(num_dims)
+    call this%solution%set_num_dims(num_dims)
   end subroutine mn_set_num_dims
   
   !===============================================================================================
   function mn_get_boundary_function_Hx ( this )
     implicit none
-    class(hts_analytical_functions_t), target, intent(in)    :: this
+    class(maxwell_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hx
     mn_get_boundary_function_Hx => this%boundary_function_Hx 
   end function mn_get_boundary_function_Hx
@@ -253,7 +307,7 @@ contains
   !===============================================================================================
   function mn_get_boundary_function_Hy ( this )
     implicit none
-    class(hts_analytical_functions_t), target, intent(in)    :: this
+    class(maxwell_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hy
     mn_get_boundary_function_Hy => this%boundary_function_Hy 
   end function mn_get_boundary_function_Hy
@@ -261,18 +315,26 @@ contains
   !===============================================================================================
   function mn_get_boundary_function_Hz ( this )
     implicit none
-    class(hts_analytical_functions_t), target, intent(in)    :: this
+    class(maxwell_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hz
     mn_get_boundary_function_Hz => this%boundary_function_Hz 
   end function mn_get_boundary_function_Hz
+  
+  !===============================================================================================
+  function mn_get_solution_function ( this )
+    implicit none
+    class(maxwell_analytical_functions_t), target, intent(in)    :: this
+    class(vector_function_t), pointer :: mn_get_solution_function
+    mn_get_solution_function => this%solution
+  end function mn_get_solution_function
 
   !===============================================================================================
   function mn_get_source_term ( this )
     implicit none
-    class(hts_analytical_functions_t), target, intent(in)    :: this
+    class(maxwell_analytical_functions_t), target, intent(in)    :: this
     class(vector_function_t), pointer :: mn_get_source_term
     mn_get_source_term => this%source_term
   end function mn_get_source_term
 
-end module hts_analytical_functions_names
+end module maxwell_analytical_functions_names
 !***************************************************************************************************

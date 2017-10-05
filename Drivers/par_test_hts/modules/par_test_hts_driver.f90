@@ -30,13 +30,19 @@ module par_test_hts_driver_names
   use par_test_hts_params_names
   use hts_discrete_integration_names
   use hts_conditions_names
+		use maxwell_conditions_names 
   use hts_analytical_functions_names
+		use maxwell_analytical_functions_names 
 		use hts_theta_method_names
+		use hts_nonlinear_solver_names 
 # include "debug.i90"
 
   implicit none
   private
 
+		integer(ip), parameter :: hts = 1
+  integer(ip), parameter :: air = 2
+		
   type par_test_hts_fe_driver_t 
      private 
      
@@ -53,19 +59,20 @@ module par_test_hts_driver_names
      class(l1_coarse_fe_handler_t), pointer        :: coarse_fe_handler 
 	    type(p_l1_coarse_fe_handler_t), allocatable   :: coarse_fe_handlers(:)
 	    type(hts_CG_discrete_integration_t)           :: hts_integration
+					
+					! Type of problem 
+					type(maxwell_conditions_t)                    :: maxwell_conditions 
+					type(maxwell_analytical_functions_t)          :: maxwell_analytical_functions 
      type(hts_conditions_t)                        :: hts_conditions
      type(hts_analytical_functions_t)              :: hts_analytical_functions
 
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
-     
-!#ifdef ENABLE_MKL     
-     ! MLBDDC preconditioner
-     type(mlbddc_t)                            :: mlbddc
-!#endif  
     
      ! Iterative linear solvers data type
+					type(hts_nonlinear_solver_t)              :: nonlinear_solver 
      type(iterative_linear_solver_t)           :: iterative_linear_solver
+					type(mlbddc_t)                            :: mlbddc
  
      ! maxwell problem solution FE function
      type(fe_function_t)                   :: H_current
@@ -90,10 +97,13 @@ module par_test_hts_driver_names
 	    procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
 					procedure        , private :: setup_theta_method 
+					procedure        , private :: setup_nonlinear_solver 
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
+					procedure        , private :: setup_fe_coarse_space 
      procedure        , private :: solve_system
+					procedure        , private :: solve_nonlinear_system 
      procedure        , private :: check_solution
      procedure        , private :: initialize_output
      procedure        , private :: write_time_step_solution 
@@ -134,9 +144,16 @@ contains
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
     class(vef_iterator_t), allocatable :: vef
-
+				real(rp)                           :: domain(6)
+				integer(ip)                        :: istat 
+				
+				! Create a structured mesh with a custom domain 
+				domain   = this%test_params%get_domain_limits()
+    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
+				
     call this%triangulation%create(this%parameter_list, this%par_environment)
-	
+				call assign_fes_id() 
+				
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
@@ -151,6 +168,84 @@ contains
     end if  
 	
     call this%triangulation%setup_coarse_triangulation()
+				
+				contains 
+				subroutine assign_fes_id() 
+				implicit none 
+				! Locals 
+    integer(ip)                 , allocatable :: cells_set(:) 
+    class(cell_iterator_t)      , allocatable :: cell
+    type(point_t), allocatable                :: cell_coordinates(:)
+    integer(ip)                               :: inode
+				integer(ip)       :: l1_rank 
+    integer(ip)       :: icell, icoord 
+    real(rp)          :: cx, cy, cz 
+    integer(ip)       :: istat 
+	   real(rp)          :: R, h, x0, y0, z0
+
+				real(rp)          :: hts_size(0:SPACE_DIM-1)  
+				real(rp)          :: domain(6)
+				real(rp)          :: hts_lx, hts_ly, hts_lz
+				real(rp)          :: lx, ly, lz 
+				
+				if ( this%par_environment%am_i_l1_task() ) then 
+				l1_rank = this%par_environment%get_l1_rank() 
+							
+				if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
+	
+					hts_size = this%test_params%get_hts_domain_length() 
+					hts_lx = hts_size(0) 
+					hts_ly = hts_size(1) 
+					hts_lz = hts_size(2) 
+					
+					domain = this%test_params%get_domain_limits()
+					lx = domain(2)-domain(1) 
+					ly = domain(4)-domain(3) 
+					lz = domain(6)-domain(5) 
+					
+    ! Assign subset_id to different cells for the created structured mesh 
+    allocate(cells_set(this%triangulation%get_num_local_cells() ), stat=istat); check(istat==0)
+    call this%triangulation%create_cell_iterator(cell)
+    allocate(cell_coordinates( cell%get_num_nodes() ), stat=istat); check(istat==0) 
+    
+    do while ( .not. cell%has_finished() )
+				   if ( cell%is_local() ) then 
+       call cell%get_nodes_coordinates(cell_coordinates)
+       ! Compute center of the element coordinates 
+       cx = 0.0_rp
+       cy = 0.0_rp 
+	      cz = 0.0_rp 
+       do inode=1,cell%get_num_nodes()  
+          cx = cx + cell_coordinates(inode)%get(1)
+          cy = cy + cell_coordinates(inode)%get(2)
+		        cz = cz + cell_coordinates(inode)%get(3)
+       end do
+       cx = cx/real(cell%get_num_nodes(),rp)
+       cy = cy/real(cell%get_num_nodes(),rp)
+	      cz = cz/real(cell%get_num_nodes(),rp)
+
+       ! Select material case: HTS TAPE in the center 
+       if ( ( ((lx-hts_lx)/2.0_rp<=cx) .and. (cx<=(lx+hts_lx)/2.0_rp) ) .and. &
+											 ( ((ly-hts_ly)/2.0_rp<=cy) .and. (cy<=(ly+hts_ly)/2.0_rp) ) .and. & 
+												( ((lz-hts_lz)/2.0_rp<=cz) .and. (cz<=(lz+hts_lz)/2.0_rp) )) then
+          cells_set( cell%get_gid() ) = hts 
+       else 
+          cells_set( cell%get_gid() ) = air
+       end if
+	   
+							end if 
+				   call cell%next() 
+    end do
+				
+    call this%triangulation%fill_cells_set(cells_set)  
+    deallocate(cells_set, stat=istat); check(istat==0) 
+    deallocate(cell_coordinates, stat=istat); check(istat==0) 
+    call this%triangulation%free_cell_iterator(cell)
+
+	     end if 
+				end if 
+				
+				end subroutine 
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -190,6 +285,21 @@ contains
                                    this%test_params%get_save_solution_n_steps() )
   
   end subroutine setup_theta_method 
+
+  subroutine setup_nonlinear_solver (this)
+    implicit none
+    class(par_test_hts_fe_driver_t), intent(inout) :: this
+
+    call this%nonlinear_solver%create( convergence_criteria = this%test_params%get_nonlinear_convergence_criteria() , &
+                                       abs_tol = this%test_params%get_absolute_nonlinear_tolerance(),                 &
+                                       rel_tol = this%test_params%get_relative_nonlinear_tolerance(),                 &
+                                       max_iters = this%test_params%get_max_nonlinear_iterations(),                   &
+                                       ideal_iters = this%test_params%get_stepping_parameter(),                       &
+                                       fe_affine_operator = this%fe_affine_operator,                                  &
+                                       current_dof_values = this%H_current%get_free_dof_values()                      )
+    
+    
+  end subroutine setup_nonlinear_solver
 		
   subroutine setup_coarse_fe_handlers(this)
     implicit none
@@ -221,7 +331,25 @@ contains
   subroutine setup_fe_space(this)
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
+		
+	 if (this%test_params%get_is_analytical_solution() ) then 
+		call this%maxwell_conditions%set_num_dims(this%triangulation%get_num_dims())
 	
+		! Set-up Dirichlet boundary conditions  
+ call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+	call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
+	call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
+	if ( this%triangulation%get_num_dims() == 3) then 
+	call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
+	end if 
+	
+				! Create FE SPACE 
+    call this%fe_space%create( triangulation       = this%triangulation,      &
+                               reference_fes       = this%reference_fes,      &
+                               coarse_fe_handlers  = this%coarse_fe_handlers, & 
+							                        conditions          = this%maxwell_conditions  )			
+				
+	elseif ( .not. this%test_params%get_is_analytical_solution() ) then 		
 	call this%hts_conditions%set_num_dims(this%triangulation%get_num_dims())
 	
 		! Set-up Dirichlet boundary conditions  
@@ -230,6 +358,9 @@ contains
 	call this%hts_conditions%set_boundary_function_Hy(this%hts_analytical_functions%get_boundary_function_Hy())
 	if ( this%triangulation%get_num_dims() == 3) then 
 	call this%hts_conditions%set_boundary_function_Hz(this%hts_analytical_functions%get_boundary_function_Hz())
+	
+	    call this%hts_analytical_functions%get_parameter_values( H  = this%test_params%get_external_magnetic_field_amplitude(),  &
+                                                              wH = this%test_params%get_external_magnetic_field_frequency()   ) 
 	end if 
 	
 				! Create FE SPACE 
@@ -237,9 +368,11 @@ contains
                                reference_fes       = this%reference_fes,      &
                                coarse_fe_handlers  = this%coarse_fe_handlers, & 
 							                        conditions          = this%hts_conditions  )
+		end if 
     
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()   
+									
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
@@ -249,9 +382,15 @@ contains
     class(vector_t) , pointer :: dof_values_current 
     class(vector_t) , pointer :: dof_values_previous
         	
-    call this%hts_integration%set_analytical_functions(this%hts_analytical_functions)
+				if ( this%test_params%get_is_analytical_solution() ) then 
+				call this%hts_integration%set_analytical_functions(this%maxwell_analytical_functions%get_source_term())
+				else
+    call this%hts_integration%set_analytical_functions(this%hts_analytical_functions%get_source_term())
+				end if 
+				
 				call this%hts_integration%set_fe_functions(this%H_previous, this%H_current)
 				call this%hts_integration%set_theta_method(this%theta_method) 
+				call this%hts_integration%set_parameter_values( this%test_params )
     
     ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
@@ -274,6 +413,18 @@ contains
 		     						
   end subroutine setup_system
   
+		subroutine setup_fe_coarse_space(this) 
+				implicit none 
+		class(par_test_hts_fe_driver_t), intent(inout) :: this
+
+			select type ( ch=> this%coarse_fe_handler ) 
+	  class is ( Hcurl_l1_coarse_fe_handler_t ) 
+	  call this%coarse_fe_handler%setup_tools( this%fe_space )
+	 end select 
+	
+		call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+	end subroutine setup_fe_coarse_space
+		
   subroutine setup_solver (this)
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
@@ -282,14 +433,7 @@ contains
     integer(ip) :: FPLError
     integer(ip) :: ilev
     integer(ip) :: iparm(64)
-
-	select type ( ch=> this%coarse_fe_handler ) 
-	class is ( Hcurl_l1_coarse_fe_handler_t ) 
-	call this%coarse_fe_handler%setup_tools( this%fe_space )
-	end select 
 	
-	   call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
     iparm(1)   = 1 ! no solver default
@@ -340,7 +484,7 @@ contains
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
-   
+    					
   end subroutine setup_solver
   
   
@@ -350,7 +494,6 @@ contains
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%numerical_setup()
-
   end subroutine assemble_system
   
   
@@ -365,12 +508,20 @@ contains
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%H_current%get_free_dof_values()
 				
+					call this%setup_nonlinear_solver()
 				 temporal: do while ( .not. this%theta_method%finished() ) 
      call this%theta_method%print(6) 
-     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)		
+
+				 call this%solve_nonlinear_system()
+    ! call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)		
+					
+					if (this%nonlinear_solver%converged() ) then  ! Theta method goes forward 
 					call this%theta_method%update_solutions(this%H_current, this%H_previous)
 					call this%write_time_step_solution()
 					call this%theta_method%move_time_forward()
+					elseif (.not. this%nonlinear_solver%converged()) then ! Theta method goes backwards and restarts   
+        call this%theta_method%move_time_backwards(this%H_current, this%H_previous)
+     end if
 					
 					if (.not. this%theta_method%finished() ) then 
         call this%fe_space%project_dirichlet_values_curl_conforming(this%H_current,time=this%theta_method%get_current_time(), fields_to_project=(/ 1 /) )
@@ -380,6 +531,48 @@ contains
 					end do temporal 
    
   end subroutine solve_system
+		
+		  ! -----------------------------------------------------------------------------------------------
+   subroutine solve_nonlinear_system(this)
+    implicit none
+    class(par_test_hts_fe_driver_t), intent(inout) :: this
+    
+    call this%nonlinear_solver%initialize() 
+								
+    nonlinear: do while ( .not. this%nonlinear_solver%finished() )
+    ! 0 - Update initial residual 
+    call this%nonlinear_solver%start_new_iteration() 
+    ! 1 - Integrate Jacobian
+    call this%nonlinear_solver%compute_jacobian(this%hts_integration)
+    ! 2 - Solve tangent system 
+				call solve_tangent_system() 
+    ! 3 - Determine step length to update solution 
+    call this%nonlinear_solver%line_search%cubic_backtracking( this%nonlinear_solver )
+    ! 4 - Update solution 
+    call this%nonlinear_solver%update_solution() 
+    ! 5 - New picard iterate with updated solution 
+    call this%assemble_system()  
+    ! 6 - Evaluate new residual 
+    call this%nonlinear_solver%compute_residual()
+    ! 7 - Print current output 
+    call this%nonlinear_solver%print_current_iteration_output() 
+   
+    end do nonlinear 
+   
+    call this%nonlinear_solver%print_final_output() 
+   contains 
+			
+			subroutine solve_tangent_system() 
+			 
+				call this%mlbddc%free()
+			 call this%iterative_linear_solver%free()
+    call this%setup_solver() 
+    call this%iterative_linear_solver%solve( -this%nonlinear_solver%get_residual(),            &  
+																																												  this%nonlinear_solver%get_increment_dof_values() )	 
+
+			end subroutine solve_tangent_system
+			
+  end subroutine solve_nonlinear_system
    
   subroutine check_solution(this)
     implicit none
@@ -389,9 +582,11 @@ contains
 				real(rp) :: l2, linfty, h1_s, hcurl 
 				real(rp) :: error_tolerance 
     
+				if ( this%test_params%get_is_analytical_solution() ) then 
+				
 				error_tolerance = 1.0e-3_rp 
     call error_norm%create(this%fe_space,1)   
-				H_exact_function => this%hts_analytical_functions%get_solution_function()
+				H_exact_function => this%maxwell_analytical_functions%get_solution_function()
 				
     l2 = error_norm%compute(H_exact_function, this%H_current, l2_norm)     
     linfty = error_norm%compute(H_exact_function, this%H_current, linfty_norm)   
@@ -404,6 +599,8 @@ contains
 						write(*,'(a20,e32.25)') 'hcurl_norm:', hcurl; check ( hcurl < error_tolerance )
     end if  
     call error_norm%free()
+				
+			 end if 
   end subroutine check_solution
   
   subroutine initialize_output(this)
@@ -421,7 +618,7 @@ contains
        call  this%oh%attach_fe_space(this%fe_space)
        call  this%oh%add_fe_function(this%H_current, 1, 'H')
        call  this%oh%add_fe_function(this%H_current, 1, 'J', curl_diff_operator)
-							call this%oh%add_cell_vector(this%set_id_cell_vector, 'set_id')
+							call  this%oh%add_cell_vector(this%set_id_cell_vector, 'set_id')
        call  this%oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
     endif
 
@@ -482,6 +679,7 @@ contains
     call this%setup_fe_space()
     call this%setup_system()
     call this%assemble_system()
+				call this%setup_fe_coarse_space() 
     call this%setup_solver()
 				call this%initialize_output() 
     call this%solve_system()
