@@ -207,7 +207,7 @@ contains
        call this%setup_cell_set_ids() 
     end if
     call this%triangulation%setup_coarse_triangulation()
-    !write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_num_objects()
+    write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_num_objects()
     if ( this%test_params%get_coarse_fe_handler_type() == standard_bddc ) then
        call this%setup_cell_set_ids() 
     end if

@@ -853,7 +853,16 @@ module fe_space_names
   end type elasticity_pb_bddc_l1_coarse_fe_handler_t
   
   public :: p_l1_coarse_fe_handler_t, l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, vector_laplacian_pb_bddc_l1_coarse_fe_handler_t, elasticity_pb_bddc_l1_coarse_fe_handler_t 
-
+  
+  type, extends(vector_function_t) :: rigid_body_mode_t
+    private
+    integer(ip)  :: num_dims = -1
+    integer(ip)  :: imode = -1  
+  contains
+    procedure :: set_num_dims         => rigid_body_mode_set_num_dims
+    procedure :: set_mode             => rigid_body_mode_set_mode
+    procedure :: get_values_set_space => rigid_body_mode_get_values_set_space 
+  end type rigid_body_mode_t
     
   type , extends(base_fe_cell_iterator_t) :: coarse_fe_cell_iterator_t
     private

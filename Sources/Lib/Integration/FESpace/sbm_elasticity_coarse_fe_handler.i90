@@ -25,6 +25,62 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine rigid_body_mode_set_num_dims(this,num_dims)
+  implicit none
+  class(rigid_body_mode_t), intent(inout)  :: this
+  integer(ip), intent(in) ::  num_dims
+
+  this%num_dims = num_dims
+
+end subroutine rigid_body_mode_set_num_dims
+
+subroutine rigid_body_mode_set_mode(this,imode)
+  implicit none
+  class(rigid_body_mode_t), intent(inout)  :: this
+  integer(ip), intent(in) ::  imode
+
+  this%imode = imode
+
+end subroutine rigid_body_mode_set_mode
+
+subroutine rigid_body_mode_get_values_set_space( this, point, result )
+  implicit none
+  class(rigid_body_mode_t), intent(in)   :: this
+  type(point_t), intent(in)            :: point(:)
+  type(vector_field_t), intent(inout)  :: result(:)
+  integer(ip) :: i, num_points
+
+  num_points = size(point)
+  
+  ! Translation modes
+  if (this%imode <= this%num_dims) then
+     do i = 1, num_points
+        call result(i)%init(0.0_rp)
+        call result(i)%set(this%imode,1.0_rp)
+     end do
+     
+  ! Rotation modes
+  else if (this%imode == this%num_dims + 1) then ! r4 = [x2 -x1 0 ]^T
+     do i = 1, num_points
+        call result(i)%init(0.0_rp)
+        call result(i)%set(1,point(i)%get(2))
+        call result(i)%set(2,-point(i)%get(1))
+     end do
+  else if (this%imode == this%num_dims + 2) then ! r5 = [-x3 0 x1 ]^T
+     do i = 1, num_points
+        call result(i)%init(0.0_rp)
+        call result(i)%set(1,-point(i)%get(3))
+        call result(i)%set(3,point(i)%get(1))
+     end do
+  else if (this%imode == this%num_dims + 3) then ! r6 = [0 x3 -x2 ]^T
+     do i = 1, num_points
+        call result(i)%init(0.0_rp)
+        call result(i)%set(2,point(i)%get(3))
+        call result(i)%set(3,-point(i)%get(2))
+     end do
+  end if
+end subroutine rigid_body_mode_get_values_set_space
+
 subroutine elasticity_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
   implicit none
   class(elasticity_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
@@ -146,10 +202,13 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
   integer(ip)                            :: off
   integer(ip) :: num_rows, num_cols
   integer(ip) :: num_fine_dofs_on_coarse_dof
-  integer(ip) :: num_dims, num_coarse_dofs, ifunc
+  integer(ip) :: num_coarse_dofs, imode
   integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid, icell_around, icomp
   type(hash_table_ip_ip_t) :: visited_dofs
   type(point_t), pointer :: quad_coords (:)
+  type(rigid_body_mode_t) :: rigid_body_modes
+  type(vector_field_t), allocatable :: rigid_body_modes_at_quad_points(:)
+
 
   class(triangulation_t), pointer :: triangulation
 
@@ -174,7 +233,7 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
   type(vector_field_t), allocatable  :: shape_values(:,:)
   real(rp)     :: facet_measure
 
-  num_dims = par_fe_space%get_num_dims()
+  call rigid_body_modes%set_num_dims(par_fe_space%get_num_dims())
 
   par_environment => par_fe_space%get_environment()
   assert (associated(par_environment))
@@ -223,6 +282,7 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
            do while ( .not. faces_object_iterator%is_upper_bound() )
               call object%get_face(faces_object_iterator%get_current(),fe_face)
               quad     => fe_face%get_quadrature()
+              allocate (rigid_body_modes_at_quad_points(quad%get_num_quadrature_points()),stat=istat)
               do icell_around=1, fe_face%get_num_cells_around()              
                  call fe_face%get_cell_around(icell_around,fe)
                  if (fe%is_local()) then
@@ -230,29 +290,31 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
                     call fe_face%update_integration() 
                     call fe_face%get_values(icell_around,shape_values,field_id)
                     quad_coords => fe_face%get_quadrature_points_coordinates()
-                    ! Go over coarse-DoFs functionals
-                    do ifunc = 1,num_coarse_dofs 
+                    
+                    ! Go over coarse-DoFs functionals (rigid body modes)
+                    do imode = 1,num_coarse_dofs                     
                        facevec = 0.0_rp
+                       call rigid_body_modes%set_mode(imode)
+                       call rigid_body_modes%get_values_set(quad_coords,rigid_body_modes_at_quad_points)
                        do qpoint = 1, quad%get_num_quadrature_points()
                           factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
                           do idof = 1, fe%get_num_dofs()
-                             do icomp = 1,reference_fe%get_num_field_components()  
-                                facevec(idof) = facevec(idof) + shape_values(idof,qpoint)%get(icomp)*rigid_body_mode_get_value (ifunc,icomp,num_dims,qpoint,quad_coords)*factor                       
-                             end do
+                             facevec(idof) = facevec(idof) + shape_values(idof,qpoint)*rigid_body_modes_at_quad_points(qpoint)*factor                                                   
                           end do
                        end do
 
                        call fe_face%get_fe_dofs(icell_around, test_fe_dofs)
-                       
+
                        ! Here we assume coarse dofs associated with an objects are consecutive numbers
                        call constraint_matrix%insert(fe%get_num_dofs(), &
                             test_fe_dofs(1)%p, &
-                            coarse_dof_lid+ifunc, &
+                            coarse_dof_lid+imode, &
                             facevec/facet_measure)
 
                     end do
                  end if
               end do
+              deallocate(rigid_body_modes_at_quad_points, stat=istat); check(istat==0);              
               call faces_object_iterator%next()
            end do
         else    
