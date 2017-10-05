@@ -275,6 +275,8 @@ module unfitted_triangulations_names
     procedure, non_overridable :: get_num_dims            => marching_cubes_get_num_dims
     procedure, non_overridable :: get_max_num_shape_functions            => marching_cubes_get_max_num_shape_functions
     procedure, non_overridable :: get_num_facets => marching_cubes_get_num_facets
+    procedure, non_overridable :: get_num_sub_cells => marching_cubes_get_num_sub_cells
+    procedure, non_overridable :: get_num_unfitted_sub_facets => marching_cubes_get_num_unfitted_sub_facets
     procedure, non_overridable :: get_num_fitted_sub_facets => marching_cubes_get_num_fitted_sub_facets
     
     ! Getters related with the mc algorithm

@@ -313,6 +313,24 @@ function marching_cubes_get_num_facets(this)
 end function marching_cubes_get_num_facets
 
 !========================================================================================
+function marching_cubes_get_num_sub_cells(this,icase)
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  integer(ip), intent(in) :: icase
+  integer(ip) :: marching_cubes_get_num_sub_cells
+  marching_cubes_get_num_sub_cells = this%mc_table_num_sub_cells_x_case(icase)
+end function marching_cubes_get_num_sub_cells
+
+!========================================================================================
+function marching_cubes_get_num_unfitted_sub_facets(this,icase)
+  implicit none
+  class(marching_cubes_t), intent(in) :: this
+  integer(ip), intent(in) :: icase
+  integer(ip) :: marching_cubes_get_num_unfitted_sub_facets 
+  marching_cubes_get_num_unfitted_sub_facets = this%mc_table_num_unfitted_sub_facets_x_case(icase)
+end function marching_cubes_get_num_unfitted_sub_facets
+
+!========================================================================================
 function marching_cubes_get_num_fitted_sub_facets(this,ifacet,icase)
   implicit none
   class(marching_cubes_t), intent(in) :: this

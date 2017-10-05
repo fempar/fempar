@@ -151,6 +151,7 @@ module unfitted_fe_spaces_names
     type(quadrature_t),        allocatable :: cut_quadratures(:)
     type(cell_map_t),            allocatable :: cut_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_cell_integrators(:,:)
+    integer(ip), allocatable :: num_sub_cells_to_pos(:)
 
     ! All the machinery for integrating in subfacets
     type(quadrature_t)                     :: quadrature_subfacet
@@ -158,6 +159,7 @@ module unfitted_fe_spaces_names
     type(piecewise_cell_map_t),  allocatable :: cut_boundary_piecewise_cell_maps(:)
     type(cell_map_t),            allocatable :: cut_boundary_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_boundary_cell_integrators(:,:)    
+    integer(ip), allocatable :: num_unfitted_sub_facets_to_pos(:)
 
     ! All the machinery to integrate in fitted subfacets
     type(tet_lagrangian_reference_fe_t)   :: geo_reference_subfacet
