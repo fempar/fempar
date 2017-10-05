@@ -383,6 +383,7 @@ module p4est_triangulation_names
     type(std_vector_integer_ip_t)          :: improper_vefs_dim
     type(std_vector_integer_ip_t)          :: proper_vefs_at_boundary
     type(std_vector_integer_ip_t)          :: proper_vefs_at_interface
+    type(std_vector_integer_ip_t)          :: improper_vefs_at_interface
     type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
     type(std_vector_integer_ip_t)          :: cell_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids

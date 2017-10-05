@@ -218,14 +218,34 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   call this%improper_vefs_dim%resize(0)
   call this%proper_vefs_at_boundary%resize(0)
   call this%proper_vefs_at_interface%resize(0)
+  call this%improper_vefs_at_interface%resize(0)
 
+  
   this%num_proper_vefs   = 0
   this%num_improper_vefs = 0
 
   call memalloc ( num_faces_x_cell, faces_visited, __FILE__, __LINE__ )
-
   do icell=1, this%get_num_local_cells()
-     faces_visited = .false.
+    call generate_corners()
+    call generate_edges()
+    call generate_faces()
+  end do
+  call this%set_num_vefs(this%num_proper_vefs + this%num_improper_vefs)
+  call this%std_vector_transform_length_to_header(this%ptr_cells_around_proper_vefs)
+  call this%std_vector_transform_length_to_header(this%ptr_cells_around_improper_vefs)
+  call this%std_vector_transform_length_to_header(this%ptr_improper_cells_around)
+  call work_vector_cells_around%free()
+  call work_vector_ghost_cells_around_ivef%free()
+  call work_vector_improper_cells_around%free()
+  call work_vector_ghost_cells_around%free()
+  call work_vector_ivef%free()
+  call work_vector_subvef%free()
+  call memfree ( faces_visited, __FILE__, __LINE__ )
+contains
+
+   subroutine generate_corners()
+     implicit none
+      faces_visited = .false.
      do icorner=1, num_corners_x_cell
         is_proper       = .true.
         min_cell        = icell
@@ -351,6 +371,9 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
                  call work_vector_improper_cells_around%push_back(jcell)
                  call work_vector_ivef%push_back(improper_cell_around_ivef)
                  call work_vector_subvef%push_back(improper_cell_around_subvef)
+                 if ( jcell > this%get_num_local_cells() ) then
+                   vef_at_interface = .true.
+                 end if
               else
                 min_cell   = min(min_cell,jcell)
                 if (min_cell == jcell) then
@@ -424,6 +447,8 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
                   
                   ! Fill improper vefs dim
                   call this%improper_vefs_dim%push_back(0)
+                  
+                  call this%improper_vefs_at_interface%push_back(1)
                 end if
               end if
            end if
@@ -595,13 +620,24 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
               
               ! Fill improper vefs dim
               call this%improper_vefs_dim%push_back(0)
+              
+              ! Fill proper vefs at interface 
+              if ( vef_at_interface ) then
+                 call this%improper_vefs_at_interface%push_back(1)
+              else
+                 call this%improper_vefs_at_interface%push_back(0)
+              end if
+              
            end if
         else
            call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), &
                 this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_CORNER(min_icorner)))
         end if
      end do ! icorner
-
+   end subroutine generate_corners
+  
+   subroutine generate_edges()
+     implicit none
      if (this%get_num_dims() == 3) then
         do iedge=1, num_edges_x_cell
            is_proper         = .true.
@@ -769,7 +805,10 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
 
         end do ! iedge
      end if
-
+   end subroutine generate_edges
+   
+   subroutine generate_faces()
+     implicit none
      faces_visited = .false.
      do iface=1, num_faces_x_cell
         is_proper        = .true.
@@ -822,6 +861,9 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
            call work_vector_improper_cells_around%push_back(jcell)
            call work_vector_ivef%push_back(improper_cell_around_ivef)
            call work_vector_subvef%push_back(improper_cell_around_subvef)
+           if ( jcell > this%get_num_local_cells() ) then
+              vef_at_interface = .true.
+           end if
         else ! Half-size neighbour           
            do isubface = 1, num_subfacets_facet
               jcell = this%quad_to_half(isubface,this%quad_to_quad(iface,icell)+1)+1
@@ -844,6 +886,8 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
                  
                  ! Fill improper vefs dim
                  call this%improper_vefs_dim%push_back(this%get_num_dims()-1)
+                 
+                 call this%improper_vefs_at_interface%push_back(1)
               end if
            end do
         end if
@@ -915,29 +959,24 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
 
               ! Fill improper vefs dim
               call this%improper_vefs_dim%push_back(this%get_num_dims()-1)
+              
+              ! Fill proper vefs at interface 
+              if ( vef_at_interface ) then
+                 call this%improper_vefs_at_interface%push_back(1)
+              else
+                 call this%improper_vefs_at_interface%push_back(0)
+              end if
            end if
         else ! Borrow vef gid from owner
            call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), &
                 this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_FACE(min_iface)))
         end if
      end do ! iface
-  end do
-  call this%set_num_vefs(this%num_proper_vefs + this%num_improper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_cells_around_proper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_cells_around_improper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_improper_cells_around)
-  call work_vector_cells_around%free()
-  call work_vector_ghost_cells_around_ivef%free()
-  call work_vector_improper_cells_around%free()
-  call work_vector_ghost_cells_around%free()
-  call work_vector_ivef%free()
-  call work_vector_subvef%free()
-  call memfree ( faces_visited, __FILE__, __LINE__ )
+   end subroutine generate_faces
 #else
   call this%not_enabled_error()
-#endif    
+#endif
 end subroutine p4est_bt_update_lst_vefs_gids_and_cells_around
-
 
 subroutine p4est_bt_update_cell_set_ids(this)
   implicit none
