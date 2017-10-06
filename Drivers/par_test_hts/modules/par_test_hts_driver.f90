@@ -79,7 +79,7 @@ module par_test_hts_driver_names
 					type(fe_function_t)                   :: H_previous 
      
      ! Environment required for fe_affine_operator + vtk_handler
-     type(environment_t)                    :: par_environment
+     type(environment_t)                    :: environment
 					
 					! Time integration 
 					type(theta_method_t)                   :: theta_method 
@@ -137,7 +137,7 @@ contains
        istat = this%parameter_list%set(key = environment_type_key, value = unstructured) ; check(istat==0)
     end if
     istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
-    call this%par_environment%create (this%parameter_list)
+    call this%environment%create (this%parameter_list)
   end subroutine setup_environment
    
   subroutine setup_triangulation(this)
@@ -151,7 +151,7 @@ contains
 				domain   = this%test_params%get_domain_limits()
     istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
 				
-    call this%triangulation%create(this%parameter_list, this%par_environment)
+    call this%triangulation%create(this%parameter_list, this%environment)
 				call assign_fes_id() 
 				
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
@@ -188,8 +188,8 @@ contains
 				real(rp)          :: hts_lx, hts_ly, hts_lz
 				real(rp)          :: lx, ly, lz 
 				
-				if ( this%par_environment%am_i_l1_task() ) then 
-				l1_rank = this%par_environment%get_l1_rank() 
+				if ( this%environment%am_i_l1_task() ) then 
+				l1_rank = this%environment%get_l1_rank() 
 							
 				if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
 	
@@ -258,7 +258,7 @@ contains
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
-    if ( this%par_environment%am_i_l1_task() ) then
+    if ( this%environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe()
       this%reference_fes(1) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
@@ -276,7 +276,8 @@ contains
   implicit none 
   class(par_test_hts_fe_driver_t), intent(inout) :: this
   
-    call this%theta_method%create( this%test_params%get_theta_value(),          &               
+    call this%theta_method%create( this%environment,                            & 
+																																		 this%test_params%get_theta_value(),          &               
                                    this%test_params%get_initial_time(),         &
                                    this%test_params%get_final_time(),           & 
                                    this%test_params%get_num_time_steps(),       &
@@ -308,7 +309,7 @@ contains
     class(reference_fe_t), pointer             :: reference_fe_geo
 	integer(ip) :: istat 
 	
-	if ( this%par_environment%am_i_l1_task() ) then
+	if ( this%environment%am_i_l1_task() ) then
 	call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe()
 	call this%triangulation%free_cell_iterator(cell)
@@ -445,13 +446,13 @@ contains
     iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
     plist => this%parameter_list 
-    if ( this%par_environment%get_l1_size() == 1 ) then
+    if ( this%environment%get_l1_size() == 1 ) then
        FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
     end if
-    do ilev=1, this%par_environment%get_num_levels()-1
+    do ilev=1, this%environment%get_num_levels()-1
        ! Set current level Dirichlet solver parameters
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
        FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
@@ -512,16 +513,16 @@ contains
 				 temporal: do while ( .not. this%theta_method%finished() ) 
      call this%theta_method%print(6) 
 
-				 call this%solve_nonlinear_system()
-    ! call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)		
+				 ! call this%solve_nonlinear_system()
+     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)		
 					
-					if (this%nonlinear_solver%converged() ) then  ! Theta method goes forward 
+				!	if (this%nonlinear_solver%converged() ) then  ! Theta method goes forward 
 					call this%theta_method%update_solutions(this%H_current, this%H_previous)
 					call this%write_time_step_solution()
 					call this%theta_method%move_time_forward()
-					elseif (.not. this%nonlinear_solver%converged()) then ! Theta method goes backwards and restarts   
-        call this%theta_method%move_time_backwards(this%H_current, this%H_previous)
-     end if
+				!	elseif (.not. this%nonlinear_solver%converged()) then ! Theta method goes backwards and restarts   
+    !    call this%theta_method%move_time_backwards(this%H_current, this%H_previous)
+    ! end if
 					
 					if (.not. this%theta_method%finished() ) then 
         call this%fe_space%project_dirichlet_values_curl_conforming(this%H_current,time=this%theta_method%get_current_time(), fields_to_project=(/ 1 /) )
@@ -592,7 +593,7 @@ contains
     linfty = error_norm%compute(H_exact_function, this%H_current, linfty_norm)   
     h1_s = error_norm%compute(H_exact_function, this%H_current, h1_seminorm) 
 				hcurl = error_norm%compute(H_exact_function, this%H_current, hcurl_seminorm)
-    if ( this%par_environment%am_i_l1_root() ) then
+    if ( this%environment%am_i_l1_root() ) then
       write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
       write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
       write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
@@ -608,7 +609,7 @@ contains
     class(par_test_hts_fe_driver_t), intent(inout)    :: this
 	   integer(ip)                                       :: i, istat
 
-		 if ( .not. this%par_environment%am_i_l1_task() ) then
+		 if ( .not. this%environment%am_i_l1_task() ) then
 			return 
 			end if 
 			
@@ -626,7 +627,7 @@ contains
       subroutine build_set_id_cell_vector()
       call memalloc(this%triangulation%get_num_local_cells(), this%set_id_cell_vector, __FILE__, __LINE__)
       do i=1, this%triangulation%get_num_local_cells()
-            this%set_id_cell_vector(i) = this%par_environment%get_l1_rank() + 1
+            this%set_id_cell_vector(i) = this%environment%get_l1_rank() + 1
       enddo
     end subroutine build_set_id_cell_vector
 	
@@ -638,7 +639,7 @@ contains
     class(par_test_hts_fe_driver_t), intent(inout)    :: this
     integer(ip)                                       :: err
     
-			if ( .not. this%par_environment%am_i_l1_task() ) then
+			if ( .not. this%environment%am_i_l1_task() ) then
 			return 
 			end if 
 			
@@ -656,7 +657,7 @@ contains
     class(par_test_hts_fe_driver_t), intent(inout)    :: this
     integer(ip)                                       :: err
 				
-			if ( .not. this%par_environment%am_i_l1_task() ) then
+			if ( .not. this%environment%am_i_l1_task() ) then
 			return 
 			end if 
 			
@@ -698,9 +699,10 @@ contains
 				call this%H_previous%free() 
     call this%mlbddc%free() 
     call this%iterative_linear_solver%free()
+				call this%nonlinear_solver%free()
     call this%fe_affine_operator%free()
 	
-	if ( this%par_environment%am_i_l1_task() ) then 
+	if ( this%environment%am_i_l1_task() ) then 
 	if (allocated(this%coarse_fe_handlers) ) then 
 	select type ( ch => this%fe_space%get_coarse_fe_handler(field_id=1) )
 	class is ( Hcurl_l1_coarse_fe_handler_t )
@@ -727,7 +729,7 @@ contains
   subroutine free_environment(this)
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
-    call this%par_environment%free()
+    call this%environment%free()
   end subroutine free_environment
 
   !========================================================================================

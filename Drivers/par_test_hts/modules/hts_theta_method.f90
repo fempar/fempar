@@ -34,17 +34,18 @@ module hts_theta_method_names
   
   type :: theta_method_t
      private
-     real(rp)    :: theta
-     real(rp)    :: initial_time     
-     real(rp)    :: current_time
-     real(rp)    :: final_time     
-     real(rp)    :: time_step
-     real(rp)    :: max_time_step 
-     real(rp)    :: min_time_step 
-     integer(ip) :: save_solution_every_n_steps 
-     integer(ip) :: current_step      
-     real(rp)    :: next_time_to_be_printed  
-     integer(ip) :: num_steps
+					type(environment_t), pointer :: environment
+     real(rp)                     :: theta
+     real(rp)                     :: initial_time     
+     real(rp)                     :: current_time
+     real(rp)                     :: final_time     
+     real(rp)                     :: time_step
+     real(rp)                     :: max_time_step 
+     real(rp)                     :: min_time_step 
+     integer(ip)                  :: save_solution_every_n_steps 
+     integer(ip)                  :: current_step      
+     real(rp)                     :: next_time_to_be_printed  
+     integer(ip)                  :: num_steps
    contains
      procedure, non_overridable :: create                    => theta_method_create
      procedure, non_overridable :: update_solutions          => theta_method_update_solutions
@@ -65,9 +66,10 @@ module hts_theta_method_names
 
 contains
   !===============================================================================================
-  subroutine theta_method_create(this, theta, initial_time, final_time, num_time_steps, max_time_step, min_time_step, save_every_n_steps )
+  subroutine theta_method_create(this, environment, theta, initial_time, final_time, num_time_steps, max_time_step, min_time_step, save_every_n_steps )
     implicit none
     class(theta_method_t), intent(inout) :: this
+				type(environment_t)  , target, intent(in)     :: environment
     real(rp)             , intent(in)    :: theta
     real(rp)             , intent(in)    :: initial_time
     real(rp)             , intent(in)    :: final_time
@@ -76,6 +78,7 @@ contains
     real(rp)             , intent(in)    :: min_time_step 
     integer(ip)          , intent(in)    :: save_every_n_steps 
     
+				this%environment                 => environment
     this%theta                       = theta
     this%initial_time                = initial_time
     this%final_time                  = final_time
@@ -165,8 +168,10 @@ contains
     implicit none
     class(theta_method_t), intent(in) :: this
     integer(ip)          , intent(in) :: luout
+				if (this%environment%get_l1_rank() == 0) then
     write(luout,*) '========================================================================'
     write(luout,'(a10,i6,a20, e10.3,a12,e10.3)') 'Time step ', this%current_step, ': Solving for t=', this%current_time, 'with dt', this%time_step
+				end if 
   end subroutine theta_method_print
   
   !=============================================================================================== 

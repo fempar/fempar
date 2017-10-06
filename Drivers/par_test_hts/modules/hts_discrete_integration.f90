@@ -219,8 +219,8 @@ contains
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
                    ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( permeability/time_factor * shape_values(jdof,qpoint)*shape_values(idof,qpoint) + & 
-																																																																			       resistivity_tensor * shape_curls(jdof,qpoint)*shape_curls(idof,qpoint))
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( permeability/time_factor * shape_values(jdof,qpoint) * shape_values(idof,qpoint) + & 
+																																																																			       resistivity_tensor * shape_curls(jdof,qpoint) * shape_curls(idof,qpoint))
 																			
 																	 if ( this%integration_type=='add_tangent_terms' .and. fe%get_set_id()== hts ) then 
                    tangent_resistivity = this%compute_tangent_resistivity(H_current_curl_values(qpoint), shape_curls(jdof,qpoint)) 
@@ -230,7 +230,7 @@ contains
 										         call tangent_resistivity_tensor%set(2,2, tangent_resistivity)
 										         call tangent_resistivity_tensor%set(3,3, 0.0_rp)
 										
-                   elmat(idof,jdof) = elmat(idof,jdof) + tangent_resistivity_tensor *shape_curls(idof,qpoint)*H_current_curl_values(qpoint)*factor                    
+                   elmat(idof,jdof) = elmat(idof,jdof) + tangent_resistivity_tensor * shape_curls(idof,qpoint) * H_current_curl_values(qpoint)*factor                    
                   end if    
 																		
                 end do
