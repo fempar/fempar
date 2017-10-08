@@ -1114,9 +1114,9 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
                                                p4est_locidx_t ** local_ids,
                                                p4est_locidx_t ** old2new)
 {
-    p4est_tree_t       *tree_old;
-    p4est_quadrant_t   *q_old;
-    sc_array_t         *quadrants_old;
+    p4est_tree_t       *tree_old, *tree_new;
+    p4est_quadrant_t   *q_old, *q_new;
+    sc_array_t         *quadrants_old, *quadrants_new;
     int                old_quadrant_index, 
                        new_quadrant_index;
     
@@ -1130,7 +1130,9 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
             
     // Extract references to the first (and uniquely allowed) trees
     tree_old = p4est_tree_array_index (p4est_old->trees,0);
+    tree_new = p4est_tree_array_index (p4est_new->trees,0);
     quadrants_old = &(tree_old->quadrants);
+    quadrants_new = &(tree_new->quadrants);
     
     ranks_count   = (p4est_locidx_t *) malloc( (size_t) p4est_old->mpisize*sizeof(p4est_locidx_t) ); P4EST_ASSERT(ranks_count != NULL);
     ranks_visited = (p4est_locidx_t *) malloc( (size_t) p4est_old->mpisize*sizeof(p4est_locidx_t) ); P4EST_ASSERT(ranks_visited != NULL);
@@ -1152,7 +1154,7 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
     // Calculate num_ranks
     *num_ranks = 0;
     my_rank    = p4est_old->mpirank;
-    new_quadrant_index = 1;
+    new_quadrant_index = 0;
     for (old_quadrant_index=0; old_quadrant_index < quadrants_old->elem_count;old_quadrant_index++)
     {
         q_old    = p4est_quadrant_array_index(quadrants_old, old_quadrant_index);        
@@ -1164,13 +1166,17 @@ void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old,
               ranks_visited[*num_ranks] = new_rank;
               ranks_lids[new_rank]   = *num_ranks;
               (*num_ranks)++;
-              ranks_count[new_rank] =0;
             }
             ranks_count[new_rank]++;
             (*old2new)[old_quadrant_index]=0;
         }
         else {
-            (*old2new)[old_quadrant_index]=new_quadrant_index;
+            q_new    = p4est_quadrant_array_index(quadrants_new, new_quadrant_index);        
+            while ( ! p4est_quadrant_is_equal(q_old,q_new) ) {
+               new_quadrant_index++; 
+               q_new    = p4est_quadrant_array_index(quadrants_new, new_quadrant_index);        
+            }     
+            (*old2new)[old_quadrant_index]=new_quadrant_index+1;
             new_quadrant_index++;
         }
     }

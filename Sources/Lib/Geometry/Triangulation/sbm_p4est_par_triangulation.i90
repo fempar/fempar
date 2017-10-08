@@ -79,6 +79,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%update_p4est_mesh()
         call this%update_topology_from_p4est_mesh()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+        call this%update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%update_cell_import()
         call this%comm_cell_ggids()
         call this%comm_cell_myparts()
@@ -93,6 +94,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%update_p4est_mesh()
         call this%update_topology_from_p4est_mesh()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+        call this%update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%update_cell_import()
         call this%comm_cell_ggids()
         call this%comm_cell_myparts()
@@ -255,6 +257,7 @@ subroutine p4est_par_triangulation_partition ( this )
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+    call this%update_lst_vef_gids_and_cells_around_ghost_cells()
     call this%update_cell_import()
     call this%comm_cell_ggids()
     call this%comm_cell_myparts()
@@ -456,10 +459,10 @@ subroutine p4est_par_triangulation_migrate_vef_set_ids(this, old_lst_vefs_gids)
     base_pos_new    = this%get_ptr_vefs_x_cell(cell%get_gid())-1
     do vef_lid=1, num_vefs
       call cell%get_vef(vef_lid,vef)
-      if (cell%is_local()) then
-        new_vef_set_id  = p_new_vef_set_ids(base_pos_new+vef_lid)
-        call vef%set_set_id(new_vef_set_id)
-      end if  
+      new_vef_set_id  = p_new_vef_set_ids(base_pos_new+vef_lid)
+      if ( vef%get_gid() /= 0 ) then
+         call vef%set_set_id(new_vef_set_id)
+      end if   
     end do
     call cell%next()
   end do
@@ -469,5 +472,4 @@ subroutine p4est_par_triangulation_migrate_vef_set_ids(this, old_lst_vefs_gids)
 #else
   call this%not_enabled_error()
 #endif
-  
 end subroutine p4est_par_triangulation_migrate_vef_set_ids

@@ -370,7 +370,6 @@ module p4est_triangulation_names
     integer(P4EST_F90_GLOIDX), allocatable :: global_first_quadrant(:)
     
     type(std_vector_integer_ip_t)          :: lst_vefs_gids
-    
     type(std_vector_integer_ip_t)          :: ptr_cells_around_proper_vefs
     type(std_vector_integer_ip_t)          :: lst_cells_around_proper_vefs
     type(std_vector_integer_ip_t)          :: ptr_cells_around_improper_vefs
@@ -400,26 +399,29 @@ module p4est_triangulation_names
     procedure                                   :: get_refinement_and_coarsening_flags           => p4est_bt_get_refinement_and_coarsening_flags
     
     ! Set up related methods
-    procedure                 , non_overridable :: refine_and_coarsen                            => p4est_base_triangulation_refine_and_coarsen
-    procedure, private        , non_overridable :: update_p4est_mesh                             => p4est_base_triangulation_update_p4est_mesh
-    procedure, private        , non_overridable :: update_topology_from_p4est_mesh               => p4est_base_triangulation_update_topology_from_p4est_mesh
-    procedure, private        , non_overridable :: get_ptr_vefs_x_cell                           => p4est_base_triangulation_get_ptr_vefs_x_cell
-    procedure, private        , non_overridable :: update_lst_vefs_gids_and_cells_around         => p4est_bt_update_lst_vefs_gids_and_cells_around
-    procedure, private        , non_overridable :: update_cell_ggids                             => p4est_base_triangulation_update_cell_ggids
-    procedure, private        , non_overridable :: comm_cell_ggids                               => p4est_base_triangulation_comm_cell_ggids
-    procedure, private        , non_overridable :: update_cell_myparts                           => p4est_base_triangulation_update_cell_myparts
-    procedure, private        , non_overridable :: comm_cell_myparts                             => p4est_base_triangulation_comm_cell_myparts
-    procedure, private        , non_overridable :: update_cell_set_ids                           => p4est_bt_update_cell_set_ids
-    procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_bt_update_vef_set_ids
-    procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_bt_std_vector_transform_length_to_header
-    procedure, private        , non_overridable :: allocate_and_fill_x_cell_vertex_coordinates   => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
-    procedure, private        , non_overridable :: free_x_cell_vertex_coordinates                => p4est_bt_free_x_cell_vertex_coordinates
-    procedure                 , non_overridable :: clear_refinement_and_coarsening_flags         => p4est_bt_clear_refinement_and_coarsening_flags
-    procedure                 , non_overridable :: clear_cell_set_ids                            => p4est_bt_clear_cell_set_ids
-    procedure                                   :: fill_cells_set                                => p4est_bt_fill_cells_set
-    procedure, private       , non_overridable  :: clear_vef_set_ids                             => p4est_bt_clear_vef_set_ids
-    procedure, private       , non_overridable  :: update_cell_import                            => p4est_bt_update_cell_import
-    procedure, private       , non_overridable  :: match_cell_import_rcv_control_data            => p4est_bt_match_cell_import_rcv_control_data
+    procedure                 , non_overridable :: refine_and_coarsen                               => p4est_base_triangulation_refine_and_coarsen
+    procedure, private        , non_overridable :: update_p4est_mesh                                => p4est_base_triangulation_update_p4est_mesh
+    procedure, private        , non_overridable :: update_topology_from_p4est_mesh                  => p4est_base_triangulation_update_topology_from_p4est_mesh
+    procedure, private        , non_overridable :: get_ptr_vefs_x_cell                              => p4est_base_triangulation_get_ptr_vefs_x_cell
+    procedure, private        , non_overridable :: update_lst_vefs_gids_and_cells_around            => p4est_bt_update_lst_vefs_gids_and_cells_around
+    procedure, private        , non_overridable :: update_lst_vef_gids_and_cells_around_ghost_cells => p4est_bt_update_lst_vef_gids_and_cells_around_ghost_cells
+    procedure, private        , non_overridable :: update_cell_ggids                                => p4est_base_triangulation_update_cell_ggids
+    procedure, private        , non_overridable :: comm_cell_ggids                                  => p4est_base_triangulation_comm_cell_ggids
+    procedure, private        , non_overridable :: update_cell_myparts                              => p4est_base_triangulation_update_cell_myparts
+    procedure, private        , non_overridable :: comm_cell_myparts                                => p4est_base_triangulation_comm_cell_myparts
+    procedure, private        , non_overridable :: update_cell_set_ids                              => p4est_bt_update_cell_set_ids
+    procedure, private        , non_overridable :: update_vef_set_ids                               => p4est_bt_update_vef_set_ids
+    procedure                 , non_overridable :: std_vector_transform_length_to_header            => p4est_bt_std_vector_transform_length_to_header
+    procedure                 , non_overridable :: std_vector_transform_header_to_length            => p4est_bt_std_vector_transform_header_to_length
+    procedure, private        , non_overridable :: allocate_and_fill_x_cell_vertex_coordinates      => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
+    procedure, private        , non_overridable :: free_x_cell_vertex_coordinates                   => p4est_bt_free_x_cell_vertex_coordinates
+    procedure                 , non_overridable :: clear_refinement_and_coarsening_flags            => p4est_bt_clear_refinement_and_coarsening_flags
+    procedure                 , non_overridable :: clear_cell_set_ids                               => p4est_bt_clear_cell_set_ids
+    procedure                                   :: fill_cells_set                                   => p4est_bt_fill_cells_set
+    procedure, private       , non_overridable  :: clear_vef_set_ids                                => p4est_bt_clear_vef_set_ids
+    procedure, private       , non_overridable  :: update_cell_import                               => p4est_bt_update_cell_import
+    procedure, private       , non_overridable  :: match_cell_import_rcv_control_data               => p4est_bt_match_cell_import_rcv_control_data
+    procedure, private       , non_overridable  :: adjust_ghost_cells                               => p4est_bt_adjust_ghost_cells
    
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator
@@ -477,17 +479,15 @@ module p4est_triangulation_names
     integer(P4EST_F90_LOCIDX), pointer :: new2old(:)
   contains
     procedure, private                          :: p4est_par_triangulation_create
-    generic                                     :: create                                        => p4est_par_triangulation_create
-    procedure                                   :: free                                          => p4est_par_triangulation_free 
-    procedure                                   :: partition                                     => p4est_par_triangulation_partition
-    procedure                                   :: update_migration_control_data                 => p4est_par_triangulation_update_migration_control_data
-    procedure                                   :: migrate_cell_set_ids                          => p4est_par_triangulation_migrate_cell_set_ids
-    procedure                                   :: migrate_vef_set_ids                           => p4est_par_triangulation_migrate_vef_set_ids
+    generic                                     :: create                                           => p4est_par_triangulation_create
+    procedure                                   :: free                                             => p4est_par_triangulation_free 
+    procedure                                   :: partition                                        => p4est_par_triangulation_partition
+    procedure                                   :: update_migration_control_data                    => p4est_par_triangulation_update_migration_control_data
+    procedure                                   :: migrate_cell_set_ids                             => p4est_par_triangulation_migrate_cell_set_ids
+    procedure                                   :: migrate_vef_set_ids                              => p4est_par_triangulation_migrate_vef_set_ids
   end type p4est_par_triangulation_t
   
   public :: p4est_par_triangulation_t
-  
-  
 contains
 
 #include "sbm_p4est_base_triangulation.i90"

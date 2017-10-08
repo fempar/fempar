@@ -315,7 +315,7 @@ end subroutine free_timers
     !  call this%triangulation%free_vef_iterator(vef_of_vef)
     !end if
     
-    do i = 1,2
+    do i = 1,3
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%set_cells_set_ids()
