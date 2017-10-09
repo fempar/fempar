@@ -53,11 +53,10 @@ module par_pb_bddc_linear_elasticity_driver_names
      type(par_fe_space_t)                        :: fe_space 
      type(p_reference_fe_t), allocatable         :: reference_fes(:) 
      type(standard_l1_coarse_fe_handler_t)       :: standard_coarse_fe_handler
-!!! Need to change this
      type(elasticity_pb_bddc_l1_coarse_fe_handler_t):: elasticity_coarse_fe_handler
      type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
-!!! Need to change this
-     type(irreducible_discrete_integration_t) :: linear_elasticity_integration
+     !type(irreducible_discrete_integration_t) :: linear_elasticity_integration
+     type(irreducible_heterogeneous_discrete_integration_t) :: linear_elasticity_integration
      type(linear_elasticity_conditions_t)           :: linear_elasticity_conditions
      type(linear_elasticity_analytical_functions_t) :: linear_elasticity_analytical_functions
 
@@ -226,8 +225,8 @@ contains
     real(rp), allocatable:: px1(:), px2(:), py1(:), py2(:),  pz1(:), pz2(:)
 
 !!! Need to change this
-    !!this%linear_elasticity_integration%diffusion_inclusion = this%test_params%get_jump()    
-    !!this%elasticity_coarse_fe_handler%diffusion_inclusion = this%test_params%get_jump()
+    this%linear_elasticity_integration%elastic_modulus = this%test_params%get_jump()    
+    this%elasticity_coarse_fe_handler%elastic_modulus = this%test_params%get_jump()
 
     if ( this%par_environment%am_i_l1_task() ) then
        l1_rank = this%par_environment%get_l1_rank()
