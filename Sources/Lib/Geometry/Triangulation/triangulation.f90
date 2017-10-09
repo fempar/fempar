@@ -170,16 +170,6 @@ module triangulation_names
      procedure(is_at_interface)               , deferred :: is_at_interface
 
      ! XFEM-related TBPs
-     !procedure(vef_update_sub_triangulation_interface) , deferred :: update_sub_triangulation
-     !procedure(get_num_subvefs_interface)              , deferred :: get_num_subvefs
-     !procedure(get_num_subvef_nodes_interface)         , deferred :: get_num_subvef_nodes
-     !procedure(get_phys_coords_of_subvef_interface)    , deferred :: get_phys_coords_of_subvef
-     !procedure(get_ref_coords_of_subvef_interface)     , deferred :: get_ref_coords_of_subvef
-     !procedure(vef_is_cut_interface)                   , deferred :: is_cut
-     !procedure(vef_is_exterior_interface)              , deferred :: is_exterior
-     !procedure(vef_is_interior_interface)              , deferred :: is_interior
-     !procedure(is_exterior_subvef_interface)           , deferred :: is_exterior_subvef
-     !procedure(is_interior_subvef_interface)           , deferred :: is_interior_subvef
      procedure               :: update_sub_triangulation  => vef_iterator_update_sub_triangulation
      procedure               :: get_num_subvefs           => vef_iterator_get_num_subvefs
      procedure               :: get_num_subvef_nodes      => vef_iterator_get_num_subvef_nodes
@@ -544,79 +534,6 @@ module triangulation_names
        class(vef_iterator_t), intent(in) :: this 
        logical :: is_at_interface 
      end function is_at_interface 
-
-     !!subroutine vef_update_sub_triangulation_interface( this )
-     !!  import :: vef_iterator_t
-     !!  implicit none
-     !!  class(vef_iterator_t), intent(inout) :: this
-     !!end subroutine vef_update_sub_triangulation_interface
-     !!
-     !!function get_num_subvefs_interface( this ) result ( num_subvefs )
-     !!  import :: vef_iterator_t, ip
-     !!  implicit none
-     !!  class(vef_iterator_t), intent(in)    :: this
-     !!  integer(ip) :: num_subvefs
-     !!end function get_num_subvefs_interface
-     !!
-     !!function get_num_subvef_nodes_interface( this ) result ( num_nodes_subvef )
-     !!  import :: vef_iterator_t, ip
-     !!  implicit none
-     !!  class(vef_iterator_t), intent(in)    :: this
-     !!  integer(ip) :: num_nodes_subvef
-     !!end function get_num_subvef_nodes_interface
-     !!
-     !!subroutine get_phys_coords_of_subvef_interface( this, subvef, points )
-     !!  import :: vef_iterator_t, ip, point_t
-     !!  implicit none
-     !!  class(vef_iterator_t), intent(in)    :: this
-     !!  integer(ip),                     intent(in)    :: subvef
-     !!  type(point_t),                   intent(inout) :: points(:)
-     !!end subroutine get_phys_coords_of_subvef_interface
-     !!
-     !!subroutine get_ref_coords_of_subvef_interface( this, subvef, points )
-     !!  import :: vef_iterator_t, ip, point_t
-     !!  implicit none
-     !!  class(vef_iterator_t), intent(in)    :: this
-     !!  integer(ip),                     intent(in)    :: subvef
-     !!  type(point_t),                   intent(inout) :: points(:)
-     !!end subroutine get_ref_coords_of_subvef_interface
-     !!
-     !!function vef_is_cut_interface( this ) result ( is_cut )
-     !!  import :: vef_iterator_t
-     !!  implicit none
-     !!  class(vef_iterator_t), intent(in)    :: this
-     !!  logical :: is_cut
-     !!end function vef_is_cut_interface
-     !!
-     !!function vef_is_interior_interface( this ) result ( is_interior )
-     !!  import :: vef_iterator_t
-     !!  implicit none
-     !!  class(vef_iterator_t), intent(in)  :: this
-     !!  logical :: is_interior
-     !!end function vef_is_interior_interface
-     !!
-     !!function vef_is_exterior_interface( this ) result ( is_exterior )
-     !!  import :: vef_iterator_t
-     !!  implicit none
-     !!  class(vef_iterator_t), intent(in)  :: this
-     !!  logical :: is_exterior
-     !!end function vef_is_exterior_interface
-     !!
-     !!function is_interior_subvef_interface( this, subvef ) result ( is_in )
-     !!  import :: vef_iterator_t, ip
-     !!  implicit none
-     !!  class(vef_iterator_t), intent(in)  :: this
-     !!  integer(ip), intent(in) :: subvef
-     !!  logical :: is_in
-     !!end function is_interior_subvef_interface
-     !!
-     !!function is_exterior_subvef_interface( this, subvef ) result ( is_out )
-     !!  import :: vef_iterator_t, ip
-     !!  implicit none
-     !!  class(vef_iterator_t), intent(in)  :: this
-     !!  integer(ip), intent(in) :: subvef
-     !!  logical :: is_out
-     !!end function is_exterior_subvef_interface
 
      function is_proper_interface ( this )
        import :: vef_iterator_t
