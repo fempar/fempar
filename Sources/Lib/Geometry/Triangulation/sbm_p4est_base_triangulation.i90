@@ -77,7 +77,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
   p_environment => this%get_environment()
   if ( p_environment%am_i_l1_task () ) then
     if ( this%get_num_dims() == 2 ) then
-      user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
+      user_pointer => this%refinement_and_coarsening_flags%get_pointer()
       call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
       p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old)
       call F90_p4est_refine(this%p4est)
@@ -86,7 +86,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
       call F90_p4est_update_refinement_and_coarsening_flags(p4est_old,this%p4est)
       call F90_p4est_destroy(p4est_old)
     else if ( this%get_num_dims() == 3 ) then
-      user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
+      user_pointer => this%refinement_and_coarsening_flags%get_pointer()
       call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
       p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old)
       call F90_p8est_refine(this%p4est)
@@ -102,7 +102,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%update_cell_import()
     call this%comm_cell_ggids()
     call this%comm_cell_myparts()
-    call this%allocate_and_fill_x_cell_vertex_coordinates()
+    call this%fill_x_cell_vertex_coordinates()
     call this%update_cell_set_ids()
     call this%update_vef_set_ids(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
@@ -1312,7 +1312,7 @@ subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
       end do
     end do
     call old_vef_set_ids%resize(this%get_num_cells()*num_vefs)
-    p_old_vef_set_ids => old_vef_set_ids%get_raw_pointer()
+    p_old_vef_set_ids => old_vef_set_ids%get_pointer()
 
     ! Retrieve set IDs from ghost cells
     cell_import => this%get_cell_import()
@@ -1402,15 +1402,20 @@ subroutine p4est_bt_allocate_and_fill_x_cell_vertex_coordinates(this)
   class(p4est_base_triangulation_t), intent(inout)    :: this
   integer(ip) :: idime, icell, istat, num_corners, current, corner
   real(rp) :: vxyz(3)
+  type(point_t), pointer :: raw_per_cell_vertex_coordinates(:)
+
   
 #ifdef ENABLE_P4EST
-  call this%free_x_cell_vertex_coordinates()
   if ( this%get_num_dims() == 2 ) then
     num_corners = NUM_CORNERS_2D
   else if ( this%get_num_dims() == 3 ) then
     num_corners = NUM_CORNERS_3D
   end if
-  allocate(this%per_cell_vertex_coordinates(this%get_num_cells()*num_corners), stat=istat); check(istat==0);  
+  call this%per_cell_vertex_coordinates%resize(0)
+  call this%per_cell_vertex_coordinates%resize(this%get_num_cells()*num_corners)
+  
+  raw_per_cell_vertex_coordinates => this%per_cell_vertex_coordinates%get_pointer()
+
   
   current = 1 
   do icell=1, this%get_num_local_cells()
@@ -1433,7 +1438,7 @@ subroutine p4est_bt_allocate_and_fill_x_cell_vertex_coordinates(this)
                                                         corner,&
                                                         vxyz)
        end if
-       call this%per_cell_vertex_coordinates(current)%init(vxyz)
+       call raw_per_cell_vertex_coordinates(current)%init(vxyz)
        current = current + 1 
      end do  
   end do
@@ -1441,20 +1446,6 @@ subroutine p4est_bt_allocate_and_fill_x_cell_vertex_coordinates(this)
   call this%not_enabled_error()
 #endif        
 end subroutine p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
-
-subroutine p4est_bt_free_x_cell_vertex_coordinates(this)
-  implicit none
-  class(p4est_base_triangulation_t), intent(inout)    :: this
-  integer(ip) :: istat
-#ifdef ENABLE_P4EST
-  if ( allocated(this%per_cell_vertex_coordinates) ) then
-    deallocate(this%per_cell_vertex_coordinates, stat=istat)
-    check(istat==0)
-  end if  
-#else
-  call this%not_enabled_error()
-#endif        
-end subroutine p4est_bt_free_x_cell_vertex_coordinates
 
 subroutine p4est_bt_clear_refinement_and_coarsening_flags(this)
   implicit none
@@ -1466,7 +1457,7 @@ subroutine p4est_bt_clear_refinement_and_coarsening_flags(this)
   if (environment%am_i_l1_task()) then
     call this%refinement_and_coarsening_flags%resize(0)
     call this%refinement_and_coarsening_flags%resize(this%get_num_cells(), do_nothing)
-  end if  
+  end if
 #else
   call this%not_enabled_error()
 #endif        
@@ -1787,7 +1778,7 @@ subroutine p4est_bt_adjust_ghost_cells(this, ghost_cells_perm)
   num_vefs = this%get_ptr_vefs_x_cell(2)-this%get_ptr_vefs_x_cell(1)
   call memalloc ( this%get_num_ghost_cells()*num_vefs, work_array,  __FILE__, __LINE__ ) 
 
-  p_lst_vefs_gids => this%lst_vefs_gids%get_raw_pointer()
+  p_lst_vefs_gids => this%lst_vefs_gids%get_pointer()
 
   start      = this%get_ptr_vefs_x_cell(this%get_num_local_cells()+1)
   end        = this%get_ptr_vefs_x_cell(this%get_num_cells()+1)-1
@@ -1991,7 +1982,7 @@ subroutine p4est_base_triangulation_update_cell_ggids ( this )
   do i=1, this%get_num_local_cells()
     call this%cell_ggids%set(i,this%global_first_quadrant(environment%get_l1_rank()+1)+i)
   end do
-  global_ggids => this%cell_ggids%get_raw_pointer()
+  global_ggids => this%cell_ggids%get_pointer()
   
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_fill_ghost_ggids(this%p4est_ghost,&
@@ -2016,7 +2007,7 @@ subroutine p4est_base_triangulation_comm_cell_ggids ( this )
   integer(igp), pointer :: cell_ggids(:)
 #ifdef ENABLE_P4EST  
   environment => this%get_environment()
-  cell_ggids => this%cell_ggids%get_raw_pointer()
+  cell_ggids => this%cell_ggids%get_pointer()
   cell_import => this%get_cell_import()
   call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
                                             cell_import%get_neighbours_ids(),&
@@ -2046,7 +2037,7 @@ subroutine p4est_base_triangulation_update_cell_myparts ( this )
   do i=1, this%get_num_local_cells()
     call this%cell_myparts%set(i,environment%get_l1_rank()+1)
   end do
-  global_myparts => this%cell_myparts%get_raw_pointer()
+  global_myparts => this%cell_myparts%get_pointer()
   P              => global_myparts(this%get_num_local_cells()+1:this%get_num_local_cells()+this%get_num_ghost_cells())
   if ( this%get_num_dims() == 2 ) then
     if (size(global_myparts)>this%get_num_local_cells()) then 
@@ -2073,7 +2064,7 @@ subroutine p4est_base_triangulation_comm_cell_myparts ( this )
   integer(ip), pointer :: cell_myparts(:)
 #ifdef ENABLE_P4EST  
   environment => this%get_environment()
-  cell_myparts => this%cell_myparts%get_raw_pointer()
+  cell_myparts => this%cell_myparts%get_pointer()
   cell_import => this%get_cell_import()
   call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
                                             cell_import%get_neighbours_ids(),&

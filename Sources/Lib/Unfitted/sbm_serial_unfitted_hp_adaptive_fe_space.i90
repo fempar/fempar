@@ -55,7 +55,7 @@ subroutine suhpafs_space_create_different_ref_fes_between_cells(&
   class(conditions_t), target       , optional, intent(in)    :: conditions
   class(marching_cubes_t), pointer :: marching_cubes
   call this%free()
-  call this%serial_hp_adaptive_fe_space_t%create(&
+  call this%serial_fe_space_t%create(&
     triangulation,reference_fes,set_ids_to_reference_fes,conditions)
   select type(triangulation)
   class is (unfitted_p4est_serial_triangulation_t)
@@ -72,7 +72,7 @@ end subroutine suhpafs_space_create_different_ref_fes_between_cells
 subroutine suhpafs_free(this)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this
-  call this%serial_hp_adaptive_fe_space_t%free()
+  call this%serial_fe_space_t%free()
   this%unfitted_triangulation => null()
   call this%unfitted_integration%free()
   if (allocated(this%aggregate_ids)) then
@@ -96,7 +96,7 @@ subroutine suhpafs_create_fe_cell_iterator(this, fe)
   class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
   integer(ip) :: istat
   call this%free_fe_cell_iterator(fe)
-  allocate(unfitted_hp_adaptive_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
+  allocate(unfitted_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
 end subroutine suhpafs_create_fe_cell_iterator
 
@@ -111,7 +111,7 @@ subroutine suhpafs_generate_global_dof_numbering( this, block_layout )
 
   if (.not. this%use_constraints) then
     ! Call the father
-    call this%serial_hp_adaptive_fe_space_t%generate_global_dof_numbering(block_layout)
+    call this%serial_fe_space_t%generate_global_dof_numbering(block_layout)
     return
   end if
 
@@ -172,12 +172,6 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
   integer(ip) :: source_vef_lid  
   integer(ip) :: icell_improper_around
 
-  if (.not. this%use_constraints) then
-    ! Call the father
-    call this%serial_hp_adaptive_fe_space_t%fill_fe_dofs_and_count_dofs(field_id)
-    return
-  end if
-
   field_blocks            => this%get_field_blocks()
   fe_space_type_x_field => this%get_fe_space_type()
   iblock            = field_blocks(field_id)
@@ -189,8 +183,8 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
 
   call this%create_fe_cell_iterator(fe)
   if ( fe_space_type_x_field(field_id) == fe_space_type_cg ) then
-     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_proper_vef_to_cell_map  ,  __FILE__, __LINE__ )
-     call memalloc ( 2, this%p4est_triangulation%get_num_proper_vefs(), visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
+     call memalloc ( 2, this%triangulation%get_num_proper_vefs(), visited_proper_vef_to_cell_map  ,  __FILE__, __LINE__ )
+     call memalloc ( 2, this%triangulation%get_num_proper_vefs(), visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
      visited_proper_vef_to_cell_map = -1
      visited_improper_vef_to_cell_map = -1
      
@@ -533,6 +527,8 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   integer(ip) :: istat
   logical, allocatable :: visited_hanging_dof_lids(:)
 
+  type(p4est_serial_triangulation_t), pointer :: p4est_triangulation
+  
   field_id = 1
   mcheck(this%get_num_fields() == 1, 'Procedure implemented currently for a single field')
   mcheck(this%get_field_type(field_id) == field_type_scalar, 'Procedure implemented currently for scalar fields')
@@ -540,6 +536,13 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   ! Auxiliary
   triangulation => this%get_triangulation()
   call nodal_quad_in_root_fe%create(triangulation%get_num_dims(),this%get_max_num_shape_functions())
+
+  select type(triangulation)
+  class is (p4est_serial_triangulation_t)
+    p4est_triangulation => triangulation
+  class default
+    assert( .false. )
+  end select
 
   call memalloc(this%num_hanging_dofs,visited_hanging_dof_lids,__FILE__,__LINE__)
   
@@ -601,8 +604,8 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   end do
 
   ! Create the header from the sizes
-  call this%p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_free_dofs)
-  call this%p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_dirichlet_dofs)
+  call p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_free_dofs)
+  call p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_dirichlet_dofs)
 
   ! Allocate the vectors containing the raw data
 

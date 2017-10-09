@@ -65,7 +65,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%comm_cell_ggids()
     call this%comm_cell_myparts()
     call old_lst_vefs_gids%free()
-    call this%allocate_and_fill_x_cell_vertex_coordinates()
+    call this%fill_x_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
@@ -79,7 +79,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%comm_cell_ggids()
     call this%comm_cell_myparts()
     call old_lst_vefs_gids%free()
-    call this%allocate_and_fill_x_cell_vertex_coordinates()
+    call this%fill_x_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
@@ -112,7 +112,9 @@ subroutine p4est_serial_triangulation_free ( this)
   this%p4est              = c_null_ptr
   this%p4est_mesh         = c_null_ptr
   this%QHE                = c_null_ptr
-    
+  
+  call this%per_cell_vertex_coordinates%free()
+  
   call this%lst_vefs_gids%free()
   call this%cell_ggids%free()
   call this%ptr_cells_around_proper_vefs%free()

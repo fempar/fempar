@@ -28,29 +28,31 @@
 
 #include "debug.i90"
 #include "std_vector_macros.i90"
-module std_vector_integer_ip_names
+module std_vector_integer_igp_names
   use types_names
   use memor_names
   implicit none
   private
   
-  STD_VECTOR_TYPE(integer,ip)
+  STD_VECTOR_TYPE(integer(igp),integer_igp)
     
-  public :: std_vector_integer_ip_t
+  public :: std_vector_integer_igp_t
   
 contains
   
-  STD_VECTOR_PUSH_BACK(integer,ip)
-  STD_VECTOR_ERASE(integer,ip)
-  STD_VECTOR_RESIZE(integer,ip)
-  STD_VECTOR_SHRINK_TO_FIT(integer,ip)
-  STD_VECTOR_COPY(integer,ip)
-  STD_VECTOR_FREE(integer,ip)
-  STD_VECTOR_GET(integer,ip)
-  STD_VECTOR_GET_POINTER_TO_RANGE(integer,ip)
-  STD_VECTOR_SET(integer,ip)
-  STD_VECTOR_SIZE(integer,ip)
-  STD_VECTOR_CAPACITY(integer,ip)
-  STD_VECTOR_GET_RAW_POINTER(integer,ip)
+  STD_VECTOR_PUSH_BACK(integer(igp),integer_igp)
+  STD_VECTOR_ERASE(integer(igp),integer_igp)
+  STD_VECTOR_RESIZE(integer(igp),integer_igp)
+  STD_VECTOR_SHRINK_TO_FIT(integer(igp),integer_igp)
+  STD_VECTOR_COPY(integer(igp),integer_igp)
+  STD_VECTOR_FREE(integer(igp),integer_igp)
+  STD_VECTOR_GET(integer(igp),integer_igp)
+  STD_VECTOR_SET(integer(igp),integer_igp)
+  STD_VECTOR_SIZE(integer(igp),integer_igp)
+  STD_VECTOR_CAPACITY(integer(igp),integer_igp)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(integer(igp),integer_igp)
+  STD_VECTOR_GET_POINTER_TO_RANGE(integer(igp),integer_igp)
+  STD_VECTOR_GET_RAW_POINTER(integer(igp),integer_igp)
+
   
-end module std_vector_integer_ip_names
+end module std_vector_integer_igp_names

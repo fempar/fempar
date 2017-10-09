@@ -28,29 +28,30 @@
 
 #include "debug.i90"
 #include "std_vector_macros.i90"
-module std_vector_integer_igp_names
+module std_vector_logical_names
   use types_names
   use memor_names
   implicit none
   private
   
-  STD_VECTOR_TYPE(integer,igp)
+  STD_VECTOR_TYPE(logical,logical)
     
-  public :: std_vector_integer_igp_t
+  public :: std_vector_logical_t
   
 contains
   
-  STD_VECTOR_PUSH_BACK(integer,igp)
-  STD_VECTOR_ERASE(integer,igp)
-  STD_VECTOR_RESIZE(integer,igp)
-  STD_VECTOR_SHRINK_TO_FIT(integer,igp)
-  STD_VECTOR_COPY(integer,igp)
-  STD_VECTOR_FREE(integer,igp)
-  STD_VECTOR_GET(integer,igp)
-  STD_VECTOR_GET_POINTER_TO_RANGE(integer,igp)
-  STD_VECTOR_SET(integer,igp)
-  STD_VECTOR_SIZE(integer,igp)
-  STD_VECTOR_CAPACITY(integer,igp)
-  STD_VECTOR_GET_RAW_POINTER(integer,igp)
+  STD_VECTOR_PUSH_BACK(logical,logical)
+  STD_VECTOR_RESIZE(logical,logical)
+  STD_VECTOR_SHRINK_TO_FIT(logical,logical)
+  STD_VECTOR_FREE(logical,logical)
+  STD_VECTOR_ERASE(logical,logical)
+  STD_VECTOR_COPY(logical,logical)
+  STD_VECTOR_SET(logical,logical)
+  STD_VECTOR_SIZE(logical,logical)
+  STD_VECTOR_CAPACITY(logical,logical)
+  STD_VECTOR_GET(logical,logical)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(logical,logical)
+  STD_VECTOR_GET_POINTER_TO_RANGE(logical,logical)
+  STD_VECTOR_GET_RAW_POINTER(logical,logical)
   
-end module std_vector_integer_igp_names
+end module std_vector_logical_names
