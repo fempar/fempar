@@ -104,7 +104,6 @@ module triangulation_names
  
     ! XFEM-related TBPs
     procedure(update_sub_triangulation_interface)   , deferred :: update_sub_triangulation
-    procedure(get_mc_case_interface)                , deferred :: get_mc_case
     procedure(get_num_subcells_interface)           , deferred :: get_num_subcells
     procedure(get_num_subcell_nodes_interface)      , deferred :: get_num_subcell_nodes
     procedure(get_phys_coords_of_subcell_interface) , deferred :: get_phys_coords_of_subcell
@@ -359,12 +358,6 @@ module triangulation_names
        import :: cell_iterator_t
        class(cell_iterator_t), intent(inout) :: this
      end subroutine update_sub_triangulation_interface
-     
-     function get_mc_case_interface( this )
-       import :: cell_iterator_t, ip
-       class(cell_iterator_t), intent(in) :: this
-       integer(ip) :: get_mc_case_interface
-     end function get_mc_case_interface
      
      function get_num_subcells_interface( this ) result ( num_subcells )
        import :: cell_iterator_t, ip
@@ -890,7 +883,6 @@ module triangulation_names
 
     ! Declare dummy procedures to be implemented in the corresponding derived classes 
     procedure :: update_sub_triangulation    => bst_cell_iterator_update_sub_triangulation
-    procedure :: get_mc_case                 => bst_cell_iterator_get_mc_case
     procedure :: get_num_subcells      => bst_cell_iterator_get_num_subcells
     procedure :: get_num_subcell_nodes => bst_cell_iterator_get_num_subcell_nodes
     procedure :: get_phys_coords_of_subcell  => bst_cell_iterator_get_phys_coords_of_subcell

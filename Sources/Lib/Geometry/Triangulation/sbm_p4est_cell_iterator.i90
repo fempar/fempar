@@ -318,13 +318,6 @@ subroutine p4est_cell_iterator_update_sub_triangulation( this )
   mcheck(.false.,'This subroutine can only be called by some descendent classes')
 end subroutine p4est_cell_iterator_update_sub_triangulation
 
-function p4est_cell_iterator_get_mc_case( this ) result ( mc_case )
-  implicit none
-  class(p4est_cell_iterator_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  mcheck(.false.,'This subroutine can only be called by some descendent classes')
-end function p4est_cell_iterator_get_mc_case
-
 function p4est_cell_iterator_get_num_subcells( this ) result ( num_subcells )
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this

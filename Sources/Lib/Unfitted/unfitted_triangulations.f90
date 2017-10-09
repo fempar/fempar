@@ -68,12 +68,6 @@ module unfitted_triangulations_names
     ! Updater: to be called each time the lid changes
     procedure :: update_sub_triangulation    => unfitted_cell_iterator_update_sub_triangulation
 
-    ! TODO this one should be private in the future
-    ! Now it is public because the fe iterator uses it
-    ! The goal is that the fe iterator does not assume that the mc algorithm is used to subdivide the elements
-    ! Do not forget in the future to remove it also from cell_iterator_t
-    procedure :: get_mc_case   => unfitted_cell_iterator_get_mc_case
-    
     ! Getters related with the subcells
     procedure :: get_num_subcells      => unfitted_cell_iterator_get_num_subcells
     procedure :: get_num_subcell_nodes => unfitted_cell_iterator_get_num_subcell_nodes
@@ -97,7 +91,7 @@ module unfitted_triangulations_names
     procedure, non_overridable, private :: get_num_subnodes         => unfitted_cell_iterator_get_num_subnodes
     procedure, non_overridable, private :: subcell_has_been_reoriented    => unfitted_cell_iterator_subcell_has_been_reoriented
     procedure, non_overridable, private :: subfacet_touches_interior_reoriented_subcell => unfitted_cell_iterator_subfacet_touches_reoriented_subcell
-  end type unfitted_cell_iterator_t
+    end type unfitted_cell_iterator_t
 
   type, extends(bst_vef_iterator_t) :: unfitted_vef_iterator_t
     private

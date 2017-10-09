@@ -172,16 +172,6 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
 end subroutine unfitted_cell_iterator_update_sub_triangulation
 
 !========================================================================================
-function unfitted_cell_iterator_get_mc_case( this ) result ( mc_case )
-  implicit none
-  class(unfitted_cell_iterator_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  assert(this%is_local())
-  assert(this%marching_cubes%mc_runtime_init)
-  mc_case = this%marching_cubes%mc_case_x_cell(this%get_gid())
-end function unfitted_cell_iterator_get_mc_case
-
-!========================================================================================
 function unfitted_cell_iterator_get_num_subcells( this ) result ( num_subcells )
   implicit none
   class(unfitted_cell_iterator_t), intent(in) :: this

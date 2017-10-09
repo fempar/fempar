@@ -115,7 +115,7 @@ function unfitted_vef_iterator_get_num_subvefs( this ) result ( num_subvefs )
   assert(associated(this%marching_cubes))
   assert(allocated(this%unfitted_cell))
 
-  mc_case = this%unfitted_cell%get_mc_case()
+  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
   num_subvefs = this%marching_cubes%mc_table_num_fitted_sub_facets_x_case_and_facet(this%facet_lid,mc_case)
 
 end function unfitted_vef_iterator_get_num_subvefs
@@ -158,7 +158,7 @@ subroutine unfitted_vef_iterator_get_phys_coords_of_subvef( this, subvef, points
   assert(this%is_cut())
   assert( (1_ip <= subvef) .and. (subvef <= this%get_num_subvefs())  )
 
-  mc_case = this%unfitted_cell%get_mc_case()
+  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
   cell_map => this%marching_cubes%sub_nodes_cell_maps(mc_case)
   subnodes_phys_coords => cell_map%get_quadrature_points_coordinates()
   subfacet_node_ids =>  this%marching_cubes%fitted_sub_facets_node_ids_x_facet(:,subvef,this%facet_lid)
@@ -208,7 +208,7 @@ subroutine unfitted_vef_iterator_get_ref_coords_of_subvef( this, subvef, points 
   assert(this%is_cut())
   assert( (1_ip <= subvef) .and. (subvef <= this%get_num_subvefs())  )
 
-  mc_case = this%unfitted_cell%get_mc_case()
+  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
   subnodes_ref_coords => this%marching_cubes%subnodes_ref_coords
   subfacet_node_ids =>  this%marching_cubes%fitted_sub_facets_node_ids_x_facet(:,subvef,this%facet_lid)
   points(:) = subnodes_ref_coords(subfacet_node_ids(:))
@@ -248,7 +248,7 @@ function unfitted_vef_iterator_is_cut( this ) result ( is_cut )
   assert(associated(this%marching_cubes))
   assert(allocated(this%unfitted_cell))
 
-  mc_case = this%unfitted_cell%get_mc_case()
+  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
   istat = this%marching_cubes%mc_table_facet_status_x_case_and_facet(this%facet_lid,mc_case)
   is_cut = (istat == 0_ip)
 
@@ -267,7 +267,7 @@ function unfitted_vef_iterator_is_interior( this ) result ( is_interior )
   assert(associated(this%marching_cubes))
   assert(allocated(this%unfitted_cell))
 
-  mc_case = this%unfitted_cell%get_mc_case()
+  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
   istat = this%marching_cubes%mc_table_facet_status_x_case_and_facet(this%facet_lid,mc_case)
   is_interior = (istat == -1_ip)
 
@@ -286,7 +286,7 @@ function unfitted_vef_iterator_is_exterior( this ) result ( is_exterior )
   assert(associated(this%marching_cubes))
   assert(allocated(this%unfitted_cell))
 
-  mc_case = this%unfitted_cell%get_mc_case()
+  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
   istat = this%marching_cubes%mc_table_facet_status_x_case_and_facet(this%facet_lid,mc_case)
   is_exterior = (istat == 1_ip)
 
@@ -306,7 +306,7 @@ function unfitted_vef_iterator_is_interior_subvef( this, subvef ) result ( is_in
   assert(associated(this%marching_cubes))
   assert(allocated(this%unfitted_cell))
 
-  mc_case = this%unfitted_cell%get_mc_case()
+  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
   istat = this%marching_cubes%mc_table_fitted_sub_facets_status_x_case_and_facet(subvef,this%facet_lid,mc_case)
   is_in = (istat == -1_ip)
 
@@ -326,7 +326,7 @@ function unfitted_vef_iterator_is_exterior_subvef( this, subvef ) result ( is_ou
   assert(associated(this%marching_cubes))
   assert(allocated(this%unfitted_cell))
 
-  mc_case = this%unfitted_cell%get_mc_case()
+  mc_case = this%marching_cubes%mc_case_x_cell(this%unfitted_cell%get_gid())
   istat = this%marching_cubes%mc_table_fitted_sub_facets_status_x_case_and_facet(subvef,this%facet_lid,mc_case)
   is_out = (istat == 1_ip)
 

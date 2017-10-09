@@ -229,13 +229,6 @@ subroutine base_fe_cell_iterator_update_sub_triangulation( this )
   call this%cell%update_sub_triangulation()
 end subroutine base_fe_cell_iterator_update_sub_triangulation
 
-function base_fe_cell_iterator_get_mc_case( this ) result ( mc_case )
-  implicit none
-  class(base_fe_cell_iterator_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  mc_case = this%cell%get_mc_case()
-end function base_fe_cell_iterator_get_mc_case
-
 function base_fe_cell_iterator_get_num_subcells( this ) result ( num_subcells )
   implicit none
   class(base_fe_cell_iterator_t), intent(in) :: this

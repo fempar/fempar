@@ -159,7 +159,6 @@ module fe_space_names
     procedure, non_overridable           :: get_permutation_index   => base_fe_cell_iterator_get_permutation_index
     
     procedure                            :: update_sub_triangulation    => base_fe_cell_iterator_update_sub_triangulation
-    procedure                            :: get_mc_case                 => base_fe_cell_iterator_get_mc_case
     procedure                            :: get_num_subcells            => base_fe_cell_iterator_get_num_subcells
     procedure                            :: get_num_subcell_nodes       => base_fe_cell_iterator_get_num_subcell_nodes
     procedure                            :: get_phys_coords_of_subcell  => base_fe_cell_iterator_get_phys_coords_of_subcell
