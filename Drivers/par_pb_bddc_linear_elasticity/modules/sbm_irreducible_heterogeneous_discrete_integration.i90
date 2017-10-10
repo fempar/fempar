@@ -181,18 +181,3 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
   call memfree ( elvec, __FILE__, __LINE__ )
 
 end subroutine irreducible_heterogeneous_discrete_integration_integrate
-
-!=============================================================================
-  
-  subroutine set_elastic_modulus(this,elastic_modulus)
-    implicit none
-    class(irreducible_heterogeneous_discrete_integration_t), intent(inout)    :: this
-    real(rp)                               , intent(in)    :: elastic_modulus
-    
-    this%elastic_modulus = elastic_modulus
-    
-  end subroutine set_elastic_modulus
-
-!==============================================================================
-
-

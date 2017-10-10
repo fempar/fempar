@@ -142,8 +142,7 @@ module linear_elasticity_discrete_integration_names
      procedure :: integrate_galerkin => irreducible_heterogeneous_discrete_integration_integrate
      !procedure :: is_symmetric       => irreducible_discrete_integration_is_symmetric
      !procedure :: is_coercive        => irreducible_discrete_integration_is_coercive
-     !procedure :: init_solution => irreducible_discrete_integration_init_solution
-     procedure :: set_elastic_modulus 
+     !procedure :: init_solution => irreducible_discrete_integration_init_solution 
   end type irreducible_heterogeneous_discrete_integration_t  
 
   character(*), parameter :: discrete_integration_type_irreducible = 'irreducible'

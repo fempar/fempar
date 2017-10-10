@@ -56,8 +56,6 @@ module par_pb_bddc_linear_elasticity_driver_names
      type(elasticity_pb_bddc_l1_coarse_fe_handler_t):: elasticity_coarse_fe_handler
      type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
      class(irreducible_discrete_integration_t), allocatable :: linear_elasticity_integration
-     !type(irreducible_discrete_integration_t) :: linear_elasticity_integration
-     !type(irreducible_heterogeneous_discrete_integration_t) :: linear_elasticity_integration
      type(linear_elasticity_conditions_t)           :: linear_elasticity_conditions
      type(linear_elasticity_analytical_functions_t) :: linear_elasticity_analytical_functions
 
