@@ -635,10 +635,6 @@ contains
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(vector_field_t) :: zero_vector_field
 
-!!! Do we really need this
-    !call this%linear_elasticity_integration%set_source_term(this%linear_elasticity_analytical_functions%get_source_term())
-
-    ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
          diagonal_blocks_symmetric_storage = [ .true. ], &
          diagonal_blocks_symmetric         = [ .true. ], &
@@ -801,7 +797,7 @@ contains
     rhs        => this%fe_affine_operator%get_translation()
     !write(*,*)'2-norm',rhs%nrm2()
     dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%solve(-this%fe_affine_operator%get_translation(), &
+    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
          dof_values)
     !write(*,*)'solution',dof_values%nrm2()
 

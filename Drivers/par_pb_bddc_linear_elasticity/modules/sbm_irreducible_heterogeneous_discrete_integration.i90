@@ -160,8 +160,8 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
               epsi = symmetric_part(gp_solution_gradu(qpoint))
               sigma = lambda_heterogeneous*trace(epsi)*Id + 2*mu_heterogeneous*epsi
               do idof = 1, num_dofs
-                 elvec(idof) = elvec(idof) - this%residual_coefficient * dV * source_term_value * shape_values(idof,qpoint)
-                 elvec(idof) = elvec(idof) + this%residual_coefficient * dV * double_contract(shape_gradients(idof,qpoint),sigma)
+                 elvec(idof) = elvec(idof) + this%residual_coefficient * dV * source_term_value * shape_values(idof,qpoint)
+                 elvec(idof) = elvec(idof) - this%residual_coefficient * dV * double_contract(shape_gradients(idof,qpoint),sigma)
               end do
            end do
 
