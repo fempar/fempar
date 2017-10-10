@@ -86,12 +86,12 @@ module linear_elasticity_analytical_functions_names
 
   type linear_elasticity_analytical_functions_t
      private
-     type(source_term_p_t)        :: source_term_p
+     !type(source_term_p_t)        :: source_term_p
      type(source_term_u_t)        :: source_term_u
      !type(solution_function_p_t)  :: solution_function_p
      type(solution_function_u_t)  :: solution_function_u
      type(zero_vector_function_t) :: zero_u
-     type(zero_scalar_function_t) :: zero_p
+     !type(zero_scalar_function_t) :: zero_p
    contains
      procedure :: set_num_dimensions        => linear_elasticity_analytical_functions_set_num_dimensions
      !procedure :: get_source_term_p         => linear_elasticity_analytical_functions_get_source_term_p
@@ -243,7 +243,7 @@ contains
     implicit none
     class(linear_elasticity_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dimensions
-    call this%source_term_p%set_num_dimensions(num_dimensions)
+    !call this%source_term_p%set_num_dimensions(num_dimensions)
     call this%source_term_u%set_num_dimensions(num_dimensions)
     !call this%solution_function_p%set_num_dimensions(num_dimensions)
     call this%solution_function_u%set_num_dimensions(num_dimensions)

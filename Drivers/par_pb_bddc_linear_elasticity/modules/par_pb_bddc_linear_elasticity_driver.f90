@@ -55,8 +55,9 @@ module par_pb_bddc_linear_elasticity_driver_names
      type(standard_l1_coarse_fe_handler_t)       :: standard_coarse_fe_handler
      type(elasticity_pb_bddc_l1_coarse_fe_handler_t):: elasticity_coarse_fe_handler
      type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
+     class(irreducible_discrete_integration_t), allocatable :: linear_elasticity_integration
      !type(irreducible_discrete_integration_t) :: linear_elasticity_integration
-     type(irreducible_heterogeneous_discrete_integration_t) :: linear_elasticity_integration
+     !type(irreducible_heterogeneous_discrete_integration_t) :: linear_elasticity_integration
      type(linear_elasticity_conditions_t)           :: linear_elasticity_conditions
      type(linear_elasticity_analytical_functions_t) :: linear_elasticity_analytical_functions
 
@@ -175,24 +176,22 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
-    class(vef_iterator_t), allocatable  :: vef
-!!! Do we really need this  
-    logical :: fixed_pressure
+    class(vef_iterator_t), allocatable  :: vef 
+    !logical :: fixed_pressure
 
 
     call this%triangulation%create(this%parameter_list, this%par_environment)
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       fixed_pressure = .false.
+       !fixed_pressure = .false.
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
              call vef%set_set_id(1)
-!!! Do we really need this
-             if(.not.fixed_pressure) then
-                fixed_pressure = .true.
-                call vef%set_set_id(2)
-             end if
+             !if (.not.fixed_pressure) then
+             !   fixed_pressure = .true.
+             !   call vef%set_set_id(2)
+             !end if
           else
              call vef%set_set_id(0)
           end if
@@ -206,7 +205,7 @@ contains
        call this%setup_cell_set_ids() 
     end if
     call this%triangulation%setup_coarse_triangulation()
-    write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_num_objects()
+    !write(*,*) 'CG: NUMBER OBJECTS', this%triangulation%get_num_objects()
     if ( this%test_params%get_coarse_fe_handler_type() == standard_bddc ) then
        call this%setup_cell_set_ids() 
     end if
@@ -223,10 +222,6 @@ contains
     type(point_t) :: grav_center
     integer(ip)   :: inode, l1_rank  
     real(rp), allocatable:: px1(:), px2(:), py1(:), py2(:),  pz1(:), pz2(:)
-
-!!! Need to change this
-    this%linear_elasticity_integration%elastic_modulus = this%test_params%get_jump()    
-    this%elasticity_coarse_fe_handler%elastic_modulus = this%test_params%get_jump()
 
     if ( this%par_environment%am_i_l1_task() ) then
        l1_rank = this%par_environment%get_l1_rank()
@@ -552,8 +547,26 @@ contains
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-
-    !allocate(irreducible_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
+    
+    if ( this%test_params%get_discrete_integration_type() == 'homogeneous' ) then
+       allocate(irreducible_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)     
+    else if(this%test_params%get_discrete_integration_type() == 'heterogeneous' ) then
+       allocate(irreducible_heterogeneous_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
+       this%elasticity_coarse_fe_handler%elastic_modulus = this%test_params%get_jump()
+    else
+       if ( this%par_environment%get_l1_rank() == 0 ) then
+       write(*,*) 'Discrete integration type ', this%test_params%get_discrete_integration_type(), ' has not been implemented.'
+       end if
+       assert(1==0)
+    endif
+    if ( this%par_environment%get_l1_rank() == 0 ) then
+       write(*,*) 'Using ', this%test_params%get_discrete_integration_type(), ' discrete integration'
+    end if 
+    select type (temporary_pointer => this%linear_elasticity_integration)   
+    type is (irreducible_heterogeneous_discrete_integration_t)
+    temporary_pointer%elastic_modulus = this%test_params%get_jump()    
+    end select 
+    
     call this%linear_elasticity_integration%create(this%triangulation%get_num_dims(),this%linear_elasticity_analytical_functions)
 
   end subroutine setup_discrete_integration
