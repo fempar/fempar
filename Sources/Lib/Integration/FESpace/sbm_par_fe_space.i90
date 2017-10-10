@@ -290,7 +290,7 @@ subroutine par_fe_space_generate_global_dof_numbering( this, block_layout )
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
      call this%serial_fe_space_t%generate_global_dof_numbering(block_layout)
-     call this%count_and_list_dofs_on_ghosts()
+     !call this%count_and_list_dofs_on_ghosts()
      call this%compute_blocks_dof_import()
      ! Step required by the MLBDDC preconditioner
      call this%renum_dofs_first_interior_then_interface()
@@ -303,89 +303,6 @@ subroutine par_fe_space_generate_global_dof_numbering( this, block_layout )
      check (istat==0)
   end if
 end subroutine par_fe_space_generate_global_dof_numbering
-
-subroutine par_fe_space_count_and_list_dofs_on_ghosts( this ) 
-  implicit none 
-  ! Parameters
-  class(par_fe_space_t)  , intent(inout) :: this  
-
-  ! Local variables
-  integer(ip) :: ivef, ielem, ivef_in_source_fe
-  integer(ip) :: iblock
-  integer(ip) :: field_id
-  
-  
-  class(fe_cell_iterator_t), allocatable :: fe
-  class(fe_cell_iterator_t), allocatable :: source_fe
-  type(fe_vef_iterator_t) :: vef
-
-  class(reference_fe_t), pointer :: reference_fe
-  type(list_iterator_t)          :: own_dofs_on_vef_iterator
-
-#ifdef DEBUG
-  type(environment_t), pointer :: environment
-  environment => this%get_environment()
-  assert ( environment%am_i_l1_task() )
-#endif  
-  
-
-  call this%create_fe_cell_iterator(fe)
-  call this%create_fe_cell_iterator(source_fe)
-  call this%create_fe_vef_iterator(vef)
-  do while(.not. fe%has_finished())
-     if ( fe%is_ghost() ) then
-         do field_id = 1, this%num_fields
-           if ( .not. fe%is_void(field_id)) then
-              if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
-                 do ivef = 1, fe%get_num_vefs()
-                   call fe%get_vef(ivef, vef)
-                   if ( vef%is_at_interface() ) then          
-                     ! Find local element around vef_lid in elem_id
-                     do ielem=1, vef%get_num_cells_around()
-                       call vef%get_cell_around(ielem, source_fe)
-                       if ( source_fe%is_local() .and. (.not. source_fe%is_void(field_id)) ) then
-                          ivef_in_source_fe = source_fe%get_vef_lid_from_gid(vef%get_gid()) 
-
-                          ! Check that the source fe has at least one dof on this vef
-                          reference_fe => source_fe%get_reference_fe(field_id)
-                          own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef_in_source_fe)
-                          if (own_dofs_on_vef_iterator%get_size() > 0) then
-                            call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
-                                                                          source_fe, & 
-                                                                          ivef_in_source_fe, &
-                                                                          field_id )    
-                            exit
-                          end if
-                        end if
-                     end do
-                   end if
-                 end do
-              else
-                 do ivef = 1, fe%get_num_vefs()
-                    call fe%get_vef(ivef, vef)
-                    if ( vef%is_facet() .and. vef%is_at_interface() ) then
-                      call fe%generate_dofs_facet_integration_coupling ( ivef, &
-                                                                    field_id, &
-                                                                    this%num_dofs_x_field(field_id) )
-                    end if
-                 end do  
-              end if
-           end if
-         end do
-     end if
-     call fe%next()    
-  end do
-  call this%free_fe_cell_iterator(fe)
-  call this%free_fe_cell_iterator(source_fe)
-  call this%free_fe_vef_iterator(vef)
-
-  ! (Re-)Count #DoFs per block
-  call this%block_layout%clear_num_dofs_x_block()
-  do field_id=1, this%get_num_fields()
-    iblock = this%block_layout%get_block_id(field_id) 
-    call this%block_layout%add_to_block_num_dofs(iblock,this%num_dofs_x_field(field_id))     
-  end do 
-end subroutine par_fe_space_count_and_list_dofs_on_ghosts
 
 subroutine par_fe_space_renum_dofs_first_interior_then_interface( this )
   implicit none
@@ -429,9 +346,10 @@ subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes(this, field_id)
         if ( fe%is_ghost() ) then
           do ivef = 1, fe%get_num_vefs()
             call fe%get_vef(ivef, vef)
-            if ( vef%is_at_interface() ) then
-              ! Find local element around vef_lid in elem_id
-              do ielem=1, vef%get_num_cells_around()
+            if ( .not. vef%is_ghost() ) then
+              if ( vef%is_at_interface() ) then
+               ! Find local element around vef_lid in elem_id
+               do ielem=1, vef%get_num_cells_around()
                 call vef%get_cell_around(ielem, source_fe)
                 if ( source_fe%is_local() ) then
                   ivef_in_source_fe = source_fe%get_vef_lid_from_gid(vef%get_gid()) 
@@ -447,7 +365,8 @@ subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes(this, field_id)
                     exit
                   end if
                 end if
-              end do
+               end do
+              end if
             end if
           end do
           call fe%determine_at_strong_dirichlet_boundary(field_id)  

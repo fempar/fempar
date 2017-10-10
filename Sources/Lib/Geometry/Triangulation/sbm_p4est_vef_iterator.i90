@@ -272,8 +272,12 @@ function p4est_vef_iterator_is_at_interface (this)
   class(p4est_vef_iterator_t), intent(in) :: this
   logical :: p4est_vef_iterator_is_at_interface 
   assert ( this%is_within_valid_range() )
+  if ( this%is_ghost() ) then
+    p4est_vef_iterator_is_at_interface  = .false.
+    return
+  end if
   if ( this%is_proper() ) then
-   p4est_vef_iterator_is_at_interface  = (this%p4est_triangulation%proper_vefs_at_interface%get(this%get_gid()) == 1)
+    p4est_vef_iterator_is_at_interface  = (this%p4est_triangulation%proper_vefs_at_interface%get(this%get_gid()) == 1)
   else
     p4est_vef_iterator_is_at_interface = (this%p4est_triangulation%improper_vefs_at_interface%get(abs(this%get_gid())) == 1)
   end if

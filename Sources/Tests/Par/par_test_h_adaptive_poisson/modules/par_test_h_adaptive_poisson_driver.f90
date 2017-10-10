@@ -629,13 +629,13 @@ end subroutine free_timers
     call this%timer_triangulation%stop()
 
     call this%timer_fe_space%start()
-    !call this%setup_reference_fes()
-    !call this%setup_coarse_fe_handlers()
-    !call this%setup_fe_space()
+    call this%setup_reference_fes()
+    call this%setup_coarse_fe_handlers()
+    call this%setup_fe_space()
     call this%timer_fe_space%stop()
 
     call this%timer_assemply%start()
-    !call this%setup_system()
+    call this%setup_system()
     !call this%assemble_system()
     call this%timer_assemply%stop()
 
@@ -657,20 +657,20 @@ end subroutine free_timers
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
-    !call this%solution%free()
+    call this%solution%free()
 #ifdef ENABLE_MKL    
     !call this%mlbddc%free()
 #endif    
     !call this%iterative_linear_solver%free()
-    !call this%fe_affine_operator%free()
-    !call this%fe_space%free()
-    !if ( allocated(this%reference_fes) ) then
-    !  do i=1, size(this%reference_fes)
-    !    call this%reference_fes(i)%free()
-    !  end do
-    !  deallocate(this%reference_fes, stat=istat)
-    !  check(istat==0)
-    !end if
+    call this%fe_affine_operator%free()
+    call this%fe_space%free()
+    if ( allocated(this%reference_fes) ) then
+      do i=1, size(this%reference_fes)
+        call this%reference_fes(i)%free()
+      end do
+      deallocate(this%reference_fes, stat=istat)
+      check(istat==0)
+    end if
     call this%triangulation%free()
     !if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
   end subroutine free  

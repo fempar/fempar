@@ -443,7 +443,7 @@ contains
                   call this%ptr_improper_cells_around%push_back(1)
                   call this%lst_improper_cells_around%push_back(icell)
                   
-                  call this%improper_vefs_improper_cell_around_ivef%push_back(icell_iface)
+                  call this%improper_vefs_improper_cell_around_ivef%push_back(num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(icell_iface))
                   call this%improper_vefs_improper_cell_around_subvef%push_back(-1) 
                   
                   ! Fill improper vefs dim
@@ -882,7 +882,7 @@ contains
                  ! Fill improper cells_around improper vefs
                  call this%ptr_improper_cells_around%push_back(1)
                  call this%lst_improper_cells_around%push_back(icell)
-                 call this%improper_vefs_improper_cell_around_ivef%push_back(iface)
+                 call this%improper_vefs_improper_cell_around_ivef%push_back(num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(iface))
                  call this%improper_vefs_improper_cell_around_subvef%push_back(isubface)
                  
                  ! Fill improper vefs dim
