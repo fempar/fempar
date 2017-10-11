@@ -86,7 +86,7 @@ module par_pb_bddc_linear_elasticity_driver_names
      ! Discrete integration type
      logical :: heterogeneous_integral = .false.
      ! Max cell id
-     integer(ip)      :: max_cell_id = 1
+     integer(ip)      :: max_cell_id 
 
    contains
      procedure                  :: parse_command_line_parameters
@@ -223,9 +223,10 @@ contains
     integer(ip), allocatable                  :: cells_set(:)
     type(point_t), allocatable :: cell_coords(:)
     type(point_t) :: grav_center
-    integer(ip)   :: inode, l1_rank, cell_id  
+    integer(ip)   :: inode, l1_rank, cell_id, max_cell_id  
     real(rp), allocatable:: px1(:), px2(:), py1(:), py2(:),  pz1(:), pz2(:)
 
+    max_cell_id = 1
     if ( this%par_environment%am_i_l1_task() ) then
        l1_rank = this%par_environment%get_l1_rank()
        call memalloc( this%triangulation%get_num_local_cells(), cells_set, __FILE__, __LINE__ ) 
@@ -246,8 +247,8 @@ contains
                   this%test_params%get_nparts_with_channels(), &
                   this%test_params%get_nparts())
              cells_set( cell%get_gid() ) = cell_id
-             if (cell_id > this%max_cell_id) then
-                this%max_cell_id = cell_id
+             if (cell_id > max_cell_id) then
+                max_cell_id = cell_id
              end if
           end if
           call cell%next()
@@ -255,6 +256,8 @@ contains
        call this%triangulation%fill_cells_set( cells_set )
        call memfree( cells_set, __FILE__, __LINE__ )
        call this%triangulation%free_cell_iterator(cell)
+       call this%par_environment%l1_max_scalar_ip(max_cell_id)
+       this%max_cell_id = max_cell_id
     end if
 
     if ( allocated(px1) ) call memfree( px1, __FILE__, __LINE__ )
