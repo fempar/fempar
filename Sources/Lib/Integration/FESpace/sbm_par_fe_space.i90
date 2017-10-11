@@ -153,6 +153,9 @@ subroutine par_fe_space_free( this )
      environment => this%get_environment()
      if ( environment%am_i_l1_task() ) then
         call this%serial_fe_space_t%free()
+        call this%max_part_id_vefs%free()
+        call this%ptr_dofs_field%free()
+        call this%lst_dofs_ggids%free()
         call this%free_blocks_dof_import()
         call this%free_faces_object()
         call this%free_coarse_dofs()
@@ -687,21 +690,23 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
   call this%create_fe_cell_iterator(fe) 
   result = 0 
   do while(.not. vef%has_finished())
-     touched_neighbours = .false.
-     do ielem=1, vef%get_num_cells_around()
-        call vef%get_cell_around(ielem,fe)
-        part_id = fe%get_my_part()
-        if ( part_id /= mypart_id ) then
-           local_part_id = cell_import%get_local_neighbour_id(part_id)
-           if (.not. touched_neighbours (local_part_id)) then
-              ivef = fe%get_vef_lid_from_gid(vef%get_gid())
-              reference_fe => fe%get_reference_fe(field_id)
-              result_previous = result
-              result = result + reference_fe%get_num_own_dofs_n_face(ivef)
-              if (result>result_previous) touched_neighbours (local_part_id) = .true.
-           end if
-        end if
-     end do
+     if ( vef%is_proper() ) then
+       touched_neighbours = .false.
+       do ielem=1, vef%get_num_cells_around()
+          call vef%get_cell_around(ielem,fe)
+          part_id = fe%get_my_part()
+          if ( part_id /= mypart_id ) then
+             local_part_id = cell_import%get_local_neighbour_id(part_id)
+             if (.not. touched_neighbours (local_part_id)) then
+                ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+                reference_fe => fe%get_reference_fe(field_id)
+                result_previous = result
+                result = result + reference_fe%get_num_own_dofs_n_face(ivef)
+                if (result>result_previous) touched_neighbours (local_part_id) = .true.
+             end if
+          end if
+       end do
+     end if
      call vef%next()
   end do
   pfs_compute_ubound_num_itfc_couplings_by_continuity = result
@@ -1094,12 +1099,205 @@ function par_fe_space_get_num_fe_objects ( this )
   par_fe_space_get_num_fe_objects = this%triangulation%get_num_objects()
 end function par_fe_space_get_num_fe_objects 
 
+subroutine par_fe_space_compute_max_part_id_and_dofs_ggids_field ( this, field_id )
+  implicit none
+  class(par_fe_space_t)        , intent(inout) :: this
+  integer(ip)                  , intent(in)    :: field_id
+  
+  class(environment_t)  , pointer :: environment
+  class(triangulation_t), pointer :: triangulation
+  type(cell_import_t)   , pointer :: cell_import
+  class(reference_fe_t) , pointer :: reference_fe
+  type(list_iterator_t) :: own_dofs_on_vef_iterator
+  type(fe_vef_iterator_t) :: vef
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe_max
+  integer(ip), pointer :: fe_dofs(:)
+  integer(ip), pointer :: max_fe_dofs(:)
+  logical, allocatable :: touched_neighbours(:)
+  integer(ip) :: ielem, part_id, ivef, dof_gid
+  integer(ip) :: mypart_id, max_part_id, idof
+  integer(ip) :: local_part_id
+  logical :: all_ghosts
+  integer(ip) :: cell_gid
+  integer(ip) :: num_vefs
+  integer(ip) :: num_dofs
+  integer(ip) :: base_pos
+  integer(ip), pointer :: p_max_part_id_vefs(:)
+  integer(igp), pointer :: p_lst_dofs_ggids(:)
+  integer(ip)  :: i
+  integer(igp) :: elem_ggid
+  integer(igp) :: max_elem_ggid
+  integer(ip)  :: max_elem_gid
+  integer(ip)  :: max_idof
+  type(std_vector_integer_ip_t) :: dofs_gids
+  type(std_vector_integer_ip_t) :: dofs_lids
+
+  triangulation => this%get_triangulation()
+  environment   => triangulation%get_environment()
+  cell_import   => triangulation%get_cell_import()
+  
+  ! Initialization of DoFs data structures
+  call this%ptr_dofs_field%resize(1)
+  call this%ptr_dofs_field%set(1,1)
+  i=2
+  call this%create_fe_cell_iterator(fe)
+  do while ( .not. fe%has_finished() )
+    call this%ptr_dofs_field%push_back(this%ptr_dofs_field%get(i-1)+fe%get_num_dofs_field(field_id))  
+    call fe%next()
+    i=i+1
+  end do
+  call this%lst_dofs_ggids%resize(0)
+  call this%lst_dofs_ggids%resize(this%ptr_dofs_field%get(triangulation%get_num_cells()+1)-1,0_igp)
+  
+  call fe%first()
+  num_vefs = fe%get_num_vefs()
+  num_dofs = fe%get_num_dofs_field(field_id)
+  
+  call this%max_part_id_vefs%resize(0) 
+  call this%max_part_id_vefs%resize(triangulation%get_num_cells()*num_vefs,0) 
+  
+  call memalloc ( cell_import%get_num_neighbours(), &
+                  touched_neighbours, __FILE__, __LINE__ )
+  
+  mypart_id = environment%get_l1_rank()+1
+  
+  call this%create_fe_cell_iterator(fe_max)
+  
+  ! Traverse vefs on the interface
+  call this%create_itfc_fe_vef_iterator(vef)
+  do while(.not. vef%has_finished())
+    if ( vef%is_proper() ) then
+      touched_neighbours = .false.
+      all_ghosts = .true.
+      max_part_id = 0
+      max_elem_ggid = 0
+      call dofs_gids%resize(0)
+      call dofs_lids%resize(0)
+      do ielem=1, vef%get_num_cells_around()
+        call vef%get_cell_around(ielem,fe)
+        elem_ggid = fe%get_ggid()
+        part_id = fe%get_my_part()
+        ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+        call fe%get_field_fe_dofs( field_id, fe_dofs )
+        reference_fe => fe%get_reference_fe(field_id)
+        own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+           idof = own_dofs_on_vef_iterator%get_current()
+           dof_gid = fe_dofs(idof)
+           if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+             call own_dofs_on_vef_iterator%next()
+             cycle
+           end if
+           if ( fe%is_local() ) all_ghosts = .false.
+           if ( elem_ggid >= max_elem_ggid ) then
+             max_elem_ggid = elem_ggid
+             max_elem_gid  = fe%get_gid()
+             call dofs_gids%push_back(dof_gid)
+             call dofs_lids%push_back(idof)
+           end if
+           if ( part_id /= mypart_id ) then
+              local_part_id = cell_import%get_local_neighbour_id(part_id)
+              if ( .not. touched_neighbours(local_part_id) ) then
+                 touched_neighbours (local_part_id) = .true.
+                 max_part_id = max(part_id, max_part_id)
+              end if
+           else
+              max_part_id = max(mypart_id, max_part_id)
+           end if
+           call own_dofs_on_vef_iterator%next()
+        end do
+      end do
+      
+      ! If all parts around a given proper vef are ghost, then 
+      ! mypart_id CANNOT become the owner of the DoFs on top of it
+      if ( all_ghosts ) then
+         call vef%next()
+         cycle
+      end if   
+      
+      call fe_max%set_gid(max_elem_gid)
+      call fe_max%get_field_fe_dofs(field_id, max_fe_dofs)
+      
+      do ielem=1, vef%get_num_cells_around()
+        call vef%get_cell_around(ielem,fe)
+        
+        ! Compute this%max_part_id_vefs
+        ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+        cell_gid = fe%get_gid()
+        base_pos = (cell_gid-1)*num_vefs
+        call this%max_part_id_vefs%set(base_pos+ivef, max_part_id)
+        
+        ! Compute this%lst_dofs_ggids
+        ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+        call fe%get_field_fe_dofs( field_id, fe_dofs )
+        reference_fe => fe%get_reference_fe(field_id)
+        own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+           idof    = own_dofs_on_vef_iterator%get_current()
+           dof_gid = fe_dofs(idof)
+           if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+             call own_dofs_on_vef_iterator%next()
+             cycle
+           end if
+           
+           do i=1, dofs_gids%size()
+             if ( dofs_gids%get(i) == dof_gid ) then
+               max_idof = dofs_lids%get(i)
+               cycle  
+             end if
+           end do
+           
+           base_pos = this%ptr_dofs_field%get(fe%get_gid())-1
+           call this%lst_dofs_ggids%set(base_pos+idof, this%generate_non_consecutive_dof_ggid(max_elem_ggid, &
+                                                                                              max_idof, &
+                                                                                              field_id))
+           call own_dofs_on_vef_iterator%next()
+        end do
+      end do  
+    end if
+    call vef%next()
+  end do
+  
+  p_max_part_id_vefs => this%max_part_id_vefs%get_pointer()
+  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_rcv_ptrs(),&
+                                            cell_import%get_rcv_leids(),&
+                                            cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_snd_ptrs(),&
+                                            cell_import%get_snd_leids(),&
+                                            p_max_part_id_vefs, & 
+                                            p_max_part_id_vefs, &
+                                            num_vefs)
+  
+  p_lst_dofs_ggids => this%lst_dofs_ggids%get_pointer()
+  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_rcv_ptrs(),&
+                                            cell_import%get_rcv_leids(),&
+                                            cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_snd_ptrs(),&
+                                            cell_import%get_snd_leids(),&
+                                            p_lst_dofs_ggids, & 
+                                            p_lst_dofs_ggids, &
+                                            num_dofs)
+  
+  call this%free_fe_cell_iterator(fe)
+  call this%free_fe_cell_iterator(fe_max)
+  call this%free_fe_vef_iterator(vef)
+  call memfree ( touched_neighbours, __FILE__, __LINE__ )
+  call dofs_gids%free()
+end subroutine par_fe_space_compute_max_part_id_and_dofs_ggids_field
+
 function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
-                                                                      field_id, &
-                                                                      offset, &
-                                                                      ubound_num_itfc_couplings, &
-                                                                      dofs_gid, &
-                                                                      raw_interface_data ) result(num_itfc_couplings)
+                                                                  field_id, &
+                                                                  offset, &
+                                                                  ubound_num_itfc_couplings, &
+                                                                  dofs_gid, &
+                                                                  raw_interface_data ) result(num_itfc_couplings)
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: field_id
@@ -1128,25 +1326,29 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   logical     , allocatable :: touched_neighbours(:)
   integer(ip), allocatable  :: parts_visited(:)
 
-  type(environment_t)      , pointer :: environment
+  type(environment_t), pointer :: environment
   class(triangulation_t), pointer :: triangulation
-  type(cell_import_t)       , pointer :: cell_import
-  class(reference_fe_t)        , pointer :: reference_fe
-  type(list_iterator_t)                  :: own_dofs_on_vef_iterator
-  type(fe_vef_iterator_t)                :: vef
+  type(cell_import_t), pointer :: cell_import
+  class(reference_fe_t), pointer :: reference_fe
+  type(list_iterator_t) :: own_dofs_on_vef_iterator
+  type(fe_vef_iterator_t) :: vef
   class(fe_cell_iterator_t), allocatable :: fe
-  type(i1p_t)              , allocatable :: fe_dofs(:)
+  integer(ip), pointer :: fe_dofs(:)
 
-
+  !call this%compute_max_part_id_and_dofs_ggids_field(field_id)
+  
   environment   => this%get_environment()
-  triangulation     => this%get_triangulation()
-  cell_import       => triangulation%get_cell_import()
+  triangulation => this%get_triangulation()
+  cell_import   => triangulation%get_cell_import()
   assert ( environment%am_i_l1_task() )
 
   ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
-  call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), local_idof, __FILE__, __LINE__ )
-  call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), lst_dofs_current_vef, __FILE__, __LINE__ )
-  call memalloc ( ubound_num_itfc_couplings, dofs_max_part_id, __FILE__, __LINE__ )
+  call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), &
+                  local_idof, __FILE__, __LINE__ )
+  call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), &
+                  lst_dofs_current_vef, __FILE__, __LINE__ )
+  call memalloc ( ubound_num_itfc_couplings, dofs_max_part_id, & 
+                  __FILE__, __LINE__ )
 
   call memalloc ( cell_import%get_num_neighbours(), &
                   touched_neighbours, &
@@ -1155,9 +1357,6 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   call memalloc ( cell_import%get_num_neighbours(), &
                   parts_visited, &
                   __FILE__, __LINE__ )
-  
-  allocate ( fe_dofs(this%num_fields), stat=istat ) 
-  check (istat==0)
   
   mypart_id = environment%get_l1_rank() + 1
   
@@ -1168,72 +1367,70 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   call this%create_itfc_fe_vef_iterator(vef)
   call this%create_fe_cell_iterator(fe) 
   do while(.not. vef%has_finished())
-     touched_neighbours = .false.
-     num_parts = 0
-     max_part_id = mypart_id
-     max_elem_ggid = 0
+     if ( vef%is_proper() ) then
+        touched_neighbours = .false.
+        num_parts = 0
+        max_part_id = mypart_id
+        max_elem_ggid = 0
 
-     num_dofs_current_vef = 0
-     ! Identify the total set of dofs in current vef
-     do ielem=1, vef%get_num_cells_around()
-        call vef%get_cell_around(ielem,fe)
-        !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
-        part_id = fe%get_my_part()
-        elem_ggid = fe%get_ggid()
-        ivef = fe%get_vef_lid_from_gid(vef%get_gid())
-        call fe%get_fe_dofs( fe_dofs )
-        reference_fe => fe%get_reference_fe(field_id)
-        own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
-        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-           idof =  own_dofs_on_vef_iterator%get_current()
-           dof_gid = fe_dofs(field_id)%p(idof)
-           if ( dof_gid <= 0 ) then
-             call own_dofs_on_vef_iterator%next()
-             cycle
-           end if
-           if ( elem_ggid >= max_elem_ggid ) then
-              max_elem_ggid = elem_ggid
-              if ( local_idof(dof_gid) == 0 ) then
-                 num_dofs_current_vef = num_dofs_current_vef + 1    
-                 lst_dofs_current_vef (num_dofs_current_vef) = dof_gid
+        num_dofs_current_vef = 0
+        ! Identify the total set of dofs in current vef
+        do ielem=1, vef%get_num_cells_around()
+           call vef%get_cell_around(ielem,fe)
+           part_id = fe%get_my_part()
+           elem_ggid = fe%get_ggid()
+           ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+           call fe%get_field_fe_dofs( field_id, fe_dofs )
+           reference_fe => fe%get_reference_fe(field_id)
+           own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+              idof =  own_dofs_on_vef_iterator%get_current()
+              dof_gid = fe_dofs(idof)
+              if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+                 call own_dofs_on_vef_iterator%next()
+                 cycle
               end if
-              local_idof(dof_gid) = idof
-           end if
-           if ( part_id /= mypart_id ) then 
-              local_part_id = cell_import%get_local_neighbour_id(part_id)
-              if ( .not. touched_neighbours(local_part_id) ) then
-                 touched_neighbours (local_part_id) = .true.
-                 num_parts = num_parts + 1
-                 parts_visited (num_parts) = part_id
-                 max_part_id = max(part_id, max_part_id)
+              if ( elem_ggid >= max_elem_ggid ) then
+                 max_elem_ggid = elem_ggid
+                 if ( local_idof(dof_gid) == 0 ) then
+                    num_dofs_current_vef = num_dofs_current_vef + 1    
+                    lst_dofs_current_vef (num_dofs_current_vef) = dof_gid
+                 end if
+                 local_idof(dof_gid) = idof
               end if
-           end if
-           call own_dofs_on_vef_iterator%next()
+              if ( part_id /= mypart_id ) then 
+                 local_part_id = cell_import%get_local_neighbour_id(part_id)
+                 if ( .not. touched_neighbours(local_part_id) ) then
+                    touched_neighbours (local_part_id) = .true.
+                    num_parts = num_parts + 1
+                    parts_visited (num_parts) = part_id
+                    max_part_id = max(part_id, max_part_id)
+                 end if
+              end if
+              call own_dofs_on_vef_iterator%next()
+           end do
         end do
-        !end if
-     end do
 
-     init_col = current_col
-     do idof=1, num_dofs_current_vef
-        dof_gid = lst_dofs_current_vef(idof)
-        do ipart=1, num_parts
-           part_id = parts_visited(ipart)
-           dofs_gid ( current_col ) = dof_gid 
-           dofs_max_part_id ( current_col-offset ) = max_part_id
-           raw_interface_data(neighbor_part_id_row, current_col) = part_id
-           raw_interface_data(dof_gid_row, current_col) = this%generate_non_consecutive_dof_ggid(max_elem_ggid, &
-                                                                                                local_idof(dof_gid), &
-                                                                                                field_id)
-           raw_interface_data(owner_flag_row, current_col) = num_parts + 1
-           current_col = current_col + 1
+        init_col = current_col
+        do idof=1, num_dofs_current_vef
+           dof_gid = lst_dofs_current_vef(idof)
+           do ipart=1, num_parts
+              part_id = parts_visited(ipart)
+              dofs_gid ( current_col ) = dof_gid 
+              dofs_max_part_id ( current_col-offset ) = max_part_id
+              raw_interface_data(neighbor_part_id_row, current_col) = part_id
+              raw_interface_data(dof_gid_row, current_col) = this%generate_non_consecutive_dof_ggid(max_elem_ggid, &
+                                                                                                    local_idof(dof_gid), &
+                                                                                                    field_id)
+              raw_interface_data(owner_flag_row, current_col) = num_parts + 1
+              current_col = current_col + 1
+           end do
         end do
-     end do
+     end if
      call vef%next()
   end do
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_vef_iterator(vef)
-  deallocate(fe_dofs, stat=istat ) 
-  check (istat==0)
   
   ! Free touch arrays
   call memfree ( local_idof, __FILE__, __LINE__ )

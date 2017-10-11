@@ -106,6 +106,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%update_cell_set_ids()
     call this%update_vef_set_ids(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
+    call this%set_up_lst_itfc_vefs()
   end if 
 #else
   call this%not_enabled_error()

@@ -69,6 +69,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
+    call this%set_up_lst_itfc_vefs()
   else if ( this%get_num_dims() == 3 ) then
     call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
     call F90_p8est_new(dummy_comm,this%p4est_connectivity, this%p4est)
@@ -83,6 +84,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
+    call this%set_up_lst_itfc_vefs()
   end if  
 #else
   call this%not_enabled_error()
@@ -134,6 +136,7 @@ subroutine p4est_serial_triangulation_free ( this)
   call this%cell_set_ids%free()
   call this%proper_vefs_set_ids%free()
   call this%improper_vefs_set_ids%free()
+  call this%free_lst_itfc_vefs()
   
   cell_import => this%get_cell_import()
   call cell_import%free()

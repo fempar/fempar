@@ -65,6 +65,8 @@ module fe_space_names
   
   ! Adaptivity
   use std_vector_real_rp_names
+  use std_vector_integer_ip_names
+  use std_vector_integer_igp_names
   use p4est_triangulation_names
 
   ! Parallel modules
@@ -228,7 +230,7 @@ module fe_space_names
     procedure, non_overridable          :: get_field_blocks                           => fe_cell_iterator_get_field_blocks
     procedure, non_overridable          :: get_field_coupling                         => fe_cell_iterator_get_field_coupling
     procedure, non_overridable          :: get_num_dofs                               => fe_cell_iterator_get_num_dofs
-    procedure, non_overridable          :: get_num_dofs_field                       => fe_cell_iterator_get_num_dofs_field
+    procedure, non_overridable          :: get_num_dofs_field                         => fe_cell_iterator_get_num_dofs_field
     procedure, non_overridable          :: get_field_fe_dofs                          => fe_cell_iterator_get_field_fe_dofs
     procedure, non_overridable          :: get_fe_dofs                                => fe_cell_iterator_get_fe_dofs
     procedure, non_overridable          :: get_order                                  => fe_cell_iterator_get_order
@@ -761,6 +763,10 @@ module fe_space_names
    ! to iterate the faces of an object
    type(list_t)                                :: faces_object
    
+   ! Scratch data required for non-conforming triangulations
+   type(std_vector_integer_ip_t)               :: max_part_id_vefs
+   type(std_vector_integer_ip_t)               :: ptr_dofs_field
+   type(std_vector_integer_igp_t)              :: lst_dofs_ggids
  contains
    procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
    procedure, private :: serial_fe_space_create_different_ref_fes_between_cells                           => par_fe_space_serial_create_different_ref_fes_between_cells 
@@ -775,12 +781,13 @@ module fe_space_names
    procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
    procedure        , non_overridable          :: compute_num_global_dofs_and_their_ggids         => par_fe_space_compute_num_global_dofs_and_their_ggids
    
-   procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
-   procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
-   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
-   procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner   => par_fe_space_raw_interface_data_by_continuity_decide_owner
+   procedure        , non_overridable, private :: compute_blocks_dof_import                        => par_fe_space_compute_blocks_dof_import
+   procedure        , non_overridable, private :: compute_dof_import                               => par_fe_space_compute_dof_import
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity         => par_fe_space_compute_raw_interface_data_by_continuity
+   procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner    => par_fe_space_raw_interface_data_by_continuity_decide_owner
+   procedure        , non_overridable, private :: compute_max_part_id_and_dofs_ggids_field         => par_fe_space_compute_max_part_id_and_dofs_ggids_field
    procedure        , non_overridable, private :: compute_raw_interface_data_by_facet_integ        => par_fe_space_compute_raw_interface_data_by_facet_integ
-   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => pfs_compute_ubound_num_itfc_couplings_by_continuity
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity  => pfs_compute_ubound_num_itfc_couplings_by_continuity
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_facet_integ => pfs_compute_ubound_num_itfc_couplings_by_facet_integ
    procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_ggid                => par_fe_space_generate_non_consecutive_dof_ggid
    
