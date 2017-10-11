@@ -51,15 +51,15 @@ subroutine rigid_body_mode_get_values_set_space( this, point, result )
   integer(ip) :: i, num_points
 
   num_points = size(point)
-  
+
   ! Translation modes
   if (this%imode <= this%num_dims) then
      do i = 1, num_points
         call result(i)%init(0.0_rp)
         call result(i)%set(this%imode,1.0_rp)
      end do
-     
-  ! Rotation modes
+
+     ! Rotation modes
   else if (this%imode == this%num_dims + 1) then ! r4 = [x2 -x1 0 ]^T
      do i = 1, num_points
         call result(i)%init(0.0_rp)
@@ -290,7 +290,7 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
                     call fe_face%update_integration() 
                     call fe_face%get_values(icell_around,shape_values,field_id)
                     quad_coords => fe_face%get_quadrature_points_coordinates()
-                    
+
                     ! Go over coarse-DoFs functionals (rigid body modes)
                     do imode = 1,num_coarse_dofs                     
                        facevec = 0.0_rp

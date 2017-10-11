@@ -77,7 +77,7 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
   type(vector_field_t) :: source_term_value
   type(tensor_field_t) :: sigma, epsi, Id
   real(rp)     :: dV, Ev, nu,lambda_heterogeneous, mu_heterogeneous
-  
+
 
   assert (associated(this%source_term)) 
 
@@ -112,12 +112,12 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
 
         ! Get quadrature coordinates to evaluate source_term
         quad_coords => fe%get_quadrature_points_coordinates()
-        
+
         ! Get subset_id
         if ( fe%get_set_id() <= 1 ) then
-          Ev = 1.0_rp
+           Ev = 1.0_rp
         else 
-          Ev = this%elastic_modulus
+           Ev = this%elastic_modulus
         end if
         nu = nu_heterogeneous    
         lambda_heterogeneous = (nu*Ev)/((1+nu)*(1-2*nu))
@@ -147,9 +147,9 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
            end do
 
            call fe%assembly( elmat, assembler )
-          
+
         end if
-        
+
         ! Residual
         if (this%terms_to_integrate == translation_terms .or. this%terms_to_integrate == tangent_and_translation_terms) then
 

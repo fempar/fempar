@@ -83,6 +83,11 @@ module par_pb_bddc_linear_elasticity_driver_names
      type(timer_t) :: timer_solver_setup
      type(timer_t) :: timer_solver_run
 
+     ! Discrete integration type
+     logical :: heterogeneous_integral = .false.
+     ! Max cell id
+     integer(ip)      :: max_cell_id = 1
+
    contains
      procedure                  :: parse_command_line_parameters
      procedure                  :: setup_timers
@@ -218,7 +223,7 @@ contains
     integer(ip), allocatable                  :: cells_set(:)
     type(point_t), allocatable :: cell_coords(:)
     type(point_t) :: grav_center
-    integer(ip)   :: inode, l1_rank  
+    integer(ip)   :: inode, l1_rank, cell_id  
     real(rp), allocatable:: px1(:), px2(:), py1(:), py2(:),  pz1(:), pz2(:)
 
     if ( this%par_environment%am_i_l1_task() ) then
@@ -234,12 +239,16 @@ contains
                 grav_center = grav_center + cell_coords(inode)
              end do
              grav_center = (1.0_rp/cell%get_num_nodes())*grav_center
-             cells_set( cell%get_gid() ) = cell_set_id( grav_center, &
+             cell_id = cell_set_id( grav_center, &
                   this%triangulation%get_num_dims(), &
                   this%test_params%get_jump(), this%test_params%get_inclusion(), &
                   this%test_params%get_nchannel_x_direction(), &
                   this%test_params%get_nparts_with_channels(), &
                   this%test_params%get_nparts())
+             cells_set( cell%get_gid() ) = cell_id
+             if (cell_id > this%max_cell_id) then
+                this%max_cell_id = cell_id
+             end if
           end if
           call cell%next()
        end do
@@ -545,26 +554,28 @@ contains
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    
+
     if ( this%test_params%get_discrete_integration_type() == 'homogeneous' ) then
        allocate(irreducible_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)     
+       assert(this%max_cell_id == 1) !Heterogeneous integration is only used when max_cell_id == 1
     else if(this%test_params%get_discrete_integration_type() == 'heterogeneous' ) then
        allocate(irreducible_heterogeneous_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
-       this%elasticity_coarse_fe_handler%elastic_modulus = this%test_params%get_jump()
+       this%elasticity_coarse_fe_handler%elastic_modulus = this%test_params%get_jump()       
     else
        if ( this%par_environment%get_l1_rank() == 0 ) then
-       write(*,*) 'Discrete integration type ', this%test_params%get_discrete_integration_type(), ' has not been implemented.'
+          write(*,*) 'Discrete integration type ', this%test_params%get_discrete_integration_type(), ' has not been implemented.'
        end if
        assert(1==0)
     endif
     if ( this%par_environment%get_l1_rank() == 0 ) then
        write(*,*) 'Using ', this%test_params%get_discrete_integration_type(), ' discrete integration'
-    end if 
+    end if
     select type (temporary_pointer => this%linear_elasticity_integration)   
     type is (irreducible_heterogeneous_discrete_integration_t)
-    temporary_pointer%elastic_modulus = this%test_params%get_jump()    
-    end select 
-    
+       temporary_pointer%elastic_modulus = this%test_params%get_jump() 
+       this%heterogeneous_integral = .true.
+    end select
+
     call this%linear_elasticity_integration%create(this%triangulation%get_num_dims(),this%linear_elasticity_analytical_functions)
 
   end subroutine setup_discrete_integration
@@ -797,8 +808,13 @@ contains
     rhs        => this%fe_affine_operator%get_translation()
     !write(*,*)'2-norm',rhs%nrm2()
     dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-         dof_values)
+    if (this%heterogeneous_integral) then
+       call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+            dof_values)
+    else
+       call this%iterative_linear_solver%solve(-this%fe_affine_operator%get_translation(), &
+            dof_values)
+    end if
     !write(*,*)'solution',dof_values%nrm2()
 
     !select type (dof_values)

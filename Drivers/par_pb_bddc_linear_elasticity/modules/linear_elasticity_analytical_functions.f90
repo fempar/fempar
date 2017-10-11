@@ -33,36 +33,36 @@ module linear_elasticity_analytical_functions_names
   private
 
   type, extends(scalar_function_t) :: base_scalar_function_t
-    private
-    integer(ip) :: num_dimensions = -1  
-  contains
-    procedure :: set_num_dimensions    => base_scalar_function_set_num_dimensions
+     private
+     integer(ip) :: num_dimensions = -1  
+   contains
+     procedure :: set_num_dimensions    => base_scalar_function_set_num_dimensions
   end type base_scalar_function_t
 
   type, extends(vector_function_t) :: base_vector_function_t
-    integer(ip) :: num_dimensions = -1  
-  contains
-    procedure :: set_num_dimensions    => base_vector_function_set_num_dimensions
+     integer(ip) :: num_dimensions = -1  
+   contains
+     procedure :: set_num_dimensions    => base_vector_function_set_num_dimensions
   end type base_vector_function_t
 
   !===============================================================================================
   type, extends(scalar_function_t) :: zero_scalar_function_t
-  contains
+   contains
      procedure :: get_value_space  => zero_scalar_function_get_value_space
   end type zero_scalar_function_t
 
   type, extends(vector_function_t) :: zero_vector_function_t
-  contains
+   contains
      procedure :: get_value_space  => zero_vector_function_get_value_space
   end type zero_vector_function_t
 
   !===============================================================================================
   type, extends(base_scalar_function_t) :: source_term_p_t
-    private 
+     private 
    contains
      procedure :: get_value_space  => source_term_p_get_value_space
   end type source_term_p_t
-  
+
   type, extends(base_vector_function_t) :: source_term_u_t
    contains
      procedure :: get_value_space => source_term_u_get_value_space
@@ -120,7 +120,7 @@ contains
     this%num_dimensions = num_dimensions
   end subroutine base_vector_function_set_num_dimensions
 
- !===============================================================================================
+  !===============================================================================================
   subroutine zero_scalar_function_get_value_space ( this, point, result )
     implicit none
     class(zero_scalar_function_t), intent(in)    :: this
@@ -153,13 +153,13 @@ contains
     type(point_t)       , intent(in)    :: point
     type(vector_field_t), intent(inout) :: result
     if ( this%num_dimensions == 2 ) then
-      call result%set(1,0.0_rp)
-      call result%set(2,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
+       call result%set(1,0.0_rp)
+       call result%set(2,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
     else
-      call result%set(1,0.0_rp)
-      call result%set(2,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
-      call result%set(3,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
-    end if  
+       call result%set(1,0.0_rp)
+       call result%set(2,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
+       call result%set(3,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
+    end if
   end subroutine source_term_u_get_value_space
 
   !===============================================================================================
@@ -178,12 +178,12 @@ contains
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
     if ( this%num_dimensions == 2 ) then
-      call result%set(1, point%get(1)+point%get(2) ) 
-      call result%set(2, point%get(1)+point%get(2) ) 
+       call result%set(1, point%get(1)+point%get(2) ) 
+       call result%set(2, point%get(1)+point%get(2) ) 
     else
-      call result%set(1, point%get(1)+point%get(2)+point%get(3) ) 
-      call result%set(2, point%get(1)+point%get(2)+point%get(3) ) 
-      call result%set(3, point%get(1)+point%get(2)+point%get(3) )
+       call result%set(1, point%get(1)+point%get(2)+point%get(3) ) 
+       call result%set(2, point%get(1)+point%get(2)+point%get(3) ) 
+       call result%set(3, point%get(1)+point%get(2)+point%get(3) )
     end if
   end subroutine solution_function_u_get_value_space
 
@@ -195,8 +195,8 @@ contains
     type(vector_field_t)        , intent(inout) :: result
     ! Steady state solution
     call this%get_value_space(point,result)
-  end subroutine solution_function_u_get_value_space_time  
-  
+  end subroutine solution_function_u_get_value_space_time
+
   !===============================================================================================
   !subroutine solution_function_p_get_gradient_space ( this, point, result )
   !  implicit none
@@ -213,12 +213,12 @@ contains
     type(point_t)             , intent(in)    :: point
     type(tensor_field_t)      , intent(inout) :: result
     if ( this%num_dimensions == 2 ) then
-      call result%set( 1, 1, 1.0_rp ) 
-      call result%set( 2, 1, 1.0_rp )
-      call result%set( 1, 2, 1.0_rp ) 
-      call result%set( 2, 2, 1.0_rp )
+       call result%set( 1, 1, 1.0_rp ) 
+       call result%set( 2, 1, 1.0_rp )
+       call result%set( 1, 2, 1.0_rp ) 
+       call result%set( 2, 2, 1.0_rp )
     else
-      call result%init(1.0_rp)
+       call result%init(1.0_rp)
     end if
     !if ( this%num_dimensions == 2 ) then
     !  call result%set( 1, 1, 1.0_rp ) 
@@ -237,7 +237,7 @@ contains
     !  call result%set( 3, 3, 0.0_rp )
     !end if
   end subroutine solution_function_u_get_gradient_space
-  
+
   !===============================================================================================
   subroutine linear_elasticity_analytical_functions_set_num_dimensions ( this, num_dimensions )
     implicit none
@@ -247,8 +247,8 @@ contains
     call this%source_term_u%set_num_dimensions(num_dimensions)
     !call this%solution_function_p%set_num_dimensions(num_dimensions)
     call this%solution_function_u%set_num_dimensions(num_dimensions)
-  end subroutine linear_elasticity_analytical_functions_set_num_dimensions 
-  
+  end subroutine linear_elasticity_analytical_functions_set_num_dimensions
+
   !===============================================================================================
   !function linear_elasticity_analytical_functions_get_source_term_p ( this )
   !  implicit none
@@ -263,7 +263,7 @@ contains
     class(vector_function_t), pointer :: linear_elasticity_analytical_functions_get_source_term_u
     linear_elasticity_analytical_functions_get_source_term_u => this%source_term_u
   end function linear_elasticity_analytical_functions_get_source_term_u
-  
+
   !===============================================================================================
   !function linear_elasticity_analytical_functions_get_solution_function_p ( this )
   !  implicit none
