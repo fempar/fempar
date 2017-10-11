@@ -840,6 +840,10 @@ contains
     type(error_norms_vector_t) :: vector_error_norm 
     real(rp)    :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     integer(ip) :: field_id
+    
+    if (this%max_cell_id >1) then
+       return
+    end if
 
     do field_id = 1, this%linear_elasticity_integration%get_number_fields()
 
@@ -879,13 +883,15 @@ contains
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     type(output_handler_t)                          :: oh
+    class(fe_cell_iterator_t), allocatable :: fe
     real(rp),allocatable :: cell_vector(:)
     real(rp),allocatable :: mypart_vector(:)
     real(rp), allocatable :: set_id_cell_vector(:)
+    integer(ip)           :: i, istat
 
     if(this%test_params%get_write_solution()) then
        if (this%par_environment%am_i_l1_task()) then
-
+          call build_set_id_cell_vector()
           call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
           mypart_vector(:) = this%par_environment%get_l1_rank()
 
@@ -893,7 +899,7 @@ contains
           call oh%attach_fe_space(this%fe_space)
           call oh%add_fe_function(this%solution, 1, 'solution')
           call oh%add_cell_vector(mypart_vector,'l1_rank')
-          !call oh%add_cell_vector(set_id_cell_vector, 'set_id')
+          call oh%add_cell_vector(set_id_cell_vector, 'set_id')
           call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
           call oh%write()
           call oh%close()
@@ -901,9 +907,31 @@ contains
 
           if (allocated(cell_vector)) call memfree(cell_vector,__FILE__,__LINE__)
           call memfree(mypart_vector,__FILE__,__LINE__)
+          call free_set_id_cell_vector()
 
        end if
     endif
+    
+    contains
+    
+    subroutine build_set_id_cell_vector()
+      call memalloc(this%triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
+      i = 1
+      call this%fe_space%create_fe_cell_iterator(fe)  
+      do while ( .not. fe%has_finished())
+         if (fe%is_local()) then
+            set_id_cell_vector(i) = fe%get_set_id()
+            i = i + 1
+         end if
+         call fe%next()
+      enddo
+      call this%fe_space%free_fe_cell_iterator(fe)  
+    end subroutine build_set_id_cell_vector
+      
+    subroutine free_set_id_cell_vector()
+      call memfree(set_id_cell_vector, __FILE__, __LINE__)
+    end subroutine free_set_id_cell_vector
+    
   end subroutine write_solution
 
   subroutine run_simulation(this) 
