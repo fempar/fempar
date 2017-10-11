@@ -49,10 +49,7 @@ module linear_elasticity_discrete_integration_names
   integer(ip), allocatable :: field_blocks(:)
   logical    , allocatable :: field_coupling(:,:)
   class(vector_function_t), pointer :: source_term  => null()
-  ! The solution needs to be stored here to avoid an aliasing problem
-  ! in nonlinear_operator_apply
   class(fe_function_t), pointer :: fe_function => null()
-  class(fe_function_t), pointer :: fe_function_old => null()
   type(linear_elasticity_analytical_functions_t), pointer :: analytical_functions => null()
   real(rp) :: current_time
 contains
@@ -70,7 +67,6 @@ contains
   procedure :: set_field_coupling
   procedure :: set_analytical_functions
   procedure :: set_fe_function
-  procedure :: set_old_fe_function
   procedure :: set_terms_to_integrate
   procedure :: set_mass_coefficient
   procedure :: set_residual_coefficient
@@ -187,13 +183,6 @@ class(linear_elasticity_discrete_integration_t), intent(inout) :: this
 type(fe_function_t) , target           , intent(in)    :: fe_function
 this%fe_function => fe_function
 end subroutine set_fe_function
-
-subroutine set_old_fe_function (this, old_fe_function)
-implicit none
-class(linear_elasticity_discrete_integration_t), intent(inout) :: this
-class(fe_function_t),            target, intent(in)    :: old_fe_function
-this%fe_function_old => old_fe_function
-end subroutine set_old_fe_function
 
 subroutine set_mass_coefficient(this,mass_coefficient)
 implicit none
