@@ -533,6 +533,8 @@ end subroutine free_timers
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)
     
+    call this%fe_space%update_hanging_dof_values(this%solution)   
+ 
     !select type (dof_values)
     !class is (serial_scalar_array_t)  
     !   call dof_values%print(6)

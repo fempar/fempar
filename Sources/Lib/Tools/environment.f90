@@ -119,11 +119,13 @@ module environment_names
      procedure, private :: environment_l1_neighbours_exchange_igp
      procedure, private :: environment_l1_neighbours_exchange_single_ip
      procedure, private :: environment_l1_neighbours_exchange_wo_pack_unpack_ieep
+     procedure, private :: environment_l1_neighbours_exchange_wo_unpack_ip
      generic   :: l1_neighbours_exchange      => environment_l1_neighbours_exchange_rp, &
           environment_l1_neighbours_exchange_ip,&
           environment_l1_neighbours_exchange_igp,&
           environment_l1_neighbours_exchange_single_ip, &
-          environment_l1_neighbours_exchange_wo_pack_unpack_ieep
+          environment_l1_neighbours_exchange_wo_pack_unpack_ieep, &
+          environment_l1_neighbours_exchange_wo_unpack_ip
 
      procedure, private :: environment_l1_scatter_scalar_ip
      procedure, private :: environment_l1_scatter_scalar_igp
@@ -821,12 +823,12 @@ contains
 
   !=============================================================================
   subroutine environment_l1_neighbours_exchange_wo_pack_unpack_ieep ( this, &
-       &                                                                  num_neighbours, &
-       &                                                                  neighbour_ids, &
-       &                                                                  snd_ptrs, &
-       &                                                                  snd_buf, & 
-       &                                                                  rcv_ptrs, &
-       &                                                                  rcv_buf )
+       &                                                              num_neighbours, &
+       &                                                              neighbour_ids, &
+       &                                                              snd_ptrs, &
+       &                                                              snd_buf, & 
+       &                                                              rcv_ptrs, &
+       &                                                              rcv_buf )
     ! Parameters
     class(environment_t)  , intent(in)    :: this 
     integer(ip)               , intent(in)    :: num_neighbours
@@ -845,6 +847,34 @@ contains
          &                                     rcv_buf )
 
   end subroutine environment_l1_neighbours_exchange_wo_pack_unpack_ieep
+
+  !=============================================================================
+  subroutine environment_l1_neighbours_exchange_wo_unpack_ip ( this, &
+                                                               num_rcv, list_rcv, rcv_ptrs, rcv_buf, &
+                                                               num_snd, list_snd, snd_ptrs, pack_idx,   &
+                                                               x, chunk_size)
+    implicit none
+    class(environment_t)    , intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(out)   :: rcv_buf(:)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    integer(ip)             , intent(in)    :: x(:)
+    integer(ip)   , optional, intent(in)    :: chunk_size
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%neighbours_exchange ( num_rcv, &
+         &                                     list_rcv, &
+         &                                     rcv_ptrs, &
+         &                                     rcv_buf, & 
+         &                                     num_snd, &
+         &                                     list_snd,& 
+         &                                     snd_ptrs,& 
+         &                                     pack_idx,& 
+         &                                     x, chunk_size )
+  end subroutine environment_l1_neighbours_exchange_wo_unpack_ip
 
   !=============================================================================
   subroutine environment_l1_gather_scalar_ip ( this, input_data, output_data )

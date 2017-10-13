@@ -95,6 +95,7 @@ module mpi_context_names
      procedure, private :: neighbours_exchange_igp                  => mpi_context_neighbours_exchange_igp                
      procedure, private :: neighbours_exchange_single_ip            => mpi_context_neighbours_exchange_single_ip          
      procedure, private :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_context_neighbours_exchange_wo_pack_unpack_ieep
+     procedure, private :: neighbours_exchange_wo_unpack_ip         => mpi_context_neighbours_exchange_wo_unpack_ip
      procedure, private :: root_send_master_rcv_ip          => mpi_context_root_send_master_rcv_ip
      procedure, private :: root_send_master_rcv_ip_1D_array => mpi_context_root_send_master_rcv_ip_1D_array
      procedure, private :: root_send_master_rcv_rp          => mpi_context_root_send_master_rcv_rp
@@ -962,6 +963,124 @@ contains
     call memfree (rcvhd ,__FILE__,__LINE__) 
     call memfree (sndhd ,__FILE__,__LINE__)
   end subroutine mpi_context_neighbours_exchange_wo_pack_unpack_ieep
+
+
+  !=============================================================================
+  subroutine mpi_context_neighbours_exchange_wo_unpack_ip ( this, &
+                                                            num_rcv, list_rcv, rcv_ptrs, rcv_buf, &
+                                                            num_snd, list_snd, snd_ptrs, pack_idx,   &
+                                                            x, chunk_size)
+    implicit none
+    class(mpi_context_t) , intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(out)   :: rcv_buf(:)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    integer(ip)             , intent(in)    :: x(:)
+    integer(ip)   , optional, intent(in)    :: chunk_size
+
+
+    ! Communication related locals 
+    integer :: i, proc_to_comm, sizmsg, istat
+    integer :: p2pstat(mpi_status_size)
+
+    ! Request handlers for non-blocking receives
+    integer, allocatable :: rcvhd(:)
+
+    ! Request handlers for non-blocking receives
+    integer, allocatable :: sndhd(:)
+
+    integer(ip), allocatable :: sndbuf(:) 
+
+    integer(ip) :: chunk_size_
+
+
+    if ( present(chunk_size) ) then
+       chunk_size_ = chunk_size
+    else
+       chunk_size_ = 1
+    end if
+
+    call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
+    call memalloc (num_snd, sndhd, __FILE__,__LINE__)
+
+    call memalloc ((snd_ptrs(num_snd+1)-snd_ptrs(1))*chunk_size_, sndbuf, __FILE__,__LINE__)
+
+    ! Pack send buffers
+    call pack_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), chunk_size_, pack_idx, x, sndbuf )
+
+    ! First post all the non blocking receives   
+    do i=1, num_rcv
+       proc_to_comm = list_rcv(i) - 1 
+
+       ! Message size to be received
+       sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*chunk_size_
+
+       if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
+          call mpi_irecv(  rcv_buf((rcv_ptrs(i)-1)*chunk_size_+1), sizmsg,        &
+               &  mpi_context_ip, proc_to_comm, &
+               &  mpi_context_tag, this%icontxt, rcvhd(i), istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+
+    ! Secondly post all non-blocking sends
+    do i=1, num_snd
+       proc_to_comm = list_snd(i) - 1
+
+       ! Message size to be sent
+       sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*chunk_size_
+
+       if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then 
+          call mpi_isend(sndbuf((snd_ptrs(i)-1)*chunk_size_+1), sizmsg, &
+               & mpi_context_ip, proc_to_comm,    &
+               & mpi_context_tag, this%icontxt, sndhd(i), istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+
+    ! Wait on all non-blocking receives
+    do i=1, num_rcv
+       proc_to_comm = list_rcv(i) - 1
+
+       ! Message size to be received
+       sizmsg = (rcv_ptrs(i+1)-rcv_ptrs(i))*chunk_size_
+
+       if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
+          call mpi_wait(rcvhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
+       else if ( list_rcv(i)-1 == this%get_current_task() ) then
+          if ( sizmsg /= (snd_ptrs(i+1)-snd_ptrs(i))*chunk_size_ ) then 
+             write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
+                  & sizmsg, snd_ptrs(i+1)-snd_ptrs(i) 
+             check(.false.)
+          end if
+          rcv_buf((rcv_ptrs(i)-1)*chunk_size_+1:(rcv_ptrs(i)-1)*chunk_size_+sizmsg) = &
+               sndbuf( (snd_ptrs(i)-1)*chunk_size_+1:(snd_ptrs(i)-1)*chunk_size_+sizmsg )
+       end if
+    end do
+
+    ! Finally wait on all non-blocking sends
+    do i=1, num_snd
+       proc_to_comm = list_snd(i) - 1
+
+       ! Message size to be received
+       sizmsg = (snd_ptrs(i+1)-snd_ptrs(i))*chunk_size_
+
+       if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then
+          call mpi_wait(sndhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+
+    call memfree (rcvhd,__FILE__,__LINE__) 
+    call memfree (sndhd,__FILE__,__LINE__)
+
+    call memfree (sndbuf,__FILE__,__LINE__)
+  end subroutine mpi_context_neighbours_exchange_wo_unpack_ip
 
   !=============================================================================
   subroutine mpi_context_gather_scalar_ip ( this, input_data, output_data )

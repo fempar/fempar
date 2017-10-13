@@ -141,6 +141,7 @@ module mpi_omp_context_names
      procedure, private :: neighbours_exchange_igp                  => mpi_omp_context_neighbours_exchange_igp                
      procedure, private :: neighbours_exchange_single_ip            => mpi_omp_context_neighbours_exchange_single_ip          
      procedure, private :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_omp_context_neighbours_exchange_wo_pack_unpack_ieep
+     procedure, private :: neighbours_exchange_wo_unpack_ip         => mpi_omp_context_neighbours_exchange_wo_unpack_ip
      procedure, private :: root_send_master_rcv_ip          => mpi_omp_context_root_send_master_rcv_ip
      procedure, private :: root_send_master_rcv_ip_1D_array => mpi_omp_context_root_send_master_rcv_ip_1D_array
      procedure, private :: root_send_master_rcv_rp          => mpi_omp_context_root_send_master_rcv_rp
@@ -1361,6 +1362,25 @@ contains
     call memfree (rcvhd ,__FILE__,__LINE__) 
     call memfree (sndhd ,__FILE__,__LINE__)
   end subroutine mpi_omp_context_neighbours_exchange_wo_pack_unpack_ieep
+
+  !=============================================================================
+  subroutine mpi_omp_context_neighbours_exchange_wo_unpack_ip ( this, &
+                                                               num_rcv, list_rcv, rcv_ptrs, rcv_buf, &
+                                                               num_snd, list_snd, snd_ptrs, pack_idx,   &
+                                                               x, chunk_size)
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(out)   :: rcv_buf(:)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    integer(ip)             , intent(in)    :: x(:)
+    integer(ip)   , optional, intent(in)    :: chunk_size
+    check(.false.)
+  end subroutine mpi_omp_context_neighbours_exchange_wo_unpack_ip
 
   !=============================================================================
   subroutine mpi_omp_context_gather_scalar_ip ( this, input_data, output_data )
