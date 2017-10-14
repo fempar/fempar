@@ -1150,7 +1150,9 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   environment   => triangulation%get_environment()
   cell_import   => triangulation%get_cell_import()
  
-  ! TO-DO: this 
+  ! TO-DO: this code is assuming that the number of DoFs per cell 
+  !        is equivalent for all cells. We should re-think how should
+  !        it be modified in order to have variable DoFs per cell  
   num_dofs = this%get_max_num_dofs_on_a_cell()
  
   ! Initialization of DoFs data structures
@@ -1168,7 +1170,6 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   
   call fe%first()
   num_vefs = fe%get_num_vefs()
-  num_dofs = fe%get_num_dofs_field(field_id)
   
   call this%max_part_id_vefs%resize(0) 
   call this%max_part_id_vefs%resize(triangulation%get_num_cells()*num_vefs,0) 
@@ -1319,17 +1320,17 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
                                             num_vefs)
   
   p_lst_dofs_ggids => this%lst_dofs_ggids%get_pointer()
-  !call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
-  !                                          cell_import%get_neighbours_ids(),&
-  !                                          cell_import%get_rcv_ptrs(),&
-  !                                          cell_import%get_rcv_leids(),&
-  !                                          cell_import%get_num_neighbours(), &
-  !                                          cell_import%get_neighbours_ids(),&
-  !                                          cell_import%get_snd_ptrs(),&
-  !                                          cell_import%get_snd_leids(),&
-  !                                          p_lst_dofs_ggids, & 
-  !                                          p_lst_dofs_ggids, &
-  !                                          num_dofs)
+  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_rcv_ptrs(),&
+                                            cell_import%get_rcv_leids(),&
+                                            cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_snd_ptrs(),&
+                                            cell_import%get_snd_leids(),&
+                                            p_lst_dofs_ggids, & 
+                                            p_lst_dofs_ggids, &
+                                            num_dofs) 
 
 
   snd_ptrs => cell_import%get_snd_ptrs()
