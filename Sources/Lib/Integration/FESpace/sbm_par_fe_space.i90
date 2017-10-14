@@ -158,6 +158,9 @@ subroutine par_fe_space_free( this )
         call this%rcv_my_part_id_vefs%free()
         call this%ptr_dofs_field%free()
         call this%lst_dofs_ggids%free()
+        call this%ptr_ghosts_per_local_cell%free()
+        call this%lst_ghosts_per_local_cell%free()
+        call this%num_cells_to_send_x_local_cell%free()
         call this%free_blocks_dof_import()
         call this%free_faces_object()
         call this%free_coarse_dofs()
@@ -1382,6 +1385,46 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
   call dofs_gids%free()
 end subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field 
+
+
+subroutine pfs_compute_exchange_control_data_to_complete_itfc_couplings ( this, field_id ) 
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in):: field_id
+  class(triangulation_t), pointer :: triangulation
+  class(environment_t), pointer :: environment 
+  type(cell_import_t)   , pointer :: cell_import
+  integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
+  integer(ip), pointer :: p_num_cells_to_send_x_local_cell(:)
+  integer(ip) :: icell 
+
+  triangulation => this%get_triangulation()
+  environment   => triangulation%get_environment()
+  cell_import   => triangulation%get_cell_import()
+
+  call this%num_cells_to_send_x_local_cell%resize(0)
+  call this%num_cells_to_send_x_local_cell%resize(triangulation%get_num_cells(),0)
+
+  p_ptr_ghosts_per_local_cell => this%ptr_ghosts_per_local_cell%get_pointer()
+  do icell=1, triangulation%get_num_local_cells()
+    call this%num_cells_to_send_x_local_cell%set(icell, p_ptr_ghosts_per_local_cell(icell+1)-&
+                                                        p_ptr_ghosts_per_local_cell(icell))
+  end do 
+
+  p_num_cells_to_send_x_local_cell => this%num_cells_to_send_x_local_cell%get_pointer() 
+  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_rcv_ptrs(),&
+                                            cell_import%get_rcv_leids(),&
+                                            cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_snd_ptrs(),&
+                                            cell_import%get_snd_leids(),&
+                                            p_num_cells_to_send_x_local_cell, & 
+                                            p_num_cells_to_send_x_local_cell)
+
+end subroutine pfs_compute_exchange_control_data_to_complete_itfc_couplings 
+
 
 function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                                                                   field_id, &

@@ -771,6 +771,7 @@ module fe_space_names
    type(std_vector_integer_igp_t)              :: lst_dofs_ggids
    type(std_vector_integer_ip_t)               :: ptr_ghosts_per_local_cell
    type(std_vector_integer_ip_t)               :: lst_ghosts_per_local_cell
+   type(std_vector_integer_ip_t)               :: num_cells_to_send_x_local_cell
  contains
    procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
    procedure, private :: serial_fe_space_create_different_ref_fes_between_cells                           => par_fe_space_serial_create_different_ref_fes_between_cells 
@@ -785,11 +786,13 @@ module fe_space_names
    procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
    procedure        , non_overridable          :: compute_num_global_dofs_and_their_ggids         => par_fe_space_compute_num_global_dofs_and_their_ggids
    
-   procedure        , non_overridable, private :: compute_blocks_dof_import                           => par_fe_space_compute_blocks_dof_import
-   procedure        , non_overridable, private :: compute_dof_import                                  => par_fe_space_compute_dof_import
-   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity            => par_fe_space_compute_raw_interface_data_by_continuity
-   procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner       => par_fe_space_raw_interface_data_by_continuity_decide_owner
-   procedure        , non_overridable, private :: compute_max_part_id_my_part_id_and_dofs_ggids_field => pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field 
+   procedure        , non_overridable, private :: compute_blocks_dof_import                                => par_fe_space_compute_blocks_dof_import
+   procedure        , non_overridable, private :: compute_dof_import                                       => par_fe_space_compute_dof_import
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity                 => par_fe_space_compute_raw_interface_data_by_continuity
+   procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner            => par_fe_space_raw_interface_data_by_continuity_decide_owner
+   procedure        , non_overridable, private :: compute_max_part_id_my_part_id_and_dofs_ggids_field      => pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field 
+   procedure        , non_overridable, private :: compute_exchange_control_data_to_complete_itfc_couplings => pfs_compute_exchange_control_data_to_complete_itfc_couplings 
+
    procedure        , non_overridable, private :: compute_raw_interface_data_by_facet_integ           => par_fe_space_compute_raw_interface_data_by_facet_integ
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity     => pfs_compute_ubound_num_itfc_couplings_by_continuity
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_facet_integ    => pfs_compute_ubound_num_itfc_couplings_by_facet_integ
