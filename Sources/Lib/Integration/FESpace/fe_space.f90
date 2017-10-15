@@ -772,6 +772,12 @@ module fe_space_names
    type(std_vector_integer_ip_t)               :: ptr_ghosts_per_local_cell
    type(std_vector_integer_ip_t)               :: lst_ghosts_per_local_cell
    type(std_vector_integer_ip_t)               :: num_cells_to_send_x_local_cell
+   type(std_vector_integer_ip_t)               :: snd_ptrs_complete_itfc_couplings
+   type(std_vector_integer_ip_t)               :: snd_leids_complete_itfc_couplings
+   type(std_vector_integer_ip_t)               :: rcv_ptrs_complete_itfc_couplings
+   type(std_vector_integer_ip_t)               :: ptr_ghosts_per_ghost_cell
+   type(std_vector_integer_ip_t)               :: lst_ghosts_per_ghost_cell
+   type(std_vector_integer_ip_t)               :: rcv_my_part_id_vefs_complete_itfc_couplings 
  contains
    procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
    procedure, private :: serial_fe_space_create_different_ref_fes_between_cells                           => par_fe_space_serial_create_different_ref_fes_between_cells 

@@ -161,6 +161,12 @@ subroutine par_fe_space_free( this )
         call this%ptr_ghosts_per_local_cell%free()
         call this%lst_ghosts_per_local_cell%free()
         call this%num_cells_to_send_x_local_cell%free()
+        call this%snd_ptrs_complete_itfc_couplings%free()
+        call this%snd_leids_complete_itfc_couplings%free()
+        call this%rcv_ptrs_complete_itfc_couplings%free()
+        call this%ptr_ghosts_per_ghost_cell%free()
+        call this%lst_ghosts_per_ghost_cell%free()
+        call this%rcv_my_part_id_vefs_complete_itfc_couplings%free()
         call this%free_blocks_dof_import()
         call this%free_faces_object()
         call this%free_coarse_dofs()
@@ -609,6 +615,8 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   do field_id = 1, this%num_fields
      if ( this%block_layout%get_block_id(field_id) == iblock ) then
         if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
+           call this%compute_max_part_id_my_part_id_and_dofs_ggids_field(field_id)
+           call this%compute_exchange_control_data_to_complete_itfc_couplings(field_id)
            ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
                                            this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
         else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
@@ -1395,9 +1403,23 @@ subroutine pfs_compute_exchange_control_data_to_complete_itfc_couplings ( this, 
   class(environment_t), pointer :: environment 
   type(cell_import_t)   , pointer :: cell_import
   integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
+  integer(ip), pointer :: p_lst_ghosts_per_local_cell(:)
   integer(ip), pointer :: p_num_cells_to_send_x_local_cell(:)
-  integer(ip) :: icell 
-
+  integer(ip) :: i, j, k, l, icell, current 
+  integer(ip), pointer :: snd_ptrs(:)
+  integer(ip), pointer :: snd_leids(:)
+  integer(ip), pointer :: rcv_ptrs(:)
+  integer(ip), pointer :: rcv_leids(:)
+  integer(ip), pointer :: p_snd_ptrs_complete_itfc_couplings(:)
+  integer(ip), pointer :: p_rcv_ptrs_complete_itfc_couplings(:)
+  integer(ip), pointer :: p_rcv_my_part_id_vefs(:)
+  integer(ip), pointer :: p_ptr_ghosts_per_ghost_cell(:)
+  integer(ip), pointer :: p_lst_ghosts_per_ghost_cell(:)
+  integer(ip), pointer :: p_rcv_my_part_id_vefs_complete_itfc_couplings(:)
+  integer(ip), pointer :: p_snd_leids_complete_itfc_couplings(:)
+  class(fe_cell_iterator_t), allocatable :: fe
+  integer(ip) :: num_vefs
+  
   triangulation => this%get_triangulation()
   environment   => triangulation%get_environment()
   cell_import   => triangulation%get_cell_import()
@@ -1422,9 +1444,114 @@ subroutine pfs_compute_exchange_control_data_to_complete_itfc_couplings ( this, 
                                             cell_import%get_snd_leids(),&
                                             p_num_cells_to_send_x_local_cell, & 
                                             p_num_cells_to_send_x_local_cell)
+    
+  snd_ptrs  => cell_import%get_snd_ptrs()
+  snd_leids => cell_import%get_snd_leids() 
+   
+  p_ptr_ghosts_per_local_cell => this%ptr_ghosts_per_local_cell%get_pointer()
+  p_lst_ghosts_per_local_cell => this%lst_ghosts_per_local_cell%get_pointer()
+  
+  ! Init send data structures
+  call this%snd_ptrs_complete_itfc_couplings%resize(0)
+  call this%snd_ptrs_complete_itfc_couplings%resize(cell_import%get_num_neighbours()+1,0)
+  p_snd_ptrs_complete_itfc_couplings => this%snd_ptrs_complete_itfc_couplings%get_pointer()
+  call this%snd_leids_complete_itfc_couplings%resize(0)
+  
+  ! Compute send data structures 
+  do i=1, cell_import%get_num_neighbours()
+     do j=snd_ptrs(i), snd_ptrs(i+1)-1
+        k=snd_leids(j)
+        p_snd_ptrs_complete_itfc_couplings(i+1) = p_snd_ptrs_complete_itfc_couplings(i+1) + & 
+                             p_ptr_ghosts_per_local_cell(k+1)-p_ptr_ghosts_per_local_cell(k)
+                             
+        do l=p_ptr_ghosts_per_local_cell(k), & 
+             p_ptr_ghosts_per_local_cell(k+1)-1
+             call this%snd_leids_complete_itfc_couplings%push_back(p_lst_ghosts_per_local_cell(l))
+        end do
+     end do 
+  end do 
+  
+  p_snd_ptrs_complete_itfc_couplings(1)=1
+  do i=1, cell_import%get_num_neighbours()
+    p_snd_ptrs_complete_itfc_couplings(i+1) = p_snd_ptrs_complete_itfc_couplings(i+1) + &
+                                              p_snd_ptrs_complete_itfc_couplings(i)
+  end do 
+  
+  ! Init recv data structures
+  call this%rcv_ptrs_complete_itfc_couplings%resize(0)
+  call this%rcv_ptrs_complete_itfc_couplings%resize(cell_import%get_num_neighbours()+1,0)
+  p_rcv_ptrs_complete_itfc_couplings => this%rcv_ptrs_complete_itfc_couplings%get_pointer()
+  call this%ptr_ghosts_per_ghost_cell%resize(0)
+  call this%ptr_ghosts_per_ghost_cell%resize(triangulation%get_num_ghost_cells()+1,0)
+  p_ptr_ghosts_per_ghost_cell => this%ptr_ghosts_per_ghost_cell%get_pointer()
+  
+  ! Compute recv data structures
+  rcv_ptrs  => cell_import%get_rcv_ptrs()
+  rcv_leids => cell_import%get_rcv_leids()
+  do i=1, size(rcv_leids)
+    k=rcv_leids(i)
+    p_ptr_ghosts_per_ghost_cell(k+1-triangulation%get_num_local_cells()) = & 
+      p_ptr_ghosts_per_ghost_cell(k+1-triangulation%get_num_local_cells())+p_num_cells_to_send_x_local_cell(k)  
+  end do
+  p_ptr_ghosts_per_ghost_cell(1)=1
+  do i=1, triangulation%get_num_ghost_cells()
+    p_ptr_ghosts_per_ghost_cell(i+1) = p_ptr_ghosts_per_ghost_cell(i+1)+p_ptr_ghosts_per_ghost_cell(i) 
+  end do 
+  
+  call this%lst_ghosts_per_ghost_cell%resize(0)
+  call this%lst_ghosts_per_ghost_cell%resize(p_ptr_ghosts_per_ghost_cell(triangulation%get_num_ghost_cells()+1)-1,0)
+  p_lst_ghosts_per_ghost_cell => this%lst_ghosts_per_ghost_cell%get_pointer()
 
-end subroutine pfs_compute_exchange_control_data_to_complete_itfc_couplings 
-
+  current = 1 
+  do i=1, cell_import%get_num_neighbours()
+     do j=rcv_ptrs(i), rcv_ptrs(i+1)-1
+        k=rcv_leids(j)
+        p_rcv_ptrs_complete_itfc_couplings(i+1) = p_rcv_ptrs_complete_itfc_couplings(i+1) + & 
+                                                  p_num_cells_to_send_x_local_cell(k)
+                                                  
+        do l=1, p_num_cells_to_send_x_local_cell(k)                                      
+          p_lst_ghosts_per_ghost_cell(p_ptr_ghosts_per_ghost_cell(k-triangulation%get_num_local_cells()))=current
+          p_ptr_ghosts_per_ghost_cell(k-triangulation%get_num_local_cells())=&
+            p_ptr_ghosts_per_ghost_cell(k-triangulation%get_num_local_cells())+1
+          current = current + 1 
+        end do
+     end do 
+  end do
+  do i=triangulation%get_num_ghost_cells(),2,-1
+    p_ptr_ghosts_per_ghost_cell(i) = p_ptr_ghosts_per_ghost_cell(i-1)
+  end do
+  p_ptr_ghosts_per_ghost_cell(1)=1
+  
+  p_rcv_ptrs_complete_itfc_couplings(1)=1
+  do i=1, cell_import%get_num_neighbours()
+    p_rcv_ptrs_complete_itfc_couplings(i+1) = p_rcv_ptrs_complete_itfc_couplings(i+1) + &
+                                              p_rcv_ptrs_complete_itfc_couplings(i)
+  end do 
+  
+  call this%create_fe_cell_iterator(fe)
+  num_vefs = fe%get_num_vefs()
+  call this%free_fe_cell_iterator(fe)
+  
+  call this%rcv_my_part_id_vefs_complete_itfc_couplings%resize(0)
+  call this%rcv_my_part_id_vefs_complete_itfc_couplings%resize(&
+     (p_rcv_ptrs_complete_itfc_couplings(cell_import%get_num_neighbours()+1)-1)*num_vefs,0)
+  
+  p_rcv_my_part_id_vefs_complete_itfc_couplings => & 
+      this%rcv_my_part_id_vefs_complete_itfc_couplings%get_pointer()
+  
+  p_snd_leids_complete_itfc_couplings => this%snd_leids_complete_itfc_couplings%get_pointer()    
+  p_rcv_my_part_id_vefs               => this%rcv_my_part_id_vefs%get_pointer()
+  call environment%l1_neighbours_exchange ( num_rcv    = cell_import%get_num_neighbours(), &
+                                            list_rcv   = cell_import%get_neighbours_ids(),&
+                                            rcv_ptrs   = p_rcv_ptrs_complete_itfc_couplings,&
+                                            rcv_buf    = p_rcv_my_part_id_vefs_complete_itfc_couplings, &
+                                            num_snd    = cell_import%get_num_neighbours(), &
+                                            list_snd   = cell_import%get_neighbours_ids(),&
+                                            snd_ptrs   = p_snd_ptrs_complete_itfc_couplings,&
+                                            pack_idx   = p_snd_leids_complete_itfc_couplings,&
+                                            x          = p_rcv_my_part_id_vefs, &
+                                            chunk_size = num_vefs)  
+end subroutine pfs_compute_exchange_control_data_to_complete_itfc_couplings
 
 function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                                                                   field_id, &
@@ -1449,7 +1576,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   integer(ip)  :: idof, idof_interior, dof_gid
   integer(ip)  :: num_dofs_current_vef
   integer(ip)  :: col, init_col, current_col
-  integer(ip)  :: num_parts, local_part_id, ipart
+  integer(ip)  :: num_parts, num_parts_from_ghosts, local_part_id, ipart
 
   integer(ip)               :: max_part_id
   integer(ip) , allocatable :: local_idof(:)  
@@ -1472,11 +1599,15 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   integer(igp) :: dof_ggid
   integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
   integer(ip), pointer :: p_lst_ghosts_per_local_cell(:)
+  integer(ip), pointer :: p_ptr_ghosts_per_ghost_cell(:)
+  integer(ip), pointer :: p_lst_ghosts_per_ghost_cell(:)
   integer(ip), pointer :: p_rcv_my_part_id_vefs(:)
+  integer(ip), pointer :: p_rcv_my_part_id_vefs_complete_itfc_couplings(:)
   integer(ip) :: j, k, ghost_part 
+  integer(ip) :: aux
+  type(hash_table_ip_ip_t) :: ghost_parts_visited
+  type(std_vector_integer_ip_t) :: lst_parts
 
-  call this%compute_max_part_id_my_part_id_and_dofs_ggids_field(field_id)
-  
   environment   => this%get_environment()
   triangulation => this%get_triangulation()
   cell_import   => triangulation%get_cell_import()
@@ -1503,11 +1634,13 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   current_col  = offset + 1
   local_idof   = 0
 
-
-  p_ptr_ghosts_per_local_cell => this%ptr_ghosts_per_local_cell%get_pointer()
-  p_lst_ghosts_per_local_cell => this%lst_ghosts_per_local_cell%get_pointer()
-  p_rcv_my_part_id_vefs       => this%rcv_my_part_id_vefs%get_pointer()
-
+  p_ptr_ghosts_per_local_cell                   => this%ptr_ghosts_per_local_cell%get_pointer()
+  p_lst_ghosts_per_local_cell                   => this%lst_ghosts_per_local_cell%get_pointer()
+  p_ptr_ghosts_per_ghost_cell                   => this%ptr_ghosts_per_ghost_cell%get_pointer()
+  p_lst_ghosts_per_ghost_cell                   => this%lst_ghosts_per_ghost_cell%get_pointer()
+  p_rcv_my_part_id_vefs                         => this%rcv_my_part_id_vefs%get_pointer()
+  p_rcv_my_part_id_vefs_complete_itfc_couplings => this%rcv_my_part_id_vefs_complete_itfc_couplings%get_pointer()
+  
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   call this%create_fe_cell_iterator(fe) 
@@ -1516,6 +1649,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
      if ( vef%is_proper() ) then
         touched_neighbours = .false.
         num_parts = 0
+        num_parts_from_ghosts = 0
 
         ! Retrieve max_part_id 
         call vef%get_cell_around(1,fe)
@@ -1526,7 +1660,10 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
         
         all_ghosts = .true.
         num_dofs_current_vef = 0
-
+        
+        call ghost_parts_visited%init(100)
+        call lst_parts%resize(0)
+        
         ! Identify the total set of dofs in current vef
         do ielem=1, vef%get_num_cells_around()
            call vef%get_cell_around(ielem,fe)
@@ -1579,6 +1716,31 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                  end if
                end if 
              end do 
+           else ! fe%is_ghost()
+            do j=p_ptr_ghosts_per_ghost_cell(fe%get_gid()-triangulation%get_num_local_cells()), &
+                  p_ptr_ghosts_per_ghost_cell(fe%get_gid()+1-triangulation%get_num_local_cells())-1
+               k = p_lst_ghosts_per_ghost_cell(j)
+               base_pos   = (k-1)*num_vefs
+               ghost_part = p_rcv_my_part_id_vefs_complete_itfc_couplings(base_pos+ivef)
+               if ( ghost_part > 0 ) then
+                 if ( cell_import%is_local_neighbour(ghost_part) ) then
+                   local_part_id = cell_import%get_local_neighbour_id(ghost_part)
+                   if ( .not. touched_neighbours(local_part_id) ) then
+                     touched_neighbours (local_part_id) = .true.
+                     num_parts = num_parts + 1
+                     parts_visited (num_parts) = ghost_part
+                   end if
+                 else
+                   call ghost_parts_visited%get(key=ghost_part,val=aux,stat=istat)
+                   if ( istat == key_not_found ) then
+                     num_parts_from_ghosts = num_parts_from_ghosts + 1
+                     call ghost_parts_visited%put(key=ghost_part,val=aux,stat=istat)
+                     assert ( istat == now_stored )
+                     call lst_parts%push_back(ghost_part)
+                   end if
+                 end if
+               end if  
+            end do
            end if     
          end do       
 
@@ -1596,15 +1758,26 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                 part_id = parts_visited(ipart)
                 raw_interface_data(neighbor_part_id_row, current_col) = part_id
                 raw_interface_data(dof_gid_row, current_col) = dof_ggid 
-                raw_interface_data(owner_flag_row, current_col) = num_parts + 1
+                raw_interface_data(owner_flag_row, current_col) = num_parts + num_parts_from_ghosts + 1
               end if 
               current_col = current_col + 1
            end do
+           do ipart=1, num_parts_from_ghosts
+              dofs_gid ( current_col ) = dof_gid
+              dofs_max_part_id ( current_col-offset ) = max_part_id
+              part_id = lst_parts%get(ipart)
+              raw_interface_data(neighbor_part_id_row, current_col) = part_id
+              raw_interface_data(dof_gid_row, current_col) = dof_ggid 
+              raw_interface_data(owner_flag_row, current_col) = num_parts + num_parts_from_ghosts + 1
+              current_col = current_col + 1
+           end do           
         end do
      end if
      call vef%next()
   end do
 
+  call ghost_parts_visited%free()
+  call lst_parts%free()
 
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_vef_iterator(vef)
@@ -1691,32 +1864,32 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
      ! If DoF (only) on ghost cells then non owner 
      if (raw_interface_data ( owner_flag_row, col ) == -1) then
        raw_interface_data ( owner_flag_row, col) = non_owner 
-     !  else if ( raw_interface_data ( owner_flag_row, col ) == 2 ) then
-        !start_col = col
-        !do while ( ( raw_interface_data ( owner_flag_row, col ) == 2).and. &
-        !&          ( raw_interface_data ( neighbor_part_id_row, col ) == raw_interface_data ( neighbor_part_id_row, start_col ) ) )
-        !   col = col + 1
-        !   if ( col > num_cols ) exit
-        !end do
-        !end_col = col - 1
+       else if ( raw_interface_data ( owner_flag_row, col ) == 2 ) then
+        start_col = col
+        do while ( ( raw_interface_data ( owner_flag_row, col ) == 2).and. &
+        &          ( raw_interface_data ( neighbor_part_id_row, col ) == raw_interface_data ( neighbor_part_id_row, start_col ) ) )
+           col = col + 1
+           if ( col > num_cols ) exit
+        end do
+        end_col = col - 1
 
-        !ipart_max = dofs_max_part_id(start_col-offset)
-        !size = end_col - start_col + 1
-        !if ( mypart_id == ipart_max ) then
-        !   do j= start_col, start_col + size/2 -1
-        !      raw_interface_data ( owner_flag_row, j) = owner
-        !   end do
-        !   do j= start_col + size/2,  end_col
-        !      raw_interface_data ( owner_flag_row, j) = non_owner
-        !   end do
-        !else
-        !   do j= start_col, start_col + size/2 -1
-        !      raw_interface_data ( owner_flag_row, j) = non_owner
-        !   end do
-        !   do j= start_col + size/2,  end_col
-        !      raw_interface_data ( owner_flag_row, j) = owner
-        !   end do
-        !end if
+        ipart_max = dofs_max_part_id(start_col-offset)
+        size = end_col - start_col + 1
+        if ( mypart_id == ipart_max ) then
+           do j= start_col, start_col + size/2 -1
+              raw_interface_data ( owner_flag_row, j) = owner
+           end do
+           do j= start_col + size/2,  end_col
+              raw_interface_data ( owner_flag_row, j) = non_owner
+           end do
+        else
+           do j= start_col, start_col + size/2 -1
+              raw_interface_data ( owner_flag_row, j) = non_owner
+           end do
+           do j= start_col + size/2,  end_col
+              raw_interface_data ( owner_flag_row, j) = owner
+           end do
+        end if
      else
         if ( mypart_id == dofs_max_part_id(col-offset) ) then
            raw_interface_data ( owner_flag_row, col) = owner
