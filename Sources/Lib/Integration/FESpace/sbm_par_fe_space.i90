@@ -690,6 +690,8 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
   type(fe_vef_iterator_t)      :: vef
   class(fe_cell_iterator_t), allocatable :: fe
   integer(ip)                  :: result_previous
+  integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
+  integer(ip), pointer :: p_ptr_ghosts_per_ghost_cell(:)
   
   environment   => this%get_environment()
   triangulation => this%get_triangulation()
@@ -702,6 +704,9 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
                   touched_neighbours, &
                   __FILE__, __LINE__ )
 
+  p_ptr_ghosts_per_local_cell => this%ptr_ghosts_per_local_cell%get_pointer()
+  p_ptr_ghosts_per_ghost_cell => this%ptr_ghosts_per_ghost_cell%get_pointer()
+  
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   call this%create_fe_cell_iterator(fe) 
@@ -722,6 +727,16 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
                 if (result>result_previous) touched_neighbours (local_part_id) = .true.
              end if
           end if
+          
+          !if (reference_fe%get_num_own_dofs_n_face(ivef) > 0) then
+             if ( fe%is_local() ) then 
+               result = result + p_ptr_ghosts_per_local_cell(fe%get_gid()+1)-&
+                                 p_ptr_ghosts_per_local_cell(fe%get_gid())
+             else
+               result = result + p_ptr_ghosts_per_ghost_cell(fe%get_gid()+1-triangulation%get_num_local_cells())-&
+                                 p_ptr_ghosts_per_ghost_cell(fe%get_gid()-triangulation%get_num_local_cells())
+             end if
+          !end if          
        end do
      end if
      call vef%next()
