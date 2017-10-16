@@ -85,6 +85,8 @@ module par_pb_bddc_linear_elasticity_driver_names
 
      ! Discrete integration type
      logical :: heterogeneous_integral = .false.
+     ! Elasticity of a beam (use free Neumman condition for most of the boundary except the plane x=0)
+     logical :: is_a_beam = .true.
      ! Max cell id
      integer(ip)      :: max_cell_id 
 
@@ -179,22 +181,28 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
-    class(vef_iterator_t), allocatable  :: vef 
-    !logical :: fixed_pressure
-
+    class(vef_iterator_t), allocatable  :: vef
+    type (point_t), allocatable  :: nodes_coordinates(:) 
+    integer(ip)     :: num_nodes, istat
 
     call this%triangulation%create(this%parameter_list, this%par_environment)
 
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-       !fixed_pressure = .false.
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then     
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then
-             call vef%set_set_id(1)
-             !if (.not.fixed_pressure) then
-             !   fixed_pressure = .true.
-             !   call vef%set_set_id(2)
-             !end if
+          if (vef%is_at_boundary()) then
+             num_nodes = vef%get_num_nodes()
+             write(*,*) num_nodes
+             allocate (nodes_coordinates(num_nodes),stat=istat)
+             check(istat==0)
+             call vef%get_nodes_coordinates(nodes_coordinates)
+             write(*,*) 'here'
+             if (is_on_the_x_equal_zero_plane(nodes_coordinates,num_nodes)) then
+                call vef%set_set_id(1)
+             else 
+                call vef%set_set_id(0)
+             end if
+             deallocate(nodes_coordinates)
           else
              call vef%set_set_id(0)
           end if
@@ -212,7 +220,22 @@ contains
     if ( this%test_params%get_coarse_fe_handler_type() == standard_bddc ) then
        call this%setup_cell_set_ids() 
     end if
+  contains
+    function is_on_the_x_equal_zero_plane(nodes_coordinates,num_nodes)
+      logical                   :: is_on_the_x_equal_zero_plane
+      type (point_t), intent(in):: nodes_coordinates(:) 
+      integer(ip),    intent(in):: num_nodes
+      integer(ip)               :: i
 
+      is_on_the_x_equal_zero_plane = .true.
+      do i=1,num_nodes
+         if (nodes_coordinates(i)%get(1).ne.0.0_rp) then
+            is_on_the_x_equal_zero_plane = .true.
+            cycle
+         end if
+      end do
+
+    end function is_on_the_x_equal_zero_plane
   end subroutine setup_triangulation
 
   subroutine setup_cell_set_ids(this)
@@ -843,7 +866,7 @@ contains
     type(error_norms_vector_t) :: vector_error_norm 
     real(rp)    :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     integer(ip) :: field_id
-    
+
     if (this%max_cell_id >1) then
        return
     end if
@@ -914,9 +937,9 @@ contains
 
        end if
     endif
-    
-    contains
-    
+
+  contains
+
     subroutine build_set_id_cell_vector()
       call memalloc(this%triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
       i = 1
@@ -930,11 +953,11 @@ contains
       enddo
       call this%fe_space%free_fe_cell_iterator(fe)  
     end subroutine build_set_id_cell_vector
-      
+
     subroutine free_set_id_cell_vector()
       call memfree(set_id_cell_vector, __FILE__, __LINE__)
     end subroutine free_set_id_cell_vector
-    
+
   end subroutine write_solution
 
   subroutine run_simulation(this) 
