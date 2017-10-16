@@ -164,8 +164,6 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   integer(ip), pointer :: P4EST_2_FEMPAR_FACE(:)
   integer(ip), pointer :: P4EST_CORNER_IN_FACE(:,:)
   integer(ip), pointer :: FEMPAR_SUBCELLS_IN_TOUCH_FACE(:,:)
-  logical, allocatable :: faces_visited(:)
-  logical :: create_improper_vef
   integer :: child_id
 
 #ifdef ENABLE_P4EST  
@@ -226,7 +224,6 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   this%num_proper_vefs   = 0
   this%num_improper_vefs = 0
 
-  call memalloc ( num_faces_x_cell, faces_visited, __FILE__, __LINE__ )
   do icell=1, this%get_num_local_cells()
     call generate_corners()
     call generate_edges()
@@ -242,12 +239,10 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   call work_vector_ghost_cells_around%free()
   call work_vector_ivef%free()
   call work_vector_subvef%free()
-  call memfree ( faces_visited, __FILE__, __LINE__ )
 contains
 
    subroutine generate_corners()
      implicit none
-      faces_visited = .false.
      do icorner=1, num_corners_x_cell
         is_proper       = .true.
         min_cell        = icell
@@ -411,47 +406,6 @@ contains
                 vef_at_interface = .true.
               else                                           ! If neighbour cell is local
                 call work_vector_cells_around%push_back(jcell)
-              end if
- 
-              
-              if ( .not. faces_visited(icell_iface) ) then
-                faces_visited(icell_iface) = .true.
-                
-                ! Go over the half neighbours and determine whether a new improper vertex must be created right here
-                create_improper_vef = .true.
-                do isubface = 1, num_subfacets_facet
-                  jcell = this%quad_to_half(isubface,this%quad_to_quad(icell_iface,icell)+1)+1
-                  if ( jcell <= this%get_num_local_cells() ) then
-                     create_improper_vef = .false.
-                     exit
-                  end if
-                end do
-                
-                if ( create_improper_vef ) then
-                  ! The code which comes is currently tailored for 2D!
-                  assert (this%get_num_dims() == 2)
-                  this%num_improper_vefs = this%num_improper_vefs+1
-                  call this%ptr_cells_around_improper_vefs%push_back(num_subfacets_facet)
-                  ! Introduce new improvef vef in cell around
-                  do isubface = 1, num_subfacets_facet
-                    jcell          = this%quad_to_half(isubface,this%quad_to_quad(icell_iface,icell)+1)+1
-                    base_pos_icell = this%get_ptr_vefs_x_cell(jcell)-1
-                    call this%lst_vefs_gids%set(base_pos_icell+P4EST_FACES_SUBFACE_IMPROPER_VERTEX_LID_2D(icell_iface,isubface), -this%num_improper_vefs)
-                    call this%lst_cells_around_improper_vefs%push_back(jcell)
-                  end do
-                  
-                  ! Fill improper cells_around improper vefs
-                  call this%ptr_improper_cells_around%push_back(1)
-                  call this%lst_improper_cells_around%push_back(icell)
-                  
-                  call this%improper_vefs_improper_cell_around_ivef%push_back(num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(icell_iface))
-                  call this%improper_vefs_improper_cell_around_subvef%push_back(-1) 
-                  
-                  ! Fill improper vefs dim
-                  call this%improper_vefs_dim%push_back(0)
-                  
-                  call this%improper_vefs_at_interface%push_back(1)
-                end if
               end if
            end if
         end do  ! End loop faces at corner
@@ -811,7 +765,6 @@ contains
    
    subroutine generate_faces()
      implicit none
-     faces_visited = .false.
      do iface=1, num_faces_x_cell
         is_proper        = .true.
         min_cell         = icell
@@ -866,32 +819,6 @@ contains
            if ( jcell > this%get_num_local_cells() ) then
               vef_at_interface = .true.
            end if
-        else ! Half-size neighbour           
-           do isubface = 1, num_subfacets_facet
-              jcell = this%quad_to_half(isubface,this%quad_to_quad(iface,icell)+1)+1
-              ! Introduce new improvef vef in cell around
-              if ( jcell > this%get_num_local_cells() ) then ! If neighbour cell is ghost
-                 assert ( this%get_num_dims() == 2 )
-                 this%num_improper_vefs = this%num_improper_vefs+1
-                 
-                 base_pos_icell = this%get_ptr_vefs_x_cell(jcell)-1+num_corners_x_cell+num_edges_x_cell
-                 call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(P4EST_FACES_IN_TOUCH_2D(iface)), -this%num_improper_vefs)
-                 call this%ptr_cells_around_improper_vefs%push_back(1)
-                 call this%lst_cells_around_improper_vefs%push_back(jcell)
-                 
-                 
-                 ! Fill improper cells_around improper vefs
-                 call this%ptr_improper_cells_around%push_back(1)
-                 call this%lst_improper_cells_around%push_back(icell)
-                 call this%improper_vefs_improper_cell_around_ivef%push_back(num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(iface))
-                 call this%improper_vefs_improper_cell_around_subvef%push_back(isubface)
-                 
-                 ! Fill improper vefs dim
-                 call this%improper_vefs_dim%push_back(this%get_num_dims()-1)
-                 
-                 call this%improper_vefs_at_interface%push_back(1)
-              end if
-           end do
         end if
 
         base_pos_icell    = this%get_ptr_vefs_x_cell(icell)-1    + num_corners_x_cell + num_edges_x_cell

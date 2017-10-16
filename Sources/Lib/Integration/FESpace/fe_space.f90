@@ -598,7 +598,7 @@ module fe_space_names
      procedure, non_overridable, private :: generate_facet_integrators_position_key    => serial_fe_space_facet_integrators_position_key
 
      procedure                           :: create_dof_values                            => serial_fe_space_create_dof_values
-     procedure                           :: generate_global_dof_numbering                                => serial_fe_space_generate_global_dof_numbering
+     procedure                           :: generate_global_dof_numbering              => serial_fe_space_generate_global_dof_numbering
      procedure                           :: allocate_num_dofs_x_field               =>  serial_fe_space_allocate_num_dofs_x_field
      procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
      procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
