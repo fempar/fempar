@@ -34,24 +34,39 @@ module std_vector_integer_ip_names
   implicit none
   private
   
-  STD_VECTOR_TYPE(integer(ip),integer_ip)
-    
+  STD_VECTOR_TYPE(integer(ip),base_integer_ip)
+
+  type, extends(std_vector_base_integer_ip_t) :: std_vector_integer_ip_t
+  contains
+    procedure :: transform_length_to_header => std_vector_integer_ip_transform_length_to_header
+  end type
+ 
   public :: std_vector_integer_ip_t
   
 contains
   
-  STD_VECTOR_PUSH_BACK(integer(ip),integer_ip)
-  STD_VECTOR_RESIZE(integer(ip),integer_ip)
-  STD_VECTOR_SHRINK_TO_FIT(integer(ip),integer_ip)
-  STD_VECTOR_FREE(integer(ip),integer_ip)
-  STD_VECTOR_ERASE(integer(ip),integer_ip)
-  STD_VECTOR_COPY(integer(ip),integer_ip)
-  STD_VECTOR_SET(integer(ip),integer_ip)
-  STD_VECTOR_SIZE(integer(ip),integer_ip)
-  STD_VECTOR_CAPACITY(integer(ip),integer_ip)
-  STD_VECTOR_GET(integer(ip),integer_ip)
-  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(integer(ip),integer_ip)
-  STD_VECTOR_GET_POINTER_TO_RANGE(integer(ip),integer_ip)
-  STD_VECTOR_GET_RAW_POINTER(integer(ip),integer_ip)
+  STD_VECTOR_PUSH_BACK(integer(ip),base_integer_ip)
+  STD_VECTOR_RESIZE(integer(ip),base_integer_ip)
+  STD_VECTOR_SHRINK_TO_FIT(integer(ip),base_integer_ip)
+  STD_VECTOR_FREE(integer(ip),base_integer_ip)
+  STD_VECTOR_ERASE(integer(ip),base_integer_ip)
+  STD_VECTOR_COPY(integer(ip),base_integer_ip)
+  STD_VECTOR_SET(integer(ip),base_integer_ip)
+  STD_VECTOR_SIZE(integer(ip),base_integer_ip)
+  STD_VECTOR_CAPACITY(integer(ip),base_integer_ip)
+  STD_VECTOR_GET(integer(ip),base_integer_ip)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(integer(ip),base_integer_ip)
+  STD_VECTOR_GET_POINTER_TO_RANGE(integer(ip),base_integer_ip)
+  STD_VECTOR_GET_RAW_POINTER(integer(ip),base_integer_ip)
+  
+  subroutine std_vector_integer_ip_transform_length_to_header(this)
+    implicit none
+    class(std_vector_integer_ip_t)      , intent(inout) :: this
+    integer(ip) :: i
+    call this%set(1,1)
+    do i=1, this%size()-1
+      call this%set(i+1,this%get(i)+this%get(i+1))
+    end do
+  end subroutine std_vector_integer_ip_transform_length_to_header
   
 end module std_vector_integer_ip_names

@@ -800,9 +800,9 @@ subroutine p4est_st_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
      end do ! iface
   end do
   call this%set_num_vefs(this%num_proper_vefs + this%num_improper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_cells_around_proper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_cells_around_improper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_improper_cells_around)
+  call this%ptr_cells_around_proper_vefs%transform_length_to_header()
+  call this%ptr_cells_around_improper_vefs%transform_length_to_header()
+  call this%ptr_improper_cells_around%transform_length_to_header()
   call work_vector_cells_around%free()
   call work_vector_improper_cells_around%free()
   call work_vector_ivef%free()
@@ -1039,21 +1039,6 @@ contains
   end function get_vef_set_id
   
 end subroutine p4est_st_update_vef_set_ids
-
-subroutine p4est_st_std_vector_transform_length_to_header(this,std_vector_integer_ip)
-  implicit none
-  class(p4est_serial_triangulation_t), intent(in)    :: this
-  type(std_vector_integer_ip_t)      , intent(inout) :: std_vector_integer_ip
-  integer(ip) :: i
-#ifdef ENABLE_P4EST    
-  call std_vector_integer_ip%set(1,1)
-  do i=1, std_vector_integer_ip%size()-1
-    call std_vector_integer_ip%set(i+1,std_vector_integer_ip%get(i)+std_vector_integer_ip%get(i+1))
-  end do
-#else
-  call this%not_enabled_error()
-#endif      
-end subroutine p4est_st_std_vector_transform_length_to_header
 
 subroutine p4est_st_fill_x_cell_vertex_coordinates(this)
   implicit none

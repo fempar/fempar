@@ -526,8 +526,6 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   type(point_t), pointer :: coordinates(:)
   integer(ip) :: istat
   logical, allocatable :: visited_hanging_dof_lids(:)
-
-  type(p4est_serial_triangulation_t), pointer :: p4est_triangulation
   
   field_id = 1
   mcheck(this%get_num_fields() == 1, 'Procedure implemented currently for a single field')
@@ -536,13 +534,6 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   ! Auxiliary
   triangulation => this%get_triangulation()
   call nodal_quad_in_root_fe%create(triangulation%get_num_dims(),this%get_max_num_shape_functions())
-
-  select type(triangulation)
-  class is (p4est_serial_triangulation_t)
-    p4est_triangulation => triangulation
-  class default
-    assert( .false. )
-  end select
 
   call memalloc(this%num_hanging_dofs,visited_hanging_dof_lids,__FILE__,__LINE__)
   
@@ -604,8 +595,9 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
   end do
 
   ! Create the header from the sizes
-  call p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_free_dofs)
-  call p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_dirichlet_dofs)
+  call this%ptr_constraining_free_dofs%transform_length_to_header()
+  call this%ptr_constraining_dirichlet_dofs%transform_length_to_header()
+  
 
   ! Allocate the vectors containing the raw data
 

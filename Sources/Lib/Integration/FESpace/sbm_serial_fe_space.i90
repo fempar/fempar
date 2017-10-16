@@ -2753,9 +2753,7 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   type(list_iterator_t) :: facets_n_face_iterator
   type(list_iterator_t) :: dofs_n_facet_iterator
   integer(ip) :: facet_dof
-  
-  type(p4est_serial_triangulation_t), pointer :: p4est_triangulation
-  
+    
   ! Re-size to 0 to force re-initialization during second resize (to the actual/correct size)
   call this%ptr_constraining_free_dofs%resize(0)
   call this%ptr_constraining_dirichlet_dofs%resize(0)
@@ -2766,14 +2764,7 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   call this%constraints_independent_term%resize(0)
   
   if ( this%num_hanging_dofs == 0 ) return
-  
-  select type( triangulation => this%triangulation )
-  class is (p4est_serial_triangulation_t)
-    p4est_triangulation => triangulation
-  class default
-    assert( .false. )
-  end select
-  
+    
   field_blocks => this%get_field_blocks()
   
   call this%ptr_constraining_free_dofs%resize(this%num_hanging_dofs+1,0)
@@ -2858,11 +2849,12 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
      end do
   end do
    
-  call p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_free_dofs)
+  
+  call this%ptr_constraining_free_dofs%transform_length_to_header()
   call this%constraining_free_dofs%resize(this%ptr_constraining_free_dofs%get(this%ptr_constraining_free_dofs%size())-1)
   call this%constraining_free_dofs_coefficients%resize(this%ptr_constraining_free_dofs%get(this%ptr_constraining_free_dofs%size())-1)
+  call this%ptr_constraining_dirichlet_dofs%transform_length_to_header()
   
-  call p4est_triangulation%std_vector_transform_length_to_header(this%ptr_constraining_dirichlet_dofs)
   call this%constraining_dirichlet_dofs%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
   call this%constraining_dirichlet_dofs_coefficients%resize(this%ptr_constraining_dirichlet_dofs%get(this%ptr_constraining_dirichlet_dofs%size())-1)
   
