@@ -187,27 +187,40 @@ contains
 
     call this%triangulation%create(this%parameter_list, this%par_environment)
 
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then     
+    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then 
        call this%triangulation%create_vef_iterator(vef)
-       do while ( .not. vef%has_finished() )
-          if (vef%is_at_boundary()) then
-             num_nodes = vef%get_num_nodes()
-             write(*,*) num_nodes
-             allocate (nodes_coordinates(num_nodes),stat=istat)
-             check(istat==0)
-             call vef%get_nodes_coordinates(nodes_coordinates)
-             write(*,*) 'here'
-             if (is_on_the_x_equal_zero_plane(nodes_coordinates,num_nodes)) then
+       if (this%is_a_beam) then 
+          write(*,*) 'here'
+          do while ( .not. vef%has_finished() )
+             if (vef%is_at_boundary()) then
+                if (vef%is_local()) then 
+                   num_nodes = vef%get_num_nodes()
+                   allocate (nodes_coordinates(num_nodes),stat=istat)
+                   call vef%get_nodes_coordinates(nodes_coordinates)
+                   if (is_on_the_x_equal_zero_plane(nodes_coordinates,num_nodes)) then
+                      call vef%set_set_id(1)
+                   else 
+                      call vef%set_set_id(0)
+                   end if
+                   deallocate(nodes_coordinates)
+                else 
+                   call vef%set_set_id(0) ! Not neccessary?
+                end if
+             else
+                call vef%set_set_id(0)
+             end if
+             call vef%next()
+          end do
+       else
+          do while (.not. vef%has_finished())
+             if (vef%is_at_boundary()) then
                 call vef%set_set_id(1)
              else 
                 call vef%set_set_id(0)
              end if
-             deallocate(nodes_coordinates)
-          else
-             call vef%set_set_id(0)
-          end if
-          call vef%next()
-       end do
+             call vef%next()
+          end do
+       end if
        call this%triangulation%free_vef_iterator(vef)
     end if
 
@@ -585,8 +598,13 @@ contains
        allocate(irreducible_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)     
        assert(this%max_cell_id == 1) !Heterogeneous integration is only used when max_cell_id == 1
     else if(this%test_params%get_discrete_integration_type() == 'heterogeneous' ) then
-       allocate(irreducible_heterogeneous_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
-       this%elasticity_coarse_fe_handler%elastic_modulus = this%test_params%get_jump()       
+       if (this%is_a_beam) then
+          allocate(irreducible_heterogeneous_beam_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
+          this%elasticity_coarse_fe_handler%elastic_modulus = this%test_params%get_jump()
+       else
+          allocate(irreducible_heterogeneous_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
+          this%elasticity_coarse_fe_handler%elastic_modulus = this%test_params%get_jump()
+       end if
     else
        if ( this%par_environment%get_l1_rank() == 0 ) then
           write(*,*) 'Discrete integration type ', this%test_params%get_discrete_integration_type(), ' has not been implemented.'
@@ -596,9 +614,15 @@ contains
     if ( this%par_environment%get_l1_rank() == 0 ) then
        write(*,*) 'Using ', this%test_params%get_discrete_integration_type(), ' discrete integration'
     end if
-    select type (temporary_pointer => this%linear_elasticity_integration)   
-    type is (irreducible_heterogeneous_discrete_integration_t)
-       temporary_pointer%elastic_modulus = this%test_params%get_jump() 
+    !select type (temporary_pointer => this%linear_elasticity_integration)   
+    !type is (irreducible_heterogeneous_discrete_integration_t)
+    !   temporary_pointer%elastic_modulus = this%test_params%get_jump() 
+    !   this%heterogeneous_integral = .true.
+    !end select
+    
+    select type (temporary_pointer2 => this%linear_elasticity_integration)   
+    type is (irreducible_heterogeneous_beam_discrete_integration_t) 
+       temporary_pointer2%elastic_modulus = this%test_params%get_jump() 
        this%heterogeneous_integral = .true.
     end select
 
