@@ -27,30 +27,34 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 #include "debug.i90"
+#define HAS_DYNAMIC_MEMORY
 #include "std_vector_macros.i90"
-module std_vector_integer_ip_names
+module std_vector_quadrature_names
   use types_names
   use memor_names
+  use reference_fe_names
   implicit none
   private
   
-  STD_VECTOR_TYPE(integer,ip)
+  STD_VECTOR_TYPE(type(quadrature_t),quadrature)
     
-  public :: std_vector_integer_ip_t
+  public :: std_vector_quadrature_t
   
 contains
   
-  STD_VECTOR_PUSH_BACK(integer,ip)
-  STD_VECTOR_ERASE(integer,ip)
-  STD_VECTOR_RESIZE(integer,ip)
-  STD_VECTOR_SHRINK_TO_FIT(integer,ip)
-  STD_VECTOR_COPY(integer,ip)
-  STD_VECTOR_FREE(integer,ip)
-  STD_VECTOR_GET(integer,ip)
-  STD_VECTOR_GET_POINTER_TO_RANGE(integer,ip)
-  STD_VECTOR_SET(integer,ip)
-  STD_VECTOR_SIZE(integer,ip)
-  STD_VECTOR_CAPACITY(integer,ip)
-  STD_VECTOR_GET_RAW_POINTER(integer,ip)
+#define HAS_DYNAMIC_MEMORY
+  STD_VECTOR_PUSH_BACK(type(quadrature_t),quadrature)
+  STD_VECTOR_RESIZE(type(quadrature_t),quadrature)
+  STD_VECTOR_SHRINK_TO_FIT(type(quadrature_t),quadrature)
+  STD_VECTOR_FREE(type(quadrature_t),quadrature)
+  STD_VECTOR_ERASE(type(quadrature_t),quadrature)
+  STD_VECTOR_COPY(type(quadrature_t),quadrature)
+  STD_VECTOR_SET(type(quadrature_t),quadrature)
+  STD_VECTOR_SIZE(type(quadrature_t),quadrature)
+  STD_VECTOR_CAPACITY(type(quadrature_t),quadrature)
+  STD_VECTOR_GET(type(quadrature_t),quadrature)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(type(quadrature_t),quadrature)
+  STD_VECTOR_GET_POINTER_TO_RANGE(type(quadrature_t),quadrature)
+  STD_VECTOR_GET_RAW_POINTER(type(quadrature_t),quadrature)
   
-end module std_vector_integer_ip_names
+end module std_vector_quadrature_names
