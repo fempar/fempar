@@ -198,8 +198,6 @@ module fe_space_names
     procedure, non_overridable          :: allocate_scratch_data                      => fe_cell_iterator_allocate_scratch_data
     procedure, non_overridable          :: allocate_block_based_scratch_data          => fe_cell_iterator_allocate_block_based_scratch_data
     procedure, non_overridable          :: free_scratch_data                          => fe_cell_iterator_free_scratch_data
-    ! Now, after merging with experimental, we have to assemble in the code !!!
-    procedure                           :: assemble                                   => fe_cell_iterator_assemble
     procedure, non_overridable, private :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
     procedure, non_overridable, private :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
     procedure, non_overridable          :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell

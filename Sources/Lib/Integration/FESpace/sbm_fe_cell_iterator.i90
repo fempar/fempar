@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+ 
 subroutine fe_cell_iterator_create ( this, fe_space )
   implicit none
   class(fe_cell_iterator_t)            , intent(inout) :: this
@@ -480,15 +480,6 @@ subroutine fe_cell_iterator_update_integration( this )
   end do
   
 end subroutine fe_cell_iterator_update_integration
-
-subroutine fe_cell_iterator_assemble(this,elmat,elvec,assembler)
-  implicit none
-  class(fe_cell_iterator_t)            , intent(in)    :: this
-  real(rp)                        , intent(in)    :: elmat(:,:)
-  real(rp)                        , intent(in)    :: elvec(:)
-  class(assembler_t) , intent(inout) :: assembler
-  check(.false.)
-end subroutine fe_cell_iterator_assemble 
 
 function fe_cell_iterator_get_fe_space(this)
   implicit none
