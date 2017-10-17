@@ -1422,6 +1422,9 @@ public :: hex_raviart_thomas_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(nedelec_reference_fe_t) :: hex_nedelec_reference_fe_t
 private
+type(interpolation_t)    :: h_refinement_interpolation
+integer(ip), allocatable :: h_refinement_subfacet_permutation(:,:,:)
+integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:)
 contains 
   ! Deferred TBP implementors from reference_fe_t
 procedure :: check_compatibility_of_n_faces                              &
@@ -1432,6 +1435,8 @@ procedure, private :: fill                                               &
 & => hex_nedelec_reference_fe_fill 
 
 ! Deferred TBP implementors from nedelec_reference_fe_t
+procedure :: create  => hex_nedelec_reference_fe_create
+procedure :: free    => hex_nedelec_reference_fe_free
 procedure, private :: fill_quadrature                                    &
 & => hex_nedelec_reference_fe_fill_quadrature
 procedure, private :: fill_interpolation                                 &
@@ -1446,8 +1451,15 @@ procedure, private :: compute_num_quadrature_points                       &
 & => hex_nedelec_reference_fe_compute_num_quadrature_points
 procedure, private :: change_basis &
 & => hex_nedelec_reference_fe_change_basis
-procedure :: fill_qpoints_permutations           &
+procedure :: fill_qpoints_permutations                              &
 & =>  hex_nedelec_reference_fe_fill_qpoints_permutations 
+! Implementors of nedelec refinement 
+procedure, private :: fill_h_refinement_interpolation               &
+& => hex_nedelec_reference_fe_fill_h_refinement_interpolation
+procedure, private :: fill_interpolation_pre_basis_quadrature_array &
+& => hex_nedelec_rf_fill_interpolation_pre_basis_quadrature_array
+procedure :: create_prebasis_nodal_quadrature                       &
+=> hex_nedelec_create_prebasis_nodal_quadrature 
 
 end type hex_nedelec_reference_fe_t
 
