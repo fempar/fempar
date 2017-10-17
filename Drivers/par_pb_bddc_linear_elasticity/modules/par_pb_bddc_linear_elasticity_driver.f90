@@ -86,7 +86,7 @@ module par_pb_bddc_linear_elasticity_driver_names
      ! Discrete integration type
      logical :: heterogeneous_integral = .false.
      ! Elasticity of a beam (use free Neumman condition for most of the boundary except the plane x=0)
-     logical :: is_a_beam = .false.
+     logical :: is_a_beam = .true.
      ! Max cell id
      integer(ip)      :: max_cell_id 
 
@@ -189,13 +189,12 @@ contains
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then 
        call this%triangulation%create_vef_iterator(vef)
-       if (this%is_a_beam) then 
-          write(*,*) 'here'
+       if (this%is_a_beam) then        
           do while ( .not. vef%has_finished() )
              if (vef%is_at_boundary()) then
                 if (vef%is_local()) then 
                    num_nodes = vef%get_num_nodes()
-                   allocate (nodes_coordinates(num_nodes),stat=istat)
+                   allocate (nodes_coordinates(num_nodes),stat=istat)! Is max_num_nodes available so that this can be done only once!
                    call vef%get_nodes_coordinates(nodes_coordinates)
                    if (is_on_the_x_equal_zero_plane(nodes_coordinates,num_nodes)) then
                       call vef%set_set_id(1)
@@ -210,8 +209,8 @@ contains
                 call vef%set_set_id(0)
              end if
              call vef%next()
-          end do
-       else
+          end do          
+       else       
           do while (.not. vef%has_finished())
              if (vef%is_at_boundary()) then
                 call vef%set_set_id(1)
@@ -243,7 +242,7 @@ contains
       is_on_the_x_equal_zero_plane = .true.
       do i=1,num_nodes
          if (nodes_coordinates(i)%get(1).ne.0.0_rp) then
-            is_on_the_x_equal_zero_plane = .true.
+            is_on_the_x_equal_zero_plane = .false.
             cycle
          end if
       end do
@@ -622,13 +621,6 @@ contains
        temporary_pointer%elastic_modulus = this%test_params%get_jump() 
        this%heterogeneous_integral = .true.   
     end select
-    
-    !select type (my_pointer => this%linear_elasticity_integration)   
-    !type is (irreducible_beam_discrete_integration_t) 
-    !   my_pointer%elastic_modulus = this%test_params%get_jump() 
-    !   this%heterogeneous_integral = .true.
-    !end select
-
     call this%linear_elasticity_integration%create(this%triangulation%get_num_dims(),this%linear_elasticity_analytical_functions)
 
   end subroutine setup_discrete_integration
@@ -680,9 +672,12 @@ contains
 
     call this%linear_elasticity_analytical_functions%set_num_dimensions(this%triangulation%get_num_dims())
     call this%linear_elasticity_conditions%set_number_components(this%linear_elasticity_integration%get_number_components())
-    call this%linear_elasticity_conditions%set_number_dimensions(this%triangulation%get_num_dims())    
+    call this%linear_elasticity_conditions%set_number_dimensions(this%triangulation%get_num_dims())
+    if (this%is_a_beam) then
+    call this%linear_elasticity_conditions%set_boundary_function(this%linear_elasticity_analytical_functions%get_zero_function_u())
+    else 
     call this%linear_elasticity_conditions%set_boundary_function(this%linear_elasticity_analytical_functions%get_solution_function_u())
-
+    end if
     call this%fe_space%create( triangulation       = this%triangulation,      &
          reference_fes       = this%reference_fes,      &
          coarse_fe_handlers  = this%coarse_fe_handlers, &
