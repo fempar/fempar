@@ -1,52 +1,6 @@
-!subroutine  irreducible_discrete_integration_create(this,number_dimensions,analytical_functions)
-!  implicit none
-!  class(irreducible_discrete_integration_t)     , intent(inout) :: this
-!  integer(ip)                                   , intent(in)    :: number_dimensions
-!  type(linear_elasticity_analytical_functions_t), target, intent(in)    :: analytical_functions
-!  integer(ip) :: istat
-
-!  this%number_dimensions = number_dimensions
-!  this%number_fields     = 1
-!  this%number_components = number_dimensions
-!  allocate(this%fe_type(this%number_fields),stat=istat)  ; check(istat==0)
-!  allocate(this%field_type(this%number_fields),stat=istat); check(istat==0)
-!  allocate(this%field_name(this%number_fields),stat=istat); check(istat==0)
-!  call memalloc(this%number_fields,this%field_blocks,__FILE__,__LINE__)
-!  call memalloc(this%number_fields,this%number_fields,this%field_coupling,__FILE__,__LINE__)
-!  this%fe_type(1)          = fe_type_lagrangian
-!  this%field_type(1)       = field_type_vector
-!  this%field_name(1)       = 'Displacement'
-!  this%field_blocks(1)     = 1
-!  this%field_coupling(1,1) = .true.
-
-!  ! Initializations
-!  this%mass_coefficient      = 0.0_rp
-!  this%residual_coefficient  = 1.0_rp
-!  this%terms_to_integrate    = tangent_and_translation_terms
-!  
-!  ! Could be done in the mother class
-!  this%analytical_functions => analytical_functions
-!  this%source_term => this%analytical_functions%get_source_term_u()
-
-!end subroutine irreducible_discrete_integration_create
-
-!function irreducible_discrete_integration_is_symmetric(this)
-!  implicit none
-!  class(irreducible_discrete_integration_t), intent(inout) :: this
-!  logical :: irreducible_discrete_integration_is_symmetric
-!  irreducible_discrete_integration_is_symmetric = .true.
-!end function irreducible_discrete_integration_is_symmetric
-
-!function irreducible_discrete_integration_is_coercive(this)
-!  implicit none
-!  class(irreducible_discrete_integration_t), intent(inout) :: this
-!  logical :: irreducible_discrete_integration_is_coercive
-!  irreducible_discrete_integration_is_coercive = .true.
-!end function irreducible_discrete_integration_is_coercive
-
-subroutine irreducible_heterogeneous_beam_discrete_integration_integrate ( this, fe_space, assembler )
+subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, assembler )
   implicit none
-  class(irreducible_heterogeneous_beam_discrete_integration_t), intent(in)    :: this
+  class(irreducible_beam_discrete_integration_t), intent(in)    :: this
   class(serial_fe_space_t)                 , intent(inout) :: fe_space
   class(assembler_t)          , intent(inout) :: assembler
 
@@ -180,4 +134,4 @@ subroutine irreducible_heterogeneous_beam_discrete_integration_integrate ( this,
   call memfree ( elmat, __FILE__, __LINE__ )
   call memfree ( elvec, __FILE__, __LINE__ )
 
-end subroutine irreducible_heterogeneous_beam_discrete_integration_integrate
+end subroutine irreducible_beam_discrete_integration_integrate

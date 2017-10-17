@@ -86,7 +86,7 @@ module par_pb_bddc_linear_elasticity_driver_names
      ! Discrete integration type
      logical :: heterogeneous_integral = .false.
      ! Elasticity of a beam (use free Neumman condition for most of the boundary except the plane x=0)
-     logical :: is_a_beam = .true.
+     logical :: is_a_beam = .false.
      ! Max cell id
      integer(ip)      :: max_cell_id 
 
@@ -599,7 +599,7 @@ contains
        assert(this%max_cell_id == 1) !Heterogeneous integration is only used when max_cell_id == 1
     else if(this%test_params%get_discrete_integration_type() == 'heterogeneous' ) then
        if (this%is_a_beam) then
-          allocate(irreducible_heterogeneous_beam_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
+          allocate(irreducible_beam_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
           this%elasticity_coarse_fe_handler%elastic_modulus = this%test_params%get_jump()
        else
           allocate(irreducible_heterogeneous_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
@@ -614,17 +614,20 @@ contains
     if ( this%par_environment%get_l1_rank() == 0 ) then
        write(*,*) 'Using ', this%test_params%get_discrete_integration_type(), ' discrete integration'
     end if
-    !select type (temporary_pointer => this%linear_elasticity_integration)   
-    !type is (irreducible_heterogeneous_discrete_integration_t)
-    !   temporary_pointer%elastic_modulus = this%test_params%get_jump() 
+    select type (temporary_pointer => this%linear_elasticity_integration)   
+    type is (irreducible_heterogeneous_discrete_integration_t)
+       temporary_pointer%elastic_modulus = this%test_params%get_jump() 
+       this%heterogeneous_integral = .true.
+    type is (irreducible_beam_discrete_integration_t) 
+       temporary_pointer%elastic_modulus = this%test_params%get_jump() 
+       this%heterogeneous_integral = .true.   
+    end select
+    
+    !select type (my_pointer => this%linear_elasticity_integration)   
+    !type is (irreducible_beam_discrete_integration_t) 
+    !   my_pointer%elastic_modulus = this%test_params%get_jump() 
     !   this%heterogeneous_integral = .true.
     !end select
-    
-    select type (temporary_pointer2 => this%linear_elasticity_integration)   
-    type is (irreducible_heterogeneous_beam_discrete_integration_t) 
-       temporary_pointer2%elastic_modulus = this%test_params%get_jump() 
-       this%heterogeneous_integral = .true.
-    end select
 
     call this%linear_elasticity_integration%create(this%triangulation%get_num_dims(),this%linear_elasticity_analytical_functions)
 

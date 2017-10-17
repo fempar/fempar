@@ -141,19 +141,18 @@ procedure :: integrate_galerkin => irreducible_heterogeneous_discrete_integratio
 !procedure :: init_solution => irreducible_discrete_integration_init_solution 
 end type irreducible_heterogeneous_discrete_integration_t  
 
-type, extends(irreducible_discrete_integration_t) :: irreducible_heterogeneous_beam_discrete_integration_t
+type, extends(irreducible_discrete_integration_t) :: irreducible_beam_discrete_integration_t
 private
 real(rp), public    :: elastic_modulus
 contains 
-
-procedure :: integrate_galerkin => irreducible_heterogeneous_beam_discrete_integration_integrate
-
-end type irreducible_heterogeneous_beam_discrete_integration_t
+procedure :: integrate_galerkin => irreducible_beam_discrete_integration_integrate
+end type irreducible_beam_discrete_integration_t
 
 character(*), parameter :: discrete_integration_type_irreducible = 'irreducible'
 character(*), parameter :: discrete_integration_type_mixed_u_p   = 'mixed_u_p'
 
-public :: linear_elasticity_discrete_integration_t, irreducible_discrete_integration_t, irreducible_heterogeneous_discrete_integration_t, irreducible_heterogeneous_beam_discrete_integration_t
+public :: linear_elasticity_discrete_integration_t, irreducible_discrete_integration_t
+public :: irreducible_heterogeneous_discrete_integration_t, irreducible_beam_discrete_integration_t  
 public :: discrete_integration_type_irreducible
 
 !public :: linear_elasticity_discrete_integration_t, irreducible_discrete_integration_t, mixed_u_p_discrete_integration_t
