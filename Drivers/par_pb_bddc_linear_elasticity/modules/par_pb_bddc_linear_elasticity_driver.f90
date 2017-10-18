@@ -595,7 +595,7 @@ contains
 
     if ( this%test_params%get_discrete_integration_type() == 'homogeneous' ) then
        allocate(irreducible_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)     
-       assert(this%max_cell_id == 1) !Heterogeneous integration is only used when max_cell_id == 1
+       !assert(this%max_cell_id == 1) !Heterogeneous integration is only used when max_cell_id == 1
     else if(this%test_params%get_discrete_integration_type() == 'heterogeneous' ) then
        if (this%is_a_beam) then
           allocate(irreducible_beam_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
@@ -622,7 +622,7 @@ contains
        this%heterogeneous_integral = .true.   
     end select
     call this%linear_elasticity_integration%create(this%triangulation%get_num_dims(),this%linear_elasticity_analytical_functions)
-
+    
   end subroutine setup_discrete_integration
 
   !========================================================================================

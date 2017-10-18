@@ -144,7 +144,8 @@ end type irreducible_heterogeneous_discrete_integration_t
 type, extends(irreducible_discrete_integration_t) :: irreducible_beam_discrete_integration_t
 private
 real(rp), public    :: elastic_modulus
-contains 
+contains
+procedure :: create  => irreducible_beam_discrete_integration_create
 procedure :: integrate_galerkin => irreducible_beam_discrete_integration_integrate
 end type irreducible_beam_discrete_integration_t
 
