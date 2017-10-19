@@ -79,7 +79,6 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%update_p4est_mesh()
         call this%update_topology_from_p4est_mesh()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-        call this%update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%update_cell_import()
         call this%comm_cell_ggids()
         call this%comm_cell_myparts()
@@ -89,13 +88,17 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%clear_cell_set_ids()
         call this%clear_vef_set_ids()
         call this%set_up_lst_itfc_vefs()
+        call this%update_lst_vef_gids_and_cells_around_ghost_cells()
+        call this%update_local_proper_vefs_actually_on_the_interface()
+        ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
+        ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
+        call this%set_up_lst_itfc_vefs()
      else if ( this%get_num_dims() == 3 ) then
         call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
         call F90_p8est_new(mpi_context%get_icontxt(),this%p4est_connectivity, this%p4est)
         call this%update_p4est_mesh()
         call this%update_topology_from_p4est_mesh()
         call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-        call this%update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%update_cell_import()
         call this%comm_cell_ggids()
         call this%comm_cell_myparts()
@@ -104,6 +107,10 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%clear_refinement_and_coarsening_flags()
         call this%clear_cell_set_ids()
         call this%clear_vef_set_ids()
+        call this%set_up_lst_itfc_vefs()
+        call this%update_lst_vef_gids_and_cells_around_ghost_cells()
+        ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
+        ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%set_up_lst_itfc_vefs()
      end if
   end if 
@@ -123,8 +130,6 @@ subroutine p4est_par_triangulation_free ( this)
   p_environment => this%get_environment()
   if ( associated(p_environment) ) then
      if ( p_environment%am_i_l1_task() ) then
-        
-     
         if ( this%get_num_dims() == 2 ) then
            call F90_p4est_destroy(this%p4est)
            call F90_p4est_connectivity_destroy(this%p4est_connectivity)
@@ -144,10 +149,9 @@ subroutine p4est_par_triangulation_free ( this)
         this%QHE                = c_null_ptr
         
         call this%per_cell_vertex_coordinates%free()
-
-
         call this%lst_vefs_gids%free()
         call this%cell_ggids%free()
+        call this%lst_vefs_ggids%free()
         call this%cell_myparts%free()
         call this%ptr_cells_around_proper_vefs%free()
         call this%lst_cells_around_proper_vefs%free()
@@ -263,7 +267,6 @@ subroutine p4est_par_triangulation_partition ( this )
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%update_lst_vef_gids_and_cells_around_ghost_cells()
     call this%update_cell_import()
     call this%comm_cell_ggids()
     call this%comm_cell_myparts()
@@ -278,6 +281,11 @@ subroutine p4est_par_triangulation_partition ( this )
       call F90_p8est_destroy(p4est_old)
     end if
     call old_lst_vefs_gids%free()
+    call this%set_up_lst_itfc_vefs()
+    call this%update_lst_vef_gids_and_cells_around_ghost_cells()
+    call this%update_local_proper_vefs_actually_on_the_interface()
+    ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
+    ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
     call this%set_up_lst_itfc_vefs()
   end if
 #else

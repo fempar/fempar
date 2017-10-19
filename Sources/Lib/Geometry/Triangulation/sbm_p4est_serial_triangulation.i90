@@ -70,6 +70,11 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
     call this%set_up_lst_itfc_vefs()
+    call this%update_lst_vef_gids_and_cells_around_ghost_cells()
+    call this%update_local_proper_vefs_actually_on_the_interface()
+    ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
+    ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
+    call this%set_up_lst_itfc_vefs()
   else if ( this%get_num_dims() == 3 ) then
     call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
     call F90_p8est_new(dummy_comm,this%p4est_connectivity, this%p4est)
@@ -84,6 +89,11 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
+    call this%set_up_lst_itfc_vefs()
+    call this%update_lst_vef_gids_and_cells_around_ghost_cells()
+    call this%update_local_proper_vefs_actually_on_the_interface()
+    ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
+    ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
     call this%set_up_lst_itfc_vefs()
   end if  
 #else
@@ -119,6 +129,7 @@ subroutine p4est_serial_triangulation_free ( this)
   
   call this%lst_vefs_gids%free()
   call this%cell_ggids%free()
+  call this%lst_vefs_ggids%free()
   call this%ptr_cells_around_proper_vefs%free()
   call this%lst_cells_around_proper_vefs%free()
   call this%ptr_cells_around_improper_vefs%free()

@@ -307,7 +307,7 @@ subroutine par_fe_space_generate_global_dof_numbering( this, block_layout )
      !call this%count_and_list_dofs_on_ghosts()
      call this%compute_blocks_dof_import()
      ! Step required by the MLBDDC preconditioner
-     call this%renum_dofs_first_interior_then_interface()
+     ! call this%renum_dofs_first_interior_then_interface()
   else
      this%block_layout => block_layout
     
@@ -1192,7 +1192,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
     i=i+1
   end do
   call this%lst_dofs_ggids%resize(0)
-  call this%lst_dofs_ggids%resize(this%ptr_dofs_field%get(triangulation%get_num_cells()+1)-1,0_igp)
+  call this%lst_dofs_ggids%resize(this%ptr_dofs_field%get(triangulation%get_num_cells()+1)-1,-1_igp)
   
   call fe%first()
   num_vefs = fe%get_num_vefs()
@@ -1610,7 +1610,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: num_vefs
   integer(ip) :: cell_gid, base_pos
-  logical :: all_ghosts
+  logical :: all_local, all_ghosts
   integer(igp) :: dof_ggid
   integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
   integer(ip), pointer :: p_lst_ghosts_per_local_cell(:)
@@ -1618,10 +1618,13 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   integer(ip), pointer :: p_lst_ghosts_per_ghost_cell(:)
   integer(ip), pointer :: p_rcv_my_part_id_vefs(:)
   integer(ip), pointer :: p_rcv_my_part_id_vefs_complete_itfc_couplings(:)
-  integer(ip) :: j, k, ghost_part 
+  integer(ip) :: i, j, k, ghost_part 
   integer(ip) :: aux
   type(hash_table_ip_ip_t) :: ghost_parts_visited
   type(std_vector_integer_ip_t) :: lst_parts
+  integer(ip) :: start_col, end_col
+  integer(ip) , allocatable :: perm(:)
+  integer(igp), allocatable :: buf(:)
 
   environment   => this%get_environment()
   triangulation => this%get_triangulation()
@@ -1674,6 +1677,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
         max_part_id = this%max_part_id_vefs%get(base_pos+ivef)
         
         all_ghosts = .true.
+        all_local  = .true.
         num_dofs_current_vef = 0
         
         call ghost_parts_visited%init(100)
@@ -1695,7 +1699,11 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                  cycle
               end if
               
-              if ( fe%is_local() ) all_ghosts = .false.
+              if ( fe%is_local() ) then
+                all_ghosts = .false.
+              else
+                all_local  = .false.
+              end if 
 
               base_pos = this%ptr_dofs_field%get(fe%get_gid())-1
               dof_ggid = this%lst_dofs_ggids%get(base_pos+idof)
@@ -1722,7 +1730,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                k = p_lst_ghosts_per_local_cell(j)
                base_pos   = (k-1)*num_vefs
                ghost_part = p_rcv_my_part_id_vefs(base_pos+ivef) 
-               if ( ghost_part > 0 ) then
+               if ( ghost_part > 0 .and. ghost_part /= mypart_id ) then
                  local_part_id = cell_import%get_local_neighbour_id(ghost_part)
                  if ( .not. touched_neighbours(local_part_id) ) then
                     touched_neighbours (local_part_id) = .true.
@@ -1737,7 +1745,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                k = p_lst_ghosts_per_ghost_cell(j)
                base_pos   = (k-1)*num_vefs
                ghost_part = p_rcv_my_part_id_vefs_complete_itfc_couplings(base_pos+ivef)
-               if ( ghost_part > 0 ) then
+               if ( ghost_part > 0 .and. ghost_part /= mypart_id  ) then
                  if ( cell_import%is_local_neighbour(ghost_part) ) then
                    local_part_id = cell_import%get_local_neighbour_id(ghost_part)
                    if ( .not. touched_neighbours(local_part_id) ) then
@@ -1763,19 +1771,23 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
         do idof=1, num_dofs_current_vef
            dof_gid = lst_dofs_current_vef(idof)
            do ipart=1, num_parts
-              dofs_gid ( current_col ) = dof_gid 
-              dofs_max_part_id ( current_col-offset ) = max_part_id 
-              if (all_ghosts) then
-                raw_interface_data(neighbor_part_id_row, current_col) = max_part_id
-                raw_interface_data(dof_gid_row, current_col) = dof_ggid 
-                raw_interface_data(owner_flag_row, current_col) = -1 
-              else
-                part_id = parts_visited(ipart)
-                raw_interface_data(neighbor_part_id_row, current_col) = part_id
-                raw_interface_data(dof_gid_row, current_col) = dof_ggid 
-                raw_interface_data(owner_flag_row, current_col) = num_parts + num_parts_from_ghosts + 1
-              end if 
-              current_col = current_col + 1
+             dofs_gid ( current_col ) = dof_gid 
+             dofs_max_part_id ( current_col-offset ) = max_part_id 
+             if (all_ghosts) then
+               raw_interface_data(neighbor_part_id_row, current_col) = max_part_id
+               raw_interface_data(dof_gid_row, current_col) = dof_ggid 
+               raw_interface_data(owner_flag_row, current_col) = -1 
+             else 
+               part_id = parts_visited(ipart)
+               raw_interface_data(neighbor_part_id_row, current_col) = part_id
+               raw_interface_data(dof_gid_row, current_col) = dof_ggid 
+               if (all_local) then
+                 raw_interface_data(owner_flag_row, current_col) = -2 
+               else
+                 raw_interface_data(owner_flag_row, current_col) = num_parts + num_parts_from_ghosts + 1
+               end if
+             end if 
+             current_col = current_col + 1
            end do
            do ipart=1, num_parts_from_ghosts
               dofs_gid ( current_col ) = dof_gid
@@ -1783,7 +1795,11 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
               part_id = lst_parts%get(ipart)
               raw_interface_data(neighbor_part_id_row, current_col) = part_id
               raw_interface_data(dof_gid_row, current_col) = dof_ggid 
-              raw_interface_data(owner_flag_row, current_col) = num_parts + num_parts_from_ghosts + 1
+              if (all_local) then
+                raw_interface_data(owner_flag_row, current_col) = -2 
+              else
+                raw_interface_data(owner_flag_row, current_col) = num_parts + num_parts_from_ghosts + 1
+              end if
               current_col = current_col + 1
            end do           
         end do
@@ -1810,8 +1826,65 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                                                            dofs_gid)
 
   call memfree ( dofs_max_part_id, __FILE__, __LINE__ )
-
   num_itfc_couplings = current_col-1 
+  
+  call memalloc ( num_itfc_couplings, perm, __FILE__, __LINE__ )
+  call memalloc ( num_itfc_couplings, buf , __FILE__, __LINE__ )
+  start_col=1
+  do i=1,num_itfc_couplings-1
+    if ( raw_interface_data (neighbor_part_id_row,i) /= & 
+         raw_interface_data (neighbor_part_id_row,i+1) ) then
+      end_col   = i
+      !write(*,*) 'XXX', start_col, end_col    
+
+      if (start_col < end_col) then
+        k=1
+        do j=start_col, end_col
+          perm(j)=k
+          k=k+1  
+        end do 
+
+        call sort_array_cols_by_row_element( dof_gid_row, &
+                                             num_rows_raw_interface_data, &
+                                             end_col-start_col+1, &
+                                             raw_interface_data(1:,start_col:end_col), &
+                                             perm(start_col:end_col))
+
+        buf(start_col:end_col) = dofs_gid(start_col:end_col)
+        j=1
+        do col=start_col, end_col 
+          dofs_gid(col) = buf(start_col+perm(start_col+j-1)-1)
+          j=j+1
+        end do
+
+      end if 
+      start_col = i+1 
+    end if 
+  end do
+
+  end_col=num_itfc_couplings
+  if (start_col < end_col) then
+    k=1
+    do j=start_col, end_col
+      perm(j)=k
+      k=k+1
+    end do
+
+    call sort_array_cols_by_row_element( dof_gid_row, &
+                                         num_rows_raw_interface_data, &
+                                         end_col-start_col+1, &
+                                         raw_interface_data(1:,start_col:end_col), &
+                                         perm(start_col:end_col))
+    buf(start_col:end_col) = dofs_gid(start_col:end_col)
+    j=1
+    do col=start_col, end_col 
+       dofs_gid(col) = buf(start_col+perm(start_col+j-1)-1)
+       j=j+1
+    end do
+  end if
+  !write(*,*) 'YYY', start_col, end_col    
+  call memfree ( perm, __FILE__, __LINE__ )
+  call memfree ( buf , __FILE__, __LINE__ )
 end function par_fe_space_compute_raw_interface_data_by_continuity
 
 subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
@@ -1878,11 +1951,16 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
   do while ( col <= num_cols ) 
      ! If DoF (only) on ghost cells then non owner 
      if (raw_interface_data ( owner_flag_row, col ) == -1) then
-       raw_interface_data ( owner_flag_row, col) = non_owner 
-       else if ( raw_interface_data ( owner_flag_row, col ) == 2 ) then
+        raw_interface_data ( owner_flag_row, col) = non_owner 
+        col = col + 1
+     ! If DoF (only) on local cells then owner 
+     else if (raw_interface_data ( owner_flag_row, col ) == -2) then
+        raw_interface_data ( owner_flag_row, col) = owner    
+        col = col + 1
+     else if ( raw_interface_data ( owner_flag_row, col ) == 2 ) then
         start_col = col
         do while ( ( raw_interface_data ( owner_flag_row, col ) == 2).and. &
-        &          ( raw_interface_data ( neighbor_part_id_row, col ) == raw_interface_data ( neighbor_part_id_row, start_col ) ) )
+             &          ( raw_interface_data ( neighbor_part_id_row, col ) == raw_interface_data ( neighbor_part_id_row, start_col ) ) )
            col = col + 1
            if ( col > num_cols ) exit
         end do
@@ -1915,7 +1993,7 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
               raw_interface_data ( owner_flag_row, col) = uncoupled
            end if
         end if
-        col = col +1
+        col = col + 1
      end if
   end do
 

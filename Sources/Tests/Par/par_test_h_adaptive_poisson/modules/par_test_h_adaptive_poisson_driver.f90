@@ -315,7 +315,7 @@ end subroutine free_timers
     !  call this%triangulation%free_vef_iterator(vef_of_vef)
     !end if
     
-    do i = 1,4
+    do i = 1,3
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%set_cells_set_ids()
@@ -742,6 +742,7 @@ end subroutine free_timers
       call this%triangulation%create_cell_iterator(cell)
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
+          !if ( mod(cell%get_gid(),2) == 0 .or. (cell%get_level() == 0) )then
           if ( (cell%get_gid()==4) .or. (cell%get_level() == 0) )then
             call cell%set_for_refinement()
           end if

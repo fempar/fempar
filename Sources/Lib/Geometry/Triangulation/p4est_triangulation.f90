@@ -328,7 +328,15 @@ module p4est_triangulation_names
      procedure                           :: get_improper_cell_around_ivef   => p4est_vef_iterator_get_improper_cell_around_ivef
      procedure                           :: get_improper_cell_around_subvef => p4est_vef_iterator_get_improper_cell_around_subvef
   end type p4est_vef_iterator_t
+ 
   
+  ! These parameter constants are used in order to generate a unique (non-consecutive) 
+  ! but consistent across MPI tasks global ID (integer(igp)) of a given VEF.
+  ! See type(p4est_base_triangulation_t)%generate_non_consecutive_vef_ggid()
+  integer(ip), parameter :: cell_ggid_shift    = 54
+  integer(ip), parameter :: vefs_x_cell_shift  = 10 
+
+ 
   ! TODO: this data type should extend an abstract triangulation,
   !       and implement its corresponding accessors
   type, extends(triangulation_t) ::  p4est_base_triangulation_t
@@ -390,7 +398,7 @@ module p4est_triangulation_names
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: cell_myparts
     type(std_vector_integer_igp_t)         :: cell_ggids
-    
+    type(std_vector_integer_igp_t)         :: lst_vefs_ggids
   contains
     ! Getters
     procedure                                   :: get_num_reference_fes                         => p4est_base_triangulation_get_num_reference_fes
@@ -400,28 +408,31 @@ module p4est_triangulation_names
     procedure                                   :: get_refinement_and_coarsening_flags           => p4est_bt_get_refinement_and_coarsening_flags
     
     ! Set up related methods
-    procedure                 , non_overridable :: refine_and_coarsen                               => p4est_base_triangulation_refine_and_coarsen
-    procedure, private        , non_overridable :: update_p4est_mesh                                => p4est_base_triangulation_update_p4est_mesh
-    procedure, private        , non_overridable :: update_topology_from_p4est_mesh                  => p4est_base_triangulation_update_topology_from_p4est_mesh
-    procedure, private        , non_overridable :: get_ptr_vefs_x_cell                              => p4est_base_triangulation_get_ptr_vefs_x_cell
-    procedure, private        , non_overridable :: update_lst_vefs_gids_and_cells_around            => p4est_bt_update_lst_vefs_gids_and_cells_around
-    procedure, private        , non_overridable :: update_lst_vef_gids_and_cells_around_ghost_cells => p4est_bt_update_lst_vef_gids_and_cells_around_ghost_cells
-    procedure, private        , non_overridable :: update_cell_ggids                                => p4est_base_triangulation_update_cell_ggids
-    procedure, private        , non_overridable :: comm_cell_ggids                                  => p4est_base_triangulation_comm_cell_ggids
-    procedure, private        , non_overridable :: update_cell_myparts                              => p4est_base_triangulation_update_cell_myparts
-    procedure, private        , non_overridable :: comm_cell_myparts                                => p4est_base_triangulation_comm_cell_myparts
-    procedure, private        , non_overridable :: update_cell_set_ids                              => p4est_bt_update_cell_set_ids
-    procedure, private        , non_overridable :: update_vef_set_ids                               => p4est_bt_update_vef_set_ids
-    procedure                 , non_overridable :: std_vector_transform_length_to_header            => p4est_bt_std_vector_transform_length_to_header
-    procedure                 , non_overridable :: std_vector_transform_header_to_length            => p4est_bt_std_vector_transform_header_to_length
-    procedure, private        , non_overridable :: fill_x_cell_vertex_coordinates      => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
-    procedure                 , non_overridable :: clear_refinement_and_coarsening_flags            => p4est_bt_clear_refinement_and_coarsening_flags
-    procedure                 , non_overridable :: clear_cell_set_ids                               => p4est_bt_clear_cell_set_ids
-    procedure                                   :: fill_cells_set                                   => p4est_bt_fill_cells_set
-    procedure, private       , non_overridable  :: clear_vef_set_ids                                => p4est_bt_clear_vef_set_ids
-    procedure, private       , non_overridable  :: update_cell_import                               => p4est_bt_update_cell_import
-    procedure, private       , non_overridable  :: match_cell_import_rcv_control_data               => p4est_bt_match_cell_import_rcv_control_data
-    procedure, private       , non_overridable  :: adjust_ghost_cells                               => p4est_bt_adjust_ghost_cells
+    procedure                 , non_overridable :: refine_and_coarsen                                 => p4est_base_triangulation_refine_and_coarsen
+    procedure, private        , non_overridable :: update_p4est_mesh                                  => p4est_base_triangulation_update_p4est_mesh
+    procedure, private        , non_overridable :: update_topology_from_p4est_mesh                    => p4est_base_triangulation_update_topology_from_p4est_mesh
+    procedure, private        , non_overridable :: get_ptr_vefs_x_cell                                => p4est_base_triangulation_get_ptr_vefs_x_cell
+    procedure, private        , non_overridable :: update_lst_vefs_gids_and_cells_around              => p4est_bt_update_lst_vefs_gids_and_cells_around
+    procedure, private        , non_overridable :: update_lst_vef_gids_and_cells_around_ghost_cells   => p4est_bt_update_lst_vef_gids_and_cells_around_ghost_cells
+    procedure, private        , non_overridable :: update_local_proper_vefs_actually_on_the_interface => p4est_bt_update_local_proper_vefs_actually_on_the_interface
+    procedure, private        , non_overridable :: update_cell_ggids                                  => p4est_base_triangulation_update_cell_ggids
+    procedure, private        , non_overridable :: comm_cell_ggids                                    => p4est_base_triangulation_comm_cell_ggids
+    procedure, private        , non_overridable :: update_cell_myparts                                => p4est_base_triangulation_update_cell_myparts
+    procedure, private        , non_overridable :: comm_cell_myparts                                  => p4est_base_triangulation_comm_cell_myparts
+    procedure, private        , non_overridable :: update_cell_set_ids                                => p4est_bt_update_cell_set_ids
+    procedure, private        , non_overridable :: update_vef_set_ids                                 => p4est_bt_update_vef_set_ids
+    procedure                 , non_overridable :: std_vector_transform_length_to_header              => p4est_bt_std_vector_transform_length_to_header
+    procedure                 , non_overridable :: std_vector_transform_header_to_length              => p4est_bt_std_vector_transform_header_to_length
+    procedure, private        , non_overridable :: fill_x_cell_vertex_coordinates                     => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
+    procedure                 , non_overridable :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
+    procedure                 , non_overridable :: clear_cell_set_ids                                 => p4est_bt_clear_cell_set_ids
+    procedure                                   :: fill_cells_set                                     => p4est_bt_fill_cells_set
+    procedure, private       , non_overridable  :: clear_vef_set_ids                                  => p4est_bt_clear_vef_set_ids
+    procedure, private       , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import
+    procedure, private       , non_overridable  :: match_cell_import_rcv_control_data                 => p4est_bt_match_cell_import_rcv_control_data
+    procedure, private       , non_overridable  :: adjust_ghost_cells                                 => p4est_bt_adjust_ghost_cells
+    procedure, private, nopass, non_overridable :: generate_non_consecutive_vef_ggid                  => p4est_bt_generate_non_consecutive_vef_ggid
+    procedure, private       , non_overridable  :: exchange_vefs_ggids                                => p4est_bt_exchange_vefs_ggids 
 
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator
