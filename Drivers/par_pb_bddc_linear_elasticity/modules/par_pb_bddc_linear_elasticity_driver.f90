@@ -278,6 +278,7 @@ contains
                   this%test_params%get_jump(), this%test_params%get_inclusion(), &
                   this%test_params%get_nchannel_x_direction(), &
                   this%test_params%get_nparts_with_channels(), &
+                  this%test_params%get_hex_mesh_domain_limits(), &
                   this%test_params%get_nparts())
              cells_set( cell%get_gid() ) = cell_id
              if (cell_id > max_cell_id) then
@@ -302,7 +303,7 @@ contains
 
   contains
 
-    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,nparts)
+    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,domain_limits,nparts)
       implicit none
       type(point_t), intent(in)  :: coord
       integer(ip)  , intent(in)  :: num_dims
@@ -310,6 +311,7 @@ contains
       integer(ip)  , intent(in)  :: inclusion
       integer(ip)  , intent(in)  :: nchannel_x_direction(3)
       integer(ip)  , intent(in)  :: nparts_with_channels(3)
+      real(rp)     , intent(in)  :: domain_limits(6)
       integer(ip)  , intent(in)  :: nparts(3)
       type(point_t) :: origin, opposite
       integer(ip) :: cell_set_id
@@ -489,7 +491,8 @@ contains
          if (.not.(allocated(px1))) then
             call memalloc(nchannel_x_direction(1), px1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(1), px2, __FILE__, __LINE__ )
-            box_width = 1.0*nparts_with_channels(1)/(nchannel_x_direction(1)*nparts(1))
+            
+            box_width = (domain_limits(2)-domain_limits(1))*nparts_with_channels(1)/(nchannel_x_direction(1)*nparts(1))
             half_channel_width = box_width/5
             center = half_channel_width
             do j=1, nchannel_x_direction(1)
@@ -497,9 +500,12 @@ contains
                px2(j)=center + half_channel_width  
                center = center + box_width
             enddo
+            px1 = px1 + domain_limits(1)
+            px2 = px2 + domain_limits(1)
+            
             call memalloc(nchannel_x_direction(2), py1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(2), py2, __FILE__, __LINE__ )
-            box_width = 1.0*nparts_with_channels(2)/(nchannel_x_direction(2)*nparts(2))
+            box_width = (domain_limits(4)-domain_limits(3))*nparts_with_channels(2)/(nchannel_x_direction(2)*nparts(2))
             half_channel_width = box_width/5
             center = half_channel_width
             do j=1, nchannel_x_direction(2)
@@ -507,9 +513,12 @@ contains
                py2(j)=center + half_channel_width  
                center = center + box_width
             enddo
+            py1 = py1 + domain_limits(3)
+            py2 = py2 + domain_limits(3)
+            
             call memalloc(nchannel_x_direction(3), pz1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(3), pz2, __FILE__, __LINE__ )
-            box_width = 1.0*nparts_with_channels(3)/(nchannel_x_direction(3)*nparts(3))
+            box_width = (domain_limits(6)-domain_limits(5))*nparts_with_channels(3)/(nchannel_x_direction(3)*nparts(3))
             half_channel_width = box_width/5
             center = half_channel_width
             do j=1, nchannel_x_direction(3)
@@ -517,6 +526,8 @@ contains
                pz2(j)=center + half_channel_width  
                center = center + box_width
             enddo
+            pz1 = pz1 + domain_limits(5)
+            pz2 = pz2 + domain_limits(5)
          end if
 
          nchannel = 1

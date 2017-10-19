@@ -393,7 +393,7 @@ contains
   function get_hex_mesh_domain_limits(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
-    real(rp)                                   :: get_hex_mesh_domain_limits(3)
+    real(rp)                                   :: get_hex_mesh_domain_limits(6)
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
     list  => this%get_values()
