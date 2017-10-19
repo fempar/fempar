@@ -1052,10 +1052,10 @@ end subroutine p4est_bt_update_lst_vef_gids_and_cells_around_ghost_cells
 subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
   implicit none
   class(p4est_base_triangulation_t), intent(inout)    :: this
-  
   type(p4est_cell_iterator_t) :: cell
   type(p4est_cell_iterator_t) :: coarse_cell
   type(p4est_vef_iterator_t) :: vef
+  type(p4est_vef_iterator_t) :: vef2
   type(p4est_vef_iterator_t) :: coarse_vef
   integer(ip) :: vef_lid, icell, coarse_vef_lid
   integer(ip) :: coarse_vef_gid
@@ -1065,13 +1065,20 @@ subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
   integer(ip) :: base_pos
   integer(ip) :: vef_of_vef_pos_in_cell
   integer(ip) :: vertex_pos_in_cell
-  
+  type(cell_import_t), pointer :: cell_import
+  integer(ip), pointer :: snd_leids(:)   
+  integer(ip) :: i
+  logical :: at_interface 
+  type(list_t), pointer :: vertices_n_face
+  type(list_iterator_t) :: vertices_n_face_it
+
   ! Create cell and point to first ghost cell
   call cell%create(this)
   call cell%set_gid(this%get_num_local_cells()+1)
   
   call coarse_cell%create(this)
   call vef%create(this)
+  call vef2%create(this)
   call coarse_vef%create(this)
   
   ! Go over ghost cells
@@ -1120,8 +1127,37 @@ subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
     call cell%next()
   end do 
   
+
+  cell_import => this%get_cell_import()
+  snd_leids   => cell_import%get_snd_leids()
+  do i=1, size(snd_leids)
+    call cell%set_gid(snd_leids(i))
+    reference_fe_geo => cell%get_reference_fe() 
+    do vef_lid=1, cell%get_num_vefs()
+     call cell%get_vef(vef_lid,vef)
+     if ( vef%get_dim() > 0 .and. &
+          .not. vef%is_at_interface() .and. vef%is_proper() ) then  
+         at_interface = .true. 
+         vertices_n_face => reference_fe_geo%get_vertices_n_face()
+         vertices_n_face_it = vertices_n_face%create_iterator(vef_lid)
+         do while( .not. vertices_n_face_it%is_upper_bound() )
+           call cell%get_vef(vertices_n_face_it%get_current(),vef2)
+           if (.not. vef2%is_at_interface()) then
+              at_interface = .false.
+              exit
+           end if 
+           call vertices_n_face_it%next()
+         end do
+         if (at_interface) then
+           call this%proper_vefs_at_interface%set(vef%get_gid(),1)
+         end if 
+     end if 
+    end do 
+  end do  
+ 
   call cell%free()
   call vef%free()
+  call vef2%free()
   call coarse_vef%free()
   call coarse_cell%free()
 end subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface
