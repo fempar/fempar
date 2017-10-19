@@ -85,8 +85,6 @@ module par_pb_bddc_linear_elasticity_driver_names
 
      ! Discrete integration type
      logical :: heterogeneous_integral = .false.
-     ! Elasticity of a beam (use free Neumman condition for most of the boundary except the plane x=0)
-     logical :: is_a_beam = .true.
      ! Max cell id
      integer(ip)      :: max_cell_id 
 
@@ -189,7 +187,7 @@ contains
 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then 
        call this%triangulation%create_vef_iterator(vef)
-       if (this%is_a_beam) then        
+       if (this%test_params%get_is_a_beam()) then        
           do while ( .not. vef%has_finished() )
              if (vef%is_at_boundary()) then
                 if (vef%is_local()) then 
@@ -597,7 +595,7 @@ contains
        allocate(irreducible_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)     
        !assert(this%max_cell_id == 1) !Heterogeneous integration is only used when max_cell_id == 1
     else if(this%test_params%get_discrete_integration_type() == 'heterogeneous' ) then
-       if (this%is_a_beam) then
+       if (this%test_params%get_is_a_beam()) then
           allocate(irreducible_beam_discrete_integration_t :: this%linear_elasticity_integration, stat=istat); check(istat==0)
           this%elasticity_coarse_fe_handler%elastic_modulus = this%test_params%get_jump()
        else
@@ -673,7 +671,7 @@ contains
     call this%linear_elasticity_analytical_functions%set_num_dimensions(this%triangulation%get_num_dims())
     call this%linear_elasticity_conditions%set_number_components(this%linear_elasticity_integration%get_number_components())
     call this%linear_elasticity_conditions%set_number_dimensions(this%triangulation%get_num_dims())
-    if (this%is_a_beam) then
+    if (this%test_params%get_is_a_beam()) then
     call this%linear_elasticity_conditions%set_boundary_function(this%linear_elasticity_analytical_functions%get_zero_function_u())
     else 
     call this%linear_elasticity_conditions%set_boundary_function(this%linear_elasticity_analytical_functions%get_solution_function_u())
