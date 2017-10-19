@@ -17,8 +17,10 @@ module par_pb_bddc_linear_elasticity_params_names
   character(len=*), parameter :: heterogeneous              = 'heterogeneous'
   character(len=*), parameter :: homogeneous                = 'homogeneous'
   character(len=*), parameter :: discrete_integration_type_key  = 'discrete_integration_type_key'
-  character(len=*), parameter :: nchannel_x_direction_key = 'nchannel_x_direction' 
-  character(len=*), parameter :: nparts_with_channels_key   = 'nparts_with_channels' 
+  character(len=*), parameter :: nchannel_x_direction_key   = 'nchannel_x_direction' 
+  character(len=*), parameter :: nparts_with_channels_key   = 'nparts_with_channels'
+  !character(len=*), parameter :: hex_mesh_domain_limits_key = 'hex_mesh_domain_limits'
+  
 
   type, extends(parameter_handler_t) :: par_pb_bddc_linear_elasticity_params_t
      private
@@ -38,6 +40,7 @@ module par_pb_bddc_linear_elasticity_params_names
        procedure, non_overridable             :: get_coarse_fe_handler_type
        procedure, non_overridable             :: get_nchannel_x_direction
        procedure, non_overridable             :: get_nparts_with_channels
+       procedure, non_overridable             :: get_hex_mesh_domain_limits
        procedure, non_overridable             :: get_nparts
        !procedure, non_overridable             :: get_num_dims
   end type par_pb_bddc_linear_elasticity_params_t
@@ -84,6 +87,8 @@ contains
     error = list%set(key = discrete_integration_type_key     , value =  heterogeneous)               ; check(error==0)
     error = list%set(key = nchannel_x_direction_key          , value = [1,1,1])                      ; check(error==0)
     error = list%set(key = nparts_with_channels_key          , value = [1,1,1])                      ; check(error==0)
+    error = list%set(key = hex_mesh_domain_limits_key        , value = [0.0_rp,2.0_rp,0.0_rp,0.5_rp,0.0_rp,0.5_rp]); check(error==0)
+    
 
 
     ! Only some of them are controlled from cli
@@ -109,6 +114,7 @@ contains
     error = switches%set(key = discrete_integration_type_key , value = '--discrete_integration')     ; check(error==0)
     error = switches%set(key = nchannel_x_direction_key      , value = '--nchannel_x_direction')     ; check(error==0)
     error = switches%set(key = nparts_with_channels_key      , value = '--nparts_with_channels')     ; check(error==0)
+    error = switches%set(key = hex_mesh_domain_limits_key    , value = '--hex_mesh_domain_limits')     ; check(error==0)
 
 
                                                              
@@ -134,6 +140,7 @@ contains
     error = switches_ab%set(key = coarse_fe_handler_type_key    , value = '-coarse-handler')        ; check(error==0)
     error = switches_ab%set(key = nchannel_x_direction_key      , value = '-nc')        ; check(error==0)
     error = switches_ab%set(key = nparts_with_channels_key      , value = '-npwc')      ; check(error==0)
+    error = switches_ab%set(key = hex_mesh_domain_limits_key    , value = '-domain_limits')      ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')               ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                       ; check(error==0)
@@ -155,6 +162,7 @@ contains
     error = helpers%set(key = coarse_fe_handler_type_key     , value  = 'Which coarse fe handler to use?')        ; check(error==0)
     error = helpers%set(key = nchannel_x_direction_key       , value  = 'Number of channels per direction')       ; check(error==0)
     error = helpers%set(key = nparts_with_channels_key       , value  = 'Number of parts per with channels')      ; check(error==0)
+    error = helpers%set(key = hex_mesh_domain_limits_key     , value  = 'Limits of the domain')      ; check(error==0)
     
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -189,6 +197,7 @@ contains
     error = required%set(key = discrete_integration_type_key , value = .false.) ; check(error==0)
     error = required%set(key = nchannel_x_direction_key      , value = .false.) ; check(error==0)
     error = required%set(key = nparts_with_channels_key      , value = .false.) ; check(error==0)
+    error = required%set(key = hex_mesh_domain_limits_key    , value = .false.) ; check(error==0)
 
 
   end subroutine par_pb_bddc_linear_elasticity_params_define_parameters
@@ -374,6 +383,18 @@ contains
     error = list%Get(key = nparts_with_channels_key, Value = get_nparts_with_channels)
     assert(error==0)
   end function get_nparts_with_channels
+!==================================================================================================
+  function get_hex_mesh_domain_limits(this)
+    implicit none
+    class(par_pb_bddc_linear_elasticity_params_t) , intent(in) :: this
+    real(rp)                                   :: get_hex_mesh_domain_limits(3)
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(hex_mesh_domain_limits_key, get_hex_mesh_domain_limits))
+    error = list%Get(key = hex_mesh_domain_limits_key, Value = get_hex_mesh_domain_limits)
+    assert(error==0)
+  end function get_hex_mesh_domain_limits
 
   !==================================================================================================
   function get_nparts(this)

@@ -177,7 +177,7 @@ subroutine source_term_u_get_value_space ( this, point, result )
        assert(0==1)
     else
        call result%set(1,0.0_rp)
-       call result%set(2,-0.9_rp) 
+       call result%set(2,-0.01_rp) 
        call result%set(3,0.0_rp) 
     end if
   end subroutine gravity_source_term_u_get_value_space

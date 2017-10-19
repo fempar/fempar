@@ -728,7 +728,7 @@ contains
        call this%iterative_linear_solver%create(this%fe_space%get_environment())
        call this%iterative_linear_solver%set_type_from_string(cg_name)
        call parameter_list%init()
-       FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-9_rp)
+       FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-6_rp)
        assert(FPLError == 0)
        FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
        assert(FPLError == 0)
@@ -808,7 +808,7 @@ contains
     call this%mlbddc%numerical_setup()
 
     call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-9_rp)
+    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-6_rp)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
 
