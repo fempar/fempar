@@ -484,6 +484,7 @@ contains
          end do
       else if ( inclusion == 7 ) then
          ! Number of channels can be choosen from the command line using option -nc
+         ! Number of parts with channels are given with option -npwc
          ! Channels are positioned so that some will touch but not cross the interface
          ! if the nchannel_x_direction is a multiple of the number partitions per direction 
 
