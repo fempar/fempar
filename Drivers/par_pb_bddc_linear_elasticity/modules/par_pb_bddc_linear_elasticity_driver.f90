@@ -494,40 +494,34 @@ contains
             
             box_width = (domain_limits(2)-domain_limits(1))*nparts_with_channels(1)/(nchannel_x_direction(1)*nparts(1))
             half_channel_width = box_width/5
-            center = half_channel_width
+            center = half_channel_width + domain_limits(1)
             do j=1, nchannel_x_direction(1)
                px1(j)=center - half_channel_width 
                px2(j)=center + half_channel_width  
                center = center + box_width
             enddo
-            px1 = px1 + domain_limits(1)
-            px2 = px2 + domain_limits(1)
             
             call memalloc(nchannel_x_direction(2), py1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(2), py2, __FILE__, __LINE__ )
             box_width = (domain_limits(4)-domain_limits(3))*nparts_with_channels(2)/(nchannel_x_direction(2)*nparts(2))
             half_channel_width = box_width/5
-            center = half_channel_width
+            center = half_channel_width + domain_limits(3)
             do j=1, nchannel_x_direction(2)
                py1(j)=center - half_channel_width 
                py2(j)=center + half_channel_width  
                center = center + box_width
             enddo
-            py1 = py1 + domain_limits(3)
-            py2 = py2 + domain_limits(3)
-            
+                        
             call memalloc(nchannel_x_direction(3), pz1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(3), pz2, __FILE__, __LINE__ )
             box_width = (domain_limits(6)-domain_limits(5))*nparts_with_channels(3)/(nchannel_x_direction(3)*nparts(3))
             half_channel_width = box_width/5
-            center = half_channel_width
+            center = half_channel_width + domain_limits(5)
             do j=1, nchannel_x_direction(3)
                pz1(j)=center - half_channel_width 
                pz2(j)=center + half_channel_width  
                center = center + box_width
             enddo
-            pz1 = pz1 + domain_limits(5)
-            pz2 = pz2 + domain_limits(5)
          end if
 
          nchannel = 1
