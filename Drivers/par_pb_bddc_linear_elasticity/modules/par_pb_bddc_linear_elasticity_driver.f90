@@ -534,8 +534,8 @@ contains
          ! x edges
          do j = 1, nchannel_x_direction(2)
             do k = 1,nchannel_x_direction(3)
-               call origin%set(1,0.0_rp)  ; call origin%set(2, py1(j)) ; call origin%set(3,pz1(k));
-               call opposite%set(1,1.0_rp); call opposite%set(2,py2(j)); call opposite%set(3,pz2(k));
+               call origin%set(1,domain_limits(1))  ; call origin%set(2, py1(j)) ; call origin%set(3,pz1(k));
+               call opposite%set(1,domain_limits(2)); call opposite%set(2,py2(j)); call opposite%set(3,pz2(k));
                nchannel = nchannel + 1
                if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
@@ -543,8 +543,8 @@ contains
          ! y edges
          do j = 1, nchannel_x_direction(1)
             do k = 1,nchannel_x_direction(3)
-               call origin%set(2,0.0_rp)  ; call origin%set(1, px1(j)) ; call origin%set(3,pz1(k));
-               call opposite%set(2,1.0_rp); call opposite%set(1,px2(j)); call opposite%set(3,pz2(k));
+               call origin%set(2,domain_limits(3))  ; call origin%set(1, px1(j)) ; call origin%set(3,pz1(k));
+               call opposite%set(2,domain_limits(4)); call opposite%set(1,px2(j)); call opposite%set(3,pz2(k));
                nchannel = nchannel + 1
                if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
@@ -552,8 +552,8 @@ contains
          ! z edges
          do j = 1, nchannel_x_direction(1)
             do k = 1,nchannel_x_direction(2)
-               call origin%set(3,0.0_rp)  ; call origin%set(2, px1(j)) ; call origin%set(1,py1(k));
-               call opposite%set(3,1.0_rp); call opposite%set(2,px2(j)); call opposite%set(1,py2(k));
+               call origin%set(3,domain_limits(5))  ; call origin%set(1, px1(j)) ; call origin%set(2,py1(k));
+               call opposite%set(3,domain_limits(6)); call opposite%set(1,px2(j)); call opposite%set(2,py2(k));
                nchannel = nchannel + 1
                if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
