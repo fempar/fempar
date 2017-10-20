@@ -715,13 +715,13 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
      if ( vef%is_proper() ) then
        touched_neighbours = .false.
        do ielem=1, vef%get_num_cells_around()
+          reference_fe => fe%get_reference_fe(field_id)
           call vef%get_cell_around(ielem,fe)
+          ivef = fe%get_vef_lid_from_gid(vef%get_gid())
           part_id = fe%get_my_part()
           if ( part_id /= mypart_id ) then
              local_part_id = cell_import%get_local_neighbour_id(part_id)
              if (.not. touched_neighbours (local_part_id)) then
-                ivef = fe%get_vef_lid_from_gid(vef%get_gid())
-                reference_fe => fe%get_reference_fe(field_id)
                 result_previous = result
                 result = result + reference_fe%get_num_own_dofs_n_face(ivef)
                 if (result>result_previous) touched_neighbours (local_part_id) = .true.
@@ -730,11 +730,11 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
           
           !if (reference_fe%get_num_own_dofs_n_face(ivef) > 0) then
              if ( fe%is_local() ) then 
-               result = result + p_ptr_ghosts_per_local_cell(fe%get_gid()+1)-&
-                                 p_ptr_ghosts_per_local_cell(fe%get_gid())
+               result = result + (p_ptr_ghosts_per_local_cell(fe%get_gid()+1)-&
+                                  p_ptr_ghosts_per_local_cell(fe%get_gid()))*reference_fe%get_num_own_dofs_n_face(ivef)
              else
-               result = result + p_ptr_ghosts_per_ghost_cell(fe%get_gid()+1-triangulation%get_num_local_cells())-&
-                                 p_ptr_ghosts_per_ghost_cell(fe%get_gid()-triangulation%get_num_local_cells())
+               result = result + (p_ptr_ghosts_per_ghost_cell(fe%get_gid()+1-triangulation%get_num_local_cells())-&
+                                 p_ptr_ghosts_per_ghost_cell(fe%get_gid()-triangulation%get_num_local_cells()))*reference_fe%get_num_own_dofs_n_face(ivef)
              end if
           !end if          
        end do
@@ -1155,7 +1155,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   integer(ip) :: cell_gid
   integer(ip) :: num_vefs
   integer(ip) :: num_dofs
-  integer(ip) :: base_pos
+  integer(ip) :: base_pos, base_pos_dofs
   integer(ip), pointer :: p_max_part_id_vefs(:)
   integer(igp), pointer :: p_lst_dofs_ggids(:)
   integer(ip)  :: i
@@ -1171,10 +1171,15 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   integer(ip), pointer :: p_my_part_id_vefs(:)
   integer(ip), pointer :: p_lst_ghosts_per_local_cell(:) 
   integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
-
+  integer(ip), allocatable :: local_idof(:)
+  
+  
   triangulation => this%get_triangulation()
   environment   => triangulation%get_environment()
   cell_import   => triangulation%get_cell_import()
+  
+  call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), &
+                  local_idof, __FILE__, __LINE__ )
  
   ! TO-DO: this code is assuming that the number of DoFs per cell 
   !        is equivalent for all cells. We should re-think how should
@@ -1219,8 +1224,6 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
       free_dofs = .false. 
       max_part_id = 0
       max_elem_ggid = 0
-      call dofs_gids%resize(0)
-      call dofs_lids%resize(0)
       do ielem=1, vef%get_num_cells_around()
         call vef%get_cell_around(ielem,fe)
         elem_ggid = fe%get_ggid()
@@ -1241,8 +1244,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
            if ( elem_ggid >= max_elem_ggid ) then
              max_elem_ggid = elem_ggid
              max_elem_gid  = fe%get_gid()
-             call dofs_gids%push_back(dof_gid)
-             call dofs_lids%push_back(idof)
+             local_idof(dof_gid) = idof
            end if
            if ( part_id /= mypart_id ) then
               local_part_id = cell_import%get_local_neighbour_id(part_id)
@@ -1313,18 +1315,11 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
              cycle
            end if
            call this%max_part_id_vefs%set(base_pos+ivef, max_part_id)
-           
-           do i=1, dofs_gids%size()
-             if ( dofs_gids%get(i) == dof_gid ) then
-               max_idof = dofs_lids%get(i)
-               cycle  
-             end if
-           end do
-           
-           base_pos = this%ptr_dofs_field%get(fe%get_gid())-1
-           call this%lst_dofs_ggids%set(base_pos+idof, this%generate_non_consecutive_dof_ggid(max_elem_ggid, &
-                                                                                              max_idof, &
-                                                                                              field_id))
+                      
+           base_pos_dofs = this%ptr_dofs_field%get(fe%get_gid())-1
+           call this%lst_dofs_ggids%set(base_pos_dofs+idof, this%generate_non_consecutive_dof_ggid(max_elem_ggid, &
+                                                                                                   local_idof(dof_gid), &
+                                                                                                   field_id))
            call own_dofs_on_vef_iterator%next()
         end do
       end do  
@@ -1406,7 +1401,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   call this%free_fe_cell_iterator(fe_max)
   call this%free_fe_vef_iterator(vef)
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
-  call dofs_gids%free()
+  call memfree ( local_idof, __FILE__, __LINE__ )
 end subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field 
 
 
@@ -1609,7 +1604,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   class(fe_cell_iterator_t), allocatable :: fe
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: num_vefs
-  integer(ip) :: cell_gid, base_pos
+  integer(ip) :: cell_gid, base_pos_dofs, base_pos
   logical :: all_local, all_ghosts
   integer(igp) :: dof_ggid
   integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
@@ -1625,6 +1620,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   integer(ip) :: start_col, end_col
   integer(ip) , allocatable :: perm(:)
   integer(igp), allocatable :: buf(:)
+  integer(igp), allocatable :: dofs_ggid(:)
 
   environment   => this%get_environment()
   triangulation => this%get_triangulation()
@@ -1646,6 +1642,9 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   call memalloc ( cell_import%get_num_neighbours(), &
                   parts_visited, &
                   __FILE__, __LINE__ )
+  
+  call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), &
+                  dofs_ggid, __FILE__, __LINE__ )
   
   mypart_id = environment%get_l1_rank() + 1
   
@@ -1705,8 +1704,8 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
                 all_local  = .false.
               end if 
 
-              base_pos = this%ptr_dofs_field%get(fe%get_gid())-1
-              dof_ggid = this%lst_dofs_ggids%get(base_pos+idof)
+              base_pos_dofs = this%ptr_dofs_field%get(fe%get_gid())-1
+              dofs_ggid(dof_gid) = this%lst_dofs_ggids%get(base_pos_dofs+idof)
 
               if ( local_idof(dof_gid) == 0 ) then
                  num_dofs_current_vef = num_dofs_current_vef + 1    
@@ -1775,12 +1774,12 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
              dofs_max_part_id ( current_col-offset ) = max_part_id 
              if (all_ghosts) then
                raw_interface_data(neighbor_part_id_row, current_col) = max_part_id
-               raw_interface_data(dof_gid_row, current_col) = dof_ggid 
+               raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid) 
                raw_interface_data(owner_flag_row, current_col) = -1 
              else 
                part_id = parts_visited(ipart)
                raw_interface_data(neighbor_part_id_row, current_col) = part_id
-               raw_interface_data(dof_gid_row, current_col) = dof_ggid 
+               raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid)
                if (all_local) then
                  raw_interface_data(owner_flag_row, current_col) = -2 
                else
@@ -1794,7 +1793,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
               dofs_max_part_id ( current_col-offset ) = max_part_id
               part_id = lst_parts%get(ipart)
               raw_interface_data(neighbor_part_id_row, current_col) = part_id
-              raw_interface_data(dof_gid_row, current_col) = dof_ggid 
+              raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid)
               if (all_local) then
                 raw_interface_data(owner_flag_row, current_col) = -2 
               else
@@ -1818,6 +1817,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   call memfree ( lst_dofs_current_vef, __FILE__, __LINE__ )
   call memfree ( parts_visited, __FILE__, __LINE__ )
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
+  call memfree ( dofs_ggid, __FILE__, __LINE__ )
 
   call this%raw_interface_data_by_continuity_decide_owner (offset, &
                                                            current_col-1, &

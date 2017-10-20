@@ -742,8 +742,8 @@ end subroutine free_timers
       call this%triangulation%create_cell_iterator(cell)
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
-          !if ( mod(cell%get_gid(),2) == 0 .or. (cell%get_level() == 0) )then
-          if ( (cell%get_gid()==4) .or. (cell%get_level() == 0) )then
+          if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
+          !if ( (cell%get_gid()==4) .or. (cell%get_level() == 0) )then
             call cell%set_for_refinement()
           end if
         end if  
