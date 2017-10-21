@@ -107,6 +107,7 @@ module par_pb_bddc_linear_elasticity_driver_names
      procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure                  :: run_simulation
+     procedure                  :: print_info
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
@@ -1016,9 +1017,47 @@ contains
 
     call this%check_solution()
     call this%write_solution()
+    call this%print_info()
     call this%free()
   end subroutine run_simulation
+  !========================================================================================
+  subroutine print_info (this)
+    implicit none
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(in) :: this
 
+    integer(ip) :: num_sub_domains
+    real(rp) :: num_total_cells
+    real(rp) :: num_dofs
+    integer(ip) :: num_coarse_dofs
+
+    class(environment_t), pointer :: environment
+    class(coarse_fe_space_t), pointer :: coarse_fe_space
+
+    environment => this%fe_space%get_environment()
+
+    if (environment%am_i_l1_task()) then
+      num_total_cells  = real(this%triangulation%get_num_local_cells(),kind=rp)
+      num_dofs         = real(this%fe_space%get_field_num_dofs(1),kind=rp)
+      call environment%l1_sum(num_total_cells )
+      call environment%l1_sum(num_dofs        )
+    end if
+
+    if (environment%get_l1_rank() == 0) then
+      num_sub_domains = environment%get_l1_size()
+      write(*,'(a,i22)') 'num_sub_domains:          ', num_sub_domains
+      write(*,'(a,i22)') 'num_total_cells:          ', nint(num_total_cells , kind=ip )
+      write(*,'(a,i22)') 'num_dofs (sub-assembled): ', nint(num_dofs        , kind=ip )
+    end if
+
+    if (environment%am_i_lgt1_task()) then
+      coarse_fe_space => this%fe_space%get_coarse_fe_space()
+      num_coarse_dofs = coarse_fe_space%get_field_num_dofs(1)
+      write(*,'(a,i22)') 'num_coarse_dofs:  ', num_coarse_dofs
+    end if
+
+  end subroutine print_info
+  
+  !========================================================================================  
   subroutine free(this)
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
