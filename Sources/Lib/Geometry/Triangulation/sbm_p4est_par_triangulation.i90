@@ -86,10 +86,10 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%fill_x_cell_vertex_coordinates()
         call this%clear_refinement_and_coarsening_flags()
         call this%clear_cell_set_ids()
-        call this%clear_vef_set_ids()
         call this%set_up_lst_itfc_vefs()
         call this%update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%update_local_proper_vefs_actually_on_the_interface()
+        call this%clear_vef_set_ids()
         ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
         ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%set_up_lst_itfc_vefs()
@@ -106,9 +106,9 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%fill_x_cell_vertex_coordinates()
         call this%clear_refinement_and_coarsening_flags()
         call this%clear_cell_set_ids()
-        call this%clear_vef_set_ids()
         call this%set_up_lst_itfc_vefs()
         call this%update_lst_vef_gids_and_cells_around_ghost_cells()
+        call this%clear_vef_set_ids()
         ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
         ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%set_up_lst_itfc_vefs()
@@ -272,21 +272,20 @@ subroutine p4est_par_triangulation_partition ( this )
     call this%comm_cell_myparts()
     call this%fill_x_cell_vertex_coordinates()
     call this%update_migration_control_data(p4est_old)
-    ! These two calls involve communications !!!
-    call this%migrate_cell_set_ids()
-    call this%migrate_vef_set_ids(old_lst_vefs_gids)
-    if ( this%get_num_dims() == 2 ) then
-      call F90_p4est_destroy(p4est_old)
-    else if ( this%get_num_dims() == 3 ) then
-      call F90_p8est_destroy(p4est_old)
-    end if
-    call old_lst_vefs_gids%free()
     call this%set_up_lst_itfc_vefs()
     call this%update_lst_vef_gids_and_cells_around_ghost_cells()
     call this%update_local_proper_vefs_actually_on_the_interface()
     ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
     ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
     call this%set_up_lst_itfc_vefs()
+    call this%migrate_cell_set_ids()
+    call this%migrate_vef_set_ids(old_lst_vefs_gids)
+    call old_lst_vefs_gids%free()
+    if ( this%get_num_dims() == 2 ) then
+      call F90_p4est_destroy(p4est_old)
+    else if ( this%get_num_dims() == 3 ) then
+      call F90_p8est_destroy(p4est_old)
+    end if
   end if
 #else
   call this%not_enabled_error()

@@ -568,7 +568,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_vef_iterator(vef)
   do while ( .not. fe%has_finished())
-     if ( fe%is_local() ) then 
+     ! if ( fe%is_local() ) then 
         do ifield = 1, size(fields_to_interpolate_) 
            field_id = fields_to_interpolate_(ifield) 
            reference_fe => fe%get_reference_fe(field_id)
@@ -604,8 +604,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
                  ! Check whether a set_id different from 0 has been set for current vef. 
                  ! TO-DO: Should we also ask whether current vef is at the boundary?
                  !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
-                 if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )              
-
+                 if ( .not. vef%is_ghost () ) then
+                  if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )              
                     ! Get components code corresponding to set_id assigned to current vef
                     ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
                     ! a more clever strategy. Does it pay off to look carefully at this?
@@ -639,11 +639,12 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
                        end if
                        call own_dofs_on_vef_iterator%next()
                     end do
+                  end if
                  end if
               end do
            end if
         end do
-     end if
+     ! end if
      call fe%next() 
   end do
   call this%free_fe_cell_iterator(fe) 
