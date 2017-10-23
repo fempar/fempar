@@ -76,8 +76,9 @@ where ```P``` is the number of processors to be used. Clearly, ```mpirun P``` mu
 
 To see the different options and default values we can do
 
+```
 $ ./driver_name --help
-
+```
 
 
 
