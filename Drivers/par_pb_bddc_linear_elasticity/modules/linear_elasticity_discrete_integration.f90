@@ -42,7 +42,6 @@ module linear_elasticity_discrete_integration_names
   real(rp)    :: mass_coefficient
   real(rp)    :: residual_coefficient
   real(rp)    :: currrent_time
-  character(len=:)  , allocatable :: terms_to_integrate
   character(len=256), allocatable :: fe_type(:)
   character(len=256), allocatable :: field_type(:)
   character(len=256), allocatable :: field_name(:)
@@ -67,7 +66,6 @@ contains
   procedure :: set_field_coupling
   procedure :: set_analytical_functions
   procedure :: set_fe_function
-  procedure :: set_terms_to_integrate
   procedure :: set_mass_coefficient
   procedure :: set_residual_coefficient
   procedure :: set_current_time
@@ -103,22 +101,7 @@ abstract interface
     class(serial_fe_space_t)                      , intent(in)    :: fe_space
     type(fe_function_t), target                   , intent(inout) :: solution
   end subroutine init_solution_interface
-  !subroutine check_solution_interface(this,fe_space)
-  !  import :: linear_elasticity_discrete_integration_t, serial_fe_space_t
-  !  class(linear_elasticity_discrete_integration_t)       , intent(inout) :: this
-  !  class(serial_fe_space_t)                      , intent(in)    :: fe_space
-  !end subroutine check_solution_interface
 end interface
-
-character(*), parameter :: tangent_terms                 = 'tangent'
-character(*), parameter :: translation_terms             = 'translation'
-character(*), parameter :: tangent_and_translation_terms = 'both'
-public :: tangent_terms, translation_terms, tangent_and_translation_terms
-
-character(*), parameter :: implicit_terms  = 'implicit'
-character(*), parameter :: explicit_terms  = 'explicit'
-character(*), parameter :: transient_terms = 'transient' ! + implicit
-public :: implicit_terms, explicit_terms, transient_terms
 
 type, extends(linear_elasticity_discrete_integration_t) :: irreducible_discrete_integration_t
 private
@@ -127,18 +110,13 @@ procedure :: create             => irreducible_discrete_integration_create
 procedure :: integrate_galerkin => irreducible_discrete_integration_integrate
 procedure :: is_symmetric       => irreducible_discrete_integration_is_symmetric
 procedure :: is_coercive        => irreducible_discrete_integration_is_coercive
-!procedure :: init_solution => irreducible_discrete_integration_init_solution
 end type irreducible_discrete_integration_t
 
 type, extends(irreducible_discrete_integration_t) :: irreducible_heterogeneous_discrete_integration_t
 private
 real(rp), public    :: elastic_modulus
 contains
-  !procedure :: create             => irreducible_discrete_integration_create
 procedure :: integrate_galerkin => irreducible_heterogeneous_discrete_integration_integrate
-!procedure :: is_symmetric       => irreducible_discrete_integration_is_symmetric
-!procedure :: is_coercive        => irreducible_discrete_integration_is_coercive
-!procedure :: init_solution => irreducible_discrete_integration_init_solution 
 end type irreducible_heterogeneous_discrete_integration_t  
 
 type, extends(irreducible_discrete_integration_t) :: irreducible_beam_discrete_integration_t
@@ -150,14 +128,10 @@ procedure :: integrate_galerkin => irreducible_beam_discrete_integration_integra
 end type irreducible_beam_discrete_integration_t
 
 character(*), parameter :: discrete_integration_type_irreducible = 'irreducible'
-character(*), parameter :: discrete_integration_type_mixed_u_p   = 'mixed_u_p'
 
 public :: linear_elasticity_discrete_integration_t, irreducible_discrete_integration_t
 public :: irreducible_heterogeneous_discrete_integration_t, irreducible_beam_discrete_integration_t  
 public :: discrete_integration_type_irreducible
-
-!public :: linear_elasticity_discrete_integration_t, irreducible_discrete_integration_t, mixed_u_p_discrete_integration_t
-!public :: discrete_integration_type_irreducible, discrete_integration_type_mixed_u_p
 
 contains
 
@@ -171,13 +145,6 @@ deallocate(this%field_name,stat=istat); check(istat==0)
 call memfree(this%field_blocks,__FILE__,__LINE__)
 call memfree(this%field_coupling,__FILE__,__LINE__)     
 end subroutine linear_elasticity_discrete_integration_free
-
-subroutine set_terms_to_integrate(this,terms_to_integrate)
-implicit none
-class(linear_elasticity_discrete_integration_t), intent(inout)  :: this
-character(*)                           , intent(in)     :: terms_to_integrate
-this%terms_to_integrate = terms_to_integrate
-end subroutine set_terms_to_integrate
 
 subroutine set_analytical_functions ( this, analytical_functions )
 implicit none
@@ -312,6 +279,5 @@ end function get_field_name
 #include "sbm_irreducible_discrete_integration.i90"
 #include "sbm_irreducible_heterogeneous_discrete_integration.i90"
 #include "sbm_irreducible_heterogeneous_beam_discrete_integration.i90"
-!#include "sbm_mixed_u_p_discrete_integration.i90"
 
 end module linear_elasticity_discrete_integration_names

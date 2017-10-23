@@ -22,8 +22,7 @@ subroutine  irreducible_beam_discrete_integration_create(this,number_dimensions,
   ! Initializations
   this%mass_coefficient      = 0.0_rp
   this%residual_coefficient  = 1.0_rp
-  this%terms_to_integrate    = tangent_and_translation_terms
-  
+
   ! Could be done in the mother class
   this%analytical_functions => analytical_functions
   this%source_term => this%analytical_functions%get_gravity_source_term_u()
@@ -53,12 +52,6 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
   integer(ip)  :: qpoint, num_quad_points
   integer(ip)  :: idof, jdof, num_dofs
 
-  !type(fe_cell_function_vector_t) :: cell_solution_u
-  !type(fe_cell_function_vector_t) :: cell_solution_u_old
-  !type(tensor_field_t), pointer   :: gp_solution_gradu(:)  => null()
-  !type(vector_field_t), pointer   :: gp_solution_value(:)  => null()
-  !type(vector_field_t), pointer   :: gp_solution_old_value(:) => null()
-
   ! Problem variables
   type(vector_field_t) :: source_term_value
   type(tensor_field_t) :: sigma, epsi, Id
@@ -74,7 +67,6 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
 
   call fe_space%set_up_cell_integration()
   call fe_space%create_fe_cell_iterator(fe)
-  !call cell_solution_u%create(fe_space,1)
 
   num_dofs = fe%get_num_dofs()
   call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
@@ -90,11 +82,6 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
      if ( fe%is_local() ) then
         ! Update FE-integration related data structures
         call fe%update_integration()
-        !call cell_solution_u%update(fe,this%fe_function)
-        !gp_solution_gradu     => cell_solution_u%get_quadrature_points_gradients()
-        !gp_solution_value     => cell_solution_u%get_quadrature_points_values()
-        !gp_solution_old_value => cell_solution_u_old%get_quadrature_points_values()
-
 
         ! Get quadrature coordinates to evaluate source_term
         quad_coords => fe%get_quadrature_points_coordinates()
@@ -108,8 +95,6 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
         nu = nu_heterogeneous    
         lambda_heterogeneous = (nu*Ev)/((1+nu)*(1-2*nu))
         mu_heterogeneous     = Ev/(2*(1+nu))
-        !inv_K_heterogeneous  = 1.0_rp/(lambda_heterogeneous + 2*mu_heterogeneous/3.0_rp)
-        !one_third = 1.0_rp/3.0_rp
 
         ! Compute element matrix and vector
         elmat = 0.0_rp
@@ -117,48 +102,35 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
         call fe%get_gradients(shape_gradients)
         call fe%get_values(shape_values)
 
-        ! Tangent
-        if (this%terms_to_integrate == tangent_terms .or. this%terms_to_integrate == tangent_and_translation_terms) then
-
-           do qpoint = 1, num_quad_points
-              dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-              ! Diffusive term
-              do idof = 1, num_dofs
-                 do jdof = 1, num_dofs
-                    epsi  = symmetric_part(shape_gradients(jdof,qpoint))
-                    sigma = lambda_heterogeneous*trace(epsi)*Id + 2*mu_heterogeneous*epsi
-                    elmat(idof,jdof) = elmat(idof,jdof) + this%residual_coefficient * dV * double_contract(shape_gradients(idof,qpoint),sigma)
-                 end do
+        ! Compute element matrix and vector
+        do qpoint = 1, num_quad_points
+           dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+           ! Diffusive term
+           do idof = 1, num_dofs
+              do jdof = 1, num_dofs
+                 epsi  = symmetric_part(shape_gradients(jdof,qpoint))
+                 sigma = lambda_heterogeneous*trace(epsi)*Id + 2*mu_heterogeneous*epsi
+                 elmat(idof,jdof) = elmat(idof,jdof) + this%residual_coefficient * dV * double_contract(shape_gradients(idof,qpoint),sigma)
               end do
            end do
+        end do
+        call fe%assembly( elmat, assembler )
 
-           call fe%assembly( elmat, assembler )
-
-        end if
-
-        ! Residual
-        if (this%terms_to_integrate == translation_terms .or. this%terms_to_integrate == tangent_and_translation_terms) then
-
-           do qpoint = 1, num_quad_points
-              dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-              ! Source term
-              call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
-              !epsi = symmetric_part(gp_solution_gradu(qpoint))
-              !sigma = lambda_heterogeneous*trace(epsi)*Id + 2*mu_heterogeneous*epsi
-              do idof = 1, num_dofs
-                 elvec(idof) = elvec(idof) + this%residual_coefficient * dV * source_term_value * shape_values(idof,qpoint)
-                 !elvec(idof) = elvec(idof) - this%residual_coefficient * dV * double_contract(shape_gradients(idof,qpoint),sigma)
-              end do
+        ! Computing element RHS vector
+        do qpoint = 1, num_quad_points
+           dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+           ! Source term
+           call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
+           do idof = 1, num_dofs
+              elvec(idof) = elvec(idof) + this%residual_coefficient * dV * source_term_value * shape_values(idof,qpoint)
            end do
-
-        end if
+        end do
 
         call fe%assembly( elvec, assembler )
      end if
      call fe%next()
   end do
 
-  !call cell_solution_u%free()
   call fe_space%free_fe_cell_iterator(fe)
   deallocate (shape_values, stat=istat); check(istat==0);
   deallocate (shape_gradients, stat=istat); check(istat==0);
