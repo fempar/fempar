@@ -234,9 +234,9 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
     call generate_faces()
   end do
   call this%set_num_vefs(this%num_proper_vefs + this%num_improper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_cells_around_proper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_cells_around_improper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_improper_cells_around)
+  call this%ptr_cells_around_proper_vefs%transform_length_to_header()
+  call this%ptr_cells_around_improper_vefs%transform_length_to_header()
+  call this%ptr_improper_cells_around%transform_length_to_header()
   call work_vector_cells_around%free()
   call work_vector_ghost_cells_around_ivef%free()
   call work_vector_improper_cells_around%free()

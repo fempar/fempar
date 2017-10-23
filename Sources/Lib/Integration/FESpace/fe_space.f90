@@ -201,8 +201,6 @@ module fe_space_names
     procedure, non_overridable          :: allocate_scratch_data                      => fe_cell_iterator_allocate_scratch_data
     procedure, non_overridable          :: allocate_block_based_scratch_data          => fe_cell_iterator_allocate_block_based_scratch_data
     procedure, non_overridable          :: free_scratch_data                          => fe_cell_iterator_free_scratch_data
-    ! Now, after merging with experimental, we have to assemble in the code !!!
-    procedure                           :: assemble                                   => fe_cell_iterator_assemble
     procedure, non_overridable, private :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
     procedure, non_overridable, private :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
     procedure, non_overridable          :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
@@ -900,7 +898,6 @@ module fe_space_names
   end type H1_l1_coarse_fe_handler_t
   
   type, extends(standard_l1_coarse_fe_handler_t) :: vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
-
     private
     real(rp), public :: diffusion_inclusion
   contains
@@ -908,9 +905,26 @@ module fe_space_names
 	   procedure :: setup_weighting_operator => vector_laplacian_l1_setup_weighting_operator
   end type vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
 
+  type, extends(standard_l1_coarse_fe_handler_t) :: elasticity_pb_bddc_l1_coarse_fe_handler_t
+    private
+    real(rp), public :: elastic_modulus
+  contains
+    procedure :: get_num_coarse_dofs      => elasticity_l1_get_num_coarse_dofs  
+	   procedure :: setup_constraint_matrix  => elasticity_l1_setup_constraint_matrix_multiple
+	   procedure :: setup_weighting_operator => elasticity_l1_setup_weighting_operator
+  end type elasticity_pb_bddc_l1_coarse_fe_handler_t
   
-  public :: p_l1_coarse_fe_handler_t, l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
-
+  public :: p_l1_coarse_fe_handler_t, l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, vector_laplacian_pb_bddc_l1_coarse_fe_handler_t, elasticity_pb_bddc_l1_coarse_fe_handler_t 
+  
+  type, extends(vector_function_t) :: rigid_body_mode_t
+    private
+    integer(ip)  :: num_dims = -1
+    integer(ip)  :: imode = -1  
+  contains
+    procedure :: set_num_dims         => rigid_body_mode_set_num_dims
+    procedure :: set_mode             => rigid_body_mode_set_mode
+    procedure :: get_values_set_space => rigid_body_mode_get_values_set_space 
+  end type rigid_body_mode_t
     
   type , extends(base_fe_cell_iterator_t) :: coarse_fe_cell_iterator_t
     private
@@ -1137,6 +1151,7 @@ contains
 #include "sbm_standard_coarse_fe_handler.i90"
 #include "sbm_H1_coarse_fe_handler.i90"
 #include "sbm_vector_laplacian_coarse_fe_handler.i90"
+#include "sbm_elasticity_coarse_fe_handler.i90"
 
 #include "sbm_coarse_fe_space.i90"
 #include "sbm_coarse_fe_object_iterator.i90"
