@@ -385,6 +385,7 @@ void F90_p8est_get_mesh_info (p8est_t        *p8est,
 
 void F90_p4est_get_mesh_topology_arrays( p4est_t        *p4est,
                                          p4est_mesh_t   *mesh,
+                                         p4est_ghost_t   *ghost,
                                          p4est_locidx_t **quad_to_quad,
                                          int8_t         **quad_to_face, 
                                          p4est_locidx_t **quad_to_half, 
@@ -413,6 +414,15 @@ void F90_p4est_get_mesh_topology_arrays( p4est_t        *p4est,
   *quad_to_half = NULL;
   if(mesh->quad_to_half->elem_count>0) *quad_to_half = (p4est_locidx_t *) mesh->quad_to_half->array;
   *quad_to_corner=mesh->quad_to_corner;
+  
+  quadrants = &(ghost->ghosts);
+  for (iquad = 0; iquad < ghost->ghosts.elem_count; iquad++) {  
+    iquadloc =  mesh->local_num_quadrants+iquad;
+    q = p4est_quadrant_array_index(quadrants, iquad);
+    quadlevel [iquadloc]     = q->level;
+    quadcoords[iquadloc*2  ] = q->x;
+    quadcoords[iquadloc*2+1] = q->y;
+  }
 }
 
 void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,

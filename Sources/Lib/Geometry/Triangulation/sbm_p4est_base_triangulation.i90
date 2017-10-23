@@ -98,10 +98,10 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+    call this%fill_x_cell_vertex_coordinates()
     call this%update_cell_import()
     call this%comm_cell_ggids()
     call this%comm_cell_myparts()
-    call this%fill_x_cell_vertex_coordinates()
     call this%update_cell_set_ids()
     call this%set_up_lst_itfc_vefs() 
     call this%update_lst_vef_gids_and_cells_around_ghost_cells()
@@ -1494,7 +1494,7 @@ subroutine p4est_bt_allocate_and_fill_x_cell_vertex_coordinates(this)
 
   
   current = 1 
-  do icell=1, this%get_num_local_cells()
+  do icell=1, this%get_num_cells()
      do corner=0, num_corners-1
        if ( this%get_num_dims() == 2 ) then
          call F90_p4est_get_quadrant_vertex_coordinates(this%p4est_connectivity,&
@@ -1849,16 +1849,30 @@ subroutine p4est_bt_adjust_ghost_cells(this, ghost_cells_perm)
   integer(ip) :: i, j, num_vefs, istat
   integer(ip) :: start, end 
   integer(ip) :: base_pos_i, base_pos_j
+  integer(ip) :: num_corners
+  type(point_t), pointer :: p_per_cell_vertex_coordinates(:)
+  type(point_t), allocatable :: work_vertex_coordinates(:)
+  integer(ip) :: base_pos_vertex_i
+  integer(ip) :: base_pos_vertex_j
 #ifdef ENABLE_P4EST
-
+  
+  if ( this%get_num_dims() == 2 ) then
+    num_corners = NUM_CORNERS_2D
+  else if ( this%get_num_dims() == 3 ) then
+    num_corners = NUM_CORNERS_3D
+  end if
+  
   num_vefs = this%get_ptr_vefs_x_cell(2)-this%get_ptr_vefs_x_cell(1)
   call memalloc ( this%get_num_ghost_cells()*num_vefs, work_array,  __FILE__, __LINE__ ) 
 
+  p_per_cell_vertex_coordinates => this%per_cell_vertex_coordinates%get_pointer()
+  allocate(work_vertex_coordinates(this%get_num_ghost_cells()*num_corners), stat=istat); check(istat==0);
+  work_vertex_coordinates = p_per_cell_vertex_coordinates(this%get_num_local_cells()*num_corners+1:this%get_num_cells()*num_corners)
+  
   p_lst_vefs_gids => this%lst_vefs_gids%get_pointer()
-
   start      = this%get_ptr_vefs_x_cell(this%get_num_local_cells()+1)
   end        = this%get_ptr_vefs_x_cell(this%get_num_cells()+1)-1
-
+  
   work_array(1:this%get_num_ghost_cells()*num_vefs) = p_lst_vefs_gids(start:end) 
  
   do i=this%get_num_local_cells()+1,this%get_num_cells()
@@ -1866,7 +1880,11 @@ subroutine p4est_bt_adjust_ghost_cells(this, ghost_cells_perm)
     assert(istat==key_found)
     base_pos_i = this%get_ptr_vefs_x_cell(i)-this%get_num_local_cells()*num_vefs
     base_pos_j = this%get_ptr_vefs_x_cell(j)
-    p_lst_vefs_gids(base_pos_j:base_pos_j+num_vefs-1)  = work_array(base_pos_i:base_pos_i+num_vefs-1)    
+    p_lst_vefs_gids(base_pos_j:base_pos_j+num_vefs-1)  = work_array(base_pos_i:base_pos_i+num_vefs-1)
+    base_pos_vertex_i = (i-this%get_num_local_cells()-1)*num_corners+1
+    base_pos_vertex_j = (j-1)*num_corners + 1 
+    p_per_cell_vertex_coordinates(base_pos_vertex_j:base_pos_vertex_j+num_corners-1) = & 
+      work_vertex_coordinates(base_pos_vertex_i:base_pos_vertex_i+num_corners-1)
   end do
 
 
@@ -1893,8 +1911,8 @@ subroutine p4est_bt_adjust_ghost_cells(this, ghost_cells_perm)
        call this%lst_improper_cells_around%set(i,j)
     end if
   end do
-  call memfree ( work_array,  __FILE__, __LINE__ ) 
-
+  call memfree ( work_array,  __FILE__, __LINE__ )
+  deallocate(work_vertex_coordinates, stat=istat); check(istat==0);
 #else
   call this%not_enabled_error()
 #endif        
@@ -2058,11 +2076,12 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   if (allocated(this%quad_level)) &
     call memfree(this%quad_level, __FILE__, __LINE__)
   
-  call memalloc(2, local_num_quadrants, this%quad_coords, __FILE__, __LINE__)
-  call memalloc(local_num_quadrants, this%quad_level, __FILE__, __LINE__ )
+  call memalloc(2, local_num_quadrants+ghost_num_quadrants, this%quad_coords, __FILE__, __LINE__)
+  call memalloc(local_num_quadrants+ghost_num_quadrants, this%quad_level, __FILE__, __LINE__ )
   
   call F90_p4est_get_mesh_topology_arrays(this%p4est, &
                                           this%p4est_mesh, &
+                                          this%p4est_ghost, &
                                           QQ, &
                                           QF, &
                                           QH, &

@@ -192,6 +192,7 @@ module p4est_bindings_names
      !=================================================================================================================================
      subroutine F90_p4est_get_mesh_topology_arrays(p4est, &
                                                    p4est_mesh, &
+                                                   p4est_ghost, &
                                                    quad_to_quad, &
                                                    quad_to_face, &
                                                    quad_to_half, &
@@ -203,6 +204,7 @@ module p4est_bindings_names
        implicit none
        type(c_ptr), value       , intent(in)     :: p4est
        type(c_ptr), value       , intent(in)     :: p4est_mesh
+       type(c_ptr), value       , intent(in)     :: p4est_ghost
        type(c_ptr)              , intent(out)    :: quad_to_quad
        type(c_ptr)              , intent(out)    :: quad_to_face
        type(c_ptr)              , intent(out)    :: quad_to_half

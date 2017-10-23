@@ -500,9 +500,12 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
 
   type(list_iterator_t)    :: own_dofs_on_vef_iterator
   class(fe_cell_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: aux_fe
   type(fe_vef_iterator_t)     :: vef
   type(i1p_t), allocatable :: fe_dofs(:)
-
+  logical :: local_found
+  integer(ip) :: ielem
+  
   num_components    = this%get_num_components()
   num_reference_fes = this%get_num_reference_fes()
   num_fields        = this%get_num_fields()
@@ -566,6 +569,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
   if ( present(time) ) time_(1) = time
 
   call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(aux_fe)
   call this%create_fe_vef_iterator(vef)
   do while ( .not. fe%has_finished())
      ! if ( fe%is_local() ) then 
@@ -600,11 +604,22 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
               ! Go over all vefs within current FE
               do ivef = 1, fe%get_num_vefs()
                  call fe%get_vef(ivef, vef)
+                 
+                 if ( .not. vef%is_ghost () ) then
+                 
+                 local_found = .false.
+                 do ielem=1, vef%get_num_cells_around()
+                   call vef%get_cell_around(ielem, aux_fe)
+                   if (aux_fe%is_local()) then
+                     local_found = .true.
+                     exit
+                   end if
+                 end do
 
                  ! Check whether a set_id different from 0 has been set for current vef. 
                  ! TO-DO: Should we also ask whether current vef is at the boundary?
                  !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
-                 if ( .not. vef%is_ghost () ) then
+                 if ( fe%is_local() .or. .not. local_found) then
                   if ( vef%get_set_id() /= 0 ) then ! .and. vef%at_boundary()??? )              
                     ! Get components code corresponding to set_id assigned to current vef
                     ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
@@ -641,6 +656,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
                     end do
                   end if
                  end if
+                end if
               end do
            end if
         end do
@@ -648,6 +664,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, time
      call fe%next() 
   end do
   call this%free_fe_cell_iterator(fe) 
+  call this%free_fe_cell_iterator(aux_fe)
   call this%free_fe_vef_iterator(vef)
   
   call memfree ( reference_fes_touched, __FILE__, __LINE__ )
