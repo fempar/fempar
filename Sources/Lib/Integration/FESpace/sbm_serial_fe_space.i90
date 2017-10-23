@@ -158,14 +158,13 @@ subroutine serial_fe_space_allocate_and_fill_fe_space_type_x_field(this)
   class(fe_cell_iterator_t), allocatable :: fe
   integer(ip) :: field_id
   class(reference_fe_t), pointer ::reference_fe
-
   call memalloc ( this%num_fields, this%fe_space_type_x_field, __FILE__, __LINE__ )
-
   call this%create_fe_cell_iterator(fe)
-  do field_id=1, this%get_num_fields()
-     this%fe_space_type_x_field(field_id) = fe%get_fe_space_type(field_id)
-  end do
-
+  if ( .not. fe%has_finished() )  then
+    do field_id=1, this%get_num_fields()
+      this%fe_space_type_x_field(field_id) = fe%get_fe_space_type(field_id)
+    end do
+  end if
 #ifdef DEBUG  
   call fe%next()
   do while ( .not. fe%has_finished())
@@ -2539,11 +2538,13 @@ function serial_fe_space_get_num_components ( this )
 
   call this%create_fe_cell_iterator(fe)
   serial_fe_space_get_num_components = 0
-  do field_id = 1, this%get_num_fields()
+  if ( .not. fe%has_finished() ) then
+    do field_id = 1, this%get_num_fields()
      reference_fe => fe%get_reference_fe(field_id)
      serial_fe_space_get_num_components = serial_fe_space_get_num_components + &
           reference_fe%get_num_field_components()
-  end do
+    end do
+  end if 
   call this%free_fe_cell_iterator(fe)
 end function serial_fe_space_get_num_components
 

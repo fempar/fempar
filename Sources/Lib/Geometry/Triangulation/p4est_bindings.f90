@@ -218,6 +218,7 @@ module p4est_bindings_names
      !=================================================================================================================================
      subroutine F90_p8est_get_mesh_topology_arrays(p8est, &
                                                    p8est_mesh, &
+                                                   p8est_ghost, &
                                                    quad_to_quad, &
                                                    quad_to_face, &
                                                    quad_to_half, &
@@ -233,6 +234,7 @@ module p4est_bindings_names
        implicit none
        type(c_ptr), value       , intent(in)     :: p8est
        type(c_ptr), value       , intent(in)     :: p8est_mesh
+       type(c_ptr), value       , intent(in)     :: p8est_ghost
        type(c_ptr)              , intent(out)    :: quad_to_quad
        type(c_ptr)              , intent(out)    :: quad_to_face
        type(c_ptr)              , intent(out)    :: quad_to_half
@@ -581,6 +583,17 @@ module p4est_bindings_names
        type(c_ptr)       , value, intent(in) :: p4est_ghost
        integer(P4EST_F90_LOCIDX), intent(in) :: ghost_procs(*)
      end subroutine F90_p4est_fill_ghost_procs
+     
+     !=================================================================================================================================
+     !> summary: Fills the remote processor identifiers of the ghost cells of this processor in 1..P
+     !=================================================================================================================================
+     subroutine F90_p8est_fill_ghost_procs(p8est_ghost,ghost_procs) bind(c, name="F90_p8est_fill_ghost_procs")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX
+       implicit none
+       type(c_ptr)       , value, intent(in) :: p8est_ghost
+       integer(P4EST_F90_LOCIDX), intent(in) :: ghost_procs(*)
+     end subroutine F90_p8est_fill_ghost_procs
 
      !=================================================================================================================================
      !> summary: Fills the global identifiers of the ghost cells of this processor
@@ -593,6 +606,18 @@ module p4est_bindings_names
        integer(P4EST_F90_GLOIDX), intent(in)  :: first_global_quadrant(*)
        integer(P4EST_F90_GLOIDX), intent(out) :: ghost_ggids(*)
      end subroutine F90_p4est_fill_ghost_ggids
+     
+     !=================================================================================================================================
+     !> summary: Fills the global identifiers of the ghost cells of this processor
+     !=================================================================================================================================
+     subroutine F90_p8est_fill_ghost_ggids(p8est_ghost,first_global_quadrant,ghost_ggids) bind(c, name="F90_p8est_fill_ghost_ggids")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX, P4EST_F90_GLOIDX
+       implicit none
+       type(c_ptr)       , value, intent(in)  :: p8est_ghost
+       integer(P4EST_F90_GLOIDX), intent(in)  :: first_global_quadrant(*)
+       integer(P4EST_F90_GLOIDX), intent(out) :: ghost_ggids(*)
+     end subroutine F90_p8est_fill_ghost_ggids
      
      subroutine F90_p4est_compute_migration_control_data (p4est_old, p4est_new, num_ranks, lst_ranks, ptr_ranks, local_ids, old2new) &
           bind(c, name="F90_p4est_compute_migration_control_data")
@@ -607,6 +632,20 @@ module p4est_bindings_names
        type(c_ptr)              , intent(inout)  :: local_ids
        type(c_ptr)              , intent(inout)  :: old2new
     end subroutine F90_p4est_compute_migration_control_data
+    
+    subroutine F90_p8est_compute_migration_control_data (p8est_old, p8est_new, num_ranks, lst_ranks, ptr_ranks, local_ids, old2new) &
+          bind(c, name="F90_p8est_compute_migration_control_data")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p8est_old
+       type(c_ptr), value       , intent(in)     :: p8est_new
+       integer(P4EST_F90_LOCIDX), intent(out)    :: num_ranks
+       type(c_ptr)              , intent(inout)  :: lst_ranks
+       type(c_ptr)              , intent(inout)  :: ptr_ranks
+       type(c_ptr)              , intent(inout)  :: local_ids
+       type(c_ptr)              , intent(inout)  :: old2new
+    end subroutine F90_p8est_compute_migration_control_data
 
     subroutine F90_p4est_fill_proc_offsets_and_ghost_gids_remote_neighbours ( p4est_ghost, proc_offsets, ghost_gids_remote_neighbours ) &
           bind(c, name="F90_p4est_fill_proc_offsets_and_ghost_gids_remote_neighbours")
@@ -617,7 +656,17 @@ module p4est_bindings_names
        integer(P4EST_F90_LOCIDX), intent(out)    :: proc_offsets(*) 
        integer(P4EST_F90_LOCIDX), intent(out)    :: ghost_gids_remote_neighbours(*) 
     end subroutine F90_p4est_fill_proc_offsets_and_ghost_gids_remote_neighbours 
-     
+    
+    subroutine F90_p8est_fill_proc_offsets_and_ghost_gids_remote_neighbours ( p8est_ghost, proc_offsets, ghost_gids_remote_neighbours ) &
+          bind(c, name="F90_p8est_fill_proc_offsets_and_ghost_gids_remote_neighbours")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX
+       implicit none
+       type(c_ptr), value       , intent(in)     :: p8est_ghost
+       integer(P4EST_F90_LOCIDX), intent(out)    :: proc_offsets(*) 
+       integer(P4EST_F90_LOCIDX), intent(out)    :: ghost_gids_remote_neighbours(*) 
+    end subroutine F90_p8est_fill_proc_offsets_and_ghost_gids_remote_neighbours 
+    
      !subroutine p4_savemesh(filename, p4est) bind(c)
      !  !=================================================================================================================================
      !  ! save the p4est data  to a p4est state file 

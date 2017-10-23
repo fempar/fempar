@@ -298,13 +298,24 @@ subroutine p4est_par_triangulation_update_migration_control_data(this, p4est_old
   class(p4est_par_triangulation_t), intent(inout) :: this
   type(c_ptr)                     , intent(in)    :: p4est_old
 #ifdef ENABLE_P4EST
-  call F90_p4est_compute_migration_control_data (p4est_old, &
-                                                 this%p4est, &
-                                                 this%num_snd, &
-                                                 this%p_lst_snd, &
-                                                 this%p_snd_ptrs, &
-                                                 this%p_pack_idx, &
-                                                 this%p_old2new)
+  if ( this%get_num_dims() == 2 ) then
+    call F90_p4est_compute_migration_control_data (p4est_old, &
+                                                   this%p4est, &
+                                                   this%num_snd, &
+                                                   this%p_lst_snd, &
+                                                   this%p_snd_ptrs, &
+                                                   this%p_pack_idx, &
+                                                   this%p_old2new)
+  else if ( this%get_num_dims() == 3 ) then
+    call F90_p8est_compute_migration_control_data (p4est_old, &
+                                                   this%p4est, &
+                                                   this%num_snd, &
+                                                   this%p_lst_snd, &
+                                                   this%p_snd_ptrs, &
+                                                   this%p_pack_idx, &
+                                                   this%p_old2new)
+  end if 
+    
   call c_f_pointer(this%p_lst_snd, &
                    this%lst_snd, &
                    [this%num_snd])
@@ -317,14 +328,24 @@ subroutine p4est_par_triangulation_update_migration_control_data(this, p4est_old
   call c_f_pointer(this%p_old2new, &
                    this%old2new, &
                    [this%previous_num_local_cells])
-                   
-  call F90_p4est_compute_migration_control_data (this%p4est, &
-                                                 p4est_old, &
-                                                 this%num_rcv, &
-                                                 this%p_lst_rcv, &
-                                                 this%p_rcv_ptrs, &
-                                                 this%p_unpack_idx, &
-                                                 this%p_new2old)
+  
+  if ( this%get_num_dims() == 2 ) then
+    call F90_p4est_compute_migration_control_data (this%p4est, &
+                                                   p4est_old, &
+                                                   this%num_rcv, &
+                                                   this%p_lst_rcv, &
+                                                   this%p_rcv_ptrs, &
+                                                   this%p_unpack_idx, &
+                                                   this%p_new2old)
+  else if (this%get_num_dims() == 3) then
+    call F90_p8est_compute_migration_control_data (this%p4est, &
+                                                   p4est_old, &
+                                                   this%num_rcv, &
+                                                   this%p_lst_rcv, &
+                                                   this%p_rcv_ptrs, &
+                                                   this%p_unpack_idx, &
+                                                   this%p_new2old)
+  end if 
   call c_f_pointer(this%p_lst_rcv, &
                    this%lst_rcv, &
                    [this%num_rcv])
