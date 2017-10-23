@@ -45,6 +45,8 @@ $ make -jP
 ```
 with ```P``` being the number of parallel processes involved in the compilation
 
+## Run tests
+
 In order to run the all tests in fast mode:
 
 ```
@@ -61,12 +63,18 @@ $ ctest -R test_name
 
 to run a particular test.
 
+## Run drivers
 
+Given a driver ```driver_name```, to run it (assuming it has been compiled, see above), we do:
 
+$ cd build/DRIVERS/driver_name/bin
+$ mpirun P ./driver_name [options]
 
+where ```P``` is the number of processors to be used. Clearly, ```mpirun P``` must be eliminated to run serial drivers.
 
+To see the different options and default values we can do
 
-
+$ ./driver_name --help
 
 
 
