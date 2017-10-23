@@ -782,6 +782,20 @@ end subroutine bst_free_vef_iterator
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+function bst_get_num_proper_vefs ( this ) 
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: bst_get_num_proper_vefs
+  bst_get_num_proper_vefs = this%num_vefs
+end function bst_get_num_proper_vefs
+
+function bst_get_num_improper_vefs ( this ) 
+  implicit none
+  class(base_static_triangulation_t), intent(in) :: this
+  integer(ip) :: bst_get_num_improper_vefs
+  bst_get_num_improper_vefs = 0
+end function bst_get_num_improper_vefs
+
 subroutine bst_print ( this )
    class(base_static_triangulation_t), intent(in) :: this
    integer(ip) :: ivef,inode
