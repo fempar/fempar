@@ -357,6 +357,7 @@ contains
     call memalloc(size(alpha),dat,__FILE__,__LINE__)
     dat = alpha
     call mpi_allreduce(dat,alpha,size(alpha),mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
+    call memfree(dat,__FILE__,__LINE__)
   end subroutine mpi_context_sum_vector_rp
 
   !=============================================================================
@@ -380,6 +381,7 @@ contains
     call memalloc(size(alpha),dat,__FILE__,__LINE__)
     dat = alpha
     call mpi_allreduce(dat,alpha,size(alpha),mpi_context_rp,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
+    call memfree(dat,__FILE__,__LINE__)
   end subroutine mpi_context_max_vector_rp
 
   !=============================================================================
