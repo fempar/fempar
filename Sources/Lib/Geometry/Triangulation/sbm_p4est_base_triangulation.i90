@@ -640,6 +640,8 @@ contains
            call work_vector_improper_cells_around%resize(0)
            call work_vector_ivef%resize(0)
            call work_vector_subvef%resize(0)
+           call work_vector_ghost_cells_around%resize(0)
+           call work_vector_ghost_cells_around_ivef%resize(0)
 
            ! Find face neighbors
            do iface_at_edge=1, num_faces_at_edge_3d

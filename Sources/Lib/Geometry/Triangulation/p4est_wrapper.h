@@ -76,7 +76,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data);
 
 typedef struct edge_info
 {
-  p4est_locidx_t  local_num_quadrants;
+  p4est_locidx_t local_num_quadrants; 
   p4est_locidx_t *quad_to_quad_by_edge;
   int8_t         *quad_to_edge;
   p4est_locidx_t *quad_to_half_by_edge; 

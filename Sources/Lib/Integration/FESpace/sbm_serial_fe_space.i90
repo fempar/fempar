@@ -312,11 +312,15 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   logical              , allocatable :: components_code(:)
   integer(ip), allocatable           :: visited_vef_to_cell_map(:,:)
   integer(ip)                        :: previous_num_dirichlet_dofs
+  class(triangulation_t), pointer :: triangulation
+  
   
   ! Count num_dirichlet_dofs
   this%num_dirichlet_dofs = 0
   
-  if ( .not. associated(this%conditions) ) then
+  triangulation => this%get_triangulation()
+  
+  if ( .not. associated(this%conditions) .or. triangulation%get_num_cells() == 0 ) then
     return
   end if
   

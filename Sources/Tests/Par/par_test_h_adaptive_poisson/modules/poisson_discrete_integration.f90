@@ -84,10 +84,15 @@ contains
     real(rp)     :: source_term_value
     
     class(scalar_function_t), pointer :: source_term
+    class(triangulation_t), pointer :: triangulation
+    
     
     assert (associated(this%analytical_functions)) 
     assert (associated(this%fe_function)) 
 
+    triangulation => fe_space%get_triangulation()
+    if ( triangulation%get_num_cells() == 0 ) return
+   
     source_term => this%analytical_functions%get_source_term()
 
     call fe_space%create_fe_cell_iterator(fe)

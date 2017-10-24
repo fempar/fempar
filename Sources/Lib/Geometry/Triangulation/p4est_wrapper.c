@@ -42,6 +42,7 @@
 #include <p8est_mesh.h>
 #include <p8est_bits.h>
 #include <p8est_communication.h>
+#include <p8est_iterate.h>
 #ifndef SC_ENABLE_MPI
   static int sc_mpi_initialized   = 0;
 #else
@@ -428,7 +429,7 @@ void F90_p4est_get_mesh_topology_arrays( p4est_t        *p4est,
 
 void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
                                          p8est_mesh_t   *mesh,
-                                         p4est_ghost_t   *ghost,
+                                         p8est_ghost_t  *ghost,
                                          p4est_locidx_t **quad_to_quad,
                                          int8_t         **quad_to_face, 
                                          p4est_locidx_t **quad_to_half, 
@@ -472,7 +473,7 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
   edge_info.quad_to_edge              = quad_to_edge;
   edge_info.quad_to_half_by_edge      = *quad_to_half_by_edge;
   edge_info.quad_to_half_by_edge_size = 0;
-  p8est_iterate(p8est, NULL, &edge_info, NULL, NULL,edge_callback, NULL);
+  p8est_iterate(p8est, ghost, &edge_info, NULL, NULL,edge_callback, NULL);
 
   *quad_to_quad=mesh->quad_to_quad;
   *quad_to_face=mesh->quad_to_face;
@@ -501,7 +502,6 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
   p4est_locidx_t *quad_to_quad_by_edge;
   int8_t         *quad_to_edge;
   p4est_locidx_t *quad_to_half_by_edge;
-  p4est_locidx_t local_num_quadrants;
 
   int k;
   p4est_locidx_t ineig[4], jneig[4];
@@ -517,7 +517,6 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
   quad_to_quad_by_edge = edge_info->quad_to_quad_by_edge;
   quad_to_edge = edge_info->quad_to_edge;
   quad_to_half_by_edge = edge_info->quad_to_half_by_edge;
-  local_num_quadrants = edge_info->local_num_quadrants;
   
   cells_around = (p8est_iter_edge_side_t *) info->sides.array;
   
@@ -534,6 +533,9 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
               i_is_ghost[0]  = cells_around[i].is.hanging.is_ghost[0];
               i_is_ghost[1]  = cells_around[i].is.hanging.is_ghost[1];
               
+              if ( i_is_ghost[0] ) ineig[0]+=edge_info->local_num_quadrants;
+              if ( i_is_ghost[1] ) ineig[1]+=edge_info->local_num_quadrants;
+              
               if ( ! i_is_ghost[0] ) {
                 quad_to_quad_by_edge[ 12*ineig[0] + ineig_iedge[0] ] = ineig[0];
                 quad_to_edge        [ 12*ineig[0] + ineig_iedge[0] ] = ineig_iedge[0];
@@ -545,8 +547,10 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
           }
           else
           {
+              i_is_ghost[0]  = cells_around[i].is.full.is_ghost;
               ineig[0]       = cells_around[i].is.full.quadid;
               ineig_iedge[0] = cells_around[i].edge;
+              if ( i_is_ghost[0] ) ineig[0]+=edge_info->local_num_quadrants;
               if ( ! i_is_ghost[0]  ) {
                quad_to_quad_by_edge[ 12*ineig[0] + ineig_iedge[0] ] = ineig[0];
                quad_to_edge        [ 12*ineig[0] + ineig_iedge[0] ] = ineig_iedge[0];  
@@ -566,12 +570,15 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
       ineig_iedge[2*k]   = cells_around[i].edge;
       i_is_ghost[2*k]    = cells_around[i].is.hanging.is_ghost[0];
       i_is_ghost[2*k+1]  = cells_around[i].is.hanging.is_ghost[1];
+      if ( i_is_ghost[2*k] )   ineig[2*k]   += edge_info->local_num_quadrants;
+      if ( i_is_ghost[2*k+1] ) ineig[2*k+1] += edge_info->local_num_quadrants;
     }
     else
     {
       ineig[2*k]       = cells_around[i].is.full.quadid;
       ineig_iedge[2*k] = cells_around[i].edge;
       i_is_ghost[2*k]  = cells_around[i].is.full.is_ghost;
+      if ( i_is_ghost[2*k] ) ineig[2*k]   += edge_info->local_num_quadrants;
     } 
 
     for(int j=i;j<(info->sides.elem_count);j++)
@@ -589,12 +596,15 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
             jneig_jedge[2*k]  = cells_around[j].edge;
             j_is_ghost[2*k]   = cells_around[j].is.hanging.is_ghost[0];
             j_is_ghost[2*k+1] = cells_around[j].is.hanging.is_ghost[1];     
+            if ( j_is_ghost[2*k] )   jneig[2*k]   += edge_info->local_num_quadrants;
+            if ( j_is_ghost[2*k+1] ) jneig[2*k+1] += edge_info->local_num_quadrants;
           }
           else
           {
             jneig[2*k]       = cells_around[j].is.full.quadid;
             jneig_jedge[2*k] = cells_around[j].edge;
             j_is_ghost[2*k]  = cells_around[j].is.full.is_ghost;
+            if ( j_is_ghost[2*k] )   jneig[2*k]   += edge_info->local_num_quadrants;
           } 
           
           if (cells_around[i].is_hanging && cells_around[j].is_hanging) 
