@@ -1,6 +1,6 @@
-module fempar_sm_params_names
+module par_nsi_params_names
   use fempar_names
-  use fempar_sm_discrete_integration_names
+  use par_nsi_discrete_integration_names
   implicit none
 #include "debug.i90" 
   private
@@ -11,10 +11,10 @@ module fempar_sm_params_names
   character(len=*), parameter :: triangulation_type_key        = 'triangulation_type'    
   character(len=*), parameter :: discrete_integration_type_key = 'discrete_integration_type' 
 
-  type, extends(parameter_handler_t) :: fempar_sm_params_t
+  type, extends(parameter_handler_t) :: par_nsi_params_t
      private
      contains
-       procedure :: define_parameters  => fempar_sm_params_define_parameters
+       procedure :: define_parameters  => par_nsi_params_define_parameters
        procedure, non_overridable             :: get_dir_path
        procedure, non_overridable             :: get_prefix
        procedure, non_overridable             :: get_reference_fe_geo_order
@@ -23,17 +23,17 @@ module fempar_sm_params_names
        procedure, non_overridable             :: get_triangulation_type
        procedure, non_overridable             :: get_discrete_integration_type
       !procedure, non_overridable             :: get_num_dimensions
-  end type fempar_sm_params_t
+  end type par_nsi_params_t
 
   ! Types
-  public :: fempar_sm_params_t
+  public :: par_nsi_params_t
 
 contains
 
   !==================================================================================================
-  subroutine fempar_sm_params_define_parameters(this)
+  subroutine par_nsi_params_define_parameters(this)
     implicit none
-    class(fempar_sm_params_t), intent(inout) :: this
+    class(par_nsi_params_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
     integer(ip)    :: error
     character(len=:), allocatable            :: msg
@@ -110,7 +110,7 @@ contains
     error = helpers%set(key = coarse_space_use_vertices_key , value  = 'Include vertex coarse DoFs in coarse FE space'); check(error==0)
     error = helpers%set(key = coarse_space_use_edges_key    , value  = 'Include edge coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
-    error = helpers%set(key = discrete_integration_type_key , value  = 'Discrete formulation (irreducible or mixed_u_p)' )  ; check(error==0)
+    error = helpers%set(key = discrete_integration_type_key , value  = 'Discrete formlation (irreducible or mixed_u_p)' )  ; check(error==0)
 
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -140,12 +140,12 @@ contains
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
     error = required%set(key = discrete_integration_type_key , value = .false.) ; check(error==0)
 
-  end subroutine fempar_sm_params_define_parameters
+  end subroutine par_nsi_params_define_parameters
 
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(fempar_sm_params_t) , intent(in) :: this
+    class(par_nsi_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_dir_path
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -158,7 +158,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(fempar_sm_params_t) , intent(in) :: this
+    class(par_nsi_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_prefix
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -171,7 +171,7 @@ contains
     !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
-    class(fempar_sm_params_t) , intent(in) :: this
+    class(par_nsi_params_t) , intent(in) :: this
     integer(ip)                                   :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -184,7 +184,7 @@ contains
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
-    class(fempar_sm_params_t) , intent(in) :: this
+    class(par_nsi_params_t) , intent(in) :: this
     integer(ip)                                   :: get_reference_fe_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -197,7 +197,7 @@ contains
   !==================================================================================================
   function get_write_solution(this)
     implicit none
-    class(fempar_sm_params_t) , intent(in) :: this
+    class(par_nsi_params_t) , intent(in) :: this
     logical                                       :: get_write_solution
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -213,7 +213,7 @@ contains
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
-    class(fempar_sm_params_t) , intent(in) :: this
+    class(par_nsi_params_t) , intent(in) :: this
     integer(ip)                                   :: get_triangulation_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -226,7 +226,7 @@ contains
   !==================================================================================================
   function get_discrete_integration_type(this)
     implicit none
-    class(fempar_sm_params_t) , intent(in) :: this
+    class(par_nsi_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_discrete_integration_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -236,4 +236,4 @@ contains
     assert(error==0)
   end function get_discrete_integration_type
 
-end module fempar_sm_params_names
+end module par_nsi_params_names
