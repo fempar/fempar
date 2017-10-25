@@ -1,8 +1,9 @@
-subroutine  mixed_u_p_discrete_integration_create(this,number_dimensions,analytical_functions)
+subroutine  nsi_discrete_integration_create(this,number_dimensions,analytical_functions,viscosity)
   implicit none
-  class(nsi_discrete_integration_t)       , intent(inout) :: this
-  integer(ip)                                   , intent(in)    :: number_dimensions
-  type(par_nsi_analytical_functions_t), target, intent(in)    :: analytical_functions
+  class(nsi_discrete_integration_t)   , intent(inout)      :: this
+  integer(ip)                         , intent(in)         :: number_dimensions
+  type(par_nsi_analytical_functions_t), target, intent(in) :: analytical_functions
+  real(rp)                            , intent(in)         :: viscosity
   integer(ip) :: istat
 
   this%number_dimensions = number_dimensions
@@ -17,7 +18,7 @@ subroutine  mixed_u_p_discrete_integration_create(this,number_dimensions,analyti
   this%fe_type(2)          = fe_type_lagrangian
   this%field_type(1)       = field_type_vector
   this%field_type(2)       = field_type_scalar
-  this%field_name(1)       = 'Displacement'
+  this%field_name(1)       = 'Velocity'
   this%field_name(2)       = 'Pressure'
   this%field_blocks        = (/1,1/)
   this%field_coupling = reshape((/.true.,  .true.,  &
@@ -26,33 +27,11 @@ subroutine  mixed_u_p_discrete_integration_create(this,number_dimensions,analyti
   ! Could be done in the mother class
   this%analytical_functions => analytical_functions
   this%source_term => this%analytical_functions%get_source_term_u()
+  this%viscosity = viscosity
 
-end subroutine mixed_u_p_discrete_integration_create
+end subroutine nsi_discrete_integration_create
 
-function mixed_u_p_discrete_integration_is_symmetric(this)
-  implicit none
-  class(nsi_discrete_integration_t), intent(inout) :: this
-  logical :: mixed_u_p_discrete_integration_is_symmetric
-  mixed_u_p_discrete_integration_is_symmetric = .true.
-end function mixed_u_p_discrete_integration_is_symmetric
-
-function mixed_u_p_discrete_integration_is_coercive(this)
-  implicit none
-  class(nsi_discrete_integration_t), intent(inout) :: this
-  logical :: mixed_u_p_discrete_integration_is_coercive
-  mixed_u_p_discrete_integration_is_coercive = .false.
-end function mixed_u_p_discrete_integration_is_coercive
-
-!subroutine mixed_u_p_discrete_integration_init_solution(this,fe_space,solution)
-!  class(nsi_discrete_integration_t), intent(inout) :: this
-!  class(serial_fe_space_t)               , intent(in)    :: fe_space
-!  type(fe_function_t), target            , intent(inout) :: solution
-!  this%solution => solution
-!  call solution%interpolate_function(fe_space, 1, this%analytical_functions%get_zero_function_u())
-!  call solution%interpolate_function(fe_space, 2, this%analytical_functions%get_zero_function_p())
-!end subroutine mixed_u_p_discrete_integration_init_solution
-
-subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, assembler )
+subroutine nsi_discrete_integration_integrate ( this, fe_space, assembler )
   implicit none
   class(nsi_discrete_integration_t), intent(in)    :: this
   class(serial_fe_space_t)               , intent(inout) :: fe_space
@@ -79,6 +58,7 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, assembler 
 
   type(fe_cell_function_vector_t) :: cell_solution_u
   type(fe_cell_function_scalar_t) :: cell_solution_p
+  type(vector_field_t), pointer   :: solution_u(:) => null()
   type(tensor_field_t), pointer   :: solution_gradu(:) => null()
   real(rp)            , pointer   :: solution_p(:) => null()
 
@@ -86,7 +66,11 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, assembler 
   type(vector_field_t) :: source_term_value
   type(tensor_field_t) :: s_u, epsd_v, epsd_u, Id
   real(rp)     :: dV, div_v, div_u
-
+  
+  ! Chapuza for the moment to check everything works as linear elasticity
+  !real(rp)         :: viscosity 
+  !cviscosity = mu
+  
   assert (associated(this%source_term)) 
 
   call Id%init(0.0)
@@ -115,6 +99,7 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, assembler 
         call fe%update_integration()
         call cell_solution_u%update(fe,this%fe_function)
         call cell_solution_p%update(fe,this%fe_function)
+        solution_u     => cell_solution_u%get_quadrature_points_values()
         solution_gradu => cell_solution_u%get_quadrature_points_gradients()
         solution_p     => cell_solution_p%get_quadrature_points_values()
 
@@ -138,13 +123,13 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, assembler 
               ! U-U
               epsd_v  = symmetric_part(shape_u_gradients(idof_u,qpoint)) 
               div_v = trace(epsd_v)
-              epsd_v  = epsd_v - one_third*div_v*Id
               do jdof_u = 1, num_dofs_per_field(1)
                  jdof = jdof_u
                  epsd_u  = symmetric_part(shape_u_gradients(jdof_u,qpoint))
-                 epsd_u  = epsd_u - one_third*trace(epsd_u)*Id
-                 !s_u = 2*mu*epsd_u
-                 elmat(idof,jdof) = elmat(idof,jdof) + dV * double_contract(epsd_v,2*mu*epsd_u)
+                 !s_u = 2*viscosity*epsd_u
+                 elmat(idof,jdof) = elmat(idof,jdof) + dV * double_contract(epsd_v,2*this%viscosity*epsd_u)
+                 !> Convective term $\int_\Omega u_i \cdot \partial_i u_j v_j
+                 elmat(idof,jdof) = elmat(idof,jdof) + dv * (solution_u(qpoint) * shape_u_gradients(jdof_u,qpoint)) * shape_u_values(idof_u,qpoint)
               end do
               ! U-P
               do jdof_p = 1, num_dofs_per_field(2)
@@ -160,31 +145,25 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, assembler 
                  jdof = jdof_u
                  elmat(idof,jdof) = elmat(idof,jdof) + dV * shape_p_values(idof_p,qpoint) * div_u
               end do
-              ! P-P
-              do jdof_p = 1, num_dofs_per_field(2)
-                 jdof = num_dofs_per_field(1)+jdof_p
-                 elmat(idof,jdof) = elmat(idof,jdof) - dV * inv_K * shape_p_values(idof_p,qpoint) * shape_p_values(jdof_p,qpoint)
-              end do
            end do
 
            ! Residual
            call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
            epsd_u = symmetric_part(solution_gradu(qpoint))
            div_u  = trace(epsd_u)
-           epsd_u = epsd_u - one_third*div_u*Id
            do idof_u = 1, num_dofs_per_field(1)
               idof = idof_u
               epsd_v  = symmetric_part(shape_u_gradients(idof_u,qpoint)) 
               div_v = trace(epsd_v)
-              epsd_v  = epsd_v - one_third*div_v*Id
               elvec(idof) = elvec(idof) - dV * source_term_value * shape_u_values(idof_u,qpoint)
-              elvec(idof) = elvec(idof) + dV * double_contract(epsd_v,2*mu*epsd_u)
+              elvec(idof) = elvec(idof) + dV * double_contract(epsd_v,2*this%viscosity*epsd_u)
               elvec(idof) = elvec(idof) + dV * div_v * solution_p(qpoint)
+              !> Convective term $\int_\Omega u_i \cdot \partial_i u_j v_j
+              elvec(idof) = elvec(idof) + dV * (solution_u(qpoint)*solution_gradu(qpoint))*shape_u_values(idof_u,qpoint)
            end do
            do idof_p = 1, num_dofs_per_field(2)
               idof = num_dofs_per_field(1)+idof_p
               elvec(idof) = elvec(idof) + dV * shape_p_values(idof_p,qpoint) * div_u
-              elvec(idof) = elvec(idof) - dV * inv_K * shape_p_values(idof_p,qpoint) * solution_p(qpoint)
            end do
 
         end do
@@ -205,4 +184,4 @@ subroutine mixed_u_p_discrete_integration_integrate ( this, fe_space, assembler 
   call memfree ( elmat, __FILE__, __LINE__ )
   call memfree ( elvec, __FILE__, __LINE__ )
 
-end subroutine mixed_u_p_discrete_integration_integrate
+end subroutine nsi_discrete_integration_integrate

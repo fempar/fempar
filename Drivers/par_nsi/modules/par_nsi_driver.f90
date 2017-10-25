@@ -28,13 +28,14 @@
 module par_nsi_driver_names
   use fempar_names
   use par_nsi_params_names
-  use par_nsi_discrete_integration_names
+  use nsi_discrete_integration_names
   use par_nsi_conditions_names
   use par_nsi_analytical_functions_names
   use par_nsi_linear_solver_names
   use par_nsi_nonlinear_operator_names
   use par_nsi_nonlinear_solver_names
   use par_nsi_time_integration_names
+  
   
 # include "debug.i90"
 
@@ -54,11 +55,13 @@ module par_nsi_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                        :: fe_space 
      type(p_reference_fe_t), allocatable         :: reference_fes(:) 
-     type(standard_l1_coarse_fe_handler_t)       :: coarse_fe_handler
-     type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
+     !type(elasticity_pb_bddc_l1_coarse_fe_handler_t) :: coarse_fe_handler_u
+     type(standard_l1_coarse_fe_handler_t)           :: coarse_fe_handler_u
+     type(standard_l1_coarse_fe_handler_t)           :: coarse_fe_handler_p
+     type(p_l1_coarse_fe_handler_t), allocatable     :: coarse_fe_handlers(:)
      
 
-     class(par_nsi_discrete_integration_t), allocatable :: par_nsi_integration
+     type(nsi_discrete_integration_t)          :: par_nsi_integration
      type(par_nsi_conditions_t)                :: par_nsi_conditions
      type(par_nsi_analytical_functions_t)      :: par_nsi_analytical_functions
      
@@ -128,7 +131,7 @@ contains
     call this%setup_reference_fes()
     call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
-    c!all this%timer_fe_space%stop()
+    !call this%timer_fe_space%stop()
 
     ! Construct Linear and nonlinear operators
     !call this%timer_solver_setup%start()
@@ -249,17 +252,9 @@ end subroutine free_timers
     implicit none
     class(par_nsi_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
-    !if ( this%test_params%get_discrete_integration_type() == discrete_integration_type_irreducible ) then
-    !   allocate(irreducible_discrete_integration_t :: this%par_nsi_integration, stat=istat); check(istat==0)
-    !else if(this%test_params%get_discrete_integration_type() == discrete_integration_type_mixed_u_p ) then
-       allocate(nsi_discrete_integration_t :: this%par_nsi_integration, stat=istat); check(istat==0)
-   !else
-       write(*,*) this%test_params%get_discrete_integration_type()
-       write(*,*) discrete_integration_type_irreducible
-       mcheck(.false.,'Discrete integration not available')
-   end if
-   call this%par_nsi_integration%create(this%triangulation%get_num_dims(),this%par_nsi_analytical_functions)
-   !call this%par_nsi_integration%set_solution(this%solution)
+    
+    call this%par_nsi_integration%create( this%triangulation%get_num_dims(),this%par_nsi_analytical_functions, &
+                                          this%test_params%get_viscosity())
    
   end subroutine setup_discrete_integration
 
@@ -274,19 +269,19 @@ end subroutine free_timers
     allocate(this%reference_fes(this%par_nsi_integration%get_number_fields()), stat=istat)
     check(istat==0)
     
-    if ( this%par_environment%am_i_l1_task() ) then
-      call this%triangulation%create_cell_iterator(cell)
+    call this%triangulation%create_cell_iterator(cell)
+    if ( .not. cell%has_finished() ) then   
       reference_fe_geo => cell%get_reference_fe()
       do field_id = 1, this%par_nsi_integration%get_number_fields()
          this%reference_fes(field_id) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
                                                              fe_type = this%par_nsi_integration%get_fe_type(field_id), &
                                                              num_dims = this%triangulation%get_num_dims(), &
-                                                             order = this%test_params%get_reference_fe_order(), &
+                                                             order = this%test_params%get_reference_fe_orders(field_id), &
                                                              field_type = this%par_nsi_integration%get_field_type(field_id), &
                                                              conformity = .true. )
-      end do      
-      call this%triangulation%free_cell_iterator(cell)
-    end if  
+      end do 
+    end if 
+    call this%triangulation%free_cell_iterator(cell)    
   end subroutine setup_reference_fes
 
 !========================================================================================
@@ -296,9 +291,9 @@ end subroutine free_timers
     class(par_nsi_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat, field_id
     allocate(this%coarse_fe_handlers(this%par_nsi_integration%get_number_fields()), stat=istat); check(istat==0)
-    do field_id = 1, this%par_nsi_integration%get_number_fields()
-       this%coarse_fe_handlers(field_id)%p => this%coarse_fe_handler
-    end do
+    this%coarse_fe_handlers(1)%p => this%coarse_fe_handler_u
+    this%coarse_fe_handlers(2)%p => this%coarse_fe_handler_p
+    
   end subroutine setup_coarse_fe_handlers
 
 !========================================================================================
@@ -308,11 +303,12 @@ end subroutine free_timers
     class(par_nsi_fe_driver_t), target, intent(inout) :: this
     class(reference_fe_t)       , pointer       :: reference_fe
     
-    call this%par_nsi_analytical_functions%set_num_dimensions(this%triangulation%get_num_dims())
+    call this%par_nsi_analytical_functions%set(this%triangulation%get_num_dims(),0)
     call this%par_nsi_conditions%set_number_components(this%par_nsi_integration%get_number_components())
     call this%par_nsi_conditions%set_number_dimensions(this%triangulation%get_num_dims())    
     ! Store exact function to define B.C. in FE space
-    call this%par_nsi_conditions%set_boundary_function(this%par_nsi_analytical_functions%get_solution_function_u())
+    call this%par_nsi_conditions%set_boundary_function( this%par_nsi_analytical_functions%get_solution_function_u(), &
+                                                        this%par_nsi_analytical_functions%get_solution_function_p())
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%par_nsi_conditions, &
                                reference_fes       = this%reference_fes, &
@@ -338,16 +334,6 @@ end subroutine free_timers
     class(vector_t), pointer  :: dof_values
     
     ! FE operator
-    if(this%par_nsi_integration%is_symmetric().and.this%par_nsi_integration%is_coercive()) then
-       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-            &                                diagonal_blocks_symmetric_storage = [ .true. ], &
-            &                                diagonal_blocks_symmetric         = [ .true. ], &
-            &                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-            &                                fe_space                          = this%fe_space, &
-            &                                discrete_integration              = this%par_nsi_integration, &
-            &                                field_blocks                      = this%par_nsi_integration%get_field_blocks(),            &
-            &                                field_coupling                    = this%par_nsi_integration%get_field_coupling()) 
-    else if(this%par_nsi_integration%is_symmetric()) then
        call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
             &                                diagonal_blocks_symmetric_storage = [ .true. ], &
             &                                diagonal_blocks_symmetric         = [ .true. ], &
@@ -356,7 +342,6 @@ end subroutine free_timers
             &                                discrete_integration              = this%par_nsi_integration, &
             &                                field_blocks                      = this%par_nsi_integration%get_field_blocks(),            &
             &                                field_coupling                    = this%par_nsi_integration%get_field_coupling()) 
-    end if
 
     ! Solution and initial guess
     call this%solution%create(this%fe_space) 
@@ -389,23 +374,15 @@ end subroutine free_timers
     FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
     
     ! Set coarsest-grid solver type (currently NOT inherited from fine level matrices types)
-    if(this%par_nsi_integration%is_coercive()) then
-       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-    else
-       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
-    end if
-
+    FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+    
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     !call this%mlbddc%numerical_setup()
    
     ! Linear solver
     call this%linear_solver%create(this%fe_space%get_environment())
-    if(this%par_nsi_integration%is_coercive()) then
-       call this%linear_solver%set_type_from_string(cg_name)
-    else
-       call this%linear_solver%set_type_from_string(lgmres_name)
-    end if
+    call this%linear_solver%set_type_from_string(lgmres_name)
     call this%linear_solver%setup_operators(this%fe_affine_operator, this%mlbddc) 
     call linear_pl%init()
     FPLError = linear_pl%set(key = ils_rtol, value = 1.0e-12_rp); assert(FPLError == 0)

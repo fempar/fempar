@@ -871,7 +871,7 @@ module fe_space_names
   
   type, extends(standard_l1_coarse_fe_handler_t) :: H1_l1_coarse_fe_handler_t
     private
-    real(rp), public :: diffusion_inclusion
+    real(rp), public :: diffusion_inclusion = 1.0_rp
   contains
 	   procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix_multiple
 	   procedure :: setup_weighting_operator => H1_l1_setup_weighting_operator
@@ -879,7 +879,7 @@ module fe_space_names
   
   type, extends(standard_l1_coarse_fe_handler_t) :: vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
     private
-    real(rp), public :: diffusion_inclusion
+    real(rp), public :: diffusion_inclusion = 1.0_rp
   contains
 	   procedure :: setup_constraint_matrix  => vector_laplacian_l1_setup_constraint_matrix_multiple
 	   procedure :: setup_weighting_operator => vector_laplacian_l1_setup_weighting_operator
@@ -887,7 +887,7 @@ module fe_space_names
 
   type, extends(standard_l1_coarse_fe_handler_t) :: elasticity_pb_bddc_l1_coarse_fe_handler_t
     private
-    real(rp), public :: elastic_modulus
+    real(rp), public :: elastic_modulus = 1.0_rp
   contains
     procedure :: get_num_coarse_dofs      => elasticity_l1_get_num_coarse_dofs  
 	   procedure :: setup_constraint_matrix  => elasticity_l1_setup_constraint_matrix_multiple

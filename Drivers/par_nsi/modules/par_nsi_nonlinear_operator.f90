@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_nsi_nonlinear_operator_names
   use fempar_names
-  use par_nsi_discrete_integration_names
+  use nsi_discrete_integration_names
   implicit none
 # include "debug.i90"
   private
@@ -35,7 +35,7 @@ module par_nsi_nonlinear_operator_names
   type, extends(operator_t) :: nonlinear_operator_t
      private
      type(fe_affine_operator_t)             , pointer :: residual  => null()
-     class(par_nsi_discrete_integration_t), pointer :: discrete_integration
+     class(nsi_discrete_integration_t), pointer :: discrete_integration
      class(vector_t)                        , pointer :: rhs_values => null() ! useful to define nonlinear problems arising from time dependent operators
    contains
      procedure :: create           => nonlinear_operator_create
@@ -66,10 +66,10 @@ contains
 
     discrete_integration => this%residual%get_discrete_integration()
     select type(discrete_integration)
-    class is(par_nsi_discrete_integration_t)
+    class is(nsi_discrete_integration_t)
        this%discrete_integration => discrete_integration
     class default
-       mcheck(.false.,'nonlinear operator only works with par_nsi_discrete_integration')
+       mcheck(.false.,'nonlinear operator only works with nsi_discrete_integration')
     end select
 
   end subroutine nonlinear_operator_create

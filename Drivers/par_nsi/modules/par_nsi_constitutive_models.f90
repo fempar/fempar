@@ -32,7 +32,7 @@ module par_nsi_constitutive_models_names
   private
 
   real(rp), parameter         :: E  = 1.0_rp
-  real(rp), parameter         :: nu = 0.2_rp
+  real(rp), parameter         :: nu = 0.49_rp
   real(rp), parameter, public :: lambda = (nu*E)/((1+nu)*(1-2*nu))
   real(rp), parameter, public :: mu     = E/(2*(1+nu))
   real(rp), parameter, public :: inv_K = 1.0_rp/(lambda + 2*mu/3)

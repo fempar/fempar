@@ -29,7 +29,7 @@ module par_nsi_time_integration_names
   use fempar_names
   use par_nsi_nonlinear_operator_names
   use par_nsi_nonlinear_solver_names
-  use par_nsi_discrete_integration_names
+  use nsi_discrete_integration_names
   implicit none
 # include "debug.i90"
   private
@@ -69,7 +69,7 @@ module par_nsi_time_integration_names
      !type(fe_function_t)                                  :: solution
      type(fe_function_t)                                  :: solution_old
      class(vector_t)                        , allocatable :: dof_values
-     class(par_nsi_discrete_integration_t), pointer     :: discrete_integration
+     class(nsi_discrete_integration_t), pointer     :: discrete_integration
      class(environment_t)                   , pointer     :: environment 
    contains
      procedure :: time_integration_create
@@ -162,10 +162,10 @@ contains
 
     discrete_integration => this%residual%get_discrete_integration()
     select type(discrete_integration)
-    class is(par_nsi_discrete_integration_t)
+    class is(nsi_discrete_integration_t)
        this%discrete_integration => discrete_integration
     class default
-       mcheck(.false.,'nonlinear operator only works with par_nsi_discrete_integration')
+       mcheck(.false.,'nonlinear operator only works with nsi_discrete_integration')
     end select
 
   end subroutine time_integration_create

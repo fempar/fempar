@@ -37,7 +37,7 @@ module par_nsi_conditions_names
      private
      integer(ip)                       :: number_components
      integer(ip)                       :: number_dimensions
-     class(vector_function_t), pointer :: boundary_function   ! This is indeed not needed
+     class(scalar_function_t), pointer :: boundary_function_p
      type(vector_component_function_t) :: boundary_function_x
      type(vector_component_function_t) :: boundary_function_y
      type(vector_component_function_t) :: boundary_function_z
@@ -76,14 +76,15 @@ contains
     this%number_dimensions = number_dimensions
   end subroutine par_nsi_conditions_set_number_dimensions
   
-  subroutine par_nsi_conditions_set_boundary_function(this,boundary_function)
+  subroutine par_nsi_conditions_set_boundary_function(this,boundary_function_u,boundary_function_p)
     implicit none
     class(par_nsi_conditions_t), intent(inout) :: this
-    class(vector_function_t), target, intent(in) :: boundary_function
-    this%boundary_function => boundary_function
-    call this%boundary_function_x%set(boundary_function,1)
-    call this%boundary_function_y%set(boundary_function,2)
-    call this%boundary_function_z%set(boundary_function,SPACE_DIM)
+    class(vector_function_t), target, intent(in) :: boundary_function_u
+    class(scalar_function_t), target, intent(in) :: boundary_function_p
+    this%boundary_function_p => boundary_function_p
+    call this%boundary_function_x%set(boundary_function_u,1)
+    call this%boundary_function_y%set(boundary_function_u,2)
+    call this%boundary_function_z%set(boundary_function_u,SPACE_DIM)
   end subroutine par_nsi_conditions_set_boundary_function
 
   subroutine par_nsi_conditions_get_components_code(this, boundary_id, components_code)
@@ -92,13 +93,11 @@ contains
     integer(ip)                  , intent(in)  :: boundary_id
     logical                      , intent(out) :: components_code(:)
     assert ( size(components_code) >= this%number_components )
-    components_code(1:this%number_components) = .false.
-    if(boundary_id >= 1 ) components_code(1:this%number_dimensions) = .true.
-    !if ( boundary_id == 1 ) then
-    !  components_code(1:this%number_dimensions) = .true.
-    !else  if ( boundary_id == 2 ) then
-    !  components_code(1:this%number_dimensions) = .true.
-    !end if
+    components_code(1:this%number_dimensions) = .true.
+    components_code(this%number_dimensions+1) = .false.
+    if ( boundary_id == 2 ) then
+       components_code(this%number_dimensions+1) = .true.
+    end if
   end subroutine par_nsi_conditions_get_components_code
   
   function par_nsi_conditions_get_num_components(this)
@@ -124,6 +123,8 @@ contains
              function => this%boundary_function_x
           case (2)
              function => this%boundary_function_y
+          case (3)
+             function => this%boundary_function_p
           case default
              check(.false.)
           end select
@@ -135,6 +136,8 @@ contains
              function => this%boundary_function_y
           case (3)
              function => this%boundary_function_z
+          case (4)
+             function => this%boundary_function_p
           case default
              check(.false.)
           end select
