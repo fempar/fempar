@@ -1849,9 +1849,18 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
              dofs_gid ( current_col ) = dof_gid 
              dofs_max_part_id ( current_col-offset ) = max_part_id 
              if (all_ghosts) then
-               raw_interface_data(neighbor_part_id_row, current_col) = max_part_id
-               raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid) 
-               raw_interface_data(owner_flag_row, current_col) = -1 
+               if ( num_parts == 1 ) then
+                 part_id = parts_visited(ipart)
+                 assert ( part_id == max_part_id ) 
+                 raw_interface_data(neighbor_part_id_row, current_col) = max_part_id
+                 raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid) 
+                 raw_interface_data(owner_flag_row, current_col) = -1
+               else
+                 part_id = parts_visited(ipart)
+                 raw_interface_data(neighbor_part_id_row, current_col) = part_id
+                 raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid) 
+                 raw_interface_data(owner_flag_row, current_col) = num_parts + num_parts_from_ghosts + 1 
+               end if  
              else 
                part_id = parts_visited(ipart)
                raw_interface_data(neighbor_part_id_row, current_col) = part_id
