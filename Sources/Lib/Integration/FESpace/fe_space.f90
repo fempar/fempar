@@ -541,7 +541,7 @@ module fe_space_names
      procedure, non_overridable          :: allocate_and_fill_fe_space_type_x_field      => serial_fe_space_allocate_and_fill_fe_space_type_x_field
      procedure, non_overridable, private :: free_fe_space_type_x_field                   => serial_fe_space_free_fe_space_type_x_field
      
-     procedure, non_overridable          :: allocate_and_init_ptr_lst_dofs_gids               => serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
+     procedure, non_overridable          :: allocate_and_init_ptr_lst_dofs_gids          => serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
      procedure, non_overridable          :: copy_ptr_lst_dofs                            => serial_fe_space_copy_ptr_lst_dofs
      procedure, non_overridable, private :: free_ptr_lst_dofs                            => serial_fe_space_free_ptr_lst_dofs
      
@@ -659,7 +659,7 @@ module fe_space_names
      procedure, non_overridable, private :: project_fe_integration_arrays                 => serial_fe_space_project_fe_integration_arrays
      procedure, non_overridable, private :: project_facet_integration_arrays              => serial_fe_space_project_facet_integration_arrays
 
-     procedure, non_overridable, private :: serial_fe_space_refine_and_coarsen_single_fe_function
+     procedure,                  private :: serial_fe_space_refine_and_coarsen_single_fe_function
      procedure, non_overridable, private :: serial_fe_space_refine_and_coarsen_fe_function_array
      generic                             :: refine_and_coarsen                            => serial_fe_space_refine_and_coarsen_single_fe_function, &
                                                                                              serial_fe_space_refine_and_coarsen_fe_function_array
@@ -776,6 +776,8 @@ module fe_space_names
    type(std_vector_integer_ip_t)               :: ptr_ghosts_per_ghost_cell
    type(std_vector_integer_ip_t)               :: lst_ghosts_per_ghost_cell
    type(std_vector_integer_ip_t)               :: rcv_my_part_id_vefs_complete_itfc_couplings 
+   
+   type(std_vector_real_rp_t)                  :: new_fe_function_nodal_values
  contains
    procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
    procedure, private :: serial_fe_space_create_different_ref_fes_between_cells                           => par_fe_space_serial_create_different_ref_fes_between_cells 
@@ -831,7 +833,10 @@ module fe_space_names
    procedure                                   :: get_total_num_coarse_dofs                       => par_fe_space_get_total_num_coarse_dofs
    procedure                                   :: get_block_num_coarse_dofs                       => par_fe_space_get_block_num_coarse_dofs
    procedure       , non_overridable           :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
-
+   
+   ! Transfer FE functions
+   procedure, non_overridable, private :: serial_fe_space_refine_and_coarsen_single_fe_function   => par_fe_space_refine_and_coarsen_single_fe_function
+                                                                                             
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator

@@ -61,7 +61,8 @@ module serial_context_names
      procedure :: gather_igp         => serial_context_gather_scalar_igp
      procedure :: bcast_igp          => serial_context_bcast_scalar_igp
      procedure :: bcast_subcontext   => serial_context_bcast_subcontext
-     procedure, private :: neighbours_exchange_rp                  =>  serial_context_neighbours_exchange_rp                 
+     procedure, private :: neighbours_exchange_rp                  =>  serial_context_neighbours_exchange_rp        
+     procedure, private :: neighbours_exchange_wo_alpha_beta_rp    =>  serial_context_neighbours_exchange_wo_alpha_beta_rp
      procedure, private :: neighbours_exchange_ip                  =>  serial_context_neighbours_exchange_ip                 
      procedure, private :: neighbours_exchange_igp                 =>  serial_context_neighbours_exchange_igp                
      procedure, private :: neighbours_exchange_single_ip           =>  serial_context_neighbours_exchange_single_ip          
@@ -242,7 +243,28 @@ contains
     real(rp), intent(in)    :: x(:)
     real(rp), intent(inout) :: y(:)
   end subroutine serial_context_neighbours_exchange_rp
-
+  
+  !=============================================================================
+  subroutine serial_context_neighbours_exchange_wo_alpha_beta_rp ( this, & 
+       &                                                        num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                                        num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                                        x, y, chunk_size)
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    real(rp)                , intent(in)    :: x(:)
+    real(rp)                , intent(inout) :: y(:)
+    integer(ip)   , optional, intent(in)    :: chunk_size  
+    check(.false.)
+  end subroutine serial_context_neighbours_exchange_wo_alpha_beta_rp
+ 
+  
   !=============================================================================
   subroutine serial_context_neighbours_exchange_ip ( this, & 
        &                                          num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 

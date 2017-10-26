@@ -315,13 +315,14 @@ end subroutine free_timers
     !  call this%triangulation%free_vef_iterator(vef_of_vef)
     !end if
     
-    do i = 1,5
+    do i = 1,4
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%set_cells_set_ids()
       call this%triangulation%partition()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
+    
     !call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
@@ -414,7 +415,6 @@ end subroutine free_timers
     call this%solution%create(this%fe_space) 
     call this%fe_space%interpolate_dirichlet_values(this%solution)
     call this%poisson_integration%set_fe_function(this%solution)
-    
   end subroutine setup_system
   
   subroutine setup_solver (this)
@@ -533,10 +533,15 @@ end subroutine free_timers
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)
     
-    call this%fe_space%update_hanging_dof_values(this%solution)   
- 
+    call this%fe_space%update_hanging_dof_values(this%solution)
+    
+    call this%set_cells_for_refinement()
+    call this%triangulation%refine_and_coarsen()
+    call this%fe_space%refine_and_coarsen(this%solution)
+    call this%fe_space%set_up_cell_integration()
+    
     !select type (dof_values)
-    !class is (serial_scalar_array_t)  
+    !class is (par_scalar_array_t)  
     !   call dof_values%print(6)
     !class DEFAULT
     !   assert(.false.) 
@@ -743,7 +748,7 @@ end subroutine free_timers
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
           if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
-          !if ( (cell%get_ggid()==8) .or. (cell%get_level() == 0) )then
+          !if ( (cell%get_gid()==4) .or. (cell%get_level() == 0) )then
             call cell%set_for_refinement()
           end if
         end if  
