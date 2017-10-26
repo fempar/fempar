@@ -1515,25 +1515,20 @@ subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
   call old_vef_set_ids%free()
 #else
   call this%not_enabled_error()
-#endif        
-  
+#endif
 contains
   function get_vef_set_id( vef_gid, proper_vefs_set_ids, improper_vefs_set_ids)
     implicit none
     integer(ip), intent(in) :: vef_gid
-    ! TODO It seems that the 2 last arguments are not being used
-    !      The function is actually consuming data from the caller, not the passed arguments...
-    !      Is this the behavior we want?
     type(std_vector_integer_ip_t), intent(in) :: proper_vefs_set_ids
     type(std_vector_integer_ip_t), intent(in) :: improper_vefs_set_ids
     integer(ip) :: get_vef_set_id
     if ( vef_gid > 0 ) then
-        get_vef_set_id = old_proper_vefs_set_ids%get(vef_gid)
+        get_vef_set_id = proper_vefs_set_ids%get(vef_gid)
     else
-        get_vef_set_id = old_improper_vefs_set_ids%get(abs(vef_gid))
+        get_vef_set_id = improper_vefs_set_ids%get(abs(vef_gid))
     end if
   end function get_vef_set_id
-  
 end subroutine p4est_bt_update_vef_set_ids
 
 subroutine p4est_bt_std_vector_transform_length_to_header(this,std_vector_integer_ip)
@@ -2104,6 +2099,20 @@ subroutine p4est_bt_exchange_vefs_ggids ( this )
   call cell%free()
   call vef%free()
 end subroutine p4est_bt_exchange_vefs_ggids 
+
+function p4est_bt_get_previous_num_local_cells ( this )
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_bt_get_previous_num_local_cells
+  p4est_bt_get_previous_num_local_cells = this%previous_num_local_cells
+end function p4est_bt_get_previous_num_local_cells
+
+function p4est_bt_get_previous_num_ghost_cells ( this )
+  implicit none
+  class(p4est_base_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_bt_get_previous_num_ghost_cells
+  p4est_bt_get_previous_num_ghost_cells = this%previous_num_ghost_cells
+end function p4est_bt_get_previous_num_ghost_cells
 
 subroutine p4est_bt_fill_cells_set (this, cells_set)
   implicit none
