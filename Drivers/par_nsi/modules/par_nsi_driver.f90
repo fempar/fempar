@@ -146,7 +146,25 @@ contains
     !call this%nonlinear_solver%solve(this%nonlinear_operator, unknown)
     !mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged.' )
 
-    call this%time_integration%apply(this%solution)
+    !call this%time_integration%apply(this%solution)
+    
+    
+    
+    !do while(this%current_time < this%final_time )
+    !  
+    !  this%current_time = this%current_time + this%time_step
+    !  call this%initialize_time_step(fe_space, solution)
+    !  call this%print()
+    !  call this%discrete_integration%set_mass_coefficient    (this%get_mass_coefficient())
+    !  call this%discrete_integration%set_residual_coefficient(this%get_residual_coefficient())
+    !  call this%discrete_integration%set_current_time        (this%current_time)
+    !  ! Solve time step
+    !  dof_values => solution%get_free_dof_values() ! initial guess is the previous step
+    !  call this%nonlinear_solver%solve(this%nonlinear_operator,dof_values)
+    !  ! Check if converged
+    !  mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged. Cannot advance to the next step.' )
+    !  call this%update_solution(fe_space,solution)
+    !end do
     
     !call this%timer_solver_run%stop()
 
@@ -335,8 +353,8 @@ end subroutine free_timers
     
     ! FE operator
        call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-            &                                diagonal_blocks_symmetric_storage = [ .true. ], &
-            &                                diagonal_blocks_symmetric         = [ .true. ], &
+            &                                diagonal_blocks_symmetric_storage = [ .false. ], &
+            &                                diagonal_blocks_symmetric         = [ .false. ], &
             &                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_INDEFINITE ], &
             &                                fe_space                          = this%fe_space, &
             &                                discrete_integration              = this%par_nsi_integration, &
@@ -377,18 +395,19 @@ end subroutine free_timers
     FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
     
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
-    call this%mlbddc%symbolic_setup()
+    !call this%mlbddc%symbolic_setup()
     !call this%mlbddc%numerical_setup()
-   
+    
+    
     ! Linear solver
     call this%linear_solver%create(this%fe_space%get_environment())
     call this%linear_solver%set_type_from_string(lgmres_name)
-    call this%linear_solver%setup_operators(this%fe_affine_operator, this%mlbddc) 
     call linear_pl%init()
     FPLError = linear_pl%set(key = ils_rtol, value = 1.0e-12_rp); assert(FPLError == 0)
     FPLError = linear_pl%set(key = ils_max_num_iterations, value = 5000); assert(FPLError == 0)
     FPLError = linear_pl%set(key = ils_atol, value = 1.0e-9); assert(FPLError == 0)
-    call this%linear_solver%set_parameters_from_pl(linear_pl) 
+    call this%linear_solver%set_parameters_from_pl(linear_pl)
+    
 
     !call this%nonlinear_operator%create(this%fe_affine_operator)
 

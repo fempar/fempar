@@ -51,6 +51,7 @@ module par_nsi_nonlinear_solver_names
       class(vector_t),            allocatable  :: initial_residual
       class(vector_t),            allocatable  :: increment_dof_values
       class(linear_solver_t),     pointer      :: linear_solver
+      class(operator_t)     ,     pointer      :: preconditioner
       class(environment_t),       pointer      :: environment
     contains
 
@@ -101,8 +102,8 @@ subroutine nonlinear_solver_create(this, convergence_criteria, abs_tol, rel_tol,
   this%absolute_tolerance    = abs_tol
   this%relative_tolerance    = rel_tol
   this%max_number_iterations = max_iters
-  this%linear_solver => linear_solver
-  this%environment => environment
+  this%linear_solver  => linear_solver
+  this%environment    => environment
   
   ! Initialize work data
   A => this%linear_solver%get_A()
@@ -130,6 +131,9 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
   ! Print initial residual
   call this%print_iteration_output_header()
   call this%print_current_iteration_output()
+  
+      !call this%linear_solver%setup_operators(operator, preconditioner) 
+
  
   do while (.not. this%has_finished())
     this%current_iteration = this%current_iteration + 1
@@ -166,8 +170,8 @@ subroutine nonlinear_solver_free(this)
     call this%increment_dof_values%free()
     deallocate(this%increment_dof_values,stat=istat); check(istat==0)
   end if
-  this%linear_solver => null()
-
+  this%linear_solver  => null()
+  this%preconditioner => null()
 end subroutine nonlinear_solver_free
 
 !==============================================================================
