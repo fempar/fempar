@@ -172,6 +172,7 @@ subroutine p4est_par_triangulation_free ( this)
         call this%improper_vefs_set_ids%free()
         call this%new_vef_set_ids%free()
         call this%old_vef_set_ids%free()
+        call this%old_vef_set_ids%free()
         call this%free_lst_itfc_vefs()
         
         cell_import => this%get_cell_import()
@@ -247,7 +248,7 @@ subroutine p4est_par_triangulation_free ( this)
 #endif
 end subroutine p4est_par_triangulation_free
 
-subroutine p4est_par_triangulation_partition ( this )
+subroutine p4est_par_triangulation_redistribute ( this )
   implicit none
   class(p4est_par_triangulation_t), intent(inout) :: this
   class(environment_t), pointer :: p_environment
@@ -290,7 +291,7 @@ subroutine p4est_par_triangulation_partition ( this )
 #else
   call this%not_enabled_error()
 #endif
-end subroutine p4est_par_triangulation_partition
+end subroutine p4est_par_triangulation_redistribute
 
 
 subroutine p4est_par_triangulation_update_migration_control_data(this, p4est_old)
@@ -508,3 +509,113 @@ subroutine p4est_par_triangulation_migrate_vef_set_ids(this, old_lst_vefs_gids)
   call this%not_enabled_error()
 #endif
 end subroutine p4est_par_triangulation_migrate_vef_set_ids
+
+function p4est_par_triangulation_get_migration_num_snd(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_par_triangulation_get_migration_num_snd
+#ifdef ENABLE_P4EST  
+  p4est_par_triangulation_get_migration_num_snd = this%num_snd
+#else
+  call this%not_enabled_error()
+#endif
+end function p4est_par_triangulation_get_migration_num_snd
+
+function p4est_par_triangulation_get_migration_lst_snd(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_par_triangulation_get_migration_lst_snd(:)
+#ifdef ENABLE_P4EST  
+  p4est_par_triangulation_get_migration_lst_snd => this%lst_snd
+#else
+  call this%not_enabled_error()
+#endif
+end function p4est_par_triangulation_get_migration_lst_snd
+
+function p4est_par_triangulation_get_migration_snd_ptrs(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_par_triangulation_get_migration_snd_ptrs(:)
+#ifdef ENABLE_P4EST  
+  p4est_par_triangulation_get_migration_snd_ptrs => this%snd_ptrs
+#else
+  call this%not_enabled_error()
+#endif
+end function p4est_par_triangulation_get_migration_snd_ptrs
+
+function p4est_par_triangulation_get_migration_pack_idx(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_par_triangulation_get_migration_pack_idx(:)
+#ifdef ENABLE_P4EST  
+  p4est_par_triangulation_get_migration_pack_idx => this%pack_idx
+#else
+  call this%not_enabled_error()
+#endif
+end function p4est_par_triangulation_get_migration_pack_idx
+
+function p4est_par_triangulation_get_migration_num_rcv(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(in) :: this
+  integer(ip) :: p4est_par_triangulation_get_migration_num_rcv
+#ifdef ENABLE_P4EST  
+  p4est_par_triangulation_get_migration_num_rcv = this%num_rcv
+#else
+  call this%not_enabled_error()
+#endif
+end function p4est_par_triangulation_get_migration_num_rcv
+
+function p4est_par_triangulation_get_migration_lst_rcv(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_par_triangulation_get_migration_lst_rcv(:)
+#ifdef ENABLE_P4EST  
+  p4est_par_triangulation_get_migration_lst_rcv => this%lst_rcv
+#else
+  call this%not_enabled_error()
+#endif
+end function p4est_par_triangulation_get_migration_lst_rcv
+
+function p4est_par_triangulation_get_migration_rcv_ptrs(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_par_triangulation_get_migration_rcv_ptrs(:)
+#ifdef ENABLE_P4EST  
+  p4est_par_triangulation_get_migration_rcv_ptrs => this%rcv_ptrs
+#else
+  call this%not_enabled_error()
+#endif
+end function p4est_par_triangulation_get_migration_rcv_ptrs
+
+function p4est_par_triangulation_get_migration_unpack_idx(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_par_triangulation_get_migration_unpack_idx(:)
+#ifdef ENABLE_P4EST  
+  p4est_par_triangulation_get_migration_unpack_idx => this%unpack_idx
+#else
+  call this%not_enabled_error()
+#endif
+end function p4est_par_triangulation_get_migration_unpack_idx
+
+function p4est_par_triangulation_get_migration_new2old(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_par_triangulation_get_migration_new2old(:)
+#ifdef ENABLE_P4EST  
+  p4est_par_triangulation_get_migration_new2old => this%new2old
+#else
+  call this%not_enabled_error()
+#endif
+end function p4est_par_triangulation_get_migration_new2old
+
+function p4est_par_triangulation_get_migration_old2new(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(in) :: this
+  integer(ip), pointer :: p4est_par_triangulation_get_migration_old2new(:)
+#ifdef ENABLE_P4EST  
+  p4est_par_triangulation_get_migration_old2new => this%old2new
+#else
+  call this%not_enabled_error()
+#endif  
+end function p4est_par_triangulation_get_migration_old2new

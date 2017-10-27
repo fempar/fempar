@@ -660,7 +660,7 @@ module fe_space_names
      procedure, non_overridable, private :: project_facet_integration_arrays              => serial_fe_space_project_facet_integration_arrays
 
      procedure,                  private :: serial_fe_space_refine_and_coarsen_single_fe_function
-     procedure, non_overridable, private :: serial_fe_space_refine_and_coarsen_fe_function_array
+     procedure,                  private :: serial_fe_space_refine_and_coarsen_fe_function_array
      generic                             :: refine_and_coarsen                            => serial_fe_space_refine_and_coarsen_single_fe_function, &
                                                                                              serial_fe_space_refine_and_coarsen_fe_function_array
 
@@ -776,7 +776,8 @@ module fe_space_names
    type(std_vector_integer_ip_t)               :: ptr_ghosts_per_ghost_cell
    type(std_vector_integer_ip_t)               :: lst_ghosts_per_ghost_cell
    type(std_vector_integer_ip_t)               :: rcv_my_part_id_vefs_complete_itfc_couplings 
-   
+
+   type(std_vector_real_rp_t)                  :: old_fe_function_nodal_values
    type(std_vector_real_rp_t)                  :: new_fe_function_nodal_values
  contains
    procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
@@ -829,14 +830,21 @@ module fe_space_names
    procedure        , non_overridable, private :: gather_ptr_dofs_x_fe                            => par_fe_space_gather_ptr_dofs_x_fe
    procedure        , non_overridable, private :: gather_coarse_dofs_ggids_rcv_counts_and_displs  => par_fe_space_gather_coarse_dofs_ggids_rcv_counts_and_displs
    procedure        , non_overridable, private :: gather_coarse_dofs_ggids                        => par_fe_space_gather_coarse_dofs_ggids
-   procedure        , non_overridable, private :: gather_vefs_ggids_dofs_objects                   => par_fe_space_gather_vefs_ggids_dofs_objects
+   procedure        , non_overridable, private :: gather_vefs_ggids_dofs_objects                  => par_fe_space_gather_vefs_ggids_dofs_objects
    procedure                                   :: get_total_num_coarse_dofs                       => par_fe_space_get_total_num_coarse_dofs
    procedure                                   :: get_block_num_coarse_dofs                       => par_fe_space_get_block_num_coarse_dofs
    procedure       , non_overridable           :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
    
-   ! Transfer FE functions
-   procedure, non_overridable, private :: serial_fe_space_refine_and_coarsen_single_fe_function   => par_fe_space_refine_and_coarsen_single_fe_function
-                                                                                             
+   ! Transfer and redistribution of FE functions
+   procedure,                          private :: serial_fe_space_refine_and_coarsen_single_fe_function   => par_fe_space_refine_and_coarsen_single_fe_function
+   procedure,                          private :: serial_fe_space_refine_and_coarsen_fe_function_array    => par_fe_space_refine_and_coarsen_fe_function_array
+   procedure                                   :: redistribute                                            => par_fe_space_redistribute
+   procedure                                   :: update_after_redistribute                               => par_fe_space_update_after_redistribute
+   procedure,                          private :: update_after_refine_coarsen                             => par_fe_space_update_after_refine_coarsen
+   procedure,                          private :: migrate_field_cell_to_ref_fes                           => par_fe_space_migrate_field_cell_to_ref_fes
+   procedure,                          private :: migrate_fe_integration_arrays                           => par_fe_space_migrate_fe_integration_arrays
+   procedure,                          private :: migrate_facet_integration_arrays                        => par_fe_space_migrate_facet_integration_arrays
+   
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator

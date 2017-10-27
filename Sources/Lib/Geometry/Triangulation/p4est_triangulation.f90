@@ -492,10 +492,20 @@ module p4est_triangulation_names
     procedure, private                          :: p4est_par_triangulation_create
     generic                                     :: create                                           => p4est_par_triangulation_create
     procedure                                   :: free                                             => p4est_par_triangulation_free 
-    procedure                                   :: partition                                        => p4est_par_triangulation_partition
+    procedure                                   :: redistribute                                     => p4est_par_triangulation_redistribute
     procedure                                   :: update_migration_control_data                    => p4est_par_triangulation_update_migration_control_data
     procedure                                   :: migrate_cell_set_ids                             => p4est_par_triangulation_migrate_cell_set_ids
     procedure                                   :: migrate_vef_set_ids                              => p4est_par_triangulation_migrate_vef_set_ids
+    procedure                                   :: get_migration_num_snd                            => p4est_par_triangulation_get_migration_num_snd
+    procedure                                   :: get_migration_lst_snd                            => p4est_par_triangulation_get_migration_lst_snd
+    procedure                                   :: get_migration_snd_ptrs                           => p4est_par_triangulation_get_migration_snd_ptrs
+    procedure                                   :: get_migration_pack_idx                           => p4est_par_triangulation_get_migration_pack_idx
+    procedure                                   :: get_migration_num_rcv                            => p4est_par_triangulation_get_migration_num_rcv
+    procedure                                   :: get_migration_lst_rcv                            => p4est_par_triangulation_get_migration_lst_rcv
+    procedure                                   :: get_migration_rcv_ptrs                           => p4est_par_triangulation_get_migration_rcv_ptrs
+    procedure                                   :: get_migration_unpack_idx                         => p4est_par_triangulation_get_migration_unpack_idx
+    procedure                                   :: get_migration_new2old                            => p4est_par_triangulation_get_migration_new2old
+    procedure                                   :: get_migration_old2new                            => p4est_par_triangulation_get_migration_old2new
   end type p4est_par_triangulation_t
   
   public :: p4est_par_triangulation_t

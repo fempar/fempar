@@ -2939,28 +2939,8 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
      if ( par_triangulation%get_num_cells() > 0 ) then
         old_num_local_cells = par_triangulation%get_previous_num_local_cells()
         old_num_ghost_cells = par_triangulation%get_previous_num_ghost_cells()
-
-        call this%copy_ptr_lst_dofs(old_ptr_dofs_x_fe,old_lst_dofs_gids)
-        massert ( (old_num_local_cells + old_num_ghost_cells) == (old_ptr_dofs_x_fe(1)%size()-1), 'Incorrect size of refinement_and_coarsening_flags' )
-
-        call this%project_field_cell_to_ref_fes()
-        call this%fill_facet_gids()
-        call this%project_fe_integration_arrays()
-        call this%project_facet_integration_arrays()
-        call this%allocate_and_init_ptr_lst_dofs_gids()
-        call this%allocate_and_init_at_strong_dirichlet_bound()
-        call this%allocate_and_init_has_fixed_dofs()
-        call this%allocate_and_init_has_hanging_dofs_x_fe()
-        call this%set_up_strong_dirichlet_bcs()
-        do field_id=1, this%get_num_fields()
-           call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
-        end do
-        call this%compute_faces_object()
-
-        ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
-        block_layout => this%get_block_layout()
-        call this%nullify_block_layout()
-        call this%generate_global_dof_numbering(block_layout)
+        
+        call this%update_after_refine_coarsen(old_ptr_dofs_x_fe,old_lst_dofs_gids)
 
         call this%new_fe_function_nodal_values%resize(0)
         call this%new_fe_function_nodal_values%resize(this%ptr_dofs_x_fe(1)%get(triangulation%get_num_cells()+1)-1)
@@ -3122,6 +3102,354 @@ contains
   end subroutine get_new_lst_dofs_spos_epos
   
 end subroutine par_fe_space_refine_and_coarsen_single_fe_function
+
+subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old_lst_dofs_gids)
+  implicit none
+  class(par_fe_space_t)                     , intent(inout) :: this
+  type(std_vector_integer_ip_t), allocatable, intent(inout) :: old_ptr_dofs_x_fe(:)
+  type(std_vector_integer_ip_t)             , intent(inout) :: old_lst_dofs_gids
+  type(environment_t), pointer :: environment
+  class(triangulation_t), pointer :: triangulation
+  class(p4est_par_triangulation_t), pointer :: par_triangulation
+  integer(ip) :: field_id
+  type(block_layout_t), pointer :: block_layout
+  
+  triangulation => this%get_triangulation()
+  environment   => triangulation%get_environment()
+  if ( environment%am_i_l1_task() ) then
+     select type(triangulation)
+        class is (p4est_par_triangulation_t)
+        par_triangulation => triangulation
+        class default
+        assert(.false.)
+     end select
+     call this%copy_ptr_lst_dofs(old_ptr_dofs_x_fe,old_lst_dofs_gids)
+     call this%project_field_cell_to_ref_fes()
+     call this%fill_facet_gids()
+     call this%project_fe_integration_arrays()
+     call this%project_facet_integration_arrays()
+     call this%allocate_and_init_ptr_lst_dofs_gids()
+     call this%allocate_and_init_at_strong_dirichlet_bound()
+     call this%allocate_and_init_has_fixed_dofs()
+     call this%allocate_and_init_has_hanging_dofs_x_fe()
+     call this%set_up_strong_dirichlet_bcs()
+     do field_id=1, this%get_num_fields()
+       call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
+     end do
+     call this%compute_faces_object()
+
+     ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
+     block_layout => this%get_block_layout()
+     call this%nullify_block_layout()
+     call this%generate_global_dof_numbering(block_layout)
+  end if
+end subroutine par_fe_space_update_after_refine_coarsen
+
+subroutine par_fe_space_migrate_field_cell_to_ref_fes ( this ) 
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  class(environment_t), pointer :: environment
+  class(triangulation_t), pointer :: triangulation
+  class(p4est_par_triangulation_t), pointer :: par_triangulation
+  integer(ip) :: i, field_id, error
+  triangulation => this%get_triangulation()
+  environment   => triangulation%get_environment()
+  if ( environment%am_i_l1_task() ) then
+     select type(triangulation)
+        class is (p4est_par_triangulation_t)
+        par_triangulation => triangulation
+        class default
+        assert(.false.)
+     end select
+     call this%free_field_cell_to_ref_fes()
+     allocate( this%field_cell_to_ref_fes(this%num_fields), stat=error ); check(error==0)
+     do field_id = 1,this%num_fields
+       call this%field_cell_to_ref_fes(field_id)%resize(triangulation%get_num_cells())
+       do i=1, this%field_cell_to_ref_fes(field_id)%size()
+         call this%field_cell_to_ref_fes(field_id)%set(i,1)
+       end do 
+     end do
+  end if
+end subroutine par_fe_space_migrate_field_cell_to_ref_fes
+
+subroutine par_fe_space_migrate_fe_integration_arrays(this)
+  implicit none
+  class(par_fe_space_t)                     , intent(inout) :: this
+end subroutine par_fe_space_migrate_fe_integration_arrays
+
+subroutine par_fe_space_migrate_facet_integration_arrays(this)
+  implicit none
+  class(par_fe_space_t)                     , intent(inout) :: this
+end subroutine par_fe_space_migrate_facet_integration_arrays
+
+subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_lst_dofs_gids)
+  implicit none
+  class(par_fe_space_t)                     , intent(inout) :: this
+  type(std_vector_integer_ip_t), allocatable, intent(inout) :: old_ptr_dofs_x_fe(:)
+  type(std_vector_integer_ip_t)             , intent(inout) :: old_lst_dofs_gids
+  type(environment_t), pointer :: environment
+  class(triangulation_t), pointer :: triangulation
+  class(p4est_par_triangulation_t), pointer :: par_triangulation
+  integer(ip) :: field_id
+  type(block_layout_t), pointer :: block_layout
+  
+  triangulation => this%get_triangulation()
+  environment   => triangulation%get_environment()
+  if ( environment%am_i_l1_task() ) then
+     select type(triangulation)
+        class is (p4est_par_triangulation_t)
+        par_triangulation => triangulation
+        class default
+        assert(.false.)
+     end select
+     call this%copy_ptr_lst_dofs(old_ptr_dofs_x_fe,old_lst_dofs_gids)
+     call this%migrate_field_cell_to_ref_fes()
+     call this%fill_facet_gids()
+     call this%migrate_fe_integration_arrays()
+     call this%migrate_facet_integration_arrays()
+     call this%allocate_and_init_ptr_lst_dofs_gids()
+     call this%allocate_and_init_at_strong_dirichlet_bound()
+     call this%allocate_and_init_has_fixed_dofs()
+     call this%allocate_and_init_has_hanging_dofs_x_fe()
+     call this%set_up_strong_dirichlet_bcs()
+     do field_id=1, this%get_num_fields()
+       call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
+     end do
+     call this%compute_faces_object()
+
+     ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
+     block_layout => this%get_block_layout()
+     call this%nullify_block_layout()
+     call this%generate_global_dof_numbering(block_layout)
+  end if
+end subroutine par_fe_space_update_after_redistribute
+
+
+
+subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  type(p_fe_function_t), intent(inout) :: fe_functions(:)
+  mcheck(.false., "par_fe_space_refine_and_coarsen_fe_function_array not implemented yet!")
+end subroutine par_fe_space_refine_and_coarsen_fe_function_array
+
+subroutine par_fe_space_redistribute( this, fe_function ) 
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  type(fe_function_t)  , intent(inout) :: fe_function
+  
+  integer(ip)          :: num_rcv
+  integer(ip), pointer :: lst_rcv(:)
+  integer(ip), pointer :: rcv_ptrs(:)
+  integer(ip), pointer :: unpack_idx(:)
+  
+  integer(ip)          :: num_snd
+  integer(ip), pointer :: lst_snd(:)
+  integer(ip), pointer :: snd_ptrs(:)
+  integer(ip), pointer :: pack_idx(:)
+  
+  integer(ip), pointer :: new2old(:)
+  integer(ip), pointer :: old2new(:)
+  
+  integer(ip) :: spos, epos
+
+  class(triangulation_t), pointer :: triangulation
+  class(p4est_par_triangulation_t), pointer :: p4est_par_triangulation
+  class(environment_t), pointer :: environment
+  class(fe_cell_iterator_t), allocatable :: fe
+  integer(ip) :: old_num_local_cells, old_num_ghost_cells
+  integer(ip) :: field_id
+  type(std_vector_integer_ip_t), allocatable :: old_ptr_dofs_x_fe(:)
+  type(std_vector_integer_ip_t) :: old_lst_dofs_gids
+  integer(ip) :: error
+  real(rp), pointer :: p_new_fe_function_nodal_values(:)
+  real(rp), pointer :: p_old_fe_function_nodal_values(:)
+  integer(ip) :: old_cell_gid
+  integer(ip), pointer :: old_field_fe_dofs(:)
+  real(rp), allocatable :: old_nodal_values(:,:)
+  integer(ip) :: max_num_dofs
+  integer(ip) :: current_old_cell_lid, old_cell_lid
+  integer(ip) :: num_nodes_field
+  integer(ip) :: base_pos_old, base_pos_new
+  integer(ip) :: idof, num_dofs
+  integer(ip) :: i, current_new_cell_lid
+  type(cell_import_t), pointer :: cell_import
+
+#ifdef ENABLE_P4EST
+  triangulation => this%get_triangulation()
+  environment   => triangulation%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    select type(triangulation)
+     class is (p4est_par_triangulation_t)
+       p4est_par_triangulation => triangulation
+     class default
+       assert(.false.)
+    end select
+    
+    num_rcv     =  p4est_par_triangulation%get_migration_num_rcv()
+    lst_rcv     => p4est_par_triangulation%get_migration_lst_rcv()
+    rcv_ptrs    => p4est_par_triangulation%get_migration_rcv_ptrs()
+    unpack_idx  => p4est_par_triangulation%get_migration_unpack_idx()
+    
+    num_snd     =  p4est_par_triangulation%get_migration_num_snd()
+    lst_snd     => p4est_par_triangulation%get_migration_lst_snd()
+    snd_ptrs    => p4est_par_triangulation%get_migration_snd_ptrs()
+    pack_idx    => p4est_par_triangulation%get_migration_pack_idx()
+    
+    new2old     => p4est_par_triangulation%get_migration_new2old()
+    
+    if ( p4est_par_triangulation%get_num_cells() > 0 ) then
+      old_num_local_cells = p4est_par_triangulation%get_previous_num_local_cells()
+      old_num_ghost_cells = p4est_par_triangulation%get_previous_num_ghost_cells()
+      call this%update_after_redistribute(old_ptr_dofs_x_fe, &
+                                          old_lst_dofs_gids)
+    
+      call this%old_fe_function_nodal_values%resize(0)
+      call this%old_fe_function_nodal_values%resize(old_ptr_dofs_x_fe(1)%get(old_num_local_cells+old_num_ghost_cells+1)-1)
+      p_old_fe_function_nodal_values => this%old_fe_function_nodal_values%get_pointer() 
+          
+      old_cell_lid = 1
+      do while ( old_cell_lid .le. old_num_local_cells )
+        do field_id = 1,this%get_num_fields()
+          current_old_cell_lid = old_cell_lid
+          old_field_fe_dofs => get_field_fe_dofs()
+          num_nodes_field = size(old_field_fe_dofs)
+          call get_old_lst_dofs_spos_epos(spos,epos)
+          call fe_function%gather_nodal_values( field_id, & 
+                                                old_field_fe_dofs, &
+                                                num_nodes_field, & 
+                                                this%get_field_blocks(), &
+                                                p_old_fe_function_nodal_values(spos:epos) )
+        end do   
+        old_cell_lid = old_cell_lid + 1
+      end do
+      
+      call this%new_fe_function_nodal_values%resize(0)
+      call this%new_fe_function_nodal_values%resize(this%ptr_dofs_x_fe(1)%get(p4est_par_triangulation%get_num_cells()+1)-1)
+      p_new_fe_function_nodal_values => this%new_fe_function_nodal_values%get_pointer() 
+    
+      ! Transfer vef set IDs of local cells
+      do i=1, p4est_par_triangulation%get_num_local_cells()
+        if (new2old(i) /= 0) then
+          current_new_cell_lid = i
+          do field_id=1, this%num_fields
+            base_pos_old = old_ptr_dofs_x_fe(1)%get(new2old(i))-1
+            base_pos_new = this%ptr_dofs_x_fe(1)%get(i)-1
+            num_dofs = get_new_num_dofs()
+            do idof=1, num_dofs
+              p_new_fe_function_nodal_values(base_pos_new+idof) = &
+                 p_old_fe_function_nodal_values(base_pos_old+idof)
+            end do
+          end do 
+        end if  
+      end do
+      
+      field_id = 1
+      current_new_cell_lid = 1
+      num_dofs = get_new_num_dofs()
+      
+      ! Transfer vef set IDs of remote cells
+      call environment%l1_neighbours_exchange (num_rcv, lst_rcv, rcv_ptrs, unpack_idx, &
+                                               num_snd, lst_snd, snd_ptrs, pack_idx, &
+                                               p_old_fe_function_nodal_values, &
+                                               p_new_fe_function_nodal_values, &
+                                               num_dofs )
+  
+      ! Retrieve set IDs from ghost cells
+      cell_import => p4est_par_triangulation%get_cell_import()
+      call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                                cell_import%get_neighbours_ids(),&
+                                                cell_import%get_rcv_ptrs(),&
+                                                cell_import%get_rcv_leids(),&
+                                                cell_import%get_num_neighbours(), &
+                                                cell_import%get_neighbours_ids(),&
+                                                cell_import%get_snd_ptrs(),&
+                                                cell_import%get_snd_leids(),&
+                                                p_new_fe_function_nodal_values, &
+                                                p_new_fe_function_nodal_values, &
+                                                num_dofs )  
+      
+        
+        
+      call p4est_par_triangulation%clear_refinement_and_coarsening_flags()
+        
+      call fe_function%create(this)
+      call this%create_fe_cell_iterator(fe)
+      do while ( .not. fe%has_finished() )
+        current_new_cell_lid = fe%get_gid() 
+        do field_id=1, this%num_fields 
+            call get_new_lst_dofs_spos_epos(spos,epos)
+            call fe_function%insert_nodal_values( fe,   &
+                                                  field_id, &
+                                                  p_new_fe_function_nodal_values(spos:epos))
+        end do     
+        call fe%next()
+      end do
+            
+      do field_id = 1,this%num_fields
+        call old_ptr_dofs_x_fe(field_id)%free()
+      end do
+      deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
+      call old_lst_dofs_gids%free()  
+      call this%free_fe_cell_iterator(fe)
+    end if 
+    
+  end if
+#else
+  call this%not_enabled_error()
+#endif  
+  
+contains 
+
+  function get_field_fe_dofs()
+    implicit none
+    integer(ip), pointer     :: get_field_fe_dofs(:)
+    integer(ip)              :: spos, epos
+    spos = old_ptr_dofs_x_fe(field_id)%get(current_old_cell_lid)
+    if ( field_id == this%get_num_fields() ) then
+      epos = old_ptr_dofs_x_fe(1)%get(current_old_cell_lid+1)-1
+    else
+      epos = old_ptr_dofs_x_fe(field_id+1)%get(current_old_cell_lid)-1
+    end if
+    get_field_fe_dofs => old_lst_dofs_gids%get_pointer(spos,epos)
+  end function get_field_fe_dofs
+    
+  subroutine get_old_lst_dofs_spos_epos(spos,epos)
+    implicit none
+    integer(ip), intent(inout) :: spos, epos
+    spos = old_ptr_dofs_x_fe(field_id)%get(current_old_cell_lid)
+    if ( field_id == this%get_num_fields() ) then
+      epos = old_ptr_dofs_x_fe(1)%get(current_old_cell_lid+1)-1
+    else
+      epos = old_ptr_dofs_x_fe(field_id+1)%get(current_old_cell_lid)-1
+    end if
+  end subroutine get_old_lst_dofs_spos_epos
+  
+  function get_new_num_dofs()
+    implicit none
+    integer(ip) :: get_new_num_dofs
+    integer(ip) :: spos, epos
+    spos = this%ptr_dofs_x_fe(field_id)%get(current_new_cell_lid)
+    if ( field_id == this%get_num_fields() ) then
+      epos = this%ptr_dofs_x_fe(1)%get(current_new_cell_lid+1)-1
+    else
+      epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
+    end if
+    get_new_num_dofs = epos-spos+1
+  end function get_new_num_dofs
+  
+  subroutine get_new_lst_dofs_spos_epos(spos,epos)
+    implicit none
+    integer(ip), intent(inout) :: spos, epos
+    spos = this%ptr_dofs_x_fe(field_id)%get(current_new_cell_lid)
+    if ( field_id == this%get_num_fields() ) then
+      epos = this%ptr_dofs_x_fe(1)%get(current_new_cell_lid+1)-1
+    else
+      epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
+    end if
+  end subroutine get_new_lst_dofs_spos_epos
+ 
+end subroutine par_fe_space_redistribute
 
  subroutine par_fe_space_create_fe_object_iterator (this,fe_object)
     implicit none

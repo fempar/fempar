@@ -319,7 +319,7 @@ end subroutine free_timers
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%set_cells_set_ids()
-      call this%triangulation%partition()
+      call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
     
@@ -535,11 +535,6 @@ end subroutine free_timers
     
     call this%fe_space%update_hanging_dof_values(this%solution)
     
-    call this%set_cells_for_refinement()
-    call this%triangulation%refine_and_coarsen()
-    call this%fe_space%refine_and_coarsen(this%solution)
-    call this%fe_space%set_up_cell_integration()
-    
     !select type (dof_values)
     !class is (par_scalar_array_t)  
     !   call dof_values%print(6)
@@ -655,6 +650,22 @@ end subroutine free_timers
     call this%timer_solver_run%stop()
 
     call this%check_solution()
+    
+    call this%set_cells_for_refinement()
+    call this%triangulation%refine_and_coarsen()
+    call this%fe_space%refine_and_coarsen(this%solution)
+    call this%fe_space%set_up_cell_integration()
+    
+    call this%check_solution()
+    
+    call this%set_cells_for_refinement()
+    call this%triangulation%redistribute()
+    call this%fe_space%redistribute(this%solution)
+    call this%fe_space%set_up_cell_integration()
+    
+    call this%check_solution()
+
+    
     call this%write_solution()
     call this%free()
   end subroutine run_simulation

@@ -3295,12 +3295,8 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
   end do
   
   massert ( (new_cell_lid - 1) == this%triangulation%get_num_local_cells(), 'Loop in old cells failed to visit all new cells' )
-
-  
- 
   call this%free_fe_cell_iterator(new_fe)
   call old_field_cell_to_ref_fes%free()
-  
 end subroutine serial_fe_space_project_field_cell_to_ref_fes
 
 subroutine serial_fe_space_project_fe_integration_arrays(this)
