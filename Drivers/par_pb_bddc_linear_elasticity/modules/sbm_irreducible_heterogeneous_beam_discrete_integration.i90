@@ -99,9 +99,13 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
         call fe%get_gradients(shape_gradients)
         call fe%get_values(shape_values)
 
-        ! Compute element matrix and vector
+        ! Compute element matrix and RHS vector
         do qpoint = 1, num_quad_points
            dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+           
+           ! Source term
+           call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
+           
            ! Diffusive term
            do idof = 1, num_dofs
               do jdof = 1, num_dofs
@@ -109,20 +113,10 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
                  sigma = lambda_heterogeneous*trace(epsi)*Id + 2*mu_heterogeneous*epsi
                  elmat(idof,jdof) = elmat(idof,jdof) + this%residual_coefficient * dV * double_contract(shape_gradients(idof,qpoint),sigma)
               end do
-           end do
-        end do
-        call fe%assembly( elmat, assembler )
-
-        ! Computing element RHS vector
-        do qpoint = 1, num_quad_points
-           dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-           ! Source term
-           call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
-           do idof = 1, num_dofs
               elvec(idof) = elvec(idof) + this%residual_coefficient * dV * source_term_value * shape_values(idof,qpoint)
            end do
         end do
-        call fe%assembly( elvec, assembler )
+        call fe%assembly( elmat, elvec, assembler )
      end if
      call fe%next()
   end do
@@ -133,5 +127,4 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
   call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
   call memfree ( elmat, __FILE__, __LINE__ )
   call memfree ( elvec, __FILE__, __LINE__ )
-
 end subroutine irreducible_beam_discrete_integration_integrate

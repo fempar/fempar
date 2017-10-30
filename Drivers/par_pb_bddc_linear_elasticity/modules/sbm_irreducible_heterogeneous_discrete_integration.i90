@@ -21,10 +21,6 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
   integer(ip)  :: qpoint, num_quad_points
   integer(ip)  :: idof, jdof, num_dofs
 
-  type(fe_cell_function_vector_t) :: cell_solution_u
-  type(tensor_field_t), pointer   :: gp_solution_gradu(:)  
-  type(vector_field_t), pointer   :: gp_solution_value(:)
-
   ! Problem variables
   type(vector_field_t) :: source_term_value
   type(tensor_field_t) :: sigma, epsi, Id
@@ -39,7 +35,6 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
   call Id%set(3,3,1.0)  
 
   call fe_space%create_fe_cell_iterator(fe)
-  call cell_solution_u%create(fe_space,1)
 
   num_dofs = fe%get_num_dofs()
   call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
@@ -55,9 +50,6 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
      if ( fe%is_local() ) then
         ! Update FE-integration related data structures
         call fe%update_integration()
-        call cell_solution_u%update(fe,this%fe_function)
-        gp_solution_gradu     => cell_solution_u%get_quadrature_points_gradients()
-        gp_solution_value     => cell_solution_u%get_quadrature_points_values()
 
         ! Get quadrature coordinates to evaluate source_term
         quad_coords => fe%get_quadrature_points_coordinates()
@@ -81,6 +73,10 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
         ! Compute element stiffness matrix
         do qpoint = 1, num_quad_points
            dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+           
+           ! Source term
+           call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
+           
            ! Diffusive term
            do idof = 1, num_dofs
               do jdof = 1, num_dofs
@@ -88,31 +84,14 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
                  sigma = lambda_heterogeneous*trace(epsi)*Id + 2*mu_heterogeneous*epsi
                  elmat(idof,jdof) = elmat(idof,jdof) + this%residual_coefficient * dV * double_contract(shape_gradients(idof,qpoint),sigma)
               end do
-           end do
-        end do
-
-        call fe%assembly( elmat, assembler )
-
-        ! Computing element RHS vector
-        do qpoint = 1, num_quad_points
-           dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-           ! Source term
-           call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
-           epsi = symmetric_part(gp_solution_gradu(qpoint))
-           sigma = lambda_heterogeneous*trace(epsi)*Id + 2*mu_heterogeneous*epsi
-           do idof = 1, num_dofs
               elvec(idof) = elvec(idof) + this%residual_coefficient * dV * source_term_value * shape_values(idof,qpoint)
-              elvec(idof) = elvec(idof) - this%residual_coefficient * dV * double_contract(shape_gradients(idof,qpoint),sigma)
            end do
         end do
-
-        call fe%assembly( elvec, assembler )
-
+        call fe%assembly( this%fe_function, elmat, elvec, assembler )
      end if
      call fe%next()
   end do
 
-  call cell_solution_u%free()
   call fe_space%free_fe_cell_iterator(fe)
   deallocate (shape_values, stat=istat); check(istat==0);
   deallocate (shape_gradients, stat=istat); check(istat==0);

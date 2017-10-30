@@ -83,8 +83,6 @@ module par_pb_bddc_linear_elasticity_driver_names
      type(timer_t) :: timer_solver_setup
      type(timer_t) :: timer_solver_run
 
-     ! Discrete integration type
-     logical :: heterogeneous_integral = .false.
      ! Max cell id
      integer(ip)      :: max_cell_id 
 
@@ -622,10 +620,8 @@ contains
     select type (temporary_pointer => this%linear_elasticity_integration)   
     type is (irreducible_heterogeneous_discrete_integration_t)
        temporary_pointer%elastic_modulus = this%test_params%get_jump() 
-       this%heterogeneous_integral = .true.
     type is (irreducible_beam_discrete_integration_t) 
        temporary_pointer%elastic_modulus = this%test_params%get_jump() 
-       this%heterogeneous_integral = .true.   
     end select
     call this%linear_elasticity_integration%create(this%triangulation%get_num_dims(),this%linear_elasticity_analytical_functions)
     
@@ -858,13 +854,7 @@ contains
     rhs        => this%fe_affine_operator%get_translation()
     !write(*,*)'2-norm',rhs%nrm2()
     dof_values => this%solution%get_free_dof_values()
-    if (this%heterogeneous_integral) then
-       call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-            dof_values)
-    else
-       call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-            dof_values)
-    end if
+    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
     !write(*,*)'solution',dof_values%nrm2()
 
     !select type (dof_values)
