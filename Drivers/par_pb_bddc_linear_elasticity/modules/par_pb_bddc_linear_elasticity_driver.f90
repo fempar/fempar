@@ -862,7 +862,7 @@ contains
        call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
             dof_values)
     else
-       call this%iterative_linear_solver%solve(-this%fe_affine_operator%get_translation(), &
+       call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
             dof_values)
     end if
     !write(*,*)'solution',dof_values%nrm2()
