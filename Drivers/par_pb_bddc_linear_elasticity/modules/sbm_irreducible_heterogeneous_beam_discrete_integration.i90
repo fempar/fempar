@@ -57,7 +57,6 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
   type(tensor_field_t) :: sigma, epsi, Id
   real(rp)     :: dV, Ev, nu,lambda_heterogeneous, mu_heterogeneous
 
-
   assert (associated(this%source_term)) 
 
   call Id%init(0.0)
@@ -65,7 +64,6 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
   call Id%set(2,2,1.0)
   call Id%set(3,3,1.0)  
 
-  call fe_space%set_up_cell_integration()
   call fe_space%create_fe_cell_iterator(fe)
 
   num_dofs = fe%get_num_dofs()
@@ -76,7 +74,6 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
 
   quad            => fe%get_quadrature()
   num_quad_points = quad%get_num_quadrature_points()
-
   do while ( .not. fe%has_finished())
 
      if ( fe%is_local() ) then
@@ -125,7 +122,6 @@ subroutine irreducible_beam_discrete_integration_integrate ( this, fe_space, ass
               elvec(idof) = elvec(idof) + this%residual_coefficient * dV * source_term_value * shape_values(idof,qpoint)
            end do
         end do
-
         call fe%assembly( elvec, assembler )
      end if
      call fe%next()

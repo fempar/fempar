@@ -22,10 +22,8 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
   integer(ip)  :: idof, jdof, num_dofs
 
   type(fe_cell_function_vector_t) :: cell_solution_u
-  type(fe_cell_function_vector_t) :: cell_solution_u_old
-  type(tensor_field_t), pointer   :: gp_solution_gradu(:)  => null()
-  type(vector_field_t), pointer   :: gp_solution_value(:)  => null()
-  type(vector_field_t), pointer   :: gp_solution_old_value(:) => null()
+  type(tensor_field_t), pointer   :: gp_solution_gradu(:)  
+  type(vector_field_t), pointer   :: gp_solution_value(:)
 
   ! Problem variables
   type(vector_field_t) :: source_term_value
@@ -40,7 +38,6 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
   call Id%set(2,2,1.0)
   call Id%set(3,3,1.0)  
 
-  call fe_space%set_up_cell_integration()
   call fe_space%create_fe_cell_iterator(fe)
   call cell_solution_u%create(fe_space,1)
 
@@ -61,8 +58,6 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
         call cell_solution_u%update(fe,this%fe_function)
         gp_solution_gradu     => cell_solution_u%get_quadrature_points_gradients()
         gp_solution_value     => cell_solution_u%get_quadrature_points_values()
-        gp_solution_old_value => cell_solution_u_old%get_quadrature_points_values()
-
 
         ! Get quadrature coordinates to evaluate source_term
         quad_coords => fe%get_quadrature_points_coordinates()
@@ -124,5 +119,4 @@ subroutine irreducible_heterogeneous_discrete_integration_integrate ( this, fe_s
   call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
   call memfree ( elmat, __FILE__, __LINE__ )
   call memfree ( elvec, __FILE__, __LINE__ )
-
 end subroutine irreducible_heterogeneous_discrete_integration_integrate

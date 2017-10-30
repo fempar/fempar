@@ -684,14 +684,11 @@ contains
     call this%linear_elasticity_conditions%set_boundary_function(this%linear_elasticity_analytical_functions%get_solution_function_u())
     end if
     call this%fe_space%create( triangulation       = this%triangulation,      &
-         reference_fes       = this%reference_fes,      &
-         coarse_fe_handlers  = this%coarse_fe_handlers, &
-         conditions          = this%linear_elasticity_conditions )
-
-
+                               reference_fes       = this%reference_fes,      &
+                               coarse_fe_handlers  = this%coarse_fe_handlers, &
+                               conditions          = this%linear_elasticity_conditions )
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()
-    !call this%fe_space%print()
   end subroutine setup_fe_space
 
   subroutine setup_system (this)
@@ -714,7 +711,6 @@ contains
     call this%fe_space%interpolate(1, this%zero_vector, this%solution)
     call this%fe_space%interpolate_dirichlet_values(this%solution)
     call this%linear_elasticity_integration%set_fe_function(this%solution)
-
   end subroutine setup_system
 
   subroutine setup_solver (this)
