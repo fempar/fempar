@@ -385,32 +385,6 @@ subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space
   if (allocated(shape_values)) then
      deallocate(shape_values, stat=istat); check(istat==0);  
   end if
-  !call memfree(shape_values, __FILE__, __LINE__)
-
-contains
-  real(rp) function rigid_body_mode_get_value (ifunc,icomp,num_dims,qpoint,quad_coords)
-    implicit none
-    integer(ip)       ,intent(in) :: ifunc, icomp, num_dims, qpoint
-    type (point_t)    ,intent(in) :: quad_coords(:)
-    ! The coordinate and associated sign used in definition of rotation modes
-    ! Ex: r_4=(-x_2 x_1 0)^T hence icoord=(2,1,3)^T, sign_factor=(-1 1 0)^T
-    integer(ip), parameter :: icoord(3,3) =reshape((/2, 1, 3, 3, 2, 1, 1, 3, 2/),(/3,3/))
-    integer(ip), parameter :: sign_factor(3,3)   =reshape((/-1, 1, 0, -1, 0, 1, 0, 1, -1/), (/3,3/))
-
-    ! Translation modes
-    if (ifunc <= num_dims) then 
-       if (ifunc==icomp) then
-          rigid_body_mode_get_value =1.0_rp
-       else
-          rigid_body_mode_get_value =0.0_rp
-       endif
-       ! Rotation modes  
-    else      
-       rigid_body_mode_get_value = sign_factor(ifunc-num_dims,icomp)*quad_coords(qpoint)%get(icoord(ifunc-num_dims,icomp))
-    end if
-
-  end function rigid_body_mode_get_value
-
 end subroutine elasticity_l1_setup_constraint_matrix_CI
 
 
@@ -453,14 +427,7 @@ subroutine elasticity_l1_setup_constraint_matrix_multiple(this, field_id, par_fe
      !call elasticity_l1_setup_constraint_matrix_CC(this, field_id, par_fe_space, parameter_list, constraint_matrix)
   end if
   ! We have that CA = CM and CI = CC (possibly up to some scaling)
-
-
 end subroutine elasticity_l1_setup_constraint_matrix_multiple
-
-
-
-
-
 
 subroutine elasticity_l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
   implicit none
