@@ -1134,6 +1134,7 @@ module fe_space_names
      generic                             :: gather_nodal_values                  => gather_nodal_values_through_iterator, &
                                                                                     gather_nodal_values_from_raw_data
      procedure, non_overridable          :: insert_nodal_values            => fe_function_insert_nodal_values
+     procedure, non_overridable          :: axpby                          => fe_function_axpby
      procedure, non_overridable          :: copy                           => fe_function_copy
      procedure, non_overridable          :: get_free_dof_values            => fe_function_get_free_dof_values
      procedure, non_overridable          :: get_fixed_dof_values           => fe_function_get_fixed_dof_values

@@ -83,8 +83,6 @@ module par_pb_bddc_linear_elasticity_driver_names
      type(timer_t) :: timer_solver_setup
      type(timer_t) :: timer_solver_run
 
-     ! Discrete integration type
-     logical :: heterogeneous_integral = .false.
      ! Max cell id
      integer(ip)      :: max_cell_id 
 
@@ -106,6 +104,7 @@ module par_pb_bddc_linear_elasticity_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: write_solution
+     procedure        , private :: write_matrices
      procedure                  :: run_simulation
      procedure                  :: print_info
      procedure        , private :: free
@@ -621,10 +620,8 @@ contains
     select type (temporary_pointer => this%linear_elasticity_integration)   
     type is (irreducible_heterogeneous_discrete_integration_t)
        temporary_pointer%elastic_modulus = this%test_params%get_jump() 
-       this%heterogeneous_integral = .true.
     type is (irreducible_beam_discrete_integration_t) 
        temporary_pointer%elastic_modulus = this%test_params%get_jump() 
-       this%heterogeneous_integral = .true.   
     end select
     call this%linear_elasticity_integration%create(this%triangulation%get_num_dims(),this%linear_elasticity_analytical_functions)
     
@@ -684,14 +681,11 @@ contains
     call this%linear_elasticity_conditions%set_boundary_function(this%linear_elasticity_analytical_functions%get_solution_function_u())
     end if
     call this%fe_space%create( triangulation       = this%triangulation,      &
-         reference_fes       = this%reference_fes,      &
-         coarse_fe_handlers  = this%coarse_fe_handlers, &
-         conditions          = this%linear_elasticity_conditions )
-
-
+                               reference_fes       = this%reference_fes,      &
+                               coarse_fe_handlers  = this%coarse_fe_handlers, &
+                               conditions          = this%linear_elasticity_conditions )
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()
-    !call this%fe_space%print()
   end subroutine setup_fe_space
 
   subroutine setup_system (this)
@@ -714,7 +708,6 @@ contains
     call this%fe_space%interpolate(1, this%zero_vector, this%solution)
     call this%fe_space%interpolate_dirichlet_values(this%solution)
     call this%linear_elasticity_integration%set_fe_function(this%solution)
-
   end subroutine setup_system
 
   subroutine setup_solver (this)
@@ -861,13 +854,7 @@ contains
     rhs        => this%fe_affine_operator%get_translation()
     !write(*,*)'2-norm',rhs%nrm2()
     dof_values => this%solution%get_free_dof_values()
-    if (this%heterogeneous_integral) then
-       call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-            dof_values)
-    else
-       call this%iterative_linear_solver%solve(-this%fe_affine_operator%get_translation(), &
-            dof_values)
-    end if
+    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
     !write(*,*)'solution',dof_values%nrm2()
 
     !select type (dof_values)
@@ -987,6 +974,59 @@ contains
 
   end subroutine write_solution
 
+    subroutine write_matrices(this)
+    implicit none
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(in) :: this
+    character(:), allocatable :: matrix_filename
+    character(:), allocatable :: mapping_filename
+    class(matrix_t), pointer :: matrix
+    integer(ip) :: luout
+    integer(igp) :: num_global_dofs
+    integer(igp), allocatable :: dofs_gids(:)
+    type(serial_scalar_array_t) :: mapping
+    integer(ip) :: i
+    class(environment_t), pointer :: environment
+    environment => this%fe_space%get_environment()
+    if ( this%test_params%get_write_matrices() ) then
+      if ( environment%am_i_l1_task() ) then
+        matrix_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() 
+        call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),matrix_filename)
+        luout = io_open ( matrix_filename, 'write')
+        matrix => this%fe_affine_operator%get_matrix()
+        select type(matrix)
+        class is (par_sparse_matrix_t)  
+          call matrix%print_matrix_market(luout) 
+        class DEFAULT
+          assert(.false.) 
+        end select
+        call io_close(luout)
+        
+        call this%fe_space%compute_num_global_dofs_and_their_ggids(num_global_dofs, dofs_gids)
+        call mapping%create_and_allocate(size(dofs_gids))
+        do i=1, size(dofs_gids)
+          call mapping%insert(i,real(dofs_gids(i),rp))
+        end do
+        
+        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "mapping"
+        call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
+        luout = io_open ( mapping_filename, 'write')
+        call mapping%print_matrix_market(luout)
+        call io_close(luout)
+        call mapping%free()
+        call memfree(dofs_gids, __FILE__, __LINE__)
+        
+        if ( environment%get_l1_rank() == 0 ) then
+          mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "num_global_dofs"
+          luout = io_open ( mapping_filename, 'write')
+          write(luout,*) num_global_dofs
+          call io_close(luout)
+        end if  
+        
+      end if
+   end if
+  end subroutine write_matrices
+  
+  
   subroutine run_simulation(this) 
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
@@ -1017,6 +1057,7 @@ contains
 
     call this%check_solution()
     call this%write_solution()
+    call this%write_matrices()
     call this%print_info()
     call this%free()
   end subroutine run_simulation
