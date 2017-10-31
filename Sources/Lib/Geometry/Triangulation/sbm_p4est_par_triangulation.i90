@@ -178,10 +178,17 @@ subroutine p4est_par_triangulation_free ( this)
         cell_import => this%get_cell_import()
         call cell_import%free()
 
-        nullify(this%quad_to_quad)
-        nullify(this%quad_to_face)
-        nullify(this%quad_to_half)
-        nullify(this%quad_to_half_by_edge)
+        if ( this%get_num_ghost_cells() == 0 ) then
+          nullify(this%quad_to_quad)
+          nullify(this%quad_to_face)
+          nullify(this%quad_to_half)
+          nullify(this%quad_to_half_by_edge)
+        else
+          !deallocate(this%quad_to_quad)
+          !deallocate(this%quad_to_face)
+          !deallocate(this%quad_to_half)
+          !deallocate(this%quad_to_half_by_edge)
+        end if 
 
         if (allocated(this%quad_coords)) &
              call memfree(this%quad_coords, __FILE__, __LINE__)

@@ -76,6 +76,13 @@ module p4est_triangulation_names
                                                              3, 4,&  
                                                              1, 3,&
                                                              2, 4], [NUM_SUBCELLS_IN_TOUCH_FACE_2D, NUM_FACES_2D])
+                                                    
+  integer(ip), target :: P4EST_SUBCELLS_IN_TOUCH_FACE_2D(NUM_SUBCELLS_IN_TOUCH_FACE_2D,NUM_FACES_2D) = &
+                                                    reshape([1, 3,&
+                                                             2, 4,&  
+                                                             1, 2,&
+                                                             3, 4], [NUM_SUBCELLS_IN_TOUCH_FACE_2D, NUM_FACES_2D])
+                                                    
 
   integer(ip), target :: P4EST_CORNER_IN_FACE_2D(NUM_FACES_2D,NUM_CORNERS_2D) = & 
                                                   reshape([ 1,-1, 1,-1,&
@@ -214,6 +221,15 @@ module p4est_triangulation_names
                                                               3,  4,  7,  8,&
                                                               1,  3,  5,  7,&
                                                               2,  4,  6,  8 ], [NUM_SUBCELLS_IN_TOUCH_FACE_3D, NUM_FACES_3D])
+                                                    
+  integer(ip), target :: P4EST_SUBCELLS_IN_TOUCH_FACE_3D(NUM_SUBCELLS_IN_TOUCH_FACE_3D,NUM_FACES_3D) = &
+                                                    reshape([ 1,  3,  5,  7,&
+                                                              2,  4,  6,  8,&
+                                                              1,  2,  5,  6,&
+                                                              3,  4,  7,  8,&
+                                                              1,  2,  3,  4,&
+                                                              5,  6,  7,  8 ], [NUM_SUBCELLS_IN_TOUCH_FACE_3D, NUM_FACES_3D])                                                    
+                                                    
 
   integer(ip), target :: FEMPAR_EDGE_OF_SUBCELLS_IN_TOUCH_FACE_3D(NUM_SUBCELLS_IN_TOUCH_FACE_3D,NUM_FACES_3D) = &
                                                     reshape([ 6,  2,  1,  5,&
@@ -411,6 +427,7 @@ module p4est_triangulation_names
     procedure                 , non_overridable  :: refine_and_coarsen                                 => p4est_base_triangulation_refine_and_coarsen
     procedure, private        , non_overridable  :: update_p4est_mesh                                  => p4est_base_triangulation_update_p4est_mesh
     procedure, private        , non_overridable  :: update_topology_from_p4est_mesh                    => p4est_base_triangulation_update_topology_from_p4est_mesh
+    procedure, private        , non_overridable  :: extend_p4est_topology_arrays_to_ghost_cells        => p4est_bt_extend_p4est_topology_arrays_to_ghost_cells
     procedure, private        , non_overridable  :: get_ptr_vefs_x_cell                                => p4est_base_triangulation_get_ptr_vefs_x_cell
     procedure, private        , non_overridable  :: update_lst_vefs_gids_and_cells_around              => p4est_bt_update_lst_vefs_gids_and_cells_around
     procedure, private        , non_overridable  :: update_lst_vef_gids_and_cells_around_ghost_cells   => p4est_bt_update_lst_vef_gids_and_cells_around_ghost_cells
