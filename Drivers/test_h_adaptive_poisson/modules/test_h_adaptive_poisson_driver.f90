@@ -154,7 +154,7 @@ contains
       call this%triangulation%free_vef_iterator(vef)
     end if 
    
-    do i = 1,2
+    do i = 1,10
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%clear_refinement_and_coarsening_flags()
@@ -281,6 +281,10 @@ contains
     real(rp) ::  x,y
     real(rp), parameter :: Re = 0.46875
     real(rp), parameter :: Ri = 0.15625
+				real(rp), parameter :: x0 = 0.2
+				real(rp), parameter :: y0 = 0.8
+				real(rp), parameter :: xL = 0.2
+				real(rp), parameter :: yL = 0.8 
     real(rp) :: R
     integer(ip), parameter :: max_num_cell_nodes = 4
     integer(ip), parameter :: max_level = 4
@@ -301,11 +305,17 @@ contains
          x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
          y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
         end do
-        R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
-       
+								
+								! Radial crown refinement 
+        R = sqrt( (x-0.5)**2 + (y-0.5)**2 )       
         if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
           call cell%set_for_refinement()
         end if
+								
+								! Centered device refinement 
+								!if ( ( ((x0 < x) .and. (x < xL)) .and. ((y0 < y) .and. (y < yL)) ) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
+        !  call cell%set_for_refinement()
+        !end if
 
 
         call cell%next()
@@ -394,7 +404,7 @@ contains
     call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe()
     this%reference_fes(TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                   &
-                                                                 fe_type = fe_type_nedelec,                                    &
+                                                                 fe_type = fe_type_lagrangian,                                 &
                                                                  num_dims = this%triangulation%get_num_dims(),                 &
                                                                  order = this%test_params%get_reference_fe_order(),            &
                                                                  field_type = field_type_vector,                               &
@@ -413,9 +423,13 @@ contains
     ! Take h_refinement arrays to local scope to debug with DDT
     select type( reference_fe => this%reference_fes(1)%p )
     type is (hex_lagrangian_reference_fe_t)
-       h_refinement_interpolation       => reference_fe%get_h_refinement_interpolation()
+       h_refinement_interpolation        => reference_fe%get_h_refinement_interpolation()
        h_refinement_subfacet_permutation => reference_fe%get_h_refinement_subfacet_permutation()
-       h_refinement_subedge_permutation => reference_fe%get_h_refinement_subedget_permutation()
+       h_refinement_subedge_permutation  => reference_fe%get_h_refinement_subedget_permutation()
+				type is (hex_nedelec_reference_fe_t) 
+				   h_refinement_interpolation        => reference_fe%get_h_refinement_interpolation()
+       h_refinement_subfacet_permutation => reference_fe%get_h_refinement_subfacet_permutation()
+       h_refinement_subedge_permutation  => reference_fe%get_h_refinement_subedget_permutation()
     class default
       assert(.false.)
     end select

@@ -133,6 +133,7 @@ subroutine hex_nedelec_reference_fe_create ( this, topology, num_dims, order, fi
   end if  
 		
 		call this%fill_h_refinement_interpolation()
+		call this%fill_h_refinement_permutations()
 end subroutine hex_nedelec_reference_fe_create
 
 !==================================================================================================
@@ -840,7 +841,8 @@ subroutine hex_nedelec_reference_fe_fill_h_refinement_interpolation ( this )
   
 		type(quadrature_t) :: h_refined_quadrature(SPACE_DIM)
 		integer(ip)        :: idime, global_num_quad_points 
-  integer(ip)        :: ntens, num_nodes 
+  integer(ip)        :: ntens, num_nodes, jdime  
+		integer(ip)        :: order_vector(SPACE_DIM)
 		
 		ntens                  = 0		
 		global_num_quad_points = 0
@@ -848,12 +850,17 @@ subroutine hex_nedelec_reference_fe_fill_h_refinement_interpolation ( this )
 		do idime=1, this%num_dims 
 		ntens     = ntens + idime 
 		num_nodes = num_nodes + this%node_array_vector(idime)%num_nodes 
-  call this%create_prebasis_nodal_quadrature( 2*this%node_array_vector(idime)%order, h_refined_quadrature(idime) )
+		
+		order_vector = 2*this%node_array_vector(idime)%order
+		do jdime=1, this%num_dims 
+		if ( order_vector(jdime) == 0 ) order_vector(jdime) = 1
+		end do 
+		
+  call this%create_prebasis_nodal_quadrature( order_vector, h_refined_quadrature(idime) )
 		global_num_quad_points = global_num_quad_points + h_refined_quadrature(idime)%get_num_quadrature_points() 
 		end do 
 		
-	 call this%h_refinement_interpolation%create( this%num_dims, num_nodes, &
-                                               global_num_quad_points, ntens )
+	 call this%h_refinement_interpolation%create( this%num_dims, num_nodes, global_num_quad_points, ntens )
 		
 		call this%fill_interpolation_pre_basis_quadrature_array( h_refined_quadrature, this%h_refinement_interpolation ) 
 		
@@ -870,7 +877,7 @@ subroutine hex_nedelec_create_prebasis_nodal_quadrature  ( this, order_vector, q
   integer(ip)                      , intent(in)    :: order_vector(SPACE_DIM)
   type(quadrature_t)               , intent(inout) :: quadrature
 
-		integer(ip)        :: i
+		integer(ip)        :: i 
   type(node_array_t) :: node_array 
 
   call quadrature%free()
@@ -879,14 +886,154 @@ subroutine hex_nedelec_create_prebasis_nodal_quadrature  ( this, order_vector, q
 
   call quadrature%create( this%num_dims, node_array%num_nodes )
   do i=1,this%num_dims
-     if ( order_vector(i) > 0 ) then 
+     massert( order_vector(i) > 0, 'prebasis nodal quadrature not created for order 0' )  
 		   quadrature%coordinates(i,:) = node_array%coordinates(i,:)*(2.0_rp/order_vector(i))-1.0_rp
-					else 
-					quadrature%coordinates(i,:) = 0.0_rp 
-					end if 
   end do
   quadrature%weight = 1.0_rp
   
   call node_array%free()
 		
 end subroutine hex_nedelec_create_prebasis_nodal_quadrature  
+
+!==================================================================================================
+subroutine hex_nedelec_reference_fe_fill_h_refinement_permutations ( this )
+  implicit none 
+  class(hex_nedelec_reference_fe_t), intent(inout) :: this
+  call this%fill_n_subfacet_permutation(this%num_dims-1, &
+                                       this%h_refinement_subfacet_permutation)
+  if ( this%num_dims == 3 ) then
+     call this%fill_n_subfacet_permutation(this%num_dims-2, &
+                                          this%h_refinement_subedge_permutation)
+  end if
+end subroutine hex_nedelec_reference_fe_fill_h_refinement_permutations
+
+!==================================================================================================
+subroutine hex_nedelec_reference_fe_fill_n_subfacet_permutation ( this, n_face_dime, permutation_array )
+  implicit none 
+  class(hex_nedelec_reference_fe_t), intent(in)    :: this              
+  integer(ip)                         , intent(in)    :: n_face_dime
+  integer(ip)           , allocatable , intent(inout) :: permutation_array(:,:,:)
+  integer(ip)           :: num_refinements, num_n_faces, num_n_subfaces, num_dofs_on_n_face
+  integer(ip)           :: first_n_face_id, n_face_id, n_subface_id, dof_on_n_subface_id, icomp
+  type(node_array_t)    :: h_refinement_node_array   
+  type(node_iterator_t) :: node_iterator_on_n_subface
+  
+  num_refinements    = 1
+  num_n_faces        = this%get_num_n_faces_of_dim(n_face_dime)
+  num_n_subfaces     = ( num_refinements + 1 ) ** n_face_dime     ! Topology-dependent
+  first_n_face_id    = this%get_first_n_face_id_of_dim(n_face_dime)
+  num_dofs_on_n_face = this%get_num_dofs_on_n_face(first_n_face_id) ! Only cubes and simplices
+
+  call memalloc(num_n_faces,num_n_subfaces,num_dofs_on_n_face,permutation_array,__FILE__,__LINE__)
+
+  call h_refinement_node_array%create( this%polytope, ( num_refinements + 1 ) * this%order_vector )
+  
+  do n_face_id = first_n_face_id, first_n_face_id+num_n_faces-1
+     do n_subface_id = 0, num_n_subfaces-1
+        dof_on_n_subface_id = 0
+        node_iterator_on_n_subface = h_refinement_node_array%create_node_iterator ( this%polytope%get_n_face(n_face_id), & 
+                                                                                    n_subface_id, own_boundary = .true. )
+        do icomp = 1, this%num_field_components
+           call node_iterator_on_n_subface%init()
+           do while (.not. node_iterator_on_n_subface%has_finished() )
+              dof_on_n_subface_id = dof_on_n_subface_id + 1
+              permutation_array(n_face_id-first_n_face_id+1,n_subface_id+1,dof_on_n_subface_id) = node_iterator_on_n_subface%current()
+              call node_iterator_on_n_subface%next()
+           end do
+        end do
+        assert( dof_on_n_subface_id == num_dofs_on_n_face )
+     end do
+  end do
+
+  call h_refinement_node_array%free()
+  
+end subroutine hex_nedelec_reference_fe_fill_n_subfacet_permutation
+
+!==================================================================================================
+subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell ( this,                   &
+                                                                             subcell_id,             &
+                                                                             nodal_values_on_parent, & 
+                                                                             nodal_values_on_child )
+  implicit none 
+  class(hex_nedelec_reference_fe_t), intent(in)    :: this              
+  integer(ip)                         , intent(in)    :: subcell_id
+  real(rp)                            , intent(in)    :: nodal_values_on_parent(:)
+  real(rp)                            , intent(inout) :: nodal_values_on_child(:)
+  integer(ip)           :: num_refinements
+  integer(ip)           :: icomp, ishape_fe, ishape_coarser_fe, qpoint
+  real(rp)              :: coefficient
+  type(node_array_t)    :: h_refinement_node_array
+  type(node_iterator_t) :: node_iterator_on_subcell
+  
+  num_refinements = 1
+  call h_refinement_node_array%create( this%polytope, ( num_refinements + 1 ) * this%order_vector )
+  
+  node_iterator_on_subcell = h_refinement_node_array%create_node_iterator( this%polytope%get_n_face(this%polytope%num_n_faces), &
+                                                                subcell_id, own_boundary = .true. )
+  
+  nodal_values_on_child = 0.0_rp
+  ishape_fe = 0
+  do icomp = 0, this%num_field_components-1
+     call node_iterator_on_subcell%init()
+     do while (.not. node_iterator_on_subcell%has_finished() )
+        qpoint = node_iterator_on_subcell%current()
+        ishape_fe = ishape_fe + 1
+        do ishape_coarser_fe = 1, this%get_num_shape_functions()
+           call this%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient)
+           nodal_values_on_child(ishape_fe) = nodal_values_on_child(ishape_fe) + &
+                                      coefficient * nodal_values_on_parent(ishape_coarser_fe)
+        end do
+        call node_iterator_on_subcell%next()
+     end do
+  end do
+  assert( ishape_fe == this%get_num_shape_functions() )
+  
+  call h_refinement_node_array%free()
+  
+end subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell
+
+!==================================================================================================
+subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_fe,   & 
+                                                                      ishape_coarser_fe, & 
+                                                                      qpoint, coefficient )
+  implicit none 
+  class(hex_nedelec_reference_fe_t), target, intent(in)    :: this
+  integer(ip)                                 , intent(in)    :: ishape_fe
+  integer(ip)                                 , intent(in)    :: ishape_coarser_fe
+  integer(ip)                                 , intent(in)    :: qpoint
+  real(rp)                                    , intent(inout) :: coefficient
+  assert( ishape_fe >= 1 .and. ishape_fe <= this%num_shape_functions )
+  assert( ishape_coarser_fe >= 1 .and. ishape_coarser_fe <= this%num_shape_functions )
+  assert( qpoint >= 1 )
+  if ( this%node_component_array(ishape_fe,2) == & 
+       this%node_component_array(ishape_coarser_fe,2) ) then
+     coefficient = this%h_refinement_interpolation%shape_functions(1, & 
+                               this%node_component_array(ishape_coarser_fe,1),qpoint)
+  else
+     coefficient = 0.0_rp
+  end if
+end subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient
+
+!==================================================================================================
+function hex_nedelec_reference_fe_get_h_refinement_interpolation ( this )
+  implicit none 
+  class(hex_nedelec_reference_fe_t), target, intent(in) :: this
+  type(interpolation_t), pointer :: hex_nedelec_reference_fe_get_h_refinement_interpolation
+  hex_nedelec_reference_fe_get_h_refinement_interpolation => this%h_refinement_interpolation
+end function hex_nedelec_reference_fe_get_h_refinement_interpolation
+
+!==================================================================================================
+function hex_nedelec_reference_fe_get_h_refinement_subedge_perm ( this )
+  implicit none 
+  class(hex_nedelec_reference_fe_t), target, intent(in) :: this
+  integer(ip), pointer :: hex_nedelec_reference_fe_get_h_refinement_subedge_perm(:,:,:)
+  hex_nedelec_reference_fe_get_h_refinement_subedge_perm => this%h_refinement_subedge_permutation
+end function hex_nedelec_reference_fe_get_h_refinement_subedge_perm
+
+!==================================================================================================
+function hex_nedelec_reference_fe_get_h_refinement_subface_perm ( this )
+  implicit none 
+  class(hex_nedelec_reference_fe_t), target, intent(in) :: this
+  integer(ip), pointer :: hex_nedelec_reference_fe_get_h_refinement_subface_perm(:,:,:)
+  hex_nedelec_reference_fe_get_h_refinement_subface_perm => this%h_refinement_subfacet_permutation
+end function hex_nedelec_reference_fe_get_h_refinement_subface_perm

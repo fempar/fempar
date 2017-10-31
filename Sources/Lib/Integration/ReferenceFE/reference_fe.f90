@@ -1460,6 +1460,20 @@ procedure, private :: fill_interpolation_pre_basis_quadrature_array &
 & => hex_nedelec_rf_fill_interpolation_pre_basis_quadrature_array
 procedure :: create_prebasis_nodal_quadrature                       &
 => hex_nedelec_create_prebasis_nodal_quadrature 
+procedure, private :: fill_h_refinement_permutations                &
+& => hex_nedelec_reference_fe_fill_h_refinement_permutations
+procedure, private :: fill_n_subfacet_permutation                   &
+& => hex_nedelec_reference_fe_fill_n_subfacet_permutation
+procedure          :: interpolate_nodal_values_on_subcell                &
+& => hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell
+procedure          :: get_h_refinement_coefficient                       &
+& => hex_nedelec_reference_fe_get_h_refinement_coefficient
+procedure          :: get_h_refinement_interpolation                     &
+& => hex_nedelec_reference_fe_get_h_refinement_interpolation
+procedure          :: get_h_refinement_subedget_permutation               &
+& => hex_nedelec_reference_fe_get_h_refinement_subedge_perm
+procedure          :: get_h_refinement_subfacet_permutation               &
+& => hex_nedelec_reference_fe_get_h_refinement_subface_perm
 
 end type hex_nedelec_reference_fe_t
 
