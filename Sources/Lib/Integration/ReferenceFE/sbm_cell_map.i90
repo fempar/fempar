@@ -486,6 +486,44 @@ function cell_map_is_det_jacobian_positive ( this )
   cell_map_is_det_jacobian_positive = this%det_jacobian_positiveness
 end function cell_map_is_det_jacobian_positive
 
+subroutine assign_cell_map ( this, other )
+  implicit none
+  type(cell_map_t)     , intent(inout) :: this
+  type(cell_map_t)     , intent(in)    :: other
+  call this%free()
+  call this%base_map_t%copy(other%base_map_t)
+  call memalloc(this%num_dims, &
+                this%num_dims, &
+                this%num_quadrature_points, &
+                this%jacobian,__FILE__,__LINE__)
+  this%jacobian = other%jacobian
+  call memalloc(this%num_dims, &
+                this%num_dims, &
+                this%num_quadrature_points, &
+                this%inv_jacobian,__FILE__,__LINE__)
+  this%inv_jacobian = other%inv_jacobian
+  if ( allocated(other%d2sdx) ) then
+    call memalloc(this%num_dims, &
+                  this%num_dims, &
+                  this%num_dims, &
+                  this%num_quadrature_points, &
+                  this%d2sdx,__FILE__,__LINE__)
+    this%d2sdx = other%d2sdx
+  end if
+  this%det_jacobian_positiveness = other%det_jacobian_positiveness
+end subroutine assign_cell_map
+
+subroutine assign_cell_map_array ( cell_map_array1, cell_map_array2 ) 
+  implicit none       
+  type(cell_map_t), intent(inout) :: cell_map_array1(:)
+  type(cell_map_t), intent(in)    :: cell_map_array2(:)
+  integer(ip) :: i
+  assert( size(cell_map_array1) == size(cell_map_array2) )
+  do i = 1,size(cell_map_array1)
+    call assign_cell_map(cell_map_array1(i),cell_map_array2(i))
+  end do
+end subroutine assign_cell_map_array
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! p_cell_map_t type procedures
 subroutine p_cell_map_allocate( this )

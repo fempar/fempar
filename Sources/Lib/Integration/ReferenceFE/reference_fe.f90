@@ -98,6 +98,10 @@ module reference_fe_names
      procedure, non_overridable          :: fill_hex_gauss_legendre            => quadrature_fill_hex_gauss_legendre
   end type quadrature_t
 
+  interface assignment(=)
+     module procedure assign_quadrature, assign_quadrature_array
+  end interface assignment(=)
+
   type p_quadrature_t
      type(quadrature_t), pointer :: p => NULL()
    contains
@@ -161,6 +165,7 @@ module reference_fe_names
     real(rp)                    :: measure 
   contains
     procedure                  :: free                              => base_map_free
+    procedure, non_overridable :: copy                              => base_map_copy
     procedure, non_overridable :: update_interpolation              => base_map_update_interpolation
     procedure, non_overridable :: get_coordinates                   => base_map_get_coordinates
     procedure, non_overridable :: get_quadrature_points_coordinates => base_map_get_quadrature_points_coordinates
@@ -198,6 +203,10 @@ module reference_fe_names
      procedure, non_overridable :: is_det_jacobian_positive          => cell_map_is_det_jacobian_positive
   end type cell_map_t
   
+  interface assignment(=)
+     module procedure assign_cell_map, assign_cell_map_array
+  end interface assignment(=)
+  
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  facet_map_t
      private
@@ -210,6 +219,10 @@ module reference_fe_names
      procedure, non_overridable :: get_normal        => facet_map_get_normal
      procedure, non_overridable :: get_raw_normals   => facet_map_get_raw_normals
   end type facet_map_t
+  
+  interface assignment(=)
+     module procedure assign_facet_map, assign_facet_map_array
+  end interface assignment(=)
   
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  edge_map_t
@@ -246,6 +259,7 @@ module reference_fe_names
      procedure, non_overridable :: create               => cell_map_facet_restriction_create
      procedure, non_overridable :: update               => cell_map_facet_restriction_update
      procedure, non_overridable :: free                 => cell_map_facet_restriction_free
+     procedure, non_overridable :: copy                 => cell_map_facet_restriction_copy
      procedure, non_overridable :: get_coordinates      => cell_map_facet_restriction_get_coordinates
      procedure, non_overridable :: get_current_cell_map => cell_map_facet_restriction_get_current_cell_map 
   end type cell_map_facet_restriction_t
@@ -1636,6 +1650,10 @@ generic :: evaluate_gradient_fe_function => cell_integrator_evaluate_gradient_fe
 
 end type cell_integrator_t
 
+interface assignment(=)
+   module procedure assign_cell_integrator, assign_cell_integrator_array
+end interface assignment(=)
+
 type p_cell_integrator_t
 type(cell_integrator_t), pointer :: p => NULL() 
 end type p_cell_integrator_t
@@ -1654,6 +1672,7 @@ public :: cell_integrator_t, p_cell_integrator_t
      procedure, non_overridable :: create                      => cell_integrator_facet_restriction_create
      procedure, non_overridable :: update                      => cell_integrator_facet_restriction_update
      procedure, non_overridable :: free                        => cell_integrator_facet_restriction_free
+     procedure, non_overridable :: copy                        => cell_integrator_facet_restriction_copy
      procedure, non_overridable :: get_current_cell_integrator => cell_integrator_facet_restriction_get_current_cell_integrator
   end type cell_integrator_facet_restriction_t
 
@@ -1684,6 +1703,10 @@ contains
 end type facet_maps_t
 
 public :: facet_maps_t
+
+interface assignment(=)
+   module procedure assign_facet_maps, assign_facet_maps_array
+end interface assignment(=)
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type facet_integrator_t
@@ -1733,6 +1756,10 @@ contains
   & facet_integrator_evaluate_gradient_fe_function_vector
 end type facet_integrator_t
 
+interface assignment(=)
+   module procedure assign_facet_integrator, assign_facet_integrator_array
+end interface assignment(=)
+
 type p_facet_integrator_t
 type(facet_integrator_t)          , pointer :: p => NULL()
 end type p_facet_integrator_t
@@ -1740,7 +1767,9 @@ end type p_facet_integrator_t
 public :: facet_integrator_t, p_facet_integrator_t
 
 public :: make_reference_fe
-			
+public :: assignment(=)
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 contains
 
   ! Includes with all the TBP and supporting subroutines for the types above.

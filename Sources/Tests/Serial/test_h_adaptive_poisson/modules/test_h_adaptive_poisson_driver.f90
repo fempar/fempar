@@ -57,7 +57,7 @@ module test_h_adaptive_poisson_driver_names
      type(p4est_serial_triangulation_t)           :: triangulation
      
      ! Discrete weak problem integration-related data type instances 
-     type(serial_hp_adaptive_fe_space_t)          :: fe_space 
+     type(serial_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      
      type(poisson_cG_discrete_integration_t)      :: poisson_cG_integration

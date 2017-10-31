@@ -103,7 +103,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
-    call this%allocate_and_fill_x_cell_vertex_coordinates()
+    call this%fill_x_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
@@ -114,7 +114,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%update_topology_from_p4est_mesh()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
-    call this%allocate_and_fill_x_cell_vertex_coordinates()
+    call this%fill_x_cell_vertex_coordinates()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
     call this%clear_vef_set_ids()
@@ -134,7 +134,7 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
 
 #ifdef ENABLE_P4EST
   if ( this%get_num_dims() == 2 ) then
-    user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
+    user_pointer => this%refinement_and_coarsening_flags%get_pointer()
     call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
     p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old)
     call F90_p4est_refine(this%p4est)
@@ -143,7 +143,7 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
     call F90_p4est_update_refinement_and_coarsening_flags(p4est_old,this%p4est)
     call F90_p4est_destroy(p4est_old)
   else if ( this%get_num_dims() == 3 ) then
-    user_pointer => this%refinement_and_coarsening_flags%get_raw_pointer()
+    user_pointer => this%refinement_and_coarsening_flags%get_pointer()
     call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
     p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old)
     call F90_p8est_refine(this%p4est)
@@ -158,7 +158,7 @@ subroutine p4est_serial_triangulation_refine_and_coarsen(this)
   ! Update the num of triangulation cells
   call this%set_num_local_cells(size(this%quad_level))
   call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-  call this%allocate_and_fill_x_cell_vertex_coordinates()
+  call this%fill_x_cell_vertex_coordinates()
   call this%update_cell_set_ids()
   call this%update_vef_set_ids(old_lst_vefs_gids)
   call old_lst_vefs_gids%free()
@@ -800,9 +800,9 @@ subroutine p4est_st_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
      end do ! iface
   end do
   call this%set_num_vefs(this%num_proper_vefs + this%num_improper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_cells_around_proper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_cells_around_improper_vefs)
-  call this%std_vector_transform_length_to_header(this%ptr_improper_cells_around)
+  call this%ptr_cells_around_proper_vefs%transform_length_to_header()
+  call this%ptr_cells_around_improper_vefs%transform_length_to_header()
+  call this%ptr_improper_cells_around%transform_length_to_header()
   call work_vector_cells_around%free()
   call work_vector_improper_cells_around%free()
   call work_vector_ivef%free()
@@ -1040,35 +1040,22 @@ contains
   
 end subroutine p4est_st_update_vef_set_ids
 
-subroutine p4est_st_std_vector_transform_length_to_header(this,std_vector_integer_ip)
-  implicit none
-  class(p4est_serial_triangulation_t), intent(in)    :: this
-  type(std_vector_integer_ip_t)      , intent(inout) :: std_vector_integer_ip
-  integer(ip) :: i
-#ifdef ENABLE_P4EST    
-  call std_vector_integer_ip%set(1,1)
-  do i=1, std_vector_integer_ip%size()-1
-    call std_vector_integer_ip%set(i+1,std_vector_integer_ip%get(i)+std_vector_integer_ip%get(i+1))
-  end do
-#else
-  call this%not_enabled_error()
-#endif      
-end subroutine p4est_st_std_vector_transform_length_to_header
-
-subroutine p4est_st_allocate_and_fill_x_cell_vertex_coordinates(this)
+subroutine p4est_st_fill_x_cell_vertex_coordinates(this)
   implicit none
   class(p4est_serial_triangulation_t), intent(inout)    :: this
   integer(ip) :: idime, icell, istat, num_corners, current, corner
   real(rp) :: vxyz(3)
+  type(point_t), pointer :: raw_per_cell_vertex_coordinates(:)
   
 #ifdef ENABLE_P4EST
-  call this%free_x_cell_vertex_coordinates()
   if ( this%get_num_dims() == 2 ) then
     num_corners = NUM_CORNERS_2D
   else if ( this%get_num_dims() == 3 ) then
     num_corners = NUM_CORNERS_3D
   end if
-  allocate(this%per_cell_vertex_coordinates(this%get_num_cells()*num_corners), stat=istat); check(istat==0);  
+  call this%per_cell_vertex_coordinates%resize(this%get_num_cells()*num_corners)
+  
+  raw_per_cell_vertex_coordinates => this%per_cell_vertex_coordinates%get_pointer()
   
   current = 1 
   do icell=1, this%get_num_cells()
@@ -1091,28 +1078,14 @@ subroutine p4est_st_allocate_and_fill_x_cell_vertex_coordinates(this)
                                                         corner,&
                                                         vxyz)
        end if
-       call this%per_cell_vertex_coordinates(current)%init(vxyz)
+       call raw_per_cell_vertex_coordinates(current)%init(vxyz)
        current = current + 1 
      end do  
   end do
 #else
   call this%not_enabled_error()
 #endif        
-end subroutine p4est_st_allocate_and_fill_x_cell_vertex_coordinates
-
-subroutine p4est_st_free_x_cell_vertex_coordinates(this)
-  implicit none
-  class(p4est_serial_triangulation_t), intent(inout)    :: this
-  integer(ip) :: istat
-#ifdef ENABLE_P4EST
-  if ( allocated(this%per_cell_vertex_coordinates) ) then
-    deallocate(this%per_cell_vertex_coordinates, stat=istat)
-    check(istat==0)
-  end if  
-#else
-  call this%not_enabled_error()
-#endif        
-end subroutine p4est_st_free_x_cell_vertex_coordinates
+end subroutine p4est_st_fill_x_cell_vertex_coordinates
 
 subroutine p4est_st_clear_refinement_and_coarsening_flags(this)
    implicit none
@@ -1296,7 +1269,9 @@ subroutine p4est_serial_triangulation_free ( this)
   this%p4est              = c_null_ptr
   this%p4est_mesh         = c_null_ptr
   this%QHE                = c_null_ptr
-    
+  
+  call this%per_cell_vertex_coordinates%free()
+  
   call this%lst_vefs_gids%free()
   call this%ptr_cells_around_proper_vefs%free()
   call this%lst_cells_around_proper_vefs%free()

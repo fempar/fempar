@@ -1,0 +1,527 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine rigid_body_mode_set_num_dims(this,num_dims)
+  implicit none
+  class(rigid_body_mode_t), intent(inout)  :: this
+  integer(ip), intent(in) ::  num_dims
+
+  this%num_dims = num_dims
+
+end subroutine rigid_body_mode_set_num_dims
+
+subroutine rigid_body_mode_set_mode(this,imode)
+  implicit none
+  class(rigid_body_mode_t), intent(inout)  :: this
+  integer(ip), intent(in) ::  imode
+
+  this%imode = imode
+
+end subroutine rigid_body_mode_set_mode
+
+subroutine rigid_body_mode_get_values_set_space( this, point, result )
+  implicit none
+  class(rigid_body_mode_t), intent(in)   :: this
+  type(point_t), intent(in)            :: point(:)
+  type(vector_field_t), intent(inout)  :: result(:)
+  integer(ip) :: i, num_points
+
+  num_points = size(point)
+
+  ! Translation modes
+  if (this%imode <= this%num_dims) then
+     do i = 1, num_points
+        call result(i)%init(0.0_rp)
+        call result(i)%set(this%imode,1.0_rp)
+     end do
+
+     ! Rotation modes
+  else if (this%imode == this%num_dims + 1) then ! r4 = [x2 -x1 0 ]^T
+     do i = 1, num_points
+        call result(i)%init(0.0_rp)
+        call result(i)%set(1,point(i)%get(2))
+        call result(i)%set(2,-point(i)%get(1))
+     end do
+  else if (this%imode == this%num_dims + 2) then ! r5 = [-x3 0 x1 ]^T
+     do i = 1, num_points
+        call result(i)%init(0.0_rp)
+        call result(i)%set(1,-point(i)%get(3))
+        call result(i)%set(3,point(i)%get(1))
+     end do
+  else if (this%imode == this%num_dims + 3) then ! r6 = [0 x3 -x2 ]^T
+     do i = 1, num_points
+        call result(i)%init(0.0_rp)
+        call result(i)%set(2,point(i)%get(3))
+        call result(i)%set(3,-point(i)%get(2))
+     end do
+  end if
+end subroutine rigid_body_mode_get_values_set_space
+
+subroutine elasticity_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
+  implicit none
+  class(elasticity_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
+
+  integer(ip)                            :: ivef_within_cell
+  integer(ip)                            :: ivef_within_object
+  integer(ip)                            :: icell_around
+  integer(ip)                            :: idof, dof_lid
+  integer(ip)                            :: num_dims, num_coarse_dofs_x_object
+  integer(ip)                            :: num_coarse_dofs_x_vertex, num_coarse_dofs_x_edge, num_coarse_dofs_x_face
+  logical                                :: dofs_on_vef
+  type(environment_t), pointer           :: par_environment
+  type(fe_object_iterator_t)             :: object
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_cell_iterator_t), allocatable      :: fe
+  class(reference_fe_t), pointer         :: reference_fe
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator
+  integer(ip), pointer                   :: fe_dofs(:)
+  logical                                :: use_vertices, use_edges, use_faces
+
+  par_environment => par_fe_space%get_environment()
+  assert ( associated ( par_environment ) )
+  assert ( par_environment%am_i_l1_task() )
+  assert ( size(num_coarse_dofs) == par_fe_space%get_num_fe_objects() )
+
+  num_dims = par_fe_space%get_num_dims()
+  num_coarse_dofs_x_vertex = num_dims
+  num_coarse_dofs_x_edge = num_dims+ num_dims*(num_dims-1)/2 ! This need to be revisited. Do we use edges?
+  num_coarse_dofs_x_face = num_dims+ num_dims*(num_dims-1)/2
+
+  call this%get_coarse_space_use_vertices_edges_faces(parameter_list,& 
+       use_vertices, &
+       use_edges, &
+       use_faces)
+  ! Currently do not use edge constraints
+  assert(.not.(use_edges))
+
+  ! First, count how many coarse_dofs there are on the interface of my subdomain
+  num_coarse_dofs = 0
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_cell_iterator(fe)
+  call par_fe_space%create_fe_vef_iterator(vef)
+  do while ( .not. object%has_finished() )
+     select case ( object%get_dim() )
+     case (0)
+        if (.not. use_vertices) then
+           call object%next(); cycle
+        end if
+        num_coarse_dofs_x_object = num_coarse_dofs_x_vertex
+     case (1)
+        if (.not. use_edges) then
+           call object%next(); cycle
+        end if
+        num_coarse_dofs_x_object = num_coarse_dofs_x_edge
+     case (2)
+        if (.not. use_faces) then
+           call object%next(); cycle
+        end if
+        num_coarse_dofs_x_object = num_coarse_dofs_x_face
+     end select
+
+     dofs_on_vef = .false.
+     do ivef_within_object=1, object%get_num_vefs()
+        call object%get_vef(ivef_within_object,vef)
+        reference_fe => fe%get_reference_fe(field_id)
+        do icell_around=1, vef%get_num_cells_around()
+           call vef%get_cell_around(icell_around,fe)
+           if ( fe%is_ghost() ) then 
+              !Get GID of dofs on cell fe
+              call fe%get_field_fe_dofs(field_id, fe_dofs)
+              ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
+
+              own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                 idof    = own_dofs_on_vef_iterator%get_current()
+                 dof_lid = fe_dofs(idof)
+                 if ( dof_lid > 0 ) then
+                    dofs_on_vef = .true.
+                    exit
+                 end if
+                 call own_dofs_on_vef_iterator%next()
+              end do
+
+           end if
+        end do
+
+        if ( dofs_on_vef ) then
+           ! It must be thought for more general cases (vectors, tensor product...)
+           num_coarse_dofs(object%get_gid()) = num_coarse_dofs(object%get_gid()) + num_coarse_dofs_x_object
+           exit
+        end if
+
+     end do
+     call object%next()
+  end do
+  call par_fe_space%free_fe_vef_iterator(vef)
+  call par_fe_space%free_fe_cell_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+end subroutine elasticity_l1_get_num_coarse_dofs
+
+subroutine elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+  implicit none
+  class(elasticity_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
+  type(environment_t), pointer :: par_environment
+  type(fe_object_iterator_t) :: object
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(reference_fe_t), pointer         :: reference_fe
+  type(list_iterator_t)                  :: own_coarse_dofs_iterator
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+  integer(ip)                            :: off
+  integer(ip) :: num_rows, num_cols
+  integer(ip) :: num_fine_dofs_on_coarse_dof
+  integer(ip) :: num_coarse_dofs, imode
+  integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid, icell_around, icomp
+  type(hash_table_ip_ip_t) :: visited_dofs
+  type(point_t), pointer :: quad_coords (:)
+  type(rigid_body_mode_t) :: rigid_body_modes
+  type(vector_field_t), allocatable :: rigid_body_modes_at_quad_points(:)
+
+
+  class(triangulation_t), pointer :: triangulation
+
+  ! FE space traversal-related data types
+  type(list_iterator_t)                  :: faces_object_iterator
+  class(fe_facet_iterator_t), allocatable :: fe_face
+
+  ! Face integration-related data types
+  type(quadrature_t)     , pointer :: quad
+  real(rp)                         :: shape_trial
+  integer(ip)            , pointer :: fe_dofs(:)
+  type(i1p_t)        , allocatable :: test_fe_dofs(:)
+
+  ! FACE vector
+  real(rp), allocatable            :: facevec(:)
+  ! Mask for dof
+  integer(ip), allocatable         :: mask(:)
+
+  integer(ip)  :: istat
+  integer(ip)  :: qpoint, num_quad_points
+  real(rp)     :: factor
+  type(vector_field_t), allocatable  :: shape_values(:,:)
+  real(rp)     :: facet_measure
+
+  call rigid_body_modes%set_num_dims(par_fe_space%get_num_dims())
+
+  par_environment => par_fe_space%get_environment()
+  assert (associated(par_environment))
+  assert (par_environment%am_i_l1_task())
+  num_cols = par_fe_space%num_dofs_x_field(field_id)
+  call visited_dofs%init(num_cols)
+
+  triangulation => par_fe_space%get_triangulation()
+
+  allocate (test_fe_dofs(1), stat=istat); check(istat==0);
+  call memalloc(par_fe_space%get_max_num_shape_functions(), facevec, __FILE__, __LINE__ )
+  call memalloc(par_fe_space%get_max_num_shape_functions(), mask, __FILE__, __LINE__ )
+
+
+  ! Fill constraint matrix entries (transposed)
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_cell_iterator(fe)
+  call par_fe_space%create_fe_facet_iterator(fe_face)
+  call par_fe_space%create_fe_vef_iterator(vef)
+
+  ! Loop in objects (associated with coarse dofs?)
+  do while ( .not. object%has_finished() )
+     num_coarse_dofs = object%get_num_coarse_dofs(field_id) 
+     if ( num_coarse_dofs > 0 ) then
+
+        own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
+        coarse_dof_lid = own_coarse_dofs_iterator%get_current()-1 
+
+        ! Face coarse DoF
+        if ( object%get_dim () == triangulation%get_num_dims()-1) then
+           ! Compute the mesuarement (area, length) of the object
+           facet_measure = 0.0_rp
+           faces_object_iterator = object%create_faces_object_iterator()
+           do while ( .not. faces_object_iterator%is_upper_bound() )
+              call object%get_face(faces_object_iterator%get_current(),fe_face)
+              call fe_face%update_integration() 
+              quad     => fe_face%get_quadrature()
+              do qpoint = 1, quad%get_num_quadrature_points()
+                 factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+                 facet_measure = facet_measure + factor
+              end do
+              call faces_object_iterator%next()
+           end do
+
+           faces_object_iterator = object%create_faces_object_iterator()
+           do while ( .not. faces_object_iterator%is_upper_bound() )
+              call object%get_face(faces_object_iterator%get_current(),fe_face)
+              quad     => fe_face%get_quadrature()
+              allocate (rigid_body_modes_at_quad_points(quad%get_num_quadrature_points()),stat=istat)
+              do icell_around=1, fe_face%get_num_cells_around()              
+                 call fe_face%get_cell_around(icell_around,fe)
+                 if (fe%is_local()) then
+                    reference_fe => fe%get_reference_fe(field_id)
+                    call fe_face%update_integration() 
+                    call fe_face%get_values(icell_around,shape_values,field_id)
+                    quad_coords => fe_face%get_quadrature_points_coordinates()
+
+                    ! Go over coarse-DoFs functionals (rigid body modes)
+                    do imode = 1,num_coarse_dofs                     
+                       facevec = 0.0_rp
+                       call rigid_body_modes%set_mode(imode)
+                       call rigid_body_modes%get_values_set(quad_coords,rigid_body_modes_at_quad_points)
+                       do qpoint = 1, quad%get_num_quadrature_points()
+                          factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+                          do idof = 1, fe%get_num_dofs()
+                             facevec(idof) = facevec(idof) + shape_values(idof,qpoint)*rigid_body_modes_at_quad_points(qpoint)*factor                                                   
+                          end do
+                       end do
+
+                       call fe_face%get_fe_dofs(icell_around, test_fe_dofs)
+
+                       ! Here we assume coarse dofs associated with an objects are consecutive numbers
+                       call constraint_matrix%insert(fe%get_num_dofs(), &
+                            test_fe_dofs(1)%p, &
+                            coarse_dof_lid+imode, &
+                            facevec/facet_measure)
+
+                    end do
+                 end if
+              end do
+              deallocate(rigid_body_modes_at_quad_points, stat=istat); check(istat==0);              
+              call faces_object_iterator%next()
+           end do
+        else    
+           num_fine_dofs_on_coarse_dof = 0 
+           ! Count how many fine DoFs current coarse DoF aggregates
+           do ivef_within_object=1, object%get_num_vefs()
+              call object%get_vef(ivef_within_object,vef)
+              do icell_around=1, vef%get_num_cells_around()          
+                 call vef%get_cell_around(icell_around,fe)
+                 if ( fe%is_ghost() ) then
+                    call fe%get_field_fe_dofs(field_id, fe_dofs)
+                    ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
+                    own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+                    do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                       idof    = own_dofs_on_vef_iterator%get_current()
+                       dof_lid = fe_dofs(idof)
+                       if ( dof_lid > 0 ) then
+                          call visited_dofs%put(key=dof_lid,val=ivef_within_cell,stat=istat)
+                          if ( istat == now_stored ) then
+                             num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + 1
+                          end if
+                       end if
+                       call own_dofs_on_vef_iterator%next()
+                    end do
+                 end if
+              end do
+           end do
+
+           call visited_dofs%init(num_cols)       
+
+           do ivef_within_object=1, object%get_num_vefs()
+              call object%get_vef(ivef_within_object,vef)
+              do icell_around=1, vef%get_num_cells_around() 
+                 call vef%get_cell_around(icell_around,fe)
+                 if ( fe%is_ghost() ) then
+                    reference_fe => fe%get_reference_fe(field_id)
+                    assert ( own_coarse_dofs_iterator%get_size() ==  reference_fe%get_num_field_components())
+                    call fe%get_field_fe_dofs(field_id, fe_dofs)
+                    ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
+                    own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+                    do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                       idof    = own_dofs_on_vef_iterator%get_current()
+                       icomp   = reference_fe%get_component_node(idof)
+                       dof_lid = fe_dofs(idof)
+                       if ( dof_lid > 0 ) then
+                          call visited_dofs%put(key=dof_lid,val=ivef_within_cell,stat=istat)
+                          if ( istat == now_stored ) then
+                             call constraint_matrix%insert(dof_lid, coarse_dof_lid + icomp, reference_fe%get_num_field_components()/real(num_fine_dofs_on_coarse_dof,rp))
+                          end if
+                       end if
+                       call own_dofs_on_vef_iterator%next()
+                    end do
+                 end if
+              end do
+           end do
+        end if
+     end if
+     call object%next()
+  end do
+  call faces_object_iterator%free()
+  call par_fe_space%free_fe_cell_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_facet_iterator(fe_face)
+  call par_fe_space%free_fe_vef_iterator(vef)
+  deallocate (test_fe_dofs, stat=istat); check(istat==0);
+  call memfree(facevec, __FILE__, __LINE__ )
+  call memfree(mask, __FILE__, __LINE__ )
+  if (allocated(shape_values)) then
+     deallocate(shape_values, stat=istat); check(istat==0);  
+  end if
+end subroutine elasticity_l1_setup_constraint_matrix_CI
+
+
+subroutine elasticity_l1_setup_constraint_matrix_multiple(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+  implicit none
+  class(elasticity_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
+
+  integer(ip), parameter :: CA = 0
+  integer(ip), parameter :: CI = 1
+  integer(ip), parameter :: CM = 2
+  integer(ip), parameter :: CB = 3
+  integer(ip), parameter :: CC = 4
+
+  integer(ip), parameter :: strategy = CI
+
+  !write(*,*) 'strategy ::', strategy
+
+  !Currently, only strategy CI is developed for vector laplacian
+  assert (strategy==CI)
+
+  if (strategy == CA) then
+     ! Algebraic facet constraints (1/card) not including DOFs on the boundary of the facet that belong to 
+     ! other coarse corners, edges
+     call standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+  else if ( strategy == CI ) then
+     ! Typical version of face constraints based on integration, i.e., \int u / \int 1
+     call elasticity_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+  else if ( strategy == CM ) then
+     ! The previous one but making 0 the boundary DOFs in the facet (those on coarse corners, edges)
+     !call elasticity_l1_setup_constraint_matrix_CM(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+  else if ( strategy == CB ) then
+     ! Putting always 1 and also including DOFs on the boundary of the facet  (on coarse corners, edges)
+     !call elasticity_l1_setup_constraint_matrix_CB(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+  else if ( strategy == CC ) then
+     ! The algebraic one (1/card) but also including DOFs on the boundary of the facet  (on coarse corners, edges)
+     !call elasticity_l1_setup_constraint_matrix_CC(this, field_id, par_fe_space, parameter_list, constraint_matrix)
+  end if
+  ! We have that CA = CM and CI = CC (possibly up to some scaling)
+end subroutine elasticity_l1_setup_constraint_matrix_multiple
+
+subroutine elasticity_l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
+  implicit none
+  class(elasticity_pb_bddc_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
+  type(fe_object_iterator_t) :: object
+  type(fe_vef_iterator_t)                :: vef
+  type(list_iterator_t)                  :: own_coarse_dofs_iterator
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+  integer(ip), pointer                   :: fe_dofs(:)
+  integer(ip)                            :: off
+  integer(ip) :: num_rows, num_cols
+  integer(ip) :: num_fine_dofs_on_coarse_dof
+  integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid
+  type(environment_t), pointer  :: par_env
+  class(triangulation_t), pointer :: triangulation
+  integer(ip) :: subpart
+  real(rp) :: weigh, denom
+  type(list_iterator_t)                  :: subparts_iterator 
+  logical, allocatable :: is_subpart_local(:), touch_subpart(:)
+  real(rp), allocatable :: subpart_viscosity(:)
+  class(fe_cell_iterator_t), allocatable :: fe  
+
+
+  ! Fill constraint matrix entries (transposed)
+  triangulation => par_fe_space%get_triangulation()
+  call memalloc( triangulation%get_num_subparts(), is_subpart_local, __FILE__ , __LINE__ )
+  call memalloc( triangulation%get_num_subparts(), touch_subpart, __FILE__ , __LINE__ )
+  call memalloc( triangulation%get_num_subparts(), subpart_viscosity, __FILE__ , __LINE__ )
+
+  is_subpart_local = .false.
+  touch_subpart = .false.
+  subpart_viscosity = 0.0_rp
+
+  par_env =>  par_fe_space%get_environment()
+
+  call par_fe_space%create_fe_cell_iterator(fe)
+  do while ( .not. fe%has_finished())
+     subpart = fe%get_my_subpart()
+     subpart = fe%get_my_subpart_lid()
+     if ( .not. touch_subpart(subpart)) then
+        touch_subpart(subpart) = .true.
+        is_subpart_local(subpart) = ( fe%get_my_part() == par_env%get_l1_rank() + 1 ) 
+        if ( fe%get_set_id() <= 1 ) then
+           subpart_viscosity(subpart) = 1.0_rp
+        else 
+           subpart_viscosity(subpart) = this%elastic_modulus
+        end if
+     end if
+     call fe%next()
+  end do
+
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_vef_iterator(vef)
+  do while ( .not. object%has_finished() )
+     weigh = 0.0_rp
+     denom = 0.0_rp
+     ! Compute the weighting operator based on the physical coefficient for
+     ! the physics based partition
+     subparts_iterator = object%create_subparts_around_iterator()
+     do  while ( .not. subparts_iterator%is_upper_bound() )
+        subpart = subparts_iterator%get_current()
+        subpart = triangulation%get_subpart_lid(subpart)
+        if ( is_subpart_local(subpart) ) weigh = weigh + subpart_viscosity(subpart)
+        denom = denom + subpart_viscosity(subpart)
+        call subparts_iterator%next()
+     end do
+     weigh = weigh/denom
+
+     ! Count how many fine DoFs current coarse DoF aggregates
+     do ivef_within_object=1, object%get_num_vefs()
+        call object%get_vef(ivef_within_object,vef)
+        call vef%get_cell_around(1,fe)
+        call fe%get_field_fe_dofs(field_id, fe_dofs)
+        ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
+        own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+           idof    = own_dofs_on_vef_iterator%get_current()
+           dof_lid = fe_dofs(idof)
+           if ( dof_lid > 0 ) then
+              weighting_operator(dof_lid) = weigh
+           end if
+           call own_dofs_on_vef_iterator%next()
+        end do
+     end do
+     call object%next()
+  end do
+  call par_fe_space%free_fe_cell_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_vef_iterator(vef)
+  call memfree( is_subpart_local, __FILE__ , __LINE__ )
+  call memfree( touch_subpart, __FILE__ , __LINE__ )
+  call memfree( subpart_viscosity, __FILE__ , __LINE__ )
+end subroutine elasticity_l1_setup_weighting_operator
