@@ -229,7 +229,7 @@ contains
     y = point%get(2) 
     z = point%get(3) 
     
-    call result%set(1,2, 3.0_rp*x*x )
+    call result%set(1, 2, 3.0_rp*x*x )
 
   end subroutine solution_get_gradient_space
   

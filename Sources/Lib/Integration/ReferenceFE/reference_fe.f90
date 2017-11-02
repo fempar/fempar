@@ -1137,6 +1137,8 @@ type, abstract, extends(lagrangian_reference_fe_t) :: nedelec_reference_fe_t
 private
 type(node_array_t)    :: node_array_vector(SPACE_DIM)
 real(rp), allocatable :: change_basis_matrix(:,:)
+real(rp), allocatable :: inverse_change_basis_matrix_2h(:,:) 
+real(rp), allocatable :: change_basis_matrix_h(:,:) 
 logical               :: basis_changed
 contains
 
@@ -1423,8 +1425,7 @@ public :: hex_raviart_thomas_reference_fe_t
 type, extends(nedelec_reference_fe_t) :: hex_nedelec_reference_fe_t
 private
 type(interpolation_t)    :: h_refinement_interpolation
-integer(ip), allocatable :: h_refinement_subfacet_permutation(:,:,:)
-integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:)
+integer(ip), allocatable :: h_refinement_subelem_permutation(:,:,:)
 contains 
   ! Deferred TBP implementors from reference_fe_t
 procedure :: check_compatibility_of_n_faces                              &
@@ -1470,10 +1471,8 @@ procedure          :: get_h_refinement_coefficient                       &
 & => hex_nedelec_reference_fe_get_h_refinement_coefficient
 procedure          :: get_h_refinement_interpolation                     &
 & => hex_nedelec_reference_fe_get_h_refinement_interpolation
-procedure          :: get_h_refinement_subedget_permutation               &
-& => hex_nedelec_reference_fe_get_h_refinement_subedge_perm
-procedure          :: get_h_refinement_subfacet_permutation               &
-& => hex_nedelec_reference_fe_get_h_refinement_subface_perm
+procedure          :: get_h_refinement_subelem_permutation               &
+& => hex_nedelec_reference_fe_get_h_refinement_subelem_perm
 
 end type hex_nedelec_reference_fe_t
 

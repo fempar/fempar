@@ -154,7 +154,7 @@ contains
       call this%triangulation%free_vef_iterator(vef)
     end if 
    
-    do i = 1,10
+    do i = 1,2
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%clear_refinement_and_coarsening_flags()
@@ -317,7 +317,6 @@ contains
         !  call cell%set_for_refinement()
         !end if
 
-
         call cell%next()
       end do
       deallocate(coords,stat=istat); check(istat==0)
@@ -383,6 +382,7 @@ contains
     type(interpolation_t), pointer :: h_refinement_interpolation
     integer(ip), pointer :: h_refinement_subfacet_permutation(:,:,:)
     integer(ip), pointer :: h_refinement_subedge_permutation(:,:,:)
+				integer(ip), pointer :: h_refinement_subelem_permutation(:,:,:)
     
     if (this%test_params%get_use_void_fes()) then
       allocate(this%reference_fes(2), stat=istat)
@@ -404,7 +404,7 @@ contains
     call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe()
     this%reference_fes(TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                   &
-                                                                 fe_type = fe_type_lagrangian,                                 &
+                                                                 fe_type = fe_type_nedelec,                                    &
                                                                  num_dims = this%triangulation%get_num_dims(),                 &
                                                                  order = this%test_params%get_reference_fe_order(),            &
                                                                  field_type = field_type_vector,                               &
@@ -428,8 +428,7 @@ contains
        h_refinement_subedge_permutation  => reference_fe%get_h_refinement_subedget_permutation()
 				type is (hex_nedelec_reference_fe_t) 
 				   h_refinement_interpolation        => reference_fe%get_h_refinement_interpolation()
-       h_refinement_subfacet_permutation => reference_fe%get_h_refinement_subfacet_permutation()
-       h_refinement_subedge_permutation  => reference_fe%get_h_refinement_subedget_permutation()
+       h_refinement_subelem_permutation  => reference_fe%get_h_refinement_subelem_permutation()
     class default
       assert(.false.)
     end select
@@ -565,7 +564,9 @@ contains
     end if
     call this%solution%create(this%fe_space) 
     if ( this%test_params%get_fe_formulation() == 'cG' ) then
-      call this%fe_space%interpolate_dirichlet_values(this%solution)
+				  ! Lagrangian interpolation vs H(curl)-interpolation for Dirichlet boundary  
+    !  call this%fe_space%interpolate_dirichlet_values(this%solution)
+						call this%fe_space%project_dirichlet_values_curl_conforming(this%solution) 					
       if ( this%test_params%get_laplacian_type() == 'scalar' ) then
         call this%poisson_cG_integration%set_fe_function(this%solution)
       else
