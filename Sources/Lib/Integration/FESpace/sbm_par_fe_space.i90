@@ -1855,7 +1855,6 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
              if (all_ghosts) then
                if ( num_parts == 1 ) then
                  part_id = parts_visited(ipart)
-                 assert ( part_id == max_part_id ) 
                  raw_interface_data(neighbor_part_id_row, current_col) = max_part_id
                  raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid) 
                  raw_interface_data(owner_flag_row, current_col) = -1
@@ -3209,6 +3208,7 @@ subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_l
      call this%fill_facet_gids()
      call this%migrate_fe_integration_arrays()
      call this%migrate_facet_integration_arrays()
+     call this%allocate_and_fill_fe_space_type_x_field()
      call this%allocate_and_init_ptr_lst_dofs_gids()
      call this%allocate_and_init_at_strong_dirichlet_bound()
      call this%allocate_and_init_has_fixed_dofs()

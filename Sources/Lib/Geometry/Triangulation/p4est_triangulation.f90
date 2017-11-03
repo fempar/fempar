@@ -99,6 +99,15 @@ module p4est_triangulation_names
                                                             2, 1, 3, 1 ] ,[NUM_FACES_2D,NUM_SUBFACES_FACE_2D])
                                                   
   integer(ip), target :: P4EST_FACES_IN_TOUCH_2D(NUM_FACES_2D) = [ 2, 1, 4, 3 ]
+  
+  integer(ip), target :: P4EST_FACES_SUBFACE_FACE_NEIGHBOUR_2D(NUM_FACES_2D/2, NUM_SUBFACES_FACE_2D,1) = &
+                                                  reshape([ 4, 2, &
+                                                            3, 1 ] ,[NUM_FACES_2D/2,NUM_SUBFACES_FACE_2D,1])
+                                                  
+  integer(ip), target :: P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR_2D(NUM_FACES_2D/2, NUM_SUBFACES_FACE_2D,1) = &
+                                                  reshape([ 2, 2, &
+                                                            1, 1 ], [NUM_FACES_2D/2,NUM_SUBFACES_FACE_2D,1])
+  
 
   ! For 3D
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_FACE_3D = 4

@@ -158,6 +158,7 @@ subroutine serial_fe_space_allocate_and_fill_fe_space_type_x_field(this)
   class(fe_cell_iterator_t), allocatable :: fe
   integer(ip) :: field_id
   class(reference_fe_t), pointer ::reference_fe
+  call this%free_fe_space_type_x_field()
   call memalloc ( this%num_fields, this%fe_space_type_x_field, __FILE__, __LINE__ )
   call this%create_fe_cell_iterator(fe)
   if ( .not. fe%has_finished() )  then

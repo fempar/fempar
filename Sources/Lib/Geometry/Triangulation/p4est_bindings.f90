@@ -667,6 +667,53 @@ module p4est_bindings_names
        integer(P4EST_F90_LOCIDX), intent(out)    :: ghost_gids_remote_neighbours(*) 
     end subroutine F90_p8est_fill_proc_offsets_and_ghost_gids_remote_neighbours 
     
+    !=================================================================================================================================
+    !> summary: Computes the face neighbor of a quadrant
+    !=================================================================================================================================
+    subroutine F90_p4est_quadrant_face_neighbor(q_x, q_y, q_level, face, n_x, n_y, n_level) &
+       bind(c, name="F90_p4est_quadrant_face_neighbor")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       implicit none
+       integer(P4EST_F90_QCOORD), value, intent(in)  :: q_x
+       integer(P4EST_F90_QCOORD), value, intent(in)  :: q_y
+       integer(P4EST_F90_QLEVEL), value, intent(in)  :: q_level
+       integer(c_int)           , value, intent(in)  :: face
+       integer(P4EST_F90_QCOORD)       , intent(out) :: n_x
+       integer(P4EST_F90_QCOORD)       , intent(out) :: n_y
+       integer(P4EST_F90_QLEVEL)       , intent(out) :: n_level
+    end subroutine F90_p4est_quadrant_face_neighbor
+    
+    !=================================================================================================================================
+    !> summary: Conduct binary search for exact match on a range of the p4est layer
+    !=================================================================================================================================
+    function F90_p4est_bsearch (p4est, q_x, q_y, q_level) &
+       bind(c, name="F90_p4est_bsearch")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       implicit none
+       type(c_ptr)              , value, intent(in)  :: p4est
+       integer(P4EST_F90_QCOORD), value, intent(in)  :: q_x
+       integer(P4EST_F90_QCOORD), value, intent(in)  :: q_y
+       integer(P4EST_F90_QLEVEL), value, intent(in)  :: q_level
+       integer(c_int) :: F90_p4est_bsearch
+    end function F90_p4est_bsearch
+    
+    !=================================================================================================================================
+    !> summary: Conduct binary search for exact match on a range of the ghost layer
+    !=================================================================================================================================
+    function F90_p4est_ghost_bsearch (ghost, q_x, q_y, q_level) & 
+      bind(c, name="F90_p4est_ghost_bsearch")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_QCOORD, P4EST_F90_QLEVEL
+       implicit none
+       type(c_ptr)              , value, intent(in)  :: ghost
+       integer(P4EST_F90_QCOORD), value, intent(in)  :: q_x
+       integer(P4EST_F90_QCOORD), value, intent(in)  :: q_y
+       integer(P4EST_F90_QLEVEL), value, intent(in)  :: q_level
+       integer(c_int) :: F90_p4est_ghost_bsearch
+    end function F90_p4est_ghost_bsearch
+    
      !subroutine p4_savemesh(filename, p4est) bind(c)
      !  !=================================================================================================================================
      !  ! save the p4est data  to a p4est state file 
@@ -685,4 +732,4 @@ module p4est_bindings_names
      !end subroutine p4_savemesh
   end interface
 #endif
-end module p4est_bindings_names
+end module p4est_bindings_names 
