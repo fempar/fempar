@@ -1140,8 +1140,8 @@ end subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell
 
 !==================================================================================================
 subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_fe,   & 
-                                                                      ishape_coarser_fe, & 
-                                                                      qpoint, coefficient )
+                                                                   ishape_coarser_fe, & 
+                                                                   qpoint, coefficient )
   implicit none 
   class(hex_nedelec_reference_fe_t), target, intent(in)    :: this
   integer(ip)                              , intent(in)    :: ishape_fe
@@ -1164,9 +1164,9 @@ subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_
 		do ishape=1, this%num_shape_functions 
 		 do jshape=1, this%num_shape_functions 
 			  qpoin = this%h_refinement_subcell_permutation(1, subcell_id, ishape) 
-     coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement( ishape, ishape_fe)    * &
+     coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape_fe, ishape)     * &
 					                            this%h_refinement_interpolation%shape_functions(1, jshape, qpoin)    * & 
-					                            this%change_basis_matrix( perm(ishape_coarser_fe), jshape )
+					                            this%change_basis_matrix( jshape, ishape_coarser_fe )
 					end do 
 				end	do 
 
