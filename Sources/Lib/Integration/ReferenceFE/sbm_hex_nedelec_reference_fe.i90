@@ -95,8 +95,8 @@ subroutine hex_nedelec_reference_fe_free ( this )
   implicit none 
   class(hex_nedelec_reference_fe_t), intent(inout) :: this
     
-		if ( allocated(this%h_refinement_subelem_permutation) ) then
-     call memfree(this%h_refinement_subelem_permutation,__FILE__,__LINE__)
+		if ( allocated(this%h_refinement_subcell_permutation) ) then
+     call memfree(this%h_refinement_subcell_permutation,__FILE__,__LINE__)
   end if
 		  call this%h_refinement_interpolation%free()
  	
@@ -313,9 +313,9 @@ subroutine hex_nedelec_rf_fill_interpolation_pre_basis_quadrature_array( this, q
 								q = q+q_point
         do i=1, tensor_product_polynomial_space%get_num_polynomials()
            c = c+1
-           interpolation%shape_functions(idime,c,q) = tensor_product_values(i)
+           interpolation%shape_functions(1,c,q) = tensor_product_values(i)
            do jdime = 1,interpolation%num_dims
-              interpolation%shape_derivatives(idime,jdime,c,q) = tensor_product_gradients(jdime,i)
+              interpolation%shape_derivatives(1,jdime,c,q) = tensor_product_gradients(jdime,i)
            end do
         end do
      end do
@@ -426,7 +426,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   type(quadrature_t)                  :: cell_quadrature
   type(interpolation_t)               :: reduced_order_cell_interpolation, cell_interpolation
   type(point_t), pointer              :: cell_map_coordinates(:)
-  type(cell_map_t)                      :: cell_map
+  type(cell_map_t)                    :: cell_map
   integer(ip)                         :: reduced_order_vector(SPACE_DIM)
   integer(ip)                         :: num_interior_moments
   type(vector_field_t)                :: v_shape_test
@@ -453,6 +453,9 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   integer(ip)                         :: vertex_within_edge_id
   integer(ip)                         :: vertex_within_face_id
   integer(ip)                         :: edge_id, facet_id, n_face_id
+		
+		! h_adaptivity related data 
+		integer(ip) , parameter             :: h_refinement_ratio = 2.0_rp  
   
   assert ( .not. this%basis_changed )
   assert ( this%conformity .and. this%continuity )
@@ -469,13 +472,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
 		
 		  call memalloc(this%num_shape_functions, &
                 this%num_shape_functions, &
-                this%change_basis_matrix_h, &
-                __FILE__, &
-                __LINE__)
-				
-				  call memalloc(this%num_shape_functions, &
-                this%num_shape_functions, &
-                this%inverse_change_basis_matrix_2h, &
+                this%inverse_change_basis_matrix_h_refinement, &
                 __FILE__, &
                 __LINE__)
   
@@ -499,7 +496,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
  call edge_map%create( edge_quadrature, d_fe_geo )
 
  ! Initialize change of basis matrix
- this%change_basis_matrix = 0.0_rp
+ this%change_basis_matrix                       = 0.0_rp
+	this%inverse_change_basis_matrix_h_refinement  = 0.0_rp 
   
  d = 0
  do edge_id = this%get_first_n_face_id_of_dim(1), & 
@@ -538,6 +536,10 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
               call this%get_value(edget_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
                                                           + shape_test * v_shape_trial * tangent * factor
+																																																										
+														if (qpoint == edge_quadrature%num_quadrature_points) then 
+														this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) = (1.0_rp/h_refinement_ratio) * this%change_basis_matrix(d+ishape,jshape)
+														end if 
            end do
         end do
      end do
@@ -578,7 +580,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      ! Update facet_map on current face
      facet_lid = facet_id - d_fe_geo%get_first_facet_id()+1
      call facet_map%update(reorientation_factor   = d_fe_geo%get_normal_orientation_factor(facet_lid), &
-                          quadrature             = facet_quadrature ) 
+                           quadrature             = facet_quadrature ) 
      
      call this%create_interpolation_restricted_to_facet ( facet_id - d_fe_geo%get_first_facet_id()+1, &
                                            -1, facet_quadrature, facet_interpolation )
@@ -609,12 +611,17 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
               ! This is required to transform u x n in a vector contained within the face
               do i=1,this%num_dims-1
                 call facet_map%get_jacobian_column(i,qpoint,col_jacobian)
-				col_jacobian = col_jacobian * (1.0_rp/col_jacobian%nrm2())
+			            	col_jacobian = col_jacobian * (1.0_rp/col_jacobian%nrm2()) 
                 call cross_product_v_shape_trial_normal_proj%set(i, col_jacobian*cross_product_v_shape_trial_normal)
               end do
               
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
                                                          + cross_product_v_shape_trial_normal_proj * v_shape_test * factor
+																																																									
+														if (qpoint == facet_quadrature%num_quadrature_points) then 
+														this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) = (1.0_rp/h_refinement_ratio)**2.0_rp * this%change_basis_matrix(d+ishape,jshape)
+														end if 
+														
            end do
         end do
      end do
@@ -674,19 +681,18 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
              call this%get_value(cell_interpolation, jshape, qpoint, v_shape_trial)
              this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) + &
                   v_shape_test * v_shape_trial * factor
+																		
+														if (qpoint == cell_quadrature%num_quadrature_points) then 
+														this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) = (1.0_rp/h_refinement_ratio)**this%num_dims * this%change_basis_matrix(d+ishape,jshape)
+														end if 
           end do
        end do
     end do
  end if
-   
-	
-	 ! Prepare h_adaptivity change of basis matrices 
-	  this%inverse_change_basis_matrix_2h = this%change_basis_matrix  
- 			
+    			
   ! Invert change_basis_matrix
   call this%invert_change_basis_matrix()
-  this%change_basis_matrix_h  = 1.0_rp/2.0_rp * this%change_basis_matrix
-		
+ 
  ! Transform type(list_t) member variables of this to reflect change of basis
   call this%own_dofs_n_face%create( this%num_n_faces + 1 )
 
@@ -736,7 +742,6 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   end if
   this%dofs_n_face      = this%own_dofs_n_face
  
-  
   ! Re-define own_node_permutations-related stuff
   if ( allocated(this%num_rotations_x_dim) )  call memfree (this%num_rotations_x_dim,__FILE__,__LINE__)
   if ( allocated(this%num_orientations_x_dim) ) call memfree (this%num_orientations_x_dim,__FILE__,__LINE__)
@@ -845,6 +850,131 @@ subroutine hex_nedelec_reference_fe_fill_qpoints_permutations(this, quadrature, 
   
 end subroutine hex_nedelec_reference_fe_fill_qpoints_permutations
 
+ !==================================================================================================
+subroutine hex_nedelec_reference_fe_apply_scaling_to_interpolation(this, cell_map, interpolation)
+  implicit none
+  class(hex_nedelec_reference_fe_t), intent(in)    :: this
+		type(cell_map_t)                 , intent(in)    :: cell_map
+		type(interpolation_t)            , intent(inout) :: interpolation
+
+	 type(point_t)   , pointer            :: cell_coordinates(:)
+  type(hex_lagrangian_reference_fe_t)  :: d_fe_geo
+		
+  ! Edges 
+  type(edge_map_t)                   :: edge_map
+  type(quadrature_t)                 :: edge_quadrature
+  type(list_iterator_t)              :: vertex_iterator 
+  type(point_t), pointer             :: edge_map_coordinates(:)
+  integer(ip)                        :: edge_id  
+  integer(ip)                        :: vertex_within_edge_id  
+  ! Faces 
+  type(facet_map_t)                  :: facet_map
+  type(quadrature_t)                 :: facet_quadrature
+  type(point_t), pointer             :: facet_map_coordinates(:)
+  integer(ip)                        :: facet_id 
+  integer(ip)                        :: vertex_within_facet_id 
+  ! Cell 
+  type(quadrature_t)                 :: cell_quadrature
+  integer(ip)                        :: vertex_within_cell_id
+		
+  ! Measure application 
+  type(list_iterator_t)   :: interior_nodes_iterator
+  integer(ip)             :: inode, qpoin 
+  
+  cell_coordinates => cell_map%get_coordinates() 
+  
+  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
+  call d_fe_geo%create(topology    = this%get_topology(),    &
+                       num_dims    = this%num_dims,          &
+                       order       = 1,                      &
+                       field_type  = field_type_scalar,      &
+                       conformity  = .false. )
+ 
+  call this%create_edge_quadrature( edge_quadrature )
+  call edge_map%create( edge_quadrature, d_fe_geo )
+  
+   do edge_id = this%get_first_n_face_id_of_dim(1), this%get_first_n_face_id_of_dim(1) + this%get_num_n_faces_of_dim(1)-1
+	
+     edge_map_coordinates => edge_map%get_coordinates()   
+
+     vertex_within_edge_id = 1
+     vertex_iterator = this%vertices_n_face%create_iterator(edge_id)
+     do while ( .not. vertex_iterator%is_upper_bound () )
+        vertex_within_cell_id = vertex_iterator%get_current()
+								call edge_map_coordinates(vertex_within_edge_id)%init( cell_coordinates(vertex_within_cell_id)%get_value() )
+        call vertex_iterator%next()
+        vertex_within_edge_id = vertex_within_edge_id + 1
+     end do
+
+     ! Update edge_map on current edge
+     call edge_map%update(local_edge_id = edge_id - this%get_first_n_face_id_of_dim(1)+1, &
+                          reference_fe  = this,                                                 &
+                          quadrature    = edge_quadrature )
+	
+    interior_nodes_iterator = this%own_dofs_n_face%create_iterator(edge_id)
+    do while ( .not. interior_nodes_iterator%is_upper_bound() )
+       inode = interior_nodes_iterator%get_current()  	     
+       interpolation%shape_functions(:,inode,:)     = edge_map%get_measure() * interpolation%shape_functions(:,inode,:)
+	      interpolation%shape_derivatives(:,:,inode,:) = edge_map%get_measure() * interpolation%shape_derivatives(:,:,inode,:)
+       call interior_nodes_iterator%next()
+     end do 
+	 
+   end do 
+ 
+   if ( (this%get_num_dims()==3) .and. (this%get_order()>1) ) then 
+   
+   call this%create_facet_quadrature( facet_quadrature )
+   call facet_map%create( facet_quadrature, d_fe_geo )
+   do facet_id = this%get_first_facet_id(), this%get_first_facet_id() + this%get_num_facets()-1
+   
+        facet_map_coordinates => facet_map%get_coordinates()
+
+        vertex_within_facet_id = 1
+        vertex_iterator = this%vertices_n_face%create_iterator(facet_id)
+        do while ( .not. vertex_iterator%is_upper_bound () )
+           vertex_within_cell_id = vertex_iterator%get_current()
+           call facet_map_coordinates(vertex_within_facet_id)%init( cell_coordinates(vertex_within_cell_id)%get_value() )
+           call vertex_iterator%next()
+           vertex_within_facet_id = vertex_within_facet_id + 1
+        end do
+   
+		     call facet_map%update(reorientation_factor   = 0.0_rp,                     &
+                             quadrature             = facet_quadrature )
+				
+	   interior_nodes_iterator = this%own_dofs_n_face%create_iterator(facet_id)
+    do while ( .not. interior_nodes_iterator%is_upper_bound() )
+       inode = interior_nodes_iterator%get_current()
+        interpolation%shape_functions(:,inode,:)     = facet_map%get_measure() * interpolation%shape_functions(:,inode,:)
+	       interpolation%shape_derivatives(:,:,inode,:) = facet_map%get_measure() * interpolation%shape_derivatives(:,:,inode,:)
+       call interior_nodes_iterator%next()
+     end do 
+		
+   end do 
+				
+   end if 
+   
+    if ( this%get_order() .ge. 2 ) then 
+
+    call this%create_quadrature( cell_quadrature ) 
+						
+    interior_nodes_iterator = this%own_dofs_n_face%create_iterator( this%get_first_n_face_id_of_dim(this%num_dims) )
+    do while ( .not. interior_nodes_iterator%is_upper_bound() )
+       inode = interior_nodes_iterator%get_current()
+        interpolation%shape_functions(:,inode,:)     = cell_map%get_measure() * interpolation%shape_functions(:,inode,:)
+	       interpolation%shape_derivatives(:,:,inode,:) = cell_map%get_measure() * interpolation%shape_derivatives(:,:,inode,:)
+       call interior_nodes_iterator%next()
+     end do 
+	end if 
+	
+   call edge_quadrature%free() 
+   call edge_map%free()
+   call facet_quadrature%free() 
+   call facet_map%free() 
+   call d_fe_geo%free() 
+   call cell_quadrature%free() 
+
+end subroutine hex_nedelec_reference_fe_apply_scaling_to_interpolation
+
 !==================================================================================================
 subroutine hex_nedelec_reference_fe_fill_h_refinement_interpolation ( this )
   implicit none 
@@ -911,10 +1041,11 @@ subroutine hex_nedelec_reference_fe_fill_h_refinement_permutations ( this )
   implicit none 
   class(hex_nedelec_reference_fe_t), intent(inout) :: this
   call this%fill_n_subfacet_permutation(this%num_dims, &
-                                       this%h_refinement_subelem_permutation)
+                                       this%h_refinement_subcell_permutation)
 end subroutine hex_nedelec_reference_fe_fill_h_refinement_permutations
 
 !==================================================================================================
+! Actually building subcell permutation array
 subroutine hex_nedelec_reference_fe_fill_n_subfacet_permutation ( this, n_face_dime, permutation_array )
   implicit none 
   class(hex_nedelec_reference_fe_t)   , intent(in)    :: this              
@@ -978,8 +1109,9 @@ subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell ( this, 
   real(rp)              :: coefficient
   type(node_array_t)    :: h_refinement_node_array
   type(node_iterator_t) :: node_iterator_on_subcell
-  
+  		
   num_refinements = 1
+  ! TO-DO: Node array for the Nedelec element? --> further investigate to interpolate nodal values! 
   call h_refinement_node_array%create( this%polytope, ( num_refinements + 1 ) * this%order_vector )
   
   node_iterator_on_subcell = h_refinement_node_array%create_node_iterator( this%polytope%get_n_face(this%polytope%num_n_faces), &
@@ -987,19 +1119,19 @@ subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell ( this, 
   
   nodal_values_on_child = 0.0_rp
   ishape_fe = 0
-  do icomp = 0, this%num_field_components-1
+
      call node_iterator_on_subcell%init()
      do while (.not. node_iterator_on_subcell%has_finished() )
         qpoint = node_iterator_on_subcell%current()
         ishape_fe = ishape_fe + 1
         do ishape_coarser_fe = 1, this%get_num_shape_functions()
-           call this%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient)
+           call this%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,subcell_id+1,coefficient)
            nodal_values_on_child(ishape_fe) = nodal_values_on_child(ishape_fe) + &
-                                      coefficient * nodal_values_on_parent(ishape_coarser_fe)
+                                              coefficient * nodal_values_on_parent(ishape_coarser_fe)
         end do
         call node_iterator_on_subcell%next()
      end do
-  end do
+
   assert( ishape_fe == this%get_num_shape_functions() )
   
   call h_refinement_node_array%free()
@@ -1012,20 +1144,32 @@ subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_
                                                                       qpoint, coefficient )
   implicit none 
   class(hex_nedelec_reference_fe_t), target, intent(in)    :: this
-  integer(ip)                                 , intent(in)    :: ishape_fe
-  integer(ip)                                 , intent(in)    :: ishape_coarser_fe
-  integer(ip)                                 , intent(in)    :: qpoint
-  real(rp)                                    , intent(inout) :: coefficient
+  integer(ip)                              , intent(in)    :: ishape_fe
+  integer(ip)                              , intent(in)    :: ishape_coarser_fe
+  integer(ip)                              , intent(in)    :: qpoint
+  real(rp)                                 , intent(inout) :: coefficient
+		
+		integer(ip), parameter, dimension(4) :: perm = [ 2, 1, 4, 3 ]
+		
+		integer(ip)  :: ishape, jshape
+		integer(ip)  :: subcell_id, qpoin 
+		
   assert( ishape_fe >= 1 .and. ishape_fe <= this%num_shape_functions )
   assert( ishape_coarser_fe >= 1 .and. ishape_coarser_fe <= this%num_shape_functions )
   assert( qpoint >= 1 )
-  if ( this%node_component_array(ishape_fe,2) == & 
-       this%node_component_array(ishape_coarser_fe,2) ) then
-     coefficient = this%h_refinement_interpolation%shape_functions(1, & 
-                               this%node_component_array(ishape_coarser_fe,1),qpoint)
-  else
-     coefficient = 0.0_rp
-  end if
+		
+		subcell_id  = qpoint 
+		coefficient = 0.0_rp 
+		!	coeff = C_h^{-T} · R · C_2h^T 
+		do ishape=1, this%num_shape_functions 
+		 do jshape=1, this%num_shape_functions 
+			  qpoin = this%h_refinement_subcell_permutation(1, subcell_id, ishape) 
+     coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement( ishape, ishape_fe)    * &
+					                            this%h_refinement_interpolation%shape_functions(1, jshape, qpoin)    * & 
+					                            this%change_basis_matrix( perm(ishape_coarser_fe), jshape )
+					end do 
+				end	do 
+
 end subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient
 
 !==================================================================================================
@@ -1037,9 +1181,9 @@ function hex_nedelec_reference_fe_get_h_refinement_interpolation ( this )
 end function hex_nedelec_reference_fe_get_h_refinement_interpolation
 
 !==================================================================================================
-function hex_nedelec_reference_fe_get_h_refinement_subelem_perm ( this )
+function hex_nedelec_reference_fe_get_h_refinement_subcell_perm ( this )
   implicit none 
   class(hex_nedelec_reference_fe_t), target, intent(in) :: this
-  integer(ip), pointer :: hex_nedelec_reference_fe_get_h_refinement_subelem_perm(:,:,:)
-  hex_nedelec_reference_fe_get_h_refinement_subelem_perm => this%h_refinement_subelem_permutation
-end function hex_nedelec_reference_fe_get_h_refinement_subelem_perm
+  integer(ip), pointer :: hex_nedelec_reference_fe_get_h_refinement_subcell_perm(:,:,:)
+  hex_nedelec_reference_fe_get_h_refinement_subcell_perm => this%h_refinement_subcell_permutation
+end function hex_nedelec_reference_fe_get_h_refinement_subcell_perm

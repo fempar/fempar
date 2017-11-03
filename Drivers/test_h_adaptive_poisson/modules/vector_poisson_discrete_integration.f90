@@ -74,9 +74,8 @@ contains
     type(point_t)            , pointer :: quad_coords(:)
     type(cell_integrator_t), pointer :: cell_int
     type(vector_field_t), allocatable  :: shape_values(:,:)
-    type(tensor_field_t), allocatable  :: shape_gradients(:,:)
+				type(vector_field_t), allocatable  :: shape_curls(:,:) 
 
-    
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
 
@@ -102,7 +101,7 @@ contains
        ! Very important: this has to be inside the loop, as different FEs can be present!
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()
-       cell_map          => fe%get_cell_map()
+       cell_map         => fe%get_cell_map()
        cell_int         => fe%get_cell_integrator(1)
        num_dofs = fe%get_num_dofs()
 
@@ -112,7 +111,7 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       call cell_int%get_gradients(shape_gradients)
+       call cell_int%get_curls(shape_curls)
        call cell_int%get_values(shape_values)
        do qpoint = 1, num_quad_points
        
@@ -121,8 +120,9 @@ contains
           ! Diffusive term
           do idof = 1, num_dofs
              do jdof = 1, num_dofs
-                ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                elmat(idof,jdof) = elmat(idof,jdof) + factor * double_contract(shape_gradients(jdof,qpoint),shape_gradients(idof,qpoint))
+                ! A_K(i,j) = ( (phi_i, phi_j) + (curl(phi_i),curl(phi_j)) )
+                elmat(idof,jdof) = elmat(idof,jdof) + factor * ( shape_values(jdof, qpoint)*shape_values(idof, qpoint) + & 
+																																																																shape_curls(jdof,qpoint) * shape_curls(idof,qpoint) )
              end do
           end do
           
@@ -139,7 +139,7 @@ contains
     end do
     call fe_space%free_fe_cell_iterator(fe)
     deallocate(shape_values, stat=istat); check(istat==0);
-    deallocate(shape_gradients, stat=istat); check(istat==0);
+    deallocate(shape_curls, stat=istat); check(istat==0);
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin

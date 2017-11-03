@@ -34,30 +34,48 @@ module vector_poisson_conditions_names
   private
   type, extends(conditions_t) :: vector_poisson_conditions_t
      private
-     type(boundary_function_t), pointer :: boundary_function
+     type(boundary_function_Hx_t), pointer :: boundary_function_Hx 
+					type(boundary_function_Hy_t), pointer :: boundary_function_Hy
+					type(boundary_function_Hz_t), pointer :: boundary_function_Hz
    contains
-     procedure :: set_boundary_function       => vector_poisson_conditions_set_boundary_function
-     procedure :: get_num_components       => vector_poisson_conditions_get_num_components  
-     procedure :: get_components_code         => vector_poisson_conditions_get_components_code
-     procedure :: get_function                => vector_poisson_conditions_get_function
+     procedure :: set_boundary_function_Hx       => vector_poisson_conditions_set_boundary_function_Hx
+					procedure :: set_boundary_function_Hy       => vector_poisson_conditions_set_boundary_function_Hy
+					procedure :: set_boundary_function_Hz       => vector_poisson_conditions_set_boundary_function_Hz
+     procedure :: get_num_components             => vector_poisson_conditions_get_num_components  
+     procedure :: get_components_code            => vector_poisson_conditions_get_components_code
+     procedure :: get_function                   => vector_poisson_conditions_get_function
   end type vector_poisson_conditions_t
   
   public :: vector_poisson_conditions_t
   
 contains
   
-  subroutine vector_poisson_conditions_set_boundary_function (this, boundary_function)
+  subroutine vector_poisson_conditions_set_boundary_function_Hx (this, boundary_function)
+    implicit none
+    class(vector_poisson_conditions_t), intent(inout)       :: this
+    class(boundary_function_Hx_t)          , target, intent(in) :: boundary_function
+    this%boundary_function_Hx => boundary_function
+  end subroutine vector_poisson_conditions_set_boundary_function_Hx
+		
+		  subroutine vector_poisson_conditions_set_boundary_function_Hy (this, boundary_function)
+    implicit none
+    class(vector_poisson_conditions_t), intent(inout)       :: this
+    class(boundary_function_Hy_t)          , target, intent(in) :: boundary_function
+    this%boundary_function_Hy => boundary_function
+  end subroutine vector_poisson_conditions_set_boundary_function_Hy
+		
+		  subroutine vector_poisson_conditions_set_boundary_function_Hz (this, boundary_function)
     implicit none
     class(vector_poisson_conditions_t), intent(inout)      :: this
-    type(boundary_function_t)          , target, intent(in) :: boundary_function
-    this%boundary_function => boundary_function
-  end subroutine vector_poisson_conditions_set_boundary_function
+    class(boundary_function_Hz_t)          , target, intent(in) :: boundary_function
+    this%boundary_function_Hz => boundary_function
+  end subroutine vector_poisson_conditions_set_boundary_function_Hz
 
   function vector_poisson_conditions_get_num_components(this)
     implicit none
     class(vector_poisson_conditions_t), intent(in) :: this
     integer(ip) :: vector_poisson_conditions_get_num_components
-    vector_poisson_conditions_get_num_components = this%boundary_function%num_dims
+    vector_poisson_conditions_get_num_components = this%boundary_function_Hx%num_dims
   end function vector_poisson_conditions_get_num_components
 
   subroutine vector_poisson_conditions_get_components_code(this, boundary_id, components_code)
@@ -81,7 +99,13 @@ contains
     assert ( component_id == 1 .or. component_id == 2 .or.  component_id == 3 )
     nullify(function)
     if ( boundary_id == 1 ) then
-      function => this%boundary_function
+				  if ( component_id == 1 ) then 
+      function => this%boundary_function_Hx 
+						elseif ( component_id == 2 ) then 
+						function => this%boundary_function_Hy
+						elseif ( component_id == 3 ) then 
+						function => this%boundary_function_Hz
+						end if 
     end if  
   end subroutine vector_poisson_conditions_get_function 
 

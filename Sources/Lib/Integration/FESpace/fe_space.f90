@@ -548,22 +548,17 @@ module fe_space_names
      procedure, non_overridable, private :: free_has_fixed_dofs                          => serial_fe_space_free_has_fixed_dofs
      procedure                           :: set_up_strong_dirichlet_bcs                  => serial_fe_space_set_up_strong_dirichlet_bcs
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs_on_vef_and_field => serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
-     procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
+					procedure                           :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function 
+					procedure                           :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
+					generic                             :: interpolate                                  => interpolate_scalar_function, interpolate_vector_function					
+					procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
      procedure                           :: project_dirichlet_values_curl_conforming     => serial_fe_space_project_dirichlet_values_curl_conforming
      procedure, non_overridable, private :: allocate_and_fill_fields_to_project_         => serial_fe_space_allocate_and_fill_fields_to_project_
      procedure, non_overridable, private :: allocate_and_fill_offset_component           => serial_fe_space_allocate_and_fill_offset_component
      procedure, non_overridable, private :: allocate_and_fill_global2subset_and_inverse  => serial_fe_space_allocate_and_fill_global2subset_and_inverse 
      procedure, non_overridable, private :: get_function_scalar_components               => serial_fe_space_get_function_scalar_components
      procedure, non_overridable, private :: evaluate_vector_function_scalar_components   => serial_fe_space_evaluate_vector_function_scalar_components
-     procedure, non_overridable, private :: project_curl_conforming_compute_elmat_elvec  => serial_fe_space_project_curl_conforming_compute_elmat_elvec
-     
-     procedure, private, non_overridable :: interpolate_scalar    => serial_fe_space_interpolate_scalar
-     procedure, private, non_overridable :: interpolate_vector    => serial_fe_space_interpolate_vector
-     procedure, private, non_overridable :: interpolate_tensor    => serial_fe_space_interpolate_tensor
-     generic                             :: interpolate           => interpolate_scalar, &
-                                                                     interpolate_vector, &
-                                                                     interpolate_tensor
-     
+     procedure, non_overridable, private :: project_curl_conforming_compute_elmat_elvec  => serial_fe_space_project_curl_conforming_compute_elmat_elvec     
      procedure, non_overridable, private :: allocate_and_init_cell_quadratures_degree      => serial_fe_space_allocate_and_init_cell_quadratures_degree
      procedure, non_overridable, private :: free_cell_quadratures_degree                   => serial_fe_space_free_cell_quadratures_degree
      
@@ -665,7 +660,7 @@ module fe_space_names
 
  end type serial_fe_space_t  
  
- public :: serial_fe_space_t, serial_fe_space_set_up_strong_dirichlet_bcs, serial_fe_space_interpolate_dirichlet_values
+ public :: serial_fe_space_t, serial_fe_space_set_up_strong_dirichlet_bcs
  public :: fe_space_type_cg, fe_space_type_dg
  public :: fe_cell_iterator_t
  public :: fe_vef_iterator_t
@@ -795,7 +790,9 @@ module fe_space_names
    procedure                                   :: print                                           => par_fe_space_print
    procedure                                   :: free                                            => par_fe_space_free
    procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
-   procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
+			procedure                                   :: interpolate_scalar_function                     => par_fe_space_interpolate_scalar_function
+			procedure                                   :: interpolate_vector_function                     => par_fe_space_interpolate_vector_function  
+			procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    procedure                                   :: project_dirichlet_values_curl_conforming        => par_fe_space_project_dirichlet_values_curl_conforming
    
    procedure        , non_overridable, private :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
@@ -1114,7 +1111,153 @@ module fe_space_names
   end type p_fe_function_t
   
   public :: fe_function_t, p_fe_function_t
-  
+
+ character(*), parameter :: interpolator_type_nodal = "interpolator_type_nodal"
+ character(*), parameter :: interpolator_type_Hcurl = "interpolator_type_Hcurl"
+ 
+ ! Abstract interpolator
+ type, abstract :: interpolator_t
+    private
+    integer(ip) :: field_id
+  contains    
+    procedure, private  :: get_function_values_from_scalar_components => interpolator_t_get_function_values_from_scalar_components
+    procedure, private  :: get_vector_function_values                 => interpolator_t_get_vector_function_values 
+    generic             :: get_function_values                        => get_vector_function_values 
+    procedure, private  :: reallocate_vector_function_values          => interpolator_t_reallocate_vector_function_values 
+    procedure, private  :: reallocate_scalar_function_values          => interpolator_t_reallocate_scalar_function_values
+    procedure, private  :: reallocate_array                           => interpolator_t_reallocate_array 
+    generic             :: reallocate_if_needed => reallocate_vector_function_values, reallocate_scalar_function_values, reallocate_array 
+    ! Deferred TBPs 
+    procedure(interpolator_create_interface)                               , deferred :: create
+    procedure(interpolator_evaluate_scalar_function_moments_interface)     , deferred :: evaluate_scalar_function_moments
+    procedure(interpolator_evaluate_vector_function_moments_interface)     , deferred :: evaluate_vector_function_moments 
+    procedure(interpolator_evaluate_function_components_moments_interface) , deferred :: evaluate_function_scalar_components_moments
+    procedure(interpolator_free_interface)                                 , deferred :: free 			
+ end type interpolator_t
+
+ type p_interpolator_t
+    class(interpolator_t), allocatable :: p 
+  contains
+ end type p_interpolator_t
+
+ abstract interface 
+
+    subroutine interpolator_create_interface( this, fe_space, field_id )
+      import :: interpolator_t, reference_fe_t, ip, serial_fe_space_t
+      implicit none
+      class(interpolator_t)    , intent(inout) :: this
+      class(serial_fe_space_t) , intent(in)    :: fe_space
+      integer(ip)              , intent(in)    :: field_id
+    end subroutine interpolator_create_interface
+
+    subroutine interpolator_evaluate_scalar_function_moments_interface( this, fe, scalar_function, dof_values, n_face_mask, time )
+      import :: interpolator_t, scalar_function_t, fe_cell_iterator_t, rp   
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(scalar_function_t)        , intent(in)    :: scalar_function
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      logical  , optional             , intent(in)    :: n_face_mask(:)
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_scalar_function_moments_interface
+
+    subroutine interpolator_evaluate_vector_function_moments_interface( this, fe, vector_function, dof_values, n_face_mask, time )
+      import :: interpolator_t, vector_function_t, fe_cell_iterator_t, rp   
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(vector_function_t)        , intent(in)    :: vector_function
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      logical  , optional             , intent(in)    :: n_face_mask(:)
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_vector_function_moments_interface
+
+    subroutine interpolator_evaluate_function_components_moments_interface( this, n_face_mask, fe, vector_function_scalar_components, dof_values, time )
+      import :: interpolator_t, fe_cell_iterator_t, p_scalar_function_t, rp, ip 
+      implicit none 
+      class(interpolator_t)           , intent(inout) :: this
+      logical                         , intent(in)    :: n_face_mask(:) 
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_function_components_moments_interface
+
+    subroutine interpolator_free_interface( this )
+      import :: interpolator_t, cell_map_t  
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+    end subroutine interpolator_free_interface
+ end interface
+
+ type, extends(interpolator_t) :: nodal_interpolator_t 
+ private 
+ type(cell_map_t)     , allocatable  :: cell_maps(:) 
+ type(p_quadrature_t) , allocatable  :: nodal_quadratures(:)   
+ ! Boundary values array 
+ real(rp), allocatable             :: scalar_function_values(:,:)
+ type(vector_field_t), allocatable :: function_values(:,:)
+contains 
+ procedure :: create                                             => nodal_interpolator_create
+ procedure :: evaluate_scalar_function_moments                   => nodal_interpolator_evaluate_scalar_function_moments 
+ procedure :: evaluate_vector_function_moments                   => nodal_interpolator_evaluate_vector_function_moments		
+ procedure :: evaluate_function_scalar_components_moments        => nodal_interpolator_evaluate_function_scalar_components_moments
+ procedure :: free                                               => nodal_interpolator_free
+end type nodal_interpolator_t
+
+type, extends(interpolator_t), abstract :: Hcurl_interpolator_t 
+private 
+! Maps 
+type(edge_map_t)  , allocatable  :: edge_maps(:) 
+type(facet_map_t) , allocatable  :: facet_maps(:) 
+type(cell_map_t)  , allocatable  :: cell_maps(:) 
+! Quadratures 
+type(quadrature_t)  , allocatable  :: edge_quadratures(:) 
+type(quadrature_t)  , allocatable  :: facet_quadratures(:) 
+type(quadrature_t)  , allocatable  :: cell_quadratures(:)  
+! Interpolation 
+type(interpolation_t) , allocatable :: edge_interpolations(:)
+type(interpolation_t) , allocatable :: facet_interpolations(:) 
+type(interpolation_t) , allocatable :: cell_interpolations(:)  
+! Function values arrays 
+type(vector_field_t), allocatable :: edge_function_values(:,:) 
+type(vector_field_t), allocatable :: facet_function_values(:,:) 
+type(vector_field_t), allocatable :: cell_function_values(:,:)
+! Boundary values array 
+real(rp), allocatable             :: scalar_function_values_on_edge(:,:)
+real(rp), allocatable             :: scalar_function_values_on_facet(:,:)
+contains   
+procedure :: evaluate_scalar_function_moments    => Hcurl_interpolator_evaluate_scalar_function_moments 
+procedure, private :: update_edge_map_coordinates    => Hcurl_interpolator_update_edge_map_coordinates
+procedure, private :: update_facet_map_coordinates   => Hcurl_interpolator_update_facet_map_coordinates
+generic            :: update_map_coordinates         => update_edge_map_coordinates, update_facet_map_coordinates
+end type Hcurl_interpolator_t 
+
+type, extends(Hcurl_interpolator_t) :: hex_Hcurl_interpolator_t 
+private       
+type(hex_lagrangian_reference_fe_t)       , allocatable   :: fes_1D(:) 
+type(hex_nedelec_reference_fe_t)          , allocatable   :: fes_2D(:) 
+type(hex_raviart_thomas_reference_fe_t )  , allocatable   :: fes_rt(:) 
+type(interpolation_t)                     , allocatable   :: real_cell_interpolations(:) 
+contains 
+procedure :: create                                             => hex_Hcurl_interpolator_create
+procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_function_scalar_components_moments        => hex_Hcurl_interpolator_evaluate_function_components_moments
+procedure :: free                                               => hex_Hcurl_interpolator_free
+end type hex_Hcurl_interpolator_t
+
+type, extends(Hcurl_interpolator_t) :: tet_Hcurl_interpolator_t 
+private       
+type(tet_lagrangian_reference_fe_t)    , allocatable      :: fes_1D(:)
+type(tet_lagrangian_reference_fe_t)    , allocatable      :: fes_2D(:) 
+type(tet_lagrangian_reference_fe_t )   , allocatable      :: fes_lagrangian(:) 
+contains 
+procedure :: create                                             => tet_Hcurl_interpolator_create
+procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_interpolator_evaluate_function_components_moments
+procedure :: free                                               => tet_Hcurl_interpolator_free
+end type tet_Hcurl_interpolator_t
+
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
@@ -1140,5 +1283,11 @@ contains
 #include "sbm_coarse_fe_vef_iterator.i90"
 
 #include "sbm_fe_function.i90"
+
+#include "sbm_interpolator.i90"
+#include "sbm_nodal_interpolator.i90"
+#include "sbm_Hcurl_interpolator.i90"
+#include "sbm_hex_Hcurl_interpolator.i90" 
+#include "sbm_tet_Hcurl_interpolator.i90"
 
 end module fe_space_names
