@@ -701,9 +701,7 @@ contains
                  min_cell   = min(min_cell,jcell)
                  if (min_cell == jcell) then
                     min_iedge   = this%quad_to_edge(iedge,icell)+1
-                 end if
-                 call work_vector_cells_around%push_back(jcell) 
-                 
+                 end if                 
                  if ( jcell > this%get_num_local_cells() ) then ! If neighbour cell is ghost
                     vef_at_interface = .true.
                  end if
@@ -2043,12 +2041,13 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
     deallocate(this%quad_to_quad)
     deallocate(this%quad_to_face)
     deallocate(this%quad_to_corner)
-    !deallocate(this%quad_to_half_by_edge)
     if (associated(this%quad_to_half)) then
       deallocate(this%quad_to_half)
     end if   
-  end if 
-  
+    if (associated(this%quad_to_half_by_edge)) then
+      deallocate(this%quad_to_half_by_edge)
+    end if   
+  end if
   
   call c_f_pointer(qq,this%quad_to_quad,[NUM_FACES_3D,local_num_quadrants])
   call c_f_pointer(qf,this%quad_to_face,[NUM_FACES_3D,local_num_quadrants])
@@ -2058,7 +2057,11 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
     nullify(this%quad_to_half)
   end if   
   call c_f_pointer(qc,this%quad_to_corner,[NUM_CORNERS_3D,local_num_quadrants])
-  call c_f_pointer(this%QHE,this%quad_to_half_by_edge,[NUM_SUBEDGES_EDGE_3D,num_half_edges])
+  if(num_half_edges>0) then 
+    call c_f_pointer(this%QHE,this%quad_to_half_by_edge,[NUM_SUBEDGES_EDGE_3D,num_half_edges])
+  else
+    nullify(this%quad_to_half_by_edge)
+  end if   
  end if
  
   this%previous_num_local_cells = this%get_num_local_cells()
@@ -2085,11 +2088,14 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   integer(P4EST_F90_QLEVEL), pointer :: quad_to_face(:,:)
   integer(ip), pointer :: quad_to_half(:,:)
   integer(ip), pointer :: quad_to_corner(:,:)
+  integer(ip), pointer :: quad_to_half_by_edge(:,:)
+  integer(ip), allocatable :: quad_to_quad_by_edge(:,:)
+  integer(P4EST_F90_QLEVEL), allocatable :: quad_to_edge(:,:)
   integer(ip) :: num_corners_x_cell, num_edges_x_cell, num_faces_x_cell
   integer(ip) :: num_face_corners, num_faces_at_corner, num_subfacets_facet
   integer(ip) :: num_edge_corners, num_subedgets_edget
-  integer(ip) :: icell, iface, icorner, jcell, jcell_iface
-  integer(ip) :: face, subface, facet_id, flip, mortar, icell_iface
+  integer(ip) :: icell, iface, icorner, jcell, jcell_iface, iedge, jcell_iedge
+  integer(ip) :: face, subface, edge,  facet_id, flip, mortar, icell_iface
   integer(ip) :: istat
   integer(P4EST_F90_QLEVEL) :: jcell_iconn
   type(std_vector_integer_ip_t), allocatable :: extra_cols_quad_to_half(:)
@@ -2097,6 +2103,8 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   integer(ip) :: num_half_faces
   integer(ip) :: child_id, isubface, subfacet_id, delta
   integer(ip), pointer :: P4EST_SUBCELLS_IN_TOUCH_FACE(:,:)
+  integer(ip), pointer :: P4EST_FACES_SUBFACE_FACE_NEIGHBOUR(:,:,:)
+  integer(ip), pointer :: P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR(:,:)
   integer(ip) :: i, current, jcell_icorner
   integer(ip), pointer :: P4EST_OPPOSITE_CORNER(:)
   integer(P4EST_F90_LOCIDX) :: neighbour_quad_coords(3)
@@ -2110,8 +2118,10 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
      num_face_corners      =  NUM_FACE_CORNERS_2D
      num_faces_at_corner   =  NUM_FACES_AT_CORNER_2D
      num_subfacets_facet   =  NUM_SUBFACES_FACE_2D
-     P4EST_SUBCELLS_IN_TOUCH_FACE => P4EST_SUBCELLS_IN_TOUCH_FACE_2D
-     P4EST_OPPOSITE_CORNER => P4EST_OPPOSITE_CORNER_2D
+     P4EST_SUBCELLS_IN_TOUCH_FACE          => P4EST_SUBCELLS_IN_TOUCH_FACE_2D
+     P4EST_OPPOSITE_CORNER                 => P4EST_OPPOSITE_CORNER_2D
+     P4EST_FACES_SUBFACE_FACE_NEIGHBOUR    => P4EST_FACES_SUBFACE_FACE_NEIGHBOUR_2D
+     P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR => P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR_2D
   else if ( this%get_num_dims() == 3 ) then
      num_corners_x_cell      =  NUM_CORNERS_3D
      num_edges_x_cell        =  NUM_EDGES_3D
@@ -2121,8 +2131,10 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
      num_faces_at_corner     =  NUM_FACES_AT_CORNER_3D
      num_subfacets_facet     =  NUM_SUBFACES_FACE_3D
      num_subedgets_edget     =  NUM_SUBEDGES_EDGE_3D
-     P4EST_SUBCELLS_IN_TOUCH_FACE => P4EST_SUBCELLS_IN_TOUCH_FACE_3D
-     P4EST_OPPOSITE_CORNER   => P4EST_OPPOSITE_CORNER_3D
+     P4EST_SUBCELLS_IN_TOUCH_FACE          => P4EST_SUBCELLS_IN_TOUCH_FACE_3D
+     P4EST_OPPOSITE_CORNER                 => P4EST_OPPOSITE_CORNER_3D
+     P4EST_FACES_SUBFACE_FACE_NEIGHBOUR    => P4EST_FACES_SUBFACE_FACE_NEIGHBOUR_3D
+     P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR => P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR_3D
   end if
   
   allocate ( quad_to_quad(num_faces_x_cell    , this%get_num_cells()), stat=istat); check(istat==0);
@@ -2132,18 +2144,30 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   double_size_neighbour_visited = .false.
   allocate(extra_cols_quad_to_half(num_subfacets_facet), stat=istat); check(istat==0);
   
-  quad_to_quad  (1:num_faces_x_cell  , 1:this%get_num_local_cells())                      = this%quad_to_quad
-  quad_to_quad  (1:num_faces_x_cell  , this%get_num_local_cells()+1:this%get_num_cells()) = -1
-  quad_to_face  (1:num_faces_x_cell  , 1:this%get_num_local_cells())                      = this%quad_to_face  
-  quad_to_face  (1:num_faces_x_cell  , this%get_num_local_cells()+1:this%get_num_cells()) = -100  
-  quad_to_corner(1:num_corners_x_cell, 1:this%get_num_local_cells())                      = this%quad_to_corner  
+  if ( this%get_num_dims() == 3 ) then
+    call memalloc ( num_edges_x_cell, this%get_num_cells(), quad_to_quad_by_edge, __FILE__, __LINE__ )
+    call memalloc ( num_edges_x_cell, this%get_num_cells(), quad_to_edge        , __FILE__, __LINE__ )
+  end if
+  
+  quad_to_quad  (1:num_faces_x_cell  , 1:this%get_num_local_cells())                       = this%quad_to_quad
+  quad_to_quad  (1:num_faces_x_cell  , this%get_num_local_cells()+1:this%get_num_cells())  = -1
+  quad_to_face  (1:num_faces_x_cell  , 1:this%get_num_local_cells())                       = this%quad_to_face  
+  quad_to_face  (1:num_faces_x_cell  , this%get_num_local_cells()+1:this%get_num_cells())  = -100  
+  quad_to_corner(1:num_corners_x_cell, 1:this%get_num_local_cells())                       = this%quad_to_corner  
   quad_to_corner (1:num_corners_x_cell, this%get_num_local_cells()+1:this%get_num_cells()) = -1
- 
+  if ( this%get_num_dims() == 3 ) then
+    quad_to_quad_by_edge(1:num_edges_x_cell, 1:this%get_num_local_cells())                      = this%quad_to_quad_by_edge
+    quad_to_quad_by_edge(1:num_edges_x_cell, this%get_num_local_cells()+1:this%get_num_cells()) = -1
+    quad_to_edge        (1:num_edges_x_cell, 1:this%get_num_local_cells())                      = this%quad_to_edge
+    quad_to_edge        (1:num_edges_x_cell, this%get_num_local_cells()+1:this%get_num_cells()) = -100  
+  end if
+  
   if (associated(this%quad_to_half)) then 
     num_half_faces=size(this%quad_to_half,2)
   else
     num_half_faces=0
   end if 
+  
   do icell=1, this%get_num_local_cells()
     do iface=1, num_faces_x_cell
       jcell_iconn = quad_to_face(iface,icell)    
@@ -2192,39 +2216,98 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
             ! Push local cell icell among the neighbours cells of the ghost cell
             call extra_cols_quad_to_half(isubface)%push_back(icell-1)
             
-            do i = 1, size(P4EST_FACES_SUBFACE_FACE_NEIGHBOUR_2D,3)
-                ! Extract local cell facet id(s) across which the rest of 
-                ! neighbours cells of the ghost cell are neighbours  
-                face    = P4EST_FACES_SUBFACE_FACE_NEIGHBOUR_2D   ((iface-1)/2+1,isubface,i)-1
-                subface = P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR_2D((iface-1)/2+1,isubface,i)
-                if (this%get_num_dims() == 2) then
-                  call F90_p4est_quadrant_face_neighbor(this%quad_coords(1,icell), &
+            do i = 1, size(P4EST_FACES_SUBFACE_FACE_NEIGHBOUR,3)
+              ! Extract local cell facet id(s) across which the rest of 
+              ! neighbours cells of the ghost cell are neighbours  
+              face    = P4EST_FACES_SUBFACE_FACE_NEIGHBOUR((iface-1)/2+1,isubface,i)-1
+              subface = P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR(isubface,i)
+              if (this%get_num_dims() == 2) then
+                call F90_p4est_quadrant_face_neighbor(this%quad_coords(1,icell), &
+                                                      this%quad_coords(2,icell), &
+                                                      this%quad_level(icell),    &
+                                                      face,                      & 
+                                                      neighbour_quad_coords(1),  &
+                                                      neighbour_quad_coords(2),  &
+                                                      neighbour_quad_level ) 
+                ! 0-based indexing for ghost_cell_pos
+                ghost_cell_pos = F90_p4est_ghost_bsearch(this%p4est_ghost, &
+                                                         neighbour_quad_coords(1), &
+                                                         neighbour_quad_coords(2), &
+                                                         neighbour_quad_level )
+                  
+                if ( ghost_cell_pos >= 0 ) then
+                  call extra_cols_quad_to_half(subface)%push_back(this%get_num_local_cells()+ghost_cell_pos)
+                else
+                  local_cell_pos = F90_p4est_bsearch(this%p4est, &
+                                                     neighbour_quad_coords(1), &
+                                                     neighbour_quad_coords(2), &
+                                                     neighbour_quad_level )  
+                  assert(local_cell_pos >=0 )
+                  call extra_cols_quad_to_half(subface)%push_back(local_cell_pos)
+                end if
+              else if (this%get_num_dims() == 3) then  
+                  call F90_p8est_quadrant_face_neighbor(this%quad_coords(1,icell), &
                                                         this%quad_coords(2,icell), &
+                                                        this%quad_coords(3,icell), &
                                                         this%quad_level(icell),    &
                                                         face,                      & 
                                                         neighbour_quad_coords(1),  &
                                                         neighbour_quad_coords(2),  &
+                                                        neighbour_quad_coords(3),  &
                                                         neighbour_quad_level ) 
                   ! 0-based indexing for ghost_cell_pos
-                  ghost_cell_pos = F90_p4est_ghost_bsearch(this%p4est_ghost, &
+                  ghost_cell_pos = F90_p8est_ghost_bsearch(this%p4est_ghost, &
                                                            neighbour_quad_coords(1), &
                                                            neighbour_quad_coords(2), &
+                                                           neighbour_quad_coords(3), &
                                                            neighbour_quad_level )
                   
                   if ( ghost_cell_pos >= 0 ) then
                     call extra_cols_quad_to_half(subface)%push_back(this%get_num_local_cells()+ghost_cell_pos)
                   else
-                    local_cell_pos = F90_p4est_bsearch(this%p4est, &
+                    local_cell_pos = F90_p8est_bsearch(this%p4est, &
                                                        neighbour_quad_coords(1), &
                                                        neighbour_quad_coords(2), &
+                                                       neighbour_quad_coords(3), &
                                                        neighbour_quad_level )  
                     assert(local_cell_pos >=0 )
                     call extra_cols_quad_to_half(subface)%push_back(local_cell_pos)
                   end if
-                else if (this%get_num_dims() == 3) then  
-                  check(.false.) 
-                end if
+              end if
             end do
+           
+            ! The remaining half-size neighbour is an edge neighbour
+            if ( this%get_num_dims() == 3 ) then
+              edge    = P4EST_FACES_SUBFACE_EDGE_NEIGHBOUR_3D((iface-1)/2+1,isubface)-1
+              subface = P4EST_OPPOSITE_CORNER_2D(isubface)
+              call F90_p8est_quadrant_edge_neighbor(this%quad_coords(1,icell), &
+                                                    this%quad_coords(2,icell), &
+                                                    this%quad_coords(3,icell), &
+                                                    this%quad_level(icell),    &
+                                                    edge,                      & 
+                                                    neighbour_quad_coords(1),  &
+                                                    neighbour_quad_coords(2),  &
+                                                    neighbour_quad_coords(3),  &
+                                                    neighbour_quad_level ) 
+              ! 0-based indexing for ghost_cell_pos
+              ghost_cell_pos = F90_p8est_ghost_bsearch(this%p4est_ghost, &
+                                                       neighbour_quad_coords(1), &
+                                                       neighbour_quad_coords(2), &
+                                                       neighbour_quad_coords(3), &
+                                                       neighbour_quad_level )
+                  
+              if ( ghost_cell_pos >= 0 ) then
+                call extra_cols_quad_to_half(subface)%push_back(this%get_num_local_cells()+ghost_cell_pos)
+              else
+                local_cell_pos = F90_p8est_bsearch(this%p4est, &
+                                                   neighbour_quad_coords(1), &
+                                                   neighbour_quad_coords(2), &
+                                                   neighbour_quad_coords(3), &
+                                                   neighbour_quad_level )  
+                assert(local_cell_pos >=0 )
+                call extra_cols_quad_to_half(subface)%push_back(local_cell_pos)
+              end if
+            end if 
           end if 
         end if 
       else ! Half-side neighbour 
@@ -2244,6 +2327,28 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
       end if
     end do
 
+    if ( this%get_num_dims() == 3 ) then
+      do iedge=1, num_edges_x_cell
+        ! Find neigs only by edge
+        jcell = this%quad_to_quad_by_edge(iedge,icell)+1
+        if (icell /= jcell .and. jcell > 0) then
+          jcell_iconn = quad_to_edge(iedge,icell)
+          call p8est_eval_edge_connectivity(jcell_iconn, jcell_iedge, flip, mortar)
+          assert (flip==1) ! All cells MUST be aligned with each other
+          if (mortar == -1) then ! Conformal neighbour 
+            jcell = quad_to_quad_by_edge(iedge,icell)+1
+            ! If neighbour cell is ghost
+            if ( jcell > this%get_num_local_cells() ) then
+              quad_to_quad(jcell_iedge,jcell) = icell-1
+              quad_to_face(jcell_iedge,jcell) = iedge-1
+            end if
+          else if ( mortar >= 1 .and. mortar <= num_subedgets_edget )  then ! Double-size neighbour 
+                
+          end if
+        end if      
+      end do 
+    end if   
+    
     do icorner=1, num_corners_x_cell
       jcell          = quad_to_corner(icorner,icell)+1
       jcell_icorner  = P4EST_OPPOSITE_CORNER(icorner)
@@ -2279,6 +2384,12 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   this%quad_to_face   => quad_to_face
   this%quad_to_half   => quad_to_half
   this%quad_to_corner => quad_to_corner
+  if ( this%get_num_dims() == 3 ) then
+    call memfree (this%quad_to_quad_by_edge, __FILE__, __LINE__)
+    call memfree (this%quad_to_edge, __FILE__, __LINE__)
+    call memmovealloc(quad_to_quad_by_edge, this%quad_to_quad_by_edge, __FILE__, __LINE__)
+    call memmovealloc(quad_to_edge, this%quad_to_edge, __FILE__, __LINE__)
+  end if
   
   call memfree(double_size_neighbour_visited, __FILE__, __LINE__)
   do facet_id=1, num_subfacets_facet

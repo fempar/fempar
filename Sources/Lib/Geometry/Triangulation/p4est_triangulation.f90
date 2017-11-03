@@ -104,11 +104,9 @@ module p4est_triangulation_names
                                                   reshape([ 4, 2, &
                                                             3, 1 ] ,[NUM_FACES_2D/2,NUM_SUBFACES_FACE_2D,1])
                                                   
-  integer(ip), target :: P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR_2D(NUM_FACES_2D/2, NUM_SUBFACES_FACE_2D,1) = &
-                                                  reshape([ 2, 2, &
-                                                            1, 1 ], [NUM_FACES_2D/2,NUM_SUBFACES_FACE_2D,1])
+  integer(ip), target :: P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR_2D(NUM_SUBFACES_FACE_2D,1) = &
+                                                  reshape( [ 2, 1 ], [NUM_SUBFACES_FACE_2D,1] )
   
-
   ! For 3D
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_FACE_3D = 4
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_EDGE_3D = 2
@@ -266,6 +264,26 @@ module p4est_triangulation_names
   integer(ip), target :: P4EST_2_FEMPAR_CORNER_3D(NUM_CORNERS_3D) = [ 1, 2, 3, 4, 5, 6, 7, 8 ]
   integer(ip), target :: P4EST_2_FEMPAR_FACE_3D  (NUM_FACES_3D)   = [ 5, 6, 3, 4, 1, 2 ]
   integer(ip), target :: P4EST_2_FEMPAR_EDGE_3D  (NUM_EDGES_3D)   = [ 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12 ]
+  
+  integer(ip), target :: P4EST_FACES_SUBFACE_FACE_NEIGHBOUR_3D(NUM_FACES_3D/2, NUM_SUBFACES_FACE_3D, 2) = &
+                                                  reshape( [ 4, 2, 2, &
+                                                             6, 6, 4, &
+                                                             3, 1, 1, & 
+                                                             6, 6, 4, & 
+                                                             4, 2, 2, &
+                                                             5, 5, 3, &
+                                                             3, 1, 1, &
+                                                             5, 5, 3 ], [NUM_FACES_3D/2,NUM_SUBFACES_FACE_3D,2])
+                                                  
+  integer(ip), target :: P4EST_FACES_SUBFACE_EDGE_NEIGHBOUR_3D(NUM_FACES_3D/2, NUM_SUBFACES_FACE_3D) = &
+                                                  reshape( [ 4, 8, 12, &
+                                                             3, 7, 11, &
+                                                             2, 6, 10, & 
+                                                             1, 5,  9 ], [NUM_FACES_3D/2,NUM_SUBFACES_FACE_3D] )                                                
+                                                  
+  integer(ip), target :: P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR_3D(NUM_SUBFACES_FACE_3D,2) = &
+                                                  reshape( [ 2, 1, 4, 3, &
+                                                             3, 4, 1, 2 ], [NUM_SUBFACES_FACE_3D,2])
   
   integer(ip), parameter :: refinement = 1 
   integer(ip), parameter :: coarsening = -1 

@@ -1503,6 +1503,52 @@ void F90_p4est_quadrant_face_neighbor(p4est_qcoord_t   q_x,
     *n_level = r.level;
 }
 
+void F90_p8est_quadrant_face_neighbor(p4est_qcoord_t   q_x,
+                                      p4est_qcoord_t   q_y,
+                                      p4est_qcoord_t   q_z,
+                                      int8_t       q_level,
+                                      int             face,
+                                      p4est_qcoord_t * n_x,
+                                      p4est_qcoord_t * n_y,
+                                      p4est_qcoord_t * n_z,
+                                      int8_t         * n_level)
+{
+    p8est_quadrant_t q;
+    p8est_quadrant_t r;
+    q.x      = q_x;
+    q.y      = q_y;
+    q.z      = q_z;
+    q.level  = q_level;
+    p8est_quadrant_face_neighbor(&q,face,&r);
+    *n_x     = r.x;
+    *n_y     = r.y;
+    *n_z     = r.z;
+    *n_level = r.level;
+}
+
+void F90_p8est_quadrant_edge_neighbor(p4est_qcoord_t   q_x,
+                                      p4est_qcoord_t   q_y,
+                                      p4est_qcoord_t   q_z,
+                                      int8_t       q_level,
+                                      int             edge,
+                                      p4est_qcoord_t * n_x,
+                                      p4est_qcoord_t * n_y,
+                                      p4est_qcoord_t * n_z,
+                                      int8_t         * n_level)
+{
+    p8est_quadrant_t q;
+    p8est_quadrant_t r;
+    q.x      = q_x;
+    q.y      = q_y;
+    q.z      = q_z;
+    q.level  = q_level;
+    p8est_quadrant_edge_neighbor(&q,edge,&r);
+    *n_x     = r.x;
+    *n_y     = r.y;
+    *n_z     = r.z;
+    *n_level = r.level;
+}
+
 int F90_p4est_bsearch (p4est_t * p4est, 
                        p4est_qcoord_t q_x,
                        p4est_qcoord_t q_y,
@@ -1523,23 +1569,60 @@ int F90_p4est_bsearch (p4est_t * p4est,
     return (result < 0) ? ((int) (-1)) : ((int) result);
 }
 
+int F90_p8est_bsearch (p8est_t * p8est, 
+                       p4est_qcoord_t q_x,
+                       p4est_qcoord_t q_y,
+                       p4est_qcoord_t q_z,
+                       int8_t q_level)
+{
+    p8est_quadrant_t q;
+    ssize_t result;
+    p8est_tree_t * tree;
+    sc_array_t * quadrants;
+    
+    tree = p8est_tree_array_index (p8est->trees,0);
+    quadrants = &(tree->quadrants);
+    
+    q.x      = q_x;
+    q.y      = q_y;
+    q.z      = q_z;
+    q.level  = q_level;
+    result = sc_array_bsearch (quadrants, &q, p8est_quadrant_compare);
+    return (result < 0) ? ((int) (-1)) : ((int) result);
+}
+
 int F90_p4est_ghost_bsearch (p4est_ghost_t * ghost, 
                              p4est_qcoord_t   q_x,
                              p4est_qcoord_t   q_y,
                              int8_t       q_level)
 {
-   p4est_quadrant_t q;
+    p4est_quadrant_t q;
+    q.x      = q_x;
+    q.y      = q_y;
+    q.level  = q_level;
+    return (int) p4est_ghost_bsearch (ghost,
+                                      (int) -1,
+                                      (p4est_topidx_t) -1, 
+                                      &q);
+}
+
+int F90_p8est_ghost_bsearch (p8est_ghost_t * ghost, 
+                             p4est_qcoord_t   q_x,
+                             p4est_qcoord_t   q_y,
+                             p4est_qcoord_t   q_z,
+                             int8_t       q_level)
+{
+   p8est_quadrant_t q;
    q.x      = q_x;
    q.y      = q_y;
+   q.z      = q_z;
    q.level  = q_level;
-   return (int) p4est_ghost_bsearch (ghost,
+   return (int) p8est_ghost_bsearch (ghost,
                                      (int) -1,
                                      (p4est_topidx_t) -1, 
                                      &q);
 }
 
-
-   
 //void p4_savemesh ( char    filename[],
 //                   p4est_t *p4est)
 //{

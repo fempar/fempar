@@ -187,9 +187,15 @@ subroutine p4est_par_triangulation_free ( this)
         else
           deallocate(this%quad_to_quad)
           deallocate(this%quad_to_face)
-          deallocate(this%quad_to_half)
+          if ( associated(this%quad_to_half) ) then 
+            deallocate(this%quad_to_half)
+          end if  
           deallocate(this%quad_to_corner)
-          !deallocate(this%quad_to_half_by_edge)
+          if ( this%get_num_dims() == 3 ) then
+            if ( associated(this%quad_to_half_by_edge) ) then
+              deallocate(this%quad_to_half_by_edge)
+            end if
+          end if
         end if 
 
         if (allocated(this%quad_coords)) &
