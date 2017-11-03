@@ -107,8 +107,6 @@ contains
     type(fe_cell_function_vector_t)    :: fe_cell_function_previous, fe_cell_function_current 
     type(vector_field_t), allocatable  :: shape_values_H(:,:)
     type(vector_field_t), allocatable  :: curl_values_H(:,:)    
-    real(rp)            , allocatable  :: shape_values_P(:,:)
-    type(vector_field_t), allocatable  :: grad_values_P(:,:)
     
     ! Nonlinear parameters computed in the integrate 
     real(rp)   :: resistivity, tangent_resistivity
@@ -164,14 +162,10 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       
-       
+             
        call fe%get_values(shape_values_H,1)
        call fe%get_curls(curl_values_H,1)
-       call fe%get_values(shape_values_P,2)
-       call fe%get_gradients(grad_values_P,2)
-       
-       
+        
        do qpoint = 1, num_quad_points
           factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           
@@ -182,7 +176,7 @@ contains
           ! Previous solution to integrate RHS contribution 
           call fe_cell_function_previous%get_value( qpoint, H_value_previous )
           
-          ! BLOCK [1,1] : mu_0 ( H,v ) + rho( curl(H), curl(v) )  
+          !  mu_0 ( H,v ) + rho( curl(H), curl(v) )  
           do idof=1, fe%get_num_dofs_field(1)
             do jdof=1, fe%get_num_dofs_field(1)  
               elmat(idof,jdof) = elmat(idof,jdof) + &
@@ -197,30 +191,6 @@ contains
             elvec(idof) = elvec(idof) + (source_term_values(qpoint,1)+permeability/time_factor*H_value_previous)*shape_values_H(idof,qpoint)*factor
           end do
        
-           ! BLOCK [1,2] : - ( v, grad(p) )
-          do idof=1, fe%get_num_dofs_field(1)
-            do jdof=1, fe%get_num_dofs_field(2)      
-              elmat(idof,fe%get_num_dofs_field(1)+jdof) = elmat(idof,fe%get_num_dofs_field(1)+jdof)  &
-                                                       - (shape_values_H(idof,qpoint)*grad_values_P(jdof,qpoint))*factor
-            end do            
-          end do
-
-       ! BLOCK [2,1] :  ( H, grad(q) )
-          do idof=1, fe%get_num_dofs_field(2) 
-            do jdof=1, fe%get_num_dofs_field(1)
-              elmat(fe%get_num_dofs_field(1)+idof,jdof) = elmat(fe%get_num_dofs_field(1)+idof,jdof)  &
-                                                       + (shape_values_H(jdof,qpoint)*grad_values_P(idof,qpoint))*factor   
-            end do            
-          end do
-          
-           ! BLOCK [2,2] :  ( p,q )
-          do idof=1, fe%get_num_dofs_field(2)
-            do jdof=1, fe%get_num_dofs_field(2)
-              elmat(fe%get_num_dofs_field(1)+idof,fe%get_num_dofs_field(1)+jdof) = elmat(fe%get_num_dofs_field(1)+idof,fe%get_num_dofs_field(1)+jdof)  &
-                                                       + 1.0_rp/permeability*shape_values_P(idof,qpoint)*shape_values_P(jdof,qpoint)*factor   
-            end do            
-          end do
-
       end do ! Qpoint loop 
           
        call fe%assembly( this%H_current, elmat, elvec, assembler )

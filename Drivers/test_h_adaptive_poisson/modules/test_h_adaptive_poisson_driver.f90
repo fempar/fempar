@@ -71,13 +71,9 @@ module test_h_adaptive_poisson_driver_names
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)                   :: fe_affine_operator
      
-     ! Direct and Iterative linear solvers data type
-!#ifdef ENABLE_MKL     
+     ! Direct and Iterative linear solvers data type  
      type(direct_solver_t)                        :: direct_solver
-!#else     
-!     type(iterative_linear_solver_t)              :: iterative_linear_solver
-!#endif     
- 
+   
      ! Poisson problem solution FE function
      type(fe_function_t)                          :: solution
    contains
@@ -399,7 +395,7 @@ contains
     class(matrix_t), pointer       :: matrix
 
     call parameter_list%init()
-!#ifdef ENABLE_MKL
+
     FPLError = parameter_list%set(key = direct_solver_type,                   value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
@@ -417,16 +413,7 @@ contains
     class DEFAULT
        assert(.false.) 
     end select
-!#else    
-!    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-!    !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
-!    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
-!    assert(FPLError == 0)
-!    call this%iterative_linear_solver%create(this%fe_space%get_environment())
-!    call this%iterative_linear_solver%set_type_from_string(cg_name)
-!    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-!    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-!#endif
+
     call parameter_list%free()
   end subroutine setup_solver
    
@@ -465,14 +452,9 @@ contains
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
-    
-!#ifdef ENABLE_MKL    
+       
     call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
-!#else
-!    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-!                                            dof_values)
-!#endif    
-    
+   
     call this%fe_space%update_hanging_dof_values(this%solution)
     !call this%solution%update_fixed_dof_values(this%fe_space)
     
@@ -511,12 +493,8 @@ contains
     w1p = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
     w1infty_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     w1infty = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
-
-!#ifdef ENABLE_MKL    
-    error_tolerance = 1.0e-08
-!#else
-!    error_tolerance = 1.0e-06
-!#endif    
+ 
+    error_tolerance = 1.0e-08   
     
     write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < error_tolerance )
     write(*,'(a20,e32.25)') 'l1_norm:', l1; !check ( l1 < error_tolerance )
@@ -605,11 +583,7 @@ contains
     
     call this%solution%free()
     
-!#ifdef ENABLE_MKL        
     call this%direct_solver%free()
-!#else
-!    call this%iterative_linear_solver%free()
-!#endif
     
     call this%fe_affine_operator%free()
     call this%fe_space%free()

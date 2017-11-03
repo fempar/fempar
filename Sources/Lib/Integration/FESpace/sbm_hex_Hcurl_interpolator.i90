@@ -388,7 +388,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
            do ishape = 1, this%fes_1D(reference_fe_id)%get_num_shape_functions()  
               idof = own_dofs%get_current() 
               call this%fes_1D(reference_fe_id)%get_value(this%edge_interpolations(reference_fe_id), ishape, qpoint, shape_test)
-             !  dof_values(idof) = dof_values(idof) + 1.0_rp/edge_measure * this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
+             ! dof_values(idof) = dof_values(idof) + 1.0_rp/edge_measure * this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
 														dof_values(idof) = dof_values(idof) + this%edge_function_values(qpoint,1) * shape_test * tangent * factor
               call own_dofs%next() 
            end do

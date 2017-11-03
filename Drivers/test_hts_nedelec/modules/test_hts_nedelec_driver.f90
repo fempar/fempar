@@ -49,7 +49,8 @@ module test_hts_nedelec_driver_names
      type(hts_nedelec_params_t)               :: test_params
 
      ! Cells and lower dimension objects container
-     type(serial_triangulation_t)             :: triangulation
+     type(p4est_serial_triangulation_t)       :: triangulation
+					type(ParameterList_t), pointer           :: parameter_list
 
      ! Analytical functions of the problem
      type(hts_nedelec_analytical_functions_t) :: problem_functions 
@@ -80,6 +81,7 @@ module test_hts_nedelec_driver_names
      procedure                  :: run_simulation
      procedure        , private :: parse_command_line_parameters
      procedure        , private :: setup_triangulation
+					procedure        , private :: set_cells_for_refinement 
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
@@ -106,6 +108,7 @@ contains
     implicit none
     class(test_hts_nedelec_driver_t ), intent(inout) :: this
     call this%test_params%create()
+				this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
 
   ! -----------------------------------------------------------------------------------------------
@@ -119,12 +122,21 @@ contains
     integer(ip)                               :: inode
     integer(ip)       :: icell, icoord 
     real(rp)          :: cx, cy, cz 
-    integer(ip)       :: istat 
-	real(rp)          :: R, h, x0, y0, z0
+    integer(ip)       :: i, istat 
+   	real(rp)          :: R, h, x0, y0, z0
+				real(rp)          :: domain(6)
 
-    istat = 0
-    call this%triangulation%create(this%test_params%get_values())
+    ! Create a structured mesh with a custom domain 
+    domain   = [0.0_rp, 1.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 1.0_rp]
+    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
+    call this%triangulation%create(this%parameter_list)
 
+				do i = 1,7
+      call this%set_cells_for_refinement()
+      call this%triangulation%refine_and_coarsen()
+      call this%triangulation%clear_refinement_and_coarsening_flags()
+    end do
+				
 	if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
 	
     ! Assign subset_id to different cells for the created structured mesh 
@@ -133,39 +145,28 @@ contains
     allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0) 
     
     do while ( .not. cell%has_finished() )
-       call cell%get_coordinates(cell_coordinates)
+       call cell%get_nodes_coordinates(cell_coordinates)
        ! Compute center of the element coordinates 
        cx = 0.0_rp
        cy = 0.0_rp 
-	   cz = 0.0_rp 
+	      cz = 0.0_rp 
        do inode=1,cell%get_num_nodes()  
           cx = cx + cell_coordinates(inode)%get(1)
           cy = cy + cell_coordinates(inode)%get(2)
-		  cz = cz + cell_coordinates(inode)%get(3)
+		        cz = cz + cell_coordinates(inode)%get(3)
        end do
        cx = cx/real(cell%get_num_nodes(),rp)
        cy = cy/real(cell%get_num_nodes(),rp)
-	   cz = cz/real(cell%get_num_nodes(),rp)
+	      cz = cz/real(cell%get_num_nodes(),rp)
 
-       !! Select material case: HTS TAPE in the center 
-       !if ( ( (18e-3_rp<cx) .and. (cx<30e-3_rp) ) .and. ( (23.73e-3_rp<cy) .and. (cy<24.27e-3_rp) ) ) then
-       !   cells_set( cell%get_lid() ) = hts 
-       !else 
-       !   cells_set( cell%get_lid() ) = air
-       !end if
-	   
-	   !! Select material case: HTS CABLE in the center benchamark 
-	   R = 12.5e-3_rp 
-	   h = 10e-3_rp 
-	   x0 = 25e-3_rp
-	   y0 = 25e-3_rp 
-	   z0 = 25e-3_rp 
-	     if ( ( ( (cx-x0)**2.0_rp + (cy-y0)**2.0_rp) .lt. R**2.0_rp) .and. ( z0-0.5_rp*h < cz .and. cz < z0 + 0.5_rp*h )) then
+       ! Select material case: HTS TAPE in the center 
+       if ( ( (0.45_rp<cx) .and. (cx<0.55_rp) ) .and. ( (0.45_rp<cy) .and. (cy<0.55_rp) ) ) then
           cells_set( cell%get_gid() ) = hts 
        else 
           cells_set( cell%get_gid() ) = air
        end if
-       call cell%next() 
+    
+							call cell%next() 
     end do
 
     call this%triangulation%fill_cells_set(cells_set)  
@@ -176,38 +177,89 @@ contains
 	end if 
 
   end subroutine setup_triangulation
+		
+		 subroutine set_cells_for_refinement(this)
+    implicit none
+    class(test_hts_nedelec_driver_t), intent(inout) :: this
+    class(cell_iterator_t)      , allocatable :: cell
+    type(point_t), allocatable :: coords(:)
+    integer(ip) :: istat, k
+    real(rp) ::  x,y
+				real(rp), parameter :: x0 = 0.045
+				real(rp), parameter :: y0 = 0.055
+				real(rp), parameter :: xL = 0.0495
+				real(rp), parameter :: yL = 0.0505 
+    real(rp) :: R
+    integer(ip), parameter :: max_num_cell_nodes = 4
+    integer(ip), parameter :: max_level = 4
+
+    call this%triangulation%create_cell_iterator(cell)
+    if (this%triangulation%get_num_dims() == 2) then
+      allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
+
+      do while ( .not. cell%has_finished() )
+        !if ( mod(cell%get_gid()-1,2) == 0 ) then
+        !  call cell%set_for_refinement()
+        !end if
+
+        call cell%get_nodes_coordinates(coords)
+        x = 0.0
+        y = 0.0
+        do k=1,max_num_cell_nodes
+         x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
+         y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
+        end do
+																						
+								! If cell contains device, refine! 
+								if ( ( cell%get_level() < 3 ) .or. ((0.45 < x .or. x < 0.55) .and. (0.45 < y .or. y < 0.55) ) ) then 
+								call cell%set_for_refinement()
+        end if 
+								
+        call cell%next()
+      end do
+      deallocate(coords,stat=istat); check(istat==0)
+
+    else if (this%triangulation%get_num_dims() == 3) then    
+      do while ( .not. cell%has_finished() )
+          if ( (cell%get_gid()==6) .or. (cell%get_level() == 0) )then
+          call cell%set_for_refinement()
+        end if
+        call cell%next()
+      end do
+
+    else
+      mcheck(.false.,'Only for 2D and 3D')
+
+    end if
+
+    call this%triangulation%free_cell_iterator(cell)
+
+  end subroutine set_cells_for_refinement
 
   ! -----------------------------------------------------------------------------------------------
   subroutine setup_reference_fes(this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     integer(ip) :: istat, ivef
-    type(vef_iterator_t)  :: vef
+				class(vef_iterator_t), allocatable :: vef
 
-    allocate(this%reference_fes(2), stat=istat)
+    allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
     
-    this%reference_fes(1) =  make_reference_fe ( topology = topology_tet,                                          &
+    this%reference_fes(1) =  make_reference_fe ( topology = topology_hex,                                          &
                                                  fe_type = fe_type_nedelec,                                        &
                                                  num_dims = this%triangulation%get_num_dims(),      &
                                                  order = this%test_params%get_magnetic_field_reference_fe_order(), &
                                                  field_type = field_type_vector,                                   &
                                                  conformity = .true. ) 
-    
-    this%reference_fes(2) =  make_reference_fe ( topology = topology_tet,                                             &
-                                                 fe_type = fe_type_lagrangian,                                        &
-                                                 num_dims = this%triangulation%get_num_dims(),         &
-                                                 order = this%test_params%get_magnetic_pressure_reference_fe_order(), &
-                                                 field_type = field_type_scalar,                                      &
-                                                 conformity = .true. ) 
-    
+   
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           ! In the 3D case, vefs asociated to faces 21,22 are Neumann boundary (2D case set_id <= 9)
        !  if ( vef%is_at_boundary() .and. ( vef%get_set_id() .ne. 21 .and. vef%get_set_id() .ne. 22) ) then 
           if ( vef%is_at_boundary() ) then 
-		     call vef%set_set_id(1)
+		        call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
@@ -223,7 +275,7 @@ contains
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
 
-    call this%hts_nedelec_conditions%set_num_dims( this%triangulation%get_num_dims() + 1)
+    call this%hts_nedelec_conditions%set_num_dims( this%triangulation%get_num_dims() )
     call this%problem_functions%initialize( H  = this%test_params%get_external_magnetic_field_amplitude(),  &
                                             wH = this%test_params%get_external_magnetic_field_frequency(),  &
                                             J  = this%test_params%get_external_current_amplitude(),         &
@@ -232,7 +284,7 @@ contains
     call this%fe_space%create( triangulation = this%triangulation, &
                                reference_fes = this%reference_fes, &
                                conditions    = this%hts_nedelec_conditions )
-    call this%fe_space%generate_global_dof_numbering() 
+
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration() 
        
@@ -242,14 +294,6 @@ contains
   subroutine setup_system (this)
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this 
-    ! Need to initialize dof_values, no interpolation available in Nedelec
-    class(vector_t) , pointer :: dof_values_current 
-    class(vector_t) , pointer :: dof_values_previous
-    
-    dof_values_current => this%H_current%get_free_dof_values() 
-    dof_values_previous => this%H_previous%get_free_dof_values()
-    call dof_values_current%init(0.0_rp) 
-    call dof_values_previous%init(0.0_rp) 
     
     call this%problem_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%hts_nedelec_integration%create( this%theta_method, this%H_current, this%H_previous, &
@@ -261,7 +305,6 @@ contains
                                           fe_space                          = this%fe_space,           &
                                           discrete_integration              = this%hts_nedelec_integration )
     
-    call this%hts_nedelec_conditions%set_boundary_function_p(this%problem_functions%get_boundary_function_p())
     call this%hts_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
     call this%hts_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
     if ( this%triangulation%get_num_dims() == 3) then 
@@ -269,21 +312,23 @@ contains
     end if
     ! Create H_previous with initial time (t0) boundary conditions 
     call this%H_previous%create(this%fe_space)
-    call this%fe_space%interpolate_dirichlet_values(this%H_previous,this%theta_method%get_initial_time() , fields_to_interpolate=(/2/) )
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%H_previous,time=this%theta_method%get_initial_time(), fields_to_project=(/1/) ) 
+				call this%fe_space%interpolate_vector_function( 1, this%problem_functions%get_solution(), &
+                                                       this%H_previous,                       &  
+                                                       time=this%theta_method%get_initial_time() ) 
+
+    call this%fe_space%interpolate_dirichlet_values(this%H_previous, time=this%theta_method%get_initial_time() ) 
     ! Update fe_space to the current time (t1) boundary conditions, create H_current
     call this%H_current%create(this%fe_space)
-    ! this%H_current = this%H_previous
-    call this%fe_space%interpolate_dirichlet_values(this%H_current,this%theta_method%get_initial_time() , fields_to_interpolate=(/2/) )
-    call this%fe_space%project_dirichlet_values_curl_conforming(this%H_current,time=this%theta_method%get_current_time(), fields_to_project=(/1/) )
+				call this%fe_space%interpolate_vector_function( 1, this%problem_functions%get_solution(), &
+                                                       this%H_current,                        &  
+                                                       time=this%theta_method%get_initial_time() ) 
+    call this%fe_space%interpolate_dirichlet_values(this%H_current, time=this%theta_method%get_current_time()  )
     
-        ! Setup constraint matrix if the problem is defined constrained 
+    ! Setup constraint matrix if the problem is defined constrained 
     if (this%test_params%get_apply_current_density_constraint() ) then 
     call this%setup_constraint_matrix() 
     end if
     
-    nullify(dof_values_current) 
-    nullify(dof_values_previous) 
   end subroutine setup_system
   
   ! -----------------------------------------------------------------------------------------------
@@ -495,6 +540,7 @@ contains
      if (this%nonlinear_solver%converged() ) then  ! Theta method goes forward 
         call this%compute_hysteresis_data() 
         call this%theta_method%update_solutions(this%H_current, this%H_previous)
+								call this%fe_space%update_hanging_dof_values(this%H_current)
         call this%write_time_step_solution() 
         call this%theta_method%move_time_forward( this%nonlinear_solver%get_current_iteration(), &
                                                   this%nonlinear_solver%get_ideal_num_iterations() ) 
@@ -587,6 +633,7 @@ contains
     call fe_cell_function_current%create(this%fe_space,  1)
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%create_fe_cell_iterator(fe)
+				call fe%update_integration() 
     quad             => fe%get_quadrature()
     num_quad_points  = quad%get_num_quadrature_points()
     quad_coords      => fe%get_quadrature_points_coordinates()
@@ -638,29 +685,23 @@ contains
     implicit none
     class(test_hts_nedelec_driver_t), intent(inout) :: this
     class(vector_function_t), pointer :: H_exact_function
-    class(scalar_function_t), pointer :: p_exact_function
     
     type(error_norms_vector_t)  :: H_error_norm
     type(error_norms_scalar_t)  :: p_error_norm 
     real(rp) :: l2, hcurl, l2p
     
     H_exact_function => this%problem_functions%get_solution()
-    p_exact_function => this%problem_functions%get_boundary_function_p()
     
     call H_error_norm%create(this%fe_space,1)
-    call p_error_norm%create(this%fe_space,2)
 
     l2 = H_error_norm%compute(H_exact_function, this%H_current, l2_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )   
     hcurl = H_error_norm%compute(H_exact_function, this%H_current, hcurl_seminorm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )    
-    l2p = p_error_norm%compute(p_exact_function, this%H_current, l2_norm, time=this%theta_method%get_current_time() - this%theta_method%get_time_step() )
     
     write(*,*) 'H ERROR NORMS **********************' 
     write(*,'(a20,f20.16)') 'l2_norm(H):', l2;        
-    write(*,'(a20,f20.16)') 'hcurl_norm(H):', hcurl;  
-    write(*,'(a20,f20.16)') 'l2_norm(p):', l2p;       
+    write(*,'(a20,f20.16)') 'hcurl_norm(H):', hcurl;      
     
     call H_error_norm%free()
-    call p_error_norm%free() 
   end subroutine check_solution 
   
     ! -----------------------------------------------------------------------------------------------
@@ -673,10 +714,7 @@ contains
        call  this%oh%attach_fe_space(this%fe_space)
        call  this%oh%add_fe_function(this%H_current, 1, 'H')
        call  this%oh%add_fe_function(this%H_current, 1, 'J',       curl_diff_operator)
-       call  this%oh%add_fe_function(this%H_current, 2, 'p')
-       !call  this%oh%add_fe_function(this%H_current, 1, 'grad(H)', grad_diff_operator)
-       !call  this%oh%add_fe_function(this%H_current, 1, 'div(H)',  div_diff_operator)
-       !call  this%oh%add_fe_function(this%H_current, 2, 'grad(p)',grad_diff_operator )
+       call  this%oh%add_fe_function(this%H_current, 1, 'div(H)',  div_diff_operator)
        call  this%oh%open(this%test_params%get_dir_path_out(), this%test_params%get_prefix())
     endif
   end subroutine initialize_output
@@ -723,7 +761,7 @@ contains
     call this%initialize_output() 
     call this%solve_system()
     call this%finalize_output()
-    call this%check_solution() 
+   ! call this%check_solution() 
     call this%free()
   end subroutine run_simulation
 

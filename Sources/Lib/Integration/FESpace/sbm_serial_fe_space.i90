@@ -2767,7 +2767,7 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
                                                         fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
            end if
            
-											type is (hex_nedelec_reference_fe_t) 
+											type is (hex_nedelec_reference_fe_t)
 											subcell_id = X( coarser_fe_ivef - num_cell_vertices, coarse_fe_subvef )
 											class default 
 											assert(.false.) 
