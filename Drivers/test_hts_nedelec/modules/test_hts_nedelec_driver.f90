@@ -131,7 +131,7 @@ contains
     istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
     call this%triangulation%create(this%parameter_list)
 
-				do i = 1,7
+				do i = 1,10
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%clear_refinement_and_coarsening_flags()
@@ -160,7 +160,7 @@ contains
 	      cz = cz/real(cell%get_num_nodes(),rp)
 
        ! Select material case: HTS TAPE in the center 
-       if ( ( (0.45_rp<cx) .and. (cx<0.55_rp) ) .and. ( (0.45_rp<cy) .and. (cy<0.55_rp) ) ) then
+       if ( ( (0.45_rp<cx) .and. (cx<0.55_rp) ) .and. ( (0.495_rp<cy) .and. (cy<0.505_rp) ) ) then
           cells_set( cell%get_gid() ) = hts 
        else 
           cells_set( cell%get_gid() ) = air
@@ -185,10 +185,10 @@ contains
     type(point_t), allocatable :: coords(:)
     integer(ip) :: istat, k
     real(rp) ::  x,y
-				real(rp), parameter :: x0 = 0.045
-				real(rp), parameter :: y0 = 0.055
-				real(rp), parameter :: xL = 0.0495
-				real(rp), parameter :: yL = 0.0505 
+				real(rp), parameter :: x0 = 0.45_rp
+				real(rp), parameter :: y0 = 0.495_rp
+				real(rp), parameter :: xL = 0.55_rp
+				real(rp), parameter :: yL = 0.505_rp 
     real(rp) :: R
     integer(ip), parameter :: max_num_cell_nodes = 4
     integer(ip), parameter :: max_level = 4
@@ -198,35 +198,25 @@ contains
       allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
 
       do while ( .not. cell%has_finished() )
-        !if ( mod(cell%get_gid()-1,2) == 0 ) then
-        !  call cell%set_for_refinement()
-        !end if
 
         call cell%get_nodes_coordinates(coords)
-        x = 0.0
-        y = 0.0
+								if ( cell%get_level() < 1 ) then 
+										call cell%set_for_refinement()
+								else 
         do k=1,max_num_cell_nodes
-         x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
-         y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
-        end do
-																						
 								! If cell contains device, refine! 
-								if ( ( cell%get_level() < 3 ) .or. ((0.45 < x .or. x < 0.55) .and. (0.45 < y .or. y < 0.55) ) ) then 
-								call cell%set_for_refinement()
-        end if 
-								
+         if ( ( x0 < coords(k)%get(1) .and. coords(k)%get(1) < xL ) .and. ( y0 < coords(k)%get(2) .and. coords(k)%get(2) < yL ) ) then 
+										call cell%set_for_refinement(); exit 
+									end if 
+        end do
+								end if 
+																
         call cell%next()
       end do
       deallocate(coords,stat=istat); check(istat==0)
 
     else if (this%triangulation%get_num_dims() == 3) then    
-      do while ( .not. cell%has_finished() )
-          if ( (cell%get_gid()==6) .or. (cell%get_level() == 0) )then
-          call cell%set_for_refinement()
-        end if
-        call cell%next()
-      end do
-
+      ! To define a 3D algorithm 
     else
       mcheck(.false.,'Only for 2D and 3D')
 
@@ -619,9 +609,10 @@ contains
     real(rp)                               :: factor 
     type(vector_field_t)                   :: H_value, H_curl 
     ! Hysteresis variables for final computations 
+				real(rp)                               :: resistivity 
     real(rp)                               :: Hy_average, xJ_average
     real(rp)                               :: hts_volume
-    real(rp)                               :: Happ
+    real(rp)                               :: Happ, AC_loss 
     real(rp)                               :: hts_domain_length(0:SPACE_DIM-1)
     class(scalar_function_t) , pointer     :: boundary_function_Hy
     type(constraint_value_t) , pointer     :: constraint_value_function 
@@ -643,6 +634,7 @@ contains
     Hy_average  = 0
     xJ_average  = 0
     hts_volume  = 0.0_rp 
+				AC_loss     = 0.0_rp 
     do while ( .not. fe%has_finished())
 
        if ( fe%get_set_id() == hts ) then  ! Integrate only in HTS device DOMAIN 
@@ -655,13 +647,15 @@ contains
 
           ! Integrate cell contribution to H_y, x·J_z average 
           do qpoin=1, num_quad_points
-             factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						         
+             factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 		
              call fe_cell_function_current%get_value(qpoin, H_value)
              call fe_cell_function_current%compute_curl(qpoin, H_curl)
-             Hy_average  = Hy_average + factor*H_value%get(2)          
+													resistivity  = this%hts_nedelec_integration%compute_resistivity( H_curl, fe%get_set_id() )
+													
+             Hy_average  = Hy_average  + factor*H_value%get(2)          
              xJ_average  = xJ_average  + factor*quad_coords(qpoin)%get(1)*H_curl%get(3)   
+													AC_loss     = AC_loss     + factor*resistivity*H_curl%get(3)*H_curl%get(3) 
           end do
-
            hts_volume = hts_volume + fe%compute_volume()
        end if
        call fe%next()
@@ -675,7 +669,7 @@ contains
     call constraint_value_function%get_constraint_value(this%theta_method%get_current_time(), constraint_value)
     write(*,*) 'Hysteresis Data -----------------------------------------'
     write(*,*) 'mu0·(Hy-Happ)', this%test_params%get_air_permeability()*(Hy_average/hts_volume-Happ), 'Happ', Happ 
-    write(*,*) 'xJ', xJ_average/hts_volume, 'Iapp', constraint_value 
+    write(*,*) 'xJ', xJ_average/hts_volume, 'AC_loss', AC_loss  
     write(*,*) ' --------------------------------------------------------' 
 
   end subroutine compute_hysteresis_data

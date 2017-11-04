@@ -434,7 +434,8 @@ hts_nonlinear_solver_converged = ( (this%residual%nrm2() .lt. this%absolute_tole
 case ('rel_r0_res_norm') ! |R|/|Ro| < rel_tol 
 hts_nonlinear_solver_converged = (this%residual%nrm2()/this%initial_residual%nrm2() .lt. this%relative_tolerance ) 
 case ('rel_rhs_res_norm') ! |R|/|b| < rel_tol 
-hts_nonlinear_solver_converged = (this%residual%nrm2()/this%current_rhs%nrm2() .lt. this%relative_tolerance ) 
+hts_nonlinear_solver_converged = ( (this%residual%nrm2()/this%current_rhs%nrm2() .lt. this%relative_tolerance) &
+																																		.and. (this%residual%nrm2() .lt. this%absolute_tolerance) ) 
 case DEFAULT
 assert(.false.) 
 end select 
