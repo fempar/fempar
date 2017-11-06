@@ -220,8 +220,6 @@ contains
     y = point%get(2) 
     z = point%get(3) 
     
-    call result%set(1, 2, 3.0_rp*x*x )
-
   end subroutine solution_get_gradient_space
   
    !===============================================================================================
@@ -237,8 +235,6 @@ contains
     y = point%get(2) 
     z = point%get(3) 
 
-    call result%set(1,2, time*3.0_rp*x*x) 
-
   end subroutine solution_get_gradient_space_time
 
   !===============================================================================================
@@ -251,11 +247,7 @@ contains
     real(rp)  :: x, y, z  
     x = point%get(1)
     y = point%get(2) 
-
-    !call result%set(1, 0.0_rp) 
-    !call result%set(2, 0.0_rp) 
-    !call result%set(3, 3.0_rp*x*x ) 
-    
+   
   end subroutine solution_get_curl_space
   
    subroutine solution_get_curl_space_time ( this, point, time, result )
@@ -269,10 +261,6 @@ contains
     x = point%get(1)
     y = point%get(2) 
 
-    !call result%set(1, 0.0_rp) 
-    !call result%set(2, 0.0_rp) 
-    !call result%set(3, time*3.0_rp*x*x ) 
-    
   end subroutine solution_get_curl_space_time
     
   !===============================================================================================
@@ -294,7 +282,7 @@ contains
     real(rp)                       , intent(in)    :: time
     real(rp)                       , intent(inout) :: result 
 
-    result = this%amplitude*sin(2.0_rp*this%frequency*pi*time)
+    result = 0.0_rp 
 
   end subroutine boundary_function_Hx_get_value_space_time 
 
@@ -340,18 +328,7 @@ contains
     real(rp)                       , intent(in)    :: time 
     real(rp)                       , intent(inout) :: result    
 
-    result = this%amplitude*sin(2.0_rp*this%frequency*pi*time) 
- 
-	! Benchmark ramp 
-	if ( time .le. 5 ) then 
-	result = this%amplitude*(time/5.0_rp) 
-	elseif ( time .le. 10 ) then 
-	result = this%amplitude 
-	elseif ( time .le. 15 ) then 
-	result = this%amplitude*(15.0_rp-time)/(5.0_rp)
-	else 
-	result = 0.0_rp
-	end if 
+    result = 0.0_rp 
     
   end subroutine boundary_function_Hz_get_value_space_time
     

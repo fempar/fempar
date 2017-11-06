@@ -1141,32 +1141,29 @@ end subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell
 !==================================================================================================
 subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_fe,   & 
                                                                    ishape_coarser_fe, & 
-                                                                   qpoint, coefficient )
+                                                                   subcell_id, coefficient )
   implicit none 
   class(hex_nedelec_reference_fe_t), target, intent(in)    :: this
   integer(ip)                              , intent(in)    :: ishape_fe
   integer(ip)                              , intent(in)    :: ishape_coarser_fe
-  integer(ip)                              , intent(in)    :: qpoint
+  integer(ip)                              , intent(in)    :: subcell_id
   real(rp)                                 , intent(inout) :: coefficient
 		
-		integer(ip), parameter, dimension(4) :: perm = [ 2, 1, 4, 3 ]
-		
 		integer(ip)  :: ishape, jshape
-		integer(ip)  :: subcell_id, qpoin 
+		integer(ip)  :: qpoin 
 		
   assert( ishape_fe >= 1 .and. ishape_fe <= this%num_shape_functions )
   assert( ishape_coarser_fe >= 1 .and. ishape_coarser_fe <= this%num_shape_functions )
-  assert( qpoint >= 1 )
+  assert( subcell_id >= 1 )
 		
-		subcell_id  = qpoint 
 		coefficient = 0.0_rp 
 		!	coeff = C_h^{-T} · R · C_2h^T 
 		do ishape=1, this%num_shape_functions 
 		 do jshape=1, this%num_shape_functions 
-			  qpoin = this%h_refinement_subcell_permutation(1, subcell_id, ishape) 
-     coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape_fe, ishape)     * &
-					                            this%h_refinement_interpolation%shape_functions(1, jshape, qpoin)    * & 
-					                            this%change_basis_matrix( jshape, ishape_coarser_fe )
+			  qpoin = this%h_refinement_subcell_permutation(1, subcell_id, jshape) 
+     coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape, ishape_fe)     * &
+					                            this%h_refinement_interpolation%shape_functions(1, ishape, qpoin)    * & 
+					                            this%change_basis_matrix( ishape_coarser_fe, jshape )
 					end do 
 				end	do 
 

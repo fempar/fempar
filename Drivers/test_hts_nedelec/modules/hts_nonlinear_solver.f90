@@ -142,14 +142,14 @@ call fe_affine_operator%create_range_vector(this%increment_dof_values)
 ! Create direct solver to update iterates 
     call parameter_list%init()
    
-				iparm      = 0 ! Init all entries to zero
-    iparm(1)   = 1 ! no solver default
-    iparm(2)   = 2 ! fill-in reordering from METIS
-    iparm(8)   = 2 ! numbers of iterative refinement steps
-    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-    iparm(11)  = 1 ! use scaling 
-    iparm(13)  = 1 ! use maximum weighted matching algorithm 
-    iparm(21)  = 1 ! 1x1 + 2x2 pivots
+				iparm      = 0  ! Init all entries to zero
+    iparm(1)   = 1  ! no solver default
+    iparm(2)   = 2  ! fill-in reordering from METIS
+    iparm(8)   = 5  ! numbers of iterative refinement steps
+    iparm(10)  = 14 ! perturb the pivot elements with 1E-8
+    iparm(11)  = 1  ! use scaling 
+    iparm(13)  = 1  ! use maximum weighted matching algorithm 
+    iparm(21)  = 1  ! 1x1 + 2x2 pivots
 				
     FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
@@ -463,7 +463,7 @@ implicit none
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 logical                                                :: hts_nonlinear_solver_finished
 
-hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_num_iterations) .or. (this%residual%nrm2()>1e15_rp) )  &
+hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_num_iterations) .or. (this%residual%nrm2()>1e30_rp) )  &
                                    .and. this%current_iteration .gt. 0 )
 
 end function hts_nonlinear_solver_finished

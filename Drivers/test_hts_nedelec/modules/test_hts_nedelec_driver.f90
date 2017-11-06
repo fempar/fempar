@@ -122,23 +122,31 @@ contains
     integer(ip)                               :: inode
     integer(ip)       :: icell, icoord 
     real(rp)          :: cx, cy, cz 
-    integer(ip)       :: i, istat 
+    integer(ip)       :: i, istat, idime  
    	real(rp)          :: R, h, x0, y0, z0
 				real(rp)          :: domain(6)
+				real(rp)          :: domain_length(0:SPACE_DIM-1) 
+				real(rp)          :: hts_domain_length(0:SPACE_DIM-1)
+				real(rp)          :: hts_lx, hts_ly, hts_lz 
 
     ! Create a structured mesh with a custom domain 
-    domain   = [0.0_rp, 1.0_rp, 0.0_rp, 1.0_rp, 0.0_rp, 1.0_rp]
+				domain_length     = this%test_params%get_domain_length() 
+    domain = [ 0.0_rp, domain_length(0), 0.0_rp, domain_length(1), 0.0_rp, domain_length(2) ]  
     istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
     call this%triangulation%create(this%parameter_list)
 
-				do i = 1,10
+				do i = 1, this%test_params%get_num_refinements() 
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
 				
 	if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
-	
+					hts_domain_length = this%test_params%get_hts_domain_length() 
+					hts_lx = hts_domain_length(0) 
+					hts_ly = hts_domain_length(1)
+					hts_lz = hts_domain_length(2)
+					
     ! Assign subset_id to different cells for the created structured mesh 
     allocate(cells_set(this%triangulation%get_num_cells() ), stat=istat); check(istat==0)
     call this%triangulation%create_cell_iterator(cell)
@@ -160,7 +168,8 @@ contains
 	      cz = cz/real(cell%get_num_nodes(),rp)
 
        ! Select material case: HTS TAPE in the center 
-       if ( ( (0.45_rp<cx) .and. (cx<0.55_rp) ) .and. ( (0.495_rp<cy) .and. (cy<0.505_rp) ) ) then
+       if ( ( (domain_length(0) - hts_lx)/2.0_rp < cx .and. cx < (domain_length(0) + hts_lx)/2.0_rp ) & 
+											.and. ( (domain_length(1) - hts_ly)/2.0_rp < cy .and. cy < (domain_length(1) + hts_ly)/2.0_rp) ) then
           cells_set( cell%get_gid() ) = hts 
        else 
           cells_set( cell%get_gid() ) = air
@@ -185,14 +194,24 @@ contains
     type(point_t), allocatable :: coords(:)
     integer(ip) :: istat, k
     real(rp) ::  x,y
-				real(rp), parameter :: x0 = 0.45_rp
-				real(rp), parameter :: y0 = 0.495_rp
-				real(rp), parameter :: xL = 0.55_rp
-				real(rp), parameter :: yL = 0.505_rp 
-    real(rp) :: R
     integer(ip), parameter :: max_num_cell_nodes = 4
     integer(ip), parameter :: max_level = 4
+			 
+				real(rp)          :: x0, xL, y0, yL, x_eps, y_eps 
+				real(rp)          :: domain_length(0:SPACE_DIM-1) 
+				real(rp)          :: hts_domain_length(0:SPACE_DIM-1)
 
+				! Set refinemenent if the cell contains centered hts device 
+				domain_length        = this%test_params%get_domain_length()
+				hts_domain_length    = this%test_params%get_hts_domain_length()
+				
+				x_eps = 0.0_rp !hts_domain_length(0)/5.0_rp 
+				y_eps = 0.0_rp !hts_domain_length(1)/2.0_rp 
+				x0 = (domain_length(0)-hts_domain_length(0))/2.0_rp - x_eps
+				xL = (domain_length(0)+hts_domain_length(0))/2.0_rp + x_eps
+				y0 = (domain_length(1)-hts_domain_length(1))/2.0_rp - y_eps
+				yL = (domain_length(1)+hts_domain_length(1))/2.0_rp + y_eps 
+				
     call this%triangulation%create_cell_iterator(cell)
     if (this%triangulation%get_num_dims() == 2) then
       allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
@@ -650,7 +669,7 @@ contains
              factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 		
              call fe_cell_function_current%get_value(qpoin, H_value)
              call fe_cell_function_current%compute_curl(qpoin, H_curl)
-													resistivity  = this%hts_nedelec_integration%compute_resistivity( H_curl, fe%get_set_id() )
+													resistivity  = this%hts_nedelec_integration%compute_resistivity( H_curl, HTS )
 													
              Hy_average  = Hy_average  + factor*H_value%get(2)          
              xJ_average  = xJ_average  + factor*quad_coords(qpoin)%get(1)*H_curl%get(3)   

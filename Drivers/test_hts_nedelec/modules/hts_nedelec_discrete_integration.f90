@@ -220,7 +220,7 @@ contains
 
   if ( material == hts ) then ! HTS DOMAIN: Nonlinear resistivity = Ec/Jc*|| curl(H) / Jc ||**n 
      if (this%nonlinear_exponent .ge. 1 ) then 
-        resistivity = Ec/Jc*(curl_H%nrm2()/Jc)**n + 1e-16_rp
+        resistivity = Ec/Jc*(curl_H%nrm2()/Jc)**n + 1.0e-15_rp 
      else
         resistivity = this%hts_resistivity
      end if
