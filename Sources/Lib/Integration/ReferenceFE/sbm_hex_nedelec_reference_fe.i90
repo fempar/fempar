@@ -415,7 +415,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   type(hex_nedelec_reference_fe_t)    :: fe_2D
   type(quadrature_t)                  :: facet_quadrature
   type(interpolation_t)               :: interpolation_2D, facet_interpolation
-  type(facet_map_t)                    :: facet_map
+  type(facet_map_t)                   :: facet_map
   type(point_t), pointer              :: facet_map_coordinates(:)
   type(vector_field_t)                :: normal
   type(vector_field_t)                :: cross_product_v_shape_trial_normal
@@ -446,6 +446,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   integer(ip)                         :: num_rows_own_node_permutations
   integer(ip)                         :: num_cols_own_node_permutations
   type(list_iterator_t)               :: own_dofs_iterator
+		type(list_iterator_t)               :: facet_dofs_iterator
+		type(list_iterator_t)               :: facets_n_face_iterator 
   
   ! Facets and vertices within reference cell traversal-related data structures
   type(list_iterator_t)               :: vertex_iterator
@@ -695,22 +697,34 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
  
  ! Transform type(list_t) member variables of this to reflect change of basis
   call this%own_dofs_n_face%create( this%num_n_faces + 1 )
+		call this%dofs_n_face%create( this%num_n_faces + 1 ) 
 
   if ( this%conformity .and. this%continuity ) then
      do edge_id = this%get_first_n_face_id_of_dim(1), & 
           this%get_first_n_face_id_of_dim(1) + this%get_num_n_faces_of_dim(1)-1
-        call this%own_dofs_n_face%sum_to_pointer_index(edge_id, interpolation_1D%num_shape_functions )           
+        call this%own_dofs_n_face%sum_to_pointer_index(edge_id, interpolation_1D%num_shape_functions )    
+							 call this%dofs_n_face%sum_to_pointer_index(edge_id, interpolation_1D%num_shape_functions )
      end do
 
-     if (this%num_dims == 3 .and. this%order > 1) then
+
         do facet_id = this%get_first_facet_id(), this%get_first_facet_id() + this%get_num_facets()-1
-           call this%own_dofs_n_face%sum_to_pointer_index(facet_id, interpolation_2D%num_shape_functions )
+								   call this%own_dofs_n_face%sum_to_pointer_index(facet_id, interpolation_2D%num_shape_functions )
+								   if ( this%num_dims == 2 ) then 
+											call this%dofs_n_face%sum_to_pointer_index(facet_id, interpolation_2D%num_shape_functions )
+								   elseif (this%num_dims == 3 .and. this%order == 1) then           
+		  									call this%dofs_n_face%sum_to_pointer_index(facet_id, 4 * interpolation_1D%num_shape_functions )
+											elseif (this%num_dims == 3 .and. this%order > 1 ) then  
+				  						call this%dofs_n_face%sum_to_pointer_index(facet_id, 4 * interpolation_1D%num_shape_functions + interpolation_2D%num_shape_functions )
+											end if 
         end do
-     end if
 
      call this%own_dofs_n_face%sum_to_pointer_index(this%num_n_faces + 1, num_interior_moments)
      call this%own_dofs_n_face%calculate_header()
      call this%own_dofs_n_face%allocate_list_from_pointer()
+					
+					call this%dofs_n_face%sum_to_pointer_index(this%num_n_faces + 1, num_interior_moments)
+     call this%dofs_n_face%calculate_header()
+     call this%dofs_n_face%allocate_list_from_pointer()
 
      c=1
      do idime=1, this%num_dims
@@ -726,6 +740,57 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
         end do
      end do
 
+					 ! Dofs contained in edges 
+					   c=1; idime=1; 
+        do n_face_id = this%get_first_n_face_id_of_dim(idime), & 
+             this%get_first_n_face_id_of_dim(idime) + this%get_num_n_faces_of_dim(idime)-1
+           own_dofs_iterator = this%dofs_n_face%create_iterator(n_face_id)
+           do while ( .not. own_dofs_iterator%is_upper_bound() )
+              call own_dofs_iterator%set_current(c)
+              c = c + 1
+              call own_dofs_iterator%next()
+           end do
+           call own_dofs_iterator%next()
+        end do
+																
+						! Dofs contained in faces including edge dofs 
+								if ( this%num_dims == 3 ) then 
+								  idime=2  
+								  do n_face_id = this%get_first_n_face_id_of_dim(idime), & 
+             this%get_first_n_face_id_of_dim(idime) + this%get_num_n_faces_of_dim(idime)-1
+													facet_dofs_iterator    = this%dofs_n_face%create_iterator(n_face_id)
+											  facets_n_face_iterator = this%facets_n_face%create_iterator(n_face_id)
+											  do while (.not. facets_n_face_iterator%is_upper_bound())
+													own_dofs_iterator = this%dofs_n_face%create_iterator(facets_n_face_iterator%get_current())
+               do while ( .not. own_dofs_iterator%is_upper_bound() )
+                call facet_dofs_iterator%set_current( own_dofs_iterator%get_current() )
+																call facet_dofs_iterator%next() 
+                call own_dofs_iterator%next()
+               end do
+             call facets_n_face_iterator%next() 
+											  end do 		
+													
+           do while ( .not. facet_dofs_iterator%is_upper_bound() )
+              call facet_dofs_iterator%set_current(c)
+              c = c + 1
+              call facet_dofs_iterator%next()
+           end do
+											end do 
+											end if 
+											
+							 ! Interior dofs as usual 
+								idime = this%num_dims 
+        do n_face_id = this%get_first_n_face_id_of_dim(idime), & 
+             this%get_first_n_face_id_of_dim(idime) + this%get_num_n_faces_of_dim(idime)-1
+           own_dofs_iterator = this%dofs_n_face%create_iterator(n_face_id)
+           do while ( .not. own_dofs_iterator%is_upper_bound() )
+              call own_dofs_iterator%set_current(c)
+              c = c + 1
+              call own_dofs_iterator%next()
+           end do
+           call own_dofs_iterator%next()
+        end do
+												
   else 
 
      call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%num_shape_functions)
@@ -740,7 +805,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      enddo
 
   end if
-  this%dofs_n_face      = this%own_dofs_n_face
+ ! this%dofs_n_face      = this%own_dofs_n_face
  
   ! Re-define own_node_permutations-related stuff
   if ( allocated(this%num_rotations_x_dim) )  call memfree (this%num_rotations_x_dim,__FILE__,__LINE__)
@@ -1158,12 +1223,22 @@ subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_
 		
 		coefficient = 0.0_rp 
 		!	coeff = C_h^{-T} · R · C_2h^T 
+		!do ishape=1, this%num_shape_functions 
+		! do jshape=1, this%num_shape_functions 
+		!	  qpoin = this%h_refinement_subcell_permutation(1, subcell_id, ishape) 
+  !   coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape, ishape_fe)     * &
+		!			                            this%h_refinement_interpolation%shape_functions(1, jshape, qpoin)    * & 
+		!			                            this%change_basis_matrix( ishape_coarser_fe, jshape )
+		!			end do 
+		!		end	do 
+				
+			!		coeff = C_h^{-T} · R · C_2h^T 
 		do ishape=1, this%num_shape_functions 
 		 do jshape=1, this%num_shape_functions 
-			  qpoin = this%h_refinement_subcell_permutation(1, subcell_id, jshape) 
-     coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape, ishape_fe)     * &
-					                            this%h_refinement_interpolation%shape_functions(1, ishape, qpoin)    * & 
-					                            this%change_basis_matrix( ishape_coarser_fe, jshape )
+			  qpoin = this%h_refinement_subcell_permutation(1, subcell_id, ishape) 
+     coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape_fe, ishape)     * &
+					                            this%h_refinement_interpolation%shape_functions(1, jshape, qpoin)    * & 
+					                            this%change_basis_matrix( jshape, ishape_coarser_fe )
 					end do 
 				end	do 
 

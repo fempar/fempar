@@ -379,7 +379,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
              time)
 
         edge_measure = this%edge_maps(reference_fe_id)%get_measure()
-        own_dofs = reference_fe%create_dofs_n_face_iterator(edge_id)
+        own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(edge_id)
         ! Integrate edge boundary moments int_edge(g·tau q), q \in P_k-1
         do qpoint = 1, num_quad_points
            factor = this%edge_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%edge_quadratures(reference_fe_id)%get_weight(qpoint)
@@ -437,7 +437,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
               call cross_product_function_normal%init(0.0_rp) 
               cross_product_function_normal = cross_product(this%facet_function_values(qpoint,1),normal)
 
-              own_dofs = reference_fe%create_dofs_n_face_iterator(facet_id)
+              own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(facet_id)
               do ishape=1, this%fes_2D(reference_fe_id)%get_num_shape_functions() 
                  idof = own_dofs%get_current() 
                  call this%fes_2D(reference_fe_id)%get_value(this%facet_interpolations(reference_fe_id), ishape, qpoint, v_shape_test)    

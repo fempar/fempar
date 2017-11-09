@@ -10,9 +10,10 @@ module hts_nedelec_params_names
     ! MESHING parameters 
     character(len=*), parameter :: domain_length_key             = 'domain_length'
     character(len=*), parameter :: hts_domain_length_key         = 'hts_domain_length'
+				character(len=*), parameter :: eps_hts_domain_length_key     = 'eps_hts_domain_length'
 				character(len=*), parameter :: num_refinements_key           = 'num_refinements'
+				character(len=*), parameter :: num_min_refinements_key       = 'num_min_refinements'
 				
-
     ! FE ELEMENT parameters 
     character(len=*), parameter :: magnetic_field_reference_fe_order_key      = 'magnetic_field_reference_fe_order'
     character(len=*), parameter :: magnetic_pressure_reference_fe_order_key   = 'magnetic_pressure_reference_fe_order'
@@ -61,7 +62,9 @@ module hts_nedelec_params_names
        procedure, non_overridable             :: get_triangulation_type
        procedure, non_overridable             :: get_domain_length 
        procedure, non_overridable             :: get_hts_domain_length
+							procedure, non_overridable             :: get_eps_hts_domain_length
 							procedure, non_overridable             :: get_num_refinements 
+							procedure, non_overridable             :: get_num_min_refinements
        procedure, non_overridable             :: get_magnetic_field_reference_fe_order
        procedure, non_overridable             :: get_magnetic_pressure_reference_fe_order
        procedure, non_overridable             :: get_external_magnetic_field_amplitude
@@ -125,7 +128,9 @@ contains
     error = list%set(key = triangulation_generate_key , value =  triangulation_generate_structured) ; check(error==0)
     error = list%set(key = domain_length_key          , value =  [1.0,1.0,1.0])                     ; check(error==0)
     error = list%set(key = hts_domain_length_key      , value =  [0.5,0.5,0.5])                     ; check(error==0)
+				error = list%set(key = eps_hts_domain_length_key  , value =  [0.0,0.0,0.0])                     ; check(error==0)
 				error = list%set(key = num_refinements_key        , value =  8)                                 ; check(error==0)
+				error = list%set(key = num_min_refinements_key    , value =  2)                                 ; check(error==0)
 
     ! FE ELEMENT parameters 
     error = list%set(key = magnetic_field_reference_fe_order_key    , value = 1)   ; check(error==0)
@@ -180,7 +185,9 @@ contains
     error = switches%set(key = triangulation_generate_key    , value = '--triangulation-type'); check(error==0)
     error = switches%set(key = domain_length_key             , value = '--domain_length')     ; check(error==0)
     error = switches%set(key = hts_domain_length_key         , value = '--hts_domain_length') ; check(error==0)
+				error = switches%set(key = eps_hts_domain_length_key     , value = '--eps_hts_domain_length') ; check(error==0)
 				error = switches%set(key = num_refinements_key           , value = '--num_refinements') ; check(error==0)
+				error = switches%set(key = num_min_refinements_key       , value = '--num_min_refinements') ; check(error==0)
 				
     
     ! FE ELEMENT parameters 
@@ -237,7 +244,9 @@ contains
     error = switches_ab%set(key = triangulation_generate_key , value = '-tt')        ; check(error==0)
     error = switches_ab%set(key = domain_length_key          , value = '-dl')        ; check(error==0)
     error = switches_ab%set(key = hts_domain_length_key      , value = '-hts_dl')    ; check(error==0)
+				error = switches_ab%set(key = eps_hts_domain_length_key  , value = '-eps_hts_dl')    ; check(error==0)
 				error = switches_ab%set(key = num_refinements_key        , value = '-nr')    ; check(error==0)
+				error = switches_ab%set(key = num_min_refinements_key    , value = '-nmr')    ; check(error==0) 
     
     ! FE ELEMENT parameters 
     error = switches_ab%set(key = magnetic_field_reference_fe_order_key    , value = '-mf_order')  ; check(error==0)
@@ -296,7 +305,9 @@ contains
     error = helpers%set(key = triangulation_generate_key     , value = msg)  ; check(error==0)
     error = helpers%set(key = domain_length_key              , value = 'Domain length for each direction')   ; check(error==0)
     error = helpers%set(key = hts_domain_length_key          , value = 'High Temperature Superconductor Device length ( concentric with the domain) ') ; check(error==0)
+				error = helpers%set(key = eps_hts_domain_length_key      , value = 'Surrounding of HTS domain (per dim) refined in the same level as hts') ; check(error==0)
 				error = helpers%set(key = num_refinements_key            , value = 'Number of refinements to apply ') ; check(error==0)
+				error = helpers%set(key = num_min_refinements_key        , value = 'Minimum number of refinements per cell ') ; check(error==0)
     
     ! FE ELEMENT parameters
     error = helpers%set(key = magnetic_field_reference_fe_order_key  , value = 'Magnetic field reference Finite Element Order '); check(error==0)
@@ -352,7 +363,9 @@ contains
     error = required%set(key = triangulation_generate_key , value = .false.)  ; check(error==0)
     error = required%set(key = domain_length_key          , value = .false.)  ; check(error==0)
     error = required%set(key = hts_domain_length_key      , value = .false.)  ; check(error==0)
+				error = required%set(key = eps_hts_domain_length_key      , value = .false.)  ; check(error==0)
 				error = required%set(key = num_refinements_key      , value = .false.)  ; check(error==0)
+				error = required%set(key = num_min_refinements_key      , value = .false.)  ; check(error==0)
     
     ! FE ELEMENT parameters
     error = required%set(key = magnetic_field_reference_fe_order_key    , value = .false.)  ; check(error==0)
@@ -485,6 +498,19 @@ contains
   end function get_hts_domain_length
 		
 		   !==================================================================================================
+  function get_eps_hts_domain_length(this)
+    implicit none
+    class(hts_nedelec_params_t) , intent(in) :: this
+    real(rp)                                      :: get_eps_hts_domain_length(0:SPACE_DIM-1)
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(eps_hts_domain_length_key, get_eps_hts_domain_length))
+    error = list%Get(key = eps_hts_domain_length_key, Value = get_eps_hts_domain_length)
+    assert(error==0)
+  end function get_eps_hts_domain_length
+		
+		   !==================================================================================================
   function get_num_refinements(this)
     implicit none
     class(hts_nedelec_params_t) , intent(in) :: this
@@ -496,6 +522,19 @@ contains
     error = list%Get(key = num_refinements_key, Value = get_num_refinements)
     assert(error==0)
   end function get_num_refinements
+		
+				   !==================================================================================================
+  function get_num_min_refinements(this)
+    implicit none
+    class(hts_nedelec_params_t) , intent(in) :: this
+    integer(ip)                                   :: get_num_min_refinements
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(num_min_refinements_key, get_num_min_refinements))
+    error = list%Get(key = num_min_refinements_key, Value = get_num_min_refinements)
+    assert(error==0)
+  end function get_num_min_refinements
 
     !==================================================================================================
   function get_magnetic_field_reference_fe_order(this)

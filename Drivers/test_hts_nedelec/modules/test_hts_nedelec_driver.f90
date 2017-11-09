@@ -200,17 +200,17 @@ contains
 				real(rp)          :: x0, xL, y0, yL, x_eps, y_eps 
 				real(rp)          :: domain_length(0:SPACE_DIM-1) 
 				real(rp)          :: hts_domain_length(0:SPACE_DIM-1)
+				real(rp)          :: epsilon_length(0:SPACE_DIM-1) 
 
 				! Set refinemenent if the cell contains centered hts device 
 				domain_length        = this%test_params%get_domain_length()
 				hts_domain_length    = this%test_params%get_hts_domain_length()
-				
-				x_eps = 0.0_rp !hts_domain_length(0)/5.0_rp 
-				y_eps = 0.0_rp !hts_domain_length(1)/2.0_rp 
-				x0 = (domain_length(0)-hts_domain_length(0))/2.0_rp - x_eps
-				xL = (domain_length(0)+hts_domain_length(0))/2.0_rp + x_eps
-				y0 = (domain_length(1)-hts_domain_length(1))/2.0_rp - y_eps
-				yL = (domain_length(1)+hts_domain_length(1))/2.0_rp + y_eps 
+				epsilon_length       = this%test_params%get_eps_hts_domain_length()
+	
+				x0 = (domain_length(0)-hts_domain_length(0))/2.0_rp - epsilon_length(0) 
+				xL = (domain_length(0)+hts_domain_length(0))/2.0_rp + epsilon_length(0)
+				y0 = (domain_length(1)-hts_domain_length(1))/2.0_rp - epsilon_length(1)
+				yL = (domain_length(1)+hts_domain_length(1))/2.0_rp + epsilon_length(1) 
 				
     call this%triangulation%create_cell_iterator(cell)
     if (this%triangulation%get_num_dims() == 2) then
@@ -219,7 +219,7 @@ contains
       do while ( .not. cell%has_finished() )
 
         call cell%get_nodes_coordinates(coords)
-								if ( cell%get_level() < 1 ) then 
+								if ( cell%get_level() < this%test_params%get_num_min_refinements() ) then 
 										call cell%set_for_refinement()
 								else 
         do k=1,max_num_cell_nodes
@@ -558,7 +558,7 @@ contains
      end if
 
      if (.not. this%theta_method%finished() ) then 
-        call this%fe_space%project_dirichlet_values_curl_conforming(this%H_current,time=this%theta_method%get_current_time(), fields_to_project=(/ 1 /) )
+					   call this%fe_space%interpolate_dirichlet_values(this%H_current, time=this%theta_method%get_current_time()  )
         call this%assemble_system() 
      end if
 
