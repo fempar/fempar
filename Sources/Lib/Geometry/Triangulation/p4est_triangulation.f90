@@ -123,6 +123,9 @@ module p4est_triangulation_names
   integer(ip), parameter :: NUM_EDGES_AT_CORNER_3D        = 3
   integer(ip), parameter :: NUM_VEFS_3D              = NUM_CORNERS_3D+NUM_FACES_3D+NUM_EDGES_3D
 
+  integer(ip), target :: P4EST_OPPOSITE_FACE_3D(NUM_FACES_3D) = [ 2, 1, 4, 3, 6, 5 ]
+
+  
   integer(ip), target :: P4EST_FACE_CORNERS_3D(NUM_FACE_CORNERS_3D,NUM_FACES_3D) = & 
                                                   reshape([1, 3, 5, 7,&
                                                            2, 4, 6, 8,&  
@@ -282,12 +285,12 @@ module p4est_triangulation_names
   
   integer(ip), target :: P4EST_FACES_SUBFACE_FACE_NEIGHBOUR_3D(NUM_FACES_3D/2, NUM_SUBFACES_FACE_3D, 2) = &
                                                   reshape( [ 4, 2, 2, &
-                                                             6, 6, 4, &
-                                                             3, 1, 1, & 
-                                                             6, 6, 4, & 
-                                                             4, 2, 2, &
-                                                             5, 5, 3, &
                                                              3, 1, 1, &
+                                                             4, 2, 2, & 
+                                                             3, 1, 1, & 
+                                                             6, 6, 4, &
+                                                             6, 6, 4, &
+                                                             5, 5, 3, &
                                                              5, 5, 3 ], [NUM_FACES_3D/2,NUM_SUBFACES_FACE_3D,2])
                                                   
   integer(ip), target :: P4EST_FACES_SUBFACE_EDGE_NEIGHBOUR_3D(NUM_FACES_3D/2, NUM_SUBFACES_FACE_3D) = &

@@ -148,7 +148,7 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   integer(ip) :: iface_at_corner, iedge_at_corner, iface_at_edge
   integer(ip) :: edge_corner, face_corner, edge_face, flip, mortar
   integer(P4EST_F90_QLEVEL) :: jcell_iconn 
-  logical :: is_proper, vef_at_boundary, vef_at_interface, vef_is_ghost
+  logical :: is_proper, vef_at_boundary, vef_at_interface, vef_is_ghost, vef_is_ghost_across_edge
   integer(ip) :: isubface, isubedge
   integer(ip) :: base_pos_icell, base_pos_min_cell, base_pos_ghost_cell
   type(std_vector_integer_ip_t) :: work_vector_cells_around
@@ -268,8 +268,6 @@ contains
 
            if (this%quad_to_quad(icell_iface,icell)<0) cycle
 
-           vef_is_ghost = .false.
-
            if (this%get_num_dims() == 2) then
               call p4est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
            elseif (this%get_num_dims() == 3) then
@@ -280,7 +278,13 @@ contains
            assert (flip==1) ! All cells MUST be aligned with each other
 
            if (mortar == -1) then ! Conformal neighbour
-              jcell      = this%quad_to_quad(icell_iface,icell)+1 
+              jcell      = this%quad_to_quad(icell_iface,icell)+1
+              if (icell > this%get_num_local_cells() .and. &
+                  jcell > this%get_num_local_cells()) then
+                cycle 
+              end if 
+              vef_is_ghost = .false.
+              
               ! Check whether icell across current face is at the boundary
               if ( icell == jcell ) then
                  vef_at_boundary = .true.
@@ -297,6 +301,7 @@ contains
               end if                                           
               call work_vector_cells_around%push_back(jcell)
            else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
+              vef_is_ghost = .false.
               jcell      = this%quad_to_quad(icell_iface,icell)+1
 
               ! Determine whether this corner is improper
@@ -356,22 +361,26 @@ contains
                              end if
                            end if
                         end do
-                        assert ( icell_iedge > 0 )
-                    
-                        jcell_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,icell_iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
-                        ! The non_proper vef is within an edge
-                        improper_cell_around_ivef = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
+                        if ( iedge_at_corner <= NUM_EDGES_AT_CORNER_3D ) then
+                            jcell_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,icell_iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
+                            ! The non_proper vef is within an edge
+                            improper_cell_around_ivef = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
+                        else
+                            improper_cell_around_ivef = -2
+                        end if     
                     end if
                    else
                      improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)                     
                      improper_cell_around_subvef  = -1
                    end if
                  is_proper = .false.
-                 call work_vector_improper_cells_around%push_back(jcell)
-                 call work_vector_ivef%push_back(improper_cell_around_ivef)
-                 call work_vector_subvef%push_back(improper_cell_around_subvef)
-                 if ( jcell > this%get_num_local_cells() ) then
-                   vef_at_interface = .true.
+                 if ( improper_cell_around_ivef /= -2 ) then
+                   call work_vector_improper_cells_around%push_back(jcell)
+                   call work_vector_ivef%push_back(improper_cell_around_ivef)
+                   call work_vector_subvef%push_back(improper_cell_around_subvef)
+                   if ( jcell > this%get_num_local_cells() ) then
+                     vef_at_interface = .true.
+                   end if
                  end if
               else
                 min_cell   = min(min_cell,jcell)
@@ -405,6 +414,7 @@ contains
               if (.not. (icell > this%get_num_local_cells() .and. &
                           jcell > this%get_num_local_cells())) then
                 call work_vector_cells_around%push_back(jcell)
+                vef_is_ghost = .false.
               end if 
            end if
         end do  ! End loop faces at corner
@@ -415,10 +425,12 @@ contains
 
               icell_iedge = P4EST_EDGES_AT_CORNER_3D(iedge_at_corner,icorner)
               jcell_iconn = this%quad_to_edge(icell_iedge,icell)         
-              jcell      = this%quad_to_quad_by_edge(icell_iedge,icell)+1 
+              jcell       = this%quad_to_quad_by_edge(icell_iedge,icell)+1 
               
               ! If there is not edge neighbour across this edge ...
               if (.not. jcell>0) cycle
+              
+              vef_is_ghost = .false.
               
               call p8est_eval_edge_connectivity(jcell_iconn, jcell_iedge, flip, mortar)
               assert (flip==1) ! All cells MUST be aligned with each other
@@ -501,6 +513,7 @@ contains
                  if ( jcell > this%get_num_local_cells() ) then 
                    vef_at_interface = .true.
                  end if 
+                 
                  call work_vector_cells_around%push_back(jcell)
               end if
            end do
@@ -601,94 +614,21 @@ contains
            min_cell          = icell
            min_iedge         = iedge
            vef_at_boundary   = .false.
-           vef_at_interface  = .false.
+           if (icell > this%get_num_local_cells()) then
+             vef_at_interface = .true.
+           else
+             vef_at_interface = .false.
+           end if 
            min_cell_int_edge = 0
+           vef_is_ghost = .true. 
+           vef_is_ghost_across_edge = .true.
 
            call work_vector_cells_around%resize(0)
            call work_vector_cells_around%push_back(icell)
            call work_vector_improper_cells_around%resize(0)
            call work_vector_ivef%resize(0)
            call work_vector_subvef%resize(0)
-
-           ! Find face neighbors
-           do iface_at_edge=1, num_faces_at_edge_3d
-              icell_iface = P4EST_FACES_AT_EDGE_3D(iface_at_edge,iedge)
-              jcell_iconn = this%quad_to_face(icell_iface,icell)         
-              call p8est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
-              assert (flip==1) ! All cells MUST be aligned with each other
-
-              if (mortar == -1) then ! Conformal neighbour
-                 jcell      = this%quad_to_quad(icell_iface,icell)+1 
-                 if ( icell == jcell ) then
-                    vef_at_boundary = .true.
-                    cycle
-                 end if
-                 min_cell   = min(min_cell,jcell)
-                 if (min_cell == jcell) then
-                    min_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
-                 end if
-                 if ( jcell > this%get_num_local_cells() ) then ! If neighbour cell is ghost
-                    vef_at_interface = .true.
-                 end if
-                 call work_vector_cells_around%push_back(jcell)
-              else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
-                 jcell      = this%quad_to_quad(icell_iface,icell)+1
-                 if ( min_cell_int_edge == 0 ) then
-                   min_cell_int_edge = jcell
-                 else
-                   min_cell_int_edge = min(min_cell_int_edge, jcell)
-                 end if
-                 
-                 child_id = F90_p8est_quadrant_child_id(this%quad_coords(1,icell), &
-                                                        this%quad_coords(2,icell), &
-                                                        this%quad_coords(3,icell), &
-                                                        this%quad_level(icell)) + 1
-                            
-                 do isubface = 1, num_subfacets_facet
-                    if (FEMPAR_SUBCELLS_IN_TOUCH_FACE(isubface,P4EST_2_FEMPAR_FACE(icell_iface)) == child_id) then
-                       exit
-                    end if
-                 end do
-                 assert(isubface<=num_subfacets_facet)
-
-                 if (this%quad_to_quad_by_edge(iedge,icell)+1 > 0) then
-                    ! The current edge is for sure improper
-                    ! 1. Determine jcell_iedge
-                    jcell_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
-
-                    ! 2. Determine which edge_face of icell_iface am I
-                    do edge_face=1, NUM_FACE_EDGES_3D
-                       if (P4EST_FACE_EDGES_3D(edge_face,icell_iface) == iedge ) exit
-                    end do
-                    assert(edge_face<=NUM_FACE_EDGES_3D)
-
-                    improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
-                    if ( (edge_face-1)/2 == 0 ) then ! if edge_face == 1 .or. edge_face == 2
-                       improper_cell_around_subvef = (isubface+1)/2
-                    else
-                       if ( mod(isubface,2) /= 0 ) then
-                         improper_cell_around_subvef  = 1
-                       else
-                         improper_cell_around_subvef  = 2
-                       end if
-                    end if
-                 else
-                    improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
-                    if ( min_cell_int_edge == jcell ) then
-                      improper_cell_around_subvef  = -isubface
-                    end if  
-                 end if
-                
-                 is_proper = .false.
-                 call work_vector_improper_cells_around%push_back(jcell)
-                 call work_vector_ivef%push_back(improper_cell_around_ivef)
-                 call work_vector_subvef%push_back(improper_cell_around_subvef)
-                 if ( jcell > this%get_num_local_cells() ) then
-                   vef_at_interface = .true.
-                 end if
-              end if
-           end do ! iface_at_edge
-
+           
            ! Find neigs only by edge
            jcell = this%quad_to_quad_by_edge(iedge,icell)+1
            if (icell /= jcell .and. jcell > 0) then
@@ -696,6 +636,9 @@ contains
 
               call p8est_eval_edge_connectivity(jcell_iconn, jcell_iedge, flip, mortar)
               assert (flip==1) ! All cells MUST be aligned with each other
+              
+              vef_is_ghost = .false.
+              vef_is_ghost_across_edge = .false.
 
               if (mortar == -1) then ! Conformal neighbour
                  min_cell   = min(min_cell,jcell)
@@ -706,7 +649,7 @@ contains
                     vef_at_interface = .true.
                  end if
                  call work_vector_cells_around%push_back(jcell)
-              else if ( mortar >= 1 .and. mortar <= num_subedgets_edget )  then ! Double-size neighbour 
+              else if ( mortar >= 1 .and. mortar <= num_subedgets_edget )  then ! Double-size neighbour
                  jcell         = this%quad_to_quad_by_edge(iedge,icell)+1
                  
                  ! 1. Determine whether this edge is improper 
@@ -732,13 +675,111 @@ contains
                    vef_at_interface = .true.
                  end if
               end if
-           end if
+           end if           
+
+           ! Find face neighbors
+           do iface_at_edge=1, NUM_FACES_AT_EDGE_3D
+              icell_iface = P4EST_FACES_AT_EDGE_3D(iface_at_edge,iedge)
+              jcell_iconn = this%quad_to_face(icell_iface,icell)         
+              
+              if (this%quad_to_quad(icell_iface,icell)<0) cycle
+              
+              call p8est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+              assert (flip==1) ! All cells MUST be aligned with each other
+
+              if (mortar == -1) then ! Conformal neighbour
+                 jcell      = this%quad_to_quad(icell_iface,icell)+1 
+                 if (icell > this%get_num_local_cells() .and. &
+                     jcell > this%get_num_local_cells() .and. &
+                     vef_is_ghost_across_edge) then
+                    cycle
+                 end if 
+                 vef_is_ghost = .false. 
+                 if ( icell == jcell ) then
+                    vef_at_boundary = .true.
+                    cycle
+                 end if
+                 min_cell   = min(min_cell,jcell)
+                 if (min_cell == jcell) then
+                    min_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
+                 end if
+                 if ( jcell > this%get_num_local_cells() ) then ! If neighbour cell is ghost
+                    vef_at_interface = .true.
+                 end if
+                 call work_vector_cells_around%push_back(jcell)
+              else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
+                 vef_is_ghost = .false.
+                 jcell      = this%quad_to_quad(icell_iface,icell)+1
+                 if ( min_cell_int_edge == 0 ) then
+                   min_cell_int_edge = jcell
+                 else
+                   min_cell_int_edge = min(min_cell_int_edge, jcell)
+                 end if
+                 
+                 child_id = F90_p8est_quadrant_child_id(this%quad_coords(1,icell), &
+                                                        this%quad_coords(2,icell), &
+                                                        this%quad_coords(3,icell), &
+                                                        this%quad_level(icell)) + 1
+                            
+                 do isubface = 1, num_subfacets_facet
+                    if (FEMPAR_SUBCELLS_IN_TOUCH_FACE(isubface,P4EST_2_FEMPAR_FACE(icell_iface)) == child_id) then
+                       exit
+                    end if
+                 end do
+                 assert(isubface<=num_subfacets_facet)
+
+                 ! If there is edge neighbour
+                 if (this%quad_to_quad_by_edge(iedge,icell)+1 > 0) then
+                    ! The current edge is for sure improper
+                    ! 1. Determine jcell_iedge
+                    jcell_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
+
+                    ! 2. Determine which edge_face of icell_iface am I
+                    do edge_face=1, NUM_FACE_EDGES_3D
+                       if (P4EST_FACE_EDGES_3D(edge_face,icell_iface) == iedge ) exit
+                    end do
+                    assert(edge_face<=NUM_FACE_EDGES_3D)
+
+                    improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
+                    if ( (edge_face-1)/2 == 0 ) then ! if edge_face == 1 .or. edge_face == 2
+                       improper_cell_around_subvef = (isubface+1)/2
+                    else
+                       if ( mod(isubface,2) /= 0 ) then
+                         improper_cell_around_subvef  = 1
+                       else
+                         improper_cell_around_subvef  = 2
+                       end if
+                    end if
+                 ! If there is not edge neighbour (cause edge in the middle of a face)
+                 else if (this%quad_to_quad_by_edge(iedge,icell) == -1) then 
+                    improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
+                    if ( min_cell_int_edge == jcell ) then
+                      improper_cell_around_subvef  = -isubface
+                    end if  
+                 ! If the neighbour across edge is ghost ...
+                 else if (this%quad_to_quad_by_edge(iedge,icell) == -2) then    
+                    improper_cell_around_subvef  = -5
+                 end if 
+                 is_proper = .false.
+                 if (improper_cell_around_subvef /= -5) then 
+                   call work_vector_improper_cells_around%push_back(jcell)
+                   call work_vector_ivef%push_back(improper_cell_around_ivef)
+                   call work_vector_subvef%push_back(improper_cell_around_subvef)
+                   if ( jcell > this%get_num_local_cells() ) then
+                     vef_at_interface = .true.
+                   end if
+                 end if
+            else ! Half-size neighbour   
+              vef_is_ghost = .false.
+            end if  
+           end do ! iface_at_edge
 
            base_pos_icell    = this%get_ptr_vefs_x_cell(icell)-1    + num_corners_x_cell
            base_pos_min_cell = this%get_ptr_vefs_x_cell(min_cell)-1 + num_corners_x_cell
 
-           ! If am owner of this edge
-           if (icell == min_cell) then
+           if ( .not. vef_is_ghost ) then
+             ! If am owner of this edge
+             if (icell == min_cell) then
               if (is_proper) then
                  this%num_proper_vefs = this%num_proper_vefs+1
                  call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), this%num_proper_vefs)
@@ -794,10 +835,11 @@ contains
                    call this%improper_vefs_at_interface%push_back(0)
                  end if
               end if
-           else
-              call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), &
-                   this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_EDGE_3D(min_iedge)))
-           end if
+             else
+                call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), &
+                     this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_EDGE_3D(min_iedge)))
+             end if
+           end if 
         end do ! iedge
      end if
    end subroutine generate_edges
@@ -814,7 +856,8 @@ contains
         else
           vef_at_interface = .false.
         end if 
-
+        vef_is_ghost = .true.
+        
         if (this%quad_to_quad(iface,icell)<0) cycle       
 
         call work_vector_cells_around%resize(0)
@@ -836,6 +879,12 @@ contains
         assert (flip==1) ! All cells we are working with MUST be aligned with each other
         if (mortar == -1) then ! Conformal neighbour
            jcell      = this%quad_to_quad(iface,icell)+1 
+           if (icell > this%get_num_local_cells() .and. &
+               jcell > this%get_num_local_cells()) then
+             cycle
+           end if   
+           vef_is_ghost = .false.   
+           
            min_cell = min(min_cell,jcell)
            if (min_cell == jcell) then
               min_iface=this%quad_to_face(iface,icell)+1 
@@ -849,6 +898,7 @@ contains
               vef_at_boundary = .true.
            end if
         else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
+           vef_is_ghost = .false.
            improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
            improper_cell_around_subvef  = mortar
            jcell      = this%quad_to_quad(iface,icell)+1
@@ -859,11 +909,14 @@ contains
            if ( jcell > this%get_num_local_cells() ) then
               vef_at_interface = .true.
            end if
+        else ! Half-size neighbour 
+           vef_is_ghost = .false.   
         end if
 
         base_pos_icell    = this%get_ptr_vefs_x_cell(icell)-1    + num_corners_x_cell + num_edges_x_cell
         base_pos_min_cell = this%get_ptr_vefs_x_cell(min_cell)-1 + num_corners_x_cell + num_edges_x_cell
 
+        !if ( .not. vef_is_ghost ) then
         ! If am owner of this corner
         if (icell == min_cell) then
            if (is_proper) then
@@ -924,6 +977,7 @@ contains
            call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), &
                 this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_FACE(min_iface)))
         end if
+       !end if 
      end do ! iface
    end subroutine generate_faces
 #else
@@ -2052,7 +2106,7 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
   call c_f_pointer(qq,this%quad_to_quad,[NUM_FACES_3D,local_num_quadrants])
   call c_f_pointer(qf,this%quad_to_face,[NUM_FACES_3D,local_num_quadrants])
   if(num_half_faces>0) then 
-    call c_f_pointer(qh,this%quad_to_half,[NUM_SUBFACES_FACE_2D,num_half_faces])
+    call c_f_pointer(qh,this%quad_to_half,[NUM_SUBFACES_FACE_3D,num_half_faces])
   else
     nullify(this%quad_to_half)
   end if   
@@ -2113,6 +2167,13 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   integer(P4EST_F90_QLEVEL) :: neighbour_quad_level
   integer(ip) :: ghost_cell_pos, local_cell_pos
   integer(ip) :: edget_id
+  logical :: face_is_ghost(2), face_is_double(2)
+  integer(ip) :: jcell_iface_1, icell_iface_1, jcell_1, jcell_iedge_1 
+  integer(ip) :: jcell_iface_2, icell_iface_2, jcell_2, jcell_iedge_2 
+  integer(ip) :: iface_at_edge
+  integer(P4EST_F90_QLEVEL) :: jcell_iconn_1, jcell_iconn_2
+  integer(ip) :: kcell_iface_1, kcell_iface_2
+
   
   if ( this%get_num_dims() == 2 ) then
      num_corners_x_cell    =  NUM_CORNERS_2D
@@ -2163,7 +2224,7 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   quad_to_corner (1:num_corners_x_cell, this%get_num_local_cells()+1:this%get_num_cells()) = -1
   if ( this%get_num_dims() == 3 ) then
     quad_to_quad_by_edge(1:num_edges_x_cell, 1:this%get_num_local_cells())                      = this%quad_to_quad_by_edge
-    quad_to_quad_by_edge(1:num_edges_x_cell, this%get_num_local_cells()+1:this%get_num_cells()) = -1
+    quad_to_quad_by_edge(1:num_edges_x_cell, this%get_num_local_cells()+1:this%get_num_cells()) = -2
     quad_to_edge        (1:num_edges_x_cell, 1:this%get_num_local_cells())                      = this%quad_to_edge
     quad_to_edge        (1:num_edges_x_cell, this%get_num_local_cells()+1:this%get_num_cells()) = -100  
   end if
@@ -2175,10 +2236,12 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   end if 
   
   if (this%get_num_dims() == 3) then
-    num_half_edges=size(this%quad_to_half_by_edge,2)
-  else
-    num_half_edges=0
-  end if 
+    if (associated(this%quad_to_half_by_edge)) then 
+      num_half_edges=size(this%quad_to_half_by_edge,2)
+    else
+      num_half_edges=0
+    end if 
+  end if  
   
   do icell=1, this%get_num_local_cells()
     do iface=1, num_faces_x_cell
@@ -2351,8 +2414,8 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
             jcell = quad_to_quad_by_edge(iedge,icell)+1
             ! If neighbour cell is ghost
             if ( jcell > this%get_num_local_cells() ) then
-              quad_to_quad(jcell_iedge,jcell) = icell-1
-              quad_to_face(jcell_iedge,jcell) = iedge-1
+              quad_to_quad_by_edge(jcell_iedge,jcell) = icell-1
+              quad_to_edge(jcell_iedge,jcell) = iedge-1
             end if
           else if ( mortar >= 1 .and. mortar <= num_subedgets_edget )  then ! Double-size neighbour 
             jcell = quad_to_quad_by_edge(iedge,icell)+1
@@ -2377,7 +2440,7 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
                  ! Push local cell icell among the neighbours cells of the ghost cell
                  call extra_cols_quad_to_half_by_edge(isubedge)%push_back(icell-1)
                  
-                 face = P4EST_EDGES_SUBEDGE_FACE_NEIGHBOUR_3D((iedge-1)/4+1, isubedge)
+                 face = P4EST_EDGES_SUBEDGE_FACE_NEIGHBOUR_3D((iedge-1)/4+1, isubedge)-1
                  subedge = P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR_2D(isubedge,1)
                  call F90_p8est_quadrant_face_neighbor(this%quad_coords(1,icell), &
                                                        this%quad_coords(2,icell), &
@@ -2406,6 +2469,78 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
                     assert(local_cell_pos>=0)
                     call extra_cols_quad_to_half_by_edge(subedge)%push_back(local_cell_pos)
                   end if
+               
+                  ! Go over facets on current edge
+                  ! If both are ghosts ... connect them with each other
+                  face_is_ghost  = .true.
+                  face_is_double = .true.
+                  do iface_at_edge=1, NUM_FACES_AT_EDGE_3D
+                    icell_iface = P4EST_FACES_AT_EDGE_3D(iface_at_edge,iedge)
+                    jcell_iconn = this%quad_to_face(icell_iface,icell)
+                    call p8est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+                    ! If neighbour across icell_iface is local
+                    if ( this%quad_to_quad(icell_iface,icell) < this%get_num_local_cells() ) then 
+                      face_is_ghost(iface_at_edge) = .false.
+                    end if
+                    ! If neighbour across icell_iface is not double (then in this case will be conformal)
+                    if (.not. (mortar >= 1 .and. mortar <= num_subfacets_facet)) then
+                      face_is_double(iface_at_edge) = .false.
+                    end if
+                  end do 
+                  
+                  if ( face_is_ghost(1) ) then
+                     ! First ghost neighbour
+                     icell_iface_1 = P4EST_FACES_AT_EDGE_3D(1,iedge)
+                     jcell_1       = this%quad_to_quad(icell_iface_1,icell)+1
+                     assert ( jcell_1 > this%get_num_local_cells() )
+                     jcell_iconn_1 = this%quad_to_face(icell_iface_1,icell)
+                     call p8est_eval_connectivity(jcell_iconn_1, jcell_iface_1, flip, mortar)
+                     jcell_iedge_1 = p4est_get_jcell_icorner(icell_iface_1,jcell_iface_1,iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
+                  end if 
+                  
+                  if ( face_is_ghost(2) ) then
+                     ! Second ghost neighbour
+                     icell_iface_2 = P4EST_FACES_AT_EDGE_3D(2,iedge)
+                     jcell_2       = this%quad_to_quad(icell_iface_2,icell)+1
+                     assert ( jcell_2 > this%get_num_local_cells() )
+                     jcell_iconn_2 = this%quad_to_face(icell_iface_2,icell)
+                     call p8est_eval_connectivity(jcell_iconn_2, jcell_iface_2, flip, mortar)
+                     jcell_iedge_2 = p4est_get_jcell_icorner(icell_iface_2,jcell_iface_2,iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
+                  end if 
+                  
+                  if ( face_is_ghost(1)  .and. face_is_ghost(2) .and. &
+                       face_is_double(1) .and. face_is_double(2) ) then
+                     quad_to_quad_by_edge(jcell_iedge_1,jcell_1) = jcell_2-1
+                     quad_to_edge        (jcell_iedge_1,jcell_1) = jcell_iedge_2-1
+                     quad_to_quad_by_edge(jcell_iedge_2,jcell_2) = jcell_1-1
+                     quad_to_edge        (jcell_iedge_2,jcell_2) = jcell_iedge_1-1
+                  end if 
+                  
+                  ! Add Remaining face connections
+                  if ( face_is_ghost(1) .and. face_is_double(1) ) then
+                     do iface_at_edge=1, NUM_FACES_AT_EDGE_3D
+                       kcell_iface_1 = P4EST_FACES_AT_EDGE_3D(iface_at_edge,jcell_iedge_1)
+                       if ( kcell_iface_1 /= jcell_iface_1 ) exit 
+                     end do 
+                     
+                     quad_to_quad(kcell_iface_1                        , jcell_1      ) = jcell-1
+                     quad_to_face(kcell_iface_1                        , jcell_1      ) = P4EST_OPPOSITE_FACE_3D(kcell_iface_1)-1
+                     quad_to_quad(P4EST_OPPOSITE_FACE_3D(kcell_iface_1), jcell        ) = jcell_1-1
+                     quad_to_face(P4EST_OPPOSITE_FACE_3D(kcell_iface_1), jcell        ) = kcell_iface_1-1
+                  end if 
+                  
+                  if ( face_is_ghost(2) .and. face_is_double(2) ) then
+                     ! Remaining face connections
+                     do iface_at_edge=1, NUM_FACES_AT_EDGE_3D
+                       kcell_iface_1 = P4EST_FACES_AT_EDGE_3D(iface_at_edge,jcell_iedge_2)
+                       if ( kcell_iface_1 /= jcell_iface_2 ) exit 
+                     end do 
+                     
+                     quad_to_quad(kcell_iface_1                        , jcell_2      ) = jcell-1
+                     quad_to_face(kcell_iface_1                        , jcell_2      ) = P4EST_OPPOSITE_FACE_3D(kcell_iface_1)-1
+                     quad_to_quad(P4EST_OPPOSITE_FACE_3D(kcell_iface_1), jcell        ) = jcell_2-1
+                     quad_to_face(P4EST_OPPOSITE_FACE_3D(kcell_iface_1), jcell        ) = kcell_iface_1-1
+                  end if 
                end if 
             end if 
           else                                                              ! Half-size neighbour 
@@ -2420,6 +2555,11 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
             end do
           end if
         end if      
+      
+        
+        ! Go over faces around edge
+        
+        ! 
       end do 
     end if   
     
@@ -2470,7 +2610,7 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   
     do i=1, extra_cols_quad_to_half_by_edge(1)%size()
       do isubedge = 1, num_subedgets_edget
-        quad_to_half(isubedge, current) = extra_cols_quad_to_half_by_edge(isubedge)%get(i)
+        quad_to_half_by_edge(isubedge, current) = extra_cols_quad_to_half_by_edge(isubedge)%get(i)
       end do
       current = current + 1 
     end do
@@ -2485,6 +2625,7 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
     call memfree (this%quad_to_edge, __FILE__, __LINE__)
     call memmovealloc(quad_to_quad_by_edge, this%quad_to_quad_by_edge, __FILE__, __LINE__)
     call memmovealloc(quad_to_edge, this%quad_to_edge, __FILE__, __LINE__)
+    this%quad_to_half_by_edge   => quad_to_half_by_edge
   end if
   
   call memfree(double_size_neighbour_visited, __FILE__, __LINE__)
