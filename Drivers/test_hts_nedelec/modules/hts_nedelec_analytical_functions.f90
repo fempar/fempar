@@ -282,7 +282,7 @@ contains
     real(rp)                       , intent(in)    :: time
     real(rp)                       , intent(inout) :: result 
 
-    result = 0.0_rp 
+    result = this%amplitude*sin(2.0_rp*this%frequency*pi*time) 
 
   end subroutine boundary_function_Hx_get_value_space_time 
 
@@ -328,7 +328,7 @@ contains
     real(rp)                       , intent(in)    :: time 
     real(rp)                       , intent(inout) :: result    
 
-    result = 0.0_rp 
+    result = this%amplitude*sin(2.0_rp*this%frequency*pi*time) 
     
   end subroutine boundary_function_Hz_get_value_space_time
     

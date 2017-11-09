@@ -167,14 +167,26 @@ contains
        cy = cy/real(cell%get_num_nodes(),rp)
 	      cz = cz/real(cell%get_num_nodes(),rp)
 
-       ! Select material case: HTS TAPE in the center 
-       if ( ( (domain_length(0) - hts_lx)/2.0_rp < cx .and. cx < (domain_length(0) + hts_lx)/2.0_rp ) & 
-											.and. ( (domain_length(1) - hts_ly)/2.0_rp < cy .and. cy < (domain_length(1) + hts_ly)/2.0_rp) ) then
+							if ( this%triangulation%get_num_dims() == 2) then 
+							! Select material case: HTS TAPE in the center 
+       if ( ( (domain_length(0) - hts_lx)/2.0_rp < cx .and. cx < (domain_length(0) + hts_lx)/2.0_rp ) .and. & 
+											 ( (domain_length(1) - hts_ly)/2.0_rp < cy .and. cy < (domain_length(1) + hts_ly)/2.0_rp )  )  then
           cells_set( cell%get_gid() ) = hts 
        else 
           cells_set( cell%get_gid() ) = air
        end if
-    
+							
+							else 
+       ! Select material case in 3D: HTS TAPE in the center 
+       if ( ( (domain_length(0) - hts_lx)/2.0_rp < cx .and. cx < (domain_length(0) + hts_lx)/2.0_rp ) .and. & 
+											 ( (domain_length(1) - hts_ly)/2.0_rp < cy .and. cy < (domain_length(1) + hts_ly)/2.0_rp ) .and. & 
+												( (domain_length(2) - hts_ly)/2.0_rp < cz .and. cz < (domain_length(2) + hts_ly)/2.0_rp ) )  then
+          cells_set( cell%get_gid() ) = hts 
+       else 
+          cells_set( cell%get_gid() ) = air
+       end if
+       
+							end if 
 							call cell%next() 
     end do
 
@@ -193,39 +205,46 @@ contains
     class(cell_iterator_t)      , allocatable :: cell
     type(point_t), allocatable :: coords(:)
     integer(ip) :: istat, k
-    real(rp) ::  x,y
-    integer(ip), parameter :: max_num_cell_nodes = 4
-    integer(ip), parameter :: max_level = 4
-			 
-				real(rp)          :: x0, xL, y0, yL, x_eps, y_eps 
+    integer(ip), parameter, dimension(2) :: max_num_cell_nodes = [4,8]
+		  ! Meshing parameters 	 
+				real(rp)          :: x0, xL, y0, yL, z0, zL, x_eps, y_eps, z_eps  
 				real(rp)          :: domain_length(0:SPACE_DIM-1) 
 				real(rp)          :: hts_domain_length(0:SPACE_DIM-1)
 				real(rp)          :: epsilon_length(0:SPACE_DIM-1) 
 
 				! Set refinemenent if the cell contains centered hts device 
-				domain_length        = this%test_params%get_domain_length()
-				hts_domain_length    = this%test_params%get_hts_domain_length()
-				epsilon_length       = this%test_params%get_eps_hts_domain_length()
+				domain_length      = this%test_params%get_domain_length()
+				hts_domain_length  = this%test_params%get_hts_domain_length()
+				epsilon_length     = this%test_params%get_eps_hts_domain_length()
 	
 				x0 = (domain_length(0)-hts_domain_length(0))/2.0_rp - epsilon_length(0) 
 				xL = (domain_length(0)+hts_domain_length(0))/2.0_rp + epsilon_length(0)
 				y0 = (domain_length(1)-hts_domain_length(1))/2.0_rp - epsilon_length(1)
 				yL = (domain_length(1)+hts_domain_length(1))/2.0_rp + epsilon_length(1) 
+				z0 = (domain_length(2)-hts_domain_length(2))/2.0_rp - epsilon_length(2) 
+				zL = (domain_length(2)+hts_domain_length(2))/2.0_rp + epsilon_length(2)
 				
     call this%triangulation%create_cell_iterator(cell)
-    if (this%triangulation%get_num_dims() == 2) then
-      allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
+    allocate(coords(max_num_cell_nodes(this%triangulation%get_num_dims()-1)),stat=istat); check(istat==0)
 
       do while ( .not. cell%has_finished() )
-
         call cell%get_nodes_coordinates(coords)
 								if ( cell%get_level() < this%test_params%get_num_min_refinements() ) then 
 										call cell%set_for_refinement()
 								else 
-        do k=1,max_num_cell_nodes
+        do k=1,max_num_cell_nodes(this%triangulation%get_num_dims()-1)
 								! If cell contains device, refine! 
-         if ( ( x0 < coords(k)%get(1) .and. coords(k)%get(1) < xL ) .and. ( y0 < coords(k)%get(2) .and. coords(k)%get(2) < yL ) ) then 
+								 if ( this%triangulation%get_num_dims() == 2) then 
+									if ( ( x0 < coords(k)%get(1) .and. coords(k)%get(1) < xL ) .and. &
+													 ( y0 < coords(k)%get(2) .and. coords(k)%get(2) < yL )  )     then 
 										call cell%set_for_refinement(); exit 
+									end if 
+									else 
+         if ( ( x0 < coords(k)%get(1) .and. coords(k)%get(1) < xL ) .and. &
+													 ( y0 < coords(k)%get(2) .and. coords(k)%get(2) < yL ) .and. &
+														( z0 < coords(k)%get(3) .and. coords(k)%get(3) < zL ) )     then 
+										call cell%set_for_refinement(); exit 
+									end if 
 									end if 
         end do
 								end if 
@@ -233,13 +252,6 @@ contains
         call cell%next()
       end do
       deallocate(coords,stat=istat); check(istat==0)
-
-    else if (this%triangulation%get_num_dims() == 3) then    
-      ! To define a 3D algorithm 
-    else
-      mcheck(.false.,'Only for 2D and 3D')
-
-    end if
 
     call this%triangulation%free_cell_iterator(cell)
 
@@ -265,8 +277,6 @@ contains
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
-          ! In the 3D case, vefs asociated to faces 21,22 are Neumann boundary (2D case set_id <= 9)
-       !  if ( vef%is_at_boundary() .and. ( vef%get_set_id() .ne. 21 .and. vef%get_set_id() .ne. 22) ) then 
           if ( vef%is_at_boundary() ) then 
 		        call vef%set_set_id(1)
           else
@@ -632,10 +642,20 @@ contains
     real(rp)                               :: Hy_average, xJ_average
     real(rp)                               :: hts_volume
     real(rp)                               :: Happ, AC_loss 
+				real(rp)                               :: domain_length(0:SPACE_DIM-1) 
     real(rp)                               :: hts_domain_length(0:SPACE_DIM-1)
+				class(scalar_function_t) , pointer     :: boundary_function_Hx
     class(scalar_function_t) , pointer     :: boundary_function_Hy
+				class(scalar_function_t) , pointer     :: boundary_function_Hz
     type(constraint_value_t) , pointer     :: constraint_value_function 
-    real(rp) :: constraint_value 
+				! 3D hysteresis computation 
+				real(rp)                               :: magn_factor 
+				integer(ip)                            :: idime 
+				type(vector_field_t)                   :: r, r0, r_cross_J 
+				type(vector_field_t)                   :: e_alpha
+				real(rp)                               :: Mx, Malpha, Mz, P 
+				real(rp)                               :: Happx, Happy, Happz
+    real(rp)                               :: constraint_value 
     
     integer(ip) :: istat 
 
@@ -649,11 +669,22 @@ contains
     quad_coords      => fe%get_quadrature_points_coordinates()
     aux_quad_coords  = quad_coords
 
-    ! Loop over elements
-    Hy_average  = 0
-    xJ_average  = 0
-    hts_volume  = 0.0_rp 
-				AC_loss     = 0.0_rp 
+    ! Auxiliar variables 
+				domain_length     = this%test_params%get_domain_length() 
+				hts_domain_length = this%test_params%get_hts_domain_length() 
+				! Unit vector in alpha direction 
+				call e_alpha%set(1, cos(pi/6.0_rp) ) 
+				call e_alpha%set(2, 0.0_rp ) 
+				call e_alpha%set(3, sin(pi/6.0_rp) )
+				do idime=1, SPACE_DIM 
+				call r0%set(idime, domain_length(idime-1)/2.0_rp )
+				end do 
+				
+				! Initialize hysteresis variables 
+    magn_factor = 1.0_rp / ( this%test_params%get_critical_current() * hts_domain_length(0) ) 
+    Hy_average  = 0; xJ_average  = 0; AC_loss = 0.0_rp 
+				Mx = 0.0_rp; Malpha = 0.0_rp; Mz = 0.0_rp; P = 0.0_rp 
+				hts_volume  = 0.0_rp 
     do while ( .not. fe%has_finished())
 
        if ( fe%get_set_id() == hts ) then  ! Integrate only in HTS device DOMAIN 
@@ -671,25 +702,65 @@ contains
              call fe_cell_function_current%compute_curl(qpoin, H_curl)
 													resistivity  = this%hts_nedelec_integration%compute_resistivity( H_curl, HTS )
 													
+													if ( this%triangulation%get_num_dims() == 2) then 
              Hy_average  = Hy_average  + factor*H_value%get(2)          
-             xJ_average  = xJ_average  + factor*quad_coords(qpoin)%get(1)*H_curl%get(3)   
-													AC_loss     = AC_loss     + factor*resistivity*H_curl%get(3)*H_curl%get(3) 
+             xJ_average  = xJ_average  + factor*quad_coords(qpoin)%get(1)*H_curl%get(3)
+													AC_loss     = AC_loss     + factor*resistivity*H_curl%get(3)*H_curl%get(3)
+													elseif ( this%triangulation%get_num_dims() == 3) then 
+													
+													do idime=1, SPACE_DIM 
+													call r%set(idime, quad_coords(qpoin)%get(idime) - r0%get(idime) ) 
+													end do 
+													
+													r_cross_J   = cross_product( r, H_curl )
+													Mx          = magn_factor * factor * r_cross_J%get(1) 
+													Malpha      = magn_factor * factor * r_cross_J*e_alpha 
+													Mz          = magn_factor * factor * r_cross_J%get(3)
+													P           = P + factor*resistivity*H_curl*H_curl
+													
+													end if 
+													hts_volume  = hts_volume  + factor 
           end do
-           hts_volume = hts_volume + fe%compute_volume()
        end if
        call fe%next()
     end do
     call this%fe_space%free_fe_cell_iterator(fe)
 
-    ! Coordinates of quadrature does influence the constant value Happ(t) 
+    ! Coordinates of quadrature do not influence the value Happ(t) 
+
     boundary_function_Hy => this%problem_functions%get_boundary_function_Hy()
+				if ( this%triangulation%get_num_dims() == 2) then 
     call boundary_function_Hy%get_value_space_time( aux_quad_coords(1), this%theta_method%get_current_time() , Happ )
+				else 
+								boundary_function_Hx => this%problem_functions%get_boundary_function_Hx()
+								boundary_function_Hz => this%problem_functions%get_boundary_function_Hz()
+				call boundary_function_Hx%get_value_space_time( aux_quad_coords(1), this%theta_method%get_current_time() , Happx )
+				call boundary_function_Hy%get_value_space_time( aux_quad_coords(1), this%theta_method%get_current_time() , Happy )
+				call boundary_function_Hz%get_value_space_time( aux_quad_coords(1), this%theta_method%get_current_time() , Happz )
+				
+				Happ = sqrt( Happx**2.0_rp + Happy**2.0_rp + Happz**2.0_rp ) 
+				if ( sin(2.0_rp * pi * this%test_params%get_external_magnetic_field_frequency() *  this%theta_method%get_current_time() ) < 0 ) then 
+				Happ = -Happ
+				end if 
+				
+				end if 
     constraint_value_function => this%problem_functions%get_constraint_value() 
     call constraint_value_function%get_constraint_value(this%theta_method%get_current_time(), constraint_value)
+				
+				if ( this%triangulation%get_num_dims() == 2) then 
     write(*,*) 'Hysteresis Data -----------------------------------------'
     write(*,*) 'mu0·(Hy-Happ)', this%test_params%get_air_permeability()*(Hy_average/hts_volume-Happ), 'Happ', Happ 
     write(*,*) 'xJ', xJ_average/hts_volume, 'AC_loss', AC_loss  
     write(*,*) ' --------------------------------------------------------' 
+				elseif ( this%triangulation%get_num_dims() == 3) then
+				write(*,*) 'Hysteresis Data ----------- M/(J_c b) ------------------------'
+    write(*,*) 'Mx', Mx/hts_volume 
+				write(*,*) 'Ma', Malpha/hts_volume  
+				write(*,*) 'Mz', Mz/hts_volume 
+				write(*,*) 'Happ/(Jc b)', Happ*magn_factor  
+    write(*,*) 'P', P   
+    write(*,*) ' --------------------------------------------------------' 			
+				end if 
 
   end subroutine compute_hysteresis_data
   
