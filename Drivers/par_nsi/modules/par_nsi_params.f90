@@ -39,12 +39,15 @@ contains
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
     integer(ip)    :: error
     character(len=:), allocatable            :: msg
+    integer(ip) :: default_reference_fe_orders(2)
 
     list        => this%get_values()
     switches    => this%get_switches()
     switches_ab => this%get_switches_ab()
     helpers     => this%get_helpers()
     required    => this%get_required()
+    
+    default_reference_fe_orders = [2, 1]
 
     error = list%set(key = dir_path_key                      , value = '.') ; check(error==0)
     error = list%set(key = prefix_key                        , value = 'square') ; check(error==0)
@@ -55,7 +58,7 @@ contains
     error = list%set(key = num_levels_key                    , value =  3)                   ; check(error==0)
     error = list%set(key = num_parts_x_dir_key               , value =  [4,4,0,2,2,0,1,1,0]) ; check(error==0)
     error = list%set(key = reference_fe_geo_order_key        , value =  1)                   ; check(error==0)
-    error = list%set(key = reference_fe_orders_key           , value =  [2,1])               ; check(error==0)
+    error = list%set(key = reference_fe_orders_key           , value =  default_reference_fe_orders); check(error==0)
     error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
     error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
     error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
