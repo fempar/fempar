@@ -76,6 +76,8 @@ module test_hts_nedelec_driver_names
      
      ! Writing solution 
      type(output_handler_t)         :: oh 
+					real(rp)                       :: AC_loss 
+					real(rp)                       :: previous_power_dissipation 
 
    contains
      procedure                  :: run_simulation
@@ -653,7 +655,7 @@ contains
 				integer(ip)                            :: idime 
 				type(vector_field_t)                   :: r, r0, r_cross_J 
 				type(vector_field_t)                   :: e_alpha
-				real(rp)                               :: Mx, Malpha, Mz, P 
+				real(rp)                               :: Mx, Malpha, Mz, P, Q 
 				real(rp)                               :: Happx, Happy, Happz
     real(rp)                               :: constraint_value 
     
@@ -713,14 +715,14 @@ contains
 													end do 
 													
 													r_cross_J   = cross_product( r, H_curl )
-													Mx          = magn_factor * factor * r_cross_J%get(1) 
-													Malpha      = magn_factor * factor * r_cross_J*e_alpha 
-													Mz          = magn_factor * factor * r_cross_J%get(3)
+													Mx          = Mx     + factor * r_cross_J%get(1) 
+													Malpha      = Malpha + factor * r_cross_J*e_alpha 
+													Mz          = Mz     + factor * r_cross_J%get(3)
 													P           = P + factor*resistivity*H_curl*H_curl
 													
 													end if 
 													hts_volume  = hts_volume  + factor 
-          end do
+          end do										
        end if
        call fe%next()
     end do
@@ -753,15 +755,25 @@ contains
     write(*,*) 'xJ', xJ_average/hts_volume, 'AC_loss', AC_loss  
     write(*,*) ' --------------------------------------------------------' 
 				elseif ( this%triangulation%get_num_dims() == 3) then
+				
+				! Add half cycle AC_loss computation 
+				if ( this%theta_method%get_current_time() < 10e-3_rp ) then 
+				this%AC_loss = 0.0_rp 
+				this%previous_power_dissipation = P 
+				elseif ( (10e-3_rp <= this%theta_method%get_current_time()) .and. (this%theta_method%get_current_time() <= 20e-3_rp) ) then  
+				this%AC_loss = this%AC_loss + this%theta_method%get_time_step()*(P - this%previous_power_dissipation)/2.0_rp 
+				this%previous_power_dissipation = P 
+				end if 
+				
 				write(*,*) 'Hysteresis Data ----------- M/(J_c b) ------------------------'
-    write(*,*) 'Mx', Mx/hts_volume 
-				write(*,*) 'Ma', Malpha/hts_volume  
-				write(*,*) 'Mz', Mz/hts_volume 
-				write(*,*) 'Happ/(Jc b)', Happ*magn_factor  
-    write(*,*) 'P', P   
+    write(*,*) 'Mx', magn_factor/hts_volume * Mx 
+				write(*,*) 'Ma', magn_factor/hts_volume * Malpha  
+				write(*,*) 'Mz', magn_factor/hts_volume * Mz
+				write(*,*) 'Happ/(Jc b)', magn_factor * Happ  
+    write(*,*) 'P', P, 'AC_loss acumulated', 2.0_rp * this%AC_loss 
     write(*,*) ' --------------------------------------------------------' 			
 				end if 
-
+				
   end subroutine compute_hysteresis_data
   
   ! -----------------------------------------------------------------------------------------------

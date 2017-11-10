@@ -38,7 +38,7 @@ module hts_nedelec_params_names
     character(len=*), parameter :: theta_value_key                = 'theta_value' 
     character(len=*), parameter :: initial_time_key               = 'initial_time' 
     character(len=*), parameter :: final_time_key                 = 'final_time' 
-    character(len=*), parameter :: num_time_steps_key          = 'num_time_steps' 
+    character(len=*), parameter :: num_time_steps_key             = 'num_time_steps' 
     character(len=*), parameter :: is_adaptive_time_stepping_key  = 'is_adaptive_time_stepping' 
     character(len=*), parameter :: stepping_parameter_key         = 'stepping_parameter' 
     character(len=*), parameter :: max_time_step_key              = 'max_time_step' 

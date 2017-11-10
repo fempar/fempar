@@ -107,6 +107,8 @@ contains
     type(fe_cell_function_vector_t)    :: fe_cell_function_previous, fe_cell_function_current 
     type(vector_field_t), allocatable  :: shape_values_H(:,:)
     type(vector_field_t), allocatable  :: curl_values_H(:,:)    
+				type(tensor_field_t)               :: resistivity_tensor 
+				type(tensor_field_t)               :: tangent_resistivity_tensor 
     
     ! Nonlinear parameters computed in the integrate 
     real(rp)   :: resistivity, tangent_resistivity
@@ -173,6 +175,12 @@ contains
           resistivity  = this%compute_resistivity( H_current_curl_values(qpoint), fe%get_set_id() )
           permeability = this%air_permeability
           
+										! Build anisotropic tensor 
+										call resistivity_tensor%init(0.0_rp) 
+										call resistivity_tensor%set(1,1, resistivity) 
+										call resistivity_tensor%set(2,2, resistivity) 
+										call resistivity_tensor%set(3,3, 1.0_rp) 
+										
           ! Previous solution to integrate RHS contribution 
           call fe_cell_function_previous%get_value( qpoint, H_value_previous )
           
@@ -180,11 +188,16 @@ contains
           do idof=1, fe%get_num_dofs_field(1)
             do jdof=1, fe%get_num_dofs_field(1)  
               elmat(idof,jdof) = elmat(idof,jdof) + &
-              (permeability/time_factor*shape_values_H(jdof,qpoint)*shape_values_H(idof,qpoint) + resistivity*curl_values_H(jdof,qpoint)*curl_values_H(idof,qpoint))*factor
+              (permeability/time_factor*shape_values_H(jdof,qpoint)*shape_values_H(idof,qpoint) + resistivity_tensor*curl_values_H(jdof,qpoint)*curl_values_H(idof,qpoint))*factor
                   
                   if ( this%integration_type=='add_tangent_terms' .and. fe%get_set_id()== hts ) then 
                    tangent_resistivity = this%compute_tangent_resistivity(H_current_curl_values(qpoint), curl_values_H(jdof,qpoint)) 
-                   elmat(idof,jdof) = elmat(idof,jdof) + tangent_resistivity*curl_values_H(idof,qpoint)*H_current_curl_values(qpoint)*factor                    
+																			
+																			! Build tangent resistivity tensor 
+																			call tangent_resistivity_tensor%init(0.0_rp) 
+										         call tangent_resistivity_tensor%set(1,1, tangent_resistivity) 
+										         call tangent_resistivity_tensor%set(2,2, tangent_resistivity) 																			
+                   elmat(idof,jdof) = elmat(idof,jdof) + tangent_resistivity_tensor*curl_values_H(idof,qpoint)*H_current_curl_values(qpoint)*factor                    
                   end if       
                   
             end do            
