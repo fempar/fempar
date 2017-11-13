@@ -33,6 +33,7 @@ module hts_nedelec_params_names
     character(len=*), parameter :: critical_current_key           = 'critical_current' 
     character(len=*), parameter :: critical_electric_field_key    = 'critical_electric_field' 
     character(len=*), parameter :: nonlinear_exponent_key         = 'nonlinear_exponent' 
+				character(len=*), parameter :: hts_device_type_key            = 'hts_device_type'
 
     ! TIME INTEGRATION parameters 
     character(len=*), parameter :: theta_value_key                = 'theta_value' 
@@ -79,6 +80,7 @@ module hts_nedelec_params_names
        procedure, non_overridable 	           :: get_critical_current           
        procedure, non_overridable             :: get_critical_electric_field   
        procedure, non_overridable             :: get_nonlinear_exponent
+							procedure, non_overridable             :: get_hts_device_type 
        procedure, non_overridable             :: get_theta_value 
        procedure, non_overridable             :: get_initial_time 
        procedure, non_overridable             :: get_final_time 
@@ -151,6 +153,7 @@ contains
     error = list%set(key = critical_current_key        , value = 1.0)      ; check(error==0)
     error = list%set(key = critical_electric_field_key , value = 1.0)      ; check(error==0)
     error = list%set(key = nonlinear_exponent_key      , value = 1.0)      ; check(error==0)
+				error = list%set(key = hts_device_type_key         , value = 'stack')   ; check(error==0)
 
     ! TIME INTEGRATION parameters 
     error = list%set(key = theta_value_key              , value = 1.0)      ; check(error==0)
@@ -209,6 +212,7 @@ contains
     error = switches%set(key = critical_current_key        , value = '--critical_current')        ; check(error==0)
     error = switches%set(key = critical_electric_field_key , value = '--critical_electric_field') ; check(error==0)
     error = switches%set(key = nonlinear_exponent_key      , value = '--nonlinear_exponent')      ; check(error==0)
+				error = switches%set(key = hts_device_type_key         , value = '--hts_device_type')         ; check(error==0)
     
     ! TIME INTEGRATION parameters
     error = switches%set(key = theta_value_key              , value = '--theta_value')              ; check(error==0)
@@ -267,6 +271,7 @@ contains
     error = switches_ab%set(key = critical_current_key        , value = '-Jc    ')     ; check(error==0)
     error = switches_ab%set(key = critical_electric_field_key , value = '-Ec')         ; check(error==0)
     error = switches_ab%set(key = nonlinear_exponent_key      , value = '-nl_exp')     ; check(error==0)
+				error = switches_ab%set(key = hts_device_type_key         , value = '-hts_type')   ; check(error==0)
     
     ! TIME INTEGRATION parameters
     error = switches_ab%set(key = theta_value_key              , value = '-theta')  ; check(error==0)
@@ -328,6 +333,7 @@ contains
     error = helpers%set(key = critical_current_key , value = 'Critical Current [Jc] ')     ; check(error==0)
     error = helpers%set(key = critical_electric_field_key , value = 'Critical Electric Field [Ec]'); check(error==0)
     error = helpers%set(key = nonlinear_exponent_key , value = 'Nonlinear exponent (E-J law)')  ; check(error==0)
+				error = helpers%set(key = hts_device_type_key , value = 'hts_device_type: [tape, stack]')  ; check(error==0)
     
     ! TIME INTEGRATION parameters
     error = helpers%set(key = theta_value_key        , value = 'Theta value')        ; check(error==0)
@@ -386,6 +392,7 @@ contains
     error = required%set(key = critical_current_key        , value = .false.)    ; check(error==0)
     error = required%set(key = critical_electric_field_key , value = .false.)    ; check(error==0)
     error = required%set(key = nonlinear_exponent_key      , value = .false.)    ; check(error==0)
+				error = required%set(key = hts_device_type_key         , value = .false.)    ; check(error==0)
     
     ! TIME INTEGRATION parameters
     error = required%set(key = theta_value_key              , value = .false.)   ; check(error==0)
@@ -718,6 +725,19 @@ contains
     error = list%Get(key=nonlinear_exponent_key, Value = get_nonlinear_exponent  )
     assert(error==0)
   end function get_nonlinear_exponent 
+		
+		!==================================================================================================
+  function get_hts_device_type (this)
+    implicit none
+    class(hts_nedelec_params_t) , intent(in) :: this
+    character(len=:)     , allocatable       :: get_hts_device_type   
+    type(ParameterList_t), pointer           :: list
+    integer(ip)                              :: error
+    list  => this%get_values()
+    assert(list%isAssignable(hts_device_type_key, get_hts_device_type  ))
+    error = list%GetAsString(key=hts_device_type_key, string = get_hts_device_type  )
+    assert(error==0)
+  end function get_hts_device_type   
 
  !==================================================================================================
   function get_theta_value  (this)

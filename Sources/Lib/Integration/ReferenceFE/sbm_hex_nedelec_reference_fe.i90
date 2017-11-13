@@ -95,6 +95,12 @@ subroutine hex_nedelec_reference_fe_free ( this )
   implicit none 
   class(hex_nedelec_reference_fe_t), intent(inout) :: this
     
+				if ( allocated(this%h_refinement_subedge_permutation) ) then
+     call memfree(this%h_refinement_subedge_permutation,__FILE__,__LINE__)
+  end if
+				if ( allocated(this%h_refinement_subfacet_permutation) ) then
+     call memfree(this%h_refinement_subfacet_permutation,__FILE__,__LINE__)
+  end if
 		if ( allocated(this%h_refinement_subcell_permutation) ) then
      call memfree(this%h_refinement_subcell_permutation,__FILE__,__LINE__)
   end if
@@ -124,10 +130,10 @@ subroutine hex_nedelec_reference_fe_create ( this, topology, num_dims, order, fi
   call this%fill()
   if ( this%conformity .and. this%continuity ) then
     call this%change_basis()
+				call this%fill_h_refinement_interpolation()
+	  	call this%fill_h_refinement_permutations()
   end if  
 		
-		call this%fill_h_refinement_interpolation()
-		call this%fill_h_refinement_permutations()
 end subroutine hex_nedelec_reference_fe_create
 
 !==================================================================================================
@@ -538,10 +544,9 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
               call this%get_value(edget_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
                    + shape_test * v_shape_trial * tangent * factor
+              this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) = this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) & 
+														     + shape_test * v_shape_trial * tangent * (1.0_rp/h_refinement_ratio) * factor
 
-              if (qpoint == edge_quadrature%num_quadrature_points) then 
-                 this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) = (1.0_rp/h_refinement_ratio) * this%change_basis_matrix(d+ishape,jshape)
-              end if
            end do
         end do
      end do
@@ -620,10 +625,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
                  this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
                       + cross_product_v_shape_trial_normal_proj * v_shape_test * factor
 
-                 if (qpoint == facet_quadrature%num_quadrature_points) then 
-                    this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) = (1.0_rp/h_refinement_ratio)**2.0_rp * this%change_basis_matrix(d+ishape,jshape)
-                 end if
-
+                    this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) =  this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) &
+                      + cross_product_v_shape_trial_normal_proj * v_shape_test *  (1.0_rp/h_refinement_ratio ) * factor
               end do
            end do
         end do
@@ -674,19 +677,17 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      end do
      call cell_map%update(cell_quadrature)
 
-     ! ! Integration of interior moments int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}     
+     ! Integration of interior moments int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}     
      do qpoint = 1, cell_quadrature%num_quadrature_points
         factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
         do ishape=1, reduced_order_cell_interpolation%num_shape_functions
            call this%get_value(reduced_order_cell_interpolation, ishape, qpoint, v_shape_test)
            do jshape=1, cell_interpolation%num_shape_functions
               call this%get_value(cell_interpolation, jshape, qpoint, v_shape_trial)
-              this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) + &
-                   v_shape_test * v_shape_trial * factor
-
-              if (qpoint == cell_quadrature%num_quadrature_points) then 
-                 this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) = (1.0_rp/h_refinement_ratio)**this%num_dims * this%change_basis_matrix(d+ishape,jshape)
-              end if
+              this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
+                   + v_shape_test * v_shape_trial * factor
+              this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) = this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) &
+														     + v_shape_test * v_shape_trial * (1.0_rp/h_refinement_ratio) * factor
            end do
         end do
      end do
@@ -1104,13 +1105,51 @@ end subroutine hex_nedelec_create_prebasis_nodal_quadrature
 subroutine hex_nedelec_reference_fe_fill_h_refinement_permutations ( this )
   implicit none 
   class(hex_nedelec_reference_fe_t), intent(inout) :: this
-  call this%fill_n_subfacet_permutation(this%num_dims, &
+  call this%fill_n_subcell_permutation(this%num_dims, &
                                        this%h_refinement_subcell_permutation)
+		
+		  call this%fill_n_subfacet_permutation(this%num_dims-1, &
+                                       this%h_refinement_subfacet_permutation)
+  if ( this%num_dims == 3 ) then
+     call this%fill_n_subfacet_permutation(this%num_dims-2, &
+                                          this%h_refinement_subedge_permutation)
+  end if
 end subroutine hex_nedelec_reference_fe_fill_h_refinement_permutations
 
 !==================================================================================================
-! Actually building subcell permutation array
 subroutine hex_nedelec_reference_fe_fill_n_subfacet_permutation ( this, n_face_dime, permutation_array )
+  implicit none 
+  class(hex_nedelec_reference_fe_t)   , intent(in)    :: this              
+  integer(ip)                         , intent(in)    :: n_face_dime
+  integer(ip)           , allocatable , intent(inout) :: permutation_array(:,:,:)
+		type(list_iterator_t) :: dofs_n_facet_iterator
+  integer(ip)           :: num_refinements, num_n_faces, num_n_subfaces 
+  integer(ip)           :: first_n_face_id, num_dofs_on_n_face
+		integer(ip)           :: facet_lid, facet_dof 
+		
+  num_refinements    = 1
+  num_n_faces        = this%get_num_n_faces_of_dim(n_face_dime)
+  num_n_subfaces     = ( num_refinements + 1 ) ** n_face_dime     ! Topology-dependent
+  first_n_face_id    = this%get_first_n_face_id_of_dim(n_face_dime)
+  num_dofs_on_n_face = this%get_num_dofs_on_n_face(first_n_face_id)
+
+  call memalloc(num_n_faces,num_n_subfaces,num_dofs_on_n_face,permutation_array,__FILE__,__LINE__)
+
+  do facet_lid = first_n_face_id, first_n_face_id + this%get_num_n_faces_of_dim(n_face_dime)-1
+		dofs_n_facet_iterator = this%create_dofs_n_face_iterator(facet_lid)
+		facet_dof = 0 
+		do while ( .not. dofs_n_facet_iterator%is_upper_bound() ) 
+		facet_dof = facet_dof + 1
+		permutation_array( facet_lid-(first_n_face_id-1), :, facet_dof ) = dofs_n_facet_iterator%get_current() 
+		call dofs_n_facet_iterator%next() 
+		end do 
+		end do 
+		assert( facet_dof == num_dofs_on_n_face ) 
+		
+end subroutine hex_nedelec_reference_fe_fill_n_subfacet_permutation
+
+!==================================================================================================
+subroutine hex_nedelec_reference_fe_fill_n_subcell_permutation ( this, n_face_dime, permutation_array )
   implicit none 
   class(hex_nedelec_reference_fe_t)   , intent(in)    :: this              
   integer(ip)                         , intent(in)    :: n_face_dime
@@ -1156,7 +1195,7 @@ subroutine hex_nedelec_reference_fe_fill_n_subfacet_permutation ( this, n_face_d
   end do
   call h_refinement_node_array%free()	
 
-end subroutine hex_nedelec_reference_fe_fill_n_subfacet_permutation
+end subroutine hex_nedelec_reference_fe_fill_n_subcell_permutation
 
 !==================================================================================================
 subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell ( this,                   &
@@ -1204,8 +1243,8 @@ end subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell
 
 !==================================================================================================
 subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_fe,   & 
-     ishape_coarser_fe, & 
-     subcell_id, coefficient )
+                                                                   ishape_coarser_fe, & 
+                                                                   subcell_id, coefficient )
   implicit none 
   class(hex_nedelec_reference_fe_t), target, intent(in)    :: this
   integer(ip)                              , intent(in)    :: ishape_fe
@@ -1221,23 +1260,14 @@ subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_
   assert( subcell_id >= 1 )
 
   coefficient = 0.0_rp 
-  !	coeff = C_h^{-T} · R · C_2h^T 
-  !do ishape=1, this%num_shape_functions 
-  ! do jshape=1, this%num_shape_functions 
-  !	  qpoin = this%h_refinement_subcell_permutation(1, subcell_id, ishape) 
-  !   coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape, ishape_fe)     * &
-  !			                            this%h_refinement_interpolation%shape_functions(1, jshape, qpoin)    * & 
-  !			                            this%change_basis_matrix( ishape_coarser_fe, jshape )
-  !			end do 
-  !		end	do 
-
-  !		coeff = C_h^{-T} · R · C_2h^T 
+  !		coeff = C_h · R · C_2h
   do ishape=1, this%num_shape_functions 
      do jshape=1, this%num_shape_functions 
-        qpoin = this%h_refinement_subcell_permutation(1, subcell_id, ishape) 
-        coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape_fe, ishape)     * &
-             this%h_refinement_interpolation%shape_functions(1, jshape, qpoin)    * & 
-             this%change_basis_matrix( jshape, ishape_coarser_fe )
+        qpoin = this%h_refinement_subcell_permutation(1, subcell_id, jshape) 
+        coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape_fe, jshape)     * &
+                                    this%h_refinement_interpolation%shape_functions(1, ishape, qpoin)    * & 
+                                    this%change_basis_matrix( ishape, ishape_coarser_fe )
+
      end do
   end	do
 
@@ -1250,6 +1280,22 @@ function hex_nedelec_reference_fe_get_h_refinement_interpolation ( this )
   type(interpolation_t), pointer :: hex_nedelec_reference_fe_get_h_refinement_interpolation
   hex_nedelec_reference_fe_get_h_refinement_interpolation => this%h_refinement_interpolation
 end function hex_nedelec_reference_fe_get_h_refinement_interpolation
+
+!==================================================================================================
+function hex_nedelec_reference_fe_get_h_refinement_subedge_perm ( this )
+  implicit none 
+  class(hex_nedelec_reference_fe_t), target, intent(in) :: this
+  integer(ip), pointer :: hex_nedelec_reference_fe_get_h_refinement_subedge_perm(:,:,:)
+  hex_nedelec_reference_fe_get_h_refinement_subedge_perm => this%h_refinement_subedge_permutation
+end function hex_nedelec_reference_fe_get_h_refinement_subedge_perm
+
+!==================================================================================================
+function hex_nedelec_reference_fe_get_h_refinement_subfacet_perm ( this )
+  implicit none 
+  class(hex_nedelec_reference_fe_t), target, intent(in) :: this
+  integer(ip), pointer :: hex_nedelec_reference_fe_get_h_refinement_subfacet_perm(:,:,:)
+  hex_nedelec_reference_fe_get_h_refinement_subfacet_perm => this%h_refinement_subfacet_permutation
+end function hex_nedelec_reference_fe_get_h_refinement_subfacet_perm
 
 !==================================================================================================
 function hex_nedelec_reference_fe_get_h_refinement_subcell_perm ( this )

@@ -1439,6 +1439,8 @@ public :: hex_raviart_thomas_reference_fe_t
 type, extends(nedelec_reference_fe_t) :: hex_nedelec_reference_fe_t
 private
 type(interpolation_t)    :: h_refinement_interpolation
+integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:) 
+integer(ip), allocatable :: h_refinement_subfacet_permutation(:,:,:) 
 integer(ip), allocatable :: h_refinement_subcell_permutation(:,:,:)
 contains 
   ! Deferred TBP implementors from reference_fe_t
@@ -1479,6 +1481,8 @@ procedure :: create_prebasis_nodal_quadrature                       &
 => hex_nedelec_create_prebasis_nodal_quadrature 
 procedure, private :: fill_h_refinement_permutations                &
 & => hex_nedelec_reference_fe_fill_h_refinement_permutations
+procedure, private :: fill_n_subcell_permutation                    &
+& => hex_nedelec_reference_fe_fill_n_subcell_permutation
 procedure, private :: fill_n_subfacet_permutation                   &
 & => hex_nedelec_reference_fe_fill_n_subfacet_permutation
 procedure          :: interpolate_nodal_values_on_subcell                &
@@ -1487,6 +1491,10 @@ procedure          :: get_h_refinement_coefficient                       &
 & => hex_nedelec_reference_fe_get_h_refinement_coefficient
 procedure          :: get_h_refinement_interpolation                     &
 & => hex_nedelec_reference_fe_get_h_refinement_interpolation
+procedure          :: get_h_refinement_subedget_permutation               &
+& => hex_nedelec_reference_fe_get_h_refinement_subedge_perm
+procedure          :: get_h_refinement_subfacet_permutation               &
+& => hex_nedelec_reference_fe_get_h_refinement_subfacet_perm
 procedure          :: get_h_refinement_subcell_permutation               &
 & => hex_nedelec_reference_fe_get_h_refinement_subcell_perm
 end type hex_nedelec_reference_fe_t

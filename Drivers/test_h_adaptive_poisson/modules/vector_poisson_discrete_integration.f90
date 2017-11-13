@@ -67,6 +67,7 @@ contains
 
     ! FE space traversal-related data types
     class(fe_cell_iterator_t), allocatable :: fe
+				integer(ip)              , pointer     :: fe_dofs(:)
 
     ! FE integration-related data types
     type(cell_map_t)           , pointer :: cell_map
@@ -97,7 +98,8 @@ contains
        
        ! Update FE-integration related data structures
        call fe%update_integration()
-       
+							call fe%get_field_fe_dofs(1,fe_dofs)
+							
        ! Very important: this has to be inside the loop, as different FEs can be present!
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()

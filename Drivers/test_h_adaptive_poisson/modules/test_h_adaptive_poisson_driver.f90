@@ -147,7 +147,7 @@ contains
       call this%triangulation%free_vef_iterator(vef)
     end if 
    
-    do i = 1,3
+    do i = 1,2
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%clear_refinement_and_coarsening_flags()
@@ -178,14 +178,18 @@ contains
       do while ( .not. cell%has_finished() )
 
         call cell%get_nodes_coordinates(coords)
-        do k=1,4
+        !do k=1,4
 								! Centered device refinement 
-								if ( ( ((x0 < coords(k)%get(1)) .and. (coords(k)%get(1) < xL)) .and. ((y0 < coords(k)%get(2)) .and. (coords(k)%get(2) < yL)) ) &
-												    .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
-          call cell%set_for_refinement(); exit 
-        end if
-        end do
-							
+								!if ( ( ((x0 < coords(k)%get(1)) .and. (coords(k)%get(1) < xL)) .and. ((y0 < coords(k)%get(2)) .and. (coords(k)%get(2) < yL)) ) &
+								!				    .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
+        !  call cell%set_for_refinement(); exit 
+        !end if
+        !end do
+															! Last cell refinement 
+								if ( cell%get_gid() == this%triangulation%get_num_cells() ) then 
+								call cell%set_for_refinement()
+								end if 
+								
         call cell%next()
       end do
       deallocate(coords,stat=istat); check(istat==0)
