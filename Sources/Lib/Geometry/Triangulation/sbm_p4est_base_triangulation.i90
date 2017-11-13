@@ -1024,7 +1024,6 @@ subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
       call cell%get_vef(vef_lid, vef)
       if ( .not. vef%is_ghost() ) then
          if ( .not. vef%is_proper() ) then
-           !assert(vef%is_at_interface())
            do icell=1, vef%get_num_improper_cells_around()
              call vef%get_improper_cell_around(icell, coarse_cell)
              reference_fe_geo => coarse_cell%get_reference_fe()
@@ -1063,34 +1062,6 @@ subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
     call cell%next()
   end do 
   
-
-  cell_import => this%get_cell_import()
-  snd_leids   => cell_import%get_snd_leids()
-  do i=1, size(snd_leids)
-    call cell%set_gid(snd_leids(i))
-    reference_fe_geo => cell%get_reference_fe() 
-    do vef_lid=1, cell%get_num_vefs()
-     call cell%get_vef(vef_lid,vef)
-     if ( vef%get_dim() > 0 .and. &
-          .not. vef%is_at_interface() .and. vef%is_proper() ) then  
-         at_interface = .true. 
-         vertices_n_face => reference_fe_geo%get_vertices_n_face()
-         vertices_n_face_it = vertices_n_face%create_iterator(vef_lid)
-         do while( .not. vertices_n_face_it%is_upper_bound() )
-           call cell%get_vef(vertices_n_face_it%get_current(),vef2)
-           if (.not. vef2%is_at_interface()) then
-              at_interface = .false.
-              exit
-           end if 
-           call vertices_n_face_it%next()
-         end do
-         if (at_interface) then
-           call this%proper_vefs_at_interface%set(vef%get_gid(),1)
-         end if 
-     end if 
-    end do 
-  end do  
- 
   call cell%free()
   call vef%free()
   call vef2%free()
