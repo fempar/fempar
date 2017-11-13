@@ -60,14 +60,14 @@ module fe_nonlinear_operator_names
 
   private
 
-  integer(ip), parameter :: start           = 0 
-  integer(ip), parameter :: created         = 1 
-  !integer(ip), parameter :: setup_residual  = 2  
-  !integer(ip), parameter :: setup_tangent   = 3 
-  !integer(ip), parameter :: setup           = 4 
-  integer(ip), parameter :: residual_computed = 5 
-  integer(ip), parameter :: tangent_computed  = 6 
-  integer(ip), parameter :: computed          = 7
+  integer(ip), parameter :: start               = 0 
+  integer(ip), parameter :: created             = 1 
+! sbadia : In a future, I would consider the following stage since it is the only part of
+!          the fe_nonlinear_operator that changes after remeshing
+!  integer(ip), parameter :: assembler_allocated = 2 
+  integer(ip), parameter :: residual_computed   = 2 
+  integer(ip), parameter :: tangent_computed    = 3 
+  integer(ip), parameter :: computed            = 4
   
   
   
@@ -125,7 +125,7 @@ module fe_nonlinear_operator_names
 
  type, extends(operator_t):: fe_nonlinear_operator_t
   private
-  integer(ip)                                     :: state  = start
+  integer(ip), pointer                                     :: state  => start
   character(:)                      , allocatable :: sparse_matrix_storage_format
   type(block_layout_t)                            :: block_layout
   class(serial_fe_space_t)          , pointer     :: test_fe_space          => NULL() ! test_fe_space
@@ -149,9 +149,9 @@ contains
 ! sbadia :  I would eliminate the setup part, and allocate everything at the create TBP,
 ! or do it at the compute_* if not allocated.
   
-  procedure          :: setup                       => fe_nonlinear_operator_setup
-  procedure          :: setup_residual              => fe_nonlinear_operator_setup_residual
-  procedure          :: setup_tangent               => fe_nonlinear_operator_setup_tangent
+  !procedure          :: setup                       => fe_nonlinear_operator_setup
+  !procedure          :: setup_residual              => fe_nonlinear_operator_setup_residual
+  !procedure          :: setup_tangent               => fe_nonlinear_operator_setup_tangent
   
   
   procedure          :: apply                       => fe_nonlinear_operator_apply
@@ -192,6 +192,9 @@ subroutine fe_nonlinear_operator_create (this, &
                                       field_blocks, &
                                       field_coupling, &
                                       trial_fe_space)
+
+ ! sbadia :  I know that it is different from what we already say in FEMPAR article, but I would eliminate
+ ! the possibility to pass field_blocks here. field_coupling SHOULD be here.
  implicit none
  class(fe_nonlinear_operator_t)              , intent(inout) :: this
  character(*)                             , intent(in)    :: sparse_matrix_storage_format
@@ -219,14 +222,11 @@ subroutine fe_nonlinear_operator_create (this, &
 #endif
  
  this%sparse_matrix_storage_format = sparse_matrix_storage_format
- this%test_fe_space                     => fe_space
+ this%test_fe_space                => fe_space
  this%discrete_integration         => discrete_integration
  
-! call this%block_layout%create(fe_space%get_num_fields(), field_blocks, field_coupling )
-! call this%test_fe_space%generate_global_dof_numbering(this%block_layout)
  if ( present(trial_fe_space) ) then
     this%trial_fe_space => trial_fe_space
-!    call this%trial_fe_space%generate_global_dof_numbering(this%block_layout)
  end if
  
   select type(fe_space => this%test_fe_space)
@@ -246,8 +246,13 @@ subroutine fe_nonlinear_operator_create (this, &
  this%state = created
  
  ! sbadia : I think it should be here
- call this%setup_residual()
- call this%setup_tangent()
+ ! call this%setup_residual()
+ ! call this%setup_tangent()
+ call this%assembler%allocate_array()
+ call this%assembler%init_array(0.0_rp)  
+ call this%assembler%allocate_matrix()
+ call this%assembler%init_matrix(0.0_rp)
+ 
 end subroutine fe_nonlinear_operator_create
 
   subroutine fe_nonlinear_operator_create_vector_spaces(this)
@@ -268,56 +273,53 @@ end subroutine fe_nonlinear_operator_create
   end subroutine fe_nonlinear_operator_create_vector_spaces
 
 
-subroutine fe_nonlinear_operator_setup_residual (this)
- implicit none
- class(fe_nonlinear_operator_t), intent(inout) :: this
+!subroutine fe_nonlinear_operator_setup_residual (this)
+! implicit none
+! class(fe_nonlinear_operator_t), intent(inout) :: this
 
- assert ( .not. this%state == start )
+! assert ( .not. this%state == start )
 
- if ( this%state == created ) then
-    this%state = setup
-    call this%assembler%allocate_array()
-    call this%assembler%init_array(0.0_rp)
- elseif ( this%state == setup_tangent ) then
-    this%state = setup
-    call this%assembler%allocate_array()
-    call this%assembler%init_array(0.0_rp)
- elseif ( this%state == setup_residual .or. this%state == setup ) then
-    call this%assembler%init_array(0.0_rp)
- end if
- 
- !call this%fe_nonlinear_operator_compute_residual()
-end subroutine fe_nonlinear_operator_setup_residual
+!    call this%assembler%allocate_array()
+!    call this%assembler%init_array(0.0_rp)
+! elseif ( this%state == setup_tangent ) then
+!    this%state = setup
+!    call this%assembler%allocate_array()
+!    call this%assembler%init_array(0.0_rp)
+! elseif ( this%state == setup_residual .or. this%state == setup ) then
+!    call this%assembler%init_array(0.0_rp)
+! end if
+! 
+!end subroutine fe_nonlinear_operator_setup_residual
 
 
-subroutine fe_nonlinear_operator_setup_tangent (this)
- implicit none
- class(fe_nonlinear_operator_t), intent(inout) :: this
+!subroutine fe_nonlinear_operator_setup_tangent (this)
+! implicit none
+! class(fe_nonlinear_operator_t), intent(inout) :: this
 
- assert ( .not. this%state == start )
+! assert ( .not. this%state == start )
 
- if ( this%state == created ) then
-    this%state = setup_tangent
-    call this%assembler%allocate_matrix()
-    call this%assembler%init_matrix(0.0_rp)
- elseif ( this%state == setup_residual ) then
-    this%state = setup
-    call this%assembler%allocate_matrix()
-    call this%assembler%init_matrix(0.0_rp)
- elseif ( this%state == setup_tangent .or. this%state == setup ) then
-    call this%assembler%init_matrix(0.0_rp)
- end if
+! if ( this%state == created ) then
+!    this%state = setup_tangent
+!    call this%assembler%allocate_matrix()
+!    call this%assembler%init_matrix(0.0_rp)
+! elseif ( this%state == setup_residual ) then
+!    this%state = setup
+!    call this%assembler%allocate_matrix()
+!    call this%assembler%init_matrix(0.0_rp)
+! elseif ( this%state == setup_tangent .or. this%state == setup ) then
+!    call this%assembler%init_matrix(0.0_rp)
+! end if
 
- !call this%fe_nonlinear_operator_compute_tangent()
- !call this%assembler%compress_storage(this%sparse_matrix_storage_format)
-end subroutine fe_nonlinear_operator_setup_tangent
+! !call this%fe_nonlinear_operator_compute_tangent()
+! !call this%assembler%compress_storage(this%sparse_matrix_storage_format)
+!end subroutine fe_nonlinear_operator_setup_tangent
 
-subroutine fe_nonlinear_operator_setup (this)
- implicit none
- class(fe_nonlinear_operator_t), intent(inout) :: this
- call this%setup_residual()
- call this%setup_tangent()
-end subroutine fe_nonlinear_operator_setup
+!subroutine fe_nonlinear_operator_setup (this)
+! implicit none
+! class(fe_nonlinear_operator_t), intent(inout) :: this
+! call this%setup_residual()
+! call this%setup_tangent()
+!end subroutine fe_nonlinear_operator_setup
 
 function fe_nonlinear_operator_create_serial_assembler (this, &
                                                      diagonal_blocks_symmetric_storage,&
@@ -551,15 +553,14 @@ subroutine fe_nonlinear_operator_apply(this,x,y)
  class(vector_t) , intent(inout) :: y 
  class(matrix_t) , pointer       :: matrix
  class(array_t)  , pointer       :: array
- class(vector_t), pointer :: tmp
+ !class(vector_t), pointer :: tmp
  call this%abort_if_not_in_domain(x)
  call this%abort_if_not_in_range(y)
  call this%set_evaluation_point(x)
  call this%compute_residual()
  call x%GuardTemp()
- tmp => this%assembler%get_array()
- call y%scal(-1.0_rp, tmp)
- ! sbadia : some help here needed
+ array => this%assembler%get_array()
+ call y%scal(-1.0_rp, array)
  call x%CleanTemp()
 end subroutine fe_nonlinear_operator_apply
 
@@ -584,8 +585,10 @@ subroutine fe_nonlinear_operator_set_evaluation_point(this,x)
  class(fe_nonlinear_operator_t), intent(in)    :: this
  class(vector_t) , intent(in)    :: x
  call this%discrete_integration%set_evaluation_point(x)
- ! this%state = created
+ this%state => created
  ! sbadia : some free_setup needed here to initialize to zero array and matrix if filled
+ call this%assembler%init_array(0.0_rp)  
+ call this%assembler%init_matrix(0.0_rp)
 end subroutine fe_nonlinear_operator_set_evaluation_point
 
 function fe_nonlinear_operator_is_linear(this)
@@ -663,13 +666,27 @@ subroutine fe_nonlinear_operator_compute_residual(this)
   class(fe_nonlinear_operator_t), intent(in) :: this
   class(environment_t), pointer :: environment
   environment => this%test_fe_space%get_environment()
-  if ( environment%am_i_l1_task() ) then
-    if ( associated(this%trial_fe_space) ) then
-     call this%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
-    else
-     call this%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
+  
+  assert( this%state =/ start )
+  
+  if ( this%state == residual_computed .or. this%state == computed ) exit
+  
+  if (this%state == created .or. this%state == tangent_computed ) then 
+    if ( environment%am_i_l1_task() ) then
+      if ( associated(this%trial_fe_space) ) then
+        call this%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
+      else
+        call this%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
+      end if  
     end if  
-  end if  
+  end if
+  
+  if (this%state == tangent_computed) then
+    state => computed
+  else
+    state => residual_computed
+  end if
+  
 end subroutine fe_nonlinear_operator_compute_residual
 
 subroutine fe_nonlinear_operator_compute_tangent(this)
@@ -677,15 +694,30 @@ subroutine fe_nonlinear_operator_compute_tangent(this)
   class(fe_nonlinear_operator_t), intent(inout) :: this
   class(environment_t), pointer :: environment
   environment => this%test_fe_space%get_environment()
-  if ( environment%am_i_l1_task() ) then
-    if ( associated(this%trial_fe_space) ) then
-     call this%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
-    else
-     call this%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
+  
+  assert( this%state =/ start )
+  
+  if ( this%state == tangent_computed .or. this%state == computed ) exit
+  
+  if (this%state == created .or. this%state == residual_computed ) then 
+    if ( environment%am_i_l1_task() ) then
+      if ( associated(this%trial_fe_space) ) then
+        call this%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
+      else
+        call this%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
+      end if  
     end if  
-  end if  
+  end if
+  
+  if (this%state == residual_computed) then
+    state => computed
+  else
+    state => tangent_computed
+  end if
+   
 end subroutine fe_nonlinear_operator_compute_tangent
 
+! sbadia :  I think this operator is nonsense here
 subroutine fe_nonlinear_operator_create_direct_solver(this, name, direct_solver)
   implicit none
   class(fe_nonlinear_operator_t), intent(in)    :: this
@@ -700,6 +732,8 @@ subroutine fe_nonlinear_operator_create_direct_solver(this, name, direct_solver)
   end select
 end subroutine fe_nonlinear_operator_create_direct_solver
 
+
+! sbadia :  I think this operator is nonsense here
 subroutine fe_nonlinear_operator_update_direct_solver_matrix(this, same_nonzero_pattern, direct_solver)
   implicit none
   class(fe_nonlinear_operator_t), intent(in)    :: this
