@@ -62,11 +62,11 @@ module fe_nonlinear_operator_names
 
   integer(ip), parameter :: start           = 0 
   integer(ip), parameter :: created         = 1 
-  integer(ip), parameter :: setup_residual  = 2  
-  integer(ip), parameter :: setup_tangent   = 3 
-  integer(ip), parameter :: setup           = 4 
-  integer(ip), parameter :: computed_residual = 5 
-  integer(ip), parameter :: computed_tangent  = 6 
+  !integer(ip), parameter :: setup_residual  = 2  
+  !integer(ip), parameter :: setup_tangent   = 3 
+  !integer(ip), parameter :: setup           = 4 
+  integer(ip), parameter :: residual_computed = 5 
+  integer(ip), parameter :: tangent_computed  = 6 
   integer(ip), parameter :: computed          = 7
   
   
