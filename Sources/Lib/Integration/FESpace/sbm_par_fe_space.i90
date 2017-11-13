@@ -28,13 +28,17 @@
 subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this,          &
                                                                        triangulation, &
                                                                        reference_fes, &
-                                                                       conditions )
+                                                                       conditions,    &
+														               field_blocks,  &
+														               field_coupling )
                                                                       
   implicit none
   class(par_fe_space_t)                       , intent(inout)  :: this
   class(triangulation_t), target  , intent(in)     :: triangulation
   type(p_reference_fe_t)                      , intent(in)     :: reference_fes(:)
   class(conditions_t)       , target, optional, intent(in)     :: conditions
+  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
+  logical                           , optional, intent(in)    :: field_coupling(:,:)
   assert(.false.)
 end subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells
 
@@ -42,13 +46,17 @@ subroutine par_fe_space_serial_create_different_ref_fes_between_cells( this,    
                                                                triangulation,            &
                                                                reference_fes,            &
                                                                set_ids_to_reference_fes, &
-                                                               conditions )
+                                                               conditions,               &
+														       field_blocks,             &
+														       field_coupling )
   implicit none
   class(par_fe_space_t)                       , intent(inout) :: this
   class(triangulation_t), target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
+  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
+  logical                           , optional, intent(in)    :: field_coupling(:,:)
   check(.false.)
 end subroutine par_fe_space_serial_create_different_ref_fes_between_cells
 
@@ -56,13 +64,17 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
                                                                 triangulation,      &
                                                                 reference_fes,      &
                                                                 coarse_fe_handlers, &
-                                                                conditions)
+                                                                conditions,         &
+														        field_blocks,       &
+														        field_coupling ) 
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
   class(triangulation_t), target, intent(in)     :: triangulation
   type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
   class(conditions_t)             , optional, intent(in)     :: conditions
+  integer(ip)                     , optional , intent(in)    :: field_blocks(:)
+  logical                         , optional , intent(in)    :: field_coupling(:,:)
 
   type(environment_t), pointer :: environment 
   integer(ip)                  :: field_id
@@ -94,6 +106,13 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
  
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
   
+  
+
+  if ( present(field_blocks) .and. present(field_coupling) ) then
+     call this%block_layout%create(this%get_num_fields(), field_blocks, field_coupling )
+     call this%generate_global_dof_numbering(this%block_layout)
+  end if
+  
 end subroutine par_fe_space_create_same_reference_fes_on_all_cells
 
 subroutine par_fe_space_create_different_ref_fes_between_cells( this,                     &
@@ -101,7 +120,9 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
                                                                 reference_fes,            &
                                                                 set_ids_to_reference_fes, &
                                                                 coarse_fe_handlers,       &
-                                                                conditions )
+                                                                conditions,               &
+														        field_blocks,             &
+														        field_coupling )  
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
   class(triangulation_t)            , target, intent(in)     :: triangulation
@@ -109,6 +130,8 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
   integer(ip)                               , intent(in)     :: set_ids_to_reference_fes(:,:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
   class(conditions_t)             , optional, intent(in)     :: conditions
+  integer(ip)                       , optional, intent(in)   :: field_blocks(:)
+  logical                           , optional, intent(in)   :: field_coupling(:,:)
 
   type(environment_t), pointer :: environment
   integer(ip)                  :: field_id
@@ -140,6 +163,12 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
   end if
 
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
+  
+  
+  if ( present(field_blocks) .and. present(field_coupling) ) then
+     call this%block_layout%create(this%get_num_fields(), field_blocks, field_coupling )
+     call this%generate_global_dof_numbering(this%block_layout)
+  end if
 
 end subroutine par_fe_space_create_different_ref_fes_between_cells
 

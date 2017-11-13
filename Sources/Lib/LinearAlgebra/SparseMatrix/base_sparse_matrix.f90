@@ -2384,7 +2384,7 @@ contains
     !-----------------------------------------------------------------
     !< Increase Y with Matrix vector product
     !-----------------------------------------------------------------
-        class(base_sparse_matrix_t), intent(in)    :: this
+        class(base_sparse_matrix_t), intent(inout)    :: this
         class(vector_t),             intent(in)    :: x
         class(vector_t),             intent(inout) :: y
     !-----------------------------------------------------------------
