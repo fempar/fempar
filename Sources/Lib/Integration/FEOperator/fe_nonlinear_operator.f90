@@ -514,7 +514,7 @@ function fe_nonlinear_operator_get_matrix(this)
  implicit none
  class(fe_nonlinear_operator_t), target, intent(in) :: this
  class(matrix_t), pointer :: fe_nonlinear_operator_get_matrix
- call this%fe_nonlinear_operator_setup()
+ !call this%setup()
  fe_nonlinear_operator_get_matrix => this%assembler%get_matrix()
 end function fe_nonlinear_operator_get_matrix
 
@@ -522,7 +522,7 @@ function fe_nonlinear_operator_get_array(this)
  implicit none
  class(fe_nonlinear_operator_t), target, intent(in) :: this
  class(array_t), pointer :: fe_nonlinear_operator_get_array
- call this%fe_nonlinear_operator_setup()
+ !call this%setup()
  fe_nonlinear_operator_get_array => this%assembler%get_array()
 end function fe_nonlinear_operator_get_array
 
@@ -546,17 +546,19 @@ end function fe_nonlinear_operator_get_discrete_integration
 ! Implicitly assumes that y is already allocated
 subroutine fe_nonlinear_operator_apply(this,x,y) 
  implicit none
- class(fe_nonlinear_operator_t), intent(inout)    :: this
+ class(fe_nonlinear_operator_t), intent(in)    :: this
  class(vector_t) , intent(in)    :: x
  class(vector_t) , intent(inout) :: y 
  class(matrix_t) , pointer       :: matrix
  class(array_t)  , pointer       :: array
+ class(vector_t), pointer :: tmp
  call this%abort_if_not_in_domain(x)
  call this%abort_if_not_in_range(y)
  call this%set_evaluation_point(x)
  call this%compute_residual()
  call x%GuardTemp()
- y = this%assembler%get_array()
+ tmp => this%assembler%get_array()
+ call y%scal(-1.0_rp, tmp)
  ! sbadia : some help here needed
  call x%CleanTemp()
 end subroutine fe_nonlinear_operator_apply
@@ -565,7 +567,7 @@ end subroutine fe_nonlinear_operator_apply
 ! Implicitly assumes that y is already allocated
 subroutine fe_nonlinear_operator_apply_add(this,x,y) 
  implicit none
- class(fe_nonlinear_operator_t), intent(inout)    :: this
+ class(fe_nonlinear_operator_t), intent(in)    :: this
  class(vector_t) , intent(in)    :: x
  class(vector_t) , intent(inout) :: y 
  class(matrix_t) , pointer       :: matrix
@@ -579,10 +581,10 @@ end subroutine fe_nonlinear_operator_apply_add
 
 subroutine fe_nonlinear_operator_set_evaluation_point(this,x) 
  implicit none
- class(fe_nonlinear_operator_t), intent(inout)    :: this
+ class(fe_nonlinear_operator_t), intent(in)    :: this
  class(vector_t) , intent(in)    :: x
  call this%discrete_integration%set_evaluation_point(x)
- this%state = created
+ ! this%state = created
  ! sbadia : some free_setup needed here to initialize to zero array and matrix if filled
 end subroutine fe_nonlinear_operator_set_evaluation_point
 
@@ -651,14 +653,14 @@ function fe_nonlinear_operator_apply_fun(op,x) result(y)
  class(vector_t)     , allocatable :: y
  type(vector_space_t), pointer     :: range_vector_space
  range_vector_space => op%get_range_vector_space()
- call op%fe_nonlinear_operator_setup()
+ !call op%setup()
  call range_vector_space%create_vector(y)
  call op%apply(x,y)
 end function fe_nonlinear_operator_apply_fun
 
 subroutine fe_nonlinear_operator_compute_residual(this)
   implicit none
-  class(fe_nonlinear_operator_t), intent(inout) :: this
+  class(fe_nonlinear_operator_t), intent(in) :: this
   class(environment_t), pointer :: environment
   environment => this%test_fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then

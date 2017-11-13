@@ -113,7 +113,7 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine block_preconditioner_l_apply_add (this,x,y)
     implicit none
-    class(block_preconditioner_l_t), intent(inout)    :: this
+    class(block_preconditioner_l_t), intent(in)    :: this
     class(vector_t),                 intent(in)    :: x
     class(vector_t),                 intent(inout) :: y
 

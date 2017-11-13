@@ -1208,7 +1208,7 @@ contains
     !-----------------------------------------------------------------
     !< Apply matrix vector product y=op*x
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(inout)    :: this
+        class(sparse_matrix_t), intent(in)    :: this
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y 
     !-----------------------------------------------------------------
@@ -1222,7 +1222,7 @@ contains
     !-----------------------------------------------------------------
     !< Apply matrix vector product y=op*x + y
     !-----------------------------------------------------------------
-        class(sparse_matrix_t), intent(inout)    :: this
+        class(sparse_matrix_t), intent(in)    :: this
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y 
     !-----------------------------------------------------------------

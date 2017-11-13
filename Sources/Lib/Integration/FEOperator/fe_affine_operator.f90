@@ -525,7 +525,7 @@ end subroutine fe_affine_operator_apply
 ! Implicitly assumes that y is already allocated
 subroutine fe_affine_operator_apply_add(this,x,y) 
  implicit none
- class(fe_affine_operator_t), intent(inout)    :: this
+ class(fe_affine_operator_t), intent(in)    :: this
  class(vector_t) , intent(in)    :: x
  class(vector_t) , intent(inout) :: y 
  class(matrix_t) , pointer       :: matrix

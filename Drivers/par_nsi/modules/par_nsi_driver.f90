@@ -146,7 +146,7 @@ contains
     !call this%nonlinear_solver%solve(this%nonlinear_operator, unknown)
     !mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged.' )
 
-    !call this%time_integration%apply(this%solution)
+    call this%time_integration%apply(this%solution)
     
     
     

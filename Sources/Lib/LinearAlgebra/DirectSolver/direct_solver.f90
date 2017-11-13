@@ -359,7 +359,7 @@ contains
     !-----------------------------------------------------------------
     !< Call to Solve (Computes y <- A^-1 * x + y)
     !-----------------------------------------------------------------
-        class(direct_solver_t), intent(inout)    :: this
+        class(direct_solver_t), intent(in)    :: this
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y
         class(vector_t), allocatable          :: w

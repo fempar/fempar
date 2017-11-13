@@ -711,7 +711,7 @@ contains
     !-----------------------------------------------------------------
     !< Apply matrix vector product y=op*x+y
     !-----------------------------------------------------------------
-        class(par_sparse_matrix_t), intent(inout)    :: this
+        class(par_sparse_matrix_t), intent(in)    :: this
         class(vector_t),            intent(in)    :: x
         class(vector_t),            intent(inout) :: y 
     !-----------------------------------------------------------------
