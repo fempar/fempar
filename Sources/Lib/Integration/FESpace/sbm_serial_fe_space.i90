@@ -352,14 +352,15 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
 
     call fe%first()
     do while (.not. fe%has_finished() )
-      if ( fe%is_local() ) then
          do ivef = 1, fe%get_num_vefs()
             call fe%get_vef(ivef, vef)
+            
+            if ( .not. vef%is_ghost() ) then
 
-            ! Check whether a set_id different from 0 has been set for current vef. 
-            ! TO-DO: Should we also ask whether current vef is at the boundary?
-            !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
-            if ( vef%get_set_id() /= 0 .and. vef%get_gid() > 0 ) then ! .and. vef%at_boundary()??? )
+             ! Check whether a set_id different from 0 has been set for current vef. 
+             ! TO-DO: Should we also ask whether current vef is at the boundary?
+             !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
+             if ( vef%get_set_id() /= 0 .and. vef%get_gid() > 0 ) then ! .and. vef%at_boundary()??? )
 
                ! Get components code corresponding to set_id assigned to current vef
                ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
@@ -382,10 +383,9 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
                   visited_vef_to_cell_map ( 1, vef%get_gid() ) = fe%get_gid()
                   visited_vef_to_cell_map ( 2, vef%get_gid() ) = ivef
                end if
+             end if
             end if
          end do
-      end if
-
       call fe%next()
     end do ! Loop in FEs
   end do ! Loop in fields
@@ -394,11 +394,9 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   ! has at least been created (i.e., that it has at least size already set)
   call fe%first()
   do while (.not. fe%has_finished() )
-    if ( fe%is_local() ) then
-      do field_id = 1, this%get_num_fields()
-        call fe%determine_at_strong_dirichlet_boundary(field_id)
-      end do
-    end if
+    do field_id = 1, this%get_num_fields()
+      call fe%determine_at_strong_dirichlet_boundary(field_id)
+    end do
     call fe%next()
   end do
   

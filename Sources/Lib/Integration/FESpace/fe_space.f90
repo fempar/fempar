@@ -790,7 +790,6 @@ module fe_space_names
    procedure                         , private :: free_coarse_fe_handlers                         => par_fe_space_free_coarse_fe_handlers
    procedure                                   :: generate_global_dof_numbering                   => par_fe_space_generate_global_dof_numbering
    procedure                                   :: renum_dofs_first_interior_then_interface        => par_fe_space_renum_dofs_first_interior_then_interface
-   procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
    procedure        , non_overridable          :: compute_num_global_dofs_and_their_ggids         => par_fe_space_compute_num_global_dofs_and_their_ggids
    
    procedure        , non_overridable, private :: compute_blocks_dof_import                                => par_fe_space_compute_blocks_dof_import

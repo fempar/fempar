@@ -78,9 +78,6 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
      call this%serial_fe_space_t%create( triangulation, &
                                          reference_fes, &
                                          conditions )
-     do field_id=1, this%get_num_fields()
-       call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
-     end do  
      call this%compute_faces_object()
   else
      ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
@@ -125,9 +122,6 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
                                          reference_fes,            &
                                          set_ids_to_reference_fes, &
                                          conditions )
-     do field_id=1, this%get_num_fields()
-       call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
-     end do  
      call this%compute_faces_object()
   else
      ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
@@ -309,7 +303,7 @@ subroutine par_fe_space_generate_global_dof_numbering( this, block_layout )
      call this%serial_fe_space_t%generate_global_dof_numbering(block_layout)
      call this%compute_blocks_dof_import()
      ! Step required by the MLBDDC preconditioner
-     ! call this%renum_dofs_first_interior_then_interface()
+     call this%renum_dofs_first_interior_then_interface()
   else
      this%block_layout => block_layout
     
@@ -343,142 +337,6 @@ subroutine par_fe_space_renum_dofs_first_interior_then_interface( this )
     end do
   end if
 end subroutine par_fe_space_renum_dofs_first_interior_then_interface
-
-
-subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes(this, field_id)
-  implicit none
-  class(par_fe_space_t), intent(inout) :: this 
-  integer(ip)          , intent(in)    :: field_id
-
-  ! Local variables
-  integer(ip) :: ivef, ielem, ivef_in_source_fe
-
-  class(fe_cell_iterator_t), allocatable     :: fe
-  class(fe_cell_iterator_t), allocatable     :: source_fe
-  type(fe_vef_iterator_t) :: vef 
-
-  class(reference_fe_t), pointer :: reference_fe
-  type(list_iterator_t)          :: own_dofs_on_vef_iterator
-  
-  integer(ip), allocatable :: owner_cell_gid_x_field_and_proper_vef(:)
-  integer(ip), allocatable :: owner_cell_gid_x_field_and_improper_vef(:)
-  integer(ip), allocatable :: proper_vef_lid_in_owner_cell (:)
-  integer(ip), allocatable :: improper_vef_lid_in_owner_cell (:)
-  
-  logical :: add_dofs, is_owner, local_found
-  integer(ip) :: previous_dof_block
-  integer(ip) :: source_cell_id
-  integer(ip) :: vef_lid, source_vef_lid
-  
-  call memalloc ( this%triangulation%get_num_vefs(), owner_cell_gid_x_field_and_proper_vef,  __FILE__, __LINE__ )
-  owner_cell_gid_x_field_and_proper_vef = -1
-  
-  call memalloc ( this%triangulation%get_num_vefs(), owner_cell_gid_x_field_and_improper_vef,  __FILE__, __LINE__ )
-  owner_cell_gid_x_field_and_improper_vef = -1
-  
-  call memalloc ( this%triangulation%get_num_vefs(), proper_vef_lid_in_owner_cell ,  __FILE__, __LINE__ )
-  proper_vef_lid_in_owner_cell  = -1
-  
-  call memalloc ( this%triangulation%get_num_vefs(), improper_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
-  improper_vef_lid_in_owner_cell = -1
-  
-  if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
-     call this%create_fe_cell_iterator(fe)
-     call this%create_fe_cell_iterator(source_fe)
-     call this%create_fe_vef_iterator(vef)
-     do while ( .not. fe%has_finished() )
-        if ( fe%is_ghost() ) then
-           do ivef = 1, fe%get_num_vefs()
-              call fe%get_vef(ivef, vef)
-              if ( .not. vef%is_ghost() ) then
-                 if ( vef%is_at_interface() ) then
-                    local_found = .false.
-                    ! Find local element around vef_lid in elem_id
-                    do ielem=1, vef%get_num_cells_around()
-                       call vef%get_cell_around(ielem, source_fe)
-                       if ( source_fe%is_local() .and. (.not. source_fe%is_void(field_id)) ) then
-                          local_found = .true.
-                          exit
-                       end if
-                    end do
-
-                    if ( .not. local_found ) then
-                       vef_lid = abs(fe%get_vef_gid(ivef))
-                       add_dofs = (vef%get_set_id() /= 0 .and. vef%get_gid() > 0)
-                       if ( vef%is_proper() ) then
-                          is_owner = ( owner_cell_gid_x_field_and_proper_vef( vef_lid ) == -1 )
-                       else 
-                          is_owner = ( owner_cell_gid_x_field_and_improper_vef( vef_lid ) == -1 )
-                       end if
-
-                       if ( add_dofs ) then       
-                          if ( is_owner ) then
-                             if ( vef%is_proper() ) then
-                                previous_dof_block = this%num_dirichlet_dofs
-                                call fe%generate_own_dofs_vef ( ivef, field_id, this%num_dirichlet_dofs, free_dofs_loop=.false. ) 
-                                if ( previous_dof_block < this%num_dirichlet_dofs ) then
-                                   owner_cell_gid_x_field_and_proper_vef ( vef_lid ) = fe%get_gid() 
-                                   proper_vef_lid_in_owner_cell ( vef_lid ) = ivef 
-                                end if
-                             else
-                                previous_dof_block = this%num_dirichlet_dofs
-                                call fe%generate_own_dofs_vef ( ivef, field_id, this%num_dirichlet_dofs, free_dofs_loop=.false.)
-                                if ( previous_dof_block < this%num_dirichlet_dofs ) then
-                                   owner_cell_gid_x_field_and_improper_vef ( vef_lid ) = fe%get_gid() 
-                                   improper_vef_lid_in_owner_cell ( vef_lid ) = ivef 
-                                end if
-                             end if
-                          else
-                             if ( vef%is_proper() ) then
-                                source_cell_id = owner_cell_gid_x_field_and_proper_vef(vef_lid)
-                                source_vef_lid = proper_vef_lid_in_owner_cell(vef_lid)
-                             else
-                                source_cell_id = owner_cell_gid_x_field_and_improper_vef(vef_lid)
-                                source_vef_lid = improper_vef_lid_in_owner_cell(vef_lid)
-                             end if
-                             call source_fe%set_gid( source_cell_id )
-                             call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
-                          end if
-                       end if
-                    else
-                       ! Find local element around vef_lid in elem_id
-                       do ielem=1, vef%get_num_cells_around()
-                          call vef%get_cell_around(ielem, source_fe)
-                          if ( source_fe%is_local() ) then
-                             ivef_in_source_fe = source_fe%get_vef_lid_from_gid(vef%get_gid()) 
-
-                             ! Check that the source fe has at least one dof on this vef
-                             reference_fe => source_fe%get_reference_fe(field_id)
-                             own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef_in_source_fe)
-                             if (own_dofs_on_vef_iterator%get_size() > 0) then
-                                call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
-                                     source_fe, & 
-                                     ivef_in_source_fe, &
-                                     field_id )    
-                                exit
-                             end if
-                          end if
-                       end do
-                    end if
-                 end if
-              end if
-           end do
-           call fe%determine_at_strong_dirichlet_boundary(field_id)  
-           call fe%determine_has_fixed_dofs(field_id)  
-        end if
-        call fe%next() 
-     end do
-     call this%free_fe_cell_iterator(fe)
-     call this%free_fe_cell_iterator(source_fe)
-     call this%free_fe_vef_iterator(vef)
-  end if
-  this%num_fixed_dofs = this%num_dirichlet_dofs
-  call memfree ( owner_cell_gid_x_field_and_proper_vef,  __FILE__, __LINE__ )
-  call memfree ( owner_cell_gid_x_field_and_improper_vef,  __FILE__, __LINE__ )
-  call memfree ( proper_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
-  call memfree ( improper_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
-end subroutine par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
-
 
  subroutine par_fe_space_compute_num_global_dofs_and_their_ggids ( this, num_global_dofs, dofs_gids )
     implicit none
@@ -3134,9 +2992,6 @@ subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old
      call this%allocate_and_init_has_fixed_dofs()
      call this%allocate_and_init_has_hanging_dofs_x_fe()
      call this%set_up_strong_dirichlet_bcs()
-     do field_id=1, this%get_num_fields()
-       call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
-     end do
      call this%compute_faces_object()
 
      ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
@@ -3214,9 +3069,6 @@ subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_l
      call this%allocate_and_init_has_fixed_dofs()
      call this%allocate_and_init_has_hanging_dofs_x_fe()
      call this%set_up_strong_dirichlet_bcs()
-     do field_id=1, this%get_num_fields()
-       call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
-     end do
      call this%compute_faces_object()
 
      ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
