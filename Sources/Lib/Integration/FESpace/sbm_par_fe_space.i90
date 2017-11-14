@@ -358,8 +358,10 @@ subroutine par_fe_space_generate_global_dof_numbering( this )
   else
      ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
      ! requires that this%blocks_dof_import is allocated 
-     allocate ( this%blocks_dof_import( this%block_layout%get_num_blocks()), stat=istat ) 
-     check (istat==0)
+     if ( .not. allocated ( this%blocks_dof_import ) ) then
+       allocate ( this%blocks_dof_import( block_layout%get_num_blocks()), stat=istat ) 
+       check (istat==0)
+     end if
   end if
 end subroutine par_fe_space_generate_global_dof_numbering
 
