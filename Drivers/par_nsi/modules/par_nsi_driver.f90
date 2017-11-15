@@ -32,9 +32,7 @@ module par_nsi_driver_names
   use par_nsi_conditions_names
   use par_nsi_analytical_functions_names
   use par_nsi_linear_solver_names
-  use par_nsi_nonlinear_operator_names
   use par_nsi_nonlinear_solver_names
-  use par_nsi_time_integration_names
   
   
 # include "debug.i90"
@@ -66,13 +64,13 @@ module par_nsi_driver_names
      type(par_nsi_analytical_functions_t)      :: par_nsi_analytical_functions
      
      ! Operators to define and solve the problem
-     type(fe_affine_operator_t)                  :: fe_affine_operator
+     type(fe_nonlinear_operator_t)                  :: fe_affine_operator
      type(mlbddc_t)                              :: mlbddc
      type(linear_solver_t)                       :: linear_solver
-     type(nonlinear_operator_t)                  :: nonlinear_operator
+     type(fe_nonlinear_operator_t)                  :: nonlinear_operator
      type(nonlinear_solver_t)                    :: nonlinear_solver 
      !class(time_integration_t), allocatable     :: time_integration
-     type(theta_time_integration_t)              :: time_integration
+     !type(theta_time_integration_t)              :: time_integration
 
      ! Problem solution FE function
      type(fe_function_t)                         :: solution
@@ -139,16 +137,9 @@ contains
     !call this%timer_solver_setup%stop()
    
     ! Solve the problem
-    !call this%timer_solver_run%start()
-    ! Nonlinear steady problems
-    !unknown => this%solution%get_dof_values()
-    !!write(*,*) unknown%nrm2()
-    !call this%nonlinear_solver%solve(this%nonlinear_operator, unknown)
-    !mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged.' )
-
-    call this%time_integration%apply(this%solution)
+    call this%nonlinear_solver%solve(this%nonlinear_operator, this%solution%get_free_dof_values() )
     
-    
+    !call this%time_integration%apply(this%solution)
     
     !do while(this%current_time < this%final_time )
     !  
@@ -269,11 +260,27 @@ end subroutine free_timers
   subroutine setup_discrete_integration(this)
     implicit none
     class(par_nsi_fe_driver_t), intent(inout) :: this
-    integer(ip) :: istat
+    type(vector_field_t) :: zero_vector_field
+    integer(ip) :: istat, field_id
     
     call this%par_nsi_integration%create( this%triangulation%get_num_dims(),this%par_nsi_analytical_functions, &
                                           this%test_params%get_viscosity())
-   
+    
+    ! Solution and initial guess
+    call this%solution%create(this%fe_space) 
+    call this%zero_scalar%create(0.0_rp)
+    call zero_vector_field%init(0.0_rp)
+    call this%zero_vector%create(zero_vector_field)
+    do field_id = 1, this%par_nsi_integration%get_number_fields()
+       if(this%par_nsi_integration%get_field_type(field_id) == field_type_vector) then
+         call this%fe_space%interpolate(field_id, this%zero_vector, this%solution)
+       else if( this%par_nsi_integration%get_field_type(field_id) == field_type_scalar) then
+         call this%fe_space%interpolate(field_id, this%zero_scalar, this%solution)
+       end if
+    end do
+    call this%fe_space%interpolate_dirichlet_values(this%solution)    
+    call this%par_nsi_integration%set_fe_function(this%solution)
+       
   end subroutine setup_discrete_integration
 
 !========================================================================================
@@ -321,7 +328,7 @@ end subroutine free_timers
     class(par_nsi_fe_driver_t), target, intent(inout) :: this
     class(reference_fe_t)       , pointer       :: reference_fe
     
-    call this%par_nsi_analytical_functions%set(this%triangulation%get_num_dims(),0)
+    call this%par_nsi_analytical_functions%set(this%triangulation%get_num_dims(),1)
     call this%par_nsi_conditions%set_number_components(this%par_nsi_integration%get_number_components())
     call this%par_nsi_conditions%set_number_dimensions(this%triangulation%get_num_dims())    
     ! Store exact function to define B.C. in FE space
@@ -330,7 +337,9 @@ end subroutine free_timers
     call this%fe_space%create( triangulation       = this%triangulation, &
                                conditions          = this%par_nsi_conditions, &
                                reference_fes       = this%reference_fes, &
-                               coarse_fe_handlers  = this%coarse_fe_handlers)
+                               coarse_fe_handlers  = this%coarse_fe_handlers, &
+                               field_blocks        = this%par_nsi_integration%get_field_blocks(), &
+                               field_coupling      = this%par_nsi_integration%get_field_coupling() )
    
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%set_up_cell_integration()
@@ -348,33 +357,16 @@ end subroutine free_timers
     integer(ip) :: FPLError
     integer(ip) :: field_id
     integer(ip) :: istat
-    type(vector_field_t) :: zero_vector_field
     class(vector_t), pointer  :: dof_values
     
     ! FE operator
-       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
+       call this%nonlinear_operator%create ( sparse_matrix_storage_format      = csr_format, &
             &                                diagonal_blocks_symmetric_storage = [ .false. ], &
             &                                diagonal_blocks_symmetric         = [ .false. ], &
             &                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_INDEFINITE ], &
             &                                fe_space                          = this%fe_space, &
-            &                                discrete_integration              = this%par_nsi_integration, &
-            &                                field_blocks                      = this%par_nsi_integration%get_field_blocks(),            &
-            &                                field_coupling                    = this%par_nsi_integration%get_field_coupling()) 
+            &                                discrete_integration              = this%par_nsi_integration) 
 
-    ! Solution and initial guess
-    call this%solution%create(this%fe_space) 
-    call this%zero_scalar%create(0.0_rp)
-    call zero_vector_field%init(0.0_rp)
-    call this%zero_vector%create(zero_vector_field)
-    do field_id = 1, this%par_nsi_integration%get_number_fields()
-       if(this%par_nsi_integration%get_field_type(field_id) == field_type_vector) then
-         call this%fe_space%interpolate(field_id, this%zero_vector, this%solution)
-       else if( this%par_nsi_integration%get_field_type(field_id) == field_type_scalar) then
-         call this%fe_space%interpolate(field_id, this%zero_scalar, this%solution)
-       end if
-    end do
-    call this%fe_space%interpolate_dirichlet_values(this%solution)    
-    call this%par_nsi_integration%set_fe_function(this%solution)
         
     ! BDDC preconditioner
     plist => this%parameter_list 
@@ -394,7 +386,7 @@ end subroutine free_timers
     ! Set coarsest-grid solver type (currently NOT inherited from fine level matrices types)
     FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
     
-    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
+    call this%mlbddc%create(this%nonlinear_operator, this%parameter_list)
     !call this%mlbddc%symbolic_setup()
     !call this%mlbddc%numerical_setup()
     
@@ -418,9 +410,10 @@ end subroutine free_timers
          &                                       max_iters = 10   ,  &
          &                                   linear_solver = this%linear_solver, &
          &                                     environment = this%par_environment)    
+    ! sbadia : Where is the preconditioner being passed?
 
     !allocate(theta_time_integration_t :: this%time_integration, stat = istat); check(istat==0)
-    call this%time_integration%create(this%fe_affine_operator, this%nonlinear_solver, 0.0_rp, 1.0_rp, 5, 1.0_rp)
+    !call this%time_integration%create(this%fe_affine_operator, this%nonlinear_solver, 0.0_rp, 1.0_rp, 5, 1.0_rp)
   end subroutine setup_operators
 
    
@@ -527,7 +520,7 @@ end subroutine free_timers
     class(par_nsi_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
 
-    call this%time_integration%free()
+    !call this%time_integration%free()
     call this%nonlinear_operator%free()
     call this%nonlinear_solver%free()
     call this%linear_solver%free()

@@ -504,7 +504,7 @@ module fe_space_names
      type(std_vector_logical_t)    , allocatable :: has_hanging_dofs_x_fe(:)
      
      ! Descriptor of the block layout selected for the PDE system at hand
-     type(block_layout_t)              , pointer :: block_layout  => NULL()
+     type(block_layout_t)                        :: block_layout
      
      ! ( Polymorphic ) pointer to a triangulation it was created from
      class(triangulation_t)            , pointer :: triangulation => NULL()
@@ -587,17 +587,17 @@ module fe_space_names
      procedure, non_overridable, private :: compute_facet_permutation_indices             => serial_fe_space_compute_facet_permutation_indices
      procedure, non_overridable, private :: free_facet_permutation_indices                => serial_fe_space_free_facet_permutation_indices
      
-     procedure, non_overridable          :: set_up_facet_integration               => serial_fe_space_set_up_facet_integration
-     procedure, non_overridable, private :: free_facet_integration                     => serial_fe_space_free_facet_integration
-     procedure, non_overridable, private :: generate_facet_quadratures_position_key    => serial_fe_space_facet_quadratures_position_key
-     procedure, non_overridable, private :: generate_facet_integrators_position_key    => serial_fe_space_facet_integrators_position_key
+     procedure, non_overridable          :: set_up_facet_integration                 => serial_fe_space_set_up_facet_integration
+     procedure, non_overridable, private :: free_facet_integration                   => serial_fe_space_free_facet_integration
+     procedure, non_overridable, private :: generate_facet_quadratures_position_key  => serial_fe_space_facet_quadratures_position_key
+     procedure, non_overridable, private :: generate_facet_integrators_position_key  => serial_fe_space_facet_integrators_position_key
 
-     procedure                           :: create_dof_values                            => serial_fe_space_create_dof_values
-     procedure                           :: generate_global_dof_numbering                                => serial_fe_space_generate_global_dof_numbering
-     procedure                           :: allocate_num_dofs_x_field               =>  serial_fe_space_allocate_num_dofs_x_field
-     procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
-     procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
-     procedure                 , private :: renum_dofs_block                          => serial_fe_space_renum_dofs_block
+     procedure                           :: create_dof_values                        => serial_fe_space_create_dof_values
+     procedure                           :: generate_global_dof_numbering            => serial_fe_space_generate_global_dof_numbering
+     procedure                           :: allocate_num_dofs_x_field                =>  serial_fe_space_allocate_num_dofs_x_field
+     procedure                 , private :: count_dofs                               => serial_fe_space_count_dofs
+     procedure                 , private :: list_dofs                                => serial_fe_space_list_dofs
+     procedure                 , private :: renum_dofs_block                         => serial_fe_space_renum_dofs_block
  
      ! Getters
      procedure                           :: get_num_dims                           => serial_fe_space_get_num_dims
@@ -625,9 +625,6 @@ module fe_space_names
      procedure                           :: get_block_num_dofs                        => serial_fe_space_get_block_num_dofs
      procedure                           :: set_block_num_dofs                        => serial_fe_space_set_block_num_dofs
      procedure, non_overridable          :: get_block_layout                             => serial_fe_space_get_block_layout
-     procedure, non_overridable          :: set_block_layout                             => serial_fe_space_set_block_layout
-     procedure, non_overridable          :: nullify_block_layout                         => serial_fe_space_nullify_block_layout
-     
      
      ! fes, fe_vefs and fe_faces traversals-related TBPs
      procedure                           :: create_fe_cell_iterator                           => serial_fe_space_create_fe_cell_iterator
@@ -760,14 +757,14 @@ module fe_space_names
    
  contains
    procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
-   procedure, private :: serial_fe_space_create_different_ref_fes_between_cells                           => par_fe_space_serial_create_different_ref_fes_between_cells 
+   procedure, private :: serial_fe_space_create_different_ref_fes_between_cells                   => par_fe_space_serial_create_different_ref_fes_between_cells 
    procedure, private :: par_fe_space_create_same_reference_fes_on_all_cells 
    procedure, private :: par_fe_space_create_different_ref_fes_between_cells
    generic                                     :: create                                          => par_fe_space_create_same_reference_fes_on_all_cells, &
                                                                                                      par_fe_space_create_different_ref_fes_between_cells
    procedure                         , private :: allocate_and_fill_coarse_fe_handlers            => par_fe_space_allocate_and_fill_coarse_fe_handlers
    procedure                         , private :: free_coarse_fe_handlers                         => par_fe_space_free_coarse_fe_handlers
-   procedure                                   :: generate_global_dof_numbering                                   => par_fe_space_generate_global_dof_numbering
+   procedure                                   :: generate_global_dof_numbering                   => par_fe_space_generate_global_dof_numbering
    procedure                         , private :: count_and_list_dofs_on_ghosts                   => par_fe_space_count_and_list_dofs_on_ghosts
    procedure                                   :: renum_dofs_first_interior_then_interface     => par_fe_space_renum_dofs_first_interior_then_interface
    procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
@@ -1105,6 +1102,8 @@ module fe_space_names
      procedure, non_overridable          :: copy                           => fe_function_copy
      procedure, non_overridable          :: get_free_dof_values            => fe_function_get_free_dof_values
      procedure, non_overridable          :: get_fixed_dof_values           => fe_function_get_fixed_dof_values
+     procedure, non_overridable          :: set_free_dof_values            => fe_function_set_free_dof_values
+     procedure, non_overridable          :: set_fixed_dof_values           => fe_function_set_fixed_dof_values
      procedure, non_overridable          :: free                           => fe_function_free
      generic                             :: assignment(=)                  => copy
   end type fe_function_t 

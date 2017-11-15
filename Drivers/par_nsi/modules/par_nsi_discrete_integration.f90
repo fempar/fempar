@@ -57,8 +57,11 @@ module nsi_discrete_integration_names
      real(rp) :: current_time
      real(rp) :: viscosity
    contains
-     procedure :: create              => nsi_discrete_integration_create
-     procedure :: integrate_galerkin  => nsi_discrete_integration_integrate    
+     procedure :: create               => nsi_discrete_integration_create
+     procedure :: set_evaluation_point => nsi_discrete_integration_set_evaluation_point
+     procedure :: integrate_galerkin   => nsi_discrete_integration_integrate  
+     procedure :: integrate_residual   => nsi_discrete_integration_integrate_residual  
+     procedure :: integrate_tangent    => nsi_discrete_integration_integrate_tangent      
      procedure :: get_number_fields
      procedure :: get_number_components
      procedure :: get_field_blocks
@@ -109,6 +112,13 @@ contains
      call memfree(this%field_blocks,__FILE__,__LINE__)
      call memfree(this%field_coupling,__FILE__,__LINE__)     
   end subroutine nsi_discrete_integration_free
+  
+  subroutine nsi_discrete_integration_set_evaluation_point ( this, evaluation_point )
+     implicit none
+     class(nsi_discrete_integration_t)   ,intent(inout)  :: this
+     class(vector_t)                     ,intent(in)     :: evaluation_point
+     call this%fe_function%set_free_dof_values(evaluation_point)
+  end subroutine nsi_discrete_integration_set_evaluation_point
 
   subroutine set_terms_to_integrate(this,terms_to_integrate)
      implicit none

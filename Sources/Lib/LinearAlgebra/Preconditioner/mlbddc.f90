@@ -36,7 +36,7 @@ module mlbddc_names
  ! Integration related modules
  use triangulation_names
  use fe_space_names
- use fe_affine_operator_names
+ use fe_nonlinear_operator_names
  
  ! Linear Algebra related modules
  use operator_names
@@ -102,7 +102,7 @@ module mlbddc_names
    ! Coarse-grid matrix. It is temporarily stored in a type(par_sparse_matrix_t)
    ! data structure, although, in my opinion, in the seek of extensibility, 
    ! some sort of operator is required here that plays the same role as
-   ! type(fe_affine_operator_t) on L1 tasks. It will be a nullified pointer on 
+   ! type(fe_nonlinear_operator_t) on L1 tasks. It will be a nullified pointer on 
    ! L1 tasks, and associated via target allocation in the case of L2-Ln tasks.
    type(par_sparse_matrix_t)     , pointer     :: coarse_grid_matrix => NULL()
 
@@ -214,8 +214,8 @@ end type base_mlbddc_t
    ! freed before type(mlbddc_t)
    type(parameterlist_t)         , pointer :: parameter_list
    
-   ! Pointer to the fe_affine_operator_t this mlbddc_t instance has been created from
-   type(fe_affine_operator_t)    , pointer :: fe_affine_operator => NULL()
+   ! Pointer to the fe_nonlinear_operator_t this mlbddc_t instance has been created from
+   type(fe_nonlinear_operator_t)    , pointer :: fe_nonlinear_operator => NULL()
  contains
     procedure, non_overridable          :: create                                          => mlbddc_create
     procedure, non_overridable, private :: create_vector_spaces                            => mlbddc_create_vector_spaces

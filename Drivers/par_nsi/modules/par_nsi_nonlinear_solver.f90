@@ -29,7 +29,7 @@ module par_nsi_nonlinear_solver_names
   use fempar_names
   use base_sparse_matrix_names
   use par_nsi_linear_solver_names
-  use par_nsi_nonlinear_operator_names
+  use fe_nonlinear_operator_names
   implicit none
 # include "debug.i90"
   private
@@ -47,11 +47,11 @@ module par_nsi_nonlinear_solver_names
       real(rp)                            :: relative_tolerance
       character(len=:),           allocatable  :: convergence_criteria
       class(vector_t),            pointer      :: current_dof_values => null()
-      class(vector_t),            allocatable  :: current_residual
+      class(vector_t),            pointer      :: current_residual   => null()
       class(vector_t),            allocatable  :: initial_residual
       class(vector_t),            allocatable  :: increment_dof_values
       class(linear_solver_t),     pointer      :: linear_solver
-      class(operator_t)     ,     pointer      :: preconditioner
+      !class(operator_t)     ,     pointer      :: preconditioner
       class(environment_t),       pointer      :: environment
     contains
 
@@ -109,7 +109,7 @@ subroutine nonlinear_solver_create(this, convergence_criteria, abs_tol, rel_tol,
   A => this%linear_solver%get_A()
   call A%create_domain_vector(this%increment_dof_values)
   call A%create_range_vector(this%initial_residual)
-  call A%create_range_vector(this%current_residual)
+  !call A%create_range_vector(this%current_residual)
 
 end subroutine nonlinear_solver_create
 
@@ -118,29 +118,38 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
 
   implicit none
   class(nonlinear_solver_t)  , intent(inout) :: this
-  class(nonlinear_operator_t), intent(inout) :: nonlinear_operator
-  class(vector_t)            , intent(inout) :: unknown
+  class(fe_nonlinear_operator_t), target, intent(inout) :: nonlinear_operator
+  class(vector_t), target            , intent(inout) :: unknown
 
-  this%current_iteration = 0
-  call nonlinear_operator%apply(unknown,this%current_residual)  ! this implies a (potentially unnecessary) copy 
+  ! Initialize nonlinear operator
+  this%current_dof_values => unknown
+  this%current_iteration = 0  
+  call this%increment_dof_values%init(0.0) 
   
-  ! Aassert (domain and range of this%linear_solver%get_A() is equal to domain and range of F)
-  this%initial_residual   = this%current_residual
-  call this%increment_dof_values%init(0.0)
-
+  ! Compute initial residual
+  call nonlinear_operator%set_evaluation_point(unknown)
+  call nonlinear_operator%compute_residual()
+  this%current_residual => nonlinear_operator%get_translation()
+  
   ! Print initial residual
   call this%print_iteration_output_header()
   call this%print_current_iteration_output()
-  
-      !call this%linear_solver%setup_operators(operator, preconditioner) 
-
- 
+    
+  ! Store initial residual for the stopping criterium that needs it
+  if (this%convergence_criteria == par_nsi_rel_r0_res_norm) then
+    this%initial_residual = this%current_residual
+  end if
+    
   do while (.not. this%has_finished())
     this%current_iteration = this%current_iteration + 1
-    call this%linear_solver%update(nonlinear_operator%get_tangent(unknown))
+    call nonlinear_operator%compute_tangent()    
+    call this%linear_solver%update(nonlinear_operator%get_tangent())
+    ! sbadia : Is this OK? No extra copy?
     call this%linear_solver%solve( - this%current_residual, this%increment_dof_values )
-    unknown = unknown + this%increment_dof_values
-    call nonlinear_operator%apply(unknown,this%current_residual)  ! this implies a (potentially unnecessary) copy 
+    call this%update_solution() ! x + dx
+    call nonlinear_operator%set_evaluation_point(this%current_dof_values)
+    call nonlinear_operator%compute_residual()
+    this%current_residual => nonlinear_operator%get_translation()
     call this%print_iteration_output_header()
     call this%print_current_iteration_output()
   end do
@@ -162,16 +171,17 @@ subroutine nonlinear_solver_free(this)
     call this%initial_residual%free()
     deallocate(this%initial_residual,stat=istat); check(istat==0)
   end if
-  if(allocated(this%current_residual)) then
-    call this%current_residual%free()
-    deallocate(this%current_residual,stat=istat); check(istat==0)
-  end if
+  !if(allocated(this%current_residual)) then
+  !  call this%current_residual%free()
+  !  deallocate(this%current_residual,stat=istat); check(istat==0)
+  !end if
   if(allocated(this%increment_dof_values)) then
     call this%increment_dof_values%free()
     deallocate(this%increment_dof_values,stat=istat); check(istat==0)
   end if
-  this%linear_solver  => null()
-  this%preconditioner => null()
+  this%current_residual => null()
+  this%linear_solver    => null()
+  !this%preconditioner   => null()
 end subroutine nonlinear_solver_free
 
 !==============================================================================

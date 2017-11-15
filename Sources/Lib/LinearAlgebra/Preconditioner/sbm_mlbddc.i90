@@ -25,16 +25,16 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine mlbddc_create ( this, fe_affine_operator, mlbddc_params )
+subroutine mlbddc_create ( this, fe_nonlinear_operator, mlbddc_params )
   implicit none
   class(mlbddc_t)                   , intent(inout) :: this
-  type(fe_affine_operator_t), target, intent(in)    :: fe_affine_operator
+  class(fe_nonlinear_operator_t), target, intent(in)    :: fe_nonlinear_operator
   type(parameterlist_t)    , target , intent(in)    :: mlbddc_params
   type(par_fe_space_t), pointer :: fe_space
 
   call this%free()
 
-  this%fe_affine_operator => fe_affine_operator
+  this%fe_nonlinear_operator => fe_nonlinear_operator
   this%mlbddc_params      => mlbddc_params
   fe_space                => this%get_par_fe_space()
   call this%create_vector_spaces()
@@ -45,16 +45,16 @@ end subroutine mlbddc_create
 subroutine mlbddc_create_vector_spaces (this)
   implicit none
   class(mlbddc_t), intent(inout)  :: this
-  type(vector_space_t), pointer :: fe_affine_operator_domain_vector_space
-  type(vector_space_t), pointer :: fe_affine_operator_range_vector_space
+  type(vector_space_t), pointer :: fe_nonlinear_operator_domain_vector_space
+  type(vector_space_t), pointer :: fe_nonlinear_operator_range_vector_space
   type(vector_space_t), pointer :: mlbddc_domain_vector_space
   type(vector_space_t), pointer :: mlbddc_range_vector_space
-  fe_affine_operator_domain_vector_space => this%fe_affine_operator%get_domain_vector_space()
-  fe_affine_operator_range_vector_space => this%fe_affine_operator%get_range_vector_space()
+  fe_nonlinear_operator_domain_vector_space => this%fe_nonlinear_operator%get_domain_vector_space()
+  fe_nonlinear_operator_range_vector_space => this%fe_nonlinear_operator%get_range_vector_space()
   mlbddc_domain_vector_space => this%get_domain_vector_space()
   mlbddc_range_vector_space => this%get_range_vector_space()
-  call fe_affine_operator_domain_vector_space%clone(mlbddc_domain_vector_space)
-  call fe_affine_operator_range_vector_space%clone(mlbddc_range_vector_space)
+  call fe_nonlinear_operator_domain_vector_space%clone(mlbddc_domain_vector_space)
+  call fe_nonlinear_operator_range_vector_space%clone(mlbddc_range_vector_space)
 end subroutine mlbddc_create_vector_spaces
 
 subroutine mlbddc_setup_constraint_matrix (this)
@@ -126,7 +126,7 @@ subroutine mlbddc_setup_weighting_operator (this)
 end subroutine mlbddc_setup_weighting_operator
 
 ! Helper function that extracts a run-time polymorphic class(matrix_t)
-! from the fe_affine_operator, and dynamically casts it into  
+! from the fe_nonlinear_operator, and dynamically casts it into  
 ! type(par_sparse_matrix_t). If the dynamic cast cannot be performed 
 ! [because class(matrix_t) is NOT of type(par_sparse_matrix_t)], then it 
 ! aborts the execution of the program.
@@ -134,14 +134,16 @@ function mlbddc_get_par_sparse_matrix(this)
   implicit none
   class(mlbddc_t)          , intent(in) :: this
   type(par_sparse_matrix_t), pointer    :: mlbddc_get_par_sparse_matrix
-  class(matrix_t)          , pointer    :: matrix
-  matrix => this%fe_affine_operator%get_matrix()
-  select type(matrix)
+  type(lvalue_operator_t)              :: matrix
+  matrix = this%fe_nonlinear_operator%get_tangent()
+  select type( op => matrix%get_operator() )
   type is (par_sparse_matrix_t)
-     mlbddc_get_par_sparse_matrix => matrix
+     mlbddc_get_par_sparse_matrix => op
      class default
      check(.false.)
   end select
+  ! sbadia : not clear how to do it
+  call matrix%free()
 end function mlbddc_get_par_sparse_matrix
 
 function mlbddc_get_fe_space(this)
@@ -152,7 +154,7 @@ function mlbddc_get_fe_space(this)
 end function mlbddc_get_fe_space
 
 ! Helper function that extracts a run-time polymorphic class(serial_fe_space_t)
-! from the fe_affine_operator, and dynamically casts it into  
+! from the fe_nonlinear_operator, and dynamically casts it into  
 ! type(par_fe_space_t). If the dynamic cast cannot be performed 
 ! [because class(serial_fe_space_t) is NOT of type(par_fe_space_t)], then it 
 ! aborts the execution of the program.
@@ -161,7 +163,7 @@ function mlbddc_get_par_fe_space(this)
   class(mlbddc_t)          , intent(in) :: this
   type(par_fe_space_t)     , pointer    :: mlbddc_get_par_fe_space
   class(serial_fe_space_t) , pointer    :: fe_space
-  fe_space => this%fe_affine_operator%get_fe_space()
+  fe_space => this%fe_nonlinear_operator%get_fe_space()
   select type(fe_space)
   class is (par_fe_space_t)
      mlbddc_get_par_fe_space => fe_space
@@ -199,11 +201,11 @@ function mlbddc_is_operator_associated( this )
   implicit none
   class(mlbddc_t)          , intent(in) :: this
   logical :: mlbddc_is_operator_associated
-  mlbddc_is_operator_associated = associated(this%fe_affine_operator)
+  mlbddc_is_operator_associated = associated(this%fe_nonlinear_operator)
 end function mlbddc_is_operator_associated
 
 subroutine mlbddc_nullify_operator ( this )
   implicit none
   class(mlbddc_t), intent(inout) :: this
-  nullify(this%fe_affine_operator)
+  nullify(this%fe_nonlinear_operator)
 end subroutine mlbddc_nullify_operator 

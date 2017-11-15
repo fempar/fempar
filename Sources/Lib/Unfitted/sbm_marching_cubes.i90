@@ -613,10 +613,6 @@ subroutine marching_cubes_discrete_levelset_create(this)
     mcheck(.false.,'Wrong triangulation type')
   end select
 
-  ! Fill the dof info
-  call this%block_layout%create(1)
-  call this%fe_space%generate_global_dof_numbering(this%block_layout)
-
   ! Create the discrete levelset function
   call this%fe_levelset%create(this%fe_space)
   call this%fe_space%interpolate(1,this%level_set_function,this%fe_levelset)

@@ -29,13 +29,20 @@ subroutine  nsi_discrete_integration_create(this,number_dimensions,analytical_fu
   this%source_term => this%analytical_functions%get_source_term_u()
   this%viscosity = viscosity
   
-  
-  
   !this%terms_to_integrate    = tangent_and_translation_terms
 
 end subroutine nsi_discrete_integration_create
 
 subroutine nsi_discrete_integration_integrate ( this, fe_space, assembler )
+  implicit none
+  class(nsi_discrete_integration_t), intent(in)    :: this
+  class(serial_fe_space_t)               , intent(inout) :: fe_space
+  class(assembler_t)        , intent(inout) :: assembler
+  call this%integrate_tangent(fe_space, assembler)
+  call this%integrate_residual(fe_space, assembler)
+end subroutine nsi_discrete_integration_integrate
+
+subroutine nsi_discrete_integration_integrate_tangent ( this, fe_space, assembler )
   implicit none
   class(nsi_discrete_integration_t), intent(in)    :: this
   class(serial_fe_space_t)               , intent(inout) :: fe_space
@@ -117,7 +124,6 @@ subroutine nsi_discrete_integration_integrate ( this, fe_space, assembler )
 
         ! Compute element matrix and vector
         elmat = 0.0_rp
-        elvec = 0.0_rp
 
         call fe%get_gradients(shape_u_gradients,1)
         call fe%get_values(shape_u_values,1)
@@ -155,6 +161,132 @@ subroutine nsi_discrete_integration_integrate ( this, fe_space, assembler )
            end do
          end do
            
+         
+         
+         !if( this%terms_in_the_residual == transient_terms) then
+         !  ! Source term
+         !  do idof = 1, num_dofs
+         !    elvec(idof) = elvec(idof) + this%mass_coefficient * dV * solution_u(qpoint) * shape_u_values(idof,qpoint)
+         !    elvec(idof) = elvec(idof) - this%mass_coefficient * dV * solution_u_old(qpoint) * shape_u_values(idof,qpoint)
+         !    do jdof = 1, num_dofs_per_field(1)
+         !      elmat(idof,jdof) = elmat(idof,jdof) + this%mass_coefficient * dV * shape_u_values(idof,qpoint) * shape_u_values(jdof,qpoint)
+         !    end do
+         !  end do
+         !end if
+       end do      
+
+       call fe%assembly( elmat, assembler)
+     end if
+     call fe%next()
+  end do
+
+  !call cell_solution_u_old%free()
+  call cell_solution_u%free()
+  call cell_solution_p%free()
+  call fe_space%free_fe_cell_iterator(fe)
+  call memfree(shape_p_values, __FILE__, __LINE__)
+  deallocate (shape_p_gradients, stat=istat); check(istat==0);
+  deallocate (shape_u_values, stat=istat); check(istat==0);
+  deallocate (shape_u_gradients, stat=istat); check(istat==0);
+  call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
+  call memfree ( elmat, __FILE__, __LINE__ )
+  call memfree ( elvec, __FILE__, __LINE__ )
+
+end subroutine nsi_discrete_integration_integrate_tangent
+
+
+
+subroutine nsi_discrete_integration_integrate_residual ( this, fe_space, assembler )
+  implicit none
+  class(nsi_discrete_integration_t), intent(in)    :: this
+  class(serial_fe_space_t)               , intent(inout) :: fe_space
+  class(assembler_t)        , intent(inout) :: assembler
+
+  ! FE space traversal-related data types
+  class(fe_cell_iterator_t), allocatable :: fe
+
+  ! FE integration-related data types
+  type(quadrature_t)       , pointer :: quad
+  type(point_t)            , pointer :: quad_coords(:)
+  type(vector_field_t), allocatable  :: shape_p_gradients(:,:)
+  real(rp)            , allocatable  :: shape_p_values(:,:)
+  type(tensor_field_t), allocatable  :: shape_u_gradients(:,:)
+  type(vector_field_t), allocatable  :: shape_u_values(:,:)
+
+  ! Workspace (FE matrix and vector, assembly data), it could be allocated in the creation
+  real(rp)   , allocatable :: elmat(:,:), elvec(:)
+  integer(ip), allocatable :: num_dofs_per_field(:)  
+
+  integer(ip)  :: istat
+  integer(ip)  :: qpoint, num_quad_points
+  integer(ip)  :: idof, jdof, idof_u, jdof_u, idof_p, jdof_p , num_dofs
+
+  type(fe_cell_function_vector_t) :: cell_solution_u
+  type(fe_cell_function_vector_t) :: cell_solution_u_old
+  type(fe_cell_function_scalar_t) :: cell_solution_p
+  type(vector_field_t), pointer   :: solution_u(:) => null()
+  type(vector_field_t), pointer   :: solution_u_old(:) => null()
+  type(tensor_field_t), pointer   :: solution_gradu(:) => null()
+  real(rp)            , pointer   :: solution_p(:) => null()
+
+  ! Problem variables
+  type(vector_field_t) :: source_term_value
+  type(tensor_field_t) :: s_u, epsd_v, epsd_u, Id
+  real(rp)     :: dV, div_v, div_u
+  
+  ! Chapuza for the moment to check everything works as linear elasticity
+  !real(rp)         :: viscosity 
+  !cviscosity = mu
+  
+  assert (associated(this%source_term)) 
+
+  call Id%init(0.0)
+  call Id%set(1,1,1.0)
+  call Id%set(2,2,1.0)
+  call Id%set(3,3,1.0)  
+
+  call fe_space%set_up_cell_integration()
+  call fe_space%create_fe_cell_iterator(fe)
+  call cell_solution_u%create(fe_space,1)
+  call cell_solution_u_old%create(fe_space,1)
+  call cell_solution_p%create(fe_space,2)
+
+  num_dofs = fe%get_num_dofs()
+  call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
+  call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
+  call memalloc ( this%number_fields, num_dofs_per_field, __FILE__, __LINE__ )
+  num_dofs_per_field(1) = fe%get_num_dofs_field(1)
+  num_dofs_per_field(2) = fe%get_num_dofs_field(2)
+
+  quad            => fe%get_quadrature()
+  num_quad_points = quad%get_num_quadrature_points()
+
+  do while ( .not. fe%has_finished())
+     if ( fe%is_local() ) then
+        ! Update FE-integration related data structures
+        call fe%update_integration()
+        call cell_solution_u%update(fe,this%fe_function)
+        call cell_solution_u_old%update(fe,this%fe_function_old)
+        call cell_solution_p%update(fe,this%fe_function)
+        solution_u      => cell_solution_u%get_quadrature_points_values()
+        solution_u_old  => cell_solution_u_old%get_quadrature_points_values()
+        solution_gradu => cell_solution_u%get_quadrature_points_gradients()
+        solution_p     => cell_solution_p%get_quadrature_points_values()
+
+        ! Get quadrature coordinates to evaluate source_term
+        quad_coords => fe%get_quadrature_points_coordinates()
+
+        ! Compute element matrix and vector
+        elvec = 0.0_rp
+
+        call fe%get_gradients(shape_u_gradients,1)
+        call fe%get_values(shape_u_values,1)
+        call fe%get_gradients(shape_p_gradients,2)
+        call fe%get_values(shape_p_values,2)
+
+        do qpoint = 1, num_quad_points
+          dV = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          
          ! Residual
          call this%source_term%get_value_space(quad_coords(qpoint),source_term_value)
          epsd_u = symmetric_part(solution_gradu(qpoint))
@@ -187,7 +319,7 @@ subroutine nsi_discrete_integration_integrate ( this, fe_space, assembler )
          !end if
        end do      
 
-       call fe%assembly( elmat, elvec, assembler)
+       call fe%assembly( elvec, assembler)
      end if
      call fe%next()
   end do
@@ -204,4 +336,4 @@ subroutine nsi_discrete_integration_integrate ( this, fe_space, assembler )
   call memfree ( elmat, __FILE__, __LINE__ )
   call memfree ( elvec, __FILE__, __LINE__ )
 
-end subroutine nsi_discrete_integration_integrate
+end subroutine nsi_discrete_integration_integrate_residual

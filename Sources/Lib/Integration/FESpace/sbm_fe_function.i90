@@ -209,3 +209,22 @@
     call op1%fixed_dof_values%axpby(alpha,op2%fixed_dof_values,beta)
   end subroutine fe_function_axpby
   
+ !=============================================================================================== 
+    subroutine fe_function_set_free_dof_values(this,free_dof_values) 
+    implicit none
+    class(fe_function_t), intent(inout) :: this
+    class(vector_t)     , intent(in)    :: free_dof_values
+    if( .not. allocated(this%free_dof_values) ) allocate(this%free_dof_values,mold=free_dof_values)
+    this%free_dof_values = free_dof_values
+  end subroutine fe_function_set_free_dof_values
+ 
+ !=============================================================================================== 
+    subroutine fe_function_set_fixed_dof_values(this,fixed_dof_values) 
+    implicit none
+    class(fe_function_t), intent(inout) :: this
+    class(serial_scalar_array_t)     , intent(in)    :: fixed_dof_values
+    this%fixed_dof_values = fixed_dof_values
+  end subroutine fe_function_set_fixed_dof_values
+  
+  
+  

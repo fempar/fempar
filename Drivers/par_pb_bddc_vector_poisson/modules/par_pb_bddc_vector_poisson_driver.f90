@@ -713,8 +713,8 @@ end subroutine free_timers
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%numerical_setup()
-    rhs                => this%fe_affine_operator%get_translation()
-    matrix             => this%fe_affine_operator%get_matrix()
+    !rhs                => this%fe_affine_operator%get_translation()
+    !matrix             => this%fe_affine_operator%get_matrix()
     
     !select type(matrix)
     !class is (sparse_matrix_t)  
@@ -739,8 +739,8 @@ end subroutine free_timers
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
 
-    matrix     => this%fe_affine_operator%get_matrix()
-    rhs        => this%fe_affine_operator%get_translation()
+    !matrix     => this%fe_affine_operator%get_matrix()
+    !rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)

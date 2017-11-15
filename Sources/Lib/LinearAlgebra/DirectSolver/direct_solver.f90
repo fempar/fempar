@@ -124,37 +124,57 @@ contains
         assert(associated(this%base_direct_solver))
         call this%base_direct_solver%set_parameters_from_pl(parameter_list)
     end subroutine direct_solver_set_parameters_from_pl
-
-
-
+    
     subroutine direct_solver_set_matrix(this, matrix)
     !-----------------------------------------------------------------
-    !< Associate the concrete direct solver with a matrix
+    !< Associate the concrete direct solver with an matrix
     !-----------------------------------------------------------------
         class(direct_solver_t),         intent(inout) :: this
-        type(sparse_matrix_t),  target, intent(in)    :: matrix
+        class(operator_t),              intent(in)    :: matrix
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
-        call this%base_direct_solver%set_matrix(matrix)
+        select type(matrix)
+        class is (sparse_matrix_t)
+          call this%base_direct_solver%set_matrix(matrix)
+        class is (lvalue_operator_t)
+          select type ( op => matrix%get_operator() ) 
+          class is (sparse_matrix_t)
+            call this%base_direct_solver%set_matrix(op)
+          class default
+            mcheck(.false., "direct_solver_set_matrix:: matrix MUST be of dynamic type sparse_matrix_t")
+          end select 
+        class default
+          mcheck(.false., "direct_solver_set_matrix:: matrix MUST be of dynamic type sparse_matrix_t")
+        end select
     end subroutine direct_solver_set_matrix
-
-
-    subroutine direct_solver_update_matrix(this, matrix, same_nonzero_pattern)
+    
+   subroutine direct_solver_update_matrix(this, matrix, same_nonzero_pattern)
     !-----------------------------------------------------------------
     !< Update matrix pointer 
     !< If same_nonzero_pattern numerical_setup has to be performed
     !< If not same_nonzero_pattern symbolic_setup has to be performed
     !-----------------------------------------------------------------
         class(direct_solver_t),        intent(inout) :: this
-        type(sparse_matrix_t), target, intent(in)    :: matrix
+        class(operator_t),             intent(in)    :: matrix
         logical,                       intent(in)    :: same_nonzero_pattern
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
-        call this%base_direct_solver%update_matrix(matrix, same_nonzero_pattern)
+        select type(matrix)
+        class is (sparse_matrix_t)
+          call this%base_direct_solver%update_matrix(matrix, same_nonzero_pattern)  
+        class is (lvalue_operator_t)
+          select type ( op => matrix%get_operator() ) 
+          class is (sparse_matrix_t)
+            call this%base_direct_solver%update_matrix(op, same_nonzero_pattern)  
+          class default
+            mcheck(.false., "direct_solver_update_matrix:: matrix MUST be of dynamic type sparse_matrix_t")
+          end select 
+        class default
+          mcheck(.false., "direct_solver_update_matrix:: matrix MUST be of dynamic type sparse_matrix_t")
+        end select
         if(.not. same_nonzero_pattern) call this%free_vector_spaces()
     end subroutine direct_solver_update_matrix
-
-
+    
     subroutine direct_solver_create_vector_spaces ( this ) 
     !-----------------------------------------------------------------
     !< Clone vector spaces from matrix vector spaces

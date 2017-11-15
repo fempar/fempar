@@ -140,7 +140,7 @@ module unfitted_fe_spaces_names
 
       ! Creation / deletion methods
       procedure,  private :: serial_fe_space_create_same_reference_fes_on_all_cells => sufs_create_same_reference_fes_on_all_cells
-      procedure,  private :: serial_fe_space_create_different_ref_fes_between_cells         => sufs_space_create_different_ref_fes_between_cells
+      procedure,  private :: serial_fe_space_create_different_ref_fes_between_cells => sufs_space_create_different_ref_fes_between_cells
       procedure           :: free  => sufs_free
 
       ! Creation of the iterator

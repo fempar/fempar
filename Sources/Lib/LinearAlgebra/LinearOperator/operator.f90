@@ -52,7 +52,7 @@ module operator_names
      procedure (is_linear_interface), deferred :: is_linear 
      
      procedure :: get_tangent                             => operator_get_tangent         ! partial A / partial x (x*)
-	 procedure :: get_translation                         => operator_get_translation     ! -1*A(0)
+	    procedure :: get_translation                         => operator_get_translation     ! -1*A(0)
      procedure :: free_vector_spaces                      => operator_free_vector_spaces
      procedure :: create_domain_vector                    => operator_create_domain_vector
      procedure :: create_range_vector                     => operator_create_range_vector
@@ -88,6 +88,7 @@ module operator_names
   end type expression_operator_t
 
   type, abstract, extends(expression_operator_t) :: binary_operator_t
+     private
      class(operator_t), pointer :: op1 => null(), op2 => null()
    contains
      procedure :: default_initialization => binary_operator_default_init
@@ -96,6 +97,7 @@ module operator_names
   end type binary_operator_t
 
   type, abstract, extends(expression_operator_t) :: unary_operator_t
+     private
      class(operator_t), pointer :: op => null()
    contains
      procedure :: default_initialization => unary_operator_default_init
@@ -104,10 +106,12 @@ module operator_names
   end type unary_operator_t
 
   type, extends(operator_t) :: lvalue_operator_t
+     private
      class(operator_t), pointer :: op_stored     => null()
      class(operator_t), pointer :: op_referenced => null()
    contains
      procedure  :: default_initialization => lvalue_operator_default_init
+     procedure  :: get_operator => lvalue_get_operator
      procedure  :: apply     => lvalue_operator_apply
      procedure  :: apply_add => lvalue_operator_apply_add
      procedure  :: is_linear => lvalue_operator_is_linear
@@ -138,6 +142,7 @@ module operator_names
   end type mult_operator_t
 
   type, extends(unary_operator_t) :: scal_operator_t
+     private
      real(rp) :: alpha
    contains
      procedure  :: apply     => scal_operator_apply
@@ -283,10 +288,9 @@ contains
     end if
   end subroutine operator_abort_if_not_in_range
   
-  function operator_get_tangent(this,x) result(tangent)
+  function operator_get_tangent(this) result(tangent)
     implicit none
     class(operator_t)          , intent(in) :: this
-    class(vector_t)  , optional, intent(in) :: x
     type(lvalue_operator_t)          :: tangent 
     
     if (this%is_linear()) then
@@ -804,6 +808,21 @@ contains
     call this%CleanTemp()
   end subroutine minus_operator_apply
 
+  function lvalue_get_operator(this) 
+    implicit none
+    class(lvalue_operator_t), intent(in) :: this
+    class(operator_t), pointer :: lvalue_get_operator
+    if(associated(this%op_stored)) then
+       assert(.not. associated(this%op_referenced))
+       lvalue_get_operator => this%op_stored
+    else if(associated(this%op_referenced)) then
+       assert(.not. associated(this%op_stored))
+       lvalue_get_operator => this%op_referenced
+    else
+       check(1==0)
+    end if 
+  end function lvalue_get_operator
+  
   recursive subroutine lvalue_operator_apply(this,x,y)
     implicit none
     class(lvalue_operator_t), intent(in)    :: this
