@@ -519,8 +519,8 @@ module fe_space_names
      type(std_vector_real_rp_t)                  :: constraints_independent_term
      
    contains
-     procedure,                  private :: serial_fe_space_create_same_reference_fes_on_all_cells
-     procedure,                  private :: serial_fe_space_create_different_ref_fes_between_cells
+     procedure                           :: serial_fe_space_create_same_reference_fes_on_all_cells
+     procedure                           :: serial_fe_space_create_different_ref_fes_between_cells
      generic                             :: create                                       => serial_fe_space_create_same_reference_fes_on_all_cells,&
                                                                                             serial_fe_space_create_different_ref_fes_between_cells
      procedure                           :: free                                         => serial_fe_space_free
@@ -759,10 +759,10 @@ module fe_space_names
    type(list_t)                                :: faces_object
    
  contains
-   procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
-   procedure, private :: serial_fe_space_create_different_ref_fes_between_cells                           => par_fe_space_serial_create_different_ref_fes_between_cells 
-   procedure, private :: par_fe_space_create_same_reference_fes_on_all_cells 
-   procedure, private :: par_fe_space_create_different_ref_fes_between_cells
+   procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells    => par_fe_space_serial_create_same_reference_fes_on_all_cells 
+   procedure          :: serial_fe_space_create_different_ref_fes_between_cells    => par_fe_space_serial_create_different_ref_fes_between_cells 
+   procedure          :: par_fe_space_create_same_reference_fes_on_all_cells 
+   procedure          :: par_fe_space_create_different_ref_fes_between_cells
    generic                                     :: create                                          => par_fe_space_create_same_reference_fes_on_all_cells, &
                                                                                                      par_fe_space_create_different_ref_fes_between_cells
    procedure                         , private :: allocate_and_fill_coarse_fe_handlers            => par_fe_space_allocate_and_fill_coarse_fe_handlers
