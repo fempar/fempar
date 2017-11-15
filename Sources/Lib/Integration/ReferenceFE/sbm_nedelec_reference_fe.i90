@@ -765,6 +765,18 @@ end subroutine nedelec_get_subelements_connectivity
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
+!==================================================================================================
+subroutine nedelec_reference_fe_apply_cell_map( this, cell_map,                 &
+     & interpolation_reference_cell, &
+     & interpolation_real_cell )
+  implicit none 
+  class(nedelec_reference_fe_t)   , intent(in)    :: this 
+  type(cell_map_t)                , intent(in)    :: cell_map
+  type(interpolation_t)           , intent(in)    :: interpolation_reference_cell
+  type(interpolation_t)           , intent(inout) :: interpolation_real_cell
+  call this%apply_cell_map_to_interpolation(cell_map,interpolation_reference_cell,interpolation_real_cell)
+		call this%apply_scaling_to_interpolation(cell_map, interpolation_real_cell)
+end subroutine nedelec_reference_fe_apply_cell_map
 
 !==================================================================================================
 subroutine nedelec_apply_cell_map_to_interpolation(this,map,ref,phy)
