@@ -1382,7 +1382,7 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
   implicit none
   class(serial_fe_space_t), target, intent(inout) :: this
 
-  class(fe_cell_iterator_t), allocatable :: fe
+  type(fe_cell_iterator_t) :: fe
 
   integer(ip)         :: cell_quadrature_and_map_position
   integer(ip)         :: cell_integrator_position
@@ -1411,7 +1411,7 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
   cell_quadrature_and_map_position = 1
   cell_integrator_position = 1
 
-  call this%create_fe_cell_iterator(fe)
+  call fe%create(this)
   do while ( .not. fe%has_finished())
    
      cell_quadrature_and_map_key = this%generate_cell_quadratures_position_key(fe%get_reference_fe_geo_id(), &
@@ -1452,8 +1452,7 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
      end do
      call fe%next()
   end do
-  call this%free_fe_cell_iterator(fe)
-  
+  call fe%free()
 end subroutine serial_fe_space_set_up_cell_integration
 
 subroutine serial_fe_space_free_fe_integration ( this )

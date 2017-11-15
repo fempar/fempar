@@ -94,33 +94,33 @@ module execution_context_names
      procedure (execution_context_bcast_scalar_igp  ) , deferred :: bcast_igp
      generic :: bcast => bcast_ip, bcast_igp
      
-     procedure (execution_context_neighbours_exchange_rp                 ), deferred, private    :: neighbours_exchange_rp                 
-     procedure (execution_context_neighbours_exchange_ip                 ), deferred, private    :: neighbours_exchange_ip                 
-     procedure (execution_context_neighbours_exchange_igp                ), deferred, private    :: neighbours_exchange_igp                
-     procedure (execution_context_neighbours_exchange_single_ip          ), deferred, private    :: neighbours_exchange_single_ip          
-     procedure (execution_context_neighbours_exchange_wo_pack_unpack_ieep), deferred, private    :: neighbours_exchange_wo_pack_unpack_ieep
+     procedure (execution_context_neighbours_exchange_rp                 ), deferred  :: neighbours_exchange_rp                 
+     procedure (execution_context_neighbours_exchange_ip                 ), deferred  :: neighbours_exchange_ip                 
+     procedure (execution_context_neighbours_exchange_igp                ), deferred  :: neighbours_exchange_igp                
+     procedure (execution_context_neighbours_exchange_single_ip          ), deferred  :: neighbours_exchange_single_ip          
+     procedure (execution_context_neighbours_exchange_wo_pack_unpack_ieep), deferred  :: neighbours_exchange_wo_pack_unpack_ieep
      generic :: neighbours_exchange  => neighbours_exchange_rp, &
           &                             neighbours_exchange_ip, &
           &                             neighbours_exchange_igp, &
           &                             neighbours_exchange_single_ip, &
           &                             neighbours_exchange_wo_pack_unpack_ieep
 
-     procedure (execution_context_root_send_master_rcv_ip         ), deferred, private    :: root_send_master_rcv_ip
-     procedure (execution_context_root_send_master_rcv_ip_1D_array), deferred, private    :: root_send_master_rcv_ip_1D_array
-     procedure (execution_context_root_send_master_rcv_rp         ), deferred, private    :: root_send_master_rcv_rp
-     procedure (execution_context_root_send_master_rcv_rp_1D_array), deferred, private    :: root_send_master_rcv_rp_1D_array
+     procedure (execution_context_root_send_master_rcv_ip         ), deferred :: root_send_master_rcv_ip
+     procedure (execution_context_root_send_master_rcv_ip_1D_array), deferred :: root_send_master_rcv_ip_1D_array
+     procedure (execution_context_root_send_master_rcv_rp         ), deferred :: root_send_master_rcv_rp
+     procedure (execution_context_root_send_master_rcv_rp_1D_array), deferred :: root_send_master_rcv_rp_1D_array
      generic :: root_send_master_rcv => root_send_master_rcv_ip,          &
           &                             root_send_master_rcv_ip_1D_array, &
           &                             root_send_master_rcv_rp,          &
           &                             root_send_master_rcv_rp_1D_array
 
-     procedure (execution_context_gather_to_master_ip           ) , deferred, private :: gather_to_master_ip            
-     procedure (execution_context_gather_to_master_igp          ) , deferred, private :: gather_to_master_igp           
-     procedure (execution_context_gather_to_master_ip_1D_array  ) , deferred, private :: gather_to_master_ip_1D_array   
-     procedure (execution_context_gather_to_masterv_ip_1D_array ) , deferred, private :: gather_to_masterv_ip_1D_array  
-     procedure (execution_context_gather_to_masterv_igp_1D_array) , deferred, private :: gather_to_masterv_igp_1D_array 
-     procedure (execution_context_gather_to_masterv_rp_1D_array ) , deferred, private :: gather_to_masterv_rp_1D_array  
-     procedure (execution_context_gather_to_masterv_rp_2D_array ) , deferred, private :: gather_to_masterv_rp_2D_array  
+     procedure (execution_context_gather_to_master_ip           ) , deferred :: gather_to_master_ip            
+     procedure (execution_context_gather_to_master_igp          ) , deferred :: gather_to_master_igp           
+     procedure (execution_context_gather_to_master_ip_1D_array  ) , deferred :: gather_to_master_ip_1D_array   
+     procedure (execution_context_gather_to_masterv_ip_1D_array ) , deferred :: gather_to_masterv_ip_1D_array  
+     procedure (execution_context_gather_to_masterv_igp_1D_array) , deferred :: gather_to_masterv_igp_1D_array 
+     procedure (execution_context_gather_to_masterv_rp_1D_array ) , deferred :: gather_to_masterv_rp_1D_array  
+     procedure (execution_context_gather_to_masterv_rp_2D_array ) , deferred :: gather_to_masterv_rp_2D_array  
      generic  :: gather_to_master => gather_to_master_ip, &
           &                          gather_to_master_igp, &
           &                          gather_to_master_ip_1D_array, &
@@ -129,7 +129,7 @@ module execution_context_names
           &                          gather_to_masterv_rp_1D_array, &
           &                          gather_to_masterv_rp_2D_array
 
-     procedure (execution_context_scatter_from_masterv_rp_1D_array), deferred, private :: scatter_from_masterv_rp_1D_array                                  
+     procedure (execution_context_scatter_from_masterv_rp_1D_array), deferred :: scatter_from_masterv_rp_1D_array                                  
      generic   :: scatter_from_master => scatter_from_masterv_rp_1D_array
 
   end type execution_context_t
