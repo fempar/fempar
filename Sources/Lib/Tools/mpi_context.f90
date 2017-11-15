@@ -120,7 +120,7 @@ contains
     class(mpi_context_t)      , intent(inout) :: this
     class(execution_context_t), intent(in)    :: that
     integer  :: current_task, num_tasks, istat
-    call this%free(finalize=.false.)
+    ! call this%free(finalize=.false.)
     select type(that)
     type is(mpi_context_t)
        ! Uncomment the following line for maximum checking
