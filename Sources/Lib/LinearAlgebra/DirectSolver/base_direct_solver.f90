@@ -94,13 +94,13 @@ module base_direct_solver_names
         real(rp)                               :: Mflops
     contains
     private
-        procedure(base_direct_solver_free_clean_body),                 deferred :: free_clean_body
-        procedure(base_direct_solver_free_symbolic_body),              deferred :: free_symbolic_body
-        procedure(base_direct_solver_free_numerical_body),             deferred :: free_numerical_body
-        procedure(base_direct_solver_symbolic_setup_body),             deferred :: symbolic_setup_body
-        procedure(base_direct_solver_numerical_setup_body),            deferred :: numerical_setup_body
-        procedure(base_direct_solver_solve_single_rhs_body),           deferred :: solve_single_rhs_body
-        procedure(base_direct_solver_solve_several_rhs_body),          deferred :: solve_several_rhs_body
+        procedure(base_direct_solver_free_clean_body),         public, deferred :: free_clean_body
+        procedure(base_direct_solver_free_symbolic_body),      public, deferred :: free_symbolic_body
+        procedure(base_direct_solver_free_numerical_body),     public, deferred :: free_numerical_body
+        procedure(base_direct_solver_symbolic_setup_body),     public, deferred :: symbolic_setup_body
+        procedure(base_direct_solver_numerical_setup_body),    public, deferred :: numerical_setup_body
+        procedure(base_direct_solver_solve_single_rhs_body),   public, deferred :: solve_single_rhs_body
+        procedure(base_direct_solver_solve_several_rhs_body),  public, deferred :: solve_several_rhs_body
         procedure(base_direct_solver_set_parameters_from_pl),  public, deferred :: set_parameters_from_pl
         procedure, non_overridable, public :: free_clean                   => base_direct_solver_free_clean
         procedure, non_overridable, public :: free_symbolic                => base_direct_solver_free_symbolic

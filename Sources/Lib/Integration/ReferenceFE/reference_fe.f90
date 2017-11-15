@@ -160,6 +160,9 @@ module reference_fe_names
     
     ! Characteristic length of the reference element
     real(rp)                    :: reference_fe_characteristic_length
+				
+    ! Measure of the map of the real element 
+    real(rp)                    :: measure 
   contains
     procedure                  :: free                              => base_map_free
     procedure, non_overridable :: copy                              => base_map_copy
@@ -171,6 +174,7 @@ module reference_fe_names
     procedure, non_overridable :: get_det_jacobians                 => base_map_get_det_jacobians
     procedure, non_overridable :: get_jacobian_column               => base_map_get_jacobian_column
     procedure, non_overridable :: get_reference_h                   => base_map_get_reference_h
+    procedure, non_overridable :: get_measure                       => base_map_get_measure 
   end type base_map_t
   
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -432,7 +436,7 @@ module reference_fe_names
      procedure(get_value_scalar_interface)              , deferred :: get_value_scalar
      procedure(get_value_vector_interface)              , deferred :: get_value_vector
      !procedure(get_value_tensor_interface)             , deferred :: get_value_tensor           ! Pending
-     !procedure(get_value_symmetric_tensor_interface)   , deferred :: get_value_symmetric_tensor ! Pending
+     !procedure(get_value_symmetric_tensor_interface)   , deferred :: get_value_symmetric_tensor ! Pending_vec
      generic :: get_value => get_value_scalar,get_value_vector!                                      &
      !          &                !,get_value_tensor,get_value_symmetric_tensor
      
@@ -915,7 +919,7 @@ module reference_fe_names
         integer(ip),                      intent(in)    :: num_refinements
         integer(ip),                      intent(inout) :: connectivity(:,:)
      end subroutine get_subcells_connectivity_interface
-
+										
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -1142,6 +1146,7 @@ contains
 
 procedure (nedelec_change_basis_interface) , private, deferred :: change_basis
 procedure (fill_interpolation_restricted_to_edget_interface), private, deferred :: fill_interpolation_restricted_to_edget
+procedure (nedelec_apply_scaling_to_interpolation_interface), private, deferred :: apply_scaling_to_interpolation 
 
 procedure :: create                          => nedelec_create
 procedure :: free                            => nedelec_free
@@ -1175,6 +1180,8 @@ procedure :: evaluate_fe_function_vector          &
     & => nedelec_evaluate_fe_function_vector
 procedure :: evaluate_fe_function_tensor          & 
     & => nedelec_evaluate_fe_function_tensor
+procedure :: apply_cell_map                       & 
+    & => nedelec_reference_fe_apply_cell_map 
 procedure, private :: apply_cell_map_to_interpolation & 
     & => nedelec_apply_cell_map_to_interpolation
 procedure, private :: fill_vector                         & 
@@ -1210,6 +1217,14 @@ abstract interface
     type(quadrature_t)           , intent(in)    :: local_quadrature
     type(interpolation_t)        , intent(inout) :: edget_interpolation
   end subroutine fill_interpolation_restricted_to_edget_interface
+		
+		  subroutine nedelec_apply_scaling_to_interpolation_interface ( this, cell_map, interpolation )
+    import :: nedelec_reference_fe_t, cell_map_t, interpolation_t 
+    implicit none 
+    class(nedelec_reference_fe_t)    , intent(in)    :: this 
+				type(cell_map_t)                 , intent(in)    :: cell_map
+				type(interpolation_t)            , intent(inout) :: interpolation
+  end subroutine nedelec_apply_scaling_to_interpolation_interface
 end interface 
 
 public :: nedelec_reference_fe_t
@@ -1436,7 +1451,7 @@ procedure, private :: fill_quadrature                                    &
 & => hex_nedelec_reference_fe_fill_quadrature
 procedure, private :: fill_interpolation                                 &
 & => hex_nedelec_reference_fe_fill_interpolation
-procedure, private :: fill_interpolation_pre_basis                       &
+procedure :: fill_interpolation_pre_basis                       &
 & => hex_nedelec_reference_fe_fill_interpolation_pre_basis
 procedure, private :: fill_interp_restricted_to_facet                            &
 & => hex_nedelec_reference_fe_fill_interp_restricted_to_facet
@@ -1448,7 +1463,8 @@ procedure, private :: change_basis &
 & => hex_nedelec_reference_fe_change_basis
 procedure :: fill_qpoints_permutations           &
 & =>  hex_nedelec_reference_fe_fill_qpoints_permutations 
-
+procedure :: apply_scaling_to_interpolation                              & 
+& => hex_nedelec_reference_fe_apply_scaling_to_interpolation 
 end type hex_nedelec_reference_fe_t
 
 public :: hex_nedelec_reference_fe_t
@@ -1478,7 +1494,7 @@ procedure, private :: create_and_fill_basis_Sk_indices                   &
 & => tet_nedelec_reference_fe_create_and_fill_basis_Sk_indices
 procedure, private :: fill_interpolation                                 &
 & => tet_nedelec_reference_fe_fill_interpolation
-procedure, private :: fill_interpolation_pre_basis                       &
+procedure :: fill_interpolation_pre_basis                       &
 & => tet_nedelec_reference_fe_fill_interpolation_pre_basis   
 procedure, private :: fill_interp_restricted_to_facet                            &
 & => tet_nedelec_reference_fe_fill_interp_restricted_to_facet
@@ -1492,6 +1508,8 @@ procedure :: compute_permutation_index                                   &
 & => tet_nedelec_reference_fe_compute_permutation_index
 procedure :: permute_dof_LID_n_face                                      &
 & => tet_nedelec_reference_fe_permute_dof_LID_n_face
+procedure :: apply_scaling_to_interpolation                              & 
+& => tet_nedelec_reference_fe_apply_scaling_to_interpolation 
 end type tet_nedelec_reference_fe_t
 
 public :: tet_nedelec_reference_fe_t
@@ -1749,11 +1767,9 @@ end type p_facet_integrator_t
 public :: facet_integrator_t, p_facet_integrator_t
 
 public :: make_reference_fe
-
 public :: assignment(=)
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 contains
 
   ! Includes with all the TBP and supporting subroutines for the types above.
@@ -1800,5 +1816,6 @@ contains
 #include "sbm_facet_integrator.i90"
 
 #include "sbm_reference_fe_factory.i90"
+
 
 end module reference_fe_names

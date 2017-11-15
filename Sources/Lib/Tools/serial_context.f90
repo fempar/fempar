@@ -61,25 +61,25 @@ module serial_context_names
      procedure :: gather_igp         => serial_context_gather_scalar_igp
      procedure :: bcast_igp          => serial_context_bcast_scalar_igp
      procedure :: bcast_subcontext   => serial_context_bcast_subcontext
-     procedure, private :: neighbours_exchange_rp                  =>  serial_context_neighbours_exchange_rp        
-     procedure, private :: neighbours_exchange_wo_alpha_beta_rp    =>  serial_context_neighbours_exchange_wo_alpha_beta_rp
-     procedure, private :: neighbours_exchange_ip                  =>  serial_context_neighbours_exchange_ip                 
-     procedure, private :: neighbours_exchange_igp                 =>  serial_context_neighbours_exchange_igp                
-     procedure, private :: neighbours_exchange_single_ip           =>  serial_context_neighbours_exchange_single_ip          
-     procedure, private :: neighbours_exchange_wo_pack_unpack_ieep =>  serial_context_neighbours_exchange_wo_pack_unpack_ieep
-     procedure, private :: neighbours_exchange_wo_unpack_ip        =>  serial_context_neighbours_exchange_wo_unpack_ip
-     procedure, private :: root_send_master_rcv_ip          => serial_context_root_send_master_rcv_ip
-     procedure, private :: root_send_master_rcv_ip_1D_array => serial_context_root_send_master_rcv_ip_1D_array
-     procedure, private :: root_send_master_rcv_rp          => serial_context_root_send_master_rcv_rp
-     procedure, private :: root_send_master_rcv_rp_1D_array => serial_context_root_send_master_rcv_rp_1D_array
-     procedure, private :: gather_to_master_ip              => serial_context_gather_to_master_ip           
-     procedure, private :: gather_to_master_igp             => serial_context_gather_to_master_igp          
-     procedure, private :: gather_to_master_ip_1D_array     => serial_context_gather_to_master_ip_1D_array  
-     procedure, private :: gather_to_masterv_ip_1D_array    => serial_context_gather_to_masterv_ip_1D_array 
-     procedure, private :: gather_to_masterv_igp_1D_array   => serial_context_gather_to_masterv_igp_1D_array
-     procedure, private :: gather_to_masterv_rp_1D_array    => serial_context_gather_to_masterv_rp_1D_array 
-     procedure, private :: gather_to_masterv_rp_2D_array    => serial_context_gather_to_masterv_rp_2D_array  
-     procedure, private :: scatter_from_masterv_rp_1D_array => serial_context_scatter_from_masterv_rp_1D_array
+     procedure :: neighbours_exchange_rp                  =>  serial_context_neighbours_exchange_rp        
+     procedure :: neighbours_exchange_wo_alpha_beta_rp    =>  serial_context_neighbours_exchange_wo_alpha_beta_rp
+     procedure :: neighbours_exchange_ip                  =>  serial_context_neighbours_exchange_ip                 
+     procedure :: neighbours_exchange_igp                 =>  serial_context_neighbours_exchange_igp                
+     procedure :: neighbours_exchange_single_ip           =>  serial_context_neighbours_exchange_single_ip          
+     procedure :: neighbours_exchange_wo_pack_unpack_ieep =>  serial_context_neighbours_exchange_wo_pack_unpack_ieep
+     procedure :: neighbours_exchange_wo_unpack_ip        =>  serial_context_neighbours_exchange_wo_unpack_ip
+     procedure :: root_send_master_rcv_ip          => serial_context_root_send_master_rcv_ip
+     procedure :: root_send_master_rcv_ip_1D_array => serial_context_root_send_master_rcv_ip_1D_array
+     procedure :: root_send_master_rcv_rp          => serial_context_root_send_master_rcv_rp
+     procedure :: root_send_master_rcv_rp_1D_array => serial_context_root_send_master_rcv_rp_1D_array
+     procedure :: gather_to_master_ip              => serial_context_gather_to_master_ip           
+     procedure :: gather_to_master_igp             => serial_context_gather_to_master_igp          
+     procedure :: gather_to_master_ip_1D_array     => serial_context_gather_to_master_ip_1D_array  
+     procedure :: gather_to_masterv_ip_1D_array    => serial_context_gather_to_masterv_ip_1D_array 
+     procedure :: gather_to_masterv_igp_1D_array   => serial_context_gather_to_masterv_igp_1D_array
+     procedure :: gather_to_masterv_rp_1D_array    => serial_context_gather_to_masterv_rp_1D_array 
+     procedure :: gather_to_masterv_rp_2D_array    => serial_context_gather_to_masterv_rp_2D_array  
+     procedure :: scatter_from_masterv_rp_1D_array => serial_context_scatter_from_masterv_rp_1D_array
   end type serial_context_t
 
   ! Types

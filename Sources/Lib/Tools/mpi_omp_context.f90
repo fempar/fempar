@@ -136,26 +136,25 @@ module mpi_omp_context_names
      procedure :: gather_igp         => mpi_omp_context_gather_scalar_igp
      procedure :: bcast_igp          => mpi_omp_context_bcast_scalar_igp
      procedure :: bcast_subcontext   => mpi_omp_context_bcast_subcontext
-     procedure, private :: neighbours_exchange_rp                   => mpi_omp_context_neighbours_exchange_rp  
-     procedure, private :: neighbours_exchange_wo_alpha_beta_rp     => mpi_omp_context_neighbours_exchange_wo_alpha_beta_rp
-     procedure, private :: neighbours_exchange_ip                   => mpi_omp_context_neighbours_exchange_ip                 
-     procedure, private :: neighbours_exchange_igp                  => mpi_omp_context_neighbours_exchange_igp                
-     procedure, private :: neighbours_exchange_single_ip            => mpi_omp_context_neighbours_exchange_single_ip          
-     procedure, private :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_omp_context_neighbours_exchange_wo_pack_unpack_ieep
-     procedure, private :: neighbours_exchange_wo_unpack_ip         => mpi_omp_context_neighbours_exchange_wo_unpack_ip
-     procedure, private :: root_send_master_rcv_ip          => mpi_omp_context_root_send_master_rcv_ip
-     procedure, private :: root_send_master_rcv_ip_1D_array => mpi_omp_context_root_send_master_rcv_ip_1D_array
-     procedure, private :: root_send_master_rcv_rp          => mpi_omp_context_root_send_master_rcv_rp
-     procedure, private :: root_send_master_rcv_rp_1D_array => mpi_omp_context_root_send_master_rcv_rp_1D_array
-     procedure, private :: gather_to_master_ip              => mpi_omp_context_gather_to_master_ip            
-     procedure, private :: gather_to_master_igp             => mpi_omp_context_gather_to_master_igp           
-     procedure, private :: gather_to_master_ip_1D_array     => mpi_omp_context_gather_to_master_ip_1D_array   
-     procedure, private :: gather_to_masterv_ip_1D_array    => mpi_omp_context_gather_to_masterv_ip_1D_array  
-     procedure, private :: gather_to_masterv_igp_1D_array   => mpi_omp_context_gather_to_masterv_igp_1D_array 
-     procedure, private :: gather_to_masterv_rp_1D_array    => mpi_omp_context_gather_to_masterv_rp_1D_array  
-     procedure, private :: gather_to_masterv_rp_2D_array    => mpi_omp_context_gather_to_masterv_rp_2D_array  
-     procedure, private :: scatter_from_masterv_rp_1D_array => mpi_omp_context_scatter_from_masterv_rp_1D_array
-
+     procedure :: neighbours_exchange_rp                   => mpi_omp_context_neighbours_exchange_rp  
+     procedure :: neighbours_exchange_wo_alpha_beta_rp     => mpi_omp_context_neighbours_exchange_wo_alpha_beta_rp
+     procedure :: neighbours_exchange_ip                   => mpi_omp_context_neighbours_exchange_ip                 
+     procedure :: neighbours_exchange_igp                  => mpi_omp_context_neighbours_exchange_igp                
+     procedure :: neighbours_exchange_single_ip            => mpi_omp_context_neighbours_exchange_single_ip          
+     procedure :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_omp_context_neighbours_exchange_wo_pack_unpack_ieep
+     procedure :: neighbours_exchange_wo_unpack_ip         => mpi_omp_context_neighbours_exchange_wo_unpack_ip
+     procedure :: root_send_master_rcv_ip          => mpi_omp_context_root_send_master_rcv_ip
+     procedure :: root_send_master_rcv_ip_1D_array => mpi_omp_context_root_send_master_rcv_ip_1D_array
+     procedure :: root_send_master_rcv_rp          => mpi_omp_context_root_send_master_rcv_rp
+     procedure :: root_send_master_rcv_rp_1D_array => mpi_omp_context_root_send_master_rcv_rp_1D_array
+     procedure :: gather_to_master_ip              => mpi_omp_context_gather_to_master_ip            
+     procedure :: gather_to_master_igp             => mpi_omp_context_gather_to_master_igp           
+     procedure :: gather_to_master_ip_1D_array     => mpi_omp_context_gather_to_master_ip_1D_array   
+     procedure :: gather_to_masterv_ip_1D_array    => mpi_omp_context_gather_to_masterv_ip_1D_array  
+     procedure :: gather_to_masterv_igp_1D_array   => mpi_omp_context_gather_to_masterv_igp_1D_array 
+     procedure :: gather_to_masterv_rp_1D_array    => mpi_omp_context_gather_to_masterv_rp_1D_array  
+     procedure :: gather_to_masterv_rp_2D_array    => mpi_omp_context_gather_to_masterv_rp_2D_array  
+     procedure :: scatter_from_masterv_rp_1D_array => mpi_omp_context_scatter_from_masterv_rp_1D_array
   end type mpi_omp_context_t
 
   ! Types
