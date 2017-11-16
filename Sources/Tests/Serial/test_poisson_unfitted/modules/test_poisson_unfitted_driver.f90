@@ -372,7 +372,7 @@ contains
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     integer(ip) :: iounit
-    call this%fe_affine_operator%numerical_setup()
+    call this%fe_affine_operator%compute()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
 

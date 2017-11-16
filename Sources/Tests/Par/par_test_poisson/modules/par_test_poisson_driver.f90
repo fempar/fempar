@@ -491,7 +491,7 @@ end subroutine free_timers
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%numerical_setup()
+    call this%fe_affine_operator%compute()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
     

@@ -97,7 +97,7 @@ contains
     dof_values => argument%get_free_dof_values()
     dof_values = x
     call this%discrete_integration%set_terms_to_integrate(translation_terms)
-    call this%residual%numerical_setup()
+    call this%residual%compute()
     dof_values => this%residual%get_translation()
     if(associated(this%rhs_values)) then
        y = dof_values + this%rhs_values
@@ -119,7 +119,7 @@ contains
     dof_values => argument%get_free_dof_values()
     dof_values = x
     call this%discrete_integration%set_terms_to_integrate(translation_terms)
-    call this%residual%numerical_setup()
+    call this%residual%compute()
     dof_values => this%residual%get_translation()
     if(associated(this%rhs_values)) then
        y = y + dof_values + this%rhs_values
@@ -147,7 +147,7 @@ contains
        dof_values => argument%get_free_dof_values()
        dof_values = x
        call this%discrete_integration%set_terms_to_integrate(tangent_terms)
-       call this%residual%numerical_setup()
+       call this%residual%compute()
     end if
     tangent = this%residual%get_tangent()
   end function nonlinear_operator_get_tangent
