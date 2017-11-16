@@ -111,10 +111,13 @@ subroutine fe_nonlinear_operator_reallocate_after_remesh(this)
      class default
      check(.false.)
   end select
+  
   call this%assembler%allocate_array()
   call this%assembler%init_array(0.0_rp)  
-  call this%assembler%allocate_matrix()
-  call this%assembler%init_matrix(0.0_rp)
+  
+  !call this%assembler%allocate_matrix()
+  !call this%assembler%init_matrix(0.0_rp)
+ 
   call this%create_vector_spaces()
   this%state = created
 end subroutine fe_nonlinear_operator_reallocate_after_remesh
