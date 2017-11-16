@@ -117,6 +117,8 @@ contains
     implicit none
     class(par_nsi_fe_driver_t), intent(inout) :: this
     class(vector_t) , pointer :: unknown
+    type(vector_field_t) :: zero_vector_field
+    integer(ip) :: istat, field_id
 
     ! Geometry
     !call this%timer_triangulation%start()
@@ -125,10 +127,28 @@ contains
 
     ! Problem and its FE approximation
     !call this%timer_fe_space%start()
-    call this%setup_discrete_integration()
+    call this%setup_discrete_integration()    
     call this%setup_reference_fes()
     call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
+
+    
+    
+    ! Solution and initial guess
+    call this%solution%create(this%fe_space) 
+    call this%zero_scalar%create(0.0_rp)
+    call zero_vector_field%init(0.0_rp)
+    call this%zero_vector%create(zero_vector_field)
+    do field_id = 1, this%par_nsi_integration%get_number_fields()
+       if(this%par_nsi_integration%get_field_type(field_id) == field_type_vector) then
+         call this%fe_space%interpolate(field_id, this%zero_vector, this%solution)
+       else if( this%par_nsi_integration%get_field_type(field_id) == field_type_scalar) then
+         call this%fe_space%interpolate(field_id, this%zero_scalar, this%solution)
+       end if
+    end do
+    call this%fe_space%interpolate_dirichlet_values(this%solution)    
+    call this%par_nsi_integration%set_fe_function(this%solution)
+
     !call this%timer_fe_space%stop()
 
     ! Construct Linear and nonlinear operators
@@ -259,28 +279,9 @@ end subroutine free_timers
 
   subroutine setup_discrete_integration(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
-    type(vector_field_t) :: zero_vector_field
-    integer(ip) :: istat, field_id
-    
+    class(par_nsi_fe_driver_t), intent(inout) :: this    
     call this%par_nsi_integration%create( this%triangulation%get_num_dims(),this%par_nsi_analytical_functions, &
-                                          this%test_params%get_viscosity())
-    
-    ! Solution and initial guess
-    call this%solution%create(this%fe_space) 
-    call this%zero_scalar%create(0.0_rp)
-    call zero_vector_field%init(0.0_rp)
-    call this%zero_vector%create(zero_vector_field)
-    do field_id = 1, this%par_nsi_integration%get_number_fields()
-       if(this%par_nsi_integration%get_field_type(field_id) == field_type_vector) then
-         call this%fe_space%interpolate(field_id, this%zero_vector, this%solution)
-       else if( this%par_nsi_integration%get_field_type(field_id) == field_type_scalar) then
-         call this%fe_space%interpolate(field_id, this%zero_scalar, this%solution)
-       end if
-    end do
-    call this%fe_space%interpolate_dirichlet_values(this%solution)    
-    call this%par_nsi_integration%set_fe_function(this%solution)
-       
+                                          this%test_params%get_viscosity())       
   end subroutine setup_discrete_integration
 
 !========================================================================================
