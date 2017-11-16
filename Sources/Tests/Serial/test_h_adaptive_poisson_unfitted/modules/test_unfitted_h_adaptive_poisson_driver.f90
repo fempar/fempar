@@ -374,9 +374,7 @@ contains
       !                           conditions          = this%vector_poisson_conditions, &
       !                           reference_fes            = this%reference_fes,&
       !                           set_ids_to_reference_fes = set_ids_to_reference_fes)
-    end if
-    
-    call this%fe_space%set_up_cell_integration()    
+    end if 
     
   end subroutine setup_fe_space
   

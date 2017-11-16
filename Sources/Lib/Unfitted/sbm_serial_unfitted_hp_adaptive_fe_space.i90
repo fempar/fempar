@@ -86,9 +86,11 @@ subroutine suhpafs_space_create_different_ref_fes_between_cells(&
   call this%allocate_and_fill_aggregate_ids()
   if ( present(generate_global_dof_numbering) ) then
     if ( generate_global_dof_numbering ) then
+      call this%set_up_cell_integration()   
       call this%generate_global_dof_numbering()
     end if 
   else
+    call this%set_up_cell_integration()
     call this%generate_global_dof_numbering()
   end if 
 end subroutine suhpafs_space_create_different_ref_fes_between_cells
