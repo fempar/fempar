@@ -33,7 +33,7 @@ module unfitted_fe_spaces_names
   use block_layout_names
   
   use triangulation_names
-  use p4est_serial_triangulation_names
+  use p4est_triangulation_names
   use reference_fe_names
   use environment_names
   use fe_space_names

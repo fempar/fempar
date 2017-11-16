@@ -26,17 +26,33 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module std_vector_names
-  use std_vector_integer_ip_names
-  use std_vector_integer_igp_names
-  use std_vector_real_rp_names
-  use std_vector_logical_names
-  use std_vector_point_names
-  use std_vector_quadrature_names
-  use std_vector_cell_map_names
-  use std_vector_cell_integrator_names
-  use std_vector_facet_maps_names
-  use std_vector_facet_integrator_names
+#include "debug.i90"
+#include "std_vector_macros.i90"
+module std_vector_integer_igp_names
+  use types_names
+  use memor_names
+  implicit none
+  private
+  
+  STD_VECTOR_TYPE(integer(igp),integer_igp)
+    
+  public :: std_vector_integer_igp_t
+  
 contains
+  
+  STD_VECTOR_PUSH_BACK(integer(igp),integer_igp)
+  STD_VECTOR_ERASE(integer(igp),integer_igp)
+  STD_VECTOR_RESIZE(integer(igp),integer_igp)
+  STD_VECTOR_SHRINK_TO_FIT(integer(igp),integer_igp)
+  STD_VECTOR_COPY(integer(igp),integer_igp)
+  STD_VECTOR_FREE(integer(igp),integer_igp)
+  STD_VECTOR_GET(integer(igp),integer_igp)
+  STD_VECTOR_SET(integer(igp),integer_igp)
+  STD_VECTOR_SIZE(integer(igp),integer_igp)
+  STD_VECTOR_CAPACITY(integer(igp),integer_igp)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(integer(igp),integer_igp)
+  STD_VECTOR_GET_POINTER_TO_RANGE(integer(igp),integer_igp)
+  STD_VECTOR_GET_RAW_POINTER(integer(igp),integer_igp)
 
-end module std_vector_names
+  
+end module std_vector_integer_igp_names
