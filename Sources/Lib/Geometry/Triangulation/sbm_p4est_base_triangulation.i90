@@ -26,6 +26,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+function p4est_base_triangulation_is_conforming( this ) 
+ implicit none
+ class(p4est_base_triangulation_t), intent(in) :: this
+ logical :: p4est_base_triangulation_is_conforming
+ p4est_base_triangulation_is_conforming = .false.
+end function p4est_base_triangulation_is_conforming
+
 function p4est_base_triangulation_get_num_reference_fes(this) 
   implicit none
   class(p4est_base_triangulation_t), intent(in) :: this

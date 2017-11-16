@@ -514,11 +514,19 @@ subroutine par_fe_space_compute_blocks_dof_import ( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)                          :: iblock, istat
+  class(triangulation_t), pointer :: triangulation
+  
   call this%free_blocks_dof_import()
   allocate ( this%blocks_dof_import(this%block_layout%get_num_blocks()), stat=istat ) 
   check (istat==0)
+  
+  triangulation => this%get_triangulation()
   do iblock=1, this%block_layout%get_num_blocks()
+   if (triangulation%is_conforming() ) then
      call this%compute_dof_import(iblock)
+   else
+     call this%compute_dof_import_non_conforming_mesh(iblock)
+   end if
   end do
 end subroutine par_fe_space_compute_blocks_dof_import
 
@@ -553,8 +561,6 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   do field_id = 1, this%num_fields
      if ( this%block_layout%get_block_id(field_id) == iblock ) then
         if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
-           call this%compute_max_part_id_my_part_id_and_dofs_ggids_field(field_id)
-           call this%compute_exchange_control_data_to_complete_itfc_couplings(field_id)
            ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
                                            this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
         else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
@@ -609,11 +615,158 @@ subroutine par_fe_space_compute_dof_import ( this, iblock )
   call memfree ( dofs_gid, __FILE__, __LINE__ )
 end subroutine par_fe_space_compute_dof_import
 
+
+subroutine par_fe_space_compute_dof_import_non_conforming_mesh ( this, iblock )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: iblock
+
+  ! Local raw data
+  integer(igp), allocatable    :: raw_interface_data(:,:)
+  integer(ip) , allocatable    :: dofs_gid(:)
+  integer(ip)                  :: total_ubound_num_itfc_couplings
+  integer(ip)                  :: total_num_itfc_couplings
+  integer(ip), allocatable     :: ubound_num_itfc_couplings(:)
+  integer(ip)                  :: num_fe_spaces_in_iblock
+  integer(ip)                  :: i, field_id
+  type(environment_t), pointer :: environment
+  
+  assert ( iblock >= 1 .and. iblock <= this%block_layout%get_num_blocks() )
+
+  num_fe_spaces_in_iblock = 0
+  do field_id = 1, this%num_fields
+     if ( this%block_layout%get_block_id(field_id) == iblock ) then
+        num_fe_spaces_in_iblock = num_fe_spaces_in_iblock + 1
+     end if
+  end do
+
+  call memalloc ( num_fe_spaces_in_iblock, ubound_num_itfc_couplings, __FILE__, __LINE__ )
+  total_ubound_num_itfc_couplings = 0 
+  ubound_num_itfc_couplings = 0
+  i = 1
+  do field_id = 1, this%num_fields
+     if ( this%block_layout%get_block_id(field_id) == iblock ) then
+        if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
+           call this%compute_max_part_id_my_part_id_and_dofs_ggids_field(field_id)
+           call this%compute_exchange_control_data_to_complete_itfc_couplings(field_id)
+           ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
+                                           this%compute_ubound_num_itfc_couplings_by_continuity_nc_mesh(field_id)
+        else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
+           ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
+                this%compute_ubound_num_itfc_couplings_by_facet_integ(field_id)
+        end if
+        total_ubound_num_itfc_couplings = total_ubound_num_itfc_couplings + ubound_num_itfc_couplings (i)
+        i=i+1                                  
+     end if
+  end do
+
+  call memalloc ( num_rows_raw_interface_data, &
+                  total_ubound_num_itfc_couplings, &
+                  raw_interface_data, __FILE__, __LINE__ )
+
+  call memalloc ( total_ubound_num_itfc_couplings, dofs_gid, __FILE__, __LINE__)
+
+  total_num_itfc_couplings = 0
+  i = 1
+  do field_id = 1, this%num_fields
+     if ( this%block_layout%get_block_id(field_id) == iblock ) then
+        if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
+           total_num_itfc_couplings = &
+                this%compute_raw_interface_data_by_continuity_non_conforming_mesh(field_id, &
+                                                              total_num_itfc_couplings, &
+                                                              ubound_num_itfc_couplings(i),&
+                                                              dofs_gid,&
+                                                              raw_interface_data )
+        else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
+           total_num_itfc_couplings = &
+                this%compute_raw_interface_data_by_facet_integ(field_id, &
+                                                              total_num_itfc_couplings, &
+                                                              ubound_num_itfc_couplings(i),&
+                                                              dofs_gid,&
+                                                              raw_interface_data )      
+        end if
+
+        i=i+1                                  
+     end if
+  end do
+
+  environment => this%get_environment()
+  call this%blocks_dof_import(iblock)%create(environment%get_l1_rank()+1, &
+                                             environment%get_l1_size(), &
+                                             this%block_layout%get_block_num_dofs(iblock), &
+                                             total_num_itfc_couplings, &
+                                             dofs_gid, &
+                                             raw_interface_data )
+
+  call memfree ( ubound_num_itfc_couplings, __FILE__, __LINE__ )                
+  call memfree ( raw_interface_data, __FILE__, __LINE__ )
+  call memfree ( dofs_gid, __FILE__, __LINE__ )
+end subroutine par_fe_space_compute_dof_import_non_conforming_mesh
+
 function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: field_id
   integer(ip)                          :: pfs_compute_ubound_num_itfc_couplings_by_continuity
+
+  integer(ip)  :: mypart_id, part_id, local_part_id
+  integer(ip)  :: ivef, ielem
+
+  integer(ip)                            :: result
+  logical, allocatable                   :: touched_neighbours(:)
+
+  type(environment_t)      , pointer :: environment
+  class(triangulation_t), pointer :: triangulation
+  type(cell_import_t)       , pointer :: cell_import
+  class(reference_fe_t)        , pointer :: reference_fe
+  type(fe_vef_iterator_t)      :: vef
+  class(fe_cell_iterator_t), allocatable :: fe
+  integer(ip)                  :: result_previous
+  
+  environment   => this%get_environment()
+  triangulation => this%get_triangulation()
+  cell_import       => triangulation%get_cell_import()
+  assert ( environment%am_i_l1_task() )
+
+  mypart_id = environment%get_l1_rank() + 1 
+
+  call memalloc ( cell_import%get_num_neighbours(), &
+                  touched_neighbours, &
+                  __FILE__, __LINE__ )
+
+  ! Traverse vefs on the interface
+  call this%create_itfc_fe_vef_iterator(vef)
+  call this%create_fe_cell_iterator(fe) 
+  result = 0 
+  do while(.not. vef%has_finished())
+     touched_neighbours = .false.
+     do ielem=1, vef%get_num_cells_around()
+        call vef%get_cell_around(ielem,fe)
+        part_id = fe%get_my_part()
+        if ( part_id /= mypart_id ) then
+           local_part_id = cell_import%get_local_neighbour_id(part_id)
+           if (.not. touched_neighbours (local_part_id)) then
+              ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+              reference_fe => fe%get_reference_fe(field_id)
+              result_previous = result
+              result = result + reference_fe%get_num_own_dofs_n_face(ivef)
+              if (result>result_previous) touched_neighbours (local_part_id) = .true.
+           end if
+        end if
+     end do
+     call vef%next()
+  end do
+  pfs_compute_ubound_num_itfc_couplings_by_continuity = result
+  call this%free_fe_cell_iterator(fe) 
+  call this%free_fe_vef_iterator(vef)
+  call memfree ( touched_neighbours, __FILE__, __LINE__ )
+end function pfs_compute_ubound_num_itfc_couplings_by_continuity
+
+function pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh( this, field_id )
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)                          :: pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh
 
   integer(ip)  :: mypart_id, part_id, local_part_id
   integer(ip)  :: ivef, ielem
@@ -679,11 +832,11 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity( this, field_id )
      end if
      call vef%next()
   end do
-  pfs_compute_ubound_num_itfc_couplings_by_continuity = result
+  pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh = result
   call this%free_fe_cell_iterator(fe) 
   call this%free_fe_vef_iterator(vef)
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
-end function pfs_compute_ubound_num_itfc_couplings_by_continuity
+end function pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh
 
 
 function pfs_compute_ubound_num_itfc_couplings_by_facet_integ( this, field_id )
@@ -1501,7 +1654,167 @@ subroutine pfs_compute_exchange_control_data_to_complete_itfc_couplings ( this, 
                                             chunk_size = num_vefs)  
 end subroutine pfs_compute_exchange_control_data_to_complete_itfc_couplings
 
+
+
 function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
+                                                                      field_id, &
+                                                                      offset, &
+                                                                      ubound_num_itfc_couplings, &
+                                                                      dofs_gid, &
+                                                                      raw_interface_data ) result(num_itfc_couplings)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)          , intent(in)    :: offset
+  integer(ip)          , intent(in)    :: ubound_num_itfc_couplings
+  integer(ip)          , intent(inout) :: dofs_gid(:)
+  integer(igp)         , intent(inout) :: raw_interface_data(:, :)
+  integer(ip)                          :: num_itfc_couplings
+
+  ! Locals
+  integer(ip)  :: istat
+  integer(ip)  :: ivef, ivef_itfc, ielem, vef_gid
+  integer(igp) :: elem_ggid
+  integer(ip)  :: mypart_id, part_id
+  integer(ip)  :: ivef_in_elem_id
+  integer(ip)  :: idof, idof_interior, dof_gid
+  integer(ip)  :: num_dofs_current_vef
+  integer(ip)  :: col, init_col, current_col
+  integer(ip)  :: num_parts, local_part_id, ipart
+
+  integer(igp)              :: max_elem_ggid
+  integer(ip)               :: max_part_id
+  integer(ip) , allocatable :: local_idof(:)  
+  integer(ip) , allocatable :: lst_dofs_current_vef(:)
+  integer(ip) , allocatable :: dofs_max_part_id(:)
+  logical     , allocatable :: touched_neighbours(:)
+  integer(ip), allocatable  :: parts_visited(:)
+
+  type(environment_t)      , pointer :: environment
+  class(triangulation_t), pointer :: triangulation
+  type(cell_import_t)       , pointer :: cell_import
+  class(reference_fe_t)        , pointer :: reference_fe
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_cell_iterator_t), allocatable :: fe
+  type(i1p_t)              , allocatable :: fe_dofs(:)
+
+
+  environment   => this%get_environment()
+  triangulation     => this%get_triangulation()
+  cell_import       => triangulation%get_cell_import()
+  assert ( environment%am_i_l1_task() )
+
+  ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
+  call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), local_idof, __FILE__, __LINE__ )
+  call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), lst_dofs_current_vef, __FILE__, __LINE__ )
+  call memalloc ( ubound_num_itfc_couplings, dofs_max_part_id, __FILE__, __LINE__ )
+
+  call memalloc ( cell_import%get_num_neighbours(), &
+                  touched_neighbours, &
+                  __FILE__, __LINE__ )
+
+  call memalloc ( cell_import%get_num_neighbours(), &
+                  parts_visited, &
+                  __FILE__, __LINE__ )
+  
+  allocate ( fe_dofs(this%num_fields), stat=istat ) 
+  check (istat==0)
+  
+  mypart_id = environment%get_l1_rank() + 1
+  
+  current_col  = offset + 1
+  local_idof   = 0
+
+  ! Traverse vefs on the interface
+  call this%create_itfc_fe_vef_iterator(vef)
+  call this%create_fe_cell_iterator(fe) 
+  do while(.not. vef%has_finished())
+     touched_neighbours = .false.
+     num_parts = 0
+     max_part_id = mypart_id
+     max_elem_ggid = 0
+
+     num_dofs_current_vef = 0
+     ! Identify the total set of dofs in current vef
+     do ielem=1, vef%get_num_cells_around()
+        call vef%get_cell_around(ielem,fe)
+        !if ( finite_element%reference_fe_phy(fe_space_id)%p%get_continuity() ) then
+        part_id = fe%get_my_part()
+        elem_ggid = fe%get_ggid()
+        ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+        call fe%get_fe_dofs( fe_dofs )
+        reference_fe => fe%get_reference_fe(field_id)
+        own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+           idof =  own_dofs_on_vef_iterator%get_current()
+           dof_gid = fe_dofs(field_id)%p(idof)
+           if ( dof_gid <= 0 ) then
+             call own_dofs_on_vef_iterator%next()
+             cycle
+           end if
+           if ( elem_ggid >= max_elem_ggid ) then
+              max_elem_ggid = elem_ggid
+              if ( local_idof(dof_gid) == 0 ) then
+                 num_dofs_current_vef = num_dofs_current_vef + 1    
+                 lst_dofs_current_vef (num_dofs_current_vef) = dof_gid
+              end if
+              local_idof(dof_gid) = idof
+           end if
+           if ( part_id /= mypart_id ) then 
+              local_part_id = cell_import%get_local_neighbour_id(part_id)
+              if ( .not. touched_neighbours(local_part_id) ) then
+                 touched_neighbours (local_part_id) = .true.
+                 num_parts = num_parts + 1
+                 parts_visited (num_parts) = part_id
+                 max_part_id = max(part_id, max_part_id)
+              end if
+           end if
+           call own_dofs_on_vef_iterator%next()
+        end do
+        !end if
+     end do
+
+     init_col = current_col
+     do idof=1, num_dofs_current_vef
+        dof_gid = lst_dofs_current_vef(idof)
+        do ipart=1, num_parts
+           part_id = parts_visited(ipart)
+           dofs_gid ( current_col ) = dof_gid 
+           dofs_max_part_id ( current_col-offset ) = max_part_id
+           raw_interface_data(neighbor_part_id_row, current_col) = part_id
+           raw_interface_data(dof_gid_row, current_col) = this%generate_non_consecutive_dof_ggid(max_elem_ggid, &
+                                                                                                local_idof(dof_gid), &
+                                                                                                field_id)
+           raw_interface_data(owner_flag_row, current_col) = num_parts + 1
+           current_col = current_col + 1
+        end do
+     end do
+     call vef%next()
+  end do
+  call this%free_fe_cell_iterator(fe)
+  call this%free_fe_vef_iterator(vef)
+  deallocate(fe_dofs, stat=istat ) 
+  check (istat==0)
+  
+  ! Free touch arrays
+  call memfree ( local_idof, __FILE__, __LINE__ )
+  call memfree ( lst_dofs_current_vef, __FILE__, __LINE__ )
+  call memfree ( parts_visited, __FILE__, __LINE__ )
+  call memfree ( touched_neighbours, __FILE__, __LINE__ )
+
+  call this%raw_interface_data_by_continuity_decide_owner (offset, &
+                                                           current_col-1, &
+                                                           raw_interface_data,&
+                                                           dofs_max_part_id,&
+                                                           dofs_gid)
+
+  call memfree ( dofs_max_part_id, __FILE__, __LINE__ )
+
+  num_itfc_couplings = current_col-1 
+end function par_fe_space_compute_raw_interface_data_by_continuity
+
+function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
                                                                   field_id, &
                                                                   offset, &
                                                                   ubound_num_itfc_couplings, &
@@ -1831,7 +2144,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
   !write(*,*) 'YYY', start_col, end_col    
   call memfree ( perm, __FILE__, __LINE__ )
   call memfree ( buf , __FILE__, __LINE__ )
-end function par_fe_space_compute_raw_interface_data_by_continuity
+end function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh
 
 subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
                                                                         offset, &

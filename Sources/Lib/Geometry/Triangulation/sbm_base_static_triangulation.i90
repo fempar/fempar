@@ -1003,3 +1003,10 @@ subroutine bst_print ( this )
      end if
      bst_is_mix_mesh = ntypes > 1
    end function bst_is_mix_mesh
+   
+   function bst_is_conforming ( this ) 
+     implicit none
+     class(base_static_triangulation_t), intent(in) :: this
+     logical :: bst_is_conforming
+     bst_is_conforming = .true.
+   end function bst_is_conforming 

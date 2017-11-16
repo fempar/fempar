@@ -465,6 +465,8 @@ module p4est_triangulation_names
     type(std_vector_integer_igp_t)         :: cell_ggids
     type(std_vector_integer_igp_t)         :: lst_vefs_ggids
   contains
+    procedure                                   :: is_conforming                                 =>  p4est_base_triangulation_is_conforming
+  
     ! Getters
     procedure                                   :: get_num_reference_fes                         => p4est_base_triangulation_get_num_reference_fes
     procedure                                   :: get_max_num_shape_functions                   => p4est_base_triangulation_get_max_num_shape_functions
