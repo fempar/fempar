@@ -67,9 +67,6 @@ module fe_nonlinear_operator_names
 
   integer(ip), parameter :: free_setup          = 0
   
-  integer(ip), parameter :: created_affine      = 1 
-  integer(ip), parameter :: symbolically_setup  = 2  
-  integer(ip), parameter :: numerically_setup   = 3 
 
   ! State transition diagram for type(fe_nonlinear_operator_t)
   ! -------------------------------------------------
@@ -163,39 +160,14 @@ module fe_nonlinear_operator_names
   
 type, extends(fe_nonlinear_operator_t):: fe_affine_operator_t
   private
-  !integer(ip)                                     :: state  = start
-  !character(:)                      , allocatable :: sparse_matrix_storage_format
-  !class(serial_fe_space_t)          , pointer     :: test_fe_space          => NULL() ! test_fe_space
-  !class(serial_fe_space_t)          , pointer     :: trial_fe_space         => NULL() ! To be used in the future
-  !class(discrete_integration_t)     , pointer     :: discrete_integration   => NULL()
-  !class(assembler_t)                , pointer     :: assembler => NULL()
 contains
-  procedure          :: create                      => fe_affine_operator_create
-  procedure          :: symbolic_setup              => fe_affine_operator_symbolic_setup
-  procedure          :: numerical_setup             => fe_affine_operator_numerical_setup
+  procedure          :: compute                     => fe_affine_operator_compute
   procedure          :: apply                       => fe_affine_operator_apply
   procedure          :: apply_add                   => fe_affine_operator_apply_add
   procedure          :: is_linear                   => fe_affine_operator_is_linear
   procedure          :: get_tangent                 => fe_affine_operator_get_tangent
   procedure          :: get_translation             => fe_affine_operator_get_translation
   procedure          :: get_matrix                  => fe_affine_operator_get_matrix
-  !procedure          :: get_array                   => fe_affine_operator_get_array
-  !procedure          :: get_fe_space                => fe_affine_operator_get_fe_space
-  !procedure          :: get_discrete_integration    => fe_affine_operator_get_discrete_integration
-  procedure          :: free_in_stages              => fe_affine_operator_free_in_stages
-  procedure          :: free                        => fe_affine_operator_free
-  !procedure          :: get_domain_vector_space     => fe_affine_operator_get_domain_vector_space
-  !procedure          :: get_range_vector_space      => fe_affine_operator_get_range_vector_space
-  !procedure          :: abort_if_not_in_range       => fe_affine_operator_abort_if_not_in_range
-  !procedure          :: abort_if_not_in_domain      => fe_affine_operator_abort_if_not_in_domain
-  !procedure, private :: create_serial_assembler     => fe_affine_operator_create_serial_assembler
-  !procedure, private :: create_par_assembler        => fe_affine_operator_create_par_assembler
-  procedure, private :: fe_affine_operator_free_numerical_setup
-  procedure, private :: fe_affine_operator_free_symbolic_setup
-  procedure, private :: fe_affine_operator_free_clean
-  procedure, private :: fe_affine_operator_setup
-  procedure, private :: fe_affine_operator_fill_values
-  !procedure, private :: create_vector_spaces        => fe_affine_operator_create_vector_spaces
 end type fe_affine_operator_t
 
   ! Types

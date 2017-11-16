@@ -240,20 +240,6 @@ function nonlinear_solver_get_current_iteration(this)
 end function nonlinear_solver_get_current_iteration
 
 !==============================================================================
-!subroutine nonlinear_solver_initialize(this)
-
-!  implicit none
-!  class(nonlinear_solver_t), intent(inout) :: this
-
-!  this%current_iteration = 0
-!  ! TODO: here we also update the matrix, but only re residual needed
-!  call this%linear_solver%update()
-!  this%initial_residual   = this%current_residual
-!  call this%increment_dof_values%init(0.0)
-
-!end subroutine nonlinear_solver_initialize
-
-!==============================================================================
 subroutine nonlinear_solver_update_solution(this)
 
   implicit none

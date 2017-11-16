@@ -25,439 +25,438 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine fe_nonlinear_operator_create (this, &
-                                           sparse_matrix_storage_format, &
-                                           diagonal_blocks_symmetric_storage,&
-                                           diagonal_blocks_symmetric,&
-                                           diagonal_blocks_sign,&
-                                           fe_space, &
-                                           discrete_integration, &
-                                           trial_fe_space )
-    implicit none
-    class(fe_nonlinear_operator_t)              , intent(inout) :: this
-    character(*)                             , intent(in)    :: sparse_matrix_storage_format
-    logical                                  , intent(in)    :: diagonal_blocks_symmetric_storage(:)
-    logical                                  , intent(in)    :: diagonal_blocks_symmetric(:)
-    integer(ip)                              , intent(in)    :: diagonal_blocks_sign(:)
-    class(serial_fe_space_t)        , target, intent(inout) :: fe_space
-    class(discrete_integration_t)   , target, intent(in)    :: discrete_integration
-    class(serial_fe_space_t), target, optional, intent(inout) :: trial_fe_space
-    integer(ip) :: istat
+subroutine fe_nonlinear_operator_create (this, &
+                                         sparse_matrix_storage_format, &
+                                         diagonal_blocks_symmetric_storage,&
+                                         diagonal_blocks_symmetric,&
+                                         diagonal_blocks_sign,&
+                                         fe_space, &
+                                         discrete_integration, &
+                                         trial_fe_space )
+  implicit none
+  class(fe_nonlinear_operator_t)            , intent(inout) :: this
+  character(*)                              , intent(in)    :: sparse_matrix_storage_format
+  logical                                   , intent(in)    :: diagonal_blocks_symmetric_storage(:)
+  logical                                   , intent(in)    :: diagonal_blocks_symmetric(:)
+  integer(ip)                               , intent(in)    :: diagonal_blocks_sign(:)
+  class(serial_fe_space_t)        , target  , intent(inout) :: fe_space
+  class(discrete_integration_t)   , target  , intent(in)    :: discrete_integration
+  class(serial_fe_space_t), target, optional, intent(inout) :: trial_fe_space
+  integer(ip) :: istat
 
-    call this%free()
+  call this%free()
 
-    assert(.not. associated(this%state)) ! Equivalent to: this%state == start ?
+  assert(.not. associated(this%state)) ! Equivalent to: "assert ( this%state == start )"
+  allocate(this%state, stat=istat); check(istat==0);
 
-    allocate(this%state, stat=istat); check(istat==0);
+  this%sparse_matrix_storage_format = sparse_matrix_storage_format
+  call memalloc ( size(diagonal_blocks_symmetric_storage), this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
+  this%diagonal_blocks_symmetric_storage = diagonal_blocks_symmetric_storage
+  call memalloc ( size(diagonal_blocks_symmetric), this%diagonal_blocks_symmetric, __FILE__, __LINE__ ) 
+  this%diagonal_blocks_symmetric = diagonal_blocks_symmetric
+  call memalloc ( size(diagonal_blocks_sign), this%diagonal_blocks_sign, __FILE__, __LINE__ ) 
+  this%diagonal_blocks_sign = diagonal_blocks_sign
+  this%test_fe_space                => fe_space
+  this%discrete_integration         => discrete_integration
 
-    this%sparse_matrix_storage_format = sparse_matrix_storage_format
-    call memalloc ( size(diagonal_blocks_symmetric_storage), this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
-    this%diagonal_blocks_symmetric_storage = diagonal_blocks_symmetric_storage
-    call memalloc ( size(diagonal_blocks_symmetric), this%diagonal_blocks_symmetric, __FILE__, __LINE__ ) 
-    this%diagonal_blocks_symmetric = diagonal_blocks_symmetric
-    call memalloc ( size(diagonal_blocks_sign), this%diagonal_blocks_sign, __FILE__, __LINE__ ) 
-    this%diagonal_blocks_sign = diagonal_blocks_sign
-    this%test_fe_space                => fe_space
-    this%discrete_integration         => discrete_integration
+  if ( present(trial_fe_space) ) then
+     this%trial_fe_space => trial_fe_space
+  end if
 
-    if ( present(trial_fe_space) ) then
-       this%trial_fe_space => trial_fe_space
-    end if
+  call this%reallocate_after_remesh()
+end subroutine fe_nonlinear_operator_create
 
-    call this%reallocate_after_remesh()
-  end subroutine fe_nonlinear_operator_create
+subroutine fe_nonlinear_operator_free(this)
+  implicit none
+  class(fe_nonlinear_operator_t), intent(inout) :: this
+  integer(ip) :: istat
+  if (associated (this%state)) then
+     deallocate(this%sparse_matrix_storage_format)
+     call memfree ( this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
+     call memfree ( this%diagonal_blocks_symmetric, __FILE__, __LINE__ ) 
+     call memfree ( this%diagonal_blocks_sign, __FILE__, __LINE__ ) 
+     nullify(this%test_fe_space)
+     nullify(this%trial_fe_space)
+     nullify(this%discrete_integration)
+     call this%assembler%free()
+     deallocate(this%assembler, stat=istat ); check(istat==0);
+     nullify(this%assembler)
+     call this%free_vector_spaces()
+     deallocate(this%state, stat=istat ); check(istat==0);
+     nullify(this%state)
+  end if
+end subroutine fe_nonlinear_operator_free
 
-    subroutine fe_nonlinear_operator_free(this)
-    implicit none
-    class(fe_nonlinear_operator_t), intent(inout) :: this
-    integer(ip) :: istat
-    if (associated (this%state)) then
-      deallocate(this%sparse_matrix_storage_format)
-      call memfree ( this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
-      call memfree ( this%diagonal_blocks_symmetric, __FILE__, __LINE__ ) 
-      call memfree ( this%diagonal_blocks_sign, __FILE__, __LINE__ ) 
-      nullify(this%test_fe_space)
-      nullify(this%trial_fe_space)
-      nullify(this%discrete_integration)
-      call this%assembler%free()
-      deallocate(this%assembler, stat=istat ); check(istat==0);
-      nullify(this%assembler)
-      call this%free_vector_spaces()
-      deallocate(this%state, stat=istat ); check(istat==0);
-      nullify(this%state)
-    end if
-  end subroutine fe_nonlinear_operator_free
+subroutine fe_nonlinear_operator_reallocate_after_remesh(this)
+  implicit none
+  class(fe_nonlinear_operator_t)              , intent(inout) :: this
+  integer(ip) :: istat
 
-  subroutine fe_nonlinear_operator_reallocate_after_remesh(this)
-    implicit none
-    class(fe_nonlinear_operator_t)              , intent(inout) :: this
-    integer(ip) :: istat
-    
-    assert(associated(this%state))
+  assert(associated(this%state))
 
-    if ( associated(this%assembler) ) then
-       call this%assembler%free()
-       deallocate(this%assembler,stat=istat); check(istat==0);
-    end if
+  if ( associated(this%assembler) ) then
+     call this%assembler%free()
+     deallocate(this%assembler,stat=istat); check(istat==0);
+  end if
 
-    select type(fe_space => this%test_fe_space)
-       class is(serial_fe_space_t) 
-       this%assembler  => this%create_serial_assembler(this%diagonal_blocks_symmetric_storage, &
-            this%diagonal_blocks_symmetric, &
-            this%diagonal_blocks_sign)
-       class is(par_fe_space_t) 
-       this%assembler  => this%create_par_assembler(this%diagonal_blocks_symmetric_storage, &
-            this%diagonal_blocks_symmetric, &
-            this%diagonal_blocks_sign)
-       class default
-       check(.false.)
-    end select
-    call this%assembler%allocate_array()
-    call this%assembler%init_array(0.0_rp)  
-    call this%assembler%allocate_matrix()
-    call this%assembler%init_matrix(0.0_rp)
-    call this%create_vector_spaces()
-    this%state = created
-  end subroutine fe_nonlinear_operator_reallocate_after_remesh
+  select type(fe_space => this%test_fe_space)
+     class is(serial_fe_space_t) 
+     this%assembler  => this%create_serial_assembler(this%diagonal_blocks_symmetric_storage, &
+          this%diagonal_blocks_symmetric, &
+          this%diagonal_blocks_sign)
+     class is(par_fe_space_t) 
+     this%assembler  => this%create_par_assembler(this%diagonal_blocks_symmetric_storage, &
+          this%diagonal_blocks_symmetric, &
+          this%diagonal_blocks_sign)
+     class default
+     check(.false.)
+  end select
+  call this%assembler%allocate_array()
+  call this%assembler%init_array(0.0_rp)  
+  call this%assembler%allocate_matrix()
+  call this%assembler%init_matrix(0.0_rp)
+  call this%create_vector_spaces()
+  this%state = created
+end subroutine fe_nonlinear_operator_reallocate_after_remesh
 
-  subroutine fe_nonlinear_operator_create_vector_spaces(this)
-    implicit none
-    class(fe_nonlinear_operator_t), intent(inout) :: this
-    type(vector_space_t), pointer                 :: fe_nonlinear_operator_domain_vector_space
-    type(vector_space_t), pointer                 :: fe_nonlinear_operator_range_vector_space
-    type(vector_space_t), pointer                 :: matrix_domain_vector_space
-    type(vector_space_t), pointer                 :: matrix_range_vector_space
-    class(matrix_t)     , pointer :: matrix
-    matrix => this%assembler%get_matrix()
-    matrix_domain_vector_space => matrix%get_domain_vector_space()
-    matrix_range_vector_space => matrix%get_range_vector_space()
-    fe_nonlinear_operator_domain_vector_space => operator_get_domain_vector_space(this)
-    fe_nonlinear_operator_range_vector_space => operator_get_range_vector_space(this)
-    call matrix_domain_vector_space%clone(fe_nonlinear_operator_domain_vector_space)
-    call matrix_range_vector_space%clone(fe_nonlinear_operator_range_vector_space)
-  end subroutine fe_nonlinear_operator_create_vector_spaces
+subroutine fe_nonlinear_operator_create_vector_spaces(this)
+  implicit none
+  class(fe_nonlinear_operator_t), intent(inout) :: this
+  type(vector_space_t), pointer                 :: fe_nonlinear_operator_domain_vector_space
+  type(vector_space_t), pointer                 :: fe_nonlinear_operator_range_vector_space
+  type(vector_space_t), pointer                 :: matrix_domain_vector_space
+  type(vector_space_t), pointer                 :: matrix_range_vector_space
+  class(matrix_t)     , pointer :: matrix
+  matrix => this%assembler%get_matrix()
+  matrix_domain_vector_space => matrix%get_domain_vector_space()
+  matrix_range_vector_space => matrix%get_range_vector_space()
+  fe_nonlinear_operator_domain_vector_space => operator_get_domain_vector_space(this)
+  fe_nonlinear_operator_range_vector_space => operator_get_range_vector_space(this)
+  call matrix_domain_vector_space%clone(fe_nonlinear_operator_domain_vector_space)
+  call matrix_range_vector_space%clone(fe_nonlinear_operator_range_vector_space)
+end subroutine fe_nonlinear_operator_create_vector_spaces
 
-  function fe_nonlinear_operator_create_serial_assembler (this, &
-                                                          diagonal_blocks_symmetric_storage,&
-                                                          diagonal_blocks_symmetric, & 
-                                                          diagonal_blocks_sign)
-    implicit none
-    class(fe_nonlinear_operator_t)  , intent(in) :: this
-    logical                         , intent(in) :: diagonal_blocks_symmetric_storage(:)
-    logical                         , intent(in) :: diagonal_blocks_symmetric(:)
-    integer(ip)                     , intent(in) :: diagonal_blocks_sign(:)
-    class(assembler_t) , pointer    :: fe_nonlinear_operator_create_serial_assembler
+function fe_nonlinear_operator_create_serial_assembler (this, &
+     diagonal_blocks_symmetric_storage,&
+     diagonal_blocks_symmetric, & 
+     diagonal_blocks_sign)
+  implicit none
+  class(fe_nonlinear_operator_t)  , intent(in) :: this
+  logical                         , intent(in) :: diagonal_blocks_symmetric_storage(:)
+  logical                         , intent(in) :: diagonal_blocks_symmetric(:)
+  integer(ip)                     , intent(in) :: diagonal_blocks_sign(:)
+  class(assembler_t) , pointer    :: fe_nonlinear_operator_create_serial_assembler
 
-    ! Locals
-    class(matrix_t), pointer :: matrix
-    class(array_t) , pointer :: array
-    integer(ip)          :: ife_space, jfe_space
-    integer(ip)          :: iblock, jblock
-    
-    type(block_layout_t), pointer :: block_layout
-    
-    block_layout => this%test_fe_space%get_block_layout()
+  ! Locals
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+  integer(ip)          :: ife_space, jfe_space
+  integer(ip)          :: iblock, jblock
 
-    if (block_layout%get_num_blocks() == 1) then
-       allocate ( sparse_assembler_t :: fe_nonlinear_operator_create_serial_assembler )
-       allocate ( sparse_matrix_t :: matrix )
-       allocate ( serial_scalar_array_t  :: array )
-       select type(matrix)
-          class is(sparse_matrix_t)
-          call matrix%create(block_layout%get_block_num_dofs(1), &
-               diagonal_blocks_symmetric_storage(1),&
-               diagonal_blocks_symmetric(1),&
-               diagonal_blocks_sign(1))
-          class default
-          check(.false.)
-       end select
-       select type(array)
-          class is(serial_scalar_array_t)
-          call array%create(block_layout%get_block_num_dofs(1))
-          class default
-          check(.false.)
-       end select
-    else
-       allocate ( block_sparse_assembler_t :: fe_nonlinear_operator_create_serial_assembler )
-       allocate ( block_sparse_matrix_t :: matrix )
-       allocate ( serial_block_array_t  :: array )
-       select type(matrix)
-          class is (block_sparse_matrix_t)
-          call matrix%create(block_layout%get_num_blocks(), &
-               block_layout%get_num_dofs_x_block(),&
-               block_layout%get_num_dofs_x_block(),&
-               diagonal_blocks_symmetric_storage,&
-               diagonal_blocks_symmetric,&
-               diagonal_blocks_sign)
+  type(block_layout_t), pointer :: block_layout
 
-          do jblock=1,block_layout%get_num_blocks()
-             do iblock=1,block_layout%get_num_blocks()
-                if (.not. block_layout%blocks_coupled(iblock,jblock) ) then
-                   call matrix%set_block_to_zero(iblock,jblock)
-                end if
-             end do
-          end do
-          class default
-          check(.false.)
-       end select
-       select type(array)
-          class is(serial_block_array_t)
-          call array%create(block_layout%get_num_blocks(),block_layout%get_num_dofs_x_block())
-          class default
-          check(.false.)
-       end select
-    end if
-    call fe_nonlinear_operator_create_serial_assembler%set_matrix(matrix)
-    call fe_nonlinear_operator_create_serial_assembler%set_array(array)
-  end function fe_nonlinear_operator_create_serial_assembler
+  block_layout => this%test_fe_space%get_block_layout()
 
-  function fe_nonlinear_operator_create_par_assembler(this, &
-                                                      diagonal_blocks_symmetric_storage,&
-                                                      diagonal_blocks_symmetric, & 
-                                                      diagonal_blocks_sign)
-    implicit none
-    class(fe_nonlinear_operator_t)       , intent(in) :: this
-    logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
-    logical                           , intent(in) :: diagonal_blocks_symmetric(:)
-    integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
-    class(assembler_t)   , pointer    :: fe_nonlinear_operator_create_par_assembler
-      
-    ! Locals
-    class(matrix_t), pointer :: matrix
-    class(array_t) , pointer :: array
-    type(environment_t), pointer :: par_environment
-    type(block_layout_t), pointer :: block_layout
-    
-    block_layout => this%test_fe_space%get_block_layout()
-    
-    
-    select type(fe_space => this%test_fe_space)
-       class is(par_fe_space_t)
-       par_environment => fe_space%get_environment()
-       if (block_layout%get_num_blocks() == 1) then
-          allocate ( par_sparse_assembler_t :: fe_nonlinear_operator_create_par_assembler )
-          allocate ( par_sparse_matrix_t :: matrix )
-          allocate ( par_scalar_array_t  :: array )
-          select type(matrix)
-             class is(par_sparse_matrix_t)
-             call matrix%create(par_environment, &
-                  fe_space%get_block_dof_import(1), &
-                  diagonal_blocks_symmetric_storage(1),&
-                  diagonal_blocks_symmetric(1),&
-                  diagonal_blocks_sign(1))
-             class default
-             check(.false.)
-          end select
-          select type(array)
-             class is(par_scalar_array_t)
-             call array%create(par_environment, &
-                  fe_space%get_block_dof_import(1))
-             class default
-             check(.false.)
-          end select
-       else
-          check(.false.)
-       end if
-       call fe_nonlinear_operator_create_par_assembler%set_matrix(matrix)
-       call fe_nonlinear_operator_create_par_assembler%set_array(array)
-       class default
-       check(.false.)
-    end select
-  end function fe_nonlinear_operator_create_par_assembler
+  if (block_layout%get_num_blocks() == 1) then
+     allocate ( sparse_assembler_t :: fe_nonlinear_operator_create_serial_assembler )
+     allocate ( sparse_matrix_t :: matrix )
+     allocate ( serial_scalar_array_t  :: array )
+     select type(matrix)
+        class is(sparse_matrix_t)
+        call matrix%create(block_layout%get_block_num_dofs(1), &
+             diagonal_blocks_symmetric_storage(1),&
+             diagonal_blocks_symmetric(1),&
+             diagonal_blocks_sign(1))
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_scalar_array_t)
+        call array%create(block_layout%get_block_num_dofs(1))
+        class default
+        check(.false.)
+     end select
+  else
+     allocate ( block_sparse_assembler_t :: fe_nonlinear_operator_create_serial_assembler )
+     allocate ( block_sparse_matrix_t :: matrix )
+     allocate ( serial_block_array_t  :: array )
+     select type(matrix)
+        class is (block_sparse_matrix_t)
+        call matrix%create(block_layout%get_num_blocks(), &
+             block_layout%get_num_dofs_x_block(),&
+             block_layout%get_num_dofs_x_block(),&
+             diagonal_blocks_symmetric_storage,&
+             diagonal_blocks_symmetric,&
+             diagonal_blocks_sign)
 
-  function fe_nonlinear_operator_get_fe_space(this)
-    implicit none
-    class(fe_nonlinear_operator_t), target, intent(in) :: this
-    class(serial_fe_space_t), pointer :: fe_nonlinear_operator_get_fe_space
-    assert ( associated(this%state)  )
-    fe_nonlinear_operator_get_fe_space => this%test_fe_space
-  end function fe_nonlinear_operator_get_fe_space
+        do jblock=1,block_layout%get_num_blocks()
+           do iblock=1,block_layout%get_num_blocks()
+              if (.not. block_layout%blocks_coupled(iblock,jblock) ) then
+                 call matrix%set_block_to_zero(iblock,jblock)
+              end if
+           end do
+        end do
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_block_array_t)
+        call array%create(block_layout%get_num_blocks(),block_layout%get_num_dofs_x_block())
+        class default
+        check(.false.)
+     end select
+  end if
+  call fe_nonlinear_operator_create_serial_assembler%set_matrix(matrix)
+  call fe_nonlinear_operator_create_serial_assembler%set_array(array)
+end function fe_nonlinear_operator_create_serial_assembler
 
-  function fe_nonlinear_operator_get_discrete_integration(this)
-    implicit none
-    class(fe_nonlinear_operator_t), target, intent(in) :: this
-    class(discrete_integration_t), pointer :: fe_nonlinear_operator_get_discrete_integration
-    assert ( associated(this%state)  )
-    fe_nonlinear_operator_get_discrete_integration => this%discrete_integration
-  end function fe_nonlinear_operator_get_discrete_integration
+function fe_nonlinear_operator_create_par_assembler(this, &
+     diagonal_blocks_symmetric_storage,&
+     diagonal_blocks_symmetric, & 
+     diagonal_blocks_sign)
+  implicit none
+  class(fe_nonlinear_operator_t)       , intent(in) :: this
+  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
+  logical                           , intent(in) :: diagonal_blocks_symmetric(:)
+  integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
+  class(assembler_t)   , pointer    :: fe_nonlinear_operator_create_par_assembler
 
-  ! op%apply(x,y) <=> y <- op*x
-  ! Implicitly assumes that y is already allocated
-  subroutine fe_nonlinear_operator_apply(this,x,y) 
-    implicit none
-    class(fe_nonlinear_operator_t), intent(in)    :: this
-    class(vector_t) , intent(in)    :: x
-    class(vector_t) , intent(inout) :: y 
-    class(matrix_t) , pointer       :: matrix
-    !class(array_t)  , pointer       :: array
-    call x%GuardTemp()
-    call this%abort_if_not_in_domain(x)
-    call this%abort_if_not_in_range(y)
-    call this%set_evaluation_point(x)
-    call this%compute_residual()
-    !array => this%assembler%get_array()
-    !call y%scal(-1.0_rp, array)
-    y = this%assembler%get_array()
-    call x%CleanTemp()
-  end subroutine fe_nonlinear_operator_apply
+  ! Locals
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+  type(environment_t), pointer :: par_environment
+  type(block_layout_t), pointer :: block_layout
 
-  ! op%apply(x,y) <=> y <- op*x+y
-  ! Implicitly assumes that y is already allocated
-  subroutine fe_nonlinear_operator_apply_add(this,x,y) 
-    implicit none
-    class(fe_nonlinear_operator_t), intent(in)    :: this
-    class(vector_t) , intent(in)    :: x
-    class(vector_t) , intent(inout) :: y 
-    class(matrix_t) , pointer       :: matrix
-    class(array_t)  , pointer       :: array
-    call x%GuardTemp()
-    call this%abort_if_not_in_domain(x)
-    call this%abort_if_not_in_range(y)
-    call this%set_evaluation_point(x)
-    call this%compute_residual()
-    array => this%assembler%get_array()
-    call y%axpby( 1.0_rp, array, 1.0_rp )
-    call x%CleanTemp()
-  end subroutine fe_nonlinear_operator_apply_add
+  block_layout => this%test_fe_space%get_block_layout()
 
-  subroutine fe_nonlinear_operator_set_evaluation_point(this,x) 
-    implicit none
-    class(fe_nonlinear_operator_t), intent(in)    :: this
-    class(vector_t) , intent(in)    :: x
-    call x%GuardTemp()
-    call this%discrete_integration%set_evaluation_point(x)
-    this%state = created
-    call this%assembler%init_array(0.0_rp)  
-    call this%assembler%init_matrix(0.0_rp)
-    call x%CleanTemp()
-  end subroutine fe_nonlinear_operator_set_evaluation_point
 
-  function fe_nonlinear_operator_is_linear(this)
-    implicit none
-    class(fe_nonlinear_operator_t), intent(in) :: this
-    logical :: fe_nonlinear_operator_is_linear
-    fe_nonlinear_operator_is_linear = .false.
-  end function fe_nonlinear_operator_is_linear
+  select type(fe_space => this%test_fe_space)
+     class is(par_fe_space_t)
+     par_environment => fe_space%get_environment()
+     if (block_layout%get_num_blocks() == 1) then
+        allocate ( par_sparse_assembler_t :: fe_nonlinear_operator_create_par_assembler )
+        allocate ( par_sparse_matrix_t :: matrix )
+        allocate ( par_scalar_array_t  :: array )
+        select type(matrix)
+           class is(par_sparse_matrix_t)
+           call matrix%create(par_environment, &
+                fe_space%get_block_dof_import(1), &
+                diagonal_blocks_symmetric_storage(1),&
+                diagonal_blocks_symmetric(1),&
+                diagonal_blocks_sign(1))
+           class default
+           check(.false.)
+        end select
+        select type(array)
+           class is(par_scalar_array_t)
+           call array%create(par_environment, &
+                fe_space%get_block_dof_import(1))
+           class default
+           check(.false.)
+        end select
+     else
+        check(.false.)
+     end if
+     call fe_nonlinear_operator_create_par_assembler%set_matrix(matrix)
+     call fe_nonlinear_operator_create_par_assembler%set_array(array)
+     class default
+     check(.false.)
+  end select
+end function fe_nonlinear_operator_create_par_assembler
 
-  function fe_nonlinear_operator_get_tangent(this) result(tangent)
-    implicit none
-    class(fe_nonlinear_operator_t), intent(in) :: this
-    type(lvalue_operator_t)          :: tangent
-    assert ( .not. this%state == created )
-    tangent = this%assembler%get_matrix()
-    call tangent%SetTemp()
-  end function fe_nonlinear_operator_get_tangent
-  
-  function fe_nonlinear_operator_get_matrix(this)
-    implicit none
-    class(fe_nonlinear_operator_t), target, intent(in) :: this
-    class(matrix_t), pointer :: fe_nonlinear_operator_get_matrix
-    fe_nonlinear_operator_get_matrix => this%assembler%get_matrix()
-  end function fe_nonlinear_operator_get_matrix
+function fe_nonlinear_operator_get_fe_space(this)
+  implicit none
+  class(fe_nonlinear_operator_t), target, intent(in) :: this
+  class(serial_fe_space_t), pointer :: fe_nonlinear_operator_get_fe_space
+  assert ( associated(this%state)  )
+  fe_nonlinear_operator_get_fe_space => this%test_fe_space
+end function fe_nonlinear_operator_get_fe_space
 
-  function fe_nonlinear_operator_get_translation(this) result(translation)
-    implicit none
-    class(fe_nonlinear_operator_t), intent(in) :: this
-    class(vector_t), pointer                :: translation
-    assert ( .not. this%state == created )
-    translation => this%assembler%get_array()
-  end function fe_nonlinear_operator_get_translation
+function fe_nonlinear_operator_get_discrete_integration(this)
+  implicit none
+  class(fe_nonlinear_operator_t), target, intent(in) :: this
+  class(discrete_integration_t), pointer :: fe_nonlinear_operator_get_discrete_integration
+  assert ( associated(this%state)  )
+  fe_nonlinear_operator_get_discrete_integration => this%discrete_integration
+end function fe_nonlinear_operator_get_discrete_integration
 
-  subroutine fe_nonlinear_operator_abort_if_not_in_domain ( this, vector )
-    implicit none
-    class(fe_nonlinear_operator_t), intent(in)  :: this
-    class(vector_t)            , intent(in)  :: vector
-    assert ( associated(this%state)  )
-    call operator_abort_if_not_in_domain(this,vector)
-  end subroutine fe_nonlinear_operator_abort_if_not_in_domain
+! op%apply(x,y) <=> y <- op*x
+! Implicitly assumes that y is already allocated
+subroutine fe_nonlinear_operator_apply(this,x,y) 
+  implicit none
+  class(fe_nonlinear_operator_t), intent(in)    :: this
+  class(vector_t) , intent(in)    :: x
+  class(vector_t) , intent(inout) :: y 
+  class(matrix_t) , pointer       :: matrix
+  !class(array_t)  , pointer       :: array
+  call x%GuardTemp()
+  call this%abort_if_not_in_domain(x)
+  call this%abort_if_not_in_range(y)
+  call this%set_evaluation_point(x)
+  call this%compute_residual()
+  !array => this%assembler%get_array()
+  !call y%scal(-1.0_rp, array)
+  y = this%assembler%get_array()
+  call x%CleanTemp()
+end subroutine fe_nonlinear_operator_apply
 
-  subroutine fe_nonlinear_operator_abort_if_not_in_range ( this, vector )
-    implicit none
-    class(fe_nonlinear_operator_t), intent(in) :: this
-    class(vector_t)            , intent(in) :: vector
-    assert ( associated(this%state)  )
-    call operator_abort_if_not_in_range(this,vector)
-  end subroutine fe_nonlinear_operator_abort_if_not_in_range
+! op%apply(x,y) <=> y <- op*x+y
+! Implicitly assumes that y is already allocated
+subroutine fe_nonlinear_operator_apply_add(this,x,y) 
+  implicit none
+  class(fe_nonlinear_operator_t), intent(in)    :: this
+  class(vector_t) , intent(in)    :: x
+  class(vector_t) , intent(inout) :: y 
+  class(matrix_t) , pointer       :: matrix
+  class(array_t)  , pointer       :: array
+  call x%GuardTemp()
+  call this%abort_if_not_in_domain(x)
+  call this%abort_if_not_in_range(y)
+  call this%set_evaluation_point(x)
+  call this%compute_residual()
+  array => this%assembler%get_array()
+  call y%axpby( 1.0_rp, array, 1.0_rp )
+  call x%CleanTemp()
+end subroutine fe_nonlinear_operator_apply_add
 
-  function fe_nonlinear_operator_get_domain_vector_space ( this )
-    implicit none
-    class(fe_nonlinear_operator_t), target, intent(in) :: this
-    type(vector_space_t)               , pointer    :: fe_nonlinear_operator_get_domain_vector_space
-    assert ( associated(this%state)  )
-    fe_nonlinear_operator_get_domain_vector_space => operator_get_domain_vector_space(this)
-  end function fe_nonlinear_operator_get_domain_vector_space
+subroutine fe_nonlinear_operator_set_evaluation_point(this,x) 
+  implicit none
+  class(fe_nonlinear_operator_t), intent(in)    :: this
+  class(vector_t) , intent(in)    :: x
+  call x%GuardTemp()
+  call this%discrete_integration%set_evaluation_point(x)
+  this%state = created
+  call this%assembler%init_array(0.0_rp)  
+  call this%assembler%init_matrix(0.0_rp)
+  call x%CleanTemp()
+end subroutine fe_nonlinear_operator_set_evaluation_point
 
-  function fe_nonlinear_operator_get_range_vector_space ( this )
-    implicit none
-    class(fe_nonlinear_operator_t), target, intent(in) :: this
-    type(vector_space_t)                  , pointer :: fe_nonlinear_operator_get_range_vector_space
-    assert ( associated(this%state)  )
-    fe_nonlinear_operator_get_range_vector_space => operator_get_range_vector_space(this)
-  end function fe_nonlinear_operator_get_range_vector_space
+function fe_nonlinear_operator_is_linear(this)
+  implicit none
+  class(fe_nonlinear_operator_t), intent(in) :: this
+  logical :: fe_nonlinear_operator_is_linear
+  fe_nonlinear_operator_is_linear = .false.
+end function fe_nonlinear_operator_is_linear
 
-  function fe_nonlinear_operator_apply_fun(op,x) result(y)
-    implicit none
-    class(fe_nonlinear_operator_t)   , intent(in)  :: op
-    class(vector_t)     , intent(in)  :: x
-    class(vector_t)     , allocatable :: y
-    type(vector_space_t), pointer     :: range_vector_space
-    range_vector_space => op%get_range_vector_space()
-    !call op%setup()
-    call range_vector_space%create_vector(y)
-    call op%apply(x,y)
-  end function fe_nonlinear_operator_apply_fun
+function fe_nonlinear_operator_get_tangent(this) result(tangent)
+  implicit none
+  class(fe_nonlinear_operator_t), intent(in) :: this
+  type(lvalue_operator_t)          :: tangent
+  assert ( .not. this%state == created )
+  tangent = this%assembler%get_matrix()
+  call tangent%SetTemp()
+end function fe_nonlinear_operator_get_tangent
 
-  subroutine fe_nonlinear_operator_compute_residual(this)
-    implicit none
-    class(fe_nonlinear_operator_t), intent(in) :: this
-    class(environment_t), pointer :: environment
-    environment => this%test_fe_space%get_environment()
+function fe_nonlinear_operator_get_matrix(this)
+  implicit none
+  class(fe_nonlinear_operator_t), target, intent(in) :: this
+  class(matrix_t), pointer :: fe_nonlinear_operator_get_matrix
+  fe_nonlinear_operator_get_matrix => this%assembler%get_matrix()
+end function fe_nonlinear_operator_get_matrix
 
-    assert ( associated(this%state)  )
+function fe_nonlinear_operator_get_translation(this) result(translation)
+  implicit none
+  class(fe_nonlinear_operator_t), intent(in) :: this
+  class(vector_t), pointer                :: translation
+  assert ( .not. this%state == created )
+  translation => this%assembler%get_array()
+end function fe_nonlinear_operator_get_translation
 
-    
-    if ( .not. ( this%state == residual_computed .or. this%state == assembler_computed ) ) then
-      if ( environment%am_i_l1_task() ) then
+subroutine fe_nonlinear_operator_abort_if_not_in_domain ( this, vector )
+  implicit none
+  class(fe_nonlinear_operator_t), intent(in)  :: this
+  class(vector_t)            , intent(in)  :: vector
+  assert ( associated(this%state)  )
+  call operator_abort_if_not_in_domain(this,vector)
+end subroutine fe_nonlinear_operator_abort_if_not_in_domain
+
+subroutine fe_nonlinear_operator_abort_if_not_in_range ( this, vector )
+  implicit none
+  class(fe_nonlinear_operator_t), intent(in) :: this
+  class(vector_t)            , intent(in) :: vector
+  assert ( associated(this%state)  )
+  call operator_abort_if_not_in_range(this,vector)
+end subroutine fe_nonlinear_operator_abort_if_not_in_range
+
+function fe_nonlinear_operator_get_domain_vector_space ( this )
+  implicit none
+  class(fe_nonlinear_operator_t), target, intent(in) :: this
+  type(vector_space_t)               , pointer    :: fe_nonlinear_operator_get_domain_vector_space
+  assert ( associated(this%state)  )
+  fe_nonlinear_operator_get_domain_vector_space => operator_get_domain_vector_space(this)
+end function fe_nonlinear_operator_get_domain_vector_space
+
+function fe_nonlinear_operator_get_range_vector_space ( this )
+  implicit none
+  class(fe_nonlinear_operator_t), target, intent(in) :: this
+  type(vector_space_t)                  , pointer :: fe_nonlinear_operator_get_range_vector_space
+  assert ( associated(this%state)  )
+  fe_nonlinear_operator_get_range_vector_space => operator_get_range_vector_space(this)
+end function fe_nonlinear_operator_get_range_vector_space
+
+function fe_nonlinear_operator_apply_fun(op,x) result(y)
+  implicit none
+  class(fe_nonlinear_operator_t)   , intent(in)  :: op
+  class(vector_t)     , intent(in)  :: x
+  class(vector_t)     , allocatable :: y
+  type(vector_space_t), pointer     :: range_vector_space
+  range_vector_space => op%get_range_vector_space()
+  !call op%setup()
+  call range_vector_space%create_vector(y)
+  call op%apply(x,y)
+end function fe_nonlinear_operator_apply_fun
+
+subroutine fe_nonlinear_operator_compute_residual(this)
+  implicit none
+  class(fe_nonlinear_operator_t), intent(in) :: this
+  class(environment_t), pointer :: environment
+  environment => this%test_fe_space%get_environment()
+
+  assert ( associated(this%state)  )
+
+
+  if ( .not. ( this%state == residual_computed .or. this%state == assembler_computed ) ) then
+     if ( environment%am_i_l1_task() ) then
         if ( associated(this%trial_fe_space) ) then
-          call this%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
+           call this%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
         else
-          call this%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
+           call this%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
         end if
-      end if
+     end if
 
-      if (this%state == tangent_computed) then
+     if (this%state == tangent_computed) then
         this%state = assembler_computed
-      else ! created
+     else ! created
         assert ( this%state == created )
         this%state = residual_computed
-      end if
-    end if
+     end if
+  end if
 
-  end subroutine fe_nonlinear_operator_compute_residual
+end subroutine fe_nonlinear_operator_compute_residual
 
-  subroutine fe_nonlinear_operator_compute_tangent(this)
-    implicit none
-    class(fe_nonlinear_operator_t), intent(inout) :: this
-    class(environment_t), pointer :: environment
-    environment => this%test_fe_space%get_environment()
+subroutine fe_nonlinear_operator_compute_tangent(this)
+  implicit none
+  class(fe_nonlinear_operator_t), intent(inout) :: this
+  class(environment_t), pointer :: environment
+  environment => this%test_fe_space%get_environment()
 
-    assert ( associated(this%state)  )
+  assert ( associated(this%state)  )
 
-    if ( .not. ( this%state == tangent_computed .or. this%state == assembler_computed ) ) then
-      if ( environment%am_i_l1_task() ) then
+  if ( .not. ( this%state == tangent_computed .or. this%state == assembler_computed ) ) then
+     if ( environment%am_i_l1_task() ) then
         if ( associated(this%trial_fe_space) ) then
-          call this%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
+           call this%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
         else
-          call this%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
+           call this%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
         end if
-      end if
-
-      if (this%state == residual_computed) then
+     end if
+     call this%assembler%compress_storage(this%sparse_matrix_storage_format)
+     if (this%state == residual_computed) then
         this%state = assembler_computed
-      else ! created
+     else ! created
         assert ( this%state == created )
         this%state = tangent_computed
-      end if
-    end if
-  end subroutine fe_nonlinear_operator_compute_tangent
-  
+     end if
+  end if
+end subroutine fe_nonlinear_operator_compute_tangent
+
