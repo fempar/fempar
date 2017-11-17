@@ -479,7 +479,7 @@ contains
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
 #endif
     call parameter_list%free()
   end subroutine setup_solver

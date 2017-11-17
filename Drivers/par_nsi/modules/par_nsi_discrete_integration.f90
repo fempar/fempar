@@ -52,7 +52,7 @@ module nsi_discrete_integration_names
      ! The solution needs to be stored here to avoid an aliasing problem
      ! in nonlinear_operator_apply
      class(fe_function_t), pointer :: fe_function => null()
-     class(fe_function_t), pointer :: fe_function_old => null()
+     !class(fe_function_t), pointer :: fe_function_old => null()
      type(par_nsi_analytical_functions_t), pointer :: analytical_functions => null()
      real(rp) :: current_time
      real(rp) :: viscosity
@@ -152,7 +152,7 @@ contains
     implicit none
     class(nsi_discrete_integration_t), intent(inout) :: this
     class(fe_function_t),            target, intent(in)    :: old_fe_function
-    this%fe_function_old => old_fe_function
+    !this%fe_function_old => old_fe_function
   end subroutine set_old_fe_function
 
   subroutine set_mass_coefficient(this,mass_coefficient)

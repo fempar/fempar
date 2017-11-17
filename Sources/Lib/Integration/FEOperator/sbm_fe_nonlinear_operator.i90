@@ -287,7 +287,7 @@ end function fe_nonlinear_operator_get_discrete_integration
 ! Implicitly assumes that y is already allocated
 subroutine fe_nonlinear_operator_apply(this,x,y) 
   implicit none
-  class(fe_nonlinear_operator_t), intent(in)    :: this
+  class(fe_nonlinear_operator_t), intent(inout)    :: this
   class(vector_t) , intent(in)    :: x
   class(vector_t) , intent(inout) :: y 
   class(matrix_t) , pointer       :: matrix
@@ -307,7 +307,7 @@ end subroutine fe_nonlinear_operator_apply
 ! Implicitly assumes that y is already allocated
 subroutine fe_nonlinear_operator_apply_add(this,x,y) 
   implicit none
-  class(fe_nonlinear_operator_t), intent(in)    :: this
+  class(fe_nonlinear_operator_t), intent(inout)    :: this
   class(vector_t) , intent(in)    :: x
   class(vector_t) , intent(inout) :: y 
   class(matrix_t) , pointer       :: matrix
@@ -399,7 +399,7 @@ end function fe_nonlinear_operator_get_range_vector_space
 
 function fe_nonlinear_operator_apply_fun(op,x) result(y)
   implicit none
-  class(fe_nonlinear_operator_t)   , intent(in)  :: op
+  class(fe_nonlinear_operator_t)   , intent(inout)  :: op
   class(vector_t)     , intent(in)  :: x
   class(vector_t)     , allocatable :: y
   type(vector_space_t), pointer     :: range_vector_space

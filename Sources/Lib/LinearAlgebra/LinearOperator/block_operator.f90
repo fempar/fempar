@@ -85,7 +85,7 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine block_operator_apply (this,x,y)
     implicit none
-    class(block_operator_t)     , intent(in)   :: this
+    class(block_operator_t)     , intent(inout)   :: this
     class(vector_t)      , intent(in)    :: x
     class(vector_t)      , intent(inout) :: y
 
@@ -117,7 +117,7 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine block_operator_apply_add (this,x,y)
     implicit none
-    class(block_operator_t), intent(in)    :: this
+    class(block_operator_t), intent(inout)    :: this
     class(vector_t),         intent(in)    :: x
     class(vector_t),         intent(inout) :: y
 

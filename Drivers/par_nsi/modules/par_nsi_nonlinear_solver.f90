@@ -50,7 +50,7 @@ module par_nsi_nonlinear_solver_names
       class(vector_t),            pointer      :: current_residual   => null()
       class(vector_t),            allocatable  :: initial_residual
       class(vector_t),            allocatable  :: increment_dof_values
-      class(linear_solver_t),     pointer      :: linear_solver
+      class(iterative_linear_solver_t),     pointer      :: linear_solver
       !class(operator_t)     ,     pointer      :: preconditioner
       class(environment_t),       pointer      :: environment
     contains
@@ -91,10 +91,9 @@ subroutine nonlinear_solver_create(this, convergence_criteria, abs_tol, rel_tol,
   real(rp)                         , intent(in)    :: abs_tol
   real(rp)                         , intent(in)    :: rel_tol
   integer(ip)                      , intent(in)    :: max_iters
-  type(linear_solver_t)    , target, intent(in)    :: linear_solver
+  type(iterative_linear_solver_t)    , target, intent(in)    :: linear_solver
   class(environment_t)     , target, intent(in)    :: environment
 
-  class(operator_t)    , pointer :: A
 
   ! Initialize options
   this%current_iteration     = 1
@@ -105,12 +104,6 @@ subroutine nonlinear_solver_create(this, convergence_criteria, abs_tol, rel_tol,
   this%linear_solver  => linear_solver
   this%environment    => environment
   
-  ! Initialize work data
-  A => this%linear_solver%get_A()
-  call A%create_domain_vector(this%increment_dof_values)
-  call A%create_range_vector(this%initial_residual)
-  !call A%create_range_vector(this%current_residual)
-
 end subroutine nonlinear_solver_create
 
 !==============================================================================
@@ -121,6 +114,15 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
   class(fe_nonlinear_operator_t), target, intent(inout) :: nonlinear_operator
   class(vector_t), target            , intent(inout) :: unknown
 
+  integer(ip) :: istat
+  
+  ! Initialize work data
+  if(allocated(this%increment_dof_values)) then
+    call this%increment_dof_values%free()
+    deallocate(this%increment_dof_values,stat=istat); check(istat==0)
+  end if
+  call nonlinear_operator%create_domain_vector(this%increment_dof_values)
+  
   ! Initialize nonlinear operator
   this%current_dof_values => unknown
   this%current_iteration = 0  
@@ -137,19 +139,24 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
     
   ! Store initial residual for the stopping criterium that needs it
   if (this%convergence_criteria == par_nsi_rel_r0_res_norm) then
+    if(allocated(this%initial_residual)) then
+    call this%initial_residual%free()
+    deallocate(this%initial_residual,stat=istat); check(istat==0)
+    end if
+    call nonlinear_operator%create_range_vector(this%initial_residual)
     this%initial_residual = this%current_residual
   end if
     
   do while (.not. this%has_finished())
     this%current_iteration = this%current_iteration + 1
     call nonlinear_operator%compute_tangent()    
-    call this%linear_solver%update(nonlinear_operator%get_tangent())
+    !call this%linear_solver%update(nonlinear_operator%get_tangent())
     ! sbadia : Is this OK? No extra copy?
-    call this%linear_solver%solve( - this%current_residual, this%increment_dof_values )
+    ! sbadia : To be optimized (Why don't we change the concept of residual?)
+    call this%linear_solver%apply( - this%current_residual, this%increment_dof_values )
     call this%update_solution() ! x + dx
     call nonlinear_operator%set_evaluation_point(this%current_dof_values)
     call nonlinear_operator%compute_residual()
-    this%current_residual => nonlinear_operator%get_translation()
     call this%print_iteration_output_header()
     call this%print_current_iteration_output()
   end do
@@ -245,7 +252,8 @@ subroutine nonlinear_solver_update_solution(this)
   implicit none
   class(nonlinear_solver_t), intent(inout) :: this
 
-  this%current_dof_values = this%current_dof_values + this%increment_dof_values
+  ! this%current_dof_values = this%current_dof_values + this%increment_dof_values
+  this%current_dof_values%axpby(1.0_rp, this%increment_dof_values, 1.0_rp)
 
 end subroutine nonlinear_solver_update_solution
 

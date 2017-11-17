@@ -1793,7 +1793,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      call iterative_linear_solver%set_type_from_string(cg_name)
      call iterative_linear_solver%set_parameters_from_pl(parameter_list)
      call iterative_linear_solver%set_operators(matrix, .identity. matrix) 
-     call iterative_linear_solver%solve(rhs,projected_nodal_values)
+     call iterative_linear_solver%apply(rhs,projected_nodal_values)
      call iterative_linear_solver%free()
      call parameter_list%free()
      

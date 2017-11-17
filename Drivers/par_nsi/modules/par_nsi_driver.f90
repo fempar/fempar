@@ -66,7 +66,7 @@ module par_nsi_driver_names
      ! Operators to define and solve the problem
      type(fe_nonlinear_operator_t)                  :: fe_affine_operator
      type(mlbddc_t)                              :: mlbddc
-     type(linear_solver_t)                       :: linear_solver
+     type(iterative_linear_solver_t)                       :: linear_solver
      type(fe_nonlinear_operator_t)                  :: nonlinear_operator
      type(nonlinear_solver_t)                    :: nonlinear_solver 
      !class(time_integration_t), allocatable     :: time_integration
@@ -133,6 +133,10 @@ contains
     call this%setup_fe_space()
 
     
+    ! sbadia : I dont like the relation between discrete integration and fe_space
+    ! I consider that the discrete integration cannot be set up till we can interpolate
+    ! functions, since otherwise we do not have the right bc's. On the other hand, at least in 
+    ! this driver, the fe_space needs first set up the discrete integration...
     
     ! Solution and initial guess
     call this%solution%create(this%fe_space) 
@@ -371,9 +375,6 @@ end subroutine free_timers
         
     ! BDDC preconditioner
     plist => this%parameter_list 
-    !if ( this%par_environment%get_l1_size() == 1 ) then
-    !   FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-    !end if
     do ilev=1, this%par_environment%get_num_levels()-1
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
        FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
@@ -387,10 +388,7 @@ end subroutine free_timers
     ! Set coarsest-grid solver type (currently NOT inherited from fine level matrices types)
     FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
     
-    call this%mlbddc%create(this%nonlinear_operator, this%parameter_list)
-    !call this%mlbddc%symbolic_setup()
-    !call this%mlbddc%numerical_setup()
-    
+    call this%mlbddc%create(this%nonlinear_operator, this%parameter_list)    
     
     ! Linear solver
     call this%linear_solver%create(this%fe_space%get_environment())
@@ -400,9 +398,8 @@ end subroutine free_timers
     FPLError = linear_pl%set(key = ils_max_num_iterations, value = 5000); assert(FPLError == 0)
     FPLError = linear_pl%set(key = ils_atol, value = 1.0e-9); assert(FPLError == 0)
     call this%linear_solver%set_parameters_from_pl(linear_pl)
-    
-
-    !call this%nonlinear_operator%create(this%fe_affine_operator)
+    ! sbadia : For the moment identity preconditioner
+    call this%linear_solver%set_operators( this%nonlinear_operator%get_tangent(), .identity. this%nonlinear_operator%get_tangent() )
 
     ! Nonlinear solver ! par_nsi_abs_res_norm_and_rel_inc_norm
     call this%nonlinear_solver%create(convergence_criteria = par_nsi_abs_res_norm, & 
@@ -410,11 +407,9 @@ end subroutine free_timers
          &                                         rel_tol = 1.0e-9, &
          &                                       max_iters = 10   ,  &
          &                                   linear_solver = this%linear_solver, &
-         &                                     environment = this%par_environment)    
-    ! sbadia : Where is the preconditioner being passed?
+         &                                     environment = this%par_environment)  
+    
 
-    !allocate(theta_time_integration_t :: this%time_integration, stat = istat); check(istat==0)
-    !call this%time_integration%create(this%fe_affine_operator, this%nonlinear_solver, 0.0_rp, 1.0_rp, 5, 1.0_rp)
   end subroutine setup_operators
 
    

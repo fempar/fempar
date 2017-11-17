@@ -77,6 +77,7 @@ module fempar_names
   use block_preconditioner_lu_names
   use block_operator_names
   use block_vector_names
+  use linear_solver_names
   use direct_solver_names
   use direct_solver_parameters_names
   use direct_solver_creational_methods_dictionary_names

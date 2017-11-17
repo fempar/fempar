@@ -88,7 +88,7 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine nonlinear_operator_apply(this,x,y) 
     implicit none
-    class(nonlinear_operator_t), intent(in)   :: this
+    class(nonlinear_operator_t), intent(inout)   :: this
     class(vector_t)    , intent(in)    :: x
     class(vector_t)    , intent(inout) :: y 
     class(vector_t)    , pointer       :: dof_values
@@ -110,7 +110,7 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine nonlinear_operator_apply_add(this,x,y) 
     implicit none
-    class(nonlinear_operator_t), intent(in)    :: this
+    class(nonlinear_operator_t), intent(inout)    :: this
     class(vector_t)    , intent(in)    :: x
     class(vector_t)    , intent(inout) :: y 
     class(vector_t)    , pointer       :: dof_values

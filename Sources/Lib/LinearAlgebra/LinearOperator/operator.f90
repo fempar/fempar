@@ -49,8 +49,9 @@ module operator_names
      ! Deferred methods
      procedure (apply_interface)    , deferred :: apply      ! A(x), residual is -A(x); do we need a method for this? I would say NOT (poor optimization)
      procedure (apply_add_interface), deferred :: apply_add
-     procedure (is_linear_interface), deferred :: is_linear 
+     procedure (is_linear_interface), deferred :: is_linear
      
+     procedure :: update_matrix                           => operator_update_matrix
      procedure :: get_tangent                             => operator_get_tangent         ! partial A / partial x (x*)
 	    procedure :: get_translation                         => operator_get_translation     ! -1*A(0)
      procedure :: free_vector_spaces                      => operator_free_vector_spaces
@@ -173,7 +174,7 @@ module operator_names
      subroutine apply_interface(this,x,y) 
        import :: operator_t, vector_t
        implicit none
-       class(operator_t), intent(in)    :: this
+       class(operator_t), intent(inout)    :: this
        class(vector_t) , intent(in)    :: x
        class(vector_t) , intent(inout) :: y 
      end subroutine apply_interface 
@@ -183,7 +184,7 @@ module operator_names
      subroutine apply_add_interface(this,x,y) 
        import :: operator_t, vector_t
        implicit none
-       class(operator_t), intent(in)    :: this
+       class(operator_t), intent(inout)    :: this
        class(vector_t) , intent(in)    :: x
        class(vector_t) , intent(inout) :: y 
      end subroutine apply_add_interface 
@@ -256,16 +257,18 @@ contains
   
   function  operator_apply_fun(this,x) result(y)
     implicit none
-    class(operator_t), intent(in)       :: this
+    class(operator_t), target, intent(in)                 :: this
     class(vector_t)     , intent(in)  :: x
     class(vector_t)     , allocatable :: y 
-    call this%GuardTemp()
+    class(operator_t), pointer :: aux
+    aux => this
+    call aux%GuardTemp()
     call x%GuardTemp()
-    call this%range_vector_space%create_vector(y)
-    call this%apply(x,y)
+    call aux%range_vector_space%create_vector(y)
+    call aux%apply(x,y)
     call x%CleanTemp()
     call y%SetTemp()
-    call this%CleanTemp()
+    call aux%CleanTemp()
   end function operator_apply_fun
   
   subroutine operator_abort_if_not_in_domain ( this, vector )
@@ -317,7 +320,13 @@ contains
       check(.false.)
     end if
   end function operator_get_translation
-    
+     
+  subroutine operator_update_matrix( this, same_nonzero_pattern )
+    implicit none
+    class(operator_t),  intent(inout) :: this
+    logical,                       intent(in)    :: same_nonzero_pattern
+    mcheck(.false.,'update_matrix not available for this operator')
+  end subroutine operator_update_matrix
   
   subroutine binary_operator_default_init(this)
     implicit none
@@ -714,7 +723,7 @@ contains
   !-------------------------------------!
   recursive subroutine identity_operator_apply(this,x,y)
     implicit none
-    class(identity_operator_t), intent(in) :: this
+    class(identity_operator_t), intent(inout) :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
 
@@ -729,7 +738,7 @@ contains
   
   recursive subroutine sum_operator_apply(this,x,y)
     implicit none
-    class(sum_operator_t), intent(in)    :: this
+    class(sum_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
     integer(ip)                    :: istat
@@ -747,7 +756,7 @@ contains
 
   recursive subroutine sub_operator_apply(this,x,y)
     implicit none
-    class(sub_operator_t), intent(in)    :: this
+    class(sub_operator_t), intent(inout)    :: this
     class(vector_t),       intent(in)    :: x
     class(vector_t),       intent(inout) :: y 
     call this%abort_if_not_in_domain(x)
@@ -762,7 +771,7 @@ contains
   
   recursive subroutine mult_operator_apply(this,x,y)
     implicit none
-    class(mult_operator_t), intent(in)    :: this
+    class(mult_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
     class(vector_t), allocatable   :: w
@@ -782,7 +791,7 @@ contains
 
   recursive subroutine scal_operator_apply(this,x,y)
     implicit none
-    class(scal_operator_t), intent(in)   :: this
+    class(scal_operator_t), intent(inout)   :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
     call this%abort_if_not_in_domain(x)
@@ -797,7 +806,7 @@ contains
 
   recursive subroutine minus_operator_apply(this,x,y)
     implicit none
-    class(minus_operator_t), intent(in)  :: this
+    class(minus_operator_t), intent(inout)  :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
     call this%GuardTemp()
@@ -825,7 +834,7 @@ contains
   
   recursive subroutine lvalue_operator_apply(this,x,y)
     implicit none
-    class(lvalue_operator_t), intent(in)    :: this
+    class(lvalue_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
     
@@ -852,7 +861,7 @@ contains
   !-------------------------------------!
   recursive subroutine identity_operator_apply_add(this,x,y)
     implicit none
-    class(identity_operator_t), intent(in) :: this
+    class(identity_operator_t), intent(inout) :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
 
@@ -867,7 +876,7 @@ contains
   
   recursive subroutine sum_operator_apply_add(this,x,y)
     implicit none
-    class(sum_operator_t), intent(in)    :: this
+    class(sum_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
     call this%abort_if_not_in_domain(x)
@@ -882,7 +891,7 @@ contains
 
   recursive subroutine sub_operator_apply_add(this,x,y)
     implicit none
-    class(sub_operator_t), intent(in)    :: this
+    class(sub_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
     call this%abort_if_not_in_domain(x)
@@ -897,7 +906,7 @@ contains
   
   recursive subroutine mult_operator_apply_add(this,x,y)
     implicit none
-    class(mult_operator_t), intent(in)    :: this
+    class(mult_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
     class(vector_t), allocatable   :: w
@@ -917,7 +926,7 @@ contains
 
   recursive subroutine scal_operator_apply_add(this,x,y)
     implicit none
-    class(scal_operator_t), intent(in)    :: this
+    class(scal_operator_t), intent(inout)    :: this
     class(vector_t),        intent(in)    :: x
     class(vector_t),        intent(inout) :: y 
     
@@ -936,7 +945,7 @@ contains
 
   recursive subroutine minus_operator_apply_add(this,x,y)
     implicit none
-    class(minus_operator_t), intent(in)    :: this
+    class(minus_operator_t), intent(inout)    :: this
     class(vector_t),         intent(in)    :: x
     class(vector_t),         intent(inout) :: y 
     call this%GuardTemp()
@@ -950,7 +959,7 @@ contains
 
   recursive subroutine lvalue_operator_apply_add(this,x,y)
     implicit none
-    class(lvalue_operator_t), intent(in)    :: this
+    class(lvalue_operator_t), intent(inout)    :: this
     class(vector_t),          intent(in)    :: x
     class(vector_t),          intent(inout) :: y 
     

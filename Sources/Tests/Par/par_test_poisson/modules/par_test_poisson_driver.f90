@@ -471,7 +471,7 @@ end subroutine free_timers
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
 #ifdef ENABLE_MKL
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
 #else
     call parameter_list%init()
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
@@ -479,7 +479,7 @@ end subroutine free_timers
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
     call parameter_list%free()
 #endif   
     
@@ -521,7 +521,7 @@ end subroutine free_timers
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+    call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), &
                                             dof_values)
     
     !select type (dof_values)

@@ -632,7 +632,7 @@ contains
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
     call parameter_list%free()
   end subroutine setup_solver
 
@@ -672,7 +672,7 @@ contains
     !matrix     => this%fe_affine_operator%get_matrix()
     !rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+    call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), &
          dof_values)
 
     !select type (dof_values)

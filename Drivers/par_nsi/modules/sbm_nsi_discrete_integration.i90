@@ -68,10 +68,10 @@ subroutine nsi_discrete_integration_integrate_tangent ( this, fe_space, assemble
   integer(ip)  :: idof, jdof, idof_u, jdof_u, idof_p, jdof_p , num_dofs
 
   type(fe_cell_function_vector_t) :: cell_solution_u
-  type(fe_cell_function_vector_t) :: cell_solution_u_old
+  !type(fe_cell_function_vector_t) :: cell_solution_u_old
   type(fe_cell_function_scalar_t) :: cell_solution_p
   type(vector_field_t), pointer   :: solution_u(:) => null()
-  type(vector_field_t), pointer   :: solution_u_old(:) => null()
+  !type(vector_field_t), pointer   :: solution_u_old(:) => null()
   type(tensor_field_t), pointer   :: solution_gradu(:) => null()
   real(rp)            , pointer   :: solution_p(:) => null()
 
@@ -94,7 +94,7 @@ subroutine nsi_discrete_integration_integrate_tangent ( this, fe_space, assemble
   call fe_space%set_up_cell_integration()
   call fe_space%create_fe_cell_iterator(fe)
   call cell_solution_u%create(fe_space,1)
-  call cell_solution_u_old%create(fe_space,1)
+  !call cell_solution_u_old%create(fe_space,1)
   call cell_solution_p%create(fe_space,2)
 
   num_dofs = fe%get_num_dofs()
@@ -112,10 +112,10 @@ subroutine nsi_discrete_integration_integrate_tangent ( this, fe_space, assemble
         ! Update FE-integration related data structures
         call fe%update_integration()
         call cell_solution_u%update(fe,this%fe_function)
-        call cell_solution_u_old%update(fe,this%fe_function_old)
+        !call cell_solution_u_old%update(fe,this%fe_function_old)
         call cell_solution_p%update(fe,this%fe_function)
         solution_u      => cell_solution_u%get_quadrature_points_values()
-        solution_u_old  => cell_solution_u_old%get_quadrature_points_values()
+        !solution_u_old  => cell_solution_u_old%get_quadrature_points_values()
         solution_gradu => cell_solution_u%get_quadrature_points_gradients()
         solution_p     => cell_solution_p%get_quadrature_points_values()
 
@@ -222,10 +222,10 @@ subroutine nsi_discrete_integration_integrate_residual ( this, fe_space, assembl
   integer(ip)  :: idof, jdof, idof_u, jdof_u, idof_p, jdof_p , num_dofs
 
   type(fe_cell_function_vector_t) :: cell_solution_u
-  type(fe_cell_function_vector_t) :: cell_solution_u_old
+  !type(fe_cell_function_vector_t) :: cell_solution_u_old
   type(fe_cell_function_scalar_t) :: cell_solution_p
   type(vector_field_t), pointer   :: solution_u(:) => null()
-  type(vector_field_t), pointer   :: solution_u_old(:) => null()
+  !type(vector_field_t), pointer   :: solution_u_old(:) => null()
   type(tensor_field_t), pointer   :: solution_gradu(:) => null()
   real(rp)            , pointer   :: solution_p(:) => null()
 
@@ -248,7 +248,7 @@ subroutine nsi_discrete_integration_integrate_residual ( this, fe_space, assembl
   call fe_space%set_up_cell_integration()
   call fe_space%create_fe_cell_iterator(fe)
   call cell_solution_u%create(fe_space,1)
-  call cell_solution_u_old%create(fe_space,1)
+  !call cell_solution_u_old%create(fe_space,1)
   call cell_solution_p%create(fe_space,2)
 
   num_dofs = fe%get_num_dofs()
@@ -266,10 +266,10 @@ subroutine nsi_discrete_integration_integrate_residual ( this, fe_space, assembl
         ! Update FE-integration related data structures
         call fe%update_integration()
         call cell_solution_u%update(fe,this%fe_function)
-        call cell_solution_u_old%update(fe,this%fe_function_old)
+        !call cell_solution_u_old%update(fe,this%fe_function_old)
         call cell_solution_p%update(fe,this%fe_function)
         solution_u      => cell_solution_u%get_quadrature_points_values()
-        solution_u_old  => cell_solution_u_old%get_quadrature_points_values()
+        !solution_u_old  => cell_solution_u_old%get_quadrature_points_values()
         solution_gradu => cell_solution_u%get_quadrature_points_gradients()
         solution_p     => cell_solution_p%get_quadrature_points_values()
 

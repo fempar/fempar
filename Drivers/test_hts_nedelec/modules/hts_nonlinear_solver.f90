@@ -284,7 +284,7 @@ Jacobian => this%fe_affine_operator%get_matrix()
  
 select type (Jacobian) 
 class is (sparse_matrix_t) 
-  call this%direct_solver%update_matrix( Jacobian, same_nonzero_pattern=.false.) 
+  call this%direct_solver%replace_matrix( Jacobian, same_nonzero_pattern=.false.) 
   call this%direct_solver%solve( -this%residual , this%increment_dof_values )
 class DEFAULT 
 assert(.false.) 
@@ -383,7 +383,7 @@ subroutine hts_nonlinear_solver_solve_constrained_tangent_system(this, constrain
 
   call parameter_list%free()
 
-  call direct_solver%update_matrix(constrained_coefficient_matrix, same_nonzero_pattern=.false.)
+  call direct_solver%replace_matrix(constrained_coefficient_matrix, same_nonzero_pattern=.false.)
   call direct_solver%solve( minus_constrained_residual, constrained_sol )
   call direct_solver%free()
   

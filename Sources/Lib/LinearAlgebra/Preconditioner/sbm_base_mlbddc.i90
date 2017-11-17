@@ -715,7 +715,7 @@ end subroutine base_mlbddc_numerical_setup_coarse_solver
 recursive subroutine base_mlbddc_apply (this, x, y)
   implicit none
   ! Parameters
-  class(base_mlbddc_t)   , intent(in)    :: this
+  class(base_mlbddc_t)   , intent(inout)    :: this
   class(vector_t)   , intent(in)    :: x
   class(vector_t)   , intent(inout) :: y
   call this%abort_if_not_in_domain(x)
@@ -735,7 +735,7 @@ end subroutine base_mlbddc_apply
 recursive subroutine base_mlbddc_apply_add(this, x, y)
   implicit none
   ! Parameters
-  class(base_mlbddc_t)   , intent(in)    :: this
+  class(base_mlbddc_t)   , intent(inout)    :: this
   class(vector_t)   , intent(in)    :: x
   class(vector_t)   , intent(inout) :: y
   class(vector_t), allocatable      :: w
@@ -755,7 +755,7 @@ end subroutine base_mlbddc_apply_add
 
 recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
   implicit none
-  class(base_mlbddc_t)         , intent(in)    :: this
+  class(base_mlbddc_t)         , intent(inout)    :: this
   type(par_scalar_array_t), intent(in)    :: x
   type(par_scalar_array_t), intent(inout) :: y
 
@@ -1285,7 +1285,7 @@ end subroutine base_mlbddc_solve_dirichlet_problem
 
 subroutine base_mlbddc_apply_A_GI(this, x_I, y_G)
   implicit none
-  class(base_mlbddc_t)           , intent(in)    :: this
+  class(base_mlbddc_t)           , intent(inout)    :: this
   type(par_scalar_array_t)  , intent(in)    :: x_I
   type(par_scalar_array_t)  , intent(inout) :: y_G
   type(par_sparse_matrix_t), pointer :: par_sparse_matrix
@@ -1309,7 +1309,7 @@ end subroutine base_mlbddc_apply_A_GI
 
 subroutine base_mlbddc_apply_A_IG(this, x_G, y_I)
   implicit none
-  class(base_mlbddc_t)           , intent(in)    :: this
+  class(base_mlbddc_t)           , intent(inout)    :: this
   type(par_scalar_array_t)  , intent(in)    :: x_G
   type(par_scalar_array_t)  , intent(inout) :: y_I
   type(par_sparse_matrix_t), pointer :: par_sparse_matrix
