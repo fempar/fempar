@@ -30,6 +30,8 @@ module unfitted_fe_spaces_names
   use types_names
   use memor_names
   use field_names
+  use list_types_names
+  use list_types_names
   use block_layout_names
   
   use triangulation_names
@@ -162,12 +164,13 @@ module unfitted_fe_spaces_names
       procedure           :: free                                                   => suhpafs_free
       procedure           :: set_use_constraints                                    => suhpafs_set_use_constraints
       
-      ! Creation of the iterator
+      ! Creation of the iterator (overrides)
       procedure :: create_fe_cell_iterator                                               => suhpafs_create_fe_cell_iterator
-      
-      ! Creation of constrained degrees of freedom
-      procedure          :: generate_global_dof_numbering                                           => suhpafs_generate_global_dof_numbering 
-      procedure, non_overridable :: fill_fe_dofs_and_count_dofs                            => suhpafs_procedure_fill_fe_dofs_and_count_dofs
+
+      ! Generation of Dofs (overrides)
+      procedure :: count_dofs => suhpafs_count_dofs
+      procedure :: list_dofs  => suhpafs_list_dofs
+      procedure :: setup_hanging_node_constraints => suhpafs_setup_hanging_node_constraints
 
       ! Getters
       procedure, non_overridable :: get_aggregate_ids                               => suhpafs_get_aggregate_ids
@@ -175,7 +178,6 @@ module unfitted_fe_spaces_names
 
       ! Private TBPs
       procedure, private, non_overridable :: allocate_and_fill_aggregate_ids        => suhpafs_allocate_and_fill_aggregate_ids
-      procedure, private, non_overridable :: setup_cut_cells_constraints            => suhpafs_setup_cut_cells_constraints
       
 
   end type serial_unfitted_hp_adaptive_fe_space_t

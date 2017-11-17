@@ -201,13 +201,13 @@ module fe_space_names
     procedure, non_overridable          :: allocate_scratch_data                      => fe_cell_iterator_allocate_scratch_data
     procedure, non_overridable          :: allocate_block_based_scratch_data          => fe_cell_iterator_allocate_block_based_scratch_data
     procedure, non_overridable          :: free_scratch_data                          => fe_cell_iterator_free_scratch_data
-    procedure, non_overridable, private :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
-    procedure, non_overridable, private :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
+    procedure, non_overridable          :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
+    procedure, non_overridable          :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
     procedure, non_overridable          :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
     procedure, non_overridable          :: generate_own_dofs_vef                      => fe_cell_iterator_generate_own_dofs_vef
     procedure, non_overridable          :: generate_own_dofs_vef_component_wise       => fe_cell_iterator_generate_own_dofs_vef_component_wise
     procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe          => fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
-    procedure, non_overridable, private :: generate_dofs_facet_integration_coupling   => fe_cell_iterator_generate_dofs_facet_integration_coupling
+    procedure, non_overridable          :: generate_dofs_facet_integration_coupling   => fe_cell_iterator_generate_dofs_facet_integration_coupling
     procedure, non_overridable, private :: renum_dofs_block                           => fe_cell_iterator_renum_dofs_block
     procedure, non_overridable, private :: renum_dofs_field                           => fe_cell_iterator_renum_dofs_field
     procedure, non_overridable, private :: update_scratch_data                        => fe_cell_iterator_update_scratch_data
@@ -356,7 +356,7 @@ module fe_space_names
      
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
      procedure, non_overridable          :: is_fe_facet                       => fe_vef_iterator_is_fe_facet
-     procedure, non_overridable, private :: has_free_dofs                     => fe_vef_iterator_has_free_dofs
+     procedure, non_overridable          :: has_free_dofs                     => fe_vef_iterator_has_free_dofs
      
      procedure                 , private :: fe_vef_iterator_get_fe_around
      generic                             :: get_cell_around                   => fe_vef_iterator_get_fe_around
@@ -593,8 +593,8 @@ module fe_space_names
      procedure                           :: create_dof_values                            => serial_fe_space_create_dof_values
      procedure                           :: generate_global_dof_numbering              => serial_fe_space_generate_global_dof_numbering
      procedure                           :: allocate_num_dofs_x_field               =>  serial_fe_space_allocate_num_dofs_x_field
-     procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
-     procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
+     procedure                           :: count_dofs                                   => serial_fe_space_count_dofs
+     procedure                           :: list_dofs                                    => serial_fe_space_list_dofs
      procedure                 , private :: renum_dofs_block                          => serial_fe_space_renum_dofs_block
  
      ! Getters
@@ -648,7 +648,7 @@ module fe_space_names
      procedure, non_overridable, private :: free_constraining_dirichlet_dofs_coefficients => serial_fe_space_free_constraining_dirichlet_dofs_coefficients
      procedure, non_overridable, private :: free_constraints_independent_term             => serial_fe_space_free_constraints_independent_term
 
-     procedure, non_overridable          :: setup_hanging_node_constraints               => serial_fe_space_setup_hanging_node_constraints
+     procedure                           :: setup_hanging_node_constraints               => serial_fe_space_setup_hanging_node_constraints
 
      procedure, non_overridable, private :: project_field_cell_to_ref_fes                 => serial_fe_space_project_field_cell_to_ref_fes
      procedure, non_overridable, private :: project_fe_integration_arrays                 => serial_fe_space_project_fe_integration_arrays
