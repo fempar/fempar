@@ -193,8 +193,8 @@ contains
          dV = fe%get_det_jacobian(igp) * quad%get_weight(igp)
          error_l2_norm      = error_l2_norm      + error_l2_gp  *dV
          error_h1_semi_norm = error_h1_semi_norm + error_h1sn_gp*dV
-         h1_semi_norm       = h1_semi_norm       + l2_gp        *dV
-         l2_norm            = l2_norm            + h1sn_gp      *dV
+         h1_semi_norm       = h1_semi_norm       + h1sn_gp*dV
+         l2_norm            = l2_norm            + l2_gp  *dV
 
        end do
 
@@ -245,8 +245,8 @@ contains
              dV = pw_cell_map%get_det_jacobian(igp) * quad%get_weight(igp)
              error_l2_norm_boundary     = error_l2_norm_boundary      + error_l2_gp  *dV
              error_h1_semi_norm_boundary= error_h1_semi_norm_boundary + error_h1sn_gp*dV
-             h1_semi_norm_boundary      = h1_semi_norm_boundary       + l2_gp        *dV
-             l2_norm_boundary           = l2_norm_boundary            + h1sn_gp      *dV
+             h1_semi_norm_boundary      = h1_semi_norm_boundary       + h1sn_gp*dV
+             l2_norm_boundary           = l2_norm_boundary            + l2_gp  *dV
 
            end do
 

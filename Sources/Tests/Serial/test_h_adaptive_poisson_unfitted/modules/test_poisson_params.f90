@@ -43,6 +43,8 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_reference_fe_order
      character(len=:), allocatable :: default_write_solution
      character(len=:), allocatable :: default_write_matrix
+     character(len=:), allocatable :: default_write_error_norms
+     character(len=:), allocatable :: default_write_aggr_info
      character(len=:), allocatable :: default_laplacian_type
      character(len=:), allocatable :: default_triangulation_type
      character(len=:), allocatable :: default_num_dims
@@ -61,6 +63,7 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_levelset_function_type
      character(len=:), allocatable :: default_levelset_tolerance
      character(len=:), allocatable :: default_domain_limits
+     character(len=:), allocatable :: default_only_setup
 
      type(Command_Line_Interface):: cli 
 
@@ -73,6 +76,8 @@ module test_poisson_params_names
      integer(ip)                   :: reference_fe_order
      logical                       :: write_solution
      logical                       :: write_matrix
+     logical                       :: write_error_norms
+     logical                       :: write_aggr_info
      character(len=str_cla_len)    :: laplacian_type
 
      character(len=str_cla_len)    :: triangulation_type
@@ -87,7 +92,8 @@ module test_poisson_params_names
      logical :: use_constraints
      character(len=str_cla_len)    :: levelset_function_type
      real(rp) :: levelset_tolerance
-     character(len=str_cla_len)    :: domain_limits
+     real(rp)    :: domain_limits(2)
+     logical :: only_setup
 
    contains
      procedure, non_overridable             :: create       => test_poisson_create
@@ -102,6 +108,8 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_reference_fe_order
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_write_matrix
+     procedure, non_overridable             :: get_write_error_norms
+     procedure, non_overridable             :: get_write_aggr_info
      procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_num_dims
@@ -114,6 +122,7 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_levelset_function_type
      procedure, non_overridable             :: get_levelset_tolerance
      procedure, non_overridable             :: get_domain_limits
+     procedure, non_overridable             :: get_only_setup
   end type test_poisson_params_t  
 
   ! Types
@@ -151,6 +160,8 @@ contains
     this%default_reference_fe_order = '1'
     this%default_write_solution = '.false.'
     this%default_write_matrix   = '.false.'
+    this%default_write_error_norms = '.false.'
+    this%default_write_aggr_info   = '.false.'
     this%default_laplacian_type = 'scalar'
     
     this%default_triangulation_type = 'unstructured'
@@ -169,7 +180,8 @@ contains
     this%default_use_constraints = '.true.'
     this%default_levelset_function_type = 'sphere'
     this%default_levelset_tolerance = '1.0e-6'
-    this%default_domain_limits = '[0,1]'
+    this%default_domain_limits = '0.0 1.0'
+    this%default_only_setup = '.false.'
     
   end subroutine test_poisson_set_default
   
@@ -203,6 +215,12 @@ contains
     check(error==0)
     call this%cli%add(switch='--write-matrix',switch_ab='-wmatrix',help='Write matrix in matrix market format',&
          &            required=.false.,act='store',def=trim(this%default_write_matrix),error=error) 
+    check(error==0)
+    call this%cli%add(switch='--write-error-norms',switch_ab='-werrornorms',help='Write error norms in csv format',&
+         &            required=.false.,act='store',def=trim(this%default_write_error_norms),error=error) 
+    check(error==0)
+    call this%cli%add(switch='--write-aggr-info',switch_ab='-waggrinfo',help='Write info about the aggregates in csv format',&
+         &            required=.false.,act='store',def=trim(this%default_write_aggr_info),error=error) 
     check(error==0)
     call this%cli%add(switch='--laplacian-type',switch_ab='-lt',help='Scalar or Vector-Valued Laplacian PDE?',&
          &            required=.false.,act='store',def=trim(this%default_laplacian_type),choices='scalar,vector',error=error) 
@@ -255,8 +273,11 @@ contains
     call this%cli%add(switch='--levelset-tol',switch_ab='-lstol',help='Tolerance for the levelset function',&
          &            required=.false.,act='store',def=trim(this%default_levelset_tolerance),error=error) 
     check(error==0) 
-    call this%cli%add(switch='--domain-limits',switch_ab='-dom',help='String with info about the domain limits',&
-         &            required=.false.,act='store',def=trim(this%default_domain_limits),error=error) 
+    call this%cli%add(switch='--domain-limits',switch_ab='-dom',help='Info about the domain limits',&
+         &            required=.false.,act='store',def=trim(this%default_domain_limits),error=error,nargs='2') 
+    check(error==0) 
+    call this%cli%add(switch='--only-setup',switch_ab='-osetup',help='True if compute only the setup of the problem, i.e., skip discrete integration and linear solver',&
+         &            required=.false.,act='store',def=trim(this%default_only_setup),error=error) 
     check(error==0) 
   end subroutine test_poisson_add_to_cli
   
@@ -276,6 +297,8 @@ contains
     call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
     call this%cli%get(switch='-wsolution',val=this%write_solution,error=istat); check(istat==0)
     call this%cli%get(switch='-wmatrix',val=this%write_matrix,error=istat); check(istat==0)
+    call this%cli%get(switch='-werrornorms',val=this%write_error_norms,error=istat); check(istat==0)
+    call this%cli%get(switch='-waggrinfo',val=this%write_aggr_info,error=istat); check(istat==0)
     call this%cli%get(switch='-lt',val=this%laplacian_type,error=istat); check(istat==0)
     call this%cli%get(switch='-tt',val=this%triangulation_type,error=istat); check(istat==0)
     call this%cli%get(switch='-dim',val=this%num_dims,error=istat); check(istat==0)
@@ -294,6 +317,7 @@ contains
     call this%cli%get(switch='-lstype',val=this%levelset_function_type,error=istat); check(istat==0)
     call this%cli%get(switch='-lstol',val=this%levelset_tolerance,error=istat); check(istat==0)
     call this%cli%get(switch='-dom',val=this%domain_limits,error=istat); check(istat==0)
+    call this%cli%get(switch='-osetup',val=this%only_setup,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -323,6 +347,8 @@ contains
     if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
     if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
     if(allocated(this%default_write_matrix)) deallocate(this%default_write_matrix)
+    if(allocated(this%default_write_error_norms)) deallocate(this%default_write_error_norms)
+    if(allocated(this%default_write_aggr_info)) deallocate(this%default_write_aggr_info)
     if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
     if(allocated(this%default_max_level)) deallocate(this%default_max_level)
     if(allocated(this%default_is_in_fe_space)) deallocate(this%default_is_in_fe_space)
@@ -333,6 +359,7 @@ contains
     if(allocated(this%default_levelset_function_type)) deallocate(this%default_levelset_function_type)
     if(allocated(this%default_levelset_tolerance)) deallocate(this%default_levelset_tolerance)
     if(allocated(this%default_domain_limits)) deallocate(this%default_domain_limits)
+    if(allocated(this%default_only_setup)) deallocate(this%default_only_setup)
     call this%cli%free()
   end subroutine test_poisson_free
 
@@ -391,6 +418,22 @@ contains
     logical :: get_write_matrix
     get_write_matrix = this%write_matrix
   end function get_write_matrix
+
+  !==================================================================================================
+  function get_write_error_norms(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical :: get_write_error_norms
+    get_write_error_norms = this%write_error_norms
+  end function get_write_error_norms
+
+  !==================================================================================================
+  function get_write_aggr_info(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical :: get_write_aggr_info
+    get_write_aggr_info = this%write_aggr_info
+  end function get_write_aggr_info
   
   !==================================================================================================
   function get_laplacian_type(this)
@@ -484,8 +527,16 @@ contains
   function get_domain_limits(this)
     implicit none
     class(test_poisson_params_t) , intent(in) :: this
-    character(len=:), allocatable :: get_domain_limits
-    get_domain_limits = trim(this%domain_limits)
+    real(rp) :: get_domain_limits(2)
+    get_domain_limits = this%domain_limits
   end function get_domain_limits 
+
+  !==================================================================================================
+  function get_only_setup(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical :: get_only_setup
+    get_only_setup = this%only_setup
+  end function get_only_setup
 
 end module test_poisson_params_names

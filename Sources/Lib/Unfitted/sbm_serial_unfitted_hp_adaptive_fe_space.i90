@@ -65,7 +65,10 @@ subroutine suhpafs_space_create_different_ref_fes_between_cells(&
   class default
     check(.false.)
   end select
+  call this%debug_info%init()
   call this%allocate_and_fill_aggregate_ids()
+  call this%compute_aggregate_size()
+  call this%check_for_full_neighbors()
 end subroutine suhpafs_space_create_different_ref_fes_between_cells
 
 !========================================================================================
@@ -78,7 +81,7 @@ subroutine suhpafs_free(this)
   if (allocated(this%aggregate_ids)) then
     call memfree(this%aggregate_ids,__FILE__,__LINE__)
   end if
-  this%max_separation_from_root = -1.0_rp
+  call this%debug_info%free()
 end subroutine suhpafs_free
 
 !========================================================================================
@@ -873,12 +876,42 @@ function suhpafs_get_aggregate_ids(this)
 end function suhpafs_get_aggregate_ids
 
 !========================================================================================
-function suhpafs_get_max_separation_from_root(this)
+subroutine suhpafs_print_debug_info(this,iounit)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(in)    :: this
-  real(rp) :: suhpafs_get_max_separation_from_root
-  suhpafs_get_max_separation_from_root = this%max_separation_from_root
-end function suhpafs_get_max_separation_from_root
+  integer(ip) :: iounit
+  integer(ip) :: istat
+  real(rp)    :: max_aggregate_size
+  integer(ip) :: max_aggregate_size_id
+  logical     :: has_full_neig_along_dim(3)
+  integer(ip) :: max_separation_from_root_id
+  real(ip)    :: max_separation_from_root
+  integer(ip) :: has_full_neig_along_dim_int(3)
+  integer(ip) :: i
+
+  istat = this%debug_info%get(key='max_separation_from_root_id',  value=max_separation_from_root_id ); check(istat==0)
+  istat = this%debug_info%get(key='max_separation_from_root',     value=max_separation_from_root    ); check(istat==0)
+  istat = this%debug_info%get(key='max_aggregate_size',           value=max_aggregate_size          ); check(istat==0)
+  istat = this%debug_info%get(key='max_aggregate_size_id',        value=max_aggregate_size_id       ); check(istat==0)
+  istat = this%debug_info%get(key='has_full_neig_c',              value=has_full_neig_along_dim(1)  ); check(istat==0)
+  istat = this%debug_info%get(key='has_full_neig_e',              value=has_full_neig_along_dim(2)  ); check(istat==0)
+  istat = this%debug_info%get(key='has_full_neig_f',              value=has_full_neig_along_dim(3)  ); check(istat==0)
+
+  has_full_neig_along_dim_int(:) = 0
+  do i = 1,3
+    if (has_full_neig_along_dim(i)) then
+      has_full_neig_along_dim_int(i) = 1
+    end if
+  end do
+
+  write(iounit,'(a,e32.25)') 'max_separation_from_root    ;',  max_separation_from_root      
+  write(iounit,'(a,i32)'   ) 'max_separation_from_root_id ;',  max_separation_from_root_id
+  write(iounit,'(a,e32.25)') 'max_aggregate_size          ;',  max_aggregate_size                  
+  write(iounit,'(a,i32)'   ) 'max_aggregate_size_id       ;',  max_aggregate_size_id            
+  write(iounit,'(a,i32)'   ) 'has_full_neig_c             ;',  has_full_neig_along_dim_int(1)             
+  write(iounit,'(a,i32)'   ) 'has_full_neig_e             ;',  has_full_neig_along_dim_int(2)             
+  write(iounit,'(a,i32)'   ) 'has_full_neig_f             ;',  has_full_neig_along_dim_int(3)             
+end subroutine suhpafs_print_debug_info
 
 !========================================================================================
 subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
@@ -886,6 +919,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout)    :: this
 
   class(cell_iterator_t), allocatable :: cell
+  integer(ip) :: icell
   class(cell_iterator_t), allocatable :: cell_arround
   integer(ip), parameter :: max_num_sweeps = 5
   integer(ip) :: isweep
@@ -899,6 +933,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   integer(ip), allocatable :: tent_distance(:)
   integer(ip), allocatable :: min_distance(:)
   integer(ip) :: min_distance_aggr_id
+  logical(ip),allocatable :: touched(:)
 
   integer(ip), allocatable :: distance(:,:)
   integer(ip), target :: face2dir_2d(4,2) = reshape([0,0,1,-1,1,-1,0,0],[4,2])
@@ -907,11 +942,20 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
                                                       1,-1, 0, 0, 0, 0],[6,3])
   integer(ip), pointer :: face2dir(:,:)
 
+  integer(ip) :: max_separation_from_root_id
+  real(ip)    :: max_separation_from_root
+  integer(ip) :: istat
+
+
   triangulation => this%get_triangulation()
   call memalloc(triangulation%get_num_local_cells(),this%aggregate_ids,__FILE__,__LINE__)
 
   if (.not. this%use_constraints) then
     this%aggregate_ids(:) = 0
+    max_separation_from_root_id = -1
+    max_separation_from_root    = -1.0_rp
+    istat = this%debug_info%set(key='max_separation_from_root_id',value=max_separation_from_root_id); check(istat==0)
+    istat = this%debug_info%set(key='max_separation_from_root',   value=max_separation_from_root   ); check(istat==0)
     return
   end if
 
@@ -923,9 +967,10 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
     mcheck(.false.,'Only for 3D and 2D')
   end if
 
-  this%max_separation_from_root = 0.0_rp
+  max_separation_from_root = 0.0_rp
 
   call memalloc(triangulation%get_num_local_cells(),triangulation%get_num_dims(),distance,__FILE__,__LINE__)
+  call memalloc(triangulation%get_num_local_cells(),touched,__FILE__,__LINE__)
   call memalloc(triangulation%get_num_dims(),tent_distance,__FILE__,__LINE__)
   call memalloc(triangulation%get_num_dims(),min_distance,__FILE__,__LINE__)
 
@@ -934,11 +979,13 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   call triangulation%create_vef_iterator(vef)
 
   ! Initialize by setting the roots of the aggregates
+  touched(:) = .false.
   do while (.not. cell%has_finished())
     if (cell%is_local()) then
       if (cell%is_interior()) then
         this%aggregate_ids(cell%get_gid()) = cell%get_gid()
         distance(cell%get_gid(),:) = 0
+        touched(cell%get_gid()) = .true.
       else
         this%aggregate_ids(cell%get_gid()) = 0
       end if
@@ -959,7 +1006,8 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
     is_needed = .false.
     do while (.not. cell%has_finished())
       if (cell%is_local()) then
-        if ( cell%is_cut() .and. (this%aggregate_ids(cell%get_gid()) == 0) ) then
+        if ( cell%is_cut() .and. (.not. touched(cell%get_gid())) )  then
+
 
           ! TODO: We try to glue only by true neighbors
           ! For adaptive meshes, shall we look for improper neighbors as well?
@@ -974,8 +1022,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
             ifacet = ifacet + 1
             do icell_arround = 1,vef%get_num_cells_around()
               call vef%get_cell_around(icell_arround,cell_arround)
-              if ( (isweep == 1) .and. (.not. cell_arround%is_interior()) ) cycle
-              if ( this%aggregate_ids(cell_arround%get_gid()) > 0 ) then
+              if ( touched(cell_arround%get_gid()) ) then
 
                 ! Compute the movement to reach the root element
                 tent_distance = distance(cell_arround%get_gid(),:) + face2dir(ifacet,:)
@@ -995,13 +1042,19 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
           else
             this%aggregate_ids(cell%get_gid()) = min_distance_aggr_id
             distance(cell%get_gid(),:) = min_distance
-            this%max_separation_from_root = max(this%max_separation_from_root,norm2(real(min_distance,kind=rp)))
+            if (max_separation_from_root < norm2(real(min_distance,kind=rp))) then
+              max_separation_from_root = norm2(real(min_distance,kind=rp))
+              max_separation_from_root_id = min_distance_aggr_id
+            end if
           end if
 
         end if
       end if
       call cell%next()
     end do
+
+    ! Mark as touched all the aggregated cells
+    touched(:) = this%aggregate_ids(:) > 0
 
     isweep = isweep + 1
   end do
@@ -1010,13 +1063,160 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   call triangulation%free_cell_iterator(cell_arround)
   call triangulation%free_vef_iterator(vef)
 
+  ! Store info
+  istat = this%debug_info%set(key='max_separation_from_root_id',value=max_separation_from_root_id); check(istat==0)
+  istat = this%debug_info%set(key='max_separation_from_root',value=max_separation_from_root); check(istat==0)
+
   call memfree(tent_distance,__FILE__,__LINE__)
   call memfree(min_distance,__FILE__,__LINE__)
   call memfree(distance,__FILE__,__LINE__)
+  call memfree(touched,__FILE__,__LINE__)
 
 end subroutine suhpafs_allocate_and_fill_aggregate_ids
 
 !========================================================================================
+subroutine suhpafs_compute_aggregate_size(this)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout)    :: this
+
+  class(cell_iterator_t), allocatable :: cell
+  real(rp), allocatable :: extreme_coords(:,:,:)
+  integer(ip) :: max_full_cell_id
+  type(point_t), allocatable :: coords(:)
+  integer(ip) :: inode
+  integer(ip) :: idime
+  integer(ip) :: iaggr
+  integer(ip), parameter :: XMAX=2, XMIN=1
+  real(rp) :: max_aggregate_size
+  integer(ip) :: max_aggregate_size_id
+  integer(ip) :: istat
+  class(triangulation_t), pointer :: triangulation
+
+  if (.not. this%use_constraints) then
+    max_aggregate_size    = -1.0_rp
+    max_aggregate_size_id = -1
+    istat = this%debug_info%set(key='max_aggregate_size',   value=max_aggregate_size   ); check(istat==0)
+    istat = this%debug_info%set(key='max_aggregate_size_id',value=max_aggregate_size_id); check(istat==0)
+    return
+  end if
+
+  triangulation => this%get_triangulation()
+
+  call triangulation%create_cell_iterator(cell)
+
+  ! Count number of full cells
+  max_full_cell_id = 0
+  do while (.not. cell%has_finished())
+    if (cell%is_local() .and. cell%is_interior()) then
+      max_full_cell_id = max(max_full_cell_id,cell%get_gid())
+    end if
+    call cell%next()
+  end do
+
+  ! Determine the extreme coordinates
+  call memalloc(max_full_cell_id,triangulation%get_num_dims(),2,extreme_coords,__FILE__,__LINE__)
+  call memalloc(this%get_max_num_shape_functions(),coords,__FILE__,__LINE__)
+  extreme_coords(:,:,XMAX) = -999999999999_rp
+  extreme_coords(:,:,XMIN) = +999999999999_rp
+  call cell%first()
+  do while (.not. cell%has_finished())
+    if (cell%is_local() .and. ( cell%is_cut() .or. cell%is_interior() )) then
+      call cell%get_nodes_coordinates(coords)
+      do inode = 1,cell%get_num_nodes()
+        do idime = 1,triangulation%get_num_dims()
+        if (coords(inode)%get(idime)>extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMAX)) then
+          extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMAX) = coords(inode)%get(idime)
+        end if
+        if (coords(inode)%get(idime)<extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMIN)) then
+          extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMIN) = coords(inode)%get(idime)
+        end if
+        end do
+      end do
+    end if
+    call cell%next()
+  end do
+
+  ! Compute the maximum aggregate size
+  max_aggregate_size = 0
+  call cell%first()
+  do while (.not. cell%has_finished())
+    if (cell%is_local() .and. ( cell%is_cut() .or. cell%is_interior() )) then
+      iaggr = this%aggregate_ids(cell%get_gid())
+      do idime = 1, triangulation%get_num_dims()
+        if (max_aggregate_size<(extreme_coords(iaggr,idime,XMAX)-extreme_coords(iaggr,idime,XMIN))) then
+          max_aggregate_size = extreme_coords(iaggr,idime,XMAX)-extreme_coords(iaggr,idime,XMIN)
+          max_aggregate_size_id = iaggr
+        end if
+      end do
+    end if
+    call cell%next()
+  end do
+
+  ! Store the computed value
+  istat = this%debug_info%set(key='max_aggregate_size',value=max_aggregate_size); check(istat==0)
+  istat = this%debug_info%set(key='max_aggregate_size_id',value=max_aggregate_size_id); check(istat==0)
+
+  call triangulation%free_cell_iterator(cell)
+  call memfree(coords,__FILE__,__LINE__)
+  call memfree(extreme_coords,__FILE__,__LINE__)
+
+end subroutine suhpafs_compute_aggregate_size
+
+!========================================================================================
+subroutine suhpafs_check_for_full_neighbors(this)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout)    :: this
+
+  logical :: has_full_neig_along_dim(3)
+  logical :: cell_has_full_neig_along_dim(3)
+  class(cell_iterator_t), allocatable :: cell
+  class(cell_iterator_t), allocatable :: cell_arround
+  class(vef_iterator_t), allocatable :: vef
+  integer(ip) :: ivef
+  integer(ip) :: icell_arround
+  integer(ip) :: i
+  class(triangulation_t), pointer :: triangulation
+  integer(ip) :: istat
+
+ triangulation => this%get_triangulation()
+
+  call triangulation%create_cell_iterator(cell)
+  call triangulation%create_cell_iterator(cell_arround)
+  call triangulation%create_vef_iterator(vef)
+
+  has_full_neig_along_dim(:) = .true.
+  if (triangulation%get_num_dims() == 2) then
+    has_full_neig_along_dim(3) = .false.
+  end if
+  do while (.not. cell%has_finished())
+    if (cell%is_local() .and. cell%is_cut()) then
+        cell_has_full_neig_along_dim(:) = .false.
+        do ivef = 1, cell%get_num_vefs()
+          call cell%get_vef(ivef,vef)
+          do icell_arround = 1,vef%get_num_cells_around()
+            call vef%get_cell_around(icell_arround,cell_arround)
+            if (cell_arround%is_interior()) then
+              cell_has_full_neig_along_dim(vef%get_dim()+1) = .true.
+            end if
+          end do
+        end do
+        do i=1,triangulation%get_num_dims()
+         if (.not. cell_has_full_neig_along_dim(i)) has_full_neig_along_dim(i) = .false.
+        end do
+    end if
+    call cell%next()
+  end do
+
+  call triangulation%free_cell_iterator(cell)
+  call triangulation%free_cell_iterator(cell_arround)
+  call triangulation%free_vef_iterator(vef)
+
+  istat = this%debug_info%set(key='has_full_neig_c',value=has_full_neig_along_dim(1)); check(istat==0)
+  istat = this%debug_info%set(key='has_full_neig_e',value=has_full_neig_along_dim(2)); check(istat==0)
+  istat = this%debug_info%set(key='has_full_neig_f',value=has_full_neig_along_dim(3)); check(istat==0)
+
+end subroutine suhpafs_check_for_full_neighbors
+
 subroutine send_to_reference_space(phys_coords_as_point,fe_quad,cell_map,ref_coords_as_quadrature)
   implicit none
   type(point_t),      intent(in)    :: phys_coords_as_point(:)

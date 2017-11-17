@@ -46,6 +46,8 @@ module unfitted_fe_spaces_names
   use unfitted_triangulations_names
   use piecewise_cell_map_names
 
+  use ParameterList
+
   implicit none
 # include "debug.i90"
   private
@@ -156,8 +158,8 @@ module unfitted_fe_spaces_names
       class(unfitted_p4est_serial_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
       type(unfitted_integration_manager_t) :: unfitted_integration
       integer(ip), allocatable :: aggregate_ids(:)
-      real(rp) :: max_separation_from_root = -1.0_rp
       logical :: use_constraints = .true.
+      type(ParameterList_t), public :: debug_info
     contains
       ! Creation / deletion methods
       procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => suhpafs_create_same_reference_fes_on_all_cells
@@ -175,11 +177,14 @@ module unfitted_fe_spaces_names
 
       ! Getters
       procedure, non_overridable :: get_aggregate_ids                               => suhpafs_get_aggregate_ids
-      procedure, non_overridable :: get_max_separation_from_root                    => suhpafs_get_max_separation_from_root
+
+      ! Printers
+      procedure, non_overridable :: print_debug_info => suhpafs_print_debug_info
 
       ! Private TBPs
       procedure, private, non_overridable :: allocate_and_fill_aggregate_ids        => suhpafs_allocate_and_fill_aggregate_ids
-      
+      procedure, private, non_overridable :: compute_aggregate_size                 => suhpafs_compute_aggregate_size
+      procedure, private, non_overridable :: check_for_full_neighbors               => suhpafs_check_for_full_neighbors
 
   end type serial_unfitted_hp_adaptive_fe_space_t
 

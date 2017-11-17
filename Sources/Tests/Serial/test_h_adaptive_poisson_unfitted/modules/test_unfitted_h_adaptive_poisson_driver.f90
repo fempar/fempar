@@ -133,6 +133,8 @@ contains
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
     type(level_set_function_factory_t) :: level_set_factory
+    real(rp) :: dom1d(2)
+    real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
     massert( this%parameter_list%isPresent   (key = num_dims_key), 'Use -tt structured' )
@@ -145,12 +147,15 @@ contains
     ! Set options of the base class
     call this%level_set_function%set_num_dims(num_dime)
     call this%level_set_function%set_tolerance(this%test_params%get_levelset_tolerance())
-    if (this%test_params%get_domain_limits() == '[-1,1]') then
-      call this%level_set_function%set_domain([-1.0_rp,1.0_rp,-1.0_rp,1.0_rp,-1.0_rp,1.0_rp])
-    else if (.not. this%test_params%get_domain_limits() == '[0,1]') then
-      mcheck(.false.,'Wrong domain limits: '//this%test_params%get_domain_limits())
-    end if
-
+    dom1d = this%test_params%get_domain_limits()
+    mcheck(dom1d(2)>dom1d(1),'Upper limit has to be bigger than lower limit')
+    dom3d(1) = dom1d(1)
+    dom3d(2) = dom1d(2)
+    dom3d(3) = dom1d(1)
+    dom3d(4) = dom1d(2)
+    dom3d(5) = dom1d(1)
+    dom3d(6) = dom1d(2)
+    call this%level_set_function%set_domain(dom3d)
 
     ! Set options of the derived classes
     ! TODO a parameter list would be better to define the level set function together with its parameters
@@ -193,11 +198,17 @@ contains
       ! Refine one level uniformly
       call this%triangulation%create_cell_iterator(cell)
       do while (.not. cell%has_finished())
+        !if (cell%is_interior() .or. cell%is_cut()) then
+        !  call cell%set_for_refinement()
+        !else
+        !  call cell%set_for_coarsening()
+        !end if
         call cell%set_for_refinement()
         call cell%next()
       end do
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%clear_refinement_and_coarsening_flags()
+      !call this%triangulation%update_cut_cells(this%level_set_function)
       call this%triangulation%free_cell_iterator(cell)
     end do
     
@@ -351,6 +362,7 @@ contains
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
 
+    integer(ip) :: iounit
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
     set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
@@ -377,53 +389,16 @@ contains
     end if
     
     call this%fe_space%set_up_cell_integration()    
+
+    ! Write some info
+    if (this%test_params%get_write_aggr_info()) then
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_aggr_info.csv',action='write')
+      check(iounit>0)
+      call this%fe_space%print_debug_info(iounit)
+      call io_close(iounit)
+    end if
     
   end subroutine setup_fe_space
-  
-!  subroutine refine_and_coarsen(this)
-!    implicit none
-!    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
-!    integer(ip) :: i
-!    
-!    integer(ip) :: set_ids_to_reference_fes(1,2)
-!
-!    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
-!    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
-!    
-!    do i=1, 10
-!       
-!       call this%triangulation%clear_refinement_and_coarsening_flags()
-!       if ( mod(i,3) == 0 ) then 
-!          call this%set_cells_for_coarsening()
-!       else
-!         call this%set_cells_for_refinement()
-!       end if
-!       !call this%fill_cells_set()
-!       call this%triangulation%refine_and_coarsen()
-!       
-!       if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-!         call this%fe_space%refine_and_coarsen(this%solution) 
-!       else
-!         mcheck(.false.,'Only tested for scalar problems')
-!         !call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,             &
-!         !                                       conditions          = this%vector_poisson_conditions, &
-!         !                                       fe_function         = this%solution,           &
-!         !                                       set_ids_to_reference_fes = set_ids_to_reference_fes)
-!       end if
-!       
-!       call this%fe_space%set_up_cell_integration()
-!       
-!       !if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-!       !  call this%check_solution()
-!       !else
-!       !  call this%check_solution_vector()
-!       !end if
-!       
-!    end do  
-!    
-!    call this%triangulation%update_cut_cells(this%level_set_function)
-!    
-!  end subroutine refine_and_coarsen
   
   subroutine setup_system (this)
     implicit none
@@ -605,7 +580,7 @@ contains
     write(*,'(a,e32.25)') 'rel_error_l2_norm_boundary:     ', error_l2_norm_boundary      /l2_norm_boundary
     write(*,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
-    if (this%test_params%get_write_matrix()) then
+    if (this%test_params%get_write_error_norms()) then
       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'l2_norm                ;', l2_norm
@@ -620,7 +595,6 @@ contains
       write(iounit,'(a,e32.25)') 'error_h1_semi_norm_boundary    ;', error_h1_semi_norm_boundary    
       write(iounit,'(a,e32.25)') 'rel_error_l2_norm_boundary     ;', error_l2_norm_boundary      /l2_norm_boundary
       write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary;', error_h1_semi_norm_boundary /h1_semi_norm_boundary
-      write(iounit,'(a,e32.25)'   ) 'max_separation_from_root       ;', this%fe_space%get_max_separation_from_root()
       call io_close(iounit)
     end if
 
@@ -727,6 +701,8 @@ contains
     character(len=:), allocatable            :: prefix
     real(rp),allocatable :: cell_vector(:)
     real(rp),allocatable :: cell_vector_set_ids(:)
+    real(rp), allocatable :: cell_rel_pos(:)
+    real(rp), allocatable :: cell_in_aggregate(:)
     integer(ip) :: N, P, pid, i
     class(cell_iterator_t), allocatable :: cell
     
@@ -746,16 +722,19 @@ contains
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
         call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),cell_vector_set_ids,__FILE__,__LINE__)
+        call memalloc(this%triangulation%get_num_cells(),cell_rel_pos,__FILE__,__LINE__)
+        call memalloc(this%triangulation%get_num_cells(),cell_in_aggregate,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggrs_ids,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggrs_ids_color,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggregate_ids_color,__FILE__,__LINE__)
         
-        aggregate_ids => this%fe_space%get_aggregate_ids()
-        aggrs_ids(:) = real(aggregate_ids,kind=rp)
-
-        aggregate_ids_color(:) = aggregate_ids
-        call colorize_aggregate_ids(this%triangulation,aggregate_ids_color)
-        aggrs_ids_color(:) = real(aggregate_ids_color,kind=rp)
+        if (this%test_params%get_use_constraints()) then
+          aggregate_ids => this%fe_space%get_aggregate_ids()
+          aggrs_ids(:) = real(aggregate_ids,kind=rp)
+          aggregate_ids_color(:) = aggregate_ids
+          call colorize_aggregate_ids(this%triangulation,aggregate_ids_color)
+          aggrs_ids_color(:) = real(aggregate_ids_color,kind=rp)
+        end if
         
         N=this%triangulation%get_num_cells()
         P=6
@@ -770,19 +749,46 @@ contains
         end do
         call this%triangulation%free_cell_iterator(cell)
 
+        cell_rel_pos(:) = 0.0_rp
         call this%triangulation%create_cell_iterator(cell)
         do while (.not. cell%has_finished())
           cell_vector_set_ids(cell%get_gid()) = cell%get_set_id()
+          if (cell%is_cut()) then
+            cell_rel_pos(cell%get_gid()) = 0.0_rp
+          else if (cell%is_interior()) then
+            cell_rel_pos(cell%get_gid()) = -1.0_rp
+          else if (cell%is_exterior()) then
+            cell_rel_pos(cell%get_gid()) = 1.0_rp
+          else
+            mcheck(.false.,'Cell can only be either interior, exterior or cut')
+          end if
           call cell%next()
         end do
-        call this%triangulation%free_cell_iterator(cell)
+        
+        if (this%test_params%get_use_constraints()) then
+          cell_in_aggregate(:) = 0.0_rp
+          call cell%first()
+          do while (.not. cell%has_finished())
+            if (cell%is_cut()) then
+              cell_in_aggregate(cell%get_gid()) = 1.0_rp
+              cell_in_aggregate(aggregate_ids(cell%get_gid())) = 1.0_rp
+            end if
+            call cell%next()
+          end do
+        end if
 
+        call this%triangulation%free_cell_iterator(cell)
 
         call oh%add_cell_vector(cell_vector,'cell_ids')
         call oh%add_cell_vector(cell_vector_set_ids,'cell_set_ids')
+        call oh%add_cell_vector(cell_rel_pos,'cell_rel_pos')
         
-        call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
-        call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
+        if (this%test_params%get_use_constraints()) then
+          call oh%add_cell_vector(cell_in_aggregate,'cell_in_aggregate')
+        
+          call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
+          call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
+        end if
 
         call oh%open(path, prefix)
         call oh%write()
@@ -790,6 +796,8 @@ contains
         call oh%free()
         call memfree(cell_vector,__FILE__,__LINE__)
         call memfree(cell_vector_set_ids,__FILE__,__LINE__)
+        call memfree(cell_rel_pos,__FILE__,__LINE__)
+        call memfree(cell_in_aggregate,__FILE__,__LINE__)
         call memfree(aggrs_ids,__FILE__,__LINE__)
         call memfree(aggrs_ids_color,__FILE__,__LINE__)
         call memfree(aggregate_ids_color,__FILE__,__LINE__)
@@ -891,37 +899,29 @@ contains
   
   subroutine run_simulation(this) 
     implicit none
-    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this    
+    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
     call this%free()
     call this%parse_command_line_parameters()
     call this%setup_levelset()
     call this%setup_triangulation()
     call this%fill_cells_set()
     call this%setup_reference_fes()
-    
-    !! It is conter intuitive that this is needed for adapting the mesh
-    !call this%setup_fe_space()
-    !call this%setup_system()
-    !call this%assemble_system()
-    !call this%solution%create(this%fe_space) 
-    
-    !! Adapt mesh
-    !call this%refine_and_coarsen()
-    !call this%fill_cells_set()
-    
-    ! Setup fe space and co for the new mesh 
     call this%setup_fe_space()
+    
+    
     call this%setup_system()
-    call this%assemble_system()
-    call this%setup_solver()
-    !call this%solution%create(this%fe_space) 
-    call this%solve_system()
-    if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-      call this%check_solution()
-    else
-      mcheck(.false.,'Only for scalar fnctions')
-    !  call this%check_solution_vector()
+
+    if ( .not. this%test_params%get_only_setup() ) then
+      call this%assemble_system()
+      call this%setup_solver()
+      call this%solve_system()
+      if ( this%test_params%get_laplacian_type() == 'scalar' ) then
+        call this%check_solution()
+      else
+        mcheck(.false.,'Only for scalar fnctions')
+      end if
     end if
+
     call this%write_solution()
     call this%write_filling_curve()
     call this%free()
