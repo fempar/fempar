@@ -643,6 +643,7 @@ subroutine suhpafs_list_dofs ( this )
   call memfree ( per_field_proper_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
   call memfree ( per_field_improper_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
   call memfree ( per_field_visited_proper_vefs_at_interface, __FILE__, __LINE__)
+  call memfree (num_dofs_x_field,__FILE__,__LINE__)
 end subroutine suhpafs_list_dofs 
 
 !========================================================================================
