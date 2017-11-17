@@ -33,6 +33,7 @@ module unfitted_fe_spaces_names
   use list_types_names
   use list_types_names
   use block_layout_names
+  use std_vector_names
   
   use triangulation_names
   use p4est_triangulation_names

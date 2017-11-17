@@ -457,7 +457,7 @@ module fe_space_names
   integer(ip), parameter :: fe_space_default_quadrature_degree_flag = -1000
   
   type, extends(base_fe_space_t) :: serial_fe_space_t 
-     !private      ! UNDER QUARANTINE
+     private
      ! Reference FE container
      integer(ip)                                 :: reference_fes_size
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
@@ -615,8 +615,10 @@ module fe_space_names
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure                           :: get_num_fixed_dofs                           => serial_fe_space_get_num_fixed_dofs
+     procedure, non_overridable          :: set_num_fixed_dofs                           => serial_fe_space_set_num_fixed_dofs
      procedure                           :: get_num_dirichlet_dofs                       => serial_fe_space_get_num_dirichlet_dofs
      procedure                           :: get_num_hanging_dofs                         => serial_fe_space_get_num_hanging_dofs
+     procedure, non_overridable          :: set_num_hanging_dofs                         => serial_fe_space_set_num_hanging_dofs
      procedure                           :: get_num_blocks                            => serial_fe_space_get_num_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling
@@ -625,6 +627,13 @@ module fe_space_names
      procedure, non_overridable          :: get_block_layout                             => serial_fe_space_get_block_layout
      procedure, non_overridable          :: set_block_layout                             => serial_fe_space_set_block_layout
      procedure, non_overridable          :: nullify_block_layout                         => serial_fe_space_nullify_block_layout
+     procedure, non_overridable          :: get_ptr_constraining_free_dofs               => serial_fe_space_get_ptr_constraining_free_dofs
+     procedure, non_overridable          :: get_ptr_constraining_dirichlet_dofs          => serial_fe_space_get_ptr_constraining_dirichlet_dofs
+     procedure, non_overridable          :: get_constraining_free_dofs                   => serial_fe_space_get_constraining_free_dofs
+     procedure, non_overridable          :: get_constraining_free_dofs_coefficients      => serial_fe_space_get_constraining_free_dofs_coefficients
+     procedure, non_overridable          :: get_constraining_dirichlet_dofs              => serial_fe_space_get_constraining_dirichlet_dofs
+     procedure, non_overridable          :: get_constraining_dirichlet_dofs_coefficients => serial_fe_space_get_constraining_dirichlet_dofs_coefficients
+     procedure, non_overridable          :: get_constraints_independent_term             => serial_fe_space_get_constraints_independent_term
      
      
      ! fes, fe_vefs and fe_faces traversals-related TBPs

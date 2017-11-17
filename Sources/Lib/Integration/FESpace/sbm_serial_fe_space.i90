@@ -2458,6 +2458,13 @@ function serial_fe_space_get_num_fixed_dofs(this)
   serial_fe_space_get_num_fixed_dofs = this%num_fixed_dofs
 end function serial_fe_space_get_num_fixed_dofs
 
+subroutine serial_fe_space_set_num_fixed_dofs(this,num_fixed_dofs)
+  implicit none
+  class(serial_fe_space_t), intent(inout)    :: this 
+  integer(ip), intent(inout) :: num_fixed_dofs
+  this%num_fixed_dofs = num_fixed_dofs
+end subroutine serial_fe_space_set_num_fixed_dofs
+
 function serial_fe_space_get_num_dirichlet_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
@@ -2471,6 +2478,13 @@ function serial_fe_space_get_num_hanging_dofs(this)
   integer(ip) :: serial_fe_space_get_num_hanging_dofs
   serial_fe_space_get_num_hanging_dofs = this%num_hanging_dofs
 end function serial_fe_space_get_num_hanging_dofs
+
+subroutine serial_fe_space_set_num_hanging_dofs(this,num_hanging_dofs)
+  implicit none
+  class(serial_fe_space_t), intent(inout)    :: this 
+  integer(ip), intent(in) :: num_hanging_dofs
+  this%num_hanging_dofs = num_hanging_dofs
+end subroutine serial_fe_space_set_num_hanging_dofs
 
 function serial_fe_space_get_num_blocks( this)
   implicit none
@@ -2553,6 +2567,55 @@ subroutine serial_fe_space_nullify_block_layout ( this )
   class(serial_fe_space_t)    , intent(inout) :: this
   nullify(this%block_layout)
 end subroutine serial_fe_space_nullify_block_layout
+
+function serial_fe_space_get_ptr_constraining_free_dofs(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_integer_ip_t), pointer :: serial_fe_space_get_ptr_constraining_free_dofs
+  serial_fe_space_get_ptr_constraining_free_dofs => this%ptr_constraining_free_dofs
+end function serial_fe_space_get_ptr_constraining_free_dofs
+
+function serial_fe_space_get_ptr_constraining_dirichlet_dofs(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_integer_ip_t), pointer :: serial_fe_space_get_ptr_constraining_dirichlet_dofs
+  serial_fe_space_get_ptr_constraining_dirichlet_dofs => this%ptr_constraining_dirichlet_dofs
+end function serial_fe_space_get_ptr_constraining_dirichlet_dofs
+
+function serial_fe_space_get_constraining_free_dofs(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_integer_ip_t), pointer :: serial_fe_space_get_constraining_free_dofs
+  serial_fe_space_get_constraining_free_dofs => this%constraining_free_dofs
+end function serial_fe_space_get_constraining_free_dofs
+
+function serial_fe_space_get_constraining_free_dofs_coefficients(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_real_rp_t), pointer :: serial_fe_space_get_constraining_free_dofs_coefficients
+  serial_fe_space_get_constraining_free_dofs_coefficients => this%constraining_free_dofs_coefficients
+end function serial_fe_space_get_constraining_free_dofs_coefficients
+
+function serial_fe_space_get_constraining_dirichlet_dofs(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_integer_ip_t), pointer :: serial_fe_space_get_constraining_dirichlet_dofs
+  serial_fe_space_get_constraining_dirichlet_dofs => this%constraining_dirichlet_dofs
+end function serial_fe_space_get_constraining_dirichlet_dofs
+
+function serial_fe_space_get_constraining_dirichlet_dofs_coefficients(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_real_rp_t), pointer :: serial_fe_space_get_constraining_dirichlet_dofs_coefficients
+  serial_fe_space_get_constraining_dirichlet_dofs_coefficients => this%constraining_dirichlet_dofs_coefficients
+end function serial_fe_space_get_constraining_dirichlet_dofs_coefficients
+
+function serial_fe_space_get_constraints_independent_term(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+     type(std_vector_real_rp_t), pointer :: serial_fe_space_get_constraints_independent_term
+     serial_fe_space_get_constraints_independent_term => this%constraints_independent_term
+end function serial_fe_space_get_constraints_independent_term
 
 subroutine serial_fe_space_create_fe_cell_iterator ( this, fe )
 
