@@ -31,8 +31,6 @@ module par_nsi_driver_names
   use nsi_discrete_integration_names
   use par_nsi_conditions_names
   use par_nsi_analytical_functions_names
-  use par_nsi_linear_solver_names
-  use par_nsi_nonlinear_solver_names
   
   
 # include "debug.i90"
@@ -401,8 +399,8 @@ end subroutine free_timers
     ! sbadia : For the moment identity preconditioner
     call this%linear_solver%set_operators( this%nonlinear_operator%get_tangent(), .identity. this%nonlinear_operator%get_tangent() )
 
-    ! Nonlinear solver ! par_nsi_abs_res_norm_and_rel_inc_norm
-    call this%nonlinear_solver%create(convergence_criteria = par_nsi_abs_res_norm, & 
+    ! Nonlinear solver ! abs_res_norm_and_rel_inc_norm
+    call this%nonlinear_solver%create(convergence_criteria = abs_res_norm, & 
          &                                         abs_tol = 1.0e-6,  &
          &                                         rel_tol = 1.0e-9, &
          &                                       max_iters = 10   ,  &

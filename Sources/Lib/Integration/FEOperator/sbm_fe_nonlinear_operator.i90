@@ -114,9 +114,6 @@ subroutine fe_nonlinear_operator_reallocate_after_remesh(this)
   
   call this%assembler%allocate_array()
   call this%assembler%init_array(0.0_rp)  
-  
-  !call this%assembler%allocate_matrix()
-  !call this%assembler%init_matrix(0.0_rp)
  
   call this%create_vector_spaces()
   this%state = created
@@ -345,7 +342,7 @@ function fe_nonlinear_operator_get_tangent(this) result(tangent)
   implicit none
   class(fe_nonlinear_operator_t), intent(in) :: this
   type(lvalue_operator_t)          :: tangent
-  assert ( .not. this%state == created )
+  assert ( associated(this%state)  )
   tangent = this%assembler%get_matrix()
   call tangent%SetTemp()
 end function fe_nonlinear_operator_get_tangent
@@ -361,7 +358,7 @@ function fe_nonlinear_operator_get_translation(this) result(translation)
   implicit none
   class(fe_nonlinear_operator_t), intent(in) :: this
   class(vector_t), pointer                :: translation
-  assert ( .not. this%state == created )
+  assert ( associated(this%state)  )
   translation => this%assembler%get_array()
 end function fe_nonlinear_operator_get_translation
 
