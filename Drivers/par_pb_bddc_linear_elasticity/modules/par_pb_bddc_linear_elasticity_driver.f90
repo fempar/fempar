@@ -1041,6 +1041,7 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    type(timer_t) :: t_solve_system
 
     call this%timer_triangulation%start()
     call this%setup_triangulation()
@@ -1058,13 +1059,12 @@ contains
     call this%assemble_system()
     call this%timer_assemply%stop()
 
-    call this%timer_solver_setup%start()
+    call t_solve_system%create(this%par_environment%get_w_context() , "SOLVE SYSTEM", TIMER_MODE_MIN)
+    call t_solve_system%start()
     call this%setup_solver()
-    call this%timer_solver_setup%stop()
-
-    call this%timer_solver_run%start()
     call this%solve_system()
-    call this%timer_solver_run%stop()
+    call t_solve_system%stop()
+    call t_solve_system%report()
 
     call this%check_solution()
     call this%write_solution()
