@@ -110,6 +110,7 @@ module par_pb_bddc_linear_elasticity_driver_names
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
+     procedure                  :: free_discrete_integration 
   end type par_pb_bddc_linear_elasticity_fe_driver_t
 
   ! Types
@@ -627,6 +628,16 @@ contains
     
   end subroutine setup_discrete_integration
 
+  subroutine free_discrete_integration(this)
+    implicit none
+    class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
+    integer(ip) :: istat
+    if (allocated(this%linear_elasticity_integration)) then
+      call this%linear_elasticity_integration%free()
+      deallocate(this%linear_elasticity_integration, stat=istat); check(istat==0);
+    end if 
+  end subroutine free_discrete_integration
+
   !========================================================================================
 
   subroutine setup_reference_fes(this)
@@ -1108,6 +1119,7 @@ contains
     call this%mlbddc%free()
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
+    call this%free_discrete_integration()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
        do i=1, size(this%reference_fes)
@@ -1116,9 +1128,12 @@ contains
        deallocate(this%reference_fes, stat=istat)
        check(istat==0)
     end if
+    if ( allocated(this%coarse_fe_handlers) ) then
+      deallocate(this%coarse_fe_handlers, stat=istat)
+      check(istat==0)
+    end if
     call this%triangulation%free()
     if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
-    call this%linear_elasticity_integration%free()
   end subroutine free
 
   !========================================================================================
