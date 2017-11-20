@@ -49,6 +49,8 @@ use types_names
 
 contains
 
+# define in_place
+
 ! Specialization to a sort by the first k elements of an array 
 ! (old use of sortix in mesh_partition.f90)
 # define name sort_array_cols_by_row_element_ip
@@ -81,8 +83,6 @@ contains
     integer(igp) :: ia(n), ib(n)
     greater_by_row_element_igp = ia(k) > ib(k)
   end function greater_by_row_element_igp
-
-# define in_place
 
 ! Specialization to a simple ip array
 # define name sort_ip

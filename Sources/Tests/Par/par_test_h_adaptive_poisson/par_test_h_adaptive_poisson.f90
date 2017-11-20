@@ -1,16 +1,10 @@
-program test_elasticity
+program par_test_h_adaptive_poisson
   use fempar_names
-  use test_elasticity_driver_names
-  !$ use omp_lib
+  use par_test_h_adaptive_poisson_driver_names
   implicit none
   integer(ip) :: i
-  type(test_elasticity_fe_driver_t), save :: test_driver 
-  !$OMP THREADPRIVATE(test_driver)
-
-  !call sleep(20)
-  !$OMP PARALLEL 
-  !$ write(*,*) 'Begining with',omp_get_num_threads(),'threads'
-  !$OMP BARRIER
+  type(par_test_h_adaptive_poisson_fe_driver_t), save :: test_driver 
+  
   call fempar_init()  
   call test_driver%parse_command_line_parameters()
   call test_driver%setup_environment()
@@ -23,5 +17,5 @@ program test_elasticity
   call test_driver%free_command_line_parameters()
   call test_driver%free_environment()
   call fempar_finalize()
-  !$OMP END PARALLEL   
-end program test_elasticity
+  
+end program par_test_h_adaptive_poisson

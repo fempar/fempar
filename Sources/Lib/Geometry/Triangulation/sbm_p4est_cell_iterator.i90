@@ -32,7 +32,7 @@ subroutine p4est_cell_iterator_create ( this, triangulation )
   call this%free()
   call cell_iterator_create(this,triangulation)
   select type(triangulation)
-  class is (p4est_serial_triangulation_t)
+  class is (p4est_base_triangulation_t)
     this%p4est_triangulation => triangulation
   class default
     assert(.false.)
@@ -86,7 +86,7 @@ function p4est_cell_iterator_get_mypart (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
   integer(ip) :: p4est_cell_iterator_get_mypart
-  p4est_cell_iterator_get_mypart = 1
+  p4est_cell_iterator_get_mypart = this%p4est_triangulation%cell_myparts%get(this%get_gid())
 end function p4est_cell_iterator_get_mypart
 
 subroutine p4est_cell_iterator_set_set_id(this,set_id)
@@ -135,7 +135,7 @@ function p4est_cell_iterator_get_ggid (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
   integer(igp) :: p4est_cell_iterator_get_ggid
-  p4est_cell_iterator_get_ggid = this%get_gid()
+  p4est_cell_iterator_get_ggid = this%p4est_triangulation%cell_ggids%get(this%get_gid())
 end function p4est_cell_iterator_get_ggid
 
 function p4est_cell_iterator_get_vef_gid (this, vef_lid)
@@ -213,15 +213,15 @@ function p4est_cell_iterator_is_local (this)
   class(p4est_cell_iterator_t), intent(in) :: this
   logical                            :: p4est_cell_iterator_is_local
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_is_local = .true.
+  p4est_cell_iterator_is_local = (this%get_gid() <= this%p4est_triangulation%get_num_local_cells())
 end function p4est_cell_iterator_is_local
 
 function p4est_cell_iterator_is_ghost (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
-  logical                            :: p4est_cell_iterator_is_ghost
+  logical :: p4est_cell_iterator_is_ghost
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_is_ghost = .false.
+  p4est_cell_iterator_is_ghost = (this%get_gid() > this%p4est_triangulation%get_num_local_cells())
 end function p4est_cell_iterator_is_ghost
 
 function p4est_cell_iterator_is_equal(this,quad_level,quad_linear_id)
@@ -276,6 +276,7 @@ subroutine p4est_cell_iterator_set_for_coarsening(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  assert ( .not. this%is_ghost() )
   call this%p4est_triangulation%refinement_and_coarsening_flags%set(this%get_gid(), coarsening)
 end subroutine p4est_cell_iterator_set_for_coarsening
 
@@ -283,6 +284,7 @@ subroutine p4est_cell_iterator_set_for_refinement(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  assert ( .not. this%is_ghost() )
   call this%p4est_triangulation%refinement_and_coarsening_flags%set(this%get_gid(), refinement)
 end subroutine p4est_cell_iterator_set_for_refinement
 
@@ -290,6 +292,7 @@ subroutine p4est_cell_iterator_set_for_do_nothing(this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  assert ( .not. this%is_ghost() )
   call this%p4est_triangulation%refinement_and_coarsening_flags%set(this%get_gid(), do_nothing)
 end subroutine p4est_cell_iterator_set_for_do_nothing
 
@@ -298,6 +301,7 @@ function p4est_cell_iterator_get_transformation_flag(this)
   class(p4est_cell_iterator_t), intent(inout) :: this
   integer(ip) :: p4est_cell_iterator_get_transformation_flag
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  
   p4est_cell_iterator_get_transformation_flag = this%p4est_triangulation%refinement_and_coarsening_flags%get(this%get_gid())
 end function p4est_cell_iterator_get_transformation_flag
 
