@@ -136,14 +136,27 @@ public :: discrete_integration_type_irreducible
 contains
 
 subroutine linear_elasticity_discrete_integration_free ( this )
-implicit none
-class(linear_elasticity_discrete_integration_t)   ,intent(inout)  :: this
-integer(ip) :: istat
-deallocate(this%fe_type,stat=istat)  ; check(istat==0)
-deallocate(this%field_type,stat=istat); check(istat==0)
-deallocate(this%field_name,stat=istat); check(istat==0)
-call memfree(this%field_blocks,__FILE__,__LINE__)
-call memfree(this%field_coupling,__FILE__,__LINE__)     
+  implicit none
+  class(linear_elasticity_discrete_integration_t)   ,intent(inout)  :: this
+  integer(ip) :: istat
+  if (allocated(this%fe_type)) then
+    deallocate(this%fe_type,stat=istat)  ; check(istat==0)
+  end if 
+
+  if (allocated(this%field_type)) then
+    deallocate(this%field_type,stat=istat); check(istat==0)
+  end if 
+
+  if (allocated(this%field_name)) then
+    deallocate(this%field_name,stat=istat); check(istat==0)
+  end if 
+
+  if (allocated(this%field_blocks)) then
+    call memfree(this%field_blocks,__FILE__,__LINE__)
+  end if 
+  if (allocated(this%field_coupling)) then
+    call memfree(this%field_coupling,__FILE__,__LINE__)     
+  end if
 end subroutine linear_elasticity_discrete_integration_free
 
 subroutine set_analytical_functions ( this, analytical_functions )
