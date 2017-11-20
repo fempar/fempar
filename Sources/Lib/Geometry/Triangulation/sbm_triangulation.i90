@@ -581,10 +581,10 @@ subroutine triangulation_compute_objects_dim(this)
   class(triangulation_t), intent(inout) :: this
   integer(ip)                                  :: iobj, vef_lid
   type(list_iterator_t) :: vefs_object_iterator
-  type(bst_vef_iterator_t) :: vef
+  class(vef_iterator_t), allocatable  :: vef
 
   call memalloc ( this%num_objects, this%objects_dim, __FILE__, __LINE__ )
-  call vef%create(this)
+  call this%create_vef_iterator(vef)
   do iobj=1, this%num_objects
      vefs_object_iterator = this%vefs_object%create_iterator(iobj)
      this%objects_dim(iobj) = 0
@@ -596,7 +596,7 @@ subroutine triangulation_compute_objects_dim(this)
         call vefs_object_iterator%next()
      end do
   end do
-  call vef%free()
+  call this%free_vef_iterator(vef)
 end subroutine triangulation_compute_objects_dim
 
 subroutine triangulation_compute_objects_neighbours_exchange_data ( this, &
@@ -826,7 +826,8 @@ subroutine triangulation_compute_num_global_objs_and_their_gids ( this )
        list_snd,&
        snd_ptrs,&
        pack_idx,&
-       this%objects_ggids )
+       this%objects_ggids,&
+       this%objects_ggids)
 
   call memfree ( list_rcv, __FILE__, __LINE__ )
   call memfree ( rcv_ptrs, __FILE__, __LINE__ )
@@ -1313,9 +1314,11 @@ recursive subroutine triangulation_free ( this )
         this%num_objects = -1
         this%num_global_objects = -1
      else ! I am lgt1_task
-        call this%coarse_triangulation%free()
-        deallocate ( this%coarse_triangulation, stat=istat)
-        check(istat == 0)
+        if (associated(this%coarse_triangulation)) then
+          call this%coarse_triangulation%free()
+          deallocate ( this%coarse_triangulation, stat=istat)
+          check(istat == 0)
+        end if
      end if
      call this%free_environment()  
   end if

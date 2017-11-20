@@ -580,7 +580,7 @@ subroutine unfitted_l1_identify_problematic_dofs(this,is_problematic_dof)
                                                 cell_import%get_neighbours_ids(),    &
                                                 cell_import%get_snd_ptrs(),          &
                                                 cell_import%get_snd_leids(),         &
-                                                is_cut_cell )
+                                                is_cut_cell, is_cut_cell )
 
   ! Mark all the dofs belonging to cut elements
   is_problematic_dof(:) = .false.

@@ -136,24 +136,25 @@ module mpi_omp_context_names
      procedure :: gather_igp         => mpi_omp_context_gather_scalar_igp
      procedure :: bcast_igp          => mpi_omp_context_bcast_scalar_igp
      procedure :: bcast_subcontext   => mpi_omp_context_bcast_subcontext
-     procedure, private :: neighbours_exchange_rp                   => mpi_omp_context_neighbours_exchange_rp                 
-     procedure, private :: neighbours_exchange_ip                   => mpi_omp_context_neighbours_exchange_ip                 
-     procedure, private :: neighbours_exchange_igp                  => mpi_omp_context_neighbours_exchange_igp                
-     procedure, private :: neighbours_exchange_single_ip            => mpi_omp_context_neighbours_exchange_single_ip          
-     procedure, private :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_omp_context_neighbours_exchange_wo_pack_unpack_ieep
-     procedure, private :: root_send_master_rcv_ip          => mpi_omp_context_root_send_master_rcv_ip
-     procedure, private :: root_send_master_rcv_ip_1D_array => mpi_omp_context_root_send_master_rcv_ip_1D_array
-     procedure, private :: root_send_master_rcv_rp          => mpi_omp_context_root_send_master_rcv_rp
-     procedure, private :: root_send_master_rcv_rp_1D_array => mpi_omp_context_root_send_master_rcv_rp_1D_array
-     procedure, private :: gather_to_master_ip              => mpi_omp_context_gather_to_master_ip            
-     procedure, private :: gather_to_master_igp             => mpi_omp_context_gather_to_master_igp           
-     procedure, private :: gather_to_master_ip_1D_array     => mpi_omp_context_gather_to_master_ip_1D_array   
-     procedure, private :: gather_to_masterv_ip_1D_array    => mpi_omp_context_gather_to_masterv_ip_1D_array  
-     procedure, private :: gather_to_masterv_igp_1D_array   => mpi_omp_context_gather_to_masterv_igp_1D_array 
-     procedure, private :: gather_to_masterv_rp_1D_array    => mpi_omp_context_gather_to_masterv_rp_1D_array  
-     procedure, private :: gather_to_masterv_rp_2D_array    => mpi_omp_context_gather_to_masterv_rp_2D_array  
-     procedure, private :: scatter_from_masterv_rp_1D_array => mpi_omp_context_scatter_from_masterv_rp_1D_array
-
+     procedure :: neighbours_exchange_rp                   => mpi_omp_context_neighbours_exchange_rp  
+     procedure :: neighbours_exchange_wo_alpha_beta_rp     => mpi_omp_context_neighbours_exchange_wo_alpha_beta_rp
+     procedure :: neighbours_exchange_ip                   => mpi_omp_context_neighbours_exchange_ip                 
+     procedure :: neighbours_exchange_igp                  => mpi_omp_context_neighbours_exchange_igp                
+     procedure :: neighbours_exchange_single_ip            => mpi_omp_context_neighbours_exchange_single_ip          
+     procedure :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_omp_context_neighbours_exchange_wo_pack_unpack_ieep
+     procedure :: neighbours_exchange_wo_unpack_ip         => mpi_omp_context_neighbours_exchange_wo_unpack_ip
+     procedure :: root_send_master_rcv_ip          => mpi_omp_context_root_send_master_rcv_ip
+     procedure :: root_send_master_rcv_ip_1D_array => mpi_omp_context_root_send_master_rcv_ip_1D_array
+     procedure :: root_send_master_rcv_rp          => mpi_omp_context_root_send_master_rcv_rp
+     procedure :: root_send_master_rcv_rp_1D_array => mpi_omp_context_root_send_master_rcv_rp_1D_array
+     procedure :: gather_to_master_ip              => mpi_omp_context_gather_to_master_ip            
+     procedure :: gather_to_master_igp             => mpi_omp_context_gather_to_master_igp           
+     procedure :: gather_to_master_ip_1D_array     => mpi_omp_context_gather_to_master_ip_1D_array   
+     procedure :: gather_to_masterv_ip_1D_array    => mpi_omp_context_gather_to_masterv_ip_1D_array  
+     procedure :: gather_to_masterv_igp_1D_array   => mpi_omp_context_gather_to_masterv_igp_1D_array 
+     procedure :: gather_to_masterv_rp_1D_array    => mpi_omp_context_gather_to_masterv_rp_1D_array  
+     procedure :: gather_to_masterv_rp_2D_array    => mpi_omp_context_gather_to_masterv_rp_2D_array  
+     procedure :: scatter_from_masterv_rp_1D_array => mpi_omp_context_scatter_from_masterv_rp_1D_array
   end type mpi_omp_context_t
 
   ! Types
@@ -820,7 +821,7 @@ contains
   subroutine mpi_omp_context_neighbours_exchange_rp ( this, & 
        &                                          num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
-       &                                          alpha, beta, x)
+       &                                          alpha, beta, x, y)
     implicit none
     class(mpi_omp_context_t), intent(in) :: this
 
@@ -834,7 +835,8 @@ contains
 
     ! Floating point data
     real(rp), intent(in)    :: alpha, beta
-    real(rp), intent(inout) :: x(:)
+    real(rp), intent(in)    :: x(:)
+    real(rp), intent(inout) :: y(:)
 
     ! Communication related locals 
     integer :: i, proc_to_comm, task_to_comm, thread_to_comm, msg_tag, sizmsg, istat
@@ -929,7 +931,7 @@ contains
     end do
 
     ! Unpack recv buffers
-    call unpack_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, x )
+    call unpack_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), unpack_idx, beta, rcvbuf, y )
 
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
@@ -939,13 +941,12 @@ contains
 
   end subroutine mpi_omp_context_neighbours_exchange_rp
 
+  
   !=============================================================================
-  ! When packing   (gathering) ,    buffer <- alpha * x
-  ! When unpacking (scattering),    x <- beta*x + buffer
-  subroutine mpi_omp_context_neighbours_exchange_ip ( this, & 
-       &                                          num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
-       &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
-       &                                          x,chunk_size)
+  subroutine mpi_omp_context_neighbours_exchange_wo_alpha_beta_rp ( this, & 
+       &                                                            num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                                            num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                                            x, y, chunk_size)
     implicit none
     class(mpi_omp_context_t), intent(in)    :: this
     ! Control info to receive
@@ -955,7 +956,31 @@ contains
     integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
     integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
     ! Raw data to be exchanged
-    integer(ip)             , intent(inout) :: x(:)
+    real(rp)                , intent(in)    :: x(:)
+    real(rp)                , intent(inout) :: y(:)
+    integer(ip)   , optional, intent(in)    :: chunk_size  
+    check(.false.)
+  end subroutine mpi_omp_context_neighbours_exchange_wo_alpha_beta_rp
+  
+  
+  !=============================================================================
+  ! When packing   (gathering) ,    buffer <- alpha * x
+  ! When unpacking (scattering),    x <- beta*x + buffer
+  subroutine mpi_omp_context_neighbours_exchange_ip ( this, & 
+       &                                          num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                          x,y,chunk_size)
+    implicit none
+    class(mpi_omp_context_t), intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    integer(ip)             , intent(in)    :: x(:)
+    integer(ip)             , intent(inout) :: y(:)
     integer(ip)   , optional, intent(in)    :: chunk_size
 
     ! Communication related locals 
@@ -1060,7 +1085,7 @@ contains
     end do
 
     ! Unpack recv buffers
-    call unpack_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, x )
+    call unpack_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y )
 
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
@@ -1073,7 +1098,7 @@ contains
   subroutine mpi_omp_context_neighbours_exchange_igp ( this, & 
        &                                              num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        &                                              num_snd, list_snd, snd_ptrs, pack_idx,   &
-       &                                              x, chunk_size, mask)
+       &                                              x, y, chunk_size, mask)
     implicit none
     class(mpi_omp_context_t), intent(in)    :: this
     ! Control info to receive
@@ -1083,7 +1108,8 @@ contains
     integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
     integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
     ! Raw data to be exchanged
-    integer(igp)            , intent(inout) :: x(:)
+    integer(igp)            , intent(in)    :: x(:)
+    integer(igp)            , intent(inout) :: y(:)
     integer(ip)   , optional, intent(in)    :: chunk_size
     integer(igp)  , optional, intent(in)    :: mask
 
@@ -1188,7 +1214,7 @@ contains
     end do
 
     ! Unpack recv buffers
-    call unpack_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, x, mask )
+    call unpack_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), chunk_size_, unpack_idx, rcvbuf, y, mask )
 
     call memfree (rcvhd,__FILE__,__LINE__) 
     call memfree (sndhd,__FILE__,__LINE__)
@@ -1245,6 +1271,7 @@ contains
          list_neighbours,   &
          ptrs,              &
          pack_idx,          &
+         buffer,            &
          buffer )
 
     output_data = buffer(2:)
@@ -1357,6 +1384,25 @@ contains
     call memfree (rcvhd ,__FILE__,__LINE__) 
     call memfree (sndhd ,__FILE__,__LINE__)
   end subroutine mpi_omp_context_neighbours_exchange_wo_pack_unpack_ieep
+
+  !=============================================================================
+  subroutine mpi_omp_context_neighbours_exchange_wo_unpack_ip ( this, &
+                                                               num_rcv, list_rcv, rcv_ptrs, rcv_buf, &
+                                                               num_snd, list_snd, snd_ptrs, pack_idx,   &
+                                                               x, chunk_size)
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(out)   :: rcv_buf(:)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    integer(ip)             , intent(in)    :: x(:)
+    integer(ip)   , optional, intent(in)    :: chunk_size
+    check(.false.)
+  end subroutine mpi_omp_context_neighbours_exchange_wo_unpack_ip
 
   !=============================================================================
   subroutine mpi_omp_context_gather_scalar_ip ( this, input_data, output_data )

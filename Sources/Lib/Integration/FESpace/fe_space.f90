@@ -28,6 +28,7 @@
 module fe_space_names
   ! Serial modules
   use types_names
+  use stdio_names
   use list_types_names
   use memor_names
   use sort_names
@@ -64,7 +65,10 @@ module fe_space_names
   use piecewise_cell_map_names
   
   ! Adaptivity
-  use p4est_serial_triangulation_names
+  use std_vector_real_rp_names
+  use std_vector_integer_ip_names
+  use std_vector_integer_igp_names
+  use p4est_triangulation_names
 
   ! Parallel modules
   use environment_names
@@ -225,7 +229,7 @@ module fe_space_names
     procedure, non_overridable          :: get_field_blocks                           => fe_cell_iterator_get_field_blocks
     procedure, non_overridable          :: get_field_coupling                         => fe_cell_iterator_get_field_coupling
     procedure, non_overridable          :: get_num_dofs                               => fe_cell_iterator_get_num_dofs
-    procedure, non_overridable          :: get_num_dofs_field                       => fe_cell_iterator_get_num_dofs_field
+    procedure, non_overridable          :: get_num_dofs_field                         => fe_cell_iterator_get_num_dofs_field
     procedure, non_overridable          :: get_field_fe_dofs                          => fe_cell_iterator_get_field_fe_dofs
     procedure, non_overridable          :: get_fe_dofs                                => fe_cell_iterator_get_fe_dofs
     procedure, non_overridable          :: get_order                                  => fe_cell_iterator_get_order
@@ -519,8 +523,8 @@ module fe_space_names
      type(std_vector_real_rp_t)                  :: constraints_independent_term
      
    contains
-     procedure,                  private :: serial_fe_space_create_same_reference_fes_on_all_cells
-     procedure,                  private :: serial_fe_space_create_different_ref_fes_between_cells
+     procedure                           :: serial_fe_space_create_same_reference_fes_on_all_cells
+     procedure                           :: serial_fe_space_create_different_ref_fes_between_cells
      generic                             :: create                                       => serial_fe_space_create_same_reference_fes_on_all_cells,&
                                                                                             serial_fe_space_create_different_ref_fes_between_cells
      procedure                           :: free                                         => serial_fe_space_free
@@ -538,7 +542,7 @@ module fe_space_names
      procedure, non_overridable          :: allocate_and_fill_fe_space_type_x_field      => serial_fe_space_allocate_and_fill_fe_space_type_x_field
      procedure, non_overridable, private :: free_fe_space_type_x_field                   => serial_fe_space_free_fe_space_type_x_field
      
-     procedure, non_overridable          :: allocate_and_init_ptr_lst_dofs_gids               => serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
+     procedure, non_overridable          :: allocate_and_init_ptr_lst_dofs_gids          => serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
      procedure, non_overridable          :: copy_ptr_lst_dofs                            => serial_fe_space_copy_ptr_lst_dofs
      procedure, non_overridable, private :: free_ptr_lst_dofs                            => serial_fe_space_free_ptr_lst_dofs
      
@@ -548,22 +552,17 @@ module fe_space_names
      procedure, non_overridable, private :: free_has_fixed_dofs                          => serial_fe_space_free_has_fixed_dofs
      procedure                           :: set_up_strong_dirichlet_bcs                  => serial_fe_space_set_up_strong_dirichlet_bcs
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs_on_vef_and_field => serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
-     procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
+					procedure                           :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function 
+					procedure                           :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
+					generic                             :: interpolate                                  => interpolate_scalar_function, interpolate_vector_function					
+					procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
      procedure                           :: project_dirichlet_values_curl_conforming     => serial_fe_space_project_dirichlet_values_curl_conforming
      procedure, non_overridable, private :: allocate_and_fill_fields_to_project_         => serial_fe_space_allocate_and_fill_fields_to_project_
      procedure, non_overridable, private :: allocate_and_fill_offset_component           => serial_fe_space_allocate_and_fill_offset_component
      procedure, non_overridable, private :: allocate_and_fill_global2subset_and_inverse  => serial_fe_space_allocate_and_fill_global2subset_and_inverse 
      procedure, non_overridable, private :: get_function_scalar_components               => serial_fe_space_get_function_scalar_components
      procedure, non_overridable, private :: evaluate_vector_function_scalar_components   => serial_fe_space_evaluate_vector_function_scalar_components
-     procedure, non_overridable, private :: project_curl_conforming_compute_elmat_elvec  => serial_fe_space_project_curl_conforming_compute_elmat_elvec
-     
-     procedure, private, non_overridable :: interpolate_scalar    => serial_fe_space_interpolate_scalar
-     procedure, private, non_overridable :: interpolate_vector    => serial_fe_space_interpolate_vector
-     procedure, private, non_overridable :: interpolate_tensor    => serial_fe_space_interpolate_tensor
-     generic                             :: interpolate           => interpolate_scalar, &
-                                                                     interpolate_vector, &
-                                                                     interpolate_tensor
-     
+     procedure, non_overridable, private :: project_curl_conforming_compute_elmat_elvec  => serial_fe_space_project_curl_conforming_compute_elmat_elvec     
      procedure, non_overridable, private :: allocate_and_init_cell_quadratures_degree      => serial_fe_space_allocate_and_init_cell_quadratures_degree
      procedure, non_overridable, private :: free_cell_quadratures_degree                   => serial_fe_space_free_cell_quadratures_degree
      
@@ -653,16 +652,20 @@ module fe_space_names
      procedure, non_overridable, private :: project_fe_integration_arrays                 => serial_fe_space_project_fe_integration_arrays
      procedure, non_overridable, private :: project_facet_integration_arrays              => serial_fe_space_project_facet_integration_arrays
 
-     procedure, non_overridable, private :: serial_fe_space_refine_and_coarsen_single_fe_function
-     procedure, non_overridable, private :: serial_fe_space_refine_and_coarsen_fe_function_array
+     procedure,                  private :: serial_fe_space_refine_and_coarsen_single_fe_function
+     procedure,                  private :: serial_fe_space_refine_and_coarsen_fe_function_array
      generic                             :: refine_and_coarsen                            => serial_fe_space_refine_and_coarsen_single_fe_function, &
                                                                                              serial_fe_space_refine_and_coarsen_fe_function_array
 
      procedure, non_overridable          :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
+     
+#ifndef ENABLE_P4EST
+    procedure, non_overridable           :: not_enabled_error                             => serial_fe_space_not_enabled_error
+#endif     
 
  end type serial_fe_space_t  
  
- public :: serial_fe_space_t, serial_fe_space_set_up_strong_dirichlet_bcs, serial_fe_space_interpolate_dirichlet_values
+ public :: serial_fe_space_t, serial_fe_space_set_up_strong_dirichlet_bcs
  public :: fe_space_type_cg, fe_space_type_dg
  public :: fe_cell_iterator_t
  public :: fe_vef_iterator_t
@@ -733,9 +736,9 @@ module fe_space_names
    ! Multilevel fe space   
    ! It is the equivalent to the "element_to_dof" at the finer level
    ! Pointers to the start/end of coarse DoFs GIDs of each field (lst_coarse_dofs)
-   integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:)	
+   integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:)
    ! List of coarse DoFs GIDs
-   integer(ip)                   , allocatable :: lst_coarse_dofs(:)	
+   integer(ip)                   , allocatable :: lst_coarse_dofs(:)
    
    ! Coarse DoFs GIDs on top of coarse n_faces per field
    ! It provides (for every field) what we get from the reference_fe_t at the
@@ -755,29 +758,51 @@ module fe_space_names
    ! to iterate the faces of an object
    type(list_t)                                :: faces_object
    
+   ! Scratch data required for non-conforming triangulations
+   type(std_vector_integer_ip_t)               :: max_part_id_vefs
+   type(std_vector_integer_ip_t)               :: my_part_id_vefs
+   type(std_vector_integer_ip_t)               :: rcv_my_part_id_vefs 
+   type(std_vector_integer_ip_t)               :: ptr_dofs_field
+   type(std_vector_integer_igp_t)              :: lst_dofs_ggids
+   type(std_vector_integer_ip_t)               :: ptr_ghosts_per_local_cell
+   type(std_vector_integer_ip_t)               :: lst_ghosts_per_local_cell
+   type(std_vector_integer_ip_t)               :: num_cells_to_send_x_local_cell
+   type(std_vector_integer_ip_t)               :: snd_ptrs_complete_itfc_couplings
+   type(std_vector_integer_ip_t)               :: snd_leids_complete_itfc_couplings
+   type(std_vector_integer_ip_t)               :: rcv_ptrs_complete_itfc_couplings
+   type(std_vector_integer_ip_t)               :: ptr_ghosts_per_ghost_cell
+   type(std_vector_integer_ip_t)               :: lst_ghosts_per_ghost_cell
+   type(std_vector_integer_ip_t)               :: rcv_my_part_id_vefs_complete_itfc_couplings 
+
+   type(std_vector_real_rp_t)                  :: old_fe_function_nodal_values
+   type(std_vector_real_rp_t)                  :: new_fe_function_nodal_values
  contains
-   procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
-   procedure, private :: serial_fe_space_create_different_ref_fes_between_cells                   => par_fe_space_serial_create_different_ref_fes_between_cells 
-   procedure, private :: par_fe_space_create_same_reference_fes_on_all_cells 
-   procedure, private :: par_fe_space_create_different_ref_fes_between_cells
+   procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells    => par_fe_space_serial_create_same_reference_fes_on_all_cells 
+   procedure          :: serial_fe_space_create_different_ref_fes_between_cells    => par_fe_space_serial_create_different_ref_fes_between_cells 
+   procedure          :: par_fe_space_create_same_reference_fes_on_all_cells 
+   procedure          :: par_fe_space_create_different_ref_fes_between_cells
    generic                                     :: create                                          => par_fe_space_create_same_reference_fes_on_all_cells, &
                                                                                                      par_fe_space_create_different_ref_fes_between_cells
    procedure                         , private :: allocate_and_fill_coarse_fe_handlers            => par_fe_space_allocate_and_fill_coarse_fe_handlers
    procedure                         , private :: free_coarse_fe_handlers                         => par_fe_space_free_coarse_fe_handlers
    procedure                                   :: generate_global_dof_numbering                   => par_fe_space_generate_global_dof_numbering
-   procedure                         , private :: count_and_list_dofs_on_ghosts                   => par_fe_space_count_and_list_dofs_on_ghosts
-   procedure                                   :: renum_dofs_first_interior_then_interface     => par_fe_space_renum_dofs_first_interior_then_interface
-   procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
-   procedure        , non_overridable          :: compute_num_global_dofs_and_their_ggids          => par_fe_space_compute_num_global_dofs_and_their_ggids
+   procedure                                   :: renum_dofs_first_interior_then_interface        => par_fe_space_renum_dofs_first_interior_then_interface
+   procedure        , non_overridable          :: compute_num_global_dofs_and_their_ggids         => par_fe_space_compute_num_global_dofs_and_their_ggids
    
-   procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
-   procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
-   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
-   procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner   => par_fe_space_raw_interface_data_by_continuity_decide_owner
-   procedure        , non_overridable, private :: compute_raw_interface_data_by_facet_integ        => par_fe_space_compute_raw_interface_data_by_facet_integ
-   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => pfs_compute_ubound_num_itfc_couplings_by_continuity
-   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_facet_integ => pfs_compute_ubound_num_itfc_couplings_by_facet_integ
-   procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_ggid                => par_fe_space_generate_non_consecutive_dof_ggid
+   procedure        , non_overridable, private :: compute_blocks_dof_import                                    => par_fe_space_compute_blocks_dof_import
+   procedure        , non_overridable, private :: compute_dof_import                                           => par_fe_space_compute_dof_import
+   procedure        , non_overridable, private :: compute_dof_import_non_conforming_mesh                       => par_fe_space_compute_dof_import_non_conforming_mesh
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity                     => par_fe_space_compute_raw_interface_data_by_continuity
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity_non_conforming_mesh => pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh
+   procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner                => par_fe_space_raw_interface_data_by_continuity_decide_owner
+   procedure        , non_overridable, private :: compute_max_part_id_my_part_id_and_dofs_ggids_field          => pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field 
+   procedure        , non_overridable, private :: compute_exchange_control_data_to_complete_itfc_couplings     => pfs_compute_exchange_control_data_to_complete_itfc_couplings 
+
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_facet_integ                => par_fe_space_compute_raw_interface_data_by_facet_integ
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity          => pfs_compute_ubound_num_itfc_couplings_by_continuity
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity_nc_mesh  => pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_facet_integ         => pfs_compute_ubound_num_itfc_couplings_by_facet_integ
+   procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_ggid                        => par_fe_space_generate_non_consecutive_dof_ggid
    
    ! These set of three subroutines are in charge of generating a dof_import for the distributed-memory solution of boundary mass matrices
    procedure        , non_overridable, private :: compute_boundary_dof_import                              => par_fe_space_compute_boundary_dof_import
@@ -792,7 +817,9 @@ module fe_space_names
    procedure                                   :: print                                           => par_fe_space_print
    procedure                                   :: free                                            => par_fe_space_free
    procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
-   procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
+			procedure                                   :: interpolate_scalar_function                     => par_fe_space_interpolate_scalar_function
+			procedure                                   :: interpolate_vector_function                     => par_fe_space_interpolate_vector_function  
+			procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    procedure                                   :: project_dirichlet_values_curl_conforming        => par_fe_space_project_dirichlet_values_curl_conforming
    
    procedure        , non_overridable, private :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
@@ -804,11 +831,21 @@ module fe_space_names
    procedure        , non_overridable, private :: gather_ptr_dofs_x_fe                            => par_fe_space_gather_ptr_dofs_x_fe
    procedure        , non_overridable, private :: gather_coarse_dofs_ggids_rcv_counts_and_displs  => par_fe_space_gather_coarse_dofs_ggids_rcv_counts_and_displs
    procedure        , non_overridable, private :: gather_coarse_dofs_ggids                        => par_fe_space_gather_coarse_dofs_ggids
-   procedure        , non_overridable, private :: gather_vefs_ggids_dofs_objects                   => par_fe_space_gather_vefs_ggids_dofs_objects
+   procedure        , non_overridable, private :: gather_vefs_ggids_dofs_objects                  => par_fe_space_gather_vefs_ggids_dofs_objects
    procedure                                   :: get_total_num_coarse_dofs                       => par_fe_space_get_total_num_coarse_dofs
    procedure                                   :: get_block_num_coarse_dofs                       => par_fe_space_get_block_num_coarse_dofs
    procedure       , non_overridable           :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
-
+   
+   ! Transfer and redistribution of FE functions
+   procedure,                          private :: serial_fe_space_refine_and_coarsen_single_fe_function   => par_fe_space_refine_and_coarsen_single_fe_function
+   procedure,                          private :: serial_fe_space_refine_and_coarsen_fe_function_array    => par_fe_space_refine_and_coarsen_fe_function_array
+   procedure                                   :: redistribute                                            => par_fe_space_redistribute
+   procedure                                   :: update_after_redistribute                               => par_fe_space_update_after_redistribute
+   procedure,                          private :: update_after_refine_coarsen                             => par_fe_space_update_after_refine_coarsen
+   procedure,                          private :: migrate_field_cell_to_ref_fes                           => par_fe_space_migrate_field_cell_to_ref_fes
+   procedure,                          private :: migrate_fe_integration_arrays                           => par_fe_space_migrate_fe_integration_arrays
+   procedure,                          private :: migrate_facet_integration_arrays                        => par_fe_space_migrate_facet_integration_arrays
+   
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator
@@ -1113,7 +1150,153 @@ module fe_space_names
   end type p_fe_function_t
   
   public :: fe_function_t, p_fe_function_t
-  
+
+ character(*), parameter :: interpolator_type_nodal = "interpolator_type_nodal"
+ character(*), parameter :: interpolator_type_Hcurl = "interpolator_type_Hcurl"
+ 
+ ! Abstract interpolator
+ type, abstract :: interpolator_t
+    private
+    integer(ip) :: field_id
+  contains    
+    procedure, private  :: get_function_values_from_scalar_components => interpolator_t_get_function_values_from_scalar_components
+    procedure, private  :: get_vector_function_values                 => interpolator_t_get_vector_function_values 
+    generic             :: get_function_values                        => get_vector_function_values 
+    procedure, private  :: reallocate_vector_function_values          => interpolator_t_reallocate_vector_function_values 
+    procedure, private  :: reallocate_scalar_function_values          => interpolator_t_reallocate_scalar_function_values
+    procedure, private  :: reallocate_array                           => interpolator_t_reallocate_array 
+    generic             :: reallocate_if_needed => reallocate_vector_function_values, reallocate_scalar_function_values, reallocate_array 
+    ! Deferred TBPs 
+    procedure(interpolator_create_interface)                               , deferred :: create
+    procedure(interpolator_evaluate_scalar_function_moments_interface)     , deferred :: evaluate_scalar_function_moments
+    procedure(interpolator_evaluate_vector_function_moments_interface)     , deferred :: evaluate_vector_function_moments 
+    procedure(interpolator_evaluate_function_components_moments_interface) , deferred :: evaluate_function_scalar_components_moments
+    procedure(interpolator_free_interface)                                 , deferred :: free 			
+ end type interpolator_t
+
+ type p_interpolator_t
+    class(interpolator_t), allocatable :: p 
+  contains
+ end type p_interpolator_t
+
+ abstract interface 
+
+    subroutine interpolator_create_interface( this, fe_space, field_id )
+      import :: interpolator_t, reference_fe_t, ip, serial_fe_space_t
+      implicit none
+      class(interpolator_t)    , intent(inout) :: this
+      class(serial_fe_space_t) , intent(in)    :: fe_space
+      integer(ip)              , intent(in)    :: field_id
+    end subroutine interpolator_create_interface
+
+    subroutine interpolator_evaluate_scalar_function_moments_interface( this, fe, scalar_function, dof_values, n_face_mask, time )
+      import :: interpolator_t, scalar_function_t, fe_cell_iterator_t, rp   
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(scalar_function_t)        , intent(in)    :: scalar_function
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      logical  , optional             , intent(in)    :: n_face_mask(:)
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_scalar_function_moments_interface
+
+    subroutine interpolator_evaluate_vector_function_moments_interface( this, fe, vector_function, dof_values, n_face_mask, time )
+      import :: interpolator_t, vector_function_t, fe_cell_iterator_t, rp   
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(vector_function_t)        , intent(in)    :: vector_function
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      logical  , optional             , intent(in)    :: n_face_mask(:)
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_vector_function_moments_interface
+
+    subroutine interpolator_evaluate_function_components_moments_interface( this, n_face_mask, fe, vector_function_scalar_components, dof_values, time )
+      import :: interpolator_t, fe_cell_iterator_t, p_scalar_function_t, rp, ip 
+      implicit none 
+      class(interpolator_t)           , intent(inout) :: this
+      logical                         , intent(in)    :: n_face_mask(:) 
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_function_components_moments_interface
+
+    subroutine interpolator_free_interface( this )
+      import :: interpolator_t, cell_map_t  
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+    end subroutine interpolator_free_interface
+ end interface
+
+ type, extends(interpolator_t) :: nodal_interpolator_t 
+ private 
+ type(cell_map_t)     , allocatable  :: cell_maps(:) 
+ type(p_quadrature_t) , allocatable  :: nodal_quadratures(:)   
+ ! Boundary values array 
+ real(rp), allocatable             :: scalar_function_values(:,:)
+ type(vector_field_t), allocatable :: function_values(:,:)
+contains 
+ procedure :: create                                             => nodal_interpolator_create
+ procedure :: evaluate_scalar_function_moments                   => nodal_interpolator_evaluate_scalar_function_moments 
+ procedure :: evaluate_vector_function_moments                   => nodal_interpolator_evaluate_vector_function_moments		
+ procedure :: evaluate_function_scalar_components_moments        => nodal_interpolator_evaluate_function_scalar_components_moments
+ procedure :: free                                               => nodal_interpolator_free
+end type nodal_interpolator_t
+
+type, extends(interpolator_t), abstract :: Hcurl_interpolator_t 
+private 
+! Maps 
+type(edge_map_t)  , allocatable  :: edge_maps(:) 
+type(facet_map_t) , allocatable  :: facet_maps(:) 
+type(cell_map_t)  , allocatable  :: cell_maps(:) 
+! Quadratures 
+type(quadrature_t)  , allocatable  :: edge_quadratures(:) 
+type(quadrature_t)  , allocatable  :: facet_quadratures(:) 
+type(quadrature_t)  , allocatable  :: cell_quadratures(:)  
+! Interpolation 
+type(interpolation_t) , allocatable :: edge_interpolations(:)
+type(interpolation_t) , allocatable :: facet_interpolations(:) 
+type(interpolation_t) , allocatable :: cell_interpolations(:)  
+! Function values arrays 
+type(vector_field_t), allocatable :: edge_function_values(:,:) 
+type(vector_field_t), allocatable :: facet_function_values(:,:) 
+type(vector_field_t), allocatable :: cell_function_values(:,:)
+! Boundary values array 
+real(rp), allocatable             :: scalar_function_values_on_edge(:,:)
+real(rp), allocatable             :: scalar_function_values_on_facet(:,:)
+contains   
+procedure :: evaluate_scalar_function_moments    => Hcurl_interpolator_evaluate_scalar_function_moments 
+procedure, private :: update_edge_map_coordinates    => Hcurl_interpolator_update_edge_map_coordinates
+procedure, private :: update_facet_map_coordinates   => Hcurl_interpolator_update_facet_map_coordinates
+generic            :: update_map_coordinates         => update_edge_map_coordinates, update_facet_map_coordinates
+end type Hcurl_interpolator_t 
+
+type, extends(Hcurl_interpolator_t) :: hex_Hcurl_interpolator_t 
+private       
+type(hex_lagrangian_reference_fe_t)       , allocatable   :: fes_1D(:) 
+type(hex_nedelec_reference_fe_t)          , allocatable   :: fes_2D(:) 
+type(hex_raviart_thomas_reference_fe_t )  , allocatable   :: fes_rt(:) 
+type(interpolation_t)                     , allocatable   :: real_cell_interpolations(:) 
+contains 
+procedure :: create                                             => hex_Hcurl_interpolator_create
+procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_function_scalar_components_moments        => hex_Hcurl_interpolator_evaluate_function_components_moments
+procedure :: free                                               => hex_Hcurl_interpolator_free
+end type hex_Hcurl_interpolator_t
+
+type, extends(Hcurl_interpolator_t) :: tet_Hcurl_interpolator_t 
+private       
+type(tet_lagrangian_reference_fe_t)    , allocatable      :: fes_1D(:)
+type(tet_lagrangian_reference_fe_t)    , allocatable      :: fes_2D(:) 
+type(tet_lagrangian_reference_fe_t )   , allocatable      :: fes_lagrangian(:) 
+contains 
+procedure :: create                                             => tet_Hcurl_interpolator_create
+procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_interpolator_evaluate_function_components_moments
+procedure :: free                                               => tet_Hcurl_interpolator_free
+end type tet_Hcurl_interpolator_t
+
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
@@ -1139,5 +1322,11 @@ contains
 #include "sbm_coarse_fe_vef_iterator.i90"
 
 #include "sbm_fe_function.i90"
+
+#include "sbm_interpolator.i90"
+#include "sbm_nodal_interpolator.i90"
+#include "sbm_Hcurl_interpolator.i90"
+#include "sbm_hex_Hcurl_interpolator.i90" 
+#include "sbm_tet_Hcurl_interpolator.i90"
 
 end module fe_space_names

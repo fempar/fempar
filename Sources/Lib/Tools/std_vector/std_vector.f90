@@ -28,6 +28,7 @@
 
 module std_vector_names
   use std_vector_integer_ip_names
+  use std_vector_integer_igp_names
   use std_vector_real_rp_names
   use std_vector_logical_names
   use std_vector_point_names
@@ -36,7 +37,6 @@ module std_vector_names
   use std_vector_cell_integrator_names
   use std_vector_facet_maps_names
   use std_vector_facet_integrator_names
-
 contains
 
 end module std_vector_names

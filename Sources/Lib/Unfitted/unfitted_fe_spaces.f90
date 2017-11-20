@@ -33,7 +33,7 @@ module unfitted_fe_spaces_names
   use block_layout_names
   
   use triangulation_names
-  use p4est_serial_triangulation_names
+  use p4est_triangulation_names
   use reference_fe_names
   use environment_names
   use fe_space_names
@@ -139,8 +139,8 @@ module unfitted_fe_spaces_names
     contains
 
       ! Creation / deletion methods
-      procedure,  private :: serial_fe_space_create_same_reference_fes_on_all_cells => sufs_create_same_reference_fes_on_all_cells
-      procedure,  private :: serial_fe_space_create_different_ref_fes_between_cells => sufs_space_create_different_ref_fes_between_cells
+      procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => sufs_create_same_reference_fes_on_all_cells
+      procedure           :: serial_fe_space_create_different_ref_fes_between_cells         => sufs_space_create_different_ref_fes_between_cells
       procedure           :: free  => sufs_free
 
       ! Creation of the iterator
@@ -158,7 +158,7 @@ module unfitted_fe_spaces_names
     contains
       ! Creation / deletion methods
       procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => suhpafs_create_same_reference_fes_on_all_cells
-      procedure           :: serial_fe_space_create_different_ref_fes_between_cells         => suhpafs_space_create_different_ref_fes_between_cells
+      procedure           :: serial_fe_space_create_different_ref_fes_between_cells => suhpafs_space_create_different_ref_fes_between_cells
       procedure           :: free                                                   => suhpafs_free
       procedure           :: set_use_constraints                                    => suhpafs_set_use_constraints
       
@@ -189,8 +189,8 @@ module unfitted_fe_spaces_names
     contains
 
       ! Creation / deletion methods
-      procedure,  private :: par_fe_space_create_same_reference_fes_on_all_cells => pufs_create_same_reference_fes_on_all_cells
-      procedure,  private :: par_fe_space_create_different_ref_fes_between_cells         => pufs_create_different_ref_fes_between_cells
+      procedure           :: par_fe_space_create_same_reference_fes_on_all_cells => pufs_create_same_reference_fes_on_all_cells
+      procedure           :: par_fe_space_create_different_ref_fes_between_cells         => pufs_create_different_ref_fes_between_cells
       procedure           :: free  => pufs_free
 
       ! Creation of the iterator

@@ -426,8 +426,8 @@ contains
          ! z edges
          do j = 1, nchannel_x_direction(1)
             do k = 1,nchannel_x_direction(2)
-               call origin%set(3,0.0_rp)  ; call origin%set(2, px1(j)) ; call origin%set(1,py1(k));
-               call opposite%set(3,1.0_rp); call opposite%set(2,px2(j)); call opposite%set(1,py2(k));
+               call origin%set(3,0.0_rp)  ; call origin%set(1, px1(j)) ; call origin%set(2,py1(k));
+               call opposite%set(3,1.0_rp); call opposite%set(1,px2(j)); call opposite%set(2,py2(k));
                nchannel = nchannel + 1
                if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
@@ -732,14 +732,18 @@ contains
     type(parameterlist_t)                              :: parameter_list
     class(triangulation_t), pointer        :: triangulation
     class(fe_cell_iterator_t), allocatable :: fe
+    real(rp),allocatable :: mypart_vector(:)
     real(rp), allocatable                              :: set_id_cell_vector(:)
     integer(ip)                                        :: i, istat
     if(this%test_params%get_write_solution()) then
        if ( this%environment%am_i_l1_task() ) then
           call build_set_id_cell_vector()
+          call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
+          mypart_vector(:) = this%environment%get_l1_rank()
           call oh%create()
           call oh%attach_fe_space(this%fe_space)
           call oh%add_fe_function(this%solution, 1, 'solution')
+          call oh%add_cell_vector(mypart_vector,'l1_rank')
           call oh%add_cell_vector(set_id_cell_vector, 'set_id')
           call parameter_list%init()
           !istat = parameter_list%set(key=vtk_format, value='ascii');
@@ -748,6 +752,7 @@ contains
           call oh%close()
           call oh%free()
           call free_set_id_cell_vector()
+          call memfree(mypart_vector, __FILE__, __LINE__) 
           !call parameter_list%free()
        end if
     end if

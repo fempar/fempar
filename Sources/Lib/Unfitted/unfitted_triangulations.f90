@@ -40,7 +40,7 @@ module unfitted_triangulations_names
   use level_set_functions_gallery_names
   use base_sparse_matrix_names
   use dof_import_names
-  use p4est_serial_triangulation_names
+  use p4est_triangulation_names
   
   
   use fe_space_names

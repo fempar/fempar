@@ -56,13 +56,6 @@ module linear_elasticity_analytical_functions_names
      procedure :: get_value_space  => zero_vector_function_get_value_space
   end type zero_vector_function_t
 
-  !===============================================================================================
-  !type, extends(base_scalar_function_t) :: source_term_p_t
-  !   private 
-  ! contains
-  !   procedure :: get_value_space  => source_term_p_get_value_space
-  !end type source_term_p_t
-
   type, extends(base_vector_function_t) :: source_term_u_t
    contains
      procedure :: get_value_space => source_term_u_get_value_space
@@ -72,14 +65,6 @@ module linear_elasticity_analytical_functions_names
    contains
      procedure :: get_value_space => gravity_source_term_u_get_value_space
   end type gravity_source_term_u_t
-
-  !===============================================================================================
-  !type, extends(base_scalar_function_t) :: solution_function_p_t
-  !  private 
-  ! contains
-  !   procedure :: get_value_space    => solution_function_p_get_value_space
-  !   procedure :: get_gradient_space => solution_function_p_get_gradient_space
-  !end type solution_function_p_t
 
   type, extends(base_vector_function_t) :: solution_function_u_t
    contains
@@ -91,22 +76,16 @@ module linear_elasticity_analytical_functions_names
 
   type linear_elasticity_analytical_functions_t
      private
-     !type(source_term_p_t)        :: source_term_p
      type(source_term_u_t)         :: source_term_u
      type(gravity_source_term_u_t) :: gravity_source_term_u
-     !type(solution_function_p_t)  :: solution_function_p
-     type(solution_function_u_t)  :: solution_function_u
-     type(zero_vector_function_t) :: zero_u
-     !type(zero_scalar_function_t) :: zero_p
+     type(solution_function_u_t)   :: solution_function_u
+     type(zero_vector_function_t)  :: zero_u
    contains
      procedure :: set_num_dimensions        => linear_elasticity_analytical_functions_set_num_dimensions
-     !procedure :: get_source_term_p         => linear_elasticity_analytical_functions_get_source_term_p
      procedure :: get_source_term_u         => linear_elasticity_analytical_functions_get_source_term_u
      procedure :: get_gravity_source_term_u => lin_ela_analytical_functions_get_gravity_source_term_u
-     !procedure :: get_solution_function_p   => linear_elasticity_analytical_functions_get_solution_function_p
      procedure :: get_solution_function_u   => linear_elasticity_analytical_functions_get_solution_function_u
      procedure :: get_zero_function_u       => linear_elasticity_analytical_functions_get_zero_function_u
-     !procedure :: get_zero_function_p       => linear_elasticity_analytical_functions_get_zero_function_p
   end type linear_elasticity_analytical_functions_t
 
   public :: linear_elasticity_analytical_functions_t
@@ -144,16 +123,7 @@ contains
     call result%init(0.0)
   end subroutine zero_vector_function_get_value_space
 
-  !===============================================================================================
-  !subroutine source_term_p_get_value_space ( this, point, result )
-  !  implicit none
-  !  class(source_term_p_t), intent(in)    :: this
-  !  type(point_t)       , intent(in)    :: point
-  !  real(rp)            , intent(inout) :: result
-  !  assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-  !  result = 0.0_rp 
-  !end subroutine source_term_p_get_value_space
-subroutine source_term_u_get_value_space ( this, point, result )
+  subroutine source_term_u_get_value_space ( this, point, result )
     implicit none
     class(source_term_u_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
@@ -177,20 +147,10 @@ subroutine source_term_u_get_value_space ( this, point, result )
        assert(0==1)
     else
        call result%set(1,0.0_rp)
-       call result%set(2,-0.01_rp) 
+       call result%set(2,-9.8_rp) 
        call result%set(3,0.0_rp) 
     end if
   end subroutine gravity_source_term_u_get_value_space
-
-  !===============================================================================================
-  !subroutine solution_function_p_get_value_space ( this, point, result )
-  !  implicit none
-  !  class(solution_function_p_t), intent(in)    :: this
-  !  type(point_t)             , intent(in)    :: point
-  !  real(rp)                  , intent(inout) :: result
-  !  assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-  !  result = (lambda+2*one_third*mu)*2.0_rp ! div u
-  !end subroutine solution_function_p_get_value_space
 
   subroutine solution_function_u_get_value_space ( this, point, result )
     implicit none
@@ -216,17 +176,7 @@ subroutine source_term_u_get_value_space ( this, point, result )
     ! Steady state solution
     call this%get_value_space(point,result)
   end subroutine solution_function_u_get_value_space_time
-
-  !===============================================================================================
-  !subroutine solution_function_p_get_gradient_space ( this, point, result )
-  !  implicit none
-  !  class(solution_function_p_t), intent(in)    :: this
-  !  type(point_t)             , intent(in)    :: point
-  !  type(vector_field_t)      , intent(inout) :: result
-  !  assert ( this%num_dimensions == 2 .or. this%num_dimensions == 3 )
-  !  result = 0.0_rp
-  !end subroutine solution_function_p_get_gradient_space
-
+  
   subroutine solution_function_u_get_gradient_space ( this, point, result )
     implicit none
     class(solution_function_u_t), intent(in)    :: this
@@ -240,22 +190,6 @@ subroutine source_term_u_get_value_space ( this, point, result )
     else
        call result%init(1.0_rp)
     end if
-    !if ( this%num_dimensions == 2 ) then
-    !  call result%set( 1, 1, 1.0_rp ) 
-    !  call result%set( 2, 1, 0.0_rp )
-    !  call result%set( 1, 2, 1.0_rp ) 
-    !  call result%set( 2, 2, 0.0_rp )
-    !else
-    !  call result%set( 1, 1, 1.0_rp ) 
-    !  call result%set( 2, 1, 0.0_rp )
-    !  call result%set( 3, 1, 0.0_rp )
-    !  call result%set( 1, 2, 1.0_rp ) 
-    !  call result%set( 2, 2, 0.0_rp )
-    !  call result%set( 3, 2, 0.0_rp )
-    !  call result%set( 1, 3, 1.0_rp ) 
-    !  call result%set( 2, 3, 0.0_rp )
-    !  call result%set( 3, 3, 0.0_rp )
-    !end if
   end subroutine solution_function_u_get_gradient_space
 
   !===============================================================================================
@@ -263,40 +197,24 @@ subroutine source_term_u_get_value_space ( this, point, result )
     implicit none
     class(linear_elasticity_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dimensions
-    !call this%source_term_p%set_num_dimensions(num_dimensions)
     call this%source_term_u%set_num_dimensions(num_dimensions)
-    !call this%solution_function_p%set_num_dimensions(num_dimensions)
     call this%solution_function_u%set_num_dimensions(num_dimensions)
   end subroutine linear_elasticity_analytical_functions_set_num_dimensions
 
-  !===============================================================================================
-  !function linear_elasticity_analytical_functions_get_source_term_p ( this )
-  !  implicit none
-  !  class(linear_elasticity_analytical_functions_t), target, intent(in)    :: this
-  !  class(scalar_function_t), pointer :: linear_elasticity_analytical_functions_get_source_term_p
-  !  linear_elasticity_analytical_functions_get_source_term_p => this%source_term_p
-  !end function linear_elasticity_analytical_functions_get_source_term_p
-!===============================================================================================
   function linear_elasticity_analytical_functions_get_source_term_u ( this )
     implicit none
     class(linear_elasticity_analytical_functions_t), target, intent(in)    :: this
     class(vector_function_t), pointer :: linear_elasticity_analytical_functions_get_source_term_u
     linear_elasticity_analytical_functions_get_source_term_u => this%source_term_u
   end function linear_elasticity_analytical_functions_get_source_term_u
-!===============================================================================================
+  
+  !===============================================================================================
   function lin_ela_analytical_functions_get_gravity_source_term_u ( this )
     implicit none
     class(linear_elasticity_analytical_functions_t), target, intent(in)    :: this
     class(vector_function_t), pointer :: lin_ela_analytical_functions_get_gravity_source_term_u
     lin_ela_analytical_functions_get_gravity_source_term_u => this%gravity_source_term_u
   end function lin_ela_analytical_functions_get_gravity_source_term_u
-  !===============================================================================================
-  !function linear_elasticity_analytical_functions_get_solution_function_p ( this )
-  !  implicit none
-  !  class(linear_elasticity_analytical_functions_t), target, intent(in)    :: this
-  !  class(scalar_function_t), pointer :: linear_elasticity_analytical_functions_get_solution_function_p
-  !  linear_elasticity_analytical_functions_get_solution_function_p => this%solution_function_p
-  !end function linear_elasticity_analytical_functions_get_solution_function_p
 
   function linear_elasticity_analytical_functions_get_solution_function_u ( this )
     implicit none
@@ -306,20 +224,12 @@ subroutine source_term_u_get_value_space ( this, point, result )
   end function linear_elasticity_analytical_functions_get_solution_function_u
 
   !===============================================================================================
-
   function linear_elasticity_analytical_functions_get_zero_function_u ( this )
     implicit none
     class(linear_elasticity_analytical_functions_t), target, intent(in)    :: this
     class(vector_function_t), pointer :: linear_elasticity_analytical_functions_get_zero_function_u
     linear_elasticity_analytical_functions_get_zero_function_u => this%zero_u
   end function linear_elasticity_analytical_functions_get_zero_function_u
-
-  !function linear_elasticity_analytical_functions_get_zero_function_p ( this )
-  !  implicit none
-  !  class(linear_elasticity_analytical_functions_t), target, intent(in)    :: this
-  !  class(scalar_function_t), pointer :: linear_elasticity_analytical_functions_get_zero_function_p
-  !  linear_elasticity_analytical_functions_get_zero_function_p => this%zero_p
-  !end function linear_elasticity_analytical_functions_get_zero_function_p
-
+  
 end module linear_elasticity_analytical_functions_names
 !***************************************************************************************************
