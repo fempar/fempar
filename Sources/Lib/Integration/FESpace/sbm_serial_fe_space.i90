@@ -3032,6 +3032,7 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
   integer(ip)                                :: old_num_local_cells, old_num_ghost_cells
   class(p4est_base_triangulation_t), pointer :: p4est_triangulation 
  
+#ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
   select type(triangulation)
   class is (p4est_base_triangulation_t)
@@ -3084,18 +3085,29 @@ subroutine serial_fe_space_project_field_cell_to_ref_fes(this)
   massert ( (new_cell_lid - 1) == this%triangulation%get_num_local_cells(), 'Loop in old cells failed to visit all new cells' )
   call this%free_fe_cell_iterator(new_fe)
   call old_field_cell_to_ref_fes%free()
+#else  
+  call this%not_enabled_error()
+#endif  
 end subroutine serial_fe_space_project_field_cell_to_ref_fes
 
 subroutine serial_fe_space_project_fe_integration_arrays(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   ! if allocated, FE integration arrays not projected
+#ifdef ENABLE_P4EST  
+#else  
+  call this%not_enabled_error()
+#endif  
 end subroutine serial_fe_space_project_fe_integration_arrays
 
 subroutine serial_fe_space_project_facet_integration_arrays(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   ! if allocated, FE face integration arrays not projected
+#ifdef ENABLE_P4EST  
+#else  
+  call this%not_enabled_error()
+#endif  
 end subroutine serial_fe_space_project_facet_integration_arrays
 
 subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_function )
@@ -3122,7 +3134,8 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   type(block_layout_t)              , pointer     :: block_layout
   integer(ip)                                     :: error
   
-  triangulation => this%get_triangulation()
+#ifdef ENABLE_P4EST  
+    triangulation => this%get_triangulation()
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
     refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
@@ -3267,7 +3280,9 @@ contains
     end if
     get_field_fe_dofs => old_lst_dofs_gids%get_pointer(spos,epos)
   end function get_field_fe_dofs
-  
+#else  
+  call this%not_enabled_error()
+#endif    
 end subroutine serial_fe_space_refine_and_coarsen_single_fe_function
 
 subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functions )
@@ -3295,7 +3310,8 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
   integer(ip)                                     :: ifunc
   integer(ip)                                     :: error
   
-  triangulation => this%get_triangulation()
+#ifdef ENABLE_P4EST  
+    triangulation => this%get_triangulation()
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
     refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()
@@ -3444,7 +3460,10 @@ contains
     end if
     get_field_fe_dofs => old_lst_dofs_gids%get_pointer(spos,epos)
   end function get_field_fe_dofs
-  
+#else  
+  call this%not_enabled_error()
+#endif  
+    
 end subroutine serial_fe_space_refine_and_coarsen_fe_function_array
 
 subroutine serial_fe_space_update_hanging_dof_values (this, fe_function )
@@ -3487,3 +3506,14 @@ subroutine serial_fe_space_update_hanging_dof_values (this, fe_function )
     end do
   end do
 end subroutine serial_fe_space_update_hanging_dof_values 
+
+#ifndef ENABLE_P4EST
+  subroutine serial_fe_space_not_enabled_error(this)
+    class(serial_fe_space_t), intent(in) :: this
+    write (stderr,*) 'Error: FEMPAR was not compiled with -DENABLE_P4EST.'
+    write (stderr,*) "Error: You must activate this CPP macro in order to use P4EST"
+    check(.false.)
+  end subroutine serial_fe_space_not_enabled_error
+#endif
+
+
