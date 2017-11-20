@@ -32,57 +32,88 @@ module maxwell_conditions_names
 # include "debug.i90"
   private
   type, extends(conditions_t) :: maxwell_conditions_t
-     private
-     class(scalar_function_t), pointer :: boundary_function  
+		   private
+		   integer(ip) :: num_dims 
+     class(scalar_function_t), pointer :: boundary_function_Hx 
+					class(scalar_function_t), pointer :: boundary_function_Hy
+				 class(scalar_function_t), pointer :: boundary_function_Hz
    contains
-     procedure :: set_boundary_function       => poisson_conditions_set_boundary_function
-     procedure :: get_num_components       => poisson_conditions_get_num_components  
-     procedure :: get_components_code         => poisson_conditions_get_components_code
-     procedure :: get_function                => poisson_conditions_get_function
+     procedure :: set_boundary_function_Hx    => maxwell_conditions_set_boundary_function_Hx
+					procedure :: set_boundary_function_Hy    => maxwell_conditions_set_boundary_function_Hy
+					procedure :: set_boundary_function_Hz    => maxwell_conditions_set_boundary_function_Hz
+					procedure :: set_num_dims                => maxwell_conditions_set_num_dims
+     procedure :: get_num_components          => maxwell_conditions_get_num_components  
+     procedure :: get_components_code         => maxwell_conditions_get_components_code
+     procedure :: get_function                => maxwell_conditions_get_function
   end type maxwell_conditions_t
   
   public :: maxwell_conditions_t
   
 contains
 
-  subroutine poisson_conditions_set_boundary_function (this, boundary_function)
+  subroutine maxwell_conditions_set_boundary_function_Hx (this, boundary_function_Hx)
     implicit none
     class(maxwell_conditions_t)     , intent(inout) :: this
-    class(scalar_function_t), target, intent(in)    :: boundary_function
-    this%boundary_function => boundary_function
-  end subroutine poisson_conditions_set_boundary_function
+    class(scalar_function_t), target, intent(in)    :: boundary_function_Hx
+    this%boundary_function_Hx => boundary_function_Hx
+  end subroutine maxwell_conditions_set_boundary_function_Hx
+		
+		 subroutine maxwell_conditions_set_boundary_function_Hy (this, boundary_function_Hy)
+    implicit none
+    class(maxwell_conditions_t)     , intent(inout) :: this
+    class(scalar_function_t), target, intent(in)    :: boundary_function_Hy
+    this%boundary_function_Hy => boundary_function_Hy
+  end subroutine maxwell_conditions_set_boundary_function_Hy
+		
+		 subroutine maxwell_conditions_set_boundary_function_Hz (this, boundary_function_Hz)
+    implicit none
+    class(maxwell_conditions_t)     , intent(inout) :: this
+    class(scalar_function_t), target, intent(in)    :: boundary_function_Hz
+    this%boundary_function_Hz => boundary_function_Hz
+  end subroutine maxwell_conditions_set_boundary_function_Hz
 
-  function poisson_conditions_get_num_components(this)
+		  subroutine maxwell_conditions_set_num_dims (this, num_dims)
+    implicit none
+    class(maxwell_conditions_t), intent(inout) :: this
+    integer(ip)                           , intent(in)    :: num_dims
+    this%num_dims = num_dims
+  end subroutine maxwell_conditions_set_num_dims 
+		
+  function maxwell_conditions_get_num_components(this)
     implicit none
     class(maxwell_conditions_t), intent(in) :: this
-    integer(ip) :: poisson_conditions_get_num_components
-    poisson_conditions_get_num_components = 1
-  end function poisson_conditions_get_num_components
+    integer(ip) :: maxwell_conditions_get_num_components
+    maxwell_conditions_get_num_components = this%num_dims
+  end function maxwell_conditions_get_num_components
 
-  subroutine poisson_conditions_get_components_code(this, boundary_id, components_code)
+		  subroutine maxwell_conditions_get_components_code(this, boundary_id, components_code)
     implicit none
     class(maxwell_conditions_t), intent(in)  :: this
-    integer(ip)            , intent(in)  :: boundary_id
-    logical                , intent(out) :: components_code(:)
-    assert ( size(components_code) == 1 )
-    components_code(1) = .true.
+    integer(ip)                       , intent(in)  :: boundary_id
+    logical                           , intent(out) :: components_code(:)
+    assert ( size(components_code) == 2 .or. size(components_code) == 3 )
+    components_code(1:size(components_code)) = .false.
     if ( boundary_id == 1 ) then
-      components_code(1) = .true.
+      components_code(1:size(components_code)) = .true.
     end if
-  end subroutine poisson_conditions_get_components_code
+  end subroutine maxwell_conditions_get_components_code
   
-  subroutine poisson_conditions_get_function ( this, boundary_id, component_id, function )
+  subroutine maxwell_conditions_get_function ( this, boundary_id, component_id, function )
     implicit none
     class(maxwell_conditions_t), target, intent(in)  :: this
     integer(ip)                        , intent(in)  :: boundary_id
     integer(ip)                        , intent(in)  :: component_id
     class(scalar_function_t), pointer  , intent(out) :: function
-    assert ( component_id == 1 )
-    assert ( associated(this%boundary_function) )
     nullify(function)
-    if ( boundary_id == 1 ) then
-      function => this%boundary_function
+    if ( component_id == 1 ) then
+      function => this%boundary_function_Hx
+				elseif ( component_id == 2 ) then 
+				  function => this%boundary_function_Hy
+				elseif ( component_id == 3 ) then 
+				  function => this%boundary_function_Hz
+				else 
+				assert(.false.) 
     end if  
-  end subroutine poisson_conditions_get_function 
+  end subroutine maxwell_conditions_get_function 
 
 end module maxwell_conditions_names

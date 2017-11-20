@@ -71,8 +71,8 @@ contains
     ! FE integration-related data types
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(vector_field_t), allocatable  :: shape_gradients(:,:)
-    real(rp)            , allocatable  :: shape_values(:,:)
+    type(vector_field_t), allocatable  :: shape_curls(:,:)
+    type(vector_field_t), allocatable  :: shape_values(:,:)
 
     ! FE matrix and vector i.e., A_K + f_K
     real(rp), allocatable              :: elmat(:,:), elvec(:)
@@ -81,9 +81,9 @@ contains
     integer(ip)  :: qpoint, num_quad_points
     integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
     real(rp)     :: factor
-    real(rp)     :: source_term_value
+    type(vector_field_t)  :: source_term_value
     
-    class(scalar_function_t), pointer :: source_term
+    class(vector_function_t), pointer :: source_term
     class(triangulation_t), pointer :: triangulation
     
     
@@ -117,14 +117,15 @@ contains
           ! Compute element matrix and vector
           elmat = 0.0_rp
           elvec = 0.0_rp
-          call fe%get_gradients(shape_gradients)
+          call fe%get_curls(shape_curls)
           call fe%get_values(shape_values)
           do qpoint = 1, num_quad_points
              factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
-                   ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)
+                   ! A_K(i,j) = ( (phi_i,phi_j) + (curl(phi_i),curl(phi_j)) )
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( shape_values(jdof,qpoint)*shape_values(idof,qpoint) + &
+																																																																			 shape_curls(jdof,qpoint) * shape_curls(idof,qpoint) ) 
                 end do
              end do
              
@@ -140,8 +141,8 @@ contains
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
-    call memfree(shape_values, __FILE__, __LINE__)
-    deallocate (shape_gradients, stat=istat); check(istat==0);
+    deallocate (shape_values, stat=istat); check(istat==0);
+    deallocate (shape_curls, stat=istat); check(istat==0);
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin

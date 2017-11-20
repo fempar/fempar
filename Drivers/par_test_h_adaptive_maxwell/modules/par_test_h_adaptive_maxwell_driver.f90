@@ -70,7 +70,7 @@ module par_test_h_adaptive_maxwell_driver_names
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
  
-     ! Poisson problem solution FE function
+     ! maxwell problem solution FE function
      type(fe_function_t)                   :: solution
      
      ! Environment required for fe_affine_operator + vtk_handler
@@ -103,7 +103,7 @@ module par_test_h_adaptive_maxwell_driver_names
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
-     procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_poisson_driver_popcorn_fun
+     procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_maxwell_driver_popcorn_fun
      procedure                  :: set_cells_for_refinement
      procedure                  :: set_cells_set_ids
   end type par_test_h_adaptive_maxwell_fe_driver_t
@@ -237,12 +237,12 @@ end subroutine free_timers
       call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe()
       this%reference_fes(PAR_TEST_MAXWELL_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_lagrangian, &
+                                                   fe_type = fe_type_nedelec, & 
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
-                                                   field_type = field_type_scalar, &
+                                                   field_type = field_type_vector, &
                                                    conformity = .true. )
-      call this%triangulation%free_cell_iterator(cell)
+      call this%triangulation%free_cell_iterator(cell) 
     end if
   end subroutine setup_reference_fes
   
@@ -262,7 +262,10 @@ end subroutine free_timers
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
     call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
-    call this%maxwell_conditions%set_boundary_function(this%maxwell_analytical_functions%get_boundary_function())
+				call this%maxwell_conditions%set_num_dims(this%triangulation%get_num_dims())
+    call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
+				call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
+				call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
 
       call this%fe_space%create( triangulation       = this%triangulation,      &
                                  reference_fes       = this%reference_fes,      &
@@ -279,7 +282,6 @@ end subroutine free_timers
     
     call this%maxwell_integration%set_analytical_functions(this%maxwell_analytical_functions)
     
-    ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                           diagonal_blocks_symmetric_storage = [ .true. ], &
                                           diagonal_blocks_symmetric         = [ .true. ], &
@@ -429,7 +431,7 @@ end subroutine free_timers
   subroutine check_solution(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
-    type(error_norms_scalar_t) :: error_norm 
+    type(error_norms_vector_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     
     call error_norm%create(this%fe_space,1)    
@@ -566,7 +568,7 @@ end subroutine free_timers
     call this%test_params%free()
   end subroutine free_command_line_parameters
 
-  function par_test_h_adaptive_poisson_driver_popcorn_fun(point,num_dim) result (val)
+  function par_test_h_adaptive_maxwell_driver_popcorn_fun(point,num_dim) result (val)
     implicit none
     type(point_t), intent(in) :: point
     integer(ip),   intent(in) :: num_dim
@@ -605,7 +607,7 @@ end subroutine free_timers
         end if
         val = val - A*exp( -( (x - xk)**2  + (y - yk)**2 + (z - zk)**2 )/(sg**2) )
     end do
-  end function par_test_h_adaptive_poisson_driver_popcorn_fun
+  end function par_test_h_adaptive_maxwell_driver_popcorn_fun
   
   subroutine set_cells_for_refinement(this)
     implicit none
