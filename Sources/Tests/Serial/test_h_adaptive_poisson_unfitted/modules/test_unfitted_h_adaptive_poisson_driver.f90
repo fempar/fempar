@@ -499,7 +499,12 @@ contains
     
     select type(rhs)
     class is (serial_scalar_array_t)  
-    !call rhs%print(6) 
+       !if (this%test_params%get_write_matrix()) then
+       !iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_vector.mm',action='write')
+       !check(iounit>0)
+       !call rhs%print(iounit) 
+       !call io_close(iounit)
+       !end if
     class DEFAULT
        assert(.false.) 
     end select

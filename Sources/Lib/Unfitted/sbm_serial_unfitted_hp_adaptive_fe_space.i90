@@ -443,7 +443,7 @@ subroutine suhpafs_list_dofs ( this )
      if ( fe%is_local() .and. ( fe%is_cut()) ) then
        do field_id=1, this%get_num_fields()
          if ( .not. fe%is_void(field_id)) then
-           call fe%generate_own_dofs_cell ( field_id, fields_current_dof(field_id) )
+           call fe%generate_own_dofs_cell ( field_id, current_fixed_dof, are_free_dofs=.false. )
            do ivef= 1, fe%get_num_vefs()
              call fe%get_vef(ivef,vef)
              if ( vef%has_free_dofs(field_id,coarser_fe) ) then
