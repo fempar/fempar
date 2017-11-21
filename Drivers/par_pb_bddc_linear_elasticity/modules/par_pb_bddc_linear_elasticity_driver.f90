@@ -105,6 +105,7 @@ module par_pb_bddc_linear_elasticity_driver_names
      procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure        , private :: write_matrices
+     procedure        , private :: generate_kernel
      procedure                  :: run_simulation
      procedure                  :: print_info
      procedure        , private :: free
@@ -990,6 +991,7 @@ contains
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(in) :: this
     character(:), allocatable :: matrix_filename
     character(:), allocatable :: mapping_filename
+    character(:), allocatable :: kernel_filename
     class(matrix_t), pointer :: matrix
     integer(ip) :: luout
     integer(igp) :: num_global_dofs
@@ -997,6 +999,8 @@ contains
     type(serial_scalar_array_t) :: mapping
     integer(ip) :: i
     class(environment_t), pointer :: environment
+    real(rp), allocatable :: kernel(:,:)
+
     environment => this%fe_space%get_environment()
     if ( this%test_params%get_write_matrices() ) then
       if ( environment%am_i_l1_task() ) then
@@ -1026,6 +1030,14 @@ contains
         call mapping%free()
         call memfree(dofs_gids, __FILE__, __LINE__)
         
+        call this%generate_kernel(kernel)
+        kernel_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "kernel"
+        call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),kernel_filename)
+        luout = io_open ( kernel_filename, 'write')
+        call print_kernel(luout, kernel)
+        call io_close(luout)
+        call memfree(kernel, __FILE__, __LINE__)
+        
         if ( environment%get_l1_rank() == 0 ) then
           mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "num_global_dofs"
           luout = io_open ( mapping_filename, 'write')
@@ -1037,6 +1049,120 @@ contains
    end if
   end subroutine write_matrices
   
+  subroutine generate_kernel(this, kernel) 
+   implicit none
+   class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(in)     :: this
+   real(rp), allocatable                           , intent(inout)  :: kernel(:,:) 
+   class(environment_t), pointer :: environment
+   type(fe_vef_iterator_t) :: vef
+   class(fe_cell_iterator_t), allocatable :: cell
+   class(reference_fe_t), pointer :: reference_fe
+   integer(ip) :: vef_lid
+   integer(ip), pointer :: fe_dofs(:)
+   type(list_iterator_t) :: own_dofs_iterator
+   type(point_t), allocatable :: nodes_coordinates(:)
+   integer(ip) :: istat, ldof, gdof(3), i, j, component
+  
+   environment => this%fe_space%get_environment()
+   if (allocated(kernel)) call memfree(kernel, __FILE__, __LINE__ )
+   if ( environment%am_i_l1_task() ) then
+       assert ( this%triangulation%get_num_dims()   == 3 )
+       assert ( this%reference_fes(1)%p%get_order() == 1 )
+
+       call memalloc ( this%fe_space%get_block_num_dofs(1), &
+                       3*(this%triangulation%get_num_dims()-1), &
+                       kernel, &
+                       __FILE__, __LINE__ )
+       kernel = 0.0_rp
+       
+       call this%fe_space%create_fe_vef_iterator(vef)
+       call this%fe_space%create_fe_cell_iterator(cell)
+       
+       do while ( .not. vef%has_finished() )
+         if (vef%is_ghost()) then
+            call vef%next()
+            cycle
+         end if
+         
+         call vef%get_cell_around(1,cell)
+       
+         if ( .not. allocated(nodes_coordinates) ) then
+            allocate ( nodes_coordinates(cell%get_num_nodes()), stat=istat) 
+            check(istat==0)
+         end if
+         call cell%get_nodes_coordinates(nodes_coordinates)
+         
+         reference_fe => cell%get_reference_fe(1)
+         vef_lid = cell%get_vef_lid_from_gid(vef%get_gid())
+         own_dofs_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid)
+         call cell%get_field_fe_dofs(1, fe_dofs) 
+         
+         if ( own_dofs_iterator%get_size() > 0 ) then
+          do while ( .not. own_dofs_iterator%is_upper_bound() )
+            ldof            = own_dofs_iterator%get_current()
+            component       = reference_fe%get_component_node(ldof) 
+            gdof(component) = fe_dofs(ldof)
+            call own_dofs_iterator%next()
+          end do 
+         
+          do component=1, reference_fe%get_num_field_components()
+            if ( gdof(component) < 0 ) cycle
+            ! [ 1 0 0 ]
+            ! [ 0 1 0 ]
+            ! [ 0 0 1 ]
+            ! [  x_2 -x_1   0 ]
+            ! [ -x_3   0  x_1 ]
+            ! [    0 x_3 -x_2 ] 
+            if      ( component == 1 ) then
+              kernel(gdof(1)  , 1) = 1.0_rp
+              kernel(gdof(1)  , 4) =  nodes_coordinates(vef_lid)%get(2)
+              if ( gdof(2) > 0 ) then
+                kernel(gdof(2)  , 4) = -nodes_coordinates(vef_lid)%get(1)
+              end if  
+            else if ( component == 2 ) then
+              kernel(gdof(2)  , 2) = 1.0_rp
+              if ( gdof(1) > 0 ) then
+                kernel(gdof(1), 5) = -nodes_coordinates(vef_lid)%get(3)
+              end if
+              if ( gdof(3) > 0 ) then
+                kernel(gdof(3), 5) =  nodes_coordinates(vef_lid)%get(1) 
+              end if
+            else if ( component == 3 ) then
+              kernel(gdof(3), 3) = 1.0_rp
+              if ( gdof(2) > 0 ) then
+                kernel(gdof(2), 6) =  nodes_coordinates(vef_lid)%get(3)
+              end if
+              kernel(gdof(3), 6) = -nodes_coordinates(vef_lid)%get(2)               
+            else 
+              check(.false.)
+            end if
+         end do
+         end  if
+         call vef%next()
+       end do
+       
+       if ( allocated(nodes_coordinates) ) then 
+         deallocate ( nodes_coordinates, stat=istat) 
+         check(istat==0)
+       end if   
+       call this%fe_space%free_fe_vef_iterator(vef)
+       call this%fe_space%free_fe_cell_iterator(cell)
+   end if
+    end subroutine generate_kernel
+  
+    subroutine print_kernel ( luout, kernel )
+      implicit none
+      integer(ip), intent(in) :: luout
+      real(rp)   , intent(in) :: kernel(:,:)
+      integer(ip) :: i, j
+      write (luout,'(a)') '%%MatrixMarket matrix array real general'
+      write (luout,*) size(kernel,1), size(kernel,2)
+      do j=1, size(kernel,2)
+        do i=1,size(kernel,1)
+           write (luout,'(e32.25)') kernel(i,j)
+        end do
+      end do 
+    end subroutine print_kernel 
   
   subroutine run_simulation(this) 
     implicit none
@@ -1059,6 +1185,8 @@ contains
     call this%assemble_system()
     call this%timer_assemply%stop()
 
+    call this%write_matrices()   
+    
     call t_solve_system%create(this%par_environment%get_w_context() , "SOLVE SYSTEM", TIMER_MODE_MIN)
     call t_solve_system%start()
     call this%setup_solver()
@@ -1068,7 +1196,6 @@ contains
 
     call this%check_solution()
     call this%write_solution()
-    call this%write_matrices()
     call this%print_info()
     call this%free()
   end subroutine run_simulation

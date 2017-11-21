@@ -141,6 +141,7 @@ module fe_space_names
     procedure, non_overridable           :: has_finished            => base_fe_cell_iterator_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => base_fe_cell_iterator_get_reference_fe_geo
     procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_cell_iterator_get_reference_fe_geo_id
+    procedure, non_overridable           :: get_num_nodes           => base_fe_cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_nodes_coordinates   => base_fe_cell_iterator_get_nodes_coordinates
     procedure, non_overridable           :: get_gid                 => base_fe_cell_iterator_get_gid
     procedure, non_overridable           :: get_ggid                => base_fe_cell_iterator_get_ggid
