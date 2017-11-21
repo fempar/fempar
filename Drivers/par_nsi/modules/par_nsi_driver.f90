@@ -515,11 +515,13 @@ end subroutine free_timers
     integer(ip) :: i, istat
 
     !call this%time_integration%free()
-    call this%nonlinear_operator%free()
-    call this%nonlinear_solver%free()
-    call this%linear_solver%free()
+    
+    !call this%mlbddc%free()
+    
     call this%solution%free()
-    call this%mlbddc%free()
+    call this%linear_solver%free()
+    call this%nonlinear_solver%free()
+    call this%nonlinear_operator%free()
     call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then

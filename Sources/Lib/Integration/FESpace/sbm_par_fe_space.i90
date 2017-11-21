@@ -3390,9 +3390,7 @@ subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old
      call this%compute_faces_object()
 
      ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
-     block_layout => this%get_block_layout()
-     call this%nullify_block_layout()
-     call this%generate_global_dof_numbering(block_layout)
+     call this%generate_global_dof_numbering()
   end if
 #else  
   call this%not_enabled_error()
@@ -3485,9 +3483,7 @@ subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_l
      call this%compute_faces_object()
 
      ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
-     block_layout => this%get_block_layout()
-     call this%nullify_block_layout()
-     call this%generate_global_dof_numbering(block_layout)
+     call this%generate_global_dof_numbering()
   end if
 #else  
   call this%not_enabled_error()
