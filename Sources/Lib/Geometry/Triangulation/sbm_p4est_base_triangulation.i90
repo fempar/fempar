@@ -421,8 +421,8 @@ contains
               if (.not. (icell > this%get_num_local_cells() .and. &
                           jcell > this%get_num_local_cells())) then
                 call work_vector_cells_around%push_back(jcell)
-                vef_is_ghost = .false.
-              end if 
+              end if
+              vef_is_ghost = .false.
            end if
         end do  ! End loop faces at corner
 

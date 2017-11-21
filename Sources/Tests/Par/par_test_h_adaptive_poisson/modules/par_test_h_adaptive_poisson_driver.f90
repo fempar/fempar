@@ -318,12 +318,12 @@ end subroutine free_timers
     do i = 1,3
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
-      call this%set_cells_set_ids()
+      !call this%set_cells_set_ids()
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
     
-    !call this%triangulation%setup_coarse_triangulation()
+    call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -758,8 +758,8 @@ end subroutine free_timers
       call this%triangulation%create_cell_iterator(cell)
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
-          if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
-          !if ( (cell%get_ggid()==8) .or. (cell%get_level() == 0) )then
+          !if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
+          if ( (cell%get_gid()==4) .or. (cell%get_level() == 0) )then
             call cell%set_for_refinement()
           end if
         end if  
