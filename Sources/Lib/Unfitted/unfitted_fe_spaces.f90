@@ -182,9 +182,10 @@ module unfitted_fe_spaces_names
       procedure, non_overridable :: print_debug_info => suhpafs_print_debug_info
 
       ! Private TBPs
-      procedure, private, non_overridable :: allocate_and_fill_aggregate_ids        => suhpafs_allocate_and_fill_aggregate_ids
-      procedure, private, non_overridable :: compute_aggregate_size                 => suhpafs_compute_aggregate_size
-      procedure, private, non_overridable :: check_for_full_neighbors               => suhpafs_check_for_full_neighbors
+      procedure, private, non_overridable :: allocate_and_fill_aggregate_ids         => suhpafs_allocate_and_fill_aggregate_ids
+      procedure, private, non_overridable :: compute_aggregate_size                  => suhpafs_compute_aggregate_size
+      procedure, private, non_overridable :: check_for_full_neighbors                => suhpafs_check_for_full_neighbors
+      procedure, private, non_overridable :: fill_proper_vef_constrains_full_cell    => suhpafs_fill_proper_vef_constrains_full_cell
 
   end type serial_unfitted_hp_adaptive_fe_space_t
 
