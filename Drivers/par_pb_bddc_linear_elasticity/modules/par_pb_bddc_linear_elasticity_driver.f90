@@ -106,6 +106,7 @@ module par_pb_bddc_linear_elasticity_driver_names
      procedure        , private :: write_solution
      procedure        , private :: write_matrices
      procedure        , private :: generate_kernel
+     procedure        , private :: generate_IS_PCBDDCSetDofsSplitting
      procedure                  :: run_simulation
      procedure                  :: print_info
      procedure        , private :: free
@@ -1000,6 +1001,7 @@ contains
     integer(ip) :: i
     class(environment_t), pointer :: environment
     real(rp), allocatable :: kernel(:,:)
+    type(std_vector_integer_igp_t) :: f1_IS, f2_IS, f3_IS
 
     environment => this%fe_space%get_environment()
     if ( this%test_params%get_write_matrices() ) then
@@ -1021,6 +1023,29 @@ contains
         do i=1, size(dofs_gids)
           call mapping%insert(i,real(dofs_gids(i),rp))
         end do
+        
+        call this%generate_IS_PCBDDCSetDofsSplitting(dofs_gids, f1_IS, f2_IS, f3_IS)
+        
+        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "f1_IS"
+        call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
+        luout = io_open ( mapping_filename, 'write')
+        call print_std_vector(luout, f1_IS)
+        call io_close(luout)
+        call f1_IS%free()
+        
+        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "f2_IS"
+        call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
+        luout = io_open ( mapping_filename, 'write')
+        call print_std_vector(luout, f2_IS)
+        call io_close(luout)
+        call f2_IS%free()
+        
+        mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "f3_IS"
+        call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
+        luout = io_open ( mapping_filename, 'write')
+        call print_std_vector(luout, f3_IS)
+        call io_close(luout)
+        call f3_IS%free()
         
         mapping_filename = this%test_params%get_dir_path_out() // "/" // this%test_params%get_prefix() // "_" //  "mapping"
         call numbered_filename_compose(environment%get_l1_rank(),environment%get_l1_size(),mapping_filename)
@@ -1148,8 +1173,68 @@ contains
        call this%fe_space%free_fe_vef_iterator(vef)
        call this%fe_space%free_fe_cell_iterator(cell)
    end if
-    end subroutine generate_kernel
-  
+  end subroutine generate_kernel
+    
+  subroutine  generate_IS_PCBDDCSetDofsSplitting ( this, dofs_gids, f1_IS, f2_IS, f3_IS )
+   implicit none
+   class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(in)    :: this
+   integer(igp)                                    , intent(in)    :: dofs_gids(:)
+   type(std_vector_integer_igp_t)                  , intent(inout) :: f1_IS
+   type(std_vector_integer_igp_t)                  , intent(inout) :: f2_IS
+   type(std_vector_integer_igp_t)                  , intent(inout) :: f3_IS
+     
+   class(environment_t), pointer :: environment
+   type(fe_vef_iterator_t) :: vef
+   class(fe_cell_iterator_t), allocatable :: cell
+   class(reference_fe_t), pointer :: reference_fe
+   integer(ip) :: vef_lid
+   integer(ip), pointer :: fe_dofs(:)
+   type(list_iterator_t) :: own_dofs_iterator
+   integer(ip) :: istat, ldof, gdof, component
+   call f1_IS%resize(0)
+   call f2_IS%resize(0)
+   call f3_IS%resize(0)
+   environment => this%fe_space%get_environment()
+   if ( environment%am_i_l1_task() ) then
+       assert ( this%triangulation%get_num_dims()   == 3 )
+       assert ( this%reference_fes(1)%p%get_order() == 1 )
+       call this%fe_space%create_fe_vef_iterator(vef)
+       call this%fe_space%create_fe_cell_iterator(cell)
+       do while ( .not. vef%has_finished() )
+         if (vef%is_ghost()) then
+            call vef%next()
+            cycle
+         end if
+         call vef%get_cell_around(1,cell)
+         reference_fe => cell%get_reference_fe(1)
+         vef_lid = cell%get_vef_lid_from_gid(vef%get_gid())
+         own_dofs_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid)
+         call cell%get_field_fe_dofs(1, fe_dofs)
+         if ( own_dofs_iterator%get_size() > 0 ) then
+          do while ( .not. own_dofs_iterator%is_upper_bound() )
+            ldof            = own_dofs_iterator%get_current()
+            component       = reference_fe%get_component_node(ldof) 
+            gdof            = fe_dofs(ldof)
+            if (gdof >= 0) then
+              if (component==1) then
+                call f1_IS%push_back(dofs_gids(gdof))
+              else if ( component == 2 ) then
+                call f2_IS%push_back(dofs_gids(gdof))
+              else if ( component == 3 ) then
+                call f3_IS%push_back(dofs_gids(gdof))
+              end if 
+            end if
+            call own_dofs_iterator%next()
+          end do
+         end  if
+         call vef%next()
+       end do
+       call this%fe_space%free_fe_vef_iterator(vef)
+       call this%fe_space%free_fe_cell_iterator(cell)
+   end if 
+  end subroutine generate_IS_PCBDDCSetDofsSplitting
+    
+   
     subroutine print_kernel ( luout, kernel )
       implicit none
       integer(ip), intent(in) :: luout
@@ -1163,7 +1248,19 @@ contains
         end do
       end do 
     end subroutine print_kernel 
-  
+    
+    subroutine print_std_vector ( luout, v )
+      implicit none
+      integer(ip)                   , intent(in) :: luout
+      type(std_vector_integer_igp_t), intent(in) :: v
+      integer(ip) :: i
+      write (luout,'(a)') '%%MatrixMarket matrix array real general'
+      write (luout,*) v%size(), 1
+      do i=1, v%size()
+        write (luout,'(e32.25)') real(v%get(i),rp)
+      end do 
+    end subroutine print_std_vector
+    
   subroutine run_simulation(this) 
     implicit none
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
