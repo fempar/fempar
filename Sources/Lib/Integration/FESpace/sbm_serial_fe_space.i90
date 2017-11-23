@@ -2121,6 +2121,7 @@ subroutine serial_fe_space_list_dofs ( this )
                     do jvef=1, coarser_fe%get_num_vefs()
                       call coarser_fe%get_vef(jvef, coarser_vef)
                       if (coarser_vef%is_at_interface() .and. coarser_vef%is_proper()) then
+                        ! sbadia : only touch the vefs in the ghost cell that belong to the coarser_vef
                         per_field_visited_proper_vefs_at_interface(field_id,coarser_vef%get_gid()) = .true. 
                       end if
                     end do
