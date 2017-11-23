@@ -397,6 +397,8 @@ subroutine suhpafs_list_dofs ( this )
     call fe%next()
   end do  
 
+  this%num_hanging_dofs_full_cells =  current_fixed_dof - this%get_num_fixed_dofs()
+
   ! Process cut cells to assign free dofs in the proper vefs that constrain imporper vefs of full cells
   call fe%first()
   do while ( .not. fe%has_finished())
@@ -468,6 +470,8 @@ subroutine suhpafs_list_dofs ( this )
     call fe%next()
   end do  
 
+  this%num_aggregated_dofs = current_fixed_dof - (this%num_hanging_dofs_full_cells + this%get_num_fixed_dofs())
+
   ! Process all cut cells to assign fixed dofs due to hanging nodes, and pick up from owners to non-owners
   call fe%first()
   do while ( .not. fe%has_finished())
@@ -518,6 +522,8 @@ subroutine suhpafs_list_dofs ( this )
     end if
     call fe%next()
   end do  
+
+  this%num_hanging_dofs_other = current_fixed_dof - ( this%num_aggregated_dofs + this%num_hanging_dofs_full_cells + this%get_num_fixed_dofs())
   
 #ifdef DEBUG
   call fe%first()
@@ -543,6 +549,9 @@ subroutine suhpafs_list_dofs ( this )
   
   call this%set_num_hanging_dofs( current_fixed_dof - this%get_num_fixed_dofs() )
   call this%set_num_fixed_dofs(current_fixed_dof)
+
+  assert(this%get_num_hanging_dofs() == this%num_hanging_dofs_full_cells + this%num_aggregated_dofs + this%num_hanging_dofs_other )
+  assert(this%get_num_fixed_dofs() == this%get_num_dirichlet_dofs() + this%num_hanging_dofs_full_cells + this%num_aggregated_dofs + this%num_hanging_dofs_other )
   
   call this%free_fe_cell_iterator(coarser_fe)
   call this%free_fe_cell_iterator(source_fe)
@@ -561,6 +570,55 @@ end subroutine suhpafs_list_dofs
 
 !========================================================================================
 subroutine suhpafs_setup_hanging_node_constraints ( this )
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this   
+
+  type(std_vector_integer_ip_t) , pointer :: ptr_constraining_free_dofs
+  type(std_vector_integer_ip_t) , pointer :: ptr_constraining_dirichlet_dofs
+  type(std_vector_integer_ip_t) , pointer :: constraining_free_dofs
+  type(std_vector_real_rp_t)    , pointer :: constraining_free_dofs_coefficients
+  type(std_vector_integer_ip_t) , pointer :: constraining_dirichlet_dofs
+  type(std_vector_real_rp_t)    , pointer :: constraining_dirichlet_dofs_coefficients
+  type(std_vector_real_rp_t)    , pointer :: constraints_independent_term
+
+  ! We want to use this subroutine only for aggregation-based FE spaces
+  if (.not. this%use_constraints) then
+  call this%serial_fe_space_t%setup_hanging_node_constraints()
+    return
+  end if
+
+  ptr_constraining_free_dofs                 => this%get_ptr_constraining_free_dofs()
+  ptr_constraining_dirichlet_dofs            => this%get_ptr_constraining_dirichlet_dofs()
+  constraining_free_dofs                     => this%get_constraining_free_dofs()
+  constraining_free_dofs_coefficients        => this%get_constraining_free_dofs_coefficients()
+  constraining_dirichlet_dofs                => this%get_constraining_dirichlet_dofs()
+  constraining_dirichlet_dofs_coefficients   => this%get_constraining_dirichlet_dofs_coefficients()
+  constraints_independent_term               => this%get_constraints_independent_term()
+
+  call ptr_constraining_free_dofs%resize(0)
+  call ptr_constraining_dirichlet_dofs%resize(0)
+  call constraining_free_dofs%resize(0)
+  call constraining_free_dofs_coefficients%resize(0)
+  call constraining_dirichlet_dofs%resize(0)
+  call constraining_dirichlet_dofs_coefficients%resize(0)
+  call constraints_independent_term%resize(0)
+
+  call this%setup_only_hanging_node_constraints(full_cells_loop=.true.)
+  call this%setup_only_cell_aggregation_constraints()
+  call this%setup_only_hanging_node_constraints(full_cells_loop=.false.)
+
+end subroutine suhpafs_setup_hanging_node_constraints
+
+!========================================================================================
+subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this
+  logical, intent(in) :: full_cells_loop
+
+end subroutine suhpafs_setup_only_hanging_node_constraints
+
+!========================================================================================
+subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this   
 
@@ -593,27 +651,24 @@ subroutine suhpafs_setup_hanging_node_constraints ( this )
   integer(ip) :: istat
   logical, allocatable :: visited_hanging_dof_lids(:)
 
-  type(std_vector_integer_ip_t) , pointer :: ptr_constraining_free_dofs
-  type(std_vector_integer_ip_t) , pointer :: ptr_constraining_dirichlet_dofs
-  type(std_vector_integer_ip_t) , pointer :: constraining_free_dofs
-  type(std_vector_real_rp_t)    , pointer :: constraining_free_dofs_coefficients
-  type(std_vector_integer_ip_t) , pointer :: constraining_dirichlet_dofs
-  type(std_vector_real_rp_t)    , pointer :: constraining_dirichlet_dofs_coefficients
-  type(std_vector_real_rp_t)    , pointer :: constraints_independent_term
+  type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_free_dofs
+  type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_dirichlet_dofs
+  type(std_vector_integer_ip_t) , pointer :: this_constraining_free_dofs
+  type(std_vector_real_rp_t)    , pointer :: this_constraining_free_dofs_coefficients
+  type(std_vector_integer_ip_t) , pointer :: this_constraining_dirichlet_dofs
+  type(std_vector_real_rp_t)    , pointer :: this_constraining_dirichlet_dofs_coefficients
+  type(std_vector_real_rp_t)    , pointer :: this_constraints_independent_term
 
-  ! We want to use this subroutine only for aggregation-based FE spaces
-  if (.not. this%use_constraints) then
-  call this%serial_fe_space_t%setup_hanging_node_constraints()
-    return
-  end if
+  type(std_vector_integer_ip_t) :: ptr_constraining_free_dofs
+  type(std_vector_integer_ip_t) :: ptr_constraining_dirichlet_dofs
+  type(std_vector_integer_ip_t) :: constraining_free_dofs
+  type(std_vector_real_rp_t)    :: constraining_free_dofs_coefficients
+  type(std_vector_integer_ip_t) :: constraining_dirichlet_dofs
+  type(std_vector_real_rp_t)    :: constraining_dirichlet_dofs_coefficients
+  type(std_vector_real_rp_t)    :: constraints_independent_term
 
-  ptr_constraining_free_dofs                 => this%get_ptr_constraining_free_dofs()
-  ptr_constraining_dirichlet_dofs            => this%get_ptr_constraining_dirichlet_dofs()
-  constraining_free_dofs                     => this%get_constraining_free_dofs()
-  constraining_free_dofs_coefficients        => this%get_constraining_free_dofs_coefficients()
-  constraining_dirichlet_dofs                => this%get_constraining_dirichlet_dofs()
-  constraining_dirichlet_dofs_coefficients   => this%get_constraining_dirichlet_dofs_coefficients()
-  constraints_independent_term               => this%get_constraints_independent_term()
+
+  massert(this%num_hanging_dofs_full_cells == 0, 'For the moment we do not have hanging nodes')
 
   ! Auxiliary
   triangulation => this%get_triangulation()
@@ -662,7 +717,7 @@ subroutine suhpafs_setup_hanging_node_constraints ( this )
         do idof = 1, size(fe_dofs)
           if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (.not. fe%is_strong_dirichlet_dof(fe_dofs(idof))) ) then
             improper_dof_lid = abs(fe_dofs(idof))
-            hanging_dof_lid  = improper_dof_lid - this%get_num_dirichlet_dofs()
+            hanging_dof_lid  = improper_dof_lid - ( this%num_hanging_dofs_full_cells + this%get_num_dirichlet_dofs() )
             if ( .not. visited_hanging_dof_lids(hanging_dof_lid) ) then
               call ptr_constraining_free_dofs%set(hanging_dof_lid+1, num_free_dofs_in_root )
               call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, num_diri_dofs_in_root )
@@ -746,7 +801,7 @@ subroutine suhpafs_setup_hanging_node_constraints ( this )
         do idof = 1, size(fe_dofs)
           if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (.not. fe%is_strong_dirichlet_dof(fe_dofs(idof))) ) then
             improper_dof_lid = abs(fe_dofs(idof))
-            hanging_dof_lid  = improper_dof_lid - this%get_num_dirichlet_dofs()
+            hanging_dof_lid  = improper_dof_lid - ( this%num_hanging_dofs_full_cells + this%get_num_dirichlet_dofs() )
             if ( .not. visited_hanging_dof_lids(hanging_dof_lid) ) then
               current_pos_free = ptr_constraining_free_dofs%get(hanging_dof_lid)
               current_pos_diri = ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)
@@ -774,6 +829,30 @@ subroutine suhpafs_setup_hanging_node_constraints ( this )
     call fe%next()
   end do
 
+  this_ptr_constraining_free_dofs                 => this%get_ptr_constraining_free_dofs()
+  this_ptr_constraining_dirichlet_dofs            => this%get_ptr_constraining_dirichlet_dofs()
+  this_constraining_free_dofs                     => this%get_constraining_free_dofs()
+  this_constraining_free_dofs_coefficients        => this%get_constraining_free_dofs_coefficients()
+  this_constraining_dirichlet_dofs                => this%get_constraining_dirichlet_dofs()
+  this_constraining_dirichlet_dofs_coefficients   => this%get_constraining_dirichlet_dofs_coefficients()
+  this_constraints_independent_term               => this%get_constraints_independent_term()
+
+  call concatenate_two_std_vectors_ip(this_ptr_constraining_free_dofs                 , ptr_constraining_free_dofs                 )
+  call concatenate_two_std_vectors_ip(this_ptr_constraining_dirichlet_dofs            , ptr_constraining_dirichlet_dofs            )
+  call concatenate_two_std_vectors_ip(this_constraining_free_dofs                     , constraining_free_dofs                     )
+  call concatenate_two_std_vectors_rp(this_constraining_free_dofs_coefficients        , constraining_free_dofs_coefficients        )
+  call concatenate_two_std_vectors_ip(this_constraining_dirichlet_dofs                , constraining_dirichlet_dofs                )
+  call concatenate_two_std_vectors_rp(this_constraining_dirichlet_dofs_coefficients   , constraining_dirichlet_dofs_coefficients   )
+  call concatenate_two_std_vectors_rp(this_constraints_independent_term               , constraints_independent_term               )
+
+  call ptr_constraining_free_dofs%free()
+  call ptr_constraining_dirichlet_dofs%free()
+  call constraining_free_dofs%free()
+  call constraining_free_dofs_coefficients%free()
+  call constraining_dirichlet_dofs%free()
+  call constraining_dirichlet_dofs_coefficients%free()
+  call constraints_independent_term%free()
+
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_cell_iterator(root_fe)
   do field_id = 1, this%get_num_fields()
@@ -787,7 +866,90 @@ subroutine suhpafs_setup_hanging_node_constraints ( this )
   call nodal_quad_in_root_fe%free()
   call memfree(shape_values,__FILE__,__LINE__)
   call memfree(visited_hanging_dof_lids,__FILE__,__LINE__)
-end subroutine suhpafs_setup_hanging_node_constraints
+
+  contains
+
+    subroutine concatenate_two_std_vectors_ip(vec1,vec2)
+      type(std_vector_integer_ip_t), intent(inout) :: vec1
+      type(std_vector_integer_ip_t), intent(in)    :: vec2
+      integer(ip) :: i
+      integer(ip) :: s1
+      s1 = vec1%size()
+      call vec1%resize(s1+vec2%size())
+      do i = 1, vec2%size()
+        call vec1%set(s1+i,vec2%get(i))
+      end do
+    end subroutine concatenate_two_std_vectors_ip
+
+    subroutine concatenate_two_std_vectors_rp(vec1,vec2)
+      type(std_vector_real_rp_t), intent(inout) :: vec1
+      type(std_vector_real_rp_t), intent(in)    :: vec2
+      integer(ip) :: i
+      integer(ip) :: s1
+      s1 = vec1%size()
+      call vec1%resize(s1+vec2%size())
+      do i = 1, vec2%size()
+        call vec1%set(s1+i,vec2%get(i))
+      end do
+    end subroutine concatenate_two_std_vectors_rp
+
+    subroutine send_to_reference_space(phys_coords_as_point,fe_quad,cell_map,ref_coords_as_quadrature)
+      implicit none
+      type(point_t),      intent(in)    :: phys_coords_as_point(:)
+      type(quadrature_t), intent(in)    :: fe_quad
+      type(cell_map_t),     intent(in)    :: cell_map
+      type(quadrature_t), intent(inout) :: ref_coords_as_quadrature
+    
+      real(rp), pointer :: det_jacobians(:)
+      integer(ip) :: qpoint
+      type(vector_field_t) :: b
+      type(vector_field_t) :: eta
+      type(vector_field_t) :: Aeta
+      type(vector_field_t) :: x
+      integer(ip)   :: idime
+      real(rp), pointer :: ref_quad_coords(:,:)
+      type(point_t), pointer :: phys_quad_coords(:)
+    
+      assert(size(phys_coords_as_point)<=ref_coords_as_quadrature%get_num_quadrature_points())
+      assert(fe_quad%get_num_dims() == ref_coords_as_quadrature%get_num_dims())
+    
+      ! Check that we have an affine fe map
+#ifdef DEBUG
+      det_jacobians => cell_map%get_det_jacobians()
+      do qpoint = 1, size(det_jacobians)
+        massert( abs(det_jacobians(1) - det_jacobians(qpoint)) < 1.0e-13, 'We assume that the FE map is afine')
+      end do
+#endif
+    
+      ! Compute the rhs of the affine cell_map
+      qpoint = 1
+      ref_quad_coords  => fe_quad%get_coordinates()
+      phys_quad_coords => cell_map%get_quadrature_points_coordinates()
+      call eta%init(0.0)
+      call x%init(0.0)
+      do idime = 1, fe_quad%get_num_dims()
+        call eta%set(idime,ref_quad_coords(idime,qpoint))
+        call x%set(idime,phys_quad_coords(qpoint)%get(idime))
+      end do
+      Aeta = cell_map%apply_jacobian(qpoint,eta)
+      b = x - Aeta
+    
+      ! Compute the inverse affine fe map
+      ref_quad_coords  => ref_coords_as_quadrature%get_coordinates()
+      do qpoint = 1,size(phys_coords_as_point) 
+        call x%init(0.0)
+        do idime = 1, fe_quad%get_num_dims()
+          call x%set(idime,phys_coords_as_point(qpoint)%get(idime))
+        end do
+        x = x - b
+        eta = cell_map%apply_inv_jacobian(1,x)
+        do idime = 1, fe_quad%get_num_dims()
+          ref_quad_coords(idime,qpoint) = eta%get(idime)
+        end do
+      end do
+    
+    end subroutine send_to_reference_space
+end subroutine suhpafs_setup_only_cell_aggregation_constraints
 
 !========================================================================================
 function suhpafs_get_aggregate_ids(this)
@@ -1139,63 +1301,6 @@ subroutine suhpafs_check_for_full_neighbors(this)
 
 end subroutine suhpafs_check_for_full_neighbors
 
-!========================================================================================
-subroutine send_to_reference_space(phys_coords_as_point,fe_quad,cell_map,ref_coords_as_quadrature)
-  implicit none
-  type(point_t),      intent(in)    :: phys_coords_as_point(:)
-  type(quadrature_t), intent(in)    :: fe_quad
-  type(cell_map_t),     intent(in)    :: cell_map
-  type(quadrature_t), intent(inout) :: ref_coords_as_quadrature
-
-  real(rp), pointer :: det_jacobians(:)
-  integer(ip) :: qpoint
-  type(vector_field_t) :: b
-  type(vector_field_t) :: eta
-  type(vector_field_t) :: Aeta
-  type(vector_field_t) :: x
-  integer(ip)   :: idime
-  real(rp), pointer :: ref_quad_coords(:,:)
-  type(point_t), pointer :: phys_quad_coords(:)
-
-  assert(size(phys_coords_as_point)<=ref_coords_as_quadrature%get_num_quadrature_points())
-  assert(fe_quad%get_num_dims() == ref_coords_as_quadrature%get_num_dims())
-
-  ! Check that we have an affine fe map
-#ifdef DEBUG
-  det_jacobians => cell_map%get_det_jacobians()
-  do qpoint = 1, size(det_jacobians)
-    massert( abs(det_jacobians(1) - det_jacobians(qpoint)) < 1.0e-13, 'We assume that the FE map is afine')
-  end do
-#endif
-
-  ! Compute the rhs of the affine cell_map
-  qpoint = 1
-  ref_quad_coords  => fe_quad%get_coordinates()
-  phys_quad_coords => cell_map%get_quadrature_points_coordinates()
-  call eta%init(0.0)
-  call x%init(0.0)
-  do idime = 1, fe_quad%get_num_dims()
-    call eta%set(idime,ref_quad_coords(idime,qpoint))
-    call x%set(idime,phys_quad_coords(qpoint)%get(idime))
-  end do
-  Aeta = cell_map%apply_jacobian(qpoint,eta)
-  b = x - Aeta
-
-  ! Compute the inverse affine fe map
-  ref_quad_coords  => ref_coords_as_quadrature%get_coordinates()
-  do qpoint = 1,size(phys_coords_as_point) 
-    call x%init(0.0)
-    do idime = 1, fe_quad%get_num_dims()
-      call x%set(idime,phys_coords_as_point(qpoint)%get(idime))
-    end do
-    x = x - b
-    eta = cell_map%apply_inv_jacobian(1,x)
-    do idime = 1, fe_quad%get_num_dims()
-      ref_quad_coords(idime,qpoint) = eta%get(idime)
-    end do
-  end do
-
-end subroutine send_to_reference_space
 
 !========================================================================================
 subroutine suhpafs_fill_proper_vef_constrains_full_cell(this,proper_vef_constrains_full_cell)
