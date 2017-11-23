@@ -52,6 +52,7 @@ contains
   STD_VECTOR_ERASE(integer(ip),base_integer_ip)
   STD_VECTOR_COPY(integer(ip),base_integer_ip)
   STD_VECTOR_SET(integer(ip),base_integer_ip)
+  STD_VECTOR_CAT(integer(ip),base_integer_ip)
   STD_VECTOR_SIZE(integer(ip),base_integer_ip)
   STD_VECTOR_CAPACITY(integer(ip),base_integer_ip)
   STD_VECTOR_GET(integer(ip),base_integer_ip)
