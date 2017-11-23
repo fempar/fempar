@@ -765,6 +765,18 @@ end subroutine nedelec_get_subelements_connectivity
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
+!==================================================================================================
+subroutine nedelec_reference_fe_apply_cell_map( this, cell_map,                 &
+     & interpolation_reference_cell, &
+     & interpolation_real_cell )
+  implicit none 
+  class(nedelec_reference_fe_t)   , intent(in)    :: this 
+  type(cell_map_t)                , intent(in)    :: cell_map
+  type(interpolation_t)           , intent(in)    :: interpolation_reference_cell
+  type(interpolation_t)           , intent(inout) :: interpolation_real_cell
+  call this%apply_cell_map_to_interpolation(cell_map,interpolation_reference_cell,interpolation_real_cell)
+		call this%apply_scaling_to_interpolation(cell_map, interpolation_real_cell)
+end subroutine nedelec_reference_fe_apply_cell_map
 
 !==================================================================================================
 subroutine nedelec_apply_cell_map_to_interpolation(this,map,ref,phy)
@@ -813,166 +825,7 @@ subroutine nedelec_apply_cell_map_to_interpolation(this,map,ref,phy)
         end do
      end do
   end do 
-
-    call apply_scaling(this, map, ref, phy) 
-  contains 
-
-  subroutine apply_scaling(this,cell_map,ref,phy)  
-  ! Scale interpolation 
-  implicit none 
-  class(nedelec_reference_fe_t)   , intent(in)    :: this 
-  type(cell_map_t)                , intent(in)    :: cell_map
-  type(interpolation_t)           , intent(in)    :: ref
-  type(interpolation_t)           , intent(inout) :: phy
-
-  type(point_t)            , pointer            :: coordinates(:)
-  class(lagrangian_reference_fe_t), allocatable :: d_fe_geo
-  ! Edges 
-  type(edge_map_t)                   :: edge_map
-  type(quadrature_t)                 :: edge_quadrature
-  type(list_iterator_t)              :: vertex_iterator 
-  type(point_t), pointer             :: edge_map_coordinates(:)
-  integer(ip)                        :: edge_id  
-  integer(ip)                        :: vertex_within_edge_id  
-  ! Faces 
-  type(facet_map_t)                  :: facet_map
-  type(quadrature_t)                 :: facet_quadrature
-  type(point_t), pointer             :: facet_map_coordinates(:)
-  integer(ip)                        :: facet_id 
-  integer(ip)                        :: vertex_within_facet_id 
-  ! Cell  
-  type(quadrature_t)                 :: cell_quadrature
-  integer(ip)                        :: vertex_within_cell_id
-  ! Measure application 
-  real(rp)                :: edge_measure, facet_measure, cell_measure  
-  type(list_iterator_t)   :: interior_nodes_iterator
-  integer(ip)             :: inode, qpoin 
-  
-  coordinates => cell_map%get_coordinates() 
-
-  if ( this%get_topology() == topology_tet ) then 
-  allocate ( tet_lagrangian_reference_fe_t :: d_fe_geo )
-  elseif ( this%get_topology() == topology_hex ) then 
-  allocate ( hex_lagrangian_reference_fe_t :: d_fe_geo )
-  end if 
-  
-  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
-  call d_fe_geo%create(topology    = this%get_topology(),    &
-                       num_dims    = this%num_dims, &
-                       order       = 1,                      &
-                       field_type  = field_type_scalar,      &
-                       conformity  = .false. )
  
-  call this%create_edge_quadrature( edge_quadrature )
-  call edge_map%create( edge_quadrature, d_fe_geo )
-  
-   do edge_id = this%get_first_n_face_id_of_dim(1), this%get_first_n_face_id_of_dim(1) + this%get_num_n_faces_of_dim(1)-1
-	
-     edge_map_coordinates => edge_map%get_coordinates()   
-
-     vertex_within_edge_id = 1
-     vertex_iterator = this%vertices_n_face%create_iterator(edge_id)
-     do while ( .not. vertex_iterator%is_upper_bound () )
-        vertex_within_cell_id = vertex_iterator%get_current()
-        do idime=1,3 
-	   	call edge_map_coordinates(vertex_within_edge_id)%set(idime, coordinates(vertex_within_cell_id)%get(idime) )
-		   end do 
-        call vertex_iterator%next()
-        vertex_within_edge_id = vertex_within_edge_id + 1
-     end do
-
-     ! Update edge_map on current edge
-     call edge_map%update(local_edge_id = edge_id - this%get_first_n_face_id_of_dim(1)+1, &
-                          reference_fe  = this,                                                 &
-                          quadrature    = edge_quadrature )
-	 
-	    edge_measure = 0.0_rp 
-	    do qpoin = 1, edge_quadrature%get_num_quadrature_points() 
-	    edge_measure = edge_measure + edge_map%get_det_jacobian(qpoin)*edge_quadrature%get_weight(qpoin) 
-     end do 
-
-    interior_nodes_iterator = this%own_dofs_n_face%create_iterator(edge_id)
-    do while ( .not. interior_nodes_iterator%is_upper_bound() )
-       inode = interior_nodes_iterator%get_current()  	   
-   
-	   ! Scale own node functions 	  
-       phy%shape_functions(:,inode,:)     = edge_measure * phy%shape_functions(:,inode,:)
-	      phy%shape_derivatives(:,:,inode,:) = edge_measure * phy%shape_derivatives(:,:,inode,:)
-       call interior_nodes_iterator%next()
-     end do 
-	 
-   end do 
- 
-   if ( (this%get_num_dims()==3) .and. (this%get_order()>1) ) then 
-   
-   call this%create_facet_quadrature( facet_quadrature )
-   call facet_map%create( facet_quadrature, d_fe_geo )
-   do facet_id = this%get_first_facet_id(), this%get_first_facet_id() + this%get_num_facets()-1
-   
-        facet_map_coordinates => facet_map%get_coordinates()
-
-        vertex_within_facet_id = 1
-        vertex_iterator = this%vertices_n_face%create_iterator(facet_id)
-        do while ( .not. vertex_iterator%is_upper_bound () )
-           vertex_within_cell_id = vertex_iterator%get_current()
-		        do idime=1,3 
-		        call facet_map_coordinates(vertex_within_facet_id)%set(idime, coordinates(vertex_within_cell_id)%get(idime) )
-	        	end do 
-           call vertex_iterator%next()
-           vertex_within_facet_id = vertex_within_facet_id + 1
-        end do
-   
-		     call facet_map%update(reorientation_factor   = 0.0_rp,                     &
-                             quadrature             = facet_quadrature )
-		
-     facet_measure = 0.0_rp 
-					do qpoin = 1, facet_quadrature%get_num_quadrature_points() 
-	    facet_measure = facet_measure + facet_map%get_det_jacobian(qpoin)*facet_quadrature%get_weight(qpoin) 
-     end do 
-				
-	   interior_nodes_iterator = this%own_dofs_n_face%create_iterator(facet_id)
-    do while ( .not. interior_nodes_iterator%is_upper_bound() )
-       inode = interior_nodes_iterator%get_current()
-	   ! Scale own node functions
-      !  phy%shape_functions(:,inode,:)     = face_measure * phy%shape_functions(:,inode,:)
-	     !  phy%shape_derivatives(:,:,inode,:) = face_measure * phy%shape_derivatives(:,:,inode,:)
-       call interior_nodes_iterator%next()
-     end do 
-		
-   end do 
-				
-   end if 
-   
-   ! In hexahedra order >= 2, tetrahedra order >= 3
- !   if ( this%get_order() .ge. 2 ) then 
- !   call this%create_quadrature( cell_quadrature ) 
- !   
-	!			cell_measure = 0.0_rp 
-	!				do qpoin = 1, cell_quadrature%get_num_quadrature_points() 
-	!    cell_measure = cell_measure + cell_map%get_det_jacobian(qpoin)*cell_quadrature%get_weight(qpoin) 
- !    end do 
-	!					
- !   interior_nodes_iterator = this%own_dofs_n_face%create_iterator( this%get_first_n_face_id_of_dim(this%num_dims) )
- !   do while ( .not. interior_nodes_iterator%is_upper_bound() )
- !      inode = interior_nodes_iterator%get_current()
-	!   ! Scale own node functions 	  
- !     ! phy%shape_functions(:,inode,:)     = cell_measure * phy%shape_functions(:,inode,:)
-	!  ! phy%shape_derivatives(:,:,inode,:) = cell_measure * phy%shape_derivatives(:,:,inode,:)
- !      call interior_nodes_iterator%next()
- !    end do 
-	!end if 
-	
-   ! Free edge measure computation data  
-   call edge_quadrature%free() 
-   call edge_map%free()
-   ! Free faces measure computation data 
-   call facet_quadrature%free() 
-   call facet_map%free() 
-   ! Free volume measure computation data 
-   call d_fe_geo%free() 
-   call cell_quadrature%free() 
-  end subroutine apply_scaling 
-  
 end subroutine nedelec_apply_cell_map_to_interpolation
 
 subroutine nedelec_invert_change_basis_matrix(this)

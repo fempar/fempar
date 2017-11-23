@@ -321,12 +321,14 @@ contains
   subroutine serial_block_array_clone(op1,op2)
     implicit none
     ! Parameters
-    class(serial_block_array_t)     , intent(inout) :: op1
-    class(vector_t), intent(in)    :: op2
-
+    class(serial_block_array_t), target     , intent(inout) :: op1
+    class(vector_t), target, intent(in)    :: op2
     ! Locals
     integer(ip) :: ib
-
+    class(vector_t), pointer :: p
+    p => op1
+    if(associated(p,op2)) return ! It's aliasing
+    
     call op2%GuardTemp()
     select type(op2)
        class is (serial_block_array_t)

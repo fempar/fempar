@@ -133,7 +133,7 @@ module field_names
   public :: vector_field_t, tensor_field_t, symmetric_tensor_field_t, point_t 
   public :: allocatable_array_vector_field_t, allocatable_array_tensor_field_t
   public :: operator(*), operator(+), operator(-), assignment(=)
-  public :: double_contract, cross_product
+  public :: double_contract, cross_product, symmetric_part, trace
   
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -606,6 +606,29 @@ contains
     call res%set(2,v1%value(3)*v2%value(1)-v1%value(1)*v2%value(3))
     call res%set(3,v1%value(1)*v2%value(2)-v1%value(2)*v2%value(1))
   end function cross_product
+
+  function symmetric_part(v1) result(v2)
+    implicit none
+    type(tensor_field_t), intent(in) :: v1
+    type(tensor_field_t)             :: v2
+    integer(ip) :: i, k
+    do k=1,SPACE_DIM
+       do i=1,SPACE_DIM
+          v2%value(i,k) = 0.5*( v1%value(i,k) + v1%value(k,i) )
+       end do
+    end do
+  end function symmetric_part
+  
+  function trace(v1) result(s)
+    implicit none
+    type(tensor_field_t), intent(in) :: v1
+    real(rp)                         :: s
+    integer(ip) :: i
+    s = 0.0_rp
+    do i=1,SPACE_DIM
+      s = s + v1%value(i,i)
+    end do
+  end function trace
 
 end module field_names
 

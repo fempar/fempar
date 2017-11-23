@@ -87,6 +87,7 @@ subroutine facet_map_update(this,reorientation_factor,quadrature)
   call this%compute_quadrature_points_coordinates()
   ! Initialize values
   this%jacobian           = 0.0_rp
+  this%measure            = 0.0_rp 
   do evaluation_point_id = 1, quadrature%num_quadrature_points
 
      ! Update the Jacobian Matrix
@@ -134,6 +135,8 @@ subroutine facet_map_update(this,reorientation_factor,quadrature)
      ! and make it point in the correct direction
      this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *                &
           &                                                             real(reorientation_factor) 
+										
+     this%measure = this%measure + this%det_jacobian(evaluation_point_id) * quadrature%get_weight(evaluation_point_id)
   end do
 end subroutine facet_map_update
 
@@ -144,6 +147,36 @@ subroutine facet_map_free( this )
   call this%base_map_t%free()
   if(allocated(this%normals)) call memfree(this%normals,__FILE__,__LINE__)
 end subroutine facet_map_free
+
+!==================================================================================================
+subroutine assign_facet_map( this, other )
+  implicit none
+  type(facet_map_t), intent(inout) :: this
+  type(facet_map_t), intent(in)    :: other
+  call this%free()
+  call this%base_map_t%copy(other%base_map_t)
+  call memalloc(this%num_dims,   &
+                this%num_dims-1, &
+                this%num_quadrature_points, &
+                this%jacobian,__FILE__,__LINE__)
+  this%jacobian = other%jacobian
+  call memalloc(this%num_dims, &
+                this%num_quadrature_points, &
+                this%normals,__FILE__,__LINE__)
+  this%normals = other%normals
+end subroutine assign_facet_map
+
+!==================================================================================================
+subroutine assign_facet_map_array ( facet_map_array1, facet_map_array2 ) 
+  implicit none       
+  type(facet_map_t), intent(inout) :: facet_map_array1(:)
+  type(facet_map_t), intent(in)    :: facet_map_array2(:)
+  integer(ip) :: i
+  assert( size(facet_map_array1) == size(facet_map_array2) )
+  do i = 1,size(facet_map_array1)
+    call assign_facet_map(facet_map_array1(i),facet_map_array2(i))
+  end do
+end subroutine assign_facet_map_array
 
 !==================================================================================================
 subroutine facet_map_get_normal(this, qpoint, normal)

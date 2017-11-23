@@ -28,12 +28,13 @@
 module fe_space_names
   ! Serial modules
   use types_names
+  use stdio_names
   use list_types_names
   use memor_names
   use sort_names
   use allocatable_array_names
-  use std_vector_integer_ip_names
   use hash_table_names
+  use std_vector_names
   use FPL
 
   use environment_names
@@ -65,7 +66,9 @@ module fe_space_names
   
   ! Adaptivity
   use std_vector_real_rp_names
-  use p4est_serial_triangulation_names
+  use std_vector_integer_ip_names
+  use std_vector_integer_igp_names
+  use p4est_triangulation_names
 
   ! Parallel modules
   use environment_names
@@ -141,6 +144,7 @@ module fe_space_names
     procedure, non_overridable           :: has_finished            => base_fe_cell_iterator_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => base_fe_cell_iterator_get_reference_fe_geo
     procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_cell_iterator_get_reference_fe_geo_id
+    procedure, non_overridable           :: get_num_nodes           => base_fe_cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_nodes_coordinates   => base_fe_cell_iterator_get_nodes_coordinates
     procedure, non_overridable           :: get_gid                 => base_fe_cell_iterator_get_gid
     procedure, non_overridable           :: get_ggid                => base_fe_cell_iterator_get_ggid
@@ -182,10 +186,14 @@ module fe_space_names
     private
     class(serial_fe_space_t) , pointer     :: fe_space => NULL()
     ! Scratch data to support FE integration
-    integer(ip)              , allocatable :: num_cell_dofs_x_field(:)
-    type(i1p_t)              , allocatable :: fe_dofs(:)
-    type(cell_map_t)         , pointer     :: cell_map => NULL()
-    type(p_cell_integrator_t), allocatable :: cell_integrators(:)
+    integer(ip)                        , allocatable :: num_cell_dofs_x_field(:)
+    type(i1p_t)                        , allocatable :: fe_dofs(:)
+    type(cell_map_t)                   , pointer     :: cell_map => NULL()
+    type(p_cell_integrator_t)          , allocatable :: cell_integrators(:)
+    type(std_vector_integer_ip_t)      , allocatable :: extended_fe_dofs(:)
+    type(allocatable_array_ip1_t)      , allocatable :: gid_to_lid_map(:)
+    type(allocatable_array_rp2_t)                    :: extended_elmat
+    type(allocatable_array_rp1_t)                    :: extended_elvec
   contains
   
     procedure                           :: create                                     => fe_cell_iterator_create
@@ -196,9 +204,8 @@ module fe_space_names
     procedure                           :: set_fe_space                               => fe_cell_iterator_set_fe_space
     procedure                           :: nullify_fe_space                           => fe_cell_iterator_nullify_fe_space
     procedure, non_overridable          :: allocate_scratch_data                      => fe_cell_iterator_allocate_scratch_data
+    procedure, non_overridable          :: allocate_block_based_scratch_data          => fe_cell_iterator_allocate_block_based_scratch_data
     procedure, non_overridable          :: free_scratch_data                          => fe_cell_iterator_free_scratch_data
-    ! Now, after merging with experimental, we have to assemble in the code !!!
-    procedure                           :: assemble                                   => fe_cell_iterator_assemble
     procedure, non_overridable, private :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
     procedure, non_overridable, private :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
     procedure, non_overridable          :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
@@ -226,7 +233,7 @@ module fe_space_names
     procedure, non_overridable          :: get_field_blocks                           => fe_cell_iterator_get_field_blocks
     procedure, non_overridable          :: get_field_coupling                         => fe_cell_iterator_get_field_coupling
     procedure, non_overridable          :: get_num_dofs                               => fe_cell_iterator_get_num_dofs
-    procedure, non_overridable          :: get_num_dofs_field                       => fe_cell_iterator_get_num_dofs_field
+    procedure, non_overridable          :: get_num_dofs_field                         => fe_cell_iterator_get_num_dofs_field
     procedure, non_overridable          :: get_field_fe_dofs                          => fe_cell_iterator_get_field_fe_dofs
     procedure, non_overridable          :: get_fe_dofs                                => fe_cell_iterator_get_fe_dofs
     procedure, non_overridable          :: get_order                                  => fe_cell_iterator_get_order
@@ -237,15 +244,17 @@ module fe_space_names
                                                                                          get_max_order_all_fields
     procedure, non_overridable          :: at_strong_dirichlet_boundary               => fe_cell_iterator_at_strong_dirichlet_boundary
     procedure, non_overridable          :: has_fixed_dofs                             => fe_cell_iterator_has_fixed_dofs
+    procedure, non_overridable          :: has_hanging_dofs                           => fe_cell_iterator_has_hanging_dofs
     procedure, non_overridable          :: fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field
     procedure, non_overridable          :: fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields
     generic                             :: determine_at_strong_dirichlet_boundary     => fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field, &
                                                                                          fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields
     procedure, non_overridable          :: determine_has_fixed_dofs                   => fe_cell_iterator_set_has_fixed_dofs
     procedure                           :: determine_has_hanging_dofs                 => fe_cell_iterator_set_has_hanging_dofs
-    procedure                           :: is_free_dof                                => fe_cell_iterator_is_free_dof
+    procedure, non_overridable          :: is_free_dof                                => fe_cell_iterator_is_free_dof
     procedure                           :: is_strong_dirichlet_dof                    => fe_cell_iterator_is_strong_dirichlet_dof   
     procedure, non_overridable          :: is_fixed_dof                               => fe_cell_iterator_is_fixed_dof
+    procedure                           :: is_hanging_dof                             => fe_cell_iterator_is_hanging_dof
     procedure, non_overridable          :: compute_volume                             => fe_cell_iterator_compute_volume
     
     procedure, non_overridable          :: get_default_quadrature_degree              => fe_cell_iterator_get_default_quadrature_degree
@@ -264,7 +273,10 @@ module fe_space_names
     procedure, non_overridable          :: set_reference_fe_id                        => fe_cell_iterator_set_reference_fe_id
     procedure, non_overridable          :: is_void                                    => fe_cell_iterator_is_void
     procedure, non_overridable          :: create_own_dofs_on_vef_iterator            => fe_cell_iterator_create_own_dofs_on_vef_iterator
-    procedure, non_overridable, private :: impose_strong_dirichlet_bcs                => fe_cell_iterator_impose_strong_dirichlet_bcs
+    procedure                 , private :: fe_cell_iterator_impose_strong_dirichlet_bcs_conforming
+    procedure                 , private :: fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming
+    generic                             :: impose_strong_dirichlet_bcs                => fe_cell_iterator_impose_strong_dirichlet_bcs_conforming, &
+                                                                                         fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming
     procedure, private :: assembly_array => fe_cell_iterator_assembly_array
     procedure, private :: assembly_matrix => fe_cell_iterator_assembly_matrix
     procedure, private :: assembly_matrix_array => fe_cell_iterator_assembly_matrix_array
@@ -306,6 +318,8 @@ module fe_space_names
     generic :: evaluate_gradient_fe_function => fe_cell_iterator_evaluate_gradient_fe_function_scalar, &
     & fe_cell_iterator_evaluate_gradient_fe_function_vector
 
+    procedure, non_overridable, private :: apply_constraints                          => fe_cell_iterator_apply_constraints
+
   end type fe_cell_iterator_t
    
   type p_fe_cell_iterator_t
@@ -345,10 +359,9 @@ module fe_space_names
      procedure                           :: free                              => fe_vef_iterator_free
      final                               :: fe_vef_iterator_final
      
-     procedure, non_overridable          :: set_vef_lid_of_fe_face            => fe_vef_iterator_set_vef_lid_of_fe_face
-     procedure, non_overridable          :: push_back_vef_lid_of_fe_face      => fe_vef_iterator_push_back_vef_lid_of_fe_face
-     
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
+     procedure, non_overridable          :: is_fe_facet                       => fe_vef_iterator_is_fe_facet
+     procedure, non_overridable, private :: has_free_dofs                     => fe_vef_iterator_has_free_dofs
      
      procedure                 , private :: fe_vef_iterator_get_fe_around
      generic                             :: get_cell_around                   => fe_vef_iterator_get_fe_around
@@ -383,6 +396,8 @@ module fe_space_names
     procedure, non_overridable          :: get_gid                        => fe_facet_iterator_get_gid
     procedure, non_overridable          :: is_at_field_boundary          => fe_facet_iterator_is_at_field_boundary
     procedure, non_overridable          :: is_at_field_interior          => fe_facet_iterator_is_at_field_interior
+    procedure, non_overridable          :: get_num_cells_around          => fe_facet_iterator_get_num_cells_around
+    procedure, non_overridable, private :: fe_vef_iterator_get_fe_around => fe_facet_iterator_get_fe_around
     procedure, non_overridable, private :: update_fes_around             => fe_facet_iterator_update_fes_around
     procedure, non_overridable          :: update_integration            => fe_facet_iterator_update_integration
     procedure, non_overridable          :: get_num_dofs_field            => fe_facet_iterator_get_num_dofs_field
@@ -405,9 +420,9 @@ module fe_space_names
     procedure, non_overridable, private :: get_facet_integrator          => fe_facet_iterator_get_facet_integrator
     procedure, non_overridable          :: compute_surface                => fe_facet_iterator_compute_surface
     procedure                 , private :: compute_fe_facet_permutation_index => fe_facet_iterator_compute_fe_facet_permutation_index
-    procedure                           :: get_lpos_within_cell_around    => fe_facet_iterator_get_lpos_within_cell_around
-    procedure, non_overridable          :: get_facet_permutation_index     => fe_facet_iterator_get_fe_facet_permutation_index 
-    procedure                 , private :: get_subfacet_lid_cell_around    => fe_facet_iterator_get_subfacet_lid_cell_around
+    procedure, non_overridable          :: get_lpos_within_cell_around   => fe_facet_iterator_get_lpos_within_cell_around
+    procedure, non_overridable          :: get_facet_permutation_index   => fe_facet_iterator_get_fe_facet_permutation_index 
+    procedure, non_overridable, private :: get_subfacet_lid_cell_around  => fe_facet_iterator_get_subfacet_lid_cell_around
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_facet_iterator_get_quadrature_points_coordinates
     procedure, non_overridable :: get_normals                       => fe_facet_iterator_get_normals
@@ -453,26 +468,25 @@ module fe_space_names
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
      
      ! Finite Element-related integration containers
-     type(quadrature_t)            , allocatable :: cell_quadratures(:)
-     type(cell_map_t)              , allocatable :: cell_maps(:)
-     type(cell_integrator_t)       , allocatable :: cell_integrators(:)
-     integer(ip)                   , allocatable :: cell_quadratures_degree(:)
+     type(std_vector_quadrature_t)               :: cell_quadratures
+     type(std_vector_cell_map_t)                 :: cell_maps
+     type(std_vector_cell_integrator_t)          :: cell_integrators
+     type(std_vector_integer_ip_t)               :: cell_quadratures_degree
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
-     integer(ip)                   , allocatable :: field_cell_to_ref_fes(:,:)         ! (num_fields, num_fes)
-     integer(ip)                   , allocatable :: max_order_reference_fe_id_x_cell(:) ! Stores Key=max_order_reference_fe_id for all FEs
+     type(std_vector_integer_ip_t) , allocatable :: field_cell_to_ref_fes(:)
+     type(std_vector_integer_ip_t)               :: max_order_reference_fe_id_x_cell      ! Stores Key=max_order_reference_fe_id for all FEs
      type(hash_table_ip_ip_t)                    :: cell_quadratures_and_maps_position    ! Key = [geo_reference_fe_id,quadrature_degree]
      type(hash_table_ip_ip_t)                    :: cell_integrators_position      ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
      
      ! Finite Face-related integration containers
-     type(quadrature_t)            , allocatable :: facet_quadratures(:)
-     type(facet_maps_t)            , allocatable :: facet_maps(:)
-     type(facet_integrator_t)      , allocatable :: facet_integrators(:)
-     integer(ip)                   , allocatable :: facet_quadratures_degree(:)
-     
+     type(std_vector_quadrature_t)               :: facet_quadratures
+     type(std_vector_facet_maps_t)               :: facet_maps
+     type(std_vector_facet_integrator_t)         :: facet_integrators
+     type(std_vector_integer_ip_t)               :: facet_quadratures_degree
      
      ! Mapping of Finite Faces and integration containers
-     integer(ip)                   , allocatable :: max_order_field_cell_to_ref_fes_face(:) ! Stores max_order_field_cell_to_ref_fes_face for all faces
+     type(std_vector_integer_ip_t)               :: max_order_field_cell_to_ref_fes_face ! Stores max_order_field_cell_to_ref_fes_face for all faces
      type(hash_table_ip_ip_t)                    :: facet_quadratures_position  ! Key = [quadrature_degree, 
                                                                                   !       left_geo_reference_fe_id,
                                                                                   !       right_geo_reference_fe_id (with 0 for boundary faces)]
@@ -485,23 +499,36 @@ module fe_space_names
      type(std_vector_integer_ip_t)               :: facet_permutation_indices
      
      ! DoF identifiers associated to each FE and field within FE
-     integer(ip)                   , allocatable :: ptr_dofs_x_fe(:,:) ! (num_fields, num_fes+1)
-     integer(ip)                   , allocatable :: lst_dofs_gids(:)
+     type(std_vector_integer_ip_t) , allocatable :: ptr_dofs_x_fe(:)
+     type(std_vector_integer_ip_t)               :: lst_dofs_gids
      
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
      integer(ip)                                 :: num_fixed_dofs
-     logical                       , allocatable :: at_strong_dirichlet_boundary_x_fe(:,:)
-     logical                       , allocatable :: has_fixed_dofs_x_fe(:,:)
+     integer(ip)                                 :: num_hanging_dofs
+     integer(ip)                                 :: num_dirichlet_dofs
+     type(std_vector_logical_t)    , allocatable :: at_strong_dirichlet_boundary_x_fe(:)
+     type(std_vector_logical_t)    , allocatable :: has_fixed_dofs_x_fe(:)
+     type(std_vector_logical_t)    , allocatable :: has_hanging_dofs_x_fe(:)
      
      ! Descriptor of the block layout selected for the PDE system at hand
      type(block_layout_t)              , pointer :: block_layout  => NULL()
      
      ! ( Polymorphic ) pointer to a triangulation it was created from
      class(triangulation_t)            , pointer :: triangulation => NULL()
+     
+     ! Constraining DOFs arrays to give support to h-adaptivity
+     type(std_vector_integer_ip_t)               :: ptr_constraining_free_dofs
+     type(std_vector_integer_ip_t)               :: ptr_constraining_dirichlet_dofs
+     type(std_vector_integer_ip_t)               :: constraining_free_dofs
+     type(std_vector_real_rp_t)                  :: constraining_free_dofs_coefficients
+     type(std_vector_integer_ip_t)               :: constraining_dirichlet_dofs
+     type(std_vector_real_rp_t)                  :: constraining_dirichlet_dofs_coefficients
+     type(std_vector_real_rp_t)                  :: constraints_independent_term
+     
    contains
-     procedure,                  private :: serial_fe_space_create_same_reference_fes_on_all_cells
-     procedure,                  private :: serial_fe_space_create_different_ref_fes_between_cells
+     procedure                           :: serial_fe_space_create_same_reference_fes_on_all_cells
+     procedure                           :: serial_fe_space_create_different_ref_fes_between_cells
      generic                             :: create                                       => serial_fe_space_create_same_reference_fes_on_all_cells,&
                                                                                             serial_fe_space_create_different_ref_fes_between_cells
      procedure                           :: free                                         => serial_fe_space_free
@@ -509,48 +536,40 @@ module fe_space_names
      procedure, non_overridable          :: allocate_and_fill_reference_fes              => serial_fe_space_allocate_and_fill_reference_fes
      procedure, non_overridable, private :: free_reference_fes                           => serial_fe_space_free_reference_fes
      
-     procedure, non_overridable          :: allocate_field_cell_to_ref_fes                    => serial_fe_space_allocate_field_cell_to_ref_fes
-     procedure, non_overridable          :: move_alloc_field_cell_to_ref_fes                  => serial_fe_space_move_alloc_field_cell_to_ref_fes
-     procedure, non_overridable, private :: free_field_cell_to_ref_fes                        => serial_fe_space_free_field_cell_to_ref_fes
-     procedure, non_overridable          :: fill_field_cell_to_ref_fes_same_on_all_cells      => serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells
+     procedure, non_overridable          :: allocate_field_cell_to_ref_fes               => serial_fe_space_allocate_field_cell_to_ref_fes
+     procedure, non_overridable, private :: free_field_cell_to_ref_fes                   => serial_fe_space_free_field_cell_to_ref_fes
+     procedure, non_overridable          :: fill_field_cell_to_ref_fes_same_on_all_cells => serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells
      procedure, non_overridable          :: fill_field_cell_to_ref_fes_different_ref_fes_between_cells => sfes_fill_field_cell_to_ref_fes_different_ref_fes_between_cells
      
      procedure, non_overridable          :: check_cell_vs_fe_topology_consistency        => serial_fe_space_check_cell_vs_fe_topology_consistency
      
      procedure, non_overridable          :: allocate_and_fill_fe_space_type_x_field      => serial_fe_space_allocate_and_fill_fe_space_type_x_field
      procedure, non_overridable, private :: free_fe_space_type_x_field                   => serial_fe_space_free_fe_space_type_x_field
-     procedure, non_overridable          :: allocate_and_init_ptr_lst_dofs_gids               => serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
-     procedure, non_overridable          :: move_alloc_ptr_dofs_x_fe_out         => serial_fe_space_move_alloc_ptr_dofs_x_fe_out     
-     procedure, non_overridable          :: move_alloc_lst_dofs_gids_out                 => serial_fe_space_move_alloc_lst_dofs_gids_out
      
+     procedure, non_overridable          :: allocate_and_init_ptr_lst_dofs_gids          => serial_fe_space_allocate_and_init_ptr_lst_dofs_gids
+     procedure, non_overridable          :: copy_ptr_lst_dofs                            => serial_fe_space_copy_ptr_lst_dofs
      procedure, non_overridable, private :: free_ptr_lst_dofs                            => serial_fe_space_free_ptr_lst_dofs
+     
      procedure, non_overridable          :: allocate_and_init_at_strong_dirichlet_bound  => serial_fe_space_allocate_and_init_at_strong_dirichlet_bound  
      procedure, non_overridable, private :: free_at_strong_dirichlet_boundary               => serial_fe_space_free_at_strong_dirichlet_boundary
      procedure, non_overridable          :: allocate_and_init_has_fixed_dofs             => serial_fe_space_allocate_and_init_has_fixed_dofs
      procedure, non_overridable, private :: free_has_fixed_dofs                          => serial_fe_space_free_has_fixed_dofs
      procedure                           :: set_up_strong_dirichlet_bcs                  => serial_fe_space_set_up_strong_dirichlet_bcs
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs_on_vef_and_field => serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
-     procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
+					procedure                           :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function 
+					procedure                           :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
+					generic                             :: interpolate                                  => interpolate_scalar_function, interpolate_vector_function					
+					procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
      procedure                           :: project_dirichlet_values_curl_conforming     => serial_fe_space_project_dirichlet_values_curl_conforming
      procedure, non_overridable, private :: allocate_and_fill_fields_to_project_         => serial_fe_space_allocate_and_fill_fields_to_project_
      procedure, non_overridable, private :: allocate_and_fill_offset_component           => serial_fe_space_allocate_and_fill_offset_component
      procedure, non_overridable, private :: allocate_and_fill_global2subset_and_inverse  => serial_fe_space_allocate_and_fill_global2subset_and_inverse 
      procedure, non_overridable, private :: get_function_scalar_components               => serial_fe_space_get_function_scalar_components
      procedure, non_overridable, private :: evaluate_vector_function_scalar_components   => serial_fe_space_evaluate_vector_function_scalar_components
-     procedure, non_overridable, private :: project_curl_conforming_compute_elmat_elvec  => serial_fe_space_project_curl_conforming_compute_elmat_elvec
-     
-     procedure, private, non_overridable :: interpolate_scalar    => serial_fe_space_interpolate_scalar
-     procedure, private, non_overridable :: interpolate_vector    => serial_fe_space_interpolate_vector
-     procedure, private, non_overridable :: interpolate_tensor    => serial_fe_space_interpolate_tensor
-     generic                             :: interpolate           => interpolate_scalar, &
-                                                                     interpolate_vector, &
-                                                                     interpolate_tensor
-     
-     procedure, non_overridable, private :: allocate_cell_quadratures_degree               => serial_fe_space_allocate_cell_quadratures_degree
+     procedure, non_overridable, private :: project_curl_conforming_compute_elmat_elvec  => serial_fe_space_project_curl_conforming_compute_elmat_elvec     
+     procedure, non_overridable, private :: allocate_and_init_cell_quadratures_degree      => serial_fe_space_allocate_and_init_cell_quadratures_degree
      procedure, non_overridable, private :: free_cell_quadratures_degree                   => serial_fe_space_free_cell_quadratures_degree
-     procedure, non_overridable          :: clear_cell_quadratures_degree                  => serial_fe_space_clear_cell_quadratures_degree
      
-     procedure, non_overridable, private :: allocate_max_order_reference_fe_id_x_cell    => serial_fe_space_allocate_max_order_reference_fe_id_x_cell
      procedure, non_overridable, private :: free_max_order_reference_fe_id_x_cell        => serial_fe_space_free_max_order_reference_fe_id_x_cell
      procedure, non_overridable, private :: compute_max_order_reference_fe_id_x_cell     => serial_fe_space_compute_max_order_reference_fe_id_x_cell         
      
@@ -559,11 +578,9 @@ module fe_space_names
      procedure, non_overridable, private :: generate_cell_quadratures_position_key         => serial_fe_space_generate_cell_quadratures_position_key
      procedure, non_overridable, private :: generate_cell_integrators_position_key  => serial_fe_space_generate_cell_integrators_position_key
 
-     procedure, non_overridable, private :: allocate_facet_quadratures_degree          => serial_fe_space_allocate_facet_quadratures_degree
+     procedure, non_overridable, private :: allocate_and_init_facet_quadratures_degree => serial_fe_space_allocate_and_init_facet_quadratures_degree
      procedure, non_overridable, private :: free_facet_quadratures_degree              => serial_fe_space_free_facet_quadratures_degree
-     procedure, non_overridable          :: clear_facet_quadratures_degree             => serial_fe_space_clear_facet_quadratures_degree
      
-     procedure, non_overridable, private :: allocate_max_order_field_cell_to_ref_fes_face => serial_fe_space_allocate_max_order_field_cell_to_ref_fes_face
      procedure, non_overridable, private :: free_max_order_field_cell_to_ref_fes_face     => serial_fe_space_free_max_order_field_cell_to_ref_fes_face
      procedure, non_overridable, private :: compute_max_order_field_cell_to_ref_fes_face  => serial_fe_space_compute_max_order_field_cell_to_ref_fes_face   
      
@@ -579,12 +596,10 @@ module fe_space_names
      procedure, non_overridable, private :: generate_facet_integrators_position_key    => serial_fe_space_facet_integrators_position_key
 
      procedure                           :: create_dof_values                            => serial_fe_space_create_dof_values
-     procedure                           :: generate_global_dof_numbering                                => serial_fe_space_generate_global_dof_numbering
+     procedure                           :: generate_global_dof_numbering              => serial_fe_space_generate_global_dof_numbering
      procedure                           :: allocate_num_dofs_x_field               =>  serial_fe_space_allocate_num_dofs_x_field
      procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
      procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
-     ! UNDER QUARANTINE
-     procedure                           :: fill_fe_dofs_and_count_dofs                 => serial_fe_space_fill_fe_dofs_and_count_dofs
      procedure                 , private :: renum_dofs_block                          => serial_fe_space_renum_dofs_block
  
      ! Getters
@@ -602,10 +617,11 @@ module fe_space_names
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure, non_overridable          :: set_triangulation                            => serial_fe_space_set_triangulation
      procedure                           :: get_environment                              => serial_fe_space_get_environment
-     procedure, non_overridable          :: get_vef_gids_of_fe_faces                     => serial_fe_space_get_vef_gids_of_fe_faces
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
-     procedure                           :: get_num_fixed_dofs             => serial_fe_space_get_num_fixed_dofs
+     procedure                           :: get_num_fixed_dofs                           => serial_fe_space_get_num_fixed_dofs
+     procedure                           :: get_num_dirichlet_dofs                       => serial_fe_space_get_num_dirichlet_dofs
+     procedure                           :: get_num_hanging_dofs                         => serial_fe_space_get_num_hanging_dofs
      procedure                           :: get_num_blocks                            => serial_fe_space_get_num_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling
@@ -619,14 +635,44 @@ module fe_space_names
      ! fes, fe_vefs and fe_faces traversals-related TBPs
      procedure                           :: create_fe_cell_iterator                           => serial_fe_space_create_fe_cell_iterator
      procedure                           :: free_fe_cell_iterator                             => serial_fe_space_free_fe_cell_iterator
-     procedure                           :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator     
+     procedure, non_overridable          :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator     
      procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => serial_fe_space_create_itfc_fe_vef_iterator     
      procedure, non_overridable          :: free_fe_vef_iterator                         => serial_fe_space_free_fe_vef_iterator
-     procedure                           :: create_fe_facet_iterator                      => serial_fe_space_create_fe_facet_iterator
+     procedure, non_overridable          :: create_fe_facet_iterator                      => serial_fe_space_create_fe_facet_iterator
      procedure, non_overridable          :: free_fe_facet_iterator                        => serial_fe_space_free_fe_facet_iterator
+
+     procedure, non_overridable          :: allocate_and_init_has_hanging_dofs_x_fe       => serial_fe_space_allocate_and_init_has_hanging_dofs_x_fe
+     procedure, non_overridable, private :: free_has_hanging_dofs_x_fe                    => serial_fe_space_free_has_hanging_dofs_x_fe
+     
+     procedure, non_overridable, private :: free_constraining_dofs_arrays                 => serial_fe_space_free_constraining_dofs_arrays
+     procedure, non_overridable, private :: free_ptr_constraining_free_dofs               => serial_fe_space_free_ptr_constraining_free_dofs
+     procedure, non_overridable, private :: free_constraining_free_dofs                   => serial_fe_space_free_constraining_free_dofs
+     procedure, non_overridable, private :: free_constraining_free_dofs_coefficients      => serial_fe_space_free_constraining_free_dofs_coefficients
+     procedure, non_overridable, private :: free_ptr_constraining_dirichlet_dofs          => serial_fe_space_free_ptr_constraining_dirichlet_dofs
+     procedure, non_overridable, private :: free_constraining_dirichlet_dofs              => serial_fe_space_free_constraining_dirichlet_dofs
+     procedure, non_overridable, private :: free_constraining_dirichlet_dofs_coefficients => serial_fe_space_free_constraining_dirichlet_dofs_coefficients
+     procedure, non_overridable, private :: free_constraints_independent_term             => serial_fe_space_free_constraints_independent_term
+
+     procedure, non_overridable          :: setup_hanging_node_constraints               => serial_fe_space_setup_hanging_node_constraints
+
+     procedure, non_overridable, private :: project_field_cell_to_ref_fes                 => serial_fe_space_project_field_cell_to_ref_fes
+     procedure, non_overridable, private :: project_fe_integration_arrays                 => serial_fe_space_project_fe_integration_arrays
+     procedure, non_overridable, private :: project_facet_integration_arrays              => serial_fe_space_project_facet_integration_arrays
+
+     procedure,                  private :: serial_fe_space_refine_and_coarsen_single_fe_function
+     procedure,                  private :: serial_fe_space_refine_and_coarsen_fe_function_array
+     generic                             :: refine_and_coarsen                            => serial_fe_space_refine_and_coarsen_single_fe_function, &
+                                                                                             serial_fe_space_refine_and_coarsen_fe_function_array
+
+     procedure, non_overridable          :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
+     
+#ifndef ENABLE_P4EST
+    procedure, non_overridable           :: not_enabled_error                             => serial_fe_space_not_enabled_error
+#endif     
+
  end type serial_fe_space_t  
  
- public :: serial_fe_space_t, serial_fe_space_set_up_strong_dirichlet_bcs, serial_fe_space_interpolate_dirichlet_values
+ public :: serial_fe_space_t, serial_fe_space_set_up_strong_dirichlet_bcs
  public :: fe_space_type_cg, fe_space_type_dg
  public :: fe_cell_iterator_t
  public :: fe_vef_iterator_t
@@ -696,9 +742,9 @@ module fe_space_names
    ! Multilevel fe space   
    ! It is the equivalent to the "element_to_dof" at the finer level
    ! Pointers to the start/end of coarse DoFs GIDs of each field (lst_coarse_dofs)
-   integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:)	
+   integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:)
    ! List of coarse DoFs GIDs
-   integer(ip)                   , allocatable :: lst_coarse_dofs(:)	
+   integer(ip)                   , allocatable :: lst_coarse_dofs(:)
    
    ! Coarse DoFs GIDs on top of coarse n_faces per field
    ! It provides (for every field) what we get from the reference_fe_t at the
@@ -718,29 +764,51 @@ module fe_space_names
    ! to iterate the faces of an object
    type(list_t)                                :: faces_object
    
+   ! Scratch data required for non-conforming triangulations
+   type(std_vector_integer_ip_t)               :: max_part_id_vefs
+   type(std_vector_integer_ip_t)               :: my_part_id_vefs
+   type(std_vector_integer_ip_t)               :: rcv_my_part_id_vefs 
+   type(std_vector_integer_ip_t)               :: ptr_dofs_field
+   type(std_vector_integer_igp_t)              :: lst_dofs_ggids
+   type(std_vector_integer_ip_t)               :: ptr_ghosts_per_local_cell
+   type(std_vector_integer_ip_t)               :: lst_ghosts_per_local_cell
+   type(std_vector_integer_ip_t)               :: num_cells_to_send_x_local_cell
+   type(std_vector_integer_ip_t)               :: snd_ptrs_complete_itfc_couplings
+   type(std_vector_integer_ip_t)               :: snd_leids_complete_itfc_couplings
+   type(std_vector_integer_ip_t)               :: rcv_ptrs_complete_itfc_couplings
+   type(std_vector_integer_ip_t)               :: ptr_ghosts_per_ghost_cell
+   type(std_vector_integer_ip_t)               :: lst_ghosts_per_ghost_cell
+   type(std_vector_integer_ip_t)               :: rcv_my_part_id_vefs_complete_itfc_couplings 
+
+   type(std_vector_real_rp_t)                  :: old_fe_function_nodal_values
+   type(std_vector_real_rp_t)                  :: new_fe_function_nodal_values
  contains
-   procedure, private :: serial_fe_space_create_same_reference_fes_on_all_cells                   => par_fe_space_serial_create_same_reference_fes_on_all_cells 
-   procedure, private :: serial_fe_space_create_different_ref_fes_between_cells                           => par_fe_space_serial_create_different_ref_fes_between_cells 
-   procedure, private :: par_fe_space_create_same_reference_fes_on_all_cells 
-   procedure, private :: par_fe_space_create_different_ref_fes_between_cells
+   procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells    => par_fe_space_serial_create_same_reference_fes_on_all_cells 
+   procedure          :: serial_fe_space_create_different_ref_fes_between_cells    => par_fe_space_serial_create_different_ref_fes_between_cells 
+   procedure          :: par_fe_space_create_same_reference_fes_on_all_cells 
+   procedure          :: par_fe_space_create_different_ref_fes_between_cells
    generic                                     :: create                                          => par_fe_space_create_same_reference_fes_on_all_cells, &
                                                                                                      par_fe_space_create_different_ref_fes_between_cells
    procedure                         , private :: allocate_and_fill_coarse_fe_handlers            => par_fe_space_allocate_and_fill_coarse_fe_handlers
    procedure                         , private :: free_coarse_fe_handlers                         => par_fe_space_free_coarse_fe_handlers
-   procedure                                   :: generate_global_dof_numbering                                   => par_fe_space_generate_global_dof_numbering
-   procedure                         , private :: count_and_list_dofs_on_ghosts                   => par_fe_space_count_and_list_dofs_on_ghosts
+   procedure                                   :: generate_global_dof_numbering                   => par_fe_space_generate_global_dof_numbering
    procedure                                   :: renum_dofs_first_interior_then_interface        => par_fe_space_renum_dofs_first_interior_then_interface
-   procedure        , non_overridable, private :: set_up_strong_dirichlet_bcs_ghost_fes           => par_fe_space_set_up_strong_dirichlet_bcs_ghost_fes
    procedure        , non_overridable          :: compute_num_global_dofs_and_their_ggids         => par_fe_space_compute_num_global_dofs_and_their_ggids
    
-   procedure        , non_overridable, private :: compute_blocks_dof_import                       => par_fe_space_compute_blocks_dof_import
-   procedure        , non_overridable, private :: compute_dof_import                              => par_fe_space_compute_dof_import
-   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity        => par_fe_space_compute_raw_interface_data_by_continuity
-   procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner   => par_fe_space_raw_interface_data_by_continuity_decide_owner
-   procedure        , non_overridable, private :: compute_raw_interface_data_by_facet_integ        => par_fe_space_compute_raw_interface_data_by_facet_integ
-   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity => pfs_compute_ubound_num_itfc_couplings_by_continuity
-   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_facet_integ => pfs_compute_ubound_num_itfc_couplings_by_facet_integ
-   procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_ggid                => par_fe_space_generate_non_consecutive_dof_ggid
+   procedure        , non_overridable, private :: compute_blocks_dof_import                                    => par_fe_space_compute_blocks_dof_import
+   procedure        , non_overridable, private :: compute_dof_import                                           => par_fe_space_compute_dof_import
+   procedure        , non_overridable, private :: compute_dof_import_non_conforming_mesh                       => par_fe_space_compute_dof_import_non_conforming_mesh
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity                     => par_fe_space_compute_raw_interface_data_by_continuity
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_continuity_non_conforming_mesh => pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh
+   procedure        , non_overridable, private :: raw_interface_data_by_continuity_decide_owner                => par_fe_space_raw_interface_data_by_continuity_decide_owner
+   procedure        , non_overridable, private :: compute_max_part_id_my_part_id_and_dofs_ggids_field          => pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field 
+   procedure        , non_overridable, private :: compute_exchange_control_data_to_complete_itfc_couplings     => pfs_compute_exchange_control_data_to_complete_itfc_couplings 
+
+   procedure        , non_overridable, private :: compute_raw_interface_data_by_facet_integ                => par_fe_space_compute_raw_interface_data_by_facet_integ
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity          => pfs_compute_ubound_num_itfc_couplings_by_continuity
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity_nc_mesh  => pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh
+   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_facet_integ         => pfs_compute_ubound_num_itfc_couplings_by_facet_integ
+   procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_ggid                        => par_fe_space_generate_non_consecutive_dof_ggid
    
    ! These set of three subroutines are in charge of generating a dof_import for the distributed-memory solution of boundary mass matrices
    procedure        , non_overridable, private :: compute_boundary_dof_import                              => par_fe_space_compute_boundary_dof_import
@@ -755,7 +823,9 @@ module fe_space_names
    procedure                                   :: print                                           => par_fe_space_print
    procedure                                   :: free                                            => par_fe_space_free
    procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
-   procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
+			procedure                                   :: interpolate_scalar_function                     => par_fe_space_interpolate_scalar_function
+			procedure                                   :: interpolate_vector_function                     => par_fe_space_interpolate_vector_function  
+			procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    procedure                                   :: project_dirichlet_values_curl_conforming        => par_fe_space_project_dirichlet_values_curl_conforming
    
    procedure        , non_overridable, private :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
@@ -767,11 +837,21 @@ module fe_space_names
    procedure        , non_overridable, private :: gather_ptr_dofs_x_fe                            => par_fe_space_gather_ptr_dofs_x_fe
    procedure        , non_overridable, private :: gather_coarse_dofs_ggids_rcv_counts_and_displs  => par_fe_space_gather_coarse_dofs_ggids_rcv_counts_and_displs
    procedure        , non_overridable, private :: gather_coarse_dofs_ggids                        => par_fe_space_gather_coarse_dofs_ggids
-   procedure        , non_overridable, private :: gather_vefs_ggids_dofs_objects                   => par_fe_space_gather_vefs_ggids_dofs_objects
+   procedure        , non_overridable, private :: gather_vefs_ggids_dofs_objects                  => par_fe_space_gather_vefs_ggids_dofs_objects
    procedure                                   :: get_total_num_coarse_dofs                       => par_fe_space_get_total_num_coarse_dofs
    procedure                                   :: get_block_num_coarse_dofs                       => par_fe_space_get_block_num_coarse_dofs
    procedure       , non_overridable           :: get_coarse_fe_handler                           => par_fe_space_get_coarse_fe_handler
-
+   
+   ! Transfer and redistribution of FE functions
+   procedure,                          private :: serial_fe_space_refine_and_coarsen_single_fe_function   => par_fe_space_refine_and_coarsen_single_fe_function
+   procedure,                          private :: serial_fe_space_refine_and_coarsen_fe_function_array    => par_fe_space_refine_and_coarsen_fe_function_array
+   procedure                                   :: redistribute                                            => par_fe_space_redistribute
+   procedure                                   :: update_after_redistribute                               => par_fe_space_update_after_redistribute
+   procedure,                          private :: update_after_refine_coarsen                             => par_fe_space_update_after_refine_coarsen
+   procedure,                          private :: migrate_field_cell_to_ref_fes                           => par_fe_space_migrate_field_cell_to_ref_fes
+   procedure,                          private :: migrate_fe_integration_arrays                           => par_fe_space_migrate_fe_integration_arrays
+   procedure,                          private :: migrate_facet_integration_arrays                        => par_fe_space_migrate_facet_integration_arrays
+   
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator
@@ -994,7 +1074,6 @@ module fe_space_names
   public :: Hcurl_l1_coarse_fe_handler_t, hex_Hcurl_l1_coarse_fe_handler_t, tet_Hcurl_l1_coarse_fe_handler_t
 
   type, extends(standard_l1_coarse_fe_handler_t) :: vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
-
     private
     real(rp), public :: diffusion_inclusion
   contains
@@ -1002,8 +1081,26 @@ module fe_space_names
 	   procedure :: setup_weighting_operator => vector_laplacian_l1_setup_weighting_operator
   end type vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
 
+  type, extends(standard_l1_coarse_fe_handler_t) :: elasticity_pb_bddc_l1_coarse_fe_handler_t
+    private
+    real(rp), public :: elastic_modulus
+  contains
+    procedure :: get_num_coarse_dofs      => elasticity_l1_get_num_coarse_dofs  
+	   procedure :: setup_constraint_matrix  => elasticity_l1_setup_constraint_matrix_multiple
+	   procedure :: setup_weighting_operator => elasticity_l1_setup_weighting_operator
+  end type elasticity_pb_bddc_l1_coarse_fe_handler_t
   
-  public :: p_l1_coarse_fe_handler_t, l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
+  public :: p_l1_coarse_fe_handler_t, l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, vector_laplacian_pb_bddc_l1_coarse_fe_handler_t, elasticity_pb_bddc_l1_coarse_fe_handler_t 
+  
+  type, extends(vector_function_t) :: rigid_body_mode_t
+    private
+    integer(ip)  :: num_dims = -1
+    integer(ip)  :: imode = -1  
+  contains
+    procedure :: set_num_dims         => rigid_body_mode_set_num_dims
+    procedure :: set_mode             => rigid_body_mode_set_mode
+    procedure :: get_values_set_space => rigid_body_mode_get_values_set_space 
+  end type rigid_body_mode_t
     
   type , extends(base_fe_cell_iterator_t) :: coarse_fe_cell_iterator_t
     private
@@ -1200,6 +1297,7 @@ module fe_space_names
      generic                             :: gather_nodal_values                  => gather_nodal_values_through_iterator, &
                                                                                     gather_nodal_values_from_raw_data
      procedure, non_overridable          :: insert_nodal_values            => fe_function_insert_nodal_values
+     procedure, non_overridable          :: axpby                          => fe_function_axpby
      procedure, non_overridable          :: copy                           => fe_function_copy
      procedure, non_overridable          :: get_free_dof_values            => fe_function_get_free_dof_values
      procedure, non_overridable          :: get_fixed_dof_values           => fe_function_get_fixed_dof_values
@@ -1212,105 +1310,152 @@ module fe_space_names
   end type p_fe_function_t
   
   public :: fe_function_t, p_fe_function_t
-  
-  type, extends(serial_fe_space_t) :: serial_hp_adaptive_fe_space_t
-     !private ! UNDER QUARANTINE
-     !list_t :: constraints 
-     ! Hanging and strong Dirichlet data
-     ! ptr_constraint_dofs         : pointer to constraints
-     ! l1                          : constraint DOFs dependencies (0 for independent term)
-     ! constraint_dofs_coefficients: constraint DoFs coefficients (also independent term)
-     ! u_fixed = sum u_dep w_dep + c
-     integer(ip)                                 :: num_hanging_dofs = -1
-     integer(ip)                                 :: num_dirichlet_dofs = -1
-     
-     ! Acceleration array to skip cells without handing DOFs
-     logical                       , allocatable :: has_hanging_dofs_x_fe(:,:)
-     
-     ! The two prev arrays will be eliminated when the development in issue 179 will be finished
-     type(std_vector_integer_ip_t)               :: ptr_constraining_free_dofs
-     type(std_vector_integer_ip_t)               :: ptr_constraining_dirichlet_dofs
-     type(std_vector_integer_ip_t)               :: constraining_free_dofs
-     type(std_vector_real_rp_t)                  :: constraining_free_dofs_coefficients
-     type(std_vector_integer_ip_t)               :: constraining_dirichlet_dofs
-     type(std_vector_real_rp_t)                  :: constraining_dirichlet_dofs_coefficients
-     type(std_vector_real_rp_t)                  :: constraints_independent_term
-     
-     type(p4est_serial_triangulation_t), pointer :: p4est_triangulation =>  NULL()
-   contains
-     procedure          :: create_fe_vef_iterator                                 => serial_hp_adaptive_fe_space_create_fe_vef_iterator
-     procedure          :: create_fe_cell_iterator                                     => serial_hp_adaptive_fe_space_create_fe_cell_iterator
-     procedure          :: create_fe_facet_iterator                                => serial_hp_adaptive_fe_space_create_fe_facet_iterator
-     
-     procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells => shpafs_create_same_reference_fes_on_all_cells 
-     procedure          :: serial_fe_space_create_different_ref_fes_between_cells => shpafs_create_different_ref_fes_between_cells
-     procedure          :: free                                                   => serial_hp_adaptive_fe_space_free
-     
-     procedure          :: generate_global_dof_numbering                                          => serial_hp_adaptive_fe_space_generate_global_dof_numbering
-     ! UNDER QUARANTINE
-     procedure          :: fill_fe_dofs_and_count_dofs                           => serial_hp_adaptive_fe_space_fill_fe_dofs_and_count_dofs
-     
-     procedure          :: allocate_and_init_has_hanging_dofs_x_fe                => shpafs_allocate_and_init_has_hanging_dofs_x_fe
-     procedure, private :: free_has_hanging_dofs_x_fe                             => shpafs_free_has_hanging_dofs_x_fe
-     
-     procedure          :: setup_hanging_node_constraints                         => shpafs_setup_hanging_node_constraints
-     procedure          :: free_ptr_constraining_free_dofs                        => shpafs_free_ptr_constraining_free_dofs
-     procedure          :: free_constraining_free_dofs                            => shpafs_free_constraining_free_dofs
-     procedure          :: free_constraining_free_dofs_coefficients               => shpafs_free_constraining_free_dofs_coefficients
-     procedure          :: free_ptr_constraining_dirichlet_dofs                   => shpafs_free_ptr_constraining_dirichlet_dofs
-     procedure          :: free_constraining_dirichlet_dofs                       => shpafs_free_constraining_dirichlet_dofs
-     procedure          :: free_constraining_dirichlet_dofs_coefficients          => shpafs_free_constraining_dirichlet_dofs_coefficients
-     procedure          :: free_constraints_independent_term                      => shpafs_free_constraints_independent_term
-     procedure          :: set_up_strong_dirichlet_bcs                            => shpafs_set_up_strong_dirichlet_bcs
-     procedure          :: update_hanging_dof_values                              => shpafs_update_hanging_dof_values
-     
-     procedure, private :: fill_facet_gids                              => shpafs_fill_facet_gids
-     
-     procedure          :: project_field_cell_to_ref_fes                               => shpafs_project_field_cell_to_ref_fes
-     procedure          :: project_fe_integration_arrays                          => shpafs_project_fe_integration_arrays
-     procedure          :: project_facet_integration_arrays                     => shpafs_project_facet_integration_arrays
-     procedure          :: shpafs_refine_and_coarsen_single_fe_function
-     procedure          :: shpafs_refine_and_coarsen_fe_function_array
-     generic            :: refine_and_coarsen                                   => shpafs_refine_and_coarsen_single_fe_function, &
-                                                                                   shpafs_refine_and_coarsen_fe_function_array
- end type serial_hp_adaptive_fe_space_t  
+
+ character(*), parameter :: interpolator_type_nodal = "interpolator_type_nodal"
+ character(*), parameter :: interpolator_type_Hcurl = "interpolator_type_Hcurl"
  
- type, extends(fe_cell_iterator_t) :: hp_adaptive_fe_cell_iterator_t
-   private 
-   type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
-   type(std_vector_integer_ip_t), allocatable :: extended_fe_dofs(:)
-   type(allocatable_array_ip1_t), allocatable :: gid_to_lid_map(:)
-   type(allocatable_array_rp2_t) :: extended_elmat
-   type(allocatable_array_rp1_t) :: extended_elvec
- contains
-   procedure          :: create                     => hp_adaptive_fe_cell_iterator_create
-   procedure          :: free                       => hp_adaptive_fe_cell_iterator_free
-   procedure          :: is_strong_dirichlet_dof    => hpafeci_is_strong_dirichlet_dof
-   procedure          :: is_hanging_dof             => hpafeci_is_hanging_dof
-   procedure, non_overridable :: has_hanging_dofs           => hpafeci_has_hanging_dofs
-   procedure                  :: determine_has_hanging_dofs => hpafeci_set_has_hanging_dofs
-   procedure, non_overridable, private :: apply_constraints => hp_adaptive_fe_cell_iterator_apply_constraints
-   procedure, private :: hpafeci_impose_strong_dirichlet_bcs
-   procedure, private :: hpafeci_allocate_block_based_scratch_data
-   procedure, private :: assembly_array =>  hpafeci_assembly_array
-   procedure, private :: assembly_matrix => hpafeci_assembly_matrix
-   procedure, private :: assembly_matrix_array => hpafeci_assembly_matrix_array
-   procedure, private :: assembly_matrix_array_with_strong_bcs => hpafeci_assembly_matrix_array_with_strong_bcs
- end type hp_adaptive_fe_cell_iterator_t
- 
- type, extends(fe_facet_iterator_t) :: hp_adaptive_fe_facet_iterator_t
-   private 
-   type(serial_hp_adaptive_fe_space_t), pointer :: hp_adaptive_fe_space => NULL()
- contains
-   procedure          :: create                         => hp_adaptive_fe_facet_iterator_create
-   procedure          :: free                           => hp_adaptive_fe_facet_iterator_free
-   procedure          :: get_num_cells_around           => hp_adaptive_fe_facet_iterator_get_num_cells_around
-   procedure, private :: fe_vef_iterator_get_fe_around  => hp_adaptive_fe_facet_iterator_get_fe_around
-   procedure          :: get_lpos_within_cell_around    => hp_adaptive_fe_facet_iterator_get_lpos_within_cell_around
-   procedure, private :: get_subfacet_lid_cell_around    => hp_adaptive_fe_facet_iterator_get_subfacet_lid_cell_around
- end type hp_adaptive_fe_facet_iterator_t
- 
- public :: serial_hp_adaptive_fe_space_t, hp_adaptive_fe_cell_iterator_t
+ ! Abstract interpolator
+ type, abstract :: interpolator_t
+    private
+    integer(ip) :: field_id
+  contains    
+    procedure, private  :: get_function_values_from_scalar_components => interpolator_t_get_function_values_from_scalar_components
+    procedure, private  :: get_vector_function_values                 => interpolator_t_get_vector_function_values 
+    generic             :: get_function_values                        => get_vector_function_values 
+    procedure, private  :: reallocate_vector_function_values          => interpolator_t_reallocate_vector_function_values 
+    procedure, private  :: reallocate_scalar_function_values          => interpolator_t_reallocate_scalar_function_values
+    procedure, private  :: reallocate_array                           => interpolator_t_reallocate_array 
+    generic             :: reallocate_if_needed => reallocate_vector_function_values, reallocate_scalar_function_values, reallocate_array 
+    ! Deferred TBPs 
+    procedure(interpolator_create_interface)                               , deferred :: create
+    procedure(interpolator_evaluate_scalar_function_moments_interface)     , deferred :: evaluate_scalar_function_moments
+    procedure(interpolator_evaluate_vector_function_moments_interface)     , deferred :: evaluate_vector_function_moments 
+    procedure(interpolator_evaluate_function_components_moments_interface) , deferred :: evaluate_function_scalar_components_moments
+    procedure(interpolator_free_interface)                                 , deferred :: free 			
+ end type interpolator_t
+
+ type p_interpolator_t
+    class(interpolator_t), allocatable :: p 
+  contains
+ end type p_interpolator_t
+
+ abstract interface 
+
+    subroutine interpolator_create_interface( this, fe_space, field_id )
+      import :: interpolator_t, reference_fe_t, ip, serial_fe_space_t
+      implicit none
+      class(interpolator_t)    , intent(inout) :: this
+      class(serial_fe_space_t) , intent(in)    :: fe_space
+      integer(ip)              , intent(in)    :: field_id
+    end subroutine interpolator_create_interface
+
+    subroutine interpolator_evaluate_scalar_function_moments_interface( this, fe, scalar_function, dof_values, n_face_mask, time )
+      import :: interpolator_t, scalar_function_t, fe_cell_iterator_t, rp   
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(scalar_function_t)        , intent(in)    :: scalar_function
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      logical  , optional             , intent(in)    :: n_face_mask(:)
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_scalar_function_moments_interface
+
+    subroutine interpolator_evaluate_vector_function_moments_interface( this, fe, vector_function, dof_values, n_face_mask, time )
+      import :: interpolator_t, vector_function_t, fe_cell_iterator_t, rp   
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(vector_function_t)        , intent(in)    :: vector_function
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      logical  , optional             , intent(in)    :: n_face_mask(:)
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_vector_function_moments_interface
+
+    subroutine interpolator_evaluate_function_components_moments_interface( this, n_face_mask, fe, vector_function_scalar_components, dof_values, time )
+      import :: interpolator_t, fe_cell_iterator_t, p_scalar_function_t, rp, ip 
+      implicit none 
+      class(interpolator_t)           , intent(inout) :: this
+      logical                         , intent(in)    :: n_face_mask(:) 
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
+      real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+      real(rp) , optional             , intent(in)    :: time 
+    end subroutine interpolator_evaluate_function_components_moments_interface
+
+    subroutine interpolator_free_interface( this )
+      import :: interpolator_t, cell_map_t  
+      implicit none
+      class(interpolator_t)           , intent(inout) :: this
+    end subroutine interpolator_free_interface
+ end interface
+
+ type, extends(interpolator_t) :: nodal_interpolator_t 
+ private 
+ type(cell_map_t)     , allocatable  :: cell_maps(:) 
+ type(p_quadrature_t) , allocatable  :: nodal_quadratures(:)   
+ ! Boundary values array 
+ real(rp), allocatable             :: scalar_function_values(:,:)
+ type(vector_field_t), allocatable :: function_values(:,:)
+contains 
+ procedure :: create                                             => nodal_interpolator_create
+ procedure :: evaluate_scalar_function_moments                   => nodal_interpolator_evaluate_scalar_function_moments 
+ procedure :: evaluate_vector_function_moments                   => nodal_interpolator_evaluate_vector_function_moments		
+ procedure :: evaluate_function_scalar_components_moments        => nodal_interpolator_evaluate_function_scalar_components_moments
+ procedure :: free                                               => nodal_interpolator_free
+end type nodal_interpolator_t
+
+type, extends(interpolator_t), abstract :: Hcurl_interpolator_t 
+private 
+! Maps 
+type(edge_map_t)  , allocatable  :: edge_maps(:) 
+type(facet_map_t) , allocatable  :: facet_maps(:) 
+type(cell_map_t)  , allocatable  :: cell_maps(:) 
+! Quadratures 
+type(quadrature_t)  , allocatable  :: edge_quadratures(:) 
+type(quadrature_t)  , allocatable  :: facet_quadratures(:) 
+type(quadrature_t)  , allocatable  :: cell_quadratures(:)  
+! Interpolation 
+type(interpolation_t) , allocatable :: edge_interpolations(:)
+type(interpolation_t) , allocatable :: facet_interpolations(:) 
+type(interpolation_t) , allocatable :: cell_interpolations(:)  
+! Function values arrays 
+type(vector_field_t), allocatable :: edge_function_values(:,:) 
+type(vector_field_t), allocatable :: facet_function_values(:,:) 
+type(vector_field_t), allocatable :: cell_function_values(:,:)
+! Boundary values array 
+real(rp), allocatable             :: scalar_function_values_on_edge(:,:)
+real(rp), allocatable             :: scalar_function_values_on_facet(:,:)
+contains   
+procedure :: evaluate_scalar_function_moments    => Hcurl_interpolator_evaluate_scalar_function_moments 
+procedure, private :: update_edge_map_coordinates    => Hcurl_interpolator_update_edge_map_coordinates
+procedure, private :: update_facet_map_coordinates   => Hcurl_interpolator_update_facet_map_coordinates
+generic            :: update_map_coordinates         => update_edge_map_coordinates, update_facet_map_coordinates
+end type Hcurl_interpolator_t 
+
+type, extends(Hcurl_interpolator_t) :: hex_Hcurl_interpolator_t 
+private       
+type(hex_lagrangian_reference_fe_t)       , allocatable   :: fes_1D(:) 
+type(hex_nedelec_reference_fe_t)          , allocatable   :: fes_2D(:) 
+type(hex_raviart_thomas_reference_fe_t )  , allocatable   :: fes_rt(:) 
+type(interpolation_t)                     , allocatable   :: real_cell_interpolations(:) 
+contains 
+procedure :: create                                             => hex_Hcurl_interpolator_create
+procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_function_scalar_components_moments        => hex_Hcurl_interpolator_evaluate_function_components_moments
+procedure :: free                                               => hex_Hcurl_interpolator_free
+end type hex_Hcurl_interpolator_t
+
+type, extends(Hcurl_interpolator_t) :: tet_Hcurl_interpolator_t 
+private       
+type(tet_lagrangian_reference_fe_t)    , allocatable      :: fes_1D(:)
+type(tet_lagrangian_reference_fe_t)    , allocatable      :: fes_2D(:) 
+type(tet_lagrangian_reference_fe_t )   , allocatable      :: fes_lagrangian(:) 
+contains 
+procedure :: create                                             => tet_Hcurl_interpolator_create
+procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_interpolator_evaluate_function_components_moments
+procedure :: free                                               => tet_Hcurl_interpolator_free
+end type tet_Hcurl_interpolator_t
 
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
@@ -1330,6 +1475,7 @@ contains
 #include "sbm_H1_coarse_fe_handler.i90"
 #include "sbm_Hcurl_coarse_fe_handler.i90"
 #include "sbm_vector_laplacian_coarse_fe_handler.i90"
+#include "sbm_elasticity_coarse_fe_handler.i90"
 
 #include "sbm_coarse_fe_space.i90"
 #include "sbm_coarse_fe_object_iterator.i90"
@@ -1338,6 +1484,10 @@ contains
 
 #include "sbm_fe_function.i90"
 
-#include "sbm_hp_adaptive_fe_space.i90"
+#include "sbm_interpolator.i90"
+#include "sbm_nodal_interpolator.i90"
+#include "sbm_Hcurl_interpolator.i90"
+#include "sbm_hex_Hcurl_interpolator.i90" 
+#include "sbm_tet_Hcurl_interpolator.i90"
 
 end module fe_space_names

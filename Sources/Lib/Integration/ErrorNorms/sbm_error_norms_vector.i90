@@ -182,6 +182,7 @@ subroutine error_norms_vector_compute_cell_contribution (this, &
      end if
      ! Then, subtract fe_function.
      fe_function_values    => this%fe_cell_function%get_quadrature_points_values()
+
      do q_point=1, n_q_points
         this%work_array_values(q_point,1) = this%work_array_values(q_point,1) - fe_function_values(q_point) 
      end do

@@ -243,7 +243,7 @@ end subroutine free_timers
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
 	
-	call this%maxwell_conditions%set_num_dims(this%triangulation%get_num_dims())
+   	call this%maxwell_conditions%set_num_dims(this%triangulation%get_num_dims())
     call this%fe_space%create( triangulation       = this%triangulation,      &
                                reference_fes       = this%reference_fes,      &
                                coarse_fe_handlers  = this%coarse_fe_handlers, & 
@@ -276,7 +276,7 @@ end subroutine free_timers
 	end if 
 	
 	call this%solution%create(this%fe_space)
-	call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
+	call this%fe_space%interpolate_dirichlet_values(this%solution) 
 	call this%maxwell_integration%set_fe_function(this%solution)
 		
   end subroutine setup_system

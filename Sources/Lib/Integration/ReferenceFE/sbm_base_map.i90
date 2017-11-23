@@ -39,6 +39,28 @@ subroutine base_map_free( this )
 end subroutine base_map_free
 
 !==================================================================================================
+subroutine base_map_copy( this, other )
+  implicit none
+  class(base_map_t), intent(inout) :: this
+  type (base_map_t), intent(in)    :: other
+  integer(ip) :: istat
+  call this%free()
+  this%num_dims = other%num_dims
+  this%num_quadrature_points = other%num_quadrature_points
+  call memalloc(this%num_quadrature_points, &
+                this%det_jacobian,__FILE__,__LINE__)
+  this%det_jacobian = other%det_jacobian
+  allocate(this%quadrature_points_coordinates(this%num_quadrature_points), stat=istat)
+  check(istat==0)
+  this%quadrature_points_coordinates = other%quadrature_points_coordinates
+  allocate(this%nodes_coordinates(size(other%nodes_coordinates)), stat=istat)
+  check(istat==0)
+  this%nodes_coordinates = other%nodes_coordinates
+  call this%interpolation%copy(other%interpolation)
+  this%reference_fe_characteristic_length = other%reference_fe_characteristic_length
+end subroutine base_map_copy
+
+!==================================================================================================
 subroutine base_map_update_interpolation( this, quadrature, reference_fe_geometry )
   implicit none
   class(base_map_t)               , intent(inout) :: this
@@ -120,3 +142,11 @@ function base_map_get_reference_h ( this )
   real(rp) :: base_map_get_reference_h
   base_map_get_reference_h = this%reference_fe_characteristic_length
 end function base_map_get_reference_h
+
+!==================================================================================================
+function base_map_get_measure( this )
+  implicit none
+  class(base_map_t), intent(in) :: this
+  real(rp) :: base_map_get_measure
+  base_map_get_measure = this%measure
+end function base_map_get_measure

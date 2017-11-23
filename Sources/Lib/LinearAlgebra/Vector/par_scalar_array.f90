@@ -472,9 +472,12 @@ contains
   ! op1 <- clone(op2) 
   subroutine par_scalar_array_clone(op1,op2)
     implicit none
-    class(par_scalar_array_t), intent(inout) :: op1
-    class(vector_t),  intent(in)    :: op2
-
+    class(par_scalar_array_t), target, intent(inout) :: op1
+    class(vector_t)          , target, intent(in)    :: op2
+    class(vector_t), pointer :: p
+    p => op1
+    if(associated(p,op2)) return ! It's aliasing
+    
     call op2%GuardTemp()
     select type(op2)
        class is (par_scalar_array_t)
@@ -509,7 +512,8 @@ contains
                                            op%dof_import%get_pack_idx(),   &
                                            1.0_rp,                         &
                                            1.0_rp,                         &
-                                           data ) 
+                                           data,                           &
+                                           data) 
 
     ! Second stage: owners send, non-owners receive/insert
     call op%p_env%l1_neighbours_exchange ( op%dof_import%get_num_snd(),    &
@@ -522,6 +526,7 @@ contains
                                            op%dof_import%get_unpack_idx(), &
                                            1.0_rp,                         &
                                            0.0_rp,                         &
+                                           data,                           &  
                                            data )
   end subroutine par_scalar_array_comm
 

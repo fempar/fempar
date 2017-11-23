@@ -524,9 +524,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   type(tet_lagrangian_reference_fe_t) :: fe
   type(quadrature_t)                  :: cell_quadrature
   type(interpolation_t)               :: interpolation, cell_interpolation
-  type(cell_map_t)                      :: cell_map
+  type(cell_map_t)                    :: cell_map
   type(point_t), pointer              :: cell_map_coordinates(:)
-  integer(ip)                         :: reduced_order_vector(SPACE_DIM)
   integer(ip)                         :: num_interior_moments
   type(vector_field_t)                :: v_shape_test
 
@@ -552,6 +551,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
   type(allocatable_array_ip2_t), allocatable :: own_node_permutations(:)
   integer(ip) :: icomp, orient, offcomponent 
+		
+		type(point_t), pointer              :: quad_points_coordinates(:)
 
   assert ( .not. this%basis_changed )
   assert ( this%conformity .and. this%continuity )
@@ -567,18 +568,18 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
        __LINE__)
 
   ! Create a 1D scalar lagrangian reference FE of order k-1,  ! P_{k-1}
-  call fe_1D%create(topology          = this%get_topology(), &
-       num_dims = 1,                   &
-       order             = this%order-1,        & 
-       field_type        = field_type_scalar,   &
-       conformity        = .true. )
+  call fe_1D%create(topology    = this%get_topology(), &
+                    num_dims    = 1,                   &
+                    order       = this%order-1,        & 
+                    field_type  = field_type_scalar,   &
+                    conformity  = .true. )
 
   ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
   call d_fe_geo%create(topology          = this%get_topology(), &
-       num_dims = this%num_dims, &
-       order             = 1, &
-       field_type        = field_type_scalar, &
-       conformity        = .true. )
+                       num_dims = this%num_dims, &
+                       order             = 1, &
+                       field_type        = field_type_scalar, &
+                       conformity        = .false. )
 
   call this%create_edge_quadrature( edge_quadrature )
 
@@ -626,7 +627,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
            do jshape=1, edget_interpolation%num_shape_functions
               call this%get_value(edget_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
-                                                          +  shape_test * v_shape_trial * tangent * factor 
+                                                        + shape_test * v_shape_trial * tangent * factor
            end do
         end do
      end do
@@ -635,11 +636,11 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
   if ( this%num_dims == 3 .and. this%order > 1 ) then 
      ! Create a 2D scalar reference_fe of order P_{k-2,k-2} x P_{k-2,k-2}
-     call fe_2D%create(topology          = this%get_topology(), &
-                       num_dims = 2,                   &
-                       order             = this%order-2,        &
-                       field_type        = field_type_scalar,   &
-                       conformity        = .true. )
+     call fe_2D%create(topology    = this%get_topology(), &
+                       num_dims    = 2,                   &
+                       order       = this%order-2,        &
+                       field_type  = field_type_scalar,   &
+                       conformity  = .true. )
 
      call this%create_facet_quadrature( facet_quadrature )
      call fe_2D%create_interpolation( facet_quadrature, interpolation_2D )
@@ -703,11 +704,11 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
   if ( num_interior_moments > 0 ) then 
 
      ! Create dim-D Lagrangian polynomial of order k-d 
-     call fe%create(topology           = this%get_topology(),      &
-                    num_dims  = this%num_dims,                     &
-                    order              = this%order-this%num_dims, &
-                    field_type         = field_type_vector,        &
-                    conformity         = .true.                    )
+     call fe%create(topology    = this%get_topology(),      &
+                    num_dims    = this%num_dims,            &
+                    order       = this%order-this%num_dims, &
+                    field_type  = field_type_vector,        &
+                    conformity  = .true.                    )
 
      call this%create_quadrature( cell_quadrature )
      call fe%create_interpolation( cell_quadrature, interpolation )
@@ -723,9 +724,11 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      end do
      call cell_map%update(cell_quadrature)
 
+					quad_points_coordinates => cell_map%get_quadrature_points_coordinates() 
+					
      ! Integration of interior moments 
-     ! 2D CASE: int_K (u·q), q \in P_{k-2,k-2} x Q_{k-2,k-2} 
-     ! 3D CASE: int_K (u·q), q \in P_{k-3,k-3,k-3} x Q_{k-3,k-3,k-3} x Q_{k-3,k-3,k-3}     
+     ! 2D CASE: int_K (u·q), q \in P_{k-2,k-2} x P_{k-2,k-2} 
+     ! 3D CASE: int_K (u·q), q \in P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3}     
      do qpoint = 1, cell_quadrature%num_quadrature_points
         factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
         do ishape=1, interpolation%num_shape_functions*fe%num_dims
@@ -843,3 +846,86 @@ function tet_nedelec_reference_fe_permute_dof_LID_n_face(this,source_dof_lid_n_f
   tet_nedelec_reference_fe_permute_dof_LID_n_face = source_dof_lid_n_face
 end function tet_nedelec_reference_fe_permute_dof_LID_n_face
 
+ !==================================================================================================
+subroutine tet_nedelec_reference_fe_apply_scaling_to_interpolation(this, cell_map, interpolation)
+  implicit none
+  class(tet_nedelec_reference_fe_t), intent(in)    :: this
+		type(cell_map_t)                 , intent(in)    :: cell_map
+		type(interpolation_t)            , intent(inout) :: interpolation
+		
+	 type(point_t)   , pointer            :: cell_coordinates(:)
+  type(tet_lagrangian_reference_fe_t)  :: d_fe_geo
+		
+  ! Edges 
+  type(edge_map_t)                   :: edge_map
+  type(quadrature_t)                 :: edge_quadrature
+  type(list_iterator_t)              :: vertex_iterator 
+  type(point_t), pointer             :: edge_map_coordinates(:)
+  integer(ip)                        :: edge_id  
+  integer(ip)                        :: vertex_within_edge_id  
+  ! Cell 
+  type(quadrature_t)                 :: cell_quadrature
+  integer(ip)                        :: vertex_within_cell_id
+		
+  ! Measure application 
+  type(list_iterator_t)   :: interior_nodes_iterator
+  integer(ip)             :: inode, qpoin 
+  
+  cell_coordinates => cell_map%get_coordinates() 
+  
+  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
+  call d_fe_geo%create(topology    = this%get_topology(),    &
+                       num_dims    = this%num_dims,          &
+                       order       = 1,                      &
+                       field_type  = field_type_scalar,      &
+                       conformity  = .false. )
+ 
+  call this%create_edge_quadrature( edge_quadrature )
+  call edge_map%create( edge_quadrature, d_fe_geo )
+  
+   do edge_id = this%get_first_n_face_id_of_dim(1), this%get_first_n_face_id_of_dim(1) + this%get_num_n_faces_of_dim(1)-1
+	
+     edge_map_coordinates => edge_map%get_coordinates()   
+
+     vertex_within_edge_id = 1
+     vertex_iterator = this%vertices_n_face%create_iterator(edge_id)
+     do while ( .not. vertex_iterator%is_upper_bound () )
+        vertex_within_cell_id = vertex_iterator%get_current()
+								call edge_map_coordinates(vertex_within_edge_id)%init( cell_coordinates(vertex_within_cell_id)%get_value() )
+        call vertex_iterator%next()
+        vertex_within_edge_id = vertex_within_edge_id + 1
+     end do
+
+     ! Update edge_map on current edge
+     call edge_map%update(local_edge_id = edge_id - this%get_first_n_face_id_of_dim(1)+1, &
+                          reference_fe  = this,                                                 &
+                          quadrature    = edge_quadrature )
+
+    interior_nodes_iterator = this%own_dofs_n_face%create_iterator(edge_id)
+    do while ( .not. interior_nodes_iterator%is_upper_bound() )
+       inode = interior_nodes_iterator%get_current()  	   
+       interpolation%shape_functions(:,inode,:)     = edge_map%get_measure() * interpolation%shape_functions(:,inode,:)
+	      interpolation%shape_derivatives(:,:,inode,:) = edge_map%get_measure() * interpolation%shape_derivatives(:,:,inode,:)
+       call interior_nodes_iterator%next()
+     end do 
+	 
+   end do 
+  
+    if ( this%get_order() >= this%num_dims ) then 
+    call this%create_quadrature( cell_quadrature ) 
+						
+    interior_nodes_iterator = this%own_dofs_n_face%create_iterator( this%get_first_n_face_id_of_dim(this%num_dims) )
+    do while ( .not. interior_nodes_iterator%is_upper_bound() )
+       inode = interior_nodes_iterator%get_current()	  
+        interpolation%shape_functions(:,inode,:)     = cell_map%get_measure() * interpolation%shape_functions(:,inode,:)
+	       interpolation%shape_derivatives(:,:,inode,:) = cell_map%get_measure() * interpolation%shape_derivatives(:,:,inode,:)
+       call interior_nodes_iterator%next()
+     end do 
+	end if 
+	
+	  call d_fe_geo%free() 
+   call edge_quadrature%free() 
+   call edge_map%free()
+   call cell_quadrature%free() 
+
+end subroutine tet_nedelec_reference_fe_apply_scaling_to_interpolation

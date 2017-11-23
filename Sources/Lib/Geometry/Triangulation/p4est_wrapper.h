@@ -46,6 +46,8 @@ void F90_p4est_connectivity_destroy(p4est_connectivity_t **);
 void F90_p8est_connectivity_destroy(p8est_connectivity_t **);
 void F90_p4est_mesh_destroy(p4est_mesh_t **);
 void F90_p8est_mesh_destroy(p8est_mesh_t **);
+void F90_p4est_ghost_destroy(p4est_ghost_t **);
+void F90_p8est_ghost_destroy(p8est_ghost_t **);
 int refine_callback_2d(p4est_t *,p4est_topidx_t, p4est_quadrant_t *);
 int refine_callback_3d(p8est_t *,p4est_topidx_t, p8est_quadrant_t *);
 void init_fn_callback_2d(p4est_t *,p4est_topidx_t,p4est_quadrant_t *);
@@ -74,6 +76,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data);
 
 typedef struct edge_info
 {
+  p4est_locidx_t local_num_quadrants; 
   p4est_locidx_t *quad_to_quad_by_edge;
   int8_t         *quad_to_edge;
   p4est_locidx_t *quad_to_half_by_edge; 

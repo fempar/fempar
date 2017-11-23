@@ -625,12 +625,19 @@ module triangulation_names
      type(hash_table_ip_ip_t)              :: g2l_subparts           ! Translator among the GIDs of subparts and LIDs
      type(coarse_triangulation_t), pointer :: coarse_triangulation => NULL()
  contains  
+     ! Will the triangulation_t be ALWAYS conforming? (e.g., no matter 
+     ! whether it is transformed, refined, coarsened, etc.)
+     procedure(is_conforming_interface)         , deferred :: is_conforming
+ 
      ! Getters
      procedure, non_overridable :: get_num_dims             => triangulation_get_num_dims
      procedure, non_overridable :: get_num_cells            => triangulation_get_num_cells
      procedure, non_overridable :: get_num_local_cells      => triangulation_get_num_local_cells
      procedure, non_overridable :: get_num_ghost_cells      => triangulation_get_num_ghost_cells
      procedure, non_overridable :: get_num_vefs             => triangulation_get_num_vefs
+     
+     procedure(get_num_proper_vefs_interface)   , deferred :: get_num_proper_vefs
+     procedure(get_num_improper_vefs_interface) , deferred :: get_num_improper_vefs
      
      procedure, non_overridable :: set_num_dims             => triangulation_set_num_dims
      procedure, non_overridable :: set_num_local_cells      => triangulation_set_num_local_cells
@@ -699,6 +706,24 @@ module triangulation_names
   end type triangulation_t
   
   abstract interface
+     function is_conforming_interface ( this )
+       import :: triangulation_t
+       class(triangulation_t) , intent(in) :: this
+       logical :: is_conforming_interface 
+     end function is_conforming_interface 
+  
+     function get_num_proper_vefs_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t) , intent(in) :: this
+       integer(ip) :: get_num_proper_vefs_interface
+     end function get_num_proper_vefs_interface
+
+     function get_num_improper_vefs_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t) , intent(in) :: this
+       integer(ip) :: get_num_improper_vefs_interface
+     end function get_num_improper_vefs_interface
+
      subroutine create_cell_iterator_interface ( this, cell )
        import :: triangulation_t, cell_iterator_t
        class(triangulation_t) , intent(in) :: this
@@ -893,6 +918,9 @@ module triangulation_names
      integer(ip)  , allocatable            :: lst_nodes(:)
      type(point_t), allocatable            :: coordinates(:)
  contains  
+     procedure                           :: get_num_proper_vefs              => bst_get_num_proper_vefs
+     procedure                           :: get_num_improper_vefs            => bst_get_num_improper_vefs
+     
      ! Cell traversals-related TBPs
      procedure                           :: create_cell_iterator             => bst_create_cell_iterator
      procedure                           :: free_cell_iterator               => bst_free_cell_iterator
@@ -911,6 +939,8 @@ module triangulation_names
      procedure                           :: is_tet_mesh                      => bst_is_tet_mesh
      procedure                           :: is_hex_mesh                      => bst_is_hex_mesh
      procedure                           :: is_mix_mesh                      => bst_is_mix_mesh
+     
+     procedure                           :: is_conforming                    => bst_is_conforming
    
      ! Private methods for creating cell-related data
      procedure, non_overridable, private :: allocate_and_fill_ptr_vefs_x_cell   => bst_allocate_and_fill_ptr_vefs_x_cell
@@ -1004,6 +1034,7 @@ module triangulation_names
   end type coarse_triangulation_t
   
   public :: triangulation_t, serial_triangulation_t, par_triangulation_t, coarse_triangulation_t
+  public :: triangulation_free
   public :: cell_iterator_t
   public :: vef_iterator_t
   public :: itfc_vef_iterator_t, object_iterator_t

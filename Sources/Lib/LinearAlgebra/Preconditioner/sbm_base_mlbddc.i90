@@ -342,6 +342,9 @@ subroutine base_mlbddc_numerical_setup_dirichlet_problem (this)
   type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
   type(sparse_matrix_t)     , pointer       :: A
 
+  type(environment_t)  , pointer :: par_environment
+  par_environment => this%get_par_environment()
+
   assert ( this%am_i_l1_task() )
   fe_space => this%get_fe_space()
   par_sparse_matrix => this%get_par_sparse_matrix()
@@ -361,10 +364,12 @@ subroutine base_mlbddc_numerical_setup_dirichlet_problem (this)
           A_GG    = this%A_GG)
   end if
 
-  !call A%print(6)
-  !call this%A_II%print(6)
-  !call this%A_IG%print(6)
-  !call this%A_GG%print(6)
+  !call par_environment%l1_barrier()
+  !call A%print_matrix_market(6)
+  !call this%A_II%print_matrix_market(6)
+  !call this%A_IG%print_matrix_market(6)
+  !call this%A_GG%print_matrix_market(6)
+  !call par_environment%l1_barrier()
 end subroutine base_mlbddc_numerical_setup_dirichlet_problem
 
 subroutine base_mlbddc_numerical_setup_dirichlet_solver(this)

@@ -259,6 +259,7 @@ subroutine coarse_fe_space_allocate_and_fill_ptr_dofs_x_fe (this, ptr_dofs_x_fe)
                                                 cell_import%get_snd_ptrs(),&
                                                 cell_import%get_snd_leids(),&
                                                 this%ptr_dofs_x_fe(2:), &
+                                                this%ptr_dofs_x_fe(2:), &
                                                 chunk_size = this%num_fields )
   this%ptr_dofs_x_fe(1) = 1
   do i=1, (num_local_cells + num_ghost_cells)*this%num_fields

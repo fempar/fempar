@@ -587,7 +587,7 @@ subroutine marching_cubes_discrete_levelset_create(this)
 
     type is(unfitted_p4est_serial_triangulation_t)
 
-      allocate(serial_hp_adaptive_fe_space_t :: this%fe_space, stat=istat); check(istat==0)
+      allocate(serial_fe_space_t :: this%fe_space, stat=istat); check(istat==0)
       call this%fe_space%create(triangulation     = this%triangulation, &
                                 conditions        = this%dummy_conditions, &
                                 reference_fes     = this%reference_fes )

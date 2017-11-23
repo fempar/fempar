@@ -1324,3 +1324,23 @@ function ts_mult ( u, h, n )
   ts_mult = ts
 
 end function ts_mult
+
+subroutine assign_quadrature ( quadrature1, quadrature2 ) 
+  implicit none       
+  type(quadrature_t), intent(inout) :: quadrature1
+  type(quadrature_t), intent(in)    :: quadrature2
+  call quadrature1%create(quadrature2%num_dims,quadrature2%num_quadrature_points)
+  quadrature1%coordinates=quadrature2%coordinates
+  quadrature1%weight=quadrature2%weight
+end subroutine assign_quadrature
+
+subroutine assign_quadrature_array ( quadrature_array1, quadrature_array2 ) 
+  implicit none       
+  type(quadrature_t), intent(inout) :: quadrature_array1(:)
+  type(quadrature_t), intent(in)    :: quadrature_array2(:)
+  integer(ip) :: i
+  assert( size(quadrature_array1) == size(quadrature_array2) )
+  do i = 1,size(quadrature_array1)
+    call assign_quadrature(quadrature_array1(i),quadrature_array2(i))
+  end do
+end subroutine assign_quadrature_array

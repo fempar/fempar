@@ -45,15 +45,14 @@ module fempar_names
   use output_handler_parameters_names
   use vtk_parameters_names
   use xh5_parameters_names
-  use std_vector_integer_ip_names
-  use std_vector_real_rp_names
+  use std_vector_names
   
 
   ! Geometry
   use metis_interface_names
   use mesh_distribution_names
   use triangulation_names
-  use p4est_serial_triangulation_names
+  use p4est_triangulation_names
 
   use cell_import_names
   use mesh_names

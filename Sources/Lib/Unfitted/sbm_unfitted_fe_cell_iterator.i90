@@ -98,14 +98,9 @@ subroutine unfitted_fe_cell_iterator_update_cell_map ( this )
   class(unfitted_fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: mc_case
   assert(this%is_local())
-  if ( this%is_cut() ) then
-    mc_case = this%get_mc_case()
-    call this%set_cell_map(this%unfitted_integration_manager%cut_cell_maps(mc_case))
-  else if ( this%is_interior() .or. this%is_exterior() ) then
-    call this%fe_cell_iterator_t%update_cell_map()
-  else
-    check(.false.)
-  end if  
+  assert(this%is_cut())
+  mc_case = this%get_mc_case()
+  call this%set_cell_map(this%unfitted_integration_manager%cut_cell_maps(mc_case))
 end subroutine unfitted_fe_cell_iterator_update_cell_map
 
 !==================================================================================================
@@ -115,16 +110,11 @@ subroutine unfitted_fe_cell_iterator_update_cell_integrators ( this )
   integer(ip) :: field_id
   integer(ip) :: mc_case
   assert(this%is_local())
-  if ( this%is_cut() ) then
-    mc_case = this%get_mc_case() 
-    do field_id=1, this%get_num_fields()  
-      call this%set_cell_integrator(field_id,this%unfitted_integration_manager%cut_cell_integrators(mc_case,field_id))
-    end do  
-  else if ( this%is_interior() .or. this%is_exterior() ) then
-    call this%fe_cell_iterator_t%update_cell_integrators()
-  else
-    check(.false.)
-  end if 
+  assert(this%is_cut())
+  mc_case = this%get_mc_case() 
+  do field_id=1, this%get_num_fields()  
+    call this%set_cell_integrator(field_id,this%unfitted_integration_manager%cut_cell_integrators(mc_case,field_id))
+  end do
 end subroutine unfitted_fe_cell_iterator_update_cell_integrators
 
 !=============================================================================================
@@ -203,25 +193,29 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
   type(cell_integrator_t), pointer :: cell_integrator
   
   assert(this%is_local())
-  call this%update_cell_map()
-  call this%update_cell_integrators()
-  call this%update_sub_triangulation()
-
-  call this%update_cut_quadratures()
-  call this%update_cut_cell_maps()
-  call this%update_cut_cell_integrators()
   
-  cell_map => this%get_cell_map()
-  coordinates => cell_map%get_coordinates()
-  call this%get_nodes_coordinates(coordinates)
+  if ( .not. this%is_cut() ) then
+    call this%fe_cell_iterator_t%update_integration()
+  else 
+    call this%update_cell_map()
+    call this%update_cell_integrators()
+    call this%update_sub_triangulation()
 
-  quadrature => this%get_quadrature()
-  call cell_map%update(quadrature)
-  do field_id = 1, this%get_num_fields()
-     cell_integrator => this%get_cell_integrator(field_id)
-     call cell_integrator%update(cell_map)
-  end do
+    call this%update_cut_quadratures()
+    call this%update_cut_cell_maps()
+    call this%update_cut_cell_integrators()
   
+    cell_map => this%get_cell_map()
+    coordinates => cell_map%get_coordinates()
+    call this%get_nodes_coordinates(coordinates)
+
+    quadrature => this%get_quadrature()
+    call cell_map%update(quadrature)
+    do field_id = 1, this%get_num_fields()
+       cell_integrator => this%get_cell_integrator(field_id)
+       call cell_integrator%update(cell_map)
+    end do
+  end if
 end subroutine unfitted_fe_cell_iterator_update_integration
 
 !=============================================================================================
@@ -255,7 +249,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_quadratures( this )
   real(rp)                    :: coef, dV_subelem
 
   assert(this%is_local())
-  if ( this%is_interior() .or. this%is_exterior() ) return
+  assert(this%is_cut())
 
   ! Recover info about the quadrature of the current element
   quadrature => this%get_quadrature()
@@ -328,18 +322,16 @@ subroutine unfitted_fe_cell_iterator_update_cut_cell_maps( this )
   type(quadrature_t), pointer :: quadrature
   type(cell_map_t), pointer :: cell_map
   class(reference_fe_t), pointer :: geo_reference_elem
-
   assert(this%is_local())
+  assert(this%is_cut())
   cell_map => this%get_cell_map()
   quadrature => this%get_quadrature()
   geo_reference_elem => this%get_reference_fe_geo()
   call cell_map%update_interpolation( quadrature, geo_reference_elem )
-
 end subroutine unfitted_fe_cell_iterator_update_cut_cell_maps
 
 !=============================================================================================
 subroutine unfitted_fe_cell_iterator_update_cut_cell_integrators( this )
-
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(inout) :: this
 
@@ -348,6 +340,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_cell_integrators( this )
   integer(ip) :: field_id
 
   assert(this%is_local())
+  assert(this%is_cut())
   quadrature => this%get_quadrature()
   do field_id = 1, this%get_num_fields()
     cell_integrator => this%get_cell_integrator(field_id)

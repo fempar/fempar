@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module p4est_serial_triangulation_names
+module p4est_triangulation_names
   use, intrinsic :: iso_c_binding
   
   use types_names
@@ -33,14 +33,19 @@ module p4est_serial_triangulation_names
   use stdio_names
   use memor_names
   use environment_names
+  use execution_context_names
+  use mpi_context_names
   use uniform_hex_mesh_generator_names
   use p4est_bindings_names
   use reference_fe_names
   use triangulation_names
   use std_vector_integer_ip_names
+  use std_vector_integer_igp_names
   use field_names
-  
+  use cell_import_names
+  use std_vector_point_names
   use FPL
+  use hash_table_names
 
   implicit none
 # include "debug.i90"
@@ -71,6 +76,13 @@ module p4est_serial_triangulation_names
                                                              3, 4,&  
                                                              1, 3,&
                                                              2, 4], [NUM_SUBCELLS_IN_TOUCH_FACE_2D, NUM_FACES_2D])
+                                                    
+  integer(ip), target :: P4EST_SUBCELLS_IN_TOUCH_FACE_2D(NUM_SUBCELLS_IN_TOUCH_FACE_2D,NUM_FACES_2D) = &
+                                                    reshape([1, 3,&
+                                                             2, 4,&  
+                                                             1, 2,&
+                                                             3, 4], [NUM_SUBCELLS_IN_TOUCH_FACE_2D, NUM_FACES_2D])
+                                                    
 
   integer(ip), target :: P4EST_CORNER_IN_FACE_2D(NUM_FACES_2D,NUM_CORNERS_2D) = & 
                                                   reshape([ 1,-1, 1,-1,&
@@ -81,7 +93,20 @@ module p4est_serial_triangulation_names
   integer(ip), target :: P4EST_OPPOSITE_CORNER_2D(NUM_CORNERS_2D) = [ 4, 3, 2, 1 ]
   integer(ip), target :: P4EST_2_FEMPAR_CORNER_2D(NUM_CORNERS_2D) = [ 1, 2, 3, 4 ]
   integer(ip), target :: P4EST_2_FEMPAR_FACE_2D  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
-
+  
+  integer(ip), target :: P4EST_FACES_SUBFACE_IMPROPER_VERTEX_LID_2D(NUM_FACES_2D,NUM_SUBFACES_FACE_2D) = & 
+                                                  reshape([ 4, 3, 4, 2, &
+                                                            2, 1, 3, 1 ] ,[NUM_FACES_2D,NUM_SUBFACES_FACE_2D])
+                                                  
+  integer(ip), target :: P4EST_FACES_IN_TOUCH_2D(NUM_FACES_2D) = [ 2, 1, 4, 3 ]
+  
+  integer(ip), target :: P4EST_FACES_SUBFACE_FACE_NEIGHBOUR_2D(NUM_FACES_2D/2, NUM_SUBFACES_FACE_2D,1) = &
+                                                  reshape([ 4, 2, &
+                                                            3, 1 ] ,[NUM_FACES_2D/2,NUM_SUBFACES_FACE_2D,1])
+                                                  
+  integer(ip), target :: P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR_2D(NUM_SUBFACES_FACE_2D,1) = &
+                                                  reshape( [ 2, 1 ], [NUM_SUBFACES_FACE_2D,1] )
+  
   ! For 3D
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_FACE_3D = 4
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_EDGE_3D = 2
@@ -98,6 +123,9 @@ module p4est_serial_triangulation_names
   integer(ip), parameter :: NUM_EDGES_AT_CORNER_3D        = 3
   integer(ip), parameter :: NUM_VEFS_3D              = NUM_CORNERS_3D+NUM_FACES_3D+NUM_EDGES_3D
 
+  integer(ip), target :: P4EST_OPPOSITE_FACE_3D(NUM_FACES_3D) = [ 2, 1, 4, 3, 6, 5 ]
+
+  
   integer(ip), target :: P4EST_FACE_CORNERS_3D(NUM_FACE_CORNERS_3D,NUM_FACES_3D) = & 
                                                   reshape([1, 3, 5, 7,&
                                                            2, 4, 6, 8,&  
@@ -203,6 +231,15 @@ module p4est_serial_triangulation_names
                                                               3,  4,  7,  8,&
                                                               1,  3,  5,  7,&
                                                               2,  4,  6,  8 ], [NUM_SUBCELLS_IN_TOUCH_FACE_3D, NUM_FACES_3D])
+                                                    
+  integer(ip), target :: P4EST_SUBCELLS_IN_TOUCH_FACE_3D(NUM_SUBCELLS_IN_TOUCH_FACE_3D,NUM_FACES_3D) = &
+                                                    reshape([ 1,  3,  5,  7,&
+                                                              2,  4,  6,  8,&
+                                                              1,  2,  5,  6,&
+                                                              3,  4,  7,  8,&
+                                                              1,  2,  3,  4,&
+                                                              5,  6,  7,  8 ], [NUM_SUBCELLS_IN_TOUCH_FACE_3D, NUM_FACES_3D])                                                    
+                                                    
 
   integer(ip), target :: FEMPAR_EDGE_OF_SUBCELLS_IN_TOUCH_FACE_3D(NUM_SUBCELLS_IN_TOUCH_FACE_3D,NUM_FACES_3D) = &
                                                     reshape([ 6,  2,  1,  5,&
@@ -225,12 +262,51 @@ module p4est_serial_triangulation_names
                                                               2,  6,&
                                                               3,  7,&
                                                               4,  8 ], [NUM_SUBCELLS_IN_TOUCH_EDGE_3D, NUM_EDGES_3D])
+                                                    
+  integer(ip), target :: P4EST_SUBCELLS_IN_TOUCH_EDGE_3D(NUM_SUBCELLS_IN_TOUCH_EDGE_3D,NUM_EDGES_3D) =  &
+                                                    reshape([ 1,  2,&
+                                                              3,  4,&
+                                                              5,  6,&
+                                                              7,  8,&
+                                                              1,  3,&
+                                                              2,  4,&
+                                                              5,  7,&
+                                                              6,  8,&
+                                                              1,  5,&
+                                                              2,  6,&
+                                                              3,  7,&
+                                                              4,  8 ], [NUM_SUBCELLS_IN_TOUCH_EDGE_3D, NUM_EDGES_3D])                                          
+                                                    
 
   integer(ip), target :: P4EST_OPPOSITE_CORNER_3D(NUM_CORNERS_3D) = [ 8, 7, 6, 5, 4, 3, 2, 1 ]
   integer(ip), target :: P4EST_2_FEMPAR_CORNER_3D(NUM_CORNERS_3D) = [ 1, 2, 3, 4, 5, 6, 7, 8 ]
   integer(ip), target :: P4EST_2_FEMPAR_FACE_3D  (NUM_FACES_3D)   = [ 5, 6, 3, 4, 1, 2 ]
   integer(ip), target :: P4EST_2_FEMPAR_EDGE_3D  (NUM_EDGES_3D)   = [ 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12 ]
   
+  integer(ip), target :: P4EST_FACES_SUBFACE_FACE_NEIGHBOUR_3D(NUM_FACES_3D/2, NUM_SUBFACES_FACE_3D, 2) = &
+                                                  reshape( [ 4, 2, 2, &
+                                                             3, 1, 1, &
+                                                             4, 2, 2, & 
+                                                             3, 1, 1, & 
+                                                             6, 6, 4, &
+                                                             6, 6, 4, &
+                                                             5, 5, 3, &
+                                                             5, 5, 3 ], [NUM_FACES_3D/2,NUM_SUBFACES_FACE_3D,2])
+                                                  
+  integer(ip), target :: P4EST_FACES_SUBFACE_EDGE_NEIGHBOUR_3D(NUM_FACES_3D/2, NUM_SUBFACES_FACE_3D) = &
+                                                  reshape( [ 4, 8, 12, &
+                                                             3, 7, 11, &
+                                                             2, 6, 10, & 
+                                                             1, 5,  9 ], [NUM_FACES_3D/2,NUM_SUBFACES_FACE_3D] )                                                
+                                                  
+  integer(ip), target :: P4EST_FACES_SUBFACE_SUBFACE_NEIGHBOUR_3D(NUM_SUBFACES_FACE_3D,2) = &
+                                                  reshape( [ 2, 1, 4, 3, &
+                                                             3, 4, 1, 2 ], [NUM_SUBFACES_FACE_3D,2])
+                                                  
+  integer(ip), target :: P4EST_EDGES_SUBEDGE_FACE_NEIGHBOUR_3D(NUM_EDGES_3D/4, NUM_SUBEDGES_EDGE_3D) = &
+                                                  reshape( [ 2, 4, 6, &
+                                                             1, 3, 5 ], [NUM_EDGES_3D/4,NUM_SUBEDGES_EDGE_3D] )
+                                                  
   integer(ip), parameter :: refinement = 1 
   integer(ip), parameter :: coarsening = -1 
   integer(ip), parameter :: do_nothing = 0 
@@ -238,7 +314,7 @@ module p4est_serial_triangulation_names
   
   type, extends(cell_iterator_t) :: p4est_cell_iterator_t
     private
-    type(p4est_serial_triangulation_t), pointer :: p4est_triangulation => NULL()
+    type(p4est_base_triangulation_t), pointer :: p4est_triangulation => NULL()
   contains
     procedure                            :: create                  => p4est_cell_iterator_create
     procedure                            :: free                    => p4est_cell_iterator_free
@@ -287,7 +363,7 @@ module p4est_serial_triangulation_names
   
   type, extends(vef_iterator_t) :: p4est_vef_iterator_t
     private
-    type(p4est_serial_triangulation_t), pointer :: p4est_triangulation => NULL()
+    type(p4est_base_triangulation_t), pointer :: p4est_triangulation => NULL()
   contains
      procedure                           :: create                    => p4est_vef_iterator_create
      procedure                           :: free                      => p4est_vef_iterator_free
@@ -317,27 +393,34 @@ module p4est_serial_triangulation_names
      procedure                           :: get_improper_cell_around_ivef   => p4est_vef_iterator_get_improper_cell_around_ivef
      procedure                           :: get_improper_cell_around_subvef => p4est_vef_iterator_get_improper_cell_around_subvef
   end type p4est_vef_iterator_t
+ 
   
-  
-  
+  ! These parameter constants are used in order to generate a unique (non-consecutive) 
+  ! but consistent across MPI tasks global ID (integer(igp)) of a given VEF.
+  ! See type(p4est_base_triangulation_t)%generate_non_consecutive_vef_ggid()
+  integer(ip), parameter :: cell_ggid_shift    = 54
+  integer(ip), parameter :: vefs_x_cell_shift  = 10 
+
+ 
   ! TODO: this data type should extend an abstract triangulation,
   !       and implement its corresponding accessors
-  type, extends(triangulation_t) ::  p4est_serial_triangulation_t
+  type, extends(triangulation_t) ::  p4est_base_triangulation_t
     private
     integer(ip) :: num_proper_vefs          = -1 
     integer(ip) :: num_improper_vefs        = -1 
+ 
+    integer(ip) :: previous_num_local_cells = -1
+    integer(ip) :: previous_num_ghost_cells = -1
     
     type(hex_lagrangian_reference_fe_t) :: reference_fe_geo
-    type(point_t), allocatable          :: per_cell_vertex_coordinates(:)
+    type(std_vector_point_t)            :: per_cell_vertex_coordinates
     
     ! p4est-related data
     type(c_ptr) :: p4est_connectivity = c_null_ptr
     type(c_ptr) :: p4est              = c_null_ptr
     type(c_ptr) :: p4est_mesh         = c_null_ptr
     type(c_ptr) :: QHE                = c_null_ptr
-    
-    ! TODO: I am pretty sure that a type(c_ptr) :: p4est_ghost
-    !       member variable will be needed (at least in the parallel realization)
+    type(c_ptr) :: p4est_ghost        = c_null_ptr
     
     ! p4est quadrant connectivity (1:NUM_FACES_2D/3D,1:nQuads) => neighbor quadrant
     integer(P4EST_F90_LOCIDX),pointer      :: quad_to_quad(:,:)         => NULL()
@@ -357,10 +440,10 @@ module p4est_serial_triangulation_names
     integer(P4EST_F90_LOCIDX), allocatable :: quad_coords(:,:)
     ! p4est Integer Level of quadrant
     integer(P4EST_F90_QLEVEL), allocatable :: quad_level(:)
-   
+    
+    integer(P4EST_F90_GLOIDX), allocatable :: global_first_quadrant(:)
     
     type(std_vector_integer_ip_t)          :: lst_vefs_gids
-    
     type(std_vector_integer_ip_t)          :: ptr_cells_around_proper_vefs
     type(std_vector_integer_ip_t)          :: lst_cells_around_proper_vefs
     type(std_vector_integer_ip_t)          :: ptr_cells_around_improper_vefs
@@ -372,36 +455,51 @@ module p4est_serial_triangulation_names
     type(std_vector_integer_ip_t)          :: proper_vefs_dim
     type(std_vector_integer_ip_t)          :: improper_vefs_dim
     type(std_vector_integer_ip_t)          :: proper_vefs_at_boundary
+    type(std_vector_integer_ip_t)          :: proper_vefs_at_interface
+    type(std_vector_integer_ip_t)          :: improper_vefs_at_interface
     type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
     type(std_vector_integer_ip_t)          :: cell_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
+    type(std_vector_integer_ip_t)          :: cell_myparts
+    type(std_vector_integer_igp_t)         :: cell_ggids
+    type(std_vector_integer_igp_t)         :: lst_vefs_ggids
   contains
+    procedure                                   :: is_conforming                                 =>  p4est_base_triangulation_is_conforming
+  
     ! Getters
-    procedure                                   :: get_num_reference_fes                         => p4est_serial_triangulation_get_num_reference_fes
-    procedure                                   :: get_max_num_shape_functions                   => p4est_serial_triangulation_get_max_num_shape_functions
-    procedure                                   :: get_num_proper_vefs                           => p4est_serial_triangulation_get_num_proper_vefs
-    procedure                                   :: get_num_improper_vefs                         => p4est_serial_triangulation_get_num_improper_vefs
-    procedure                                   :: get_refinement_and_coarsening_flags     => p4est_st_get_refinement_and_coarsening_flags
+    procedure                                   :: get_num_reference_fes                         => p4est_base_triangulation_get_num_reference_fes
+    procedure                                   :: get_max_num_shape_functions                   => p4est_base_triangulation_get_max_num_shape_functions
+    procedure                                   :: get_num_proper_vefs                           => p4est_base_triangulation_get_num_proper_vefs
+    procedure                                   :: get_num_improper_vefs                         => p4est_base_triangulation_get_num_improper_vefs
+    procedure                                   :: get_refinement_and_coarsening_flags           => p4est_bt_get_refinement_and_coarsening_flags
     
     ! Set up related methods
-    procedure, private                          :: p4est_serial_triangulation_create
-    generic                                     :: create                                        => p4est_serial_triangulation_create
-    procedure                                   :: free                                          => p4est_serial_triangulation_free
-    procedure                 , non_overridable :: refine_and_coarsen                            => p4est_serial_triangulation_refine_and_coarsen
-    procedure, private        , non_overridable :: update_p4est_mesh                             => p4est_serial_triangulation_update_p4est_mesh
-    procedure, private        , non_overridable :: update_topology_from_p4est_mesh               => p4est_serial_triangulation_update_topology_from_p4est_mesh
-    procedure, private        , non_overridable :: get_ptr_vefs_x_cell                           => p4est_serial_triangulation_get_ptr_vefs_x_cell
-    procedure, private        , non_overridable :: update_lst_vefs_gids_and_cells_around         => p4est_st_update_lst_vefs_gids_and_cells_around
-    procedure, private        , non_overridable :: update_cell_set_ids                           => p4est_st_update_cell_set_ids
-    procedure, private        , non_overridable :: update_vef_set_ids                            => p4est_st_update_vef_set_ids
-    procedure                 , non_overridable :: std_vector_transform_length_to_header         => p4est_st_std_vector_transform_length_to_header
-    procedure, private        , non_overridable :: allocate_and_fill_x_cell_vertex_coordinates => p4est_st_allocate_and_fill_x_cell_vertex_coordinates
-    procedure, private        , non_overridable :: free_x_cell_vertex_coordinates              => p4est_st_free_x_cell_vertex_coordinates
-    procedure                 , non_overridable :: clear_refinement_and_coarsening_flags         => p4est_st_clear_refinement_and_coarsening_flags
-    procedure                 , non_overridable :: clear_cell_set_ids                            => p4est_st_clear_cell_set_ids
-    procedure                                   :: fill_cells_set                                => p4est_st_fill_cells_set
-    procedure                 , non_overridable :: clear_vef_set_ids                             => p4est_st_clear_vef_set_ids
+    procedure                 , non_overridable  :: refine_and_coarsen                                 => p4est_base_triangulation_refine_and_coarsen
+    procedure, private        , non_overridable  :: update_p4est_mesh                                  => p4est_base_triangulation_update_p4est_mesh
+    procedure, private        , non_overridable  :: update_topology_from_p4est_mesh                    => p4est_base_triangulation_update_topology_from_p4est_mesh
+    procedure, private        , non_overridable  :: extend_p4est_topology_arrays_to_ghost_cells        => p4est_bt_extend_p4est_topology_arrays_to_ghost_cells
+    procedure, private        , non_overridable  :: get_ptr_vefs_x_cell                                => p4est_base_triangulation_get_ptr_vefs_x_cell
+    procedure, private        , non_overridable  :: update_lst_vefs_gids_and_cells_around              => p4est_bt_update_lst_vefs_gids_and_cells_around
+    procedure, private        , non_overridable  :: update_local_proper_vefs_actually_on_the_interface => p4est_bt_update_local_proper_vefs_actually_on_the_interface
+    procedure, private        , non_overridable  :: update_cell_ggids                                  => p4est_base_triangulation_update_cell_ggids
+    procedure, private        , non_overridable  :: comm_cell_ggids                                    => p4est_base_triangulation_comm_cell_ggids
+    procedure, private        , non_overridable  :: update_cell_myparts                                => p4est_base_triangulation_update_cell_myparts
+    procedure, private        , non_overridable  :: comm_cell_myparts                                  => p4est_base_triangulation_comm_cell_myparts
+    procedure, private        , non_overridable  :: update_cell_set_ids                                => p4est_bt_update_cell_set_ids
+    procedure, private        , non_overridable  :: update_vef_set_ids                                 => p4est_bt_update_vef_set_ids
+    procedure, private        , non_overridable  :: fill_x_cell_vertex_coordinates                     => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
+    procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
+    procedure                 , non_overridable  :: clear_cell_set_ids                                 => p4est_bt_clear_cell_set_ids
+    procedure                                    :: fill_cells_set                                     => p4est_bt_fill_cells_set
+    procedure, private        , non_overridable  :: clear_vef_set_ids                                  => p4est_bt_clear_vef_set_ids
+    procedure, private        , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import
+    procedure, private        , non_overridable  :: match_cell_import_rcv_control_data                 => p4est_bt_match_cell_import_rcv_control_data
+    procedure, private        , non_overridable  :: adjust_ghost_cells                                 => p4est_bt_adjust_ghost_cells
+    procedure, private, nopass, non_overridable  :: generate_non_consecutive_vef_ggid                  => p4est_bt_generate_non_consecutive_vef_ggid
+    procedure, private        , non_overridable  :: exchange_vefs_ggids                                => p4est_bt_exchange_vefs_ggids 
+    procedure                 , non_overridable  :: get_previous_num_local_cells                       => p4est_bt_get_previous_num_local_cells 
+    procedure                 , non_overridable  :: get_previous_num_ghost_cells                       => p4est_bt_get_previous_num_ghost_cells
 
     ! Cell traversals-related TBPs
     procedure                                   :: create_cell_iterator                  => p4est_create_cell_iterator
@@ -412,16 +510,78 @@ module p4est_serial_triangulation_names
     procedure                                   :: free_vef_iterator                     => p4est_free_vef_iterator
 
 #ifndef ENABLE_P4EST
-    procedure, non_overridable :: not_enabled_error => p4est_serial_triangulation_not_enabled_error
+    procedure, non_overridable :: not_enabled_error => p4est_base_triangulation_not_enabled_error
 #endif
-  end type p4est_serial_triangulation_t
+  end type p4est_base_triangulation_t
   
-  public :: p4est_serial_triangulation_t, p4est_cell_iterator_t, p4est_vef_iterator_t
+  public :: p4est_base_triangulation_t, p4est_cell_iterator_t, p4est_vef_iterator_t
   public :: refinement, coarsening, do_nothing
   
+  type, extends(p4est_base_triangulation_t) ::  p4est_serial_triangulation_t
+    private
+  contains
+    procedure, private                          :: p4est_serial_triangulation_create
+    generic                                     :: create                                        => p4est_serial_triangulation_create
+    procedure                                   :: free                                          => p4est_serial_triangulation_free    
+  end type p4est_serial_triangulation_t
+  
+  public :: p4est_serial_triangulation_t
+  
+  type, extends(p4est_base_triangulation_t) ::  p4est_par_triangulation_t
+    private
+    ! Scratch data required for migration. Should it be packed in a data type ???
+    ! EXPORT SIDE
+    integer(P4EST_F90_LOCIDX) :: num_snd
+    type(c_ptr) :: p_lst_snd  = c_null_ptr
+    type(c_ptr) :: p_snd_ptrs = c_null_ptr
+    type(c_ptr) :: p_pack_idx = c_null_ptr
+    integer(P4EST_F90_LOCIDX), pointer :: lst_snd(:)
+    integer(P4EST_F90_LOCIDX), pointer :: snd_ptrs(:)
+    integer(P4EST_F90_LOCIDX), pointer :: pack_idx(:)
+    
+    ! IMPORT SIDE
+    integer(P4EST_F90_LOCIDX) :: num_rcv
+    type(c_ptr) :: p_lst_rcv    = c_null_ptr
+    type(c_ptr) :: p_rcv_ptrs   = c_null_ptr
+    type(c_ptr) :: p_unpack_idx = c_null_ptr
+    integer(P4EST_F90_LOCIDX), pointer :: lst_rcv(:)
+    integer(P4EST_F90_LOCIDX), pointer :: rcv_ptrs(:)
+    integer(P4EST_F90_LOCIDX), pointer :: unpack_idx(:)
+    
+    type(std_vector_integer_ip_t) :: old_vef_set_ids
+    type(std_vector_integer_ip_t) :: new_vef_set_ids
+    
+    type(c_ptr) :: p_old2new = c_null_ptr
+    type(c_ptr) :: p_new2old = c_null_ptr
+    integer(P4EST_F90_LOCIDX), pointer :: old2new(:)
+    integer(P4EST_F90_LOCIDX), pointer :: new2old(:)
+  contains
+    procedure, private                          :: p4est_par_triangulation_create
+    generic                                     :: create                                           => p4est_par_triangulation_create
+    procedure                                   :: free                                             => p4est_par_triangulation_free 
+    procedure                                   :: redistribute                                     => p4est_par_triangulation_redistribute
+    procedure                                   :: update_migration_control_data                    => p4est_par_triangulation_update_migration_control_data
+    procedure                                   :: migrate_cell_set_ids                             => p4est_par_triangulation_migrate_cell_set_ids
+    procedure                                   :: migrate_vef_set_ids                              => p4est_par_triangulation_migrate_vef_set_ids
+    procedure                                   :: get_migration_num_snd                            => p4est_par_triangulation_get_migration_num_snd
+    procedure                                   :: get_migration_lst_snd                            => p4est_par_triangulation_get_migration_lst_snd
+    procedure                                   :: get_migration_snd_ptrs                           => p4est_par_triangulation_get_migration_snd_ptrs
+    procedure                                   :: get_migration_pack_idx                           => p4est_par_triangulation_get_migration_pack_idx
+    procedure                                   :: get_migration_num_rcv                            => p4est_par_triangulation_get_migration_num_rcv
+    procedure                                   :: get_migration_lst_rcv                            => p4est_par_triangulation_get_migration_lst_rcv
+    procedure                                   :: get_migration_rcv_ptrs                           => p4est_par_triangulation_get_migration_rcv_ptrs
+    procedure                                   :: get_migration_unpack_idx                         => p4est_par_triangulation_get_migration_unpack_idx
+    procedure                                   :: get_migration_new2old                            => p4est_par_triangulation_get_migration_new2old
+    procedure                                   :: get_migration_old2new                            => p4est_par_triangulation_get_migration_old2new
+  end type p4est_par_triangulation_t
+  
+  public :: p4est_par_triangulation_t
 contains
 
-#include "sbm_p4est_serial_triangulation.i90"
+#include "sbm_p4est_base_triangulation.i90"
 #include "sbm_p4est_cell_iterator.i90"
 #include "sbm_p4est_vef_iterator.i90"
-end module p4est_serial_triangulation_names
+#include "sbm_p4est_serial_triangulation.i90"
+#include "sbm_p4est_par_triangulation.i90"
+
+end module p4est_triangulation_names

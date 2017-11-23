@@ -71,6 +71,7 @@ module cell_import_names
      procedure, non_overridable :: get_snd_leids                          => cell_import_get_snd_leids
      procedure, non_overridable :: get_global_neighbour_id                => cell_import_get_global_neighbour_id
      procedure, non_overridable :: get_local_neighbour_id                 => cell_import_get_local_neighbour_id
+     procedure, non_overridable :: is_local_neighbour                     => cell_import_is_local_neighbour
   end type cell_import_t
 
   ! Types
@@ -481,5 +482,20 @@ contains
     end do
     assert ( .not. (cell_import_get_local_neighbour_id == this%num_neighbours+1) )
   end function cell_import_get_local_neighbour_id
+  
+  function cell_import_is_local_neighbour ( this, global_neighbour_id )
+    implicit none
+    class(cell_import_t), intent(in) :: this
+    integer(ip)         , intent(in) :: global_neighbour_id
+    logical :: cell_import_is_local_neighbour
+    integer(ip) :: icell
+    cell_import_is_local_neighbour = .false.
+    do icell = 1, this%num_neighbours
+      if ( this%neighbours_ids(icell) == global_neighbour_id ) then
+        cell_import_is_local_neighbour = .true.
+        exit
+      end if
+    end do
+  end function cell_import_is_local_neighbour 
   
 end module cell_import_names
