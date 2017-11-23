@@ -837,13 +837,13 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   this_constraining_dirichlet_dofs_coefficients   => this%get_constraining_dirichlet_dofs_coefficients()
   this_constraints_independent_term               => this%get_constraints_independent_term()
 
-  call concatenate_two_std_vectors_ip(this_ptr_constraining_free_dofs                 , ptr_constraining_free_dofs                 )
-  call concatenate_two_std_vectors_ip(this_ptr_constraining_dirichlet_dofs            , ptr_constraining_dirichlet_dofs            )
-  call concatenate_two_std_vectors_ip(this_constraining_free_dofs                     , constraining_free_dofs                     )
-  call concatenate_two_std_vectors_rp(this_constraining_free_dofs_coefficients        , constraining_free_dofs_coefficients        )
-  call concatenate_two_std_vectors_ip(this_constraining_dirichlet_dofs                , constraining_dirichlet_dofs                )
-  call concatenate_two_std_vectors_rp(this_constraining_dirichlet_dofs_coefficients   , constraining_dirichlet_dofs_coefficients   )
-  call concatenate_two_std_vectors_rp(this_constraints_independent_term               , constraints_independent_term               )
+  call this_ptr_constraining_free_dofs                 %cat( ptr_constraining_free_dofs                 )
+  call this_ptr_constraining_dirichlet_dofs            %cat( ptr_constraining_dirichlet_dofs            )
+  call this_constraining_free_dofs                     %cat( constraining_free_dofs                     )
+  call this_constraining_free_dofs_coefficients        %cat( constraining_free_dofs_coefficients        )
+  call this_constraining_dirichlet_dofs                %cat( constraining_dirichlet_dofs                )
+  call this_constraining_dirichlet_dofs_coefficients   %cat( constraining_dirichlet_dofs_coefficients   )
+  call this_constraints_independent_term               %cat( constraints_independent_term               )
 
   call ptr_constraining_free_dofs%free()
   call ptr_constraining_dirichlet_dofs%free()
@@ -868,30 +868,6 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   call memfree(visited_hanging_dof_lids,__FILE__,__LINE__)
 
   contains
-
-    subroutine concatenate_two_std_vectors_ip(vec1,vec2)
-      type(std_vector_integer_ip_t), intent(inout) :: vec1
-      type(std_vector_integer_ip_t), intent(in)    :: vec2
-      integer(ip) :: i
-      integer(ip) :: s1
-      s1 = vec1%size()
-      call vec1%resize(s1+vec2%size())
-      do i = 1, vec2%size()
-        call vec1%set(s1+i,vec2%get(i))
-      end do
-    end subroutine concatenate_two_std_vectors_ip
-
-    subroutine concatenate_two_std_vectors_rp(vec1,vec2)
-      type(std_vector_real_rp_t), intent(inout) :: vec1
-      type(std_vector_real_rp_t), intent(in)    :: vec2
-      integer(ip) :: i
-      integer(ip) :: s1
-      s1 = vec1%size()
-      call vec1%resize(s1+vec2%size())
-      do i = 1, vec2%size()
-        call vec1%set(s1+i,vec2%get(i))
-      end do
-    end subroutine concatenate_two_std_vectors_rp
 
     subroutine send_to_reference_space(phys_coords_as_point,fe_quad,cell_map,ref_coords_as_quadrature)
       implicit none
