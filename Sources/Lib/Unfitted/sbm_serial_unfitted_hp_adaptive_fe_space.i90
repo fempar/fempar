@@ -615,6 +615,387 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this
   logical, intent(in) :: full_cells_loop
 
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: coarser_fe
+  type(fe_vef_iterator_t) :: fe_vef, fe_vef_bis, coarser_vef
+  type(list_iterator_t) :: fe_own_dofs_on_vef_iterator
+  type(list_iterator_t) :: fe_dofs_on_vef_iterator 
+  type(list_iterator_t) :: coarser_fe_dofs_on_vef_iterator
+  integer(ip) :: improper_vef_lid
+  integer(ip) :: block_id, field_id
+  class(reference_fe_t), pointer :: reference_fe, coarser_reference_fe
+  integer(ip), pointer :: fe_dofs(:), coarser_fe_fe_dofs(:)
+  integer(ip) :: istat, i, icell, min_cell_gid
+  integer(ip) :: improper_dof_lid, hanging_dof_lid
+  integer(ip) :: improper_vef_ivef, coarser_fe_ivef, coarse_fe_subvef
+  integer(ip), pointer :: field_blocks(:)
+  integer(ip) :: qpoint, ishape_fe, ishape_coarser_fe
+  type(interpolation_t), pointer :: h_refinement_interpolation
+  integer(ip), pointer :: h_refinement_subedge_permutation(:,:,:)
+  integer(ip), pointer :: h_refinement_subfacet_permutation(:,:,:)
+  real(rp) :: coefficient
+  integer(ip) :: num_cell_vertices, num_cell_edges, num_cell_faces
+  integer(ip) :: num_subedges_x_edge, num_subfaces_x_face
+  integer(ip) :: vef_lid, facet_lid
+  type(list_t), pointer :: facets_n_face
+  type(list_iterator_t) :: facets_n_face_iterator
+  type(list_iterator_t) :: dofs_n_facet_iterator
+  integer(ip) :: facet_dof
+
+  class(triangulation_t), pointer :: triangulation
+  integer(ip) :: num_hanging_dofs
+  integer(ip) :: num_fixed_dofs_on_entry
+
+  type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_free_dofs
+  type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_dirichlet_dofs
+  type(std_vector_integer_ip_t) , pointer :: this_constraining_free_dofs
+  type(std_vector_real_rp_t)    , pointer :: this_constraining_free_dofs_coefficients
+  type(std_vector_integer_ip_t) , pointer :: this_constraining_dirichlet_dofs
+  type(std_vector_real_rp_t)    , pointer :: this_constraining_dirichlet_dofs_coefficients
+  type(std_vector_real_rp_t)    , pointer :: this_constraints_independent_term
+
+  type(std_vector_integer_ip_t) :: ptr_constraining_free_dofs
+  type(std_vector_integer_ip_t) :: ptr_constraining_dirichlet_dofs
+  type(std_vector_integer_ip_t) :: constraining_free_dofs
+  type(std_vector_real_rp_t)    :: constraining_free_dofs_coefficients
+  type(std_vector_integer_ip_t) :: constraining_dirichlet_dofs
+  type(std_vector_real_rp_t)    :: constraining_dirichlet_dofs_coefficients
+  type(std_vector_real_rp_t)    :: constraints_independent_term
+
+  ! Re-size to 0 to force re-initialization during second resize (to the actual/correct size)
+  call ptr_constraining_free_dofs%resize(0)
+  call ptr_constraining_dirichlet_dofs%resize(0)
+  call constraining_free_dofs%resize(0)
+  call constraining_free_dofs_coefficients%resize(0)
+  call constraining_dirichlet_dofs%resize(0)
+  call constraining_dirichlet_dofs_coefficients%resize(0)
+  call constraints_independent_term%resize(0)
+
+  if (full_cells_loop) then
+    num_hanging_dofs = this%num_hanging_dofs_full_cells
+    num_fixed_dofs_on_entry = this%get_num_dirichlet_dofs()
+  else
+    num_hanging_dofs = this%num_hanging_dofs_other
+    num_fixed_dofs_on_entry = this%get_num_dirichlet_dofs() + this%num_hanging_dofs_full_cells + this%num_aggregated_dofs
+  end if
+  
+  if ( num_hanging_dofs == 0 ) return
+
+  this_ptr_constraining_free_dofs                 => this%get_ptr_constraining_free_dofs()
+  this_ptr_constraining_dirichlet_dofs            => this%get_ptr_constraining_dirichlet_dofs()
+  this_constraining_free_dofs                     => this%get_constraining_free_dofs()
+  this_constraining_free_dofs_coefficients        => this%get_constraining_free_dofs_coefficients()
+  this_constraining_dirichlet_dofs                => this%get_constraining_dirichlet_dofs()
+  this_constraining_dirichlet_dofs_coefficients   => this%get_constraining_dirichlet_dofs_coefficients()
+  this_constraints_independent_term               => this%get_constraints_independent_term()
+  
+  field_blocks => this%get_field_blocks()
+
+  triangulation => this%get_triangulation()
+  
+  call ptr_constraining_free_dofs%resize(num_hanging_dofs+1,0)
+  call ptr_constraining_dirichlet_dofs%resize(num_hanging_dofs+1,0)
+  call constraining_free_dofs%resize(num_hanging_dofs)
+  call constraining_free_dofs_coefficients%resize(num_hanging_dofs)
+  call constraining_dirichlet_dofs%resize(num_hanging_dofs)
+  call constraining_dirichlet_dofs_coefficients%resize(num_hanging_dofs)
+  call constraints_independent_term%resize(num_hanging_dofs)
+
+  call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(coarser_fe)
+  call this%create_fe_vef_iterator(fe_vef)
+  call this%create_fe_vef_iterator(fe_vef_bis)
+  call this%create_fe_vef_iterator(coarser_vef)
+  
+  reference_fe => fe%get_reference_fe(1)
+  num_cell_vertices = reference_fe%get_num_vertices()
+  if  (triangulation%get_num_dims() == 3) then
+    num_cell_edges       = reference_fe%get_num_n_faces_of_dim(1)
+    num_subfaces_x_face  = 4
+    num_subedges_x_edge  = 2 
+  else
+    num_cell_edges       = 0
+    num_subfaces_x_face  = 2
+  end if  
+  num_cell_faces = reference_fe%get_num_facets()
+  
+  allocate(fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
+  allocate(coarser_fe_fe_dofs(this%get_num_fields()), stat=istat); check(istat==0);
+
+  ! Computation of constraints     
+  do improper_vef_lid = 1, triangulation%get_num_improper_vefs()
+     call fe_vef%set_gid(-improper_vef_lid)
+
+     ! Improper VEFs which are solely on ghost cells might have zero
+     ! improper cells around in 3D
+     if ( fe_vef%get_num_improper_cells_around() == 0 ) then
+       cycle
+     end if 
+     
+     do field_id=1, this%get_num_fields()
+        
+        ! Retrieve all data related to the current improper vef 
+        ! and one of the cells that owns it
+        do icell = 1,fe_vef%get_num_cells_around()
+           call fe_vef%get_cell_around(icell,fe)
+           if ( .not. fe%is_void(field_id) ) exit
+        end do
+        if ( fe%is_void(field_id) ) cycle
+        improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
+        call fe%get_field_fe_dofs(field_id,fe_dofs)
+        
+        ! Retrieve all data related to the first improper cell around current improper vef
+        do icell = 1,fe_vef%get_num_improper_cells_around()
+           call fe_vef%get_improper_cell_around(icell,coarser_fe)
+           if ( .not. coarser_fe%is_void(field_id) ) exit
+        end do
+        if ( coarser_fe%is_void(field_id) ) cycle
+        coarser_fe_ivef = fe_vef%get_improper_cell_around_ivef(icell)
+        call coarser_fe%get_field_fe_dofs(field_id,coarser_fe_fe_dofs)
+        
+        reference_fe => fe%get_reference_fe(field_id)
+        coarser_reference_fe  => coarser_fe%get_reference_fe(field_id)
+        block_id = field_blocks(field_id)
+        fe_own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(improper_vef_ivef)
+        do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
+           improper_dof_lid = fe_dofs(fe_own_dofs_on_vef_iterator%get_current())
+
+           if ( fe%is_free_dof(improper_dof_lid) ) exit
+
+           improper_dof_lid = abs(improper_dof_lid)
+           hanging_dof_lid  = improper_dof_lid - num_fixed_dofs_on_entry
+
+           coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
+           do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
+              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
+                call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, &
+                                                              ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+1)
+              else if ( fe%is_free_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
+                call ptr_constraining_free_dofs%set(hanging_dof_lid+1, &
+                                                         ptr_constraining_free_dofs%get(hanging_dof_lid+1)+1)
+              else if ( fe%is_hanging_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
+                if (full_cells_loop) then
+                  mcheck(.false.,'We cannot end-up here due to 2:1 condition')
+                else 
+                  mcheck(.false., 'For the moment we do not have hanging nodes in cut cells')
+                end if 
+              else
+                mcheck(.false.,'Dof is either free dirichlet or hanging')
+              end if
+              call coarser_fe_dofs_on_vef_iterator%next()
+           end do
+           call fe_own_dofs_on_vef_iterator%next() 
+        end do
+     end do
+  end do
+   
+  
+  call ptr_constraining_free_dofs%transform_length_to_header()
+  call constraining_free_dofs%resize(ptr_constraining_free_dofs%get(ptr_constraining_free_dofs%size())-1)
+  call constraining_free_dofs_coefficients%resize(ptr_constraining_free_dofs%get(ptr_constraining_free_dofs%size())-1)
+  call ptr_constraining_dirichlet_dofs%transform_length_to_header()
+  
+  call constraining_dirichlet_dofs%resize(ptr_constraining_dirichlet_dofs%get(ptr_constraining_dirichlet_dofs%size())-1)
+  call constraining_dirichlet_dofs_coefficients%resize(ptr_constraining_dirichlet_dofs%get(ptr_constraining_dirichlet_dofs%size())-1)
+  
+  ! Computation of constraints     
+  do improper_vef_lid = 1, triangulation%get_num_improper_vefs()
+     call fe_vef%set_gid(-improper_vef_lid)
+
+     ! Improper VEFs which are solely on ghost cells might have zero
+     ! improper cells around in 3D
+     if ( fe_vef%get_num_improper_cells_around() == 0 ) then
+       cycle
+     end if 
+     
+     do field_id=1, this%get_num_fields()
+        ! Retrieve all data related to the current improper vef 
+        ! and one of the cells that owns it
+        do icell = 1,fe_vef%get_num_cells_around()
+           call fe_vef%get_cell_around(icell,fe)
+           if ( .not. fe%is_void(field_id) ) exit
+        end do
+        if ( fe%is_void(field_id) ) cycle
+        improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
+        call fe%get_field_fe_dofs(field_id,fe_dofs)
+        
+        ! Retrieve all data related to the first improper cell around current improper vef
+        do icell = 1,fe_vef%get_num_improper_cells_around()
+           call fe_vef%get_improper_cell_around(icell,coarser_fe)
+           if ( .not. coarser_fe%is_void(field_id) ) exit
+        end do
+        if ( coarser_fe%is_void(field_id) ) cycle
+        coarser_fe_ivef  = fe_vef%get_improper_cell_around_ivef(icell)
+        coarse_fe_subvef = fe_vef%get_improper_cell_around_subvef(icell)
+        call coarser_fe%get_field_fe_dofs(field_id,coarser_fe_fe_dofs)
+        call coarser_fe%get_vef(coarser_fe_ivef,coarser_vef)
+
+        reference_fe => fe%get_reference_fe(field_id)
+        coarser_reference_fe => coarser_fe%get_reference_fe(field_id)
+        
+        select type(coarser_reference_fe)
+        type is (hex_lagrangian_reference_fe_t)
+           h_refinement_subedge_permutation => coarser_reference_fe%get_h_refinement_subedget_permutation()
+           h_refinement_subfacet_permutation => coarser_reference_fe%get_h_refinement_subfacet_permutation()
+        class default
+          assert(.false.)
+        end select
+        
+        block_id = field_blocks(field_id)
+        fe_own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(improper_vef_ivef)
+        fe_dofs_on_vef_iterator = reference_fe%create_dofs_on_n_face_iterator(improper_vef_ivef)
+        do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
+           ishape_fe = fe_own_dofs_on_vef_iterator%get_current()
+           improper_dof_lid = fe_dofs(ishape_fe)
+           assert ( fe%is_fixed_dof(improper_dof_lid) )
+           improper_dof_lid = abs(improper_dof_lid)
+           hanging_dof_lid  = improper_dof_lid - num_fixed_dofs_on_entry
+           
+           call fe_dofs_on_vef_iterator%begin() 
+           do while (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
+             if ( fe_dofs_on_vef_iterator%get_current() == ishape_fe ) exit
+             call fe_dofs_on_vef_iterator%next() 
+           end do
+           assert (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
+           
+           if ( fe_vef%get_dim() == 0 ) then ! vef is a corner (2D/3D)
+              if ( coarser_vef%get_dim()  == 1 .and. triangulation%get_num_dims() == 3) then
+                 qpoint = h_refinement_subedge_permutation(coarser_fe_ivef-num_cell_vertices,num_subedges_x_edge,1)
+              else
+                 qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges,num_subfaces_x_face,1)
+              end if
+           else if ( fe_vef%get_dim()  == 1 .and. triangulation%get_num_dims() == 3 .and. coarse_fe_subvef > 0 ) then 
+              qpoint = h_refinement_subedge_permutation(coarser_fe_ivef-num_cell_vertices, &
+                                                        coarse_fe_subvef, &
+                                                        fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
+           else if ( fe_vef%get_dim()  == 1 .and. triangulation%get_num_dims() == 3 .and. coarse_fe_subvef < 0 ) then
+              assert ( fe_vef%get_num_cells_around() == 2 )
+              ! Go over cells around fe_vef(), and find the one with the minimum global identifier
+              call fe_vef%get_cell_around(1,fe)
+              min_cell_gid=fe%get_gid()
+              call fe_vef%get_cell_around(2,fe)
+              min_cell_gid=min(fe%get_gid(),min_cell_gid)
+              call fe%set_gid(min_cell_gid)
+              
+              call fe%get_field_fe_dofs(field_id,fe_dofs)
+              
+              reference_fe  => fe%get_reference_fe(field_id)    
+              facets_n_face => reference_fe%get_facets_n_face()      
+                            
+              ! Go over faces around fe_vef in cell with minimum global identifier
+              facet_loop: do facet_lid = reference_fe%get_first_facet_id(), &
+                                         reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
+                  call fe_vef_bis%set_gid(fe%get_vef_gid(facet_lid))
+                  if (.not. fe_vef_bis%is_proper()) then
+                    facets_n_face_iterator = facets_n_face%create_iterator(facet_lid)
+                    do while (.not. facets_n_face_iterator%is_upper_bound())
+                      if (fe%get_vef_gid(facets_n_face_iterator%get_current()) == fe_vef%get_gid() ) then
+                        exit facet_loop
+                      end if
+                      call facets_n_face_iterator%next()
+                    end do 
+                  end if
+              end do facet_loop
+              
+              assert(facet_lid<=reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1)
+              
+              ! Go over DoFs on facet, and locate the facet dof LID corresponding to the edge DoF 
+              facet_dof=1
+              dofs_n_facet_iterator = reference_fe%create_dofs_n_face_iterator(facet_lid)
+              do while (.not. dofs_n_facet_iterator%is_upper_bound())
+                if (fe_dofs(dofs_n_facet_iterator%get_current()) == -improper_dof_lid) then
+                  exit
+                end if  
+                call dofs_n_facet_iterator%next()
+                facet_dof = facet_dof+1
+              end do 
+              assert (.not. dofs_n_facet_iterator%is_upper_bound())
+                            
+              qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges,&
+                                                         abs(coarse_fe_subvef),&
+                                                         facet_dof)              
+           else if (fe_vef%get_dim() == triangulation%get_num_dims()-1) then ! vef is a face (2D/3D)
+              qpoint = h_refinement_subfacet_permutation(coarser_fe_ivef-num_cell_vertices-num_cell_edges, &
+                                                        coarse_fe_subvef, &
+                                                        fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
+           end if
+           
+           coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
+           do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
+              ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current() 
+              
+              ! Evaluate coefficient
+              select type(coarser_reference_fe)
+                type is (hex_lagrangian_reference_fe_t)
+                call coarser_reference_fe%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient) 
+              class default
+                assert(.false.)
+              end select
+              
+              ! Set dependency and coefficient into the corresponding std_vector data structure
+              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
+                call constraining_dirichlet_dofs%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                                                          coarser_fe_fe_dofs(ishape_coarser_fe))
+                call constraining_dirichlet_dofs_coefficients%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                                                                       coefficient)
+                call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, &
+                                                              ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
+              else if ( fe%is_free_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
+                call constraining_free_dofs%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                                                     coarser_fe_fe_dofs(ishape_coarser_fe))
+                call constraining_free_dofs_coefficients%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                                                                  coefficient)
+                call ptr_constraining_free_dofs%set(hanging_dof_lid, &
+                                                         ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
+              else if ( fe%is_hanging_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
+                if (full_cells_loop) then
+                  mcheck(.false.,'We cannot end-up here due to 2:1 condition')
+                else 
+                  mcheck(.false., 'For the moment we do not have hanging nodes in cut cells')
+                end if 
+              else
+                mcheck(.false.,'Dof is either free dirichlet or hanging')
+              end if
+              
+              call coarser_fe_dofs_on_vef_iterator%next()
+           end do
+           call fe_own_dofs_on_vef_iterator%next() 
+        end do
+     end do
+  end do
+  
+  do i=ptr_constraining_free_dofs%size(),2,-1
+    call ptr_constraining_free_dofs%set(i, ptr_constraining_free_dofs%get(i-1))
+  end do
+  call ptr_constraining_free_dofs%set(1,1)
+  
+  do i=ptr_constraining_dirichlet_dofs%size(),2,-1
+    call ptr_constraining_dirichlet_dofs%set(i, ptr_constraining_dirichlet_dofs%get(i-1))
+  end do
+  call ptr_constraining_dirichlet_dofs%set(1,1)
+  
+  call this%free_fe_cell_iterator(coarser_fe)
+  call this%free_fe_cell_iterator(fe)
+  call this%free_fe_vef_iterator(fe_vef)
+  call this%free_fe_vef_iterator(fe_vef_bis)
+  call this%free_fe_vef_iterator(coarser_vef)
+
+  call this_ptr_constraining_free_dofs                 %cat( ptr_constraining_free_dofs                 )
+  call this_ptr_constraining_dirichlet_dofs            %cat( ptr_constraining_dirichlet_dofs            )
+  call this_constraining_free_dofs                     %cat( constraining_free_dofs                     )
+  call this_constraining_free_dofs_coefficients        %cat( constraining_free_dofs_coefficients        )
+  call this_constraining_dirichlet_dofs                %cat( constraining_dirichlet_dofs                )
+  call this_constraining_dirichlet_dofs_coefficients   %cat( constraining_dirichlet_dofs_coefficients   )
+  call this_constraints_independent_term               %cat( constraints_independent_term               )
+
+  call ptr_constraining_free_dofs%free()
+  call ptr_constraining_dirichlet_dofs%free()
+  call constraining_free_dofs%free()
+  call constraining_free_dofs_coefficients%free()
+  call constraining_dirichlet_dofs%free()
+  call constraining_dirichlet_dofs_coefficients%free()
+  call constraints_independent_term%free()
+
 end subroutine suhpafs_setup_only_hanging_node_constraints
 
 !========================================================================================
@@ -650,6 +1031,7 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   type(point_t), pointer :: coordinates(:)
   integer(ip) :: istat
   logical, allocatable :: visited_hanging_dof_lids(:)
+  integer(ip) :: min_fixed_dof_gid, max_fixed_dof_gid
 
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_free_dofs
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_dirichlet_dofs
@@ -670,11 +1052,14 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
 
   massert(this%num_hanging_dofs_full_cells == 0, 'For the moment we do not have hanging nodes')
 
+  min_fixed_dof_gid = this%get_num_dirichlet_dofs() + this%num_hanging_dofs_full_cells + 1
+  max_fixed_dof_gid = this%get_num_dirichlet_dofs() + this%num_hanging_dofs_full_cells + this%num_aggregated_dofs
+
   ! Auxiliary
   triangulation => this%get_triangulation()
   call nodal_quad_in_root_fe%create(triangulation%get_num_dims(),this%get_max_num_shape_functions())
 
-  call memalloc(this%get_num_hanging_dofs(),visited_hanging_dof_lids,__FILE__,__LINE__)
+  call memalloc(this%num_aggregated_dofs,visited_hanging_dof_lids,__FILE__,__LINE__)
   
   !Fill the sizes of each sub-list
 
@@ -682,12 +1067,12 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   ! Re-size to 0 to force re-initialization during second resize (to the actual/correct size)
   call ptr_constraining_free_dofs%resize(0)
   call ptr_constraining_dirichlet_dofs%resize(0)
-  call ptr_constraining_free_dofs%resize(this%get_num_hanging_dofs()+1,0)
-  call ptr_constraining_dirichlet_dofs%resize(this%get_num_hanging_dofs()+1,0)
+  call ptr_constraining_free_dofs%resize(this%num_aggregated_dofs+1,0)
+  call ptr_constraining_dirichlet_dofs%resize(this%num_aggregated_dofs+1,0)
 
   ! In our case, this is 0
-  call constraints_independent_term%resize(this%get_num_hanging_dofs())
-  do iaux = 1,this%get_num_hanging_dofs()
+  call constraints_independent_term%resize(this%num_aggregated_dofs)
+  do iaux = 1,this%num_aggregated_dofs
     call constraints_independent_term%set(iaux,0.0_rp)
   end do
 
@@ -706,16 +1091,23 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
         call fe%get_field_fe_dofs(field_id, fe_dofs)
         call root_fe%get_field_fe_dofs(field_id, root_fe_dofs)
 
-        num_free_dofs_in_root = count(root_fe_dofs>0,kind=ip)
-        num_diri_dofs_in_root = count(root_fe_dofs<0,kind=ip)
+        num_free_dofs_in_root = 0
+        num_diri_dofs_in_root = 0
 
-        ! TODO
-        ! num_hang_dofs_in_root = ...
-        ! num_diri_dofs_in_root = count(root_fe_dofs<0,kind=ip) - num_hang_dofs_in_root
-        ! Then, add how many free and diri nodes the root hanging nodes depend on
+        do root_idof = 1,size(root_fe_dofs)
+          if ( root_fe%is_free_dof(root_fe_dofs(root_idof)) ) then
+            num_free_dofs_in_root = num_free_dofs_in_root + 1
+          else if ( root_fe%is_strong_dirichlet_dof(root_fe_dofs(root_idof)) ) then
+            num_diri_dofs_in_root = num_diri_dofs_in_root + 1
+          else if ( root_fe%is_hanging_dof(root_fe_dofs(root_idof)) ) then
+            mcheck(.false., 'For the moment we do not have hanging nodes')
+          else
+            mcheck(.false.,'Dof is either free dirichlet or hanging')
+          end if
+        end do
 
         do idof = 1, size(fe_dofs)
-          if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (.not. fe%is_strong_dirichlet_dof(fe_dofs(idof))) ) then
+          if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (min_fixed_dof_gid<=abs(fe_dofs(idof))) .and. (abs(fe_dofs(idof))<=max_fixed_dof_gid) ) then
             improper_dof_lid = abs(fe_dofs(idof))
             hanging_dof_lid  = improper_dof_lid - ( this%num_hanging_dofs_full_cells + this%get_num_dirichlet_dofs() )
             if ( .not. visited_hanging_dof_lids(hanging_dof_lid) ) then
@@ -799,23 +1191,25 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
         call cell_integrator(field_id)%get_values(shape_values)
 
         do idof = 1, size(fe_dofs)
-          if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (.not. fe%is_strong_dirichlet_dof(fe_dofs(idof))) ) then
+          if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (min_fixed_dof_gid<=abs(fe_dofs(idof))) .and. (abs(fe_dofs(idof))<=max_fixed_dof_gid) ) then
             improper_dof_lid = abs(fe_dofs(idof))
             hanging_dof_lid  = improper_dof_lid - ( this%num_hanging_dofs_full_cells + this%get_num_dirichlet_dofs() )
             if ( .not. visited_hanging_dof_lids(hanging_dof_lid) ) then
               current_pos_free = ptr_constraining_free_dofs%get(hanging_dof_lid)
               current_pos_diri = ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)
               do root_idof = 1,size(root_fe_dofs)
-                if (root_fe_dofs(root_idof)>0) then
+                if ( root_fe%is_free_dof(root_fe_dofs(root_idof)) ) then
                   call constraining_free_dofs%set(current_pos_free,root_fe_dofs(root_idof))
                   call constraining_free_dofs_coefficients%set(current_pos_free,shape_values(root_idof,idof))
                   current_pos_free = current_pos_free + 1
-                else if (root_fe_dofs(root_idof)<0) then
+                else if ( root_fe%is_strong_dirichlet_dof(root_fe_dofs(root_idof)) ) then
                   call constraining_dirichlet_dofs%set(current_pos_diri,root_fe_dofs(root_idof))
                   call constraining_dirichlet_dofs_coefficients%set(current_pos_diri,shape_values(root_idof,idof))
                   current_pos_diri = current_pos_diri + 1
+                else if ( root_fe%is_hanging_dof(root_fe_dofs(root_idof)) ) then
+                  mcheck(.false., 'For the moment we do not have hanging nodes')
                 else
-                  mcheck(.false.,'Dof cannot be zero')
+                  mcheck(.false.,'Dof is either free dirichlet or hanging')
                 end if
               end do
               visited_hanging_dof_lids(hanging_dof_lid) = .true.
