@@ -690,12 +690,13 @@ subroutine Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis(this, par_f
               interior_node_id = interior_vertex%get_gid() 
               ! Loop over edges in the element to find coupled edges 
               do edge_id = ref_fe_geo%get_first_n_face_id_of_dim(1), ref_fe_geo%get_first_n_face_id_of_dim(1) + ref_fe_geo%get_num_n_faces_of_dim(1)-1
-
                  ! Need global ID to check if it has been added 
                  call fe%get_vef(edge_id, edge) 			
                  if ( edge%is_at_interface() ) then 
-                    call coupled_vefs_added_to_node%get( key=edge%get_gid(), val=dummy_val, stat=istat)
-                    if (  (.not. istat==key_found) ) then  
+                    ! Double check: vef has not been previously added in edge coupled to edges ( replication due to work in 2 different cells )
+																	   !             : vef does not belong to a different coarse edge, would imply coarse edges coupling 
+																	   call coupled_vefs_added_to_node%get( key=edge%get_gid(), val=dummy_val, stat=istat); if (istat==key_found) cycle 
+																				call this%fine_edge_direction%get( key=edge%get_gid(), val=dummy_val, stat=istat);   if (istat==key_found) cycle
 
                        vertices_of_line          => ref_fe_geo%get_vertices_n_face() 
                        vertices_of_line_iterator = vertices_of_line%create_iterator(edge_id)
@@ -730,8 +731,6 @@ subroutine Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis(this, par_f
                           vertex_within_edge_id = vertex_within_edge_id + 1
                           call vertices_of_line_iterator%next() 
                        end do ! Loop over vertices in the edge 
-
-                    end if
                  end if ! Checker interface vef 
               end do
            end if
@@ -2296,7 +2295,7 @@ subroutine assign_and_count_node_types(edge_interior_vertices, num_nodes, node_l
            call nodes_type%put(key=node_list(inode), val=not_owned_node, stat=istat)
            num_nodes_each_type( interior_node )  = num_nodes_each_type( interior_node ) - 1
            num_nodes_each_type( not_owned_node ) = num_nodes_each_type( not_owned_node ) + 1
-           num_startend_nodes = num_startend_nodes + 2 
+           num_startend_nodes = num_startend_nodes + 2  
         end if
      end if
   end do
