@@ -1521,10 +1521,6 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
       if (cell%is_local()) then
         if ( cell%is_cut() .and. (.not. touched(cell%get_gid())) )  then
 
-
-          ! TODO: We try to glue only by true neighbors
-          ! For adaptive meshes, shall we look for improper neighbors as well?
-
           ! Glue to the face-neighbor with the smallest distance to a full element
           min_distance(:) = 99999999
           min_distance_aggr_id = 0
@@ -1533,6 +1529,8 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
             call cell%get_vef(ivef,vef)
             if ( .not. vef%is_facet() ) cycle
             ifacet = ifacet + 1
+
+            ! Find among true neighbors
             do icell_arround = 1,vef%get_num_cells_around()
               call vef%get_cell_around(icell_arround,cell_arround)
               if ( touched(cell_arround%get_gid()) ) then
@@ -1548,6 +1546,24 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
 
               end if
             end do
+
+            ! Find among half neighbors
+            do icell_arround = 1,vef%get_num_half_cells_around()
+              call vef%get_half_cell_around(icell_arround,cell_arround)
+              if ( touched(cell_arround%get_gid()) ) then
+
+                ! Compute the movement to reach the root element
+                tent_distance = distance(cell_arround%get_gid(),:) + face2dir(ifacet,:)
+
+                ! Find which is the best neighbor to glue into
+                if ( norm2(real(tent_distance,kind=rp)) < norm2(real(min_distance,kind=rp)) ) then
+                  min_distance =  tent_distance
+                  min_distance_aggr_id = this%aggregate_ids(cell_arround%get_gid())
+                end if
+
+              end if
+            end do
+
           end do
 
           if (min_distance_aggr_id == 0) then
