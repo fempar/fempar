@@ -111,7 +111,7 @@ subroutine suhpafs_count_dofs ( this )
   logical, allocatable :: per_field_proper_vefs_visited(:,:)
   logical, allocatable :: per_field_improper_vefs_visited(:,:)
   integer(ip) :: field_id, vef_lid, ivef, num_own_dofs_on_vef, iblock
-  class(fe_cell_iterator_t), allocatable :: fe, coarser_fe, source_fe
+  class(fe_cell_iterator_t), allocatable :: fe, coarser_fe
   type(fe_vef_iterator_t) :: vef
   integer(ip) :: ielem
   logical :: local_found
@@ -139,7 +139,7 @@ subroutine suhpafs_count_dofs ( this )
 
   ! Create iterators
   call this%create_fe_cell_iterator(fe)
-  call this%create_fe_cell_iterator(source_fe)
+  call this%create_fe_cell_iterator(coarser_fe)
   call this%create_fe_vef_iterator(vef)
 
   ! Mark the vefs owning DOFs that constraint hanging DOFs in full cells
@@ -240,7 +240,7 @@ subroutine suhpafs_count_dofs ( this )
   
   call this%free_fe_vef_iterator(vef)
   call this%free_fe_cell_iterator(fe)
-  call this%free_fe_cell_iterator(source_fe)
+  call this%free_fe_cell_iterator(coarser_fe)
   call memfree ( per_field_proper_vefs_visited,  __FILE__, __LINE__ )
   call memfree ( per_field_improper_vefs_visited,  __FILE__, __LINE__ )
   call memfree(num_dofs_x_field,__FILE__,__LINE__)
@@ -595,8 +595,8 @@ subroutine suhpafs_setup_hanging_node_constraints ( this )
   constraining_dirichlet_dofs_coefficients   => this%get_constraining_dirichlet_dofs_coefficients()
   constraints_independent_term               => this%get_constraints_independent_term()
 
-  call ptr_constraining_free_dofs%resize(0)
-  call ptr_constraining_dirichlet_dofs%resize(0)
+  call ptr_constraining_free_dofs%resize(1,1)
+  call ptr_constraining_dirichlet_dofs%resize(1,1)
   call constraining_free_dofs%resize(0)
   call constraining_free_dofs_coefficients%resize(0)
   call constraining_dirichlet_dofs%resize(0)
@@ -704,7 +704,7 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
   call constraining_free_dofs_coefficients%resize(num_hanging_dofs)
   call constraining_dirichlet_dofs%resize(num_hanging_dofs)
   call constraining_dirichlet_dofs_coefficients%resize(num_hanging_dofs)
-  call constraints_independent_term%resize(num_hanging_dofs)
+  call constraints_independent_term%resize(num_hanging_dofs,0.0)
 
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_cell_iterator(coarser_fe)
@@ -769,6 +769,15 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
 
            improper_dof_lid = abs(improper_dof_lid)
            hanging_dof_lid  = improper_dof_lid - num_fixed_dofs_on_entry
+           if (full_cells_loop) then
+             if ( hanging_dof_lid > num_hanging_dofs ) then
+               exit
+             end if
+           else
+             if ( hanging_dof_lid <= 0 ) then
+               exit
+             end if
+           end if
 
            coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
            do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
@@ -862,6 +871,15 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
            assert ( fe%is_fixed_dof(improper_dof_lid) )
            improper_dof_lid = abs(improper_dof_lid)
            hanging_dof_lid  = improper_dof_lid - num_fixed_dofs_on_entry
+           if (full_cells_loop) then
+             if ( hanging_dof_lid > num_hanging_dofs ) then
+               exit
+             end if
+           else
+             if ( hanging_dof_lid <= 0 ) then
+               exit
+             end if
+           end if
            
            call fe_dofs_on_vef_iterator%begin() 
            do while (.not. fe_dofs_on_vef_iterator%is_upper_bound() )
@@ -1141,7 +1159,7 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
           else if ( root_fe%is_strong_dirichlet_dof(root_fe_dofs(root_idof)) ) then
             num_diri_dofs_in_root = num_diri_dofs_in_root + 1
           else if ( root_fe%is_hanging_dof(root_fe_dofs(root_idof)) ) then
-            root_hanging_dof_lid = root_fe_dofs(root_idof) - this%get_num_dirichlet_dofs()
+            root_hanging_dof_lid = abs(root_fe_dofs(root_idof)) - this%get_num_dirichlet_dofs()
             massert( (1<=root_hanging_dof_lid) .and.  (root_hanging_dof_lid<=this%num_hanging_dofs_full_cells), 'Hanging nodes of full cells are prescribed as always' )
             num_free_master_dofs = this_ptr_constraining_free_dofs%get(root_hanging_dof_lid+1)&
                                  - this_ptr_constraining_free_dofs%get(root_hanging_dof_lid)
@@ -1255,7 +1273,7 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
                   call constraining_dirichlet_dofs_coefficients%set(current_pos_diri,shape_values(root_idof,idof))
                   current_pos_diri = current_pos_diri + 1
                 else if ( root_fe%is_hanging_dof(root_fe_dofs(root_idof)) ) then
-                  root_hanging_dof_lid = root_fe_dofs(root_idof) - this%get_num_dirichlet_dofs()
+                  root_hanging_dof_lid = abs(root_fe_dofs(root_idof)) - this%get_num_dirichlet_dofs()
                   massert( (1<=root_hanging_dof_lid) .and.  (root_hanging_dof_lid<=this%num_hanging_dofs_full_cells), 'Hanging nodes of full cells are prescribed as always' )
                   num_free_master_dofs = this_ptr_constraining_free_dofs%get(root_hanging_dof_lid+1)&
                                        - this_ptr_constraining_free_dofs%get(root_hanging_dof_lid)
@@ -1290,8 +1308,8 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
     call fe%next()
   end do
 
-  call this_ptr_constraining_free_dofs                 %cat( ptr_constraining_free_dofs                 )
-  call this_ptr_constraining_dirichlet_dofs            %cat( ptr_constraining_dirichlet_dofs            )
+  call this_ptr_constraining_free_dofs                 %cat_ptr( ptr_constraining_free_dofs                 )
+  call this_ptr_constraining_dirichlet_dofs            %cat_ptr( ptr_constraining_dirichlet_dofs            )
   call this_constraining_free_dofs                     %cat( constraining_free_dofs                     )
   call this_constraining_free_dofs_coefficients        %cat( constraining_free_dofs_coefficients        )
   call this_constraining_dirichlet_dofs                %cat( constraining_dirichlet_dofs                )
@@ -1550,6 +1568,23 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
             ! Find among half neighbors
             do icell_arround = 1,vef%get_num_half_cells_around()
               call vef%get_half_cell_around(icell_arround,cell_arround)
+              if ( touched(cell_arround%get_gid()) ) then
+
+                ! Compute the movement to reach the root element
+                tent_distance = distance(cell_arround%get_gid(),:) + face2dir(ifacet,:)
+
+                ! Find which is the best neighbor to glue into
+                if ( norm2(real(tent_distance,kind=rp)) < norm2(real(min_distance,kind=rp)) ) then
+                  min_distance =  tent_distance
+                  min_distance_aggr_id = this%aggregate_ids(cell_arround%get_gid())
+                end if
+
+              end if
+            end do
+
+            ! Find among improper neighbors
+            do icell_arround = 1,vef%get_num_improper_cells_around()
+              call vef%get_improper_cell_around(icell_arround,cell_arround)
               if ( touched(cell_arround%get_gid()) ) then
 
                 ! Compute the movement to reach the root element
