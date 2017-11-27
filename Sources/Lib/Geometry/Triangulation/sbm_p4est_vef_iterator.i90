@@ -500,9 +500,9 @@ subroutine p4est_vef_iterator_get_half_cell_around (this, icell_around, cell)
   cell_iface = p4est_cell%get_vef_lid_from_gid(this%get_gid()) - reference_fe%get_first_facet_id() + 1
   num_dims = this%p4est_triangulation%get_num_dims()
   cell_iface = fempar_to_p4est_face(cell_iface,num_dims)
-  cell_conn = this%p4est_triangulation%quad_to_face(cell_iface,cell%get_gid())
+  cell_conn = this%p4est_triangulation%quad_to_face(cell_iface,p4est_cell%get_gid())
   if ( p4est_connectivity_has_half_neighbours(cell_conn,num_dims)) then
-      cell_gid = this%p4est_triangulation%quad_to_half(icell_around, this%p4est_triangulation%quad_to_quad(cell_iface,p4est_cell%get_gid()))
+      cell_gid = 1+this%p4est_triangulation%quad_to_half( icell_around, 1+this%p4est_triangulation%quad_to_quad(cell_iface,p4est_cell%get_gid()) )
   else
     check(.false.)
   end if
