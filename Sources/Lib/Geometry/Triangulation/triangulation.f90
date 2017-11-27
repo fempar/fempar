@@ -176,6 +176,8 @@ module triangulation_names
      procedure(get_improper_cell_around_interface)        , deferred :: get_improper_cell_around
      procedure(get_improper_cell_around_ivef_interface)   , deferred :: get_improper_cell_around_ivef
      procedure(get_improper_cell_around_subvef_interface) , deferred :: get_improper_cell_around_subvef
+     procedure(get_num_half_cells_around_interface)       , deferred :: get_num_half_cells_around
+     procedure(get_half_cell_around_interface)            , deferred :: get_half_cell_around
   end type vef_iterator_t
 
   type, extends(vef_iterator_t) :: itfc_vef_iterator_t
@@ -214,6 +216,8 @@ module triangulation_names
      procedure          :: get_improper_cell_around         => itfc_vef_iterator_get_improper_cell_around 
      procedure          :: get_improper_cell_around_ivef    => itfc_vef_iterator_get_improper_cell_around_ivef
      procedure          :: get_improper_cell_around_subvef  => itfc_vef_iterator_get_improper_cell_around_subvef
+     procedure          :: get_num_half_cells_around        => itfc_vef_iterator_get_num_half_cells_around
+     procedure          :: get_half_cell_around             => itfc_vef_iterator_get_half_cell_around 
   end type itfc_vef_iterator_t
 
   abstract interface
@@ -564,6 +568,19 @@ module triangulation_names
        integer(ip)           , intent(in)    :: icell_around
        integer(ip) :: get_improper_cell_around_subvef_interface
      end function get_improper_cell_around_subvef_interface
+
+     function get_num_half_cells_around_interface (this)
+       import :: vef_iterator_t, ip
+       class(vef_iterator_t), intent(in) :: this
+       integer(ip) :: get_num_half_cells_around_interface
+     end function get_num_half_cells_around_interface
+
+     subroutine get_half_cell_around_interface (this, icell_around, cell)
+       import :: vef_iterator_t, cell_iterator_t, ip
+       class(vef_iterator_t) , intent(in)    :: this
+       integer(ip)           , intent(in)    :: icell_around
+       class(cell_iterator_t), intent(inout) :: cell
+     end subroutine get_half_cell_around_interface
   end interface
   
   type object_iterator_t
@@ -883,6 +900,8 @@ module triangulation_names
      procedure                           :: get_improper_cell_around        => bst_vef_iterator_get_improper_cell_around
      procedure                           :: get_improper_cell_around_ivef   => bst_vef_iterator_get_improper_cell_around_ivef
      procedure                           :: get_improper_cell_around_subvef => bst_vef_iterator_get_improper_cell_around_subvef
+     procedure                           :: get_num_half_cells_around       => bst_vef_iterator_get_num_half_cells_around
+     procedure                           :: get_half_cell_around            => bst_vef_iterator_get_half_cell_around
   end type bst_vef_iterator_t
       
   integer(ip), parameter      :: max_num_reference_fes_geo = 3
