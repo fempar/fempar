@@ -175,6 +175,7 @@ contains
     class(cell_iterator_t), allocatable :: cell
     integer(ip) :: ilev
     integer(ip) :: max_levels
+    logical(ip), parameter :: adaptive_run = .false.
 
     ! Create the triangulation, with the levelset function
     call this%triangulation%create(this%parameter_list,this%level_set_function)
@@ -198,22 +199,59 @@ contains
       ! Refine one level uniformly
       call this%triangulation%create_cell_iterator(cell)
       do while (.not. cell%has_finished())
-        !if (cell%is_interior() .or. cell%is_cut()) then
-        !  call cell%set_for_refinement()
-        !else
-        !  call cell%set_for_coarsening()
-        !end if
-        call cell%set_for_refinement()
+
+        if (adaptive_run) then
+          if (ilev == 1) then
+            call cell%set_for_refinement()
+          else if (ilev == max_levels) then
+            if (cell%is_interior()) then
+              call cell%set_for_do_nothing()
+            else if (cell%is_cut()) then
+              call cell%set_for_refinement()
+            else
+              call cell%set_for_coarsening()
+            end if
+          else
+            if (cell%is_interior()) then
+              call cell%set_for_refinement()
+            else if (cell%is_cut()) then
+              call cell%set_for_refinement()
+            else
+              call cell%set_for_coarsening()
+            end if
+          end if
+        else
+          call cell%set_for_refinement()
+        end if
+
         call cell%next()
       end do
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%clear_refinement_and_coarsening_flags()
-      !call this%triangulation%update_cut_cells(this%level_set_function)
+      call this%triangulation%update_cut_cells(this%level_set_function)
       call this%triangulation%free_cell_iterator(cell)
     end do
+
+    !! Debug test
+    !call this%triangulation%create_cell_iterator(cell)
+
+    !call cell%set_for_refinement()
+    !call this%triangulation%refine_and_coarsen()
+    !call this%triangulation%clear_refinement_and_coarsening_flags()
+    !call this%triangulation%update_cut_cells(this%level_set_function)
+
+    !call cell%set_gid(1)
+    !call cell%set_for_refinement()
+    !call cell%set_gid(3)
+    !call cell%set_for_refinement()
+    !call this%triangulation%refine_and_coarsen()
+    !call this%triangulation%clear_refinement_and_coarsening_flags()
+    !call this%triangulation%update_cut_cells(this%level_set_function)
+
+    !call this%triangulation%free_cell_iterator(cell)
     
     ! Update the marching cubes accordingly (TODO: move this inside refine and coarsen)
-    call this%triangulation%update_cut_cells(this%level_set_function)
+    !call this%triangulation%update_cut_cells(this%level_set_function)
     
     !call this%triangulation%print()
 
