@@ -645,6 +645,11 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
   class(triangulation_t), pointer :: triangulation
   integer(ip) :: num_hanging_dofs
   integer(ip) :: num_fixed_dofs_on_entry
+  integer(ip) :: num_free_master_dofs
+  integer(ip) :: num_dirichlet_master_dofs
+  integer(ip) :: ifree
+  integer(ip) :: idirichlet
+  integer(ip) :: coarser_hanging_dof_lid
 
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_free_dofs
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_dirichlet_dofs
@@ -777,7 +782,14 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
                 if (full_cells_loop) then
                   mcheck(.false.,'We cannot end-up here due to 2:1 condition')
                 else 
-                  mcheck(.false., 'For the moment we do not have hanging nodes in cut cells')
+                  coarser_hanging_dof_lid = coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) - this%get_num_dirichlet_dofs()
+                  massert( ((this%num_hanging_dofs_full_cells+1)<=coarser_hanging_dof_lid) .and.  (coarser_hanging_dof_lid<=this%num_hanging_dofs_full_cells+this%num_aggregated_dofs), 'Assert hast to be true due to 2:1 condition' )
+                  num_free_master_dofs = this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid+1)&
+                                       - this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)
+                  num_dirichlet_master_dofs = this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid+1)&
+                                            - this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)
+                  call ptr_constraining_free_dofs%set(hanging_dof_lid+1, ptr_constraining_free_dofs%get(hanging_dof_lid+1)+num_free_master_dofs)
+                  call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+num_dirichlet_master_dofs)
                 end if 
               else
                 mcheck(.false.,'Dof is either free dirichlet or hanging')
@@ -951,7 +963,26 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
                 if (full_cells_loop) then
                   mcheck(.false.,'We cannot end-up here due to 2:1 condition')
                 else 
-                  mcheck(.false., 'For the moment we do not have hanging nodes in cut cells')
+                  coarser_hanging_dof_lid = coarser_fe_fe_dofs(ishape_coarser_fe) - this%get_num_dirichlet_dofs()
+                  massert( ((this%num_hanging_dofs_full_cells+1)<=coarser_hanging_dof_lid) .and.  (coarser_hanging_dof_lid<=this%num_hanging_dofs_full_cells+this%num_aggregated_dofs), 'Assert hast to be true due to 2:1 condition' )
+                  num_free_master_dofs = this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid+1)&
+                                       - this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)
+                  num_dirichlet_master_dofs = this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid+1)&
+                                            - this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)
+                  do ifree = 1,num_free_master_dofs
+                    call constraining_free_dofs%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                      this_constraining_free_dofs%get(this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)+ifree-1))
+                    call constraining_free_dofs_coefficients%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                      coefficient*this_constraining_free_dofs_coefficients%get(this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)+ifree-1))
+                    call ptr_constraining_free_dofs%set(hanging_dof_lid, ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
+                  end do
+                  do idirichlet = 1,num_dirichlet_master_dofs
+                    call constraining_dirichlet_dofs%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                      this_constraining_dirichlet_dofs%get(this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)+idirichlet-1))
+                    call constraining_dirichlet_dofs_coefficients%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                      coefficient*this_constraining_dirichlet_dofs_coefficients%get(this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)+idirichlet-1))
+                    call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
+                  end do
                 end if 
               else
                 mcheck(.false.,'Dof is either free dirichlet or hanging')
@@ -1032,6 +1063,11 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   integer(ip) :: istat
   logical, allocatable :: visited_hanging_dof_lids(:)
   integer(ip) :: min_fixed_dof_gid, max_fixed_dof_gid
+  integer(ip) :: root_hanging_dof_lid
+  integer(ip) :: num_free_master_dofs
+  integer(ip) :: num_dirichlet_master_dofs
+  integer(ip) :: ifree
+  integer(ip) :: idirichlet
 
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_free_dofs
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_dirichlet_dofs
@@ -1049,11 +1085,16 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   type(std_vector_real_rp_t)    :: constraining_dirichlet_dofs_coefficients
   type(std_vector_real_rp_t)    :: constraints_independent_term
 
-
-  massert(this%num_hanging_dofs_full_cells == 0, 'For the moment we do not have hanging nodes')
-
   min_fixed_dof_gid = this%get_num_dirichlet_dofs() + this%num_hanging_dofs_full_cells + 1
   max_fixed_dof_gid = this%get_num_dirichlet_dofs() + this%num_hanging_dofs_full_cells + this%num_aggregated_dofs
+
+  this_ptr_constraining_free_dofs                 => this%get_ptr_constraining_free_dofs()
+  this_ptr_constraining_dirichlet_dofs            => this%get_ptr_constraining_dirichlet_dofs()
+  this_constraining_free_dofs                     => this%get_constraining_free_dofs()
+  this_constraining_free_dofs_coefficients        => this%get_constraining_free_dofs_coefficients()
+  this_constraining_dirichlet_dofs                => this%get_constraining_dirichlet_dofs()
+  this_constraining_dirichlet_dofs_coefficients   => this%get_constraining_dirichlet_dofs_coefficients()
+  this_constraints_independent_term               => this%get_constraints_independent_term()
 
   ! Auxiliary
   triangulation => this%get_triangulation()
@@ -1100,7 +1141,14 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
           else if ( root_fe%is_strong_dirichlet_dof(root_fe_dofs(root_idof)) ) then
             num_diri_dofs_in_root = num_diri_dofs_in_root + 1
           else if ( root_fe%is_hanging_dof(root_fe_dofs(root_idof)) ) then
-            mcheck(.false., 'For the moment we do not have hanging nodes')
+            root_hanging_dof_lid = root_fe_dofs(root_idof) - this%get_num_dirichlet_dofs()
+            massert( (1<=root_hanging_dof_lid) .and.  (root_hanging_dof_lid<=this%num_hanging_dofs_full_cells), 'Hanging nodes of full cells are prescribed as always' )
+            num_free_master_dofs = this_ptr_constraining_free_dofs%get(root_hanging_dof_lid+1)&
+                                 - this_ptr_constraining_free_dofs%get(root_hanging_dof_lid)
+            num_dirichlet_master_dofs = this_ptr_constraining_dirichlet_dofs%get(root_hanging_dof_lid+1)&
+                                      - this_ptr_constraining_dirichlet_dofs%get(root_hanging_dof_lid)
+            num_free_dofs_in_root = num_free_dofs_in_root + num_free_master_dofs
+            num_diri_dofs_in_root = num_diri_dofs_in_root + num_dirichlet_master_dofs
           else
             mcheck(.false.,'Dof is either free dirichlet or hanging')
           end if
@@ -1207,7 +1255,26 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
                   call constraining_dirichlet_dofs_coefficients%set(current_pos_diri,shape_values(root_idof,idof))
                   current_pos_diri = current_pos_diri + 1
                 else if ( root_fe%is_hanging_dof(root_fe_dofs(root_idof)) ) then
-                  mcheck(.false., 'For the moment we do not have hanging nodes')
+                  root_hanging_dof_lid = root_fe_dofs(root_idof) - this%get_num_dirichlet_dofs()
+                  massert( (1<=root_hanging_dof_lid) .and.  (root_hanging_dof_lid<=this%num_hanging_dofs_full_cells), 'Hanging nodes of full cells are prescribed as always' )
+                  num_free_master_dofs = this_ptr_constraining_free_dofs%get(root_hanging_dof_lid+1)&
+                                       - this_ptr_constraining_free_dofs%get(root_hanging_dof_lid)
+                  num_dirichlet_master_dofs = this_ptr_constraining_dirichlet_dofs%get(root_hanging_dof_lid+1)&
+                                            - this_ptr_constraining_dirichlet_dofs%get(root_hanging_dof_lid)
+                  do ifree = 1,num_free_master_dofs
+                    call constraining_free_dofs%set(current_pos_free,&
+                      this_constraining_free_dofs%get(this_ptr_constraining_free_dofs%get(root_hanging_dof_lid)+ifree-1))
+                    call constraining_free_dofs_coefficients%set(current_pos_free,&
+                      shape_values(root_idof,idof)*this_constraining_free_dofs_coefficients%get(this_ptr_constraining_free_dofs%get(root_hanging_dof_lid)+ifree-1))
+                    current_pos_free = current_pos_free + 1
+                  end do
+                  do idirichlet = 1,num_dirichlet_master_dofs
+                    call constraining_dirichlet_dofs%set(current_pos_diri,&
+                      this_constraining_dirichlet_dofs%get(this_ptr_constraining_dirichlet_dofs%get(root_hanging_dof_lid)+idirichlet-1))
+                    call constraining_dirichlet_dofs_coefficients%set(current_pos_diri,&
+                      shape_values(root_idof,idof)*this_constraining_dirichlet_dofs_coefficients%get(this_ptr_constraining_dirichlet_dofs%get(root_hanging_dof_lid)+idirichlet-1))
+                    current_pos_diri = current_pos_diri + 1
+                  end do
                 else
                   mcheck(.false.,'Dof is either free dirichlet or hanging')
                 end if
@@ -1222,14 +1289,6 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
     end if
     call fe%next()
   end do
-
-  this_ptr_constraining_free_dofs                 => this%get_ptr_constraining_free_dofs()
-  this_ptr_constraining_dirichlet_dofs            => this%get_ptr_constraining_dirichlet_dofs()
-  this_constraining_free_dofs                     => this%get_constraining_free_dofs()
-  this_constraining_free_dofs_coefficients        => this%get_constraining_free_dofs_coefficients()
-  this_constraining_dirichlet_dofs                => this%get_constraining_dirichlet_dofs()
-  this_constraining_dirichlet_dofs_coefficients   => this%get_constraining_dirichlet_dofs_coefficients()
-  this_constraints_independent_term               => this%get_constraints_independent_term()
 
   call this_ptr_constraining_free_dofs                 %cat( ptr_constraining_free_dofs                 )
   call this_ptr_constraining_dirichlet_dofs            %cat( ptr_constraining_dirichlet_dofs            )
