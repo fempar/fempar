@@ -276,7 +276,7 @@ subroutine triangulation_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_i
   call cell%free()
 end subroutine triangulation_compute_parts_itfc_vefs
 
-subroutine triangulation_compute_subparts_itfc_vefs ( this, subparts_itfc_vefs, perm_itfc_vefs )
+subroutine triangulation_compute_subparts_itfc_vefs_conforming_mesh ( this, subparts_itfc_vefs, perm_itfc_vefs )
   implicit none
   class(triangulation_t), intent(inout) :: this
   integer(ip), allocatable          , intent(inout) :: subparts_itfc_vefs(:,:)
@@ -369,79 +369,281 @@ subroutine triangulation_compute_subparts_itfc_vefs ( this, subparts_itfc_vefs, 
   call memfree ( touched_subparts, __FILE__, __LINE__ )
   call itfc_vef%free()
   call this%free_cell_iterator(cell)
-end subroutine triangulation_compute_subparts_itfc_vefs
+end subroutine triangulation_compute_subparts_itfc_vefs_conforming_mesh
 
+subroutine triangulation_compute_subparts_itfc_vefs_non_conforming_mesh ( this, subparts_itfc_vefs, perm_itfc_vefs )
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  integer(ip), allocatable          , intent(inout) :: subparts_itfc_vefs(:,:)
+  integer(ip), allocatable          , intent(inout) :: perm_itfc_vefs(:)
+
+  integer(ip)                               :: num_neighbours
+  logical, allocatable                      :: touched_subparts(:)
+  integer(ip)                               :: nsubparts_around
+  integer(ip)                               :: ivef_itfc, icell, vef_lid
+  class(cell_iterator_t), allocatable       :: cell 
+  integer(ip)                               :: num_rows_subparts_itfc_vefs
+  integer(ip), allocatable                  :: work1(:), work2(:)
+  type(itfc_vef_iterator_t)                 :: itfc_vef
+
+  integer(ip)                               :: num_subparts
+  integer(ip)                               :: cur_subpart_lid
+  integer(ip)                               :: subpart_lid, subpart_gid
+  integer(ip)                               :: istat
+  integer(ip)                               :: base_pos, k, j, ghost_part
+  integer(ip)                               :: ivef, ielem, num_vefs, aux
+  integer(ip)                               :: num_itfc_vefs
+  integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
+  integer(ip), pointer :: p_lst_ghosts_per_local_cell(:)
+  integer(ip), pointer :: p_ptr_ghosts_per_ghost_cell(:)
+  integer(ip), pointer :: p_lst_ghosts_per_ghost_cell(:)
+  integer(ip), pointer :: p_rcv_my_part_id_vefs(:)
+  integer(ip), pointer :: p_rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells(:)
+  
+  ! ** IMPORTANT NOTE: the code above is assuming that type(itfc_vef_iterator_t)
+  !                    traverses first proper vefs, followed by improper ones.
+  !                    This is currently true given the way type(p4est_vef_iterator_t)
+  !                    traverses vefs on the triangulation, but this may change in the future.
+  !                    Thus, in order to have a more robust subroutine, it MUST NOT be based
+  !                    on this assumption. In particular, it should track the global IDs of
+  !                    those vefs which are proper in an explicit array.
+  
+  assert ( this%environment%am_i_l1_task() )
+
+  if (allocated(subparts_itfc_vefs)) call memfree(subparts_itfc_vefs,__FILE__,__LINE__)
+  if (allocated(perm_itfc_vefs)) call memfree(perm_itfc_vefs,__FILE__,__LINE__)
+
+  cur_subpart_lid = 1
+  call this%g2l_subparts%init()
+
+  call this%create_cell_iterator(cell)
+  do while(.not. cell%has_finished() )
+     subpart_gid = cell%get_my_subpart()
+     call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
+     if (istat == now_stored) then
+        cur_subpart_lid = cur_subpart_lid + 1
+     end if
+     call cell%next()
+  end do
+
+  ! Compute extra num_subparts not counted in previous loop
+  call this%fetch_my_part_id_proper_vefs_on_owner_cells()
+  call this%fetch_my_part_id_proper_vefs_on_non_owner_cells()
+  
+  p_ptr_ghosts_per_local_cell                               => this%ptr_ghosts_per_local_cell%get_pointer()
+  p_lst_ghosts_per_local_cell                               => this%lst_ghosts_per_local_cell%get_pointer()
+  p_ptr_ghosts_per_ghost_cell                               => this%ptr_ghosts_per_ghost_cell%get_pointer()
+  p_lst_ghosts_per_ghost_cell                               => this%lst_ghosts_per_ghost_cell%get_pointer()
+  p_rcv_my_part_id_vefs                                     => this%rcv_my_part_id_vefs%get_pointer()
+  p_rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells => this%rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells%get_pointer()
+
+  ! Traverse vefs on the interface
+  call itfc_vef%create(this)
+  call cell%first()
+  if ( .not. cell%has_finished() ) then
+    num_vefs = cell%get_num_vefs()
+  else
+    num_vefs = 0
+  end if
+  ivef_itfc = 1
+  do while(.not. itfc_vef%has_finished())
+     if ( itfc_vef%is_proper() ) then
+        do ielem=1, itfc_vef%get_num_cells_around()
+           call itfc_vef%get_cell_around(ielem,cell)   
+           ivef = cell%get_vef_lid_from_gid(itfc_vef%get_gid())   
+           if ( cell%is_local() ) then
+#ifdef DEBUG           
+              do j=p_ptr_ghosts_per_local_cell(cell%get_gid()), &
+                   p_ptr_ghosts_per_local_cell(cell%get_gid()+1)-1
+                 k = p_lst_ghosts_per_local_cell(j)
+                 base_pos   = (k-1)*num_vefs
+                 ghost_part = p_rcv_my_part_id_vefs(base_pos+ivef)
+                 if ( ghost_part > 0 ) then
+                   call this%g2l_subparts%get(key=ghost_part, val=aux, stat=istat)
+                   assert ( istat == key_found )
+                 end if
+              end do
+#endif              
+           else ! cell%is_ghost()
+              do j=p_ptr_ghosts_per_ghost_cell(cell%get_gid()-this%get_num_local_cells()), &
+                   p_ptr_ghosts_per_ghost_cell(cell%get_gid()+1-this%get_num_local_cells())-1
+                 k = p_lst_ghosts_per_ghost_cell(j)
+                 base_pos   = (k-1)*num_vefs
+                 ghost_part = p_rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells(base_pos+ivef)
+                 if ( ghost_part > 0 ) then
+                   call this%g2l_subparts%get(key=ghost_part, val=aux, stat=istat)
+                   if ( istat == key_not_found ) then
+                     call this%g2l_subparts%put(key=ghost_part,val=cur_subpart_lid,stat=istat)
+                     cur_subpart_lid = cur_subpart_lid + 1
+                     assert ( istat == now_stored )
+                   end if
+                 end if
+              end do
+           end if
+        end do
+        ivef_itfc = ivef_itfc + 1 
+     end if
+     call itfc_vef%next()
+  end do
+
+  num_subparts = cur_subpart_lid-1
+  this%num_subparts = num_subparts
+  num_itfc_vefs = ivef_itfc -1
+  
+  call memalloc ( num_subparts, touched_subparts, __FILE__, __LINE__ )
+
+  num_rows_subparts_itfc_vefs = num_subparts + 1
+  call memalloc ( num_rows_subparts_itfc_vefs, num_itfc_vefs, subparts_itfc_vefs, __FILE__, __LINE__ )
+  subparts_itfc_vefs = 0
+
+  call itfc_vef%first()
+  ivef_itfc = 1
+  do while(.not. itfc_vef%has_finished() )
+     if ( itfc_vef%is_proper() ) then
+       touched_subparts = .false.
+       nsubparts_around = 0
+       do icell=1, itfc_vef%get_num_cells_around()
+         call itfc_vef%get_cell_around(icell,cell)
+         subpart_gid = cell%get_my_subpart()
+         call this%g2l_subparts%get(key=subpart_gid, val=subpart_lid, stat=istat)
+         assert ( istat == key_found )
+         if (.not. touched_subparts (subpart_lid)) then
+           touched_subparts (subpart_lid) = .true.
+           nsubparts_around = nsubparts_around + 1 
+           subparts_itfc_vefs(nsubparts_around+1,ivef_itfc) = subpart_gid
+         end if
+         
+          ivef = cell%get_vef_lid_from_gid(itfc_vef%get_gid())   
+          if ( cell%is_local() ) then
+            do j=p_ptr_ghosts_per_local_cell(cell%get_gid()), &
+                   p_ptr_ghosts_per_local_cell(cell%get_gid()+1)-1
+                k = p_lst_ghosts_per_local_cell(j)
+                base_pos   = (k-1)*num_vefs
+                ghost_part = p_rcv_my_part_id_vefs(base_pos+ivef)
+                if ( ghost_part > 0 ) then
+                  call this%g2l_subparts%get(key=ghost_part, val=subpart_lid, stat=istat)
+                  assert ( istat == key_found )
+                  if (.not. touched_subparts (subpart_lid)) then
+                    touched_subparts (subpart_lid) = .true.
+                    nsubparts_around = nsubparts_around + 1 
+                    subparts_itfc_vefs(nsubparts_around+1,ivef_itfc) = ghost_part
+                  end if      
+                end if
+            end do
+          else ! cell%is_ghost()
+              do j=p_ptr_ghosts_per_ghost_cell(cell%get_gid()-this%get_num_local_cells()), &
+                   p_ptr_ghosts_per_ghost_cell(cell%get_gid()+1-this%get_num_local_cells())-1
+                 k = p_lst_ghosts_per_ghost_cell(j)
+                 base_pos   = (k-1)*num_vefs
+                 ghost_part = p_rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells(base_pos+ivef)
+                 if ( ghost_part > 0 ) then
+                  call this%g2l_subparts%get(key=ghost_part, val=subpart_lid, stat=istat)
+                  assert ( istat == key_found )
+                  if (.not. touched_subparts (subpart_lid)) then
+                    touched_subparts (subpart_lid) = .true.
+                    nsubparts_around = nsubparts_around + 1 
+                    subparts_itfc_vefs(nsubparts_around+1,ivef_itfc) = ghost_part
+                  end if     
+                 end if
+              end do
+          end if
+       end do
+       subparts_itfc_vefs(1,ivef_itfc) = nsubparts_around
+       ! Sort list of parts in increasing order by part identifiers
+       ! This is required by the call to icomp subroutine below 
+       call sort ( nsubparts_around, subparts_itfc_vefs(2:nsubparts_around+1, ivef_itfc) )
+       ivef_itfc = ivef_itfc + 1
+     end if
+     call itfc_vef%next()
+  end do
+  call memalloc ( num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
+  do ivef_itfc = 1, num_itfc_vefs
+     perm_itfc_vefs(ivef_itfc) = ivef_itfc 
+  end do
+
+  ! Re-number vefs in increasing order by the number of parts that share them, 
+  ! and among vefs sharing the same list of parts, in increasing order by the list 
+  ! of parts shared by the vef 
+  call memalloc ( num_rows_subparts_itfc_vefs, work1, __FILE__,__LINE__ )
+  call memalloc ( num_rows_subparts_itfc_vefs, work2, __FILE__,__LINE__ )
+  call sort_array_cols_by_row_section( num_rows_subparts_itfc_vefs, & 
+       &                               num_rows_subparts_itfc_vefs, & 
+       &                               num_itfc_vefs, & 
+       &                               subparts_itfc_vefs, & 
+       &                               perm_itfc_vefs, &
+       &                               work1, &
+       &                               work2 ) 
+  call memfree ( work2, __FILE__,__LINE__ )
+  call memfree ( work1, __FILE__,__LINE__ )
+  call memfree ( touched_subparts, __FILE__, __LINE__ )
+  call itfc_vef%free()
+  call this%free_cell_iterator(cell)
+end subroutine triangulation_compute_subparts_itfc_vefs_non_conforming_mesh 
 
 subroutine triangulation_compute_parts_object_from_subparts_object ( this ) 
   implicit none
   class(triangulation_t), intent(inout) :: this
-  integer(ip)           :: num_neighbours
-  logical, allocatable  :: touched_neighbours(:)
-  integer(ip), allocatable :: parts_around(:)
-  type(list_iterator_t) :: parts_iterator, subparts_iterator
-  integer(ip) :: ipart, iobj, num_parts
-  integer(ip) :: subpart_gid, part_lid, part_gid, mypart_id
+  type(list_iterator_t)         :: parts_iterator, subparts_iterator
+  integer(ip)                   :: ipart, iobj, num_parts
+  integer(ip)                   :: subpart_gid, part_gid, mypart_id
+  type(hash_table_ip_ip_t)      :: touched_neighbours
+  type(std_vector_integer_ip_t) :: parts_around
+  integer(ip), pointer          :: p_parts_around(:)
+  integer(ip) :: aux, istat
 
   mypart_id = this%environment%get_l1_rank() + 1
-
   call this%parts_object%create(this%num_objects)
-
-  num_neighbours = this%cell_import%get_num_neighbours()    
-  call memalloc ( num_neighbours, touched_neighbours, __FILE__, __LINE__ )
-
+  call touched_neighbours%init()
   ! Count how many parts are around each object
   do iobj =1, this%num_objects
-     touched_neighbours = .false.
-     num_parts = 1 
+     num_parts = 1
      subparts_iterator = this%subparts_object%create_iterator(iobj)
      do while ( .not. subparts_iterator%is_upper_bound() )
-        subpart_gid = subparts_iterator%get_current()
-        part_gid    = this%compute_part_id_from_subpart_gid(subpart_gid)
-        if ( part_gid /= mypart_id ) then         
-           part_lid    = this%cell_import%get_local_neighbour_id(part_gid)
-           if ( .not. touched_neighbours(part_lid) ) then
-              touched_neighbours(part_lid) = .true.
-              num_parts = num_parts + 1
-           end if
-        end if
-        call subparts_iterator%next() 
+       subpart_gid = subparts_iterator%get_current()
+       part_gid    = this%compute_part_id_from_subpart_gid(subpart_gid)
+       if ( part_gid /= mypart_id ) then         
+         call touched_neighbours%get(key=part_gid, val=aux, stat=istat)
+         if ( istat == key_not_found ) then
+          call touched_neighbours%put(key=part_gid, val=1, stat=istat)
+          num_parts = num_parts + 1
+         end if
+       end if
+       call subparts_iterator%next() 
      end do
      call this%parts_object%sum_to_pointer_index(iobj,num_parts)
   end do
+  
   call this%parts_object%calculate_header()
   call this%parts_object%allocate_list_from_pointer()
 
-  call memalloc ( num_neighbours+1, parts_around, __FILE__, __LINE__ )
-
+  call touched_neighbours%init()
   ! List parts which are around each object
   do iobj =1, this%num_objects
-     touched_neighbours = .false.
-     num_parts = 1
-     parts_around(1) = mypart_id
+     call parts_around%resize(0)
+     call parts_around%push_back(mypart_id)
      subparts_iterator = this%subparts_object%create_iterator(iobj)
      do while ( .not. subparts_iterator%is_upper_bound() )
         subpart_gid = subparts_iterator%get_current()
         part_gid    = this%compute_part_id_from_subpart_gid(subpart_gid)
         if ( part_gid /= mypart_id ) then         
-           part_lid    = this%cell_import%get_local_neighbour_id(part_gid)
-           if ( .not. touched_neighbours(part_lid) ) then
-              touched_neighbours(part_lid) = .true.
-              num_parts = num_parts + 1
-              parts_around(num_parts) = part_gid
+           call touched_neighbours%get(key=part_gid, val=aux, stat=istat)
+           if ( istat == key_not_found ) then
+              call touched_neighbours%put(key=part_gid, val=1, stat=istat)
+              call parts_around%push_back(part_gid)
            end if
         end if
         call subparts_iterator%next() 
      end do
-     call sort ( num_parts, parts_around )
+     p_parts_around => parts_around%get_pointer()
+     call sort ( size(p_parts_around), p_parts_around )
      parts_iterator = this%parts_object%create_iterator(iobj)
-     do ipart=1, num_parts
-        call parts_iterator%set_current(parts_around(ipart))
+     do ipart=1, size(p_parts_around)
+        call parts_iterator%set_current(p_parts_around(ipart))
         call parts_iterator%next()
      end do
   end do
-  call memfree ( parts_around, __FILE__, __LINE__ )
-  call memfree ( touched_neighbours, __FILE__, __LINE__ )
-
+  call parts_around%free()
+  call touched_neighbours%free()
 end subroutine triangulation_compute_parts_object_from_subparts_object
 
 function triangulation_compute_part_id_from_subpart_gid ( this, subpart_gid )
@@ -482,10 +684,14 @@ subroutine triangulation_compute_vefs_and_parts_object(this)
   assert ( this%environment%am_i_l1_task() )
 
   ! Subparts itinerary
-  call this%compute_subparts_itfc_vefs(parts_itfc_vefs,perm_itfc_vefs)
+  if ( this%is_conforming() ) then
+    call this%compute_subparts_itfc_vefs_conforming_mesh(parts_itfc_vefs,perm_itfc_vefs)
+  else
+    call this%compute_subparts_itfc_vefs_non_conforming_mesh(parts_itfc_vefs,perm_itfc_vefs)
+  end if
   call this%compute_vefs_and_parts_object_body(parts_itfc_vefs,perm_itfc_vefs,this%subparts_object,this%vefs_object)
   call this%compute_parts_object_from_subparts_object()
-
+  
   ! Parts itinerary (standard one)
   !call this%compute_parts_itfc_vefs(parts_itfc_vefs,perm_itfc_vefs)
   !call this%compute_vefs_and_parts_object_body(parts_itfc_vefs,perm_itfc_vefs,this%parts_object,this%vefs_object)
@@ -506,24 +712,27 @@ subroutine triangulation_compute_vefs_and_parts_object_body(this, parts_itfc_vef
   integer(ip) :: ivef_itfc, init_vef, end_vef
   integer(ip) :: iobj, ipart
   integer(ip) :: num_rows_parts_itfc_vefs
+  integer(ip) :: num_itfc_vefs
 
   type(list_iterator_t) :: vefs_object_iterator, parts_object_iterator
 
   assert ( this%environment%am_i_l1_task() )
-
+  assert ( size(parts_itfc_vefs,2) == size(perm_itfc_vefs) )
+  
   call parts_object%free()
   call vefs_object%free()
 
   num_rows_parts_itfc_vefs = size(parts_itfc_vefs,1)
-
+  num_itfc_vefs            = size(parts_itfc_vefs,2)
+  
   ! Count num_objects
   ivef_itfc = 1
   this%num_objects = 0
-  do while ( ivef_itfc <= this%get_num_itfc_vefs() ) 
-     if ( ivef_itfc < this%get_num_itfc_vefs() ) then
+  do while ( ivef_itfc <= num_itfc_vefs ) 
+     if ( ivef_itfc < num_itfc_vefs ) then
         do while (all(parts_itfc_vefs(:,ivef_itfc)==parts_itfc_vefs(:,ivef_itfc+1)))
            ivef_itfc = ivef_itfc + 1
-           if ( ivef_itfc == this%get_num_itfc_vefs()  ) exit
+           if ( ivef_itfc == num_itfc_vefs  ) exit
         end do
      end if
      this%num_objects = this%num_objects + 1
@@ -535,12 +744,12 @@ subroutine triangulation_compute_vefs_and_parts_object_body(this, parts_itfc_vef
   call parts_object%create(n=this%num_objects)
   ivef_itfc = 1
   this%num_objects = 0
-  do while ( ivef_itfc <= this%get_num_itfc_vefs() ) 
+  do while ( ivef_itfc <= num_itfc_vefs ) 
      init_vef = ivef_itfc
-     if ( ivef_itfc < this%get_num_itfc_vefs() ) then
+     if ( ivef_itfc < num_itfc_vefs ) then
         do while (all(parts_itfc_vefs(:,ivef_itfc)==parts_itfc_vefs(:,ivef_itfc+1)))
            ivef_itfc = ivef_itfc + 1
-           if ( ivef_itfc == this%get_num_itfc_vefs()  ) exit
+           if ( ivef_itfc == num_itfc_vefs ) exit
         end do
      end if
      end_vef = ivef_itfc
@@ -573,7 +782,7 @@ subroutine triangulation_compute_vefs_and_parts_object_body(this, parts_itfc_vef
         call vefs_object_iterator%next()
         ivef_itfc = ivef_itfc + 1
      end do
-  end do
+  end do  
 end subroutine triangulation_compute_vefs_and_parts_object_body
 
 subroutine triangulation_compute_objects_dim(this)
@@ -620,13 +829,19 @@ subroutine triangulation_compute_objects_neighbours_exchange_data ( this, &
   integer(ip), allocatable  , intent(inout) :: pack_idx(:)
 
   ! Locals
-  integer(ip)                 :: part_id, my_part_id, num_neighbours
-  integer(ip)                 :: i, iobj, istat
-  type(list_iterator_t)       :: parts_object_iterator
-  type(position_hash_table_t) :: position_parts_rcv
-  integer(ip)                 :: current_position_parts_rcv
-  type(position_hash_table_t) :: position_parts_snd
-  integer(ip)                 :: current_position_parts_snd
+  integer(ip)                   :: part_id, my_part_id, num_neighbours
+  integer(ip)                   :: i, iobj, istat
+  type(list_iterator_t)         :: parts_object_iterator
+  type(position_hash_table_t)   :: position_parts_rcv
+  integer(ip)                   :: current_position_parts_rcv
+  type(position_hash_table_t)   :: position_parts_snd
+  integer(ip)                   :: current_position_parts_snd
+  type(std_vector_integer_ip_t) :: v_snd_ptrs
+  integer(ip), pointer          :: p_snd_ptrs(:)
+  type(std_vector_integer_ip_t) :: v_list_snd
+  type(std_vector_integer_ip_t) :: v_rcv_ptrs
+  integer(ip), pointer          :: p_rcv_ptrs(:)
+  type(std_vector_integer_ip_t) :: v_list_rcv
 
   assert ( this%environment%am_i_l1_task() )
 
@@ -642,16 +857,18 @@ subroutine triangulation_compute_objects_neighbours_exchange_data ( this, &
 
   call position_parts_rcv%init(num_neighbours)
   call position_parts_snd%init(num_neighbours)
-  call memalloc ( num_neighbours  , list_rcv, __FILE__, __LINE__ )
-  call memalloc ( num_neighbours+1, rcv_ptrs, __FILE__, __LINE__ )
-  rcv_ptrs = 0 
+  !call memalloc ( num_neighbours  , list_rcv, __FILE__, __LINE__ )
+  !call memalloc ( num_neighbours+1, rcv_ptrs, __FILE__, __LINE__ )
+  !rcv_ptrs = 0 
 
-  call memalloc ( num_neighbours  , list_snd, __FILE__, __LINE__ )
-  call memalloc ( num_neighbours+1, snd_ptrs, __FILE__, __LINE__ )
-  snd_ptrs = 0
+  !call memalloc ( num_neighbours  , list_snd, __FILE__, __LINE__ )
+  !call memalloc ( num_neighbours+1, snd_ptrs, __FILE__, __LINE__ )
+  !snd_ptrs = 0
 
-  num_rcv = 0
-  num_snd = 0
+  call v_list_snd%resize(0)
+  call v_list_rcv%resize(0)
+  call v_snd_ptrs%resize(1)
+  call v_rcv_ptrs%resize(1)
   do iobj=1, this%num_objects
      parts_object_iterator = this%parts_object%create_iterator(iobj)
      part_id = parts_object_iterator%get_current()
@@ -664,37 +881,46 @@ subroutine triangulation_compute_objects_neighbours_exchange_data ( this, &
            ! Increment by +1 the amount of data I have to send to part_id
            call position_parts_snd%get(key=part_id, val=current_position_parts_snd, stat=istat)
            if ( istat == new_index ) then
-              list_snd ( current_position_parts_snd ) = part_id
+              call v_list_snd%push_back(part_id)
+              call v_snd_ptrs%push_back(0)   
            end if
-           snd_ptrs(current_position_parts_snd+1) = snd_ptrs(current_position_parts_snd+1)+1
+           call v_snd_ptrs%set( (current_position_parts_snd+1), v_snd_ptrs%get(current_position_parts_snd+1)+1 )
            call parts_object_iterator%next()
         end do
      else
         ! I am non-owner of the present object
         call position_parts_rcv%get(key=part_id, val=current_position_parts_rcv, stat=istat)
         if ( istat == new_index ) then
-           list_rcv ( current_position_parts_rcv ) = part_id
+           call v_list_rcv%push_back(part_id)
+           call v_rcv_ptrs%push_back(0)   
         end if
-        rcv_ptrs(current_position_parts_rcv+1) = rcv_ptrs(current_position_parts_rcv+1)+1 
+        call v_rcv_ptrs%set((current_position_parts_rcv+1), v_rcv_ptrs%get(current_position_parts_rcv+1)+1 )
      end if
   end do
 
   num_rcv = position_parts_rcv%last()
   num_snd = position_parts_snd%last() 
-  rcv_ptrs(1) = 1 
+  
+  p_rcv_ptrs => v_rcv_ptrs%get_pointer()
+  p_rcv_ptrs(1) = 1 
   do i=1, num_rcv
-     rcv_ptrs(i+1) = rcv_ptrs(i+1) + rcv_ptrs(i)
+     p_rcv_ptrs(i+1) = p_rcv_ptrs(i+1) + p_rcv_ptrs(i)
   end do
 
-  snd_ptrs(1) = 1 
+  p_snd_ptrs => v_snd_ptrs%get_pointer()
+  p_snd_ptrs(1) = 1 
   do i=1, num_snd
-     snd_ptrs(i+1) = snd_ptrs(i+1) + snd_ptrs(i)
+     p_snd_ptrs(i+1) = p_snd_ptrs(i+1) + p_snd_ptrs(i)
   end do
 
-  call memrealloc ( num_snd+1, snd_ptrs, __FILE__, __LINE__ )
-  call memrealloc ( num_rcv+1, rcv_ptrs, __FILE__, __LINE__ )
-  call memrealloc ( num_snd, list_snd, __FILE__, __LINE__ )
-  call memrealloc ( num_rcv, list_rcv, __FILE__, __LINE__ )
+  call memalloc ( num_snd+1, snd_ptrs, __FILE__, __LINE__ )
+  snd_ptrs = p_snd_ptrs
+  call memalloc ( num_rcv+1, rcv_ptrs, __FILE__, __LINE__ )
+  rcv_ptrs = p_rcv_ptrs
+  call memalloc ( num_snd, list_snd, __FILE__, __LINE__ )
+  list_snd = v_list_snd%get_pointer()
+  call memalloc ( num_rcv, list_rcv, __FILE__, __LINE__ )
+  list_rcv = v_list_rcv%get_pointer()
   call memalloc ( snd_ptrs(num_snd+1)-1, pack_idx, __FILE__, __LINE__ )
   call memalloc ( rcv_ptrs(num_rcv+1)-1, unpack_idx, __FILE__, __LINE__ )
 
@@ -731,6 +957,10 @@ subroutine triangulation_compute_objects_neighbours_exchange_data ( this, &
 
   call position_parts_rcv%free()
   call position_parts_snd%free()
+  call v_list_snd%free()
+  call v_list_rcv%free()
+  call v_snd_ptrs%free()
+  call v_rcv_ptrs%free()
 end subroutine triangulation_compute_objects_neighbours_exchange_data
 
 subroutine triangulation_compute_num_global_objs_and_their_gids ( this )
@@ -843,7 +1073,6 @@ subroutine triangulation_free_objects_ggids_and_dim ( this )
   class(triangulation_t), intent(inout) :: this
   if(allocated(this%objects_ggids))      call memfree(this%objects_ggids, __FILE__, __LINE__ )
   if(allocated(this%objects_dim)) call memfree(this%objects_dim, __FILE__, __LINE__ )
-
 end subroutine triangulation_free_objects_ggids_and_dim
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1255,6 +1484,278 @@ function triangulation_adapt_coarse_raw_arrays( this, &
   end if
 end function triangulation_adapt_coarse_raw_arrays
 
+
+subroutine t_fetch_my_part_id_proper_vefs_on_owner_cells(this)
+  implicit none
+  class(triangulation_t), intent(inout)    :: this
+  class(environment_t)  , pointer :: environment  
+  class(vef_iterator_t), allocatable :: vef
+  class(cell_iterator_t), allocatable :: cell
+  integer(ip) :: ielem, ivef
+  integer(ip) :: mypart_id
+  integer(ip) :: cell_gid
+  integer(ip) :: num_vefs
+  integer(ip) :: base_pos
+  integer(ip)  :: i
+  
+  integer(ip), pointer :: snd_ptrs(:)
+  integer(ip), pointer :: snd_leids(:)
+  integer(ip), pointer :: p_rcv_my_part_id_vefs(:)
+  integer(ip), pointer :: p_my_part_id_vefs(:)
+  integer(ip), pointer :: p_lst_ghosts_per_local_cell(:) 
+  integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
+  
+  environment   => this%get_environment()
+  
+  call this%create_cell_iterator(cell)
+  if ( .not. cell%has_finished() ) then
+    num_vefs = cell%get_num_vefs() 
+  else
+    num_vefs = 0
+  end if
+ 
+  call this%my_part_id_vefs%resize(0)
+  call this%my_part_id_vefs%resize(this%get_num_cells()*num_vefs,0) 
+  
+  mypart_id = environment%get_l1_rank()+1
+    
+  ! Traverse proper vefs on the interface
+  call this%create_itfc_vef_iterator(vef)
+  do while(.not. vef%has_finished())
+    if ( vef%is_proper() ) then      
+      do ielem=1, vef%get_num_cells_around()
+        call vef%get_cell_around(ielem,cell)
+        if ( cell%is_ghost() ) then
+          ivef = cell%get_vef_lid_from_gid(vef%get_gid())
+          cell_gid = cell%get_gid()
+          base_pos = (cell_gid-1)*num_vefs
+          call this%my_part_id_vefs%set(base_pos+ivef, mypart_id)
+        end if   
+      end do
+    end if
+    call vef%next()
+  end do
+  
+  snd_ptrs => this%cell_import%get_snd_ptrs()
+  call this%rcv_my_part_id_vefs%resize(0)
+  call this%rcv_my_part_id_vefs%resize((snd_ptrs(this%cell_import%get_num_neighbours()+1)-1)*num_vefs,0)
+  p_rcv_my_part_id_vefs => this%rcv_my_part_id_vefs%get_pointer() 
+  p_my_part_id_vefs     => this%my_part_id_vefs%get_pointer() 
+  call environment%l1_neighbours_exchange ( num_rcv    = this%cell_import%get_num_neighbours(), &
+                                            list_rcv   = this%cell_import%get_neighbours_ids(),&
+                                            rcv_ptrs   = this%cell_import%get_snd_ptrs(),&
+                                            rcv_buf    = p_rcv_my_part_id_vefs, &
+                                            num_snd    = this%cell_import%get_num_neighbours(), &
+                                            list_snd   = this%cell_import%get_neighbours_ids(),&
+                                            snd_ptrs   = this%cell_import%get_rcv_ptrs(),&
+                                            pack_idx   = this%cell_import%get_rcv_leids(),&
+                                            x          = p_my_part_id_vefs, &
+                                            chunk_size = num_vefs)
+
+  call this%ptr_ghosts_per_local_cell%resize(0)
+  call this%ptr_ghosts_per_local_cell%resize(this%get_num_local_cells()+1,0)
+  p_ptr_ghosts_per_local_cell => this%ptr_ghosts_per_local_cell%get_pointer() 
+
+  snd_leids => this%cell_import%get_snd_leids()
+  do i=1, size(snd_leids)
+    p_ptr_ghosts_per_local_cell(snd_leids(i)+1) = p_ptr_ghosts_per_local_cell(snd_leids(i)+1)+1  
+  end do
+  p_ptr_ghosts_per_local_cell(1)=1
+  do i=1, this%get_num_local_cells()
+    p_ptr_ghosts_per_local_cell(i+1) = p_ptr_ghosts_per_local_cell(i+1)+p_ptr_ghosts_per_local_cell(i) 
+  end do 
+  
+  call this%lst_ghosts_per_local_cell%resize(0)
+  call this%lst_ghosts_per_local_cell%resize(p_ptr_ghosts_per_local_cell(this%get_num_local_cells()+1)-1,0)
+  p_lst_ghosts_per_local_cell => this%lst_ghosts_per_local_cell%get_pointer()
+
+  do i=1, size(snd_leids)
+    p_lst_ghosts_per_local_cell(p_ptr_ghosts_per_local_cell(snd_leids(i)))=i
+    p_ptr_ghosts_per_local_cell(snd_leids(i))=p_ptr_ghosts_per_local_cell(snd_leids(i))+1 
+  end do
+
+  do i=this%get_num_local_cells(),2,-1
+    p_ptr_ghosts_per_local_cell(i) = p_ptr_ghosts_per_local_cell(i-1)
+  end do
+  p_ptr_ghosts_per_local_cell(1)=1 
+ 
+  call this%free_cell_iterator(cell)
+  call this%free_vef_iterator(vef)
+end subroutine t_fetch_my_part_id_proper_vefs_on_owner_cells  
+
+subroutine t_fetch_my_part_id_proper_vefs_on_non_owner_cells(this)
+  implicit none
+  class(triangulation_t), intent(inout)    :: this
+  class(environment_t), pointer :: environment 
+  integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
+  integer(ip), pointer :: p_lst_ghosts_per_local_cell(:)
+  integer(ip), pointer :: p_num_cells_to_send_x_local_cell(:)
+  integer(ip) :: i, j, k, l, icell, current 
+  integer(ip), pointer :: snd_ptrs(:)
+  integer(ip), pointer :: snd_leids(:)
+  integer(ip), pointer :: rcv_ptrs(:)
+  integer(ip), pointer :: rcv_leids(:)
+  integer(ip), pointer :: p_snd_ptrs_complete_my_part_id_non_owner_cells(:)
+  integer(ip), pointer :: p_rcv_ptrs_complete_my_part_id_non_owner_cells(:)
+  integer(ip), pointer :: p_rcv_my_part_id_vefs(:)
+  integer(ip), pointer :: p_ptr_ghosts_per_ghost_cell(:)
+  integer(ip), pointer :: p_lst_ghosts_per_ghost_cell(:)
+  integer(ip), pointer :: p_rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells(:)
+  integer(ip), pointer :: p_snd_leids_complete_my_part_id_non_owner_cells(:)
+  class(cell_iterator_t), allocatable :: cell
+  integer(ip) :: num_vefs
+  
+  environment   => this%get_environment()
+
+  call this%num_cells_to_send_x_local_cell%resize(0)
+  call this%num_cells_to_send_x_local_cell%resize(this%get_num_cells(),0)
+
+  p_ptr_ghosts_per_local_cell => this%ptr_ghosts_per_local_cell%get_pointer()
+  do icell=1, this%get_num_local_cells()
+    call this%num_cells_to_send_x_local_cell%set(icell, p_ptr_ghosts_per_local_cell(icell+1)-&
+                                                        p_ptr_ghosts_per_local_cell(icell))
+  end do 
+
+  p_num_cells_to_send_x_local_cell => this%num_cells_to_send_x_local_cell%get_pointer() 
+  call environment%l1_neighbours_exchange ( this%cell_import%get_num_neighbours(), &
+                                            this%cell_import%get_neighbours_ids(),&
+                                            this%cell_import%get_rcv_ptrs(),&
+                                            this%cell_import%get_rcv_leids(),&
+                                            this%cell_import%get_num_neighbours(), &
+                                            this%cell_import%get_neighbours_ids(),&
+                                            this%cell_import%get_snd_ptrs(),&
+                                            this%cell_import%get_snd_leids(),&
+                                            p_num_cells_to_send_x_local_cell, & 
+                                            p_num_cells_to_send_x_local_cell)
+    
+  snd_ptrs  => this%cell_import%get_snd_ptrs()
+  snd_leids => this%cell_import%get_snd_leids() 
+   
+  p_ptr_ghosts_per_local_cell => this%ptr_ghosts_per_local_cell%get_pointer()
+  p_lst_ghosts_per_local_cell => this%lst_ghosts_per_local_cell%get_pointer()
+  
+  ! Init send data structures
+  call this%snd_ptrs_complete_my_part_id_non_owner_cells%resize(0)
+  call this%snd_ptrs_complete_my_part_id_non_owner_cells%resize(this%cell_import%get_num_neighbours()+1,0)
+  p_snd_ptrs_complete_my_part_id_non_owner_cells => this%snd_ptrs_complete_my_part_id_non_owner_cells%get_pointer()
+  call this%snd_leids_complete_my_part_id_non_owner_cells%resize(0)
+  
+  ! Compute send data structures 
+  do i=1, this%cell_import%get_num_neighbours()
+     do j=snd_ptrs(i), snd_ptrs(i+1)-1
+        k=snd_leids(j)
+        p_snd_ptrs_complete_my_part_id_non_owner_cells(i+1) = p_snd_ptrs_complete_my_part_id_non_owner_cells(i+1) + & 
+                             p_ptr_ghosts_per_local_cell(k+1)-p_ptr_ghosts_per_local_cell(k)
+                             
+        do l=p_ptr_ghosts_per_local_cell(k), & 
+             p_ptr_ghosts_per_local_cell(k+1)-1
+             call this%snd_leids_complete_my_part_id_non_owner_cells%push_back(p_lst_ghosts_per_local_cell(l))
+        end do
+     end do 
+  end do 
+  
+  p_snd_ptrs_complete_my_part_id_non_owner_cells(1)=1
+  do i=1, this%cell_import%get_num_neighbours()
+    p_snd_ptrs_complete_my_part_id_non_owner_cells(i+1) = p_snd_ptrs_complete_my_part_id_non_owner_cells(i+1) + &
+                                              p_snd_ptrs_complete_my_part_id_non_owner_cells(i)
+  end do 
+  
+  ! Init recv data structures
+  call this%rcv_ptrs_complete_my_part_id_non_owner_cells%resize(0)
+  call this%rcv_ptrs_complete_my_part_id_non_owner_cells%resize(this%cell_import%get_num_neighbours()+1,0)
+  p_rcv_ptrs_complete_my_part_id_non_owner_cells => this%rcv_ptrs_complete_my_part_id_non_owner_cells%get_pointer()
+  call this%ptr_ghosts_per_ghost_cell%resize(0)
+  call this%ptr_ghosts_per_ghost_cell%resize(this%get_num_ghost_cells()+1,0)
+  p_ptr_ghosts_per_ghost_cell => this%ptr_ghosts_per_ghost_cell%get_pointer()
+  
+  ! Compute recv data structures
+  rcv_ptrs  => this%cell_import%get_rcv_ptrs()
+  rcv_leids => this%cell_import%get_rcv_leids()
+  do i=1, size(rcv_leids)
+    k=rcv_leids(i)
+    p_ptr_ghosts_per_ghost_cell(k+1-this%get_num_local_cells()) = & 
+      p_ptr_ghosts_per_ghost_cell(k+1-this%get_num_local_cells())+p_num_cells_to_send_x_local_cell(k)  
+  end do
+  p_ptr_ghosts_per_ghost_cell(1)=1
+  do i=1, this%get_num_ghost_cells()
+    p_ptr_ghosts_per_ghost_cell(i+1) = p_ptr_ghosts_per_ghost_cell(i+1)+p_ptr_ghosts_per_ghost_cell(i) 
+  end do 
+  
+  call this%lst_ghosts_per_ghost_cell%resize(0)
+  call this%lst_ghosts_per_ghost_cell%resize(p_ptr_ghosts_per_ghost_cell(this%get_num_ghost_cells()+1)-1,0)
+  p_lst_ghosts_per_ghost_cell => this%lst_ghosts_per_ghost_cell%get_pointer()
+
+  current = 1 
+  do i=1, this%cell_import%get_num_neighbours()
+     do j=rcv_ptrs(i), rcv_ptrs(i+1)-1
+        k=rcv_leids(j)
+        p_rcv_ptrs_complete_my_part_id_non_owner_cells(i+1) = p_rcv_ptrs_complete_my_part_id_non_owner_cells(i+1) + & 
+                                                  p_num_cells_to_send_x_local_cell(k)
+                                                  
+        do l=1, p_num_cells_to_send_x_local_cell(k)                                      
+          p_lst_ghosts_per_ghost_cell(p_ptr_ghosts_per_ghost_cell(k-this%get_num_local_cells()))=current
+          p_ptr_ghosts_per_ghost_cell(k-this%get_num_local_cells())=&
+            p_ptr_ghosts_per_ghost_cell(k-this%get_num_local_cells())+1
+          current = current + 1 
+        end do
+     end do 
+  end do
+  do i=this%get_num_ghost_cells(),2,-1
+    p_ptr_ghosts_per_ghost_cell(i) = p_ptr_ghosts_per_ghost_cell(i-1)
+  end do
+  p_ptr_ghosts_per_ghost_cell(1)=1
+  
+  p_rcv_ptrs_complete_my_part_id_non_owner_cells(1)=1
+  do i=1, this%cell_import%get_num_neighbours()
+    p_rcv_ptrs_complete_my_part_id_non_owner_cells(i+1) = p_rcv_ptrs_complete_my_part_id_non_owner_cells(i+1) + &
+                                              p_rcv_ptrs_complete_my_part_id_non_owner_cells(i)
+  end do 
+  
+  call this%create_cell_iterator(cell)
+  if ( .not. cell%has_finished() ) then
+    num_vefs = cell%get_num_vefs()
+  else
+    num_vefs = 0
+  end if 
+  call this%free_cell_iterator(cell)
+  
+  call this%rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells%resize(0)
+  call this%rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells%resize(&
+     (p_rcv_ptrs_complete_my_part_id_non_owner_cells(this%cell_import%get_num_neighbours()+1)-1)*num_vefs,0)
+  
+  p_rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells => & 
+      this%rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells%get_pointer()
+  
+  p_snd_leids_complete_my_part_id_non_owner_cells => this%snd_leids_complete_my_part_id_non_owner_cells%get_pointer()    
+  p_rcv_my_part_id_vefs               => this%rcv_my_part_id_vefs%get_pointer()
+  call environment%l1_neighbours_exchange ( num_rcv    = this%cell_import%get_num_neighbours(), &
+                                            list_rcv   = this%cell_import%get_neighbours_ids(),&
+                                            rcv_ptrs   = p_rcv_ptrs_complete_my_part_id_non_owner_cells,&
+                                            rcv_buf    = p_rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells, &
+                                            num_snd    = this%cell_import%get_num_neighbours(), &
+                                            list_snd   = this%cell_import%get_neighbours_ids(),&
+                                            snd_ptrs   = p_snd_ptrs_complete_my_part_id_non_owner_cells,&
+                                            pack_idx   = p_snd_leids_complete_my_part_id_non_owner_cells,&
+                                            x          = p_rcv_my_part_id_vefs, &
+                                            chunk_size = num_vefs) 
+end subroutine t_fetch_my_part_id_proper_vefs_on_non_owner_cells  
+
+subroutine triangulation_free_non_conforming_scratch_data(this)
+  implicit none
+  class(triangulation_t), intent(inout)    :: this
+  call this%my_part_id_vefs%free()
+  call this%rcv_my_part_id_vefs%free()
+  call this%ptr_ghosts_per_local_cell%free()
+  call this%lst_ghosts_per_local_cell%free()
+  call this%num_cells_to_send_x_local_cell%free()
+  call this%snd_ptrs_complete_my_part_id_non_owner_cells%free()
+  call this%snd_leids_complete_my_part_id_non_owner_cells%free()
+  call this%rcv_ptrs_complete_my_part_id_non_owner_cells%free()
+  call this%ptr_ghosts_per_ghost_cell%free()
+  call this%lst_ghosts_per_ghost_cell%free()
+  call this%rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells%free()
+end subroutine triangulation_free_non_conforming_scratch_data
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! Traversals
@@ -1313,6 +1814,9 @@ recursive subroutine triangulation_free ( this )
         call this%g2l_subparts%free()
         this%num_objects = -1
         this%num_global_objects = -1
+        if ( .not. this%is_conforming() ) then
+         call this%free_non_conforming_scratch_data()
+        end if  
      else ! I am lgt1_task
         if (associated(this%coarse_triangulation)) then
           call this%coarse_triangulation%free()

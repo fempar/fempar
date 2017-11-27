@@ -63,10 +63,10 @@ module par_test_h_adaptive_poisson_driver_names
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
      
-!#ifdef ENABLE_MKL     
-!     ! MLBDDC preconditioner
-!     type(mlbddc_t)                            :: mlbddc
-!#endif  
+#ifdef ENABLE_MKL     
+     ! MLBDDC preconditioner
+     type(mlbddc_t)                            :: mlbddc
+#endif  
     
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
@@ -427,71 +427,71 @@ end subroutine free_timers
     integer(ip) :: FPLError
     integer(ip) :: iparm(64)
 
-!#ifdef ENABLE_MKL  
-!    ! See https://software.intel.com/en-us/node/470298 for details
-!    iparm      = 0 ! Init all entries to zero
-!    iparm(1)   = 1 ! no solver default
-!    iparm(2)   = 2 ! fill-in reordering from METIS
-!    iparm(8)   = 2 ! numbers of iterative refinement steps
-!    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-!    iparm(11)  = 1 ! use scaling 
-!    iparm(13)  = 1 ! use maximum weighted matching algorithm 
-!    iparm(21)  = 1 ! 1x1 + 2x2 pivots
+#ifdef ENABLE_MKL  
+    ! See https://software.intel.com/en-us/node/470298 for details
+    iparm      = 0 ! Init all entries to zero
+    iparm(1)   = 1 ! no solver default
+    iparm(2)   = 2 ! fill-in reordering from METIS
+    iparm(8)   = 2 ! numbers of iterative refinement steps
+    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+    iparm(11)  = 1 ! use scaling 
+    iparm(13)  = 1 ! use maximum weighted matching algorithm 
+    iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
-!    plist => this%parameter_list 
-!    if ( this%par_environment%get_l1_size() == 1 ) then
-!       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-!       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-!       FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-!       FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-!    end if
-!    do ilev=1, this%par_environment%get_num_levels()-1
-!       ! Set current level Dirichlet solver parameters
-!       dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-!       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-!       FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-!       FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-!       FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-!       
-!       ! Set current level Neumann solver parameters
-!       neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-!       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-!       FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
-!       FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-!       FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-!     
-!       coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
-!       plist  => coarse 
-!    end do
-!    ! Set coarsest-grid solver parameters
-!    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-!    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-!    FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-!    FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+    plist => this%parameter_list 
+    if ( this%par_environment%get_l1_size() == 1 ) then
+       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+    end if
+    do ilev=1, this%par_environment%get_num_levels()-1
+       ! Set current level Dirichlet solver parameters
+       dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
+       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+       
+       ! Set current level Neumann solver parameters
+       neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
+       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+       FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+     
+       coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
+       plist  => coarse 
+    end do
+    ! Set coarsest-grid solver parameters
+    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
-!    ! Set-up MLBDDC preconditioner
-!    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-!    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
-!    call this%mlbddc%symbolic_setup()
-!    call this%mlbddc%numerical_setup()
-!#endif    
+    ! Set-up MLBDDC preconditioner
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
+    call this%mlbddc%symbolic_setup()
+    call this%mlbddc%numerical_setup()
+#endif    
    
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
-!#ifdef ENABLE_MKL
-!    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
-!#else
     call parameter_list%init()
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
     assert(FPLError == 0)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-    call parameter_list%free()
-!#endif   
     
+#ifdef ENABLE_MKL
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
+#else
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+#endif   
+    call parameter_list%free()
   end subroutine setup_solver
   
   
@@ -651,19 +651,19 @@ end subroutine free_timers
 
     call this%check_solution()
     
-    call this%set_cells_for_refinement()
-    call this%triangulation%refine_and_coarsen()
-    call this%fe_space%refine_and_coarsen(this%solution)
-    call this%fe_space%set_up_cell_integration()
+    !call this%set_cells_for_refinement()
+    !call this%triangulation%refine_and_coarsen()
+    !call this%fe_space%refine_and_coarsen(this%solution)
+    !call this%fe_space%set_up_cell_integration()
     
-    call this%check_solution()
+    !call this%check_solution()
     
-    call this%set_cells_for_refinement()
-    call this%triangulation%redistribute()
-    call this%fe_space%redistribute(this%solution)
-    call this%fe_space%set_up_cell_integration()
+    !call this%set_cells_for_refinement()
+    !call this%triangulation%redistribute()
+    !call this%fe_space%redistribute(this%solution)
+    !call this%fe_space%set_up_cell_integration()
     
-    call this%check_solution()
+    !call this%check_solution()
 
     
     call this%write_solution()
@@ -676,9 +676,9 @@ end subroutine free_timers
     integer(ip) :: i, istat
     
     call this%solution%free()
-!#ifdef ENABLE_MKL    
-!    call this%mlbddc%free()
-!#endif    
+#ifdef ENABLE_MKL    
+    call this%mlbddc%free()
+#endif    
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
     call this%fe_space%free()
