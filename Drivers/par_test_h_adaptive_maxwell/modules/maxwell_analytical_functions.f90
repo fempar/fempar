@@ -118,9 +118,10 @@ contains
     type(point_t)       , intent(in)    :: point
     type(vector_field_t), intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    call result%set(1, -point%get(2) )
-				call result%set(2, point%get(1)  ) 
-				call result%set(3, 0.0_rp) 
+    !call result%set(1, -point%get(2) )
+				!call result%set(2, point%get(1)  ) 
+				!call result%set(3, 0.0_rp) 
+				call result%init(1.0_rp)
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -130,7 +131,8 @@ contains
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-      result = - point%get(2)
+   !   result = - point%get(2)
+				result = 1.0_rp 
   end subroutine boundary_function_Hx_get_value_space 
 		
 		  !===============================================================================================
@@ -140,7 +142,8 @@ contains
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-      result = point%get(1)
+     ! result = point%get(1)
+				result = 1.0_rp 
   end subroutine boundary_function_Hy_get_value_space 
 		
 		  !===============================================================================================
@@ -150,7 +153,8 @@ contains
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-      result = 0.0_rp
+    !  result = 0.0_rp
+				result = 1.0_rp
   end subroutine boundary_function_Hz_get_value_space 
 
   !===============================================================================================
@@ -160,10 +164,10 @@ contains
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    call result%set(1, -point%get(2) )
-				call result%set(2, point%get(1)  ) 
-				call result%set(3, 0.0_rp) 
-      
+    !call result%set(1, -point%get(2) )
+				!call result%set(2, point%get(1)  ) 
+				!call result%set(3, 0.0_rp) 
+     call result%init(1.0_rp) 
   end subroutine solution_function_get_value_space
   
   !===============================================================================================
