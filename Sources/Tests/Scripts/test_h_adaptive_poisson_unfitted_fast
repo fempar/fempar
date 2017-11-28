@@ -14,38 +14,48 @@ then
       vmts="aggr stnd"
       vods="1 2"
       vdim="2 3"
+      vpat="uniform"  ## debug-1 debug-2"
       
       ilvs=2
       for idim in $vdim; do
         for iods in $vods; do
           for ibcs in $vbcs; do
             for imts in $vmts; do
-              if [ $idim -ne 3 -o $iods -ne 2 ] ; then
+              for ipat in $vpat; do
+                if [ $idim -ne 3 -o $iods -ne 2 ] ; then
         
-                prefix=${imts}_${ibcs}_l${ilvs}_p${iods}
+                  prefix=${imts}_${ipat}_${ibcs}_l${ilvs}_p${iods}
         
-                is_diri=".true."
-                if [ $ibcs = neum ]; then
-                  is_diri="false"
+                  is_diri=".true."
+                  if [ $ibcs = neum ]; then
+                    is_diri="false"
+                  fi
+        
+                  uconstraints=".true."
+                  is_bconst=".true."
+                  if [ $imts = stnd ]; then
+                    uconstraints=".false."
+                    is_bconst=".false."
+                  fi
+
+                  sdiri=".true."
+                  dom="0.0 1.0"
+                  if [ $ipat = "debug-1" ]; then
+                    sdiri=".false."
+                    dom="-1.0 1.0"
+                  fi
+        
+                  cmd="$TEST_BINARY_PATH -tt structured -dim $idim -rpattern $ipat -sdiri $sdiri -dom $dom -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst"
+        
+                  echo $cmd
+                  $cmd
+                  if [ $? -ne 0 ] 
+                  then
+                   final_exit_code=1
+                  fi
+        
                 fi
-        
-                uconstraints=".true."
-                is_bconst=".true."
-                if [ $imts = stnd ]; then
-                  uconstraints=".false."
-                  is_bconst=".false."
-                fi
-        
-                cmd="$TEST_BINARY_PATH -tt structured -dim $idim -wsolution .false. -order $iods -in_space .true.  -check .true. -maxl $ilvs -wmatrix .false. -uconstraints $uconstraints -is_diri $is_diri -is_bconst $is_bconst"
-        
-                echo $cmd
-                $cmd
-                if [ $? -ne 0 ] 
-                then
-                 final_exit_code=1
-                fi
-        
-              fi
+              done
             done
           done
         done

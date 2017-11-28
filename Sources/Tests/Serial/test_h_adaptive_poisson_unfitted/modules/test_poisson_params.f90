@@ -64,6 +64,8 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_levelset_tolerance
      character(len=:), allocatable :: default_domain_limits
      character(len=:), allocatable :: default_only_setup
+     character(len=:), allocatable :: default_strong_dirichlet_on_fitted_boundary
+     character(len=:), allocatable :: default_refinement_pattern
 
      type(Command_Line_Interface):: cli 
 
@@ -94,6 +96,8 @@ module test_poisson_params_names
      real(rp) :: levelset_tolerance
      real(rp)    :: domain_limits(2)
      logical :: only_setup
+     logical :: strong_dirichlet_on_fitted_boundary
+     character(len=str_cla_len)    :: refinement_pattern
 
    contains
      procedure, non_overridable             :: create       => test_poisson_create
@@ -123,6 +127,8 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_levelset_tolerance
      procedure, non_overridable             :: get_domain_limits
      procedure, non_overridable             :: get_only_setup
+     procedure, non_overridable             :: is_strong_dirichlet_on_fitted_boundary
+     procedure, non_overridable             :: get_refinement_pattern
   end type test_poisson_params_t  
 
   ! Types
@@ -182,6 +188,8 @@ contains
     this%default_levelset_tolerance = '1.0e-6'
     this%default_domain_limits = '0.0 1.0'
     this%default_only_setup = '.false.'
+    this%default_strong_dirichlet_on_fitted_boundary = '.true.'
+    this%default_refinement_pattern = 'uniform'
     
   end subroutine test_poisson_set_default
   
@@ -279,6 +287,11 @@ contains
     call this%cli%add(switch='--only-setup',switch_ab='-osetup',help='True if compute only the setup of the problem, i.e., skip discrete integration and linear solver',&
          &            required=.false.,act='store',def=trim(this%default_only_setup),error=error) 
     check(error==0) 
+    call this%cli%add(switch='--strong_dirichlet',switch_ab='-sdiri',help='True if strong dirichlet conditions are imposed on the body-fitted boundary',&
+         &            required=.false.,act='store',def=trim(this%default_strong_dirichlet_on_fitted_boundary),error=error) 
+    call this%cli%add(switch='--refinement_pattern',switch_ab='-rpattern',help='name of the refinement pattern to use',&
+         &            required=.false.,act='store',def=trim(this%default_refinement_pattern),error=error) 
+    check(error==0) 
   end subroutine test_poisson_add_to_cli
   
   subroutine test_poisson_parse(this,parameter_list)
@@ -318,6 +331,8 @@ contains
     call this%cli%get(switch='-lstol',val=this%levelset_tolerance,error=istat); check(istat==0)
     call this%cli%get(switch='-dom',val=this%domain_limits,error=istat); check(istat==0)
     call this%cli%get(switch='-osetup',val=this%only_setup,error=istat); check(istat==0)
+    call this%cli%get(switch='-sdiri',val=this%strong_dirichlet_on_fitted_boundary,error=istat); check(istat==0)
+    call this%cli%get(switch='-rpattern',val=this%refinement_pattern,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -360,6 +375,8 @@ contains
     if(allocated(this%default_levelset_tolerance)) deallocate(this%default_levelset_tolerance)
     if(allocated(this%default_domain_limits)) deallocate(this%default_domain_limits)
     if(allocated(this%default_only_setup)) deallocate(this%default_only_setup)
+    if(allocated(this%default_strong_dirichlet_on_fitted_boundary)) deallocate(this%default_strong_dirichlet_on_fitted_boundary)
+    if(allocated(this%default_refinement_pattern)) deallocate(this%default_refinement_pattern)
     call this%cli%free()
   end subroutine test_poisson_free
 
@@ -538,5 +555,21 @@ contains
     logical :: get_only_setup
     get_only_setup = this%only_setup
   end function get_only_setup
+
+  !==================================================================================================
+  function is_strong_dirichlet_on_fitted_boundary(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    logical :: is_strong_dirichlet_on_fitted_boundary
+    is_strong_dirichlet_on_fitted_boundary = this%strong_dirichlet_on_fitted_boundary
+  end function is_strong_dirichlet_on_fitted_boundary
+
+  !==================================================================================================
+  function get_refinement_pattern(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable :: get_refinement_pattern
+    get_refinement_pattern = trim(this%refinement_pattern)
+  end function get_refinement_pattern 
 
 end module test_poisson_params_names
