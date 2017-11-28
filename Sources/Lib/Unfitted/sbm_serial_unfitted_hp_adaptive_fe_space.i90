@@ -791,7 +791,7 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
                 if (full_cells_loop) then
                   mcheck(.false.,'We cannot end-up here due to 2:1 condition')
                 else 
-                  coarser_hanging_dof_lid = coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) - this%get_num_dirichlet_dofs()
+                  coarser_hanging_dof_lid = abs(coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current())) - this%get_num_dirichlet_dofs()
                   massert( ((this%num_hanging_dofs_full_cells+1)<=coarser_hanging_dof_lid) .and.  (coarser_hanging_dof_lid<=this%num_hanging_dofs_full_cells+this%num_aggregated_dofs), 'Assert hast to be true due to 2:1 condition' )
                   num_free_master_dofs = this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid+1)&
                                        - this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)
@@ -981,7 +981,7 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
                 if (full_cells_loop) then
                   mcheck(.false.,'We cannot end-up here due to 2:1 condition')
                 else 
-                  coarser_hanging_dof_lid = coarser_fe_fe_dofs(ishape_coarser_fe) - this%get_num_dirichlet_dofs()
+                  coarser_hanging_dof_lid = abs(coarser_fe_fe_dofs(ishape_coarser_fe)) - this%get_num_dirichlet_dofs()
                   massert( ((this%num_hanging_dofs_full_cells+1)<=coarser_hanging_dof_lid) .and.  (coarser_hanging_dof_lid<=this%num_hanging_dofs_full_cells+this%num_aggregated_dofs), 'Assert hast to be true due to 2:1 condition' )
                   num_free_master_dofs = this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid+1)&
                                        - this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)
@@ -1029,8 +1029,8 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
   call this%free_fe_vef_iterator(fe_vef_bis)
   call this%free_fe_vef_iterator(coarser_vef)
 
-  call this_ptr_constraining_free_dofs                 %cat( ptr_constraining_free_dofs                 )
-  call this_ptr_constraining_dirichlet_dofs            %cat( ptr_constraining_dirichlet_dofs            )
+  call this_ptr_constraining_free_dofs                 %cat_ptr( ptr_constraining_free_dofs                 )
+  call this_ptr_constraining_dirichlet_dofs            %cat_ptr( ptr_constraining_dirichlet_dofs            )
   call this_constraining_free_dofs                     %cat( constraining_free_dofs                     )
   call this_constraining_free_dofs_coefficients        %cat( constraining_free_dofs_coefficients        )
   call this_constraining_dirichlet_dofs                %cat( constraining_dirichlet_dofs                )
@@ -1830,7 +1830,7 @@ subroutine suhpafs_fill_proper_vef_constrains_full_cell(this,proper_vef_constrai
           if ( .not. fe%is_void(field_id)) then
             do ivef = 1, fe%get_num_vefs()
               call fe%get_vef(ivef,vef)
-              if ( .not. vef%has_free_dofs(field_id,coarser_fe) ) cycle
+              if ( vef%has_free_dofs(field_id,coarser_fe) ) cycle
               if ( .not. vef%is_proper() ) then
                 do icell = 1,vef%get_num_improper_cells_around()
                   call vef%get_improper_cell_around(icell,coarser_fe)
