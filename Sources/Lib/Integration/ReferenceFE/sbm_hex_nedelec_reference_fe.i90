@@ -463,6 +463,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
   integer(ip)                         :: edge_id, facet_id, n_face_id
 
   ! h_adaptivity related data 
+		real(rp)                            :: h_factor 
+		type(vector_field_t)                :: h_mapped_v_shape_test
   integer(ip) , parameter             :: h_refinement_ratio = 2.0_rp  
 
   assert ( .not. this%basis_changed )
@@ -535,7 +537,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
 
      ! Integrate edge boundary moments int_edge(u.t q), q \in P_k-1
      do qpoint = 1, edge_quadrature%num_quadrature_points
-        factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
+        factor   = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
+								h_factor = factor/h_refinement_ratio 
         call edge_map%get_tangent(qpoint, tangent)
 
         do ishape=1, interpolation_1D%num_shape_functions
@@ -545,7 +548,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
                    + shape_test * v_shape_trial * tangent * factor
               this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) = this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) & 
-														     + shape_test * v_shape_trial * tangent * (1.0_rp/h_refinement_ratio) * factor
+														     + shape_test * v_shape_trial * tangent * h_factor
 
            end do
         end do
@@ -596,7 +599,8 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
 
         ! Integrate face boundary moments int_Face(u x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
         do qpoint = 1, facet_quadrature%num_quadrature_points
-           factor = facet_map%get_det_jacobian(qpoint) * facet_quadrature%get_weight(qpoint)
+           factor   = facet_map%get_det_jacobian(qpoint) * facet_quadrature%get_weight(qpoint)
+											h_factor = factor/(h_refinement_ratio**2.0_rp)
            call facet_map%get_normal(qpoint, normal)
 
 !!!!!!!!!!!
@@ -608,6 +612,11 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
 
            do ishape=1, interpolation_2D%num_shape_functions
               call fe_2D%get_value(interpolation_2D, ishape, qpoint, v_shape_test)
+														! Apply Piola mapping to nedelec-like shape test: v' = J**{-T} v
+														call h_mapped_v_shape_test%init(0.0_rp) 
+														do i=1, this%num_dims - 1
+														call h_mapped_v_shape_test%set(i, h_refinement_ratio * v_shape_test%get(i) )
+														end do 
               do jshape=1, facet_interpolation%num_shape_functions
                  call this%get_value(facet_interpolation, jshape, qpoint, v_shape_trial)
 
@@ -626,7 +635,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
                       + cross_product_v_shape_trial_normal_proj * v_shape_test * factor
 
                     this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) =  this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) &
-                      + cross_product_v_shape_trial_normal_proj * v_shape_test *  (1.0_rp/h_refinement_ratio ) * factor
+                      + cross_product_v_shape_trial_normal_proj * h_mapped_v_shape_test * h_factor
               end do
            end do
         end do
@@ -679,15 +688,20 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
 
      ! Integration of interior moments int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}     
      do qpoint = 1, cell_quadrature%num_quadrature_points
-        factor = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
+        factor   = cell_map%get_det_jacobian(qpoint) * cell_quadrature%get_weight(qpoint)
+								h_factor = factor/(h_refinement_ratio**this%num_dims) 
         do ishape=1, reduced_order_cell_interpolation%num_shape_functions
            call this%get_value(reduced_order_cell_interpolation, ishape, qpoint, v_shape_test)
+											   call h_mapped_v_shape_test%init(0.0_rp)
+														do i=1, this%num_dims
+														call h_mapped_v_shape_test%set(i, (1.0_rp/h_refinement_ratio) * (h_refinement_ratio**this%num_dims) * v_shape_test%get(i) )
+														end do 
            do jshape=1, cell_interpolation%num_shape_functions
               call this%get_value(cell_interpolation, jshape, qpoint, v_shape_trial)
               this%change_basis_matrix(d+ishape,jshape) = this%change_basis_matrix(d+ishape,jshape) &
                    + v_shape_test * v_shape_trial * factor
               this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) = this%inverse_change_basis_matrix_h_refinement(d+ishape,jshape) &
-														     + v_shape_test * v_shape_trial * (1.0_rp/h_refinement_ratio) * factor
+														     + h_mapped_v_shape_test * v_shape_trial * h_factor
            end do
         end do
      end do
@@ -1254,7 +1268,7 @@ subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_
 
   integer(ip)  :: ishape, jshape
   integer(ip)  :: qpoin 
-		real(rp)     :: alpha_unscale 
+		real(rp)     :: alpha_unscale, alpha_scale 
 
   assert( ishape_fe >= 1 .and. ishape_fe <= this%num_shape_functions )
   assert( ishape_coarser_fe >= 1 .and. ishape_coarser_fe <= this%num_shape_functions )
@@ -1276,7 +1290,6 @@ subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_
         coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape_fe, jshape)     * &
                                     this%h_refinement_interpolation%shape_functions(1, ishape, qpoin)    * & 
                                     alpha_unscale * this%change_basis_matrix( ishape, ishape_coarser_fe )
-
      end do
   end	do
 
