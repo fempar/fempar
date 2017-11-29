@@ -906,6 +906,13 @@ module fe_space_names
 	   procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
     procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
   end type standard_l1_coarse_fe_handler_t
+		
+		  type, extends(standard_l1_coarse_fe_handler_t) :: h_adaptive_algebraic_l1_coarse_fe_handler_t
+    private
+  contains
+    procedure             :: get_num_coarse_dofs                       => h_adaptive_algebraic_l1_get_num_coarse_dofs
+	   procedure             :: setup_constraint_matrix                   => h_adaptive_algebraic_l1_setup_constraint_matrix
+  end type h_adaptive_algebraic_l1_coarse_fe_handler_t
   
   type, extends(standard_l1_coarse_fe_handler_t) :: H1_l1_coarse_fe_handler_t
     private
@@ -932,7 +939,8 @@ module fe_space_names
 	   procedure :: setup_weighting_operator => elasticity_l1_setup_weighting_operator
   end type elasticity_pb_bddc_l1_coarse_fe_handler_t
   
-  public :: p_l1_coarse_fe_handler_t, l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, H1_l1_coarse_fe_handler_t, vector_laplacian_pb_bddc_l1_coarse_fe_handler_t, elasticity_pb_bddc_l1_coarse_fe_handler_t 
+  public :: p_l1_coarse_fe_handler_t, l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, h_adaptive_algebraic_l1_coarse_fe_handler_t, &
+		          H1_l1_coarse_fe_handler_t, vector_laplacian_pb_bddc_l1_coarse_fe_handler_t, elasticity_pb_bddc_l1_coarse_fe_handler_t 
   
   type, extends(vector_function_t) :: rigid_body_mode_t
     private
@@ -1314,6 +1322,7 @@ contains
 #include "sbm_base_fe_object_iterator.i90"
 #include "sbm_fe_object_iterator.i90"
 #include "sbm_standard_coarse_fe_handler.i90"
+#include "sbm_h_adaptive_algebraic_coarse_fe_handler.i90"
 #include "sbm_H1_coarse_fe_handler.i90"
 #include "sbm_vector_laplacian_coarse_fe_handler.i90"
 #include "sbm_elasticity_coarse_fe_handler.i90"

@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
+subroutine h_adaptive_algebraic_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
   implicit none
-  class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
+  class(h_adaptive_algebraic_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
@@ -84,7 +84,6 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
         reference_fe => fe%get_reference_fe(field_id)
         do icell_around=1, vef%get_num_cells_around()
            call vef%get_cell_around(icell_around,fe)
-           if ( fe%is_ghost() ) then 
               !Get GID of dofs on cell fe
               call fe%get_field_fe_dofs(field_id, fe_dofs)
               ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
@@ -99,8 +98,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
                  end if
                  call own_dofs_on_vef_iterator%next()
               end do
-           
-           end if
+
         end do
         
         if ( dofs_on_vef ) then
@@ -115,11 +113,11 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
   call par_fe_space%free_fe_vef_iterator(vef)
   call par_fe_space%free_fe_cell_iterator(fe)
   call par_fe_space%free_fe_object_iterator(object)
-end subroutine standard_l1_get_num_coarse_dofs
+end subroutine h_adaptive_algebraic_l1_get_num_coarse_dofs
 
-subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+subroutine h_adaptive_algebraic_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
   implicit none
-  class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
+  class(h_adaptive_algebraic_l1_coarse_fe_handler_t), intent(in)    :: this
   integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
@@ -161,7 +159,6 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
           call object%get_vef(ivef_within_object,vef)
           do icell_around=1, vef%get_num_cells_around()          
              call vef%get_cell_around(icell_around,fe)
-             if ( fe%is_ghost() ) then
                 call fe%get_field_fe_dofs(field_id, fe_dofs)
                 ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
                 own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
@@ -176,10 +173,8 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
                    end if
                    call own_dofs_on_vef_iterator%next()
                 end do
-             end if
           end do
        end do
-       
        own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
        coarse_dof_lid = own_coarse_dofs_iterator%get_current() - 1 
        call visited_dofs%init(num_cols)       
@@ -188,7 +183,6 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
           call object%get_vef(ivef_within_object,vef)
           do icell_around=1, vef%get_num_cells_around() 
              call vef%get_cell_around(icell_around,fe)
-             if ( fe%is_ghost() ) then
                 reference_fe => fe%get_reference_fe(field_id)
                 assert ( own_coarse_dofs_iterator%get_size() ==  reference_fe%get_num_field_components())
                 call fe%get_field_fe_dofs(field_id, fe_dofs)
@@ -207,7 +201,6 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
                    end if
                    call own_dofs_on_vef_iterator%next()
                 end do
-             end if
           end do
        end do
      end if
@@ -217,104 +210,4 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
   call par_fe_space%free_fe_object_iterator(object)
   call par_fe_space%free_fe_vef_iterator(vef)
 
-end subroutine standard_l1_setup_constraint_matrix
-
-subroutine standard_l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
-  implicit none
-  class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
-  integer(ip)                           , intent(in)    :: field_id
-  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
-  real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
-  type(fe_object_iterator_t)             :: object
-  type(fe_vef_iterator_t)                :: vef
-  class(fe_cell_iterator_t), allocatable      :: fe
-  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
-  integer(ip), pointer                   :: fe_dofs(:)
-  integer(ip)                            :: off
-  integer(ip) :: num_fine_dofs
-  integer(ip) :: num_fine_dofs_on_coarse_dof
-  integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid, icell_around
-  integer(ip) :: istat
-  integer(ip) :: ipart, part_id, local_part_id, num_neighbours
-  type(hash_table_ip_ip_t)          , allocatable :: visited_dofs(:)
-  integer(ip)                       , allocatable :: num_parts_around_dof(:)
-  class(triangulation_t), pointer     :: triangulation
-  type(cell_import_t)               , pointer     :: cell_import
-
-  
-  num_fine_dofs =  size(weighting_operator)
-  call memalloc (num_fine_dofs, num_parts_around_dof, __FILE__, __LINE__ )
-  num_parts_around_dof  = 1
-  
-  triangulation => par_fe_space%get_triangulation()
-  cell_import   => triangulation%get_cell_import()
-  num_neighbours = cell_import%get_num_neighbours()
-  allocate(visited_dofs(num_neighbours))
-  do ipart =1,num_neighbours
-     call visited_dofs(ipart)%init(num_fine_dofs)
-  end do
-  
-  ! Fill constraint matrix entries (transposed)
-  call par_fe_space%create_fe_cell_iterator(fe)
-  call par_fe_space%create_fe_object_iterator(object)
-  call par_fe_space%create_fe_vef_iterator(vef)
-  do while ( .not. object%has_finished() )
-     ! Count how many fine DoFs current coarse DoF aggregates
-     do ivef_within_object=1, object%get_num_vefs()
-        call object%get_vef(ivef_within_object,vef)
-        do icell_around=1, vef%get_num_cells_around()  
-           call vef%get_cell_around(icell_around,fe)
-           if ( fe%is_ghost() ) then
-              call fe%get_field_fe_dofs(field_id, fe_dofs)
-              ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
-              own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
-              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-                 idof    = own_dofs_on_vef_iterator%get_current()
-                 dof_lid = fe_dofs(idof)
-                 if ( dof_lid > 0 ) then
-                    part_id = fe%get_my_part()
-                    local_part_id = cell_import%get_local_neighbour_id(part_id)
-                    call visited_dofs(local_part_id)%put(key=dof_lid,val=ivef_within_cell,stat=istat)
-                    if ( istat == now_stored ) then
-                       num_parts_around_dof(dof_lid) = num_parts_around_dof(dof_lid) + 1
-                    end if
-                 end if
-                 call own_dofs_on_vef_iterator%next()
-              end do
-           end if
-        end do
-     end do
-     call object%next()
-  end do
-  call par_fe_space%free_fe_cell_iterator(fe)
-  call par_fe_space%free_fe_object_iterator(object)
-  call par_fe_space%free_fe_vef_iterator(vef)
-  do idof =1,num_fine_dofs
-     weighting_operator(idof) = weighting_operator(idof)/real(num_parts_around_dof(idof),rp)
-  end do
-  deallocate(visited_dofs)
-  call memfree ( num_parts_around_dof, __FILE__, __LINE__ )
-end subroutine standard_l1_setup_weighting_operator
-
-subroutine standard_get_coarse_space_use_vertices_edges_faces ( parameter_list, use_vertices, use_edges, use_faces )
-  implicit none
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
-  logical                               , intent(out)   :: use_vertices, use_edges, use_faces
-  integer(ip) :: FPLError
-  assert(parameter_list%isAssignable(coarse_space_use_vertices_key, use_vertices))
-  FPLError   = parameter_list%Get(coarse_space_use_vertices_key, use_vertices)
-  assert(FPLError == 0)
-  assert(parameter_list%isAssignable(coarse_space_use_edges_key, use_edges))
-  FPLError   = parameter_list%Get(coarse_space_use_edges_key, use_edges)
-  assert(FPLError == 0)
-  assert(parameter_list%isAssignable(coarse_space_use_faces_key, use_faces))
-  FPLError   = parameter_list%Get(coarse_space_use_faces_key, use_faces)
-  assert(FPLError == 0)
-end subroutine standard_get_coarse_space_use_vertices_edges_faces 
-
-subroutine standard_lgt1_setup_coarse_dofs(this, coarse_fe_space) 
-  implicit none
-  class(standard_lgt1_coarse_fe_handler_t), intent(in)    :: this
-  type(coarse_fe_space_t)                 , intent(inout) :: coarse_fe_space
-end subroutine standard_lgt1_setup_coarse_dofs
+end subroutine h_adaptive_algebraic_l1_setup_constraint_matrix
