@@ -223,7 +223,7 @@ contains
         do ilev = 1, max_levels
           call this%triangulation%create_cell_iterator(cell)
           do while (.not. cell%has_finished())
-            if (ilev == 1) then
+            if (ilev <= 2) then
               call cell%set_for_refinement()
             else if (ilev == max_levels) then
               if (cell%is_interior()) then
