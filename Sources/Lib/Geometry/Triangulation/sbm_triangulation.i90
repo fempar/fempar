@@ -389,8 +389,9 @@ subroutine triangulation_compute_subparts_itfc_vefs_non_conforming_mesh ( this, 
   integer(ip)                               :: num_subparts
   integer(ip)                               :: cur_subpart_lid
   integer(ip)                               :: subpart_lid, subpart_gid
-  integer(ip)                               :: istat
-  integer(ip)                               :: base_pos, k, j, ghost_part
+  integer(ip)                               :: istat, set_id 
+  integer(ip)                               :: base_pos, k, j
+  integer(ip)                               :: ghost_part 
   integer(ip)                               :: ivef, ielem, num_vefs, aux
   integer(ip)                               :: num_itfc_vefs
   integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
@@ -452,17 +453,18 @@ subroutine triangulation_compute_subparts_itfc_vefs_non_conforming_mesh ( this, 
            call itfc_vef%get_cell_around(ielem,cell)   
            ivef = cell%get_vef_lid_from_gid(itfc_vef%get_gid())   
            if ( cell%is_local() ) then
-#ifdef DEBUG           
-              do j=p_ptr_ghosts_per_local_cell(cell%get_gid()), &
-                   p_ptr_ghosts_per_local_cell(cell%get_gid()+1)-1
-                 k = p_lst_ghosts_per_local_cell(j)
-                 base_pos   = (k-1)*num_vefs
-                 ghost_part = p_rcv_my_part_id_vefs(base_pos+ivef)
-                 if ( ghost_part > 0 ) then
-                   call this%g2l_subparts%get(key=ghost_part, val=aux, stat=istat)
-                   assert ( istat == key_found )
-                 end if
-              end do
+#ifdef DEBUG  
+              ! It checks part ids on a list of subpart ids          
+              !do j=p_ptr_ghosts_per_local_cell(cell%get_gid()), &
+              !     p_ptr_ghosts_per_local_cell(cell%get_gid()+1)-1
+              !   k = p_lst_ghosts_per_local_cell(j)
+              !   base_pos   = (k-1)*num_vefs
+              !   ghost_part = p_rcv_my_part_id_vefs(base_pos+ivef)
+              !   if ( ghost_part > 0 ) then
+              !     call this%g2l_subparts%get(key=ghost_part, val=aux, stat=istat)
+              !	    assert( istat == key_found ) 
+              !   end if 
+              !end do
 #endif              
            else ! cell%is_ghost()
               do j=p_ptr_ghosts_per_ghost_cell(cell%get_gid()-this%get_num_local_cells()), &
