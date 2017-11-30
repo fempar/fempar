@@ -416,6 +416,13 @@ contains
     logical                    , intent(inout) :: condition
     integer :: recv_rank, send_rank, istat
 
+    ! If subcontext2 is void ...
+    if ( subcontxt1%am_i_member() .and. &
+         this%get_num_tasks() == subcontxt1%get_num_tasks() ) then
+     return
+    end if
+
+
     send_rank = mpi_context_root
     if(subcontxt1%am_i_member()) then
        recv_rank = subcontxt1%get_num_tasks()
