@@ -3127,6 +3127,8 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
   class(cell_import_t), pointer :: cell_import
   integer(ip) :: num_dofs
   
+  
+#ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
   environment => triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3302,7 +3304,9 @@ contains
       epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
     end if
   end subroutine get_new_lst_dofs_spos_epos
-  
+#else  
+  call this%not_enabled_error()
+#endif   
 end subroutine par_fe_space_refine_and_coarsen_single_fe_function
 
 subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old_lst_dofs_gids)
@@ -3316,6 +3320,7 @@ subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old
   integer(ip) :: field_id
   type(block_layout_t), pointer :: block_layout
   
+#ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
   environment   => triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3342,6 +3347,9 @@ subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old
      call this%nullify_block_layout()
      call this%generate_global_dof_numbering(block_layout)
   end if
+#else  
+  call this%not_enabled_error()
+#endif
 end subroutine par_fe_space_update_after_refine_coarsen
 
 subroutine par_fe_space_migrate_field_cell_to_ref_fes ( this ) 
@@ -3351,6 +3359,7 @@ subroutine par_fe_space_migrate_field_cell_to_ref_fes ( this )
   class(triangulation_t), pointer :: triangulation
   class(p4est_par_triangulation_t), pointer :: par_triangulation
   integer(ip) :: i, field_id, error
+#ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
   environment   => triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3369,16 +3378,29 @@ subroutine par_fe_space_migrate_field_cell_to_ref_fes ( this )
        end do 
      end do
   end if
+#else  
+  call this%not_enabled_error()
+#endif   
+  
+
 end subroutine par_fe_space_migrate_field_cell_to_ref_fes
 
 subroutine par_fe_space_migrate_fe_integration_arrays(this)
   implicit none
   class(par_fe_space_t)                     , intent(inout) :: this
+#ifdef ENABLE_P4EST  
+#else  
+  call this%not_enabled_error()
+#endif    
 end subroutine par_fe_space_migrate_fe_integration_arrays
 
 subroutine par_fe_space_migrate_facet_integration_arrays(this)
   implicit none
   class(par_fe_space_t)                     , intent(inout) :: this
+#ifdef ENABLE_P4EST  
+#else  
+  call this%not_enabled_error()
+#endif    
 end subroutine par_fe_space_migrate_facet_integration_arrays
 
 subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_lst_dofs_gids)
@@ -3391,7 +3413,8 @@ subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_l
   class(p4est_par_triangulation_t), pointer :: par_triangulation
   integer(ip) :: field_id
   type(block_layout_t), pointer :: block_layout
-  
+
+#ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
   environment   => triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3419,15 +3442,20 @@ subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_l
      call this%nullify_block_layout()
      call this%generate_global_dof_numbering(block_layout)
   end if
+#else  
+  call this%not_enabled_error()
+#endif
 end subroutine par_fe_space_update_after_redistribute
-
-
 
 subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions)
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   type(p_fe_function_t), intent(inout) :: fe_functions(:)
+#ifdef ENABLE_P4EST  
   mcheck(.false., "par_fe_space_refine_and_coarsen_fe_function_array not implemented yet!")
+#else  
+  call this%not_enabled_error()
+#endif
 end subroutine par_fe_space_refine_and_coarsen_fe_function_array
 
 subroutine par_fe_space_redistribute( this, fe_function ) 
@@ -3590,13 +3618,8 @@ subroutine par_fe_space_redistribute( this, fe_function )
       call old_lst_dofs_gids%free()  
       call this%free_fe_cell_iterator(fe)
     end if 
-    
   end if
-#else
-  call this%not_enabled_error()
-#endif  
-  
-contains 
+ contains 
 
   function get_field_fe_dofs()
     implicit none
@@ -3644,8 +3667,10 @@ contains
     else
       epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
     end if
-  end subroutine get_new_lst_dofs_spos_epos
- 
+  end subroutine get_new_lst_dofs_spos_epos 
+#else
+  call this%not_enabled_error()
+#endif
 end subroutine par_fe_space_redistribute
 
  subroutine par_fe_space_create_fe_object_iterator (this,fe_object)

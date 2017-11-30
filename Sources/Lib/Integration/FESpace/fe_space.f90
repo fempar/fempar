@@ -28,6 +28,7 @@
 module fe_space_names
   ! Serial modules
   use types_names
+  use stdio_names
   use list_types_names
   use memor_names
   use sort_names
@@ -140,6 +141,7 @@ module fe_space_names
     procedure, non_overridable           :: has_finished            => base_fe_cell_iterator_has_finished
     procedure, non_overridable           :: get_reference_fe_geo    => base_fe_cell_iterator_get_reference_fe_geo
     procedure, non_overridable           :: get_reference_fe_geo_id => base_fe_cell_iterator_get_reference_fe_geo_id
+    procedure, non_overridable           :: get_num_nodes           => base_fe_cell_iterator_get_num_nodes
     procedure, non_overridable           :: get_nodes_coordinates   => base_fe_cell_iterator_get_nodes_coordinates
     procedure, non_overridable           :: get_gid                 => base_fe_cell_iterator_get_gid
     procedure, non_overridable           :: get_ggid                => base_fe_cell_iterator_get_ggid
@@ -669,6 +671,10 @@ module fe_space_names
                                                                                              serial_fe_space_refine_and_coarsen_fe_function_array
 
      procedure, non_overridable          :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
+     
+#ifndef ENABLE_P4EST
+    procedure, non_overridable           :: not_enabled_error                             => serial_fe_space_not_enabled_error
+#endif     
 
  end type serial_fe_space_t  
  
