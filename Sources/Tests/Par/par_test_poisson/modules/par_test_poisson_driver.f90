@@ -648,12 +648,12 @@ end subroutine free_timers
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
-    call this%solution%free()
-#ifdef ENABLE_MKL    
-    call this%mlbddc%free()
-#endif    
+    call this%solution%free() 
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
+#ifdef ENABLE_MKL    
+    call this%mlbddc%free()
+#endif       
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)

@@ -1421,6 +1421,7 @@ subroutine base_mlbddc_free_clean(this)
   call this%nullify_operator()
   call this%free_vector_spaces()
   nullify(this%mlbddc_params)
+  nullify(this%environment)
 end subroutine base_mlbddc_free_clean
 
 recursive subroutine base_mlbddc_free_symbolic_setup(this)
@@ -1587,6 +1588,20 @@ function base_mlbddc_is_linear( this )
   base_mlbddc_is_linear = .true.
 end function base_mlbddc_is_linear
 
+function base_mlbddc_get_par_environment(this)
+  implicit none
+  class(base_mlbddc_t), target, intent(in) :: this
+  class(environment_t), pointer :: base_mlbddc_get_par_environment
+  base_mlbddc_get_par_environment => this%environment
+end function base_mlbddc_get_par_environment
+
+subroutine base_mlbddc_set_par_environment(this, environment)
+  implicit none
+  class(base_mlbddc_t)       , intent(inout) :: this
+  class(environment_t), target, intent(in)    :: environment
+  this%environment => environment
+end subroutine base_mlbddc_set_par_environment
+
 function base_mlbddc_is_operator_associated( this )
   implicit none
   class(base_mlbddc_t)          , intent(in) :: this
@@ -1614,9 +1629,4 @@ function base_mlbddc_get_fe_space(this)
   assert(.false.)
 end function base_mlbddc_get_fe_space
 
-function base_mlbddc_get_par_environment(this)
-  implicit none
-  class(base_mlbddc_t), intent(in) :: this
-  type(environment_t), pointer :: base_mlbddc_get_par_environment
-  assert(.false.)
-end function base_mlbddc_get_par_environment
+

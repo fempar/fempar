@@ -74,6 +74,8 @@ module mlbddc_names
 
  type, abstract, extends(operator_t) :: base_mlbddc_t
    private
+   
+   class(environment_t), pointer               :: environment => NULL()
 
    ! Constraint matrix (to be filled by a process to be customized by the user)
    type(coo_sparse_matrix_t)                   :: constraint_matrix
@@ -196,11 +198,12 @@ module mlbddc_names
    
    procedure, non_overridable, private :: am_i_l1_task                                     => base_mlbddc_am_i_l1_task
    procedure                           :: is_linear                                        => base_mlbddc_is_linear
+   procedure, private                  :: get_par_environment                              => base_mlbddc_get_par_environment
+   procedure, private                  :: set_par_environment                              => base_mlbddc_set_par_environment
    
    ! TBPs which are though to be overrided by sub_classes
    procedure, private                  :: get_par_sparse_matrix                            => base_mlbddc_get_par_sparse_matrix
    procedure, private                  :: get_fe_space                                     => base_mlbddc_get_fe_space
-   procedure, private                  :: get_par_environment                              => base_mlbddc_get_par_environment
    procedure, private                  :: is_operator_associated                           => base_mlbddc_is_operator_associated
    procedure, private                  :: nullify_operator                                 => base_mlbddc_nullify_operator
 end type base_mlbddc_t
@@ -226,7 +229,6 @@ end type base_mlbddc_t
         
     ! Miscellaneous 
     procedure, private                  :: get_par_sparse_matrix                            => mlbddc_get_par_sparse_matrix
-    procedure, private                  :: get_par_environment                              => mlbddc_get_par_environment
     procedure, private                  :: get_fe_space                                     => mlbddc_get_fe_space
     procedure, private                  :: get_par_fe_space                                 => mlbddc_get_par_fe_space
     procedure                 , private :: is_operator_associated                           => mlbddc_is_operator_associated
@@ -252,7 +254,6 @@ end type base_mlbddc_t
       
           
    procedure, private                  :: get_par_sparse_matrix                            => mlbddc_coarse_get_par_sparse_matrix
-   procedure, private                  :: get_par_environment                              => mlbddc_coarse_get_par_environment
    procedure, private                  :: get_fe_space                                     => mlbddc_coarse_get_fe_space
    procedure, private                  :: get_coarse_fe_space                              => mlbddc_coarse_get_coarse_fe_space
    procedure                 , private :: is_operator_associated                           => mlbddc_coarse_is_operator_associated

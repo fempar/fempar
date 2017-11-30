@@ -31,14 +31,16 @@ subroutine mlbddc_create ( this, fe_nonlinear_operator, mlbddc_params )
   class(fe_nonlinear_operator_t), target, intent(in)    :: fe_nonlinear_operator
   type(parameterlist_t)    , target , intent(in)    :: mlbddc_params
   type(par_fe_space_t), pointer :: fe_space
+  class(triangulation_t), pointer :: triangulation
 
   call this%free()
 
   this%fe_nonlinear_operator => fe_nonlinear_operator
-  this%mlbddc_params      => mlbddc_params
-  fe_space                => this%get_par_fe_space()
+  this%mlbddc_params         => mlbddc_params
+  fe_space                   => this%get_par_fe_space()
+  triangulation              => fe_space%get_triangulation()
+  call this%set_par_environment(triangulation%get_environment())
   call this%create_vector_spaces()
-
   assert ( fe_space%get_num_blocks() == 1 )
 end subroutine mlbddc_create
 
@@ -171,15 +173,6 @@ function mlbddc_get_par_fe_space(this)
      check(.false.)
   end select
 end function mlbddc_get_par_fe_space
-
-function mlbddc_get_par_environment(this)
-  implicit none
-  class(mlbddc_t)          , intent(in) :: this
-  type(environment_t)  , pointer    :: mlbddc_get_par_environment
-  type(par_fe_space_t)     , pointer    :: coarse_fe_space
-  coarse_fe_space => this%get_par_fe_space()
-  mlbddc_get_par_environment => coarse_fe_space%get_environment()
-end function mlbddc_get_par_environment
 
 function mlbddc_am_i_l1_task(this)
   implicit none

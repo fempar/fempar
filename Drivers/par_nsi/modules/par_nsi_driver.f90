@@ -515,14 +515,12 @@ end subroutine free_timers
     integer(ip) :: i, istat
 
     !call this%time_integration%free()
-    
-    !call this%mlbddc%free()
-    
     call this%solution%free()
     call this%linear_solver%free()
     call this%nonlinear_solver%free()
     call this%nonlinear_operator%free()
     call this%fe_affine_operator%free()
+    call this%mlbddc%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)
@@ -535,6 +533,7 @@ end subroutine free_timers
       deallocate(this%coarse_fe_handlers, stat=istat)
       mcheck(istat==0,'Error deallocating')
     end if
+    
     call this%triangulation%free()
     call this%par_nsi_integration%free()
   end subroutine free  
