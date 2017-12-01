@@ -60,6 +60,7 @@ use iso_c_binding
      procedure  :: apply              => block_preconditioner_l_apply
      procedure  :: apply_add          => block_preconditioner_l_apply_add
      procedure  :: is_linear          => block_preconditioner_l_is_linear
+     procedure  :: update_matrix      => block_preconditioner_l_update_matrix
   end type block_preconditioner_l_t
 
 
@@ -153,7 +154,21 @@ contains
     logical :: block_preconditioner_l_is_linear
     block_preconditioner_l_is_linear = .false.
   end function block_preconditioner_l_is_linear
-
+  
+  subroutine block_preconditioner_l_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(block_preconditioner_l_t), intent(inout)    :: this
+    logical                        , intent(in)       :: same_nonzero_pattern
+    integer(ip) :: iblk, jblk
+    do iblk=1, this%nblocks        
+       do jblk=1, iblk-1
+         if (associated(this%blocks(iblk,jblk)%p_op)) then
+            call this%blocks(iblk,jblk)%p_op%update_matrix(same_nonzero_pattern)
+         end if
+       end do       
+    end do
+  end subroutine block_preconditioner_l_update_matrix
+ 
   subroutine block_preconditioner_l_create (bop, nblocks)
     implicit none
     ! Parameters
@@ -182,16 +197,13 @@ contains
     class(block_preconditioner_l_t)               , intent(inout) :: bop
     integer(ip)                         , intent(in)    :: ib, jb
     class(operator_t)                  , intent(in)    :: op 
-
     assert ( ib >= jb )
-
     call op%GuardTemp()
     if ( .not. associated(bop%blocks(ib,jb)%p_op) ) then
        allocate(bop%blocks(ib,jb)%p_op)
     end if
     bop%blocks(ib,jb)%p_op = op
     call op%CleanTemp()
-
   end subroutine block_preconditioner_l_set_block
 
   subroutine block_preconditioner_l_set_block_to_zero (bop,ib,jb)

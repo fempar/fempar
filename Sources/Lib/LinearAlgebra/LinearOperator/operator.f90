@@ -93,8 +93,9 @@ module operator_names
      class(operator_t), pointer :: op1 => null(), op2 => null()
    contains
      procedure :: default_initialization => binary_operator_default_init
-     procedure :: free    => binary_operator_free
-     procedure :: assign  => binary_operator_assign
+     procedure :: free                   => binary_operator_free
+     procedure :: assign                 => binary_operator_assign
+     procedure :: update_matrix          => binary_operator_update_matrix
   end type binary_operator_t
 
   type, abstract, extends(expression_operator_t) :: unary_operator_t
@@ -102,8 +103,9 @@ module operator_names
      class(operator_t), pointer :: op => null()
    contains
      procedure :: default_initialization => unary_operator_default_init
-     procedure :: free    => unary_operator_free
-     procedure :: assign  => unary_operator_assign
+     procedure :: free                   => unary_operator_free
+     procedure :: assign                 => unary_operator_assign
+     procedure :: update_matrix          => unary_operator_update_matrix
   end type unary_operator_t
 
   type, extends(operator_t) :: lvalue_operator_t
@@ -326,7 +328,7 @@ contains
     implicit none
     class(operator_t),  intent(inout) :: this
     logical          ,  intent(in)    :: same_nonzero_pattern
-    mcheck(.false.,'update_matrix not available for this operator')
+    wassert(.false.,'Note: you are calling operator_t%update_matrix() on a type extension of operator_t which does not override update_matrix(). operator_t%update_matrix() does NOTHING by default.')
   end subroutine operator_update_matrix
   
   subroutine binary_operator_default_init(this)
@@ -403,7 +405,7 @@ contains
     call op2%CleanTemp()
   end subroutine binary_operator_create
   
-    recursive subroutine binary_operator_assign(this,rvalue)
+  recursive subroutine binary_operator_assign(this,rvalue)
     implicit none
     class(binary_operator_t), intent(inout) :: this
     class(operator_t)  , intent(in)    :: rvalue 
@@ -417,7 +419,15 @@ contains
        check(1==0)
     end select
   end subroutine binary_operator_assign
-
+  
+  subroutine binary_operator_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(binary_operator_t), intent(inout)    :: this
+    logical                 , intent(in)       :: same_nonzero_pattern
+    call this%op1%update_matrix(same_nonzero_pattern)
+    call this%op2%update_matrix(same_nonzero_pattern)
+  end subroutine binary_operator_update_matrix
+  
   subroutine unary_operator_default_init(this)
     implicit none
     class(unary_operator_t), intent(inout) :: this
@@ -483,6 +493,13 @@ contains
     call res%SetTemp()
     call op%CleanTemp()
   end subroutine unary_operator_create
+  
+  subroutine unary_operator_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(unary_operator_t), intent(inout)    :: this
+    logical                 , intent(in)       :: same_nonzero_pattern
+    call this%op%update_matrix(same_nonzero_pattern)
+  end subroutine unary_operator_update_matrix
 
   subroutine lvalue_operator_default_init(this)
     implicit none

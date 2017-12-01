@@ -62,6 +62,7 @@ use iso_c_binding
      procedure  :: apply              => block_preconditioner_u_apply
      procedure  :: apply_add          => block_preconditioner_u_apply_add
      procedure  :: is_linear          => block_preconditioner_u_is_linear
+     procedure  :: update_matrix      => block_preconditioner_u_update_matrix
    end type block_preconditioner_u_t
 
 
@@ -153,7 +154,20 @@ contains
     logical :: block_preconditioner_u_is_linear
     block_preconditioner_u_is_linear = .false.
   end function block_preconditioner_u_is_linear
-
+  
+  subroutine block_preconditioner_u_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(block_preconditioner_u_t), intent(inout)    :: this
+    logical                        , intent(in)       :: same_nonzero_pattern
+    integer(ip) :: iblk, jblk
+    do iblk=this%nblocks, 1, -1         
+       do jblk=this%nblocks, iblk+1,-1
+         if (associated(this%blocks(iblk,jblk)%p_op)) then
+            call this%blocks(iblk,jblk)%p_op%update_matrix(same_nonzero_pattern)
+         end if
+       end do       
+    end do
+  end subroutine block_preconditioner_u_update_matrix
 
   subroutine block_preconditioner_u_create (bop, nblocks)
     implicit none

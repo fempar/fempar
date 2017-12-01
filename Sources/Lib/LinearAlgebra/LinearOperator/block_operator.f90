@@ -70,6 +70,7 @@ use iso_c_binding
      procedure  :: apply              => block_operator_apply
      procedure  :: apply_add          => block_operator_apply_add
      procedure  :: is_linear          => block_operator_is_linear
+     procedure  :: update_matrix      => block_operator_update_matrix
   end type block_operator_t
 
 
@@ -150,19 +151,29 @@ contains
     logical :: block_operator_is_linear
     block_operator_is_linear = .false.
   end function block_operator_is_linear
-
+  
+  subroutine block_operator_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(block_operator_t), intent(inout)    :: this
+    logical                , intent(in)       :: same_nonzero_pattern
+    integer(ip) :: iblk, jblk
+    do iblk=1, this%mblocks
+      do jblk=1, this%nblocks
+         if (associated(this%blocks(iblk,jblk)%p_op)) then
+            call this%blocks(iblk,jblk)%p_op%update_matrix(same_nonzero_pattern)
+         end if
+      end do
+    end do
+  end subroutine block_operator_update_matrix
+  
   subroutine block_operator_create (bop, mblocks, nblocks)
     implicit none
     ! Parameters
-    class(block_operator_t)   , intent(inout) :: bop
+    class(block_operator_t) , intent(inout) :: bop
     integer(ip)             , intent(in)    :: mblocks, nblocks
-
-    
     ! Locals
     integer(ip) :: iblk, jblk
-
     call bop%free()
-
     bop%nblocks = nblocks
     bop%mblocks = mblocks
     allocate ( bop%blocks(mblocks,nblocks) )
@@ -170,8 +181,7 @@ contains
        do iblk=1, mblocks
           call bop%set_block_to_zero(iblk, jblk)
        end do
-    end do
-          
+    end do      
   end subroutine block_operator_create
 
   subroutine block_operator_set_block (bop, ib, jb, op)
