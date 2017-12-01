@@ -657,10 +657,11 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   logical                                :: reallocate 
   logical                                :: local_found
   integer(ip)                            :: ielem
+  class(triangulation_t), pointer        :: triangulation 
   
+  triangulation => this%get_triangulation()
+  if ( triangulation%get_num_cells() == 0 ) return
   
-  
-
   call this%create_fe_cell_iterator(fe)	
   call this%create_fe_cell_iterator(aux_fe)
   call memalloc( this%get_num_fields(), is_void_field, __FILE__, __LINE__ ) 
