@@ -33,8 +33,13 @@ module stokes_conditions_names
   private
   type, extends(conditions_t) :: stokes_conditions_t
      private
-     class(scalar_function_t), pointer :: boundary_function  
+     integer(ip)                       :: num_dims = -1
+     class(scalar_function_t), pointer :: boundary_function_p
+     type(vector_component_function_t) :: boundary_function_x
+     type(vector_component_function_t) :: boundary_function_y
+     type(vector_component_function_t) :: boundary_function_z
    contains
+     procedure :: set_num_dims                => stokes_conditions_set_num_dims
      procedure :: set_boundary_function       => stokes_conditions_set_boundary_function
      procedure :: get_num_components          => stokes_conditions_get_num_components  
      procedure :: get_components_code         => stokes_conditions_get_components_code
@@ -45,18 +50,30 @@ module stokes_conditions_names
   
 contains
 
-  subroutine stokes_conditions_set_boundary_function (this, boundary_function)
+  subroutine stokes_conditions_set_num_dims(this,num_dims)
     implicit none
-    class(stokes_conditions_t)        , intent(inout) :: this
-    class(scalar_function_t)   , target, intent(in)    :: boundary_function
-    this%boundary_function => boundary_function
+    class(stokes_conditions_t)      , intent(inout) :: this
+    integer(ip) :: num_dims
+    this%num_dims = num_dims
+  end subroutine stokes_conditions_set_num_dims
+
+  subroutine stokes_conditions_set_boundary_function (this, boundary_function_u, boundary_function_p)
+    implicit none
+    class(stokes_conditions_t)      , intent(inout) :: this
+    class(vector_function_t), target, intent(in) :: boundary_function_u
+    class(scalar_function_t), target, intent(in) :: boundary_function_p
+    this%boundary_function_p => boundary_function_p
+    call this%boundary_function_x%set(boundary_function_u,1)
+    call this%boundary_function_y%set(boundary_function_u,2)
+    call this%boundary_function_z%set(boundary_function_u,3)
   end subroutine stokes_conditions_set_boundary_function
 
   function stokes_conditions_get_num_components(this)
     implicit none
     class(stokes_conditions_t), intent(in) :: this
     integer(ip) :: stokes_conditions_get_num_components
-    stokes_conditions_get_num_components = 1
+    assert(this%num_dims == 2 .or. this%num_dims == 3)
+    stokes_conditions_get_num_components = this%num_dims + 1
   end function stokes_conditions_get_num_components
 
   subroutine stokes_conditions_get_components_code(this, boundary_id, components_code)
@@ -64,10 +81,14 @@ contains
     class(stokes_conditions_t), intent(in)  :: this
     integer(ip)            , intent(in)  :: boundary_id
     logical                , intent(out) :: components_code(:)
-    assert ( size(components_code) == 1 )
-    components_code(1) = .false.
-    if ( boundary_id == 1 ) then
-      components_code(1) = .true.
+    assert(this%num_dims == 2 .or. this%num_dims == 3)
+    assert ( size(components_code) >= this%num_dims + 1 )
+    components_code(:) = .false.
+    if (boundary_id >= 1) then
+      components_code(1:this%num_dims) = .true.
+    end if
+    if ( boundary_id == 2 ) then
+       components_code(this%num_dims+1) = .true.
     end if
   end subroutine stokes_conditions_get_components_code
   
@@ -77,12 +98,37 @@ contains
     integer(ip)                        , intent(in)  :: boundary_id
     integer(ip)                        , intent(in)  :: component_id
     class(scalar_function_t), pointer  , intent(out) :: function
-    assert ( component_id == 1 )
-    assert ( associated(this%boundary_function) )
+    assert(associated(this%boundary_function_p))
     nullify(function)
-    if ( boundary_id == 1 ) then
-      function => this%boundary_function
-    end if  
+    if ( boundary_id >= 1 ) then
+       if(this%num_dims==2) then
+          select case ( component_id )
+          case (1)
+             function => this%boundary_function_x
+          case (2)
+             function => this%boundary_function_y
+          case (3)
+             function => this%boundary_function_p
+          case default
+             check(.false.)
+          end select
+       else if(this%num_dims==3) then
+          select case ( component_id )
+          case (1)
+             function => this%boundary_function_x
+          case (2)
+             function => this%boundary_function_y
+          case (3)
+             function => this%boundary_function_z
+          case (4)
+             function => this%boundary_function_p
+          case default
+             check(.false.)
+          end select
+       else
+          check(.false.)
+       end if
+    end if
   end subroutine stokes_conditions_get_function 
 
 end module stokes_conditions_names

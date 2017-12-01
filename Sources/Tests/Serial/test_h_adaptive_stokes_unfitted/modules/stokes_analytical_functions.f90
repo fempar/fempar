@@ -32,237 +32,161 @@ module stokes_analytical_functions_names
 # include "debug.i90"
   private
 
-  real(rp), parameter :: offset_x = -2.3
-  real(rp), parameter :: offset_y = 0.0
-  real(rp), parameter :: offset_z = 0.0
-  real(rp), parameter :: val_k    = 4.0*PI
+  !===================================================
 
   type, extends(scalar_function_t) :: base_scalar_function_t
-    integer(ip) :: num_dims = -1  
+    integer(ip) :: num_dims    = -1  
     logical     :: in_fe_space = .true.
-    integer(ip) :: degree = 1
+    integer(ip) :: degree      = 1
   contains
-    procedure :: set_num_dims    => base_scalar_function_set_num_dims 
+    procedure :: set_num_dims          => base_scalar_function_set_num_dims 
     procedure :: set_is_in_fe_space    => base_scalar_function_set_is_in_fe_space
     procedure :: set_degree            => base_scalar_function_set_degree
-    procedure :: is_in_fe_space        => base_scalar_function_is_in_fe_space
   end type base_scalar_function_t
+
+  type, extends(vector_function_t) :: base_vector_function_t
+    integer(ip) :: num_dims    = -1  
+    logical     :: in_fe_space = .true.
+    integer(ip) :: degree      = 1
+  contains
+    procedure :: set_num_dims          => base_vector_function_set_num_dims 
+    procedure :: set_is_in_fe_space    => base_vector_function_set_is_in_fe_space
+    procedure :: set_degree            => base_vector_function_set_degree
+  end type base_vector_function_t
+
+  !===================================================
+
+  type, extends(base_vector_function_t) :: source_term_u_t
+    private 
+   contains
+     procedure :: get_value_space    => source_term_u_get_value_space
+  end type source_term_u_t
+
+  type, extends(base_vector_function_t) :: solution_function_u_t
+    private 
+   contains
+     procedure :: get_value_space    => solution_function_u_get_value_space
+     procedure :: get_gradient_space => solution_function_u_get_gradient_space
+  end type solution_function_u_t
   
-  type, extends(base_scalar_function_t) :: source_term_t
+  type, extends(base_scalar_function_t) :: source_term_p_t
     private 
    contains
-     procedure :: get_value_space    => source_term_get_value_space
-  end type source_term_t
+     procedure :: get_value_space    => source_term_p_get_value_space
+  end type source_term_p_t
 
-  type, extends(base_scalar_function_t) :: boundary_function_t
-    private
-   contains
-     procedure :: get_value_space => boundary_function_get_value_space
-  end type boundary_function_t
-
-  type, extends(base_scalar_function_t) :: solution_function_t
+  type, extends(base_scalar_function_t) :: solution_function_p_t
     private 
    contains
-     procedure :: get_value_space    => solution_function_get_value_space
-     procedure :: get_gradient_space => solution_function_get_gradient_space
-  end type solution_function_t
+     procedure :: get_value_space    => solution_function_p_get_value_space
+     procedure :: get_gradient_space => solution_function_p_get_gradient_space
+  end type solution_function_p_t
+
+  !===================================================
 
   type stokes_analytical_functions_t
      private
-     type(source_term_t)       :: source_term
-     type(boundary_function_t) :: boundary_function
-     type(solution_function_t) :: solution_function
+     type(source_term_u_t)         :: source_term_u
+     type(source_term_p_t)         :: source_term_p
+     type(solution_function_u_t)   :: solution_function_u
+     type(solution_function_p_t)   :: solution_function_p
    contains
-     procedure :: set_num_dims      => stokes_analytical_functions_set_num_dims
+     procedure :: set_num_dims            => stokes_analytical_functions_set_num_dims
      procedure :: set_is_in_fe_space      => stokes_analytical_functions_set_is_in_fe_space
      procedure :: set_degree              => stokes_analytical_functions_set_degree
-     procedure :: get_source_term         => stokes_analytical_functions_get_source_term
-     procedure :: get_boundary_function   => stokes_analytical_functions_get_boundary_function
-     procedure :: get_solution_function   => stokes_analytical_functions_get_solution_function
      procedure :: get_degree              => stokes_analytical_functions_get_degree
+     procedure :: get_source_term_u       => stokes_analytical_functions_get_source_term_u
+     procedure :: get_source_term_p       => stokes_analytical_functions_get_source_term_p
+     procedure :: get_solution_function_u => stokes_analytical_functions_get_solution_function_u
+     procedure :: get_solution_function_p => stokes_analytical_functions_get_solution_function_p
   end type stokes_analytical_functions_t
 
   public :: stokes_analytical_functions_t, base_scalar_function_t
 
 contains  
 
-  !==============================================================================================
-  !==============================================================================================
-  subroutine sol_ex001_2d_u(point,val,degree)
+  !===================================================
+
+  subroutine sol_ex001_2d_u(point,val,q)
     implicit none
     type(point_t), intent(in)    :: point
-    real(rp),      intent(inout) :: val
-    integer(ip),   intent(in)    :: degree
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
     real(rp) :: x1, x2
     x1 = point%get(1)
     x2 = point%get(2)
-    val = x1**degree + x2**degree
+    call val%init(0.0)
+    call val%set(1, x1**q + x1**q*x2**q )
+    call val%set(2, x2**q + x1**q*x2**q )
   end subroutine sol_ex001_2d_u
 
-  !==============================================================================================
-  subroutine sol_ex001_2d_grad_u(point,val,degree)
+  subroutine sol_ex001_2d_grad_u(point,val,q)
     implicit none
     type(point_t),        intent(in)    :: point
-    type(vector_field_t), intent(inout) :: val
-    integer(ip),          intent(in)    :: degree
-    real(rp) :: x1, x2, g1, g2
+    type(tensor_field_t), intent(inout) :: val
+    integer(ip),          intent(in)    :: q
+    real(rp) :: x1, x2
     x1 = point%get(1)
     x2 = point%get(2)
-    g1 = degree*x1**(degree-1)
-    g2 = degree*x2**(degree-1)
-    call val%set(1,g1)
-    call val%set(2,g2)
-    call val%set(3,0.0)
+    call val%init(0.0)
+    call val%set(1,1, q*x1**(q - 1) + q*x1**(q - 1)*x2**q  )
+    call val%set(1,2, q*x1**(q - 1)*x2**q                 )
+    call val%set(2,1, q*x1**q*x2**(q - 1)                 )
+    call val%set(2,2, q*x2**(q - 1) + q*x1**q*x2**(q - 1)  )
   end subroutine sol_ex001_2d_grad_u
 
-  !==============================================================================================
-  subroutine sol_ex001_2d_lapl_u(point,val,degree)
+  subroutine sol_ex001_2d_lapl_u(point,val,q)
     implicit none
     type(point_t), intent(in)    :: point
-    real(rp),      intent(inout) :: val
-    integer(ip),   intent(in)    :: degree
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
     real(rp) :: x1, x2
     x1 = point%get(1)
     x2 = point%get(2)
-    val = degree*(degree-1)*( x1**(degree-2) + x2**(degree-2) )
+    call val%init(0.0)
+    call val%set(1, q*x1**(q - 2)*(q - 1) + q**2*x1**(q - 1)*x2**(q - 1) + q*x1**(q - 2)*x2**q*(q - 1) )
+    call val%set(2, q*x2**(q - 2)*(q - 1) + q**2*x1**(q - 1)*x2**(q - 1) + q*x1**q*x2**(q - 2)*(q - 1) )
   end subroutine sol_ex001_2d_lapl_u
 
-  !==============================================================================================
-  !==============================================================================================
-  subroutine sol_ex001_3d_u(point,val,degree)
+  subroutine sol_ex001_2d_div_u(point,val,q)
     implicit none
     type(point_t), intent(in)    :: point
     real(rp),      intent(inout) :: val
-    integer(ip),   intent(in)    :: degree
-    real(rp) :: x1, x2, x3
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
     x1 = point%get(1)
     x2 = point%get(2)
-    x3 = point%get(3)
-    val = x1**degree + x2**degree + x3**degree
-  end subroutine sol_ex001_3d_u
+    val = q*x1**(q - 1) + q*x2**(q - 1) + q*x1**q*x2**(q - 1) + q*x1**(q - 1)*x2**q
+  end subroutine sol_ex001_2d_div_u
 
-  !==============================================================================================
-  subroutine sol_ex001_3d_grad_u(point,val,degree)
-    implicit none
-    type(point_t),        intent(in)    :: point
-    type(vector_field_t), intent(inout) :: val
-    integer(ip),          intent(in)    :: degree
-    real(rp) :: x1, x2, x3, g1, g2, g3
-    x1 = point%get(1)
-    x2 = point%get(2)
-    x3 = point%get(3)
-    g1 = degree*x1**(degree-1)
-    g2 = degree*x2**(degree-1)
-    g3 = degree*x3**(degree-1)
-    call val%set(1,g1)
-    call val%set(2,g2)
-    call val%set(3,g3)
-  end subroutine sol_ex001_3d_grad_u
+  !===================================================
 
-  !==============================================================================================
-  subroutine sol_ex001_3d_lapl_u(point,val,degree)
+  subroutine sol_ex001_2d_p(point,val,q)
     implicit none
     type(point_t), intent(in)    :: point
     real(rp),      intent(inout) :: val
-    integer(ip),   intent(in)    :: degree
-    real(rp) :: x1, x2, x3
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
     x1 = point%get(1)
     x2 = point%get(2)
-    x3 = point%get(3)
-    val = degree*(degree-1)*( x1**(degree-2) + x2**(degree-2) + x3**(degree-2))
-  end subroutine sol_ex001_3d_lapl_u
+    val = x1**(q - 1)*x2**(q - 1)
+  end subroutine sol_ex001_2d_p
 
-  !==============================================================================================
-  !==============================================================================================
-  subroutine sol_ex002_2d_u(point,val)
+  subroutine sol_ex001_2d_grad_p(point,val,q)
     implicit none
-    type(point_t), intent(in) :: point
-    real(rp), intent(inout) :: val
-    real(rp) :: x1, x2
-    x1 = point%get(1) - offset_x
-    x2 = point%get(2) - offset_y
-    val = sin(val_k*(x1**2 + x2**2)**(1/2.0))
-  end subroutine sol_ex002_2d_u
-
-  !==============================================================================================
-  subroutine sol_ex002_2d_grad_u(point,val)
-    implicit none
-    type(point_t), intent(in) :: point
+    type(point_t), intent(in)    :: point
     type(vector_field_t), intent(inout) :: val
-    real(rp) :: x1, x2, g1, g2
-    x1 = point%get(1) - offset_x
-    x2 = point%get(2) - offset_y
-    g1 = (val_k*x1*cos(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(1/2.0)
-    g2 = (val_k*x2*cos(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(1/2.0)
-    call val%set(1,g1)
-    call val%set(2,g2)
-    call val%set(3,0.0)
-  end subroutine sol_ex002_2d_grad_u
-
-  !==============================================================================================
-  subroutine sol_ex002_2d_lapl_u(point,val)
-    implicit none
-    type(point_t), intent(in) :: point
-    real(rp), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
     real(rp) :: x1, x2
-    x1 = point%get(1) - offset_x
-    x2 = point%get(2) - offset_y
-    val = (2*val_k*cos(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(1/2.0) -&
-          (val_k**2*x1**2*sin(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2) -&
-          (val_k**2*x2**2*sin(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2) -&
-          (val_k*x1**2*cos(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(3/2.0) -&
-          (val_k*x2**2*cos(val_k*(x1**2 + x2**2)**(1/2.0)))/(x1**2 + x2**2)**(3/2.0)
-  end subroutine sol_ex002_2d_lapl_u
+    x1 = point%get(1)
+    x2 = point%get(2)
+    call val%init(0.0)
+    call val%set(1, x1**(q - 2)*x2**(q - 1)*(q - 1) )
+    call val%set(2, x1**(q - 1)*x2**(q - 2)*(q - 1) )
+  end subroutine sol_ex001_2d_grad_p
 
-  !==============================================================================================
-  !==============================================================================================
-  subroutine sol_ex002_3d_u(point,val)
-    implicit none
-    type(point_t), intent(in) :: point
-    real(rp), intent(inout) :: val
-    real(rp) :: x1, x2, x3
-    x1 = point%get(1) - offset_x
-    x2 = point%get(2) - offset_y
-    x3 = point%get(3) - offset_z
-    val = sin(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0))
-  end subroutine sol_ex002_3d_u
+  !===================================================
 
-  !==============================================================================================
-  subroutine sol_ex002_3d_grad_u(point,val)
-    implicit none
-    type(point_t), intent(in) :: point
-    type(vector_field_t), intent(inout) :: val
-    real(rp) :: x1, x2, x3, g1, g2, g3
-    x1 = point%get(1) - offset_x
-    x2 = point%get(2) - offset_y
-    x3 = point%get(3) - offset_z
-    g1 = (val_k*x1*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(1/2.0)
-    g2 = (val_k*x2*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(1/2.0)
-    g3 = (val_k*x3*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(1/2.0)
-    call val%set(1,g1)
-    call val%set(2,g2)
-    call val%set(3,g3)
-  end subroutine sol_ex002_3d_grad_u
-
-  !==============================================================================================
-  subroutine sol_ex002_3d_lapl_u(point,val)
-    implicit none
-    type(point_t), intent(in) :: point
-    real(rp), intent(inout) :: val
-    real(rp) :: x1, x2, x3
-    x1 = point%get(1) - offset_x
-    x2 = point%get(2) - offset_y
-    x3 = point%get(3) - offset_z
-    val = (3*val_k*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(1/2.0) -&
-          (val_k*x1**2*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(3/2.0) -&
-          (val_k*x2**2*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(3/2.0) -&
-          (val_k*x3**2*cos(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)**(3/2.0) -&
-          (val_k**2*x1**2*sin(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2) -&
-          (val_k**2*x2**2*sin(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2) -&
-          (val_k**2*x3**2*sin(val_k*(x1**2 + x2**2 + x3**2)**(1/2.0)))/(x1**2 + x2**2 + x3**2)
-  end subroutine sol_ex002_3d_lapl_u
-
-  !===============================================================================================
   subroutine base_scalar_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -270,7 +194,6 @@ contains
     this%num_dims = num_dims
   end subroutine base_scalar_function_set_num_dims
 
-  !===============================================================================================
   subroutine base_scalar_function_set_is_in_fe_space(this,val)
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -278,7 +201,6 @@ contains
     this%in_fe_space = val
   end subroutine base_scalar_function_set_is_in_fe_space
 
-  !===============================================================================================
   subroutine base_scalar_function_set_degree(this,degree)
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -286,167 +208,232 @@ contains
     this%degree = degree
   end subroutine base_scalar_function_set_degree
 
-  !===============================================================================================
-  function base_scalar_function_is_in_fe_space(this)
+  subroutine base_vector_function_set_num_dims ( this, num_dims )
     implicit none
-    class(base_scalar_function_t), intent(in)    :: this
-    logical :: base_scalar_function_is_in_fe_space 
-    base_scalar_function_is_in_fe_space = this%in_fe_space
-  end function base_scalar_function_is_in_fe_space
+    class(base_vector_function_t), intent(inout)    :: this
+    integer(ip), intent(in) ::  num_dims
+    this%num_dims = num_dims
+  end subroutine base_vector_function_set_num_dims
 
-  !===============================================================================================
-  subroutine source_term_get_value_space ( this, point, result )
+  subroutine base_vector_function_set_is_in_fe_space(this,val)
     implicit none
-    class(source_term_t), intent(in)    :: this
-    type(point_t)       , intent(in)    :: point
-    real(rp)            , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    class(base_vector_function_t), intent(inout)    :: this
+    logical,                       intent(in)       :: val
+    this%in_fe_space = val
+  end subroutine base_vector_function_set_is_in_fe_space
+
+  subroutine base_vector_function_set_degree(this,degree)
+    implicit none
+    class(base_vector_function_t), intent(inout)    :: this
+    integer(ip),                   intent(in)       :: degree
+    this%degree = degree
+  end subroutine base_vector_function_set_degree
+
+  !===================================================
+
+  subroutine source_term_u_get_value_space ( this, point, result )
+    implicit none
+    class(source_term_u_t), intent(in)    :: this
+    type(point_t)         , intent(in)    :: point
+    type(vector_field_t)  , intent(inout) :: result
+    type(vector_field_t) :: val
     if ( this%num_dims == 2 ) then
-      if (this%is_in_fe_space()) then
-        call sol_ex001_2d_lapl_u(point,result,this%degree)
-        result = -1.0*result
+      if (this%in_fe_space) then
+        call sol_ex001_2d_lapl_u(point,val,this%degree)
+        result = (-1.0)*val
+        call sol_ex001_2d_grad_p(point,val,this%degree)
+        result = result + val
       else
-        call sol_ex002_2d_lapl_u(point,result)
-        result = -1.0*result
+        check(.false.)
       end if
     else if ( this%num_dims == 3 ) then
-      if (this%is_in_fe_space()) then
-        call sol_ex001_3d_lapl_u(point,result,this%degree)
-        result = -1.0*result
+      if (this%in_fe_space) then
+        check(.false.)
       else
-        call sol_ex002_3d_lapl_u(point,result)
-        result = -1.0*result
+        check(.false.)
       end if
+    else
+        check(.false.)
     end if  
-  end subroutine source_term_get_value_space
+  end subroutine source_term_u_get_value_space
 
-  !===============================================================================================
-  subroutine boundary_function_get_value_space ( this, point, result )
+  subroutine solution_function_u_get_value_space ( this, point, result )
     implicit none
-    class(boundary_function_t), intent(in)  :: this
-    type(point_t)           , intent(in)    :: point
-    real(rp)                , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    class(solution_function_u_t), intent(in)    :: this
+    type(point_t)         , intent(in)    :: point
+    type(vector_field_t)  , intent(inout) :: result
     if ( this%num_dims == 2 ) then
-      if (this%is_in_fe_space()) then
+      if (this%in_fe_space) then
         call sol_ex001_2d_u(point,result,this%degree)
       else
-        call sol_ex002_2d_u(point,result)
+        check(.false.)
       end if
     else if ( this%num_dims == 3 ) then
-      if (this%is_in_fe_space()) then
-        call sol_ex001_3d_u(point,result,this%degree)
+      if (this%in_fe_space) then
+        check(.false.)
       else
-        call sol_ex002_3d_u(point,result)
+        check(.false.)
       end if
+    else
+        check(.false.)
     end if  
-  end subroutine boundary_function_get_value_space 
-
-  !===============================================================================================
-  subroutine solution_function_get_value_space ( this, point, result )
-    implicit none
-    class(solution_function_t), intent(in)    :: this
-    type(point_t)             , intent(in)    :: point
-    real(rp)                  , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
-      if (this%is_in_fe_space()) then
-        call sol_ex001_2d_u(point,result,this%degree)
-      else
-        call sol_ex002_2d_u(point,result)
-      end if
-    else if ( this%num_dims == 3 ) then
-      if (this%is_in_fe_space()) then
-        call sol_ex001_3d_u(point,result,this%degree)
-      else
-        call sol_ex002_3d_u(point,result)
-      end if
-    end if  
-  end subroutine solution_function_get_value_space
+  end subroutine solution_function_u_get_value_space
   
-  !===============================================================================================
-  subroutine solution_function_get_gradient_space ( this, point, result )
+  subroutine solution_function_u_get_gradient_space ( this, point, result )
     implicit none
-    class(solution_function_t), intent(in)    :: this
+    class(solution_function_u_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
-    type(vector_field_t)      , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    type(tensor_field_t)      , intent(inout) :: result
     if ( this%num_dims == 2 ) then
-      if (this%is_in_fe_space()) then
+      if (this%in_fe_space) then
         call sol_ex001_2d_grad_u(point,result,this%degree)
       else
-        call sol_ex002_2d_grad_u(point,result)
+        check(.false.)
       end if
     else if ( this%num_dims == 3 ) then
-      if (this%is_in_fe_space()) then
-        call sol_ex001_3d_grad_u(point,result,this%degree)
+      if (this%in_fe_space) then
+        check(.false.)
       else
-        call sol_ex002_3d_grad_u(point,result)
+        check(.false.)
       end if
+    else
+        check(.false.)
     end if  
-  end subroutine solution_function_get_gradient_space
+  end subroutine solution_function_u_get_gradient_space
+
+  subroutine source_term_p_get_value_space ( this, point, result )
+    implicit none
+    class(source_term_p_t), intent(in)    :: this
+    type(point_t)         , intent(in)    :: point
+    real(rp)              , intent(inout) :: result
+    if ( this%num_dims == 2 ) then
+      if (this%in_fe_space) then
+        call sol_ex001_2d_div_u(point,result,this%degree)
+      else
+        check(.false.)
+      end if
+    else if ( this%num_dims == 3 ) then
+      if (this%in_fe_space) then
+        check(.false.)
+      else
+        check(.false.)
+      end if
+    else
+        check(.false.)
+    end if  
+  end subroutine source_term_p_get_value_space
+
+  subroutine solution_function_p_get_value_space ( this, point, result )
+    implicit none
+    class(solution_function_p_t), intent(in)    :: this
+    type(point_t)         , intent(in)    :: point
+    real(rp)              , intent(inout) :: result
+    if ( this%num_dims == 2 ) then
+      if (this%in_fe_space) then
+        call sol_ex001_2d_p(point,result,this%degree)
+      else
+        check(.false.)
+      end if
+    else if ( this%num_dims == 3 ) then
+      if (this%in_fe_space) then
+        check(.false.)
+      else
+        check(.false.)
+      end if
+    else
+        check(.false.)
+    end if  
+  end subroutine solution_function_p_get_value_space
   
-  !===============================================================================================
+  subroutine solution_function_p_get_gradient_space ( this, point, result )
+    implicit none
+    class(solution_function_p_t), intent(in)    :: this
+    type(point_t)             , intent(in)    :: point
+    type(vector_field_t)      , intent(inout) :: result
+    if ( this%num_dims == 2 ) then
+      if (this%in_fe_space) then
+        call sol_ex001_2d_grad_p(point,result,this%degree)
+      else
+        check(.false.)
+      end if
+    else if ( this%num_dims == 3 ) then
+      if (this%in_fe_space) then
+        check(.false.)
+      else
+        check(.false.)
+      end if
+    else
+        check(.false.)
+    end if  
+  end subroutine solution_function_p_get_gradient_space
+
+  !===================================================
+  
   subroutine stokes_analytical_functions_set_num_dims ( this, num_dims )
     implicit none
     class(stokes_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dims
-    call this%source_term%set_num_dims(num_dims)
-    call this%boundary_function%set_num_dims(num_dims)
-    call this%solution_function%set_num_dims(num_dims)
+    call this%source_term_u%set_num_dims(num_dims)
+    call this%source_term_p%set_num_dims(num_dims)
+    call this%solution_function_u%set_num_dims(num_dims)
+    call this%solution_function_p%set_num_dims(num_dims)
   end subroutine stokes_analytical_functions_set_num_dims 
 
-  !===============================================================================================
   subroutine stokes_analytical_functions_set_is_in_fe_space(this,val)
     implicit none
     class(stokes_analytical_functions_t), intent(inout)    :: this
     logical, intent(in) :: val
-    call this%source_term      %set_is_in_fe_space(val)
-    call this%boundary_function%set_is_in_fe_space(val)
-    call this%solution_function%set_is_in_fe_space(val)
+    call this%source_term_u%set_is_in_fe_space(val)
+    call this%source_term_p%set_is_in_fe_space(val)
+    call this%solution_function_u%set_is_in_fe_space(val)
+    call this%solution_function_p%set_is_in_fe_space(val)
   end subroutine stokes_analytical_functions_set_is_in_fe_space
 
-  !===============================================================================================
   subroutine stokes_analytical_functions_set_degree(this,degree)
     implicit none
     class(stokes_analytical_functions_t), intent(inout) :: this
     integer(ip),                                    intent(in)    :: degree
-    call this%source_term      %set_degree(degree)
-    call this%boundary_function%set_degree(degree)
-    call this%solution_function%set_degree(degree)
+    call this%source_term_u%set_degree(degree)
+    call this%source_term_p%set_degree(degree)
+    call this%solution_function_u%set_degree(degree)
+    call this%solution_function_p%set_degree(degree)
   end subroutine stokes_analytical_functions_set_degree
-  
-  !===============================================================================================
-  function stokes_analytical_functions_get_source_term ( this )
-    implicit none
-    class(stokes_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: stokes_analytical_functions_get_source_term
-    stokes_analytical_functions_get_source_term => this%source_term
-  end function stokes_analytical_functions_get_source_term
-  
-  !===============================================================================================
-  function stokes_analytical_functions_get_boundary_function ( this )
-    implicit none
-    class(stokes_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: stokes_analytical_functions_get_boundary_function
-    stokes_analytical_functions_get_boundary_function => this%boundary_function
-  end function stokes_analytical_functions_get_boundary_function
-  
-  !===============================================================================================
-  function stokes_analytical_functions_get_solution_function ( this )
-    implicit none
-    class(stokes_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: stokes_analytical_functions_get_solution_function
-    stokes_analytical_functions_get_solution_function => this%solution_function
-  end function stokes_analytical_functions_get_solution_function
-  
-  !===============================================================================================
+
   function stokes_analytical_functions_get_degree(this)
     implicit none
     class(stokes_analytical_functions_t), intent(in)    :: this
     integer(ip) :: stokes_analytical_functions_get_degree
-    stokes_analytical_functions_get_degree = this%source_term%degree
+    stokes_analytical_functions_get_degree = this%source_term_u%degree
   end function stokes_analytical_functions_get_degree
+
+  function stokes_analytical_functions_get_source_term_u ( this )
+    implicit none
+    class(stokes_analytical_functions_t), target, intent(in)    :: this
+    class(vector_function_t), pointer :: stokes_analytical_functions_get_source_term_u
+    stokes_analytical_functions_get_source_term_u => this%source_term_u
+  end function stokes_analytical_functions_get_source_term_u
+  
+  function stokes_analytical_functions_get_source_term_p ( this )
+    implicit none
+    class(stokes_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: stokes_analytical_functions_get_source_term_p
+    stokes_analytical_functions_get_source_term_p => this%source_term_p
+  end function stokes_analytical_functions_get_source_term_p
+
+  function stokes_analytical_functions_get_solution_function_u ( this )
+    implicit none
+    class(stokes_analytical_functions_t), target, intent(in)    :: this
+    class(vector_function_t), pointer :: stokes_analytical_functions_get_solution_function_u
+    stokes_analytical_functions_get_solution_function_u => this%solution_function_u
+  end function stokes_analytical_functions_get_solution_function_u
+  
+  function stokes_analytical_functions_get_solution_function_p ( this )
+    implicit none
+    class(stokes_analytical_functions_t), target, intent(in)    :: this
+    class(scalar_function_t), pointer :: stokes_analytical_functions_get_solution_function_p
+    stokes_analytical_functions_get_solution_function_p => this%solution_function_p
+  end function stokes_analytical_functions_get_solution_function_p
+  
 
 end module stokes_analytical_functions_names
 !***************************************************************************************************

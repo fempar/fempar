@@ -50,7 +50,15 @@ module stokes_driver_names
 
   integer(ip), parameter :: SET_ID_FULL = 1
   integer(ip), parameter :: SET_ID_VOID = 2
-  
+
+  integer(ip), parameter :: POS_FULL_U  = 1
+  integer(ip), parameter :: POS_VOID_U  = 2
+  integer(ip), parameter :: POS_FULL_P  = 3
+  integer(ip), parameter :: POS_VOID_P  = 4
+
+  integer(ip), parameter :: order_u  = 2
+  integer(ip), parameter :: order_p  = order_u - 1
+
   type stokes_driver_t 
      private 
      
@@ -76,19 +84,15 @@ module stokes_driver_names
      procedure        , private :: parse_command_line_parameters
      procedure        , private :: setup_levelset
      procedure        , private :: setup_triangulation
-     procedure        , private :: set_cells_for_refinement
-     procedure        , private :: set_cells_for_coarsening
      procedure        , private :: fill_cells_set
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
-     !procedure        , private :: refine_and_coarsen
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
      procedure        , private :: solve_system     
      procedure        , private :: check_solution
      procedure        , private :: write_solution
-     procedure        , private :: write_filling_curve
      procedure        , private :: free
   end type stokes_driver_t
 
@@ -154,12 +158,16 @@ contains
     class(cell_iterator_t), allocatable :: cell
     integer(ip) :: ilev
     integer(ip) :: max_levels
-    integer(ip) :: diri_set_id
+    integer(ip) :: diri_set_id_u
+    integer(ip) :: diri_set_id_u_and_p
+    logical :: first_vertex
 
     if (this%test_params%is_strong_dirichlet_on_fitted_boundary()) then
-      diri_set_id = 1
+      diri_set_id_u = 1
+      diri_set_id_u_and_p = 2
     else
-      diri_set_id = 0
+      diri_set_id_u = 0
+      diri_set_id_u_and_p = 0
     end if
 
     ! Create the triangulation, with the levelset function
@@ -167,16 +175,20 @@ contains
 
     ! Impose Dirichlet in the boundary of the background mesh
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+
+       ! For velocities (on the entire boundary)
+       ! Also for pressures for the moment
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
-             call vef%set_set_id(diri_set_id)
+             call vef%set_set_id(diri_set_id_u_and_p)
           else
              call vef%set_set_id(0)
           end if
           call vef%next()
        end do
        call this%triangulation%free_vef_iterator(vef)
+
     end if
 
     ! Create initial refined mesh
@@ -243,22 +255,6 @@ contains
         call this%triangulation%update_cut_cells(this%level_set_function)
         call this%triangulation%free_cell_iterator(cell)
 
-      case ('debug-2')
-
-        call this%triangulation%create_cell_iterator(cell)
-        call cell%set_for_refinement()
-        call this%triangulation%refine_and_coarsen()
-        call this%triangulation%clear_refinement_and_coarsening_flags()
-        call this%triangulation%update_cut_cells(this%level_set_function)
-        !call cell%set_gid(1)
-        !call cell%set_for_refinement()
-        call cell%set_gid(3)
-        call cell%set_for_refinement()
-        call this%triangulation%refine_and_coarsen()
-        call this%triangulation%clear_refinement_and_coarsening_flags()
-        call this%triangulation%update_cut_cells(this%level_set_function)
-        call this%triangulation%free_cell_iterator(cell)
-
       case default
             mcheck(.false.,'Refinement pattern `'//trim(this%test_params%get_refinement_pattern())//'` not known')
     end select
@@ -268,78 +264,10 @@ contains
 
   end subroutine setup_triangulation
   
-  subroutine set_cells_for_refinement(this)
-    implicit none
-    class(stokes_driver_t), intent(inout) :: this
-    class(cell_iterator_t)      , allocatable :: cell
-    type(point_t), allocatable :: coords(:)
-    integer(ip) :: istat, k
-    real(rp) ::  x,y
-    real(rp), parameter :: Re = 0.46875
-    real(rp), parameter :: Ri = 0.15625
-    real(rp) :: R
-    integer(ip), parameter :: max_num_cell_nodes = 4
-    integer(ip), parameter :: max_level = 2
-    real(rp) :: val
-
-    call this%triangulation%create_cell_iterator(cell)
-    allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
-
-    do while ( .not. cell%has_finished() )
-
-      !if ( mod(cell%get_gid()-1,2) == 0 ) then
-      !  call cell%set_for_refinement()
-      !end if
-
-      call cell%get_nodes_coordinates(coords)
-      do k=1,cell%get_num_nodes()
-        call this%level_set_function%get_value_space(coords(k),val)
-        if ( (val<0) .and. (cell%get_level()< max_level) .or. (cell%get_level() == 0)) then
-          call cell%set_for_refinement()
-          exit
-        end if
-      end do
-
-      !x = 0.0
-      !y = 0.0
-      !do k=1,max_num_cell_nodes
-      ! x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
-      ! y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
-      !end do
-      !R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
-      !if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
-      !  call cell%set_for_refinement()
-      !end if
-      
-      !if ( (cell%get_level()<= max_level) .or. (cell%get_level() == 0) ) then
-      !  call cell%set_for_refinement()
-      !end if
-
-      !write(*,*) 'cid= ', cell%get_gid(), ' l= ', cell%get_level()
-
-      call cell%next()
-    end do
-
-    deallocate(coords,stat=istat); check(istat==0)
-    call this%triangulation%free_cell_iterator(cell)
-
-  end subroutine set_cells_for_refinement
-  
-  subroutine set_cells_for_coarsening(this)
-    implicit none
-    class(stokes_driver_t), intent(inout) :: this
-    class(cell_iterator_t)      , allocatable :: cell
-    call this%triangulation%create_cell_iterator(cell)
-    !do while ( .not. cell%has_finished() )
-    !  call cell%set_for_coarsening()
-    !  call cell%next()
-    !end do
-    call this%triangulation%free_cell_iterator(cell)
-  end subroutine set_cells_for_coarsening
-  
   subroutine fill_cells_set(this)
     implicit none
     class(stokes_driver_t), intent(inout) :: this
+
     integer(ip), allocatable :: cell_set_ids(:)
     class(cell_iterator_t), allocatable :: cell
     integer(ip) :: set_id
@@ -359,18 +287,6 @@ contains
     call this%triangulation%free_cell_iterator(cell)
     call memfree(cell_set_ids)
     
-    !call memalloc(this%triangulation%get_num_cells(),cell_set_ids)
-    !call this%triangulation%create_cell_iterator(cell)
-    !do while( .not. cell%has_finished() )
-    !  if (cell%is_local()) then
-    !     cell_set_ids(cell%get_gid()) = cell%get_gid()
-    !  end if
-    !  call cell%next()
-    !end do
-    !call this%triangulation%free_cell_iterator(cell)
-    !call this%triangulation%fill_cells_set(cell_set_ids)
-    !call memfree(cell_set_ids)
-    
   end subroutine fill_cells_set
   
   subroutine setup_reference_fes(this)
@@ -381,27 +297,34 @@ contains
     class(reference_fe_t),  pointer     :: reference_fe
     character(:),           allocatable :: field_type
     
-    allocate(this%reference_fes(2), stat=istat)
+    allocate(this%reference_fes(4), stat=istat)
     check(istat==0)
-    
-    field_type = field_type_scalar
-    if ( this%test_params%get_laplacian_type() == 'vector' ) then
-      field_type = field_type_vector
-    end if
     
     call this%triangulation%create_cell_iterator(cell)
     reference_fe => cell%get_reference_fe()
-    this%reference_fes(SET_ID_FULL) =  make_reference_fe ( topology = reference_fe%get_topology(), &
+    this%reference_fes(POS_FULL_U) =  make_reference_fe ( topology = reference_fe%get_topology(), &
                                                  fe_type = fe_type_lagrangian, &
                                                  num_dims = this%triangulation%get_num_dims(), &
-                                                 order = this%test_params%get_reference_fe_order(), &
-                                                 field_type = field_type, &
+                                                 order = order_u, &
+                                                 field_type = field_type_vector, &
                                                  conformity = .true. )
-    this%reference_fes(SET_ID_VOID) =  make_reference_fe ( topology = reference_fe%get_topology(), &
+    this%reference_fes(POS_VOID_U) =  make_reference_fe ( topology = reference_fe%get_topology(), &
                                                  fe_type = fe_type_void, &
                                                  num_dims = this%triangulation%get_num_dims(), &
-                                                 order = this%test_params%get_reference_fe_order(), &
-                                                 field_type = field_type, &
+                                                 order = order_u, &
+                                                 field_type = field_type_vector, &
+                                                 conformity = .true. )
+    this%reference_fes(POS_FULL_P) =  make_reference_fe ( topology = reference_fe%get_topology(), &
+                                                 fe_type = fe_type_lagrangian, &
+                                                 num_dims = this%triangulation%get_num_dims(), &
+                                                 order = order_p, &
+                                                 field_type = field_type_scalar, &
+                                                 conformity = .true. )
+    this%reference_fes(POS_VOID_P) =  make_reference_fe ( topology = reference_fe%get_topology(), &
+                                                 fe_type = fe_type_void, &
+                                                 num_dims = this%triangulation%get_num_dims(), &
+                                                 order = order_p, &
+                                                 field_type = field_type_scalar, &
                                                  conformity = .true. )
     call this%triangulation%free_cell_iterator(cell)
     
@@ -412,15 +335,24 @@ contains
     class(stokes_driver_t), intent(inout) :: this
 
     integer(ip) :: iounit
-    integer(ip) :: set_ids_to_reference_fes(1,2)
+    integer(ip) :: set_ids_to_reference_fes(2,2) ! num_fields x void/non_void
+    class(vector_function_t) , pointer :: fun_u
+    class(scalar_function_t) , pointer :: fun_p
 
-    set_ids_to_reference_fes(1,SET_ID_FULL) = SET_ID_FULL
-    set_ids_to_reference_fes(1,SET_ID_VOID) = SET_ID_VOID
+    set_ids_to_reference_fes(U_FIELD_ID,SET_ID_FULL) = POS_FULL_U
+    set_ids_to_reference_fes(U_FIELD_ID,SET_ID_VOID) = POS_VOID_U
+    set_ids_to_reference_fes(P_FIELD_ID,SET_ID_FULL) = POS_FULL_P
+    set_ids_to_reference_fes(P_FIELD_ID,SET_ID_VOID) = POS_VOID_P
     
     call this%analytical_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
-    call this%analytical_functions%set_degree(this%test_params%get_reference_fe_order())
-    call this%conditions%set_boundary_function(this%analytical_functions%get_boundary_function())
+    call this%analytical_functions%set_degree(order_p)
+
+    fun_u => this%analytical_functions%get_solution_function_u()
+    fun_p => this%analytical_functions%get_solution_function_p()
+    call this%conditions%set_num_dims(this%triangulation%get_num_dims())
+    call this%conditions%set_boundary_function(fun_u,fun_p)
+
     call this%fe_space%set_use_constraints(this%test_params%get_use_constraints())
     call this%fe_space%create( triangulation            = this%triangulation,      &
                                conditions               = this%conditions, &
@@ -442,15 +374,15 @@ contains
     implicit none
     class(stokes_driver_t), intent(inout) :: this
 
-
     call this%cG_integration%set_analytical_functions(this%analytical_functions)
     call this%cG_integration%set_unfitted_boundary_is_dirichlet(this%test_params%get_unfitted_boundary_is_dirichlet())
     call this%cG_integration%set_is_constant_nitches_beta(this%test_params%get_is_constant_nitches_beta())
-    call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format,                               &
-                                            diagonal_blocks_symmetric_storage = [ .true. ],                               &
-                                            diagonal_blocks_symmetric         = [ .true. ],                               &
-                                            diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                            fe_space                          = this%fe_space,                            &
+
+    call this%fe_affine_operator%create (   sparse_matrix_storage_format      = csr_format,                                  &
+                                            diagonal_blocks_symmetric_storage = [ .false. ],                               &
+                                            diagonal_blocks_symmetric         = [ .false. ],                               &
+                                            diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_INDEFINITE ],         &
+                                            fe_space                          = this%fe_space,                             &
                                             discrete_integration              = this%cG_integration )
     call this%solution%create(this%fe_space)
     call this%fe_space%interpolate_dirichlet_values(this%solution)
@@ -469,7 +401,7 @@ contains
     call parameter_list%init()
 #ifdef ENABLE_MKL
     FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
-    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_spd)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
@@ -491,7 +423,7 @@ contains
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
-    call this%iterative_linear_solver%set_type_from_string(cg_name)
+    call this%iterative_linear_solver%set_type_from_string(rgmres_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
 #endif
@@ -577,71 +509,72 @@ contains
   subroutine check_solution(this)
     implicit none
     class(stokes_driver_t), intent(inout) :: this
+    !TODO do it for stokes
 
-    type(unfitted_solution_checker_t) :: solution_checker
-
-    real(rp) :: error_h1_semi_norm
-    real(rp) :: error_l2_norm
-    real(rp) :: h1_semi_norm
-    real(rp) :: l2_norm
-
-    real(rp) :: l2_norm_boundary           
-    real(rp) :: h1_semi_norm_boundary      
-    real(rp) :: error_l2_norm_boundary     
-    real(rp) :: error_h1_semi_norm_boundary
-
-    real(rp) :: error_tolerance, tol
-    integer(ip) :: iounit
-
-    call solution_checker%create(this%fe_space,this%solution,this%analytical_functions%get_solution_function())
-    call solution_checker%compute_error_norms(error_h1_semi_norm,error_l2_norm,h1_semi_norm,l2_norm,&
-           error_h1_semi_norm_boundary, error_l2_norm_boundary, h1_semi_norm_boundary, l2_norm_boundary)
-    call solution_checker%free()
-
-    write(*,'(a,e32.25)') 'l2_norm:               ', l2_norm
-    write(*,'(a,e32.25)') 'h1_semi_norm:          ', h1_semi_norm
-    write(*,'(a,e32.25)') 'error_l2_norm:         ', error_l2_norm
-    write(*,'(a,e32.25)') 'error_h1_semi_norm:    ', error_h1_semi_norm
-    write(*,'(a,e32.25)') 'rel_error_l2_norm:     ', error_l2_norm/l2_norm
-    write(*,'(a,e32.25)') 'rel_error_h1_semi_norm:', error_h1_semi_norm/h1_semi_norm
-
-    write(*,'(a,e32.25)') 'l2_norm_boundary:               ', l2_norm_boundary               
-    write(*,'(a,e32.25)') 'h1_semi_norm_boundary:          ', h1_semi_norm_boundary          
-    write(*,'(a,e32.25)') 'error_l2_norm_boundary:         ', error_l2_norm_boundary         
-    write(*,'(a,e32.25)') 'error_h1_semi_norm_boundary:    ', error_h1_semi_norm_boundary    
-    write(*,'(a,e32.25)') 'rel_error_l2_norm_boundary:     ', error_l2_norm_boundary      /l2_norm_boundary
-    write(*,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
-
-    if (this%test_params%get_write_error_norms()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
-      check(iounit>0)
-      write(iounit,'(a,e32.25)') 'l2_norm                ;', l2_norm
-      write(iounit,'(a,e32.25)') 'h1_semi_norm           ;', h1_semi_norm
-      write(iounit,'(a,e32.25)') 'error_l2_norm          ;', error_l2_norm
-      write(iounit,'(a,e32.25)') 'error_h1_semi_norm     ;', error_h1_semi_norm
-      write(iounit,'(a,e32.25)') 'rel_error_l2_norm      ;', error_l2_norm/l2_norm
-      write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm ;', error_h1_semi_norm/h1_semi_norm
-      write(iounit,'(a,e32.25)') 'l2_norm_boundary               ;', l2_norm_boundary               
-      write(iounit,'(a,e32.25)') 'h1_semi_norm_boundary          ;', h1_semi_norm_boundary          
-      write(iounit,'(a,e32.25)') 'error_l2_norm_boundary         ;', error_l2_norm_boundary         
-      write(iounit,'(a,e32.25)') 'error_h1_semi_norm_boundary    ;', error_h1_semi_norm_boundary    
-      write(iounit,'(a,e32.25)') 'rel_error_l2_norm_boundary     ;', error_l2_norm_boundary      /l2_norm_boundary
-      write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary;', error_h1_semi_norm_boundary /h1_semi_norm_boundary
-      call io_close(iounit)
-    end if
-
-#ifdef ENABLE_MKL
-    error_tolerance = 1.0e-08
-#else
-    error_tolerance = 1.0e-06
-#endif
-
-    if ( this%test_params%are_checks_active() ) then
-      tol = error_tolerance*l2_norm
-      check( error_l2_norm < tol )
-      tol = error_tolerance*h1_semi_norm
-      check( error_h1_semi_norm < tol )
-    end if
+!    type(unfitted_solution_checker_t) :: solution_checker
+!
+!    real(rp) :: error_h1_semi_norm
+!    real(rp) :: error_l2_norm
+!    real(rp) :: h1_semi_norm
+!    real(rp) :: l2_norm
+!
+!    real(rp) :: l2_norm_boundary           
+!    real(rp) :: h1_semi_norm_boundary      
+!    real(rp) :: error_l2_norm_boundary     
+!    real(rp) :: error_h1_semi_norm_boundary
+!
+!    real(rp) :: error_tolerance, tol
+!    integer(ip) :: iounit
+!
+!    call solution_checker%create(this%fe_space,this%solution,this%analytical_functions%get_solution_function())
+!    call solution_checker%compute_error_norms(error_h1_semi_norm,error_l2_norm,h1_semi_norm,l2_norm,&
+!           error_h1_semi_norm_boundary, error_l2_norm_boundary, h1_semi_norm_boundary, l2_norm_boundary)
+!    call solution_checker%free()
+!
+!    write(*,'(a,e32.25)') 'l2_norm:               ', l2_norm
+!    write(*,'(a,e32.25)') 'h1_semi_norm:          ', h1_semi_norm
+!    write(*,'(a,e32.25)') 'error_l2_norm:         ', error_l2_norm
+!    write(*,'(a,e32.25)') 'error_h1_semi_norm:    ', error_h1_semi_norm
+!    write(*,'(a,e32.25)') 'rel_error_l2_norm:     ', error_l2_norm/l2_norm
+!    write(*,'(a,e32.25)') 'rel_error_h1_semi_norm:', error_h1_semi_norm/h1_semi_norm
+!
+!    write(*,'(a,e32.25)') 'l2_norm_boundary:               ', l2_norm_boundary               
+!    write(*,'(a,e32.25)') 'h1_semi_norm_boundary:          ', h1_semi_norm_boundary          
+!    write(*,'(a,e32.25)') 'error_l2_norm_boundary:         ', error_l2_norm_boundary         
+!    write(*,'(a,e32.25)') 'error_h1_semi_norm_boundary:    ', error_h1_semi_norm_boundary    
+!    write(*,'(a,e32.25)') 'rel_error_l2_norm_boundary:     ', error_l2_norm_boundary      /l2_norm_boundary
+!    write(*,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
+!
+!    if (this%test_params%get_write_error_norms()) then
+!      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
+!      check(iounit>0)
+!      write(iounit,'(a,e32.25)') 'l2_norm                ;', l2_norm
+!      write(iounit,'(a,e32.25)') 'h1_semi_norm           ;', h1_semi_norm
+!      write(iounit,'(a,e32.25)') 'error_l2_norm          ;', error_l2_norm
+!      write(iounit,'(a,e32.25)') 'error_h1_semi_norm     ;', error_h1_semi_norm
+!      write(iounit,'(a,e32.25)') 'rel_error_l2_norm      ;', error_l2_norm/l2_norm
+!      write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm ;', error_h1_semi_norm/h1_semi_norm
+!      write(iounit,'(a,e32.25)') 'l2_norm_boundary               ;', l2_norm_boundary               
+!      write(iounit,'(a,e32.25)') 'h1_semi_norm_boundary          ;', h1_semi_norm_boundary          
+!      write(iounit,'(a,e32.25)') 'error_l2_norm_boundary         ;', error_l2_norm_boundary         
+!      write(iounit,'(a,e32.25)') 'error_h1_semi_norm_boundary    ;', error_h1_semi_norm_boundary    
+!      write(iounit,'(a,e32.25)') 'rel_error_l2_norm_boundary     ;', error_l2_norm_boundary      /l2_norm_boundary
+!      write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary;', error_h1_semi_norm_boundary /h1_semi_norm_boundary
+!      call io_close(iounit)
+!    end if
+!
+!#ifdef ENABLE_MKL
+!    error_tolerance = 1.0e-08
+!#else
+!    error_tolerance = 1.0e-06
+!#endif
+!
+!    if ( this%test_params%are_checks_active() ) then
+!      tol = error_tolerance*l2_norm
+!      check( error_l2_norm < tol )
+!      tol = error_tolerance*h1_semi_norm
+!      check( error_h1_semi_norm < tol )
+!    end if
   end subroutine check_solution
   
   subroutine write_solution(this)
@@ -669,8 +602,9 @@ contains
         prefix = this%test_params%get_prefix()
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'solution')
-        call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
+        call oh%add_fe_function(this%solution, U_FIELD_ID, 'u')
+        call oh%add_fe_function(this%solution, U_FIELD_ID, 'grad_u', grad_diff_operator)
+        call oh%add_fe_function(this%solution, P_FIELD_ID, 'p')
         call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),cell_vector_set_ids,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),cell_rel_pos,__FILE__,__LINE__)
@@ -758,95 +692,21 @@ contains
         call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh.vtu')
         call vtk_writer%free()
 
-        ! Write the unfitted mesh
-        call vtk_writer%attach_boundary_faces(this%triangulation)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
-        call vtk_writer%free()
+        ! TODO make it work when no cut cells
+        !! Write the unfitted mesh
+        !call vtk_writer%attach_boundary_faces(this%triangulation)
+        !call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
+        !call vtk_writer%free()
         
-        ! Write the solution
-        call vtk_writer%attach_fe_function(this%solution,this%fe_space)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh_solution.vtu')
-        call vtk_writer%free()
+        ! TODO do it for stokes
+        !! Write the solution
+        !call vtk_writer%attach_fe_function(this%solution,this%fe_space)
+        !call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh_solution.vtu')
+        !call vtk_writer%free()
         
 
     endif
   end subroutine write_solution
-
-  subroutine write_filling_curve(this)
-    implicit none
-    class(stokes_driver_t), intent(in) :: this
-
-    integer(ip) :: Nn, Ne
-    real(rp), allocatable :: x(:), y(:), z(:)
-    integer(ip), allocatable :: cell_type(:), offset(:), connect(:)
-    class(cell_iterator_t)      , allocatable :: cell
-    type(point_t), allocatable :: coords(:)
-    integer(ip) :: istat, k
-    real(rp) ::  xc,yc
-    integer(ip) :: max_num_cell_nodes
-    integer(ip), parameter :: vtk_1d_elem_id = 3
-    integer(ip) :: E_IO
-    if(this%test_params%get_write_solution()) then
-
-      Nn = this%triangulation%get_num_cells()
-      Ne = Nn - 1
-
-      call memalloc ( Nn, x, __FILE__, __LINE__ )
-      call memalloc ( Nn, y, __FILE__, __LINE__ )
-      call memalloc ( Nn, z, __FILE__, __LINE__ )
-      call memalloc ( Ne, cell_type, __FILE__, __LINE__ )
-      call memalloc ( Ne, offset   , __FILE__, __LINE__ )
-      call memalloc ( 2*Ne, connect  , __FILE__, __LINE__ )
-
-      call this%triangulation%create_cell_iterator(cell)
-      max_num_cell_nodes = this%triangulation%get_max_num_shape_functions()
-
-      allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
-
-      do while ( .not. cell%has_finished() )
-
-        call cell%get_nodes_coordinates(coords)
-        xc = 0.0
-        yc = 0.0
-        do k=1,max_num_cell_nodes
-          xc = xc + (1.0/max_num_cell_nodes)*coords(k)%get(1)
-          yc = yc + (1.0/max_num_cell_nodes)*coords(k)%get(2)
-        end do
-
-        x(cell%get_gid()) = xc;
-        y(cell%get_gid()) = yc;
-        z(cell%get_gid()) = 0.0;
-
-        if (cell%get_gid()>1) then
-          connect(  2*(cell%get_gid()-1)-1  ) = cell%get_gid()-2
-          connect(  2*(cell%get_gid()-1)    ) = cell%get_gid()-1
-          offset( cell%get_gid()-1 ) = 2*(cell%get_gid()-1)
-          cell_type( cell%get_gid()-1 ) = vtk_1d_elem_id
-        end if
-
-        call cell%next()
-      end do
-
-      deallocate(coords,stat=istat); check(istat==0)
-      call this%triangulation%free_cell_iterator(cell)
-
-      E_IO = VTK_INI_XML(output_format = 'ascii',&
-                              filename = this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_filling_curve.vtu',&
-                         mesh_topology = 'UnstructuredGrid')
-      E_IO = VTK_GEO_XML(NN = Nn, NC = Ne, X = x, Y = y, Z = z)
-      E_IO = VTK_CON_XML(NC = Ne, connect = connect, offset = offset, cell_type = int(cell_type,I1P) )
-      E_IO = VTK_GEO_XML()
-      E_IO = VTK_END_XML()
-
-      call memfree ( x, __FILE__, __LINE__ )
-      call memfree ( y, __FILE__, __LINE__ )
-      call memfree ( z, __FILE__, __LINE__ )
-      call memfree ( cell_type, __FILE__, __LINE__ )
-      call memfree ( offset   , __FILE__, __LINE__ )
-      call memfree ( connect  , __FILE__, __LINE__ )
-
-    endif
-  end subroutine write_filling_curve
   
   subroutine run_simulation(this) 
     implicit none
@@ -874,7 +734,6 @@ contains
     end if
 
     call this%write_solution()
-    call this%write_filling_curve()
     call this%free()
   end subroutine run_simulation
   
