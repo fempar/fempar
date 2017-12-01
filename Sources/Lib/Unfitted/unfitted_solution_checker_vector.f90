@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !***************************************************************************************************
-module unfitted_solution_checker_names
+module unfitted_solution_checker_vector_names
   use types_names
   use memor_names
   use field_names
@@ -44,29 +44,29 @@ module unfitted_solution_checker_names
   private
 
   ! TODO this is a temporal class to compute error norms
-  type :: unfitted_solution_checker_t
+  type :: unfitted_solution_checker_vector_t
     private
     class(serial_fe_space_t), pointer :: fe_space       => null()
     class(fe_function_t),     pointer :: fe_function    => null()
-    class(scalar_function_t), pointer :: exact_solution => null()
+    class(vector_function_t), pointer :: exact_solution => null()
     integer(ip) :: field_id
   contains
-    procedure, non_overridable :: create              => unfitted_solution_checker_create
-    procedure, non_overridable :: free                => unfitted_solution_checker_free
-    procedure, non_overridable :: compute_error_norms => unfitted_solution_checker_compute_error_norms
-  end type unfitted_solution_checker_t
+    procedure, non_overridable :: create              => unfitted_solution_checker_vector_create
+    procedure, non_overridable :: free                => unfitted_solution_checker_vector_free
+    procedure, non_overridable :: compute_error_norms => unfitted_solution_checker_vector_compute_error_norms
+  end type unfitted_solution_checker_vector_t
 
-  public :: unfitted_solution_checker_t
+  public :: unfitted_solution_checker_vector_t
 
 contains
 
   !=================================================================================================
-  subroutine unfitted_solution_checker_create(this,fe_space,fe_function,exact_solution,field_id)
+  subroutine unfitted_solution_checker_vector_create(this,fe_space,fe_function,exact_solution,field_id)
     implicit none
-    class(unfitted_solution_checker_t),        intent(inout) :: this
+    class(unfitted_solution_checker_vector_t),        intent(inout) :: this
     class(serial_fe_space_t), target, intent(in) :: fe_space
     class(fe_function_t),     target, intent(in) :: fe_function
-    class(scalar_function_t), target, intent(in) :: exact_solution
+    class(vector_function_t), target, intent(in) :: exact_solution
     integer(ip)          , optional , intent(in) :: field_id
     this%fe_space       => fe_space
     this%fe_function    => fe_function
@@ -76,23 +76,23 @@ contains
     else
       this%field_id = 1
     end if
-  end subroutine unfitted_solution_checker_create
+  end subroutine unfitted_solution_checker_vector_create
 
   !=================================================================================================
-  subroutine unfitted_solution_checker_free(this)
+  subroutine unfitted_solution_checker_vector_free(this)
     implicit none
-    class(unfitted_solution_checker_t),         intent(inout) :: this
+    class(unfitted_solution_checker_vector_t),         intent(inout) :: this
     this%fe_space       => null()
     this%fe_function    => null()
     this%exact_solution => null()
-  end subroutine unfitted_solution_checker_free
+  end subroutine unfitted_solution_checker_vector_free
 
   !=================================================================================================
-  subroutine unfitted_solution_checker_compute_error_norms(this,&
+  subroutine unfitted_solution_checker_vector_compute_error_norms(this,&
       error_h1_semi_norm, error_l2_norm, h1_semi_norm, l2_norm,&
       error_h1_semi_norm_boundary, error_l2_norm_boundary, h1_semi_norm_boundary, l2_norm_boundary)
     implicit none
-    class(unfitted_solution_checker_t), intent(in) :: this
+    class(unfitted_solution_checker_vector_t), intent(in) :: this
     real(rp), intent(inout) :: error_h1_semi_norm
     real(rp), intent(inout) :: error_l2_norm
     real(rp), intent(inout) :: h1_semi_norm
@@ -105,8 +105,8 @@ contains
 
     class(fe_cell_iterator_t), allocatable :: fe
     real(rp), allocatable :: nodal_vals(:)
-    real(rp), allocatable :: element_vals(:)
-    type(vector_field_t), allocatable :: grad_element_vals(:)
+    type(vector_field_t), allocatable :: element_vals(:)
+    type(tensor_field_t), allocatable :: grad_element_vals(:)
     type(cell_map_t)           , pointer :: cell_map
     type(piecewise_cell_map_t) , pointer :: pw_cell_map
     
@@ -118,8 +118,8 @@ contains
     integer(ip) :: num_dime
     integer(ip) :: istat, igp, idime
     real(rp) :: dV
-    real(rp) :: u_exact_gp
-    type(vector_field_t) :: grad_u_exact_gp
+    type(vector_field_t) :: u_exact_gp
+    type(tensor_field_t) :: grad_u_exact_gp
     real(rp) :: error_l2_gp, error_h1sn_gp
     real(rp) :: l2_gp, h1sn_gp
     class(environment_t), pointer :: environment
@@ -164,11 +164,10 @@ contains
        cell_int         => fe%get_cell_integrator(this%field_id)
 
        ! Recover nodal values
-       !TODO we assume a single field
        call this%fe_function%gather_nodal_values(fe,this%field_id,nodal_vals)
 
        !TODO move outside
-       call memalloc(num_quad_points,element_vals,__FILE__, __LINE__)
+       allocate(element_vals(1:num_quad_points), stat=istat); check(istat==0)
        allocate(grad_element_vals(1:num_quad_points), stat=istat); check(istat==0)
 
        ! Recover values of the FE solution at integration points
@@ -186,15 +185,10 @@ contains
          call this%exact_solution%get_gradient(quad_coords(igp),grad_u_exact_gp)
 
          ! Integrand at gp
-         l2_gp = u_exact_gp**2
-         error_l2_gp   = (u_exact_gp - element_vals(igp))**2
-         h1sn_gp = 0.0
-         error_h1sn_gp = 0.0
-         ! TODO a way of avoiding this loop? Maybe using TBP of vector_field_t??
-         do idime = 1, num_dime
-           h1sn_gp = h1sn_gp + ( grad_u_exact_gp%get(idime) )**2
-           error_h1sn_gp = error_h1sn_gp + ( grad_u_exact_gp%get(idime) - grad_element_vals(igp)%get(idime) )**2
-         end do
+         l2_gp = u_exact_gp * u_exact_gp
+         error_l2_gp   = (u_exact_gp - element_vals(igp)) * (u_exact_gp - element_vals(igp))
+         h1sn_gp = double_contract(grad_u_exact_gp,grad_u_exact_gp)
+         error_h1sn_gp =  double_contract(grad_u_exact_gp - grad_element_vals(igp), grad_u_exact_gp - grad_element_vals(igp))
 
          ! Integrate
          dV = fe%get_det_jacobian(igp) * quad%get_weight(igp)
@@ -206,7 +200,7 @@ contains
        end do
 
        !TODO move outside
-       call memfree(element_vals,__FILE__, __LINE__)
+       deallocate(element_vals,stat=istat); check(istat==0)
        deallocate(grad_element_vals,stat=istat); check(istat==0)
 
 
@@ -223,7 +217,7 @@ contains
            cell_int         => fe%get_boundary_cell_integrator(1)
 
            !TODO move outside
-           call memalloc(num_quad_points,element_vals,__FILE__, __LINE__)
+           allocate(element_vals(1:num_quad_points), stat=istat); check(istat==0)
            allocate(grad_element_vals(1:num_quad_points), stat=istat); check(istat==0)
 
            ! Recover values of the FE solution at integration points
@@ -238,15 +232,10 @@ contains
              call this%exact_solution%get_gradient(quad_coords(igp),grad_u_exact_gp)
 
              ! Integrand at gp
-             l2_gp = u_exact_gp**2
-             error_l2_gp   = (u_exact_gp - element_vals(igp))**2
-             h1sn_gp = 0.0
-             error_h1sn_gp = 0.0
-             ! TODO a way of avoiding this loop? Maybe using TBP of vector_field_t??
-             do idime = 1, num_dime
-               h1sn_gp = h1sn_gp + ( grad_u_exact_gp%get(idime) )**2
-               error_h1sn_gp = error_h1sn_gp + ( grad_u_exact_gp%get(idime) - grad_element_vals(igp)%get(idime) )**2
-             end do
+             l2_gp = u_exact_gp * u_exact_gp
+             error_l2_gp   = (u_exact_gp - element_vals(igp)) * (u_exact_gp - element_vals(igp))
+             h1sn_gp = double_contract(grad_u_exact_gp,grad_u_exact_gp)
+             error_h1sn_gp =  double_contract(grad_u_exact_gp - grad_element_vals(igp), grad_u_exact_gp - grad_element_vals(igp))
 
              ! Integrate
              dV = pw_cell_map%get_det_jacobian(igp) * quad%get_weight(igp)
@@ -258,7 +247,7 @@ contains
            end do
 
            !TODO move outside
-           call memfree(element_vals,__FILE__, __LINE__)
+           deallocate(element_vals,stat=istat); check(istat==0)
            deallocate(grad_element_vals,stat=istat); check(istat==0)
 
          end if
@@ -296,7 +285,7 @@ contains
       l2_norm_boundary           = sqrt(l2_norm_boundary           )
     end if
 
-  end subroutine unfitted_solution_checker_compute_error_norms
+  end subroutine unfitted_solution_checker_vector_compute_error_norms
 
-end module unfitted_solution_checker_names
+end module unfitted_solution_checker_vector_names
 !***************************************************************************************************

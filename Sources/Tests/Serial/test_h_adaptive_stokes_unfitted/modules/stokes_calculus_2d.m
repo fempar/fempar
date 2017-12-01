@@ -7,7 +7,9 @@ syms q
 N = 2;
 x = sym('x%d',[N 1]);
 
-u = [ x(1)^q*x(2)^q+x(1)^q ; x(1)^q*x(2)^q+x(2)^q];
+u = [x(2) ; x(1) ] ;% [ x(1)^q*x(2)^q+x(1)^q ; x(1)^q*x(2)^q+x(2)^q];
+p = 1  ;% x(1)^(q-1)*x(2)^(q-1);
+
 
 grad_u = sym(zeros(N,N));
 for i=1:N
@@ -27,8 +29,6 @@ for i=1:N
         div_grad_u(i) = div_grad_u(i) + diff(grad_u(j,i),x(i));
     end
 end
-
-p =  x(1)^(q-1)*x(2)^(q-1);
 
 grad_p = sym(zeros(N,1));
 for i=1:N

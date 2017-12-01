@@ -1074,9 +1074,10 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   integer(ip) :: iaux
   type(point_t), pointer :: coordinates_nodes_cut_cell(:)
   type(cell_integrator_t), allocatable :: cell_integrator(:)
-  type(quadrature_t) :: nodal_quad_in_root_fe
+  type(quadrature_t), allocatable :: nodal_quad_in_root_fe(:)
   class(triangulation_t), pointer :: triangulation
-  real(rp), allocatable  :: shape_values(:,:)
+  real(rp), allocatable  :: shape_values_scalar(:,:)
+  type(vector_field_t), allocatable  :: shape_values_vector(:,:)
   type(point_t), pointer :: coordinates(:)
   integer(ip) :: istat
   logical, allocatable :: visited_hanging_dof_lids(:)
@@ -1086,6 +1087,8 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   integer(ip) :: num_dirichlet_master_dofs
   integer(ip) :: ifree
   integer(ip) :: idirichlet
+  logical(ip), allocatable :: first_ref_fe_visited_x_field(:)
+  real(rp) :: coefficient
 
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_free_dofs
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_dirichlet_dofs
@@ -1116,7 +1119,6 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
 
   ! Auxiliary
   triangulation => this%get_triangulation()
-  call nodal_quad_in_root_fe%create(triangulation%get_num_dims(),this%get_max_num_shape_functions())
 
   call memalloc(this%num_aggregated_dofs,visited_hanging_dof_lids,__FILE__,__LINE__)
   
@@ -1208,8 +1210,12 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   call constraining_dirichlet_dofs_coefficients%resize&
     (ptr_constraining_dirichlet_dofs%get(ptr_constraining_dirichlet_dofs%size())-1)
 
+  call memalloc(this%get_num_fields(),first_ref_fe_visited_x_field,__FILE__,__LINE__)
+  first_ref_fe_visited_x_field(:) = .true.
+
   ! Compute dependencies and coefficients for the rest of constraints
   call fe%first()
+  allocate(nodal_quad_in_root_fe(this%get_num_fields()),stat=istat); check(istat==0)
   allocate(cell_integrator(this%get_num_fields()),stat=istat); check(istat==0)
   allocate(cell_map(this%get_num_fields()),stat=istat); check(istat==0)
   iaux = 1
@@ -1230,7 +1236,7 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
 
         ! Transform them to the physical space
         reference_fe_geo => fe%get_reference_fe_geo()
-        if (iaux == 1) then
+        if (first_ref_fe_visited_x_field(field_id)) then
           call cell_map(field_id)%create(nodal_quad_ref_fe,reference_fe_geo)
         else
           call cell_map(field_id)%update_interpolation(nodal_quad_ref_fe,reference_fe_geo)
@@ -1244,17 +1250,27 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
         call root_fe%update_integration()
         root_fe_quad => root_fe%get_quadrature()
         root_cell_map  => root_fe%get_cell_map()
-        call send_to_reference_space(coordinates_nodes_cut_cell,root_fe_quad,root_cell_map,nodal_quad_in_root_fe)
+        if (first_ref_fe_visited_x_field(field_id)) then
+          call nodal_quad_in_root_fe(field_id)%create(triangulation%get_num_dims(),size(coordinates_nodes_cut_cell))
+        end if
+        call send_to_reference_space(coordinates_nodes_cut_cell,root_fe_quad,root_cell_map,nodal_quad_in_root_fe(field_id))
 
         ! Evaluate the root_fe shape functions at these points
         root_reference_fe => root_fe%get_reference_fe(field_id)
-        if (iaux == 1) then
-          call cell_integrator(field_id)%create(nodal_quad_in_root_fe,root_reference_fe)
+        if (first_ref_fe_visited_x_field(field_id)) then
+          call cell_integrator(field_id)%create(nodal_quad_in_root_fe(field_id),root_reference_fe)
+          first_ref_fe_visited_x_field(field_id) = .false.
         else
-          call cell_integrator(field_id)%update_interpolation(nodal_quad_in_root_fe)
+          call cell_integrator(field_id)%update_interpolation(nodal_quad_in_root_fe(field_id))
         end if
         call cell_integrator(field_id)%update(root_cell_map)
-        call cell_integrator(field_id)%get_values(shape_values)
+        if (root_reference_fe%get_field_type() == field_type_scalar) then
+          call cell_integrator(field_id)%get_values(shape_values_scalar)
+        else if (root_reference_fe%get_field_type() == field_type_vector) then
+          call cell_integrator(field_id)%get_values(shape_values_vector)
+        else
+          check(.false.)
+        end if
 
         do idof = 1, size(fe_dofs)
           if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (min_fixed_dof_gid<=abs(fe_dofs(idof))) .and. (abs(fe_dofs(idof))<=max_fixed_dof_gid) ) then
@@ -1264,13 +1280,22 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
               current_pos_free = ptr_constraining_free_dofs%get(hanging_dof_lid)
               current_pos_diri = ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)
               do root_idof = 1,size(root_fe_dofs)
+
+                if (root_reference_fe%get_field_type() == field_type_scalar) then
+                  coefficient = shape_values_scalar(root_idof,idof)
+                else if (root_reference_fe%get_field_type() == field_type_vector) then
+                  coefficient = shape_values_vector(root_idof,reference_fe%get_scalar_from_vector_node(idof))%get(reference_fe%get_component_node(idof))
+                else
+                  check(.false.)
+                end if
+                
                 if ( root_fe%is_free_dof(root_fe_dofs(root_idof)) ) then
                   call constraining_free_dofs%set(current_pos_free,root_fe_dofs(root_idof))
-                  call constraining_free_dofs_coefficients%set(current_pos_free,shape_values(root_idof,idof))
+                  call constraining_free_dofs_coefficients%set(current_pos_free,coefficient)
                   current_pos_free = current_pos_free + 1
                 else if ( root_fe%is_strong_dirichlet_dof(root_fe_dofs(root_idof)) ) then
                   call constraining_dirichlet_dofs%set(current_pos_diri,root_fe_dofs(root_idof))
-                  call constraining_dirichlet_dofs_coefficients%set(current_pos_diri,shape_values(root_idof,idof))
+                  call constraining_dirichlet_dofs_coefficients%set(current_pos_diri,coefficient)
                   current_pos_diri = current_pos_diri + 1
                 else if ( root_fe%is_hanging_dof(root_fe_dofs(root_idof)) ) then
                   root_hanging_dof_lid = abs(root_fe_dofs(root_idof)) - this%get_num_dirichlet_dofs()
@@ -1283,14 +1308,14 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
                     call constraining_free_dofs%set(current_pos_free,&
                       this_constraining_free_dofs%get(this_ptr_constraining_free_dofs%get(root_hanging_dof_lid)+ifree-1))
                     call constraining_free_dofs_coefficients%set(current_pos_free,&
-                      shape_values(root_idof,idof)*this_constraining_free_dofs_coefficients%get(this_ptr_constraining_free_dofs%get(root_hanging_dof_lid)+ifree-1))
+                      coefficient*this_constraining_free_dofs_coefficients%get(this_ptr_constraining_free_dofs%get(root_hanging_dof_lid)+ifree-1))
                     current_pos_free = current_pos_free + 1
                   end do
                   do idirichlet = 1,num_dirichlet_master_dofs
                     call constraining_dirichlet_dofs%set(current_pos_diri,&
                       this_constraining_dirichlet_dofs%get(this_ptr_constraining_dirichlet_dofs%get(root_hanging_dof_lid)+idirichlet-1))
                     call constraining_dirichlet_dofs_coefficients%set(current_pos_diri,&
-                      shape_values(root_idof,idof)*this_constraining_dirichlet_dofs_coefficients%get(this_ptr_constraining_dirichlet_dofs%get(root_hanging_dof_lid)+idirichlet-1))
+                      coefficient*this_constraining_dirichlet_dofs_coefficients%get(this_ptr_constraining_dirichlet_dofs%get(root_hanging_dof_lid)+idirichlet-1))
                     current_pos_diri = current_pos_diri + 1
                   end do
                 else
@@ -1327,6 +1352,10 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_cell_iterator(root_fe)
   do field_id = 1, this%get_num_fields()
+    call nodal_quad_in_root_fe(field_id)%free()
+  end do
+  deallocate(nodal_quad_in_root_fe,stat=istat); check(istat==0)
+  do field_id = 1, this%get_num_fields()
     call cell_map(field_id)%free()
   end do
   deallocate(cell_map,stat=istat); check(istat==0)
@@ -1334,9 +1363,14 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
     call cell_integrator(field_id)%free()
   end do
   deallocate(cell_integrator,stat=istat); check(istat==0)
-  call nodal_quad_in_root_fe%free()
-  call memfree(shape_values,__FILE__,__LINE__)
+  if (allocated(shape_values_scalar)) then
+    call memfree(shape_values_scalar,__FILE__,__LINE__)
+  end if
+  if (allocated(shape_values_vector)) then
+    deallocate(shape_values_vector,stat=istat); check(istat==0)
+  end if
   call memfree(visited_hanging_dof_lids,__FILE__,__LINE__)
+  call memfree(first_ref_fe_visited_x_field,__FILE__,__LINE__)
 
   contains
 
@@ -1357,7 +1391,7 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
       real(rp), pointer :: ref_quad_coords(:,:)
       type(point_t), pointer :: phys_quad_coords(:)
     
-      assert(size(phys_coords_as_point)<=ref_coords_as_quadrature%get_num_quadrature_points())
+      assert(size(phys_coords_as_point)==ref_coords_as_quadrature%get_num_quadrature_points())
       assert(fe_quad%get_num_dims() == ref_coords_as_quadrature%get_num_dims())
     
       ! Check that we have an affine fe map

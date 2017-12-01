@@ -116,8 +116,10 @@ contains
     x1 = point%get(1)
     x2 = point%get(2)
     call val%init(0.0)
-    call val%set(1, x1**q + x1**q*x2**q )
-    call val%set(2, x2**q + x1**q*x2**q )
+    !call val%set(1, x1**q + x1**q*x2**q )
+    !call val%set(2, x2**q + x1**q*x2**q )
+    call val%set(1, x2 )
+    call val%set(2, x1 )
   end subroutine sol_ex001_2d_u
 
   subroutine sol_ex001_2d_grad_u(point,val,q)
@@ -129,10 +131,14 @@ contains
     x1 = point%get(1)
     x2 = point%get(2)
     call val%init(0.0)
-    call val%set(1,1, q*x1**(q - 1) + q*x1**(q - 1)*x2**q  )
-    call val%set(1,2, q*x1**(q - 1)*x2**q                 )
-    call val%set(2,1, q*x1**q*x2**(q - 1)                 )
-    call val%set(2,2, q*x2**(q - 1) + q*x1**q*x2**(q - 1)  )
+    !call val%set(1,1, q*x1**(q - 1) + q*x1**(q - 1)*x2**q  )
+    !call val%set(1,2, q*x1**(q - 1)*x2**q                 )
+    !call val%set(2,1, q*x1**q*x2**(q - 1)                 )
+    !call val%set(2,2, q*x2**(q - 1) + q*x1**q*x2**(q - 1)  )
+    call val%set(1,1, 0.0)
+    call val%set(1,2, 1.0)
+    call val%set(2,1, 1.0)
+    call val%set(2,2, 0.0)
   end subroutine sol_ex001_2d_grad_u
 
   subroutine sol_ex001_2d_lapl_u(point,val,q)
@@ -144,8 +150,10 @@ contains
     x1 = point%get(1)
     x2 = point%get(2)
     call val%init(0.0)
-    call val%set(1, q*x1**(q - 2)*(q - 1) + q**2*x1**(q - 1)*x2**(q - 1) + q*x1**(q - 2)*x2**q*(q - 1) )
-    call val%set(2, q*x2**(q - 2)*(q - 1) + q**2*x1**(q - 1)*x2**(q - 1) + q*x1**q*x2**(q - 2)*(q - 1) )
+    !call val%set(1, q*x1**(q - 2)*(q - 1) + q**2*x1**(q - 1)*x2**(q - 1) + q*x1**(q - 2)*x2**q*(q - 1) )
+    !call val%set(2, q*x2**(q - 2)*(q - 1) + q**2*x1**(q - 1)*x2**(q - 1) + q*x1**q*x2**(q - 2)*(q - 1) )
+    call val%set(1, 0.0 )
+    call val%set(2, 0.0 )
   end subroutine sol_ex001_2d_lapl_u
 
   subroutine sol_ex001_2d_div_u(point,val,q)
@@ -156,7 +164,8 @@ contains
     real(rp) :: x1, x2
     x1 = point%get(1)
     x2 = point%get(2)
-    val = q*x1**(q - 1) + q*x2**(q - 1) + q*x1**q*x2**(q - 1) + q*x1**(q - 1)*x2**q
+    !val = q*x1**(q - 1) + q*x2**(q - 1) + q*x1**q*x2**(q - 1) + q*x1**(q - 1)*x2**q
+    val = 0.0
   end subroutine sol_ex001_2d_div_u
 
   !===================================================
@@ -169,7 +178,8 @@ contains
     real(rp) :: x1, x2
     x1 = point%get(1)
     x2 = point%get(2)
-    val = x1**(q - 1)*x2**(q - 1)
+    !val = x1**(q - 1)*x2**(q - 1)
+    val = 1.0
   end subroutine sol_ex001_2d_p
 
   subroutine sol_ex001_2d_grad_p(point,val,q)
@@ -181,8 +191,10 @@ contains
     x1 = point%get(1)
     x2 = point%get(2)
     call val%init(0.0)
-    call val%set(1, x1**(q - 2)*x2**(q - 1)*(q - 1) )
-    call val%set(2, x1**(q - 1)*x2**(q - 2)*(q - 1) )
+    !call val%set(1, x1**(q - 2)*x2**(q - 1)*(q - 1) )
+    !call val%set(2, x1**(q - 1)*x2**(q - 2)*(q - 1) )
+    call val%set(1, 0.0 )
+    call val%set(2, 0.0 )
   end subroutine sol_ex001_2d_grad_p
 
   !===================================================
