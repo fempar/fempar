@@ -37,7 +37,8 @@ module stiffness_weighting_l1_coarse_fe_handler_names
   use environment_names
   use dof_import_names
   use serial_scalar_array_names
-  use fe_affine_operator_names
+  use operator_names
+  use fe_nonlinear_operator_names
   use triangulation_names
   use cell_import_names
 
@@ -68,20 +69,20 @@ module stiffness_weighting_l1_coarse_fe_handler_names
 contains
 
 !========================================================================================
-subroutine stiffness_l1_create(this, fe_affine_operator)
+subroutine stiffness_l1_create(this, fe_nonlinear_operator)
 
   implicit none
   class(stiffness_weighting_l1_coarse_fe_handler_t), intent(inout) :: this
-  class(fe_affine_operator_t), target,    intent(in)    :: fe_affine_operator
+  class(fe_nonlinear_operator_t), target,    intent(in)    :: fe_nonlinear_operator
 
-  class(matrix_t),            pointer :: matrix
+  type(lvalue_operator_t) :: matrix
 
   call this%free()
 
-  matrix => fe_affine_operator%get_matrix()
-  select type (matrix)
+  matrix = fe_nonlinear_operator%get_tangent()
+  select type ( op=> matrix%get_operator())
     class is (par_sparse_matrix_t)
-      this%matrix => matrix
+      this%matrix => op
     class default
       check(.false.)
   end select

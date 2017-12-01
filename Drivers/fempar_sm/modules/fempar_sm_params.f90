@@ -110,7 +110,7 @@ contains
     error = helpers%set(key = coarse_space_use_vertices_key , value  = 'Include vertex coarse DoFs in coarse FE space'); check(error==0)
     error = helpers%set(key = coarse_space_use_edges_key    , value  = 'Include edge coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
-    error = helpers%set(key = discrete_integration_type_key , value  = 'Discrete formlation (irreducible or mixed_u_p)' )  ; check(error==0)
+    error = helpers%set(key = discrete_integration_type_key , value  = 'Discrete formulation (irreducible or mixed_u_p)' )  ; check(error==0)
 
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured

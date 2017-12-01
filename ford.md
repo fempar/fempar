@@ -17,7 +17,8 @@ graph: true
 print_creation_date: false
 fpp_extensions: f90
                 i90
-src_dir: ./Sources/Lib
+src_dir: ./Drivers/par_thermal_metal_am 
+         ./Sources/Lib
 output_dir: ./docs
 exclude: sort.f90
 exclude_dir: ./Sources/Lib/Generic

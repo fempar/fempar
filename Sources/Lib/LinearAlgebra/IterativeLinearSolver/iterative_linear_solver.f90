@@ -28,10 +28,12 @@
 module iterative_linear_solver_names
   use types_names
   use stdio_names
+  use linear_solver_names
   
   ! Abstract modules
   use vector_names
   use operator_names
+  use vector_space_names
   use base_iterative_linear_solver_names
   use iterative_linear_solver_parameters_names
   use iterative_linear_solver_creational_methods_dictionary_names
@@ -57,7 +59,7 @@ module iterative_linear_solver_names
   ! environment_set  | free                 | not_created
   ! solver_type_set  | set_type_from_pl     | solver_type_set
   ! solver_type_set  | free                 | not_created
-  type :: iterative_linear_solver_t
+  type, extends(linear_solver_t) :: iterative_linear_solver_t
      private
      class(environment_t)       ,           pointer  :: environment                  => NULL()
      class(base_iterative_linear_solver_t), pointer  :: base_iterative_linear_solver => NULL()
@@ -66,7 +68,8 @@ module iterative_linear_solver_names
      ! Concrete TBPs
      procedure :: create                          => iterative_linear_solver_create
      procedure :: free                            => iterative_linear_solver_free
-     procedure :: solve                           => iterative_linear_solver_solve
+     procedure :: apply                           => iterative_linear_solver_apply
+     procedure :: apply_add                       => iterative_linear_solver_apply_add
      procedure :: print_convergence_history       => iterative_linear_solver_print_convergence_history
      procedure :: set_type_from_pl                => iterative_linear_solver_set_type_from_pl
      procedure :: set_parameters_from_pl          => iterative_linear_solver_set_parameters_from_pl
@@ -74,6 +77,7 @@ module iterative_linear_solver_names
      procedure :: set_operators                   => iterative_linear_solver_set_operators
      procedure :: set_initial_solution            => iterative_linear_solver_set_initial_solution
      procedure :: set_type_from_string            => iterative_linear_solver_set_type_from_string
+     procedure :: update_matrix                   => iterative_linear_solver_update_matrix
   end type iterative_linear_solver_t
   
   public :: iterative_linear_solver_t
@@ -107,14 +111,32 @@ contains
      call this%base_iterative_linear_solver%print_convergence_history(file_path)
    end subroutine iterative_linear_solver_print_convergence_history
    
-   subroutine iterative_linear_solver_solve ( this, b, x )
+   subroutine iterative_linear_solver_apply ( this, x, y )
      implicit none
      class(iterative_linear_solver_t), intent(inout) :: this
-     class(vector_t)       , intent(in) :: b 
-     class(vector_t)       , intent(inout) :: x 
+     class(vector_t)       , intent(in) :: x 
+     class(vector_t)       , intent(inout) :: y 
      assert ( this%state == solver_type_set )
-     call this%base_iterative_linear_solver%solve(b,x)
-   end subroutine iterative_linear_solver_solve
+     call this%base_iterative_linear_solver%solve(x,y)
+   end subroutine iterative_linear_solver_apply
+   
+   ! op%apply_add(x,y) <=> y <- op*x+y
+   ! Implicitly assumes that y is already allocated
+   subroutine iterative_linear_solver_apply_add(this,x,y) 
+     implicit none
+     class(iterative_linear_solver_t), intent(inout)    :: this
+     class(vector_t) , intent(in)    :: x
+     class(vector_t) , intent(inout) :: y 
+     class(vector_t), allocatable          :: w
+     type(vector_space_t), pointer         :: range_vector_space
+     integer(ip)                           :: istat
+     range_vector_space => this%get_range_vector_space()
+     call range_vector_space%create_vector(w)
+     call this%apply(x,w)
+     call y%axpby(1.0, w, 1.0)
+     call w%free()
+     deallocate(w, stat=istat); check(istat==0)
+   end subroutine iterative_linear_solver_apply_add
 
    subroutine iterative_linear_solver_set_type_from_pl ( this, parameter_list )
      implicit none
@@ -183,5 +205,21 @@ contains
      assert ( this%base_iterative_linear_solver%get_state() == start )
      this%state = solver_type_set
    end subroutine iterative_linear_solver_set_type_from_string
+   
+   
+   
+   subroutine iterative_linear_solver_update_matrix(this, same_nonzero_pattern)
+   !-----------------------------------------------------------------
+   !< Update matrix pointer 
+   !< If same_nonzero_pattern numerical_setup has to be performed
+   !< If not same_nonzero_pattern symbolic_setup has to be performed
+   !-----------------------------------------------------------------
+     class(iterative_linear_solver_t),        intent(inout) :: this
+     logical,                       intent(in)    :: same_nonzero_pattern
+     class(lvalue_operator_t), pointer            :: prec
+   !-----------------------------------------------------------------
+     prec => this%base_iterative_linear_solver%get_M()
+     call prec%update_matrix(same_nonzero_pattern)
+   end subroutine iterative_linear_solver_update_matrix
    
 end module iterative_linear_solver_names

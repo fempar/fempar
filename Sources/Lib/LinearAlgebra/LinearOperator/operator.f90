@@ -47,12 +47,13 @@ module operator_names
      type(vector_space_t) :: range_vector_space
    contains
      ! Deferred methods
-     procedure (apply_interface)    , deferred :: apply
+     procedure (apply_interface)    , deferred :: apply      ! A(x), residual is -A(x); do we need a method for this? I would say NOT (poor optimization)
      procedure (apply_add_interface), deferred :: apply_add
-     procedure (is_linear_interface), deferred :: is_linear 
+     procedure (is_linear_interface), deferred :: is_linear
      
-     procedure :: get_tangent                             => operator_get_tangent
-     procedure :: get_translation                         => operator_get_translation
+     procedure :: update_matrix                           => operator_update_matrix
+     procedure :: get_tangent                             => operator_get_tangent         ! partial A / partial x (x*)
+	    procedure :: get_translation                         => operator_get_translation     ! -1*A(0)
      procedure :: free_vector_spaces                      => operator_free_vector_spaces
      procedure :: create_domain_vector                    => operator_create_domain_vector
      procedure :: create_range_vector                     => operator_create_range_vector
@@ -88,31 +89,38 @@ module operator_names
   end type expression_operator_t
 
   type, abstract, extends(expression_operator_t) :: binary_operator_t
+     private
      class(operator_t), pointer :: op1 => null(), op2 => null()
    contains
      procedure :: default_initialization => binary_operator_default_init
-     procedure :: free    => binary_operator_free
-     procedure :: assign  => binary_operator_assign
+     procedure :: free                   => binary_operator_free
+     procedure :: assign                 => binary_operator_assign
+     procedure :: update_matrix          => binary_operator_update_matrix
   end type binary_operator_t
 
   type, abstract, extends(expression_operator_t) :: unary_operator_t
+     private
      class(operator_t), pointer :: op => null()
    contains
      procedure :: default_initialization => unary_operator_default_init
-     procedure :: free    => unary_operator_free
-     procedure :: assign  => unary_operator_assign
+     procedure :: free                   => unary_operator_free
+     procedure :: assign                 => unary_operator_assign
+     procedure :: update_matrix          => unary_operator_update_matrix
   end type unary_operator_t
 
   type, extends(operator_t) :: lvalue_operator_t
+     private
      class(operator_t), pointer :: op_stored     => null()
      class(operator_t), pointer :: op_referenced => null()
    contains
      procedure  :: default_initialization => lvalue_operator_default_init
-     procedure  :: apply     => lvalue_operator_apply
-     procedure  :: apply_add => lvalue_operator_apply_add
-     procedure  :: is_linear => lvalue_operator_is_linear
-     procedure  :: free      => lvalue_operator_free
-     procedure  :: assign    => lvalue_operator_create
+     procedure  :: get_operator  => lvalue_get_operator
+     procedure  :: apply         => lvalue_operator_apply
+     procedure  :: apply_add     => lvalue_operator_apply_add
+     procedure  :: update_matrix => lvalue_operator_update_matrix
+     procedure  :: is_linear     => lvalue_operator_is_linear
+     procedure  :: free          => lvalue_operator_free
+     procedure  :: assign        => lvalue_operator_create
      generic    :: assignment(=) => assign
   end type lvalue_operator_t
   
@@ -138,6 +146,7 @@ module operator_names
   end type mult_operator_t
 
   type, extends(unary_operator_t) :: scal_operator_t
+     private
      real(rp) :: alpha
    contains
      procedure  :: apply     => scal_operator_apply
@@ -168,7 +177,7 @@ module operator_names
      subroutine apply_interface(this,x,y) 
        import :: operator_t, vector_t
        implicit none
-       class(operator_t), intent(in)    :: this
+       class(operator_t), intent(inout)    :: this
        class(vector_t) , intent(in)    :: x
        class(vector_t) , intent(inout) :: y 
      end subroutine apply_interface 
@@ -178,7 +187,7 @@ module operator_names
      subroutine apply_add_interface(this,x,y) 
        import :: operator_t, vector_t
        implicit none
-       class(operator_t), intent(in)    :: this
+       class(operator_t), intent(inout)    :: this
        class(vector_t) , intent(in)    :: x
        class(vector_t) , intent(inout) :: y 
      end subroutine apply_add_interface 
@@ -251,16 +260,18 @@ contains
   
   function  operator_apply_fun(this,x) result(y)
     implicit none
-    class(operator_t), intent(in)       :: this
+    class(operator_t), target, intent(in)                 :: this
     class(vector_t)     , intent(in)  :: x
     class(vector_t)     , allocatable :: y 
-    call this%GuardTemp()
+    class(operator_t), pointer :: aux
+    aux => this
+    call aux%GuardTemp()
     call x%GuardTemp()
-    call this%range_vector_space%create_vector(y)
-    call this%apply(x,y)
+    call aux%range_vector_space%create_vector(y)
+    call aux%apply(x,y)
     call x%CleanTemp()
     call y%SetTemp()
-    call this%CleanTemp()
+    call aux%CleanTemp()
   end function operator_apply_fun
   
   subroutine operator_abort_if_not_in_domain ( this, vector )
@@ -283,10 +294,9 @@ contains
     end if
   end subroutine operator_abort_if_not_in_range
   
-  function operator_get_tangent(this,x) result(tangent)
+  function operator_get_tangent(this) result(tangent)
     implicit none
     class(operator_t)          , intent(in) :: this
-    class(vector_t)  , optional, intent(in) :: x
     type(lvalue_operator_t)          :: tangent 
     
     if (this%is_linear()) then
@@ -313,7 +323,13 @@ contains
       check(.false.)
     end if
   end function operator_get_translation
-    
+     
+  subroutine operator_update_matrix( this, same_nonzero_pattern )
+    implicit none
+    class(operator_t),  intent(inout) :: this
+    logical          ,  intent(in)    :: same_nonzero_pattern
+    wassert(.false.,'Note: you are calling operator_t%update_matrix() on a type extension of operator_t which does not override update_matrix(). operator_t%update_matrix() does NOTHING by default.')
+  end subroutine operator_update_matrix
   
   subroutine binary_operator_default_init(this)
     implicit none
@@ -389,7 +405,7 @@ contains
     call op2%CleanTemp()
   end subroutine binary_operator_create
   
-    recursive subroutine binary_operator_assign(this,rvalue)
+  recursive subroutine binary_operator_assign(this,rvalue)
     implicit none
     class(binary_operator_t), intent(inout) :: this
     class(operator_t)  , intent(in)    :: rvalue 
@@ -403,7 +419,15 @@ contains
        check(1==0)
     end select
   end subroutine binary_operator_assign
-
+  
+  subroutine binary_operator_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(binary_operator_t), intent(inout)    :: this
+    logical                 , intent(in)       :: same_nonzero_pattern
+    call this%op1%update_matrix(same_nonzero_pattern)
+    call this%op2%update_matrix(same_nonzero_pattern)
+  end subroutine binary_operator_update_matrix
+  
   subroutine unary_operator_default_init(this)
     implicit none
     class(unary_operator_t), intent(inout) :: this
@@ -469,6 +493,13 @@ contains
     call res%SetTemp()
     call op%CleanTemp()
   end subroutine unary_operator_create
+  
+  subroutine unary_operator_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(unary_operator_t), intent(inout)    :: this
+    logical                 , intent(in)       :: same_nonzero_pattern
+    call this%op%update_matrix(same_nonzero_pattern)
+  end subroutine unary_operator_update_matrix
 
   subroutine lvalue_operator_default_init(this)
     implicit none
@@ -710,7 +741,7 @@ contains
   !-------------------------------------!
   recursive subroutine identity_operator_apply(this,x,y)
     implicit none
-    class(identity_operator_t), intent(in) :: this
+    class(identity_operator_t), intent(inout) :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
 
@@ -725,7 +756,7 @@ contains
   
   recursive subroutine sum_operator_apply(this,x,y)
     implicit none
-    class(sum_operator_t), intent(in)    :: this
+    class(sum_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
     integer(ip)                    :: istat
@@ -743,7 +774,7 @@ contains
 
   recursive subroutine sub_operator_apply(this,x,y)
     implicit none
-    class(sub_operator_t), intent(in)    :: this
+    class(sub_operator_t), intent(inout)    :: this
     class(vector_t),       intent(in)    :: x
     class(vector_t),       intent(inout) :: y 
     call this%abort_if_not_in_domain(x)
@@ -758,7 +789,7 @@ contains
   
   recursive subroutine mult_operator_apply(this,x,y)
     implicit none
-    class(mult_operator_t), intent(in)    :: this
+    class(mult_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
     class(vector_t), allocatable   :: w
@@ -778,7 +809,7 @@ contains
 
   recursive subroutine scal_operator_apply(this,x,y)
     implicit none
-    class(scal_operator_t), intent(in)   :: this
+    class(scal_operator_t), intent(inout)   :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
     call this%abort_if_not_in_domain(x)
@@ -793,7 +824,7 @@ contains
 
   recursive subroutine minus_operator_apply(this,x,y)
     implicit none
-    class(minus_operator_t), intent(in)  :: this
+    class(minus_operator_t), intent(inout)  :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
     call this%GuardTemp()
@@ -804,9 +835,24 @@ contains
     call this%CleanTemp()
   end subroutine minus_operator_apply
 
+  function lvalue_get_operator(this) 
+    implicit none
+    class(lvalue_operator_t), intent(in) :: this
+    class(operator_t), pointer :: lvalue_get_operator
+    if(associated(this%op_stored)) then
+       assert(.not. associated(this%op_referenced))
+       lvalue_get_operator => this%op_stored
+    else if(associated(this%op_referenced)) then
+       assert(.not. associated(this%op_stored))
+       lvalue_get_operator => this%op_referenced
+    else
+       check(1==0)
+    end if 
+  end function lvalue_get_operator
+  
   recursive subroutine lvalue_operator_apply(this,x,y)
     implicit none
-    class(lvalue_operator_t), intent(in)    :: this
+    class(lvalue_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
     
@@ -833,7 +879,7 @@ contains
   !-------------------------------------!
   recursive subroutine identity_operator_apply_add(this,x,y)
     implicit none
-    class(identity_operator_t), intent(in) :: this
+    class(identity_operator_t), intent(inout) :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
 
@@ -848,7 +894,7 @@ contains
   
   recursive subroutine sum_operator_apply_add(this,x,y)
     implicit none
-    class(sum_operator_t), intent(in)    :: this
+    class(sum_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
     call this%abort_if_not_in_domain(x)
@@ -863,7 +909,7 @@ contains
 
   recursive subroutine sub_operator_apply_add(this,x,y)
     implicit none
-    class(sub_operator_t), intent(in)    :: this
+    class(sub_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y 
     call this%abort_if_not_in_domain(x)
@@ -878,7 +924,7 @@ contains
   
   recursive subroutine mult_operator_apply_add(this,x,y)
     implicit none
-    class(mult_operator_t), intent(in)    :: this
+    class(mult_operator_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
     class(vector_t), allocatable   :: w
@@ -898,7 +944,7 @@ contains
 
   recursive subroutine scal_operator_apply_add(this,x,y)
     implicit none
-    class(scal_operator_t), intent(in)    :: this
+    class(scal_operator_t), intent(inout)    :: this
     class(vector_t),        intent(in)    :: x
     class(vector_t),        intent(inout) :: y 
     
@@ -917,7 +963,7 @@ contains
 
   recursive subroutine minus_operator_apply_add(this,x,y)
     implicit none
-    class(minus_operator_t), intent(in)    :: this
+    class(minus_operator_t), intent(inout)    :: this
     class(vector_t),         intent(in)    :: x
     class(vector_t),         intent(inout) :: y 
     call this%GuardTemp()
@@ -931,7 +977,7 @@ contains
 
   recursive subroutine lvalue_operator_apply_add(this,x,y)
     implicit none
-    class(lvalue_operator_t), intent(in)    :: this
+    class(lvalue_operator_t), intent(inout)    :: this
     class(vector_t),          intent(in)    :: x
     class(vector_t),          intent(inout) :: y 
     
@@ -952,6 +998,21 @@ contains
     call x%CleanTemp()
     call this%CleanTemp()
   end subroutine lvalue_operator_apply_add  
+  
+  subroutine lvalue_operator_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(lvalue_operator_t), intent(inout)    :: this
+    logical                 , intent(in)       :: same_nonzero_pattern
+    if(associated(this%op_stored)) then
+       assert(.not. associated(this%op_referenced))
+       call this%op_stored%update_matrix(same_nonzero_pattern)
+    else if(associated(this%op_referenced)) then
+       assert(.not. associated(this%op_stored))
+       call this%op_referenced%update_matrix(same_nonzero_pattern)
+    else
+       check(1==0)
+    end if
+  end subroutine lvalue_operator_update_matrix
   
   !-------------------------------------!
   ! is_linear implementations           !

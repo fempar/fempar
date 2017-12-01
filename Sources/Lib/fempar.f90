@@ -77,6 +77,8 @@ module fempar_names
   use block_preconditioner_lu_names
   use block_operator_names
   use block_vector_names
+  use linear_solver_names
+  use nonlinear_solver_names
   use direct_solver_names
   use direct_solver_parameters_names
   use direct_solver_creational_methods_dictionary_names
@@ -97,7 +99,7 @@ module fempar_names
   use conditions_names
   use discrete_integration_names
   use assembler_names
-  use fe_affine_operator_names
+  use fe_nonlinear_operator_names
   use function_names
   use function_library_names
   use error_norms_names

@@ -28,14 +28,21 @@
 subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,          &
                                                                    triangulation, &
                                                                    reference_fes, &
-                                                                   conditions )
+                                                                   conditions,    &
+																                                                   field_blocks,  &
+																                                                   field_coupling, &
+                                                                   generate_global_dof_numbering)
   implicit none
-  class(serial_fe_space_t)                    , intent(inout) :: this
-  class(triangulation_t)            , target  , intent(in)    :: triangulation
-  type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
-  class(conditions_t)       , target, optional, intent(in)    :: conditions
+  class(serial_fe_space_t)                     , intent(inout) :: this
+  class(triangulation_t)            , target   , intent(in)    :: triangulation
+  type(p_reference_fe_t)                       , intent(in)    :: reference_fes(:)
+  class(conditions_t)               , target   , optional, intent(in)    :: conditions
+  integer(ip)                       , optional , intent(in)    :: field_blocks(:)
+  logical                           , optional , intent(in)    :: field_coupling(:,:)
+  logical                           , optional , intent(in)    :: generate_global_dof_numbering
 
   integer(ip) :: i, istat, jfield, ifield
+  logical :: perform_numbering
 
   call this%free()
 
@@ -55,20 +62,38 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   call this%allocate_and_init_has_hanging_dofs_x_fe()
   call this%set_up_strong_dirichlet_bcs()
   
+  call this%block_layout%create(this%get_num_fields(),&
+                                field_blocks, &
+                                field_coupling)
+  
+  if ( present(generate_global_dof_numbering) ) then
+    if ( generate_global_dof_numbering ) then
+      call this%generate_global_dof_numbering()
+    end if 
+  else
+    call this%generate_global_dof_numbering()
+  end if 
+  
 end subroutine serial_fe_space_create_same_reference_fes_on_all_cells
 
-subroutine serial_fe_space_create_different_ref_fes_between_cells( this,                     &
+subroutine serial_fe_space_create_different_ref_fes_between_cells( this,             &
                                                            triangulation,            &
                                                            reference_fes,            &
                                                            set_ids_to_reference_fes, &
-                                                           conditions )
+                                                           conditions,               &
+	                                          													   field_blocks,             &
+														                                             field_coupling,           &
+                                                           generate_global_dof_numbering )
   implicit none
   class(serial_fe_space_t)                    , intent(inout) :: this
   class(triangulation_t)    , target          , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
-  
+  integer(ip)                       , optional , intent(in)   :: field_blocks(:)
+  logical                           , optional , intent(in)   :: field_coupling(:,:)
+  logical                           , optional , intent(in)   :: generate_global_dof_numbering
+
   call this%free()
   
   call this%set_triangulation(triangulation)
@@ -87,6 +112,18 @@ subroutine serial_fe_space_create_different_ref_fes_between_cells( this,        
   call this%allocate_and_init_has_hanging_dofs_x_fe()
   call this%set_up_strong_dirichlet_bcs()
   
+  call this%block_layout%create( this%get_num_fields(), &
+                                 field_blocks, &
+                                 field_coupling ) 
+  
+  if ( present(generate_global_dof_numbering) ) then
+    if ( generate_global_dof_numbering ) then
+      call this%generate_global_dof_numbering()
+    end if 
+  else
+    call this%generate_global_dof_numbering()
+  end if 
+  
 end subroutine serial_fe_space_create_different_ref_fes_between_cells
 
 subroutine serial_fe_space_free (this)
@@ -104,11 +141,11 @@ subroutine serial_fe_space_free (this)
   if (allocated(this%num_dofs_x_field)) call memfree( this%num_dofs_x_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
   call this%free_facet_integration()
-  nullify(this%block_layout)
   this%num_hanging_dofs = 0
   this%num_dirichlet_dofs = 0
   call this%free_has_hanging_dofs_x_fe()
   call this%free_constraining_dofs_arrays()
+  call this%block_layout%free()
 end subroutine serial_fe_space_free
 
 subroutine serial_fe_space_free_constraining_dofs_arrays (this)
@@ -1805,8 +1842,6 @@ subroutine serial_fe_space_create_dof_values(this, dof_values)
   class(serial_fe_space_t)    , intent(in)    :: this
   class(vector_t), allocatable, intent(inout) :: dof_values
   integer(ip) :: istat
-
-  assert ( associated(this%block_layout) ) 
   
   if (allocated(dof_values)) then
      call dof_values%free()
@@ -1832,26 +1867,17 @@ subroutine serial_fe_space_create_dof_values(this, dof_values)
   end if
 end subroutine serial_fe_space_create_dof_values
 
-subroutine serial_fe_space_generate_global_dof_numbering( this, block_layout )
+subroutine serial_fe_space_generate_global_dof_numbering( this )
   implicit none
   class(serial_fe_space_t)    , intent(inout) :: this
-  type(block_layout_t), target, intent(inout) :: block_layout
   logical :: perform_numbering
   
-  perform_numbering = .not. associated(this%block_layout) 
-  if (.not. perform_numbering) perform_numbering = .not. (this%block_layout == block_layout)
-  if ( perform_numbering ) then
-    this%block_layout => block_layout
-    call this%allocate_num_dofs_x_field()
-    if ( this%num_fields >= 1 ) then 
-      call this%count_dofs()
-    end if  
-    call this%list_dofs()
-    call this%setup_hanging_node_constraints()
-  else
-    call block_layout%copy_num_dofs_x_block(this%block_layout)
-  end if
-  
+  call this%allocate_num_dofs_x_field()
+  if ( this%num_fields >= 1 ) then 
+    call this%count_dofs()
+  end if  
+  call this%list_dofs()
+  call this%setup_hanging_node_constraints()
 end subroutine serial_fe_space_generate_global_dof_numbering
 
 subroutine serial_fe_space_count_dofs ( this ) 
@@ -2096,6 +2122,7 @@ subroutine serial_fe_space_list_dofs ( this )
                     do jvef=1, coarser_fe%get_num_vefs()
                       call coarser_fe%get_vef(jvef, coarser_vef)
                       if (coarser_vef%is_at_interface() .and. coarser_vef%is_proper()) then
+                        ! sbadia : only touch the vefs in the ghost cell that belong to the coarser_vef
                         per_field_visited_proper_vefs_at_interface(field_id,coarser_vef%get_gid()) = .true. 
                       end if
                     end do
@@ -2477,7 +2504,6 @@ function serial_fe_space_get_num_blocks( this)
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
   integer(ip) :: serial_fe_space_get_num_blocks
-  assert ( associated (this%block_layout) ) 
   serial_fe_space_get_num_blocks = this%block_layout%get_num_blocks()
 end function serial_fe_space_get_num_blocks
 
@@ -2522,9 +2548,9 @@ end function serial_fe_space_get_block_num_dofs
 ! Sets the number of DoFs associated to block with identifier block_id to num_dofs
 subroutine serial_fe_space_set_block_num_dofs ( this, block_id, num_dofs )
   implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  integer(ip)             , intent(in) :: block_id
-  integer(ip)             , intent(in) :: num_dofs
+  class(serial_fe_space_t), intent(inout) :: this
+  integer(ip)             , intent(in)    :: block_id
+  integer(ip)             , intent(in)    :: num_dofs
   class(environment_t), pointer  :: environment
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then 
@@ -2539,21 +2565,6 @@ function serial_fe_space_get_block_layout ( this )
   type(block_layout_t), pointer :: serial_fe_space_get_block_layout
   serial_fe_space_get_block_layout => this%block_layout
 end function serial_fe_space_get_block_layout
-
-! Sets the pointer block_layout member variable
-subroutine serial_fe_space_set_block_layout ( this, block_layout )
-  implicit none
-  class(serial_fe_space_t)    , intent(inout) :: this
-  type(block_layout_t), target, intent(in)    :: block_layout
-  this%block_layout => block_layout
-end subroutine serial_fe_space_set_block_layout
-
-! Nullifies the pointer block_layout member variable
-subroutine serial_fe_space_nullify_block_layout ( this )
-  implicit none
-  class(serial_fe_space_t)    , intent(inout) :: this
-  nullify(this%block_layout)
-end subroutine serial_fe_space_nullify_block_layout
 
 subroutine serial_fe_space_create_fe_cell_iterator ( this, fe )
 
@@ -3132,7 +3143,7 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   real(rp)                          , allocatable :: new_nodal_values(:)
   class(reference_fe_t)             , pointer     :: reference_fe
   integer(ip)                                     :: num_nodes_field
-  type(block_layout_t)              , pointer     :: block_layout
+  type(block_layout_t)                            :: block_layout
   integer(ip)                                     :: error
   
 #ifdef ENABLE_P4EST  
@@ -3161,9 +3172,7 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   call this%set_up_strong_dirichlet_bcs()
   
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
-  block_layout => this%get_block_layout()
-  call this%nullify_block_layout()
-  call this%generate_global_dof_numbering(block_layout)
+  call this%generate_global_dof_numbering()
   
   call this%create_fe_cell_iterator(new_fe)
   reference_fe => new_fe%get_reference_fe_geo()
@@ -3307,7 +3316,7 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
   real(rp)                          , allocatable :: new_nodal_values(:)
   class(reference_fe_t)             , pointer     :: reference_fe
   integer(ip)                                     :: num_nodes_field
-  type(block_layout_t)              , pointer     :: block_layout
+  type(block_layout_t)                            :: block_layout
   integer(ip)                                     :: ifunc
   integer(ip)                                     :: error
   
@@ -3337,9 +3346,7 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
   call this%set_up_strong_dirichlet_bcs()
   
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
-  block_layout => this%get_block_layout()
-  call this%nullify_block_layout()
-  call this%generate_global_dof_numbering(block_layout)
+  call this%generate_global_dof_numbering()
   
   call this%create_fe_cell_iterator(new_fe)
   reference_fe => new_fe%get_reference_fe_geo()
