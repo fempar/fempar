@@ -219,7 +219,7 @@ contains
      class(lvalue_operator_t), pointer            :: prec
    !-----------------------------------------------------------------
      prec => this%base_iterative_linear_solver%get_M()
-     !call prec%update_matrix(same_nonzero_pattern)
+     call prec%update_matrix(same_nonzero_pattern)
    end subroutine iterative_linear_solver_update_matrix
    
 end module iterative_linear_solver_names

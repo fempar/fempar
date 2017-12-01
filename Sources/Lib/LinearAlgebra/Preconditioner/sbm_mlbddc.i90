@@ -127,6 +127,21 @@ subroutine mlbddc_setup_weighting_operator (this)
 
 end subroutine mlbddc_setup_weighting_operator
 
+subroutine mlbddc_update_matrix(this, same_nonzero_pattern )
+  implicit none
+  class(mlbddc_t)          , intent(inout) :: this
+  logical                  , intent(in)    :: same_nonzero_pattern
+  if ( same_nonzero_pattern ) then
+    call this%free_numerical_setup()
+    call this%numerical_setup()
+  else
+    call this%free_numerical_setup()
+    call this%free_symbolic_setup()
+    call this%symbolic_setup()
+    call this%numerical_setup()
+  end if 
+end subroutine mlbddc_update_matrix
+
 ! Helper function that extracts a run-time polymorphic class(matrix_t)
 ! from the fe_nonlinear_operator, and dynamically casts it into  
 ! type(par_sparse_matrix_t). If the dynamic cast cannot be performed 

@@ -1442,20 +1442,27 @@ recursive subroutine base_mlbddc_free_symbolic_setup(this)
            nullify (this%mlbddc_coarse)
            nullify (this%coarse_grid_matrix)
            call this%constraint_matrix%free()
-           call memfree(this%W, __FILE__, __LINE__)
+           if ( allocated(this%W) ) then 
+             call memfree(this%W, __FILE__, __LINE__)
+           end if
         else
            call this%free_symbolic_setup_coarse_solver()
         end if
      else
-        ! mlbddc_coarse should be freed before coarse_fe_space
-        ! (as the former was created from the latter)
-        call this%mlbddc_coarse%free_symbolic_setup()
-        call this%mlbddc_coarse%free_clean()
-        deallocate (this%mlbddc_coarse, stat=istat)
-        check (istat==0)
-        call this%coarse_grid_matrix%free()
-        deallocate  ( this%coarse_grid_matrix, stat = istat )
-        check( istat == 0 )
+        if ( associated(this%mlbddc_coarse) ) then
+          ! mlbddc_coarse should be freed before coarse_fe_space
+          ! (as the former was created from the latter)
+          call this%mlbddc_coarse%free_symbolic_setup()
+          call this%mlbddc_coarse%free_clean()
+          deallocate (this%mlbddc_coarse, stat=istat)
+          check (istat==0)
+        end if  
+        
+        if ( associated(this%coarse_grid_matrix) ) then
+          call this%coarse_grid_matrix%free()
+          deallocate  ( this%coarse_grid_matrix, stat = istat )
+          check( istat == 0 )
+        end if  
      end if
   end if
 end subroutine base_mlbddc_free_symbolic_setup
@@ -1516,8 +1523,12 @@ recursive subroutine base_mlbddc_free_numerical_setup(this)
            call this%free_numerical_setup_coarse_solver()
         end if
      else
-        call this%mlbddc_coarse%free_numerical_setup()
-        call this%coarse_grid_matrix%free_in_stages(free_numerical_setup)
+        if (associated(this%mlbddc_coarse)) then
+           call this%mlbddc_coarse%free_numerical_setup()
+        end if 
+        if (associated(this%coarse_grid_matrix)) then
+           call this%coarse_grid_matrix%free_in_stages(free_numerical_setup)
+        end if   
      end if
   end if
 end subroutine base_mlbddc_free_numerical_setup

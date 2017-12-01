@@ -112,12 +112,13 @@ module operator_names
      class(operator_t), pointer :: op_referenced => null()
    contains
      procedure  :: default_initialization => lvalue_operator_default_init
-     procedure  :: get_operator => lvalue_get_operator
-     procedure  :: apply     => lvalue_operator_apply
-     procedure  :: apply_add => lvalue_operator_apply_add
-     procedure  :: is_linear => lvalue_operator_is_linear
-     procedure  :: free      => lvalue_operator_free
-     procedure  :: assign    => lvalue_operator_create
+     procedure  :: get_operator  => lvalue_get_operator
+     procedure  :: apply         => lvalue_operator_apply
+     procedure  :: apply_add     => lvalue_operator_apply_add
+     procedure  :: update_matrix => lvalue_operator_update_matrix
+     procedure  :: is_linear     => lvalue_operator_is_linear
+     procedure  :: free          => lvalue_operator_free
+     procedure  :: assign        => lvalue_operator_create
      generic    :: assignment(=) => assign
   end type lvalue_operator_t
   
@@ -324,7 +325,7 @@ contains
   subroutine operator_update_matrix( this, same_nonzero_pattern )
     implicit none
     class(operator_t),  intent(inout) :: this
-    logical,                       intent(in)    :: same_nonzero_pattern
+    logical          ,  intent(in)    :: same_nonzero_pattern
     mcheck(.false.,'update_matrix not available for this operator')
   end subroutine operator_update_matrix
   
@@ -980,6 +981,21 @@ contains
     call x%CleanTemp()
     call this%CleanTemp()
   end subroutine lvalue_operator_apply_add  
+  
+  subroutine lvalue_operator_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(lvalue_operator_t), intent(inout)    :: this
+    logical                 , intent(in)       :: same_nonzero_pattern
+    if(associated(this%op_stored)) then
+       assert(.not. associated(this%op_referenced))
+       call this%op_stored%update_matrix(same_nonzero_pattern)
+    else if(associated(this%op_referenced)) then
+       assert(.not. associated(this%op_stored))
+       call this%op_referenced%update_matrix(same_nonzero_pattern)
+    else
+       check(1==0)
+    end if
+  end subroutine lvalue_operator_update_matrix
   
   !-------------------------------------!
   ! is_linear implementations           !

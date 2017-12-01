@@ -226,6 +226,9 @@ end type base_mlbddc_t
     ! Symbolic-setup related TBPs
     procedure,                  private :: setup_constraint_matrix                         => mlbddc_setup_constraint_matrix
     procedure,                  private :: setup_weighting_operator                        => mlbddc_setup_weighting_operator
+    
+    ! Update-matrix related TBPs
+    procedure                           :: update_matrix                                   => mlbddc_update_matrix
         
     ! Miscellaneous 
     procedure, private                  :: get_par_sparse_matrix                            => mlbddc_get_par_sparse_matrix

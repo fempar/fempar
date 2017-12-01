@@ -157,6 +157,15 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
     !call this%linear_solver%update(nonlinear_operator%get_tangent())
     ! sbadia : Is this OK? No extra copy?
     ! sbadia : To be optimized (Why don't we change the concept of residual?)
+    
+    if ( this%current_iteration == 1 ) then
+       ! Force symbolic and numerical set-up
+       call this%linear_solver%update_matrix(same_nonzero_pattern=.false.)
+    else
+       ! Force only numerical set-up
+       call this%linear_solver%update_matrix(same_nonzero_pattern=.true.)
+    end if 
+    
     call this%linear_solver%apply( - this%current_residual, this%increment_dof_values )
     call this%update_solution() ! x + dx
     call nonlinear_operator%set_evaluation_point(this%current_dof_values)

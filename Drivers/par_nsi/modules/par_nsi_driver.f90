@@ -62,10 +62,9 @@ module par_nsi_driver_names
      type(par_nsi_analytical_functions_t)      :: par_nsi_analytical_functions
      
      ! Operators to define and solve the problem
-     type(fe_nonlinear_operator_t)                  :: fe_affine_operator
      type(mlbddc_t)                              :: mlbddc
-     type(iterative_linear_solver_t)                       :: linear_solver
-     type(fe_nonlinear_operator_t)                  :: nonlinear_operator
+     type(iterative_linear_solver_t)             :: linear_solver
+     type(fe_nonlinear_operator_t)               :: nonlinear_operator
      type(nonlinear_solver_t)                    :: nonlinear_solver 
      !class(time_integration_t), allocatable     :: time_integration
      !type(theta_time_integration_t)              :: time_integration
@@ -397,7 +396,7 @@ end subroutine free_timers
     FPLError = linear_pl%set(key = ils_atol, value = 1.0e-9); assert(FPLError == 0)
     call this%linear_solver%set_parameters_from_pl(linear_pl)
     ! sbadia : For the moment identity preconditioner
-    call this%linear_solver%set_operators( this%nonlinear_operator%get_tangent(), .identity. this%nonlinear_operator%get_tangent() )
+    call this%linear_solver%set_operators( this%nonlinear_operator%get_tangent(), this%mlbddc )
 
     ! Nonlinear solver ! abs_res_norm_and_rel_inc_norm
     call this%nonlinear_solver%create(convergence_criteria = abs_res_norm, & 
@@ -519,7 +518,6 @@ end subroutine free_timers
     call this%linear_solver%free()
     call this%nonlinear_solver%free()
     call this%nonlinear_operator%free()
-    call this%fe_affine_operator%free()
     call this%mlbddc%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
