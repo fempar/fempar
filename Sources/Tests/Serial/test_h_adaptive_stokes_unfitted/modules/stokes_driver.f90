@@ -162,6 +162,8 @@ contains
     integer(ip) :: diri_set_id_u
     integer(ip) :: diri_set_id_u_and_p
     logical :: first_vertex
+    logical :: in_interior_cell
+    integer(ip) :: icell
 
     if (this%test_params%is_strong_dirichlet_on_fitted_boundary()) then
       diri_set_id_u = 1
@@ -177,18 +179,32 @@ contains
     ! Impose Dirichlet in the boundary of the background mesh
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
 
-       ! For velocities (on the entire boundary)
-       ! Also for pressures for the moment
+       first_vertex = .true.
        call this%triangulation%create_vef_iterator(vef)
+       call this%triangulation%create_cell_iterator(cell)
        do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then
-             call vef%set_set_id(diri_set_id_u_and_p)
-          else
-             call vef%set_set_id(0)
-          end if
-          call vef%next()
+         if(vef%is_at_boundary()) then
+           in_interior_cell = .false.
+           do icell = 1, vef%get_num_cells_around()
+             call vef%get_cell_around(icell,cell)
+             if (cell%is_interior()) then
+               in_interior_cell = .true.
+               exit
+             end if
+           end do
+           if (vef%get_dim()==0 .and. first_vertex .and. in_interior_cell) then
+            call vef%set_set_id(diri_set_id_u_and_p)
+            first_vertex = .false.
+           else
+            call vef%set_set_id(diri_set_id_u_and_p)
+           end if
+         else
+            call vef%set_set_id(0)
+         end if
+         call vef%next()
        end do
        call this%triangulation%free_vef_iterator(vef)
+       call this%triangulation%free_cell_iterator(cell)
 
     end if
 
@@ -437,6 +453,8 @@ contains
     class(stokes_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
+    !class(vector_t)                  , pointer       :: sol
+    !type(serial_scalar_array_t)     :: r
 
     integer(ip) :: iounit
 
@@ -468,6 +486,32 @@ contains
     class DEFAULT
        assert(.false.) 
     end select
+
+    !! Interpolate solution
+    !call this%fe_space%interpolate(U_FIELD_ID,this%analytical_functions%get_solution_function_u(),this%solution)
+    !call this%fe_space%interpolate(P_FIELD_ID,this%analytical_functions%get_solution_function_p(),this%solution)
+    !sol => this%solution%get_free_dof_values()
+    !select type(matrix)
+    !class is (sparse_matrix_t)  
+    !  select type(rhs)
+    !  class is (serial_scalar_array_t)  
+    !  select type(sol)
+    !    class is (serial_scalar_array_t)  
+    !      call r%clone(rhs)
+    !      call r%scal(-1.0,rhs)
+    !      call matrix%apply_add(sol,r)
+    !      call r%print(6)
+    !    class DEFAULT
+    !       assert(.false.) 
+    !    end select
+    !  class DEFAULT
+    !     assert(.false.) 
+    !  end select
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
+    !call r%free()
+
   end subroutine assemble_system
   
   

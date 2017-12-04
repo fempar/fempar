@@ -220,7 +220,7 @@ contains
            num_quad_points = quad%get_num_quadrature_points()
            pw_cell_map       => fe%get_boundary_piecewise_cell_map()
            quad_coords     => pw_cell_map%get_quadrature_points_coordinates()
-           cell_int         => fe%get_boundary_cell_integrator(1)
+           cell_int         => fe%get_boundary_cell_integrator(this%field_id)
 
            !TODO move outside
            call memalloc(num_quad_points,element_vals,__FILE__, __LINE__)

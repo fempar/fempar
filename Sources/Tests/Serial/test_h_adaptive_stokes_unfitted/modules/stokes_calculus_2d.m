@@ -7,8 +7,8 @@ syms q
 N = 2;
 x = sym('x%d',[N 1]);
 
-u = [x(2) ; x(1) ] ;% [ x(1)^q*x(2)^q+x(1)^q ; x(1)^q*x(2)^q+x(2)^q];
-p = 1  ;% x(1)^(q-1)*x(2)^(q-1);
+u = [x(1)*x(2) ; x(2)*x(1) ] ;% [ x(1)^q*x(2)^q+x(1)^q ; x(1)^q*x(2)^q+x(2)^q];
+p = x(1)*x(2)  ;% x(1)^(q-1)*x(2)^(q-1);
 
 
 grad_u = sym(zeros(N,N));
@@ -26,9 +26,17 @@ end
 div_grad_u = sym(zeros(N,1));
 for i=1:N
     for j=1:N
-        div_grad_u(i) = div_grad_u(i) + diff(grad_u(j,i),x(i));
+        div_grad_u(i) = div_grad_u(i) + diff(grad_u(j,i),x(j));
     end
 end
+
+lapl_u = sym(zeros(N,1));
+for i=1:N
+    for j=1:N
+        lapl_u(i) = lapl_u(i) + diff(diff(u(i),x(j)),x(j));
+    end
+end
+
 
 grad_p = sym(zeros(N,1));
 for i=1:N
@@ -54,6 +62,11 @@ disp(div_u)
 for i = 1:N
     fprintf('div_grad_u(%i)= ',i);
     disp(div_grad_u(i))
+end
+
+for i = 1:N
+    fprintf('lapl_u(%i)= ',i);
+    disp(lapl_u(i))
 end
 
 fprintf('p = ')

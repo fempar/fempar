@@ -214,7 +214,7 @@ contains
            num_quad_points = quad%get_num_quadrature_points()
            pw_cell_map       => fe%get_boundary_piecewise_cell_map()
            quad_coords     => pw_cell_map%get_quadrature_points_coordinates()
-           cell_int         => fe%get_boundary_cell_integrator(1)
+           cell_int         => fe%get_boundary_cell_integrator(this%field_id)
 
            !TODO move outside
            allocate(element_vals(1:num_quad_points), stat=istat); check(istat==0)

@@ -127,7 +127,16 @@ contains
     real(rp), parameter :: viscosity = 1.0
 
     !! For Nitsche
-    !real(rp)     :: dS
+    real(rp)    :: dS
+    real(rp)    :: tau
+    class(vector_function_t)   , pointer      :: exact_sol_u
+    type(vector_field_t)                      :: exact_sol_value_u
+    type(piecewise_cell_map_t) , pointer      :: pw_cell_map
+    type(vector_field_t)       , allocatable  :: boundary_shape_values_u(:,:)
+    type(tensor_field_t)       , allocatable  :: boundary_shape_gradients_u(:,:)
+    real(rp)                   , allocatable  :: boundary_shape_values_p(:,:)
+    type(vector_field_t)                      :: normal_vec
+
     !class(scalar_function_t) , pointer      :: exact_sol
     !type(piecewise_cell_map_t) , pointer :: pw_cell_map
     !real(rp)            , allocatable  :: boundary_shape_values(:,:)
@@ -153,29 +162,11 @@ contains
 
     source_term_u => this%analytical_functions%get_source_term_u()
     source_term_p => this%analytical_functions%get_source_term_p()
-
-    !exact_sol   => this%analytical_functions%get_solution_function()
+    exact_sol_u   => this%analytical_functions%get_solution_function_u()
 
     num_dofs = fe_space%get_max_num_dofs_on_a_cell()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-
-    !!This is for the Nitsche's BCs
-    !call fe%first_local_non_void()
-    !assert( .not. fe%has_finished() )
-    !! TODO  We assume same ref element for all cells, and for all fields
-    !ref_fe => fe%get_reference_fe(1)
-    !nodal_quad => ref_fe%get_nodal_quadrature()
-    !call memalloc ( num_dofs, num_dofs  , shape2mono, __FILE__, __LINE__ )
-    !call evaluate_monomials(nodal_quad,shape2mono,degree=this%analytical_functions%get_degree())
-    !! TODO  We assume that the constant monomial is the first
-    !shape2mono_fixed => shape2mono(:,2:)
-    !! Allocate the eigenvalue solver
-    !call eigs%create(num_dofs - 1)
-
-    !call memalloc ( num_dofs, num_dofs, elmatB_pre, __FILE__, __LINE__ )
-    !call memalloc ( num_dofs-1, num_dofs-1, elmatB, __FILE__, __LINE__ )
-    !call memalloc ( num_dofs-1, num_dofs-1, elmatV, __FILE__, __LINE__ )
 
     call fe%first()
     do while ( .not. fe%has_finished() )
@@ -201,16 +192,16 @@ contains
 
          do idof_u = 1, fe%get_num_dofs_field(U_FIELD_ID)
            idof = idof_u
-           epsi_v = symmetric_part(shape_gradients_u(idof_u,qpoint))
+           epsi_v = (shape_gradients_u(idof_u,qpoint))
            div_v  = trace(epsi_v)
            do jdof_u = 1, fe%get_num_dofs_field(U_FIELD_ID)
              jdof = jdof_u
-             epsi_u = symmetric_part(shape_gradients_u(jdof_u,qpoint))
+             epsi_u = (shape_gradients_u(jdof_u,qpoint))
              elmat(idof,jdof) = elmat(idof,jdof) + dV * double_contract(epsi_v,viscosity*epsi_u)
            end do
            do jdof_p = 1, fe%get_num_dofs_field(P_FIELD_ID)
              jdof = jdof_p + fe%get_num_dofs_field(U_FIELD_ID)
-             elmat(idof,jdof) = elmat(idof,jdof) - dV * div_v * shape_values_p(jdof_p,qpoint)
+             elmat(idof,jdof) = elmat(idof,jdof) + dV * div_v * shape_values_p(jdof_p,qpoint)
            end do
          end do
 
@@ -218,7 +209,7 @@ contains
            idof = idof_p + fe%get_num_dofs_field(U_FIELD_ID)
            do jdof_u = 1, fe%get_num_dofs_field(U_FIELD_ID)
              jdof = jdof_u
-             epsi_u = symmetric_part(shape_gradients_u(jdof_u,qpoint))
+             epsi_u = (shape_gradients_u(jdof_u,qpoint))
              div_u  = trace(epsi_u)
              elmat(idof,jdof) = elmat(idof,jdof) + dV * shape_values_p(idof_p,qpoint) * div_u
            end do
@@ -238,107 +229,78 @@ contains
 
        end do
 
-       !if (fe%is_cut()) then
+       if (fe%is_cut()) then
 
-       !  call fe%update_boundary_integration()
+         call fe%update_boundary_integration()
 
-       !  ! Get info on the unfitted boundary for integrating BCs
-       !  quad            => fe%get_boundary_quadrature()
-       !  num_quad_points = quad%get_num_quadrature_points()
-       !  pw_cell_map       => fe%get_boundary_piecewise_cell_map()
-       !  quad_coords     => pw_cell_map%get_quadrature_points_coordinates()
-       !  cell_int         => fe%get_boundary_cell_integrator(1)
-       !  call cell_int%get_values(boundary_shape_values)
-       !  call cell_int%get_gradients(boundary_shape_gradients)
+         quad            => fe%get_boundary_quadrature()
+         num_quad_points = quad%get_num_quadrature_points()
+         pw_cell_map     => fe%get_boundary_piecewise_cell_map()
+         quad_coords     => pw_cell_map%get_quadrature_points_coordinates()
+         cell_int_u      => fe%get_boundary_cell_integrator(U_FIELD_ID)
+         cell_int_p      => fe%get_boundary_cell_integrator(P_FIELD_ID)
 
+         call cell_int_u%get_values(boundary_shape_values_u)
+         call cell_int_u%get_gradients(boundary_shape_gradients_u)
+         call cell_int_p%get_values(boundary_shape_values_p)
 
-       !    if (.not. this%is_constant_nitches_beta) then
+         tau = 100.0/cell_map%compute_h(1) 
 
-       !      ! Integrate the matrix associated with the normal derivatives
-       !      elmatB_pre(:,:)=0.0_rp
-       !      do qpoint = 1, num_quad_points
-       !        dS = pw_cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-       !        call pw_cell_map%get_normal(qpoint,normal_vec)
-       !         do idof = 1, num_dofs
-       !            do jdof = 1, num_dofs
-       !               ! B_K(i,j) = (n*grad(phi_i),n*grad(phi_j))_{\partial\Omega}
-       !               elmatB_pre(idof,jdof) = elmatB_pre(idof,jdof) + &
-       !                 dS *( (normal_vec*boundary_shape_gradients(jdof,qpoint)) * (normal_vec*boundary_shape_gradients(idof,qpoint)) )
-       !            end do
-       !         end do
-       !      end do
+         do qpoint = 1, num_quad_points
 
-       !      ! Compute the matrices without the kernel
-       !      call At_times_B_times_A(shape2mono_fixed,elmat,elmatV)
-       !      call At_times_B_times_A(shape2mono_fixed,elmatB_pre,elmatB)
+           dS = pw_cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+           call pw_cell_map%get_normal(qpoint,normal_vec)
+           call exact_sol_u%get_value(quad_coords(qpoint),exact_sol_value_u)
 
-       !      ! Solve the eigenvalue problem
-       !      lambdas => eigs%solve(elmatB,elmatV,istat)
-       !      if (istat .ne. 0) then
-       !        write(*,*) 'istat = ', istat
-       !        write(*,*) 'lid   = ', fe%get_gid()
-       !        write(*,*) 'elmatB = '
-       !        do idof = 1,size(elmatB,1)
-       !          write(*,*) elmatB(idof,:)
-       !        end do
-       !        write(*,*) 'elmatV = '
-       !        do idof = 1,size(elmatV,1)
-       !          write(*,*) elmatV(idof,:)
-       !        end do
-       !      end if
-       !      check(istat == 0)
+           do idof_u = 1, fe%get_num_dofs_field(U_FIELD_ID)
+             idof = idof_u
+             do jdof_u = 1, fe%get_num_dofs_field(U_FIELD_ID)
+               jdof = jdof_u
+               elmat(idof,jdof) = elmat(idof,jdof) + dS * tau * boundary_shape_values_u(idof_u,qpoint) * boundary_shape_values_u(jdof_u,qpoint)
+               elmat(idof,jdof) = elmat(idof,jdof) - dS * boundary_shape_values_u(idof_u,qpoint) * ( viscosity * boundary_shape_gradients_u(jdof_u,qpoint) * normal_vec )
+               elmat(idof,jdof) = elmat(idof,jdof) - dS * ( viscosity * boundary_shape_gradients_u(idof_u,qpoint) * normal_vec ) * boundary_shape_values_u(jdof_u,qpoint)
+             end do
+             do jdof_p = 1, fe%get_num_dofs_field(P_FIELD_ID)
+               jdof = jdof_p + fe%get_num_dofs_field(U_FIELD_ID)
+               elmat(idof,jdof) = elmat(idof,jdof) - dS * boundary_shape_values_u(idof_u,qpoint) * ( boundary_shape_values_p(jdof_p,qpoint) * normal_vec )
+             end do
+           end do
 
-       !      ! The eigenvalue should be real. Thus, it is save to take only the real part.
-       !      beta = beta_coef*maxval(lambdas(:,1))
+           do idof_p = 1, fe%get_num_dofs_field(P_FIELD_ID)
+             idof = idof_p + fe%get_num_dofs_field(U_FIELD_ID)
+             do jdof_u = 1, fe%get_num_dofs_field(U_FIELD_ID)
+               jdof = jdof_u
+               elmat(idof,jdof) = elmat(idof,jdof) - dS * ( boundary_shape_values_p(idof_p,qpoint) * normal_vec ) * boundary_shape_values_u(jdof_u,qpoint)
+             end do
+           end do
 
-       !    else
+           do idof_u = 1, fe%get_num_dofs_field(U_FIELD_ID)
+             idof = idof_u
+             elvec(idof) = elvec(idof) + dS * tau * boundary_shape_values_u(idof_u,qpoint) * exact_sol_value_u
+             elvec(idof) = elvec(idof) - dS * ( viscosity * boundary_shape_gradients_u(idof_u,qpoint) * normal_vec ) * exact_sol_value_u
+           end do
 
-       !      beta = 100.0/cell_map%compute_h(1) 
+           do idof_p = 1, fe%get_num_dofs_field(P_FIELD_ID)
+             idof = idof_p + fe%get_num_dofs_field(U_FIELD_ID)
+             elvec(idof) = elvec(idof) - dS * ( boundary_shape_values_p(idof_p,qpoint) * normal_vec ) * exact_sol_value_u
+           end do
 
-       !    end if
+         end do
 
-
-       !    assert(beta>=0)
-
-       !    ! Once we have the beta, we can compute Nitsche's terms
-       !    do qpoint = 1, num_quad_points
-
-       !      ! Get info at quadrature point
-       !      dS = pw_cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-       !      call pw_cell_map%get_normal(qpoint,normal_vec)
-       !      call exact_sol%get_value(quad_coords(qpoint),exact_sol_gp)
-
-       !      ! Elem matrix
-       !       do idof = 1, num_dofs
-       !          do jdof = 1, num_dofs
-       !             ! A_K(i,j)=(beta*phi_i,phi_j)_{\partial\Omega} - (phi_i,n*grad(phi_j))_{\partial\Omega}  - (phi_j,n*grad(phi_i))_{\partial\Omega}
-       !             elmat(idof,jdof) = elmat(idof,jdof) &
-       !               + dS*beta*(boundary_shape_values(idof,qpoint)*boundary_shape_values(jdof,qpoint)) &
-       !               - dS*(boundary_shape_values(idof,qpoint)*(normal_vec*boundary_shape_gradients(jdof,qpoint))) &
-       !               - dS*(boundary_shape_values(jdof,qpoint)*(normal_vec*boundary_shape_gradients(idof,qpoint)))
-       !          end do
-       !       end do
-
-       !       ! Elem vector
-       !       do idof = 1, num_dofs
-       !          ! f_k(i) = (beta*ufun,phi_i)_{\partial\Omega} - (ufun,n*grad(phi_i))_{\partial\Omega}
-       !          elvec(idof) = elvec(idof) &
-       !            + dS*beta*exact_sol_gp*boundary_shape_values(idof,qpoint) &
-       !            - dS*exact_sol_gp*(normal_vec*boundary_shape_gradients(idof,qpoint))
-       !       end do
-
-       !    end do
-
-       !end if ! Only for cut elems
+       end if
 
        call fe%assembly( this%fe_function, elmat, elvec, assembler )
        call fe%next()
 
     end do
 
-    if (allocated(shape_values_u          )) deallocate  (shape_values_u          , stat=istat); check(istat==0)
-    if (allocated(shape_gradients_u       )) deallocate  (shape_gradients_u       , stat=istat); check(istat==0)
-    if (allocated(shape_values_p          )) call memfree(shape_values_p          , __FILE__, __LINE__)
+    if (allocated(shape_values_u    )) deallocate  (shape_values_u          , stat=istat); check(istat==0)
+    if (allocated(shape_gradients_u )) deallocate  (shape_gradients_u       , stat=istat); check(istat==0)
+    if (allocated(shape_values_p    )) call memfree(shape_values_p          , __FILE__, __LINE__)
+
+    if (allocated(boundary_shape_values_u    )) deallocate  (boundary_shape_values_u          , stat=istat); check(istat==0)
+    if (allocated(boundary_shape_gradients_u )) deallocate  (boundary_shape_gradients_u       , stat=istat); check(istat==0)
+    if (allocated(boundary_shape_values_p    )) call memfree(boundary_shape_values_p          , __FILE__, __LINE__)
 
     !if (allocated(boundary_shape_values   )) call memfree(boundary_shape_values   , __FILE__, __LINE__)
     !if (allocated(boundary_shape_gradients)) deallocate  (boundary_shape_gradients, stat=istat); check(istat==0);
