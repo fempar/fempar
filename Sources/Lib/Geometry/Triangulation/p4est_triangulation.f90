@@ -500,6 +500,7 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: update_cell_myparts                                => p4est_base_triangulation_update_cell_myparts
     procedure, private        , non_overridable  :: comm_cell_myparts                                  => p4est_base_triangulation_comm_cell_myparts
     procedure, private        , non_overridable  :: update_cell_set_ids                                => p4est_bt_update_cell_set_ids
+    procedure, private        , non_overridable  :: comm_cell_set_ids                                  => p4est_bt_comm_cell_set_ids
     procedure, private        , non_overridable  :: update_vef_set_ids                                 => p4est_bt_update_vef_set_ids
     procedure, private        , non_overridable  :: fill_x_cell_vertex_coordinates                     => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
     procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags

@@ -115,6 +115,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%update_vefs_is_ghost()
     call this%fill_x_cell_vertex_coordinates()
     call this%update_cell_set_ids()
+    call this%comm_cell_set_ids()
     call this%set_up_lst_itfc_vefs() 
     !call this%update_lst_vef_gids_and_cells_around_ghost_cells()
     call this%update_local_proper_vefs_actually_on_the_interface()
@@ -1173,6 +1174,34 @@ subroutine p4est_bt_update_cell_set_ids(this)
   
 end subroutine p4est_bt_update_cell_set_ids
 
+subroutine p4est_bt_comm_cell_set_ids(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  class(environment_t), pointer     :: environment
+  class(cell_import_t), pointer     :: cell_import
+  integer(ip)         , pointer     :: p_cell_set_ids(:)
+  
+#ifdef ENABLE_P4EST
+  environment    => this%get_environment()
+  if( environment%get_l1_size() > 1 ) then
+    cell_import    => this%get_cell_import()
+    p_cell_set_ids => this%cell_set_ids%get_pointer()
+    call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                              cell_import%get_neighbours_ids(), &
+                                              cell_import%get_rcv_ptrs(),       &
+                                              cell_import%get_rcv_leids(),      &
+                                              cell_import%get_num_neighbours(), &
+                                              cell_import%get_neighbours_ids(), &
+                                              cell_import%get_snd_ptrs(),       &
+                                              cell_import%get_snd_leids(),      &
+                                              p_cell_set_ids, p_cell_set_ids )
+  end if
+#else
+  call this%not_enabled_error()
+#endif
+  
+end subroutine p4est_bt_comm_cell_set_ids
+
 subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
   implicit none
   class(p4est_base_triangulation_t), intent(inout) :: this
@@ -1714,11 +1743,12 @@ subroutine p4est_bt_fill_cells_set (this, cells_set)
 #ifdef ENABLE_P4EST
   environment => this%get_environment()
   if (environment%am_i_l1_task()) then
-    assert ( size(cells_set) == this%cell_set_ids%size() )
+    assert ( size(cells_set) == this%get_num_local_cells() )
     do i=1, size(cells_set)
       call this%cell_set_ids%set(i,cells_set(i))
     end do
   end if
+  call this%comm_cell_set_ids()
 #else
   call this%not_enabled_error()
 #endif        
