@@ -244,7 +244,7 @@ contains
          call cell_int_u%get_gradients(boundary_shape_gradients_u)
          call cell_int_p%get_values(boundary_shape_values_p)
 
-         tau = 100.0/cell_map%compute_h(1) 
+         tau = 100.0/cell_map%compute_h(1)
 
          do qpoint = 1, num_quad_points
 
@@ -257,12 +257,12 @@ contains
              do jdof_u = 1, fe%get_num_dofs_field(U_FIELD_ID)
                jdof = jdof_u
                elmat(idof,jdof) = elmat(idof,jdof) + dS * tau * boundary_shape_values_u(idof_u,qpoint) * boundary_shape_values_u(jdof_u,qpoint)
-               elmat(idof,jdof) = elmat(idof,jdof) - dS * boundary_shape_values_u(idof_u,qpoint) * ( viscosity * boundary_shape_gradients_u(jdof_u,qpoint) * normal_vec )
-               elmat(idof,jdof) = elmat(idof,jdof) - dS * ( viscosity * boundary_shape_gradients_u(idof_u,qpoint) * normal_vec ) * boundary_shape_values_u(jdof_u,qpoint)
+               elmat(idof,jdof) = elmat(idof,jdof) - dS * ( viscosity * boundary_shape_gradients_u(jdof_u,qpoint) * boundary_shape_values_u(idof_u,qpoint) ) * normal_vec
+               elmat(idof,jdof) = elmat(idof,jdof) - dS * ( viscosity * boundary_shape_gradients_u(idof_u,qpoint) * boundary_shape_values_u(jdof_u,qpoint) ) * normal_vec
              end do
              do jdof_p = 1, fe%get_num_dofs_field(P_FIELD_ID)
                jdof = jdof_p + fe%get_num_dofs_field(U_FIELD_ID)
-               elmat(idof,jdof) = elmat(idof,jdof) - dS * boundary_shape_values_u(idof_u,qpoint) * ( boundary_shape_values_p(jdof_p,qpoint) * normal_vec )
+               elmat(idof,jdof) = elmat(idof,jdof) - dS * ( boundary_shape_values_p(jdof_p,qpoint) * boundary_shape_values_u(idof_u,qpoint) ) * normal_vec
              end do
            end do
 
@@ -270,19 +270,19 @@ contains
              idof = idof_p + fe%get_num_dofs_field(U_FIELD_ID)
              do jdof_u = 1, fe%get_num_dofs_field(U_FIELD_ID)
                jdof = jdof_u
-               elmat(idof,jdof) = elmat(idof,jdof) - dS * ( boundary_shape_values_p(idof_p,qpoint) * normal_vec ) * boundary_shape_values_u(jdof_u,qpoint)
+               elmat(idof,jdof) = elmat(idof,jdof) - dS * ( boundary_shape_values_p(idof_p,qpoint) * boundary_shape_values_u(jdof_u,qpoint) ) * normal_vec
              end do
            end do
 
            do idof_u = 1, fe%get_num_dofs_field(U_FIELD_ID)
              idof = idof_u
              elvec(idof) = elvec(idof) + dS * tau * boundary_shape_values_u(idof_u,qpoint) * exact_sol_value_u
-             elvec(idof) = elvec(idof) - dS * ( viscosity * boundary_shape_gradients_u(idof_u,qpoint) * normal_vec ) * exact_sol_value_u
+             elvec(idof) = elvec(idof) - dS * ( viscosity * boundary_shape_gradients_u(idof_u,qpoint) * exact_sol_value_u ) * normal_vec
            end do
 
            do idof_p = 1, fe%get_num_dofs_field(P_FIELD_ID)
              idof = idof_p + fe%get_num_dofs_field(U_FIELD_ID)
-             elvec(idof) = elvec(idof) - dS * ( boundary_shape_values_p(idof_p,qpoint) * normal_vec ) * exact_sol_value_u
+             elvec(idof) = elvec(idof) - dS * ( boundary_shape_values_p(idof_p,qpoint) * exact_sol_value_u ) * normal_vec
            end do
 
          end do
