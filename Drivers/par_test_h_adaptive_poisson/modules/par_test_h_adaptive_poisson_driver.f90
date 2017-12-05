@@ -107,6 +107,7 @@ module par_test_h_adaptive_poisson_driver_names
      procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_poisson_driver_popcorn_fun
      procedure                  :: set_cells_for_refinement
      procedure                  :: set_cells_set_ids
+					procedure                  :: dummy_set_cells_set_ids 
   end type par_test_h_adaptive_poisson_fe_driver_t
 
   ! Types
@@ -210,14 +211,15 @@ end subroutine free_timers
          call this%triangulation%free_vef_iterator(vef)
        end if   
     
-    do i = 1,3
+    do i = 1,6
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
-      call this%set_cells_set_ids() 
-										
+     ! call this%set_cells_set_ids()
+     !call this%dummy_set_cells_set_ids()
+				 write(*,*) this%cell_set_ids 
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
@@ -663,6 +665,34 @@ end subroutine free_timers
     end if
   end subroutine set_cells_for_refinement
 		 
+		subroutine dummy_set_cells_set_ids(this)
+    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(cell_iterator_t), allocatable :: cell
+    class(environment_t), pointer :: environment 
+
+    type(list_t)                        :: dual_graph
+    type(list_iterator_t)               :: adjacent_elements
+    type(list_iterator_t)               :: aux_adjacent_elements 
+    class(vef_iterator_t), allocatable  :: vef 
+    class(cell_iterator_t), allocatable :: cell_around_vef 
+    integer(ip)                         :: icell_around 
+    integer(ip)                         :: ivef_within_cell 
+    integer(ip), allocatable            :: current_position(:)  
+
+    environment => this%triangulation%get_environment()
+    ! Set the cell ids to detect disconnected subdomains 
+    if ( environment%am_i_l1_task() ) then
+       call memalloc(this%triangulation%get_num_cells(), this%cell_set_ids, __FILE__, __LINE__)
+       ! Initialize all local cell_set_ids to 0, a negative number 
+       this%cell_set_ids = 0  
+							if ( environment%get_l1_rank() == 0) then 
+							this%cell_set_ids(1) = 1
+							end if 
+       call this%triangulation%fill_cells_set(this%cell_set_ids)
+    end if
+
+  end subroutine dummy_set_cells_set_ids
+		
   subroutine set_cells_set_ids(this)
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
@@ -679,7 +709,7 @@ end subroutine free_timers
 
     environment => this%triangulation%get_environment()
     ! Set the cell ids to detect disconnected subdomains 
-    if ( this%par_environment%am_i_l1_task() ) then
+    if ( environment%am_i_l1_task() ) then
        call memalloc(this%triangulation%get_num_cells(), this%cell_set_ids, __FILE__, __LINE__)
        ! Initialize all local cell_set_ids to -1, a negative number 
        this%cell_set_ids = 0
@@ -752,10 +782,8 @@ end subroutine free_timers
           end if
           call cell%next()
        end do
-       call dual_graph%print(6) 
 
        call identify_disconnected_parts(dual_graph, this%cell_set_ids)
-       WRITE(*,*) 'CELL_SET_IDS', this%cell_set_ids 
        call this%triangulation%fill_cells_set(this%cell_set_ids)
 
        ! Free

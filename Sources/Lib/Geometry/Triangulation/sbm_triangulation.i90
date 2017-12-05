@@ -453,18 +453,17 @@ subroutine triangulation_compute_subparts_itfc_vefs_non_conforming_mesh ( this, 
            call itfc_vef%get_cell_around(ielem,cell)   
            ivef = cell%get_vef_lid_from_gid(itfc_vef%get_gid())   
            if ( cell%is_local() ) then
-#ifdef DEBUG  
-              ! It checks part ids on a list of subpart ids          
-              !do j=p_ptr_ghosts_per_local_cell(cell%get_gid()), &
-              !     p_ptr_ghosts_per_local_cell(cell%get_gid()+1)-1
-              !   k = p_lst_ghosts_per_local_cell(j)
-              !   base_pos   = (k-1)*num_vefs
-              !   ghost_part = p_rcv_my_part_id_vefs(base_pos+ivef)
-              !   if ( ghost_part > 0 ) then
-              !     call this%g2l_subparts%get(key=ghost_part, val=aux, stat=istat)
-              !	    assert( istat == key_found ) 
-              !   end if 
-              !end do
+#ifdef DEBUG        
+              do j=p_ptr_ghosts_per_local_cell(cell%get_gid()), &
+                   p_ptr_ghosts_per_local_cell(cell%get_gid()+1)-1
+                 k = p_lst_ghosts_per_local_cell(j)
+                 base_pos   = (k-1)*num_vefs
+                 ghost_part = p_rcv_my_part_id_vefs(base_pos+ivef)
+                 if ( ghost_part > 0 ) then
+                   call this%g2l_subparts%get(key=ghost_part, val=aux, stat=istat)
+              	    assert( istat == key_found ) 
+                 end if 
+              end do
 #endif              
            else ! cell%is_ghost()
               do j=p_ptr_ghosts_per_ghost_cell(cell%get_gid()-this%get_num_local_cells()), &
@@ -1493,20 +1492,28 @@ subroutine t_fetch_my_part_id_proper_vefs_on_owner_cells(this)
   class(environment_t)  , pointer :: environment  
   class(vef_iterator_t), allocatable :: vef
   class(cell_iterator_t), allocatable :: cell
+
   integer(ip) :: ielem, ivef
   integer(ip) :: mypart_id
+		integer(ip) :: mysubpart_id 
   integer(ip) :: cell_gid
   integer(ip) :: num_vefs
   integer(ip) :: base_pos
-  integer(ip)  :: i
-  
+  integer(ip) :: i
+		integer(ip) :: icell_around 
+		
   integer(ip), pointer :: snd_ptrs(:)
   integer(ip), pointer :: snd_leids(:)
   integer(ip), pointer :: p_rcv_my_part_id_vefs(:)
   integer(ip), pointer :: p_my_part_id_vefs(:)
   integer(ip), pointer :: p_lst_ghosts_per_local_cell(:) 
   integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
-  
+		
+		class(reference_fe_t) , pointer     :: reference_fe_geo 
+		class(cell_iterator_t), allocatable :: coarser_cell 
+		type(list_t)          , pointer     :: vefs_of_vef  
+  type(list_iterator_t)               :: vefs_of_vef_iterator
+		
   environment   => this%get_environment()
   
   call this%create_cell_iterator(cell)
@@ -1524,18 +1531,68 @@ subroutine t_fetch_my_part_id_proper_vefs_on_owner_cells(this)
   ! Traverse proper vefs on the interface
   call this%create_itfc_vef_iterator(vef)
   do while(.not. vef%has_finished())
-    if ( vef%is_proper() ) then      
-      do ielem=1, vef%get_num_cells_around()
-        call vef%get_cell_around(ielem,cell)
-        if ( cell%is_ghost() ) then
-          ivef = cell%get_vef_lid_from_gid(vef%get_gid())
-          cell_gid = cell%get_gid()
-          base_pos = (cell_gid-1)*num_vefs
-          call this%my_part_id_vefs%set(base_pos+ivef, mypart_id)
-        end if   
-      end do
-    end if
-    call vef%next()
+     if ( vef%is_proper() ) then      
+
+        ! Assign vef to a local subpart identifier 
+        mysubpart_id = mypart_id 
+        do ielem= 1, vef%get_num_cells_around()
+           call vef%get_cell_around(ielem,cell)
+           if ( cell%is_local() ) then 
+              if ( cell%get_my_subpart() > mysubpart_id ) then 
+                 mysubpart_id = cell%get_my_subpart(); exit 
+              end if
+           end if
+        end do
+																								
+        ! Assign subpart to list 
+        do ielem=1, vef%get_num_cells_around()
+           call vef%get_cell_around(ielem,cell)
+           if ( cell%is_ghost() ) then
+              ivef = cell%get_vef_lid_from_gid(vef%get_gid())
+              cell_gid = cell%get_gid()
+              base_pos = (cell_gid-1)*num_vefs
+              call this%my_part_id_vefs%set(base_pos+ivef, mysubpart_id)	
+           end if
+        end do		
+								
+					elseif ( .not. vef%is_proper() .and. vef%is_facet() ) then 
+					
+					   ! Assign vef to a local subpart identifier 
+        mysubpart_id = mypart_id 
+        do ielem= 1, vef%get_num_cells_around()
+           call vef%get_cell_around(ielem,cell)
+           if ( cell%is_local() ) then 
+              if ( cell%get_my_subpart() > mysubpart_id ) then 
+                 mysubpart_id = cell%get_my_subpart(); exit 
+              end if
+           end if
+        end do
+																								
+        ! Assign subpart to ghost proper vefs and vefs of vef!   
+								do icell_around = 1, vef%get_num_improper_cells_around() 
+								massert( vef%get_num_improper_cells_around() == 1, 't_fetch_my_part_id_proper_vefs_on_owner_cells :: &
+																                          An improper facet must have one and only one improper cell around' ) 
+							 call vef%get_improper_cell_around(icell_around, cell)
+           if ( cell%is_ghost() ) then
+														ivef     = vef%get_improper_cell_around_ivef(icell_around)
+																									
+											   reference_fe_geo => cell%get_reference_fe() 
+              cell_gid = cell%get_gid()
+              base_pos = (cell_gid-1)*num_vefs
+														
+														vefs_of_vef => reference_fe_geo%get_facets_n_face() 
+              vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef)
+														call this%my_part_id_vefs%set(base_pos+ivef, mysubpart_id)
+														do while ( .not. vefs_of_vef_iterator%is_upper_bound() ) 
+              call this%my_part_id_vefs%set(base_pos+vefs_of_vef_iterator%get_current(), mysubpart_id)
+														call vefs_of_vef_iterator%next() 
+														end do 
+           end if
+        end do		
+
+					end if
+					
+     call vef%next()
   end do
   
   snd_ptrs => this%cell_import%get_snd_ptrs()
