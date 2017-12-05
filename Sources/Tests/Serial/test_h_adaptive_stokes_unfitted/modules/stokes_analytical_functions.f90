@@ -116,8 +116,8 @@ contains
     x1 = point%get(1)
     x2 = point%get(2)
     call val%init(0.0)
-    call val%set(1, x1*x2 )
-    call val%set(2, x1*x2 )
+    call val%set(1, x2 + x1*x2 )
+    call val%set(2, x1 + x1*x2 )
   end subroutine sol_ex001_2d_u
 
   subroutine sol_ex001_2d_grad_u(point,val,q)
@@ -130,8 +130,8 @@ contains
     x2 = point%get(2)
     call val%init(0.0)
     call val%set(1,1, x2)
-    call val%set(1,2, x2)
-    call val%set(2,1, x1)
+    call val%set(1,2, x2 + 1.0)
+    call val%set(2,1, x1 + 1.0)
     call val%set(2,2, x1)
   end subroutine sol_ex001_2d_grad_u
 
