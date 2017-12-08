@@ -213,7 +213,7 @@ end subroutine free_timers
          call this%triangulation%free_vef_iterator(vef)
        end if   
     
-    do i = 1,6
+    do i = 1,5
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%redistribute()
@@ -726,7 +726,7 @@ end subroutine free_timers
     integer(ip)                :: num_disconnected_parts 
 
     integer(ip)                :: subpart_id 
-    integer(ip)                :: disconnected_part_id 
+    integer(ip)                :: disconnected_part_id, material_id 
     type(hash_table_ip_ip_t), allocatable   :: subparts_x_disconnected_part(:)  
     integer(ip)             , allocatable   :: num_subparts_x_disconnected_part(:)
     integer(ip)             , allocatable   :: offcomponent_disconnected_part(:) 
@@ -743,9 +743,9 @@ end subroutine free_timers
 
        ! Build list of subparts in each disconnected part 
        call this%triangulation%create_cell_iterator(cell)
-       num_disconnected_parts = max( cell_ids_disconnected_parts ) 
+       num_disconnected_parts = maxval( cells_ids_disconnected_parts ) + 1
 
-       allocate ( subparts_x_disconnected_part(num_disconnected_parts), istat=stat); check(istat==0)
+       allocate ( subparts_x_disconnected_part(num_disconnected_parts), stat=istat); check(istat==0)
        do disconnected_part_id=1, num_disconnected_parts
           call subparts_x_disconnected_part(disconnected_part_id)%init( this%triangulation%get_num_local_cells() )
        end do
@@ -760,13 +760,13 @@ end subroutine free_timers
        ! Fill hash table with subparts  
        do while (.not. cell%has_finished() ) 
           if ( cell%is_local() ) then 
-             disconnected_part_id = cell_ids_disconnected_parts( cell%get_gid() ) 
-             material_id          = cell_ids_material( cell%get_gid() ) 
+             disconnected_part_id = cells_ids_disconnected_parts( cell%get_gid() ) + 1
+             material_id          = cells_ids_materials( cell%get_gid() ) 
 
              call subparts_x_disconnected_part(disconnected_part_id)%get(key=material_id, val=dummy_val, stat=istat); 
-             if ( istat == not_found ) then
-                num_subparts_x_disconnected_part(disconnected_part_id) = num_subparts_x_disconnected_part(disconnected_part_id) + 1
+             if ( istat == key_not_found ) then
                 call subparts_x_disconnected_part(disconnected_part_id)%put(key=material_id, val=num_subparts_x_disconnected_part(disconnected_part_id), stat=istat);
+																num_subparts_x_disconnected_part(disconnected_part_id) = num_subparts_x_disconnected_part(disconnected_part_id) + 1
              end if
           end if
           call cell%next() 
@@ -775,24 +775,27 @@ end subroutine free_timers
        offcomponent_disconnected_part(1) = 0
        do disconnected_part_id=2, num_disconnected_parts 
           offcomponent_disconnected_part(disconnected_part_id) = offcomponent_disconnected_part(disconnected_part_id-1) + & 
-               num_subparts_x_disconnected_part(disconnected_part_id-1)
+                                                                  num_subparts_x_disconnected_part(disconnected_part_id-1)
        end do
 
        ! Fill set_cells_ids composing both numberings 
-       call memalloc(this%triangulation%get_num_cells(), this%cell_set_ids, __FILE__, __LINE__)											
+       call memalloc(this%triangulation%get_num_cells(), this%cell_set_ids, __FILE__, __LINE__)			
+							this%cell_set_ids = 0
+							
        call cell%first() 
        do while (.not. cell%has_finished() )  
           if ( cell%is_local() ) then 
-             disconnected_part_id           = cell_ids_disconnected_parts( cell%get_gid() ) 
-             material_id                    = cell_ids_material( cell%get_gid() ) 
+             disconnected_part_id           = cells_ids_disconnected_parts( cell%get_gid() ) + 1
+             material_id                    = cells_ids_materials( cell%get_gid() ) 
 
-             call subparts_x_disconnected_part(disconnected_part_id)%get(key=material_id, val=subpart_id, stat=istat); check(istat=found) 
+             call subparts_x_disconnected_part(disconnected_part_id)%get(key=material_id, val=subpart_id, stat=istat); check(istat==key_found) 
              this%cell_set_ids(cell%get_gid()) = subpart_id + offcomponent_disconnected_part( disconnected_part_id ) 
           end if
           call cell%next() 
        end do
 
        call this%triangulation%fill_cells_set(this%cell_set_ids)
+							WRITE(*,*) 'SECE', this%cell_set_ids 
 
        call this%triangulation%free_cell_iterator(cell)
        call memfree( cells_ids_disconnected_parts, __FILE__, __LINE__ ) 
@@ -800,7 +803,7 @@ end subroutine free_timers
 
        call memfree( num_subparts_x_disconnected_part, __FILE__, __LINE__ ) 
        call memfree( offcomponent_disconnected_part, __FILE__, __LINE__ )
-       deallocate( subparts_x_disconnected_part, istat=stat); check(istat==0) 				
+       deallocate( subparts_x_disconnected_part, stat=istat); check(istat==0) 				
     end if
 
   end subroutine set_cells_set_ids
@@ -947,15 +950,42 @@ end subroutine free_timers
   subroutine set_ids_materials(this, cells_ids_materials)
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     integer(ip), allocatable                      , intent(inout) :: cells_ids_materials(:)
-    class(cell_iterator_t), allocatable :: cell
 
-    call this%triangulation%create_cell_iterator(cell) 
-
-    ! Initialize all local cell_set_ids to 0 
-    cells_ids_materials = 0 
-
-    ! Free
-    call this%triangulation%free_cell_iterator(cell)
+				class(environment_t), pointer :: environment
+				class(cell_iterator_t), allocatable :: cell
+				type(point_t), allocatable          :: cell_coordinates(:)
+				real(rp) :: cx, cy, cz
+				integer(ip) :: inode, istat 
+				
+    environment => this%triangulation%get_environment()
+    if ( environment%am_i_l1_task() ) then
+				  cells_ids_materials = 0 
+						
+      call this%triangulation%create_cell_iterator(cell)
+						allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
+						
+      do while ( .not. cell%has_finished() )
+        if ( cell%is_local() ) then
+								call cell%get_nodes_coordinates(cell_coordinates)
+								cx = 0.0_rp
+        cy = 0.0_rp 
+	       cz = 0.0_rp 
+       do inode=1,cell%get_num_nodes()  
+          cx = cx + cell_coordinates(inode)%get(1)
+          cy = cy + cell_coordinates(inode)%get(2)
+		        cz = cz + cell_coordinates(inode)%get(3)
+       end do
+       cx = cx/real(cell%get_num_nodes(),rp)
+       cy = cy/real(cell%get_num_nodes(),rp)
+	      cz = cz/real(cell%get_num_nodes(),rp)
+							if ( ((0.3_rp < cx .and. cx < 0.7_rp) .and. (0.3_rp < cy .and. cy < 0.7_rp)) .or. cell%get_level()<2 ) then 
+            cells_ids_materials( cell%get_gid() ) = 1 
+          end if
+        end if  
+        call cell%next()
+      end do
+      call this%triangulation%free_cell_iterator(cell)
+    end if
 
   end subroutine set_ids_materials
 		  
