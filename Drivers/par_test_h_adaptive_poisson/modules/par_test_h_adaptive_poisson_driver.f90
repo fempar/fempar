@@ -107,6 +107,8 @@ module par_test_h_adaptive_poisson_driver_names
      procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_poisson_driver_popcorn_fun
      procedure                  :: set_cells_for_refinement
      procedure                  :: set_cells_set_ids
+					procedure                  :: set_ids_disconnected_parts
+					procedure                  :: set_ids_materials
 					procedure                  :: dummy_set_cells_set_ids 
   end type par_test_h_adaptive_poisson_fe_driver_t
 
@@ -217,9 +219,8 @@ end subroutine free_timers
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
-     ! call this%set_cells_set_ids()
+     call this%set_cells_set_ids()
      !call this%dummy_set_cells_set_ids()
-				 write(*,*) this%cell_set_ids 
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
@@ -649,13 +650,33 @@ end subroutine free_timers
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
     class(environment_t), pointer :: environment
+				type(point_t), allocatable                :: cell_coordinates(:)
+				real(rp) :: cx, cy, cz
+				integer(ip) :: inode, istat 
+				
+				
     environment => this%triangulation%get_environment()
     if ( environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
+						allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
+						
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
-          if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
+								call cell%get_nodes_coordinates(cell_coordinates)
+								cx = 0.0_rp
+        cy = 0.0_rp 
+	       cz = 0.0_rp 
+       do inode=1,cell%get_num_nodes()  
+          cx = cx + cell_coordinates(inode)%get(1)
+          cy = cy + cell_coordinates(inode)%get(2)
+		        cz = cz + cell_coordinates(inode)%get(3)
+       end do
+       cx = cx/real(cell%get_num_nodes(),rp)
+       cy = cy/real(cell%get_num_nodes(),rp)
+	      cz = cz/real(cell%get_num_nodes(),rp)
+         ! if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
          ! if ( (cell%get_gid()==4) .or. (cell%get_level() == 0) )then
+							if ( ((0.3_rp < cx .and. cx < 0.7_rp) .and. (0.3_rp < cy .and. cy < 0.7_rp)) .or. cell%get_level()<2 ) then 
             call cell%set_for_refinement()
           end if
         end if  
@@ -693,8 +714,100 @@ end subroutine free_timers
 
   end subroutine dummy_set_cells_set_ids
 		
+  
   subroutine set_cells_set_ids(this)
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    class(environment_t), pointer :: environment 
+
+    class(cell_iterator_t), allocatable :: cell
+    integer(ip), allocatable   :: cells_ids_disconnected_parts(:)
+    integer(ip), allocatable   :: cells_ids_materials(:)
+    integer(ip)                :: ielem
+    integer(ip)                :: num_disconnected_parts 
+
+    integer(ip)                :: subpart_id 
+    integer(ip)                :: disconnected_part_id 
+    type(hash_table_ip_ip_t), allocatable   :: subparts_x_disconnected_part(:)  
+    integer(ip)             , allocatable   :: num_subparts_x_disconnected_part(:)
+    integer(ip)             , allocatable   :: offcomponent_disconnected_part(:) 
+    integer(ip) :: istat, i, dummy_val  
+
+    environment => this%triangulation%get_environment()
+    ! Set the cell to detect disconnected subdomains 
+    if ( environment%am_i_l1_task() ) then
+       call memalloc(this%triangulation%get_num_cells(), cells_ids_disconnected_parts, __FILE__, __LINE__)
+       call memalloc(this%triangulation%get_num_cells(), cells_ids_materials, __FILE__, __LINE__)
+
+       call this%set_ids_disconnected_parts(cells_ids_disconnected_parts) 
+       call this%set_ids_materials(cells_ids_materials) 
+
+       ! Build list of subparts in each disconnected part 
+       call this%triangulation%create_cell_iterator(cell)
+       num_disconnected_parts = max( cell_ids_disconnected_parts ) 
+
+       allocate ( subparts_x_disconnected_part(num_disconnected_parts), istat=stat); check(istat==0)
+       do disconnected_part_id=1, num_disconnected_parts
+          call subparts_x_disconnected_part(disconnected_part_id)%init( this%triangulation%get_num_local_cells() )
+       end do
+
+       call memalloc( num_disconnected_parts, num_subparts_x_disconnected_part, __FILE__, __LINE__ ) 
+       num_subparts_x_disconnected_part = 0
+
+       call memalloc( num_disconnected_parts, offcomponent_disconnected_part, __FILE__, __LINE__ ) 
+       offcomponent_disconnected_part = 0
+
+
+       ! Fill hash table with subparts  
+       do while (.not. cell%has_finished() ) 
+          if ( cell%is_local() ) then 
+             disconnected_part_id = cell_ids_disconnected_parts( cell%get_gid() ) 
+             material_id          = cell_ids_material( cell%get_gid() ) 
+
+             call subparts_x_disconnected_part(disconnected_part_id)%get(key=material_id, val=dummy_val, stat=istat); 
+             if ( istat == not_found ) then
+                num_subparts_x_disconnected_part(disconnected_part_id) = num_subparts_x_disconnected_part(disconnected_part_id) + 1
+                call subparts_x_disconnected_part(disconnected_part_id)%put(key=material_id, val=num_subparts_x_disconnected_part(disconnected_part_id), stat=istat);
+             end if
+          end if
+          call cell%next() 
+       end do
+
+       offcomponent_disconnected_part(1) = 0
+       do disconnected_part_id=2, num_disconnected_parts 
+          offcomponent_disconnected_part(disconnected_part_id) = offcomponent_disconnected_part(disconnected_part_id-1) + & 
+               num_subparts_x_disconnected_part(disconnected_part_id-1)
+       end do
+
+       ! Fill set_cells_ids composing both numberings 
+       call memalloc(this%triangulation%get_num_cells(), this%cell_set_ids, __FILE__, __LINE__)											
+       call cell%first() 
+       do while (.not. cell%has_finished() )  
+          if ( cell%is_local() ) then 
+             disconnected_part_id           = cell_ids_disconnected_parts( cell%get_gid() ) 
+             material_id                    = cell_ids_material( cell%get_gid() ) 
+
+             call subparts_x_disconnected_part(disconnected_part_id)%get(key=material_id, val=subpart_id, stat=istat); check(istat=found) 
+             this%cell_set_ids(cell%get_gid()) = subpart_id + offcomponent_disconnected_part( disconnected_part_id ) 
+          end if
+          call cell%next() 
+       end do
+
+       call this%triangulation%fill_cells_set(this%cell_set_ids)
+
+       call this%triangulation%free_cell_iterator(cell)
+       call memfree( cells_ids_disconnected_parts, __FILE__, __LINE__ ) 
+       call memfree( cells_ids_materials, __FILE__, __LINE__ )
+
+       call memfree( num_subparts_x_disconnected_part, __FILE__, __LINE__ ) 
+       call memfree( offcomponent_disconnected_part, __FILE__, __LINE__ )
+       deallocate( subparts_x_disconnected_part, istat=stat); check(istat==0) 				
+    end if
+
+  end subroutine set_cells_set_ids
+
+  subroutine set_ids_disconnected_parts(this, cells_ids_disconnected_parts)
+    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    integer(ip), allocatable                      , intent(inout) :: cells_ids_disconnected_parts(:)
     class(cell_iterator_t), allocatable :: cell
     class(environment_t), pointer :: environment 
 
@@ -707,93 +820,87 @@ end subroutine free_timers
     integer(ip)                         :: ivef_within_cell 
     integer(ip), allocatable            :: current_position(:)  
 
-    environment => this%triangulation%get_environment()
-    ! Set the cell ids to detect disconnected subdomains 
-    if ( environment%am_i_l1_task() ) then
-       call memalloc(this%triangulation%get_num_cells(), this%cell_set_ids, __FILE__, __LINE__)
-       ! Initialize all local cell_set_ids to -1, a negative number 
-       this%cell_set_ids = 0
-       this%cell_set_ids(1:this%triangulation%get_num_local_cells()) = -1 
+    ! Initialize all local cell_set_ids to -1, a negative number 
+    cells_ids_disconnected_parts = 0
+    cells_ids_disconnected_parts(1:this%triangulation%get_num_local_cells()) = -1 
 
-       ! Build graph: elements are vertices, edges link elements that share a facet 
-       call this%triangulation%create_cell_iterator(cell_around_vef)
-       call this%triangulation%create_vef_iterator(vef)
-       call dual_graph%create( this%triangulation%get_num_local_cells() )
+    ! Build graph: elements are vertices, edges link elements that share a facet 
+    call this%triangulation%create_cell_iterator(cell_around_vef)
+    call this%triangulation%create_vef_iterator(vef)
+    call dual_graph%create( this%triangulation%get_num_local_cells() )
 
-       ! Fill dual_graph pointer  
-       do while ( .not. vef%has_finished() ) 
-          if ( (.not. vef%is_at_interface() ) .and. vef%is_local() .and. vef%is_facet() .and. vef%get_num_cells_around() == 2 ) then 
-             do icell_around = 1, vef%get_num_cells_around() 
-                call vef%get_cell_around(icell_around, cell_around_vef) 
-                if ( cell_around_vef%is_local() ) then 
-                   call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
-                end if
-             end do
-             ! Add improper to proper coupling in both directions to achieve an undirected graph 
-          elseif ( (.not. vef%is_at_interface() ) .and. vef%is_local() .and. vef%is_facet() .and. (.not. vef%is_proper()) ) then
-             call vef%get_cell_around(1, cell_around_vef) 
+    ! Fill dual_graph pointer  
+    do while ( .not. vef%has_finished() ) 
+       if ( (.not. vef%is_at_interface() ) .and. vef%is_local() .and. vef%is_facet() .and. vef%get_num_cells_around() == 2 ) then 
+          do icell_around = 1, vef%get_num_cells_around() 
+             call vef%get_cell_around(icell_around, cell_around_vef) 
              if ( cell_around_vef%is_local() ) then 
                 call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
              end if
-             call vef%get_improper_cell_around(1, cell_around_vef) 
-             if ( cell_around_vef%is_local() ) then 
-                call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
-             end if
+          end do
+          ! Add improper to proper coupling in both directions to achieve an undirected graph 
+       elseif ( (.not. vef%is_at_interface() ) .and. vef%is_local() .and. vef%is_facet() .and. (.not. vef%is_proper()) ) then
+          call vef%get_cell_around(1, cell_around_vef) 
+          if ( cell_around_vef%is_local() ) then 
+             call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
           end if
-          call vef%next() 
-       end do
+          call vef%get_improper_cell_around(1, cell_around_vef) 
+          if ( cell_around_vef%is_local() ) then 
+             call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
+          end if
+       end if
+       call vef%next() 
+    end do
 
-       call dual_graph%calculate_header()
-       call dual_graph%allocate_list_from_pointer()
+    call dual_graph%calculate_header()
+    call dual_graph%allocate_list_from_pointer()
 
-       call memalloc( dual_graph%get_num_pointers(), current_position, __FILE__, __LINE__ ) 
-       current_position = 0
-       ! Fill dual graph list 		
-       call this%triangulation%create_cell_iterator(cell)   
-       do while ( .not. cell%has_finished() ) 
-          if ( cell%is_local() ) then 
-             adjacent_elements = dual_graph%create_iterator(cell%get_gid())
-             do ivef_within_cell = 1, cell%get_num_vefs() 
-                call cell%get_vef(ivef_within_cell, vef) 
-                ! Proper to proper coupling
-                if ( vef%is_facet() .and. vef%get_num_cells_around()==2 ) then 
-                   do icell_around = 1, vef%get_num_cells_around() 
-                      call vef%get_cell_around(icell_around, cell_around_vef) 
-                      if ( cell_around_vef%get_gid() /= cell%get_gid() .and. cell_around_vef%is_local() ) then 
-                         call adjacent_elements%set_from_current(current_position(cell%get_gid()), cell_around_vef%get_gid())
-                         current_position(cell%get_gid()) = current_position(cell%get_gid()) + 1
-                      end if
-                   end do
-                elseif ( vef%is_facet() .and. (.not. vef%is_proper()) ) then
-                   ! Add improper to proper coupling 
-                   assert( vef%get_num_improper_cells_around() == 1 ) 
-                   call vef%get_improper_cell_around(1, cell_around_vef) 
+    call memalloc( dual_graph%get_num_pointers(), current_position, __FILE__, __LINE__ ) 
+    current_position = 0
+    ! Fill dual graph list 		
+    call this%triangulation%create_cell_iterator(cell)   
+    do while ( .not. cell%has_finished() ) 
+       if ( cell%is_local() ) then 
+          adjacent_elements = dual_graph%create_iterator(cell%get_gid())
+          do ivef_within_cell = 1, cell%get_num_vefs() 
+             call cell%get_vef(ivef_within_cell, vef) 
+             ! Proper to proper coupling
+             if ( vef%is_facet() .and. vef%get_num_cells_around()==2 ) then 
+                do icell_around = 1, vef%get_num_cells_around() 
+                   call vef%get_cell_around(icell_around, cell_around_vef) 
                    if ( cell_around_vef%get_gid() /= cell%get_gid() .and. cell_around_vef%is_local() ) then 
-                      call adjacent_elements%set_from_current(current_position(cell%get_gid()),cell_around_vef%get_gid())
+                      call adjacent_elements%set_from_current(current_position(cell%get_gid()), cell_around_vef%get_gid())
                       current_position(cell%get_gid()) = current_position(cell%get_gid()) + 1
-																						 ! Add inverse coupling 
-																						aux_adjacent_elements = dual_graph%create_iterator(cell_around_vef%get_gid())
-                      call aux_adjacent_elements%set_from_current(current_position(cell_around_vef%get_gid()), cell%get_gid() ) 
-                      current_position(cell_around_vef%get_gid()) = current_position(cell_around_vef%get_gid()) + 1		
                    end if
+                end do
+             elseif ( vef%is_facet() .and. (.not. vef%is_proper()) ) then
+                ! Add improper to proper coupling 
+                assert( vef%get_num_improper_cells_around() == 1 ) 
+                call vef%get_improper_cell_around(1, cell_around_vef) 
+                if ( cell_around_vef%get_gid() /= cell%get_gid() .and. cell_around_vef%is_local() ) then 
+                   call adjacent_elements%set_from_current(current_position(cell%get_gid()),cell_around_vef%get_gid())
+                   current_position(cell%get_gid()) = current_position(cell%get_gid()) + 1
+                   ! Add inverse coupling 
+                   aux_adjacent_elements = dual_graph%create_iterator(cell_around_vef%get_gid())
+                   call aux_adjacent_elements%set_from_current(current_position(cell_around_vef%get_gid()), cell%get_gid() ) 
+                   current_position(cell_around_vef%get_gid()) = current_position(cell_around_vef%get_gid()) + 1		
                 end if
+             end if
 
-             end do
-          end if
-          call cell%next()
-       end do
+          end do
+       end if
+       call cell%next()
+    end do
 
-       call identify_disconnected_parts(dual_graph, this%cell_set_ids)
-       call this%triangulation%fill_cells_set(this%cell_set_ids)
+    call identify_disconnected_parts(dual_graph, cells_ids_disconnected_parts)
 
-       ! Free
-       call this%triangulation%free_cell_iterator(cell)
-       call this%triangulation%free_cell_iterator(cell_around_vef)
-       call this%triangulation%free_vef_iterator(vef)
-       call dual_graph%free()
+    ! Free
+    call this%triangulation%free_cell_iterator(cell)
+    call this%triangulation%free_cell_iterator(cell_around_vef)
+    call this%triangulation%free_vef_iterator(vef)
+    call dual_graph%free()
 
-       call memfree( current_position, __FILE__, __LINE__ ) 
-    end if
+    call memfree( current_position, __FILE__, __LINE__ ) 
 
   contains 
 
@@ -807,8 +914,8 @@ end subroutine free_timers
 
       subpart_id = 0 
       do icell = 1, dual_graph%get_num_pointers()  
-         if ( this%cell_set_ids( icell ) < 0 ) then 
-            call depth_first_search_algorithm( icell, dual_graph, subpart_id, this%cell_set_ids ) 
+         if ( cell_set_ids( icell ) < 0 ) then 
+            call depth_first_search_algorithm( icell, dual_graph, subpart_id, cell_set_ids ) 
             subpart_id = subpart_id + 1
          end if
       end do
@@ -824,7 +931,7 @@ end subroutine free_timers
 
       type(list_iterator_t) :: adjacent_elements 
 
-      this%cell_set_ids(icell) = subpart_id 
+      cell_set_ids(icell) = subpart_id 
       adjacent_elements = dual_graph%create_iterator(icell) 
       do while ( .not. adjacent_elements%is_upper_bound() ) 
          if ( cell_set_ids(adjacent_elements%get_current()) < 0 ) then 
@@ -835,7 +942,22 @@ end subroutine free_timers
 
     end subroutine depth_first_search_algorithm
 
-  end subroutine set_cells_set_ids
+  end subroutine set_ids_disconnected_parts
+
+  subroutine set_ids_materials(this, cells_ids_materials)
+    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+    integer(ip), allocatable                      , intent(inout) :: cells_ids_materials(:)
+    class(cell_iterator_t), allocatable :: cell
+
+    call this%triangulation%create_cell_iterator(cell) 
+
+    ! Initialize all local cell_set_ids to 0 
+    cells_ids_materials = 0 
+
+    ! Free
+    call this%triangulation%free_cell_iterator(cell)
+
+  end subroutine set_ids_materials
 		  
   subroutine set_cells_for_coarsening(this)
     implicit none
