@@ -764,6 +764,7 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
         fe_own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(improper_vef_ivef)
         do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
            improper_dof_lid = fe_dofs(fe_own_dofs_on_vef_iterator%get_current())
+           ishape_fe = fe_own_dofs_on_vef_iterator%get_current()
 
            if ( fe%is_free_dof(improper_dof_lid) ) exit
 
@@ -781,27 +782,30 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
 
            coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
            do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
-              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
-                call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, &
-                                                              ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+1)
-              else if ( fe%is_free_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
-                call ptr_constraining_free_dofs%set(hanging_dof_lid+1, &
-                                                         ptr_constraining_free_dofs%get(hanging_dof_lid+1)+1)
-              else if ( fe%is_hanging_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
-                if (full_cells_loop) then
-                  mcheck(.false.,'We cannot end-up here due to 2:1 condition')
-                else 
-                  coarser_hanging_dof_lid = abs(coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current())) - this%get_num_dirichlet_dofs()
-                  massert( ((this%num_hanging_dofs_full_cells+1)<=coarser_hanging_dof_lid) .and.  (coarser_hanging_dof_lid<=this%num_hanging_dofs_full_cells+this%num_aggregated_dofs), 'Assert hast to be true due to 2:1 condition' )
-                  num_free_master_dofs = this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid+1)&
-                                       - this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)
-                  num_dirichlet_master_dofs = this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid+1)&
-                                            - this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)
-                  call ptr_constraining_free_dofs%set(hanging_dof_lid+1, ptr_constraining_free_dofs%get(hanging_dof_lid+1)+num_free_master_dofs)
-                  call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+num_dirichlet_master_dofs)
-                end if 
-              else
-                mcheck(.false.,'Dof is either free dirichlet or hanging')
+              ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current()
+              if ( coarser_reference_fe%get_component_node(ishape_coarser_fe) == reference_fe%get_component_node(ishape_fe) ) then
+                if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
+                  call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, &
+                                                                ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+1)
+                else if ( fe%is_free_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
+                  call ptr_constraining_free_dofs%set(hanging_dof_lid+1, &
+                                                           ptr_constraining_free_dofs%get(hanging_dof_lid+1)+1)
+                else if ( fe%is_hanging_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
+                  if (full_cells_loop) then
+                    mcheck(.false.,'We cannot end-up here due to 2:1 condition')
+                  else 
+                    coarser_hanging_dof_lid = abs(coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current())) - this%get_num_dirichlet_dofs()
+                    massert( ((this%num_hanging_dofs_full_cells+1)<=coarser_hanging_dof_lid) .and.  (coarser_hanging_dof_lid<=this%num_hanging_dofs_full_cells+this%num_aggregated_dofs), 'Assert hast to be true due to 2:1 condition' )
+                    num_free_master_dofs = this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid+1)&
+                                         - this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)
+                    num_dirichlet_master_dofs = this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid+1)&
+                                              - this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)
+                    call ptr_constraining_free_dofs%set(hanging_dof_lid+1, ptr_constraining_free_dofs%get(hanging_dof_lid+1)+num_free_master_dofs)
+                    call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+num_dirichlet_master_dofs)
+                  end if 
+                else
+                  mcheck(.false.,'Dof is either free dirichlet or hanging')
+                end if
               end if
               call coarser_fe_dofs_on_vef_iterator%next()
            end do
@@ -953,59 +957,61 @@ subroutine suhpafs_setup_only_hanging_node_constraints ( this, full_cells_loop )
            coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
            do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
               ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current() 
+              if ( coarser_reference_fe%get_component_node(ishape_coarser_fe) == reference_fe%get_component_node(ishape_fe) ) then
               
-              ! Evaluate coefficient
-              select type(coarser_reference_fe)
-                type is (hex_lagrangian_reference_fe_t)
-                call coarser_reference_fe%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient) 
-              class default
-                assert(.false.)
-              end select
-              
-              ! Set dependency and coefficient into the corresponding std_vector data structure
-              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
-                call constraining_dirichlet_dofs%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
-                                                          coarser_fe_fe_dofs(ishape_coarser_fe))
-                call constraining_dirichlet_dofs_coefficients%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
-                                                                       coefficient)
-                call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, &
-                                                              ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
-              else if ( fe%is_free_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
-                call constraining_free_dofs%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
-                                                     coarser_fe_fe_dofs(ishape_coarser_fe))
-                call constraining_free_dofs_coefficients%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
-                                                                  coefficient)
-                call ptr_constraining_free_dofs%set(hanging_dof_lid, &
-                                                         ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
-              else if ( fe%is_hanging_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
-                if (full_cells_loop) then
-                  mcheck(.false.,'We cannot end-up here due to 2:1 condition')
-                else 
-                  coarser_hanging_dof_lid = abs(coarser_fe_fe_dofs(ishape_coarser_fe)) - this%get_num_dirichlet_dofs()
-                  massert( ((this%num_hanging_dofs_full_cells+1)<=coarser_hanging_dof_lid) .and.  (coarser_hanging_dof_lid<=this%num_hanging_dofs_full_cells+this%num_aggregated_dofs), 'Assert hast to be true due to 2:1 condition' )
-                  num_free_master_dofs = this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid+1)&
-                                       - this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)
-                  num_dirichlet_master_dofs = this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid+1)&
-                                            - this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)
-                  do ifree = 1,num_free_master_dofs
-                    call constraining_free_dofs%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
-                      this_constraining_free_dofs%get(this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)+ifree-1))
-                    call constraining_free_dofs_coefficients%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
-                      coefficient*this_constraining_free_dofs_coefficients%get(this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)+ifree-1))
-                    call ptr_constraining_free_dofs%set(hanging_dof_lid, ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
-                  end do
-                  do idirichlet = 1,num_dirichlet_master_dofs
-                    call constraining_dirichlet_dofs%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
-                      this_constraining_dirichlet_dofs%get(this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)+idirichlet-1))
-                    call constraining_dirichlet_dofs_coefficients%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
-                      coefficient*this_constraining_dirichlet_dofs_coefficients%get(this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)+idirichlet-1))
-                    call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
-                  end do
-                end if 
-              else
-                mcheck(.false.,'Dof is either free dirichlet or hanging')
+                ! Evaluate coefficient
+                select type(coarser_reference_fe)
+                  type is (hex_lagrangian_reference_fe_t)
+                  call coarser_reference_fe%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient) 
+                class default
+                  assert(.false.)
+                end select
+                
+                ! Set dependency and coefficient into the corresponding std_vector data structure
+                if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
+                  call constraining_dirichlet_dofs%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                                                            coarser_fe_fe_dofs(ishape_coarser_fe))
+                  call constraining_dirichlet_dofs_coefficients%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                                                                         coefficient)
+                  call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, &
+                                                                ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
+                else if ( fe%is_free_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
+                  call constraining_free_dofs%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                                                       coarser_fe_fe_dofs(ishape_coarser_fe))
+                  call constraining_free_dofs_coefficients%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                                                                    coefficient)
+                  call ptr_constraining_free_dofs%set(hanging_dof_lid, &
+                                                           ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
+                else if ( fe%is_hanging_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
+                  if (full_cells_loop) then
+                    mcheck(.false.,'We cannot end-up here due to 2:1 condition')
+                  else 
+                    coarser_hanging_dof_lid = abs(coarser_fe_fe_dofs(ishape_coarser_fe)) - this%get_num_dirichlet_dofs()
+                    massert( ((this%num_hanging_dofs_full_cells+1)<=coarser_hanging_dof_lid) .and.  (coarser_hanging_dof_lid<=this%num_hanging_dofs_full_cells+this%num_aggregated_dofs), 'Assert hast to be true due to 2:1 condition' )
+                    num_free_master_dofs = this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid+1)&
+                                         - this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)
+                    num_dirichlet_master_dofs = this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid+1)&
+                                              - this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)
+                    do ifree = 1,num_free_master_dofs
+                      call constraining_free_dofs%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                        this_constraining_free_dofs%get(this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)+ifree-1))
+                      call constraining_free_dofs_coefficients%set(ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                        coefficient*this_constraining_free_dofs_coefficients%get(this_ptr_constraining_free_dofs%get(coarser_hanging_dof_lid)+ifree-1))
+                      call ptr_constraining_free_dofs%set(hanging_dof_lid, ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
+                    end do
+                    do idirichlet = 1,num_dirichlet_master_dofs
+                      call constraining_dirichlet_dofs%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                        this_constraining_dirichlet_dofs%get(this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)+idirichlet-1))
+                      call constraining_dirichlet_dofs_coefficients%set(ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                        coefficient*this_constraining_dirichlet_dofs_coefficients%get(this_ptr_constraining_dirichlet_dofs%get(coarser_hanging_dof_lid)+idirichlet-1))
+                      call ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
+                    end do
+                  end if 
+                else
+                  mcheck(.false.,'Dof is either free dirichlet or hanging')
+                end if
+
               end if
-              
               call coarser_fe_dofs_on_vef_iterator%next()
            end do
            call fe_own_dofs_on_vef_iterator%next() 
