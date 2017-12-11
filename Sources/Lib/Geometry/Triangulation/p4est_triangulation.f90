@@ -494,8 +494,6 @@ module p4est_triangulation_names
     procedure                                    :: fill_cells_set                                     => p4est_bt_fill_cells_set
     procedure, private        , non_overridable  :: clear_vef_set_ids                                  => p4est_bt_clear_vef_set_ids
     procedure, private        , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import
-    procedure, private        , non_overridable  :: match_cell_import_rcv_control_data                 => p4est_bt_match_cell_import_rcv_control_data
-    procedure, private        , non_overridable  :: adjust_ghost_cells                                 => p4est_bt_adjust_ghost_cells
     procedure, private, nopass, non_overridable  :: generate_non_consecutive_vef_ggid                  => p4est_bt_generate_non_consecutive_vef_ggid
     procedure, private        , non_overridable  :: exchange_vefs_ggids                                => p4est_bt_exchange_vefs_ggids 
     procedure                 , non_overridable  :: get_previous_num_local_cells                       => p4est_bt_get_previous_num_local_cells 
