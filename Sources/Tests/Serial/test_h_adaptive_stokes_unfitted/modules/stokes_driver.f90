@@ -57,8 +57,6 @@ module stokes_driver_names
   integer(ip), parameter :: POS_FULL_P  = 3
   integer(ip), parameter :: POS_VOID_P  = 4
 
-  integer(ip), parameter :: order_u  = 2
-  integer(ip), parameter :: order_p  = order_u - 1
 
   type stokes_driver_t 
      private 
@@ -325,6 +323,11 @@ contains
     class(cell_iterator_t), allocatable :: cell
     class(reference_fe_t),  pointer     :: reference_fe
     character(:),           allocatable :: field_type
+    integer(ip) :: order_u
+    integer(ip) :: order_p
+
+    order_p = this%test_params%get_reference_fe_order()
+    order_u = order_p + 1
     
     allocate(this%reference_fes(4), stat=istat)
     check(istat==0)
@@ -375,7 +378,7 @@ contains
     
     call this%analytical_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
-    call this%analytical_functions%set_degree(order_u)
+    call this%analytical_functions%set_degree(this%test_params%get_reference_fe_order())
 
     fun_u => this%analytical_functions%get_solution_function_u()
     fun_p => this%analytical_functions%get_solution_function_p()
@@ -610,7 +613,7 @@ contains
     write(*,'(a,e32.25)') 'u: rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
     if (this%test_params%get_write_error_norms()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms_u.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'u: l2_norm                ;', l2_norm
       write(iounit,'(a,e32.25)') 'u: h1_semi_norm           ;', h1_semi_norm
@@ -662,7 +665,7 @@ contains
     write(*,'(a,e32.25)') 'p: rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
     if (this%test_params%get_write_error_norms()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms_p.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'p: l2_norm                ;', l2_norm
       write(iounit,'(a,e32.25)') 'p: h1_semi_norm           ;', h1_semi_norm
@@ -812,10 +815,10 @@ contains
         call vtk_writer%free()
 
         ! TODO make it work when no cut cells
-        !! Write the unfitted mesh
-        !call vtk_writer%attach_boundary_faces(this%triangulation)
-        !call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
-        !call vtk_writer%free()
+        ! Write the unfitted mesh
+        call vtk_writer%attach_boundary_faces(this%triangulation)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
+        call vtk_writer%free()
         
         ! TODO do it for stokes
         !! Write the solution

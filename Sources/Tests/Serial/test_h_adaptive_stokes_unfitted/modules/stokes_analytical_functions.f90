@@ -32,8 +32,8 @@ module stokes_analytical_functions_names
 # include "debug.i90"
   private
 
-  real(rp), parameter :: offset_x = -2.3
-  real(rp), parameter :: offset_y = 0.0
+  real(rp), parameter :: offset_x = -0.3
+  real(rp), parameter :: offset_y = 0.5
   real(rp), parameter :: offset_z = 0.0
 
   !===================================================
@@ -251,9 +251,9 @@ contains
     real(rp),      intent(inout) :: val
     integer(ip),   intent(in)    :: q
     real(rp) :: x1, x2
-    x1 = point%get(1) - offset_x
-    x2 = point%get(2) - offset_y
-    val = x1**2*x2**2
+    x1 = point%get(1)
+    x2 = point%get(2)
+    val = x1**3*x2**3
   end subroutine sol_ex002_2d_p
 
   subroutine sol_ex002_2d_grad_p(point,val,q)
@@ -262,11 +262,11 @@ contains
     type(vector_field_t), intent(inout) :: val
     integer(ip),   intent(in)    :: q
     real(rp) :: x1, x2
-    x1 = point%get(1) - offset_x
-    x2 = point%get(2) - offset_y
+    x1 = point%get(1)
+    x2 = point%get(2)
     call val%init(0.0)
-    call val%set(1, 2.0*x1*x2**2 )
-    call val%set(2, 2.0*x1**2*x2 )
+    call val%set(1, 3.0*x1**2*x2**3 )
+    call val%set(2, 3.0*x1**3*x2**2 )
   end subroutine sol_ex002_2d_grad_p
 
   !===================================================
