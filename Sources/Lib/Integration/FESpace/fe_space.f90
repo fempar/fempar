@@ -654,7 +654,7 @@ module fe_space_names
 
      procedure, non_overridable          :: setup_hanging_node_constraints               => serial_fe_space_setup_hanging_node_constraints
 
-     procedure, non_overridable, private :: project_field_cell_to_ref_fes                 => serial_fe_space_project_field_cell_to_ref_fes
+     procedure,                  private :: project_field_cell_to_ref_fes                 => serial_fe_space_project_field_cell_to_ref_fes
      procedure, non_overridable, private :: project_fe_integration_arrays                 => serial_fe_space_project_fe_integration_arrays
      procedure, non_overridable, private :: project_facet_integration_arrays              => serial_fe_space_project_facet_integration_arrays
 
@@ -848,6 +848,7 @@ module fe_space_names
    procedure                                   :: redistribute                                            => par_fe_space_redistribute
    procedure                                   :: update_after_redistribute                               => par_fe_space_update_after_redistribute
    procedure,                          private :: update_after_refine_coarsen                             => par_fe_space_update_after_refine_coarsen
+   procedure,                          private :: project_field_cell_to_ref_fes                           => par_fe_space_project_field_cell_to_ref_fes
    procedure,                          private :: migrate_field_cell_to_ref_fes                           => par_fe_space_migrate_field_cell_to_ref_fes
    procedure,                          private :: migrate_fe_integration_arrays                           => par_fe_space_migrate_fe_integration_arrays
    procedure,                          private :: migrate_facet_integration_arrays                        => par_fe_space_migrate_facet_integration_arrays
