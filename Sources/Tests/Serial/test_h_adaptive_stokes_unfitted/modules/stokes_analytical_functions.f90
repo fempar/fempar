@@ -32,6 +32,10 @@ module stokes_analytical_functions_names
 # include "debug.i90"
   private
 
+  real(rp), parameter :: offset_x = -2.3
+  real(rp), parameter :: offset_y = 0.0
+  real(rp), parameter :: offset_z = 0.0
+
   !===================================================
 
   type, extends(scalar_function_t) :: base_scalar_function_t
@@ -187,6 +191,86 @@ contains
 
   !===================================================
 
+  subroutine sol_ex002_2d_u(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    call val%init(0.0)
+    call val%set(1, -x2/(x1**2 + x2**2)**(1.0/2.0) )
+    call val%set(2,  x1/(x1**2 + x2**2)**(1.0/2.0) )
+  end subroutine sol_ex002_2d_u
+
+  subroutine sol_ex002_2d_grad_u(point,val,q)
+    implicit none
+    type(point_t),        intent(in)    :: point
+    type(tensor_field_t), intent(inout) :: val
+    integer(ip),          intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    call val%init(0.0)
+    call val%set(1,1,  (x1*x2)/(x1**2 + x2**2)**(3.0/2.0)                                 )
+    call val%set(1,2, 1.0/(x1**2 + x2**2)**(1.0/2.0) - x1**2/(x1**2 + x2**2)**(3.0/2.0)   )
+    call val%set(2,1,   x2**2/(x1**2 + x2**2)**(3.0/2.0) - 1.0/(x1**2 + x2**2)**(1.0/2.0) )
+    call val%set(2,2, -(x1*x2)/(x1**2 + x2**2)**(3.0/2.0)                                 )
+  end subroutine sol_ex002_2d_grad_u
+
+  subroutine sol_ex002_2d_lapl_u(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    call val%init(0.0)
+    call val%set(1, (4.0*x2)/(x1**2 + x2**2)**(3.0/2.0) - (3.0*x2**3.0)/(x1**2 + x2**2)**(5.0/2.0) - (3.0*x1**2*x2)/(x1**2 + x2**2)**(5.0/2.0) )
+    call val%set(2, (3.0*x1**3.0)/(x1**2 + x2**2)**(5.0/2.0) - (4.0*x1)/(x1**2 + x2**2)**(3.0/2.0) + (3.0*x1*x2**2)/(x1**2 + x2**2)**(5.0/2.0) )
+  end subroutine sol_ex002_2d_lapl_u
+
+  subroutine sol_ex002_2d_div_u(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    real(rp),      intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    val = 0.0
+  end subroutine sol_ex002_2d_div_u
+
+  !===================================================
+
+  subroutine sol_ex002_2d_p(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    real(rp),      intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    val = x1**2*x2**2
+  end subroutine sol_ex002_2d_p
+
+  subroutine sol_ex002_2d_grad_p(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    call val%init(0.0)
+    call val%set(1, 2.0*x1*x2**2 )
+    call val%set(2, 2.0*x1**2*x2 )
+  end subroutine sol_ex002_2d_grad_p
+
+  !===================================================
+
   subroutine base_scalar_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -244,7 +328,10 @@ contains
         call sol_ex001_2d_grad_p(point,val,this%degree)
         result = result + (-1.0)*val
       else
-        check(.false.)
+        call sol_ex002_2d_lapl_u(point,val,this%degree)
+        result = (-1.0)*val
+        call sol_ex002_2d_grad_p(point,val,this%degree)
+        result = result + (-1.0)*val
       end if
     else if ( this%num_dims == 3 ) then
       if (this%in_fe_space) then
@@ -266,7 +353,7 @@ contains
       if (this%in_fe_space) then
         call sol_ex001_2d_u(point,result,this%degree)
       else
-        check(.false.)
+        call sol_ex002_2d_u(point,result,this%degree)
       end if
     else if ( this%num_dims == 3 ) then
       if (this%in_fe_space) then
@@ -288,7 +375,7 @@ contains
       if (this%in_fe_space) then
         call sol_ex001_2d_grad_u(point,result,this%degree)
       else
-        check(.false.)
+        call sol_ex002_2d_grad_u(point,result,this%degree)
       end if
     else if ( this%num_dims == 3 ) then
       if (this%in_fe_space) then
@@ -310,7 +397,7 @@ contains
       if (this%in_fe_space) then
         call sol_ex001_2d_div_u(point,result,this%degree)
       else
-        check(.false.)
+        call sol_ex002_2d_div_u(point,result,this%degree)
       end if
     else if ( this%num_dims == 3 ) then
       if (this%in_fe_space) then
@@ -332,7 +419,7 @@ contains
       if (this%in_fe_space) then
         call sol_ex001_2d_p(point,result,this%degree)
       else
-        check(.false.)
+        call sol_ex002_2d_p(point,result,this%degree)
       end if
     else if ( this%num_dims == 3 ) then
       if (this%in_fe_space) then
@@ -354,7 +441,7 @@ contains
       if (this%in_fe_space) then
         call sol_ex001_2d_grad_p(point,result,this%degree)
       else
-        check(.false.)
+        call sol_ex002_2d_grad_p(point,result,this%degree)
       end if
     else if ( this%num_dims == 3 ) then
       if (this%in_fe_space) then
