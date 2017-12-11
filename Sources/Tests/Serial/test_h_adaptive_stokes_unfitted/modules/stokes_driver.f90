@@ -161,52 +161,12 @@ contains
     integer(ip) :: max_levels
     integer(ip) :: diri_set_id_u
     integer(ip) :: diri_set_id_u_and_p
-    logical :: first_vertex
-    logical :: in_interior_cell
-    integer(ip) :: icell
-
-    if (this%test_params%is_strong_dirichlet_on_fitted_boundary()) then
-      diri_set_id_u = 1
-      diri_set_id_u_and_p = 2
-    else
-      diri_set_id_u = 0
-      diri_set_id_u_and_p = 0
-    end if
+    logical :: first_interior_vertex
+    integer(ip) :: ivef
 
     ! Create the triangulation, with the levelset function
     call this%triangulation%create(this%parameter_list,this%level_set_function)
 
-    ! Impose Dirichlet in the boundary of the background mesh
-    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
-
-       first_vertex = .true.
-       call this%triangulation%create_vef_iterator(vef)
-       call this%triangulation%create_cell_iterator(cell)
-       do while ( .not. vef%has_finished() )
-         if(vef%is_at_boundary()) then
-           in_interior_cell = .false.
-           do icell = 1, vef%get_num_cells_around()
-             call vef%get_cell_around(icell,cell)
-             if (cell%is_interior()) then
-               in_interior_cell = .true.
-               exit
-             end if
-           end do
-           if (vef%get_dim()==0 .and. first_vertex .and. in_interior_cell) then
-            call vef%set_set_id(diri_set_id_u_and_p)
-            first_vertex = .false.
-           else
-            call vef%set_set_id(diri_set_id_u_and_p)
-           end if
-         else
-            call vef%set_set_id(0)
-         end if
-         call vef%next()
-       end do
-       call this%triangulation%free_vef_iterator(vef)
-       call this%triangulation%free_cell_iterator(cell)
-
-    end if
 
     ! Create initial refined mesh
     select case ( trim(this%test_params%get_refinement_pattern()) )
@@ -275,6 +235,58 @@ contains
       case default
             mcheck(.false.,'Refinement pattern `'//trim(this%test_params%get_refinement_pattern())//'` not known')
     end select
+
+    ! Impose Dirichlet
+    if (this%test_params%is_strong_dirichlet_on_fitted_boundary()) then
+      diri_set_id_u = 1
+      diri_set_id_u_and_p = 2
+    else
+      diri_set_id_u = 0
+      diri_set_id_u_and_p = 0
+    end if
+    if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
+
+       call this%triangulation%create_vef_iterator(vef)
+       call this%triangulation%create_cell_iterator(cell)
+
+       ! For velocities
+       do while ( .not. vef%has_finished() )
+         if(vef%is_at_boundary()) then
+            call vef%set_set_id(diri_set_id_u)
+         else
+            call vef%set_set_id(0)
+         end if
+         call vef%next()
+       end do
+
+       ! For pressures
+       call cell%first()
+       first_interior_vertex = .true.
+       do while ( .not. cell%has_finished() )
+         if (cell%is_interior()) then
+           do ivef = 1, cell%get_num_vefs()
+             call cell%get_vef(ivef,vef)
+             if (vef%is_proper() .and. vef%get_dim() == 0) then
+               if (first_interior_vertex) then
+                 call vef%set_set_id(diri_set_id_u_and_p)
+                 first_interior_vertex = .false.
+                 exit
+               end if
+             end if
+           end do
+           if (.not. first_interior_vertex) then
+             exit
+           end if
+         end if
+         call cell%next()
+       end do
+
+       massert(.not. first_interior_vertex,'No interior vertex in interior cell found: refine your mesh!')
+
+       call this%triangulation%free_vef_iterator(vef)
+       call this%triangulation%free_cell_iterator(cell)
+
+    end if
 
     
     !call this%triangulation%print()
