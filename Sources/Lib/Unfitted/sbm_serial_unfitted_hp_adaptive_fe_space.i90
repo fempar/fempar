@@ -66,9 +66,21 @@ subroutine suhpafs_space_create_different_ref_fes_between_cells(&
     check(.false.)
   end select
   call this%debug_info%init()
-  call this%allocate_and_fill_aggregate_ids()
-  call this%compute_aggregate_sizes()
+
+  if (this%use_constraints) then
+    call this%allocate_and_fill_aggregate_ids(triangulation)
+    call this%compute_aggregate_sizes(triangulation)
+  else
+    call memalloc(triangulation%get_num_local_cells(),this%aggregate_ids,__FILE__,__LINE__)
+    call memalloc(size(this%aggregate_ids),this%aggregate_size,__FILE__,__LINE__)
+    call memalloc(size(this%aggregate_ids),this%is_in_aggregate_x_cell,__FILE__,__LINE__)
+    this%aggregate_ids(:) = 0
+    this%aggregate_size(:) = 0.0
+    this%is_in_aggregate_x_cell(:) = .false.
+  end if
+
   call this%check_for_full_neighbors()
+
 end subroutine suhpafs_space_create_different_ref_fes_between_cells
 
 !========================================================================================
@@ -1452,6 +1464,72 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
 end subroutine suhpafs_setup_only_cell_aggregation_constraints
 
 !========================================================================================
+subroutine suhpafs_refine_mesh_for_small_aggregates(this,triangulation,target_size,level_set_function)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this
+  class(unfitted_p4est_serial_triangulation_t) , intent(inout) :: triangulation
+  real(rp)                                     , intent(in)    :: target_size
+  class(level_set_function_t)                  , intent(in)    :: level_set_function
+
+  integer(ip), parameter :: max_num_sweeps = 10
+  integer(ip) :: isweep
+  class(cell_iterator_t), allocatable :: cell
+  logical :: do_something
+  integer(ip) :: num_do_nothing
+
+  call this%free()
+  call this%debug_info%init()
+  call this%allocate_and_fill_aggregate_ids(triangulation)
+  call this%compute_aggregate_sizes(triangulation)
+
+  num_do_nothing = 0
+  do isweep = 1, max_num_sweeps
+
+    call triangulation%create_cell_iterator(cell)
+    do_something = .false.
+
+    do while (.not. cell%has_finished())
+      if (this%is_in_aggregate_x_cell(cell%get_gid())) then
+        if ( this%aggregate_size(cell%get_gid()) > target_size  ) then
+          call cell%set_for_refinement()
+          do_something = .true.
+        else
+          call cell%set_for_do_nothing()
+        end if
+      else
+        if (cell%is_interior() .and. this%aggregate_size(cell%get_gid()) < 0.999*target_size) then
+          call cell%set_for_coarsening()
+        else
+          call cell%set_for_do_nothing()
+        end if
+      end if
+      call cell%next()
+    end do
+    call triangulation%free_cell_iterator(cell)
+
+    if (.not. do_something) then
+      num_do_nothing = num_do_nothing + 1
+    end if
+
+    if (num_do_nothing == 3) then
+      exit
+    end if
+
+    call triangulation%refine_and_coarsen()
+    call triangulation%clear_refinement_and_coarsening_flags()
+    call triangulation%update_cut_cells(level_set_function)
+
+    call this%free()
+    call this%debug_info%init()
+    call this%allocate_and_fill_aggregate_ids(triangulation)
+    call this%compute_aggregate_sizes(triangulation)
+
+  end do
+  assert(isweep < max_num_sweeps)
+
+end subroutine suhpafs_refine_mesh_for_small_aggregates
+
+!========================================================================================
 function suhpafs_get_aggregate_ids(this)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(in)    :: this
@@ -1481,7 +1559,7 @@ end function suhpafs_get_is_in_aggregate_x_cell
 !========================================================================================
 subroutine suhpafs_print_debug_info(this,iounit)
   implicit none
-  class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(in)    :: this
+  class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(inout)    :: this
   integer(ip) :: iounit
   integer(ip) :: istat
   real(rp)    :: max_aggregate_size
@@ -1491,6 +1569,17 @@ subroutine suhpafs_print_debug_info(this,iounit)
   real(ip)    :: max_separation_from_root
   integer(ip) :: has_full_neig_along_dim_int(3)
   integer(ip) :: i
+
+  if (.not. this%use_constraints) then
+    max_separation_from_root_id = -1
+    max_separation_from_root    = -1.0_rp
+    max_aggregate_size    = -1.0_rp
+    max_aggregate_size_id = -1
+    istat = this%debug_info%set(key='max_separation_from_root_id',value=max_separation_from_root_id); check(istat==0)
+    istat = this%debug_info%set(key='max_separation_from_root',   value=max_separation_from_root   ); check(istat==0)
+    istat = this%debug_info%set(key='max_aggregate_size',   value=max_aggregate_size   ); check(istat==0)
+    istat = this%debug_info%set(key='max_aggregate_size_id',value=max_aggregate_size_id); check(istat==0)
+  end if
 
   istat = this%debug_info%get(key='max_separation_from_root_id',  value=max_separation_from_root_id ); check(istat==0)
   istat = this%debug_info%get(key='max_separation_from_root',     value=max_separation_from_root    ); check(istat==0)
@@ -1517,9 +1606,10 @@ subroutine suhpafs_print_debug_info(this,iounit)
 end subroutine suhpafs_print_debug_info
 
 !========================================================================================
-subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
+subroutine suhpafs_allocate_and_fill_aggregate_ids(this,triangulation)
   implicit none
-  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout)    :: this
+  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this
+  class(triangulation_t)                       , intent(in)    :: triangulation
 
   class(cell_iterator_t), allocatable :: cell
   integer(ip) :: icell
@@ -1529,7 +1619,6 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   logical ::  is_needed 
   logical :: has_been_aggregated
   integer(ip) :: icell_arround
-  class(triangulation_t), pointer :: triangulation
   class(vef_iterator_t), allocatable :: vef
   integer(ip) :: ivef
   integer(ip) :: ifacet
@@ -1549,18 +1638,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
   real(ip)    :: max_separation_from_root
   integer(ip) :: istat
 
-
-  triangulation => this%get_triangulation()
   call memalloc(triangulation%get_num_local_cells(),this%aggregate_ids,__FILE__,__LINE__)
-
-  if (.not. this%use_constraints) then
-    this%aggregate_ids(:) = 0
-    max_separation_from_root_id = -1
-    max_separation_from_root    = -1.0_rp
-    istat = this%debug_info%set(key='max_separation_from_root_id',value=max_separation_from_root_id); check(istat==0)
-    istat = this%debug_info%set(key='max_separation_from_root',   value=max_separation_from_root   ); check(istat==0)
-    return
-  end if
 
   if (triangulation%get_num_dims() == 2) then
     face2dir => face2dir_2d
@@ -1858,12 +1936,12 @@ subroutine suhpafs_fill_proper_vef_constrains_full_cell(this,proper_vef_constrai
 end subroutine suhpafs_fill_proper_vef_constrains_full_cell
 
 !========================================================================================
-subroutine suhpafs_compute_aggregate_sizes(this)
+subroutine suhpafs_compute_aggregate_sizes(this,triangulation)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this
+  class(triangulation_t)                       , intent(in)    :: triangulation
 
   class(cell_iterator_t), allocatable :: cell
-  class(triangulation_t), pointer :: triangulation
   real(rp), allocatable :: coords_min(:,:)
   real(rp), allocatable :: coords_max(:,:)
   type(point_t), allocatable :: cell_coords(:)
@@ -1876,17 +1954,8 @@ subroutine suhpafs_compute_aggregate_sizes(this)
   real(rp) :: max_aggregate_size
   integer(ip) :: max_aggregate_size_id
 
-  if (.not. this%use_constraints) then
-    max_aggregate_size    = -1.0_rp
-    max_aggregate_size_id = -1
-    istat = this%debug_info%set(key='max_aggregate_size',   value=max_aggregate_size   ); check(istat==0)
-    istat = this%debug_info%set(key='max_aggregate_size_id',value=max_aggregate_size_id); check(istat==0)
-    return
-  end if
-
   assert(allocated(this%aggregate_ids))
 
-  triangulation => this%get_triangulation()
   massert(triangulation%get_num_ghost_cells()==0,'subroutine only for serial runs for the moment')
   massert(triangulation%get_num_reference_fes()==1,'Be carefull in the allocation of cell_coords')
 

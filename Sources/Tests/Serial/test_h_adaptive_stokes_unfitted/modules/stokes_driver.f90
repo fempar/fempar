@@ -161,6 +161,7 @@ contains
     integer(ip) :: diri_set_id_u_and_p
     logical :: first_interior_vertex
     integer(ip) :: ivef
+    real(rp) :: target_size
 
     ! Create the triangulation, with the levelset function
     call this%triangulation%create(this%parameter_list,this%level_set_function)
@@ -240,6 +241,9 @@ contains
           call this%triangulation%update_cut_cells(this%level_set_function)
           call this%triangulation%free_cell_iterator(cell)
         end do
+
+        target_size = 1.0/(2.0**this%test_params%get_max_level())
+        call this%fe_space%refine_mesh_for_small_aggregates(this%triangulation,target_size,this%level_set_function)
 
       case ('debug-1')
 
@@ -396,15 +400,6 @@ contains
     class(vector_function_t) , pointer :: fun_u
     class(scalar_function_t) , pointer :: fun_p
 
-    integer(ip), parameter :: max_num_sweeps = 10
-    integer(ip) :: isweep
-    real(rp), pointer :: aggregate_size(:)
-    logical, pointer :: is_in_aggregate(:)
-    real(rp) :: target_size
-    class(cell_iterator_t), allocatable :: cell
-    logical :: do_something
-    integer(ip) :: num_do_nothing
-
     set_ids_to_reference_fes(U_FIELD_ID,SET_ID_FULL) = POS_FULL_U
     set_ids_to_reference_fes(U_FIELD_ID,SET_ID_VOID) = POS_VOID_U
     set_ids_to_reference_fes(P_FIELD_ID,SET_ID_FULL) = POS_FULL_P
@@ -424,58 +419,6 @@ contains
                                conditions               = this%conditions, &
                                reference_fes            = this%reference_fes,&
                                set_ids_to_reference_fes = set_ids_to_reference_fes)
-
-    if (trim(this%test_params%get_refinement_pattern()) == 'adaptive-2') then
-      target_size = 1.0/(2.0**this%test_params%get_max_level())
-      num_do_nothing = 0
-      do isweep = 1, max_num_sweeps
-
-        call this%triangulation%create_cell_iterator(cell)
-        aggregate_size => this%fe_space%get_aggregate_size()
-        is_in_aggregate => this%fe_space%get_is_in_aggregate_x_cell()
-        do_something = .false.
-
-        do while (.not. cell%has_finished())
-          if (is_in_aggregate(cell%get_gid())) then
-            if ( aggregate_size(cell%get_gid()) > target_size  ) then
-              call cell%set_for_refinement()
-              do_something = .true.
-            else
-              call cell%set_for_do_nothing()
-            end if
-          else
-            if (cell%is_interior() .and. aggregate_size(cell%get_gid()) < 0.999*target_size) then
-              call cell%set_for_coarsening()
-            else
-              call cell%set_for_do_nothing()
-            end if
-          end if
-          call cell%next()
-        end do
-        call this%triangulation%free_cell_iterator(cell)
-
-        if (.not. do_something) then
-          num_do_nothing = num_do_nothing + 1
-        end if
-
-        if (num_do_nothing == 3) then
-          exit
-        end if
-
-        call this%triangulation%refine_and_coarsen()
-        call this%triangulation%clear_refinement_and_coarsening_flags()
-        call this%triangulation%update_cut_cells(this%level_set_function)
-        call this%fill_cells_set()
-
-        call this%fe_space%free()
-        call this%fe_space%create( triangulation            = this%triangulation,      &
-                                   conditions               = this%conditions, &
-                                   reference_fes            = this%reference_fes,&
-                                   set_ids_to_reference_fes = set_ids_to_reference_fes)
-      end do
-      assert(isweep < max_num_sweeps)
-    end if
-
     call this%fe_space%set_up_cell_integration()    
 
     ! Write some info

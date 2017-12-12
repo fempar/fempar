@@ -45,6 +45,7 @@ module unfitted_fe_spaces_names
   
   use unfitted_triangulations_names
   use piecewise_cell_map_names
+  use level_set_functions_gallery_names
 
   use ParameterList
 
@@ -179,6 +180,9 @@ module unfitted_fe_spaces_names
       procedure :: count_dofs => suhpafs_count_dofs
       procedure :: list_dofs  => suhpafs_list_dofs
       procedure :: setup_hanging_node_constraints => suhpafs_setup_hanging_node_constraints
+
+      ! Mesh refinement
+      procedure :: refine_mesh_for_small_aggregates => suhpafs_refine_mesh_for_small_aggregates
 
       ! Getters
       procedure, non_overridable :: get_aggregate_ids          => suhpafs_get_aggregate_ids
