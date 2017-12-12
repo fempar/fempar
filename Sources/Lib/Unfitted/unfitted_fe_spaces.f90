@@ -158,6 +158,8 @@ module unfitted_fe_spaces_names
       class(unfitted_p4est_serial_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
       type(unfitted_integration_manager_t) :: unfitted_integration
       integer(ip), allocatable :: aggregate_ids(:)
+      logical    , allocatable :: is_in_aggregate_x_cell(:)
+      real(rp)   , allocatable :: aggregate_size(:)
       logical :: use_constraints = .true.
       type(ParameterList_t), public :: debug_info
       integer(ip) :: num_hanging_dofs_full_cells
@@ -179,18 +181,20 @@ module unfitted_fe_spaces_names
       procedure :: setup_hanging_node_constraints => suhpafs_setup_hanging_node_constraints
 
       ! Getters
-      procedure, non_overridable :: get_aggregate_ids                               => suhpafs_get_aggregate_ids
+      procedure, non_overridable :: get_aggregate_ids          => suhpafs_get_aggregate_ids
+      procedure, non_overridable :: get_aggregate_size         => suhpafs_get_aggregate_size
+      procedure, non_overridable :: get_is_in_aggregate_x_cell => suhpafs_get_is_in_aggregate_x_cell
 
       ! Printers
       procedure, non_overridable :: print_debug_info => suhpafs_print_debug_info
 
       ! Private TBPs
       procedure, private, non_overridable :: allocate_and_fill_aggregate_ids         => suhpafs_allocate_and_fill_aggregate_ids
-      procedure, private, non_overridable :: compute_aggregate_size                  => suhpafs_compute_aggregate_size
       procedure, private, non_overridable :: check_for_full_neighbors                => suhpafs_check_for_full_neighbors
       procedure, private, non_overridable :: fill_proper_vef_constrains_full_cell    => suhpafs_fill_proper_vef_constrains_full_cell
       procedure, private, non_overridable :: setup_only_hanging_node_constraints     => suhpafs_setup_only_hanging_node_constraints
       procedure, private, non_overridable :: setup_only_cell_aggregation_constraints => suhpafs_setup_only_cell_aggregation_constraints
+      procedure, private, non_overridable :: compute_aggregate_sizes                 => suhpafs_compute_aggregate_sizes
 
   end type serial_unfitted_hp_adaptive_fe_space_t
 

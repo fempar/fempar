@@ -216,6 +216,31 @@ contains
           call this%triangulation%free_cell_iterator(cell)
         end do
 
+      case ('adaptive-2')
+
+        max_levels = this%test_params%get_max_level()
+        do ilev = 1, max_levels
+          call this%triangulation%create_cell_iterator(cell)
+          do while (.not. cell%has_finished())
+            if (ilev <= 2) then
+              call cell%set_for_refinement()
+            else
+              if (cell%is_interior()) then
+                call cell%set_for_refinement()
+              else if (cell%is_cut()) then
+                call cell%set_for_refinement()
+              else
+                call cell%set_for_coarsening()
+              end if
+            end if
+            call cell%next()
+          end do
+          call this%triangulation%refine_and_coarsen()
+          call this%triangulation%clear_refinement_and_coarsening_flags()
+          call this%triangulation%update_cut_cells(this%level_set_function)
+          call this%triangulation%free_cell_iterator(cell)
+        end do
+
       case ('debug-1')
 
         call this%triangulation%create_cell_iterator(cell)
@@ -371,6 +396,15 @@ contains
     class(vector_function_t) , pointer :: fun_u
     class(scalar_function_t) , pointer :: fun_p
 
+    integer(ip), parameter :: max_num_sweeps = 10
+    integer(ip) :: isweep
+    real(rp), pointer :: aggregate_size(:)
+    logical, pointer :: is_in_aggregate(:)
+    real(rp) :: target_size
+    class(cell_iterator_t), allocatable :: cell
+    logical :: do_something
+    integer(ip) :: num_do_nothing
+
     set_ids_to_reference_fes(U_FIELD_ID,SET_ID_FULL) = POS_FULL_U
     set_ids_to_reference_fes(U_FIELD_ID,SET_ID_VOID) = POS_VOID_U
     set_ids_to_reference_fes(P_FIELD_ID,SET_ID_FULL) = POS_FULL_P
@@ -390,6 +424,58 @@ contains
                                conditions               = this%conditions, &
                                reference_fes            = this%reference_fes,&
                                set_ids_to_reference_fes = set_ids_to_reference_fes)
+
+    if (trim(this%test_params%get_refinement_pattern()) == 'adaptive-2') then
+      target_size = 1.0/(2.0**this%test_params%get_max_level())
+      num_do_nothing = 0
+      do isweep = 1, max_num_sweeps
+
+        call this%triangulation%create_cell_iterator(cell)
+        aggregate_size => this%fe_space%get_aggregate_size()
+        is_in_aggregate => this%fe_space%get_is_in_aggregate_x_cell()
+        do_something = .false.
+
+        do while (.not. cell%has_finished())
+          if (is_in_aggregate(cell%get_gid())) then
+            if ( aggregate_size(cell%get_gid()) > target_size  ) then
+              call cell%set_for_refinement()
+              do_something = .true.
+            else
+              call cell%set_for_do_nothing()
+            end if
+          else
+            if (cell%is_interior() .and. aggregate_size(cell%get_gid()) < 0.999*target_size) then
+              call cell%set_for_coarsening()
+            else
+              call cell%set_for_do_nothing()
+            end if
+          end if
+          call cell%next()
+        end do
+        call this%triangulation%free_cell_iterator(cell)
+
+        if (.not. do_something) then
+          num_do_nothing = num_do_nothing + 1
+        end if
+
+        if (num_do_nothing == 3) then
+          exit
+        end if
+
+        call this%triangulation%refine_and_coarsen()
+        call this%triangulation%clear_refinement_and_coarsening_flags()
+        call this%triangulation%update_cut_cells(this%level_set_function)
+        call this%fill_cells_set()
+
+        call this%fe_space%free()
+        call this%fe_space%create( triangulation            = this%triangulation,      &
+                                   conditions               = this%conditions, &
+                                   reference_fes            = this%reference_fes,&
+                                   set_ids_to_reference_fes = set_ids_to_reference_fes)
+      end do
+      assert(isweep < max_num_sweeps)
+    end if
+
     call this%fe_space%set_up_cell_integration()    
 
     ! Write some info
@@ -718,6 +804,8 @@ contains
     integer(ip), allocatable :: aggregate_ids_color(:)
     
     type(unfitted_vtk_writer_t) :: vtk_writer
+    real(rp), pointer :: aggregate_size_ptr(:)
+    real(rp), allocatable :: aggregate_size(:)
 
     if(this%test_params%get_write_solution()) then
         path = this%test_params%get_dir_path_out()
@@ -734,6 +822,7 @@ contains
         call memalloc(this%triangulation%get_num_cells(),aggrs_ids,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggrs_ids_color,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggregate_ids_color,__FILE__,__LINE__)
+        call memalloc(this%triangulation%get_num_cells(),aggregate_size,__FILE__,__LINE__)
         
         if (this%test_params%get_use_constraints()) then
           aggregate_ids => this%fe_space%get_aggregate_ids()
@@ -792,6 +881,9 @@ contains
         
         if (this%test_params%get_use_constraints()) then
           call oh%add_cell_vector(cell_in_aggregate,'cell_in_aggregate')
+          aggregate_size_ptr => this%fe_space%get_aggregate_size()
+          aggregate_size(:) = aggregate_size_ptr(:)
+          call oh%add_cell_vector(aggregate_size,'aggregate_size')
         
           call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
           call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
@@ -808,6 +900,7 @@ contains
         call memfree(aggrs_ids,__FILE__,__LINE__)
         call memfree(aggrs_ids_color,__FILE__,__LINE__)
         call memfree(aggregate_ids_color,__FILE__,__LINE__)
+        call memfree(aggregate_size,__FILE__,__LINE__)
 
         ! Write the unfitted mesh
         call vtk_writer%attach_triangulation(this%triangulation)

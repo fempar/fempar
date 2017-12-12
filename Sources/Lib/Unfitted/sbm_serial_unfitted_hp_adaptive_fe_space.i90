@@ -67,7 +67,7 @@ subroutine suhpafs_space_create_different_ref_fes_between_cells(&
   end select
   call this%debug_info%init()
   call this%allocate_and_fill_aggregate_ids()
-  call this%compute_aggregate_size()
+  call this%compute_aggregate_sizes()
   call this%check_for_full_neighbors()
 end subroutine suhpafs_space_create_different_ref_fes_between_cells
 
@@ -80,6 +80,12 @@ subroutine suhpafs_free(this)
   call this%unfitted_integration%free()
   if (allocated(this%aggregate_ids)) then
     call memfree(this%aggregate_ids,__FILE__,__LINE__)
+  end if
+  if (allocated(this%aggregate_size)) then
+    call memfree(this%aggregate_size,__FILE__,__LINE__)
+  end if
+  if (allocated(this%is_in_aggregate_x_cell)) then
+    call memfree(this%is_in_aggregate_x_cell,__FILE__,__LINE__)
   end if
   call this%debug_info%free()
 end subroutine suhpafs_free
@@ -1450,8 +1456,27 @@ function suhpafs_get_aggregate_ids(this)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(in)    :: this
   integer(ip), pointer :: suhpafs_get_aggregate_ids(:)
+  assert(allocated(this%aggregate_ids))
   suhpafs_get_aggregate_ids => this%aggregate_ids
 end function suhpafs_get_aggregate_ids
+
+!========================================================================================
+function suhpafs_get_aggregate_size(this)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(in)    :: this
+  real(rp), pointer :: suhpafs_get_aggregate_size(:)
+  assert(allocated(this%aggregate_size))
+  suhpafs_get_aggregate_size => this%aggregate_size
+end function suhpafs_get_aggregate_size
+
+!========================================================================================
+function suhpafs_get_is_in_aggregate_x_cell(this)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(in)    :: this
+  logical, pointer :: suhpafs_get_is_in_aggregate_x_cell(:)
+  assert(allocated(this%is_in_aggregate_x_cell))
+  suhpafs_get_is_in_aggregate_x_cell => this%is_in_aggregate_x_cell
+end function suhpafs_get_is_in_aggregate_x_cell
 
 !========================================================================================
 subroutine suhpafs_print_debug_info(this,iounit)
@@ -1686,94 +1711,6 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this)
 end subroutine suhpafs_allocate_and_fill_aggregate_ids
 
 !========================================================================================
-subroutine suhpafs_compute_aggregate_size(this)
-  implicit none
-  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout)    :: this
-
-  class(cell_iterator_t), allocatable :: cell
-  real(rp), allocatable :: extreme_coords(:,:,:)
-  integer(ip) :: max_full_cell_id
-  type(point_t), allocatable :: coords(:)
-  integer(ip) :: inode
-  integer(ip) :: idime
-  integer(ip) :: iaggr
-  integer(ip), parameter :: XMAX=2, XMIN=1
-  real(rp) :: max_aggregate_size
-  integer(ip) :: max_aggregate_size_id
-  integer(ip) :: istat
-  class(triangulation_t), pointer :: triangulation
-
-  if (.not. this%use_constraints) then
-    max_aggregate_size    = -1.0_rp
-    max_aggregate_size_id = -1
-    istat = this%debug_info%set(key='max_aggregate_size',   value=max_aggregate_size   ); check(istat==0)
-    istat = this%debug_info%set(key='max_aggregate_size_id',value=max_aggregate_size_id); check(istat==0)
-    return
-  end if
-
-  triangulation => this%get_triangulation()
-
-  call triangulation%create_cell_iterator(cell)
-
-  ! Count number of full cells
-  max_full_cell_id = 0
-  do while (.not. cell%has_finished())
-    if (cell%is_local() .and. cell%is_interior()) then
-      max_full_cell_id = max(max_full_cell_id,cell%get_gid())
-    end if
-    call cell%next()
-  end do
-
-  ! Determine the extreme coordinates
-  call memalloc(max_full_cell_id,triangulation%get_num_dims(),2,extreme_coords,__FILE__,__LINE__)
-  call memalloc(this%get_max_num_shape_functions(),coords,__FILE__,__LINE__)
-  extreme_coords(:,:,XMAX) = -999999999999_rp
-  extreme_coords(:,:,XMIN) = +999999999999_rp
-  call cell%first()
-  do while (.not. cell%has_finished())
-    if (cell%is_local() .and. ( cell%is_cut() .or. cell%is_interior() )) then
-      call cell%get_nodes_coordinates(coords)
-      do inode = 1,cell%get_num_nodes()
-        do idime = 1,triangulation%get_num_dims()
-        if (coords(inode)%get(idime)>extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMAX)) then
-          extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMAX) = coords(inode)%get(idime)
-        end if
-        if (coords(inode)%get(idime)<extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMIN)) then
-          extreme_coords(this%aggregate_ids(cell%get_gid()),idime,XMIN) = coords(inode)%get(idime)
-        end if
-        end do
-      end do
-    end if
-    call cell%next()
-  end do
-
-  ! Compute the maximum aggregate size
-  max_aggregate_size = 0
-  call cell%first()
-  do while (.not. cell%has_finished())
-    if (cell%is_local() .and. ( cell%is_cut() .or. cell%is_interior() )) then
-      iaggr = this%aggregate_ids(cell%get_gid())
-      do idime = 1, triangulation%get_num_dims()
-        if (max_aggregate_size<(extreme_coords(iaggr,idime,XMAX)-extreme_coords(iaggr,idime,XMIN))) then
-          max_aggregate_size = extreme_coords(iaggr,idime,XMAX)-extreme_coords(iaggr,idime,XMIN)
-          max_aggregate_size_id = iaggr
-        end if
-      end do
-    end if
-    call cell%next()
-  end do
-
-  ! Store the computed value
-  istat = this%debug_info%set(key='max_aggregate_size',value=max_aggregate_size); check(istat==0)
-  istat = this%debug_info%set(key='max_aggregate_size_id',value=max_aggregate_size_id); check(istat==0)
-
-  call triangulation%free_cell_iterator(cell)
-  call memfree(coords,__FILE__,__LINE__)
-  call memfree(extreme_coords,__FILE__,__LINE__)
-
-end subroutine suhpafs_compute_aggregate_size
-
-!========================================================================================
 subroutine suhpafs_check_for_full_neighbors(this)
   implicit none
   class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout)    :: this
@@ -1919,3 +1856,101 @@ subroutine suhpafs_fill_proper_vef_constrains_full_cell(this,proper_vef_constrai
   call this%free_fe_cell_iterator(fe)
   call memfree ( touched_cell_dofs,__FILE__,__LINE__ )
 end subroutine suhpafs_fill_proper_vef_constrains_full_cell
+
+!========================================================================================
+subroutine suhpafs_compute_aggregate_sizes(this)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this
+
+  class(cell_iterator_t), allocatable :: cell
+  class(triangulation_t), pointer :: triangulation
+  real(rp), allocatable :: coords_min(:,:)
+  real(rp), allocatable :: coords_max(:,:)
+  type(point_t), allocatable :: cell_coords(:)
+  integer(ip) :: istat
+  integer(ip) :: inode
+  integer(ip) :: idime
+  integer(ip) :: aggr_id
+  integer(ip), parameter :: SPACE_DIMS = 3
+
+  real(rp) :: max_aggregate_size
+  integer(ip) :: max_aggregate_size_id
+
+  if (.not. this%use_constraints) then
+    max_aggregate_size    = -1.0_rp
+    max_aggregate_size_id = -1
+    istat = this%debug_info%set(key='max_aggregate_size',   value=max_aggregate_size   ); check(istat==0)
+    istat = this%debug_info%set(key='max_aggregate_size_id',value=max_aggregate_size_id); check(istat==0)
+    return
+  end if
+
+  assert(allocated(this%aggregate_ids))
+
+  triangulation => this%get_triangulation()
+  massert(triangulation%get_num_ghost_cells()==0,'subroutine only for serial runs for the moment')
+  massert(triangulation%get_num_reference_fes()==1,'Be carefull in the allocation of cell_coords')
+
+  call memalloc(size(this%aggregate_ids),this%aggregate_size,__FILE__,__LINE__)
+  call memalloc(size(this%aggregate_ids),this%is_in_aggregate_x_cell,__FILE__,__LINE__)
+  this%is_in_aggregate_x_cell(:) = .false.
+
+  call memalloc(SPACE_DIMS,size(this%aggregate_ids),coords_min,__FILE__,__LINE__)
+  call memalloc(SPACE_DIMS,size(this%aggregate_ids),coords_max,__FILE__,__LINE__)
+  coords_min(:,:) =  1.0e10
+  coords_max(:,:) = -1.0e10
+
+  call triangulation%create_cell_iterator(cell)
+  allocate ( cell_coords(cell%get_num_nodes()), stat = istat ); check(istat == 0)
+
+  do while(.not. cell%has_finished())
+    if (.not. cell%is_exterior()) then
+
+      call cell%get_nodes_coordinates( cell_coords )
+      aggr_id = this%aggregate_ids(cell%get_gid())
+
+      if (cell%is_cut()) then
+        this%is_in_aggregate_x_cell(cell%get_gid()) = .true.
+        this%is_in_aggregate_x_cell(aggr_id) = .true.
+      end if
+
+      do inode = 1, cell%get_num_nodes()
+        do idime = 1, SPACE_DIMS
+          coords_min(idime,aggr_id) = min(coords_min(idime,aggr_id),cell_coords(inode)%get(idime))
+          coords_max(idime,aggr_id) = max(coords_min(idime,aggr_id),cell_coords(inode)%get(idime))
+        end do
+      end do
+
+    end if
+    call cell%next()
+  end do
+
+  this%aggregate_size(:) = maxval(coords_max(:,:)-coords_min(:,:),1)
+  call cell%first()
+  do while(.not. cell%has_finished())
+    if (.not. cell%is_exterior()) then
+      aggr_id = this%aggregate_ids(cell%get_gid())
+      this%aggregate_size(cell%get_gid()) =  this%aggregate_size(aggr_id)
+    else
+      this%aggregate_size(cell%get_gid()) =  0.0
+    end if
+    call cell%next()
+  end do
+
+  deallocate ( cell_coords, stat = istat ); check(istat == 0)
+  call triangulation%free_cell_iterator(cell)
+
+  call memfree(coords_min,__FILE__,__LINE__)
+  call memfree(coords_max,__FILE__,__LINE__)
+
+  max_aggregate_size = 0.0
+  do aggr_id = 1, size(this%aggregate_size)
+    if (max_aggregate_size < this%aggregate_size(aggr_id)) then
+      max_aggregate_size = this%aggregate_size(aggr_id)
+      max_aggregate_size_id = aggr_id
+    end if
+  end do
+
+  istat = this%debug_info%set(key='max_aggregate_size'   ,value=max_aggregate_size   ); check(istat==0)
+  istat = this%debug_info%set(key='max_aggregate_size_id',value=max_aggregate_size_id); check(istat==0)
+
+end subroutine suhpafs_compute_aggregate_sizes
