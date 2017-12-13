@@ -35,22 +35,22 @@ then
      fi
    done  
    
-   for order in 1 2 #3 #5 
-   do
-     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3"
-     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3
-     if [ $? -ne 0 ] 
-     then
-      final_exit_code=1
-     fi
-
-     #echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3"
-     #$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3
-     #if [ $? -ne 0 ]
-     #then
-     # final_exit_code=1
-     #fi
-   done  
+   #for order in 1 2 #3 #5 
+   #do
+   #  echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3"
+   #  $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3
+   #  if [ $? -ne 0 ] 
+   #  then
+   #   final_exit_code=1
+   #  fi
+#
+#     #echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3"
+#     #$MPIEXEC_PATH $MPIEXEC_NP_FLAG 7 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3
+#     #if [ $? -ne 0 ]
+#     #then
+#     # final_exit_code=1
+#     #fi
+#   done  
 
    
 

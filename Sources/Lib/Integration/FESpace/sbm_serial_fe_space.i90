@@ -2789,11 +2789,7 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   do improper_vef_lid = 1, this%triangulation%get_num_improper_vefs()
      call fe_vef%set_gid(-improper_vef_lid)
 
-     ! Improper VEFs which are solely on ghost cells might have zero
-     ! improper cells around in 3D
-     if ( fe_vef%get_num_improper_cells_around() == 0 ) then
-       cycle
-     end if 
+     if ( fe_vef%is_ghost() ) cycle 
      
      do field_id=1, this%get_num_fields()
         
@@ -2857,11 +2853,7 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   do improper_vef_lid = 1, this%triangulation%get_num_improper_vefs()
      call fe_vef%set_gid(-improper_vef_lid)
 
-     ! Improper VEFs which are solely on ghost cells might have zero
-     ! improper cells around in 3D
-     if ( fe_vef%get_num_improper_cells_around() == 0 ) then
-       cycle
-     end if 
+     if ( fe_vef%is_ghost() ) cycle 
      
      do field_id=1, this%get_num_fields()
         ! Retrieve all data related to the current improper vef 
