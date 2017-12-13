@@ -242,6 +242,31 @@ contains
           call this%triangulation%free_cell_iterator(cell)
         end do
 
+      case ('adaptive-3')
+
+        max_levels = this%test_params%get_max_level()
+        do ilev = 1, max_levels
+          call this%triangulation%create_cell_iterator(cell)
+          do while (.not. cell%has_finished())
+            if (ilev <= 2) then
+              call cell%set_for_refinement()
+            else
+              if (cell%is_interior()) then
+                call cell%set_for_refinement()
+              else if (cell%is_cut()) then
+                call cell%set_for_refinement()
+              else
+                call cell%set_for_coarsening()
+              end if
+            end if
+            call cell%next()
+          end do
+          call this%triangulation%refine_and_coarsen()
+          call this%triangulation%clear_refinement_and_coarsening_flags()
+          call this%triangulation%update_cut_cells(this%level_set_function)
+          call this%triangulation%free_cell_iterator(cell)
+        end do
+
         target_size = 1.0/(2.0**this%test_params%get_max_level())
         call this%fe_space%refine_mesh_for_small_aggregates(this%triangulation,target_size,this%level_set_function)
 
@@ -395,7 +420,6 @@ contains
     implicit none
     class(stokes_driver_t), intent(inout) :: this
 
-    integer(ip) :: iounit
     integer(ip) :: set_ids_to_reference_fes(2,2) ! num_fields x void/non_void
     class(vector_function_t) , pointer :: fun_u
     class(scalar_function_t) , pointer :: fun_p
@@ -420,20 +444,14 @@ contains
                                reference_fes            = this%reference_fes,&
                                set_ids_to_reference_fes = set_ids_to_reference_fes)
     call this%fe_space%set_up_cell_integration()    
-
-    ! Write some info
-    if (this%test_params%get_write_aggr_info()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_aggr_info.csv',action='write')
-      check(iounit>0)
-      call this%fe_space%print_debug_info(iounit)
-      call io_close(iounit)
-    end if
     
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
     implicit none
     class(stokes_driver_t), intent(inout) :: this
+
+    integer(ip) :: iounit
 
     call this%cG_integration%set_analytical_functions(this%analytical_functions)
     call this%cG_integration%set_unfitted_boundary_is_dirichlet(this%test_params%get_unfitted_boundary_is_dirichlet())
@@ -448,6 +466,14 @@ contains
     call this%solution%create(this%fe_space)
     call this%fe_space%interpolate_dirichlet_values(this%solution)
     call this%cG_integration%set_fe_function(this%solution)
+
+    ! Write some info
+    if (this%test_params%get_write_aggr_info()) then
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_aggr_info.csv',action='write')
+      check(iounit>0)
+      call this%fe_space%print_debug_info(iounit)
+      call io_close(iounit)
+    end if
     
   end subroutine setup_system
   

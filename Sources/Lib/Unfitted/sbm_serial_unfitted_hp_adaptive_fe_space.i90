@@ -1603,6 +1603,9 @@ subroutine suhpafs_print_debug_info(this,iounit)
   write(iounit,'(a,i32)'   ) 'has_full_neig_c             ;',  has_full_neig_along_dim_int(1)             
   write(iounit,'(a,i32)'   ) 'has_full_neig_e             ;',  has_full_neig_along_dim_int(2)             
   write(iounit,'(a,i32)'   ) 'has_full_neig_f             ;',  has_full_neig_along_dim_int(3)             
+  write(iounit,'(a,i32)'   ) 'num_free_dofs               ;',  this%get_total_num_dofs()             
+  write(iounit,'(a,i32)'   ) 'num_fixed_dofs              ;',  this%get_num_fixed_dofs()             
+  write(iounit,'(a,i32)'   ) 'num_hanging_dofs            ;',  this%get_num_hanging_dofs()             
 end subroutine suhpafs_print_debug_info
 
 !========================================================================================

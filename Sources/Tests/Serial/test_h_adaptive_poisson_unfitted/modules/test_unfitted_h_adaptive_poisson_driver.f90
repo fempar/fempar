@@ -432,7 +432,6 @@ contains
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
 
-    integer(ip) :: iounit
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
     set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
@@ -463,20 +462,13 @@ contains
     
     call this%fe_space%set_up_cell_integration()    
 
-    ! Write some info
-    if (this%test_params%get_write_aggr_info()) then
-      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_aggr_info.csv',action='write')
-      check(iounit>0)
-      call this%fe_space%print_debug_info(iounit)
-      call io_close(iounit)
-    end if
-    
   end subroutine setup_fe_space
   
   subroutine setup_system (this)
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
 
+    integer(ip) :: iounit
 
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then    
       call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
@@ -504,6 +496,14 @@ contains
 
     call this%solution%create(this%fe_space)
     call this%fe_space%interpolate_dirichlet_values(this%solution)
+
+    ! Write some info
+    if (this%test_params%get_write_aggr_info()) then
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_aggr_info.csv',action='write')
+      check(iounit>0)
+      call this%fe_space%print_debug_info(iounit)
+      call io_close(iounit)
+    end if
     
   end subroutine setup_system
   
