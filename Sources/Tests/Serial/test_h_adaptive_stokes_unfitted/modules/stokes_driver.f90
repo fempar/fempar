@@ -90,6 +90,7 @@ module stokes_driver_names
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
      procedure        , private :: solve_system     
+     procedure        , private :: fix_pressure
      procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure        , private :: free
@@ -621,6 +622,88 @@ contains
     !end select
   end subroutine solve_system
 
+  subroutine fix_pressure(this)
+    implicit none
+    class(stokes_driver_t), intent(inout) :: this
+
+    class(fe_cell_iterator_t), allocatable  :: fe
+    type(cell_map_t)         , pointer      :: cell_map
+    type(quadrature_t)       , pointer      :: quad
+    integer(ip)              , pointer      :: fe_dofs(:)
+    type(point_t)            , pointer      :: quad_coords(:)
+    class(scalar_function_t) , pointer      :: exact_pressure
+    logical                  , allocatable  :: is_pressure_dof(:)
+    class(vector_t)          , pointer      :: free_dof_values
+    real(rp)                 , pointer      :: free_dof_entries(:)
+    type(fe_cell_function_scalar_t)         :: fe_pressure
+
+    integer(ip)  :: qpoint, num_quad_points
+    real(rp)     :: dV, V
+    real(rp) :: p_exact_gp
+    real(rp) :: p_fe_gp
+    real(rp) :: correction
+    integer(ip) :: idof_p
+    integer(ip) :: gdof
+
+    call memalloc(this%fe_space%get_total_num_dofs(),is_pressure_dof,__FILE__,__LINE__)
+    is_pressure_dof(:) = .false.
+
+    exact_pressure => this%analytical_functions%get_solution_function_p()
+    call fe_pressure%create(this%fe_space,P_FIELD_ID)
+    call this%fe_space%create_fe_cell_iterator(fe)
+    correction = 0.0
+    V = 0.0
+    do while ( .not. fe%has_finished() )
+
+       call fe%update_integration()
+       quad            => fe%get_quadrature()
+       num_quad_points =  quad%get_num_quadrature_points()
+       cell_map        => fe%get_cell_map()
+       quad_coords     => fe%get_quadrature_points_coordinates()
+
+       call fe_pressure%update(fe,this%solution)
+       call fe%get_field_fe_dofs(P_FIELD_ID,fe_dofs)
+
+       do idof_p = 1, fe%get_num_dofs_field(P_FIELD_ID)
+         gdof = fe_dofs(idof_p)
+         if (gdof>0) then
+           is_pressure_dof(gdof) = .true.
+         end if
+       end do
+
+       do qpoint = 1, num_quad_points
+         dV = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+         call exact_pressure%get_value(quad_coords(qpoint),p_exact_gp)
+         call fe_pressure%get_value(qpoint,p_fe_gp)
+         correction = correction + ( p_fe_gp  - p_exact_gp )*dV
+         V = V + dV
+       end do
+
+       call fe%next()
+    end do
+    call this%fe_space%free_fe_cell_iterator(fe)
+    call fe_pressure%free()
+
+    correction = -correction / V
+
+    free_dof_values => this%solution%get_free_dof_values()
+    select type (free_dof_values)
+      class is (serial_scalar_array_t)
+        free_dof_entries => free_dof_values%get_entries()
+      class DEFAULT
+        check(.false.)
+    end select
+
+    do gdof = 1, this%fe_space%get_total_num_dofs()
+      if (is_pressure_dof(gdof)) then
+        free_dof_entries(gdof) = free_dof_entries(gdof) + correction
+      end if
+    end do
+
+    call memfree(is_pressure_dof,__FILE__,__LINE__)
+
+  end subroutine fix_pressure
+
   subroutine check_solution(this)
     implicit none
     class(stokes_driver_t), intent(inout) :: this
@@ -910,6 +993,7 @@ contains
       call this%assemble_system()
       call this%setup_solver()
       call this%solve_system()
+      call this%fix_pressure()
       call this%check_solution()
     end if
 
