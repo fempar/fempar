@@ -271,6 +271,100 @@ contains
 
   !===================================================
 
+  subroutine sol_ex002_3d_u(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2, x3
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    x3 = point%get(3) - offset_z
+    call val%init(0.0)
+    call val%set(1,  x2/((x1 + x3)**2 + 2.0*x2**2)**(1.0/2.0)         )
+    call val%set(2,  -(x1 + x3)/((x1 + x3)**2 + 2.0*x2**2)**(1.0/2.0) )
+    call val%set(3,  x2/((x1 + x3)**2 + 2.0*x2**2)**(1.0/2.0)         )
+  end subroutine sol_ex002_3d_u
+
+  subroutine sol_ex002_3d_grad_u(point,val,q)
+    implicit none
+    type(point_t),        intent(in)    :: point
+    type(tensor_field_t), intent(inout) :: val
+    integer(ip),          intent(in)    :: q
+    real(rp) :: x1, x2, x3
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    x3 = point%get(3) - offset_z
+    call val%init(0.0)
+    call val%set(1,1,  -(x2*(2.0*x1 + 2.0*x3))/(2.0*((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0))                                                   )
+    call val%set(1,2,  ((2.0*x1 + 2.0*x3)*(x1 + x3))/(2.0*((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0)) - 1.0/((x1 + x3)**2 + 2.0*x2**2)**(1.0/2.0) )
+    call val%set(1,3,  -(x2*(2.0*x1 + 2.0*x3))/(2.0*((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0))                                                   )
+    call val%set(2,1,  1.0/((x1 + x3)**2 + 2.0*x2**2)**(1.0/2.0) - (2.0*x2**2)/((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0)                         )
+    call val%set(2,2,  (2.0*x2*(x1 + x3))/((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0)                                                              )
+    call val%set(2,3,  1.0/((x1 + x3)**2 + 2.0*x2**2)**(1.0/2.0) - (2.0*x2**2)/((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0)                         )
+    call val%set(3,1,  -(x2*(2.0*x1 + 2.0*x3))/(2.0*((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0))                                                   )
+    call val%set(3,2,  ((2.0*x1 + 2.0*x3)*(x1 + x3))/(2.0*((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0)) - 1.0/((x1 + x3)**2 + 2.0*x2**2)**(1.0/2.0) )
+    call val%set(3,3,  -(x2*(2.0*x1 + 2.0*x3))/(2.0*((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0))                                                   )
+  end subroutine sol_ex002_3d_grad_u
+
+  subroutine sol_ex002_3d_lapl_u(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2, x3
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    x3 = point%get(3) - offset_z
+    call val%init(0.0)
+    call val%set(1, (12*x2**3)/((x1 + x3)**2 + 2.0*x2**2)**(5.0/2.0) - (8*x2)/((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0) + (3.0*x2*(2.0*x1 + 2.0*x3)**2)/(2.0*((x1 + x3)**2 + 2.0*x2**2)**(5.0/2.0))                                                                                           )
+    call val%set(2, (2.0*(2.0*x1 + 2.0*x3))/((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0) + (4.0*(x1 + x3))/((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0) - (12*x2**2*(x1 + x3))/((x1 + x3)**2 + 2.0*x2**2)**(5.0/2.0) - (3.0*(2.0*x1 + 2.0*x3)**2*(x1 + x3))/(2.0*((x1 + x3)**2 + 2.0*x2**2)**(5.0/2.0)) )
+    call val%set(3, (12*x2**3)/((x1 + x3)**2 + 2.0*x2**2)**(5.0/2.0) - (8*x2)/((x1 + x3)**2 + 2.0*x2**2)**(3.0/2.0) + (3.0*x2*(2.0*x1 + 2.0*x3)**2)/(2.0*((x1 + x3)**2 + 2.0*x2**2)**(5.0/2.0))                                                                                           )
+  end subroutine sol_ex002_3d_lapl_u
+
+  subroutine sol_ex002_3d_div_u(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    real(rp),      intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2, x3
+    x1 = point%get(1) - offset_x
+    x2 = point%get(2) - offset_y
+    x3 = point%get(3) - offset_z
+    val = 0.0
+  end subroutine sol_ex002_3d_div_u
+
+  !===================================================
+
+  subroutine sol_ex002_3d_p(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    real(rp),      intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2, x3
+    x1 = point%get(1)
+    x2 = point%get(2)
+    x3 = point%get(3)
+    val = x1**3*x2**3
+  end subroutine sol_ex002_3d_p
+
+  subroutine sol_ex002_3d_grad_p(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2, x3
+    x1 = point%get(1)
+    x2 = point%get(2)
+    x3 = point%get(3)
+    call val%init(0.0)
+    call val%set(1, 3.0*x1**2*x2**3 )
+    call val%set(2, 3.0*x1**3*x2**2 )
+    call val%set(3, 0.0 )
+  end subroutine sol_ex002_3d_grad_p
+
+  !===================================================
+
   subroutine base_scalar_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -337,7 +431,10 @@ contains
       if (this%in_fe_space) then
         check(.false.)
       else
-        check(.false.)
+        call sol_ex002_3d_lapl_u(point,val,this%degree)
+        result = (-1.0)*val
+        call sol_ex002_3d_grad_p(point,val,this%degree)
+        result = result + (-1.0)*val
       end if
     else
         check(.false.)
@@ -359,7 +456,7 @@ contains
       if (this%in_fe_space) then
         check(.false.)
       else
-        check(.false.)
+        call sol_ex002_3d_u(point,result,this%degree)
       end if
     else
         check(.false.)
@@ -381,7 +478,7 @@ contains
       if (this%in_fe_space) then
         check(.false.)
       else
-        check(.false.)
+        call sol_ex002_3d_grad_u(point,result,this%degree)
       end if
     else
         check(.false.)
@@ -403,7 +500,7 @@ contains
       if (this%in_fe_space) then
         check(.false.)
       else
-        check(.false.)
+        call sol_ex002_3d_div_u(point,result,this%degree)
       end if
     else
         check(.false.)
@@ -425,7 +522,7 @@ contains
       if (this%in_fe_space) then
         check(.false.)
       else
-        check(.false.)
+        call sol_ex002_3d_p(point,result,this%degree)
       end if
     else
         check(.false.)
@@ -447,7 +544,7 @@ contains
       if (this%in_fe_space) then
         check(.false.)
       else
-        check(.false.)
+        call sol_ex002_3d_grad_p(point,result,this%degree)
       end if
     else
         check(.false.)
