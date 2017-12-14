@@ -459,8 +459,8 @@ contains
     call this%cG_integration%set_is_constant_nitches_beta(this%test_params%get_is_constant_nitches_beta())
 
     call this%fe_affine_operator%create (   sparse_matrix_storage_format      = csr_format,                                  &
-                                            diagonal_blocks_symmetric_storage = [ .false. ],                               &
-                                            diagonal_blocks_symmetric         = [ .false. ],                               &
+                                            diagonal_blocks_symmetric_storage = [ .true. ],                               &
+                                            diagonal_blocks_symmetric         = [ .true. ],                               &
                                             diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_INDEFINITE ],         &
                                             fe_space                          = this%fe_space,                             &
                                             discrete_integration              = this%cG_integration )
@@ -489,7 +489,7 @@ contains
     call parameter_list%init()
 #ifdef ENABLE_MKL
     FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
-    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
+    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_sin)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
     iparm = 0
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
