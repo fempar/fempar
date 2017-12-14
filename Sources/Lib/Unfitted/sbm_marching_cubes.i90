@@ -628,6 +628,7 @@ subroutine marching_cubes_discrete_levelset_create(this)
   class is (par_fe_space_t)
     call this%discrete_levelset_comm(fe_space)
   end select
+  call fe_space%update_hanging_dof_values(this%fe_levelset)
 
 end subroutine marching_cubes_discrete_levelset_create
 

@@ -1471,7 +1471,7 @@ subroutine suhpafs_refine_mesh_for_small_aggregates(this,triangulation,target_si
   real(rp)                                     , intent(in)    :: target_size
   class(level_set_function_t)                  , intent(in)    :: level_set_function
 
-  integer(ip), parameter :: max_num_sweeps = 10
+  integer(ip), parameter :: max_num_sweeps = 20
   integer(ip) :: isweep
   class(cell_iterator_t), allocatable :: cell
   logical :: do_something
@@ -1511,7 +1511,7 @@ subroutine suhpafs_refine_mesh_for_small_aggregates(this,triangulation,target_si
       num_do_nothing = num_do_nothing + 1
     end if
 
-    if (num_do_nothing == 3) then
+    if (num_do_nothing == 2) then
       exit
     end if
 
@@ -1525,7 +1525,7 @@ subroutine suhpafs_refine_mesh_for_small_aggregates(this,triangulation,target_si
     call this%compute_aggregate_sizes(triangulation)
 
   end do
-  assert(isweep < max_num_sweeps)
+  check(isweep < max_num_sweeps)
 
 end subroutine suhpafs_refine_mesh_for_small_aggregates
 
@@ -1910,10 +1910,10 @@ subroutine suhpafs_fill_proper_vef_constrains_full_cell(this,proper_vef_constrai
                     end do
                     do coarser_fe_ivef = 1, coarser_fe%get_num_vefs()
                       call coarser_fe%get_vef(coarser_fe_ivef,coarser_vef)
-                      massert(coarser_vef%is_proper(),'This vef has to be proper by the 2:1 balance condition.')
                       coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_own_dofs_on_n_face_iterator(coarser_fe_ivef)
                       do while ( .not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
                         if ( touched_cell_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) then
+                          massert(coarser_vef%is_proper(),'This vef has to be proper by the 2:1 balance condition.')
                           proper_vef_constrains_full_cell(field_id,coarser_vef%get_gid()) = .true.
                           exit
                         end if

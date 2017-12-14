@@ -176,6 +176,7 @@ contains
     integer(ip) :: ilev
     integer(ip) :: max_levels
     integer(ip) :: diri_set_id
+    real(rp)    :: target_size
 
     if (this%test_params%is_strong_dirichlet_on_fitted_boundary()) then
       diri_set_id = 1
@@ -249,6 +250,59 @@ contains
           call this%triangulation%update_cut_cells(this%level_set_function)
           call this%triangulation%free_cell_iterator(cell)
         end do
+
+      case ('adaptive-2')
+
+        max_levels = this%test_params%get_max_level()
+        do ilev = 1, max_levels
+          call this%triangulation%create_cell_iterator(cell)
+          do while (.not. cell%has_finished())
+            if (ilev <= 2) then
+              call cell%set_for_refinement()
+            else
+              if (cell%is_interior()) then
+                call cell%set_for_refinement()
+              else if (cell%is_cut()) then
+                call cell%set_for_refinement()
+              else
+                call cell%set_for_coarsening()
+              end if
+            end if
+            call cell%next()
+          end do
+          call this%triangulation%refine_and_coarsen()
+          call this%triangulation%clear_refinement_and_coarsening_flags()
+          call this%triangulation%update_cut_cells(this%level_set_function)
+          call this%triangulation%free_cell_iterator(cell)
+        end do
+
+      case ('adaptive-3')
+
+        max_levels = this%test_params%get_max_level()
+        do ilev = 1, max_levels
+          call this%triangulation%create_cell_iterator(cell)
+          do while (.not. cell%has_finished())
+            if (ilev <= 2) then
+              call cell%set_for_refinement()
+            else
+              if (cell%is_interior()) then
+                call cell%set_for_refinement()
+              else if (cell%is_cut()) then
+                call cell%set_for_refinement()
+              else
+                call cell%set_for_coarsening()
+              end if
+            end if
+            call cell%next()
+          end do
+          call this%triangulation%refine_and_coarsen()
+          call this%triangulation%clear_refinement_and_coarsening_flags()
+          call this%triangulation%update_cut_cells(this%level_set_function)
+          call this%triangulation%free_cell_iterator(cell)
+        end do
+
+        target_size = 1.0/(2.0**this%test_params%get_max_level())
+        call this%fe_space%refine_mesh_for_small_aggregates(this%triangulation,target_size,this%level_set_function)
 
       case ('debug-1')
 
