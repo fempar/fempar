@@ -483,7 +483,6 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: update_p4est_mesh                                  => p4est_base_triangulation_update_p4est_mesh
     procedure, private        , non_overridable  :: update_topology_from_p4est_mesh                    => p4est_base_triangulation_update_topology_from_p4est_mesh
     procedure, private        , non_overridable  :: extend_p4est_topology_arrays_to_ghost_cells        => p4est_bt_extend_p4est_topology_arrays_to_ghost_cells
-    procedure, private        , non_overridable  :: extend_p4est_topology_arrays_to_ghost_cells_new    => p4est_bt_extend_p4est_topology_arrays_to_ghost_cells_new
     procedure, private        , non_overridable  :: get_ptr_vefs_x_cell                                => p4est_base_triangulation_get_ptr_vefs_x_cell
     procedure, private        , non_overridable  :: update_lst_vefs_gids_and_cells_around              => p4est_bt_update_lst_vefs_gids_and_cells_around
     procedure, private        , non_overridable  :: update_vefs_is_ghost                               => p4est_bt_update_vefs_is_ghost            
