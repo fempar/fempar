@@ -46,6 +46,8 @@ module p4est_triangulation_names
   use std_vector_point_names
   use FPL
   use hash_table_names
+  use mpi
+  use allocatable_array_names 
 
   implicit none
 # include "debug.i90"
@@ -457,6 +459,8 @@ module p4est_triangulation_names
     type(std_vector_integer_ip_t)          :: proper_vefs_at_boundary
     type(std_vector_integer_ip_t)          :: proper_vefs_at_interface
     type(std_vector_integer_ip_t)          :: improper_vefs_at_interface
+    type(std_vector_integer_ip_t)          :: proper_vefs_is_ghost
+    type(std_vector_integer_ip_t)          :: improper_vefs_is_ghost
     type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
     type(std_vector_integer_ip_t)          :: cell_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
@@ -481,6 +485,7 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: extend_p4est_topology_arrays_to_ghost_cells        => p4est_bt_extend_p4est_topology_arrays_to_ghost_cells
     procedure, private        , non_overridable  :: get_ptr_vefs_x_cell                                => p4est_base_triangulation_get_ptr_vefs_x_cell
     procedure, private        , non_overridable  :: update_lst_vefs_gids_and_cells_around              => p4est_bt_update_lst_vefs_gids_and_cells_around
+    procedure, private        , non_overridable  :: update_vefs_is_ghost                               => p4est_bt_update_vefs_is_ghost            
     procedure, private        , non_overridable  :: update_local_proper_vefs_actually_on_the_interface => p4est_bt_update_local_proper_vefs_actually_on_the_interface
     procedure, private        , non_overridable  :: update_cell_ggids                                  => p4est_base_triangulation_update_cell_ggids
     procedure, private        , non_overridable  :: comm_cell_ggids                                    => p4est_base_triangulation_comm_cell_ggids
@@ -494,8 +499,6 @@ module p4est_triangulation_names
     procedure                                    :: fill_cells_set                                     => p4est_bt_fill_cells_set
     procedure, private        , non_overridable  :: clear_vef_set_ids                                  => p4est_bt_clear_vef_set_ids
     procedure, private        , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import
-    procedure, private        , non_overridable  :: match_cell_import_rcv_control_data                 => p4est_bt_match_cell_import_rcv_control_data
-    procedure, private        , non_overridable  :: adjust_ghost_cells                                 => p4est_bt_adjust_ghost_cells
     procedure, private, nopass, non_overridable  :: generate_non_consecutive_vef_ggid                  => p4est_bt_generate_non_consecutive_vef_ggid
     procedure, private        , non_overridable  :: exchange_vefs_ggids                                => p4est_bt_exchange_vefs_ggids 
     procedure                 , non_overridable  :: get_previous_num_local_cells                       => p4est_bt_get_previous_num_local_cells 

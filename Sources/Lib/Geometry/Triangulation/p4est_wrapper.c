@@ -1221,6 +1221,128 @@ void F90_p8est_fill_ghost_ggids( p8est_ghost_t  * p8est_ghost,
     }   
 }
 
+void F90_p4est_allocate_and_fill_cell_import_raw_arrays( p4est_t        * p4est,
+                                                         p4est_ghost_t  * p4est_ghost,
+                                                         p4est_locidx_t * num_neighbours,
+                                                         p4est_locidx_t ** neighbour_ids,
+                                                         p4est_locidx_t ** rcv_ptrs,
+                                                         p4est_locidx_t ** rcv_leids,
+                                                         p4est_locidx_t ** snd_ptrs,
+                                                         p4est_locidx_t ** snd_leids)
+{
+    int i, j;
+    p4est_tree_t * tree;
+    sc_array_t * quadrants;
+    ssize_t result;
+    p4est_quadrant_t   *q;
+    
+    *num_neighbours = 0;
+    for (i=0; i < p4est_ghost->mpisize; i++)
+    {
+        if ( p4est_ghost->proc_offsets[i+1]        - p4est_ghost->proc_offsets[i]        > 0 || 
+                p4est_ghost->mirror_proc_offsets[i+1] - p4est_ghost->mirror_proc_offsets[i] > 0 )
+        {
+            (*num_neighbours)++;
+        }
+    }   
+    *neighbour_ids = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours)   * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*neighbour_ids) != NULL);
+    *rcv_ptrs      = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours+1) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*rcv_ptrs)      != NULL);
+    *snd_ptrs      = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours+1) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*snd_ptrs)  != NULL);
+    
+    //Fill neighbour_ids, rcv_ptrs, snd_ptrs
+    j=0;
+    for (i=0; i < p4est_ghost->mpisize; i++)
+    {
+        if ( p4est_ghost->proc_offsets[i+1]        - p4est_ghost->proc_offsets[i]        > 0 || 
+                p4est_ghost->mirror_proc_offsets[i+1] - p4est_ghost->mirror_proc_offsets[i] > 0 )
+        {
+            (*neighbour_ids)[j]= i+1;
+            (*rcv_ptrs)[j]     = p4est_ghost->proc_offsets[i]+1;
+            (*snd_ptrs)[j]     = p4est_ghost->mirror_proc_offsets[i]+1;
+            j++;
+        }
+    }
+    (*rcv_ptrs)[j] = p4est_ghost->proc_offsets[i]+1;
+    (*snd_ptrs)[j] = p4est_ghost->mirror_proc_offsets[i]+1;
+    
+    *rcv_leids     = (p4est_locidx_t *) malloc( (size_t) (p4est_ghost->proc_offsets[p4est_ghost->mpisize]) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*rcv_leids) != NULL);
+    *snd_leids     = (p4est_locidx_t *) malloc( (size_t) (p4est_ghost->mirror_proc_offsets[p4est_ghost->mpisize]) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*snd_leids) != NULL);
+    for (j=0; j < p4est_ghost->proc_offsets[p4est_ghost->mpisize]; j++)
+    {
+        (*rcv_leids)[j] = p4est->local_num_quadrants + j + 1;
+    }
+    
+    tree             = p4est_tree_array_index (p4est->trees,0);
+    quadrants        = &(tree->quadrants);
+    for (j=0; j < p4est_ghost->mirror_proc_offsets[p4est_ghost->mpisize]; j++)
+    {
+        q = p4est_quadrant_array_index(&p4est_ghost->mirrors, p4est_ghost->mirror_proc_mirrors[j]);    
+        result = sc_array_bsearch (quadrants, q, p4est_quadrant_compare);    
+        (*snd_leids)[j] = result + 1;
+    }   
+}
+
+void F90_p8est_allocate_and_fill_cell_import_raw_arrays ( p8est_t        * p8est,
+        p8est_ghost_t  * p8est_ghost,
+        p4est_locidx_t * num_neighbours,
+        p4est_locidx_t ** neighbour_ids,
+        p4est_locidx_t ** rcv_ptrs,
+        p4est_locidx_t ** rcv_leids,
+        p4est_locidx_t ** snd_ptrs,
+        p4est_locidx_t ** snd_leids)
+{
+    int i, j;
+    p8est_tree_t * tree;
+    sc_array_t * quadrants;
+    ssize_t result;
+    p8est_quadrant_t   *q;
+    
+    *num_neighbours = 0;
+    for (i=0; i < p8est_ghost->mpisize; i++)
+    {
+        if ( p8est_ghost->proc_offsets[i+1]        - p8est_ghost->proc_offsets[i]        > 0 || 
+                p8est_ghost->mirror_proc_offsets[i+1] - p8est_ghost->mirror_proc_offsets[i] > 0 )
+        {
+            (*num_neighbours)++;
+        }
+    }   
+    *neighbour_ids = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours)   * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*neighbour_ids) != NULL);
+    *rcv_ptrs      = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours+1) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*rcv_ptrs)      != NULL);
+    *snd_ptrs      = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours+1) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*snd_ptrs)  != NULL);
+    
+    //Fill neighbour_ids, rcv_ptrs, snd_ptrs
+    j=0;
+    for (i=0; i < p8est_ghost->mpisize; i++)
+    {
+        if ( p8est_ghost->proc_offsets[i+1]        - p8est_ghost->proc_offsets[i]        > 0 || 
+                p8est_ghost->mirror_proc_offsets[i+1] - p8est_ghost->mirror_proc_offsets[i] > 0 )
+        {
+            (*neighbour_ids)[j]= i+1;
+            (*rcv_ptrs)[j]     = p8est_ghost->proc_offsets[i]+1;
+            (*snd_ptrs)[j]     = p8est_ghost->mirror_proc_offsets[i]+1;
+            j++;
+        }
+    }
+    (*rcv_ptrs)[j] = p8est_ghost->proc_offsets[i]+1;
+    (*snd_ptrs)[j] = p8est_ghost->mirror_proc_offsets[i]+1;
+    
+    *rcv_leids     = (p4est_locidx_t *) malloc( (size_t) (p8est_ghost->proc_offsets[p8est_ghost->mpisize]) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*rcv_leids) != NULL);
+    *snd_leids     = (p4est_locidx_t *) malloc( (size_t) (p8est_ghost->mirror_proc_offsets[p8est_ghost->mpisize]) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*snd_leids) != NULL);
+    for (j=0; j < p8est_ghost->proc_offsets[p8est_ghost->mpisize]; j++)
+    {
+        (*rcv_leids)[j] = p8est->local_num_quadrants + j + 1;
+    }
+    
+    tree             = p8est_tree_array_index (p8est->trees,0);
+    quadrants        = &(tree->quadrants);
+    for (j=0; j < p8est_ghost->mirror_proc_offsets[p8est_ghost->mpisize]; j++)
+    {
+        q = p8est_quadrant_array_index(&p8est_ghost->mirrors, p8est_ghost->mirror_proc_mirrors[j]);    
+        result = sc_array_bsearch (quadrants, q, p8est_quadrant_compare);    
+        (*snd_leids)[j] = result + 1;
+    }   
+}
+
 void F90_p4est_compute_migration_control_data (p4est_t   * p4est_old, 
                                                p4est_t   * p4est_new,
                                                int             * num_ranks, // How many processors involved?
