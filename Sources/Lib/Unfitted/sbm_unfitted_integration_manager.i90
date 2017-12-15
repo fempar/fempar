@@ -46,7 +46,10 @@ subroutine uim_create(this,fe_space,marching_cubes)
     call this%init_reference_subelem()
     call this%init_cut_integration()
     call this%init_cut_boundary_integration()
-    call this%init_cut_fitted_facets_integration()
+    ! This is a temprorary hack since unfitted facet integration is only implemented for a single field
+    if (this%fe_space%get_num_fields()==1) then
+      call this%init_cut_fitted_facets_integration()
+    end if
   end if
 end subroutine uim_create
 
