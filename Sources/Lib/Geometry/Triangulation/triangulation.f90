@@ -104,7 +104,6 @@ module triangulation_names
  
     ! XFEM-related TBPs
     procedure(update_sub_triangulation_interface)   , deferred :: update_sub_triangulation
-    procedure(get_mc_case_interface)                , deferred :: get_mc_case
     procedure(get_num_subcells_interface)           , deferred :: get_num_subcells
     procedure(get_num_subcell_nodes_interface)      , deferred :: get_num_subcell_nodes
     procedure(get_phys_coords_of_subcell_interface) , deferred :: get_phys_coords_of_subcell
@@ -147,7 +146,7 @@ module triangulation_names
      procedure                           :: next                      => vef_iterator_next
      procedure                           :: has_finished              => vef_iterator_has_finished
      procedure, non_overridable          :: get_gid                   => vef_iterator_get_gid
-     procedure, non_overridable          :: set_gid                   => vef_iterator_set_gid
+     procedure                           :: set_gid                   => vef_iterator_set_gid
      procedure, non_overridable          :: get_triangulation         => vef_iterator_get_triangulation
      procedure, non_overridable          :: is_facet                  => vef_iterator_is_facet
      
@@ -169,6 +168,18 @@ module triangulation_names
      procedure(is_ghost_interface)            , deferred :: is_ghost
      procedure(is_local_interface)            , deferred :: is_local 
      procedure(is_at_interface)               , deferred :: is_at_interface
+
+     ! XFEM-related TBPs
+     procedure               :: update_sub_triangulation  => vef_iterator_update_sub_triangulation
+     procedure               :: get_num_subvefs           => vef_iterator_get_num_subvefs
+     procedure               :: get_num_subvef_nodes      => vef_iterator_get_num_subvef_nodes
+     procedure               :: get_phys_coords_of_subvef => vef_iterator_get_phys_coords_of_subvef
+     procedure               :: get_ref_coords_of_subvef  => vef_iterator_get_ref_coords_of_subvef
+     procedure               :: is_cut                    => vef_iterator_is_cut
+     procedure               :: is_exterior               => vef_iterator_is_exterior
+     procedure               :: is_interior               => vef_iterator_is_interior
+     procedure               :: is_exterior_subvef        => vef_iterator_is_exterior_subvef
+     procedure               :: is_interior_subvef        => vef_iterator_is_interior_subvef
 
      ! h-adaptive FEM
      procedure(is_proper_interface)                       , deferred :: is_proper
@@ -341,12 +352,6 @@ module triangulation_names
        import :: cell_iterator_t
        class(cell_iterator_t), intent(inout) :: this
      end subroutine update_sub_triangulation_interface
-     
-     function get_mc_case_interface( this )
-       import :: cell_iterator_t, ip
-       class(cell_iterator_t), intent(in) :: this
-       integer(ip) :: get_mc_case_interface
-     end function get_mc_case_interface
      
      function get_num_subcells_interface( this ) result ( num_subcells )
        import :: cell_iterator_t, ip
@@ -837,7 +842,6 @@ module triangulation_names
 
     ! Declare dummy procedures to be implemented in the corresponding derived classes 
     procedure :: update_sub_triangulation    => bst_cell_iterator_update_sub_triangulation
-    procedure :: get_mc_case                 => bst_cell_iterator_get_mc_case
     procedure :: get_num_subcells      => bst_cell_iterator_get_num_subcells
     procedure :: get_num_subcell_nodes => bst_cell_iterator_get_num_subcell_nodes
     procedure :: get_phys_coords_of_subcell  => bst_cell_iterator_get_phys_coords_of_subcell

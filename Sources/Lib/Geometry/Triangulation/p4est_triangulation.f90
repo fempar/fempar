@@ -347,7 +347,6 @@ module p4est_triangulation_names
     procedure                            :: get_permutation_index   => p4est_cell_iterator_get_permutation_index
     
     procedure                            :: update_sub_triangulation    => p4est_cell_iterator_update_sub_triangulation
-    procedure                            :: get_mc_case                 => p4est_cell_iterator_get_mc_case
     procedure                            :: get_num_subcells            => p4est_cell_iterator_get_num_subcells
     procedure                            :: get_num_subcell_nodes       => p4est_cell_iterator_get_num_subcell_nodes
     procedure                            :: get_phys_coords_of_subcell  => p4est_cell_iterator_get_phys_coords_of_subcell

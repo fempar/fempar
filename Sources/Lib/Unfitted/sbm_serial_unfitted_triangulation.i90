@@ -65,6 +65,17 @@ subroutine sut_create_cell_iterator ( this, cell )
 end subroutine sut_create_cell_iterator
 
 !========================================================================================
+subroutine sut_create_vef_iterator ( this, vef )
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(vef_iterator_t), allocatable, intent(inout) :: vef
+  integer(ip) :: istat
+  call this%free_vef_iterator(vef)
+  allocate(unfitted_vef_iterator_t :: vef, stat=istat); check(istat==0)
+  call vef%create(this)
+end subroutine sut_create_vef_iterator
+
+!========================================================================================
 function sut_get_marching_cubes(this) result (val)
   implicit none
   class(serial_unfitted_triangulation_t), target, intent(in)    :: this
@@ -143,6 +154,14 @@ function sut_get_total_num_subfacets(this) result (val)
   integer(ip) :: val
   val = this%marching_cubes%get_total_num_subfacets()
 end function sut_get_total_num_subfacets
+
+!========================================================================================
+function sut_get_total_num_fitted_sub_facets(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_total_num_fitted_sub_facets()
+end function sut_get_total_num_fitted_sub_facets
 
 !========================================================================================
 function sut_get_max_num_subnodes_in_cell(this) result (val)

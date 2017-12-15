@@ -71,7 +71,9 @@ module unfitted_vtk_writer_names
 
     procedure, non_overridable :: attach_triangulation  => uvtkw_attach_triangulation
     procedure, non_overridable :: attach_boundary_faces => uvtkw_attach_boundary_faces
+    procedure, non_overridable :: attach_fitted_faces => uvtkw_attach_fitted_faces
     procedure, non_overridable :: attach_boundary_quadrature_points => uvtkw_attach_boundary_quadrature_points
+    procedure, non_overridable :: attach_facets_quadrature_points => uvtkw_attach_facets_quadrature_points
     procedure, non_overridable :: attach_fe_function    => uvtkw_attach_fe_function
     procedure, non_overridable :: write_to_vtk_file     => uvtkw_write_to_vtk_file
     procedure, non_overridable :: write_to_pvtk_file    => uvtkw_write_to_pvtk_file
@@ -331,6 +333,162 @@ contains
   
   end subroutine uvtkw_attach_boundary_faces
 
+
+!========================================================================================
+  subroutine uvtkw_attach_fitted_faces( this, triangulation )
+  
+    implicit none
+    class(unfitted_vtk_writer_t),   intent(inout) :: this
+    class(triangulation_t), intent(in)    :: triangulation
+
+    integer(ip) :: num_facets, num_facet_nodes, num_subfacets, num_subfacet_nodes, num_dime
+    integer(ip) :: istat, ifacet, inode, ino, isubfacet
+    class(vef_iterator_t), allocatable  :: vef
+    type(point_t), allocatable, dimension(:) :: facet_coords, subfacet_coords
+    integer(ip) :: the_facet_type, the_subfacet_type
+    integer(ip), allocatable :: nodes_vtk2fempar(:), nodesids(:)
+    integer(ip) :: my_part_id
+    
+    call this%free()
+
+    this%environment => triangulation%get_environment()
+    if ( .not. this%environment%am_i_l1_task() ) return
+    my_part_id = this%environment%get_l1_rank() + 1
+
+
+    select type (triangulation)
+    class is (serial_unfitted_triangulation_t)
+      num_subfacets = triangulation%get_total_num_fitted_sub_facets()
+      num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    class is (par_unfitted_triangulation_t)
+      mcheck(.false.,'Not yet implemented')
+      !!num_subfacets = triangulation%get_total_num_fitted_sub_facets()
+      !!num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    class is (unfitted_p4est_serial_triangulation_t)
+      mcheck(.false.,'Not yet implemented')
+      !!num_subfacets = triangulation%get_total_num_fitted_sub_facets()
+      !!num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+    class default
+      check(.false.)
+    end select
+
+    num_dime = triangulation%get_num_dims()
+    num_facets = 0
+    call triangulation%create_vef_iterator(vef)
+    do while (.not. vef%has_finished())
+      if (vef%is_facet()) then
+        num_facets = num_facets + 1
+        num_facet_nodes = vef%get_num_nodes()
+      end if
+      call vef%next()
+    end do
+    this%Ne = num_facets + num_subfacets
+    this%Nn = num_facet_nodes*num_facets  + num_subfacet_nodes*num_subfacets
+
+    call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%z, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_type, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%offset   , __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_data , __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%pid       , __FILE__, __LINE__ )
+    call memalloc ( num_facet_nodes, nodes_vtk2fempar, __FILE__, __LINE__ )
+    call memalloc ( num_facet_nodes, nodesids        , __FILE__, __LINE__ )
+    allocate ( facet_coords(1:num_facet_nodes), stat = istat ); check(istat == 0)
+    allocate ( subfacet_coords(1:num_subfacet_nodes), stat = istat ); check(istat == 0)
+
+    select case (num_dime)
+      case(3)
+        the_facet_type    = 9_I1P
+        the_subfacet_type = 5_I1P
+        nodes_vtk2fempar(:) = [1, 2 , 4, 3]
+      case(2)
+        the_facet_type    = 3_I1P
+        the_subfacet_type = 3_I1P
+        nodes_vtk2fempar(:) = [1, 2]
+      case default
+      check(.false.)
+    end select
+
+    ! Fill date to be passed to vtkio
+    call vef%first()
+    ifacet = 1
+    inode = 1
+    do while ( .not. vef%has_finished() )
+
+      if (.not. vef%is_facet()) then
+        call vef%next(); cycle
+      end if
+
+      call vef%update_sub_triangulation()
+
+      call vef%get_nodes_coordinates( facet_coords )
+
+      do ino = 1, num_facet_nodes !TODO is it possible to avoid loops like this one?
+        this%x(inode) = facet_coords(ino)%get(1)
+        this%y(inode) = facet_coords(ino)%get(2)
+        this%z(inode) = facet_coords(ino)%get(3)
+        nodesids(ino) = inode
+        inode = inode + 1
+      end do
+
+      this%connect(nodesids(:)) = nodesids( nodes_vtk2fempar(:) ) - 1
+
+      this%offset(ifacet)        = inode - 1
+      this%cell_type(ifacet)     = the_facet_type
+
+      if ( vef%is_interior() ) then
+        this%cell_data( ifacet )  = -1
+      else if ( vef%is_cut() ) then
+        this%cell_data( ifacet )  = 0
+      else
+        this%cell_data( ifacet )  = 1
+      end if
+
+      this%pid(ifacet) = real(my_part_id,kind=rp)
+
+      ifacet = ifacet + 1
+
+      do isubfacet = 1, vef%get_num_subvefs()
+        call vef%get_phys_coords_of_subvef(isubfacet,subfacet_coords)
+
+        do ino = 1, num_subfacet_nodes
+          this%x(inode) = subfacet_coords(ino)%get(1)
+          this%y(inode) = subfacet_coords(ino)%get(2)
+          this%z(inode) = subfacet_coords(ino)%get(3)
+          this%connect(inode) = inode - 1
+          inode = inode + 1
+        end do
+
+        this%offset(ifacet)        = inode - 1
+        this%cell_type(ifacet)     = the_subfacet_type
+
+        if ( vef%is_interior_subvef(isubfacet) ) then
+          this%cell_data( ifacet )  = -2
+        else
+          this%cell_data( ifacet )  = 2
+        end if
+
+        this%pid(ifacet) = real(my_part_id,kind=rp)
+
+        ifacet = ifacet + 1
+
+      end do
+
+      call vef%next()
+    end do
+
+    if (num_dime == 2_ip) this%z(:) = 0
+
+    call memfree ( nodes_vtk2fempar, __FILE__, __LINE__ )
+    call memfree ( nodesids, __FILE__, __LINE__ )
+    deallocate ( facet_coords, stat = istat ); check(istat == 0)
+    deallocate ( subfacet_coords, stat = istat ); check(istat == 0)
+    call triangulation%free_vef_iterator(vef)
+  
+  end subroutine uvtkw_attach_fitted_faces
+
 !========================================================================================  
   subroutine  uvtkw_attach_fe_function(this,fe_function,fe_space)
 
@@ -460,8 +618,8 @@ contains
     type(quadrature_t), pointer :: quadrature
     type(point_t), pointer :: quadrature_points_coordinates(:)
     type(piecewise_cell_map_t),     pointer :: cell_map
-    integer(ip) :: num_dime, num_subfacets, num_gp_subfacet
-    integer(ip) :: qpoint, num_quad_points
+    integer(ip) :: num_dime
+    integer(ip) :: qpoint, num_quad_points, total_num_quad_points
     integer(ip) :: ipoint
     type(vector_field_t)  :: normal_vec
     integer(ip), parameter :: the_point_type = 1
@@ -476,27 +634,20 @@ contains
     if ( .not. this%environment%am_i_l1_task() ) return
 
     num_dime       = triangulation%get_num_dims()
-
-    select type(triangulation)
-      class is (serial_unfitted_triangulation_t)
-        num_subfacets   = triangulation%get_total_num_subfacets()
-      class default
-      check(.false.)
-    end select
   
     call fe_space%create_fe_cell_iterator(fe)
 
-    num_gp_subfacet = 0
+    total_num_quad_points = 0
     do while ( .not. fe%has_finished() )
        call fe%update_boundary_integration()
        quadrature => fe%get_boundary_quadrature()
-       num_gp_subfacet = quadrature%get_num_quadrature_points()
-       if (num_gp_subfacet > 0) exit
+       num_quad_points = quadrature%get_num_quadrature_points()
+       total_num_quad_points = total_num_quad_points + num_quad_points
        call fe%next()
     end do
   
-    this%Ne = num_subfacets*num_gp_subfacet
-    this%Nn = num_subfacets*num_gp_subfacet
+    this%Ne = total_num_quad_points
+    this%Nn = total_num_quad_points
   
     call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
@@ -550,6 +701,128 @@ contains
     call fe_space%free_fe_cell_iterator(fe)
   
   end subroutine uvtkw_attach_boundary_quadrature_points
+
+!========================================================================================
+  subroutine uvtkw_attach_facets_quadrature_points( this, fe_space )
+  
+    implicit none
+    class(unfitted_vtk_writer_t),   intent(inout) :: this
+    class(serial_unfitted_fe_space_t),      intent(inout) :: fe_space
+  
+    class(fe_facet_iterator_t),allocatable :: fe_facet
+    type(quadrature_t), pointer :: quadrature
+    type(point_t), pointer :: quadrature_points_coordinates(:)
+    integer(ip) :: num_dime
+    integer(ip) :: qpoint, num_quad_points
+    integer(ip) :: ipoint
+    type(vector_field_t)  :: normal_vec(2)
+    integer(ip), parameter :: the_point_type = 1
+    real(rp) :: mystatus
+    real(rp) :: dS
+    type(vector_field_t), allocatable  :: shape_gradients(:,:)
+    real(rp)            , allocatable  :: shape_values(:,:)
+    integer(ip) :: num_cells_arround, ineigh, istat
+
+    class(triangulation_t), pointer :: triangulation
+
+    call this%free()
+
+    triangulation => fe_space%get_triangulation()
+
+    this%environment => triangulation%get_environment()
+    if ( .not. this%environment%am_i_l1_task() ) return
+
+    num_dime       = triangulation%get_num_dims()
+
+    call fe_space%set_up_facet_integration()
+  
+    call fe_space%create_fe_facet_iterator(fe_facet)
+
+    this%Ne = 0
+    do while ( .not. fe_facet%has_finished() )
+      if (fe_facet%is_ghost()) then
+        call fe_facet%next(); cycle
+      end if
+      call fe_facet%update_integration()
+      quadrature => fe_facet%get_quadrature()
+      this%Ne = this%Ne + quadrature%get_num_quadrature_points()
+      call fe_facet%next()
+    end do
+  
+    this%Nn = this%Ne
+  
+    call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%z, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_type, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%offset   , __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%v_x, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%v_y, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%v_z, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_data , __FILE__, __LINE__ )
+  
+    ipoint = 1
+    this%cell_data(:) = 0
+    call fe_facet%first()
+    do while ( .not. fe_facet%has_finished() )
+  
+       ! Skip ghost elems
+       if (fe_facet%is_ghost()) then
+         call fe_facet%next(); cycle
+       end if
+  
+       ! Update FE-integration related data structures
+       call fe_facet%update_integration()
+  
+       ! As the quadrature changes elem by elem, this has to be inside the loop
+       quadrature => fe_facet%get_quadrature()
+       num_quad_points = quadrature%get_num_quadrature_points()
+  
+       ! Physical coordinates of the quadrature points
+       quadrature_points_coordinates => fe_facet%get_quadrature_points_coordinates()
+
+       if (fe_facet%is_cut()) then
+         mystatus = 0.0_rp
+       else if (fe_facet%is_interior()) then
+         mystatus = -1.0_rp
+       else if (fe_facet%is_exterior()) then
+         mystatus = 1.0_rp
+       else
+         check(.false.)
+       end if
+
+       do ineigh = 1, fe_facet%get_num_cells_around()
+         call fe_facet%get_gradients(ineigh,shape_gradients,1)
+         call fe_facet%get_values   (ineigh,shape_values,1)
+       end do
+  
+       do qpoint = 1, num_quad_points
+         dS =  fe_facet%get_det_jacobian(qpoint)*quadrature%get_weight(qpoint)
+         this%x(ipoint) = quadrature_points_coordinates(qpoint)%get(1)
+         this%y(ipoint) = quadrature_points_coordinates(qpoint)%get(2)
+         this%z(ipoint) = quadrature_points_coordinates(qpoint)%get(3)
+         call fe_facet%get_normals(qpoint,normal_vec)
+         this%v_x(ipoint) = normal_vec(1)%get(1)
+         this%v_y(ipoint) = normal_vec(1)%get(2)
+         this%v_z(ipoint) = normal_vec(1)%get(3)
+         this%cell_data(ipoint) = mystatus
+         this%cell_type(ipoint) = the_point_type
+         this%offset(ipoint) = ipoint
+         this%connect(ipoint) = ipoint - 1
+         ipoint = ipoint + 1
+       end do
+  
+       call fe_facet%next()
+    end do
+  
+    if (num_dime == 2_ip) this%z(:) = 0
+    if (num_dime == 2_ip) this%v_z(:) = 0
+    call fe_space%free_fe_facet_iterator(fe_facet)
+    call memfree(shape_values, __FILE__, __LINE__)
+    deallocate (shape_gradients, stat=istat); check(istat==0);
+  
+  end subroutine uvtkw_attach_facets_quadrature_points
 
 !========================================================================================  
   subroutine uvtkw_write_to_vtk_file(this,filename)
