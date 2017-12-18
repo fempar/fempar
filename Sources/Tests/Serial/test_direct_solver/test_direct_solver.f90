@@ -95,7 +95,7 @@ implicit none
             print*, '!< =============================================='
         endif
 
-        call direct_solver%update_matrix(sparse_matrix, same_nonzero_pattern=mod(i,2)==0)
+        call direct_solver%replace_matrix(sparse_matrix, same_nonzero_pattern=mod(i,2)==0)
 #endif
 
     enddo
@@ -137,7 +137,7 @@ implicit none
             print*, '!< =============================================='
         endif
 
-        call direct_solver%update_matrix(sparse_matrix, same_nonzero_pattern=mod(i,2)==0)
+        call direct_solver%replace_matrix(sparse_matrix, same_nonzero_pattern=mod(i,2)==0)
 #endif
 
     enddo

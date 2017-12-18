@@ -64,6 +64,7 @@ use iso_c_binding
      procedure  :: apply              => block_preconditioner_lu_apply
      procedure  :: apply_add          => block_preconditioner_lu_apply_add
      procedure  :: is_linear          => block_preconditioner_lu_is_linear
+     procedure  :: update_matrix      => block_preconditioner_lu_update_matrix
   end type block_preconditioner_lu_t
 
   integer(ip), parameter :: lower = 0
@@ -77,19 +78,11 @@ use iso_c_binding
 
 contains
 
-  function block_preconditioner_lu_is_linear(this)
-    implicit none
-    class(block_preconditioner_lu_t), intent(in) :: this
-    logical :: block_preconditioner_lu_is_linear
-    block_preconditioner_lu_is_linear = .false.
-  end function block_preconditioner_lu_is_linear
-
-
   ! op%apply(x,y) <=> y <- op*x
   ! Implicitly assumes that y is already allocated
   subroutine block_preconditioner_lu_apply (this,x,y)
     implicit none
-    class(block_preconditioner_lu_t)     , intent(in)   :: this
+    class(block_preconditioner_lu_t)     , intent(inout)   :: this
     class(vector_t)      , intent(in)    :: x
     class(vector_t)      , intent(inout) :: y
     class(vector_t), allocatable         :: z
@@ -110,7 +103,7 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine block_preconditioner_lu_apply_add (this,x,y)
     implicit none
-    class(block_preconditioner_lu_t)     , intent(in)   :: this
+    class(block_preconditioner_lu_t)     , intent(inout)   :: this
     class(vector_t)      , intent(in)    :: x
     class(vector_t)      , intent(inout) :: y
     class(vector_t), allocatable         :: z
@@ -126,6 +119,22 @@ contains
     call z%free()
     deallocate(z)
   end subroutine block_preconditioner_lu_apply_add
+  
+  function block_preconditioner_lu_is_linear(this)
+    implicit none
+    class(block_preconditioner_lu_t), intent(in) :: this
+    logical :: block_preconditioner_lu_is_linear
+    block_preconditioner_lu_is_linear = .false.
+  end function block_preconditioner_lu_is_linear
+  
+  subroutine block_preconditioner_lu_update_matrix(this, same_nonzero_pattern)
+    implicit none
+    class(block_preconditioner_lu_t), intent(inout)    :: this
+    logical                        , intent(in)       :: same_nonzero_pattern
+    call this%L%update_matrix(same_nonzero_pattern)
+    call this%U%update_matrix(same_nonzero_pattern)
+  end subroutine block_preconditioner_lu_update_matrix
+  
 
   subroutine block_preconditioner_lu_create (bop, nblocks)
     implicit none

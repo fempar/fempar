@@ -36,7 +36,7 @@ module mlbddc_names
  ! Integration related modules
  use triangulation_names
  use fe_space_names
- use fe_affine_operator_names
+ use fe_nonlinear_operator_names
  
  ! Linear Algebra related modules
  use operator_names
@@ -74,6 +74,8 @@ module mlbddc_names
 
  type, abstract, extends(operator_t) :: base_mlbddc_t
    private
+   
+   class(environment_t), pointer               :: environment => NULL()
 
    ! Constraint matrix (to be filled by a process to be customized by the user)
    type(coo_sparse_matrix_t)                   :: constraint_matrix
@@ -102,7 +104,7 @@ module mlbddc_names
    ! Coarse-grid matrix. It is temporarily stored in a type(par_sparse_matrix_t)
    ! data structure, although, in my opinion, in the seek of extensibility, 
    ! some sort of operator is required here that plays the same role as
-   ! type(fe_affine_operator_t) on L1 tasks. It will be a nullified pointer on 
+   ! type(fe_nonlinear_operator_t) on L1 tasks. It will be a nullified pointer on 
    ! L1 tasks, and associated via target allocation in the case of L2-Ln tasks.
    type(par_sparse_matrix_t)     , pointer     :: coarse_grid_matrix => NULL()
 
@@ -196,11 +198,12 @@ module mlbddc_names
    
    procedure, non_overridable, private :: am_i_l1_task                                     => base_mlbddc_am_i_l1_task
    procedure                           :: is_linear                                        => base_mlbddc_is_linear
+   procedure, private                  :: get_par_environment                              => base_mlbddc_get_par_environment
+   procedure, private                  :: set_par_environment                              => base_mlbddc_set_par_environment
    
    ! TBPs which are though to be overrided by sub_classes
    procedure, private                  :: get_par_sparse_matrix                            => base_mlbddc_get_par_sparse_matrix
    procedure, private                  :: get_fe_space                                     => base_mlbddc_get_fe_space
-   procedure, private                  :: get_par_environment                              => base_mlbddc_get_par_environment
    procedure, private                  :: is_operator_associated                           => base_mlbddc_is_operator_associated
    procedure, private                  :: nullify_operator                                 => base_mlbddc_nullify_operator
 end type base_mlbddc_t
@@ -214,8 +217,8 @@ end type base_mlbddc_t
    ! freed before type(mlbddc_t)
    type(parameterlist_t)         , pointer :: parameter_list
    
-   ! Pointer to the fe_affine_operator_t this mlbddc_t instance has been created from
-   type(fe_affine_operator_t)    , pointer :: fe_affine_operator => NULL()
+   ! Pointer to the fe_nonlinear_operator_t this mlbddc_t instance has been created from
+   type(fe_nonlinear_operator_t)    , pointer :: fe_nonlinear_operator => NULL()
  contains
     procedure, non_overridable          :: create                                          => mlbddc_create
     procedure, non_overridable, private :: create_vector_spaces                            => mlbddc_create_vector_spaces
@@ -223,10 +226,12 @@ end type base_mlbddc_t
     ! Symbolic-setup related TBPs
     procedure,                  private :: setup_constraint_matrix                         => mlbddc_setup_constraint_matrix
     procedure,                  private :: setup_weighting_operator                        => mlbddc_setup_weighting_operator
+    
+    ! Update-matrix related TBPs
+    procedure                           :: update_matrix                                   => mlbddc_update_matrix
         
     ! Miscellaneous 
     procedure, private                  :: get_par_sparse_matrix                            => mlbddc_get_par_sparse_matrix
-    procedure, private                  :: get_par_environment                              => mlbddc_get_par_environment
     procedure, private                  :: get_fe_space                                     => mlbddc_get_fe_space
     procedure, private                  :: get_par_fe_space                                 => mlbddc_get_par_fe_space
     procedure                 , private :: is_operator_associated                           => mlbddc_is_operator_associated
@@ -252,7 +257,6 @@ end type base_mlbddc_t
       
           
    procedure, private                  :: get_par_sparse_matrix                            => mlbddc_coarse_get_par_sparse_matrix
-   procedure, private                  :: get_par_environment                              => mlbddc_coarse_get_par_environment
    procedure, private                  :: get_fe_space                                     => mlbddc_coarse_get_fe_space
    procedure, private                  :: get_coarse_fe_space                              => mlbddc_coarse_get_coarse_fe_space
    procedure                 , private :: is_operator_associated                           => mlbddc_coarse_is_operator_associated
