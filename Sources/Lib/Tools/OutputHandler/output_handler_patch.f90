@@ -115,7 +115,6 @@ private
     private
         character(len=:), allocatable              :: cell_type
         integer(ip)                                :: num_dims           = 0
-        integer(ip)                                :: num_points               = 0
         integer(ip)                                :: num_fields               = 0
         integer(ip)                                :: num_cell_vectors         = 0
         integer(ip)                                :: num_subcells             = 0
