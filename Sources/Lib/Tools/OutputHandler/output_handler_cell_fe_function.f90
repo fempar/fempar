@@ -153,7 +153,7 @@ private
             import fe_function_t
             import output_handler_patch_field_t
             import output_handler_fe_cell_function_t
-            class(output_handler_fe_cell_function_t), intent(inout) :: this
+            class(output_handler_fe_cell_function_t), intent(in)    :: this
             type(fe_function_t),                      intent(in)    :: fe_function
             integer(ip),                              intent(in)    :: field_id
             type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -458,7 +458,7 @@ contains
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field values given a scalar fe_field
     !-----------------------------------------------------------------
-        class(output_handler_fe_cell_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(in)    :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -497,7 +497,7 @@ contains
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field gradients given a scalar fe_field
     !-----------------------------------------------------------------
-        class(output_handler_fe_cell_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(in)    :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -536,7 +536,7 @@ contains
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field values given a vector fe_field
     !-----------------------------------------------------------------
-        class(output_handler_fe_cell_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(in)    :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -575,7 +575,7 @@ contains
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field gradients given a vector fe_field
     !-----------------------------------------------------------------
-        class(output_handler_fe_cell_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(in)    :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -614,7 +614,7 @@ contains
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field divergence given a vector fe_field
     !-----------------------------------------------------------------
-        class(output_handler_fe_cell_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(in)    :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -682,7 +682,7 @@ contains
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field gradients given a vector fe_field
     !-----------------------------------------------------------------
-        class(output_handler_fe_cell_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(in)    :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -773,7 +773,7 @@ contains
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field values given a tensor field
     !-----------------------------------------------------------------
-        class(output_handler_fe_cell_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(in)    :: this
         type(fe_function_t),                      intent(in)    :: fe_function
         integer(ip),                              intent(in)    :: field_id
         type(output_handler_patch_field_t),       intent(inout) :: patch_field
@@ -812,7 +812,7 @@ contains
     !-----------------------------------------------------------------
     !< Fill the [[output_handler_patch_field_t(type)]] with field values given a **cell_vector**
     !-----------------------------------------------------------------
-        class(output_handler_fe_cell_function_t), intent(inout) :: this
+        class(output_handler_fe_cell_function_t), intent(in)    :: this
         type(output_handler_cell_vector_t),       intent(in)    :: cell_vector
         integer(ip),                              intent(in)    :: num_subcells
         type(allocatable_array_rp1_t),            intent(inout) :: patch_cell_vector
