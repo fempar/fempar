@@ -553,16 +553,16 @@ contains
 
               ! Fill proper vefs at boundary
               if ( vef_at_boundary ) then
-                 call this%proper_vefs_at_boundary%push_back(1)
+                 call this%proper_vefs_at_boundary%push_back(.true.)
               else
-                 call this%proper_vefs_at_boundary%push_back(0)
+                 call this%proper_vefs_at_boundary%push_back(.false.)
               end if
 
               ! Fill proper vefs at interface 
               if ( vef_at_interface ) then
-                 call this%proper_vefs_at_interface%push_back(1)
+                 call this%proper_vefs_at_interface%push_back(.true.)
               else
-                 call this%proper_vefs_at_interface%push_back(0)
+                 call this%proper_vefs_at_interface%push_back(.false.)
               end if
            else 
               this%num_improper_vefs = this%num_improper_vefs+1
@@ -588,9 +588,9 @@ contains
               
               ! Fill proper vefs at interface 
               if ( vef_at_interface ) then
-                 call this%improper_vefs_at_interface%push_back(1)
+                 call this%improper_vefs_at_interface%push_back(.true.)
               else
-                 call this%improper_vefs_at_interface%push_back(0)
+                 call this%improper_vefs_at_interface%push_back(.false.)
               end if
               
            end if
@@ -775,16 +775,16 @@ contains
 
                  ! Fill proper vefs at boundary
                  if ( vef_at_boundary ) then
-                    call this%proper_vefs_at_boundary%push_back(1)
+                    call this%proper_vefs_at_boundary%push_back(.true.)
                  else
-                    call this%proper_vefs_at_boundary%push_back(0)
+                    call this%proper_vefs_at_boundary%push_back(.false.)
                  end if
                  
                  ! Fill proper vefs at interface 
                  if ( vef_at_interface ) then
-                   call this%proper_vefs_at_interface%push_back(1)
+                   call this%proper_vefs_at_interface%push_back(.true.)
                  else
-                   call this%proper_vefs_at_interface%push_back(0)
+                   call this%proper_vefs_at_interface%push_back(.false.)
                  end if
               else
                  this%num_improper_vefs = this%num_improper_vefs+1
@@ -810,9 +810,9 @@ contains
                  
                  ! Fill proper vefs at interface 
                  if ( vef_at_interface ) then
-                   call this%improper_vefs_at_interface%push_back(1)
+                   call this%improper_vefs_at_interface%push_back(.true.)
                  else
-                   call this%improper_vefs_at_interface%push_back(0)
+                   call this%improper_vefs_at_interface%push_back(.false.)
                  end if
               end if
              else
@@ -903,16 +903,16 @@ contains
 
               ! Fill proper vefs at boundary
               if ( vef_at_boundary ) then
-                 call this%proper_vefs_at_boundary%push_back(1)
+                 call this%proper_vefs_at_boundary%push_back(.true.)
               else
-                 call this%proper_vefs_at_boundary%push_back(0)
+                 call this%proper_vefs_at_boundary%push_back(.false.)
               end if
 
               ! Fill proper vefs at interface 
               if ( vef_at_interface ) then
-                 call this%proper_vefs_at_interface%push_back(1)
+                 call this%proper_vefs_at_interface%push_back(.true.)
               else
-                 call this%proper_vefs_at_interface%push_back(0)
+                 call this%proper_vefs_at_interface%push_back(.false.)
               end if
            else 
               this%num_improper_vefs=this%num_improper_vefs+1
@@ -937,9 +937,9 @@ contains
               
               ! Fill proper vefs at interface 
               if ( vef_at_interface ) then
-                 call this%improper_vefs_at_interface%push_back(1)
+                 call this%improper_vefs_at_interface%push_back(.true.)
               else
-                 call this%improper_vefs_at_interface%push_back(0)
+                 call this%improper_vefs_at_interface%push_back(.false.)
               end if
            end if
         else ! Borrow vef gid from owner
@@ -970,9 +970,9 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
   integer(ip) :: vertex_pos_in_cell
 
   call this%proper_vefs_is_ghost%resize(0)
-  call this%proper_vefs_is_ghost%resize(this%num_proper_vefs,1)
+  call this%proper_vefs_is_ghost%resize(this%num_proper_vefs,.true.)
   call this%improper_vefs_is_ghost%resize(0)
-  call this%improper_vefs_is_ghost%resize(this%num_improper_vefs,1)
+  call this%improper_vefs_is_ghost%resize(this%num_improper_vefs,.true.)
   
   call cell%create(this)
   call coarse_cell%create(this)
@@ -984,29 +984,29 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
       do vef_lid = 1, cell%get_num_vefs()
        call cell%get_vef(vef_lid, vef)
        if ( vef%is_proper() ) then
-         call this%proper_vefs_is_ghost%set(vef%get_gid(),0)
+         call this%proper_vefs_is_ghost%set(vef%get_gid(),.false.)
        else
-         call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),0)
+         call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
          do icell=1, vef%get_num_improper_cells_around()
            call vef%get_improper_cell_around(icell, coarse_cell)
            reference_fe_geo => coarse_cell%get_reference_fe()
            coarse_vef_lid=vef%get_improper_cell_around_ivef(icell)
            call coarse_cell%get_vef(coarse_vef_lid,coarse_vef)
-           call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),0)
+           call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)
             
            vefs_of_vef => reference_fe_geo%get_facets_n_face()
            vefs_of_vef_iterator = vefs_of_vef%create_iterator(coarse_vef_lid)
            do while( .not. vefs_of_vef_iterator%is_upper_bound() )
              vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
              call coarse_cell%get_vef(vef_of_vef_pos_in_cell,coarse_vef)
-             call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),0)
+             call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)
                
              vertices_of_line => reference_fe_geo%get_vertices_n_face()
              vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
              do while( .not. vertices_of_line_iterator%is_upper_bound() )
                vertex_pos_in_cell = vertices_of_line_iterator%get_current()
                call coarse_cell%get_vef(vertex_pos_in_cell,coarse_vef)  
-               call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),0)  
+               call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)  
                call vertices_of_line_iterator%next()
              end do
              call vefs_of_vef_iterator%next()
@@ -1022,7 +1022,7 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
           do icell=1, vef%get_num_improper_cells_around()
            call vef%get_improper_cell_around(icell, coarse_cell)
            if ( coarse_cell%is_local() ) then
-             call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),0)
+             call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
            end if
           end do  
          end if  
@@ -1085,7 +1085,7 @@ subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
              coarse_vef_lid=vef%get_improper_cell_around_ivef(icell)
              call coarse_cell%get_vef(coarse_vef_lid,coarse_vef)
              if ( .not. coarse_vef%is_at_interface() ) then
-               call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),1)
+               call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),.true.)
              end if
              
              vefs_of_vef => reference_fe_geo%get_facets_n_face()
@@ -1094,7 +1094,7 @@ subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
                vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
                call coarse_cell%get_vef(vef_of_vef_pos_in_cell,coarse_vef)
                if ( .not. coarse_vef%is_at_interface() ) then
-                 call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),1)  
+                 call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),.true.)  
                end if
                
                vertices_of_line => reference_fe_geo%get_vertices_n_face()
@@ -1103,7 +1103,7 @@ subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
                  vertex_pos_in_cell = vertices_of_line_iterator%get_current()
                  call coarse_cell%get_vef(vertex_pos_in_cell,coarse_vef)  
                  if ( .not. coarse_vef%is_at_interface() ) then
-                   call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),1)
+                   call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),.true.)
                  end if    
                  call vertices_of_line_iterator%next()
                end do
