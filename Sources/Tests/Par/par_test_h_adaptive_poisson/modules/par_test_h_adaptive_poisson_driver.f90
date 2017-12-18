@@ -759,9 +759,9 @@ end subroutine free_timers
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
           if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
-          !if ( (cell%get_gid()==4) .or. (cell%get_level() == 0) )then
+          !if ( (cell%get_gid()==8) .or. (cell%get_level() == 0) )then
             call cell%set_for_refinement()
-          end if
+          end if  
         end if  
         call cell%next()
       end do
