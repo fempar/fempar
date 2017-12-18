@@ -54,6 +54,7 @@ module output_handler_fe_cell_function_names
     use list_types_names
     use hash_table_names
     use allocatable_array_names
+    use std_vector_real_rp_names
 
     use reference_fe_names
     use triangulation_names
@@ -101,10 +102,10 @@ private
         integer(ip)                                    :: num_dims     = 0
         integer(ip)                                    :: num_nodes          = 0
         integer(ip)                                    :: num_cells          = 0
-        class(fe_cell_iterator_t), pointer                  :: current_fe            => NULL()
+        class(fe_cell_iterator_t), pointer             :: current_fe            => NULL()
         type(quadrature_t),        allocatable         :: quadratures(:)
-        type(cell_map_t),            allocatable         :: cell_maps(:)
-        type(cell_integrator_t), allocatable         :: cell_integrators(:)
+        type(cell_map_t),            allocatable       :: cell_maps(:)
+        type(cell_integrator_t), allocatable           :: cell_integrators(:)
         type(hash_table_ip_ip_t)                       :: quadratures_and_maps_position ! Key = max_order_within_fe
         type(hash_table_ip_ip_t)                       :: cell_integrators_position   ! Key = [max_order_within_fe,
                                                                                         !       reference_fe_id]
@@ -352,10 +353,11 @@ contains
         type(cell_map_t),                    pointer               :: cell_map
         type(quadrature_t),                pointer               :: quadrature
         type(output_handler_patch_field_t),pointer               :: patch_field
-        type(allocatable_array_rp1_t),     pointer               :: patch_cell_vector
+        type(std_vector_real_rp_t)        ,pointer               :: patch_cell_vector
         type(allocatable_array_ip2_t),     pointer               :: patch_subcells_connectivity
         character(len=:), allocatable                            :: field_type
         character(len=:), allocatable                            :: diff_operator
+        integer(ip), allocatable                                 :: patch_subcells_connectivity_a(:,:)
     !-----------------------------------------------------------------
         this%current_fe => fe_cell_iterator
         fe_space => fe_cell_iterator%get_fe_space()
@@ -382,8 +384,11 @@ contains
 
             ! Set patch connectivities from reference_fe_geo given num_refinements
             patch_subcells_connectivity => patch%get_subcells_connectivity()
-            call patch_subcells_connectivity%create(reference_fe_geo%get_num_vertices(), &
+            
+            call patch_subcells_connectivity%resize(reference_fe_geo%get_num_vertices(), &
                                                     reference_fe_geo%get_num_subcells(num_refinements=max_order_within_fe-1))
+           
+            
             call reference_fe_geo%get_subcells_connectivity(num_refinements=max_order_within_fe-1, &
                                                             connectivity=patch_subcells_connectivity%a)
 
@@ -465,7 +470,7 @@ contains
         class(reference_fe_t),                    pointer       :: reference_fe
         type(cell_map_t),                           pointer       :: cell_map
         type(cell_integrator_t),                pointer       :: cell_integrator
-        type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
+        type(std_vector_real_rp_t),            pointer       :: patch_field_nodal_values
         real(rp),              allocatable                      :: scalar_function_values(:)
         type(allocatable_array_rp1_t),            pointer       :: patch_field_scalar_function_values
     !-----------------------------------------------------------------
@@ -480,14 +485,14 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
-        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
+        call patch_field_nodal_values%resize(reference_fe%get_num_shape_functions())
+        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%get_pointer())
 
         ! Calculate scalar field values
         call patch_field%set_field_type(field_type_scalar)
         patch_field_scalar_function_values => patch_field%get_scalar_function_values()
         call patch_field_scalar_function_values%move_alloc_out(scalar_function_values) 
-        call cell_integrator%evaluate_fe_function(patch_field_nodal_values%a, scalar_function_values)
+        call cell_integrator%evaluate_fe_function(patch_field_nodal_values%get_pointer(), scalar_function_values)
         call patch_field_scalar_function_values%move_alloc_in(scalar_function_values) 
 
     end subroutine output_handler_fe_cell_function_fill_patch_scalar_field_val
@@ -504,7 +509,7 @@ contains
         class(reference_fe_t),                    pointer       :: reference_fe
         type(cell_map_t),                           pointer       :: cell_map
         type(cell_integrator_t),                pointer       :: cell_integrator
-        type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
+        type(std_vector_real_rp_t),            pointer       :: patch_field_nodal_values
         type(vector_field_t),  allocatable                      :: vector_function_values(:)
         type(allocatable_array_vector_field_t),   pointer       :: patch_field_vector_function_values
     !-----------------------------------------------------------------
@@ -519,14 +524,14 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
-        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
+        call patch_field_nodal_values%resize(reference_fe%get_num_shape_functions())
+        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%get_pointer())
 
         ! Calculate scalar field gradients
         call patch_field%set_field_type(field_type_vector)
         patch_field_vector_function_values => patch_field%get_vector_function_values()
         call patch_field_vector_function_values%move_alloc_out(vector_function_values) 
-        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, vector_function_values)
+        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%get_pointer(), vector_function_values)
         call patch_field_vector_function_values%move_alloc_in(vector_function_values) 
 
     end subroutine output_handler_fe_cell_function_fill_patch_scalar_field_grad
@@ -543,7 +548,7 @@ contains
         class(reference_fe_t),                    pointer       :: reference_fe
         type(cell_map_t),                           pointer       :: cell_map
         type(cell_integrator_t),                pointer       :: cell_integrator
-        type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
+        type(std_vector_real_rp_t),            pointer       :: patch_field_nodal_values
         type(vector_field_t),  allocatable                      :: vector_function_values(:)
         type(allocatable_array_vector_field_t),   pointer       :: patch_field_vector_function_values
     !-----------------------------------------------------------------
@@ -558,14 +563,14 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
-        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
+        call patch_field_nodal_values%resize(reference_fe%get_num_shape_functions())
+        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%get_pointer())
 
         ! Calculate vector field values
         call patch_field%set_field_type(field_type_vector)
         patch_field_vector_function_values => patch_field%get_vector_function_values()
         call patch_field_vector_function_values%move_alloc_out(vector_function_values) 
-        call cell_integrator%evaluate_fe_function(patch_field_nodal_values%a, vector_function_values)
+        call cell_integrator%evaluate_fe_function(patch_field_nodal_values%get_pointer(), vector_function_values)
         call patch_field_vector_function_values%move_alloc_in(vector_function_values) 
 
     end subroutine output_handler_fe_cell_function_fill_patch_vector_field_val
@@ -582,7 +587,7 @@ contains
         class(reference_fe_t),                    pointer       :: reference_fe
         type(cell_map_t),                           pointer       :: cell_map
         type(cell_integrator_t),                pointer       :: cell_integrator
-        type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
+        type(std_vector_real_rp_t),            pointer       :: patch_field_nodal_values
         type(tensor_field_t),  allocatable                      :: tensor_function_values(:)
         type(allocatable_array_tensor_field_t),   pointer       :: patch_field_tensor_function_values
     !-----------------------------------------------------------------
@@ -597,14 +602,14 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
-        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
+        call patch_field_nodal_values%resize(reference_fe%get_num_shape_functions())
+        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%get_pointer())
 
         ! Calculate vector field gradients
         call patch_field%set_field_type(field_type_tensor)
         patch_field_tensor_function_values => patch_field%get_tensor_function_values()
         call patch_field_tensor_function_values%move_alloc_out(tensor_function_values) 
-        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
+        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%get_pointer(), tensor_function_values)
         call patch_field_tensor_function_values%move_alloc_in(tensor_function_values) 
 
     end subroutine output_handler_fe_cell_function_fill_patch_vector_field_grad
@@ -622,7 +627,7 @@ contains
         type(quadrature_t),                       pointer       :: quadrature
         type(cell_map_t),                           pointer       :: cell_map
         type(cell_integrator_t),                pointer       :: cell_integrator
-        type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
+        type(std_vector_real_rp_t),            pointer       :: patch_field_nodal_values
         real(rp),              allocatable                      :: scalar_function_values(:)
         type(tensor_field_t),  allocatable                      :: tensor_function_values(:)
         type(allocatable_array_rp1_t),            pointer       :: patch_field_scalar_function_values
@@ -642,8 +647,8 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
-        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
+        call patch_field_nodal_values%resize(reference_fe%get_num_shape_functions())
+        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%get_pointer())
 
         call patch_field%set_field_type(field_type_scalar)
 
@@ -654,7 +659,7 @@ contains
         call patch_field_tensor_function_values%move_alloc_out(tensor_function_values) 
 
         ! Calculate gradients
-        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
+        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%get_pointer(), tensor_function_values)
 
         ! Allocate scalar function values
         if ( allocated(scalar_function_values) ) then
@@ -690,7 +695,7 @@ contains
         type(quadrature_t),                       pointer       :: quadrature
         type(cell_map_t),                           pointer       :: cell_map
         type(cell_integrator_t),                pointer       :: cell_integrator
-        type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
+        type(std_vector_real_rp_t),            pointer       :: patch_field_nodal_values
         real(rp),              allocatable                      :: scalar_function_values(:)
         type(vector_field_t),  allocatable                      :: vector_function_values(:)
         type(tensor_field_t),  allocatable                      :: tensor_function_values(:)
@@ -712,15 +717,15 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
-        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
+        call patch_field_nodal_values%resize(reference_fe%get_num_shape_functions())
+        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%get_pointer())
 
         ! get tensor function values
         patch_field_tensor_function_values => patch_field%get_tensor_function_values()
         call patch_field_tensor_function_values%move_alloc_out(tensor_function_values) 
 
         ! Calculate gradients
-        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%a, tensor_function_values)
+        call cell_integrator%evaluate_gradient_fe_function(patch_field_nodal_values%get_pointer(), tensor_function_values)
 
         if(this%num_dims == 2) then
             call patch_field%set_field_type(field_type_scalar)
@@ -780,7 +785,7 @@ contains
         class(reference_fe_t),                    pointer       :: reference_fe
         type(cell_map_t),                           pointer       :: cell_map
         type(cell_integrator_t),                pointer       :: cell_integrator
-        type(allocatable_array_rp1_t),            pointer       :: patch_field_nodal_values
+        type(std_vector_real_rp_t),            pointer       :: patch_field_nodal_values
         type(tensor_field_t),  allocatable                      :: tensor_function_values(:)
         type(allocatable_array_tensor_field_t),   pointer       :: patch_field_tensor_function_values
     !-----------------------------------------------------------------
@@ -795,14 +800,14 @@ contains
 
         ! Gather DoFs of current cell + field_id on nodal_values 
         patch_field_nodal_values => patch_field%get_nodal_values()
-        call patch_field_nodal_values%create(reference_fe%get_num_shape_functions())
-        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%a)
+        call patch_field_nodal_values%resize(reference_fe%get_num_shape_functions())
+        call fe_function%gather_nodal_values(this%current_fe, field_id, patch_field_nodal_values%get_pointer())
 
         ! Calculate tensor field values
         call patch_field%set_field_type(field_type_tensor)
         patch_field_tensor_function_values => patch_field%get_tensor_function_values()
         call patch_field_tensor_function_values%move_alloc_out(tensor_function_values) 
-        call cell_integrator%evaluate_fe_function(patch_field_nodal_values%a, tensor_function_values )
+        call cell_integrator%evaluate_fe_function(patch_field_nodal_values%get_pointer(), tensor_function_values )
         call patch_field_tensor_function_values%move_alloc_in(tensor_function_values)
 
     end subroutine output_handler_fe_cell_function_fill_patch_tensor_field_val
@@ -815,13 +820,15 @@ contains
         class(output_handler_fe_cell_function_t), intent(in)    :: this
         type(output_handler_cell_vector_t),       intent(in)    :: cell_vector
         integer(ip),                              intent(in)    :: num_subcells
-        type(allocatable_array_rp1_t),            intent(inout) :: patch_cell_vector
-        real(rp), pointer                                       :: values(:)
+        type(std_vector_real_rp_t),               intent(inout) :: patch_cell_vector
+        real(rp), pointer                                       :: cell_vector_values(:)
+        real(rp), pointer                                       :: patch_cell_vector_values(:)
     !-----------------------------------------------------------------
         ! Gather DoFs of current cell + field_id on nodal_values 
-        values => cell_vector%get_cell_vector()
-        call patch_cell_vector%create(num_subcells)
-        patch_cell_vector%a = values(this%current_fe%get_gid())
+        cell_vector_values => cell_vector%get_cell_vector()
+        call patch_cell_vector%resize(num_subcells)
+        patch_cell_vector_values => patch_cell_vector%get_pointer()
+        patch_cell_vector_values = cell_vector_values(this%current_fe%get_gid())
     end subroutine output_handler_fe_cell_function_fill_patch_cell_vector
 
 
