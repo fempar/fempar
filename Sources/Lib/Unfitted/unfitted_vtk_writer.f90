@@ -612,7 +612,7 @@ contains
   
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
-    class(serial_unfitted_fe_space_t),      intent(in)    :: fe_space
+    class(serial_fe_space_t)    ,   intent(in)    :: fe_space
   
     class(fe_cell_iterator_t),allocatable :: fe
     type(quadrature_t), pointer :: quadrature

@@ -629,12 +629,12 @@ contains
     
     select type(rhs)
     class is (serial_scalar_array_t)  
-       !if (this%test_params%get_write_matrix()) then
-       !iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_vector.mm',action='write')
-       !check(iounit>0)
-       !call rhs%print(iounit) 
-       !call io_close(iounit)
-       !end if
+       if (this%test_params%get_write_matrix()) then
+       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_vector.mm',action='write')
+       check(iounit>0)
+       call rhs%print(iounit) 
+       call io_close(iounit)
+       end if
     class DEFAULT
        assert(.false.) 
     end select
@@ -1015,6 +1015,11 @@ contains
         ! Write the unfitted mesh
         call vtk_writer%attach_boundary_faces(this%triangulation)
         call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
+        call vtk_writer%free()
+
+        ! Write the unfitted mesh
+        call vtk_writer%attach_boundary_quadrature_points(this%fe_space)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_normals.vtu')
         call vtk_writer%free()
         
         ! Write the solution
