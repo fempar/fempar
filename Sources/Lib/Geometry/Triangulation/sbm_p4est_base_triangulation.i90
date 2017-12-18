@@ -1749,6 +1749,7 @@ subroutine p4est_base_triangulation_update_topology_from_p4est_mesh(this)
  call memalloc(environment%get_l1_size()+1, &
                this%global_first_quadrant, &
                __FILE__, __LINE__ )
+ this%global_first_quadrant = 0
  
  if (allocated(this%quad_coords)) &
      call memfree(this%quad_coords, __FILE__, __LINE__)
