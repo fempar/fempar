@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fe_nonlinear_operator_names
+module time_stepping_names
   ! sbadia: to check whether all this needed
   use types_names
   use memor_names
@@ -60,16 +60,15 @@ module fe_nonlinear_operator_names
   
   private
   
-  integer(ip), parameter :: forward_euler      = 0
-  integer(ip), parameter :: backward_euler     = 1
-  integer(ip), parameter :: crank_nicolson     = 2 
+  character(:), parameter :: forward_euler  = "forward_euler"
+  character(:), parameter :: backward_euler = "backward_euler"
+  character(:), parameter :: crank_nicolson = "crank_nicolson"
   
   ! states to be defined
   integer(ip), parameter :: created             = 0
   integer(ip), parameter :: residual_computed   = 1 
   integer(ip), parameter :: tangent_computed    = 2 
   integer(ip), parameter :: assembler_computed  = 3
-  
   
   ! sbadia: to make auto-documentation style
   !
@@ -100,30 +99,53 @@ module fe_nonlinear_operator_names
 
   ! sbadia: I must provide a method to get the solution
   ! u_1 =  u_0 + \sum_{i=1}^s b_i v_i = 0.
+  
+  ! alpha A  + M
+  type, extends(fe_nonlinear_operator_t) :: transient_fe_nonlinear_operator_t
+  
+  fe_op
+  mass_op  
+  !ass_mass
+  
+  create ? probably change the name and not call create
+  free
+  set_evaluation_point
+  compute_tangent
+  compute_residual
+  
+  
+  set_alpha
+  
+  
+  
   type, extends(operator_t) :: time_stepping_operator_t
      private
-     class(fe_nonlinear_operator_t)                     :: fe_op
-     class(mass_matrix_discrete_integration_t)          :: mass_integration
+     class(fe_nonlinear_operator_t)           , pointer :: fe_op => NULL()
      type(time_stepping_scheme_t)                       :: scheme
-     class(vector_t)                          , pointer :: initial_value
+     class(vector_t)                          , pointer :: initial_value => NULL()
      real(rp)                                           :: dt
-     ! sbadia: I consider the stages vector as a block vector. Good idea?
-     type(block_vector_t)                               :: dofs_stages(:)
+     !type(block_vector_t)                               :: dofs_stages_block_vector
+     class(vector_t)                       , allocatable :: dofs_stages(:)
+     
      ! sbadia: For the mass matrix probably better a fe_affine_operator...
-     class(assembler_t)                                 :: mass
+     !type(mass_matrix_discrete_integration_t)           :: mass_integration
+     !class(assembler_t)                   , allocatable :: mass
+     class(fe_nonlinear_operator_t)           , pointer :: mass_op => NULL()
+     type(transient_fe_nonlinear_operator_t)            :: tr_op
+     
      ! sbadia: For the moment, we are not interested in full RK implementations,
      ! even though it would be an easy paper about preconditioning these schemes
      ! So, we don't really need to use the block assembler for the
      ! all-stages operator. We note that the matrix is not needed to be computed
      ! for every stage since it is always the same
-     class(assembler_t)                       , pointer :: assembler => NULL()
+     class(assembler_t)                   , allocatable :: assembler
    contains
      procedure :: create             => time_stepping_operator_create
      ! sbadia: It must be defined since it is an operator, but for the moment
      ! we do not want to use it. Dummy implementation...
      procedure :: apply              => time_stepping_operator_apply
      ! sbadia: to be implemented
-	 procedure :: free               => time_stepping_operator_free
+	    procedure :: free               => time_stepping_operator_free
      procedure :: set_initial_data   => time_stepping_operator_set_initial_data
      procedure :: set_time_step_size => time_stepping_operator_set_time_step_size
      
@@ -194,50 +216,45 @@ end type time_stepping_operator_block_stage_t
   
   
   subroutine time_stepping_operator_create(this, fe_op, scheme_type)
-    class(time_stepping_operator_t), intent(inout) :: this
-    class(fe_nonlinear_operator_t) , intent(in)    :: fe_op
-    integer(ip), intent(in) :: scheme_type
+    class(time_stepping_operator_t),         intent(inout) :: this
+    class(fe_nonlinear_operator_t) , target, intent(in)    :: fe_op
+    character(:)                           , intent(in) :: scheme_type
     this%fe_op => fe_op
     call this%scheme%create(scheme_type)
-    num_stages = this%scheme%stages
-    call this%dofs_stages%create(num_stages)
   end subroutine time_stepping_operator_create
   
   subroutine time_stepping_operator_set_initial_data( this, x0 )
     class(time_stepping_operator_t), intent(inout) :: this
-    class(vector_t), intent(in) :: x0
-    this%initial_value = x0
+    class(vector_t), target        , intent(in)    :: x0
+    this%initial_value => x0
     ! check compatible w/ fe_op vector space
     call this%fe_op%abort_if_not_in_domain(x0)
-    call this%allocate_dofs_stages()
+    call this%allocate_dofs_stages(x0)
   end subroutine time_stepping_operator_set_initial_data
   
-  subroutine time_stepping_operator_allocate_dofs_stages( this, x0 )
+  subroutine time_stepping_operator_allocate_dofs_stages( this )
     class(time_stepping_operator_t), intent(inout) :: this
-    class(vector_t), intent(in) :: x0
-    type(vector_space_t), pointer :: vector_space
-    vector_space => this%fe_op%get_domain_vector_space()
-    ! check what happens if dofs_stages not allocated
-    if ( .not. vector_space%belongs(this%dofs_stages(1)) ) then 
-       do i = 1, this%scheme%stages
-          call this%blocks(i)%vector%clone(x0)
-       end do
-    end if
+    integer(ip) :: istat
+    allocate ( this%dof_stages(%scheme%num_stages), mold = this%initial_value, stat = istat ); check(istat==0)
+    do i = 1, this%scheme%stages
+       call this%dofs_stages%(i)%clone(this%initial_value)
+    end do
   end subroutine time_stepping_operator_allocate_dofs_stages
   
-  subroutine time_stepping_operator_apply_row( this, x, y, i )
+  subroutine time_stepping_operator_apply_row( this, i, x, y )
     class(time_stepping_operator_t), intent(inout) :: this
-    integer(ip)                    , intent(in)    :: row
+    integer(ip)                    , intent(in)    :: i
     class(vector_t)          , intent(in)    :: x
     class(vector_t)                , intent(inout) :: y
     ! sbadia : We should set the time in the nonlinear operator too for variable body force / bc's
     call this%set_evaluation_point_row(x,i)
     call this%fe_op%compute_residual()
-    y = this%fe_op%get_residual() * this%dt
+    call y%scale(this%dt,this%fe_op%get_residual())
     ! Here we should provide also the trial fe space
     ! We should only do it when needed, e.g.,
-    call this%compute_mass_matrix()
-    y = y + this%mass%get_matrix()*dofs_stages(i)
+    call this%mass_op%set_evaluation_point(x)
+    call this%mass_op%compute_residual()
+    call y%axpby(1.0_rp,this%mass_op%get_residual(),1.0_rp)
   end subroutine time_stepping_operator_apply_row
   
   ! Compute  \partial R*_i / \partial v_j = M  \delta_ij
@@ -283,10 +300,11 @@ end type time_stepping_operator_block_stage_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(operator_t) :: time_stepping_operator_stage_t
 private
-type(time_stepping_operator_t) :: op
+type(time_stepping_operator_t), pointer :: op
 integer(ip) :: i
 integer(ip) :: j
 class(assembler_t) :: assembler
+! merge this operator with the transient new one
 contains
 subroutine time_stepping_operator_block_create(this, op)
  implicit none
@@ -295,6 +313,10 @@ subroutine time_stepping_operator_block_create(this, op)
  this%op => op
  ! sbadia: allocate assembler here?
 end subroutine time_stepping_operator_block_create
+
+set i and j
+
+
 subroutine time_stepping_operator_block_apply
  implicit none
  class(time_stepping_operator_stage_t), intent(inout) :: this
@@ -304,6 +326,7 @@ subroutine time_stepping_operator_block_apply
  call this%compute_residual()
  y = this%get_residual()
 end subroutine time_stepping_operator_block_apply
+
 subroutine time_stepping_operator_block_apply( this, x, y )
  implicit none
  class(time_stepping_operator_stage_t), intent(inout) :: this
@@ -358,6 +381,10 @@ end type time_stepping_operator_block_stage_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
 type :: dirk_time_stepping_solver_t
 private
 type(time_stepping_operator_t) :: op
@@ -375,7 +402,6 @@ subroutine dirk_time_stepping_solver_apply( this, x, y )
  y = x
  do i = 1, this%op%scheme%stages
     call this%op_block%set_stages(i,i)
-    A => this%op_block%get_operator()                              ! nonlinear operator
     call nl_solver%apply ( this%op_block, this%op%stages_dofs(i) ) ! nonlinear solver
     y = x + this%op%stages_dofs(i)*this%op%scheme%b(i)
  end do
@@ -416,7 +442,7 @@ type :: time_stepping_scheme_t
   private
   integer(ip) :: time_integrator
   integer(ip) :: order
-  integer(ip) :: stages
+  integer(ip) :: num_stages
   real(rp)    , allocatable :: a(:,:)
   real(rp)    , allocatable :: b(:)
   real(rp)    , allocatable :: c(:)
@@ -430,8 +456,10 @@ contains
 subroutine time_stepping_scheme_create( this, ti_type )
  implicit none
  type(time_stepping_scheme_t), intent(inout) :: this
- integer(ip), intent(in) ti_type
+ character(:)                , intent(in)    :: ti_type
 
+ call this%free()
+ 
  select case ( ti_type )
  case ( backward_euler )
     this%order = 1
@@ -464,6 +492,8 @@ subroutine allocate_butcher_tableau ( this )
  call memalloc(aux,this%c,__FILE__,__LINE__)
 end subroutine allocate_butcher_tableau
 
+
+end time_stepping_names
 
 
 module mass_matrix_discrete_integration_names

@@ -68,7 +68,7 @@ module block_vector_names
   end type p_vector_t
 
   ! Added type(block_vector_t) as a new implementation of class(vector_t).
-  ! type(block_vector_t) is the only type compatible with type(block_vector_t).
+  ! type(block_vector_t) is the only type compatible with type(block_operator_t).
   ! Therefore, if one aims to solve a linear system by means of an, e.g., block
   ! LU recursive preconditioned GMRES, then both the right hand side, and sought-after
   ! solution have to be provided to abstract_gmres as type(block_vector_t) instances.
@@ -307,7 +307,7 @@ contains
    assert(op1%state==assembled)
    call op2%GuardTemp()
    select type(op2)
-   class is (block_vector_t)
+   class is (block_vector_t)vector
       assert(op2%state==assembled)
       assert ( op1%nblocks == op2%nblocks )
       do iblk=1, op1%nblocks
