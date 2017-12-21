@@ -2596,6 +2596,13 @@ subroutine serial_fe_space_set_conditions( this, conditions )
   this%conditions => conditions
 end subroutine serial_fe_space_set_conditions
 
+function serial_fe_space_get_ptr_dofs_per_fe(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in)    :: this 
+  type(std_vector_integer_ip_t), pointer :: serial_fe_space_get_ptr_dofs_per_fe(:)
+  serial_fe_space_get_ptr_dofs_per_fe => this%ptr_dofs_x_fe
+end function serial_fe_space_get_ptr_dofs_per_fe
+
 function serial_fe_space_get_num_fixed_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 

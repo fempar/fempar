@@ -620,6 +620,7 @@ module fe_space_names
      procedure                           :: get_environment                              => serial_fe_space_get_environment
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
+     procedure, non_overridable          :: get_ptr_dofs_x_fe                            => serial_fe_space_get_ptr_dofs_per_fe
      procedure                           :: get_num_fixed_dofs                           => serial_fe_space_get_num_fixed_dofs
      procedure                           :: get_num_dirichlet_dofs                       => serial_fe_space_get_num_dirichlet_dofs
      procedure                           :: get_num_hanging_dofs                         => serial_fe_space_get_num_hanging_dofs
