@@ -158,7 +158,7 @@ module fe_nonlinear_operator_names
      procedure, private :: create_vector_spaces        => fe_nonlinear_operator_create_vector_spaces
   end type fe_nonlinear_operator_t
   
-type, extends(fe_nonlinear_operator_t):: fe_affine_operator_t
+type, extends(fe_nonlinear_operator_t) :: fe_affine_operator_t
   private
 contains
   procedure          :: compute                     => fe_affine_operator_compute
@@ -170,13 +170,36 @@ contains
   procedure          :: get_matrix                  => fe_affine_operator_get_matrix
 end type fe_affine_operator_t
 
+type, extends(fe_nonlinear_operator_t) :: scal_add_fe_operator_t
+  ! This operator represents alpha*A+B, given the fe_nonlinear_operator_t's A and B
+  ! and scalars alpha and beta
+  private
+     class(fe_nonlinear_operator_t), pointer :: op1 => NULL() ! A
+     class(fe_nonlinear_operator_t), pointer :: op2 => NULL() ! B
+     integer(ip)                             :: alpha         ! alpha
+     
+contains
+  !procedure          :: create                      => scal_add_fe_operator_create
+  procedure          :: free                        => scal_add_fe_operator_free
+  procedure          :: set_evaluation_point        => scal_add_fe_operator_set_evaluation_point  
+
+  procedure          :: compute_tangent             => scal_add_fe_operator_compute_tangent
+  procedure          :: compute_residual            => scal_add_fe_operator_compute_residual  
+
+  procedure          :: is_linear                   => scal_add_fe_operator_is_linear
+	 
+  procedure          :: scal_add_create             => scal_add_fe_operator_scal_add_create
+  procedure          :: set_scalars                 => scal_add_fe_operator_set_scalars
+end type scal_add_fe_operator_t
+
+
   ! Types
-  public :: fe_nonlinear_operator_t, fe_affine_operator_t
+  public :: fe_nonlinear_operator_t, fe_affine_operator_t, scal_add_fe_operator_t
 
 contains
 
   
 #include "sbm_fe_nonlinear_operator.i90"
 #include "sbm_fe_affine_operator.i90"
-  
+#include "sbm_scal_add_fe_operator.i90"  
 end module

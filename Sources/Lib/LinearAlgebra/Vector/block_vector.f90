@@ -307,7 +307,7 @@ contains
    assert(op1%state==assembled)
    call op2%GuardTemp()
    select type(op2)
-   class is (block_vector_t)vector
+   class is (block_vector_t)
       assert(op2%state==assembled)
       assert ( op1%nblocks == op2%nblocks )
       do iblk=1, op1%nblocks
