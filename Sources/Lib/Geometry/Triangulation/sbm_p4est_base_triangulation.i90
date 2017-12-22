@@ -1548,6 +1548,8 @@ subroutine p4est_bt_update_cell_import( this )
   
   type(cell_import_t) , pointer :: cell_import
   class(environment_t), pointer :: environment
+
+#ifdef ENABLE_P4EST  
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_allocate_and_fill_cell_import_raw_arrays(this%p4est, &
                                                             this%p4est_ghost, &
@@ -1591,6 +1593,9 @@ subroutine p4est_bt_update_cell_import( this )
   call F90_p4est_locidx_buffer_destroy (rcv_leids)
   call F90_p4est_locidx_buffer_destroy (snd_ptrs)
   call F90_p4est_locidx_buffer_destroy (snd_leids)
+#else
+  call this%not_enabled_error()
+#endif          
 end subroutine p4est_bt_update_cell_import
 
 function p4est_bt_generate_non_consecutive_vef_ggid (cell_ggid, vef_lid) result(vef_gid)
