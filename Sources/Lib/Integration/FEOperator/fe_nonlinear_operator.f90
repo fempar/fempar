@@ -146,11 +146,22 @@ module fe_nonlinear_operator_names
      procedure          :: get_matrix                  => fe_nonlinear_operator_get_matrix
      procedure          :: get_translation             => fe_nonlinear_operator_get_translation
      procedure          :: get_fe_space                => fe_nonlinear_operator_get_fe_space
+     procedure          :: get_trial_fe_space          => fe_nonlinear_operator_get_trial_fe_space
      procedure          :: get_discrete_integration    => fe_nonlinear_operator_get_discrete_integration
      procedure          :: get_domain_vector_space     => fe_nonlinear_operator_get_domain_vector_space
      procedure          :: get_range_vector_space      => fe_nonlinear_operator_get_range_vector_space
-
-     procedure          :: abort_if_not_in_range       => fe_nonlinear_operator_abort_if_not_in_range
+	 
+	 procedure :: get_state                             => fe_nonlinear_operator_get_state
+	 procedure :: get_diagonal_blocks_symmetric_storage => fe_nonlinear_operator_get_diagonal_blocks_symmetric_storage
+	 procedure :: get_diagonal_blocks_symmetric         => fe_nonlinear_operator_get_diagonal_blocks_symmetric
+	 procedure :: get_diagonal_blocks_sign              => fe_nonlinear_operator_get_diagonal_blocks_sign
+     procedure :: get_sparse_matrix_storage_format      => fe_nonlinear_operator_get_sparse_matrix_storage_format 
+     procedure :: get_assembler                         => fe_nonlinear_operator_get_assembler        
+	 
+     procedure          :: set_state                   => fe_nonlinear_operator_set_state
+	 procedure          :: copy                        => fe_nonlinear_operator_copy
+     procedure          :: compress_assembler          => fe_nonlinear_operator_compress_assembler
+	 procedure          :: abort_if_not_in_range       => fe_nonlinear_operator_abort_if_not_in_range
      procedure          :: abort_if_not_in_domain      => fe_nonlinear_operator_abort_if_not_in_domain
 
      procedure, private :: create_serial_assembler     => fe_nonlinear_operator_create_serial_assembler

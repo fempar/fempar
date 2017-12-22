@@ -126,15 +126,24 @@ module time_stepping_names
   type, extends(fe_nonlinear_operator_t) :: time_stepping_stage_fe_operator_t
      private
      type(time_stepping_operator_t), pointer :: ts_op 
+	 class(fe_nonlinear_operator_t), pointer :: fe_op
+	 class(fe_nonlinear_operator_t), pointer :: mass_op
      integer(ip) :: i
      integer(ip) :: j
    contains
-     end type time_stepping_stage_fe_operator_t
+     procedure :: set_row => time_stepping_stage_fe_operator_set_row
+	 procedure :: create_from_operators => time_stepping_stage_fe_operator_create_from_operators
+	 procedure :: free => time_stepping_stage_fe_operator_free
+	 procedure :: set_evaluation_point => time_stepping_stage_fe_operator_set_evaluation_point
+	 procedure :: is_linear => time_stepping_stage_fe_operator_is_linear
+	 procedure :: compute_residual => time_stepping_stage_fe_operator_compute_residual
+	 procedure :: compute_tangent => time_stepping_stage_fe_operator_compute_tangent
+  end type time_stepping_stage_fe_operator_t
   type:: time_stepping_operator_t ! , extends(operator_t) commented for the moment,
                                   ! no implicit RK implemented yet
      private
      ! sbadia: can we put here just the stage block
-     type(time_stepping_stage_fe_operator_t)           :: fe_op
+     type(time_stepping_stage_fe_operator_t)            :: fe_op
      type(butcher_tableau_t)                            :: scheme
      class(vector_t)                          , pointer :: initial_value => NULL()
      real(rp)                                           :: dt
@@ -180,5 +189,6 @@ module time_stepping_names
   
 #include "sbm_time_stepping_operator.i90"
 #include "sbm_butcher_tableau.i90"
+#include "sbm_time_stepping_stage_fe_operator.i90"
   
 end module time_stepping_names
