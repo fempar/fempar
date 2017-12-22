@@ -1,0 +1,111 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+subroutine time_stepping_operator_set_up_operators_and_scheme(this, fe_op, mass_op, scheme_type)
+  class(time_stepping_operator_t),         intent(inout) :: this
+  class(fe_nonlinear_operator_t) , target, intent(in)    :: fe_op, mass_op
+  character(len=*)                       , intent(in)    :: scheme_type
+  call this%scheme%create(scheme_type)
+  ! sbadia to be uncommented when ready stage operator
+  !call this%fe_op%create_from_operators(this,fe_op,mass_op)
+end subroutine time_stepping_operator_set_up_operators_and_scheme
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_set_initial_data( this, x0 )
+  class(time_stepping_operator_t), intent(inout) :: this
+  class(vector_t), target        , intent(in)    :: x0
+  this%initial_value => x0
+  ! check compatible w/ fe_op vector space
+  call this%fe_op%abort_if_not_in_domain(x0)
+  call this%allocate_dofs_stages()
+end subroutine time_stepping_operator_set_initial_data
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_set_time_step_size( this, dt )
+  class(time_stepping_operator_t), intent(inout) :: this
+  integer(ip), intent(in)    :: dt
+  this%dt = dt
+end subroutine time_stepping_operator_set_time_step_size
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_allocate_dofs_stages( this )
+  class(time_stepping_operator_t), intent(inout) :: this
+  integer(ip) :: i, istat
+  allocate ( this%dofs_stages(this%scheme%num_stages), mold = this%initial_value, stat = istat ); check(istat==0)
+  do i = 1, this%scheme%num_stages
+     call this%dofs_stages(i)%clone(this%initial_value)
+  end do
+end subroutine time_stepping_operator_allocate_dofs_stages
+!!$
+!!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+!!$!subroutine time_stepping_operator_apply_row( this, i, x, y )
+!!$!  class(time_stepping_operator_t), intent(inout) :: this
+!!$!  integer(ip)                    , intent(in)    :: i
+!!$!  class(vector_t)          , intent(in)    :: x
+!!$!  class(vector_t)                , intent(inout) :: y
+!!$!  ! sbadia : We should set the time in the nonlinear operator too for variable body force / bc's
+!!$!  call this%set_evaluation_point_row(x,i)
+!!$!  call this%fe_op%compute_residual()
+!!$!  ! Here we should provide also the trial fe space
+!!$!end subroutine time_stepping_operator_apply_row
+!!$
+!!$! Compute  \partial R*_i / \partial v_j = M  \delta_ij
+!!$!                 + \partial A / \partial v * a_ij
+!!$!subroutine time_stepping_operator_compute_tangent_block( this, tangent, mass, i, j )
+!!$!  class(time_stepping_operator_t), intent(inout) :: this
+!!$!  integer(ip)                    , intent(in)    :: i, j
+!!$!  class(lvalue_operator_t)       , intent(inout) :: tangent
+!!$!  class(matrix_t)                , intent(inout) :: mass
+!!$!  !call this%set_evaluation_point_row(x,i)
+!!$!  this%fe_operator%compute_tangent()
+!!$!  ! sbadia : error, get_tangent not a matrix but lvalue operator
+!!$!  tangent = this%fe_operator%get_tangent() * ( dt * this%scheme%a(i,j) )
+!!$!  if ( i == j ) then
+!!$!     ! only when needed probably based on vector spaces compatibility
+!!$!     call this%compute_mass_matrix()
+!!$!     tangent = tangent + this%mass%get_matrix()
+!!$!  end if
+!!$!end subroutine time_stepping_operator_compute_tangent_block
+!!$
+!!$!subroutine time_stepping_operator_compute_mass_matrix( this )
+!!$!  class(time_stepping_operator_t), intent(inout) :: this
+!!$!  call this%mass_integration%integrate( this%fe_op%get_fe_space(), this%mass )
+!!$!end subroutine time_stepping_operator_compute_mass_matrix
+!!$
+!!$!subroutine time_stepping_operator_set_evaluation_point_row( this, y, i )
+!!$!  class(time_stepping_operator_t), intent(inout) :: this
+!!$!  integer(ip)                    , intent(in)    :: i
+!!$!  class(vector_t)                , intent(in)    :: y
+!!$!  class(vector_t)  :: aux
+!!$!  integer(ip) :: j
+!!$!  this%dofs_stages(i) = y
+!!$!  aux = this%initial_value
+!!$!  do j = 1, this%scheme%stages
+!!$!     if ( this%scheme%a(i,j) /= 0.0_rp ) aux = aux + this%dofs_stages(j)*this%scheme%a(i,j)
+!!$!  end do
+!!$!  call this%fe_op%set_evaluation_point(aux)
+!!$!end subroutine time_stepping_operator_set_evaluation_point_row

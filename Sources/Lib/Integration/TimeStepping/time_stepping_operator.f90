@@ -65,7 +65,7 @@ module time_stepping_names
 
   character(:), parameter :: forward_euler  = "forward_euler"
   character(:), parameter :: backward_euler = "backward_euler"
-  character(:), parameter :: crank_nicolson = "crank_nicolson"
+  character(:), parameter :: trapezoidal_rule = "trapezoidal_rule"
 
   ! states to be defined
   integer(ip), parameter :: created             = 0
@@ -118,7 +118,9 @@ module time_stepping_names
      real(rp)    , allocatable :: b(:)
      real(rp)    , allocatable :: c(:)
    contains
-     !procedure :: create => time_stepping_scheme_create
+     procedure          :: create          => butcher_tableau_create
+	 procedure, private :: allocate_arrays => butcher_tableau_allocate_arrays  
+	 procedure          :: free            => butcher_tableau_free
   end type butcher_tableau_t
   
   type, extends(fe_nonlinear_operator_t) :: time_stepping_stage_fe_operator_t
@@ -127,8 +129,7 @@ module time_stepping_names
      integer(ip) :: i
      integer(ip) :: j
    contains
-     
-  end type time_stepping_stage_fe_operator_t
+     end type time_stepping_stage_fe_operator_t
   type:: time_stepping_operator_t ! , extends(operator_t) commented for the moment,
                                   ! no implicit RK implemented yet
      private
@@ -147,10 +148,10 @@ module time_stepping_names
      !class(assembler_t)                   , allocatable :: assembler
      !type(block_vector_t)                               :: dofs_stages_block_vector
    contains
-     !procedure :: create_from_operators => time_stepping_operator_create_from_operators
-     !procedure :: set_initial_data      => time_stepping_operator_set_initial_data
-     !procedure :: set_time_step_size    => time_stepping_operator_set_time_step_size     
-     !procedure, private :: allocate_dofs_stages      => time_stepping_operator_allocate_dofs_stages
+     procedure :: set_up_operators_and_scheme => time_stepping_operator_set_up_operators_and_scheme
+     procedure :: set_initial_data            => time_stepping_operator_set_initial_data
+     procedure :: set_time_step_size          => time_stepping_operator_set_time_step_size     
+     procedure, private :: allocate_dofs_stages      => time_stepping_operator_allocate_dofs_stages
      !!!procedure :: create             => time_stepping_operator_create
      ! sbadia: It must be defined since it is an operator, but for the moment
      !!! we do not want to use it. Dummy implementation...
@@ -172,10 +173,12 @@ module time_stepping_names
      type(nonlinear_solver_t) :: nl_solver
    contains
   end type dirk_time_stepping_solver_t
-
-
-  
   
   public :: time_stepping_operator_t, dirk_time_stepping_solver_t
-
+  
+  contains
+  
+#include "sbm_time_stepping_operator.i90"
+#include "sbm_butcher_tableau.i90"
+  
 end module time_stepping_names

@@ -1,0 +1,162 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine scale_add_fe_operator_scale_add_create (this,   &
+                                          op1,   &
+                                          op2,   &
+                                          alpha )
+  implicit none
+  class(scale_add_fe_operator_t)             , intent(inout) :: this
+  class(fe_nonlinear_operator_t), target    , intent(in)    :: op1
+  class(fe_nonlinear_operator_t), target    , intent(in)    :: op2
+  integer(ip)                               , intent(in)    :: alpha
+  integer(ip) :: istat
+
+  call this%free()
+
+  ! sbadia: Here some compatiblity checks between op1 and op2
+  this%op1 => op1
+  this%op2 => op2
+  this%alpha = alpha
+  !this%beta = beta
+  
+  assert(.not. associated(this%state)) ! Equivalent to: "assert ( this%state == start )"
+  allocate(this%state, stat=istat); check(istat==0);
+  
+  ! sbadia: sthg more clever than just take it from op1
+  this%sparse_matrix_storage_format = op1%sparse_matrix_storage_format
+  call memalloc ( size(op1%diagonal_blocks_symmetric_storage), this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
+  this%diagonal_blocks_symmetric_storage = op1%diagonal_blocks_symmetric_storage
+  call memalloc ( size(op1%diagonal_blocks_symmetric), this%diagonal_blocks_symmetric, __FILE__, __LINE__ ) 
+  this%diagonal_blocks_symmetric = op1%diagonal_blocks_symmetric
+  call memalloc ( size(op1%diagonal_blocks_sign), this%diagonal_blocks_sign, __FILE__, __LINE__ ) 
+  this%diagonal_blocks_sign = op1%diagonal_blocks_sign
+  this%test_fe_space                => op1%test_fe_space
+  this%discrete_integration         => op1%discrete_integration
+  this%trial_fe_space => op1%trial_fe_space
+  call this%reallocate_after_remesh()
+end subroutine scale_add_fe_operator_scale_add_create
+
+subroutine scale_add_fe_operator_free(this)
+  implicit none
+  class(scale_add_fe_operator_t), intent(inout) :: this
+  integer(ip) :: istat
+  call this%fe_nonlinear_operator_t%free()
+  if (associated (this%state)) then
+     nullify(this%op1)
+     nullify(this%op2)
+  end if
+end subroutine scale_add_fe_operator_free
+
+subroutine scale_add_fe_operator_set_evaluation_point(this,x) 
+  implicit none
+  class(scale_add_fe_operator_t), intent(in)    :: this
+  class(vector_t) , intent(in)    :: x
+  call x%GuardTemp()
+  call this%op1%discrete_integration%set_evaluation_point(x)
+  call this%op2%discrete_integration%set_evaluation_point(x)
+  this%state = created
+  call this%assembler%init_array(0.0_rp)  
+  call this%assembler%init_matrix(0.0_rp)
+  call x%CleanTemp()
+end subroutine scale_add_fe_operator_set_evaluation_point
+
+function scale_add_fe_operator_is_linear(this)
+  implicit none
+  class(scale_add_fe_operator_t), intent(in) :: this
+  logical :: scale_add_fe_operator_is_linear
+  scale_add_fe_operator_is_linear = &
+     ( this%op1%is_linear() .and. this%op2%is_linear() )
+end function scale_add_fe_operator_is_linear
+
+subroutine scale_add_fe_operator_compute_residual(this)
+  implicit none
+  class(scale_add_fe_operator_t), intent(in) :: this
+  class(environment_t), pointer :: environment
+  environment => this%test_fe_space%get_environment()
+
+  assert ( associated(this%state)  )
+
+
+  if ( .not. ( this%state == residual_computed .or. this%state == assembler_computed ) ) then
+     if ( environment%am_i_l1_task() ) then
+        if ( associated(this%trial_fe_space) ) then
+           call this%op1%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
+           ! sbadia: scal arrays of assembler assembler%get_matrix()*alpha
+		   call this%op2%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
+        else
+           call this%op1%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
+		   ! sbadia: scal arrays of assembler assembler%get_array()*alpha
+           call this%op2%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
+        end if
+     end if
+
+     if (this%state == tangent_computed) then
+        this%state = assembler_computed
+     else ! created
+        assert ( this%state == created )
+        this%state = residual_computed
+     end if
+  end if
+  
+end subroutine scale_add_fe_operator_compute_residual
+
+subroutine scale_add_fe_operator_compute_tangent(this)
+  implicit none
+  class(scale_add_fe_operator_t), intent(inout) :: this
+  class(environment_t), pointer :: environment
+  environment => this%test_fe_space%get_environment()
+
+  assert ( associated(this%state)  )
+
+  if ( .not. ( this%state == tangent_computed .or. this%state == assembler_computed ) ) then
+     if ( environment%am_i_l1_task() ) then
+        if ( associated(this%trial_fe_space) ) then
+           call this%op1%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
+		   call this%op2%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
+        else
+           call this%op1%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
+		   call this%op2%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
+        end if
+     end if
+     call this%assembler%compress_storage(this%sparse_matrix_storage_format)
+     if (this%state == residual_computed) then
+        this%state = assembler_computed
+     else ! created
+        assert ( this%state == created )
+        this%state = tangent_computed
+     end if
+  end if
+end subroutine scale_add_fe_operator_compute_tangent
+
+subroutine scale_add_fe_operator_set_scalars(this,alpha)!,beta)
+  implicit none
+  class(scale_add_fe_operator_t), intent(inout) :: this
+  integer(ip)                  , intent(in)    :: alpha!, beta
+  this%alpha = alpha!; this%beta = beta
+end subroutine scale_add_fe_operator_set_scalars
+
