@@ -341,6 +341,7 @@ void F90_p4est_get_mesh_info (p4est_t        *p4est,
                               p4est_gloidx_t *global_first_quadrant,
                               p4est_locidx_t *num_half_faces)
 {
+    int i;
     SC_CHECK_ABORTF (mesh->local_num_quadrants == p4est->local_num_quadrants,
                      "mesh->local_num_quadrants [%d] and p4est->local_num_quadrants mismatch [%d]!",
                      mesh->local_num_quadrants,  p4est->local_num_quadrants);
@@ -352,7 +353,7 @@ void F90_p4est_get_mesh_info (p4est_t        *p4est,
     *ghost_num_quadrants   = mesh->ghost_num_quadrants;
     *global_num_quadrants  = p4est->global_num_quadrants;
     
-    for ( int i=0; i <= p4est->mpisize; i++ ) 
+    for (i=0; i <= p4est->mpisize; i++ ) 
     {
       global_first_quadrant[i] = p4est->global_first_quadrant[i];
     }
@@ -367,6 +368,7 @@ void F90_p8est_get_mesh_info (p8est_t        *p8est,
                               p4est_gloidx_t *global_first_quadrant,
                               p4est_locidx_t *num_half_faces)
 {
+    int i;
     SC_CHECK_ABORTF (mesh->local_num_quadrants == p8est->local_num_quadrants,
                      "mesh->local_num_quadrants [%d] and p8est->local_num_quadrants mismatch [%d]!",
                      mesh->local_num_quadrants,  p8est->local_num_quadrants); 
@@ -377,7 +379,7 @@ void F90_p8est_get_mesh_info (p8est_t        *p8est,
     *local_num_quadrants   = p8est->local_num_quadrants;
     *ghost_num_quadrants   = mesh->ghost_num_quadrants;
     *global_num_quadrants  = p8est->global_num_quadrants;
-    for ( int i=0; i <= p8est->mpisize; i++ ) 
+    for (i=0; i <= p8est->mpisize; i++ ) 
     {
       global_first_quadrant[i] = p8est->global_first_quadrant[i];
     }
@@ -446,6 +448,7 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
   p8est_quadrant_t   *q;
   sc_array_t         *quadrants;
   edge_info_t edge_info;
+  int i;
   
   // Extract a reference to the first (and uniquely allowed) tree
   tree = p8est_tree_array_index (p8est->trees,0);
@@ -460,7 +463,7 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
   }
 
   // Extract the neighbor info for edges. Initialize it to -1 (like in quad_to_corner)
-  for(int i=0;i<12*(mesh->local_num_quadrants);i++)
+  for(i=0;i<12*(mesh->local_num_quadrants);i++)
   {
     quad_to_quad_by_edge[i] = -1;
     quad_to_edge[i] = -1;
@@ -503,13 +506,13 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
   int8_t         *quad_to_edge;
   p4est_locidx_t *quad_to_half_by_edge;
 
-  int k;
+  int k,i,j;
   p4est_locidx_t ineig[4], jneig[4];
   int8_t ineig_iedge[4], jneig_jedge[4];
   int8_t i_is_ghost[4], j_is_ghost[4];
   
-  for(int i=0;i<2;i++) ineig[i]   = -1;
-  for(int i=0;i<2;i++) jneig[i]   = -1;
+  for(i=0;i<2;i++) ineig[i]   = -1;
+  for(i=0;i<2;i++) jneig[i]   = -1;
 
   P4EST_ASSERT( (info->sides.elem_count) <= 4 );
 
@@ -523,7 +526,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
   // First treat boundary edges
   if ( info->sides.elem_count == 1 || info->sides.elem_count == 2 )
   {
-      for(int i=0;i<(info->sides.elem_count);i++)
+      for(i=0;i<(info->sides.elem_count);i++)
       {
           if (cells_around[i].is_hanging)
           {
@@ -561,7 +564,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
   }
   
   k=0;
-  for(int i=0;i<(info->sides.elem_count);i++)
+  for(i=0;i<(info->sides.elem_count);i++)
   {
     if (cells_around[i].is_hanging)
     {
@@ -581,7 +584,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
       if ( i_is_ghost[2*k] ) ineig[2*k]   += edge_info->local_num_quadrants;
     } 
 
-    for(int j=i;j<(info->sides.elem_count);j++)
+    for(j=i;j<(info->sides.elem_count);j++)
     {
         if ( (cells_around[i].faces[0] != cells_around[j].faces[0]) &&
              (cells_around[i].faces[0] != cells_around[j].faces[1]) &&
@@ -872,6 +875,7 @@ void F90_p4est_update_refinement_and_coarsening_flags(p4est_t * p4est_old, p4est
     int                new_quadrant_index;
     
     int * user_pointer;
+    int i;
    
     P4EST_ASSERT(p4est_old->user_pointer == p4est_new->user_pointer);
     
@@ -903,7 +907,7 @@ void F90_p4est_update_refinement_and_coarsening_flags(p4est_t * p4est_old, p4est
        }
        else if ( p4est_quadrant_is_parent(q_new,q_old) ) //q_old and its siblings were coarsened 
        {
-           for (int i=0; i < P4EST_CHILDREN; i++)
+           for (i=0; i < P4EST_CHILDREN; i++)
            {
                user_pointer[old_quadrant_index] = FEMPAR_coarsening_flag;
                old_quadrant_index++;
@@ -930,6 +934,7 @@ void F90_p8est_update_refinement_and_coarsening_flags(p8est_t * p8est_old, p8est
     int                new_quadrant_index;
     
     int * user_pointer;
+    int i;
    
     P4EST_ASSERT(p8est_old->user_pointer == p8est_new->user_pointer);
     
@@ -961,7 +966,7 @@ void F90_p8est_update_refinement_and_coarsening_flags(p8est_t * p8est_old, p8est
        }
        else if ( p8est_quadrant_is_parent(q_new,q_old) ) //q_old and its siblings were coarsened 
        {
-           for (int i=0; i < P8EST_CHILDREN; i++)
+           for (i=0; i < P8EST_CHILDREN; i++)
            {
                user_pointer[old_quadrant_index] = FEMPAR_coarsening_flag;
                old_quadrant_index++;
@@ -1171,9 +1176,10 @@ void F90_p4est_fill_ghost_procs ( p4est_ghost_t  * p4est_ghost,
                                   p4est_locidx_t * ghost_procs )
                                    
 {
-  for (int i=0; i < p4est_ghost->mpisize; i++)
+  int i,j;  
+  for (i=0; i < p4est_ghost->mpisize; i++)
   {
-    for (int j=p4est_ghost->proc_offsets[i]; j<p4est_ghost->proc_offsets[i+1]; j++)
+    for (j=p4est_ghost->proc_offsets[i]; j<p4est_ghost->proc_offsets[i+1]; j++)
     {
        ghost_procs[j] = i+1;
     }
@@ -1184,9 +1190,10 @@ void F90_p8est_fill_ghost_procs ( p8est_ghost_t  * p8est_ghost,
                                   p4est_locidx_t * ghost_procs )
 
 {
-    for (int i=0; i < p8est_ghost->mpisize; i++)
+    int i,j;  
+    for (i=0; i < p8est_ghost->mpisize; i++)
     {
-        for (int j=p8est_ghost->proc_offsets[i]; j<p8est_ghost->proc_offsets[i+1]; j++)
+        for (j=p8est_ghost->proc_offsets[i]; j<p8est_ghost->proc_offsets[i+1]; j++)
         {
             ghost_procs[j] = i+1;
         }
@@ -1197,10 +1204,11 @@ void F90_p4est_fill_ghost_ggids( p4est_ghost_t  * p4est_ghost,
                                  p4est_gloidx_t * first_global_quadrant,
                                  p4est_gloidx_t * ghost_ggids )
 {
+    int i,j;  
     p4est_quadrant_t * ghost_quadrants = (p4est_quadrant_t *) p4est_ghost->ghosts.array;
-    for (int i=0; i < p4est_ghost->mpisize; i++)
+    for (i=0; i < p4est_ghost->mpisize; i++)
     {
-        for (int j=p4est_ghost->proc_offsets[i]; j<p4est_ghost->proc_offsets[i+1]; j++)
+        for (j=p4est_ghost->proc_offsets[i]; j<p4est_ghost->proc_offsets[i+1]; j++)
         {
             ghost_ggids[j] = first_global_quadrant[i] + (p4est_gloidx_t) (ghost_quadrants[j].p.piggy3.local_num+1) ;
         }
@@ -1211,10 +1219,11 @@ void F90_p8est_fill_ghost_ggids( p8est_ghost_t  * p8est_ghost,
                                  p4est_gloidx_t * first_global_quadrant,
                                  p4est_gloidx_t * ghost_ggids )
 {
+    int i,j;  
     p8est_quadrant_t * ghost_quadrants = (p8est_quadrant_t *) p8est_ghost->ghosts.array;
-    for (int i=0; i < p8est_ghost->mpisize; i++)
+    for (i=0; i < p8est_ghost->mpisize; i++)
     {
-        for (int j=p8est_ghost->proc_offsets[i]; j<p8est_ghost->proc_offsets[i+1]; j++)
+        for (j=p8est_ghost->proc_offsets[i]; j<p8est_ghost->proc_offsets[i+1]; j++)
         {
             ghost_ggids[j] = first_global_quadrant[i] + (p4est_gloidx_t) (ghost_quadrants[j].p.piggy3.local_num+1) ;
         }
