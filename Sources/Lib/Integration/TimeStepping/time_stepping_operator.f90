@@ -55,6 +55,9 @@ module time_stepping_names
   use direct_solver_names
   use block_layout_names
 
+  use fe_nonlinear_operator_names
+  use nonlinear_solver_names
+  
   implicit none
 # include "debug.i90"
 
@@ -99,13 +102,39 @@ module time_stepping_names
 
   ! sbadia: I must provide a method to get the solution
   ! u_1 =  u_0 + \sum_{i=1}^s b_i v_i = 0.
+  
+  
+  ! This operator represents the operator R_ij = R_i(x,x,v_j,x,x),
+  ! where the x denotes that the unknown is fixed. It requires to add
+  ! contributions from the nonlinear operator A and mass matrix M as
+  ! alpha*A + beta*M
 
+    type :: butcher_tableau_t
+     private
+     integer(ip) :: time_integrator
+     integer(ip) :: order
+     integer(ip) :: num_stages
+     real(rp)    , allocatable :: a(:,:)
+     real(rp)    , allocatable :: b(:)
+     real(rp)    , allocatable :: c(:)
+   contains
+     !procedure :: create => time_stepping_scheme_create
+  end type butcher_tableau_t
+  
+  type, extends(fe_nonlinear_operator_t) :: time_stepping_stage_fe_operator_t
+     private
+     type(time_stepping_operator_t), pointer :: ts_op 
+     integer(ip) :: i
+     integer(ip) :: j
+   contains
+     
+  end type time_stepping_stage_fe_operator_t
   type:: time_stepping_operator_t ! , extends(operator_t) commented for the moment,
                                   ! no implicit RK implemented yet
      private
      ! sbadia: can we put here just the stage block
-     class(time_stepping_stage_fe_operator_t)           :: fe_op
-     type(time_stepping_scheme_t)                       :: scheme
+     type(time_stepping_stage_fe_operator_t)           :: fe_op
+     type(butcher_tableau_t)                            :: scheme
      class(vector_t)                          , pointer :: initial_value => NULL()
      real(rp)                                           :: dt
      class(vector_t)                      , allocatable :: dofs_stages(:)
@@ -134,38 +163,17 @@ module time_stepping_names
      !!!procedure, private :: set_evaluation_point_row  => time_stepping_operator_set_evaluation_point_row	 
   end type time_stepping_operator_t
   
-  ! This operator represents the operator R_ij = R_i(x,x,v_j,x,x),
-  ! where the x denotes that the unknown is fixed. It requires to add
-  ! contributions from the nonlinear operator A and mass matrix M as
-  ! alpha*A + beta*M
-  type, extends(operator_t) :: time_stepping_operator_stage_t
-     private
-     type(time_stepping_operator_t), pointer :: ts_op 
-     integer(ip) :: i
-     integer(ip) :: j
-   contains
-     
-  end type time_stepping_operator_stage_t
+
   
   type :: dirk_time_stepping_solver_t
      private
      type(time_stepping_operator_t) :: op
-     type(time_stepping_operator_block_t) :: op_block
+     type(time_stepping_stage_fe_operator_t) :: op_block
      type(nonlinear_solver_t) :: nl_solver
    contains
   end type dirk_time_stepping_solver_t
 
-  type :: time_stepping_scheme_t
-     private
-     integer(ip) :: time_integrator
-     integer(ip) :: order
-     integer(ip) :: num_stages
-     real(rp)    , allocatable :: a(:,:)
-     real(rp)    , allocatable :: b(:)
-     real(rp)    , allocatable :: c(:)
-   contains
-     !procedure :: create => time_stepping_scheme_create
-  end type time_stepping_scheme_t
+
   
   
   public :: time_stepping_operator_t, dirk_time_stepping_solver_t

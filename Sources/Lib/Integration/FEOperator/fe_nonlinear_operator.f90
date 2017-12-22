@@ -170,7 +170,7 @@ contains
   procedure          :: get_matrix                  => fe_affine_operator_get_matrix
 end type fe_affine_operator_t
 
-type, extends(fe_nonlinear_operator_t) :: scal_add_fe_operator_t
+type, extends(fe_nonlinear_operator_t) :: scale_add_fe_operator_t
   ! This operator represents alpha*A+B, given the fe_nonlinear_operator_t's A and B
   ! and scalars alpha and beta
   private
@@ -179,22 +179,22 @@ type, extends(fe_nonlinear_operator_t) :: scal_add_fe_operator_t
      integer(ip)                             :: alpha         ! alpha
      
 contains
-  !procedure          :: create                      => scal_add_fe_operator_create
-  procedure          :: free                        => scal_add_fe_operator_free
-  procedure          :: set_evaluation_point        => scal_add_fe_operator_set_evaluation_point  
+  !procedure          :: create                      => scale_add_fe_operator_create
+  procedure          :: free                        => scale_add_fe_operator_free
+  procedure          :: set_evaluation_point        => scale_add_fe_operator_set_evaluation_point  
 
-  procedure          :: compute_tangent             => scal_add_fe_operator_compute_tangent
-  procedure          :: compute_residual            => scal_add_fe_operator_compute_residual  
+  procedure          :: compute_tangent             => scale_add_fe_operator_compute_tangent
+  procedure          :: compute_residual            => scale_add_fe_operator_compute_residual  
 
-  procedure          :: is_linear                   => scal_add_fe_operator_is_linear
+  procedure          :: is_linear                   => scale_add_fe_operator_is_linear
 	 
-  procedure          :: scal_add_create             => scal_add_fe_operator_scal_add_create
-  procedure          :: set_scalars                 => scal_add_fe_operator_set_scalars
-end type scal_add_fe_operator_t
+  procedure          :: scale_add_create             => scale_add_fe_operator_scale_add_create
+  procedure          :: set_scalars                 => scale_add_fe_operator_set_scalars
+end type scale_add_fe_operator_t
 
 
   ! Types
-  public :: fe_nonlinear_operator_t, fe_affine_operator_t, scal_add_fe_operator_t
+  public :: fe_nonlinear_operator_t, fe_affine_operator_t, scale_add_fe_operator_t
 
 contains
 
