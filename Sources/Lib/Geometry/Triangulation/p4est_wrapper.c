@@ -506,7 +506,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
   int8_t         *quad_to_edge;
   p4est_locidx_t *quad_to_half_by_edge;
 
-  int k,i;
+  int k,i,j;
   p4est_locidx_t ineig[4], jneig[4];
   int8_t ineig_iedge[4], jneig_jedge[4];
   int8_t i_is_ghost[4], j_is_ghost[4];
