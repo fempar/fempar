@@ -161,6 +161,7 @@ module time_stepping_names
      procedure :: set_initial_data            => time_stepping_operator_set_initial_data
      procedure :: set_time_step_size          => time_stepping_operator_set_time_step_size     
      procedure, private :: allocate_dofs_stages      => time_stepping_operator_allocate_dofs_stages
+	 procedure, private  :: get_stage_operator => time_stepping_operator_get_stage_operator
      !!!procedure :: create             => time_stepping_operator_create
      ! sbadia: It must be defined since it is an operator, but for the moment
      !!! we do not want to use it. Dummy implementation...
@@ -175,20 +176,22 @@ module time_stepping_names
   
 
   
-  type :: dirk_time_stepping_solver_t
+  type :: dirk_solver_t
      private
-     type(time_stepping_operator_t) :: op
-     type(time_stepping_stage_fe_operator_t) :: op_block
-     type(nonlinear_solver_t) :: nl_solver
+     type(time_stepping_operator_t), pointer :: ts_op
+     type(nonlinear_solver_t), pointer :: nl_solver
    contains
-  end type dirk_time_stepping_solver_t
+	 procedure :: create => dirk_solver_create
+     procedure :: apply => dirk_solver_apply
+   end type dirk_solver_t
   
-  public :: time_stepping_operator_t, dirk_time_stepping_solver_t
+  public :: time_stepping_operator_t, dirk_solver_t
   
   contains
   
 #include "sbm_time_stepping_operator.i90"
 #include "sbm_butcher_tableau.i90"
 #include "sbm_time_stepping_stage_fe_operator.i90"
+#include "sbm_dirk_solver.i90"
   
 end module time_stepping_names

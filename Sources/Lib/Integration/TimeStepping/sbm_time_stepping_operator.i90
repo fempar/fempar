@@ -26,6 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 subroutine time_stepping_operator_set_up_operators_and_scheme(this, fe_op, mass_op, scheme_type)
+  implicit none
   class(time_stepping_operator_t),         intent(inout) :: this
   class(fe_nonlinear_operator_t) , target, intent(in)    :: fe_op, mass_op
   character(len=*)                       , intent(in)    :: scheme_type
@@ -36,6 +37,7 @@ end subroutine time_stepping_operator_set_up_operators_and_scheme
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 subroutine time_stepping_operator_set_initial_data( this, x0 )
+  implicit none
   class(time_stepping_operator_t), intent(inout) :: this
   class(vector_t), target        , intent(in)    :: x0
   this%initial_value => x0
@@ -46,6 +48,7 @@ end subroutine time_stepping_operator_set_initial_data
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 subroutine time_stepping_operator_set_time_step_size( this, dt )
+  implicit none
   class(time_stepping_operator_t), intent(inout) :: this
   integer(ip), intent(in)    :: dt
   this%dt = dt
@@ -53,6 +56,7 @@ end subroutine time_stepping_operator_set_time_step_size
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 subroutine time_stepping_operator_allocate_dofs_stages( this )
+  implicit none
   class(time_stepping_operator_t), intent(inout) :: this
   integer(ip) :: i, istat
   allocate ( this%dofs_stages(this%scheme%num_stages), mold = this%initial_value, stat = istat ); check(istat==0)
@@ -60,6 +64,16 @@ subroutine time_stepping_operator_allocate_dofs_stages( this )
      call this%dofs_stages(i)%clone(this%initial_value)
   end do
 end subroutine time_stepping_operator_allocate_dofs_stages
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function time_stepping_operator_get_stage_operator( this, i, j )
+  implicit none
+  class(time_stepping_operator_t), target, intent(inout) :: this
+  integer(ip),                     intent(in)    :: i, j
+  type(time_stepping_stage_fe_operator_t), pointer :: time_stepping_operator_get_stage_operator
+  this%fe_op%i = i; this%fe_op%i = j
+  time_stepping_operator_get_stage_operator => this%fe_op
+end function time_stepping_operator_get_stage_operator
 !!$
 !!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 !!$!subroutine time_stepping_operator_apply_row( this, i, x, y )
