@@ -289,7 +289,7 @@ end function fe_nonlinear_operator_get_diagonal_blocks_sign
 function fe_nonlinear_operator_get_sparse_matrix_storage_format(this)
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
-  character(:), allocatable :: fe_nonlinear_operator_get_sparse_matrix_storage_format(:)
+  character(:), allocatable :: fe_nonlinear_operator_get_sparse_matrix_storage_format
   fe_nonlinear_operator_get_sparse_matrix_storage_format = this%sparse_matrix_storage_format
 end function fe_nonlinear_operator_get_sparse_matrix_storage_format
 
