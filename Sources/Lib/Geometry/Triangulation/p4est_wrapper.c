@@ -443,12 +443,11 @@ void F90_p8est_get_mesh_topology_arrays( p8est_t        *p8est,
                                          p4est_qcoord_t *quadcoords,
                                          int8_t         *quadlevel ) 
 {
-  int iquad,iquadloc;
+  int i,iquad,iquadloc;
   p8est_tree_t       *tree;
   p8est_quadrant_t   *q;
   sc_array_t         *quadrants;
   edge_info_t edge_info;
-  int i;
   
   // Extract a reference to the first (and uniquely allowed) tree
   tree = p8est_tree_array_index (p8est->trees,0);
@@ -506,7 +505,7 @@ void edge_callback(p8est_iter_edge_info_t * info, void * user_data)
   int8_t         *quad_to_edge;
   p4est_locidx_t *quad_to_half_by_edge;
 
-  int k,i,j;
+  int i,j,k;
   p4est_locidx_t ineig[4], jneig[4];
   int8_t ineig_iedge[4], jneig_jedge[4];
   int8_t i_is_ghost[4], j_is_ghost[4];
@@ -872,10 +871,9 @@ void F90_p4est_update_refinement_and_coarsening_flags(p4est_t * p4est_old, p4est
     p4est_tree_t       *tree_new;
     p4est_quadrant_t   *q_new;
     sc_array_t         *quadrants_new;
-    int                new_quadrant_index;
+    int                i, new_quadrant_index;
     
     int * user_pointer;
-    int i;
    
     P4EST_ASSERT(p4est_old->user_pointer == p4est_new->user_pointer);
     
@@ -931,10 +929,9 @@ void F90_p8est_update_refinement_and_coarsening_flags(p8est_t * p8est_old, p8est
     p8est_tree_t       *tree_new;
     p8est_quadrant_t   *q_new;
     sc_array_t         *quadrants_new;
-    int                new_quadrant_index;
+    int                i, new_quadrant_index;
     
     int * user_pointer;
-    int i;
    
     P4EST_ASSERT(p8est_old->user_pointer == p8est_new->user_pointer);
     
@@ -1589,12 +1586,13 @@ void F90_p4est_fill_proc_offsets_and_ghost_gids_remote_neighbours( p4est_ghost_t
                                                                    p4est_locidx_t * proc_offsets, 
                                                                    p4est_locidx_t * ghost_gids_remote_neighbours )
 {
+  int i;
     p4est_quadrant_t * ghost_quadrants = (p4est_quadrant_t *) p4est_ghost->ghosts.array;
-    for (int i=0; i < p4est_ghost->ghosts.elem_count; i++)
+    for (i=0; i < p4est_ghost->ghosts.elem_count; i++)
     {
       ghost_gids_remote_neighbours[i] = (ghost_quadrants[i].p.piggy3.local_num+1) ;
     }
-    for (int i=0; i <= p4est_ghost->mpisize; i++)
+    for (i=0; i <= p4est_ghost->mpisize; i++)
     {
         proc_offsets[i] = p4est_ghost->proc_offsets[i]+1; 
     } 
@@ -1604,12 +1602,13 @@ void F90_p8est_fill_proc_offsets_and_ghost_gids_remote_neighbours( p8est_ghost_t
         p4est_locidx_t * proc_offsets, 
         p4est_locidx_t * ghost_gids_remote_neighbours )
 {
+  int i; 
     p8est_quadrant_t * ghost_quadrants = (p8est_quadrant_t *) p8est_ghost->ghosts.array;
-    for (int i=0; i < p8est_ghost->ghosts.elem_count; i++)
+    for (i=0; i < p8est_ghost->ghosts.elem_count; i++)
     {
         ghost_gids_remote_neighbours[i] = (ghost_quadrants[i].p.piggy3.local_num+1) ;
     }
-    for (int i=0; i <= p8est_ghost->mpisize; i++)
+    for (i=0; i <= p8est_ghost->mpisize; i++)
     {
         proc_offsets[i] = p8est_ghost->proc_offsets[i]+1; 
     } 
