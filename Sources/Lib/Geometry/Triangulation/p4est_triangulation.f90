@@ -35,12 +35,14 @@ module p4est_triangulation_names
   use environment_names
   use execution_context_names
   use mpi_context_names
+  use serial_context_names
   use uniform_hex_mesh_generator_names
   use p4est_bindings_names
   use reference_fe_names
   use triangulation_names
   use std_vector_integer_ip_names
   use std_vector_integer_igp_names
+  use std_vector_logical_names
   use field_names
   use cell_import_names
   use std_vector_point_names
@@ -48,7 +50,7 @@ module p4est_triangulation_names
   use hash_table_names
   use mpi
   use allocatable_array_names 
-
+  
   implicit none
 # include "debug.i90"
   private
@@ -456,11 +458,11 @@ module p4est_triangulation_names
     type(std_vector_integer_ip_t)          :: improper_vefs_improper_cell_around_subvef
     type(std_vector_integer_ip_t)          :: proper_vefs_dim
     type(std_vector_integer_ip_t)          :: improper_vefs_dim
-    type(std_vector_integer_ip_t)          :: proper_vefs_at_boundary
-    type(std_vector_integer_ip_t)          :: proper_vefs_at_interface
-    type(std_vector_integer_ip_t)          :: improper_vefs_at_interface
-    type(std_vector_integer_ip_t)          :: proper_vefs_is_ghost
-    type(std_vector_integer_ip_t)          :: improper_vefs_is_ghost
+    type(std_vector_logical_t)             :: proper_vefs_at_boundary
+    type(std_vector_logical_t)             :: proper_vefs_at_interface
+    type(std_vector_logical_t)             :: improper_vefs_at_interface
+    type(std_vector_logical_t)             :: proper_vefs_is_ghost
+    type(std_vector_logical_t)             :: improper_vefs_is_ghost
     type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
     type(std_vector_integer_ip_t)          :: cell_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
