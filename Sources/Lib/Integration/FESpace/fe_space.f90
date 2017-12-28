@@ -509,7 +509,7 @@ module fe_space_names
      type(std_vector_logical_t)    , allocatable :: has_hanging_dofs_x_fe(:)
      
      ! Descriptor of the block layout selected for the PDE system at hand
-     type(block_layout_t)              , pointer :: block_layout  => NULL()
+     type(block_layout_t)                        :: block_layout
      
      ! ( Polymorphic ) pointer to a triangulation it was created from
      class(triangulation_t)            , pointer :: triangulation => NULL()
@@ -587,17 +587,17 @@ module fe_space_names
      procedure, non_overridable, private :: compute_facet_permutation_indices             => serial_fe_space_compute_facet_permutation_indices
      procedure, non_overridable, private :: free_facet_permutation_indices                => serial_fe_space_free_facet_permutation_indices
      
-     procedure, non_overridable          :: set_up_facet_integration               => serial_fe_space_set_up_facet_integration
-     procedure, non_overridable, private :: free_facet_integration                     => serial_fe_space_free_facet_integration
-     procedure, non_overridable, private :: generate_facet_quadratures_position_key    => serial_fe_space_facet_quadratures_position_key
-     procedure, non_overridable, private :: generate_facet_integrators_position_key    => serial_fe_space_facet_integrators_position_key
+     procedure, non_overridable          :: set_up_facet_integration                 => serial_fe_space_set_up_facet_integration
+     procedure, non_overridable, private :: free_facet_integration                   => serial_fe_space_free_facet_integration
+     procedure, non_overridable, private :: generate_facet_quadratures_position_key  => serial_fe_space_facet_quadratures_position_key
+     procedure, non_overridable, private :: generate_facet_integrators_position_key  => serial_fe_space_facet_integrators_position_key
 
-     procedure                           :: create_dof_values                            => serial_fe_space_create_dof_values
-     procedure                           :: generate_global_dof_numbering              => serial_fe_space_generate_global_dof_numbering
-     procedure                           :: allocate_num_dofs_x_field               =>  serial_fe_space_allocate_num_dofs_x_field
-     procedure                 , private :: count_dofs                                   => serial_fe_space_count_dofs
-     procedure                 , private :: list_dofs                                    => serial_fe_space_list_dofs
-     procedure                 , private :: renum_dofs_block                          => serial_fe_space_renum_dofs_block
+     procedure                           :: create_dof_values                        => serial_fe_space_create_dof_values
+     procedure                           :: generate_global_dof_numbering            => serial_fe_space_generate_global_dof_numbering
+     procedure                           :: allocate_num_dofs_x_field                =>  serial_fe_space_allocate_num_dofs_x_field
+     procedure                 , private :: count_dofs                               => serial_fe_space_count_dofs
+     procedure                 , private :: list_dofs                                => serial_fe_space_list_dofs
+     procedure                 , private :: renum_dofs_block                         => serial_fe_space_renum_dofs_block
  
      ! Getters
      procedure                           :: get_num_dims                           => serial_fe_space_get_num_dims
@@ -625,9 +625,6 @@ module fe_space_names
      procedure                           :: get_block_num_dofs                        => serial_fe_space_get_block_num_dofs
      procedure                           :: set_block_num_dofs                        => serial_fe_space_set_block_num_dofs
      procedure, non_overridable          :: get_block_layout                             => serial_fe_space_get_block_layout
-     procedure, non_overridable          :: set_block_layout                             => serial_fe_space_set_block_layout
-     procedure, non_overridable          :: nullify_block_layout                         => serial_fe_space_nullify_block_layout
-     
      
      ! fes, fe_vefs and fe_faces traversals-related TBPs
      procedure                           :: create_fe_cell_iterator                           => serial_fe_space_create_fe_cell_iterator
@@ -909,7 +906,7 @@ module fe_space_names
   
   type, extends(standard_l1_coarse_fe_handler_t) :: H1_l1_coarse_fe_handler_t
     private
-    real(rp), public :: diffusion_inclusion
+    real(rp), public :: diffusion_inclusion = 1.0_rp
   contains
 	   procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix_multiple
 	   procedure :: setup_weighting_operator => H1_l1_setup_weighting_operator
@@ -917,7 +914,7 @@ module fe_space_names
   
   type, extends(standard_l1_coarse_fe_handler_t) :: vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
     private
-    real(rp), public :: diffusion_inclusion
+    real(rp), public :: diffusion_inclusion = 1.0_rp
   contains
 	   procedure :: setup_constraint_matrix  => vector_laplacian_l1_setup_constraint_matrix_multiple
 	   procedure :: setup_weighting_operator => vector_laplacian_l1_setup_weighting_operator
@@ -925,7 +922,7 @@ module fe_space_names
 
   type, extends(standard_l1_coarse_fe_handler_t) :: elasticity_pb_bddc_l1_coarse_fe_handler_t
     private
-    real(rp), public :: elastic_modulus
+    real(rp), public :: elastic_modulus = 1.0_rp
   contains
     procedure :: get_num_coarse_dofs      => elasticity_l1_get_num_coarse_dofs  
 	   procedure :: setup_constraint_matrix  => elasticity_l1_setup_constraint_matrix_multiple
@@ -1143,6 +1140,8 @@ module fe_space_names
      procedure, non_overridable          :: copy                           => fe_function_copy
      procedure, non_overridable          :: get_free_dof_values            => fe_function_get_free_dof_values
      procedure, non_overridable          :: get_fixed_dof_values           => fe_function_get_fixed_dof_values
+     procedure, non_overridable          :: set_free_dof_values            => fe_function_set_free_dof_values
+     procedure, non_overridable          :: set_fixed_dof_values           => fe_function_set_fixed_dof_values
      procedure, non_overridable          :: free                           => fe_function_free
      generic                             :: assignment(=)                  => copy
   end type fe_function_t 

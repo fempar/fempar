@@ -63,6 +63,7 @@ USE vtk_utils_names
 USE base_output_handler_names
 USE output_handler_fe_field_names
 USE output_handler_parameters_names
+USE output_handler_field_generator_names
 USE vtk_parameters_names
 USE fe_space_names,             only: serial_fe_space_t
 USE output_handler_patch_names, only: patch_subcell_accessor_t
@@ -249,6 +250,7 @@ contains
         integer(ip)                                :: num_nodes
         integer(ip)                                :: num_cells
         type(output_handler_fe_field_t), pointer   :: field
+        type(output_handler_field_generator_info_t), pointer :: field_generator
         integer(ip)                                :: i
     !-----------------------------------------------------------------
         num_nodes = this%get_num_nodes()
@@ -288,6 +290,11 @@ contains
             call this%FieldValues(i)%create(field%get_num_components(), this%get_num_nodes())
             call this%FieldValues(i)%init(0.0_rp)
         end do
+        do i=1, this%get_num_field_generators()
+            field_generator => this%get_field_generator(i)
+            call this%FieldValues(this%get_num_fields()+i)%create(field_generator%get_num_components(), this%get_num_nodes())
+            call this%FieldValues(this%get_num_fields()+i)%init(0.0_rp)
+        end do
         do i=1, this%get_num_cell_vectors()
             call this%CellValues(i)%create(1, this%get_num_cells())
             call this%CellValues(i)%init(0.0_rp)
@@ -308,6 +315,7 @@ contains
         integer(ip)                                :: num_vertices
         integer(ip)                                :: num_dims
         integer(ip)                                :: num_fields
+        integer(ip)                                :: num_field_generators
         integer(ip)                                :: num_cell_vectors
         integer(ip)                                :: num_components
         integer(ip)                                :: i
@@ -315,6 +323,7 @@ contains
         num_vertices     = subcell_accessor%get_num_vertices()
         num_dims   = subcell_accessor%get_num_dims()
         num_fields       = this%get_num_fields()
+        num_field_generators = this%get_num_field_generators()
         num_cell_vectors = this%get_num_cell_vectors()
 
         if(.not. this%StaticGrid .or. this%num_steps <= 1) then 
@@ -326,7 +335,7 @@ contains
                                 (/(i, i=this%node_offset, this%node_offset+num_vertices-1)/)
         endif
 
-        do i=1, num_fields
+        do i=1, num_fields+num_field_generators
             num_components = this%FieldValues(i)%get_num_components()
             FieldValue => this%FieldValues(i)%get_value()
             call subcell_accessor%get_field(i, FieldValue(1:num_components,this%node_offset+1:this%node_offset+num_vertices))
@@ -368,7 +377,7 @@ contains
         if( environment%am_i_l1_task()) then
 
             assert(allocated(this%Path) .and. allocated(this%FilePrefix))
-            if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_num_fields()))
+            if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_num_fields()+this%get_num_field_generators()))
             if(.not. allocated(this%CellValues)) allocate(this%CellValues(this%get_num_cell_vectors()))
 
             call this%fill_data(update_mesh = (.not. this%StaticGrid .or. this%num_steps <= 1))
@@ -409,6 +418,7 @@ contains
         integer(ip),                     intent(in) :: task_id
         character(len=:), allocatable               :: filename
         type(output_handler_fe_field_t),    pointer :: field
+        type(output_handler_field_generator_info_t), pointer :: field_generator
         type(output_handler_cell_vector_t), pointer :: cell_vector
         integer(ip)                                 :: num_components
         integer(ip)                                 :: file_id
@@ -447,6 +457,13 @@ contains
             E_IO = VTK_VAR_XML(NC_NN=this%get_num_nodes(), N_COL=num_components, varname=field%get_name(), var=FieldValue, cf=file_id)
             assert(E_IO == 0)
         enddo
+        do i=1, this%get_num_field_generators()
+            field_generator => this%get_field_generator(i)
+            FieldValue => this%FieldValues(this%get_num_fields()+i)%get_value()
+            num_components = size(FieldValue,1)
+            E_IO = VTK_VAR_XML(NC_NN=this%get_num_nodes(), N_COL=num_components, varname=field_generator%get_name(), var=FieldValue, cf=file_id)
+            assert(E_IO == 0)
+        enddo
         E_IO = VTK_DAT_XML(var_location='Node', var_block_action='CLOSE', cf=file_id)
         assert(E_IO == 0)
 
@@ -482,6 +499,7 @@ contains
         class(serial_fe_space_t),           pointer :: fe_space
         type(environment_t),                pointer :: environment
         type(output_handler_fe_field_t),    pointer :: field
+        type(output_handler_field_generator_info_t), pointer :: field_generator
         type(output_handler_cell_vector_t), pointer :: cell_vector
         integer(ip)                                 :: file_id
         integer(ip)                                 :: E_IO
@@ -512,6 +530,16 @@ contains
                                 cf      = file_id )
             assert(E_IO == 0)
         enddo
+        ! Write point data fields
+        do i=1, this%get_num_field_generators()
+            field_generator => this%get_field_generator(i)
+            E_IO = PVTK_VAR_XML(varname = trim(adjustl(field_generator%get_name())),             &
+                                tp      = 'Float64',                                   &
+                                Nc      = this%FieldValues(i+this%get_num_fields())%get_num_components(), &
+                                cf      = file_id )
+            assert(E_IO == 0)
+        enddo
+        
         E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE', cf=file_id)
         assert(E_IO == 0)
 

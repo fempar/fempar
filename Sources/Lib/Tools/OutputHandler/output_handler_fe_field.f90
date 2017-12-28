@@ -90,11 +90,10 @@ private
         procedure, non_overridable, public :: get_field_type        => output_handler_fe_field_get_field_type
         procedure, non_overridable, public :: get_field_id          => output_handler_fe_field_get_field_id
         procedure, non_overridable, public :: get_fe_function       => output_handler_fe_field_get_fe_function
-        procedure, non_overridable, public :: get_num_components => output_handler_fe_field_get_num_components
+        procedure, non_overridable, public :: get_num_components    => output_handler_fe_field_get_num_components
         procedure, non_overridable, public :: free                  => output_handler_fe_field_free
         generic,                    public :: assignment(=)         => output_handler_fe_field_assign
     end type
-
 
     type :: output_handler_cell_vector_t
     !-----------------------------------------------------------------
@@ -199,7 +198,6 @@ contains
         class(output_handler_fe_field_t), intent(inout) :: this
         type(output_handler_fe_field_t),  intent(in)    :: output_handler_fe_field
         type(fe_function_t), pointer                    :: fe_function
-        real(rp),            pointer                    :: value(:,:)
         integer(ip)                                     :: field_id
         character(len=:), allocatable                   :: name
         character(len=:), allocatable                   :: field_type
@@ -338,7 +336,6 @@ contains
         
     end function output_handler_fe_field_get_num_components
     
-
 !---------------------------------------------------------------------
 ! output_handler_CELL_VECTOR_t PROCEDURES
 !---------------------------------------------------------------------

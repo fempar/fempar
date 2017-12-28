@@ -471,7 +471,7 @@ end subroutine free_timers
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
 #ifdef ENABLE_MKL
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
 #else
     call parameter_list%init()
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
@@ -479,7 +479,7 @@ end subroutine free_timers
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
     call parameter_list%free()
 #endif   
     
@@ -491,7 +491,7 @@ end subroutine free_timers
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%numerical_setup()
+    call this%fe_affine_operator%compute()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
     
@@ -521,7 +521,7 @@ end subroutine free_timers
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+    call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), &
                                             dof_values)
     
     !select type (dof_values)
@@ -648,12 +648,12 @@ end subroutine free_timers
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
-    call this%solution%free()
-#ifdef ENABLE_MKL    
-    call this%mlbddc%free()
-#endif    
+    call this%solution%free() 
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
+#ifdef ENABLE_MKL    
+    call this%mlbddc%free()
+#endif       
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)

@@ -296,7 +296,7 @@ contains
        write(0,'(a)') 'Warning: base_iterative_linear_solver_t%set_operators :: operators could not be set' 
      else
      
-       this%A = A%get_tangent()       
+       this%A = A       
        this%M = M   
        if ( this%state == start ) then
          call A_range%create_vector(this%initial_solution)
@@ -771,5 +771,5 @@ contains
       call x%CleanTemp()
       this%state = workspace_allocated
     end subroutine base_iterative_linear_solver_solve
-
+    
 end module base_iterative_linear_solver_names

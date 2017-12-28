@@ -341,7 +341,7 @@ void F90_p4est_get_mesh_info (p4est_t        *p4est,
                               p4est_gloidx_t *global_first_quadrant,
                               p4est_locidx_t *num_half_faces)
 {
-  int i; 
+    int i;
     SC_CHECK_ABORTF (mesh->local_num_quadrants == p4est->local_num_quadrants,
                      "mesh->local_num_quadrants [%d] and p4est->local_num_quadrants mismatch [%d]!",
                      mesh->local_num_quadrants,  p4est->local_num_quadrants);
@@ -353,7 +353,7 @@ void F90_p4est_get_mesh_info (p4est_t        *p4est,
     *ghost_num_quadrants   = mesh->ghost_num_quadrants;
     *global_num_quadrants  = p4est->global_num_quadrants;
     
-    for ( i=0; i <= p4est->mpisize; i++ ) 
+    for (i=0; i <= p4est->mpisize; i++ ) 
     {
       global_first_quadrant[i] = p4est->global_first_quadrant[i];
     }
@@ -368,7 +368,7 @@ void F90_p8est_get_mesh_info (p8est_t        *p8est,
                               p4est_gloidx_t *global_first_quadrant,
                               p4est_locidx_t *num_half_faces)
 {
-  int i;
+    int i;
     SC_CHECK_ABORTF (mesh->local_num_quadrants == p8est->local_num_quadrants,
                      "mesh->local_num_quadrants [%d] and p8est->local_num_quadrants mismatch [%d]!",
                      mesh->local_num_quadrants,  p8est->local_num_quadrants); 
@@ -379,7 +379,7 @@ void F90_p8est_get_mesh_info (p8est_t        *p8est,
     *local_num_quadrants   = p8est->local_num_quadrants;
     *ghost_num_quadrants   = mesh->ghost_num_quadrants;
     *global_num_quadrants  = p8est->global_num_quadrants;
-    for ( i=0; i <= p8est->mpisize; i++ ) 
+    for (i=0; i <= p8est->mpisize; i++ ) 
     {
       global_first_quadrant[i] = p8est->global_first_quadrant[i];
     }
@@ -1173,7 +1173,7 @@ void F90_p4est_fill_ghost_procs ( p4est_ghost_t  * p4est_ghost,
                                   p4est_locidx_t * ghost_procs )
                                    
 {
-  int i,j; 
+  int i,j;  
   for (i=0; i < p4est_ghost->mpisize; i++)
   {
     for (j=p4est_ghost->proc_offsets[i]; j<p4est_ghost->proc_offsets[i+1]; j++)
@@ -1186,8 +1186,8 @@ void F90_p4est_fill_ghost_procs ( p4est_ghost_t  * p4est_ghost,
 void F90_p8est_fill_ghost_procs ( p8est_ghost_t  * p8est_ghost,
                                   p4est_locidx_t * ghost_procs )
 
-{ 
-  int i,j; 
+{
+    int i,j;  
     for (i=0; i < p8est_ghost->mpisize; i++)
     {
         for (j=p8est_ghost->proc_offsets[i]; j<p8est_ghost->proc_offsets[i+1]; j++)
@@ -1200,8 +1200,8 @@ void F90_p8est_fill_ghost_procs ( p8est_ghost_t  * p8est_ghost,
 void F90_p4est_fill_ghost_ggids( p4est_ghost_t  * p4est_ghost,
                                  p4est_gloidx_t * first_global_quadrant,
                                  p4est_gloidx_t * ghost_ggids )
-{ 
-  int i,j; 
+{
+    int i,j;  
     p4est_quadrant_t * ghost_quadrants = (p4est_quadrant_t *) p4est_ghost->ghosts.array;
     for (i=0; i < p4est_ghost->mpisize; i++)
     {
@@ -1216,7 +1216,7 @@ void F90_p8est_fill_ghost_ggids( p8est_ghost_t  * p8est_ghost,
                                  p4est_gloidx_t * first_global_quadrant,
                                  p4est_gloidx_t * ghost_ggids )
 {
-  int i,j; 
+    int i,j;  
     p8est_quadrant_t * ghost_quadrants = (p8est_quadrant_t *) p8est_ghost->ghosts.array;
     for (i=0; i < p8est_ghost->mpisize; i++)
     {
@@ -1224,6 +1224,128 @@ void F90_p8est_fill_ghost_ggids( p8est_ghost_t  * p8est_ghost,
         {
             ghost_ggids[j] = first_global_quadrant[i] + (p4est_gloidx_t) (ghost_quadrants[j].p.piggy3.local_num+1) ;
         }
+    }   
+}
+
+void F90_p4est_allocate_and_fill_cell_import_raw_arrays( p4est_t        * p4est,
+                                                         p4est_ghost_t  * p4est_ghost,
+                                                         p4est_locidx_t * num_neighbours,
+                                                         p4est_locidx_t ** neighbour_ids,
+                                                         p4est_locidx_t ** rcv_ptrs,
+                                                         p4est_locidx_t ** rcv_leids,
+                                                         p4est_locidx_t ** snd_ptrs,
+                                                         p4est_locidx_t ** snd_leids)
+{
+    int i, j;
+    p4est_tree_t * tree;
+    sc_array_t * quadrants;
+    ssize_t result;
+    p4est_quadrant_t   *q;
+    
+    *num_neighbours = 0;
+    for (i=0; i < p4est_ghost->mpisize; i++)
+    {
+        if ( p4est_ghost->proc_offsets[i+1]        - p4est_ghost->proc_offsets[i]        > 0 || 
+                p4est_ghost->mirror_proc_offsets[i+1] - p4est_ghost->mirror_proc_offsets[i] > 0 )
+        {
+            (*num_neighbours)++;
+        }
+    }   
+    *neighbour_ids = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours)   * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*neighbour_ids) != NULL);
+    *rcv_ptrs      = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours+1) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*rcv_ptrs)      != NULL);
+    *snd_ptrs      = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours+1) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*snd_ptrs)  != NULL);
+    
+    //Fill neighbour_ids, rcv_ptrs, snd_ptrs
+    j=0;
+    for (i=0; i < p4est_ghost->mpisize; i++)
+    {
+        if ( p4est_ghost->proc_offsets[i+1]        - p4est_ghost->proc_offsets[i]        > 0 || 
+                p4est_ghost->mirror_proc_offsets[i+1] - p4est_ghost->mirror_proc_offsets[i] > 0 )
+        {
+            (*neighbour_ids)[j]= i+1;
+            (*rcv_ptrs)[j]     = p4est_ghost->proc_offsets[i]+1;
+            (*snd_ptrs)[j]     = p4est_ghost->mirror_proc_offsets[i]+1;
+            j++;
+        }
+    }
+    (*rcv_ptrs)[j] = p4est_ghost->proc_offsets[i]+1;
+    (*snd_ptrs)[j] = p4est_ghost->mirror_proc_offsets[i]+1;
+    
+    *rcv_leids     = (p4est_locidx_t *) malloc( (size_t) (p4est_ghost->proc_offsets[p4est_ghost->mpisize]) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*rcv_leids) != NULL);
+    *snd_leids     = (p4est_locidx_t *) malloc( (size_t) (p4est_ghost->mirror_proc_offsets[p4est_ghost->mpisize]) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*snd_leids) != NULL);
+    for (j=0; j < p4est_ghost->proc_offsets[p4est_ghost->mpisize]; j++)
+    {
+        (*rcv_leids)[j] = p4est->local_num_quadrants + j + 1;
+    }
+    
+    tree             = p4est_tree_array_index (p4est->trees,0);
+    quadrants        = &(tree->quadrants);
+    for (j=0; j < p4est_ghost->mirror_proc_offsets[p4est_ghost->mpisize]; j++)
+    {
+        q = p4est_quadrant_array_index(&p4est_ghost->mirrors, p4est_ghost->mirror_proc_mirrors[j]);    
+        result = sc_array_bsearch (quadrants, q, p4est_quadrant_compare);    
+        (*snd_leids)[j] = result + 1;
+    }   
+}
+
+void F90_p8est_allocate_and_fill_cell_import_raw_arrays ( p8est_t        * p8est,
+        p8est_ghost_t  * p8est_ghost,
+        p4est_locidx_t * num_neighbours,
+        p4est_locidx_t ** neighbour_ids,
+        p4est_locidx_t ** rcv_ptrs,
+        p4est_locidx_t ** rcv_leids,
+        p4est_locidx_t ** snd_ptrs,
+        p4est_locidx_t ** snd_leids)
+{
+    int i, j;
+    p8est_tree_t * tree;
+    sc_array_t * quadrants;
+    ssize_t result;
+    p8est_quadrant_t   *q;
+    
+    *num_neighbours = 0;
+    for (i=0; i < p8est_ghost->mpisize; i++)
+    {
+        if ( p8est_ghost->proc_offsets[i+1]        - p8est_ghost->proc_offsets[i]        > 0 || 
+                p8est_ghost->mirror_proc_offsets[i+1] - p8est_ghost->mirror_proc_offsets[i] > 0 )
+        {
+            (*num_neighbours)++;
+        }
+    }   
+    *neighbour_ids = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours)   * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*neighbour_ids) != NULL);
+    *rcv_ptrs      = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours+1) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*rcv_ptrs)      != NULL);
+    *snd_ptrs      = (p4est_locidx_t *) malloc( (size_t) (*num_neighbours+1) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*snd_ptrs)  != NULL);
+    
+    //Fill neighbour_ids, rcv_ptrs, snd_ptrs
+    j=0;
+    for (i=0; i < p8est_ghost->mpisize; i++)
+    {
+        if ( p8est_ghost->proc_offsets[i+1]        - p8est_ghost->proc_offsets[i]        > 0 || 
+                p8est_ghost->mirror_proc_offsets[i+1] - p8est_ghost->mirror_proc_offsets[i] > 0 )
+        {
+            (*neighbour_ids)[j]= i+1;
+            (*rcv_ptrs)[j]     = p8est_ghost->proc_offsets[i]+1;
+            (*snd_ptrs)[j]     = p8est_ghost->mirror_proc_offsets[i]+1;
+            j++;
+        }
+    }
+    (*rcv_ptrs)[j] = p8est_ghost->proc_offsets[i]+1;
+    (*snd_ptrs)[j] = p8est_ghost->mirror_proc_offsets[i]+1;
+    
+    *rcv_leids     = (p4est_locidx_t *) malloc( (size_t) (p8est_ghost->proc_offsets[p8est_ghost->mpisize]) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*rcv_leids) != NULL);
+    *snd_leids     = (p4est_locidx_t *) malloc( (size_t) (p8est_ghost->mirror_proc_offsets[p8est_ghost->mpisize]) * sizeof(p4est_locidx_t) ); P4EST_ASSERT((*snd_leids) != NULL);
+    for (j=0; j < p8est_ghost->proc_offsets[p8est_ghost->mpisize]; j++)
+    {
+        (*rcv_leids)[j] = p8est->local_num_quadrants + j + 1;
+    }
+    
+    tree             = p8est_tree_array_index (p8est->trees,0);
+    quadrants        = &(tree->quadrants);
+    for (j=0; j < p8est_ghost->mirror_proc_offsets[p8est_ghost->mpisize]; j++)
+    {
+        q = p8est_quadrant_array_index(&p8est_ghost->mirrors, p8est_ghost->mirror_proc_mirrors[j]);    
+        result = sc_array_bsearch (quadrants, q, p8est_quadrant_compare);    
+        (*snd_leids)[j] = result + 1;
     }   
 }
 

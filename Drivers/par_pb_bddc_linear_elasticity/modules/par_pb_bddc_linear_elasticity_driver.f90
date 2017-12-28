@@ -744,7 +744,7 @@ contains
        FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
        assert(FPLError == 0)
        call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-       call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+       call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
        call parameter_list%free()
        return
     end if
@@ -826,7 +826,7 @@ contains
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
     call parameter_list%free()
   end subroutine setup_solver
 
@@ -836,9 +836,9 @@ contains
     class(par_pb_bddc_linear_elasticity_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%numerical_setup()
-    rhs                => this%fe_affine_operator%get_translation()
-    matrix             => this%fe_affine_operator%get_matrix()
+    call this%fe_affine_operator%compute()
+    !rhs                => this%fe_affine_operator%get_translation()
+    !matrix             => this%fe_affine_operator%get_matrix()
 
     !select type(matrix)
     !class is (sparse_matrix_t)  
@@ -863,8 +863,8 @@ contains
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values
 
-    matrix     => this%fe_affine_operator%get_matrix()
-    rhs        => this%fe_affine_operator%get_translation()
+    !matrix     => this%fe_affine_operator%get_matrix()
+    !rhs        => this%fe_affine_operator%get_translation()
     !write(*,*)'2-norm',rhs%nrm2()
     dof_values => this%solution%get_free_dof_values()
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
