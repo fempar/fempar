@@ -36,6 +36,7 @@ module matrix_names
   contains
      procedure (allocate_interface)       , deferred :: allocate
      procedure (init_interface)           , deferred :: init
+     procedure (scal_interface)           , deferred :: scal
      procedure (free_in_stages_interface) , deferred :: free_in_stages
      procedure (create_iterator_interface), deferred :: create_iterator
      
@@ -72,6 +73,15 @@ module matrix_names
        class(matrix_t)       , intent(inout) :: this
        real(rp)              , intent(in)    :: alpha
      end subroutine init_interface
+     ! Scal the entries of the matrix up
+     subroutine scal_interface(this, alpha) 
+       import :: matrix_t
+       import :: rp
+       implicit none
+       class(matrix_t)       , intent(inout) :: this
+       real(rp)              , intent(in)    :: alpha
+     end subroutine scal_interface
+     
      ! Progressively free a matrix_t in three stages: action={free_numeric,free_symbolic,free_clean}
      subroutine free_in_stages_interface(this,action) 
        import :: matrix_t, ip

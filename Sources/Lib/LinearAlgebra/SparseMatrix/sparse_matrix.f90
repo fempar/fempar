@@ -86,6 +86,7 @@ private
         procedure, non_overridable, public :: is_symmetric                     => sparse_matrix_is_symmetric
         procedure,                  public :: allocate                         => sparse_matrix_allocate
         procedure,                  public :: init                             => sparse_matrix_init
+        procedure,                  public :: scal                             => sparse_matrix_scal
         procedure,                  public :: free_in_stages                   => sparse_matrix_free_in_stages  
         generic,                    public :: create                           => sparse_matrix_create_square, &
                                                                                   sparse_matrix_create_rectangular
@@ -321,7 +322,7 @@ contains
 
     subroutine sparse_matrix_init(this, alpha)
     !-----------------------------------------------------------------
-    !< Initialize matrix values only if is in a assembled stage
+    !< Initialize matrix entries only if is in a assembled stage
     !-----------------------------------------------------------------
         class(sparse_matrix_t), intent(inout) :: this
         real(rp),               intent(in)    :: alpha
@@ -329,8 +330,18 @@ contains
         assert(allocated(this%State))
         call this%State%initialize_values(alpha)
     end subroutine sparse_matrix_init
-
-
+    
+    subroutine sparse_matrix_scal(this, alpha)
+    !-----------------------------------------------------------------
+    !< Scale matrix entries (even if still uncompressed) 
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        real(rp),               intent(in)    :: alpha
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%scal(alpha)
+    end subroutine sparse_matrix_scal
+    
     subroutine sparse_matrix_create_vector_spaces(this)
     !-----------------------------------------------------------------
     !< Create vector spaces

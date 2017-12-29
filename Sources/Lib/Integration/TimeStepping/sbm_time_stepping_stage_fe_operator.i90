@@ -25,34 +25,80 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine time_stepping_stage_fe_operator_set_row(this, i, j)
- implicit none
- class(time_stepping_stage_fe_operator_t), intent(inout) :: this
- integer(ip), intent(in) :: i, j
- this%i = i; this%j = j
-end subroutine time_stepping_stage_fe_operator_set_row
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, fe_op, mass_op )
+subroutine time_stepping_stage_fe_operator_create (this, &
+                                                   sparse_matrix_storage_format, &
+                                                   diagonal_blocks_symmetric_storage,&
+                                                   diagonal_blocks_symmetric,&
+                                                   diagonal_blocks_sign,&
+                                                   fe_space, &
+                                                   discrete_integration, &
+                                                   trial_fe_space )
   implicit none
   class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
-  class(time_stepping_operator_t), target           , intent(in)    :: ts_op
-  class(fe_nonlinear_operator_t),  target           , intent(in)    :: fe_op
-  class(fe_nonlinear_operator_t),  target           , intent(in)    :: mass_op
+  character(*)                              , intent(in)    :: sparse_matrix_storage_format
+  logical                                   , intent(in)    :: diagonal_blocks_symmetric_storage(:)
+  logical                                   , intent(in)    :: diagonal_blocks_symmetric(:)
+  integer(ip)                               , intent(in)    :: diagonal_blocks_sign(:)
+  class(serial_fe_space_t)        , target  , intent(inout) :: fe_space
+  class(discrete_integration_t)   , target  , intent(in)    :: discrete_integration
+  class(serial_fe_space_t), target, optional, intent(inout) :: trial_fe_space
+  mcheck ( .false., "time_stepping_stage_fe_operator_t :: Illegal to call time_stepping_stage_fe_operator_t inherited from fe_nonlinear_operator_t")
+end subroutine time_stepping_stage_fe_operator_create
 
+
+subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, fe_nl_op, mass_nl_op )
+  implicit none
+  class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
+  type(time_stepping_operator_t),  target   , intent(in)    :: ts_op
+  class(fe_nonlinear_operator_t),  target   , intent(in)    :: fe_nl_op
+  class(fe_nonlinear_operator_t),  target   , intent(in)    :: mass_nl_op
+  class(serial_fe_space_t), pointer :: trial_fe_space
+  
+  type(vector_space_t), pointer :: fe_nl_op_domain, fe_nl_op_range
+  type(vector_space_t), pointer :: mass_nl_op_domain, mass_nl_op_range
+ 
   call this%free()
 
-  ! sbadia: Here some compatiblity checks between fe_op and mass_op
-  this%ts_op   => ts_op
-  this%fe_op   => fe_op
-  this%mass_op => mass_op
+  fe_nl_op_domain   => fe_nl_op%get_domain_vector_space()
+  mass_nl_op_domain => mass_nl_op%get_domain_vector_space()
+  massert (fe_nl_op_domain%equal_to(mass_nl_op_domain), "fe_nl_op%domain_space() MUST MATCH mass_nl_op%domain_space()" )
   
-  assert(.not. associated(this%get_state())) ! Equivalent to: "assert ( this%state == start )"
-  call this%set_state()
+  call fe_nl_op_domain%create(this%aux)
+  call this%aux%allocate()
+
+  fe_nl_op_range    => fe_nl_op%get_range_vector_space()
+  mass_nl_op_range  => mass_nl_op%get_range_vector_space()
+  massert (fe_nl_op_range%equal_to(mass_nl_op_range), "fe_nl_op%range_space() MUST MATCH mass_nl_op%range_space()" )
   
-  ! sbadia: sthg more clever than just take it from fe_op
-  call this%copy(fe_op)
-  call this%reallocate_after_remesh()
+  this%ts_op      => ts_op
+  this%fe_nl_op   => fe_nl_op
+  this%mass_nl_op => mass_nl_op
+
+  ! sbadia : sthg more clever than just take it from fe_nl_op
+  ! amartin: what was exactly in your mind when you wrote this 
+  !          comment? I removed the this%copy() call by
+  !          a call to the create() TBP of the parent class, s.t. code replication
+  !          that was present in this subroutine disappears. Were you thinking
+  !          in this?
+  trial_fe_space => this%fe_nl_op%get_trial_fe_space()
+  if ( associated(trial_fe_space) ) then
+    call this%fe_nonlinear_operator_t%create(this%fe_nl_op%get_sparse_matrix_storage_format(), &
+                                             this%fe_nl_op%get_diagonal_blocks_symmetric_storage(),&
+                                             this%fe_nl_op%get_diagonal_blocks_symmetric(),&
+                                             this%fe_nl_op%get_diagonal_blocks_sign(),&
+                                             this%fe_nl_op%get_fe_space(), &
+                                             this%fe_nl_op%get_discrete_integration(), &
+                                             trial_fe_space)  
+  else
+    call this%fe_nonlinear_operator_t%create(this%fe_nl_op%get_sparse_matrix_storage_format(), &
+                                             this%fe_nl_op%get_diagonal_blocks_symmetric_storage(),&
+                                             this%fe_nl_op%get_diagonal_blocks_symmetric(),&
+                                             this%fe_nl_op%get_diagonal_blocks_sign(),&
+                                             this%fe_nl_op%get_fe_space(), &
+                                             this%fe_nl_op%get_discrete_integration())
+  end if
 end subroutine time_stepping_stage_fe_operator_create_from_operators
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -61,12 +107,68 @@ subroutine time_stepping_stage_fe_operator_free(this)
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this
   integer(ip) :: istat
   call this%fe_nonlinear_operator_t%free()
-  if (associated (this%get_state())) then
-     nullify(this%ts_op)
-     nullify(this%fe_op)
-     nullify(this%mass_op)
+  nullify(this%ts_op)
+  nullify(this%fe_nl_op)
+  nullify(this%mass_nl_op)
+  if ( allocated(this%aux) ) then
+    call this%aux%free()
+    deallocate(this%aux, stat=istat); check(istat==0);
   end if
 end subroutine time_stepping_stage_fe_operator_free
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_set_row(this, i, j)
+ implicit none
+ class(time_stepping_stage_fe_operator_t), intent(inout) :: this
+ integer(ip)                             , intent(in)    :: i, j
+ this%i = i 
+ this%j = j
+end subroutine time_stepping_stage_fe_operator_set_row
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x) 
+  implicit none
+  class(time_stepping_stage_fe_operator_t), target, intent(in) :: this
+  class(vector_t)                                 , intent(in) :: x
+  
+  class(discrete_integration_t), pointer :: di_fe_op, di_mass_op
+  class(assembler_t), pointer :: assembler
+  integer(ip) :: j, istat
+  class(vector_t), pointer :: dummy_v
+  
+  assert(same_type_as(this%aux, x))
+  assert(same_type_as(this%ts_op%initial_value,x))
+  
+  call x%GuardTemp()
+  
+  dummy_v => this%aux
+  call dummy_v%copy(x)
+  ! amartin: not clear if the following two instructions are correct or not???
+  !          They were present in the code I started from !!!!
+  ! this%ts_op%dofs_stages(this%i) = x
+  ! aux = this%ts_op%initial_value
+  
+  ! amartin: is the upper bound of the loop correct? Shouldn't it be "this%i" ?
+  !          I do not have sufficient understanding of the DIRK algorithm in order
+  !          to answer this question. 
+  do j = 1, this%ts_op%scheme%num_stages
+    if ( this%ts_op%scheme%a(this%i,j) /= 0.0_rp ) then
+      call dummy_v%axpby(this%ts_op%scheme%a(this%i,j), this%ts_op%dofs_stages(j), 1.0_rp) 
+    end if
+  end do
+  di_fe_op   => this%fe_nl_op%get_discrete_integration()
+  di_mass_op => this%mass_nl_op%get_discrete_integration()
+  call di_fe_op%set_evaluation_point(this%aux)
+  call di_mass_op%set_evaluation_point(x)
+  
+  call this%set_state(created)
+  
+  assembler  => this%get_assembler()
+  call assembler%init_array(0.0_rp)  
+  call assembler%init_matrix(0.0_rp)
+  
+  call x%CleanTemp()
+end subroutine time_stepping_stage_fe_operator_set_evaluation_point
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function time_stepping_stage_fe_operator_is_linear(this)
@@ -74,117 +176,85 @@ function time_stepping_stage_fe_operator_is_linear(this)
   class(time_stepping_stage_fe_operator_t), intent(in) :: this
   logical :: time_stepping_stage_fe_operator_is_linear
   time_stepping_stage_fe_operator_is_linear = &
-     ( this%fe_op%is_linear() .and. this%mass_op%is_linear() )
+     ( this%fe_nl_op%is_linear() .and. this%mass_nl_op%is_linear() )
 end function time_stepping_stage_fe_operator_is_linear
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_compute_residual(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(in) :: this
-  class(environment_t), pointer :: environment
   ! sbadia: this is nonsense ??? also wrong in fe_nonlinear operator_t
-  class(serial_fe_space_t)   , pointer :: fe_sp
-  class(discrete_integration_t), pointer :: di_fe_op, di_mass_op
-  fe_sp => this%get_fe_space()
+  ! amartin: what is nonsense??? Did not get your point ...
+  class(serial_fe_space_t)     , pointer :: fe_sp
+  class(environment_t)         , pointer :: environment
+  class(discrete_integration_t), pointer :: di_mass_op
+  class(discrete_integration_t), pointer :: di_fe_op
+ 
+  assert ( associated(this%get_state()) )
+
+  fe_sp       => this%get_fe_space()
   environment => fe_sp%get_environment()
-  di_mass_op => this%fe_op%get_discrete_integration()
-  di_fe_op => this%mass_op%get_discrete_integration()
-
-  assert ( associated(this%get_state())  )
-
+  di_fe_op    => this%fe_nl_op%get_discrete_integration()
+  di_mass_op  => this%mass_nl_op%get_discrete_integration()
 
   if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
-     if ( environment%am_i_l1_task() ) then
-        if ( associated(this%get_trial_fe_space()) ) then
-           call di_fe_op%integrate_petrov_galerkin_residual( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
-           ! sbadia: scal arrays of assembler assembler%get_matrix()*dt
-		   if ( this%i == this%j ) call di_mass_op%integrate_petrov_galerkin_residual( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
-        else
-           call di_fe_op%integrate_residual( this%get_fe_space(), this%get_assembler() )
-		   ! sbadia: scal arrays of assembler assembler%get_array()*dt
-           if ( this%i == this%j ) call di_mass_op%integrate_residual( this%get_fe_space(), this%get_assembler() )
-        end if
-     end if
+    if ( environment%am_i_l1_task() ) then
+      if ( associated(this%get_trial_fe_space()) ) then
+         call di_fe_op%integrate_petrov_galerkin_residual( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
+         ! sbadia: scal arrays of assembler assembler%get_matrix()*dt
+         if ( this%i == this%j ) call di_mass_op%integrate_petrov_galerkin_residual( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
+      else
+         call di_fe_op%integrate_residual( this%get_fe_space(), this%get_assembler() )
+         ! sbadia: scal arrays of assembler assembler%get_array()*dt
+         if ( this%i == this%j ) call di_mass_op%integrate_residual( this%get_fe_space(), this%get_assembler() )
+      end if
+    end if
 
-     if (this%get_state() == tangent_computed) then
-        call this%set_state(assembler_computed)
-     else ! created
-        assert ( this%get_state() == created )
-        call this%set_state(residual_computed)
-     end if
+    if (this%get_state() == tangent_computed) then
+       call this%set_state(assembler_computed)
+    else ! created
+       assert ( this%get_state() == created )
+       call this%set_state(residual_computed)
+    end if
   end if
-  
 end subroutine time_stepping_stage_fe_operator_compute_residual
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_compute_tangent(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this
-  class(environment_t), pointer :: environment
-  class(discrete_integration_t), pointer :: di_fe_op, di_mass_op
-  class(assembler_t), pointer :: assembler
-  class(serial_fe_space_t)   , pointer :: fe_sp
-  fe_sp => this%get_fe_space()
-  environment =>  fe_sp%get_environment()
-  di_mass_op => this%fe_op%get_discrete_integration()
-  di_fe_op => this%mass_op%get_discrete_integration()
-  assembler => this%get_assembler()
+  class(serial_fe_space_t)     , pointer :: fe_sp
+  class(environment_t)         , pointer :: environment
+  class(discrete_integration_t), pointer :: di_fe_op
+  class(discrete_integration_t), pointer :: di_mass_op
+  class(assembler_t)           , pointer :: assembler
 
   assert ( associated(this%get_state()) )
 
+  fe_sp       => this%get_fe_space()
+  environment => fe_sp%get_environment()
+  di_fe_op    => this%fe_nl_op%get_discrete_integration()
+  di_mass_op  => this%mass_nl_op%get_discrete_integration()
+  assembler   => this%get_assembler()
+
   if ( .not. ( this%get_state() == tangent_computed .or. this%get_state() == assembler_computed ) ) then
-     if ( environment%am_i_l1_task() ) then
-        if ( associated(this%get_trial_fe_space()) ) then
-           call di_fe_op%integrate_petrov_galerkin_tangent( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
-		   ! times dt * aij
-		   call di_mass_op%integrate_petrov_galerkin_tangent( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
-        else
-           call di_fe_op%integrate_tangent( this%get_fe_space(), this%get_assembler() )
-		   ! times dt * aij
-		   call di_mass_op%integrate_tangent( this%get_fe_space(), this%get_assembler() )
-        end if
-     end if
-     ! sbadia: error i don't understand
-	 !call assembler%compress_storage(this%get_sparse_matrix_storage_format())
-	 ! sbadia: alternative
-	 call this%compress_assembler()
-     if (this%get_state() == residual_computed) then
-        call this%set_state(assembler_computed)
-     else ! created
-        assert ( this%get_state() == created )
-        call this%set_state(tangent_computed)
-     end if
+    if ( environment%am_i_l1_task() ) then
+       if ( associated(this%get_trial_fe_space()) ) then
+          call di_fe_op%integrate_petrov_galerkin_tangent( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
+          ! times dt * aij
+          call di_mass_op%integrate_petrov_galerkin_tangent( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
+       else
+          call di_fe_op%integrate_tangent( this%get_fe_space(), this%get_assembler() )
+          ! times dt * aij
+          call di_mass_op%integrate_tangent( this%get_fe_space(), this%get_assembler() )
+       end if
+    end if
+    call assembler%compress_storage(this%get_sparse_matrix_storage_format())
+    if (this%get_state() == residual_computed) then
+       call this%set_state(assembler_computed)
+    else ! created
+       assert ( this%get_state() == created )
+       call this%set_state(tangent_computed)
+    end if
   end if
 end subroutine time_stepping_stage_fe_operator_compute_tangent
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x) 
-  implicit none
-  class(time_stepping_stage_fe_operator_t), intent(in)    :: this
-  class(vector_t) , intent(in)    :: x
-  class(vector_t), allocatable    :: aux
-  class(discrete_integration_t), pointer :: di_fe_op, di_mass_op
-  class(assembler_t), pointer :: assembler
-  integer(ip) :: j, istat
-  di_mass_op => this%fe_op%get_discrete_integration()
-  di_fe_op => this%mass_op%get_discrete_integration()
-  assembler => this%get_assembler()
-  
-  allocate ( aux, mold = x, stat = istat ); check(istat==0)
-  call x%GuardTemp()
-  call aux%copy(x)
-  this%ts_op%dofs_stages(this%i) = x
-  aux = this%ts_op%initial_value
-  do j = 1, this%ts_op%scheme%num_stages
-     if ( this%ts_op%scheme%a(this%i,j) /= 0.0_rp ) then
-	    aux = aux + this%ts_op%dofs_stages(j)*this%ts_op%scheme%a(this%i,j)
-     end if
-  end do
-  call di_fe_op%set_evaluation_point(aux)
-  call di_mass_op%set_evaluation_point(x)
-  call this%set_state(created)
-  call assembler%init_array(0.0_rp)  
-  call assembler%init_matrix(0.0_rp)
-  call aux%free()
-  call x%CleanTemp()
-end subroutine time_stepping_stage_fe_operator_set_evaluation_point

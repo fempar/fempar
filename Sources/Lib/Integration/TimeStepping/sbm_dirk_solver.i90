@@ -28,26 +28,38 @@
 subroutine dirk_solver_create( this, ts_op, nl_solver)
   implicit none
   class(dirk_solver_t),                    intent(inout) :: this
-  class(time_stepping_operator_t), target, intent(in)    :: ts_op
-  class(nonlinear_solver_t), target,       intent(in)    :: nl_solver
-  this%ts_op => ts_op
+  type(time_stepping_operator_t) , target, intent(in)    :: ts_op
+  type(nonlinear_solver_t)      ,  target, intent(in)    :: nl_solver
+  this%ts_op     => ts_op
   this%nl_solver => nl_solver
 end subroutine dirk_solver_create
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine dirk_solver_apply( this, x, y )
   implicit none
-  class(dirk_solver_t),             intent(inout) :: this
-  class(vector_t),                intent(in)    :: x
-  class(vector_t),                intent(inout) :: y
+  class(dirk_solver_t),   intent(inout) :: this
+  class(vector_t)     ,   intent(in)    :: x
+  class(vector_t)     ,   intent(inout) :: y
   integer(ip) :: i
   type(time_stepping_stage_fe_operator_t), pointer :: stage_op
+  
+  assert ( associated(this%ts_op) )
+  assert ( associated(this%nl_solver) )
+  
   call this%ts_op%set_initial_data(x)
   call y%copy(x)
   do i = 1, this%ts_op%scheme%num_stages
      stage_op => this%ts_op%get_stage_operator(i,i)
-     call this%nl_solver%solve ( this%ts_op%fe_op, this%ts_op%dofs_stages(i) ) ! nonlinear solver
-     ! y = y + this%ts_op%stages_dofs(i)*this%ts_op%scheme%b(i)
-	 call y%axpby(this%ts_op%scheme%b(i),this%ts_op%dofs_stages(i),1.0_rp)
+     call this%nl_solver%solve ( stage_op, this%ts_op%dofs_stages(i) )
+	    call y%axpby(this%ts_op%scheme%b(i),this%ts_op%dofs_stages(i),1.0_rp)
   end do
 end subroutine dirk_solver_apply
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine dirk_solver_free( this )
+  implicit none
+  class(dirk_solver_t), intent(inout) :: this
+  nullify(this%ts_op)
+  nullify(this%nl_solver)
+end subroutine dirk_solver_free
+

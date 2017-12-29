@@ -25,136 +25,54 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine butcher_tableau_create( this, ti_type )
- implicit none
- class(butcher_tableau_t), intent(inout) :: this
- character(len=*)        , intent(in)    :: ti_type
+subroutine butcher_tableau_create( this, time_integration_scheme )
+  implicit none
+  class(butcher_tableau_t), intent(inout) :: this
+  character(len=*)        , intent(in)    :: time_integration_scheme
 
- call this%free()
+  call this%free()
  
- select case ( ti_type )
- case ( backward_euler )
+  this%time_integration_scheme = time_integration_scheme
+  select case ( this%time_integration_scheme )
+  case ( backward_euler )
     this%order = 1
     this%num_stages = 1
     call this%allocate_arrays()
-    this%a(1,1) =  1.0_rp
-    this%b(1) =  1.0_rp 
-    this%c(1) = 1.0_rp
- case ( trapezoidal_rule )
+    this%a(1,1) = 1.0_rp
+    this%b(1)   = 1.0_rp 
+    this%c(1)   = 1.0_rp
+  case ( trapezoidal_rule )
     this%order = 2
     this%num_stages = 2
     call this%allocate_arrays()
-    this%a(1,1:2) = (/ 0.0_rp,  0.0_rp /)
-    this%a(2,1:2) = (/ 0.5_rp, 0.5_rp /) 
-    this%b(1:2) = (/ 0.5_rp, 0.5_rp /) 
+    this%a(1,1:2) = [ 0.0_rp,  0.0_rp ]
+    this%a(2,1:2) = [ 0.5_rp,  0.5_rp ] 
+    this%b(1:2)   = [ 0.5_rp,  0.5_rp ] 
     ! this%bs = [ 1.0_rp 0.0_rp] for adaptive RK methods
-    this%c(1:2) = (/ 0.0_rp, 1.0_rp /)
+    this%c(1:2)   = [ 0.0_rp,  1.0_rp ]
  case default
     check(.false.)
  end select
-
 end subroutine butcher_tableau_create
 
 subroutine butcher_tableau_allocate_arrays ( this )
  implicit none
  class(butcher_tableau_t), intent(inout) :: this
- integer(ip) :: aux
- aux = this%num_stages
- call memalloc(aux,aux,this%a,__FILE__,__LINE__)
- call memalloc(aux,this%b,__FILE__,__LINE__)
- call memalloc(aux,this%c,__FILE__,__LINE__)
+ call memalloc(this%num_stages, this%num_stages,this%a, __FILE__, __LINE__)
+ call memalloc(this%num_stages, this%b                , __FILE__, __LINE__)
+ call memalloc(this%num_stages, this%c                , __FILE__, __LINE__)
 end subroutine butcher_tableau_allocate_arrays
 
 subroutine butcher_tableau_free ( this )
  implicit none
  class(butcher_tableau_t), intent(inout) :: this
- integer(ip) :: aux
  this%order = 0
  this%num_stages = 0
+ if (allocated(this%time_integration_scheme)) deallocate(this%time_integration_scheme)
  call memfree(this%a,__FILE__,__LINE__)
  call memfree(this%b,__FILE__,__LINE__)
  call memfree(this%c,__FILE__,__LINE__)
 end subroutine butcher_tableau_free
-
-
-
-!module mass_matrix_discrete_integration_names
-! use fempar_names
-
-! implicit none
-!# include "debug.i90"
-! private
-! type, extends(discrete_integration_t) :: mass_matrix_discrete_integration_t
-!contains
-! procedure :: integrate_galerkin
-!end type mass_matrix_discrete_integration_t
-
-!public :: mass_matrix_discrete_integration_t
-
-!contains
-!  ! sbadia: not ready yet for petrov galerkin 
-!subroutine integrate_galerkin ( this, fe_space, assembler )
-!implicit none
-!class(mass_matrix_discrete_integration_t), intent(in)    :: this
-!class(serial_fe_space_t)                 ,intent(inout)  :: fe_space
-!class(assembler_t)                       , intent(inout) :: assembler
-
-!! FE space traversal-related data types
-!class(fe_cell_iterator_t), allocatable :: fe
-
-!! FE integration-related data types
-!type(quadrature_t)       , pointer :: quad
-!type(point_t)            , pointer :: quad_coords(:)
-!real(rp)            , allocatable  :: shape_values(:,:)
-
-!! FE matrix and vector i.e., A_K + f_K
-!real(rp), allocatable              :: elmat(:,:)
-
-!integer(ip)  :: istat
-!integer(ip)  :: qpoint, num_quad_points
-!integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
-
-!assert (associated(this%fe_function))   
-!call fe_space%set_up_cell_integration()
-!call fe_space%create_fe_cell_iterator(fe)
-
-!max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
-!call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
-
-!call fe_space%create_fe_cell_iterator(fe)
-!do while ( .not. fe%has_finished() )
-
-!   ! Update FE-integration related data structures
-!   ! sbadia: Possible optimization, no grad computation required
-!   call fe%update_integration()
-
-!   quad            => fe%get_quadrature()
-!   num_quad_points =  quad%get_num_quadrature_points()
-!   num_dofs        =  fe%get_num_dofs()
-
-!   ! Compute element matrix and vector
-!   elmat = 0.0_rp
-!   call fe%get_values(shape_values)
-!   do qpoint = 1, num_quad_points
-!      factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-!      do idof = 1, num_dofs
-!         do jdof = 1, num_dofs
-!            ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-!            elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_values(jdof,qpoint) * shape_values(idof,qpoint)
-!         end do
-!      end do
-!   end do
-!   call fe%assembly( this%fe_function, elmat, assembler )
-!   !end if
-!   call fe%next()
-!end do
-!call fe_space%free_fe_cell_iterator(fe)
-
-!call memfree(shape_values, __FILE__, __LINE__)
-!call memfree ( elmat, __FILE__, __LINE__ )
-!end subroutine integrate_galerkin
-
-!end module mass_matrix_discrete_integration_names
 
 
 

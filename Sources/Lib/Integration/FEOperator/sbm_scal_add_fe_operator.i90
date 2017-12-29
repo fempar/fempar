@@ -25,16 +25,39 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine scale_add_fe_operator_scale_add_create (this,   &
-                                          op1,   &
-                                          op2,   &
-                                          alpha )
+
+subroutine scale_add_fe_operator_create (this, &
+                                         sparse_matrix_storage_format, &
+                                         diagonal_blocks_symmetric_storage,&
+                                         diagonal_blocks_symmetric,&
+                                         diagonal_blocks_sign,&
+                                         fe_space, &
+                                         discrete_integration, &
+                                         trial_fe_space )
   implicit none
-  class(scale_add_fe_operator_t)             , intent(inout) :: this
+  class(scale_add_fe_operator_t)            , intent(inout) :: this
+  character(*)                              , intent(in)    :: sparse_matrix_storage_format
+  logical                                   , intent(in)    :: diagonal_blocks_symmetric_storage(:)
+  logical                                   , intent(in)    :: diagonal_blocks_symmetric(:)
+  integer(ip)                               , intent(in)    :: diagonal_blocks_sign(:)
+  class(serial_fe_space_t)        , target  , intent(inout) :: fe_space
+  class(discrete_integration_t)   , target  , intent(in)    :: discrete_integration
+  class(serial_fe_space_t), target, optional, intent(inout) :: trial_fe_space
+  mcheck ( .false., "time_stepping_stage_fe_operator_t :: Illegal to call scale_add_fe_operator_create inherited from fe_nonlinear_operator_t")
+end subroutine scale_add_fe_operator_create
+
+
+subroutine scale_add_fe_operator_create_from_operators (this,  &
+                                                        op1,   &
+                                                        op2,   &
+                                                        alpha )
+  implicit none
+  class(scale_add_fe_operator_t)            , intent(inout) :: this
   class(fe_nonlinear_operator_t), target    , intent(in)    :: op1
   class(fe_nonlinear_operator_t), target    , intent(in)    :: op2
-  integer(ip)                               , intent(in)    :: alpha
+  real(rp)                                  , intent(in)    :: alpha
   integer(ip) :: istat
+  class(serial_fe_space_t), pointer :: trial_fe_space
 
   call this%free()
 
@@ -44,38 +67,44 @@ subroutine scale_add_fe_operator_scale_add_create (this,   &
   this%alpha = alpha
   !this%beta = beta
   
-  assert(.not. associated(this%state)) ! Equivalent to: "assert ( this%state == start )"
-  allocate(this%state, stat=istat); check(istat==0);
+  ! Equivalent to: "assert ( this%get_state() == start )"
+  assert(.not. associated(this%get_state())) 
+  call this%allocate_state()
   
-  ! sbadia: sthg more clever than just take it from op1
-  this%sparse_matrix_storage_format = op1%sparse_matrix_storage_format
-  call memalloc ( size(op1%diagonal_blocks_symmetric_storage), this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
-  this%diagonal_blocks_symmetric_storage = op1%diagonal_blocks_symmetric_storage
-  call memalloc ( size(op1%diagonal_blocks_symmetric), this%diagonal_blocks_symmetric, __FILE__, __LINE__ ) 
-  this%diagonal_blocks_symmetric = op1%diagonal_blocks_symmetric
-  call memalloc ( size(op1%diagonal_blocks_sign), this%diagonal_blocks_sign, __FILE__, __LINE__ ) 
-  this%diagonal_blocks_sign = op1%diagonal_blocks_sign
-  this%test_fe_space                => op1%test_fe_space
-  this%discrete_integration         => op1%discrete_integration
-  this%trial_fe_space => op1%trial_fe_space
-  call this%reallocate_after_remesh()
-end subroutine scale_add_fe_operator_scale_add_create
+  ! sbadia : sthg more clever than just take it from op1
+  ! amartin: what are you referring to ?
+  trial_fe_space => this%op1%get_trial_fe_space()
+  if ( associated(trial_fe_space) ) then
+    call this%fe_nonlinear_operator_t%create(this%op1%get_sparse_matrix_storage_format(), &
+                                             this%op1%get_diagonal_blocks_symmetric_storage(),&
+                                             this%op1%get_diagonal_blocks_symmetric(),&
+                                             this%op1%get_diagonal_blocks_sign(),&
+                                             this%op1%get_fe_space(), &
+                                             this%op1%get_discrete_integration(), &
+                                             trial_fe_space)  
+  else
+    call this%fe_nonlinear_operator_t%create(this%op1%get_sparse_matrix_storage_format(), &
+                                             this%op1%get_diagonal_blocks_symmetric_storage(),&
+                                             this%op1%get_diagonal_blocks_symmetric(),&
+                                             this%op1%get_diagonal_blocks_sign(),&
+                                             this%op1%get_fe_space(), &
+                                             this%op1%get_discrete_integration())
+  end if
+end subroutine scale_add_fe_operator_create_from_operators
 
 subroutine scale_add_fe_operator_free(this)
   implicit none
   class(scale_add_fe_operator_t), intent(inout) :: this
-  integer(ip) :: istat
   call this%fe_nonlinear_operator_t%free()
-  if (associated (this%state)) then
-     nullify(this%op1)
-     nullify(this%op2)
-  end if
+  nullify(this%op1)
+  nullify(this%op2)
+  this%alpha = 0.0_rp
 end subroutine scale_add_fe_operator_free
 
 subroutine scale_add_fe_operator_set_evaluation_point(this,x) 
   implicit none
-  class(scale_add_fe_operator_t), intent(in)    :: this
-  class(vector_t) , intent(in)    :: x
+  class(scale_add_fe_operator_t), target, intent(in)    :: this
+  class(vector_t)                       , intent(in)    :: x
   call x%GuardTemp()
   call this%op1%discrete_integration%set_evaluation_point(x)
   call this%op2%discrete_integration%set_evaluation_point(x)
@@ -97,66 +126,66 @@ subroutine scale_add_fe_operator_compute_residual(this)
   implicit none
   class(scale_add_fe_operator_t), intent(in) :: this
   class(environment_t), pointer :: environment
+  class(array_t), pointer :: residual
+  assert ( associated(this%get_state())  )
   environment => this%test_fe_space%get_environment()
-
-  assert ( associated(this%state)  )
-
-
-  if ( .not. ( this%state == residual_computed .or. this%state == assembler_computed ) ) then
-     if ( environment%am_i_l1_task() ) then
-        if ( associated(this%trial_fe_space) ) then
-           call this%op1%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
-           ! sbadia: scal arrays of assembler assembler%get_matrix()*alpha
-		   call this%op2%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
-        else
-           call this%op1%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
-		   ! sbadia: scal arrays of assembler assembler%get_array()*alpha
-           call this%op2%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
-        end if
-     end if
-
-     if (this%state == tangent_computed) then
-        this%state = assembler_computed
-     else ! created
-        assert ( this%state == created )
-        this%state = residual_computed
-     end if
+  if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
+    if ( environment%am_i_l1_task() ) then
+       residual => this%assembler%get_array()
+       if ( associated(this%trial_fe_space) ) then
+          call this%op1%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
+          call residual%scal(this%alpha, residual)
+          call this%op2%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
+       else
+          call this%op1%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
+          call residual%scal(this%alpha, residual)
+          call this%op2%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
+       end if
+    end if
+    if (this%get_state() == tangent_computed) then
+       this%state = assembler_computed
+    else ! created
+       assert ( this%get_state() == created )
+       this%state = residual_computed
+    end if
   end if
-  
 end subroutine scale_add_fe_operator_compute_residual
 
 subroutine scale_add_fe_operator_compute_tangent(this)
   implicit none
   class(scale_add_fe_operator_t), intent(inout) :: this
   class(environment_t), pointer :: environment
+  class(matrix_t), pointer :: tangent 
+
+  assert ( associated(this%get_state())  )
   environment => this%test_fe_space%get_environment()
-
-  assert ( associated(this%state)  )
-
-  if ( .not. ( this%state == tangent_computed .or. this%state == assembler_computed ) ) then
-     if ( environment%am_i_l1_task() ) then
-        if ( associated(this%trial_fe_space) ) then
-           call this%op1%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
-		   call this%op2%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
-        else
-           call this%op1%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
-		   call this%op2%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
-        end if
-     end if
-     call this%assembler%compress_storage(this%sparse_matrix_storage_format)
-     if (this%state == residual_computed) then
-        this%state = assembler_computed
-     else ! created
-        assert ( this%state == created )
-        this%state = tangent_computed
-     end if
+  if ( .not. ( this%get_state() == tangent_computed .or. this%get_state() == assembler_computed ) ) then
+    if ( environment%am_i_l1_task() ) then
+       tangent => this%assembler%get_matrix()
+       if ( associated(this%trial_fe_space) ) then
+          call this%op1%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
+          call tangent%scal(this%alpha)
+          call this%op2%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
+       else
+          call this%op1%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
+          call tangent%scal(this%alpha)
+          call this%op2%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
+       end if
+    end if
+    call this%assembler%compress_storage(this%sparse_matrix_storage_format)
+    if (this%get_state() == residual_computed) then
+       this%state = assembler_computed
+    else ! created
+       assert ( this%get_state() == created )
+       this%state = tangent_computed
+    end if
   end if
 end subroutine scale_add_fe_operator_compute_tangent
 
 subroutine scale_add_fe_operator_set_scalars(this,alpha)!,beta)
   implicit none
   class(scale_add_fe_operator_t), intent(inout) :: this
-  integer(ip)                  , intent(in)    :: alpha!, beta
+  real(rp)                      , intent(in)    :: alpha!, beta
   this%alpha = alpha!; this%beta = beta
 end subroutine scale_add_fe_operator_set_scalars
 

@@ -63,30 +63,69 @@ module time_stepping_names
 
   private
 
-  character(:), parameter :: forward_euler  = "forward_euler"
-  character(:), parameter :: backward_euler = "backward_euler"
-  character(:), parameter :: trapezoidal_rule = "trapezoidal_rule"
+  character(:), parameter :: forward_euler     = "forward_euler"
+  character(:), parameter :: backward_euler    = "backward_euler"
+  character(:), parameter :: trapezoidal_rule  = "trapezoidal_rule"
 
   ! states to be defined
   integer(ip), parameter :: created             = 0
   integer(ip), parameter :: residual_computed   = 1 
   integer(ip), parameter :: tangent_computed    = 2 
   integer(ip), parameter :: assembler_computed  = 3
+  
+  type :: butcher_tableau_t
+    private
+    character(:), allocatable :: time_integration_scheme
+    integer(ip)               :: order      = 0
+    integer(ip)               :: num_stages = 0
+    real(rp)    , allocatable :: a(:,:)
+    real(rp)    , allocatable :: b(:)
+    real(rp)    , allocatable :: c(:)
+  contains
+    procedure          :: create          => butcher_tableau_create
+    procedure, private :: allocate_arrays => butcher_tableau_allocate_arrays  
+    procedure          :: free            => butcher_tableau_free
+  end type butcher_tableau_t
+  
+  ! This operator represents the operator R_ij = R_i(x,x,v_j,x,x),
+  ! where the x denotes that the unknown is fixed. It requires to add
+  ! contributions from the nonlinear operator A and mass nonlinear operator 
+  ! M as alpha*A + beta*M
+  type, extends(fe_nonlinear_operator_t) :: time_stepping_stage_fe_operator_t
+     private
+     type(time_stepping_operator_t), pointer :: ts_op      => NULL()
+     class(fe_nonlinear_operator_t), pointer :: fe_nl_op   => NULL()
+     class(fe_nonlinear_operator_t), pointer :: mass_nl_op => NULL()
+     integer(ip) :: i
+     integer(ip) :: j
+     ! Scratch data to support the efficient implementation of 
+     ! time_stepping_stage_fe_operator_set_evaluation_point
+     class(vector_t), allocatable    :: aux
+   contains
+     procedure :: create                => time_stepping_stage_fe_operator_create
+     procedure :: create_from_operators => time_stepping_stage_fe_operator_create_from_operators
+     procedure :: free                  => time_stepping_stage_fe_operator_free
+     procedure :: set_row               => time_stepping_stage_fe_operator_set_row     
+     procedure :: set_evaluation_point  => time_stepping_stage_fe_operator_set_evaluation_point
+     procedure :: is_linear             => time_stepping_stage_fe_operator_is_linear
+     procedure :: compute_residual      => time_stepping_stage_fe_operator_compute_residual
+     procedure :: compute_tangent       => time_stepping_stage_fe_operator_compute_tangent
+  end type time_stepping_stage_fe_operator_t
 
   ! sbadia: to make auto-documentation style
   !
-  !This operator is the global RK operator as follows.
-  !In RK methods, for a s-stage method, given u_0, we must compute
-  ![ v_1, v_s ] st
-  !v_1 + A ( t + c_1 dt , v_0 + a_11 v_1 ) = 0
-  !...
-  !v_i + A ( t + c_i dt, v_0 + \sum_{j=1}^s a_ij v_j ) = 0
-  !...
-  !to finally get
-  !u_1 =  u_0 + \sum_{i=1}^s b_i v_i = 0.
+  ! This operator is the global RK operator as follows.
+  ! In RK methods, for a s-stage method, given u_0, we must compute
+  ! [ v_1, ...,  v_s ] st
+  ! v_1 + A ( t + c_1 dt , v_0 + a_11 v_1 ) = 0
+  ! ...
+  ! v_i + A ( t + c_i dt, v_0 + \sum_{j=1}^s a_ij v_j ) = 0
+  ! ...
+  ! to finally get
+  ! u_1 =  u_0 + \sum_{i=1}^s b_i v_i.
   ! As a result, the RK problem can be stated in compact form as R(U)=0, where
   ! U = [v_1, ..., v_s]. The objective is to solve this problem and 
-  ! extract u_1 = u_0 + \sum_{i=1}^s b_i v_i = 0.
+  ! extract u_1 = u_0 + \sum_{i=1}^s b_i v_i.
   ! One must compute, given U, its application R(U). So, I want a apply method that, 
   ! given the stage i I want to get, it applies the i-stage R_i(U) application.
   ! However, in DIRK RK methods, the ones usually used, the coupling is weaker, and 
@@ -100,68 +139,30 @@ module time_stepping_names
   ! Next, I compute the apply and tangent of this operator, which is all I need to apply
   ! the whole operator.
 
-  ! sbadia: I must provide a method to get the solution
-  ! u_1 =  u_0 + \sum_{i=1}^s b_i v_i = 0.
-  
-  
-  ! This operator represents the operator R_ij = R_i(x,x,v_j,x,x),
-  ! where the x denotes that the unknown is fixed. It requires to add
-  ! contributions from the nonlinear operator A and mass matrix M as
-  ! alpha*A + beta*M
-
-    type :: butcher_tableau_t
-     private
-     integer(ip) :: time_integrator
-     integer(ip) :: order
-     integer(ip) :: num_stages
-     real(rp)    , allocatable :: a(:,:)
-     real(rp)    , allocatable :: b(:)
-     real(rp)    , allocatable :: c(:)
-   contains
-     procedure          :: create          => butcher_tableau_create
-	 procedure, private :: allocate_arrays => butcher_tableau_allocate_arrays  
-	 procedure          :: free            => butcher_tableau_free
-  end type butcher_tableau_t
-  
-  type, extends(fe_nonlinear_operator_t) :: time_stepping_stage_fe_operator_t
-     private
-     type(time_stepping_operator_t), pointer :: ts_op 
-	 class(fe_nonlinear_operator_t), pointer :: fe_op
-	 class(fe_nonlinear_operator_t), pointer :: mass_op
-     integer(ip) :: i
-     integer(ip) :: j
-   contains
-     procedure :: set_row => time_stepping_stage_fe_operator_set_row
-	 procedure :: create_from_operators => time_stepping_stage_fe_operator_create_from_operators
-	 procedure :: free => time_stepping_stage_fe_operator_free
-	 procedure :: set_evaluation_point => time_stepping_stage_fe_operator_set_evaluation_point
-	 procedure :: is_linear => time_stepping_stage_fe_operator_is_linear
-	 procedure :: compute_residual => time_stepping_stage_fe_operator_compute_residual
-	 procedure :: compute_tangent => time_stepping_stage_fe_operator_compute_tangent
-  end type time_stepping_stage_fe_operator_t
-  type:: time_stepping_operator_t ! , extends(operator_t) commented for the moment,
+  type:: time_stepping_operator_t ! extends(operator_t) commented for the moment,
                                   ! no implicit RK implemented yet
      private
-     ! sbadia: can we put here just the stage block
-     type(time_stepping_stage_fe_operator_t)            :: fe_op
      type(butcher_tableau_t)                            :: scheme
+     type(time_stepping_stage_fe_operator_t)            :: fe_op
      class(vector_t)                          , pointer :: initial_value => NULL()
-     real(rp)                                           :: dt
      class(vector_t)                      , allocatable :: dofs_stages(:)
+     real(rp)                                           :: dt = 0.0_rp
 
      ! sbadia: For the moment, we are not interested in full RK implementations,
      ! even though it would be an easy paper about preconditioning these schemes
      ! So, we don't really need to use the block assembler for the
      ! all-stages operator. We note that the matrix is not needed to be computed
      ! for every stage since it is always the same
-     !class(assembler_t)                   , allocatable :: assembler
-     !type(block_vector_t)                               :: dofs_stages_block_vector
+     ! class(assembler_t)                   , allocatable :: assembler
+     ! type(block_vector_t)                               :: dofs_stages_block_vector
    contains
-     procedure :: set_up_operators_and_scheme => time_stepping_operator_set_up_operators_and_scheme
-     procedure :: set_initial_data            => time_stepping_operator_set_initial_data
-     procedure :: set_time_step_size          => time_stepping_operator_set_time_step_size     
-     procedure, private :: allocate_dofs_stages      => time_stepping_operator_allocate_dofs_stages
-	 procedure, private  :: get_stage_operator => time_stepping_operator_get_stage_operator
+     procedure :: create                          => time_stepping_operator_create
+     procedure :: free                            => time_stepping_operator_free
+     procedure :: set_initial_data                => time_stepping_operator_set_initial_data
+     procedure :: set_time_step_size              => time_stepping_operator_set_time_step_size     
+     procedure, private :: allocate_dofs_stages   => time_stepping_operator_allocate_dofs_stages
+     procedure, private :: deallocate_dofs_stages => time_stepping_operator_allocate_dofs_stages
+     procedure, private :: get_stage_operator     => time_stepping_operator_get_stage_operator
      !!!procedure :: create             => time_stepping_operator_create
      ! sbadia: It must be defined since it is an operator, but for the moment
      !!! we do not want to use it. Dummy implementation...
@@ -174,20 +175,19 @@ module time_stepping_names
      !!!procedure, private :: set_evaluation_point_row  => time_stepping_operator_set_evaluation_point_row	 
   end type time_stepping_operator_t
   
-
-  
   type :: dirk_solver_t
-     private
-     type(time_stepping_operator_t), pointer :: ts_op
-     type(nonlinear_solver_t), pointer :: nl_solver
-   contains
-	 procedure :: create => dirk_solver_create
-     procedure :: apply => dirk_solver_apply
-   end type dirk_solver_t
+    private
+    type(time_stepping_operator_t), pointer :: ts_op     => NULL()
+    type(nonlinear_solver_t)      , pointer :: nl_solver => NULL()
+  contains
+    procedure :: create => dirk_solver_create
+    procedure :: apply  => dirk_solver_apply
+    procedure :: free   => dirk_solver_free
+  end type dirk_solver_t
   
   public :: time_stepping_operator_t, dirk_solver_t
   
-  contains
+contains
   
 #include "sbm_time_stepping_operator.i90"
 #include "sbm_butcher_tableau.i90"

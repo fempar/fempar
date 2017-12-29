@@ -5,7 +5,7 @@ subroutine fe_affine_operator_compute (this)
   
   assert ( associated(this%state) )
 
-  if ( this%state == assembler_computed ) return
+  if ( this%get_state() == assembler_computed ) return
 
   environment => this%test_fe_space%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -17,7 +17,7 @@ subroutine fe_affine_operator_compute (this)
   end if
   call this%assembler%compress_storage(this%sparse_matrix_storage_format)
   
-  this%state = assembler_computed
+  call this%set_state(assembler_computed)
 end subroutine fe_affine_operator_compute
 
 function fe_affine_operator_get_matrix(this)

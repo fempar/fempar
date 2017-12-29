@@ -68,6 +68,7 @@ private
         procedure         :: allocate_symbolic                       => csr_sparse_matrix_allocate_symbolic
         procedure, public :: allocate_values_body                    => csr_sparse_matrix_allocate_values_body
         procedure, public :: initialize_values                       => csr_sparse_matrix_initialize_values
+        procedure, public :: scal                                    => csr_sparse_matrix_scal
         procedure, public :: update_bounded_values_body              => csr_sparse_matrix_update_bounded_values_body
         procedure, public :: update_bounded_value_body               => csr_sparse_matrix_update_bounded_value_body
         procedure, public :: update_bounded_values_by_row_body       => csr_sparse_matrix_update_bounded_values_by_row_body
@@ -977,6 +978,17 @@ contains
     !-----------------------------------------------------------------
         if(allocated(this%val)) this%val(1:this%get_nnz()) = val
     end subroutine csr_sparse_matrix_initialize_values
+    
+    
+   subroutine csr_sparse_matrix_scal(this, val)
+    !-----------------------------------------------------------------
+    !< Scal CSR values
+    !-----------------------------------------------------------------
+        class(csr_sparse_matrix_t), intent(inout)  :: this
+        real(rp),                   intent(in)     :: val
+    !-----------------------------------------------------------------
+        if(allocated(this%val)) this%val(1:this%get_nnz()) = val*this%val(1:this%get_nnz())
+    end subroutine csr_sparse_matrix_scal
 
 
     subroutine csr_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 

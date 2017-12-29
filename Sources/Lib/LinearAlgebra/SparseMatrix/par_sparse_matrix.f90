@@ -62,6 +62,7 @@ private
         procedure, non_overridable, public :: is_symmetric                   => par_sparse_matrix_is_symmetric
         procedure,                  public :: allocate                       => par_sparse_matrix_allocate
         procedure,                  public :: init                           => par_sparse_matrix_init
+        procedure,                  public :: scal                           => par_sparse_matrix_scal
         procedure,                  public :: free_in_stages                 => par_sparse_matrix_free_in_stages  
         generic,                    public :: create                         => par_sparse_matrix_create_square, &
                                                                                 par_sparse_matrix_create_rectangular
@@ -218,8 +219,18 @@ contains
         if(.not. this%p_env%am_i_l1_task()) return
         call this%sparse_matrix%init(alpha)
     end subroutine par_sparse_matrix_init
-
-
+    
+    subroutine par_sparse_matrix_scal(this, alpha)
+    !-----------------------------------------------------------------
+    !< Scale matrix entries
+    !-----------------------------------------------------------------
+        class(par_sparse_matrix_t), intent(inout) :: this
+        real(rp),                   intent(in)    :: alpha
+    !-----------------------------------------------------------------
+        if(.not. this%p_env%am_i_l1_task()) return
+        call this%sparse_matrix%scal(alpha)
+    end subroutine par_sparse_matrix_scal
+    
     subroutine par_sparse_matrix_create_vector_spaces(this)
     !-----------------------------------------------------------------
     !< Create vector spaces

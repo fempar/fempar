@@ -126,6 +126,7 @@ module base_sparse_matrix_names
      procedure(base_sparse_matrix_move_to_fmt_body),                  deferred :: move_to_fmt_body
      procedure(base_sparse_matrix_move_from_fmt_body),                deferred :: move_from_fmt_body
      procedure(base_sparse_matrix_initialize_values),         public, deferred :: initialize_values
+     procedure(base_sparse_matrix_scal)             ,         public, deferred :: scal
      procedure(base_sparse_matrix_allocate_values_body),      public, deferred :: allocate_values_body
      procedure(base_sparse_matrix_update_bounded_values_body),              &
           public, deferred :: update_bounded_values_body
@@ -398,6 +399,7 @@ module base_sparse_matrix_names
         procedure, public :: allocate_coords                         => coo_sparse_matrix_allocate_coords
         procedure, public :: allocate_values_body                    => coo_sparse_matrix_allocate_values_body
         procedure, public :: initialize_values                       => coo_sparse_matrix_initialize_values
+        procedure, public :: scal                                    => coo_sparse_matrix_scal
         procedure, public :: copy_to_coo_body                        => coo_sparse_matrix_copy_to_coo_body
         procedure, public :: copy_from_coo_body                      => coo_sparse_matrix_copy_from_coo_body
         procedure, public :: copy_to_fmt_body                        => coo_sparse_matrix_copy_to_fmt_body
@@ -542,6 +544,13 @@ module base_sparse_matrix_names
             class(base_sparse_matrix_t),  intent(inout) :: this
             real(rp),                     intent(in)    :: val
         end subroutine base_sparse_matrix_initialize_values
+        
+        subroutine base_sparse_matrix_scal(this, val)
+            import base_sparse_matrix_t
+            import rp
+            class(base_sparse_matrix_t),  intent(inout) :: this
+            real(rp),                     intent(in)    :: val
+        end subroutine base_sparse_matrix_scal
 
         subroutine base_sparse_matrix_update_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
             import base_sparse_matrix_t
@@ -2887,7 +2896,16 @@ contains
     !-----------------------------------------------------------------
         if(allocated(this%val)) this%val(1:this%get_nnz()) = val
     end subroutine coo_sparse_matrix_initialize_values
-
+    
+    subroutine coo_sparse_matrix_scal(this, val)
+    !-----------------------------------------------------------------
+    !< Scale COO values
+    !-----------------------------------------------------------------
+        class(coo_sparse_matrix_t), intent(inout)  :: this
+        real(rp),                   intent(in)     :: val
+    !-----------------------------------------------------------------
+        if(allocated(this%val)) this%val(1:this%get_nnz()) = val*this%val(1:this%get_nnz())
+    end subroutine coo_sparse_matrix_scal
 
     subroutine coo_sparse_matrix_append_bounded_values_body(this, nz, ia, ja, val, imin, imax, jmin, jmax) 
     !-----------------------------------------------------------------

@@ -46,8 +46,9 @@ subroutine fe_nonlinear_operator_create (this, &
 
   call this%free()
 
-  assert(.not. associated(this%state)) ! Equivalent to: "assert ( this%state == start )"
-  allocate(this%state, stat=istat); check(istat==0);
+  ! Equivalent to: "assert ( this%state == start )"
+  assert(.not. associated(this%get_state())) 
+  call this%allocate_state()
 
   this%sparse_matrix_storage_format = sparse_matrix_storage_format
   call memalloc ( size(diagonal_blocks_symmetric_storage), this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
@@ -70,7 +71,7 @@ subroutine fe_nonlinear_operator_free(this)
   implicit none
   class(fe_nonlinear_operator_t), intent(inout) :: this
   integer(ip) :: istat
-  if (associated (this%state)) then
+  if (associated (this%get_state())) then
      deallocate(this%sparse_matrix_storage_format)
      call memfree ( this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
      call memfree ( this%diagonal_blocks_symmetric, __FILE__, __LINE__ ) 
@@ -82,8 +83,7 @@ subroutine fe_nonlinear_operator_free(this)
      deallocate(this%assembler, stat=istat ); check(istat==0);
      nullify(this%assembler)
      call this%free_vector_spaces()
-     deallocate(this%state, stat=istat ); check(istat==0);
-     nullify(this%state)
+     call this%deallocate_state()
   end if
 end subroutine fe_nonlinear_operator_free
 
@@ -92,7 +92,7 @@ subroutine fe_nonlinear_operator_reallocate_after_remesh(this)
   class(fe_nonlinear_operator_t)              , intent(inout) :: this
   integer(ip) :: istat
 
-  assert(associated(this%state))
+  assert(associated(this%get_state()))
 
   if ( associated(this%assembler) ) then
      call this%assembler%free()
@@ -116,7 +116,7 @@ subroutine fe_nonlinear_operator_reallocate_after_remesh(this)
   call this%assembler%init_array(0.0_rp)  
  
   call this%create_vector_spaces()
-  this%state = created
+  call this%set_state(created)
 end subroutine fe_nonlinear_operator_reallocate_after_remesh
 
 subroutine fe_nonlinear_operator_create_vector_spaces(this)
@@ -267,44 +267,47 @@ end function fe_nonlinear_operator_create_par_assembler
 function fe_nonlinear_operator_get_diagonal_blocks_symmetric_storage(this)
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
-  logical, allocatable :: fe_nonlinear_operator_get_diagonal_blocks_symmetric_storage(:)
-  
-  fe_nonlinear_operator_get_diagonal_blocks_symmetric_storage = this%diagonal_blocks_symmetric_storage
+  logical, pointer :: fe_nonlinear_operator_get_diagonal_blocks_symmetric_storage(:)
+  assert ( associated(this%get_state())  )
+  fe_nonlinear_operator_get_diagonal_blocks_symmetric_storage => this%diagonal_blocks_symmetric_storage
 end function fe_nonlinear_operator_get_diagonal_blocks_symmetric_storage
 
 function fe_nonlinear_operator_get_diagonal_blocks_symmetric(this)
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
-  logical, allocatable :: fe_nonlinear_operator_get_diagonal_blocks_symmetric(:)
-  fe_nonlinear_operator_get_diagonal_blocks_symmetric = this%diagonal_blocks_symmetric
+  logical, pointer :: fe_nonlinear_operator_get_diagonal_blocks_symmetric(:)
+  assert ( associated(this%get_state())  )
+  fe_nonlinear_operator_get_diagonal_blocks_symmetric => this%diagonal_blocks_symmetric
 end function fe_nonlinear_operator_get_diagonal_blocks_symmetric
 
 function fe_nonlinear_operator_get_diagonal_blocks_sign(this)
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
-  integer(ip), allocatable :: fe_nonlinear_operator_get_diagonal_blocks_sign(:)
-  fe_nonlinear_operator_get_diagonal_blocks_sign = this%diagonal_blocks_sign
+  integer(ip), pointer :: fe_nonlinear_operator_get_diagonal_blocks_sign(:)
+  assert ( associated(this%get_state())  )
+  fe_nonlinear_operator_get_diagonal_blocks_sign => this%diagonal_blocks_sign
 end function fe_nonlinear_operator_get_diagonal_blocks_sign
 
 function fe_nonlinear_operator_get_sparse_matrix_storage_format(this)
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
-  character(:), allocatable :: fe_nonlinear_operator_get_sparse_matrix_storage_format
-  fe_nonlinear_operator_get_sparse_matrix_storage_format = this%sparse_matrix_storage_format
+  character(:), pointer :: fe_nonlinear_operator_get_sparse_matrix_storage_format
+  assert ( associated(this%get_state())  )
+  fe_nonlinear_operator_get_sparse_matrix_storage_format => this%sparse_matrix_storage_format
 end function fe_nonlinear_operator_get_sparse_matrix_storage_format
 
 function fe_nonlinear_operator_get_state(this)
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
-  integer(ip) :: fe_nonlinear_operator_get_state
-  fe_nonlinear_operator_get_state = this%state
+  integer(ip), pointer :: fe_nonlinear_operator_get_state
+  fe_nonlinear_operator_get_state => this%state
 end function fe_nonlinear_operator_get_state
 
 function fe_nonlinear_operator_get_fe_space(this)
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
   class(serial_fe_space_t), pointer :: fe_nonlinear_operator_get_fe_space
-  assert ( associated(this%state)  )
+  assert ( associated(this%get_state())  )
   fe_nonlinear_operator_get_fe_space => this%test_fe_space
 end function fe_nonlinear_operator_get_fe_space
 
@@ -312,7 +315,7 @@ function fe_nonlinear_operator_get_trial_fe_space(this)
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
   class(serial_fe_space_t), pointer :: fe_nonlinear_operator_get_trial_fe_space
-  assert ( associated(this%state)  )
+  assert ( associated(this%get_state())  )
   fe_nonlinear_operator_get_trial_fe_space => this%trial_fe_space
 end function fe_nonlinear_operator_get_trial_fe_space
 
@@ -320,7 +323,7 @@ function fe_nonlinear_operator_get_discrete_integration(this)
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
   class(discrete_integration_t), pointer :: fe_nonlinear_operator_get_discrete_integration
-  assert ( associated(this%state)  )
+  assert ( associated(this%get_state())  )
   fe_nonlinear_operator_get_discrete_integration => this%discrete_integration
 end function fe_nonlinear_operator_get_discrete_integration
 
@@ -328,7 +331,7 @@ function fe_nonlinear_operator_get_assembler(this)
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
   class(assembler_t), pointer :: fe_nonlinear_operator_get_assembler
-  assert ( associated(this%state)  )
+  assert ( associated(this%get_state())  )
   fe_nonlinear_operator_get_assembler => this%assembler
 end function fe_nonlinear_operator_get_assembler
 
@@ -373,11 +376,11 @@ end subroutine fe_nonlinear_operator_apply_add
 
 subroutine fe_nonlinear_operator_set_evaluation_point(this,x) 
   implicit none
-  class(fe_nonlinear_operator_t), intent(in)    :: this
-  class(vector_t) , intent(in)    :: x
+  class(fe_nonlinear_operator_t), target, intent(in)    :: this
+  class(vector_t)                       , intent(in)    :: x
   call x%GuardTemp()
   call this%discrete_integration%set_evaluation_point(x)
-  this%state = created
+  call this%set_state(created)
   call this%assembler%init_array(0.0_rp)  
   call this%assembler%init_matrix(0.0_rp)
   call x%CleanTemp()
@@ -394,7 +397,7 @@ function fe_nonlinear_operator_get_tangent(this) result(tangent)
   implicit none
   class(fe_nonlinear_operator_t), intent(in) :: this
   type(lvalue_operator_t)          :: tangent
-  assert ( associated(this%state)  )
+  assert ( associated(this%get_state())  )
   tangent = this%assembler%get_matrix()
   call tangent%SetTemp()
 end function fe_nonlinear_operator_get_tangent
@@ -410,7 +413,7 @@ function fe_nonlinear_operator_get_translation(this) result(translation)
   implicit none
   class(fe_nonlinear_operator_t), intent(in) :: this
   class(vector_t), pointer                :: translation
-  assert ( associated(this%state)  )
+  assert ( associated(this%get_state())  )
   translation => this%assembler%get_array()
 end function fe_nonlinear_operator_get_translation
 
@@ -418,7 +421,7 @@ subroutine fe_nonlinear_operator_abort_if_not_in_domain ( this, vector )
   implicit none
   class(fe_nonlinear_operator_t), intent(in)  :: this
   class(vector_t)            , intent(in)  :: vector
-  assert ( associated(this%state)  )
+  assert ( associated(this%get_state())  )
   call operator_abort_if_not_in_domain(this,vector)
 end subroutine fe_nonlinear_operator_abort_if_not_in_domain
 
@@ -426,7 +429,7 @@ subroutine fe_nonlinear_operator_abort_if_not_in_range ( this, vector )
   implicit none
   class(fe_nonlinear_operator_t), intent(in) :: this
   class(vector_t)            , intent(in) :: vector
-  assert ( associated(this%state)  )
+  assert ( associated(this%get_state())  )
   call operator_abort_if_not_in_range(this,vector)
 end subroutine fe_nonlinear_operator_abort_if_not_in_range
 
@@ -434,7 +437,7 @@ function fe_nonlinear_operator_get_domain_vector_space ( this )
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
   type(vector_space_t)               , pointer    :: fe_nonlinear_operator_get_domain_vector_space
-  assert ( associated(this%state)  )
+  assert ( associated(this%get_state())  )
   fe_nonlinear_operator_get_domain_vector_space => operator_get_domain_vector_space(this)
 end function fe_nonlinear_operator_get_domain_vector_space
 
@@ -442,7 +445,7 @@ function fe_nonlinear_operator_get_range_vector_space ( this )
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
   type(vector_space_t)                  , pointer :: fe_nonlinear_operator_get_range_vector_space
-  assert ( associated(this%state)  )
+  assert ( associated(this%get_state())  )
   fe_nonlinear_operator_get_range_vector_space => operator_get_range_vector_space(this)
 end function fe_nonlinear_operator_get_range_vector_space
 
@@ -453,7 +456,6 @@ function fe_nonlinear_operator_apply_fun(op,x) result(y)
   class(vector_t)     , allocatable :: y
   type(vector_space_t), pointer     :: range_vector_space
   range_vector_space => op%get_range_vector_space()
-  !call op%setup()
   call range_vector_space%create_vector(y)
   call op%apply(x,y)
 end function fe_nonlinear_operator_apply_fun
@@ -462,12 +464,9 @@ subroutine fe_nonlinear_operator_compute_residual(this)
   implicit none
   class(fe_nonlinear_operator_t), intent(in) :: this
   class(environment_t), pointer :: environment
+  assert ( associated(this%get_state())  )
   environment => this%test_fe_space%get_environment()
-
-  assert ( associated(this%state)  )
-
-
-  if ( .not. ( this%state == residual_computed .or. this%state == assembler_computed ) ) then
+  if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
      if ( environment%am_i_l1_task() ) then
         if ( associated(this%trial_fe_space) ) then
            call this%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
@@ -475,26 +474,23 @@ subroutine fe_nonlinear_operator_compute_residual(this)
            call this%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
         end if
      end if
-
-     if (this%state == tangent_computed) then
-        this%state = assembler_computed
+     if (this%get_state() == tangent_computed) then
+        call this%set_state(assembler_computed)
      else ! created
-        assert ( this%state == created )
-        this%state = residual_computed
+        assert ( this%get_state() == created )
+        call this%set_state(residual_computed)
      end if
   end if
-
 end subroutine fe_nonlinear_operator_compute_residual
 
 subroutine fe_nonlinear_operator_compute_tangent(this)
   implicit none
   class(fe_nonlinear_operator_t), intent(inout) :: this
   class(environment_t), pointer :: environment
+  
   environment => this%test_fe_space%get_environment()
-
-  assert ( associated(this%state)  )
-
-  if ( .not. ( this%state == tangent_computed .or. this%state == assembler_computed ) ) then
+  assert ( associated(this%get_state())  )
+  if ( .not. ( this%get_state() == tangent_computed .or. this%get_state() == assembler_computed ) ) then
      if ( environment%am_i_l1_task() ) then
         if ( associated(this%trial_fe_space) ) then
            call this%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
@@ -503,47 +499,37 @@ subroutine fe_nonlinear_operator_compute_tangent(this)
         end if
      end if
      call this%assembler%compress_storage(this%sparse_matrix_storage_format)
-     if (this%state == residual_computed) then
-        this%state = assembler_computed
+     if (this%get_state() == residual_computed) then
+        call this%set_state(assembler_computed)
      else ! created
-        assert ( this%state == created )
-        this%state = tangent_computed
+        assert ( this%get_state() == created )
+        call this%set_state(assembler_computed)
      end if
   end if
 end subroutine fe_nonlinear_operator_compute_tangent
 
+subroutine fe_nonlinear_operator_allocate_state(this)
+  implicit none
+  class(fe_nonlinear_operator_t), intent(inout) :: this
+  integer(ip) :: istat
+  call this%deallocate_state()
+  allocate(this%state, stat=istat); check(istat==0);  
+end subroutine fe_nonlinear_operator_allocate_state
+
 subroutine fe_nonlinear_operator_set_state(this, state)
   implicit none
-  class(fe_nonlinear_operator_t), target, intent(in) :: this
-  integer(ip), optional, intent(in) :: state
-  integer(ip) :: istat
-  if ( .not. present(state) ) then
-  ! sbadia: error I don't understand
-  !   allocate(this%state, stat=istat); check(istat==0);
-  else 
-     this%state = state
-  end if 
+  class(fe_nonlinear_operator_t), intent(in) :: this
+  integer(ip)                   , intent(in) :: state
+  assert ( associated(this%get_state()) ) 
+  this%state = state
 end subroutine fe_nonlinear_operator_set_state
 
-subroutine fe_nonlinear_operator_copy(this, op_source)
+subroutine fe_nonlinear_operator_deallocate_state(this)
   implicit none
-  class(fe_nonlinear_operator_t), target, intent(inout) :: this
-  class(fe_nonlinear_operator_t), target, intent(in) :: op_source
-  this%sparse_matrix_storage_format = op_source%sparse_matrix_storage_format
-  call memalloc ( size(op_source%diagonal_blocks_symmetric_storage), this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
-  this%diagonal_blocks_symmetric_storage = op_source%diagonal_blocks_symmetric_storage
-  call memalloc ( size(op_source%diagonal_blocks_symmetric), this%diagonal_blocks_symmetric, __FILE__, __LINE__ ) 
-  this%diagonal_blocks_symmetric = op_source%diagonal_blocks_symmetric
-  call memalloc ( size(op_source%diagonal_blocks_sign), this%diagonal_blocks_sign, __FILE__, __LINE__ ) 
-  this%diagonal_blocks_sign = op_source%diagonal_blocks_sign
-  this%test_fe_space                => op_source%test_fe_space
-  this%trial_fe_space               => op_source%trial_fe_space
-  this%discrete_integration         => op_source%discrete_integration
-  ! sbadia : assembler ?
-end subroutine fe_nonlinear_operator_copy
-
-subroutine fe_nonlinear_operator_compress_assembler(this)
-  implicit none
-  class(fe_nonlinear_operator_t), target, intent(inout) :: this
-  call this%assembler%compress_storage(this%sparse_matrix_storage_format)
-end subroutine fe_nonlinear_operator_compress_assembler
+  class(fe_nonlinear_operator_t), intent(inout) :: this
+  integer(ip) :: istat
+  if ( associated(this%get_state()) )  then
+    deallocate(this%state, stat=istat); check(istat==0);
+  end if
+  nullify(this%state)
+end subroutine fe_nonlinear_operator_deallocate_state

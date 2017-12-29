@@ -130,39 +130,38 @@ module fe_nonlinear_operator_names
      logical                           , allocatable :: diagonal_blocks_symmetric(:)
      integer(ip)                       , allocatable :: diagonal_blocks_sign(:)
    contains
-     procedure          :: create                      => fe_nonlinear_operator_create
-     procedure          :: free                        => fe_nonlinear_operator_free
-     procedure          :: set_evaluation_point        => fe_nonlinear_operator_set_evaluation_point  
-     procedure          :: reallocate_after_remesh     => fe_nonlinear_operator_reallocate_after_remesh
+     procedure :: create                                => fe_nonlinear_operator_create
+     procedure :: free                                  => fe_nonlinear_operator_free
+     procedure :: set_evaluation_point                  => fe_nonlinear_operator_set_evaluation_point  
+     procedure :: reallocate_after_remesh               => fe_nonlinear_operator_reallocate_after_remesh
 
-     procedure          :: compute_tangent             => fe_nonlinear_operator_compute_tangent
-     procedure          :: compute_residual            => fe_nonlinear_operator_compute_residual  
+     procedure :: compute_tangent                       => fe_nonlinear_operator_compute_tangent
+     procedure :: compute_residual                      => fe_nonlinear_operator_compute_residual  
 
-     procedure          :: apply                       => fe_nonlinear_operator_apply
-     procedure          :: apply_add                   => fe_nonlinear_operator_apply_add
-     procedure          :: is_linear                   => fe_nonlinear_operator_is_linear
+     procedure :: apply                                 => fe_nonlinear_operator_apply
+     procedure :: apply_add                             => fe_nonlinear_operator_apply_add
+     procedure :: is_linear                             => fe_nonlinear_operator_is_linear
 
-     procedure          :: get_tangent                 => fe_nonlinear_operator_get_tangent 
-     procedure          :: get_matrix                  => fe_nonlinear_operator_get_matrix
-     procedure          :: get_translation             => fe_nonlinear_operator_get_translation
-     procedure          :: get_fe_space                => fe_nonlinear_operator_get_fe_space
-     procedure          :: get_trial_fe_space          => fe_nonlinear_operator_get_trial_fe_space
-     procedure          :: get_discrete_integration    => fe_nonlinear_operator_get_discrete_integration
-     procedure          :: get_domain_vector_space     => fe_nonlinear_operator_get_domain_vector_space
-     procedure          :: get_range_vector_space      => fe_nonlinear_operator_get_range_vector_space
-	 
-	 procedure :: get_state                             => fe_nonlinear_operator_get_state
-	 procedure :: get_diagonal_blocks_symmetric_storage => fe_nonlinear_operator_get_diagonal_blocks_symmetric_storage
-	 procedure :: get_diagonal_blocks_symmetric         => fe_nonlinear_operator_get_diagonal_blocks_symmetric
-	 procedure :: get_diagonal_blocks_sign              => fe_nonlinear_operator_get_diagonal_blocks_sign
+     procedure :: get_tangent                           => fe_nonlinear_operator_get_tangent 
+     procedure :: get_matrix                            => fe_nonlinear_operator_get_matrix
+     procedure :: get_translation                       => fe_nonlinear_operator_get_translation
+     procedure :: get_fe_space                          => fe_nonlinear_operator_get_fe_space
+     procedure :: get_trial_fe_space                    => fe_nonlinear_operator_get_trial_fe_space
+     procedure :: get_discrete_integration              => fe_nonlinear_operator_get_discrete_integration
+     procedure :: get_domain_vector_space               => fe_nonlinear_operator_get_domain_vector_space
+     procedure :: get_range_vector_space                => fe_nonlinear_operator_get_range_vector_space
+	    procedure :: get_state                             => fe_nonlinear_operator_get_state
+	    procedure :: get_diagonal_blocks_symmetric_storage => fe_nonlinear_operator_get_diagonal_blocks_symmetric_storage
+	    procedure :: get_diagonal_blocks_symmetric         => fe_nonlinear_operator_get_diagonal_blocks_symmetric
+	    procedure :: get_diagonal_blocks_sign              => fe_nonlinear_operator_get_diagonal_blocks_sign
      procedure :: get_sparse_matrix_storage_format      => fe_nonlinear_operator_get_sparse_matrix_storage_format 
      procedure :: get_assembler                         => fe_nonlinear_operator_get_assembler        
 	 
-     procedure          :: set_state                   => fe_nonlinear_operator_set_state
-	 procedure          :: copy                        => fe_nonlinear_operator_copy
-     procedure          :: compress_assembler          => fe_nonlinear_operator_compress_assembler
-	 procedure          :: abort_if_not_in_range       => fe_nonlinear_operator_abort_if_not_in_range
-     procedure          :: abort_if_not_in_domain      => fe_nonlinear_operator_abort_if_not_in_domain
+     procedure :: allocate_state                        => fe_nonlinear_operator_allocate_state
+     procedure :: set_state                             => fe_nonlinear_operator_set_state
+     procedure :: deallocate_state                      => fe_nonlinear_operator_deallocate_state
+	    procedure :: abort_if_not_in_range                 => fe_nonlinear_operator_abort_if_not_in_range
+     procedure :: abort_if_not_in_domain                => fe_nonlinear_operator_abort_if_not_in_domain
 
      procedure, private :: create_serial_assembler     => fe_nonlinear_operator_create_serial_assembler
      procedure, private :: create_par_assembler        => fe_nonlinear_operator_create_par_assembler
@@ -185,21 +184,17 @@ type, extends(fe_nonlinear_operator_t) :: scale_add_fe_operator_t
   ! This operator represents alpha*A+B, given the fe_nonlinear_operator_t's A and B
   ! and scalars alpha and beta
   private
-     class(fe_nonlinear_operator_t), pointer :: op1 => NULL() ! A
-     class(fe_nonlinear_operator_t), pointer :: op2 => NULL() ! B
-     integer(ip)                             :: alpha         ! alpha
-     
+  class(fe_nonlinear_operator_t), pointer :: op1 => NULL() ! A
+  class(fe_nonlinear_operator_t), pointer :: op2 => NULL() ! B
+  real(rp)                                :: alpha        ! alpha
 contains
-  !procedure          :: create                      => scale_add_fe_operator_create
+  procedure          :: create                      => scale_add_fe_operator_create
+  procedure          :: create_from_operators       => scale_add_fe_operator_create_from_operators
   procedure          :: free                        => scale_add_fe_operator_free
-  procedure          :: set_evaluation_point        => scale_add_fe_operator_set_evaluation_point  
-
+  procedure          :: set_evaluation_point        => scale_add_fe_operator_set_evaluation_point
   procedure          :: compute_tangent             => scale_add_fe_operator_compute_tangent
   procedure          :: compute_residual            => scale_add_fe_operator_compute_residual  
-
   procedure          :: is_linear                   => scale_add_fe_operator_is_linear
-	 
-  procedure          :: scale_add_create             => scale_add_fe_operator_scale_add_create
   procedure          :: set_scalars                 => scale_add_fe_operator_set_scalars
 end type scale_add_fe_operator_t
 
