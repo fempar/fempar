@@ -63,9 +63,9 @@ module time_stepping_names
 
   private
 
-  character(:), parameter :: forward_euler     = "forward_euler"
-  character(:), parameter :: backward_euler    = "backward_euler"
-  character(:), parameter :: trapezoidal_rule  = "trapezoidal_rule"
+  character(*), parameter :: forward_euler     = "forward_euler"
+  character(*), parameter :: backward_euler    = "backward_euler"
+  character(*), parameter :: trapezoidal_rule  = "trapezoidal_rule"
 
   ! states to be defined
   integer(ip), parameter :: created             = 0
