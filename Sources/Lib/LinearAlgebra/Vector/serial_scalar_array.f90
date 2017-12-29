@@ -418,7 +418,7 @@ contains
   subroutine serial_scalar_array_clone(op1,op2)
     implicit none
     class(serial_scalar_array_t), target, intent(inout) :: op1
-    class(vector_t), target, intent(in)                :: op2
+    class(vector_t), target             , intent(in)    :: op2
     class(vector_t), pointer :: p
     p => op1
     if(associated(p,op2)) return ! It's aliasing
@@ -427,9 +427,11 @@ contains
     select type(op2)
        class is (serial_scalar_array_t)
        assert ( op2%state == created .or. op2%state == entries_ready )
-       call op1%free()  
-       call op1%create(op2%size)
-       if ( op2%state == entries_ready) then
+       if ( .not. op1%same_vector_space(op2) ) then
+         call op1%free()  
+         call op1%create(op2%size)
+       end if 
+       if ( op1%state == created .and. op2%state == entries_ready ) then
           call op1%allocate()
        end if
        class default
@@ -476,11 +478,12 @@ contains
     class(vector_t)             , intent(in) :: vector
     logical :: serial_scalar_array_same_vector_space
     serial_scalar_array_same_vector_space = .false.
-    assert (this%state == created .or. this%state == entries_ready)
-    select type(vector)
-    class is (serial_scalar_array_t)
-      serial_scalar_array_same_vector_space = (this%size == vector%size)
-    end select
+    if (.not. this%state == not_created) then
+      select type(vector)
+      class is (serial_scalar_array_t)
+        serial_scalar_array_same_vector_space = (this%size == vector%size)
+      end select
+    end if   
   end function serial_scalar_array_same_vector_space
 	
   !=============================================================================

@@ -385,12 +385,16 @@ contains
    select type(op2)
    class is (block_vector_t)
      assert(op2%state==assembled)
-     call op1%free()
-     call op1%create(op2%nblocks) 
+     if ( op1%same_vector_space(op2) ) then
+       call op1%free()
+       call op1%create(op2%nblocks)
+     end if   
      do iblk=1, op2%nblocks
-       allocate(op1%blocks(iblk)%vector, mold=op2%blocks(iblk)%vector)
-       call op1%blocks(iblk)%vector%default_initialization()
-       op1%blocks(iblk)%allocated = .true. 
+       if ( .not. associated(op1%blocks(iblk)%vector) ) then
+         allocate(op1%blocks(iblk)%vector, mold=op2%blocks(iblk)%vector)
+         call op1%blocks(iblk)%vector%default_initialization()
+         op1%blocks(iblk)%allocated = .true. 
+       end if 
        call op1%blocks(iblk)%vector%clone(op2%blocks(iblk)%vector) 
      end do
    class default
@@ -406,23 +410,25 @@ contains
    class(vector_t), intent(in) :: vector
    logical :: block_vector_same_vector_space
    integer(ip) :: iblk
-   assert(this%state==assembled)
    block_vector_same_vector_space = .false.
-   select type(vector)
-   class is (block_vector_t)
-     assert(vector%state==assembled)
-     block_vector_same_vector_space = (this%nblocks == vector%nblocks)
-     if ( block_vector_same_vector_space ) then
-       do iblk=1, this%nblocks
-          assert(associated(this%blocks(iblk)%vector))
-          assert(associated(vector%blocks(iblk)%vector))
-          block_vector_same_vector_space = this%blocks(iblk)%vector%same_vector_space(vector%blocks(iblk)%vector)
-          if ( .not. block_vector_same_vector_space ) then
-            exit
-          end if
-       end do
-     end if
-   end select
+   if ( this%state==assembled ) then
+     select type(vector)
+     class is (block_vector_t)
+       if (vector%state==assembled) then
+         block_vector_same_vector_space = (this%nblocks == vector%nblocks)
+         if ( block_vector_same_vector_space ) then
+           do iblk=1, this%nblocks
+            assert(associated(this%blocks(iblk)%vector))
+            assert(associated(vector%blocks(iblk)%vector))
+            block_vector_same_vector_space = this%blocks(iblk)%vector%same_vector_space(vector%blocks(iblk)%vector)
+            if ( .not. block_vector_same_vector_space ) then
+              exit
+            end if
+          end do
+        end if
+       end if
+     end select
+   end if
  end function block_vector_same_vector_space
 	
  function get_num_blocks(this) result(res)

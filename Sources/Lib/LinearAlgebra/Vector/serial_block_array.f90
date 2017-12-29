@@ -333,8 +333,10 @@ contains
     select type(op2)
        class is (serial_block_array_t)
        assert(op2%state == blocks_container_created)
-       call op1%free()
-       call op1%create(op2%nblocks)
+       if ( op1%same_vector_space(op2) ) then
+         call op1%free()
+         call op1%create(op2%nblocks)
+       end if 
        do ib=1,op1%nblocks
           call op1%blocks(ib)%clone(op2%blocks(ib))
        end do
