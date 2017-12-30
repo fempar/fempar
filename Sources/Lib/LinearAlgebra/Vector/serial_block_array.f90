@@ -51,10 +51,10 @@ module serial_block_array_names
      procedure          :: create_and_allocate => serial_block_array_create_blocks_container_and_allocate_blocks
      generic            :: create => serial_block_array_create_only_blocks_container, &
                                      serial_block_array_create_blocks_container_and_blocks
-     procedure          :: allocate => serial_block_array_allocate_blocks 								 
+     procedure          :: allocate => serial_block_array_allocate_blocks 
      
      procedure :: create_view       => serial_block_array_create_view
-     procedure :: print             => serial_block_array_print	
+     procedure :: print             => serial_block_array_print
      procedure :: get_block         => serial_block_array_get_block
      procedure :: get_nblocks       => serial_block_array_get_nblocks
      
@@ -333,7 +333,7 @@ contains
     select type(op2)
        class is (serial_block_array_t)
        assert(op2%state == blocks_container_created)
-       if ( op1%same_vector_space(op2) ) then
+       if ( .not. op1%same_vector_space(op2) ) then
          call op1%free()
          call op1%create(op2%nblocks)
        end if 
@@ -381,23 +381,25 @@ contains
     class(vector_t), intent(in) :: vector
     logical :: serial_block_array_same_vector_space
     integer(ip) :: iblk
-    assert ( this%state == blocks_container_created )
     serial_block_array_same_vector_space = .false.
-    select type(vector)
-    class is (serial_block_array_t)
-      assert ( vector%state == blocks_container_created )
-      serial_block_array_same_vector_space = (this%nblocks == vector%nblocks)
-      if ( serial_block_array_same_vector_space ) then
-        do iblk=1, this%nblocks
-           serial_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
-           if ( .not. serial_block_array_same_vector_space ) then
-             exit
-           end if
-        end do
-      end if
-    end select
+    if (this%state == blocks_container_created ) then
+      select type(vector)
+      class is (serial_block_array_t)
+        if ( vector%state == blocks_container_created ) then
+          serial_block_array_same_vector_space = (this%nblocks == vector%nblocks)
+          if ( serial_block_array_same_vector_space ) then
+            do iblk=1, this%nblocks
+               serial_block_array_same_vector_space = this%blocks(iblk)%same_vector_space(vector%blocks(iblk))
+               if ( .not. serial_block_array_same_vector_space ) then
+                 exit
+               end if
+            end do
+          end if
+        end if 
+      end select
+    end if 
   end function serial_block_array_same_vector_space
-	
+  
   !=============================================================================
   function serial_block_array_get_num_blocks(this) result(res)
     implicit none 
