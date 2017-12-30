@@ -67,10 +67,6 @@ subroutine scale_add_fe_operator_create_from_operators (this,  &
   this%alpha = alpha
   !this%beta = beta
   
-  ! Equivalent to: "assert ( this%get_state() == start )"
-  assert(.not. associated(this%get_state())) 
-  call this%allocate_state()
-  
   ! sbadia : sthg more clever than just take it from op1
   ! amartin: what are you referring to ?
   trial_fe_space => this%op1%get_trial_fe_space()
@@ -124,10 +120,14 @@ end function scale_add_fe_operator_is_linear
 
 subroutine scale_add_fe_operator_compute_residual(this)
   implicit none
-  class(scale_add_fe_operator_t), intent(in) :: this
+  class(scale_add_fe_operator_t), intent(inout) :: this
   class(environment_t), pointer :: environment
   class(array_t), pointer :: residual
-  assert ( associated(this%get_state())  )
+  integer(ip), pointer :: state
+
+  state => this%get_state()
+  assert ( associated(state)  )
+
   environment => this%test_fe_space%get_environment()
   if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
     if ( environment%am_i_l1_task() ) then
@@ -156,8 +156,11 @@ subroutine scale_add_fe_operator_compute_tangent(this)
   class(scale_add_fe_operator_t), intent(inout) :: this
   class(environment_t), pointer :: environment
   class(matrix_t), pointer :: tangent 
+  integer(ip), pointer :: state
 
-  assert ( associated(this%get_state())  )
+  state => this%get_state()
+  assert ( associated(state)  )
+
   environment => this%test_fe_space%get_environment()
   if ( .not. ( this%get_state() == tangent_computed .or. this%get_state() == assembler_computed ) ) then
     if ( environment%am_i_l1_task() ) then

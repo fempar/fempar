@@ -462,7 +462,7 @@ end function fe_nonlinear_operator_apply_fun
 
 subroutine fe_nonlinear_operator_compute_residual(this)
   implicit none
-  class(fe_nonlinear_operator_t), intent(in) :: this
+  class(fe_nonlinear_operator_t), intent(inout) :: this
   class(environment_t), pointer :: environment
   assert ( associated(this%get_state())  )
   environment => this%test_fe_space%get_environment()

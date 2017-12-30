@@ -182,31 +182,35 @@ end function time_stepping_stage_fe_operator_is_linear
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_compute_residual(this)
   implicit none
-  class(time_stepping_stage_fe_operator_t), intent(in) :: this
-  ! sbadia: this is nonsense ??? also wrong in fe_nonlinear operator_t
-  ! amartin: what is nonsense??? Did not get your point ...
-  class(serial_fe_space_t)     , pointer :: fe_sp
+  class(time_stepping_stage_fe_operator_t), intent(inout) :: this
   class(environment_t)         , pointer :: environment
+  class(assembler_t)           , pointer :: assembler
   class(discrete_integration_t), pointer :: di_mass_op
   class(discrete_integration_t), pointer :: di_fe_op
- 
-  assert ( associated(this%get_state()) )
+  class(serial_fe_space_t)     , pointer :: fe_sp
+  class(serial_fe_space_t)     , pointer :: trial_fe_sp
+  integer(ip)                  , pointer :: state
 
+  state => this%get_state() 
+  assert (associated(state))
+
+  assembler   => this%get_assembler()
   fe_sp       => this%get_fe_space()
+  trial_fe_sp => this%get_trial_fe_space()
   environment => fe_sp%get_environment()
   di_fe_op    => this%fe_nl_op%get_discrete_integration()
   di_mass_op  => this%mass_nl_op%get_discrete_integration()
 
   if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
     if ( environment%am_i_l1_task() ) then
-      if ( associated(this%get_trial_fe_space()) ) then
-         call di_fe_op%integrate_petrov_galerkin_residual( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
+      if ( associated(trial_fe_sp) ) then
+         call di_fe_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, assembler )
          ! sbadia: scal arrays of assembler assembler%get_matrix()*dt
-         if ( this%i == this%j ) call di_mass_op%integrate_petrov_galerkin_residual( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
+         if ( this%i == this%j ) call di_mass_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, assembler )
       else
-         call di_fe_op%integrate_residual( this%get_fe_space(), this%get_assembler() )
+         call di_fe_op%integrate_residual( fe_sp, assembler )
          ! sbadia: scal arrays of assembler assembler%get_array()*dt
-         if ( this%i == this%j ) call di_mass_op%integrate_residual( this%get_fe_space(), this%get_assembler() )
+         if ( this%i == this%j ) call di_mass_op%integrate_residual( fe_sp, assembler )
       end if
     end if
 
@@ -224,14 +228,18 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this
   class(serial_fe_space_t)     , pointer :: fe_sp
+  class(serial_fe_space_t)     , pointer :: trial_fe_sp
   class(environment_t)         , pointer :: environment
   class(discrete_integration_t), pointer :: di_fe_op
   class(discrete_integration_t), pointer :: di_mass_op
   class(assembler_t)           , pointer :: assembler
+  integer(ip)                  , pointer :: state
 
-  assert ( associated(this%get_state()) )
+  state => this%get_state() 
+  assert (associated(state))
 
   fe_sp       => this%get_fe_space()
+  trial_fe_sp => this%get_trial_fe_space()
   environment => fe_sp%get_environment()
   di_fe_op    => this%fe_nl_op%get_discrete_integration()
   di_mass_op  => this%mass_nl_op%get_discrete_integration()
@@ -240,13 +248,13 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
   if ( .not. ( this%get_state() == tangent_computed .or. this%get_state() == assembler_computed ) ) then
     if ( environment%am_i_l1_task() ) then
        if ( associated(this%get_trial_fe_space()) ) then
-          call di_fe_op%integrate_petrov_galerkin_tangent( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
+          call di_fe_op%integrate_petrov_galerkin_tangent( fe_sp, trial_fe_sp, assembler )
           ! times dt * aij
-          call di_mass_op%integrate_petrov_galerkin_tangent( this%get_fe_space(), this%get_trial_fe_space(), this%get_assembler() )
+          call di_mass_op%integrate_petrov_galerkin_tangent( fe_sp, trial_fe_sp, assembler )
        else
-          call di_fe_op%integrate_tangent( this%get_fe_space(), this%get_assembler() )
+          call di_fe_op%integrate_tangent( fe_sp, assembler )
           ! times dt * aij
-          call di_mass_op%integrate_tangent( this%get_fe_space(), this%get_assembler() )
+          call di_mass_op%integrate_tangent( fe_sp, assembler )
        end if
     end if
     call assembler%compress_storage(this%get_sparse_matrix_storage_format())
