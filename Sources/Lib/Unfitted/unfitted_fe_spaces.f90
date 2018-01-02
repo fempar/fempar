@@ -31,9 +31,9 @@ module unfitted_fe_spaces_names
   use memor_names
   use field_names
   use list_types_names
-  use list_types_names
   use block_layout_names
   use std_vector_names
+  use hash_table_names
   
   use triangulation_names
   use p4est_triangulation_names
@@ -127,7 +127,6 @@ module unfitted_fe_spaces_names
     private
 
     class(serial_fe_space_t), pointer :: fe_space       => NULL()
-    class(marching_cubes_t),  pointer :: marching_cubes => NULL()
 
     ! All the machinery for integrating in subcells
     type(quadrature_t)                     :: quadrature_subelem
@@ -136,7 +135,7 @@ module unfitted_fe_spaces_names
     type(quadrature_t),        allocatable :: cut_quadratures(:)
     type(cell_map_t),            allocatable :: cut_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_cell_integrators(:,:)
-    integer(ip), allocatable :: num_sub_cells_to_pos(:)
+    type(hash_table_ip_ip_t) :: num_sub_cells_to_pos
 
     ! All the machinery for integrating in subfacets
     type(quadrature_t)                     :: quadrature_subfacet
@@ -144,7 +143,7 @@ module unfitted_fe_spaces_names
     type(piecewise_cell_map_t),  allocatable :: cut_boundary_piecewise_cell_maps(:)
     type(cell_map_t),            allocatable :: cut_boundary_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_boundary_cell_integrators(:,:)    
-    integer(ip), allocatable :: num_unfitted_sub_facets_to_pos(:)
+    type(hash_table_ip_ip_t) :: num_unfitted_sub_facets_to_pos
 
     ! All the machinery to integrate in fitted subfacets
     type(tet_lagrangian_reference_fe_t)   :: geo_reference_subfacet
@@ -153,7 +152,7 @@ module unfitted_fe_spaces_names
     type(quadrature_t),       allocatable :: cut_fitted_facet_quadratures(:)
     type(facet_maps_t),       allocatable :: cut_fitted_facet_maps(:,:)
     type(facet_integrator_t), allocatable :: cut_fitted_facet_integrators(:,:)
-    integer(ip), allocatable :: num_fitted_sub_facets_to_pos(:)
+    type(hash_table_ip_ip_t) :: num_fitted_sub_facets_to_pos
 
     ! Auxiliary dummy empty quadratures
     type(quadrature_t)             :: empty_quadrature
@@ -222,7 +221,8 @@ module unfitted_fe_spaces_names
       procedure           :: set_use_constraints                                    => suhpafs_set_use_constraints
       
       ! Creation of the iterator (overrides)
-      procedure :: create_fe_cell_iterator                                               => suhpafs_create_fe_cell_iterator
+      procedure :: create_fe_cell_iterator       => suhpafs_create_fe_cell_iterator
+      !procedure :: create_fe_facet_iterator      => suhpafs_create_fe_facet_iterator
 
       ! Generation of Dofs (overrides)
       procedure :: count_dofs => suhpafs_count_dofs
@@ -265,6 +265,7 @@ module unfitted_fe_spaces_names
 
       ! Creation of the iterator
       procedure :: create_fe_cell_iterator           => pufs_create_fe_cell_iterator
+      !procedure :: create_fe_facet_iterator          => pufs_create_fe_facet_iterator
 
   end type par_unfitted_fe_space_t
 

@@ -349,6 +349,7 @@ module unfitted_triangulations_names
 
       ! Generate iterator by overloading the procedure of the father
       procedure :: create_cell_iterator => upst_create_cell_iterator
+      !procedure :: create_vef_iterator  => upst_create_vef_iterator
 
       ! Getters
       procedure, non_overridable :: get_marching_cubes            => upst_get_marching_cubes
@@ -388,6 +389,7 @@ module unfitted_triangulations_names
 
       ! Generate iterator by overloading the procedure of the father
       procedure :: create_cell_iterator          => put_create_cell_iterator
+      !procedure :: create_vef_iterator           => put_create_vef_iterator
 
       ! Getters
       procedure, non_overridable :: get_marching_cubes            => put_get_marching_cubes
@@ -417,7 +419,6 @@ module unfitted_triangulations_names
   ! Derived types
   public :: unfitted_cell_iterator_t
   public :: unfitted_p4est_cell_iterator_t
-  public :: marching_cubes_t 
   public :: serial_unfitted_triangulation_t
   public :: unfitted_p4est_serial_triangulation_t
   public :: par_unfitted_triangulation_t

@@ -67,7 +67,7 @@ function unfitted_fe_cell_iterator_get_quadrature(this) result (quadrature)
   implicit none
   class(unfitted_fe_cell_iterator_t),  intent(in) :: this
   type(quadrature_t),              pointer   :: quadrature
-  integer(ip) :: ipos, num_subcells
+  integer(ip) :: ipos, num_subcells, istat
   ! The quadrature method has to be functional also for ghost elements.
   ! serial_fe_space_set_up_cell_integration uses it...
   ! QUESTION: Since fempar never integrates in ghost elements, 
@@ -81,7 +81,9 @@ function unfitted_fe_cell_iterator_get_quadrature(this) result (quadrature)
   assert(this%is_local())
   if ( this%is_cut() ) then
     num_subcells = this%get_num_subcells()
-    ipos = this%unfitted_integration_manager%num_sub_cells_to_pos(num_subcells)
+    call this%unfitted_integration_manager%num_sub_cells_to_pos%get(key=num_subcells,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
     quadrature => this%unfitted_integration_manager%cut_quadratures(ipos)
   else if ( this%is_interior() ) then
     quadrature => this%fe_cell_iterator_t%get_quadrature()
@@ -97,11 +99,13 @@ end function unfitted_fe_cell_iterator_get_quadrature
 subroutine unfitted_fe_cell_iterator_update_cell_map ( this )
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(inout) :: this
-  integer(ip) :: ipos, num_subcells
+  integer(ip) :: ipos, num_subcells, istat
   assert(this%is_local())
   assert(this%is_cut())
   num_subcells = this%get_num_subcells()
-  ipos = this%unfitted_integration_manager%num_sub_cells_to_pos(num_subcells)
+  call this%unfitted_integration_manager%num_sub_cells_to_pos%get(key=num_subcells,val=ipos,stat=istat)
+  assert(istat==key_found)
+  assert(ipos>0)
   call this%set_cell_map(this%unfitted_integration_manager%cut_cell_maps(ipos))
 end subroutine unfitted_fe_cell_iterator_update_cell_map
 
@@ -110,11 +114,13 @@ subroutine unfitted_fe_cell_iterator_update_cell_integrators ( this )
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(inout)   :: this
   integer(ip) :: field_id
-  integer(ip) :: ipos, num_subcells
+  integer(ip) :: ipos, num_subcells, istat
   assert(this%is_local())
   assert(this%is_cut())
   num_subcells = this%get_num_subcells()
-  ipos = this%unfitted_integration_manager%num_sub_cells_to_pos(num_subcells)
+  call this%unfitted_integration_manager%num_sub_cells_to_pos%get(key=num_subcells,val=ipos,stat=istat)
+  assert(istat==key_found)
+  assert(ipos>0)
   do field_id=1, this%get_num_fields()  
     call this%set_cell_integrator(field_id,this%unfitted_integration_manager%cut_cell_integrators(ipos,field_id))
   end do  
@@ -125,11 +131,13 @@ function unfitted_fe_cell_iterator_get_boundary_quadrature(this) result (quadrat
   implicit none
   class(unfitted_fe_cell_iterator_t),  intent(in) :: this
   type(quadrature_t), pointer      :: quadrature
-  integer(ip) :: num_subfacets, ipos
+  integer(ip) :: num_subfacets, ipos, istat
   assert(this%is_local())
   if ( this%is_cut() ) then
     num_subfacets = this%get_num_subfacets()
-    ipos = this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos(num_subfacets)
+    call this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos%get(key=num_subfacets,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
     quadrature => this%unfitted_integration_manager%cut_boundary_quadratures_cell_dim(ipos)
   else
     quadrature => this%unfitted_integration_manager%empty_quadrature
@@ -141,11 +149,13 @@ function unfitted_fe_cell_iterator_get_boundary_piecewise_cell_map(this) result 
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(in) :: this
   type(piecewise_cell_map_t), pointer :: cell_map
-  integer(ip) :: num_subfacets, ipos
+  integer(ip) :: num_subfacets, ipos, istat
   assert(this%is_local())
   if ( this%is_cut() ) then
     num_subfacets = this%get_num_subfacets()
-    ipos = this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos(num_subfacets)
+    call this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos%get(key=num_subfacets,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
     cell_map => this%unfitted_integration_manager%cut_boundary_piecewise_cell_maps(ipos)
   else
     cell_map => this%unfitted_integration_manager%empty_piecewise_cell_map
@@ -158,11 +168,13 @@ function unfitted_fe_cell_iterator_get_boundary_cell_map(this) result (cell_map)
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(in) :: this
   type(cell_map_t), pointer :: cell_map
-  integer(ip) :: num_subfacets, ipos
+  integer(ip) :: num_subfacets, ipos, istat
   assert(this%is_local())
   if ( this%is_cut() ) then
     num_subfacets = this%get_num_subfacets()
-    ipos = this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos(num_subfacets)
+    call this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos%get(key=num_subfacets,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
     cell_map => this%unfitted_integration_manager%cut_boundary_cell_maps(ipos)
   else
     cell_map => this%unfitted_integration_manager%empty_cell_map
@@ -176,11 +188,13 @@ function unfitted_fe_cell_iterator_get_boundary_cell_integrator(this, field_id) 
   class(unfitted_fe_cell_iterator_t), intent(in)   :: this
   integer(ip)         , intent(in)   :: field_id
   type(cell_integrator_t), pointer :: cell_int
-  integer(ip) :: num_subfacets, ipos
+  integer(ip) :: num_subfacets, ipos, istat
   assert(this%is_local())
   if ( this%is_cut() ) then
     num_subfacets = this%get_num_subfacets()
-    ipos = this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos(num_subfacets)
+    call this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos%get(key=num_subfacets,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
     cell_int => this%unfitted_integration_manager%cut_boundary_cell_integrators(ipos,field_id)
   else
     cell_int => this%unfitted_integration_manager%empty_cell_integrator(field_id)

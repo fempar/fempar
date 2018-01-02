@@ -57,15 +57,13 @@ subroutine pufs_create_different_ref_fes_between_cells( &
   integer(ip)                               , intent(in)     :: set_ids_to_reference_fes(:,:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
   class(conditions_t)             , optional, intent(in)     :: conditions
-  class(marching_cubes_t), pointer :: marching_cubes
   call this%free()
   call this%par_fe_space_t%create(&
     triangulation,reference_fes,set_ids_to_reference_fes,coarse_fe_handlers,conditions)
   select type(triangulation)
   class is (par_unfitted_triangulation_t)
     this%unfitted_triangulation => triangulation
-    marching_cubes => triangulation%get_marching_cubes()
-    call this%unfitted_integration%create(this,marching_cubes)
+    call this%unfitted_integration%create(this)
   class default
     check(.false.)
   end select
@@ -90,3 +88,19 @@ subroutine pufs_create_fe_cell_iterator(this, fe)
   allocate(unfitted_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
 end subroutine pufs_create_fe_cell_iterator
+
+!!========================================================================================
+!subroutine pufs_create_fe_facet_iterator(this, fe_face)
+!  implicit none
+!  class(par_unfitted_fe_space_t), target,    intent(in)    :: this
+!  class(fe_facet_iterator_t), allocatable, intent(inout) :: fe_face
+!  class(vef_iterator_t), allocatable :: vef
+!  class(triangulation_t), pointer :: triangulation
+!  integer(ip)          :: istat
+!  call this%free_fe_facet_iterator(fe_face)
+!  triangulation => this%get_triangulation()
+!  call triangulation%create_vef_iterator(vef)
+!  allocate(unfitted_fe_facet_iterator_t :: fe_face, stat=istat); check(istat==0)
+!  call fe_face%create(this,vef)
+!  call triangulation%free_vef_iterator(vef)
+!end subroutine pufs_create_fe_facet_iterator

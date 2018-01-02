@@ -228,13 +228,15 @@ subroutine unfitted_fe_facet_iterator_update_facet_maps_interpolation(this)
   integer(ip) :: icell
   integer(ip) :: num_active_cell_maps
   type(p_fe_cell_iterator_t), pointer :: fes_around(:)
-  integer(ip) :: num_fitted_sub_facets, ipos
+  integer(ip) :: num_fitted_sub_facets, ipos, istat
 
   assert(this%is_local())
   assert(this%is_cut())
 
   num_fitted_sub_facets = this%get_num_subvefs()
-  ipos = this%unfitted_integration_manager%num_fitted_sub_facets_to_pos(num_fitted_sub_facets)
+  call this%unfitted_integration_manager%num_fitted_sub_facets_to_pos%get(key=num_fitted_sub_facets,val=ipos,stat=istat)
+  assert(istat==key_found)
+  assert(ipos>0)
   
   if (this%is_at_boundary()) then
     num_active_cell_maps = 1
@@ -266,13 +268,15 @@ subroutine uffi_update_facet_integrators_interpolation(this)
   type(cell_integrator_facet_restriction_t), pointer :: cell_integrator(:)
   type(quadrature_t), pointer :: quadrature
   integer(ip) :: field_id
-  integer(ip) :: num_fitted_sub_facets, ipos
+  integer(ip) :: num_fitted_sub_facets, ipos, istat
 
   assert(this%is_local())
   assert(this%is_cut())
 
   num_fitted_sub_facets = this%get_num_subvefs()
-  ipos = this%unfitted_integration_manager%num_fitted_sub_facets_to_pos(num_fitted_sub_facets)
+  call this%unfitted_integration_manager%num_fitted_sub_facets_to_pos%get(key=num_fitted_sub_facets,val=ipos,stat=istat)
+  assert(istat==key_found)
+  assert(ipos>0)
 
   assert(this%unfitted_integration_manager%fe_space%get_num_fields() == 1)
   field_id = 1
@@ -295,11 +299,13 @@ function unfitted_fe_facet_iterator_get_quadrature(this) result (quadrature)
   implicit none
   class(unfitted_fe_facet_iterator_t),  intent(inout) :: this
   type(quadrature_t),              pointer   :: quadrature
-  integer(ip) :: num_fitted_sub_facets, ipos
+  integer(ip) :: num_fitted_sub_facets, ipos, istat
   assert(this%is_local())
   if ( this%is_cut() ) then
     num_fitted_sub_facets = this%get_num_subvefs()
-    ipos = this%unfitted_integration_manager%num_fitted_sub_facets_to_pos(num_fitted_sub_facets)
+    call this%unfitted_integration_manager%num_fitted_sub_facets_to_pos%get(key=num_fitted_sub_facets,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
     quadrature => this%unfitted_integration_manager%cut_fitted_facet_quadratures(ipos)
   else if ( this%is_interior() ) then
     quadrature => this%fe_facet_iterator_t%get_quadrature()

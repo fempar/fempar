@@ -27,16 +27,14 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 !========================================================================================
-subroutine uim_create(this,fe_space,marching_cubes)
+subroutine uim_create(this,fe_space)
   implicit none
   class(unfitted_integration_manager_t),intent(inout) :: this
   class(serial_fe_space_t), target, intent(in)    :: fe_space
-  class(marching_cubes_t), target,  intent(in)    :: marching_cubes
   class(triangulation_t), pointer :: triangulation
   type(environment_t), pointer :: environment
   call this%free()
   this%fe_space => fe_space
-  this%marching_cubes => marching_cubes
   triangulation => fe_space%get_triangulation()
   environment => triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -47,8 +45,12 @@ subroutine uim_create(this,fe_space,marching_cubes)
     call this%init_cut_integration()
     call this%init_cut_boundary_integration()
     ! This is a temprorary hack since unfitted facet integration is only implemented for a single field
+    ! and for the serial_unfitted_triangulation_t
     if (this%fe_space%get_num_fields()==1) then
-      call this%init_cut_fitted_facets_integration()
+      select type(triangulation)
+        type is (serial_unfitted_triangulation_t)
+          call this%init_cut_fitted_facets_integration()
+      end select
     end if
   end if
 end subroutine uim_create
@@ -62,7 +64,6 @@ subroutine uim_free( this )
   call this%free_cut_boundary_integration()
   call this%free_cut_fitted_facets_integration()
   this%fe_space => null()
-  this%marching_cubes => null()
 end subroutine uim_free
 
 !========================================================================================
@@ -138,7 +139,7 @@ subroutine uim_init_reference_subelem( this )
   
   call this%free_reference_subelem()
   
-  num_dim = this%marching_cubes%get_num_dims()
+  num_dim = this%fe_space%get_num_dims()
 
   ! Create the reference sub-element
   ! TODO a better way to create a reference element?
@@ -198,49 +199,57 @@ subroutine uim_init_cut_integration( this )
   class(unfitted_integration_manager_t), intent(inout) :: this
 
   integer(ip) :: num_dim, num_gp, num_gp_subelem, num_fields
-  integer(ip) :: mc_case, mc_num_cases, istat, ifield
-  integer(ip) :: max_num_subcells, num_subcells, max_pos, ipos, inum
+  integer(ip) :: istat, ifield
+  integer(ip) :: num_subcells, max_pos, ipos
 
   class(fe_cell_iterator_t), allocatable :: fe
   class(reference_fe_t),     pointer        :: reference_elem
   class(reference_fe_t), pointer :: geo_reference_elem
+  integer(ip) :: jpos
+  type(std_vector_integer_ip_t) :: pos_to_num_sub_cells
 
   call this%free_cut_integration()
-  num_dim = this%marching_cubes%get_num_dims()
-  num_gp_subelem = this%quadrature_subelem%get_num_quadrature_points()
-  mc_num_cases = this%marching_cubes%get_num_mc_cases()
-  max_num_subcells = this%marching_cubes%get_max_num_subcells_in_cell()
-
-  max_pos = 0
-  call memalloc(max_num_subcells,this%num_sub_cells_to_pos,__FILE__,__LINE__)
-  this%num_sub_cells_to_pos(:) = 0_ip
-  do mc_case = 1, mc_num_cases
-    num_subcells = this%marching_cubes%get_num_sub_cells(mc_case)
-    if (num_subcells == 0) then
-      cycle
-    end if
-    if (this%num_sub_cells_to_pos(num_subcells)==0) then
-      max_pos = max_pos + 1
-      this%num_sub_cells_to_pos(num_subcells) = max_pos
-    end if
-  end do
-
   call this%fe_space%create_fe_cell_iterator(fe)
-  geo_reference_elem => fe%get_reference_fe_geo()
+
   num_fields = this%fe_space%get_num_fields()
+  num_dim = this%fe_space%get_num_dims()
+  num_gp_subelem = this%quadrature_subelem%get_num_quadrature_points()
+
+  call this%num_sub_cells_to_pos%init()
+  call pos_to_num_sub_cells%resize(0)
+  max_pos = 1
+  do while (.not. fe%has_finished())
+    if (fe%is_local()) then
+      if (fe%is_cut()) then
+        call fe%update_sub_triangulation()
+        num_subcells = fe%get_num_subcells()
+        assert(num_subcells>0)
+        call this%num_sub_cells_to_pos%put( key=num_subcells, val=max_pos, stat=istat )
+        if (istat == now_stored) then
+          call pos_to_num_sub_cells%push_back(num_subcells)
+          max_pos = max_pos + 1
+        end if
+      end if
+    end if
+    call fe%next()
+  end do
+  max_pos = max_pos - 1
+
+  call fe%first()
+  geo_reference_elem => fe%get_reference_fe_geo()
 
   allocate( this%cut_quadratures(max_pos), stat=istat ); check(istat==0_ip)
   allocate( this%cut_cell_maps(max_pos), stat=istat ); check(istat==0_ip)
   allocate( this%cut_cell_integrators(max_pos,num_fields), stat=istat ); check(istat==0_ip)
+
   do ipos = 1, max_pos
 
-    num_subcells = 0
-    do inum = 1, max_num_subcells
-      if (this%num_sub_cells_to_pos(inum)==ipos) then
-        num_subcells = inum
-      end if
-    end do
+    num_subcells = pos_to_num_sub_cells%get(ipos)
     assert( num_subcells > 0)
+
+    call this%num_sub_cells_to_pos%get( key=num_subcells, val=jpos, stat=istat )
+    assert(istat == key_found)
+    assert(ipos==jpos)
 
     num_gp = num_gp_subelem*num_subcells
 
@@ -275,6 +284,7 @@ subroutine uim_init_cut_integration( this )
   end do
 
   call this%fe_space%free_fe_cell_iterator(fe)
+  call pos_to_num_sub_cells%free()
 
 end subroutine uim_init_cut_integration
 
@@ -319,9 +329,7 @@ subroutine uim_free_cut_integration( this )
     deallocate( this%empty_cell_integrator, stat=istat ); check(istat==0_ip)
   end if
 
-  if (allocated(this%num_sub_cells_to_pos)) then
-    call memfree(this%num_sub_cells_to_pos,__FILE__,__LINE__)
-  end if
+  call this%num_sub_cells_to_pos%free()
 
 end subroutine uim_free_cut_integration
 
@@ -335,36 +343,42 @@ subroutine uim_init_cut_boundary_integration( this )
   class(reference_fe_t),     pointer        :: reference_elem
   class(reference_fe_t), pointer :: geo_reference_elem
 
-  integer(ip) :: mc_case, mc_num_cases, istat, pini, pend, subfacet, ifield
+  integer(ip) :: istat, pini, pend, subfacet, ifield
   integer(ip) :: num_dim, num_gp, num_subfacets, num_fields
-  integer(ip) :: max_num_subfacets, max_pos, ipos, inum
+  integer(ip) :: max_pos, ipos, jpos
 
   real(rp), pointer :: quad_coords(:,:), sub_quad_coords(:,:)
   real(rp), pointer :: quad_weight(:), sub_quad_weight(:)
+  type(std_vector_integer_ip_t) :: pos_to_num_sub_facets
 
   call this%free_cut_boundary_integration()
+  call this%fe_space%create_fe_cell_iterator(fe)
 
   num_gp = this%quadrature_subfacet%get_num_quadrature_points()
-  num_dim = this%marching_cubes%get_num_dims()
-  mc_num_cases = this%marching_cubes%get_num_mc_cases()
+  num_dim = this%fe_space%get_num_dims()
   num_fields = this%fe_space%get_num_fields()
-  max_num_subfacets = this%marching_cubes%get_max_num_subfacets_in_cell()
 
-  max_pos = 0
-  call memalloc(max_num_subfacets,this%num_unfitted_sub_facets_to_pos,__FILE__,__LINE__)
-  this%num_unfitted_sub_facets_to_pos(:) = 0_ip
-  do mc_case = 1, mc_num_cases
-    num_subfacets = this%marching_cubes%get_num_unfitted_sub_facets(mc_case)
-    if (num_subfacets == 0) then
-      cycle
+  call this%num_unfitted_sub_facets_to_pos%init()
+  call pos_to_num_sub_facets%resize(0)
+  max_pos = 1
+  do while (.not. fe%has_finished())
+    if (fe%is_local()) then
+      if (fe%is_cut()) then
+        call fe%update_sub_triangulation()
+        num_subfacets = fe%get_num_subfacets()
+        assert(num_subfacets>0)
+        call this%num_unfitted_sub_facets_to_pos%put( key=num_subfacets, val=max_pos, stat=istat )
+        if (istat == now_stored) then
+          call pos_to_num_sub_facets%push_back(num_subfacets)
+          max_pos = max_pos + 1
+        end if
+      end if
     end if
-    if (this%num_unfitted_sub_facets_to_pos(num_subfacets)==0) then
-      max_pos = max_pos + 1
-      this%num_unfitted_sub_facets_to_pos(num_subfacets) = max_pos
-    end if
+    call fe%next()
   end do
+  max_pos = max_pos - 1
 
-  call this%fe_space%create_fe_cell_iterator(fe)
+  call fe%first()
   geo_reference_elem => fe%get_reference_fe_geo()
 
   allocate( this%cut_boundary_quadratures_cell_dim(max_pos), stat = istat ); check(istat==0)
@@ -374,13 +388,12 @@ subroutine uim_init_cut_boundary_integration( this )
 
   do ipos = 1,max_pos
 
-    num_subfacets = 0
-    do inum = 1, max_num_subfacets
-      if (this%num_unfitted_sub_facets_to_pos(inum)==ipos) then
-        num_subfacets = inum
-      end if
-    end do
+    num_subfacets = pos_to_num_sub_facets%get(ipos)
     assert( num_subfacets > 0)
+
+    call this%num_unfitted_sub_facets_to_pos%get( key=num_subfacets, val=jpos, stat=istat )
+    assert(istat == key_found)
+    assert(ipos==jpos)
 
     call this%cut_boundary_quadratures_cell_dim(ipos)%create(num_dim,     num_gp*num_subfacets)
 
@@ -419,6 +432,7 @@ subroutine uim_init_cut_boundary_integration( this )
   call this%empty_piecewise_cell_map%create_facet_map( this%empty_quadrature, geo_reference_elem, 0 )
 
   call this%fe_space%free_fe_cell_iterator(fe)
+  call pos_to_num_sub_facets%free()
 
 end subroutine uim_init_cut_boundary_integration
 
@@ -462,9 +476,7 @@ subroutine uim_free_cut_boundary_integration( this )
 
   call this%empty_piecewise_cell_map%free()
 
-  if (allocated(this%num_unfitted_sub_facets_to_pos)) then
-    call memfree(this%num_unfitted_sub_facets_to_pos,__FILE__,__LINE__)
-  end if
+  call this%num_unfitted_sub_facets_to_pos%free()
 
 end subroutine uim_free_cut_boundary_integration
 
@@ -474,48 +486,46 @@ subroutine uim_init_cut_fitted_facets_integration( this )
   class(unfitted_integration_manager_t), intent(inout) :: this
 
   integer(ip) :: num_dim, num_gp, num_gp_subfacet, num_subfacets, num_fields
-  integer(ip) :: mc_case, mc_num_cases, istat, mc_num_facets, mc_facet
-  integer(ip) :: max_num_fitted_sub_facets, ipos, max_pos, inum
+  integer(ip) :: istat
+  integer(ip) :: ipos, max_pos, jpos
   integer(ip) :: field_id
   class(fe_cell_iterator_t), allocatable :: fe
+  class(fe_facet_iterator_t), allocatable :: fe_facet
   class(reference_fe_t), pointer :: geo_reference_elem
   class(reference_fe_t), pointer :: geo_reference_elem_null
   class(reference_fe_t), pointer :: reference_elem
   class(reference_fe_t), pointer :: reference_elem_null
+  type(std_vector_integer_ip_t) :: pos_to_num_fitted_sub_facets
 
   call this%free_cut_fitted_facets_integration()
+  call this%fe_space%create_fe_cell_iterator(fe)
+  call this%fe_space%create_fe_facet_iterator(fe_facet)
 
+  geo_reference_elem => fe%get_reference_fe_geo()
   num_dim = this%quadrature_fitted_subfacet%get_num_dims()
   num_gp_subfacet = this%quadrature_fitted_subfacet%get_num_quadrature_points()
-  mc_num_cases = this%marching_cubes%get_num_mc_cases()
-  mc_num_facets = this%marching_cubes%get_num_facets()
 
-  max_num_fitted_sub_facets = 0
-  do mc_case = 1, mc_num_cases
-    do mc_facet = 1, mc_num_facets
-      num_subfacets = this%marching_cubes%get_num_fitted_sub_facets(mc_facet,mc_case)
-      max_num_fitted_sub_facets = max(max_num_fitted_sub_facets,num_subfacets)
-    end do
-  end do
-
-  max_pos = 0
-  call memalloc( max_num_fitted_sub_facets, this%num_fitted_sub_facets_to_pos, __FILE__,__LINE__)
-  this%num_fitted_sub_facets_to_pos(:) = 0_ip
-  do mc_case = 1, mc_num_cases
-    do mc_facet = 1, mc_num_facets
-      num_subfacets = this%marching_cubes%get_num_fitted_sub_facets(mc_facet,mc_case)
-      if (num_subfacets==0) then
-        cycle
+  call this%num_fitted_sub_facets_to_pos%init()
+  call pos_to_num_fitted_sub_facets%resize(0)
+  max_pos = 1
+  do while (.not. fe_facet%has_finished())
+    if (fe_facet%is_local()) then
+      if (fe_facet%is_cut()) then
+        call fe_facet%update_sub_triangulation()
+        num_subfacets = fe_facet%get_num_subvefs()
+        assert(num_subfacets>0)
+        call this%num_fitted_sub_facets_to_pos%put( key=num_subfacets, val=max_pos, stat=istat )
+        if (istat == now_stored) then
+          call pos_to_num_fitted_sub_facets%push_back(num_subfacets)
+          max_pos = max_pos + 1
+        end if
       end if
-      if (this%num_fitted_sub_facets_to_pos(num_subfacets)==0) then
-        max_pos = max_pos + 1
-        this%num_fitted_sub_facets_to_pos(num_subfacets)=max_pos
-      end if
-    end do
+    end if
+    call fe_facet%next()
   end do
+  max_pos = max_pos - 1
 
-  call this%fe_space%create_fe_cell_iterator(fe)
-  geo_reference_elem => fe%get_reference_fe_geo()
+  call fe%first()
   geo_reference_elem_null => null()
   assert(fe%get_num_fields()==1)
   field_id = 1
@@ -529,14 +539,12 @@ subroutine uim_init_cut_fitted_facets_integration( this )
   allocate( this%cut_fitted_facet_integrators(pos_map_max_id,max_pos), stat=istat ); check(istat==0_ip)
   do ipos = 1, max_pos
 
-    num_subfacets = 0
-    do inum = 1,max_num_fitted_sub_facets
-      if (this%num_fitted_sub_facets_to_pos(inum)==ipos) then
-        num_subfacets = inum
-        exit
-      end if
-    end do
+    num_subfacets = pos_to_num_fitted_sub_facets%get(ipos)
     assert( (num_subfacets>0) )
+
+    call this%num_fitted_sub_facets_to_pos%get( key=num_subfacets, val=jpos, stat=istat )
+    assert(istat == key_found)
+    assert(ipos==jpos)
 
     num_gp = num_gp_subfacet*num_subfacets
 
@@ -564,6 +572,8 @@ subroutine uim_init_cut_fitted_facets_integration( this )
   call this%empty_facet_integrators(pos_map_on_boundary)%create(this%empty_facet_quadrature,reference_elem, reference_elem_null)
 
   call this%fe_space%free_fe_cell_iterator(fe)
+  call this%fe_space%free_fe_facet_iterator(fe_facet)
+  call pos_to_num_fitted_sub_facets%free()
 
 end subroutine uim_init_cut_fitted_facets_integration
 
@@ -600,9 +610,7 @@ subroutine uim_free_cut_fitted_facets_integration( this )
     deallocate( this%cut_fitted_facet_integrators , stat = istat ); check(istat==0)
   end if
 
-  if (allocated(this%num_fitted_sub_facets_to_pos)) then
-    call memfree(this%num_fitted_sub_facets_to_pos,__FILE__,__LINE__)
-  end if
+  call this%num_fitted_sub_facets_to_pos%free()
   
     ! Cerate dummy objects
   call this%empty_facet_quadrature%free()
