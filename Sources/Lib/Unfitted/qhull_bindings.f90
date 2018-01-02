@@ -15,7 +15,7 @@ module qhull_bindings_names
       import :: qh_int, qh_coordT
       integer(qh_int), value, intent(in)    :: num_dims
       integer(qh_int), value, intent(in)    :: num_points
-      real(qh_coordT)       , intent(in)    :: points(*)
+      real(qh_coordT)       , intent(in)    :: points(num_dims,*)
       integer(qh_int)       , intent(inout) :: num_cells
       integer(qh_int) :: delaunay_init_and_compute_f90
     end function delaunay_init_and_compute_f90
@@ -24,7 +24,7 @@ module qhull_bindings_names
       import :: qh_int
       integer(qh_int), value, intent(in)    :: num_dims
       integer(qh_int), value, intent(in)    :: num_cells
-      integer(qh_int)       , intent(inout) :: cells(*)
+      integer(qh_int)       , intent(inout) :: cells(num_dims+1,*)
       integer(qh_int) :: delaunay_fill_cells_f90
     end function delaunay_fill_cells_f90
 
