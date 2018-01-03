@@ -690,7 +690,7 @@ module triangulation_names
     
      ! Get num Reference FEs
      procedure(get_num_reference_fes_interface) , deferred :: get_num_reference_fes
-
+     procedure(get_max_num_shape_functions_interface), deferred :: get_max_num_shape_functions
  
      ! Objects-related traversals
      procedure, non_overridable :: create_object_iterator  => triangulation_create_object_iterator
@@ -775,6 +775,13 @@ module triangulation_names
        class(triangulation_t), intent(in) :: this
        integer(ip) :: get_num_reference_fes_interface
      end function get_num_reference_fes_interface
+     
+     function get_max_num_shape_functions_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t), intent(in) :: this
+       integer(ip) :: get_max_num_shape_functions_interface
+     end function get_max_num_shape_functions_interface
+
   end interface
   
   ! Parameters to define vef_type. Observe that

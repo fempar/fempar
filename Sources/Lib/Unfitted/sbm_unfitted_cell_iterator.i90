@@ -84,6 +84,7 @@ subroutine unfitted_cell_iterator_update_sub_triangulation( this )
   if ( .not. this%is_cut() ) return
 
   assert(this%marching_cubes%mc_runtime_init)
+  assert(this%marching_cubes%mc_cell_info_init)
   num_subnodes = this%get_num_subnodes()
   num_nodes = this%get_num_nodes()
   num_dim = this%marching_cubes%triangulation%get_num_dims()

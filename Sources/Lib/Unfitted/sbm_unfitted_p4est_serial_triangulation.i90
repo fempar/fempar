@@ -173,32 +173,6 @@ function upst_get_max_num_subnodes_in_cell(this) result (val)
 end function upst_get_max_num_subnodes_in_cell
 
 !========================================================================================
-function upst_get_num_mc_cases(this) result (val)
-  implicit none
-  class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
-  integer(ip) :: val
-  val = this%marching_cubes%get_num_mc_cases()
-end function upst_get_num_mc_cases
-
-!========================================================================================
-function upst_get_num_subcells_mc_case(this,mc_case) result (val)
-  implicit none
-  class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  integer(ip) :: val
-  val = this%marching_cubes%get_num_subcells_mc_case(mc_case)
-end function upst_get_num_subcells_mc_case
-
-!========================================================================================
-function upst_get_num_subfacets_mc_case(this,mc_case) result (val)
-  implicit none
-  class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  integer(ip) :: val
-  val = this%marching_cubes%get_num_subfacets_mc_case(mc_case)
-end function upst_get_num_subfacets_mc_case
-
-!========================================================================================
 subroutine upst_print(this)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this

@@ -243,6 +243,7 @@ module unfitted_triangulations_names
     integer(ip),        allocatable :: fitted_sub_facets_node_ids_x_facet(:,:,:)
     type(point_t),      allocatable :: subnodes_ref_coords(:)
     logical,            allocatable :: sub_cell_has_been_reoriented(:)
+    logical :: mc_cell_info_init = .false.
     
     ! Auxiliary work data
     type(quadrature_t), allocatable :: sub_nodes_nodal_quadratures(:)
@@ -254,29 +255,21 @@ module unfitted_triangulations_names
     procedure                  :: create                        => marching_cubes_create
     procedure                  :: free                          => marching_cubes_free
 
-    ! Getters
-    procedure, non_overridable :: get_num_cut_cells             => marching_cubes_get_num_cut_cells
-    procedure, non_overridable :: get_num_interior_cells        => marching_cubes_get_num_interior_cells
-    procedure, non_overridable :: get_num_exterior_cells        => marching_cubes_get_num_exterior_cells
-    procedure, non_overridable :: get_max_num_subcells_in_cell  => marching_cubes_get_max_num_subcells_in_cell
-    procedure, non_overridable :: get_max_num_nodes_in_subcell  => marching_cubes_get_max_num_nodes_in_subcell
-    procedure, non_overridable :: get_total_num_subcells     => marching_cubes_get_total_num_subcells
-    procedure, non_overridable :: get_max_num_subfacets_in_cell  => marching_cubes_get_max_num_subfacets_in_cell
-    procedure, non_overridable :: get_max_num_nodes_in_subfacet  => marching_cubes_get_max_num_nodes_in_subfacet
-    procedure, non_overridable :: get_total_num_subfacets     => marching_cubes_get_total_num_subfacets
+    ! Getters (Implementation of the public interfaces of the unfitted triangulations)
+    procedure, non_overridable :: get_num_cut_cells                => marching_cubes_get_num_cut_cells
+    procedure, non_overridable :: get_num_interior_cells           => marching_cubes_get_num_interior_cells
+    procedure, non_overridable :: get_num_exterior_cells           => marching_cubes_get_num_exterior_cells
+    procedure, non_overridable :: get_max_num_subcells_in_cell     => marching_cubes_get_max_num_subcells_in_cell
+    procedure, non_overridable :: get_max_num_nodes_in_subcell     => marching_cubes_get_max_num_nodes_in_subcell
+    procedure, non_overridable :: get_total_num_subcells           => marching_cubes_get_total_num_subcells
+    procedure, non_overridable :: get_max_num_subfacets_in_cell    => marching_cubes_get_max_num_subfacets_in_cell
+    procedure, non_overridable :: get_max_num_nodes_in_subfacet    => marching_cubes_get_max_num_nodes_in_subfacet
+    procedure, non_overridable :: get_total_num_subfacets          => marching_cubes_get_total_num_subfacets
     procedure, non_overridable :: get_total_num_fitted_sub_facets  => marching_cubes_get_total_num_fitted_sub_facets
-    procedure, non_overridable :: get_max_num_subnodes_in_cell  => marching_cubes_get_max_num_subnodes_in_cell
-    procedure, non_overridable :: get_num_dims            => marching_cubes_get_num_dims
-    procedure, non_overridable :: get_max_num_shape_functions            => marching_cubes_get_max_num_shape_functions
-    procedure, non_overridable :: get_num_facets => marching_cubes_get_num_facets
-    procedure, non_overridable :: get_num_sub_cells => marching_cubes_get_num_sub_cells
-    procedure, non_overridable :: get_num_unfitted_sub_facets => marching_cubes_get_num_unfitted_sub_facets
-    procedure, non_overridable :: get_num_fitted_sub_facets => marching_cubes_get_num_fitted_sub_facets
-    
+    procedure, non_overridable :: get_max_num_subnodes_in_cell     => marching_cubes_get_max_num_subnodes_in_cell
+   
     ! Getters related with the mc algorithm
-    procedure, non_overridable :: get_num_mc_cases              => marching_cubes_get_num_mc_cases
-    procedure, non_overridable :: get_num_subcells_mc_case      => marching_cubes_get_num_subcells_mc_case
-    procedure, non_overridable :: get_num_subfacets_mc_case      => marching_cubes_get_num_subfacets_mc_case
+    procedure, non_overridable, private :: get_num_mc_cases  => marching_cubes_get_num_mc_cases
     
     ! Printers
     procedure :: print                     => marching_cubes_print
@@ -310,7 +303,7 @@ module unfitted_triangulations_names
       procedure :: create_vef_iterator => sut_create_vef_iterator
 
       ! Getters
-      procedure, non_overridable :: get_marching_cubes            => sut_get_marching_cubes
+      procedure, non_overridable, private :: get_marching_cubes   => sut_get_marching_cubes
       procedure, non_overridable :: get_num_cut_cells             => sut_get_num_cut_cells
       procedure, non_overridable :: get_num_interior_cells        => sut_get_num_interior_cells
       procedure, non_overridable :: get_num_exterior_cells        => sut_get_num_exterior_cells
@@ -322,13 +315,6 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_total_num_subfacets     => sut_get_total_num_subfacets
       procedure, non_overridable :: get_total_num_fitted_sub_facets  => sut_get_total_num_fitted_sub_facets
       procedure, non_overridable :: get_max_num_subnodes_in_cell  => sut_get_max_num_subnodes_in_cell
-
-      ! TODO this getters should be removed in the future
-      ! Now the fe space uses them.
-      ! The goal is that the fe space does not assume that the tesselation algorithm is the mc algorithm
-      procedure, non_overridable :: get_num_mc_cases              => sut_get_num_mc_cases
-      procedure, non_overridable :: get_num_subcells_mc_case      => sut_get_num_subcells_mc_case
-      procedure, non_overridable :: get_num_subfacets_mc_case      => sut_get_num_subfacets_mc_case
 
       ! Printers
       procedure :: print                     => sut_print
@@ -352,7 +338,7 @@ module unfitted_triangulations_names
       !procedure :: create_vef_iterator  => upst_create_vef_iterator
 
       ! Getters
-      procedure, non_overridable :: get_marching_cubes            => upst_get_marching_cubes
+      procedure, non_overridable, private :: get_marching_cubes   => upst_get_marching_cubes
       procedure, non_overridable :: get_num_cut_cells             => upst_get_num_cut_cells
       procedure, non_overridable :: get_num_interior_cells        => upst_get_num_interior_cells
       procedure, non_overridable :: get_num_exterior_cells        => upst_get_num_exterior_cells
@@ -363,13 +349,6 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_max_num_nodes_in_subfacet  => upst_get_max_num_nodes_in_subfacet
       procedure, non_overridable :: get_total_num_subfacets     => upst_get_total_num_subfacets
       procedure, non_overridable :: get_max_num_subnodes_in_cell  => upst_get_max_num_subnodes_in_cell
-
-      ! TODO this getters should be removed in the future
-      ! Now the fe space uses them.
-      ! The goal is that the fe space does not assume that the tesselation algorithm is the mc algorithm
-      procedure, non_overridable :: get_num_mc_cases              => upst_get_num_mc_cases
-      procedure, non_overridable :: get_num_subcells_mc_case      => upst_get_num_subcells_mc_case
-      procedure, non_overridable :: get_num_subfacets_mc_case      => upst_get_num_subfacets_mc_case
 
       ! Printers
       procedure :: print                     => upst_print
@@ -392,7 +371,7 @@ module unfitted_triangulations_names
       !procedure :: create_vef_iterator           => put_create_vef_iterator
 
       ! Getters
-      procedure, non_overridable :: get_marching_cubes            => put_get_marching_cubes
+      procedure, non_overridable, private :: get_marching_cubes   => put_get_marching_cubes
       procedure, non_overridable :: get_num_cut_cells             => put_get_num_cut_cells
       procedure, non_overridable :: get_num_interior_cells        => put_get_num_interior_cells
       procedure, non_overridable :: get_num_exterior_cells        => put_get_num_exterior_cells
@@ -403,13 +382,6 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_max_num_nodes_in_subfacet  => put_get_max_num_nodes_in_subfacet
       procedure, non_overridable :: get_total_num_subfacets     => put_get_total_num_subfacets
       procedure, non_overridable :: get_max_num_subnodes_in_cell  => put_get_max_num_subnodes_in_cell
-
-      ! TODO this getters should be removed in the future
-      ! Now the fe space uses them.
-      ! The goal is that the fe space does not assume that the tesselation algorithm is the mc algorithm
-      procedure, non_overridable :: get_num_mc_cases              => put_get_num_mc_cases
-      procedure, non_overridable :: get_num_subcells_mc_case      => put_get_num_subcells_mc_case
-      procedure, non_overridable :: get_num_subfacets_mc_case      => put_get_num_subfacets_mc_case
 
       ! Printers
       procedure :: print                     => put_print

@@ -117,6 +117,9 @@ subroutine marching_cubes_free(this)
   call this%subnodes_data_free()
   this%triangulation => null()
   this%level_set_function => null()
+  this%mc_tables_init = .false.
+  this%mc_runtime_init   = .false.
+  this%mc_cell_info_init = .false.
 end subroutine marching_cubes_free
 
 !========================================================================================
@@ -187,7 +190,22 @@ function marching_cubes_get_max_num_subcells_in_cell( this ) result ( max_subcel
   implicit none
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_subcells_in_cell
-  max_subcells_in_cell = this%mc_table_max_num_sub_cells
+
+  class(cell_iterator_t), allocatable  :: cell
+
+  max_subcells_in_cell = 0_ip
+  call this%triangulation%create_cell_iterator(cell)
+  do while ( .not. cell%has_finished() )
+    if ( cell%is_local() ) then
+      if ( cell%is_cut() ) then
+        call cell%update_sub_triangulation()
+        max_subcells_in_cell = max(max_subcells_in_cell,cell%get_num_subcells())
+      end if
+    end if
+    call cell%next()
+  end do
+  call this%triangulation%free_cell_iterator(cell)
+
 end function marching_cubes_get_max_num_subcells_in_cell
 
 !========================================================================================
@@ -226,7 +244,22 @@ function marching_cubes_get_max_num_subfacets_in_cell( this ) result ( max_subfa
   implicit none
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_subfacets_in_cell
-  max_subfacets_in_cell = this%mc_table_max_num_unfitted_sub_facets
+
+  class(cell_iterator_t), allocatable  :: cell
+
+  max_subfacets_in_cell = 0_ip
+  call this%triangulation%create_cell_iterator(cell)
+  do while ( .not. cell%has_finished() )
+    if ( cell%is_local() ) then
+      if ( cell%is_cut() ) then
+        call cell%update_sub_triangulation()
+        max_subfacets_in_cell = max(max_subfacets_in_cell,cell%get_num_subfacets())
+      end if
+    end if
+    call cell%next()
+  end do
+  call this%triangulation%free_cell_iterator(cell)
+
 end function marching_cubes_get_max_num_subfacets_in_cell
 
 !========================================================================================
@@ -284,69 +317,8 @@ function marching_cubes_get_max_num_subnodes_in_cell( this ) result ( max_subnod
   implicit none
   class(marching_cubes_t), intent(in)    :: this
   integer(ip) :: max_subnodes_in_cell
-  max_subnodes_in_cell = this%get_max_num_shape_functions() + this%mc_table_max_num_cut_edges
+  max_subnodes_in_cell = this%triangulation%get_max_num_shape_functions() + this%mc_table_max_num_cut_edges
 end function marching_cubes_get_max_num_subnodes_in_cell
-
-!========================================================================================
-function marching_cubes_get_max_num_shape_functions(this)
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: marching_cubes_get_max_num_shape_functions 
-  select type(triangulation=>this%triangulation)
-    class is (serial_unfitted_triangulation_t)
-      marching_cubes_get_max_num_shape_functions = triangulation%get_max_num_shape_functions()
-    class is (par_unfitted_triangulation_t)
-      marching_cubes_get_max_num_shape_functions = triangulation%get_max_num_shape_functions()
-    class is (unfitted_p4est_serial_triangulation_t)
-      marching_cubes_get_max_num_shape_functions = triangulation%get_max_num_shape_functions()
-    class default
-      check(.false.)
-  end select
-end function marching_cubes_get_max_num_shape_functions
-
-!========================================================================================
-function marching_cubes_get_num_facets(this)
-  implicit none
-  class(marching_cubes_t), intent(in) :: this
-  integer(ip) :: marching_cubes_get_num_facets 
-  marching_cubes_get_num_facets = this%mc_table_num_facets
-end function marching_cubes_get_num_facets
-
-!========================================================================================
-function marching_cubes_get_num_sub_cells(this,icase)
-  implicit none
-  class(marching_cubes_t), intent(in) :: this
-  integer(ip), intent(in) :: icase
-  integer(ip) :: marching_cubes_get_num_sub_cells
-  marching_cubes_get_num_sub_cells = this%mc_table_num_sub_cells_x_case(icase)
-end function marching_cubes_get_num_sub_cells
-
-!========================================================================================
-function marching_cubes_get_num_unfitted_sub_facets(this,icase)
-  implicit none
-  class(marching_cubes_t), intent(in) :: this
-  integer(ip), intent(in) :: icase
-  integer(ip) :: marching_cubes_get_num_unfitted_sub_facets 
-  marching_cubes_get_num_unfitted_sub_facets = this%mc_table_num_unfitted_sub_facets_x_case(icase)
-end function marching_cubes_get_num_unfitted_sub_facets
-
-!========================================================================================
-function marching_cubes_get_num_fitted_sub_facets(this,ifacet,icase)
-  implicit none
-  class(marching_cubes_t), intent(in) :: this
-  integer(ip), intent(in) :: ifacet
-  integer(ip), intent(in) :: icase
-  integer(ip) :: marching_cubes_get_num_fitted_sub_facets 
-  marching_cubes_get_num_fitted_sub_facets = this%mc_table_num_fitted_sub_facets_x_case_and_facet(ifacet,icase)
-end function marching_cubes_get_num_fitted_sub_facets
-
-!========================================================================================
-function marching_cubes_get_num_dims(this) result (val)
-  implicit none
-  class(marching_cubes_t), intent(in)    :: this
-  integer(ip) :: val
-  val = this%triangulation%get_num_dims()
-end function marching_cubes_get_num_dims
 
 !========================================================================================
 function marching_cubes_get_num_mc_cases(this) result (mc_cases)
@@ -355,24 +327,6 @@ function marching_cubes_get_num_mc_cases(this) result (mc_cases)
   integer(ip) :: mc_cases
   mc_cases = this%mc_table_num_cases
 end function marching_cubes_get_num_mc_cases
-
-!========================================================================================
-function marching_cubes_get_num_subcells_mc_case(this,mc_case) result (num_subcells)
-  implicit none
-  class(marching_cubes_t), intent(in) :: this
-  integer(ip), intent(in) :: mc_case
-  integer(ip) :: num_subcells
-  num_subcells = this%mc_table_num_sub_cells_x_case(mc_case)
-end function marching_cubes_get_num_subcells_mc_case
-
-!========================================================================================
-function marching_cubes_get_num_subfacets_mc_case(this,mc_case) result (num_subfacets)
-  implicit none
-  class(marching_cubes_t), intent(in) :: this
-  integer(ip), intent(in) :: mc_case
-  integer(ip) :: num_subfacets
-  num_subfacets = this%mc_table_num_unfitted_sub_facets_x_case(mc_case)
-end function marching_cubes_get_num_subfacets_mc_case
 
 !========================================================================================
 subroutine marching_cubes_print ( this )
@@ -395,7 +349,7 @@ subroutine marching_cubes_print ( this )
   write (*,'(a,i10)') 'num_cut_cells:            ', this%get_num_cut_cells()
   write (*,'(a,i10)') 'num_interior_cells:       ', this%get_num_interior_cells()
   write (*,'(a,i10)') 'num_exterior_cells:       ', this%get_num_exterior_cells()
-  write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', this%get_max_num_shape_functions()
+  write (*,'(a,i10)') 'max_num_nodes_in_cell:    ', this%triangulation%get_max_num_shape_functions()
   write (*,'(a,i10)') 'max_num_subcells_in_cell: ', this%get_max_num_subcells_in_cell()
   write (*,'(a,i10)') 'max_num_nodes_in_subcell: ', this%get_max_num_nodes_in_subcell()
   write (*,'(a,i10)') 'max_num_subfacets_in_cell: ', this%get_max_num_subfacets_in_cell()
@@ -413,7 +367,7 @@ subroutine marching_cubes_print ( this )
   end do
   write(*,*) " "
 
-  call memalloc( this%get_max_num_shape_functions(), cell_coords   , __FILE__, __LINE__ )
+  call memalloc( this%triangulation%get_max_num_shape_functions(), cell_coords   , __FILE__, __LINE__ )
   call memalloc( this%get_max_num_nodes_in_subcell()  , subcell_coords, __FILE__, __LINE__ )
   call memalloc( this%get_max_num_nodes_in_subfacet()  , subfacet_coords, __FILE__, __LINE__ )
 
@@ -1126,7 +1080,8 @@ subroutine marching_cubes_subnodes_data_create( this )
   integer(ip) :: istat, icase
   class(cell_iterator_t), allocatable  :: cell
   class(reference_fe_t), pointer :: reference_fe_geo
-  integer(ip) :: n_subcells, n_subfacets, n_subnodes, n_nodes_subcell, n_nodes_subfacet  
+  integer(ip) :: n_subcells, n_subfacets, n_subnodes, n_nodes_subcell, n_nodes_subfacet
+  integer(ip), parameter :: safety_offset = 5
 
   assert(this%mc_tables_init)
   assert(this%mc_runtime_init)
@@ -1151,8 +1106,8 @@ subroutine marching_cubes_subnodes_data_create( this )
   end do
 
   !Allocate place holders for the sub-mesh
-  n_subcells      = this%get_max_num_subcells_in_cell()
-  n_subfacets      = this%get_max_num_subfacets_in_cell()
+  n_subcells      = this%mc_table_max_num_sub_cells + safety_offset
+  n_subfacets     = this%mc_table_max_num_unfitted_sub_facets + safety_offset
   n_subnodes      = this%get_max_num_subnodes_in_cell()
   n_nodes_subcell = this%get_max_num_nodes_in_subcell()
   n_nodes_subfacet = this%get_max_num_nodes_in_subfacet()
@@ -1163,6 +1118,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   allocate( this%subnodes_ref_coords(1:n_subnodes) , stat=istat); check(istat==0_ip)
 
   call this%triangulation%free_cell_iterator(cell)
+  this%mc_cell_info_init = .true.
 end subroutine marching_cubes_subnodes_data_create
 
 !========================================================================================
