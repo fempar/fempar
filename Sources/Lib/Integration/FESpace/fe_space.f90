@@ -845,7 +845,10 @@ module fe_space_names
    ! Transfer and redistribution of FE functions
    procedure,                          private :: serial_fe_space_refine_and_coarsen_single_fe_function   => par_fe_space_refine_and_coarsen_single_fe_function
    procedure,                          private :: serial_fe_space_refine_and_coarsen_fe_function_array    => par_fe_space_refine_and_coarsen_fe_function_array
-   procedure                                   :: redistribute                                            => par_fe_space_redistribute
+   procedure,                          private :: par_fe_space_redistribute_single_fe_function
+   procedure,                          private :: par_fe_space_redistribute_fe_function_array
+   generic                                     :: redistribute                                            => par_fe_space_redistribute_single_fe_function, &
+                                                                                                             par_fe_space_redistribute_fe_function_array
    procedure                                   :: update_after_redistribute                               => par_fe_space_update_after_redistribute
    procedure,                          private :: update_after_refine_coarsen                             => par_fe_space_update_after_refine_coarsen
    procedure,                          private :: project_field_cell_to_ref_fes                           => par_fe_space_project_field_cell_to_ref_fes
