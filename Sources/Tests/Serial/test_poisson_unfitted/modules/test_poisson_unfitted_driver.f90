@@ -129,6 +129,7 @@ contains
     integer(ip) :: num_dime
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
+    real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
     assert( this%parameter_list%isPresent    (key = num_dims_key) )
@@ -147,6 +148,18 @@ contains
         check(.false.)
     end select
 
+    ! Uncommenting the following lines and calling the driver with these flags,
+    ! generates a case of a single cut hex that leads to a
+    ! broken sub-triangulation computed with marching cubes
+    ! Flags: -tt structured -dim 3 -nx 1 -ny 1 -nz 1 -in_space .true. -order 1 -gorder 1 -wsolution .true. 
+    !
+    !dom3d(1) = 0.25
+    !dom3d(2) = 0.5
+    !dom3d(3) = 0.25
+    !dom3d(4) = 0.5
+    !dom3d(5) = 0.5
+    !dom3d(6) = 0.75
+    !call this%level_set_function%set_domain(dom3d)
 
     ! Set options of the base class
     call this%level_set_function%set_num_dims(num_dime)

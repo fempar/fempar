@@ -218,9 +218,9 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
   if ( .not. this%is_cut() ) then
     call this%fe_cell_iterator_t%update_integration()
   else 
+    call this%update_sub_triangulation()
     call this%update_cell_map()
     call this%update_cell_integrators()
-    call this%update_sub_triangulation()
 
     call this%update_cut_quadratures()
     call this%update_cut_cell_maps()

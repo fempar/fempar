@@ -111,15 +111,16 @@ end subroutine marching_cubes_create
 subroutine marching_cubes_free(this)
   implicit none
   class(marching_cubes_t), target, intent(inout) :: this
-  call this%mc_tables_free()
-  call this%discrete_levelset_free()
-  call this%mc_runtime_info_free()
   call this%subnodes_data_free()
+  call this%mc_runtime_info_free()
+  call this%discrete_levelset_free()
+  call this%mc_tables_free()
   this%triangulation => null()
   this%level_set_function => null()
   this%mc_tables_init = .false.
   this%mc_runtime_init   = .false.
   this%mc_cell_info_init = .false.
+  this%current_cell_gid = -1
 end subroutine marching_cubes_free
 
 !========================================================================================
@@ -1082,6 +1083,7 @@ subroutine marching_cubes_subnodes_data_create( this )
   class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip) :: n_subcells, n_subfacets, n_subnodes, n_nodes_subcell, n_nodes_subfacet
   integer(ip), parameter :: safety_offset = 5
+  integer(ip), parameter :: num_facets_tet = 4
 
   assert(this%mc_tables_init)
   assert(this%mc_runtime_init)
@@ -1112,10 +1114,16 @@ subroutine marching_cubes_subnodes_data_create( this )
   n_nodes_subcell = this%get_max_num_nodes_in_subcell()
   n_nodes_subfacet = this%get_max_num_nodes_in_subfacet()
   call memalloc(n_nodes_subcell,n_subcells,this%sub_cells_node_ids,__FILE__,__LINE__)
+  call memalloc(n_subnodes,this%level_set_all_nodes,__FILE__,__LINE__)
+  call memalloc(n_subcells,this%subcells_status,__FILE__,__LINE__)
+  if (this%triangulation%get_num_dims()==3) then
+    call memalloc(num_facets_tet,n_subcells,this%subcell_facet_neigs,__FILE__,__LINE__)
+  end if
   call memalloc(n_nodes_subfacet,n_subfacets,this%unfitted_sub_facets_node_ids,__FILE__,__LINE__)
   call memalloc(n_nodes_subfacet,this%mc_table_max_num_fitted_sub_facets_in_facet,this%mc_table_num_facets,this%fitted_sub_facets_node_ids_x_facet,__FILE__,__LINE__)
   call memalloc(n_subcells,this%sub_cell_has_been_reoriented,__FILE__,__LINE__)
   allocate( this%subnodes_ref_coords(1:n_subnodes) , stat=istat); check(istat==0_ip)
+  call this%fe_space%create_fe_cell_iterator(this%fe)
 
   call this%triangulation%free_cell_iterator(cell)
   this%mc_cell_info_init = .true.
@@ -1147,9 +1155,13 @@ subroutine marching_cubes_subnodes_data_free( this )
   end if
 
   if(allocated(this%sub_cells_node_ids  )) call memfree(this%sub_cells_node_ids  ,__FILE__,__LINE__)
+  if(allocated(this%level_set_all_nodes  )) call memfree(this%level_set_all_nodes  ,__FILE__,__LINE__)
+  if(allocated(this%subcells_status  )) call memfree(this%subcells_status  ,__FILE__,__LINE__)
+  if(allocated(this%subcell_facet_neigs  )) call memfree(this%subcell_facet_neigs  ,__FILE__,__LINE__)
   if(allocated(this%unfitted_sub_facets_node_ids  )) call memfree(this%unfitted_sub_facets_node_ids  ,__FILE__,__LINE__)
   if(allocated(this%fitted_sub_facets_node_ids_x_facet  )) call memfree(this%fitted_sub_facets_node_ids_x_facet  ,__FILE__,__LINE__)
   if(allocated(this%sub_cell_has_been_reoriented)) call memfree(this%sub_cell_has_been_reoriented,__FILE__,__LINE__)
+  call this%fe_space%free_fe_cell_iterator(this%fe)
 
 end subroutine marching_cubes_subnodes_data_free
 

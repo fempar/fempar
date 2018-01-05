@@ -41,12 +41,15 @@ module unfitted_triangulations_names
   use base_sparse_matrix_names
   use dof_import_names
   use p4est_triangulation_names
+  use qhull_bindings_names
+  use fe_cell_function_names
   
   
   use fe_space_names
   use conditions_names
   use block_layout_names
   use function_names
+  use unfitted_temporary_names
   
   implicit none
 # include "debug.i90"
@@ -88,9 +91,13 @@ module unfitted_triangulations_names
     procedure :: is_exterior_subcell => unfitted_cell_iterator_is_exterior_subcell
 
     ! Private TBPs
-    procedure, non_overridable, private :: get_num_subnodes         => unfitted_cell_iterator_get_num_subnodes
-    procedure, non_overridable, private :: subcell_has_been_reoriented    => unfitted_cell_iterator_subcell_has_been_reoriented
-    procedure, non_overridable, private :: subfacet_touches_interior_reoriented_subcell => unfitted_cell_iterator_subfacet_touches_reoriented_subcell
+    procedure, non_overridable, private :: get_num_subnodes            => unfitted_cell_iterator_get_num_subnodes
+    procedure, non_overridable, private :: is_inverted_subcell         => unfitted_cell_iterator_is_inverted_subcell
+    procedure, non_overridable, private :: is_valid_submesh            => unfitted_cell_iterator_is_valid_submesh
+    procedure, non_overridable, private :: generate_subcells           => unfitted_cell_iterator_generate_subcells
+    procedure, non_overridable, private :: generate_subcells_status    => unfitted_cell_iterator_generate_subcells_status
+    procedure, non_overridable, private :: generate_boundary_subfacets => unfitted_cell_iterator_generate_boundary_subfacets
+
     end type unfitted_cell_iterator_t
 
   type, extends(bst_vef_iterator_t) :: unfitted_vef_iterator_t
@@ -237,13 +244,20 @@ module unfitted_triangulations_names
 
     ! Info related to the sub-tessellation
     ! When located on a cell, and the sub-triangulation is updated,
-    ! these memeber variables contain info about the current sub-tessalation
+    ! these member variables contain info about the current sub-tessalation
     integer(ip),        allocatable :: sub_cells_node_ids(:,:)
     integer(ip),        allocatable :: unfitted_sub_facets_node_ids(:,:)
     integer(ip),        allocatable :: fitted_sub_facets_node_ids_x_facet(:,:,:)
     type(point_t),      allocatable :: subnodes_ref_coords(:)
     logical,            allocatable :: sub_cell_has_been_reoriented(:)
     logical :: mc_cell_info_init = .false.
+    integer(ip) :: current_cell_gid = -1
+    integer(ip) :: num_subcells
+    integer(ip) :: num_subfacets
+    integer(ip), allocatable :: subcells_status(:)
+    class(fe_cell_iterator_t), allocatable :: fe
+    real(rp), allocatable :: level_set_all_nodes(:)
+    integer(ip), allocatable :: subcell_facet_neigs(:,:)
     
     ! Auxiliary work data
     type(quadrature_t), allocatable :: sub_nodes_nodal_quadratures(:)
