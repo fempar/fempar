@@ -3492,27 +3492,90 @@ subroutine par_fe_space_migrate_field_cell_to_ref_fes ( this )
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   class(environment_t), pointer :: environment
+  class(cell_import_t), pointer :: cell_import
   class(triangulation_t), pointer :: triangulation
   class(p4est_par_triangulation_t), pointer :: par_triangulation
   integer(ip) :: i, field_id, error
+  
+  integer(ip)          :: num_rcv
+  integer(ip), pointer :: lst_rcv(:)
+  integer(ip), pointer :: rcv_ptrs(:)
+  integer(ip), pointer :: unpack_idx(:)
+  
+  integer(ip)          :: num_snd
+  integer(ip), pointer :: lst_snd(:)
+  integer(ip), pointer :: snd_ptrs(:)
+  integer(ip), pointer :: pack_idx(:)
+  
+  integer(ip), pointer :: new2old(:)
+  integer(ip), pointer :: old2new(:)
+  
+  type(std_vector_integer_ip_t)          :: old_field_cell_to_ref_fes
+  integer(ip)                  , pointer :: p_old_field_cell_to_ref_fes(:)
+  integer(ip)                  , pointer :: p_field_cell_to_ref_fes(:)
+  
 #ifdef ENABLE_P4EST  
+  
   triangulation => this%get_triangulation()
   environment   => triangulation%get_environment()
+  cell_import => triangulation%get_cell_import()
+  
   if ( environment%am_i_l1_task() ) then
+     
      select type(triangulation)
         class is (p4est_par_triangulation_t)
         par_triangulation => triangulation
         class default
         assert(.false.)
      end select
-     call this%free_field_cell_to_ref_fes()
-     allocate( this%field_cell_to_ref_fes(this%num_fields), stat=error ); check(error==0)
+     
+     num_rcv     =  par_triangulation%get_migration_num_rcv()
+     lst_rcv     => par_triangulation%get_migration_lst_rcv()
+     rcv_ptrs    => par_triangulation%get_migration_rcv_ptrs()
+     unpack_idx  => par_triangulation%get_migration_unpack_idx()
+     
+     num_snd     =  par_triangulation%get_migration_num_snd()
+     lst_snd     => par_triangulation%get_migration_lst_snd()
+     snd_ptrs    => par_triangulation%get_migration_snd_ptrs()
+     pack_idx    => par_triangulation%get_migration_pack_idx()
+     
+     new2old     => par_triangulation%get_migration_new2old()
+     
      do field_id = 1,this%num_fields
+       
+       call old_field_cell_to_ref_fes%copy(this%field_cell_to_ref_fes(field_id))
+       call this%field_cell_to_ref_fes(field_id)%resize(0)
        call this%field_cell_to_ref_fes(field_id)%resize(triangulation%get_num_cells())
-       do i=1, this%field_cell_to_ref_fes(field_id)%size()
-         call this%field_cell_to_ref_fes(field_id)%set(i,1)
-       end do 
+       
+       p_old_field_cell_to_ref_fes => old_field_cell_to_ref_fes%get_pointer()
+       p_field_cell_to_ref_fes     => this%field_cell_to_ref_fes(field_id)%get_pointer()
+       
+       do i=1, triangulation%get_num_local_cells()
+         if ( new2old(i) /= 0 ) then
+           p_field_cell_to_ref_fes(i) = p_old_field_cell_to_ref_fes(new2old(i))
+         end if
+       end do
+       
+       call environment%l1_neighbours_exchange ( num_rcv, lst_rcv, rcv_ptrs , unpack_idx, &
+                                                 num_snd, lst_snd, snd_ptrs, pack_idx,    &
+                                                 p_old_field_cell_to_ref_fes,             &
+                                                 p_field_cell_to_ref_fes )
+       
+       call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                                 cell_import%get_neighbours_ids(), &
+                                                 cell_import%get_rcv_ptrs(),       &
+                                                 cell_import%get_rcv_leids(),      &
+                                                 cell_import%get_num_neighbours(), &
+                                                 cell_import%get_neighbours_ids(), &
+                                                 cell_import%get_snd_ptrs(),       &
+                                                 cell_import%get_snd_leids(),      &
+                                                 p_field_cell_to_ref_fes,          &
+                                                 p_field_cell_to_ref_fes )
+       
      end do
+     
+     call old_field_cell_to_ref_fes%free()
+  
   end if
 #else  
   call this%not_enabled_error()
