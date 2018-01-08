@@ -1161,8 +1161,7 @@ subroutine marching_cubes_subnodes_data_free( this )
   if(allocated(this%unfitted_sub_facets_node_ids  )) call memfree(this%unfitted_sub_facets_node_ids  ,__FILE__,__LINE__)
   if(allocated(this%fitted_sub_facets_node_ids_x_facet  )) call memfree(this%fitted_sub_facets_node_ids_x_facet  ,__FILE__,__LINE__)
   if(allocated(this%sub_cell_has_been_reoriented)) call memfree(this%sub_cell_has_been_reoriented,__FILE__,__LINE__)
-  call this%fe_space%free_fe_cell_iterator(this%fe)
-
+  if(allocated(this%fe_space)) call this%fe_space%free_fe_cell_iterator(this%fe)
 end subroutine marching_cubes_subnodes_data_free
 
 
