@@ -830,7 +830,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh( this, fiel
   type(cell_import_t)       , pointer :: cell_import
   class(reference_fe_t)        , pointer :: reference_fe
   type(fe_vef_iterator_t)      :: vef
-  class(fe_cell_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe, coarser_fe
   integer(ip)                  :: result_previous
   integer(ip), pointer :: p_ptr_ghosts_per_local_cell(:)
   integer(ip), pointer :: p_ptr_ghosts_per_ghost_cell(:)
@@ -851,10 +851,11 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh( this, fiel
   
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
-  call this%create_fe_cell_iterator(fe) 
+  call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(coarser_fe)
   result = 0 
   do while(.not. vef%has_finished())
-     if ( vef%is_proper() ) then
+     if ( vef%has_free_dofs(field_id,coarser_fe) ) then
        touched_neighbours = .false.
        do ielem=1, vef%get_num_cells_around()
           reference_fe => fe%get_reference_fe(field_id)
@@ -884,6 +885,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh( this, fiel
      call vef%next()
   end do
   pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh = result
+  call this%free_fe_cell_iterator(coarser_fe) 
   call this%free_fe_cell_iterator(fe) 
   call this%free_fe_vef_iterator(vef)
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
@@ -1284,7 +1286,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   class(reference_fe_t) , pointer :: reference_fe
   type(list_iterator_t) :: own_dofs_on_vef_iterator
   type(fe_vef_iterator_t) :: vef
-  class(fe_cell_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe, coarser_fe
   class(fe_cell_iterator_t), allocatable :: fe_max
   integer(ip), pointer :: fe_dofs(:)
   integer(ip), pointer :: max_fe_dofs(:)
@@ -1333,6 +1335,8 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   call this%ptr_dofs_field%set(1,1)
   i=2
   call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(coarser_fe)
+
   do while ( .not. fe%has_finished() )
     call this%ptr_dofs_field%push_back(this%ptr_dofs_field%get(i-1)+num_dofs)  
     call fe%next()
@@ -1364,7 +1368,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   do while(.not. vef%has_finished())
-    if ( vef%is_proper() ) then
+    if ( vef%has_free_dofs(field_id,coarser_fe) ) then
       touched_neighbours = .false.
       all_ghosts = .true.
       free_dofs = .false. 
@@ -1526,7 +1530,8 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
     p_ptr_ghosts_per_local_cell(i) = p_ptr_ghosts_per_local_cell(i-1)
   end do
   p_ptr_ghosts_per_local_cell(1)=1 
- 
+  
+  call this%free_fe_cell_iterator(coarser_fe)
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_cell_iterator(fe_max)
   call this%free_fe_vef_iterator(vef)
@@ -1895,7 +1900,7 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
   class(reference_fe_t), pointer :: reference_fe
   type(list_iterator_t) :: own_dofs_on_vef_iterator
   type(fe_vef_iterator_t) :: vef
-  class(fe_cell_iterator_t), allocatable :: fe
+  class(fe_cell_iterator_t), allocatable :: fe, coarser_fe
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: num_vefs
   integer(ip) :: cell_gid, base_pos_dofs, base_pos
@@ -1956,13 +1961,14 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   call this%create_fe_cell_iterator(fe) 
+  call this%create_fe_cell_iterator(coarser_fe)
   if ( .not. fe%has_finished() ) then
     num_vefs = fe%get_num_vefs()
   else
     num_vefs = 0
   end if  
   do while(.not. vef%has_finished())
-     if ( vef%is_proper() ) then
+     if ( vef%has_free_dofs(field_id,coarser_fe) ) then
         touched_neighbours = .false.
         num_parts_nearest_neighbour = 0
         num_parts_neighbours_nearest_neighbours = 0
@@ -2122,6 +2128,7 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
   call ghost_parts_visited%free()
   call lst_parts%free()
 
+  call this%free_fe_cell_iterator(coarser_fe)
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_vef_iterator(vef)
 
