@@ -145,13 +145,7 @@ contains
     exact_sol   => this%analytical_functions%get_solution_function()
 
     ! Find the first non-void FE
-    ! TODO use a function in fe_space istead
-    do while ( .not. fe%has_finished() )
-       quad            => fe%get_quadrature()
-       num_quad_points = quad%get_num_quadrature_points()
-       if (num_quad_points > 0) exit
-       call fe%next()
-    end do
+    call fe%first_local_non_void(1)
 
     ! TODO We assume that all non-void FEs are the same...
     num_dofs = fe%get_num_dofs()
