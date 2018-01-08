@@ -578,8 +578,8 @@ subroutine unfitted_cell_iterator_generate_subcells(this)
   ! Compute number of cells in the Delaunay triangulation
   num_cells = 0
   ierror = delaunay_init_and_compute_f90(num_dims, num_points, points, num_cells)
-  this%marching_cubes%num_subcells = num_cells
   check(ierror == 0)
+  this%marching_cubes%num_subcells = num_cells
 
   ! Fill in the cells connectivities
   cells => this%marching_cubes%sub_cells_node_ids
