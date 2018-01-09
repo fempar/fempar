@@ -55,7 +55,7 @@ module stokes_params_names
      character(len=:), allocatable :: default_is_periodic_in_y
      character(len=:), allocatable :: default_is_periodic_in_z
      character(len=:), allocatable :: default_max_level
-     character(len=:), allocatable :: default_is_in_fe_space
+     character(len=:), allocatable :: default_case_id
      character(len=:), allocatable :: default_check_solution
      character(len=:), allocatable :: default_unfitted_boundary_is_dirichlet
      character(len=:), allocatable :: default_is_constant_nitches_beta
@@ -87,7 +87,7 @@ module stokes_params_names
      integer(ip) :: num_of_cells_x_dir(0:SPACE_DIM-1)
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
      integer(ip) :: max_level
-     logical :: in_fe_space
+     integer(ip) :: case_id
      logical :: check_sol
      logical :: unfitted_boundary_is_dirichlet
      logical :: is_constant_nitches_beta
@@ -118,7 +118,7 @@ module stokes_params_names
      procedure, non_overridable             :: get_triangulation_type
      procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: get_max_level
-     procedure, non_overridable             :: is_in_fe_space
+     procedure, non_overridable             :: get_case_id
      procedure, non_overridable             :: are_checks_active
      procedure, non_overridable             :: get_unfitted_boundary_is_dirichlet
      procedure, non_overridable             :: get_is_constant_nitches_beta
@@ -179,7 +179,7 @@ contains
     this%default_is_periodic_in_y = '0'
     this%default_is_periodic_in_z = '0'
     this%default_max_level = '3'
-    this%default_is_in_fe_space = '.true.'
+    this%default_case_id = '1'
     this%default_check_solution = '.true.'
     this%default_unfitted_boundary_is_dirichlet = '.true.'
     this%default_is_constant_nitches_beta       = '.false.'
@@ -260,8 +260,8 @@ contains
     call this%cli%add(switch='--max_level',switch_ab='-maxl',help='Maximum h-refinement level allowed',&
          &            required=.false.,act='store',def=trim(this%default_max_level),error=error) 
     check(error==0) 
-    call this%cli%add(switch='--solution_in_fe_space',switch_ab='-in_space',help='Is the solution in fe space',&
-         &            required=.false.,act='store',def=trim(this%default_is_in_fe_space),error=error) 
+    call this%cli%add(switch='--case_id',switch_ab='-cid',help='Id of the functions used in the run',&
+         &            required=.false.,act='store',def=trim(this%default_case_id),error=error) 
     check(error==0) 
     call this%cli%add(switch='--check_solution',switch_ab='-check',help='Check or not the solution',&
          &            required=.false.,act='store',def=trim(this%default_check_solution),error=error) 
@@ -322,7 +322,7 @@ contains
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
     call this%cli%get(switch='-maxl',val=this%max_level,error=istat); check(istat==0)
-    call this%cli%get(switch='-in_space',val=this%in_fe_space,error=istat); check(istat==0)
+    call this%cli%get(switch='-cid',val=this%case_id,error=istat); check(istat==0)
     call this%cli%get(switch='-check',val=this%check_sol,error=istat); check(istat==0)
     call this%cli%get(switch='-is_diri',val=this%unfitted_boundary_is_dirichlet,error=istat); check(istat==0)
     call this%cli%get(switch='-is_bconst',val=this%is_constant_nitches_beta,error=istat); check(istat==0)
@@ -366,7 +366,7 @@ contains
     if(allocated(this%default_write_aggr_info)) deallocate(this%default_write_aggr_info)
     if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
     if(allocated(this%default_max_level)) deallocate(this%default_max_level)
-    if(allocated(this%default_is_in_fe_space)) deallocate(this%default_is_in_fe_space)
+    if(allocated(this%default_case_id)) deallocate(this%default_case_id)
     if(allocated(this%default_check_solution)) deallocate(this%default_check_solution)
     if(allocated(this%default_unfitted_boundary_is_dirichlet)) deallocate(this%default_unfitted_boundary_is_dirichlet)
     if(allocated(this%default_is_constant_nitches_beta)) deallocate(this%default_is_constant_nitches_beta)
@@ -485,12 +485,12 @@ contains
   end function get_max_level
 
   !==================================================================================================
-  function is_in_fe_space(this)
+  function get_case_id(this)
     implicit none
     class(stokes_params_t) , intent(in) :: this
-    logical :: is_in_fe_space
-    is_in_fe_space = this%in_fe_space
-  end function is_in_fe_space
+    integer(ip) :: get_case_id
+    get_case_id = this%case_id
+  end function get_case_id
 
   !==================================================================================================
   function are_checks_active(this)

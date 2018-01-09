@@ -170,6 +170,7 @@ contains
     select type ( levset )
       class is (level_set_sphere_t)
         call levset%set_radius(0.9)!0.625_rp)
+        call levset%set_center([0.0,0.0,0.0])
       class default
         check(.false.)
     end select

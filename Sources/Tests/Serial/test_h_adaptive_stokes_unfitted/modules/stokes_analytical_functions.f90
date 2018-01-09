@@ -40,21 +40,21 @@ module stokes_analytical_functions_names
 
   type, extends(scalar_function_t) :: base_scalar_function_t
     integer(ip) :: num_dims    = -1  
-    logical     :: in_fe_space = .true.
+    integer(ip) :: case_id = 1
     integer(ip) :: degree      = 1
   contains
     procedure :: set_num_dims          => base_scalar_function_set_num_dims 
-    procedure :: set_is_in_fe_space    => base_scalar_function_set_is_in_fe_space
+    procedure :: set_case_id    => base_scalar_function_set_case_id
     procedure :: set_degree            => base_scalar_function_set_degree
   end type base_scalar_function_t
 
   type, extends(vector_function_t) :: base_vector_function_t
     integer(ip) :: num_dims    = -1  
-    logical     :: in_fe_space = .true.
+    integer(ip) :: case_id = 1
     integer(ip) :: degree      = 1
   contains
     procedure :: set_num_dims          => base_vector_function_set_num_dims 
-    procedure :: set_is_in_fe_space    => base_vector_function_set_is_in_fe_space
+    procedure :: set_case_id    => base_vector_function_set_case_id
     procedure :: set_degree            => base_vector_function_set_degree
   end type base_vector_function_t
 
@@ -96,7 +96,7 @@ module stokes_analytical_functions_names
      type(solution_function_p_t)   :: solution_function_p
    contains
      procedure :: set_num_dims            => stokes_analytical_functions_set_num_dims
-     procedure :: set_is_in_fe_space      => stokes_analytical_functions_set_is_in_fe_space
+     procedure :: set_case_id             => stokes_analytical_functions_set_case_id
      procedure :: set_degree              => stokes_analytical_functions_set_degree
      procedure :: get_degree              => stokes_analytical_functions_get_degree
      procedure :: get_source_term_u       => stokes_analytical_functions_get_source_term_u
@@ -459,6 +459,60 @@ contains
 
   !===================================================
 
+  subroutine sol_ex003_3d_u(point,val)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    real(rp) :: x, y, z
+    real(rp), parameter :: tol = 1.0e-10
+    x = point%get(1)
+    y = point%get(2)
+    z = point%get(3)
+    call val%init(0.0)
+    if (abs(x)<=tol .or. abs(x-1)<=tol) then
+      call val%set(1, 10*y*(y-1)*z*(z-1) )
+    end if
+  end subroutine sol_ex003_3d_u
+
+  subroutine sol_ex003_3d_grad_u(point,val)
+    implicit none
+    type(point_t),        intent(in)    :: point
+    type(tensor_field_t), intent(inout) :: val
+    call val%init(0.0)
+  end subroutine sol_ex003_3d_grad_u
+
+  subroutine sol_ex003_3d_lapl_u(point,val)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    call val%init(0.0)
+  end subroutine sol_ex003_3d_lapl_u
+
+  subroutine sol_ex003_3d_div_u(point,val)
+    implicit none
+    type(point_t), intent(in)    :: point
+    real(rp),      intent(inout) :: val
+    val = 0.0
+  end subroutine sol_ex003_3d_div_u
+
+  !===================================================
+
+  subroutine sol_ex003_3d_p(point,val)
+    implicit none
+    type(point_t), intent(in)    :: point
+    real(rp),      intent(inout) :: val
+    val = 0.0
+  end subroutine sol_ex003_3d_p
+
+  subroutine sol_ex003_3d_grad_p(point,val)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    call val%init(0.0)
+  end subroutine sol_ex003_3d_grad_p
+
+  !===================================================
+
   subroutine base_scalar_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -466,12 +520,12 @@ contains
     this%num_dims = num_dims
   end subroutine base_scalar_function_set_num_dims
 
-  subroutine base_scalar_function_set_is_in_fe_space(this,val)
+  subroutine base_scalar_function_set_case_id(this,val)
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
-    logical,                       intent(in)       :: val
-    this%in_fe_space = val
-  end subroutine base_scalar_function_set_is_in_fe_space
+    integer(ip),                   intent(in)       :: val
+    this%case_id = val
+  end subroutine base_scalar_function_set_case_id
 
   subroutine base_scalar_function_set_degree(this,degree)
     implicit none
@@ -487,12 +541,12 @@ contains
     this%num_dims = num_dims
   end subroutine base_vector_function_set_num_dims
 
-  subroutine base_vector_function_set_is_in_fe_space(this,val)
+  subroutine base_vector_function_set_case_id(this,val)
     implicit none
     class(base_vector_function_t), intent(inout)    :: this
-    logical,                       intent(in)       :: val
-    this%in_fe_space = val
-  end subroutine base_vector_function_set_is_in_fe_space
+    integer(ip),                   intent(in)       :: val
+    this%case_id = val
+  end subroutine base_vector_function_set_case_id
 
   subroutine base_vector_function_set_degree(this,degree)
     implicit none
@@ -510,29 +564,40 @@ contains
     type(vector_field_t)  , intent(inout) :: result
     type(vector_field_t) :: val
     if ( this%num_dims == 2 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_2d_lapl_u(point,val,this%degree)
-        result = (-1.0)*val
-        call sol_ex001_2d_grad_p(point,val,this%degree)
-        result = result + (-1.0)*val
-      else
-        call sol_ex002_2d_lapl_u(point,val,this%degree)
-        result = (-1.0)*val
-        call sol_ex002_2d_grad_p(point,val,this%degree)
-        result = result + (-1.0)*val
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_2d_lapl_u(point,val,this%degree)
+          result = (-1.0)*val
+          call sol_ex001_2d_grad_p(point,val,this%degree)
+          result = result + (-1.0)*val
+        case (2)
+          call sol_ex002_2d_lapl_u(point,val,this%degree)
+          result = (-1.0)*val
+          call sol_ex002_2d_grad_p(point,val,this%degree)
+          result = result + (-1.0)*val
+        case default
+          check(.false.)
+      end select
     else if ( this%num_dims == 3 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_3d_lapl_u(point,val,this%degree)
-        result = (-1.0)*val
-        call sol_ex001_3d_grad_p(point,val,this%degree)
-        result = result + (-1.0)*val
-      else
-        call sol_ex002_3d_lapl_u(point,val,this%degree)
-        result = (-1.0)*val
-        call sol_ex002_3d_grad_p(point,val,this%degree)
-        result = result + (-1.0)*val
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_3d_lapl_u(point,val,this%degree)
+          result = (-1.0)*val
+          call sol_ex001_3d_grad_p(point,val,this%degree)
+          result = result + (-1.0)*val
+        case (2)
+          call sol_ex002_3d_lapl_u(point,val,this%degree)
+          result = (-1.0)*val
+          call sol_ex002_3d_grad_p(point,val,this%degree)
+          result = result + (-1.0)*val
+        case (3)
+          call sol_ex003_3d_lapl_u(point,val)
+          result = (-1.0)*val
+          call sol_ex003_3d_grad_p(point,val)
+          result = result + (-1.0)*val
+        case default
+          check(.false.)
+      end select
     else
         check(.false.)
     end if  
@@ -544,17 +609,25 @@ contains
     type(point_t)         , intent(in)    :: point
     type(vector_field_t)  , intent(inout) :: result
     if ( this%num_dims == 2 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_2d_u(point,result,this%degree)
-      else
-        call sol_ex002_2d_u(point,result,this%degree)
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_2d_u(point,result,this%degree)
+        case (2)
+          call sol_ex002_2d_u(point,result,this%degree)
+        case default
+          check(.false.)
+      end select
     else if ( this%num_dims == 3 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_3d_u(point,result,this%degree)
-      else
-        call sol_ex002_3d_u(point,result,this%degree)
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_3d_u(point,result,this%degree)
+        case (2)
+          call sol_ex002_3d_u(point,result,this%degree)
+        case (3)
+          call sol_ex003_3d_u(point,result)
+        case default
+          check(.false.)
+      end select
     else
         check(.false.)
     end if  
@@ -566,17 +639,25 @@ contains
     type(point_t)             , intent(in)    :: point
     type(tensor_field_t)      , intent(inout) :: result
     if ( this%num_dims == 2 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_2d_grad_u(point,result,this%degree)
-      else
-        call sol_ex002_2d_grad_u(point,result,this%degree)
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_2d_grad_u(point,result,this%degree)
+        case (2)
+          call sol_ex002_2d_grad_u(point,result,this%degree)
+        case default
+          check(.false.)
+      end select
     else if ( this%num_dims == 3 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_3d_grad_u(point,result,this%degree)
-      else
-        call sol_ex002_3d_grad_u(point,result,this%degree)
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_3d_grad_u(point,result,this%degree)
+        case (2)
+          call sol_ex002_3d_grad_u(point,result,this%degree)
+        case (3)
+          call sol_ex003_3d_grad_u(point,result)
+        case default
+          check(.false.)
+      end select
     else
         check(.false.)
     end if  
@@ -588,17 +669,25 @@ contains
     type(point_t)         , intent(in)    :: point
     real(rp)              , intent(inout) :: result
     if ( this%num_dims == 2 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_2d_div_u(point,result,this%degree)
-      else
-        call sol_ex002_2d_div_u(point,result,this%degree)
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_2d_div_u(point,result,this%degree)
+        case (2)
+          call sol_ex002_2d_div_u(point,result,this%degree)
+        case default
+          check(.false.)
+      end select
     else if ( this%num_dims == 3 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_3d_div_u(point,result,this%degree)
-      else
-        call sol_ex002_3d_div_u(point,result,this%degree)
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_3d_div_u(point,result,this%degree)
+        case (2)
+          call sol_ex002_3d_div_u(point,result,this%degree)
+        case (3)
+          call sol_ex003_3d_div_u(point,result)
+        case default
+          check(.false.)
+      end select
     else
         check(.false.)
     end if  
@@ -610,17 +699,25 @@ contains
     type(point_t)         , intent(in)    :: point
     real(rp)              , intent(inout) :: result
     if ( this%num_dims == 2 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_2d_p(point,result,this%degree)
-      else
-        call sol_ex002_2d_p(point,result,this%degree)
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_2d_p(point,result,this%degree)
+        case (2)
+          call sol_ex002_2d_p(point,result,this%degree)
+        case default
+          check(.false.)
+      end select
     else if ( this%num_dims == 3 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_3d_p(point,result,this%degree)
-      else
-        call sol_ex002_3d_p(point,result,this%degree)
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_3d_p(point,result,this%degree)
+        case (2)
+          call sol_ex002_3d_p(point,result,this%degree)
+        case (3)
+          call sol_ex003_3d_p(point,result)
+        case default
+          check(.false.)
+      end select
     else
         check(.false.)
     end if  
@@ -632,17 +729,25 @@ contains
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
     if ( this%num_dims == 2 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_2d_grad_p(point,result,this%degree)
-      else
-        call sol_ex002_2d_grad_p(point,result,this%degree)
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_2d_grad_p(point,result,this%degree)
+        case (2)
+          call sol_ex002_2d_grad_p(point,result,this%degree)
+        case default
+          check(.false.)
+      end select
     else if ( this%num_dims == 3 ) then
-      if (this%in_fe_space) then
-        call sol_ex001_3d_grad_p(point,result,this%degree)
-      else
-        call sol_ex002_3d_grad_p(point,result,this%degree)
-      end if
+      select case (this%case_id)
+        case (1)
+          call sol_ex001_3d_grad_p(point,result,this%degree)
+        case (2)
+          call sol_ex002_3d_grad_p(point,result,this%degree)
+        case (3)
+          call sol_ex003_3d_grad_p(point,result)
+        case default
+          check(.false.)
+      end select
     else
         check(.false.)
     end if  
@@ -660,15 +765,15 @@ contains
     call this%solution_function_p%set_num_dims(num_dims)
   end subroutine stokes_analytical_functions_set_num_dims 
 
-  subroutine stokes_analytical_functions_set_is_in_fe_space(this,val)
+  subroutine stokes_analytical_functions_set_case_id(this,val)
     implicit none
     class(stokes_analytical_functions_t), intent(inout)    :: this
-    logical, intent(in) :: val
-    call this%source_term_u%set_is_in_fe_space(val)
-    call this%source_term_p%set_is_in_fe_space(val)
-    call this%solution_function_u%set_is_in_fe_space(val)
-    call this%solution_function_p%set_is_in_fe_space(val)
-  end subroutine stokes_analytical_functions_set_is_in_fe_space
+    integer(ip), intent(in) :: val
+    call this%source_term_u%set_case_id(val)
+    call this%source_term_p%set_case_id(val)
+    call this%solution_function_u%set_case_id(val)
+    call this%solution_function_p%set_case_id(val)
+  end subroutine stokes_analytical_functions_set_case_id
 
   subroutine stokes_analytical_functions_set_degree(this,degree)
     implicit none

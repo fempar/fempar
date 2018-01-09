@@ -41,6 +41,9 @@ module level_set_functions_gallery_names
   character(len=*), parameter, public :: level_set_cylinder_str     = 'cylinder'
   character(len=*), parameter, public :: level_set_cheese_block_str = 'cheese_block'
   character(len=*), parameter, public :: level_set_popcorn_str      = 'popcorn'
+  character(len=*), parameter, public :: level_set_bullets_str      = 'bullets'
+
+  integer(ip), parameter, private :: NUM_SPHERES = 20
 
   type :: level_set_function_factory_t
     private
@@ -65,8 +68,10 @@ module level_set_functions_gallery_names
   type, extends(level_set_function_t) :: level_set_sphere_t
     private
     real(rp) :: radius = 0.0_rp
+    type(point_t) :: center
   contains
     procedure :: set_radius                   => level_set_sphere_set_radius
+    procedure :: set_center                   => level_set_sphere_set_center
     procedure, private :: get_level_set_value => level_set_sphere_get_level_set_value
   end type level_set_sphere_t
 
@@ -88,12 +93,21 @@ module level_set_functions_gallery_names
     procedure, private :: get_level_set_value => level_set_popcorn_get_level_set_value
   end type level_set_popcorn_t
 
+  type, extends(level_set_function_t) :: level_set_bullets_t
+    private
+    type(level_set_sphere_t) ::  spheres(NUM_SPHERES)
+  contains
+    procedure          :: init => level_set_bullets_init
+    procedure, private :: get_level_set_value => level_set_bullets_get_level_set_value
+  end type level_set_bullets_t
+
   public :: level_set_function_factory_t
   public :: level_set_function_t
   public :: level_set_sphere_t
   public :: level_set_cylinder_t
   public :: level_set_cheese_block_t
   public :: level_set_popcorn_t
+  public :: level_set_bullets_t
 
 contains
 
@@ -115,6 +129,14 @@ subroutine level_set_function_factory_create(level_set_str, level_set_function)
       allocate( level_set_cheese_block_t:: level_set_function, stat= istat ); check(istat==0)
     case (level_set_popcorn_str)
       allocate( level_set_popcorn_t::      level_set_function, stat= istat ); check(istat==0)
+    case (level_set_bullets_str)
+      allocate( level_set_bullets_t::      level_set_function, stat= istat ); check(istat==0)
+      select type (level_set_function)
+        type is (level_set_bullets_t)
+          call level_set_function%init()
+        class default
+          check(.false.)
+      end select
     case default
       mcheck(.false., 'Unknown type of level set function `'//level_set_str//'`')
   end select
@@ -198,6 +220,16 @@ subroutine level_set_function_set_domain ( this, domain )
   end subroutine level_set_sphere_set_radius
 
 !========================================================================================
+  subroutine level_set_sphere_set_center ( this, center_in )
+    implicit none
+    class(level_set_sphere_t), intent(inout) :: this
+    real(rp)                 , intent(in)    :: center_in(3)
+    call this%center%set(1,center_in(1))
+    call this%center%set(2,center_in(2))
+    call this%center%set(3,center_in(3))
+  end subroutine level_set_sphere_set_center
+
+!========================================================================================
   subroutine level_set_sphere_get_level_set_value( this, point, result )
     implicit none
     class(level_set_sphere_t), intent(in)    :: this
@@ -205,7 +237,7 @@ subroutine level_set_function_set_domain ( this, domain )
     real(rp)                    , intent(inout) :: result
     integer(ip), parameter :: x=1,y=2,z=3
     assert(this%radius > 0.0_rp)
-    result = sqrt( point%get(x)**2 + point%get(y)**2 + point%get(z)**2 ) - this%radius
+    result = sqrt( (point%get(x)-this%center%get(x))**2 + (point%get(y)-this%center%get(y))**2 + (point%get(z)-this%center%get(z))**2 ) - this%radius
   end subroutine level_set_sphere_get_level_set_value
 
 !========================================================================================
@@ -216,7 +248,7 @@ subroutine level_set_function_set_domain ( this, domain )
     real(rp)                    , intent(inout) :: result
     integer(ip), parameter :: x=1,y=2
     assert(this%radius > 0.0_rp)
-    result = sqrt( point%get(x)**2 + point%get(y)**2 ) - this%radius
+    result = sqrt( (point%get(x)-this%center%get(x))**2 + (point%get(y)-this%center%get(y))**2 ) - this%radius
   end subroutine level_set_cylinder_get_level_set_value
 
 !========================================================================================
@@ -276,6 +308,73 @@ subroutine level_set_function_set_domain ( this, domain )
     end do
 
   end subroutine level_set_popcorn_get_level_set_value
+
+!========================================================================================
+  subroutine level_set_bullets_init( this )
+    implicit none
+    class(level_set_bullets_t)  , intent(inout)    :: this
+      call this%spheres( 1)%set_radius(0.1052)
+      call this%spheres( 2)%set_radius(0.1130)
+      call this%spheres( 3)%set_radius(0.0532)
+      call this%spheres( 4)%set_radius(0.1115)
+      call this%spheres( 5)%set_radius(0.0862)
+      call this%spheres( 6)%set_radius(0.0550)
+      call this%spheres( 7)%set_radius(0.0990)
+      call this%spheres( 8)%set_radius(0.0693)
+      call this%spheres( 9)%set_radius(0.0623)
+      call this%spheres(10)%set_radius(0.0705)
+      call this%spheres(11)%set_radius(0.0647)
+      call this%spheres(12)%set_radius(0.0689)
+      call this%spheres(13)%set_radius(0.0543)
+      call this%spheres(14)%set_radius(0.1135)
+      call this%spheres(15)%set_radius(0.0782)
+      call this%spheres(16)%set_radius(0.1039)
+      call this%spheres(17)%set_radius(0.1195)
+      call this%spheres(18)%set_radius(0.0999)
+      call this%spheres(19)%set_radius(0.1036)
+      call this%spheres(20)%set_radius(0.0945)
+
+      call this%spheres( 1)%set_center([0.2932, 0.7378, 0.5590])
+      call this%spheres( 2)%set_center([0.4947, 0.0634, 0.8541])
+      call this%spheres( 3)%set_center([0.6941, 0.8604, 0.3479])
+      call this%spheres( 4)%set_center([0.7057, 0.9344, 0.4460])
+      call this%spheres( 5)%set_center([0.3737, 0.9844, 0.0542])
+      call this%spheres( 6)%set_center([0.3397, 0.8589, 0.1771])
+      call this%spheres( 7)%set_center([0.5357, 0.7856, 0.6628])
+      call this%spheres( 8)%set_center([0.5772, 0.5134, 0.3308])
+      call this%spheres( 9)%set_center([0.4544, 0.1776, 0.8985])
+      call this%spheres(10)%set_center([0.3383, 0.3986, 0.1182])
+      call this%spheres(11)%set_center([0.7464, 0.1339, 0.9884])
+      call this%spheres(12)%set_center([0.2701, 0.0309, 0.5400])
+      call this%spheres(13)%set_center([0.2831, 0.9391, 0.7069])
+      call this%spheres(14)%set_center([0.3031, 0.3013, 0.9995])
+      call this%spheres(15)%set_center([0.3166, 0.2955, 0.2878])
+      call this%spheres(16)%set_center([0.5665, 0.3329, 0.4145])
+      call this%spheres(17)%set_center([0.5405, 0.4671, 0.4648])
+      call this%spheres(18)%set_center([0.2536, 0.6482, 0.7640])
+      call this%spheres(19)%set_center([0.7372, 0.0252, 0.8182])
+      call this%spheres(20)%set_center([0.6258, 0.8422, 0.1002])
+  end subroutine level_set_bullets_init
+
+!========================================================================================
+  subroutine level_set_bullets_get_level_set_value( this, point, result )
+    implicit none
+    class(level_set_bullets_t)  , intent(in)    :: this
+    type(point_t)               , intent(in)    :: point
+    real(rp)                    , intent(inout) :: result
+
+    integer(ip) :: s
+    real(rp) :: sval
+
+    result = 1.0e30
+    do s=1, NUM_SPHERES
+      call this%spheres(s)%get_value(point,sval)
+      result = min(result, sval)
+    end do
+
+    result = -1.0*result
+
+  end subroutine level_set_bullets_get_level_set_value
 
 end module level_set_functions_gallery_names
 !***************************************************************************************************

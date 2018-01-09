@@ -146,6 +146,7 @@ contains
     select type ( levset )
       class is (level_set_sphere_t)
         call levset%set_radius(0.9)
+        call levset%set_center([0.0,0.0,0.0])
     end select
 
   end subroutine setup_levelset
@@ -431,7 +432,7 @@ contains
     set_ids_to_reference_fes(P_FIELD_ID,SET_ID_VOID) = POS_VOID_P
     
     call this%analytical_functions%set_num_dims(this%triangulation%get_num_dims())
-    call this%analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
+    call this%analytical_functions%set_case_id(this%test_params%get_case_id())
     call this%analytical_functions%set_degree(this%test_params%get_reference_fe_order())
 
     fun_u => this%analytical_functions%get_solution_function_u()
