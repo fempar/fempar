@@ -11,8 +11,8 @@ Finite Element Multiphysics PARallel solvers
 - [Wiki](https://gitlab.com/fempar/fempar/wikis/home)
 - [Source code documentation](http://fempar.org/documentation/)
 - [Issue tracker](https://gitlab.com/fempar/fempar/issues)
-- [Continuous integration dashboard available at serverconfus (requires VPN connection to CIMNE Castelldefels local network)](http://ci.servercomfus/projects/2)
-- [Testing dashboard available at serverconfus (requires VPN connection to CIMNE Castelldefels local network)](http://servercomfus:8080/index.php?project=fempar)
+- [Continuous integration dashboard available at servercomfus (requires VPN connection to CIMNE Castelldefels local network)](http://ci.servercomfus/projects/2)
+- [Testing dashboard available at servercomfus (requires VPN connection to CIMNE Castelldefels local network)](http://servercomfus:8080/index.php?project=fempar)
 
 ## Compilation
 
