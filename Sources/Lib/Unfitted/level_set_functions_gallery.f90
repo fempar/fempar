@@ -42,6 +42,7 @@ module level_set_functions_gallery_names
   character(len=*), parameter, public :: level_set_cheese_block_str = 'cheese_block'
   character(len=*), parameter, public :: level_set_popcorn_str      = 'popcorn'
   character(len=*), parameter, public :: level_set_bullets_str      = 'bullets'
+  character(len=*), parameter, public :: level_set_spiral_str       = 'spiral'
 
   integer(ip), parameter, private :: NUM_SPHERES = 20
 
@@ -101,6 +102,12 @@ module level_set_functions_gallery_names
     procedure, private :: get_level_set_value => level_set_bullets_get_level_set_value
   end type level_set_bullets_t
 
+  type, extends(level_set_function_t) :: level_set_spiral_t
+    private
+  contains
+    procedure, private :: get_level_set_value => level_set_spiral_get_level_set_value
+  end type level_set_spiral_t
+
   public :: level_set_function_factory_t
   public :: level_set_function_t
   public :: level_set_sphere_t
@@ -108,6 +115,7 @@ module level_set_functions_gallery_names
   public :: level_set_cheese_block_t
   public :: level_set_popcorn_t
   public :: level_set_bullets_t
+  public :: level_set_spiral_t
 
 contains
 
@@ -137,6 +145,8 @@ subroutine level_set_function_factory_create(level_set_str, level_set_function)
         class default
           check(.false.)
       end select
+    case (level_set_spiral_str)
+      allocate( level_set_spiral_t::      level_set_function, stat= istat ); check(istat==0)
     case default
       mcheck(.false., 'Unknown type of level set function `'//level_set_str//'`')
   end select
@@ -375,6 +385,32 @@ subroutine level_set_function_set_domain ( this, domain )
     result = -1.0*result
 
   end subroutine level_set_bullets_get_level_set_value
+
+!========================================================================================
+  subroutine level_set_spiral_get_level_set_value( this, point, result)
+
+    implicit none
+    class(level_set_spiral_t)   , intent(in)    :: this
+    type(point_t)               , intent(in)    :: point
+    real(rp)                    , intent(inout) :: result
+
+    real(rp) :: c1, c2
+    real(rp) :: x1, x2, x3
+
+    integer(ip), parameter :: n = 2
+    real(rp)   , parameter :: r = 0.15
+    real(rp)   , parameter :: rd = 0.8
+
+    x1 = point%get(1)
+    x2 = point%get(2)
+    x3 = point%get(3)
+
+    c1 = rd * sin(2.0*PI*x3/real(n))
+    c2 = rd * cos(2.0*PI*x3/real(n))
+
+    result = (x1-c1)**2 + (x2-c2)**2 - r
+
+  end subroutine level_set_spiral_get_level_set_value
 
 end module level_set_functions_gallery_names
 !***************************************************************************************************
