@@ -73,6 +73,7 @@ module stokes_driver_names
      type(fe_affine_operator_t)                   :: fe_affine_operator
 #ifdef ENABLE_MKL     
      type(direct_solver_t)                        :: direct_solver
+     type(iterative_linear_solver_t)              :: iterative_linear_solver
 #else     
      type(iterative_linear_solver_t)              :: iterative_linear_solver
 #endif     
@@ -489,34 +490,50 @@ contains
 
     call parameter_list%init()
 #ifdef ENABLE_MKL
-    FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
-    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_sin)
-    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
-    iparm = 0
-    FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
-    assert(FPLError == 0)
+
+    if (this%test_params%get_lin_solver_type()=='pardiso') then
+      FPLError = parameter_list%set(key = direct_solver_type,        value = pardiso_mkl)
+      FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_sin)
+      FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
+      iparm = 0
+      FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
+      assert(FPLError == 0)
+      call this%direct_solver%set_type_from_pl(parameter_list)
+      call this%direct_solver%set_parameters_from_pl(parameter_list)
+
+      matrix => this%fe_affine_operator%get_matrix()
+      select type(matrix)
+      class is (sparse_matrix_t)  
+         call this%direct_solver%set_matrix(matrix)
+      class DEFAULT
+         assert(.false.) 
+      end select
+
+    else if (this%test_params%get_lin_solver_type()=='minres') then
+      FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-10_rp)
+      FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 50)
+      FPLError = FPLError + parameter_list%set(key = ils_max_num_iterations, value = 5000000)
+      assert(FPLError == 0)
+      call this%iterative_linear_solver%create(this%fe_space%get_environment())
+      call this%iterative_linear_solver%set_type_from_string(minres_name)
+      call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+      call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    else
+      mcheck(.false.,'Unknown linear solver type: '//this%test_params%get_lin_solver_type())
+    end if
     
-    call this%direct_solver%set_type_from_pl(parameter_list)
-    call this%direct_solver%set_parameters_from_pl(parameter_list)
-    
-    matrix => this%fe_affine_operator%get_matrix()
-    select type(matrix)
-    class is (sparse_matrix_t)  
-       call this%direct_solver%set_matrix(matrix)
-    class DEFAULT
-       assert(.false.) 
-    end select
 #else    
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-    !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
-    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
+    FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 5)
+    FPLError = FPLError + parameter_list%set(key = ils_max_num_iterations, value = 50000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
-    call this%iterative_linear_solver%set_type_from_string(rgmres_name)
+    call this%iterative_linear_solver%set_type_from_string(minres_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
 #endif
     call parameter_list%free()
+
   end subroutine setup_solver
   
   
@@ -599,7 +616,14 @@ contains
     dof_values => this%solution%get_free_dof_values()
     
 #ifdef ENABLE_MKL    
-    call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
+    if (this%test_params%get_lin_solver_type()=='pardiso') then
+      call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
+    else if (this%test_params%get_lin_solver_type()=='minres') then
+      call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+                                            dof_values)
+    else
+      mcheck(.false.,'Unknown linear solver type: '//this%test_params%get_lin_solver_type())
+    end if
 #else
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)
@@ -727,9 +751,15 @@ contains
     integer(ip) :: iounit
 
 #ifdef ENABLE_MKL
-    error_tolerance = 1.0e-08
+    if (this%test_params%get_lin_solver_type()=='pardiso') then
+      error_tolerance = 1.0e-08
+    else if (this%test_params%get_lin_solver_type()=='minres') then
+      error_tolerance = 1.0e-04
+    else
+      mcheck(.false.,'Unknown linear solver type: '//this%test_params%get_lin_solver_type())
+    end if
 #else
-    error_tolerance = 1.0e-06
+    error_tolerance = 1.0e-04
 #endif
 
     call solution_checker_u%create(this%fe_space,this%solution,this%analytical_functions%get_solution_function_u(),U_FIELD_ID)
@@ -1010,7 +1040,8 @@ contains
     call this%solution%free()
     
 #ifdef ENABLE_MKL        
-    call this%direct_solver%free()
+      call this%direct_solver%free()
+      call this%iterative_linear_solver%free()
 #else
     call this%iterative_linear_solver%free()
 #endif
