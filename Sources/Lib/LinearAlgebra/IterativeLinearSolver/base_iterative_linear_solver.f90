@@ -560,8 +560,8 @@ contains
       integer(ip)                , intent(in) :: luout
 
       ! Local variables
-      character(len=*), parameter   :: fmt1='(a,1x,i4,3(2x,es16.9))'
-      character(len=*), parameter   :: fmt2='(a,1x,i4,3(2x,es16.9),3(2x,es16.9))'
+      character(len=*), parameter   :: fmt1='(a,1x,i9,3(2x,es16.9))'
+      character(len=*), parameter   :: fmt2='(a,1x,i9,3(2x,es16.9),3(2x,es16.9))'
       character(len=:), allocatable :: outname
     
        if( this%environment%am_i_l1_root().and.(this%output_frequency/=0)) then
@@ -590,8 +590,8 @@ contains
       integer(ip)                , intent(in) :: luout
 
       ! Local variables
-      character(len=*), parameter    :: fmt1='(a,1x,a4,3(2x,a15))'
-      character(len=*), parameter    :: fmt2='(a,1x,a4,3(2x,a15),3(2x,a15))'
+      character(len=*), parameter    :: fmt1='(a,1x,a9,3(2x,a15))'
+      character(len=*), parameter    :: fmt2='(a,1x,a9,3(2x,a15),3(2x,a15))'
       character(len=:), allocatable  :: outname
      
       if( this%environment%am_i_l1_root().and.(this%output_frequency/=0)) then
@@ -615,9 +615,9 @@ contains
       ! Parameters
       class(base_iterative_linear_solver_t), intent(in) :: this
       integer(ip)                , intent(in) :: luout 
-      character(len=*), parameter  :: fmt11='(a,2x,es16.9,1x,a,1x,i4,1x,a)'
+      character(len=*), parameter  :: fmt11='(a,2x,es16.9,1x,a,1x,i9,1x,a)'
       character(len=*), parameter  :: fmt12='(a,3(2x,es16.9))'
-      character(len=*), parameter  :: fmt21='(a,2x,es16.9,1x,es16.9,1x,a,1x,i4,1x,a)'
+      character(len=*), parameter  :: fmt21='(a,2x,es16.9,1x,es16.9,1x,a,1x,i9,1x,a)'
       character(len=*), parameter  :: fmt22='(a,3(2x,es16.9),3(2x,es16.9))'
       
       if( this%environment%am_i_l1_root().and.(this%output_frequency/=0)) then
