@@ -499,14 +499,41 @@ contains
 
     class(triangulation_t), pointer :: triangulation
     class(fe_cell_iterator_t), allocatable  :: fe
-    class(reference_fe_t), pointer :: ref_fe
-    type(quadrature_t) :: subcel_nodal_quad
-    type(interpolation_t) :: fe_interpol
-    integer(ip) :: ipoint, subcell, inode
-    real(rp), allocatable :: nodal_vals(:), subelem_nodal_vals(:)
-    real(rp), pointer :: subcell_coords(:,:)
-    type(point_t), allocatable :: subcell_points(:)
-    integer(ip) :: num_elem_nodes, num_subelem_nodes, num_dime, istat, idime
+    class(reference_fe_t), pointer :: reference_fe_cell
+    type(quadrature_t) :: subcell_nodal_quad
+    type(interpolation_t) :: fe_cell_interpol, fe_subcell_interpol
+    integer(ip) :: ipoint, subcell
+    real(rp), allocatable :: cell_nodal_vals(:)
+    integer(ip) :: num_subcell_nodes, num_dime, istat, idime, num_subcells, icell
+    integer(ip) :: num_cells, num_cell_nodes, num_subelems_x_cell, num_subelems_x_subcell
+    integer(ip) :: my_part_id
+    integer(ip), parameter :: field_id = 1
+    type(tet_lagrangian_reference_fe_t)    :: geo_reference_fe_subcell
+    type(tet_lagrangian_reference_fe_t)    :: reference_fe_subcell
+    type(quadrature_t), pointer            :: nodal_quadrature_subcell
+    type(cell_map_t)                       :: cell_map_subcell
+    type(cell_map_t)                       :: cell_map_subcell_ref
+    class(reference_fe_t), pointer         :: geo_reference_fe_cell
+    type(quadrature_t), pointer            :: nodal_quadrature_cell
+    type(cell_map_t)                       :: cell_map_cell
+    integer(ip) :: isubelem, jno, ino
+    integer(ip), allocatable :: cell_subelems_connectivities(:,:)
+    integer(ip), allocatable :: subcell_subelems_connectivities(:,:)
+    type(point_t), pointer :: mapped_cell_subelem_coords(:)
+    type(point_t), pointer :: mapped_subcell_subelem_coords(:)
+    type(point_t), pointer :: mapped_subcell_subelem_coords_ref(:)
+    integer(ip) :: num_cell_eval_points, max_num_shape_funs
+    integer(ip) :: num_subcell_eval_points
+    type(point_t), pointer :: cell_coords(:)
+    type(point_t), pointer :: subcell_coords(:)
+    real(rp), allocatable :: sol_at_cell_eval_points(:)
+    real(rp), allocatable :: sol_at_subcell_eval_points(:)
+    integer(ip), allocatable :: nodes_vtk2fempar(:)
+    integer(ip), allocatable :: nodesids(:)
+    integer(ip) :: the_cell_type, the_subcell_type
+    real(rp), pointer :: subcell_quad_coords(:,:)
+
+    assert(fe_space%get_num_fields() == field_id)
 
     call this%free()
 
@@ -514,38 +541,112 @@ contains
 
     this%environment => triangulation%get_environment()
     if ( .not. this%environment%am_i_l1_task() ) return
+    my_part_id = this%environment%get_l1_rank() + 1
 
+    num_dime = triangulation%get_num_dims()
+
+    call fe_space%create_fe_cell_iterator(fe)
+    call fe%first_local_non_void(field_id)
+    assert(.not. fe%has_finished())
+
+    call geo_reference_fe_subcell%create( topology = topology_tet,&
+                                      num_dims = num_dime,&
+                                      order = 1,&
+                                      field_type = field_type_scalar,&
+                                      conformity = .true., &
+                                      continuity = .false. )
+
+    assert(fe%get_field_type(field_id) == field_type_scalar)
+    call reference_fe_subcell%create( topology = topology_tet,&
+                                      num_dims = num_dime,&
+                                      order = fe%get_max_order_all_fields(),&
+                                      field_type = field_type_scalar,&
+                                      conformity = .true., &
+                                      continuity = .false. )
+
+    ! Count things cell level
+
+    num_cells = triangulation%get_num_local_cells()
+    num_cell_nodes = fe%get_num_nodes()
+    max_num_shape_funs = fe_space%get_max_num_shape_functions()
+    reference_fe_cell => fe%get_max_order_reference_fe()
+    num_subelems_x_cell = reference_fe_cell%get_num_subcells(fe%get_max_order_all_fields()-1)
+    nodal_quadrature_cell => reference_fe_cell%get_nodal_quadrature()
+    num_cell_eval_points = nodal_quadrature_cell%get_num_quadrature_points()
+
+    ! Count things subcell level
+
+    nodal_quadrature_subcell => reference_fe_subcell%get_nodal_quadrature()
+    num_subcell_eval_points = nodal_quadrature_subcell%get_num_quadrature_points()
+    num_subelems_x_subcell = reference_fe_subcell%get_num_subcells(fe%get_max_order_all_fields()-1)
     select type(triangulation)
       class is(serial_unfitted_triangulation_t)
-        call this%attach_triangulation(triangulation)
-        num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
-        num_elem_nodes = triangulation%get_max_num_shape_functions()
+        num_subcells = triangulation%get_total_num_subcells()
+        num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
       class is (par_unfitted_triangulation_t)
-        call this%attach_triangulation(triangulation)
-        num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
-        num_elem_nodes = triangulation%get_max_num_shape_functions()
+        num_subcells = triangulation%get_total_num_subcells()
+        num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
       class is (unfitted_p4est_serial_triangulation_t)
-        call this%attach_triangulation(triangulation)
-        num_subelem_nodes = triangulation%get_max_num_nodes_in_subcell()
-        num_elem_nodes = triangulation%get_max_num_shape_functions()
+        num_subcells = triangulation%get_total_num_subcells()
+        num_subcell_nodes = triangulation%get_max_num_nodes_in_subcell()
       class default
         check(.false.)
     end select
 
+    ! Once we have counted, allocate things
+    this%Ne = num_cells*num_subelems_x_cell + num_subcells*num_subelems_x_subcell
+    this%Nn = num_cell_nodes*num_cells*num_subelems_x_cell  + num_subcell_nodes*num_subcells*num_subelems_x_subcell
 
-    num_dime = triangulation%get_num_dims()
-
-    call memalloc ( num_elem_nodes, nodal_vals, __FILE__, __LINE__ )
-    call memalloc ( num_subelem_nodes, subelem_nodal_vals, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%z, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_type, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%offset   , __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_data , __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%pid       , __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%point_data, __FILE__, __LINE__ )
-    allocate(subcell_points(1:num_subelem_nodes),stat = istat); check(istat == 0)
 
-    call subcel_nodal_quad%create(num_dime,num_subelem_nodes)
-    subcell_coords => subcel_nodal_quad%get_coordinates()
+    call memalloc ( num_cell_nodes, nodes_vtk2fempar, __FILE__, __LINE__ )
+    call memalloc ( num_cell_nodes, nodesids        , __FILE__, __LINE__ )
+    call memalloc ( max_num_shape_funs, cell_nodal_vals, __FILE__, __LINE__ )
+    call memalloc ( num_cell_eval_points, sol_at_cell_eval_points, __FILE__, __LINE__ )
+    call memalloc ( num_subcell_eval_points, sol_at_subcell_eval_points, __FILE__, __LINE__ )
+    call memalloc ( num_cell_nodes, num_subelems_x_cell, cell_subelems_connectivities, __FILE__,__LINE__ )
+    call memalloc ( num_subcell_nodes, num_subelems_x_subcell, subcell_subelems_connectivities,__FILE__, __LINE__ )
 
-    call fe_space%create_fe_cell_iterator(fe)
+    ! Setup auxiliary things
+
+    call cell_map_subcell%create( nodal_quadrature_subcell, geo_reference_fe_subcell )
+    call cell_map_subcell_ref%create( nodal_quadrature_subcell, geo_reference_fe_subcell )
+    call reference_fe_subcell%get_subcells_connectivity(fe%get_max_order_all_fields()-1, subcell_subelems_connectivities)
+
+    geo_reference_fe_cell => fe%get_reference_fe_geo()
+    reference_fe_cell => fe%get_max_order_reference_fe()
+
+    call cell_map_cell%create( nodal_quadrature_cell, geo_reference_fe_cell )
+    call reference_fe_cell%get_subcells_connectivity(fe%get_max_order_all_fields()-1, cell_subelems_connectivities)
+
+    call subcell_nodal_quad%create(num_dime,num_cell_eval_points)
+
+    select case (num_dime)
+      case(3)
+        the_cell_type = 12_I1P
+        the_subcell_type = 10_I1P
+        nodes_vtk2fempar(:) = [1, 2 , 4, 3, 5, 6, 8, 7]
+      case(2)
+        the_cell_type = 9_I1P
+        the_subcell_type = 5_I1P
+        nodes_vtk2fempar(:) = [1, 2 , 4, 3]
+      case default
+      check(.false.)
+    end select
+
+    ! Loops to fill data
 
     ipoint = 1
+    icell = 1
+    call fe%first()
     do while ( .not. fe%has_finished() )
 
        ! Skip ghost elems
@@ -553,43 +654,91 @@ contains
          call fe%next(); cycle
        end if
 
-       ref_fe => fe%get_reference_fe(1) ! TODO we assume a single field
+       call fe%update_sub_triangulation()
 
-       ! Recover nodal values
        if (fe%is_exterior()) then
-         nodal_vals(:) = 0.0
+         sol_at_cell_eval_points(:) = 0.0
        else
-         call fe_function%gather_nodal_values(fe,1,nodal_vals)!TODO we assume a single field
+         call fe_function%gather_nodal_values(fe,field_id,cell_nodal_vals)
+         reference_fe_cell => fe%get_reference_fe(field_id)
+         call reference_fe_cell%create_interpolation(nodal_quadrature_cell,fe_cell_interpol)
+         call reference_fe_cell%evaluate_fe_function_scalar(fe_cell_interpol,cell_nodal_vals,sol_at_cell_eval_points)
        end if
 
-       do inode = 1,num_elem_nodes
-         this%point_data(ipoint) = nodal_vals(inode)
-         ipoint = ipoint + 1
-       end do
+       cell_coords => cell_map_cell%get_coordinates()
+       call fe%get_nodes_coordinates( cell_coords )
+       call cell_map_cell%update(nodal_quadrature_cell)
+       mapped_cell_subelem_coords => cell_map_cell%get_quadrature_points_coordinates()
 
-       call fe%update_sub_triangulation()
+       do isubelem = 1, num_subelems_x_cell
+         do ino = 1, num_cell_nodes
+           jno = cell_subelems_connectivities(ino,isubelem)
+           this%x(ipoint) = mapped_cell_subelem_coords(jno)%get(1)
+           this%y(ipoint) = mapped_cell_subelem_coords(jno)%get(2)
+           this%z(ipoint) = mapped_cell_subelem_coords(jno)%get(3)
+           nodesids(ino) = ipoint
+           this%point_data(ipoint) = sol_at_cell_eval_points(jno)
+           ipoint = ipoint + 1
+         end do
+         this%connect(nodesids(:)) = nodesids( nodes_vtk2fempar(:) ) - 1
+
+         this%offset(icell)        = ipoint - 1
+         this%cell_type(icell)     = the_cell_type
+         if ( fe%is_interior() ) then
+           this%cell_data( icell )  = -1
+         else if ( fe%is_cut() ) then
+           this%cell_data( icell )  = 0
+         else
+           this%cell_data( icell )  = 1
+         end if
+         this%pid(icell) = real(my_part_id,kind=rp)
+         icell = icell + 1
+       end do
 
        do subcell = 1, fe%get_num_subcells()
 
-         ! Get the subcell values
+         subcell_coords => cell_map_subcell%get_coordinates()
+         call fe%get_phys_coords_of_subcell(subcell,subcell_coords)
+         call cell_map_subcell%update(nodal_quadrature_subcell)
+         mapped_subcell_subelem_coords => cell_map_subcell%get_quadrature_points_coordinates()
+
          if (fe%is_interior_subcell(subcell)) then
-           call fe%get_ref_coords_of_subcell(subcell,subcell_points)
-           ! TODO this is always a nightmare
-           do inode = 1, num_subelem_nodes
+           subcell_coords => cell_map_subcell_ref%get_coordinates()
+           call fe%get_ref_coords_of_subcell(subcell,subcell_coords)
+           call cell_map_subcell_ref%update(nodal_quadrature_subcell)
+           mapped_subcell_subelem_coords_ref => cell_map_subcell_ref%get_quadrature_points_coordinates()
+           subcell_quad_coords => subcell_nodal_quad%get_coordinates()
+           do ino = 1, num_subcell_eval_points
              do idime = 1, num_dime
-               subcell_coords(idime,inode) = subcell_points(inode)%get(idime)
+               subcell_quad_coords(idime,ino) = mapped_subcell_subelem_coords_ref(ino)%get(idime)
              end do
            end do
-           ! TODO this can be done with a volume integrator
-           call ref_fe%create_interpolation(subcel_nodal_quad,fe_interpol)
-           call ref_fe%evaluate_fe_function_scalar(fe_interpol,nodal_vals,subelem_nodal_vals)
+           reference_fe_cell => fe%get_reference_fe(field_id)
+           call reference_fe_cell%create_interpolation(subcell_nodal_quad,fe_subcell_interpol)
+           call reference_fe_cell%evaluate_fe_function_scalar(fe_subcell_interpol,cell_nodal_vals,sol_at_subcell_eval_points)
          else
-           subelem_nodal_vals(:) = 0.0
+           sol_at_subcell_eval_points(:) = 0.0
          end if
 
-         do inode = 1, num_subelem_nodes
-            this%point_data(ipoint) = subelem_nodal_vals(inode)
-            ipoint = ipoint + 1
+         do isubelem = 1, num_subelems_x_subcell
+           do ino = 1, num_subcell_nodes
+             jno = subcell_subelems_connectivities(ino,isubelem)
+             this%x(ipoint) = mapped_subcell_subelem_coords(jno)%get(1)
+             this%y(ipoint) = mapped_subcell_subelem_coords(jno)%get(2)
+             this%z(ipoint) = mapped_subcell_subelem_coords(jno)%get(3)
+             this%point_data(ipoint) = sol_at_subcell_eval_points(jno)
+             this%connect(ipoint) = ipoint - 1
+             ipoint = ipoint + 1
+           end do
+           this%offset(icell)        = ipoint - 1
+           this%cell_type(icell)     = the_subcell_type
+           if ( fe%is_interior_subcell(subcell) ) then
+             this%cell_data( icell )  = -2
+           else
+             this%cell_data( icell )  = 2
+           end if
+           this%pid(icell) = real(my_part_id,kind=rp)
+           icell = icell + 1
          end do
 
        end do
@@ -597,13 +746,22 @@ contains
        call fe%next()
     end do
 
-    call memfree ( nodal_vals,         __FILE__, __LINE__ )
-    call memfree ( subelem_nodal_vals, __FILE__, __LINE__ )
-    deallocate(subcell_points,stat = istat); check(istat == 0)
-    call subcel_nodal_quad%free()
-    call fe_interpol%free()
+    call memfree ( cell_subelems_connectivities, __FILE__,__LINE__ )
+    call memfree ( subcell_subelems_connectivities,__FILE__, __LINE__ )
+    call memfree ( sol_at_cell_eval_points,         __FILE__, __LINE__ )
+    call memfree ( sol_at_subcell_eval_points, __FILE__, __LINE__ )
+    call memfree ( cell_nodal_vals, __FILE__, __LINE__ )
+    call subcell_nodal_quad%free()
+    call fe_cell_interpol%free()
+    call fe_subcell_interpol%free()
+    call geo_reference_fe_subcell%free()
+    call reference_fe_subcell%free()
+    call cell_map_subcell%free()
+    call cell_map_subcell_ref%free()
+    call cell_map_cell%free()
     call fe_space%free_fe_cell_iterator(fe)
-
+    call memfree ( nodesids, __FILE__, __LINE__ )
+    call memfree ( nodes_vtk2fempar, __FILE__, __LINE__ )
 
   end subroutine  uvtkw_attach_fe_function
 
