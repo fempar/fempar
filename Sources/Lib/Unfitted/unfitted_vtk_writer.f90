@@ -528,6 +528,8 @@ contains
     type(point_t), pointer :: subcell_coords(:)
     real(rp), allocatable :: sol_at_cell_eval_points(:)
     real(rp), allocatable :: sol_at_subcell_eval_points(:)
+    type(vector_field_t), allocatable :: vector_sol_at_cell_eval_points(:)
+    type(vector_field_t), allocatable :: vector_sol_at_subcell_eval_points(:)
     integer(ip), allocatable :: nodes_vtk2fempar(:)
     integer(ip), allocatable :: nodesids(:)
     integer(ip) :: the_cell_type, the_subcell_type
@@ -556,7 +558,6 @@ contains
                                       conformity = .true., &
                                       continuity = .false. )
 
-    assert(fe%get_field_type(field_id) == field_type_scalar)
     call reference_fe_subcell%create( topology = topology_tet,&
                                       num_dims = num_dime,&
                                       order = fe%get_max_order_all_fields(),&
@@ -606,6 +607,13 @@ contains
     call memalloc ( this%Ne, this%cell_data , __FILE__, __LINE__ )
     call memalloc ( this%Ne, this%pid       , __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%point_data, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%v_x, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%v_y, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%v_z, __FILE__, __LINE__ )
+    this%v_x(:) = 0.0
+    this%v_y(:) = 0.0
+    this%v_z(:) = 0.0
+    this%point_data(:) = 0.0
 
     call memalloc ( num_cell_nodes, nodes_vtk2fempar, __FILE__, __LINE__ )
     call memalloc ( num_cell_nodes, nodesids        , __FILE__, __LINE__ )
@@ -614,6 +622,9 @@ contains
     call memalloc ( num_subcell_eval_points, sol_at_subcell_eval_points, __FILE__, __LINE__ )
     call memalloc ( num_cell_nodes, num_subelems_x_cell, cell_subelems_connectivities, __FILE__,__LINE__ )
     call memalloc ( num_subcell_nodes, num_subelems_x_subcell, subcell_subelems_connectivities,__FILE__, __LINE__ )
+
+    allocate( vector_sol_at_cell_eval_points(num_cell_eval_points), stat=istat); check(istat == 0)
+    allocate( vector_sol_at_subcell_eval_points(num_subcell_eval_points), stat=istat); check(istat == 0)
 
     ! Setup auxiliary things
 
@@ -656,13 +667,21 @@ contains
 
        call fe%update_sub_triangulation()
 
-       if (fe%is_exterior()) then
-         sol_at_cell_eval_points(:) = 0.0
-       else
+       sol_at_cell_eval_points(:) = 0.0
+       do ino = 1, num_cell_eval_points
+         call vector_sol_at_cell_eval_points(ino)%init(0.0)
+       end do
+       if (.not. fe%is_exterior()) then
          call fe_function%gather_nodal_values(fe,field_id,cell_nodal_vals)
          reference_fe_cell => fe%get_reference_fe(field_id)
          call reference_fe_cell%create_interpolation(nodal_quadrature_cell,fe_cell_interpol)
-         call reference_fe_cell%evaluate_fe_function_scalar(fe_cell_interpol,cell_nodal_vals,sol_at_cell_eval_points)
+         if (fe%get_field_type(field_id)==field_type_scalar) then
+           call reference_fe_cell%evaluate_fe_function_scalar(fe_cell_interpol,cell_nodal_vals,sol_at_cell_eval_points)
+         else if (fe%get_field_type(field_id)==field_type_vector) then
+           call reference_fe_cell%evaluate_fe_function_vector(fe_cell_interpol,cell_nodal_vals,vector_sol_at_cell_eval_points)
+         else
+           check(.false.)
+         end if
        end if
 
        cell_coords => cell_map_cell%get_coordinates()
@@ -677,7 +696,15 @@ contains
            this%y(ipoint) = mapped_cell_subelem_coords(jno)%get(2)
            this%z(ipoint) = mapped_cell_subelem_coords(jno)%get(3)
            nodesids(ino) = ipoint
-           this%point_data(ipoint) = sol_at_cell_eval_points(jno)
+           if (fe%get_field_type(field_id)==field_type_scalar) then
+             this%point_data(ipoint) = sol_at_cell_eval_points(jno)
+           else if (fe%get_field_type(field_id)==field_type_vector) then
+             this%v_x(ipoint) = vector_sol_at_cell_eval_points(jno)%get(1)
+             this%v_y(ipoint) = vector_sol_at_cell_eval_points(jno)%get(2)
+             this%v_z(ipoint) = vector_sol_at_cell_eval_points(jno)%get(3)
+           else
+             check(.false.)
+           end if
            ipoint = ipoint + 1
          end do
          this%connect(nodesids(:)) = nodesids( nodes_vtk2fempar(:) ) - 1
@@ -702,6 +729,11 @@ contains
          call cell_map_subcell%update(nodal_quadrature_subcell)
          mapped_subcell_subelem_coords => cell_map_subcell%get_quadrature_points_coordinates()
 
+         sol_at_subcell_eval_points(:) = 0.0
+         do ino = 1, num_subcell_eval_points
+           call vector_sol_at_subcell_eval_points(ino)%init(0.0)
+         end do
+
          if (fe%is_interior_subcell(subcell)) then
            subcell_coords => cell_map_subcell_ref%get_coordinates()
            call fe%get_ref_coords_of_subcell(subcell,subcell_coords)
@@ -713,11 +745,18 @@ contains
                subcell_quad_coords(idime,ino) = mapped_subcell_subelem_coords_ref(ino)%get(idime)
              end do
            end do
+
            reference_fe_cell => fe%get_reference_fe(field_id)
            call reference_fe_cell%create_interpolation(subcell_nodal_quad,fe_subcell_interpol)
-           call reference_fe_cell%evaluate_fe_function_scalar(fe_subcell_interpol,cell_nodal_vals,sol_at_subcell_eval_points)
-         else
-           sol_at_subcell_eval_points(:) = 0.0
+
+           if (fe%get_field_type(field_id)==field_type_scalar) then
+             call reference_fe_cell%evaluate_fe_function_scalar(fe_subcell_interpol,cell_nodal_vals,sol_at_subcell_eval_points)
+           else if (fe%get_field_type(field_id)==field_type_vector) then
+             call reference_fe_cell%evaluate_fe_function_vector(fe_subcell_interpol,cell_nodal_vals,vector_sol_at_subcell_eval_points)
+           else
+             check(.false.)
+           end if
+
          end if
 
          do isubelem = 1, num_subelems_x_subcell
@@ -726,7 +765,17 @@ contains
              this%x(ipoint) = mapped_subcell_subelem_coords(jno)%get(1)
              this%y(ipoint) = mapped_subcell_subelem_coords(jno)%get(2)
              this%z(ipoint) = mapped_subcell_subelem_coords(jno)%get(3)
-             this%point_data(ipoint) = sol_at_subcell_eval_points(jno)
+
+             if (fe%get_field_type(field_id)==field_type_scalar) then
+               this%point_data(ipoint) = sol_at_subcell_eval_points(jno)
+             else if (fe%get_field_type(field_id)==field_type_vector) then
+               this%v_x(ipoint) = vector_sol_at_subcell_eval_points(jno)%get(1)
+               this%v_y(ipoint) = vector_sol_at_subcell_eval_points(jno)%get(2)
+               this%v_z(ipoint) = vector_sol_at_subcell_eval_points(jno)%get(3)
+             else
+               check(.false.)
+             end if
+
              this%connect(ipoint) = ipoint - 1
              ipoint = ipoint + 1
            end do
@@ -751,6 +800,8 @@ contains
     call memfree ( sol_at_cell_eval_points,         __FILE__, __LINE__ )
     call memfree ( sol_at_subcell_eval_points, __FILE__, __LINE__ )
     call memfree ( cell_nodal_vals, __FILE__, __LINE__ )
+    deallocate( vector_sol_at_cell_eval_points, stat=istat); check(istat == 0)
+    deallocate( vector_sol_at_subcell_eval_points, stat=istat); check(istat == 0)
     call subcell_nodal_quad%free()
     call fe_cell_interpol%free()
     call fe_subcell_interpol%free()
@@ -1015,17 +1066,15 @@ contains
     E_IO = VTK_DAT_XML(var_location = 'cell', var_block_action = 'CLOSE')
 
 
+    E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'opeN')
     if (allocated(this%point_data)) then
-      E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'opeN')
       E_IO = VTK_VAR_XML(NC_NN = this%Nn, varname = 'point_scalars', var = this%point_data)
-      E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'CLOSE')
     end if
 
     if (allocated(this%v_x)) then
-      E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'opeN')
       E_IO = VTK_VAR_XML(NC_NN = this%Nn, varname = 'point_vectors', varX = this%v_x, varY = this%v_y, varZ = this%v_z )
-      E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'CLOSE')
     end if
+    E_IO = VTK_DAT_XML(var_location = 'node', var_block_action = 'CLOSE')
 
     E_IO = VTK_GEO_XML()
     E_IO = VTK_END_XML()
