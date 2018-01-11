@@ -616,7 +616,7 @@ end subroutine free_timers
     class(environment_t), pointer :: environment
     environment => this%triangulation%get_environment()
     if ( environment%am_i_l1_task() ) then
-      call this%triangulation%create_cell_iterator(cell)
+      call this%triangulation%create_cell_iterator(cell) 
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
           if ( cell%get_ggid() == this%triangulation%get_num_cells() .or. (cell%get_level() == 0) )then
