@@ -28,13 +28,19 @@
 subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this,          &
                                                                        triangulation, &
                                                                        reference_fes, &
-                                                                       conditions )
+                                                                       conditions,    &
+														                                                         field_blocks,  &
+														                                                         field_coupling, &
+                                                                       generate_global_dof_numbering )
                                                                       
   implicit none
   class(par_fe_space_t)                       , intent(inout)  :: this
   class(triangulation_t), target  , intent(in)     :: triangulation
   type(p_reference_fe_t)                      , intent(in)     :: reference_fes(:)
   class(conditions_t)       , target, optional, intent(in)     :: conditions
+  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
+  logical                           , optional, intent(in)    :: field_coupling(:,:)
+  logical                           , optional , intent(in)   :: generate_global_dof_numbering
   assert(.false.)
 end subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells
 
@@ -42,13 +48,20 @@ subroutine par_fe_space_serial_create_different_ref_fes_between_cells( this,    
                                                                triangulation,            &
                                                                reference_fes,            &
                                                                set_ids_to_reference_fes, &
-                                                               conditions )
+                                                               conditions,               &
+														                                                 field_blocks,             &
+														                                                 field_coupling, &
+                                                               generate_global_dof_numbering )
   implicit none
   class(par_fe_space_t)                       , intent(inout) :: this
   class(triangulation_t), target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
+  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
+  logical                           , optional, intent(in)    :: field_coupling(:,:)
+  logical                           , optional, intent(in)   :: generate_global_dof_numbering
+
   check(.false.)
 end subroutine par_fe_space_serial_create_different_ref_fes_between_cells
 
@@ -56,14 +69,19 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
                                                                 triangulation,      &
                                                                 reference_fes,      &
                                                                 coarse_fe_handlers, &
-                                                                conditions)
+                                                                conditions,         &
+														                                                  field_blocks,       &
+														                                                  field_coupling, &
+                                                                generate_global_dof_numbering ) 
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
   class(triangulation_t), target, intent(in)     :: triangulation
   type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
   class(conditions_t)             , optional, intent(in)     :: conditions
-
+  integer(ip)                     , optional , intent(in)    :: field_blocks(:)
+  logical                         , optional , intent(in)    :: field_coupling(:,:)
+  logical                         , optional , intent(in)   :: generate_global_dof_numbering
   type(environment_t), pointer :: environment 
   integer(ip)                  :: field_id
 
@@ -77,7 +95,14 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
   if ( environment%am_i_l1_task() ) then
      call this%serial_fe_space_t%create( triangulation, &
                                          reference_fes, &
-                                         conditions )
+                                         conditions, &
+                                         field_blocks, &
+                                         field_coupling, &
+                                         .false. )
+!     do field_id=1, this%get_num_fields()
+!       call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
+!     end do  
+ 
      call this%compute_faces_object()
   else
      ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
@@ -87,10 +112,19 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
      ! This is a little bit DIRTY. fe_function%create(fe_space)
      ! requires that num_fixed_dofs is initialize
      this%num_fixed_dofs = 0
+     
+     ! This is a little bit DIRTY. Other data type relying on par_fe_space_t
+     ! require that this%block_layout is created on all processes
+     call this%block_layout%create(this%get_num_fields(), field_blocks, field_coupling)
   end if
- 
-  call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
-  
+  call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers) 
+  if ( present(generate_global_dof_numbering) ) then
+    if ( generate_global_dof_numbering ) then
+      call this%generate_global_dof_numbering()
+    end if 
+  else
+    call this%generate_global_dof_numbering()
+  end if
 end subroutine par_fe_space_create_same_reference_fes_on_all_cells
 
 subroutine par_fe_space_create_different_ref_fes_between_cells( this,                     &
@@ -98,7 +132,10 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
                                                                 reference_fes,            &
                                                                 set_ids_to_reference_fes, &
                                                                 coarse_fe_handlers,       &
-                                                                conditions )
+                                                                conditions,               &
+														                                                  field_blocks,             &
+														                                                  field_coupling, &
+                                                                generate_global_dof_numbering )  
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
   class(triangulation_t)            , target, intent(in)     :: triangulation
@@ -106,6 +143,9 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
   integer(ip)                               , intent(in)     :: set_ids_to_reference_fes(:,:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
   class(conditions_t)             , optional, intent(in)     :: conditions
+  integer(ip)                       , optional, intent(in)   :: field_blocks(:)
+  logical                           , optional, intent(in)   :: field_coupling(:,:)
+  logical                           , optional , intent(in)   :: generate_global_dof_numbering
 
   type(environment_t), pointer :: environment
   integer(ip)                  :: field_id
@@ -131,10 +171,19 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
      ! This is a little bit DIRTY. fe_function%create(fe_space)
      ! requires that num_fixed_dofs is initialize
      this%num_fixed_dofs = 0
+     
+     ! This is a little bit DIRTY. Other data type relying on par_fe_space_t
+     ! require that this%block_layout is created on all processes
+     call this%block_layout%create(this%get_num_fields(), field_blocks, field_coupling)
   end if
-
   call this%allocate_and_fill_coarse_fe_handlers(coarse_fe_handlers)
-
+  if ( present(generate_global_dof_numbering) ) then
+    if ( generate_global_dof_numbering ) then
+      call this%generate_global_dof_numbering()
+    end if 
+  else
+    call this%generate_global_dof_numbering()
+  end if 
 end subroutine par_fe_space_create_different_ref_fes_between_cells
 
 subroutine par_fe_space_free( this )
@@ -175,6 +224,10 @@ subroutine par_fe_space_free( this )
         ! requires that num_fixed_dofs is initialize
         this%num_fixed_dofs = 0
         
+        ! This is a little bit DIRTY. this%block_layout is required by some
+        ! other data types to be created on all processes
+        call this%block_layout%free()
+        
         if ( associated(this%coarse_fe_space) ) then
           call this%coarse_fe_space%free()
           deallocate (this%coarse_fe_space, stat=istat)
@@ -188,7 +241,6 @@ subroutine par_fe_space_free( this )
         end if
      end if
      nullify(this%triangulation)
-     nullify(this%block_layout)
      call this%free_coarse_fe_handlers()
   end if
 
@@ -290,26 +342,23 @@ subroutine par_fe_space_free_coarse_fe_handlers ( this )
   end if
 end subroutine par_fe_space_free_coarse_fe_handlers
 
-subroutine par_fe_space_generate_global_dof_numbering( this, block_layout )
+subroutine par_fe_space_generate_global_dof_numbering( this )
   implicit none
-  class(par_fe_space_t)       , intent(inout) :: this 
-  type(block_layout_t), target, intent(inout) :: block_layout
+  class(par_fe_space_t)       , intent(inout)  :: this 
 
   type(environment_t), pointer :: environment 
   integer(ip)                  :: istat
   
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
-     call this%serial_fe_space_t%generate_global_dof_numbering(block_layout)
+     call this%serial_fe_space_t%generate_global_dof_numbering()
      call this%compute_blocks_dof_import()
      ! Step required by the MLBDDC preconditioner
      call this%renum_dofs_first_interior_then_interface()
   else
-     this%block_layout => block_layout
-    
      ! This is a little bit DIRTY. par_fe_space_t%create_assembler()
      ! requires that this%blocks_dof_import is allocated 
-     allocate ( this%blocks_dof_import( block_layout%get_num_blocks()), stat=istat ) 
+     allocate ( this%blocks_dof_import( this%block_layout%get_num_blocks()), stat=istat ) 
      check (istat==0)
   end if
 end subroutine par_fe_space_generate_global_dof_numbering
@@ -2354,8 +2403,6 @@ subroutine par_fe_space_create_dof_values(this, dof_values)
   integer(ip) :: istat
   type(environment_t), pointer :: environment
   
-  assert ( associated(this%block_layout) )
-  
   if (allocated(dof_values)) then
     call dof_values%free()
     deallocate(dof_values, stat=istat); check(istat==0);
@@ -2600,7 +2647,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
      call iterative_linear_solver%set_type_from_string(cg_name)
      call iterative_linear_solver%set_parameters_from_pl(parameter_list)
      call iterative_linear_solver%set_operators(matrix, .identity. matrix) 
-     call iterative_linear_solver%solve(rhs,projected_nodal_values)
+     call iterative_linear_solver%apply(rhs,projected_nodal_values)
      call iterative_linear_solver%free()
      call parameter_list%free()
      
@@ -3127,6 +3174,8 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
   class(cell_import_t), pointer :: cell_import
   integer(ip) :: num_dofs
   
+  
+#ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
   environment => triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3302,7 +3351,9 @@ contains
       epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
     end if
   end subroutine get_new_lst_dofs_spos_epos
-  
+#else  
+  call this%not_enabled_error()
+#endif   
 end subroutine par_fe_space_refine_and_coarsen_single_fe_function
 
 subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old_lst_dofs_gids)
@@ -3316,6 +3367,7 @@ subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old
   integer(ip) :: field_id
   type(block_layout_t), pointer :: block_layout
   
+#ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
   environment   => triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3338,10 +3390,11 @@ subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old
      call this%compute_faces_object()
 
      ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
-     block_layout => this%get_block_layout()
-     call this%nullify_block_layout()
-     call this%generate_global_dof_numbering(block_layout)
+     call this%generate_global_dof_numbering()
   end if
+#else  
+  call this%not_enabled_error()
+#endif
 end subroutine par_fe_space_update_after_refine_coarsen
 
 subroutine par_fe_space_migrate_field_cell_to_ref_fes ( this ) 
@@ -3351,6 +3404,7 @@ subroutine par_fe_space_migrate_field_cell_to_ref_fes ( this )
   class(triangulation_t), pointer :: triangulation
   class(p4est_par_triangulation_t), pointer :: par_triangulation
   integer(ip) :: i, field_id, error
+#ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
   environment   => triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3369,16 +3423,29 @@ subroutine par_fe_space_migrate_field_cell_to_ref_fes ( this )
        end do 
      end do
   end if
+#else  
+  call this%not_enabled_error()
+#endif   
+  
+
 end subroutine par_fe_space_migrate_field_cell_to_ref_fes
 
 subroutine par_fe_space_migrate_fe_integration_arrays(this)
   implicit none
   class(par_fe_space_t)                     , intent(inout) :: this
+#ifdef ENABLE_P4EST  
+#else  
+  call this%not_enabled_error()
+#endif    
 end subroutine par_fe_space_migrate_fe_integration_arrays
 
 subroutine par_fe_space_migrate_facet_integration_arrays(this)
   implicit none
   class(par_fe_space_t)                     , intent(inout) :: this
+#ifdef ENABLE_P4EST  
+#else  
+  call this%not_enabled_error()
+#endif    
 end subroutine par_fe_space_migrate_facet_integration_arrays
 
 subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_lst_dofs_gids)
@@ -3391,7 +3458,8 @@ subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_l
   class(p4est_par_triangulation_t), pointer :: par_triangulation
   integer(ip) :: field_id
   type(block_layout_t), pointer :: block_layout
-  
+
+#ifdef ENABLE_P4EST  
   triangulation => this%get_triangulation()
   environment   => triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3415,19 +3483,22 @@ subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_l
      call this%compute_faces_object()
 
      ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
-     block_layout => this%get_block_layout()
-     call this%nullify_block_layout()
-     call this%generate_global_dof_numbering(block_layout)
+     call this%generate_global_dof_numbering()
   end if
+#else  
+  call this%not_enabled_error()
+#endif
 end subroutine par_fe_space_update_after_redistribute
-
-
 
 subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions)
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   type(p_fe_function_t), intent(inout) :: fe_functions(:)
+#ifdef ENABLE_P4EST  
   mcheck(.false., "par_fe_space_refine_and_coarsen_fe_function_array not implemented yet!")
+#else  
+  call this%not_enabled_error()
+#endif
 end subroutine par_fe_space_refine_and_coarsen_fe_function_array
 
 subroutine par_fe_space_redistribute( this, fe_function ) 
@@ -3590,13 +3661,8 @@ subroutine par_fe_space_redistribute( this, fe_function )
       call old_lst_dofs_gids%free()  
       call this%free_fe_cell_iterator(fe)
     end if 
-    
   end if
-#else
-  call this%not_enabled_error()
-#endif  
-  
-contains 
+ contains 
 
   function get_field_fe_dofs()
     implicit none
@@ -3644,8 +3710,10 @@ contains
     else
       epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
     end if
-  end subroutine get_new_lst_dofs_spos_epos
- 
+  end subroutine get_new_lst_dofs_spos_epos 
+#else
+  call this%not_enabled_error()
+#endif
 end subroutine par_fe_space_redistribute
 
  subroutine par_fe_space_create_fe_object_iterator (this,fe_object)

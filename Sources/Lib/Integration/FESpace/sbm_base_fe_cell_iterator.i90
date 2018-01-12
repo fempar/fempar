@@ -72,6 +72,15 @@ function base_fe_cell_iterator_get_reference_fe_geo_id (this)
   base_fe_cell_iterator_get_reference_fe_geo_id = this%cell%get_reference_fe_id()
 end function base_fe_cell_iterator_get_reference_fe_geo_id
 
+function base_fe_cell_iterator_get_num_nodes (this) 
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: base_fe_cell_iterator_get_num_nodes
+  integer(ip) :: istat
+  assert(allocated(this%cell))
+  base_fe_cell_iterator_get_num_nodes = this%cell%get_num_nodes()
+end function base_fe_cell_iterator_get_num_nodes
+
 subroutine base_fe_cell_iterator_get_nodes_coordinates (this, nodes_coordinates)
   implicit none
   class(base_fe_cell_iterator_t), intent(in)     :: this

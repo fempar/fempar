@@ -61,6 +61,7 @@ module output_handler_patch_names
 USE types_names
 USE field_names
 USE allocatable_array_names
+USE std_vector_real_rp_names
 USE reference_fe_names, only: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
 
 implicit none
@@ -82,7 +83,7 @@ private
     !-----------------------------------------------------------------
     private
         character(len=:), allocatable          :: field_type
-        type(allocatable_array_rp1_t)          :: nodal_values
+        type(std_vector_real_rp_t)             :: nodal_values
         type(allocatable_array_rp1_t)          :: scalar_function_values
         type(allocatable_array_vector_field_t) :: vector_function_values
         type(allocatable_array_tensor_field_t) :: tensor_function_values
@@ -115,7 +116,6 @@ private
     private
         character(len=:), allocatable              :: cell_type
         integer(ip)                                :: num_dims           = 0
-        integer(ip)                                :: num_points               = 0
         integer(ip)                                :: num_fields               = 0
         integer(ip)                                :: num_cell_vectors         = 0
         integer(ip)                                :: num_subcells             = 0
@@ -123,12 +123,11 @@ private
         type(point_t),                 pointer     :: coordinates(:)
         type(allocatable_array_ip2_t)              :: subcells_connectivity
         type(output_handler_patch_field_t), allocatable :: fields(:)
-        type(allocatable_array_rp1_t),      allocatable :: cell_vectors(:)
+        type(std_vector_real_rp_t),  allocatable   :: cell_vectors(:)
     contains
     private
         procedure, non_overridable, public :: set_cell_type                   => output_handler_patch_set_cell_type
         procedure, non_overridable, public :: set_num_dims           => output_handler_patch_set_num_dims
-        procedure, non_overridable, public :: set_num_points               => output_handler_patch_set_num_points
         procedure, non_overridable, public :: set_num_subcells             => output_handler_patch_set_num_subcells
         procedure, non_overridable, public :: set_num_vertices_x_subcell => output_handler_patch_set_num_vertices_x_subcell
         procedure, non_overridable, public :: set_coordinates                 => output_handler_patch_set_coordinates
@@ -258,7 +257,7 @@ contains
     !< Return a pointer to nodal_values
     !-----------------------------------------------------------------
         class(output_handler_patch_field_t), target, intent(inout) :: this
-        type(allocatable_array_rp1_t),       pointer               :: nodal_values
+        type(std_vector_real_rp_t),       pointer                  :: nodal_values
     !-----------------------------------------------------------------
         nodal_values => this%nodal_values
     end function output_handler_patch_field_get_nodal_values
@@ -361,7 +360,6 @@ contains
             enddo
             deallocate(this%cell_vectors)
         endif
-        this%num_points               = 0
         this%num_fields               = 0
         this%num_cell_vectors         = 0
         this%num_subcells             = 0
@@ -389,18 +387,6 @@ contains
     !-----------------------------------------------------------------
         this%num_dims = num_dims
     end subroutine output_handler_patch_set_num_dims
-
-
-    subroutine output_handler_patch_set_num_points(this, num_points)
-    !-----------------------------------------------------------------
-    !< Set the number of points of the [[output_handler_patch_t(type)]]
-    !-----------------------------------------------------------------
-        class(output_handler_patch_t), intent(inout) :: this
-        integer(ip),                   intent(in)    :: num_points
-    !-----------------------------------------------------------------
-        this%num_points = num_points
-    end subroutine output_handler_patch_set_num_points
-
 
     subroutine output_handler_patch_set_num_subcells(this, num_subcells)
     !-----------------------------------------------------------------
@@ -521,7 +507,7 @@ contains
     !-----------------------------------------------------------------
         class(output_handler_patch_t),      target, intent(in) :: this
         integer(ip),                                intent(in) :: num_cell_vector
-        type(allocatable_array_rp1_t), pointer                 :: cell_vector
+        type(std_vector_real_rp_t), pointer                 :: cell_vector
     !-----------------------------------------------------------------
         assert(num_cell_vector <= this%num_cell_vectors)
         cell_vector => this%cell_vectors(num_cell_vector)
@@ -786,15 +772,17 @@ contains
         class(patch_subcell_accessor_t),             intent(in)    :: this
         integer(ip),                                 intent(in)    :: cell_vector_id
         real(rp),                                    intent(inout) :: cell_vector(1)
-        type(allocatable_array_rp1_t), pointer                     :: cell_vector_Values
+        type(std_vector_real_rp_t), pointer                       :: cell_vector_values
+        real(rp)                   , pointer                       :: p_cell_vector_values(:)
         type(output_handler_patch_field_t),     pointer            :: patch_field
         integer(ip)                                                :: num_components
         integer(ip)                                                :: i_comp, j_comp, counter
     !-----------------------------------------------------------------
         cell_vector_values                => this%patch%get_cell_vector(cell_vector_id)
-        assert(size(cell_vector_values%a) >= this%current_subcell)
+        p_cell_vector_values              => cell_vector_values%get_pointer()
+        assert(size(p_cell_vector_values) >= this%current_subcell)
 
-        cell_vector(1) = cell_vector_values%a(this%current_subcell)
+        cell_vector(1) = p_cell_vector_values(this%current_subcell)
     end subroutine patch_subcell_accessor_get_cell_vector
 
 

@@ -52,10 +52,6 @@ then
      #fi
    done  
 
-   
-
-
-
    #else
    #   echo "$0: input data directory not found!"
    #   final_exit_code=1

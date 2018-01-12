@@ -230,7 +230,7 @@ subroutine fe_cell_iterator_generate_own_dofs_vef ( this, ivef, field_id, curren
   ! with local identifier ivef within current fe
   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
   do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
-    if ( this%fe_space%lst_dofs_gids%get(base_pos_lst_dofs_gids+own_dofs_on_vef_iterator%get_current()) == 0 ) then
+    if ( this%fe_space%lst_dofs_gids%get(base_pos_lst_dofs_gids+own_dofs_on_vef_iterator%get_current()) >= 0 ) then
       current_dof = current_dof + 1
       if ( free_dofs_loop ) then ! A free dofs loop is surrounding this call 
         call this%fe_space%lst_dofs_gids%set(base_pos_lst_dofs_gids+own_dofs_on_vef_iterator%get_current(),current_dof)
@@ -265,7 +265,7 @@ function fe_cell_iterator_count_own_dofs_vef ( this, ivef, field_id )
   fe_cell_iterator_count_own_dofs_vef = 0
   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
   do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
-    if ( this%fe_space%lst_dofs_gids%get(base_pos_lst_dofs_gids+own_dofs_on_vef_iterator%get_current()) == 0 ) then
+    if ( this%fe_space%lst_dofs_gids%get(base_pos_lst_dofs_gids+own_dofs_on_vef_iterator%get_current()) >= 0 ) then
       fe_cell_iterator_count_own_dofs_vef = fe_cell_iterator_count_own_dofs_vef + 1
     end if
     call own_dofs_on_vef_iterator%next()
@@ -300,7 +300,7 @@ subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise ( this, ivef, f
   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
   do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
     local_within_ref_fe_dof_id  = own_dofs_on_vef_iterator%get_current()
-    if ( this%fe_space%lst_dofs_gids%get(base_pos_lst_dofs_gids+local_within_ref_fe_dof_id) == 0 ) then
+    if ( this%fe_space%lst_dofs_gids%get(base_pos_lst_dofs_gids+local_within_ref_fe_dof_id) >= 0 ) then
       component_id = reference_fe%get_component_node(local_within_ref_fe_dof_id)
       if ( components_code(component_id) ) then 
        current_dof = current_dof +1 

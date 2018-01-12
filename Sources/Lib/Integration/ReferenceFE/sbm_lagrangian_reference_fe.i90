@@ -710,10 +710,29 @@ subroutine lagrangian_reference_fe_evaluate_fe_function_tensor( this,           
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  integer(ip) :: qpoint, inode, icomp, inode_scalar, istat, idime, jdime
 
-  write(0,*) ' ERROR in: ',__FILE__,__LINE__
-  write(0,*) ' Subroutine not implemented for tensor field unknowns '
-  check( .false. )
+  if ( allocated(quadrature_points_values) ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
+      deallocate(quadrature_points_values, stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
+    end if
+  else
+    allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
+  end if
+  
+  do qpoint = 1, actual_cell_interpolation%num_quadrature_points
+     call quadrature_points_values(qpoint)%init(0.0_rp)
+     do inode = 1, this%num_shape_functions
+        inode_scalar = this%node_component_array(inode,1)
+        icomp        = this%node_component_array(inode,2)
+        idime = mod((icomp-1),this%num_dims) + 1
+        jdime = (icomp -1)/this%num_dims + 1
+        call quadrature_points_values(qpoint)%add(idime,jdime, &
+             & actual_cell_interpolation%shape_functions(1,inode_scalar,qpoint)*nodal_values(inode))
+     end do
+  end do
+  
 
 end subroutine lagrangian_reference_fe_evaluate_fe_function_tensor
 

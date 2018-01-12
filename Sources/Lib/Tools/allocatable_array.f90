@@ -104,11 +104,12 @@ module allocatable_array_ip2_names
   private
 
   type allocatable_array_ip2_t
-     integer(ip)               :: nd1, nd2
+     integer(ip)               :: nd1=0, nd2=0
      integer(ip), allocatable  :: a(:,:)
    contains
      procedure :: create => allocatable_array_ip2_create
      procedure :: free   => allocatable_array_ip2_free
+     procedure :: resize => allocatable_array_ip2_resize
   end type allocatable_array_ip2_t
   public :: allocatable_array_ip2_t
 # define var_type type(allocatable_array_ip2_t)
@@ -136,6 +137,22 @@ contains
     this%nd2 = 0
     if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip2_free
+  
+  subroutine allocatable_array_ip2_resize(this, nd1, nd2)	
+    implicit none
+    class(allocatable_array_ip2_t), intent(inout) :: this
+    integer(ip)                   , intent(in)  :: nd1, nd2
+    
+    if ( .not. allocated(this%a) ) then
+      call this%create(nd1, nd2)
+    else if ( this%nd1 < nd1 .or. this%nd2 < nd2 ) then
+      call memrealloc(nd1,nd2,this%a,__FILE__,__LINE__)
+    end if 
+    this%nd1 = nd1
+    this%nd2 = nd2
+  end subroutine allocatable_array_ip2_resize
+  
+  
 
 # include "mem_body.i90"
 

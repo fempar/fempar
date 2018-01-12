@@ -53,7 +53,7 @@ contains
     type(mlbddc_t)            , target, intent(in) :: M
     this%A => A
     this%M => M
-    call this%iterative_linear_solver_t%set_operators(A,M)
+    call this%iterative_linear_solver_t%set_operators(A%get_tangent(),M)
   end subroutine linear_solver_setup_operators
 
   subroutine linear_solver_update(this,A)
