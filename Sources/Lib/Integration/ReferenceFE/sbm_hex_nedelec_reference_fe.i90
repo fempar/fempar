@@ -1136,30 +1136,49 @@ subroutine hex_nedelec_reference_fe_fill_n_subfacet_permutation ( this, n_face_d
   class(hex_nedelec_reference_fe_t)   , intent(in)    :: this              
   integer(ip)                         , intent(in)    :: n_face_dime
   integer(ip)           , allocatable , intent(inout) :: permutation_array(:,:,:)
-		type(list_iterator_t) :: dofs_n_facet_iterator
-  integer(ip)           :: num_refinements, num_n_faces, num_n_subfaces 
+  type(list_iterator_t) :: dofs_n_facet_iterator
+  integer(ip)           :: num_refinements
+  integer(ip)           :: num_n_faces, num_n_subfaces 
+  integer(ip)           :: num_subcells, isubcell 
   integer(ip)           :: first_n_face_id, num_dofs_on_n_face
-		integer(ip)           :: facet_lid, facet_dof 
+  integer(ip)           :: facet_dof 
+  type(list_iterator_t) :: dofs_on_facet_iterator 
 		
+		integer(ip)              :: order_vector(SPACE_DIM)
+		type(node_array_t)       :: node_array 
+		type(node_iterator_t)    :: node_iterator_on_n_subface
+		integer(ip)              :: n_face_id, n_subface_id, subcell_id 
+
   num_refinements    = 1
   num_n_faces        = this%get_num_n_faces_of_dim(n_face_dime)
   num_n_subfaces     = ( num_refinements + 1 ) ** n_face_dime     ! Topology-dependent
   first_n_face_id    = this%get_first_n_face_id_of_dim(n_face_dime)
   num_dofs_on_n_face = this%get_num_dofs_on_n_face(first_n_face_id)
+  num_subcells       = 2**this%get_num_dims() 
 
   call memalloc(num_n_faces,num_n_subfaces,num_dofs_on_n_face,permutation_array,__FILE__,__LINE__)
 
-  do facet_lid = first_n_face_id, first_n_face_id + this%get_num_n_faces_of_dim(n_face_dime)-1
-		dofs_n_facet_iterator = this%create_dofs_n_face_iterator(facet_lid)
-		facet_dof = 0 
-		do while ( .not. dofs_n_facet_iterator%is_upper_bound() ) 
-		facet_dof = facet_dof + 1
-		permutation_array( facet_lid-(first_n_face_id-1), :, facet_dof ) = dofs_n_facet_iterator%get_current() 
-		call dofs_n_facet_iterator%next() 
-		end do 
-		end do 
-		assert( facet_dof == num_dofs_on_n_face ) 
-		
+		order_vector=1
+		call node_array%create( this%polytope, order_vector )
+				
+  do n_face_id = first_n_face_id, first_n_face_id + num_n_faces-1
+					do n_subface_id = 0, num_n_subfaces-1
+					node_iterator_on_n_subface = node_array%create_node_iterator ( this%polytope%get_n_face(n_face_id), & 
+                                                                    n_subface_id, own_boundary = .true. )
+					subcell_id = node_iterator_on_n_subface%current_ijk()+1 
+     facet_dof = 0 
+					dofs_n_facet_iterator = this%create_dofs_n_face_iterator(n_face_id)
+     do while ( .not. dofs_n_facet_iterator%is_upper_bound() ) 
+        facet_dof = facet_dof + 1
+						 	permutation_array( n_face_id-(first_n_face_id-1), n_subface_id+1, facet_dof ) = dofs_n_facet_iterator%get_current() + & 
+							                                                                              (subcell_id-1)*this%get_num_shape_functions() 
+        call dofs_n_facet_iterator%next() 
+     end do
+					end do 
+  end do
+  assert( facet_dof == num_dofs_on_n_face )
+
+		call node_array%free() 
 end subroutine hex_nedelec_reference_fe_fill_n_subfacet_permutation
 
 !==================================================================================================
@@ -1226,43 +1245,39 @@ end subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell
 
 !==================================================================================================
 subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_fe,   & 
-                                                                   ishape_coarser_fe, & 
-                                                                   subcell_id, coefficient )
+     ishape_coarser_fe, & 
+     qpoint, coefficient )
   implicit none 
   class(hex_nedelec_reference_fe_t), target, intent(in)    :: this
   integer(ip)                              , intent(in)    :: ishape_fe
   integer(ip)                              , intent(in)    :: ishape_coarser_fe
-  integer(ip)                              , intent(in)    :: subcell_id
+  integer(ip)                              , intent(in)    :: qpoint
   real(rp)                                 , intent(inout) :: coefficient
-
+		
+		integer(ip)  :: ishape_h, n_subcell 
   integer(ip)  :: ishape, jshape
-  integer(ip)  :: qpoin 
-		real(rp)     :: alpha_unscale, alpha_scale 
-
+  integer(ip)  :: qlag_poin
+		
   assert( ishape_fe >= 1 .and. ishape_fe <= this%num_shape_functions )
   assert( ishape_coarser_fe >= 1 .and. ishape_coarser_fe <= this%num_shape_functions )
-  assert( subcell_id >= 1 )
+  assert( qpoint >= 1 )
 
-		if ( ishape_coarser_fe <= 24 ) then 
-		alpha_unscale = 2.0_rp 
-		elseif ( ishape_coarser_fe <= 48 ) then 
-		alpha_unscale = 4.0_rp 
-		else
-		alpha_unscale = 1.0_rp 
-		end if 
-		
-  coefficient = 0.0_rp 
-  !		coeff = C_h · R · C_2h
+		! Qpoint contains subcell and ishape info: qpoint = ishape_h + (subcell_id-1)*n_shape_cell 
+		n_subcell  = (qpoint-1)/this%num_shape_functions + 1
+		ishape_h   = mod(qpoint-1, this%num_shape_functions)+1
+
+		coefficient = 0.0_rp 		
+		!		coeff = C_h · R · C_2h
   do ishape=1, this%num_shape_functions 
      do jshape=1, this%num_shape_functions 
-        qpoin = this%h_refinement_subcell_permutation(1, subcell_id, jshape) 
-        coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape_fe, jshape)     * &
-                                    this%h_refinement_interpolation%shape_functions(1, ishape, qpoin)    * & 
+        qlag_poin = this%h_refinement_subcell_permutation(1, n_subcell, jshape) 
+        coefficient = coefficient + this%inverse_change_basis_matrix_h_refinement(ishape_h, jshape)         * &
+                                    this%h_refinement_interpolation%shape_functions(1, ishape, qlag_poin)   * & 
                                     this%change_basis_matrix( ishape, ishape_coarser_fe )
      end do
   end	do
 
-end subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient
+end subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient 
 
 !==================================================================================================
 function hex_nedelec_reference_fe_get_h_refinement_interpolation ( this )
