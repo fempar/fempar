@@ -99,14 +99,12 @@ end subroutine scale_add_fe_operator_free
 
 subroutine scale_add_fe_operator_set_evaluation_point(this,x) 
   implicit none
-  class(scale_add_fe_operator_t), target, intent(in)    :: this
-  class(vector_t)                       , intent(in)    :: x
+  class(scale_add_fe_operator_t), target, intent(inout) :: this
+  class(vector_t)               , target, intent(in)    :: x
   call x%GuardTemp()
   call this%op1%discrete_integration%set_evaluation_point(x)
   call this%op2%discrete_integration%set_evaluation_point(x)
-  this%state = created
-  call this%assembler%init_array(0.0_rp)  
-  call this%assembler%init_matrix(0.0_rp)
+  call this%fe_nonlinear_operator_t%set_evaluation_point(x)
   call x%CleanTemp()
 end subroutine scale_add_fe_operator_set_evaluation_point
 

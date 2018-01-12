@@ -51,7 +51,7 @@ subroutine dirk_solver_apply( this, x, y )
   do i = 1, this%ts_op%scheme%num_stages
      stage_op => this%ts_op%get_stage_operator(i,i)
      call this%nl_solver%solve ( stage_op, this%ts_op%dofs_stages(i) )
-	    call y%axpby(this%ts_op%scheme%b(i),this%ts_op%dofs_stages(i),1.0_rp)
+	    call y%axpby(this%ts_op%dt*this%ts_op%scheme%b(i),this%ts_op%dofs_stages(i),1.0_rp)
   end do
 end subroutine dirk_solver_apply
 

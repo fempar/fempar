@@ -84,6 +84,7 @@ subroutine fe_nonlinear_operator_free(this)
      nullify(this%assembler)
      call this%free_vector_spaces()
      call this%deallocate_state()
+     nullify(this%current_evaluation_point)
   end if
 end subroutine fe_nonlinear_operator_free
 
@@ -351,7 +352,7 @@ subroutine fe_nonlinear_operator_apply(this,x,y)
   call this%compute_residual()
   !array => this%assembler%get_array()
   !call y%scal(-1.0_rp, array)
-  y = this%assembler%get_array()
+  call y%copy(this%assembler%get_array())
   call x%CleanTemp()
 end subroutine fe_nonlinear_operator_apply
 
@@ -376,10 +377,13 @@ end subroutine fe_nonlinear_operator_apply_add
 
 subroutine fe_nonlinear_operator_set_evaluation_point(this,x) 
   implicit none
-  class(fe_nonlinear_operator_t), target, intent(in)    :: this
-  class(vector_t)                       , intent(in)    :: x
+  class(fe_nonlinear_operator_t), target, intent(inout) :: this
+  class(vector_t)               , target, intent(in)    :: x
   call x%GuardTemp()
-  call this%discrete_integration%set_evaluation_point(x)
+  this%current_evaluation_point => x
+  ! We open the door to extensions of fe_nonlinear_operator_t
+  ! where this%discrete_integration might be NULL
+  if (associated(this%discrete_integration)) call this%discrete_integration%set_evaluation_point(x)
   call this%set_state(created)
   call this%assembler%init_array(0.0_rp)  
   call this%assembler%init_matrix(0.0_rp)
@@ -448,6 +452,13 @@ function fe_nonlinear_operator_get_range_vector_space ( this )
   assert ( associated(this%get_state())  )
   fe_nonlinear_operator_get_range_vector_space => operator_get_range_vector_space(this)
 end function fe_nonlinear_operator_get_range_vector_space
+
+function fe_nonlinear_operator_get_evaluation_point(this) result(evaluation_point)
+  implicit none
+  class(fe_nonlinear_operator_t), intent(in) :: this
+  class(vector_t), pointer                :: evaluation_point
+  evaluation_point => this%current_evaluation_point
+end function fe_nonlinear_operator_get_evaluation_point
 
 function fe_nonlinear_operator_apply_fun(op,x) result(y)
   implicit none

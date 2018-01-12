@@ -28,6 +28,13 @@ function fe_affine_operator_get_matrix(this)
   fe_affine_operator_get_matrix => this%assembler%get_matrix()
 end function fe_affine_operator_get_matrix
 
+subroutine fe_affine_operator_set_evaluation_point(this,x) 
+  implicit none
+  class(fe_affine_operator_t), target, intent(inout) :: this
+  class(vector_t)            , target, intent(in)    :: x
+  this%current_evaluation_point => x
+end subroutine fe_affine_operator_set_evaluation_point
+
 ! op%apply(x,y) <=> y <- op*x
 ! Implicitly assumes that y is already allocated
 subroutine fe_affine_operator_apply(this,x,y) 
@@ -103,4 +110,6 @@ function fe_affine_operator_apply_fun(op,x) result(y)
   call range_vector_space%create_vector(y)
   call op%apply(x,y)
 end function fe_affine_operator_apply_fun
+
+
 

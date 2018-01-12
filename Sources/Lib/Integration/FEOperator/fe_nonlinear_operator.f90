@@ -129,6 +129,7 @@ module fe_nonlinear_operator_names
      logical                           , allocatable :: diagonal_blocks_symmetric_storage(:)
      logical                           , allocatable :: diagonal_blocks_symmetric(:)
      integer(ip)                       , allocatable :: diagonal_blocks_sign(:)
+     class(vector_t)                   , pointer     :: current_evaluation_point => NULL()
    contains
      procedure :: create                                => fe_nonlinear_operator_create
      procedure :: free                                  => fe_nonlinear_operator_free
@@ -136,7 +137,7 @@ module fe_nonlinear_operator_names
      procedure :: reallocate_after_remesh               => fe_nonlinear_operator_reallocate_after_remesh
 
      procedure :: compute_tangent                       => fe_nonlinear_operator_compute_tangent
-     procedure :: compute_residual                      => fe_nonlinear_operator_compute_residual  
+     procedure :: compute_residual                      => fe_nonlinear_operator_compute_residual
 
      procedure :: apply                                 => fe_nonlinear_operator_apply
      procedure :: apply_add                             => fe_nonlinear_operator_apply_add
@@ -155,7 +156,8 @@ module fe_nonlinear_operator_names
 	    procedure :: get_diagonal_blocks_symmetric         => fe_nonlinear_operator_get_diagonal_blocks_symmetric
 	    procedure :: get_diagonal_blocks_sign              => fe_nonlinear_operator_get_diagonal_blocks_sign
      procedure :: get_sparse_matrix_storage_format      => fe_nonlinear_operator_get_sparse_matrix_storage_format 
-     procedure :: get_assembler                         => fe_nonlinear_operator_get_assembler        
+     procedure :: get_assembler                         => fe_nonlinear_operator_get_assembler   
+     procedure :: get_evaluation_point                  => fe_nonlinear_operator_get_evaluation_point
 	 
      procedure :: allocate_state                        => fe_nonlinear_operator_allocate_state
      procedure :: set_state                             => fe_nonlinear_operator_set_state
@@ -178,6 +180,7 @@ contains
   procedure          :: get_tangent                 => fe_affine_operator_get_tangent
   procedure          :: get_translation             => fe_affine_operator_get_translation
   procedure          :: get_matrix                  => fe_affine_operator_get_matrix
+  procedure          :: set_evaluation_point        => fe_affine_operator_set_evaluation_point
 end type fe_affine_operator_t
 
 type, extends(fe_nonlinear_operator_t) :: scale_add_fe_operator_t

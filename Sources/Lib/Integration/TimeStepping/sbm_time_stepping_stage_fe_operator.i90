@@ -65,7 +65,7 @@ subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, f
   mass_nl_op_domain => mass_nl_op%get_domain_vector_space()
   massert (fe_nl_op_domain%equal_to(mass_nl_op_domain), "fe_nl_op%domain_space() MUST MATCH mass_nl_op%domain_space()" )
   
-  call fe_nl_op_domain%create(this%aux)
+  call fe_nl_op_domain%create_vector(this%aux)
   call this%aux%allocate()
 
   fe_nl_op_range    => fe_nl_op%get_range_vector_space()
@@ -76,12 +76,6 @@ subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, f
   this%fe_nl_op   => fe_nl_op
   this%mass_nl_op => mass_nl_op
 
-  ! sbadia : sthg more clever than just take it from fe_nl_op
-  ! amartin: what was exactly in your mind when you wrote this 
-  !          comment? I removed the this%copy() call by
-  !          a call to the create() TBP of the parent class, s.t. code replication
-  !          that was present in this subroutine disappears. Were you thinking
-  !          in this?
   trial_fe_space => this%fe_nl_op%get_trial_fe_space()
   if ( associated(trial_fe_space) ) then
     call this%fe_nonlinear_operator_t%create(this%fe_nl_op%get_sparse_matrix_storage_format(), &
@@ -128,8 +122,8 @@ end subroutine time_stepping_stage_fe_operator_set_row
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x) 
   implicit none
-  class(time_stepping_stage_fe_operator_t), target, intent(in) :: this
-  class(vector_t)                                 , intent(in) :: x
+  class(time_stepping_stage_fe_operator_t), target, intent(inout) :: this
+  class(vector_t)                         , target, intent(in)    :: x
   
   class(discrete_integration_t), pointer :: di_fe_op, di_mass_op
   class(assembler_t), pointer :: assembler
@@ -141,19 +135,14 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
   
   call x%GuardTemp()
   
+  ! sbadia: TO-DO: change this to intent(inout) and solve compilation errors in cascade
   dummy_v => this%aux
-  call dummy_v%copy(x)
-  ! amartin: not clear if the following two instructions are correct or not???
-  !          They were present in the code I started from !!!!
-  ! this%ts_op%dofs_stages(this%i) = x
-  ! aux = this%ts_op%initial_value
-  
-  ! amartin: is the upper bound of the loop correct? Shouldn't it be "this%i" ?
-  !          I do not have sufficient understanding of the DIRK algorithm in order
-  !          to answer this question. 
+  call dummy_v%copy(this%ts_op%initial_value)
+  call this%ts_op%dofs_stages(this%i)%copy(x)
+   
   do j = 1, this%ts_op%scheme%num_stages
     if ( this%ts_op%scheme%a(this%i,j) /= 0.0_rp ) then
-      call dummy_v%axpby(this%ts_op%scheme%a(this%i,j), this%ts_op%dofs_stages(j), 1.0_rp) 
+      call dummy_v%axpby(this%ts_op%dt*this%ts_op%scheme%a(this%i,j), this%ts_op%dofs_stages(j), 1.0_rp) 
     end if
   end do
   di_fe_op   => this%fe_nl_op%get_discrete_integration()
@@ -161,12 +150,8 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
   call di_fe_op%set_evaluation_point(this%aux)
   call di_mass_op%set_evaluation_point(x)
   
-  call this%set_state(created)
-  
-  assembler  => this%get_assembler()
-  call assembler%init_array(0.0_rp)  
-  call assembler%init_matrix(0.0_rp)
-  
+  call this%fe_nonlinear_operator_t%set_evaluation_point(x)
+    
   call x%CleanTemp()
 end subroutine time_stepping_stage_fe_operator_set_evaluation_point
 
@@ -190,6 +175,7 @@ subroutine time_stepping_stage_fe_operator_compute_residual(this)
   class(serial_fe_space_t)     , pointer :: fe_sp
   class(serial_fe_space_t)     , pointer :: trial_fe_sp
   integer(ip)                  , pointer :: state
+  class(vector_t)              , pointer :: residual, x
 
   state => this%get_state() 
   assert (associated(state))
@@ -203,14 +189,25 @@ subroutine time_stepping_stage_fe_operator_compute_residual(this)
 
   if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
     if ( environment%am_i_l1_task() ) then
+      residual => assembler%get_array()
       if ( associated(trial_fe_sp) ) then
          call di_fe_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, assembler )
-         ! sbadia: scal arrays of assembler assembler%get_matrix()*dt
-         if ( this%i == this%j ) call di_mass_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, assembler )
+         !call residual%scal(this%ts_op%dt, residual)
+         ! sbadia: here we should consider as Dirichlet data the time derivative of the fixed value, to be done
+         !if ( this%i == this%j ) call di_mass_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, assembler )
       else
-         call di_fe_op%integrate_residual( fe_sp, assembler )
-         ! sbadia: scal arrays of assembler assembler%get_array()*dt
-         if ( this%i == this%j ) call di_mass_op%integrate_residual( fe_sp, assembler )
+         if ( this%fe_nl_op%is_linear() ) then
+            x => this%fe_nl_op%get_evaluation_point()
+            call this%fe_nl_op%apply(x,residual)
+         else
+           call di_fe_op%integrate_residual( fe_sp, assembler )
+           ! call residual%scal(this%ts_op%dt, residual)
+           ! sbadia: here we should consider as Dirichlet data the time derivative of the fixed value, to be done
+           if ( this%i == this%j ) call di_mass_op%integrate_residual( fe_sp, assembler )
+         end if  
+         
+         
+         
       end if
     end if
 
@@ -234,6 +231,7 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
   class(discrete_integration_t), pointer :: di_mass_op
   class(assembler_t)           , pointer :: assembler
   integer(ip)                  , pointer :: state
+  class(matrix_t)              , pointer :: tangent 
 
   state => this%get_state() 
   assert (associated(state))
@@ -247,13 +245,14 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
 
   if ( .not. ( this%get_state() == tangent_computed .or. this%get_state() == assembler_computed ) ) then
     if ( environment%am_i_l1_task() ) then
+       tangent => assembler%get_matrix()
        if ( associated(this%get_trial_fe_space()) ) then
           call di_fe_op%integrate_petrov_galerkin_tangent( fe_sp, trial_fe_sp, assembler )
-          ! times dt * aij
+          call tangent%scal( this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j) ) ! times dt * aij
           call di_mass_op%integrate_petrov_galerkin_tangent( fe_sp, trial_fe_sp, assembler )
        else
           call di_fe_op%integrate_tangent( fe_sp, assembler )
-          ! times dt * aij
+          call tangent%scal( this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j) ) ! times dt * aij
           call di_mass_op%integrate_tangent( fe_sp, assembler )
        end if
     end if
