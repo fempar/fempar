@@ -203,7 +203,8 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
         call this%edge_maps(reference_fe_id)%get_tangent(qpoint, tangent)
         do ishape=1, this%fes_1D(reference_fe_id)%get_num_shape_functions()
            call this%fes_1D(reference_fe_id)%get_value(this%edge_interpolations(reference_fe_id), ishape, qpoint, shape_test)
-           dof_values(d+ishape) = dof_values(d+ishape) + 1.0_rp/edge_measure * this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
+          ! dof_values(d+ishape) = dof_values(d+ishape) + 1.0_rp/edge_measure * this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
+											dof_values(d+ishape) = dof_values(d+ishape) + this%edge_function_values(qpoint,1) * shape_test * tangent * factor
         end do
      end do
 
@@ -235,7 +236,8 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
               call this%facet_maps(reference_fe_id)%get_jacobian_column(direction,qpoint,tangent) ! x_i - x^0_i (not normalized)
               do ishape=1, this%fes_2D(reference_fe_id)%get_num_shape_functions()
                  call this%fes_2D(reference_fe_id)%get_value(this%facet_interpolations(reference_fe_id), ishape, qpoint, shape_test)   
-                 dof_values(d+ishape+c) = dof_values(d+ishape+c) + 1.0_rp/facet_measure  * this%facet_function_values(qpoint,1) * shape_test * tangent * factor
+                 ! dof_values(d+ishape+c) = dof_values(d+ishape+c) + 1.0_rp/facet_measure  * this%facet_function_values(qpoint,1) * shape_test * tangent * factor
+																	dof_values(d+ishape+c) = dof_values(d+ishape+c) + this%facet_function_values(qpoint,1) * shape_test * tangent * factor
               end do
            end do
         end do
@@ -271,7 +273,8 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
         do ishape=1, this%fes_lagrangian(reference_fe_id)%get_num_shape_functions()
            call this%fes_lagrangian(reference_fe_id)%get_value(this%cell_interpolations(reference_fe_id), ishape, qpoint, v_shape_test) 
            mapped_shape_test = 1.0_rp/this%cell_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%cell_maps(reference_fe_id)%apply_jacobian( qpoint, v_shape_test ) 
-           dof_values(d+ishape) = dof_values(d+ishape) + 1.0_rp/cell_measure * this%cell_function_values(qpoint,1) * mapped_shape_test * factor 
+           ! dof_values(d+ishape) = dof_values(d+ishape) + 1.0_rp/cell_measure * this%cell_function_values(qpoint,1) * mapped_shape_test * factor 
+											dof_values(d+ishape) = dof_values(d+ishape) + this%cell_function_values(qpoint,1) * mapped_shape_test * factor
         end do
      end do
 
@@ -342,7 +345,7 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
              this%scalar_function_values_on_edge,  &
              time)
 
-        edge_measure = this%edge_maps(reference_fe_id)%get_measure()
+        edge_measure = this%edge_maps(reference_fe_id)%get_measure() 
 
         ! Integrate edge boundary moments 1/|edge| int_edge(g·tau q), q \in P_k-1
         own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(edge_id)
@@ -353,7 +356,8 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
            do ishape = 1, this%fes_1D(reference_fe_id)%get_num_shape_functions() 
               idof = own_dofs%get_current() 
               call this%fes_1D(reference_fe_id)%get_value(this%edge_interpolations(reference_fe_id), ishape, qpoint, shape_test)
-              dof_values(idof) = dof_values(idof) + 1.0_rp/edge_measure * this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
+             ! dof_values(idof) = dof_values(idof) + 1.0_rp/edge_measure * this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
+														dof_values(idof) = dof_values(idof) + this%edge_function_values(qpoint,1) * shape_test * tangent * factor
               call own_dofs%next() 
            end do
         end do

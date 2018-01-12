@@ -3306,12 +3306,7 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
                                                               field_id, &
                                                               new_nodal_values(1:num_nodes_field) )
 										type is (hex_nedelec_reference_fe_t) 
-										  call reference_fe%interpolate_nodal_values_on_subcell( subcell_id,                               & 
-                                                                   old_nodal_values(1,1:num_nodes_field), &
-                                                                   new_nodal_values(1:num_nodes_field) )
-            call transformed_fe_function%insert_nodal_values( new_fe,   &
-                                                              field_id, &
-                                                              new_nodal_values(1:num_nodes_field) )
+            !  Not implemented yet 
           type is (void_reference_fe_t)
             ! Do nothing
           class default
