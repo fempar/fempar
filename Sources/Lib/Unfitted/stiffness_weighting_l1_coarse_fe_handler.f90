@@ -74,17 +74,15 @@ subroutine stiffness_l1_create(this, fe_nonlinear_operator)
   implicit none
   class(stiffness_weighting_l1_coarse_fe_handler_t), intent(inout) :: this
   class(fe_nonlinear_operator_t), target,    intent(in)    :: fe_nonlinear_operator
-
-  type(lvalue_operator_t) :: matrix
-
+  class(matrix_t), pointer              :: matrix
   call this%free()
 
-  matrix = fe_nonlinear_operator%get_tangent()
-  select type ( op=> matrix%get_operator())
-    class is (par_sparse_matrix_t)
-      this%matrix => op
-    class default
-      check(.false.)
+  matrix => fe_nonlinear_operator%get_matrix()
+  select type( matrix )
+  type is (par_sparse_matrix_t)
+     this%matrix => matrix
+  class default
+  check(.false.)
   end select
 
 end subroutine stiffness_l1_create
