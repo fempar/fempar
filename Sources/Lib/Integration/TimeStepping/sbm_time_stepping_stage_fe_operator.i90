@@ -66,7 +66,7 @@ subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, f
   massert (fe_nl_op_domain%equal_to(mass_nl_op_domain), "fe_nl_op%domain_space() MUST MATCH mass_nl_op%domain_space()" )
   
   call fe_nl_op_domain%create_vector(this%aux)
-  call this%aux%allocate()
+  !call this%aux%allocate()
 
   fe_nl_op_range    => fe_nl_op%get_range_vector_space()
   mass_nl_op_range  => mass_nl_op%get_range_vector_space()

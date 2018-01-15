@@ -295,7 +295,7 @@ contains
   
   subroutine solve_system(this)
     implicit none
-    class(test_transient_poisson_driver_t), intent(inout) :: this
+    class(test_transient_poisson_driver_t), intent(inout)   :: this
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values_previous, dof_values_current
@@ -338,7 +338,15 @@ contains
     ! sbadia: for transient body force/bc's we will need the time t0 too
     call time_operator%set_time_step_size(time_step)
     ! initialize dof_values_current
+	
+	! set a right initial value
+	! create the mass discrete integration
+	! put the right forcing term (time independent)
+	! check solution for BE, ...
+	
+	
     do while ( current_time <= final_time )
+	   call dof_values_previous%copy(dof_values_current)
        dof_values_previous = dof_values_current
        call time_operator%set_initial_data(dof_values_previous) 
        call time_solver%apply( dof_values_previous, dof_values_current )
