@@ -507,7 +507,7 @@ contains
     integer(ip) :: num_subcell_nodes, num_dime, istat, idime, num_subcells, icell
     integer(ip) :: num_cells, num_cell_nodes, num_subelems_x_cell, num_subelems_x_subcell
     integer(ip) :: my_part_id
-    integer(ip), parameter :: field_id = 1
+    integer(ip) :: field_id
     type(tet_lagrangian_reference_fe_t)    :: geo_reference_fe_subcell
     type(tet_lagrangian_reference_fe_t)    :: reference_fe_subcell
     type(quadrature_t), pointer            :: nodal_quadrature_subcell
@@ -535,8 +535,6 @@ contains
     integer(ip) :: the_cell_type, the_subcell_type
     real(rp), pointer :: subcell_quad_coords(:,:)
 
-    assert(fe_space%get_num_fields() == field_id)
-
     call this%free()
 
     triangulation => fe_space%get_triangulation()
@@ -548,7 +546,7 @@ contains
     num_dime = triangulation%get_num_dims()
 
     call fe_space%create_fe_cell_iterator(fe)
-    call fe%first_local_non_void(field_id)
+    call fe%first_local_non_void(field_id=1)
     assert(.not. fe%has_finished())
 
     call geo_reference_fe_subcell%create( topology = topology_tet,&
@@ -672,16 +670,18 @@ contains
          call vector_sol_at_cell_eval_points(ino)%init(0.0)
        end do
        if (.not. fe%is_exterior()) then
-         call fe_function%gather_nodal_values(fe,field_id,cell_nodal_vals)
-         reference_fe_cell => fe%get_reference_fe(field_id)
-         call reference_fe_cell%create_interpolation(nodal_quadrature_cell,fe_cell_interpol)
-         if (fe%get_field_type(field_id)==field_type_scalar) then
-           call reference_fe_cell%evaluate_fe_function_scalar(fe_cell_interpol,cell_nodal_vals,sol_at_cell_eval_points)
-         else if (fe%get_field_type(field_id)==field_type_vector) then
-           call reference_fe_cell%evaluate_fe_function_vector(fe_cell_interpol,cell_nodal_vals,vector_sol_at_cell_eval_points)
-         else
-           check(.false.)
-         end if
+         do field_id = 1, fe%get_num_fields()
+           call fe_function%gather_nodal_values(fe,field_id,cell_nodal_vals)
+           reference_fe_cell => fe%get_reference_fe(field_id)
+           call reference_fe_cell%create_interpolation(nodal_quadrature_cell,fe_cell_interpol)
+           if (fe%get_field_type(field_id)==field_type_scalar) then
+             call reference_fe_cell%evaluate_fe_function_scalar(fe_cell_interpol,cell_nodal_vals,sol_at_cell_eval_points)
+           else if (fe%get_field_type(field_id)==field_type_vector) then
+             call reference_fe_cell%evaluate_fe_function_vector(fe_cell_interpol,cell_nodal_vals,vector_sol_at_cell_eval_points)
+           else
+             check(.false.)
+           end if
+         end do
        end if
 
        cell_coords => cell_map_cell%get_coordinates()
@@ -696,15 +696,17 @@ contains
            this%y(ipoint) = mapped_cell_subelem_coords(jno)%get(2)
            this%z(ipoint) = mapped_cell_subelem_coords(jno)%get(3)
            nodesids(ino) = ipoint
-           if (fe%get_field_type(field_id)==field_type_scalar) then
-             this%point_data(ipoint) = sol_at_cell_eval_points(jno)
-           else if (fe%get_field_type(field_id)==field_type_vector) then
-             this%v_x(ipoint) = vector_sol_at_cell_eval_points(jno)%get(1)
-             this%v_y(ipoint) = vector_sol_at_cell_eval_points(jno)%get(2)
-             this%v_z(ipoint) = vector_sol_at_cell_eval_points(jno)%get(3)
-           else
-             check(.false.)
-           end if
+           do field_id = 1, fe%get_num_fields()
+             if (fe%get_field_type(field_id)==field_type_scalar) then
+               this%point_data(ipoint) = sol_at_cell_eval_points(jno)
+             else if (fe%get_field_type(field_id)==field_type_vector) then
+               this%v_x(ipoint) = vector_sol_at_cell_eval_points(jno)%get(1)
+               this%v_y(ipoint) = vector_sol_at_cell_eval_points(jno)%get(2)
+               this%v_z(ipoint) = vector_sol_at_cell_eval_points(jno)%get(3)
+             else
+               check(.false.)
+             end if
+           end do
            ipoint = ipoint + 1
          end do
          this%connect(nodesids(:)) = nodesids( nodes_vtk2fempar(:) ) - 1
@@ -746,16 +748,18 @@ contains
              end do
            end do
 
-           reference_fe_cell => fe%get_reference_fe(field_id)
-           call reference_fe_cell%create_interpolation(subcell_nodal_quad,fe_subcell_interpol)
-
-           if (fe%get_field_type(field_id)==field_type_scalar) then
-             call reference_fe_cell%evaluate_fe_function_scalar(fe_subcell_interpol,cell_nodal_vals,sol_at_subcell_eval_points)
-           else if (fe%get_field_type(field_id)==field_type_vector) then
-             call reference_fe_cell%evaluate_fe_function_vector(fe_subcell_interpol,cell_nodal_vals,vector_sol_at_subcell_eval_points)
-           else
-             check(.false.)
-           end if
+           do field_id = 1, fe%get_num_fields()
+             reference_fe_cell => fe%get_reference_fe(field_id)
+             call reference_fe_cell%create_interpolation(subcell_nodal_quad,fe_subcell_interpol)
+             call fe_function%gather_nodal_values(fe,field_id,cell_nodal_vals)
+             if (fe%get_field_type(field_id)==field_type_scalar) then
+               call reference_fe_cell%evaluate_fe_function_scalar(fe_subcell_interpol,cell_nodal_vals,sol_at_subcell_eval_points)
+             else if (fe%get_field_type(field_id)==field_type_vector) then
+               call reference_fe_cell%evaluate_fe_function_vector(fe_subcell_interpol,cell_nodal_vals,vector_sol_at_subcell_eval_points)
+             else
+               check(.false.)
+             end if
+           end do
 
          end if
 
@@ -766,15 +770,17 @@ contains
              this%y(ipoint) = mapped_subcell_subelem_coords(jno)%get(2)
              this%z(ipoint) = mapped_subcell_subelem_coords(jno)%get(3)
 
-             if (fe%get_field_type(field_id)==field_type_scalar) then
-               this%point_data(ipoint) = sol_at_subcell_eval_points(jno)
-             else if (fe%get_field_type(field_id)==field_type_vector) then
-               this%v_x(ipoint) = vector_sol_at_subcell_eval_points(jno)%get(1)
-               this%v_y(ipoint) = vector_sol_at_subcell_eval_points(jno)%get(2)
-               this%v_z(ipoint) = vector_sol_at_subcell_eval_points(jno)%get(3)
-             else
-               check(.false.)
-             end if
+             do field_id = 1, fe%get_num_fields()
+               if (fe%get_field_type(field_id)==field_type_scalar) then
+                 this%point_data(ipoint) = sol_at_subcell_eval_points(jno)
+               else if (fe%get_field_type(field_id)==field_type_vector) then
+                 this%v_x(ipoint) = vector_sol_at_subcell_eval_points(jno)%get(1)
+                 this%v_y(ipoint) = vector_sol_at_subcell_eval_points(jno)%get(2)
+                 this%v_z(ipoint) = vector_sol_at_subcell_eval_points(jno)%get(3)
+               else
+                 check(.false.)
+               end if
+             end do
 
              this%connect(ipoint) = ipoint - 1
              ipoint = ipoint + 1

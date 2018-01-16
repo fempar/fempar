@@ -996,11 +996,10 @@ contains
         call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
         call vtk_writer%free()
         
-        ! TODO do it for stokes
-        !! Write the solution
-        !call vtk_writer%attach_fe_function(this%solution,this%fe_space)
-        !call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh_solution.vtu')
-        !call vtk_writer%free()
+        ! Write the solution
+        call vtk_writer%attach_fe_function(this%solution,this%fe_space)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh_solution.vtu')
+        call vtk_writer%free()
         
 
     endif
