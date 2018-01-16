@@ -35,6 +35,7 @@ module unfitted_vtk_writer_names
  use triangulation_names
  use fe_space_names
  use environment_names
+ use list_types_names
 
 
   use unfitted_triangulations_names
@@ -72,6 +73,7 @@ module unfitted_vtk_writer_names
     procedure, non_overridable :: attach_triangulation  => uvtkw_attach_triangulation
     procedure, non_overridable :: attach_boundary_faces => uvtkw_attach_boundary_faces
     procedure, non_overridable :: attach_fitted_faces => uvtkw_attach_fitted_faces
+    procedure, non_overridable :: attach_vefs         => uvtkw_attach_vefs
     procedure, non_overridable :: attach_boundary_quadrature_points => uvtkw_attach_boundary_quadrature_points
     procedure, non_overridable :: attach_facets_quadrature_points => uvtkw_attach_facets_quadrature_points
     procedure, non_overridable :: attach_fe_function    => uvtkw_attach_fe_function
@@ -488,6 +490,110 @@ contains
     call triangulation%free_vef_iterator(vef)
   
   end subroutine uvtkw_attach_fitted_faces
+
+!========================================================================================  
+  subroutine uvtkw_attach_vefs(this,triangulation)
+
+    implicit none
+    class(unfitted_vtk_writer_t),   intent(inout) :: this
+    class(triangulation_t), intent(in)    :: triangulation
+
+    class(vef_iterator_t),allocatable :: vef
+    class(cell_iterator_t), allocatable :: cell
+
+    type(point_t), allocatable :: nodal_coords(:)
+    integer(ip), allocatable :: nodal_ids(:)
+    integer(ip) :: istat
+    integer(ip) :: vef_lid
+    class(reference_fe_t), pointer :: reference_fe
+    type(list_iterator_t) :: nodal_iter
+    integer(ip) :: num_dime
+    integer(ip) :: inode, icell, ino
+    integer(ip), parameter :: vef_type(0:2) = [1,3,9]
+    integer(ip), parameter :: nodes_vtk2fempar_0d(1) = [1]
+    integer(ip), parameter :: nodes_vtk2fempar_1d(2) = [1, 2]
+    integer(ip), parameter :: nodes_vtk2fempar_2d(4) = [1, 2 , 4, 3]
+
+    call this%free()
+
+    this%environment => triangulation%get_environment()
+
+    num_dime = triangulation%get_num_dims()
+
+    call triangulation%create_vef_iterator(vef)
+    call triangulation%create_cell_iterator(cell)
+    allocate(nodal_coords(triangulation%get_max_num_shape_functions()),stat=istat); check(istat == 0)
+    allocate(nodal_ids(triangulation%get_max_num_shape_functions()),stat=istat); check(istat == 0)
+
+    ! Count number of nodes and number of cells
+    this%Nn = 0
+    this%Ne = 0
+    call vef%first()
+    do while ( .not. vef%has_finished() )
+      call vef%get_cell_around(1,cell)
+      vef_lid = cell%get_vef_lid_from_gid(vef%get_gid())
+      reference_fe => cell%get_reference_fe()
+      nodal_iter = reference_fe%create_dofs_on_n_face_iterator(vef_lid)
+      this%Nn = this%Nn + nodal_iter%get_size()
+      this%Ne = this%Ne + 1
+      call vef%next()
+    end do
+
+    ! Allocate
+    call memalloc ( this%Nn, this%x, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%y, __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%z, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_type, __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%offset   , __FILE__, __LINE__ )
+    call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
+    call memalloc ( this%Ne, this%cell_data , __FILE__, __LINE__ )
+
+    call vef%first()
+    inode = 1
+    icell = 1
+    do while ( .not. vef%has_finished() )
+
+      call vef%get_cell_around(1,cell)
+      call cell%get_nodes_coordinates(nodal_coords)
+      vef_lid = cell%get_vef_lid_from_gid(vef%get_gid())
+      reference_fe => cell%get_reference_fe()
+      nodal_iter = reference_fe%create_dofs_on_n_face_iterator(vef_lid)
+      ino = 1
+      nodal_ids(:) = 0
+      do while (.not. nodal_iter%is_upper_bound())
+        this%x(inode) = nodal_coords(nodal_iter%get_current())%get(1)
+        this%y(inode) = nodal_coords(nodal_iter%get_current())%get(2)
+        this%z(inode) = nodal_coords(nodal_iter%get_current())%get(3)
+        nodal_ids(ino) = inode
+        inode = inode + 1
+        ino = ino + 1
+        call nodal_iter%next()
+      end do
+
+      if (vef%get_dim() == 0) then
+        this%connect(nodal_ids(1:1)) = nodal_ids( nodes_vtk2fempar_0d(:) ) - 1
+      else if (vef%get_dim() == 1) then
+        this%connect(nodal_ids(1:2)) = nodal_ids( nodes_vtk2fempar_1d(:) ) - 1
+      else if (vef%get_dim() == 2) then
+        this%connect(nodal_ids(1:4)) = nodal_ids( nodes_vtk2fempar_2d(:) ) - 1
+      else
+        check(.false.)
+      end if
+
+      this%offset(icell)        = inode - 1
+      this%cell_type(icell)     = vef_type(vef%get_dim())
+      this%cell_data( icell )   = vef%get_set_id()
+
+      icell = icell + 1
+      call vef%next()
+    end do
+
+    deallocate(nodal_coords,stat=istat); check(istat == 0)
+    deallocate(nodal_ids,stat=istat); check(istat == 0)
+    call triangulation%free_vef_iterator(vef)
+    call triangulation%free_cell_iterator(cell)
+
+  end subroutine uvtkw_attach_vefs
 
 !========================================================================================  
   subroutine  uvtkw_attach_fe_function(this,fe_function,fe_space)
