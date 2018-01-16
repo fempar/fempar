@@ -343,7 +343,6 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
                    field_type        = field_type_scalar, &
                    conformity        = .true. )
 
-
  ! Create a d-dim scalar lagrangian reference FE of order 1 (geometry)
  call d_fe_geo%create(topology          = this%get_topology(), &
                       num_dims = this%num_dims, &

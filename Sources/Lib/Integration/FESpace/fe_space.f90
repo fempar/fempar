@@ -929,7 +929,7 @@ module fe_space_names
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
 	  real(rp)         , allocatable, intent(in)    :: W(:)
 	  type(par_scalar_array_t)      , intent(inout) :: x
-      type(par_scalar_array_t)      , intent(inout) :: y
+   type(par_scalar_array_t)      , intent(inout) :: y
     end subroutine l1_apply_transpose_weighting_operator
 
   end interface
@@ -983,14 +983,12 @@ module fe_space_names
 				procedure, non_overridable, private :: fill_edges_lists                           => Hcurl_l1_fill_edges_lists
 	   ! Computation of elemental data     
 	   procedure, non_overridable, private :: compute_edge_discrete_gradient_elmat          => Hcurl_l1_compute_edge_discrete_gradient_elmat
-	   procedure, non_overridable, private :: compute_edge_lagrangian_average_elvec         => Hcurl_l1_compute_edge_lagrangian_average_elvec
 	    ! Fill change of basis operator  
 	   procedure, non_overridable, private :: compute_change_basis_matrix                      => Hcurl_l1_compute_change_basis_matrix
 	   procedure, non_overridable, private :: fill_edge_local_change_of_basis                  => Hcurl_l1_fill_edge_local_change_of_basis 
 	   procedure, non_overridable, private :: fill_edge_coupled_to_edges_local_change_of_basis => Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis
 	   procedure (Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis) , private, deferred :: fill_face_coupled_to_edges_local_change_of_basis
 	   procedure (Hcurl_l1_compute_face_discrete_gradient_elmat)             , private, deferred :: compute_face_discrete_gradient_elmat
-	  ! procedure (Hcurl_l1_assemble_face_coupled_to_edges_B_elmat)           , private, deferred :: assemble_face_coupled_to_edges_B_elmat 
 	   ! Change of basis application 
 	   procedure, non_overridable, private :: apply_global_change_basis                     => Hcurl_l1_apply_global_change_basis
 	   procedure, non_overridable, private :: apply_global_change_basis_transpose           => Hcurl_l1_apply_global_change_basis_transpose
@@ -999,7 +997,6 @@ module fe_space_names
 	   ! DoF numbering getters 
 	   procedure, non_overridable, private :: get_dofs_from_vef                => Hcurl_l1_get_dofs_from_vef  
 	   ! Auxiliar basic procedures 
-	   procedure, non_overridable, private :: compute_edge_length              => Hcurl_l1_compute_edge_length 
 	   procedure, non_overridable, private :: find_edge_downstream_vertex      => Hcurl_l1_find_edge_downstream_vertex 
   end type  Hcurl_l1_coarse_fe_handler_t
   
@@ -1025,18 +1022,7 @@ module fe_space_names
     type(list_iterator_t)                 , intent(inout)    :: nodes_in_edge_iterator
     real(rp), allocatable                 , intent(inout)    :: elmat(:,:) 
 	end subroutine Hcurl_l1_compute_face_discrete_gradient_elmat
-	
-	!subroutine Hcurl_l1_assemble_face_coupled_to_edges_B_elmat( this, par_fe_space, elmat, fe_face, fine_edge, coarse_edge, vef)
-	!import :: Hcurl_l1_coarse_fe_handler_t, par_fe_space_t, fe_facet_iterator_t, fe_vef_iterator_t, rp, ip 
- ! class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
- ! type(par_fe_space_t)                  , intent(in)       :: par_fe_space 
- ! real(rp), allocatable                 , intent(in)       :: elmat(:,:) 
- ! type(fe_facet_iterator_t)             , intent(in)       :: fe_face
- ! integer(ip)                           , intent(in)       :: fine_edge
- ! integer(ip)                           , intent(in)       :: coarse_edge 
- ! type(fe_vef_iterator_t)               , intent(in)       :: vef
- ! end subroutine Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
-	
+		
   end interface 
   
   type, extends(Hcurl_l1_coarse_fe_handler_t) :: hex_Hcurl_l1_coarse_fe_handler_t

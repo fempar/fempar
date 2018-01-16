@@ -241,8 +241,6 @@ subroutine Hcurl_l1_apply_weighting_operator_and_comm(this, W, x, y)
   real(rp), pointer :: x_local_entries(:)
   real(rp), pointer :: y_local_entries(:)
 
-  type(timer_t)       :: timer_solve 
-		type(timer_t)       :: timer_application
   type(environment_t), pointer        :: environment  
   class(execution_context_t), pointer :: l1_context
 
@@ -254,23 +252,11 @@ subroutine Hcurl_l1_apply_weighting_operator_and_comm(this, W, x, y)
   y_local         => y%get_serial_scalar_array()
   y_local_entries => y_local%get_entries()
 
-  call timer_solve%create( l1_context,"PARDISO")
-		call timer_application%create( l1_context, "APPLICATION" )
-		
-		call timer_application%start() 
-  call this%apply_inverse_local_change_basis( x_local, x_local, timer_solve )
-		call timer_application%stop() 
-		
-  !call timer_solve%report(.true.)
-  call timer_solve%free() 
-  
-		!call timer_application%report(.true.) 
-		call timer_application%free() 
-		
-		y_local_entries = x_local_entries*W 
+  call this%apply_inverse_local_change_basis( x_local, x_local )
+  y_local_entries = x_local_entries*W 
   call y%comm()
   call this%apply_global_change_basis( y, y )
-				
+
 end subroutine Hcurl_l1_apply_weighting_operator_and_comm
 
 !===============================================================================================
@@ -285,7 +271,6 @@ subroutine Hcurl_l1_apply_transpose_weighting_operator(this, W, x, y)
   real(rp), pointer :: x_local_entries(:)
   real(rp), pointer :: y_local_entries(:)
 
-  type(timer_t)       :: timer_solve 
   type(environment_t), pointer        :: environment  
   class(execution_context_t), pointer :: l1_context
 
@@ -368,9 +353,9 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
   if ( p_env%am_I_l1_task() ) then 
 
      call this%change_basis_matrix%create(num_rows_and_cols= this%num_total_dofs - this%num_interior_dofs, &
-                                          symmetric_storage=.false.,                                       &
-                                          is_symmetric     =.false.,                                       &
-                                          sign             = SPARSE_MATRIX_SIGN_UNKNOWN )
+          symmetric_storage=.false.,                                       &
+          is_symmetric     =.false.,                                       &
+          sign             = SPARSE_MATRIX_SIGN_UNKNOWN )
 
      ! Initialize with identity 
      call fill_identity_part() 
@@ -386,7 +371,7 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
      end if
 
      call this%change_basis_matrix%convert(csr_format)
-    ! call this%change_basis_matrix%print_matrix_market(6)
+     ! call this%change_basis_matrix%print_matrix_market(6)
 
      call memfree(edge_elmat, __FILE__, __LINE__ ) 
   end if
@@ -404,8 +389,8 @@ contains
     ! Initialize with identity 
     do idof = 1, this%num_total_dofs - this%num_interior_dofs  
        call this%change_basis_matrix%insert(ia       = idof,   &
-                                            ja       = idof,   &
-                                            val      = 1.0_rp )
+            ja       = idof,   &
+            val      = 1.0_rp )
     end do
 
     ! Substract DOFS belonging to coarse edges 	
@@ -422,8 +407,8 @@ contains
 
           do idof = 1, this%order  
              call this%change_basis_matrix%insert(ia  = dofs_old_basis(idof) - this%num_interior_dofs,   &
-                                                  ja  = dofs_old_basis(idof) - this%num_interior_dofs,   &
-                                                  val = -1.0_rp )
+                  ja  = dofs_old_basis(idof) - this%num_interior_dofs,   &
+                  val = -1.0_rp )
           end do
 
           call fine_edge_iterator%next()  
@@ -559,7 +544,6 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
      do while ( .not. fine_edge_iterator%is_upper_bound() )
         local_edge = local_edge + 1
         call vef%set_gid( fine_edge_iterator%get_current() )	 	 
-
         call this%get_dofs_from_vef(par_fe_space, vef, dofs_old_basis) 
 
         ! Build dofs new basis from olds 
@@ -577,20 +561,20 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
            if ( dofs_new_basis(jdof) > 0 ) then 
               if ( orientation == same_as_coarse_edge ) then 
                  call this%change_basis_matrix%insert(nz  = this%order,                                       &  
-                                                      ia  = dofs_old_basis - this%num_interior_dofs,          &
-                                                      ja  = dofs_new_basis(jdof) - this%num_interior_dofs,    &
-                                                      val = elmat(:, jdof) )
+                      ia  = dofs_old_basis - this%num_interior_dofs,          &
+                      ja  = dofs_new_basis(jdof) - this%num_interior_dofs,    &
+                      val = elmat(:, jdof) )
               elseif ( orientation == opposite_to_coarse_edge ) then 
                  do idof = 1, this%order 
                     call this%change_basis_matrix%insert(ia  = dofs_old_basis(idof) - this%num_interior_dofs,  &
-                                                         ja  = dofs_new_basis(jdof) - this%num_interior_dofs,  &
-                                                         val = -elmat(this%order+1-idof, jdof) )
+                         ja  = dofs_new_basis(jdof) - this%num_interior_dofs,  &
+                         val = -elmat(this%order+1-idof, jdof) )
                  end do
               end if
            end if
         end do
 
-        ! Last column is filled with scaled average of all dofs_old_basis
+        ! Last column is filled with average of all dofs_old_basis
         do idof=1, this%order 
            if ( orientation == same_as_coarse_edge )  then 
               sign_factor =  1.0_rp 
@@ -598,8 +582,8 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
               sign_factor = -1.0_rp
            end if
            call this%change_basis_matrix%insert(ia  = dofs_old_basis(idof) - this%num_interior_dofs,  &
-                                                ja  = new_basis_average_dof - this%num_interior_dofs, &  ! Last DOF 
-                                                val = sign_factor )
+                ja  = new_basis_average_dof - this%num_interior_dofs, &  ! Last DOF 
+                val = sign_factor )
         end do
         call fine_edge_iterator%next() 
      end do
@@ -663,8 +647,8 @@ subroutine Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis(this, par_f
         call this%get_dofs_from_vef(par_fe_space, interior_edge, dofs_old_basis)
 
         ! Choose the last node as the new basis node 
+								new_basis_dof = dofs_old_basis(this%order) 
         call this%fine_edge_direction%get( key=fine_edge_iterator%get_current(), val=orientation, stat=istat); check(istat==key_found) 
-        new_basis_dof = dofs_old_basis(this%order) 
 
         ! Add current and following vef to avoid integration replication with fine edges belonging to the coarse edge 
         call coupled_vefs_added_to_node%init( interior_vertex%get_num_cells_around() )
@@ -686,42 +670,42 @@ subroutine Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis(this, par_f
                  call fe%get_vef(edge_id, edge) 			
                  if ( edge%is_at_interface() ) then 
                     ! Double check: vef has not been previously added in edge coupled to edges ( replication due to work in 2 different cells )
-																	   !             : vef does not belong to a different coarse edge, would imply coarse edges coupling 
-																	   call coupled_vefs_added_to_node%get( key=edge%get_gid(), val=dummy_val, stat=istat); if (istat==key_found) cycle 
-																				call this%fine_edge_direction%get( key=edge%get_gid(), val=dummy_val, stat=istat);   if (istat==key_found) cycle
+                    !             : vef does not belong to a different coarse edge, would imply coarse edges coupling 
+                    call coupled_vefs_added_to_node%get( key=edge%get_gid(), val=dummy_val, stat=istat); if (istat==key_found) cycle 
+                    call this%fine_edge_direction%get( key=edge%get_gid(), val=dummy_val, stat=istat);   if (istat==key_found) cycle
 
-                       vertices_of_line          => ref_fe_geo%get_vertices_n_face() 
-                       vertices_of_line_iterator = vertices_of_line%create_iterator(edge_id)
-                       vertex_within_edge_id     = 1
+                    vertices_of_line          => ref_fe_geo%get_vertices_n_face() 
+                    vertices_of_line_iterator = vertices_of_line%create_iterator(edge_id)
+                    vertex_within_edge_id     = 1
 
-                       do while( .not. vertices_of_line_iterator%is_upper_bound() )
-                          vertex_within_cell_id = vertices_of_line_iterator%get_current()
-                          call fe%get_vef(vertex_within_cell_id, vertex )
-                          node_id = vertex%get_gid() 
-                          if (node_id == interior_node_id) then
-                             ! A coupled edge has been found  
-                             if (vertex_within_edge_id==1) is_affluent = .false.
-                             if (vertex_within_edge_id==2) is_affluent = .true.   
+                    do while( .not. vertices_of_line_iterator%is_upper_bound() )
+                       vertex_within_cell_id = vertices_of_line_iterator%get_current()
+                       call fe%get_vef(vertex_within_cell_id, vertex )
+                       node_id = vertex%get_gid() 
+                       if (node_id == interior_node_id) then
+                          ! A coupled edge has been found  
+                          if (vertex_within_edge_id==1) is_affluent = .false.
+                          if (vertex_within_edge_id==2) is_affluent = .true.   
 
-                             call this%get_dofs_from_vef(par_fe_space, edge, dofs_old_basis)   
+                          call this%get_dofs_from_vef(par_fe_space, edge, dofs_old_basis)   
 
-                             if ( is_affluent ) then  ! Affluent edge 
-                                call this%change_basis_matrix%insert(nz       = this%order,                              & 
-                                                                     ia       = dofs_old_basis - this%num_interior_dofs, &
-                                                                     ja       = new_basis_dof - this%num_interior_dofs,  &
-                                                                     val      = elmat(:, this%order+1) )
-                             elseif ( .not. is_affluent ) then ! Effluent edge 		 
-                                   call this%change_basis_matrix%insert(nz       = this%order,                              & 
-																																																																								ia       = dofs_old_basis - this%num_interior_dofs, &
-                                                                        ja       = new_basis_dof - this%num_interior_dofs,  &
-                                                                        val      = elmat(:, 1) )
-                             end if
-
-                             call coupled_vefs_added_to_node%put( key=edge%get_gid(), val=dummy_val, stat=istat)
+                          if ( is_affluent ) then  ! Affluent edge 
+                             call this%change_basis_matrix%insert(nz       = this%order,                              & 
+                                  ia       = dofs_old_basis - this%num_interior_dofs, &
+                                  ja       = new_basis_dof - this%num_interior_dofs,  &
+                                  val      = elmat(:, this%order+1) )
+                          elseif ( .not. is_affluent ) then ! Effluent edge 		 
+                             call this%change_basis_matrix%insert(nz       = this%order,                              & 
+                                  ia       = dofs_old_basis - this%num_interior_dofs, &
+                                  ja       = new_basis_dof - this%num_interior_dofs,  &
+                                  val      = elmat(:, 1) )
                           end if
-                          vertex_within_edge_id = vertex_within_edge_id + 1
-                          call vertices_of_line_iterator%next() 
-                       end do ! Loop over vertices in the edge 
+
+                          call coupled_vefs_added_to_node%put( key=edge%get_gid(), val=dummy_val, stat=istat)
+                       end if
+                       vertex_within_edge_id = vertex_within_edge_id + 1
+                       call vertices_of_line_iterator%next() 
+                    end do ! Loop over vertices in the edge 
                  end if ! Checker interface vef 
               end do
            end if
@@ -812,7 +796,7 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
   type(list_iterator_t) :: facets_n_face_iterator
   integer(ip)           :: facet_gid, face_id, shared_dof  
   logical               :: vefs_are_coupled 
-		integer(ip), allocatable   :: dofs_on_vef(:) 
+  integer(ip), allocatable   :: dofs_on_vef(:) 
 
   field_id = 1 
   call par_fe_space%set_up_facet_integration()
@@ -823,16 +807,16 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
 
   ref_fe => par_fe_space%get_reference_fe(field_id)
   call Nedelec_fe_2D%create(topology   = topology_hex,          &
-                            num_dims   = 2,                     &
-                            order      = this%order-1,          &
-                            field_type = field_type_vector,     &
-                            conformity = .false. )
+       num_dims   = 2,                     &
+       order      = this%order-1,          &
+       field_type = field_type_vector,     &
+       conformity = .false. )
 
   call Lagrangian_fe_3D%create(topology    = topology_hex,         &
-                               num_dims    = 3,                    &
-                               order       = this%order,           &
-                               field_type  = field_type_scalar,    &
-                               conformity  = .true. )
+       num_dims    = 3,                    &
+       order       = this%order,           &
+       field_type  = field_type_scalar,    &
+       conformity  = .true. )
 
   call memalloc( num_nedelec_dofs_x_face, this%order+1, elmat, __FILE__, __LINE__ )	   	 
   call Nedelec_fe_2D%create_interpolation( fe_face%get_quadrature(), Nedelec_interpolation )
@@ -844,7 +828,7 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
   do while ( .not. coarse_subedge_iterator%is_upper_bound() )
      fine_edge_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator(coarse_subedge_iterator%get_current())
      fine_edge  = 0
-					shared_dof = 0
+     shared_dof = 0
      do while ( .not. fine_edge_iterator%is_upper_bound() ) 
         call vef%set_gid( fine_edge_iterator%get_current() )
         fine_edge = fine_edge + 1
@@ -856,7 +840,7 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
 
               do face_id = ref_fe%get_first_facet_id(), ref_fe%get_first_facet_id() + ref_fe%get_num_facets()-1
                  ! Chapuza, need for an inverse facet_gids(fe_face_lid) to assign fe_face id ! 
-														   facet_gid = fe%get_vef_gid( face_id ) - ( par_fe_space%triangulation%get_num_vefs() -  fe_face%fe_space%facet_gids%size() )
+                 facet_gid = fe%get_vef_gid( face_id ) - ( par_fe_space%triangulation%get_num_vefs() -  fe_face%fe_space%facet_gids%size() )
                  call fe_face%set_gid( facet_gid )	
                  if ( fe_face%is_at_interface() ) then 
                     facets_n_face_iterator = facets_n_face%create_iterator(face_id) 
@@ -878,29 +862,29 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
                             Lagrangian_interpolation                                                         )
 
                        call this%compute_face_discrete_gradient_elmat(fe,                        &
-                                                                      fe_face,                   &
-                                                                      Nedelec_fe_2D,             &
-                                                                      Lagrangian_fe_3D,          &
-                                                                      Nedelec_interpolation,     &
-                                                                      Lagrangian_interpolation,  &
-                                                                      nodes_n_face_iterator,     &
-                                                                      elmat)
+                            fe_face,                   &
+                            Nedelec_fe_2D,             &
+                            Lagrangian_fe_3D,          &
+                            Nedelec_interpolation,     &
+                            Lagrangian_interpolation,  &
+                            nodes_n_face_iterator,     &
+                            elmat)
 
                        call this%assemble_face_coupled_to_edges_B_elmat( par_fe_space,                           &
-                                                                         elmat,                                  & 
-                                                                         fe_face,                                & 
-                                                                         fine_edge,                              & 
-                                                                         coarse_subedge_iterator%get_current(),  & 
-                                                                         vef,                                    & 
-																																																																									shared_dof                              )
+                            elmat,                                  & 
+                            fe_face,                                & 
+                            fine_edge,                              & 
+                            coarse_subedge_iterator%get_current(),  & 
+                            vef,                                    & 
+                            shared_dof                              )
                     end if
                  end if
               end do
            end if
         end do
-        
-								call this%get_dofs_from_vef(par_fe_space, vef, dofs_on_vef)
-								shared_dof = dofs_on_vef(size(dofs_on_vef))								
+
+        call this%get_dofs_from_vef(par_fe_space, vef, dofs_on_vef)
+        shared_dof = dofs_on_vef(size(dofs_on_vef))								
         call fine_edge_iterator%next() 
      end do
 
@@ -921,7 +905,7 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
   call par_fe_space%free_fe_vef_iterator(vef) 
 
   call memfree(elmat, __FILE__, __LINE__ ) 
-		call memfree(dofs_on_vef, __FILE__, __LINE__ )
+  call memfree(dofs_on_vef, __FILE__, __LINE__ )
 end subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis
 
 !===============================================================================================
@@ -956,7 +940,7 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
   integer(ip)               :: isubedge_coarse
 
   integer(ip), allocatable  :: dofs_on_edge(:)  
-		integer(ip)               :: new_basis_edge_dof 
+  integer(ip)               :: new_basis_edge_dof 
   type(hash_table_ip_ip_t)  :: already_added_faces 
   logical                   :: vefs_are_coupled 
 
@@ -988,7 +972,7 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
      fine_edge_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator(coarse_subedge_iterator%get_current())
      fine_edge = 0
      call already_added_faces%init( 20 ) ! Magic number, give an upper bound 
-					! Find faces coupled with edges and integrate terms
+     ! Find faces coupled with edges and integrate terms
      do while ( .not. fine_edge_iterator%is_upper_bound() ) 
         call vef%set_gid( fine_edge_iterator%get_current() )
         fine_edge = fine_edge + 1
@@ -1003,7 +987,7 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
                  faces_n_face          => Lagrangian_fe_3D%get_facets_n_face() 
 
                  ! Chapuza, need for an inverse facet_gids(fe_face_lid) to assign fe_face id ! 
-																	facet_gid = fe%get_vef_gid( face_id ) - ( par_fe_space%triangulation%get_num_vefs() -  fe_face%fe_space%facet_gids%size() )
+                 facet_gid = fe%get_vef_gid( face_id ) - ( par_fe_space%triangulation%get_num_vefs() -  fe_face%fe_space%facet_gids%size() )
                  call fe_face%set_gid(facet_gid)				
                  if ( fe_face%is_at_interface() ) then 
                     facets_in_face_iterator = faces_n_face%create_iterator(face_id) 
@@ -1047,13 +1031,13 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
            end if
         end do
 
-								! Find faces coupled to coarse edges through nodes and integrate terms 
+        ! Find faces coupled to coarse edges through nodes and integrate terms 
         if ( fine_edge_iterator%get_distance_to_upper_bound() > 1 ) then 
 
            call this%find_edge_downstream_vertex( par_fe_space, vef, vertex )	
-											call this%get_dofs_from_vef(par_fe_space, vef, dofs_on_edge)
-											new_basis_edge_dof = dofs_on_edge( size(dofs_on_edge) ) 
-																																							
+           call this%get_dofs_from_vef(par_fe_space, vef, dofs_on_edge)
+           new_basis_edge_dof = dofs_on_edge( size(dofs_on_edge) ) 
+
            do ielem = 1, vertex%get_num_cells_around()
               call vertex%get_cell_around(ielem, fe)      
               if ( fe%is_local() ) then 				
@@ -1063,7 +1047,7 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
                     nodes_n_face          => Lagrangian_fe_3D%get_dofs_n_face() 
 
                     ! Chapuza, need for an inverse facet_gids(fe_face_lid) to assign fe_face id ! 
-																				facet_gid = fe%get_vef_gid( face_id ) - ( par_fe_space%triangulation%get_num_vefs() -  fe_face%fe_space%facet_gids%size() )
+                    facet_gid = fe%get_vef_gid( face_id ) - ( par_fe_space%triangulation%get_num_vefs() -  fe_face%fe_space%facet_gids%size() )
                     call fe_face%set_gid(facet_gid)				
                     if ( fe_face%is_at_interface() ) then 
 
@@ -1086,21 +1070,21 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
                                Lagrangian_interpolation                                                         )
 
                           call this%compute_face_discrete_gradient_elmat(fe,                        &
-                                                                         fe_face,                   &
-                                                                         ref_fe_2D,                 &
-                                                                         Lagrangian_fe_3D,          &
-                                                                         ref_fe_interpolation,      &
-                                                                         Lagrangian_interpolation,  &
-                                                                         nodes_iterator,            &
-                                                                         elmat)
+                               fe_face,                   &
+                               ref_fe_2D,                 &
+                               Lagrangian_fe_3D,          &
+                               ref_fe_interpolation,      &
+                               Lagrangian_interpolation,  &
+                               nodes_iterator,            &
+                               elmat)
 
                           call this%assemble_face_coupled_to_vertex_B_elmat( par_fe_space,                           &
-                                                                             elmat,                                  & 
-                                                                             fe_face,                                & 
-                                                                             fine_edge,                              & 
-                                                                             coarse_subedge_iterator%get_current(),  & 
-                                                                             vef,                                    & 
-																																																																													new_basis_edge_dof                      )
+                               elmat,                                  & 
+                               fe_face,                                & 
+                               fine_edge,                              & 
+                               coarse_subedge_iterator%get_current(),  & 
+                               vef,                                    & 
+                               new_basis_edge_dof                      )
                        end if
                     end if
                  end do
@@ -1130,7 +1114,7 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
   call par_fe_space%free_fe_vef_iterator(vertex) 
 
   call memfree(elmat, __FILE__, __LINE__ ) 
-		if (allocated(dofs_on_edge)) call memfree(dofs_on_edge, __FILE__, __LINE__ )
+  if (allocated(dofs_on_edge)) call memfree(dofs_on_edge, __FILE__, __LINE__ )
 end subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis
 
 !===============================================================================================
@@ -1159,58 +1143,58 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
   integer(ip)                            :: num_qpoints, idof, i 
   real(rp)                               :: factor
   type(vector_field_t)                   :: normal, v_shape_test, gradv_shape_trial
-		type(vector_field_t)                   :: mapped_shape_test 
+  type(vector_field_t)                   :: mapped_shape_test 
   integer(ip)                            :: ishape, jshape, qpoint
-		integer(ip)                            :: vef_lid, facet_lid 
+  integer(ip)                            :: vef_lid, facet_lid 
   integer(ip)                            :: num_nedelec_dofs_x_face 
-		
-		class(reference_fe_t) , pointer        :: reference_fe 
-		class(reference_fe_t) , pointer        :: reference_fe_geo 
+
+  class(reference_fe_t) , pointer        :: reference_fe 
+  class(reference_fe_t) , pointer        :: reference_fe_geo 
 
   type(vector_field_t)                   :: shape_trial
-		
-		integer(ip) :: field_id 
+
+  integer(ip) :: field_id 
 
   call fe%update_integration() 	
   call fe_face%update_integration()
 
-		field_id = 1 ! To think where it comes from ! 
-		
+  field_id = 1 ! To think where it comes from ! 
+
   quad             => fe_face%get_quadrature()
   num_qpoints      =  quad%get_num_quadrature_points()
   facet_maps       => fe_face%get_facet_maps() 
   facet_map        => facet_maps%get_facet_map()
-		cell_map         => fe%get_cell_map()
+  cell_map         => fe%get_cell_map()
   reference_fe     => fe%get_reference_fe(field_id) 
-		reference_fe_geo => fe%get_reference_fe_geo() 
-		
+  reference_fe_geo => fe%get_reference_fe_geo() 
+
   elmat = 0.0_rp 
   call cross_product_gradv_shape_trial_normal_proj%init(0.0_rp)
 
   call Lagrangian_interpolation_phy%copy(Lagrangian_interpolation_ref) 
   call Lagrangian_fe_3D%apply_cell_map( fe%get_cell_map (),           &
-                                        Lagrangian_interpolation_ref, &
-                                        Lagrangian_interpolation_phy  )
+       Lagrangian_interpolation_ref, &
+       Lagrangian_interpolation_phy  )
 
   num_nedelec_dofs_x_face = 2*this%order*(this%order-1)
   do qpoint = 1, num_qpoints
      factor    = facet_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
      call facet_map%get_normal(qpoint, normal)
 
-						vef_lid = fe%get_vef_lid_from_gid( fe_face%vef%get_gid() )
-						facet_lid = vef_lid - reference_fe_geo%get_first_facet_id()+1
-      normal = reference_fe%get_normal_orientation_factor(facet_lid) * normal
+     vef_lid = fe%get_vef_lid_from_gid( fe_face%vef%get_gid() )
+     facet_lid = vef_lid - reference_fe_geo%get_first_facet_id()+1
+     normal = reference_fe%get_normal_orientation_factor(facet_lid) * normal
 
      do ishape = 1, num_nedelec_dofs_x_face
         call ref_fe_2D%get_value(ref_fe_interpolation, ishape, qpoint, v_shape_test)
-								
-								! Apply facet_map to test function 
+
+        ! Apply facet_map to test function 
         call mapped_shape_test%init(0.0_rp)
         do i=1, reference_fe%get_num_dims()-1 
-          call facet_map%get_jacobian_column(i,qpoint,col_jacobian)
-          call mapped_shape_test%add( v_shape_test%get(i) * (1.0_rp/col_jacobian%nrm2()) * col_jacobian%get_value() )
+           call facet_map%get_jacobian_column(i,qpoint,col_jacobian)
+           call mapped_shape_test%add( v_shape_test%get(i) * (1.0_rp/col_jacobian%nrm2()) * col_jacobian%get_value() )
         end do
-														
+
         ! WARNING: Update 2D interpolation for the Nedelec test functions ( J**{-T} will only work in HEX structured meshes! )
         do i=1, Lagrangian_fe_3D%get_num_dims()
            call cell_map%get_jacobian_column(i,qpoint,col_jacobian)
@@ -1221,7 +1205,7 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
         do jshape = 1, nodes_in_edge_iterator%get_size() 
            call Lagrangian_fe_3D%get_gradient(Lagrangian_interpolation_phy, nodes_in_edge_iterator%get_current(), qpoint, gradv_shape_trial)
            cross_product_gradv_shape_trial_normal = cross_product(gradv_shape_trial,normal)			         
-											elmat(ishape,jshape) = elmat(ishape, jshape) +  factor * cross_product_gradv_shape_trial_normal*mapped_shape_test
+           elmat(ishape,jshape) = elmat(ishape, jshape) +  factor * cross_product_gradv_shape_trial_normal*mapped_shape_test
            call nodes_in_edge_iterator%next() 
         end do
      end do
@@ -1312,12 +1296,12 @@ subroutine hex_Hcurl_l1_assemble_face_coupled_to_edges_B_elmat( this, par_fe_spa
   integer(ip)                               , intent(in)       :: local_edge
   integer(ip)                               , intent(in)       :: coarse_edge 
   type(fe_vef_iterator_t)                   , intent(in)       :: vef
-		integer(ip)                               , intent(in)       :: shared_dof 
- 
+  integer(ip)                               , intent(in)       :: shared_dof 
+
   integer(ip)                            :: num_nedelec_dofs_x_face
   integer(ip)                            :: idof, jdof
   integer(ip), allocatable               :: dofs_face_old_basis(:)
-		integer(ip), allocatable               :: dofs_old_basis(:) 
+  integer(ip), allocatable               :: dofs_old_basis(:) 
   integer(ip), allocatable               :: dofs_new_basis(:) 
   integer(ip)                            :: num_fine_edges_in_subedge 
   integer(ip)                            :: fine_edge_direction, istat
@@ -1325,44 +1309,44 @@ subroutine hex_Hcurl_l1_assemble_face_coupled_to_edges_B_elmat( this, par_fe_spa
   num_nedelec_dofs_x_face =  size(elmat,1) 
 
   call memalloc( num_nedelec_dofs_x_face, dofs_face_old_basis, __FILE__, __LINE__ )
-		call memalloc( this%order, dofs_old_basis, __FILE__, __LINE__ ) 
+  call memalloc( this%order, dofs_old_basis, __FILE__, __LINE__ ) 
   call this%get_dofs_from_vef(par_fe_space, fe_face, dofs_face_old_basis)
-		call this%get_dofs_from_vef(par_fe_space, vef, dofs_old_basis ) 
+  call this%get_dofs_from_vef(par_fe_space, vef, dofs_old_basis ) 
 
   call memalloc( this%order+1, dofs_new_basis, __FILE__, __LINE__ )
   num_fine_edges_in_subedge = this%sorted_fine_edges_in_coarse_subedge%get_sublist_size( coarse_edge )
-  	
+
   ! Build dofs new basis from olds 
-		dofs_new_basis(1)                      = shared_dof 
+  dofs_new_basis(1)                      = shared_dof 
   dofs_new_basis(2:this%order+1)         = dofs_old_basis(1:this%order) 
-		if (local_edge == 1) then 
-		dofs_new_basis(1) = 0
+  if (local_edge == 1) then 
+     dofs_new_basis(1) = 0
   elseif (local_edge == num_fine_edges_in_subedge ) then
-  dofs_new_basis(this%order+1)   = 0
+     dofs_new_basis(this%order+1)   = 0
   end if
-		
+
   call this%fine_edge_direction%get( key=vef%get_gid(), val=fine_edge_direction, stat=istat); check(istat==key_found)  
   do jdof = 1, this%order + 1  
      if ( dofs_new_basis(jdof) > 0) then
-		  select case ( fine_edge_direction ) 
-     case ( same_as_coarse_edge )
-					      call this%change_basis_matrix%insert(nz       = num_nedelec_dofs_x_face,                        & 
-                                                ia       = dofs_face_old_basis - this%num_interior_dofs,   &
-                                                ja       = dofs_new_basis(jdof)- this%num_interior_dofs,   &
-                                                val      = elmat(:, jdof) )
-					case ( opposite_to_coarse_edge )
-					        call this%change_basis_matrix%insert(nz       = num_nedelec_dofs_x_face,                             & 
-                                             ia       = dofs_face_old_basis - this%num_interior_dofs,        &
-                                             ja       = dofs_new_basis(jdof)- this%num_interior_dofs,   &
-                                             val      = elmat(:, this%order+2-jdof) ) 
-				end select 
-				end if 
+        select case ( fine_edge_direction ) 
+        case ( same_as_coarse_edge )
+           call this%change_basis_matrix%insert(nz       = num_nedelec_dofs_x_face,                        & 
+                ia       = dofs_face_old_basis - this%num_interior_dofs,   &
+                ja       = dofs_new_basis(jdof)- this%num_interior_dofs,   &
+                val      = elmat(:, jdof) )
+        case ( opposite_to_coarse_edge )
+           call this%change_basis_matrix%insert(nz       = num_nedelec_dofs_x_face,                             & 
+                ia       = dofs_face_old_basis - this%num_interior_dofs,        &
+                ja       = dofs_new_basis(jdof)- this%num_interior_dofs,   &
+                val      = elmat(:, this%order+2-jdof) ) 
+        end select
+     end if
   end do
 
-		call memfree( dofs_old_basis, __FILE__, __LINE__ )
-		call memfree( dofs_new_basis, __FILE__, __LINE__ )
+  call memfree( dofs_old_basis, __FILE__, __LINE__ )
+  call memfree( dofs_new_basis, __FILE__, __LINE__ )
   call memfree( dofs_face_old_basis, __FILE__, __LINE__ )
-  
+
 end subroutine hex_Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
 
 !===============================================================================================
@@ -1379,7 +1363,7 @@ subroutine tet_Hcurl_l1_assemble_face_coupled_to_edges_B_elmat( this, par_fe_spa
   integer(ip)                            :: num_nedelec_dofs_x_face
   integer(ip)                            :: idof, jdof
   integer(ip), allocatable               :: dofs_face_old_basis(:)
-		integer(ip), allocatable               :: dofs_edge_old_basis(:)
+  integer(ip), allocatable               :: dofs_edge_old_basis(:)
   integer(ip), allocatable               :: dofs_edge_new_basis(:) 
   integer(ip)                            :: num_fine_edges_in_subedge 
   integer(ip)                            :: fine_edge_direction, istat
@@ -1389,31 +1373,31 @@ subroutine tet_Hcurl_l1_assemble_face_coupled_to_edges_B_elmat( this, par_fe_spa
   call this%get_dofs_from_vef(par_fe_space, fe_face, dofs_face_old_basis)
   num_fine_edges_in_subedge = this%sorted_fine_edges_in_coarse_subedge%get_sublist_size( coarse_edge )
   call this%fine_edge_direction%get( key=vef%get_gid(), val=fine_edge_direction, stat=istat); check(istat==key_found)  
-		
-		! Build dofs new basis from olds
-		call this%get_dofs_from_vef(par_fe_space, vef, dofs_edge_old_basis ) 
-		call memalloc( this%order + 1, dofs_edge_new_basis, __FILE__, __LINE__ )
-		dofs_edge_new_basis = 0
+
+  ! Build dofs new basis from olds
+  call this%get_dofs_from_vef(par_fe_space, vef, dofs_edge_old_basis ) 
+  call memalloc( this%order + 1, dofs_edge_new_basis, __FILE__, __LINE__ )
+  dofs_edge_new_basis = 0
   dofs_edge_new_basis(2:this%order) = dofs_edge_old_basis(1:this%order-1)  
   do jdof = 2, this%order  ! Interior-only coupling 
-  assert ( dofs_edge_new_basis(jdof) > 0) 
-  select case ( fine_edge_direction ) 
-  case ( same_as_coarse_edge ) 													
-           call this%change_basis_matrix%insert(nz       = num_nedelec_dofs_x_face,                             & 
-                                                ia       = dofs_face_old_basis - this%num_interior_dofs,        &
-                                                ja       = dofs_edge_new_basis(jdof)- this%num_interior_dofs,   &
-                                                val      = elmat(:, jdof) )
+     assert ( dofs_edge_new_basis(jdof) > 0) 
+     select case ( fine_edge_direction ) 
+     case ( same_as_coarse_edge ) 													
+        call this%change_basis_matrix%insert(nz       = num_nedelec_dofs_x_face,                             & 
+             ia       = dofs_face_old_basis - this%num_interior_dofs,        &
+             ja       = dofs_edge_new_basis(jdof)- this%num_interior_dofs,   &
+             val      = elmat(:, jdof) )
      case ( opposite_to_coarse_edge ) 
         call this%change_basis_matrix%insert(nz       = num_nedelec_dofs_x_face,                             & 
-                                             ia       = dofs_face_old_basis - this%num_interior_dofs,        &
-                                             ja       = dofs_edge_new_basis(jdof)- this%num_interior_dofs,   &
-                                             val      = elmat(:, this%order+2-jdof) ) 
-  end select 
+             ia       = dofs_face_old_basis - this%num_interior_dofs,        &
+             ja       = dofs_edge_new_basis(jdof)- this%num_interior_dofs,   &
+             val      = elmat(:, this%order+2-jdof) ) 
+     end select
   end do
 
   call memfree( dofs_face_old_basis, __FILE__, __LINE__ )
   call memfree( dofs_edge_new_basis, __FILE__, __LINE__ )
-		call memfree( dofs_edge_old_basis, __FILE__, __LINE__ ) 
+  call memfree( dofs_edge_old_basis, __FILE__, __LINE__ ) 
 end subroutine tet_Hcurl_l1_assemble_face_coupled_to_edges_B_elmat
 
 !===============================================================================================
@@ -1426,18 +1410,18 @@ subroutine tet_Hcurl_l1_assemble_face_coupled_to_vertex_B_elmat( this, par_fe_sp
   integer(ip)                            , intent(in)       :: fine_edge
   integer(ip)                            , intent(in)       :: coarse_edge 
   type(fe_vef_iterator_t)                , intent(in)       :: vef
-		integer(ip)                            , intent(in)       :: dof_new_basis 
+  integer(ip)                            , intent(in)       :: dof_new_basis 
 
   integer(ip)                            :: num_nedelec_dofs_x_face
   integer(ip), allocatable               :: dofs_face_old_basis(:)
 
   num_nedelec_dofs_x_face =  size(elmat,1) 
   call this%get_dofs_from_vef(par_fe_space, fe_face, dofs_face_old_basis)
-		! Assemble all face DoFs with the vertex DoF 
-           call this%change_basis_matrix%insert(nz       = num_nedelec_dofs_x_face,                        & 
-                                                ia       = dofs_face_old_basis - this%num_interior_dofs,   &
-                                                ja       = dof_new_basis - this%num_interior_dofs,         &
-                                                val      = elmat(:, 1) )
+  ! Assemble all face DoFs with the vertex DoF 
+  call this%change_basis_matrix%insert(nz       = num_nedelec_dofs_x_face,                        & 
+       ia       = dofs_face_old_basis - this%num_interior_dofs,   &
+       ja       = dof_new_basis - this%num_interior_dofs,         &
+       val      = elmat(:, 1) )
   call memfree( dofs_face_old_basis, __FILE__, __LINE__ )
 end subroutine tet_Hcurl_l1_assemble_face_coupled_to_vertex_B_elmat
 
@@ -1449,7 +1433,7 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
   type(serial_scalar_array_t)           , intent(inout) :: constraint_in_edges
 
   type(fe_vef_iterator_t)     :: vef
-  integer(ip)                 :: ivef
+  integer(ip)                 :: ivef, vef_lid 
   integer(ip)                 :: field_id, idof
   real(rp),    allocatable    :: elvec(:) 
   real(rp)                    :: factor 
@@ -1463,19 +1447,65 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
   integer(ip)               :: num_fine_edges_in_subedge 
   integer(ip)               :: local_edge 
 
+		class(fe_cell_iterator_t), allocatable :: fe_cell 
+  class(cell_iterator_t)   , allocatable :: cell
+  type(point_t)            , allocatable :: cell_coordinates(:)
+  type(hex_nedelec_reference_fe_t)       :: fe 
+  type(hex_lagrangian_reference_fe_t)    :: fe_1D
+		type(hex_lagrangian_reference_fe_t)    :: d_fe_geo 
+  class(reference_fe_t) , pointer        :: ref_fe
+  type(quadrature_t)                     :: edge_quadrature
+  type(interpolation_t)                  :: interpolation_1D 
+  integer(ip)                            :: ishape, qpoint 
+  real(rp)                               :: shape_test 
+  type(edge_map_t)                       :: edge_map
+  type(point_t), pointer                 :: edge_map_coordinates(:)
+  integer(ip)                            :: vertex_within_edge_id 
+  integer(ip)                            :: vertex_within_cell_id 
+  type(list_t), pointer                  :: vertices_of_line
+  type(list_iterator_t)                  :: vertices_of_line_iterator
+		real(rp)                               :: edge_length 
+
   field_id = 1
   call constraint_in_edges%create_and_allocate( par_fe_space%get_block_num_dofs(field_id) )
   call constraint_in_edges%init(0.0_rp) 
 
-  ! Elemental vector int(Phi), lack of lenght (Jacobian), computed in h=[-1,1] elemental edge   
-  call this%compute_edge_lagrangian_average_elvec( par_fe_space, elvec ) 
-  factor = this%compute_edge_length(par_fe_space, vef)/2.0_rp ! 2.0_rp is the reference FE edge length 
-										
+  ref_fe => par_fe_space%get_reference_fe(field_id) 
+
+		call par_fe_space%create_fe_cell_iterator(fe_cell)
+		call par_fe_space%triangulation%create_cell_iterator(cell) 
   call par_fe_space%create_fe_vef_iterator(vef)
+		
+  ! Create a 1D scalar lagrangian reference FE of order k
+  call fe_1D%create(topology    = topology_hex,       &
+       num_dims    = 1,                              &
+       order       = ref_fe%get_order(),             &
+       field_type  = field_type_scalar,              &
+       conformity  = .true. )
+
+  call fe%create(topology    = topology_hex,         &
+       num_dims    = 1,                              &
+       order       = ref_fe%get_order(),             &
+       field_type  = field_type_scalar,              &
+       conformity  = .false. )
+		
+		! Create a d-dim scalar HEX lagrangian reference FE of order 1 (geometry)
+  call d_fe_geo%create(topology    = topology_hex,             &
+                       num_dims    = ref_fe%get_num_dims(),    &
+                       order       = 1,                        &
+                       field_type  = field_type_scalar,        &
+                       conformity  = .false. )
+
+  call fe%create_edge_quadrature( edge_quadrature )
+  call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
+		call edge_map%create( edge_quadrature, d_fe_geo )
+		
+  call memalloc( fe_1D%get_num_shape_functions(), elvec, __FILE__, __LINE__ ) 
 
   ! Loop on fine edges and assemble the elemental vector, C_new  
   call memalloc( this%order,   dofs_old_basis, __FILE__, __LINE__ )
   call memalloc( this%order+1, dofs_new_basis, __FILE__, __LINE__ )
+  call memalloc(cell%get_num_nodes(),cell_coordinates,__FILE__,__LINE__)
 
   coarse_subedge_iterator = this%subedges_x_coarse_edge%create_iterator() 
   do while ( .not. coarse_subedge_iterator%is_upper_bound() )
@@ -1487,9 +1517,40 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
      do while ( .not. fine_edge_iterator%is_upper_bound() )
         local_edge = local_edge + 1
         call vef%set_gid( fine_edge_iterator%get_current() ) 
-        call this%get_dofs_from_vef(par_fe_space, vef, dofs_old_basis)
 
-        ! Build dofs new basis from olds 
+        call vef%get_cell_around(1, cell)
+        call cell%get_nodes_coordinates (cell_coordinates)
+        vef_lid = cell%get_vef_lid_from_gid( vef%get_gid() )
+
+        edge_map_coordinates => edge_map%get_coordinates()
+
+        ! Extract coordinates of the vertices within the face
+        vertices_of_line          => ref_fe%get_vertices_n_face() 
+        vertices_of_line_iterator = vertices_of_line%create_iterator(vef_lid)
+        vertex_within_edge_id = 1
+        do while ( .not. vertices_of_line_iterator%is_upper_bound () )
+           vertex_within_cell_id = vertices_of_line_iterator%get_current()
+           call edge_map_coordinates(vertex_within_edge_id)%init(cell_coordinates(vertex_within_cell_id)%get_value() )
+           call vertices_of_line_iterator%next()
+           vertex_within_edge_id = vertex_within_edge_id + 1
+        end do
+
+        ! Update edge_map on current edge
+        call edge_map%update(local_edge_id = vef_lid - ref_fe%get_first_n_face_id_of_dim(1)+1, &
+             reference_fe  = fe_cell%get_reference_fe_geo(),                                   &
+             quadrature    = edge_quadrature )
+
+        elvec = 0.0_rp 
+        do qpoint = 1, edge_quadrature%num_quadrature_points
+           factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint)
+           do ishape = 1, fe_1D%get_num_shape_functions() 
+              call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
+              elvec(ishape) = elvec(ishape) + shape_test * factor 
+           end do
+        end do 
+
+        ! Assemble 
+        call this%get_dofs_from_vef(par_fe_space, vef, dofs_old_basis)
         dofs_new_basis(1)              = shared_nodal_dof 
         dofs_new_basis(2:this%order+1) = dofs_old_basis(1:this%order)  
         if (local_edge == num_fine_edges_in_subedge ) then
@@ -1504,77 +1565,32 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
                    val  = elvec(idof)*factor  )
            end if
         end do
-
         call fine_edge_iterator%next() 
      end do
-
      call coarse_subedge_iterator%next()
   end do
-
-  call memfree(elvec, __FILE__, __LINE__ )
-  call memfree(dofs_new_basis, __FILE__, __LINE__ )
-  call memfree(dofs_old_basis, __FILE__, __LINE__ )
-  call par_fe_space%free_fe_vef_iterator(vef) 
 
   ! Change of basis for the assembled vector: C_new*inv(G) = C_old --> SOLVE G^t C_old = C_new 
   call this%apply_inverse_local_change_basis_transpose( constraint_in_edges, constraint_in_edges )
 
-end subroutine Hcurl_l1_compute_first_order_moment_in_edges
+  call memfree(elvec, __FILE__, __LINE__ )
+  call memfree(dofs_new_basis, __FILE__, __LINE__ )
+  call memfree(dofs_old_basis, __FILE__, __LINE__ )
+  call memfree(cell_coordinates, __FILE__, __LINE__ )
 
-!===============================================================================================
-subroutine Hcurl_l1_compute_edge_lagrangian_average_elvec(this, par_fe_space, elvec)
-  ! This subroutine computes the elemental 1D integration of Lagrangian 
-  ! shape functions over a reference 1D element 
-  implicit none 
-  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
-  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  real(rp), allocatable                 , intent(inout) :: elvec(:) 
+		call par_fe_space%free_fe_cell_iterator(fe_cell)
+  call par_fe_space%triangulation%free_cell_iterator(cell) 
+  call par_fe_space%free_fe_vef_iterator(vef) 
 
-  class(reference_fe_t), pointer         :: ref_fe 
-  type(hex_nedelec_reference_fe_t)       :: fe 
-  type(hex_lagrangian_reference_fe_t)    :: fe_1D
-  type(quadrature_t)                     :: edge_quadrature
-  type(interpolation_t)                  :: interpolation_1D 
-  real(rp)                               :: shape_test, factor 
-  integer(ip)                            :: ishape, qpoint 
-  integer(ip)                            :: field_id 
-
-  field_id = 1
-  ref_fe => par_fe_space%get_reference_fe(field_id) 
-
-  ! Create a 1D scalar lagrangian reference FE of order k
-  call fe_1D%create(topology    = ref_fe%get_topology(),          &
-       num_dims    = 1,                              &
-       order       = ref_fe%get_order(),             &
-       field_type  = field_type_scalar,              &
-       conformity  = .true. )
-
-  call fe%create(topology    = topology_hex,                   &
-       num_dims    = 1,                              &
-       order       = ref_fe%get_order(),             &
-       field_type  = field_type_scalar,              &
-       conformity  = .false. )
-
-  call fe%create_edge_quadrature( edge_quadrature )
-  call fe_1D%create_interpolation( edge_quadrature, interpolation_1D )
-
-  call memalloc( fe_1D%get_num_shape_functions(), elvec, __FILE__, __LINE__ ) 
-  elvec = 0.0_rp 
-  do qpoint = 1, edge_quadrature%num_quadrature_points
-     factor = edge_quadrature%get_weight(qpoint) 
-     do ishape = 1, fe_1D%get_num_shape_functions() 
-        call fe_1D%get_value(interpolation_1D, ishape, qpoint, shape_test)
-        elvec(ishape) = elvec(ishape) + shape_test * factor 
-     end do
-  end do
-
-  ! Free data   
   call fe%free()
   call fe_1D%free() 
+		call d_fe_geo%free() 
   call interpolation_1D%free() 
   call edge_quadrature%free()
+		call edge_map%free() 
 
-end subroutine Hcurl_l1_compute_edge_lagrangian_average_elvec
+end subroutine Hcurl_l1_compute_first_order_moment_in_edges
+
 ! -------------------------------------------------------------------------------------------------
 !
 !                                 Change of basis matrix applications 
@@ -1656,13 +1672,11 @@ subroutine Hcurl_l1_apply_global_change_basis_transpose(this, x_old, x_new)
 end subroutine Hcurl_l1_apply_global_change_basis_transpose
 
 !===============================================================================================
-subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_local, timer_solve) 
+subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_local) 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
   type(serial_scalar_array_t)              , intent(in)     :: x_old_local
   type(serial_scalar_array_t)              , intent(inout)  :: x_new_local
-		type(timer_t)                            , intent(inout)  :: timer_solve
-		
 
   type(serial_scalar_array_t)              :: x_new_local_G
   type(serial_scalar_array_t)              :: x_old_local_G
@@ -1704,14 +1718,12 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_lo
   call inv_change_basis_times_x%create_and_allocate( this%num_total_dofs - this%num_interior_dofs) 
   call inv_change_basis_times_x%init(0.0_rp) 
 
-		call timer_solve%start() 
   call direct_solver%solve( x_old_local_G , inv_change_basis_times_x )
-		call timer_solve%stop() 
   call x_new_local_G%copy(inv_change_basis_times_x) 
 
   call direct_solver%free() 
   call inv_change_basis_times_x%free() 
-		
+
 end subroutine Hcurl_l1_apply_inverse_local_change_basis
 
 !===============================================================================================
@@ -1764,7 +1776,7 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, x_new_local
   call inv_change_basis_trans_times_x%init(0.0_rp) 
 
   call direct_solver%solve( x_new_local_G, inv_change_basis_trans_times_x )
-		
+
   call x_old_local_G%copy( inv_change_basis_trans_times_x ) 
 
   call inv_change_basis_trans_times_x%free() 
@@ -1792,7 +1804,7 @@ subroutine Hcurl_l1_get_dofs_from_vef(this, par_fe_space, fe_vef, dof_list)
   integer(ip)            , pointer            :: fe_dofs(:)
   integer(ip)                                 :: idof
   logical   :: reallocate 
-		
+
   field_id = 1 ! To specify where it comes from! 
   call par_fe_space%create_fe_cell_iterator(fe) 
 
@@ -1802,15 +1814,15 @@ subroutine Hcurl_l1_get_dofs_from_vef(this, par_fe_space, fe_vef, dof_list)
 
   own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
 
-		  reallocate = .false.
+  reallocate = .false.
   if (allocated(dof_list)) reallocate = ( size(dof_list) < own_dofs_on_vef_iterator%get_size() )                                      
   if ( (.not. allocated(dof_list)) .or. reallocate) then
      if (allocated(dof_list)) call memfree(dof_list, __FILE__,__LINE__); 
      call memalloc(own_dofs_on_vef_iterator%get_size(), dof_list, __FILE__,__LINE__);
   end if
-		
+
   dof_list = 0
-		idof     = 0
+  idof     = 0
   do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
      idof = idof + 1
      dof_list(idof) = fe_dofs(own_dofs_on_vef_iterator%get_current())
@@ -1819,59 +1831,6 @@ subroutine Hcurl_l1_get_dofs_from_vef(this, par_fe_space, fe_vef, dof_list)
 
   call par_fe_space%free_fe_cell_iterator(fe) 
 end subroutine Hcurl_l1_get_dofs_from_vef
-
-!===============================================================================================
-function Hcurl_l1_compute_edge_length(this, par_fe_space, vef) result(edge_length) 
-  implicit none 
-  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
-  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
-  type(fe_vef_iterator_t)               , intent(in)    :: vef 
-  real(rp)   :: edge_length  
-
-  class(fe_cell_iterator_t), allocatable    :: fe 
-  type(fe_vef_iterator_t)                   :: vertex 
-  class(reference_fe_t), pointer            :: ref_fe_geo
-  integer(ip)                               :: ivef_within_cell, istat
-  integer(ip)                               :: vertex_within_edge_id, vertex_within_cell_id 
-  type(list_t), pointer                     :: vertices_of_line
-  type(list_iterator_t)                     :: vertices_of_line_iterator
-  type(point_t), allocatable                :: cell_coordinates(:)
-  type(point_t), allocatable                :: node_coordinates(:)
-  type(point_t)                             :: tangent_vector
-
-  assert( vef%get_dim() == 1 ) 
-  edge_length = 0.0_rp 
-  call par_fe_space%create_fe_cell_iterator(fe) 
-  call par_fe_space%create_fe_vef_iterator(vertex) 
-  allocate(cell_coordinates( fe%cell%get_num_nodes() ) , stat=istat); check(istat==0)
-  allocate(node_coordinates(2), stat=istat); check(istat==0) 
-
-  call vef%get_cell_around(1,fe)  
-  ref_fe_geo => fe%get_reference_fe_geo()
-
-  ivef_within_cell          = fe%get_vef_lid_from_gid(vef%get_gid())     
-  vertices_of_line          => ref_fe_geo%get_vertices_n_face() 
-  vertices_of_line_iterator = vertices_of_line%create_iterator(ivef_within_cell)
-
-  vertex_within_edge_id     = 0
-  do while( .not. vertices_of_line_iterator%is_upper_bound() )
-     vertex_within_edge_id = vertex_within_edge_id + 1
-     vertex_within_cell_id = vertices_of_line_iterator%get_current()
-     call fe%get_vef(vertex_within_cell_id, vertex )
-     call fe%cell%get_nodes_coordinates(cell_coordinates)		
-     node_coordinates(vertex_within_edge_id)  = cell_coordinates(vertex_within_cell_id) 
-     call vertices_of_line_iterator%next() 
-  end do
-
-  tangent_vector = node_coordinates(2) - node_coordinates(1)
-  edge_length = tangent_vector%nrm2() 
-
-  call par_fe_space%free_fe_vef_iterator(vertex) 
-  call par_fe_space%free_fe_cell_iterator(fe) 
-  deallocate( cell_coordinates , stat=istat); check(istat==0) 
-  deallocate( node_coordinates,  stat=istat); check(istat==0) 
-
-end function Hcurl_l1_compute_edge_length
 
 !===============================================================================================
 subroutine Hcurl_l1_get_BDDC_edge_continuity_algorithm_case( parameter_list, algorithm )
@@ -1902,7 +1861,7 @@ subroutine Hcurl_l1_count_coarse_edges_and_owned_fine_edges( this, par_fe_space,
   type(hash_table_ip_ip_t), allocatable     , intent(inout)  :: edge_interior_vertices(:)
 
   ! Iterators 
-		class(reference_fe_t)    , pointer      :: reference_fe 
+  class(reference_fe_t)    , pointer      :: reference_fe 
   class(fe_cell_iterator_t), allocatable  :: fe
   type(fe_object_iterator_t)              :: object
   type(fe_vef_iterator_t)                 :: vertex 
@@ -1923,12 +1882,12 @@ subroutine Hcurl_l1_count_coarse_edges_and_owned_fine_edges( this, par_fe_space,
   call par_fe_space%create_fe_vef_iterator(vef_within_object)
   call par_fe_space%create_fe_vef_iterator(vertex)
 
-		! Initialize H(curl) coarse fe handler common used variables 
+  ! Initialize H(curl) coarse fe handler common used variables 
   reference_fe           => fe%get_reference_fe(field_id) 
-		this%order             = reference_fe%get_order() 
+  this%order             = reference_fe%get_order() 
   this%num_interior_dofs = par_fe_space%get_block_num_interior_dofs(field_id)
   this%num_total_dofs    = par_fe_space%get_field_num_dofs(field_id) 
-		
+
   ! Count number of coarse edges 
   num_coarse_edges = 0
   do while ( .not. object%has_finished() )
@@ -2014,21 +1973,21 @@ subroutine Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges( this, par_fe_spac
   type(list_t), pointer                     :: vertices_of_line
   type(list_iterator_t)                     :: vertices_of_line_iterator
   integer(ip)                               :: vertex_within_cell_id, vertex_within_edge_id  
-		integer(ip) , allocatable                 :: vertices_in_edge(:,:)
-		! Nodes data 
+  integer(ip) , allocatable                 :: vertices_in_edge(:,:)
+  ! Nodes data 
   integer(ip)                               :: node_id
   integer(ip)                               :: num_nodes
   integer(ip), allocatable                  :: node_list(:)
   type(hash_table_ip_ip_t)                  :: nodes_counter
   type(hash_table_ip_ip_t)                  :: nodes_type 
   integer(ip)                               :: counter
-		integer(ip), allocatable                  :: num_nodes_each_type(:)
-		! Edges data
+  integer(ip), allocatable                  :: num_nodes_each_type(:)
+  ! Edges data
   integer(ip)             , allocatable     :: fine_edges_list(:,:) 
   integer                                   :: iedge_coarse, iedge_fine 
 
   ! Edge sorting algorithms 
-		integer(ip)              :: start_node_gid, first_fine_edge 
+  integer(ip)              :: start_node_gid, first_fine_edge 
   integer(ip)              :: num_fine_edges_found 
   type(hash_table_ip_ip_t) :: num_fine_edges_x_subedge
   integer(ip)              :: num_subedges_in_coarse_edge 
@@ -2145,15 +2104,15 @@ subroutine Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges( this, par_fe_spac
         do while ( any(num_nodes_each_type.ne.0) ) 
            num_subedges_in_coarse_edge =  num_subedges_in_coarse_edge + 1
            total_num_subedges          = total_num_subedges + 1
-											
+
            call identify_following_starting_node( par_fe_space, num_nodes, num_nodes_each_type, node_list, nodes_type, start_node_gid )
 
            call choose_path_direction( par_fe_space, start_node_gid, num_fine_edges_x_coarse_edge(iedge_coarse), vertices_in_edge, & 
                 node_list, nodes_counter, nodes_type, first_fine_edge )   
 
            call build_path_from_starting_node_and_direction_till_end_node(this, iedge_coarse, num_fine_edges_x_coarse_edge(iedge_coarse), fine_edges_list,    &
-                                                                          vertices_in_edge, nodes_counter, nodes_type, start_node_gid, first_fine_edge,       &
-                                                                          num_nodes_each_type, num_fine_edges_found, offcomponent_fine_edges )
+                vertices_in_edge, nodes_counter, nodes_type, start_node_gid, first_fine_edge,       &
+                num_nodes_each_type, num_fine_edges_found, offcomponent_fine_edges )
 
            offcomponent_fine_edges = offcomponent_fine_edges + num_fine_edges_found 
            call num_fine_edges_x_subedge%put( key=total_num_subedges, val=num_fine_edges_found, stat=istat ); check(istat==now_stored) 
@@ -2271,7 +2230,7 @@ subroutine assign_and_count_node_types(edge_interior_vertices, num_nodes, node_l
         call nodes_type%put(key=node_list(inode), val=n_furcation_node, stat=istat)
         num_nodes_each_type( n_furcation_node ) = num_nodes_each_type( n_furcation_node ) + 1
         num_startend_nodes    = num_startend_nodes + counter
-								WRITE(*,*) 'NFURCATION-NODE is FOUND WITH N=', counter 
+        WRITE(*,*) 'NFURCATION-NODE is FOUND WITH N=', counter 
      end if
   end do
 
@@ -2505,7 +2464,7 @@ subroutine build_path_from_starting_node_and_direction_till_end_node(this, iedge
      vertices_in_edge(iedge, :) = nodes_gid_buffer 
   end do
 
-		! Update last node counter and type found in the chain 
+  ! Update last node counter and type found in the chain 
   call update_nodes_counter_and_type( following_node_gid, nodes_counter, nodes_type, num_nodes_each_type )
 
 end subroutine build_path_from_starting_node_and_direction_till_end_node
@@ -2542,11 +2501,11 @@ subroutine update_nodes_counter_and_type ( node_id, nodes_counter, nodes_type, n
      num_nodes_each_type( edge_boundary_node ) = num_nodes_each_type( edge_boundary_node ) - 1
 
   case ( interior_node ) 
-		
-        call nodes_counter%del( key=node_id, stat=istat); check(istat==deleted)
-        call nodes_type%del( key=node_id, stat=istat); check(istat==deleted)
-        num_nodes_each_type( interior_node ) = num_nodes_each_type( interior_node ) - 1
-		
+
+     call nodes_counter%del( key=node_id, stat=istat); check(istat==deleted)
+     call nodes_type%del( key=node_id, stat=istat); check(istat==deleted)
+     num_nodes_each_type( interior_node ) = num_nodes_each_type( interior_node ) - 1
+
   case ( n_furcation_node ) 
 
      call nodes_counter%get( key=node_id, val=counter, stat=istat); check(istat==key_found)
