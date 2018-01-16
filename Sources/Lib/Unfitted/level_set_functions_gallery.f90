@@ -394,21 +394,115 @@ subroutine level_set_function_set_domain ( this, domain )
     type(point_t)               , intent(in)    :: point
     real(rp)                    , intent(inout) :: result
 
-    real(rp) :: c1, c2
+    real(rp) :: c1, c2, c3
     real(rp) :: x1, x2, x3
+    real(rp) :: A, alpha, d
+    real(rp) :: zmin, zmax
+    integer(ip) :: k
 
-    integer(ip), parameter :: n = 2
-    real(rp)   , parameter :: r = 0.15
-    real(rp)   , parameter :: rd = 0.8
+    real(rp)   , parameter :: n = 2.0/3.0
+    real(rp)   , parameter :: r = 0.20
+    real(rp)   , parameter :: rd = 0.75
+
+    real(rp)   :: tau
+
+    type(vector_field_t) :: p
 
     x1 = point%get(1)
     x2 = point%get(2)
     x3 = point%get(3)
 
-    c1 = rd * sin(2.0*PI*x3/real(n))
-    c2 = rd * cos(2.0*PI*x3/real(n))
+    zmin = this%domain(5)
+    zmax = this%domain(6)
 
-    result = (x1-c1)**2 + (x2-c2)**2 - r
+    tau = 1.1*r
+
+    A = n / (2.0*PI)
+
+    k = 0
+    alpha = A*(atan2(x2,x1) + k*PI)
+    result = 1.0e10
+    do while ( alpha <= (9.0/2.0)*PI*A )  !(zmax - zmin - 2* tau) )
+      if (alpha >= 0.0) then
+        c1 = rd * cos(alpha/A)
+        c2 = rd * sin(alpha/A)
+        c3 = alpha + zmin + tau
+        d = sqrt( (x1-c1)**2 + (x2-c2)**2 + (x3-c3)**2 ) - r
+        if (abs(d) < abs(result)) then
+          result = d
+        end if
+      end if
+      k = k + 1
+      alpha = A*(atan2(x2,x1) + k*PI)
+    end do
+
+    call p%set(1,rd)
+    call p%set(2,0.0)
+    call p%set(3,zmin + tau)
+
+    d = sqrt( (x1-p%get(1))**2 + (x3-p%get(3))**2 ) - r
+    if (d < result .and. x2 <= p%get(2)) then
+      result = d
+    end if
+
+    call p%set(1,0.0)
+    call p%set(2,rd)
+    call p%set(3,zmin + tau + (9.0/2.0)*PI*A)
+
+    d = sqrt( (x2-p%get(2))**2 + (x3-p%get(3))**2 ) - r
+    if (d < result .and. x1 <= p%get(1)) then
+      result = d
+    end if
+
+    !x1 = point%get(1)
+    !x2 = point%get(2)
+    !x3 = point%get(3)
+
+    !zmin = this%domain(5)
+    !zmax = this%domain(6)
+
+    !alpha_s = 1.1*r
+    !alpha_e = zmax - zmin - alpha_s
+
+    !A = n / (2.0*PI)
+
+    !k = 0
+    !alpha = A*(atan2(x2,x1) + k*PI)
+    !result = 1.0e10
+    !do while ( alpha <= alpha_e )
+    !  if (alpha >= alpha_s) then
+    !    c1 = rd * cos(alpha/A)
+    !    c2 = rd * sin(alpha/A)
+    !    c3 = alpha + zmin
+    !    d = sqrt( (x1-c1)**2 + (x2-c2)**2 + (x3-c3)**2 ) - r
+    !    if (abs(d) < abs(result)) then
+    !      result = d
+    !    end if
+    !  end if
+    !  k = k + 1
+    !  alpha = A*(atan2(x2,x1) + k*PI)
+    !end do
+
+    !call p%set(1,rd*cos(alpha_s/A))
+    !call p%set(2,rd*sin(alpha_s/A))
+    !call p%set(3,alpha_s + zmin)
+
+    !call v%init(0.0)
+    !call v%set(1,-1.0*rd*sin(alpha_s/A))
+    !call v%set(2,     rd*cos(alpha_s/A))
+
+    !alpha = ((point-p)*v)/v%nrm2()
+    !if (alpha<0) then
+    !  p = p + alpha*v
+    !  d = sqrt( (x1-p%get(1))**2 + (x2-p%get(2))**2 + (x3-p%get(3))**2 ) - r
+    !  if (abs(d) < abs(result)) then
+    !    result = d
+    !  end if
+    !end if
+
+
+    
+
 
   end subroutine level_set_spiral_get_level_set_value
 
