@@ -56,6 +56,7 @@ module stokes_params_names
      character(len=:), allocatable :: default_is_periodic_in_z
      character(len=:), allocatable :: default_max_level
      character(len=:), allocatable :: default_case_id
+     character(len=:), allocatable :: default_bc_case_id
      character(len=:), allocatable :: default_check_solution
      character(len=:), allocatable :: default_unfitted_boundary_is_dirichlet
      character(len=:), allocatable :: default_is_constant_nitches_beta
@@ -89,6 +90,7 @@ module stokes_params_names
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
      integer(ip) :: max_level
      integer(ip) :: case_id
+     integer(ip) :: bc_case_id
      logical :: check_sol
      logical :: unfitted_boundary_is_dirichlet
      logical :: is_constant_nitches_beta
@@ -121,6 +123,7 @@ module stokes_params_names
      procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: get_max_level
      procedure, non_overridable             :: get_case_id
+     procedure, non_overridable             :: get_bc_case_id
      procedure, non_overridable             :: are_checks_active
      procedure, non_overridable             :: get_unfitted_boundary_is_dirichlet
      procedure, non_overridable             :: get_is_constant_nitches_beta
@@ -183,6 +186,7 @@ contains
     this%default_is_periodic_in_z = '0'
     this%default_max_level = '3'
     this%default_case_id = '1'
+    this%default_bc_case_id = '1'
     this%default_check_solution = '.true.'
     this%default_unfitted_boundary_is_dirichlet = '.true.'
     this%default_is_constant_nitches_beta       = '.false.'
@@ -267,6 +271,9 @@ contains
     call this%cli%add(switch='--case_id',switch_ab='-cid',help='Id of the functions used in the run',&
          &            required=.false.,act='store',def=trim(this%default_case_id),error=error) 
     check(error==0) 
+    call this%cli%add(switch='--bc_case_id',switch_ab='-bcid',help='Id of the boundary setup used in the run',&
+         &            required=.false.,act='store',def=trim(this%default_bc_case_id),error=error) 
+    check(error==0) 
     call this%cli%add(switch='--check_solution',switch_ab='-check',help='Check or not the solution',&
          &            required=.false.,act='store',def=trim(this%default_check_solution),error=error) 
     check(error==0) 
@@ -329,6 +336,7 @@ contains
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
     call this%cli%get(switch='-maxl',val=this%max_level,error=istat); check(istat==0)
     call this%cli%get(switch='-cid',val=this%case_id,error=istat); check(istat==0)
+    call this%cli%get(switch='-bcid',val=this%bc_case_id,error=istat); check(istat==0)
     call this%cli%get(switch='-check',val=this%check_sol,error=istat); check(istat==0)
     call this%cli%get(switch='-is_diri',val=this%unfitted_boundary_is_dirichlet,error=istat); check(istat==0)
     call this%cli%get(switch='-is_bconst',val=this%is_constant_nitches_beta,error=istat); check(istat==0)
@@ -374,6 +382,7 @@ contains
     if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
     if(allocated(this%default_max_level)) deallocate(this%default_max_level)
     if(allocated(this%default_case_id)) deallocate(this%default_case_id)
+    if(allocated(this%default_bc_case_id)) deallocate(this%default_bc_case_id)
     if(allocated(this%default_check_solution)) deallocate(this%default_check_solution)
     if(allocated(this%default_unfitted_boundary_is_dirichlet)) deallocate(this%default_unfitted_boundary_is_dirichlet)
     if(allocated(this%default_is_constant_nitches_beta)) deallocate(this%default_is_constant_nitches_beta)
@@ -499,6 +508,14 @@ contains
     integer(ip) :: get_case_id
     get_case_id = this%case_id
   end function get_case_id
+
+  !==================================================================================================
+  function get_bc_case_id(this)
+    implicit none
+    class(stokes_params_t) , intent(in) :: this
+    integer(ip) :: get_bc_case_id
+    get_bc_case_id = this%bc_case_id
+  end function get_bc_case_id
 
   !==================================================================================================
   function are_checks_active(this)

@@ -162,13 +162,21 @@ contains
     integer(ip) :: max_levels
     integer(ip) :: diri_set_id_u
     integer(ip) :: diri_set_id_u_and_p
+    integer(ip) :: neumann_set_id
     logical :: first_interior_vertex
     integer(ip) :: ivef
     real(rp) :: target_size
+    type(point_t), allocatable :: nodal_coords(:)
+    integer(ip) :: istat
+    integer(ip) :: vef_lid
+    class(reference_fe_t), pointer :: reference_fe
+    type(list_iterator_t) :: nodal_iter
+    type(point_t) :: mp
+    real(rp), parameter :: tol = 1.0e-10
+    type(unfitted_vtk_writer_t) :: vtk_writer
 
     ! Create the triangulation, with the levelset function
     call this%triangulation%create(this%parameter_list,this%level_set_function)
-
 
     ! Create initial refined mesh
     select case ( trim(this%test_params%get_refinement_pattern()) )
@@ -292,6 +300,7 @@ contains
     end select
 
     ! Impose Dirichlet
+    neumann_set_id = 3
     if (this%test_params%is_strong_dirichlet_on_fitted_boundary()) then
       diri_set_id_u = 1
       diri_set_id_u_and_p = 2
@@ -303,6 +312,7 @@ contains
 
        call this%triangulation%create_vef_iterator(vef)
        call this%triangulation%create_cell_iterator(cell)
+       allocate(nodal_coords(this%triangulation%get_max_num_shape_functions()),stat=istat); check(istat == 0)
 
        ! For velocities
        do while ( .not. vef%has_finished() )
@@ -321,7 +331,7 @@ contains
          if (cell%is_interior()) then
            do ivef = 1, cell%get_num_vefs()
              call cell%get_vef(ivef,vef)
-             if (vef%is_proper() .and. vef%get_dim() == 0) then
+             if (vef%is_proper() .and. vef%get_dim() == 0 .and. (.not. vef%is_at_boundary()) ) then
                if (first_interior_vertex) then
                  call vef%set_set_id(diri_set_id_u_and_p)
                  first_interior_vertex = .false.
@@ -338,8 +348,47 @@ contains
 
        massert(.not. first_interior_vertex,'No interior vertex in interior cell found: refine your mesh!')
 
+       if (this%test_params%get_bc_case_id()==2 .or. this%test_params%get_bc_case_id()==3) then
+         call vef%first()
+         do while ( .not. vef%has_finished() )
+           if(vef%is_at_boundary()) then
+
+             ! Compute vef mid point coordinate
+             call vef%get_cell_around(1,cell)
+             call cell%get_nodes_coordinates(nodal_coords)
+             vef_lid = cell%get_vef_lid_from_gid(vef%get_gid())
+             reference_fe => cell%get_reference_fe()
+             nodal_iter = reference_fe%create_dofs_on_n_face_iterator(vef_lid)
+             call mp%init(0.0)
+             do while (.not. nodal_iter%is_upper_bound())
+               mp = mp + nodal_coords(nodal_iter%get_current())
+               call nodal_iter%next()
+             end do
+             mp = (1.0/real(nodal_iter%get_size(),kind=rp))*mp
+
+             if (this%test_params%get_bc_case_id()==2) then
+               if ( abs(mp%get(1)-1.0) < tol &
+                 .and. abs(mp%get(2)-0.0)>tol .and. abs(mp%get(2)-1.0)>tol &
+                 .and. abs(mp%get(3)-0.0)>tol .and. abs(mp%get(3)-1.0)>tol ) then
+                 call vef%set_set_id(neumann_set_id)
+               end if
+             else
+               if ( abs(mp%get(2)-0.0) < tol &
+                 .and. abs(mp%get(1)-0.0)>tol .and. abs(mp%get(1)-1.0)>tol &
+                 .and. abs(mp%get(3)-0.0)>tol .and. abs(mp%get(3)-1.0)>tol ) then
+                 call vef%set_set_id(neumann_set_id)
+               end if
+             end if
+
+           end if
+           call vef%next()
+         end do
+       end if
+
+
        call this%triangulation%free_vef_iterator(vef)
        call this%triangulation%free_cell_iterator(cell)
+       deallocate(nodal_coords,stat=istat); check(istat == 0)
 
     end if
 
@@ -1000,7 +1049,11 @@ contains
         call vtk_writer%attach_fe_function(this%solution,this%fe_space)
         call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh_solution.vtu')
         call vtk_writer%free()
-        
+
+        ! Write vefs
+        call vtk_writer%attach_vefs(this%triangulation)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_vefs.vtu')
+        call vtk_writer%free()
 
     endif
   end subroutine write_solution
