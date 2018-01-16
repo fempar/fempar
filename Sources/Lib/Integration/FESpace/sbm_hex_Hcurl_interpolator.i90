@@ -228,7 +228,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
         call this%edge_maps(reference_fe_id)%get_tangent(qpoint, tangent)
         do ishape=1, this%fes_1D(reference_fe_id)%get_num_shape_functions()
            call this%fes_1D(reference_fe_id)%get_value(this%edge_interpolations(reference_fe_id), ishape, qpoint, shape_test)
-           dof_values(d+ishape) = dof_values(d+ishape) +  1.0_rp/edge_measure * this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
+           dof_values(d+ishape) = dof_values(d+ishape) + this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
         end do
      end do
 
@@ -278,7 +278,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
                  call mapped_shape_test%set(idime, 1.0_rp/col_jacobian%nrm2()*mapped_shape_test%get(idime) ) 
               end do
 
-              dof_values(d+ishape) = dof_values(d+ishape) + 1.0_rp/facet_measure * cross_product_function_normal * mapped_shape_test * factor
+              dof_values(d+ishape) = dof_values(d+ishape) + cross_product_function_normal * mapped_shape_test * factor
            end do
         end do
         d = d + this%fes_2D(reference_fe_id)%get_num_shape_functions()
@@ -306,7 +306,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
         factor = this%cell_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%cell_quadratures(reference_fe_id)%get_weight(qpoint)
         do ishape=1, this%fes_rt(reference_fe_id)%get_num_shape_functions() 
            call reference_fe%get_value(this%real_cell_interpolations(reference_fe_id), ishape, qpoint, v_shape_test)
-           dof_values(d+ishape) = dof_values(d+ishape) + 1.0_rp/cell_measure * this%cell_function_values(qpoint,1) * v_shape_test * factor
+           dof_values(d+ishape) = dof_values(d+ishape) + this%cell_function_values(qpoint,1) * v_shape_test * factor
         end do
      end do
 
@@ -388,7 +388,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
            do ishape = 1, this%fes_1D(reference_fe_id)%get_num_shape_functions()  
               idof = own_dofs%get_current() 
               call this%fes_1D(reference_fe_id)%get_value(this%edge_interpolations(reference_fe_id), ishape, qpoint, shape_test)
-              dof_values(idof) = dof_values(idof) + 1.0_rp/edge_measure * this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
+              dof_values(idof) = dof_values(idof) + this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
               call own_dofs%next() 
            end do
         end do
@@ -453,7 +453,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
                     call this%cell_maps(reference_fe_id)%get_jacobian_column(idime,qpoint,col_jacobian)
                     call mapped_shape_test%set(idime, 1.0_rp/col_jacobian%get(idime)*mapped_shape_test%get(idime) ) 
                  end do
-                  dof_values(idof) = dof_values(idof) + 1.0_rp/facet_measure * cross_product_function_normal * mapped_shape_test * factor
+                  dof_values(idof) = dof_values(idof) + cross_product_function_normal * mapped_shape_test * factor
                  call own_dofs%next() 
               end do
            end do

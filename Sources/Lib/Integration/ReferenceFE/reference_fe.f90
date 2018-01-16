@@ -1145,7 +1145,6 @@ contains
 
 procedure (nedelec_change_basis_interface) , private, deferred :: change_basis
 procedure (fill_interpolation_restricted_to_edget_interface), private, deferred :: fill_interpolation_restricted_to_edget
-procedure (nedelec_apply_scaling_to_interpolation_interface), private, deferred :: apply_scaling_to_interpolation 
 
 procedure :: create                          => nedelec_create
 procedure :: free                            => nedelec_free
@@ -1217,13 +1216,6 @@ abstract interface
     type(interpolation_t)        , intent(inout) :: edget_interpolation
   end subroutine fill_interpolation_restricted_to_edget_interface
 		
-		  subroutine nedelec_apply_scaling_to_interpolation_interface ( this, cell_map, interpolation )
-    import :: nedelec_reference_fe_t, cell_map_t, interpolation_t 
-    implicit none 
-    class(nedelec_reference_fe_t)    , intent(in)    :: this 
-				type(cell_map_t)                 , intent(in)    :: cell_map
-				type(interpolation_t)            , intent(inout) :: interpolation
-  end subroutine nedelec_apply_scaling_to_interpolation_interface
 end interface 
 
 public :: nedelec_reference_fe_t
@@ -1462,8 +1454,6 @@ procedure, private :: change_basis &
 & => hex_nedelec_reference_fe_change_basis
 procedure :: fill_qpoints_permutations           &
 & =>  hex_nedelec_reference_fe_fill_qpoints_permutations 
-procedure :: apply_scaling_to_interpolation                              & 
-& => hex_nedelec_reference_fe_apply_scaling_to_interpolation 
 end type hex_nedelec_reference_fe_t
 
 public :: hex_nedelec_reference_fe_t
@@ -1507,8 +1497,6 @@ procedure :: compute_permutation_index                                   &
 & => tet_nedelec_reference_fe_compute_permutation_index
 procedure :: permute_dof_LID_n_face                                      &
 & => tet_nedelec_reference_fe_permute_dof_LID_n_face
-procedure :: apply_scaling_to_interpolation                              & 
-& => tet_nedelec_reference_fe_apply_scaling_to_interpolation 
 end type tet_nedelec_reference_fe_t
 
 public :: tet_nedelec_reference_fe_t

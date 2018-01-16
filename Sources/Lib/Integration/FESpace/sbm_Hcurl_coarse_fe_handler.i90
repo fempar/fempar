@@ -119,7 +119,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
   type(serial_scalar_array_t)    :: first_moment_constraint_in_edges 
   real(rp), pointer              :: first_moment_constraint_in_edges_entries(:)
   integer(ip)                    :: coarse_edge, fine_edge, icdof, vef_local_dof 
-  real(rp)                       :: edge_length, sign_factor 
+  real(rp)                       :: sign_factor 
 
   type(list_iterator_t)     :: coarse_subedge_iterator
   type(list_iterator_t)     :: fine_edge_iterator
@@ -170,7 +170,6 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
            do while ( .not. fine_edge_iterator%is_upper_bound() ) 
               call vef%set_gid( fine_edge_iterator%get_current() )
               fine_edge = fine_edge + 1 
-              edge_length = this%compute_edge_length(par_fe_space, vef)
 
               call this%fine_edge_direction%get(key=fine_edge_iterator%get_current(), val=orientation, stat=istat); check(istat==key_found)
               sign_factor = 1.0_rp
@@ -186,9 +185,9 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
                  if ( dof_lid > 0 ) then
                     select case ( edge_continuity_algorithm ) 
                     case (tangential_average) 
-                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor*edge_length )	
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor )	
                     case (tangential_average_and_first_order_moment) 					  
-                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor*edge_length )	
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor )	
                        if ( (num_fine_edges_in_subedge .gt. 1) .or. (this%order .gt. 1) ) then 
                           call constraint_matrix%insert(dof_lid, coarse_dof_lid+1, -first_moment_constraint_in_edges_entries(dof_lid) )	
                        end if
@@ -317,7 +316,7 @@ subroutine Hcurl_l1_setup_tools(this, par_fe_space)
   integer(ip)             , allocatable     :: num_fine_edges_x_coarse_edge(:)
   type(hash_table_ip_ip_t), allocatable     :: edge_interior_vertices(:)
 
-  ! To think where does it come from
+  ! To think where does it comes from
   field_id = 1
 
   ! Count and partition coarse edges 
@@ -533,7 +532,7 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
   integer(ip)           :: orientation 
 
   integer(ip) :: isubedge, idof, jdof, istat 
-  real(rp)    :: edge_length, sign_factor, factor   
+  real(rp)    :: sign_factor, factor   
   integer(ip) :: local_edge, num_fine_edges_in_subedge
 
   call par_fe_space%create_fe_vef_iterator(vef)
@@ -574,21 +573,18 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
 
         call this%fine_edge_direction%get(key=fine_edge_iterator%get_current(), val=orientation, stat=istat); check(istat==key_found) 
 
-        edge_length = this%compute_edge_length(par_fe_space, vef)
-        factor = 1.0_rp/edge_length 
-
         do jdof = 1, this%order+1   ! Loop over all nedelec-like dofs in the fine edge   
            if ( dofs_new_basis(jdof) > 0 ) then 
               if ( orientation == same_as_coarse_edge ) then 
                  call this%change_basis_matrix%insert(nz  = this%order,                                       &  
                                                       ia  = dofs_old_basis - this%num_interior_dofs,          &
                                                       ja  = dofs_new_basis(jdof) - this%num_interior_dofs,    &
-                                                      val = elmat(:, jdof) * factor  )
+                                                      val = elmat(:, jdof) )
               elseif ( orientation == opposite_to_coarse_edge ) then 
                  do idof = 1, this%order 
                     call this%change_basis_matrix%insert(ia  = dofs_old_basis(idof) - this%num_interior_dofs,  &
                                                          ja  = dofs_new_basis(jdof) - this%num_interior_dofs,  &
-                                                         val = -elmat(this%order+1-idof, jdof) * factor )
+                                                         val = -elmat(this%order+1-idof, jdof) )
                  end do
               end if
            end if
@@ -596,18 +592,15 @@ subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
 
         ! Last column is filled with scaled average of all dofs_old_basis
         do idof=1, this%order 
-
            if ( orientation == same_as_coarse_edge )  then 
               sign_factor =  1.0_rp 
            else 
               sign_factor = -1.0_rp
            end if
-
            call this%change_basis_matrix%insert(ia  = dofs_old_basis(idof) - this%num_interior_dofs,  &
                                                 ja  = new_basis_average_dof - this%num_interior_dofs, &  ! Last DOF 
-                                                val = sign_factor*edge_length  )
+                                                val = sign_factor )
         end do
-
         call fine_edge_iterator%next() 
      end do
 
@@ -640,7 +633,6 @@ subroutine Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis(this, par_f
   type(list_iterator_t)                     :: vertices_of_line_iterator
   integer(ip)                               :: idof, istat
   integer(ip)                               :: dummy_val, i
-  real(rp)                                  :: factor, edge_length 
   logical(ip)                               :: is_affluent 
   type(hash_table_ip_ip_t)                  :: coupled_vefs_added_to_node
 
@@ -712,18 +704,17 @@ subroutine Hcurl_l1_fill_edge_coupled_to_edges_local_change_of_basis(this, par_f
                              if (vertex_within_edge_id==2) is_affluent = .true.   
 
                              call this%get_dofs_from_vef(par_fe_space, edge, dofs_old_basis)   
-                             factor = 1.0_rp/this%compute_edge_length(par_fe_space, edge)
 
                              if ( is_affluent ) then  ! Affluent edge 
                                 call this%change_basis_matrix%insert(nz       = this%order,                              & 
                                                                      ia       = dofs_old_basis - this%num_interior_dofs, &
                                                                      ja       = new_basis_dof - this%num_interior_dofs,  &
-                                                                     val      = elmat(:, this%order+1)*factor)
+                                                                     val      = elmat(:, this%order+1) )
                              elseif ( .not. is_affluent ) then ! Effluent edge 		 
                                    call this%change_basis_matrix%insert(nz       = this%order,                              & 
 																																																																								ia       = dofs_old_basis - this%num_interior_dofs, &
                                                                         ja       = new_basis_dof - this%num_interior_dofs,  &
-                                                                        val      = elmat(:, 1)*factor   )
+                                                                        val      = elmat(:, 1) )
                              end if
 
                              call coupled_vefs_added_to_node%put( key=edge%get_gid(), val=dummy_val, stat=istat)
@@ -1231,7 +1222,6 @@ subroutine hex_Hcurl_l1_compute_face_discrete_gradient_elmat(this, fe, fe_face, 
            call Lagrangian_fe_3D%get_gradient(Lagrangian_interpolation_phy, nodes_in_edge_iterator%get_current(), qpoint, gradv_shape_trial)
            cross_product_gradv_shape_trial_normal = cross_product(gradv_shape_trial,normal)			         
 											elmat(ishape,jshape) = elmat(ishape, jshape) +  factor * cross_product_gradv_shape_trial_normal*mapped_shape_test
-           elmat(ishape,jshape) = elmat(ishape, jshape) + 1.0_rp/facet_map%get_measure() * factor * cross_product_gradv_shape_trial_normal*mapped_shape_test
            call nodes_in_edge_iterator%next() 
         end do
      end do
@@ -1479,7 +1469,8 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
 
   ! Elemental vector int(Phi), lack of lenght (Jacobian), computed in h=[-1,1] elemental edge   
   call this%compute_edge_lagrangian_average_elvec( par_fe_space, elvec ) 
-
+  factor = this%compute_edge_length(par_fe_space, vef)/2.0_rp ! 2.0_rp is the reference FE edge length 
+										
   call par_fe_space%create_fe_vef_iterator(vef)
 
   ! Loop on fine edges and assemble the elemental vector, C_new  
@@ -1507,7 +1498,6 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
            shared_nodal_dof               = dofs_old_basis(this%order)
         end if
 
-        factor = this%compute_edge_length(par_fe_space, vef)/2.0_rp ! 2.0_rp is the reference FE edge length 
         do idof = 1, this%order+1    
            if ( dofs_new_basis(idof) > 0 ) then 
               call constraint_in_edges%add( i    = dofs_new_basis(idof),  &
