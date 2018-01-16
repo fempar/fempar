@@ -151,16 +151,14 @@ function mlbddc_get_par_sparse_matrix(this)
   implicit none
   class(mlbddc_t)          , intent(in) :: this
   type(par_sparse_matrix_t), pointer    :: mlbddc_get_par_sparse_matrix
-  type(lvalue_operator_t)              :: matrix
-  matrix = this%fe_nonlinear_operator%get_tangent()
-  select type( op => matrix%get_operator() )
+  class(matrix_t), pointer              :: matrix
+  matrix => this%fe_nonlinear_operator%get_matrix()
+  select type( matrix )
   type is (par_sparse_matrix_t)
-     mlbddc_get_par_sparse_matrix => op
+     mlbddc_get_par_sparse_matrix => matrix
      class default
      check(.false.)
   end select
-  ! sbadia : not clear how to do it
-  call matrix%free()
 end function mlbddc_get_par_sparse_matrix
 
 function mlbddc_get_fe_space(this)
