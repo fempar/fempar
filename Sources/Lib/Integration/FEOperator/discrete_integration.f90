@@ -53,12 +53,19 @@ module discrete_integration_names
      procedure                                          :: set_boundary_data
      generic   :: integrate => integrate_galerkin, integrate_petrov_galerkin
   end type discrete_integration_t
+  
+  type, abstract, extends(discrete_integration_t) :: linear_discrete_integration_t
+   contains
+     procedure :: set_evaluation_point => linear_di_set_evaluation_point
+     procedure :: integrate_tangent     => linear_di_integrate_tangent
+  end type linear_discrete_integration_t
+  
 
   type p_discrete_integration_t
      class(discrete_integration_t), pointer :: p => NULL()  
   end type p_discrete_integration_t
 
-  public :: discrete_integration_t, p_discrete_integration_t
+  public :: discrete_integration_t, linear_discrete_integration_t, p_discrete_integration_t
 
   abstract interface
      subroutine integrate_galerkin_interface ( this, fe_space, assembler )
@@ -127,4 +134,18 @@ module discrete_integration_names
        type(serial_scalar_array_t)    ,    intent(in)       :: boundary_data     
        mcheck(.false.,"You must implement set_boundary_data if you want to use it")
      end subroutine  set_boundary_data 
+     
+	 subroutine linear_di_set_evaluation_point ( this, evaluation_point )
+       implicit none
+       class(linear_discrete_integration_t)  ,    intent(inout)    :: this    
+       class(vector_t)                ,    intent(in)       :: evaluation_point 
+  end subroutine  linear_di_set_evaluation_point 
+  
+   subroutine linear_di_integrate_tangent ( this, fe_space, assembler )
+       implicit none
+       class(linear_discrete_integration_t)  ,    intent(in)    :: this
+       class(serial_fe_space_t)       ,    intent(inout) :: fe_space
+       class(assembler_t),    intent(inout) :: assembler
+       call this%integrate( fe_space, assembler )
+   end subroutine  linear_di_integrate_tangent
 end module discrete_integration_names

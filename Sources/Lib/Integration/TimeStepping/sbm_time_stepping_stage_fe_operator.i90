@@ -145,10 +145,10 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
       call dummy_v%axpby(this%ts_op%dt*this%ts_op%scheme%a(this%i,j), this%ts_op%dofs_stages(j), 1.0_rp) 
     end if
   end do
-  di_fe_op   => this%fe_nl_op%get_discrete_integration()
-  di_mass_op => this%mass_nl_op%get_discrete_integration()
-  call di_fe_op%set_evaluation_point(this%aux)
-  call di_mass_op%set_evaluation_point(x)
+  !di_fe_op   => this%fe_nl_op%get_discrete_integration()
+  !di_mass_op => this%mass_nl_op%get_discrete_integration()
+  call this%fe_nl_op%set_evaluation_point(this%aux)
+  call this%mass_nl_op%set_evaluation_point(x)
   
   call this%fe_nonlinear_operator_t%set_evaluation_point(x)
     

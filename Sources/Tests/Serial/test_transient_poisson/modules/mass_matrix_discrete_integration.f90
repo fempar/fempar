@@ -25,43 +25,24 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module poisson_cG_discrete_integration_names
+module mass_discrete_integration_names
   use fempar_names
-  use poisson_analytical_functions_names
   
   implicit none
 # include "debug.i90"
   private
-  type, extends(linear_discrete_integration_t) :: poisson_cG_discrete_integration_t
-     type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
-     type(fe_function_t)                 , pointer :: fe_function          => NULL()
+  type, extends(linear_discrete_integration_t) :: mass_discrete_integration_t
    contains
-     procedure :: set_analytical_functions
-     procedure :: set_fe_function
      procedure :: integrate_galerkin
-  end type poisson_cG_discrete_integration_t
+  end type mass_discrete_integration_t
   
-  public :: poisson_cG_discrete_integration_t
+  public :: mass_discrete_integration_t
   
 contains
    
-  subroutine set_analytical_functions ( this, analytical_functions )
-     implicit none
-     class(poisson_cG_discrete_integration_t)    , intent(inout) :: this
-     type(poisson_analytical_functions_t), target, intent(in)    :: analytical_functions
-     this%analytical_functions => analytical_functions
-  end subroutine set_analytical_functions
-
-  subroutine set_fe_function (this, fe_function)
-     implicit none
-     class(poisson_cG_discrete_integration_t), intent(inout) :: this
-     type(fe_function_t)             , target, intent(in)    :: fe_function
-     this%fe_function => fe_function
-  end subroutine set_fe_function
-
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
-    class(poisson_cG_discrete_integration_t), intent(in)    :: this
+    class(mass_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)         , intent(inout) :: fe_space
     class(assembler_t)      , intent(inout) :: assembler
 
@@ -70,29 +51,18 @@ contains
 
     ! FE integration-related data types
     type(quadrature_t)       , pointer :: quad
-    type(point_t)            , pointer :: quad_coords(:)
-    type(vector_field_t), allocatable  :: shape_gradients(:,:)
     real(rp)            , allocatable  :: shape_values(:,:)
 
     ! FE matrix and vector i.e., A_K + f_K
-    real(rp), allocatable              :: elmat(:,:), elvec(:)
+    real(rp), allocatable              :: elmat(:,:)
 
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points
     integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
     real(rp)     :: factor
-    real(rp)     :: source_term_value
 
-    class(scalar_function_t), pointer :: source_term
-
-    assert (associated(this%analytical_functions))
-    assert (associated(this%fe_function)) 
-    
-    source_term => this%analytical_functions%get_source_term()
-    
     max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
     call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
-    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
     
     call fe_space%create_fe_cell_iterator(fe)
     do while ( .not. fe%has_finished() )
@@ -100,44 +70,31 @@ contains
        ! Update FE-integration related data structures
        call fe%update_integration()
           
-       ! Very important: this has to be inside the loop, as different FEs can be present!
+       ! Very important: this has to be inside the loop, as different FEs canit stat be present!
        quad            => fe%get_quadrature()
        num_quad_points =  quad%get_num_quadrature_points()
        num_dofs        =  fe%get_num_dofs()
        
-       ! Get quadrature coordinates to evaluate source_term
-       quad_coords => fe%get_quadrature_points_coordinates()
-
        ! Compute element matrix and vector
        elmat = 0.0_rp
-       elvec = 0.0_rp
-       call fe%get_gradients(shape_gradients)
        call fe%get_values(shape_values)
        do qpoint = 1, num_quad_points
           factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           do idof = 1, num_dofs
              do jdof = 1, num_dofs
                 ! A_K(i,j) = (grad(phi_i),grad(phi_j))
-                elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)
+                elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_values(jdof,qpoint) * shape_values(idof,qpoint)
              end do
-          end do
-          
-          ! Source term
-          call source_term%get_value(quad_coords(qpoint),source_term_value)
-          do idof = 1, num_dofs
-             elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint)
           end do 
        end do
        
-       call fe%assembly( this%fe_function, elmat, elvec, assembler )
+       call fe%assembly( elmat, assembler )
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
 
     call memfree(shape_values, __FILE__, __LINE__)
-    deallocate (shape_gradients, stat=istat); check(istat==0);
     call memfree ( elmat, __FILE__, __LINE__ )
-    call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
   
-end module poisson_cG_discrete_integration_names
+end module mass_discrete_integration_names

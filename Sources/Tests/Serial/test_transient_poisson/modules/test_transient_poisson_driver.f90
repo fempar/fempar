@@ -29,6 +29,7 @@ module test_transient_poisson_driver_names
   use fempar_names
   use test_transient_poisson_params_names
   use poisson_cG_discrete_integration_names
+  use mass_discrete_integration_names
   use poisson_conditions_names
   use poisson_analytical_functions_names
   use time_stepping_names
@@ -55,11 +56,14 @@ module test_transient_poisson_driver_names
      type(serial_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      type(poisson_cG_discrete_integration_t)      :: poisson_cG_integration
+     type(mass_discrete_integration_t)            :: mass_integration
      type(poisson_conditions_t)                   :: poisson_conditions
      type(poisson_analytical_functions_t)         :: poisson_analytical_functions
           
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)                   :: fe_affine_operator
+     type(fe_affine_operator_t)                   :: mass_operator
+
      
      ! Direct and Iterative linear solvers data type
 #ifdef ENABLE_MKL     
@@ -216,6 +220,13 @@ contains
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%poisson_cG_integration )
+    
+    call this%mass_operator%create ( sparse_matrix_storage_format      = csr_format, &
+                                          diagonal_blocks_symmetric_storage = [ .true. ], &
+                                          diagonal_blocks_symmetric         = [ .true. ], &
+                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                          fe_space                          = this%fe_space, &
+                                          discrete_integration              = this%mass_integration )
   
     call this%solution%create(this%fe_space) 
     call this%fe_space%interpolate_dirichlet_values(this%solution)
@@ -298,7 +309,8 @@ contains
     class(test_transient_poisson_driver_t), intent(inout)   :: this
     class(matrix_t)                         , pointer       :: matrix
     class(vector_t)                         , pointer       :: rhs
-    class(vector_t)                         , pointer       :: dof_values_previous, dof_values_current
+    class(vector_t)                         , pointer       :: dof_values_current 
+    class(vector_t)                         , allocatable   :: dof_values_previous
     real(rp) :: current_time, final_time, time_step
     
     ! Time integration machinery
@@ -323,7 +335,7 @@ contains
 #endif   
     
     call time_operator%create( fe_nl_op = this%fe_affine_operator, &
-                               mass_op = this%fe_affine_operator, &
+                               mass_op = this%mass_operator, &
                                time_integration_scheme = 'backward_euler' )    
     call time_solver%create( ts_op = time_operator, &
                              nl_solver = nl_solver )
@@ -340,14 +352,13 @@ contains
     ! initialize dof_values_current
 	
 	! set a right initial value
-	! create the mass discrete integration
 	! put the right forcing term (time independent)
 	! check solution for BE, ...
 	
-	
+    call dof_values_current%mold(dof_values_previous)  ! select dynamic type of dof_values_previous
+    call dof_values_previous%clone(dof_values_current) ! allocate dof_values_current
     do while ( current_time <= final_time )
-	   call dof_values_previous%copy(dof_values_current)
-       dof_values_previous = dof_values_current
+   	   call dof_values_previous%copy(dof_values_current) ! copy entries
        call time_operator%set_initial_data(dof_values_previous) 
        call time_solver%apply( dof_values_previous, dof_values_current )
        ! sbadia: it is not nice to have to pass the initial data at two different levels 
