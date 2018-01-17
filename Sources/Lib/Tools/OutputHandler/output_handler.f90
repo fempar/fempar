@@ -116,8 +116,8 @@ private
         procedure, non_overridable         ::                                   output_handler_create_string
         procedure, non_overridable         ::                                   output_handler_create_mold
         procedure, non_overridable, public :: attach_fe_space                => output_handler_attach_fe_space
-        procedure, non_overridable, public :: set_create_fe_cell_iterator         => output_handler_set_create_fe_cell_iterator
-        procedure, non_overridable, public :: set_free_fe_cell_iterator           => output_handler_set_free_fe_cell_iterator
+        procedure, non_overridable, public :: set_create_fe_cell_iterator    => output_handler_set_create_fe_cell_iterator
+        procedure, non_overridable, public :: set_free_fe_cell_iterator      => output_handler_set_free_fe_cell_iterator
         procedure, non_overridable, public :: add_fe_function                => output_handler_add_fe_function
         procedure, non_overridable, public :: add_field_generator            => output_handler_add_field_generator
         procedure, non_overridable, public :: add_cell_vector                => output_handler_add_cell_vector
