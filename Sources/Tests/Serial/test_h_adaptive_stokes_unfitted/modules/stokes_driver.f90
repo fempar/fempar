@@ -373,10 +373,9 @@ contains
                  call vef%set_set_id(neumann_set_id)
                end if
              else
-               if ( abs(mp%get(2)-0.0) < tol &
-                 .and. abs(mp%get(1)-0.0)>tol .and. abs(mp%get(1)-1.0)>tol &
-                 .and. abs(mp%get(3)-0.0)>tol .and. abs(mp%get(3)-1.0)>tol ) then
-                 call vef%set_set_id(neumann_set_id)
+               call vef%set_set_id(neumann_set_id)
+               if ( abs(mp%get(1)-0.0) < tol .and. mp%get(2)>0.75 .and. mp%get(3)>0.75) then
+                 call vef%set_set_id(diri_set_id_u)
                end if
              end if
 
@@ -559,8 +558,8 @@ contains
       end select
 
     else if (this%test_params%get_lin_solver_type()=='minres') then
-      FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-10_rp)
-      FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 50)
+      FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-4_rp)
+      FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 100)
       FPLError = FPLError + parameter_list%set(key = ils_max_num_iterations, value = 5000000)
       assert(FPLError == 0)
       call this%iterative_linear_solver%create(this%fe_space%get_environment())
@@ -1051,7 +1050,7 @@ contains
         call vtk_writer%free()
 
         ! Write vefs
-        call vtk_writer%attach_vefs(this%triangulation)
+        call vtk_writer%attach_vefs(this%triangulation,this%conditions)
         call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_vefs.vtu')
         call vtk_writer%free()
 
