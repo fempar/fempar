@@ -36,6 +36,8 @@ module unfitted_vtk_writer_names
  use fe_space_names
  use environment_names
  use list_types_names
+ use conditions_names
+ use function_names
 
 
   use unfitted_triangulations_names
@@ -492,11 +494,12 @@ contains
   end subroutine uvtkw_attach_fitted_faces
 
 !========================================================================================  
-  subroutine uvtkw_attach_vefs(this,triangulation)
+  subroutine uvtkw_attach_vefs(this,triangulation,conditions)
 
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
     class(triangulation_t), intent(in)    :: triangulation
+    class(conditions_t), optional, intent(in) :: conditions
 
     class(vef_iterator_t),allocatable :: vef
     class(cell_iterator_t), allocatable :: cell
@@ -513,6 +516,8 @@ contains
     integer(ip), parameter :: nodes_vtk2fempar_0d(1) = [1]
     integer(ip), parameter :: nodes_vtk2fempar_1d(2) = [1, 2]
     integer(ip), parameter :: nodes_vtk2fempar_2d(4) = [1, 2 , 4, 3]
+    type(p_scalar_function_t) :: func
+    class(scalar_function_t), pointer :: fun
 
     call this%free()
 
@@ -547,6 +552,10 @@ contains
     call memalloc ( this%Ne, this%offset   , __FILE__, __LINE__ )
     call memalloc ( this%Nn, this%connect  , __FILE__, __LINE__ )
     call memalloc ( this%Ne, this%cell_data , __FILE__, __LINE__ )
+    if (present(conditions)) then
+      call memalloc ( this%Nn, this%point_data  , __FILE__, __LINE__ )
+      this%point_data(:) = 0.0
+    end if
 
     call vef%first()
     inode = 1
@@ -565,6 +574,13 @@ contains
         this%y(inode) = nodal_coords(nodal_iter%get_current())%get(2)
         this%z(inode) = nodal_coords(nodal_iter%get_current())%get(3)
         nodal_ids(ino) = inode
+        if (present(conditions)) then
+          call conditions%get_function(boundary_id=vef%get_set_id(),component_id=1_ip,function=func%p)
+          fun => func%p
+          if (associated(fun)) then
+            call  fun%get_value(nodal_coords(nodal_iter%get_current()), this%point_data(inode))
+          end if
+        end if
         inode = inode + 1
         ino = ino + 1
         call nodal_iter%next()
@@ -1164,7 +1180,7 @@ contains
     assert(associated(this%environment))
     assert(this%environment%am_i_l1_task())
 
-    E_IO = VTK_INI_XML(output_format = 'ascii', filename = filename, mesh_topology = 'UnstructuredGrid')
+    E_IO = VTK_INI_XML(output_format = 'binary', filename = filename, mesh_topology = 'UnstructuredGrid')
     E_IO = VTK_GEO_XML(NN = this%Nn, NC = this%Ne, X = this%x, Y = this%y, Z = this%z)
     E_IO = VTK_CON_XML(NC = this%Ne, connect = this%connect, offset = this%offset, cell_type = int(this%cell_type,I1P) )
 
