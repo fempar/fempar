@@ -197,7 +197,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
      call this%get_function_values( vector_function, quad_points_coordinates, this%edge_function_values, time)
 
      edge_measure = this%edge_maps(reference_fe_id)%get_measure()
-     ! Integrate edge boundary moments 1/|edge| * int_edge(f.tau q), q \in P_k-1
+     ! Integrate edge boundary moments int_edge(f.tau q), q \in P_k-1
      do qpoint = 1, num_quad_points 
         factor = this%edge_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%edge_quadratures(reference_fe_id)%get_weight(qpoint)
         call this%edge_maps(reference_fe_id)%get_tangent(qpoint, tangent)
@@ -264,8 +264,8 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
 
      cell_measure = this%cell_maps(reference_fe_id)%get_measure()  			
      ! Integration of interior moments 
-     ! 2D CASE: 1/|K| * int_K (g·q), q \in P_{k-2,k-2} x P_{k-2,k-2} 
-     ! 3D CASE: 1/|K| * int_K (g·q), q \in P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3}     
+     ! 2D CASE:  int_K (g·q), q \in P_{k-2,k-2} x P_{k-2,k-2} 
+     ! 3D CASE:  int_K (g·q), q \in P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3}     
      do qpoint = 1, this%cell_quadratures(reference_fe_id)%num_quadrature_points
         factor = this%cell_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%cell_quadratures(reference_fe_id)%get_weight(qpoint)
         do ishape=1, this%fes_lagrangian(reference_fe_id)%get_num_shape_functions()
@@ -344,7 +344,7 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
 
         edge_measure = this%edge_maps(reference_fe_id)%get_measure() 
 
-        ! Integrate edge boundary moments 1/|edge| int_edge(g·tau q), q \in P_k-1
+        ! Integrate edge boundary moments int_edge(g·tau q), q \in P_k-1
         own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(edge_id)
         do qpoint = 1, num_quad_points
            factor = this%edge_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%edge_quadratures(reference_fe_id)%get_weight(qpoint)

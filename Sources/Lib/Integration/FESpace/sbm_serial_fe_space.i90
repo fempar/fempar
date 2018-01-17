@@ -29,8 +29,8 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
                                                                    triangulation, &
                                                                    reference_fes, &
                                                                    conditions,    &
-																                                                   field_blocks,  &
-																                                                   field_coupling, &
+								   field_blocks,  &
+		                                                   field_coupling, &
                                                                    generate_global_dof_numbering)
   implicit none
   class(serial_fe_space_t)                     , intent(inout) :: this
@@ -535,7 +535,11 @@ subroutine serial_fe_space_interpolate_scalar_function (this, field_id, function
   class(interpolator_t)    , allocatable :: interpolator
   character(:)             , allocatable :: interpolator_type_
   logical                                :: is_void_field 
+  class(triangulation_t)   , pointer     :: triangulation 
 
+  triangulation => this%get_triangulation() 
+  if ( triangulation%get_num_cells() == 0) return 
+		
   ! Extract reference_fe_t instance associated to field_id for the first non-void element 
   call this%create_fe_cell_iterator(fe)
   is_void_field = .true. 
@@ -588,6 +592,10 @@ subroutine serial_fe_space_interpolate_vector_function (this, field_id, function
   class(interpolator_t)    , allocatable :: interpolator
   character(:)             , allocatable :: interpolator_type_
   logical                  , allocatable :: is_void_field  
+  class(triangulation_t)   , pointer     :: triangulation 
+
+  triangulation => this%get_triangulation() 
+  if ( triangulation%get_num_cells() == 0) return 
 
   ! Extract reference_fe_t instance associated to field_id for the first non-void element 
   call this%create_fe_cell_iterator(fe)
