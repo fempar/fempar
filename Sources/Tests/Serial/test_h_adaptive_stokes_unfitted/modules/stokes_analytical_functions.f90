@@ -572,6 +572,64 @@ contains
   end subroutine sol_ex004_3d_grad_p
 
   !===================================================
+
+  subroutine sol_ex005_3d_u(point,val)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    real(rp) :: x, y, z, r
+    real(rp), parameter :: tol = 1.0e-10
+    real(rp), parameter :: y0 = 0.5, x0 = 0.5, r0 = 0.3
+    x = point%get(1)
+    y = point%get(2)
+    z = point%get(3)
+    call val%init(0.0)
+    if (abs(z)<=tol) then
+      r = sqrt( (y-y0)**2 + (x-x0)**2 )
+      if (r<r0) then
+        call val%set(3, 10*(1.0 - r**2 / r0**2 ))
+      end if
+    end if
+  end subroutine sol_ex005_3d_u
+
+  subroutine sol_ex005_3d_grad_u(point,val)
+    implicit none
+    type(point_t),        intent(in)    :: point
+    type(tensor_field_t), intent(inout) :: val
+    call val%init(0.0)
+  end subroutine sol_ex005_3d_grad_u
+
+  subroutine sol_ex005_3d_lapl_u(point,val)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    call val%init(0.0)
+  end subroutine sol_ex005_3d_lapl_u
+
+  subroutine sol_ex005_3d_div_u(point,val)
+    implicit none
+    type(point_t), intent(in)    :: point
+    real(rp),      intent(inout) :: val
+    val = 0.0
+  end subroutine sol_ex005_3d_div_u
+
+  !===================================================
+
+  subroutine sol_ex005_3d_p(point,val)
+    implicit none
+    type(point_t), intent(in)    :: point
+    real(rp),      intent(inout) :: val
+    val = 0.0
+  end subroutine sol_ex005_3d_p
+
+  subroutine sol_ex005_3d_grad_p(point,val)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    call val%init(0.0)
+  end subroutine sol_ex005_3d_grad_p
+
+  !===================================================
   subroutine base_scalar_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -659,6 +717,11 @@ contains
           result = (-1.0)*val
           call sol_ex004_3d_grad_p(point,val)
           result = result + (-1.0)*val
+        case (5)
+          call sol_ex005_3d_lapl_u(point,val)
+          result = (-1.0)*val
+          call sol_ex005_3d_grad_p(point,val)
+          result = result + (-1.0)*val
         case default
           check(.false.)
       end select
@@ -691,6 +754,8 @@ contains
           call sol_ex003_3d_u(point,result)
         case (4)
           call sol_ex004_3d_u(point,result)
+        case (5)
+          call sol_ex005_3d_u(point,result)
         case default
           check(.false.)
       end select
@@ -723,6 +788,8 @@ contains
           call sol_ex003_3d_grad_u(point,result)
         case (4)
           call sol_ex004_3d_grad_u(point,result)
+        case (5)
+          call sol_ex005_3d_grad_u(point,result)
         case default
           check(.false.)
       end select
@@ -755,6 +822,8 @@ contains
           call sol_ex003_3d_div_u(point,result)
         case (4)
           call sol_ex004_3d_div_u(point,result)
+        case (5)
+          call sol_ex005_3d_div_u(point,result)
         case default
           check(.false.)
       end select
@@ -787,6 +856,8 @@ contains
           call sol_ex003_3d_p(point,result)
         case (4)
           call sol_ex004_3d_p(point,result)
+        case (5)
+          call sol_ex005_3d_p(point,result)
         case default
           check(.false.)
       end select
@@ -819,6 +890,8 @@ contains
           call sol_ex003_3d_grad_p(point,result)
         case (4)
           call sol_ex004_3d_grad_p(point,result)
+        case (5)
+          call sol_ex005_3d_grad_p(point,result)
         case default
           check(.false.)
       end select
