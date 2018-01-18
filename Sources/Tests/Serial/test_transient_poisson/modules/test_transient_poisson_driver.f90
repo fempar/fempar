@@ -63,7 +63,9 @@ module test_transient_poisson_driver_names
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)                   :: fe_affine_operator
      type(fe_affine_operator_t)                   :: mass_operator
-
+     type(nonlinear_solver_t)                     :: nl_solver
+     type(time_stepping_operator_t)               :: time_operator
+     type(dirk_solver_t)                          :: time_solver
      
      ! Direct and Iterative linear solvers data type
 #ifdef ENABLE_MKL     
@@ -212,8 +214,7 @@ contains
   subroutine setup_system (this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
-    
-    call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
+   
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                           diagonal_blocks_symmetric_storage = [ .true. ], &
                                           diagonal_blocks_symmetric         = [ .true. ], &
@@ -227,10 +228,15 @@ contains
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%mass_integration )
+   
+    call this%time_operator%create( fe_nl_op = this%fe_affine_operator, &
+                                    mass_op = this%mass_operator, &
+                                    time_integration_scheme = 'backward_euler' )  
+    
   
     call this%solution%create(this%fe_space) 
-    call this%fe_space%interpolate_dirichlet_values(this%solution)
     call this%poisson_cG_integration%set_fe_function(this%solution) 
+    call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
   end subroutine setup_system
   
   subroutine setup_solver (this)
@@ -251,15 +257,25 @@ contains
     assert(FPLError == 0)
     
     call this%direct_solver%set_type_from_pl(parameter_list)
-    call this%direct_solver%set_parameters_from_pl(parameter_list)
-    
-    matrix => this%fe_affine_operator%get_matrix()
+    call this%direct_solver%set_parameters_from_pl(parameter_list)    
+    matrix => this%time_operator%get_matrix()
     select type(matrix)
     class is (sparse_matrix_t)  
        call this%direct_solver%set_matrix(matrix)
     class DEFAULT
        assert(.false.) 
     end select
+    
+    call this%nl_solver%create( convergence_criteria = 'abs_res_norm', &
+                                abs_tol = 1.0e-6_rp, &
+                                rel_tol = 1.0e-6_rp, &
+                                max_iters = 10_ip, &
+                                linear_solver = this%direct_solver, &
+                                environment = this%fe_space%get_environment() )
+    
+    call this%time_solver%create( ts_op = this%time_operator, &
+                                  nl_solver = this%nl_solver )
+    
 #else    
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
     !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
@@ -269,6 +285,13 @@ contains
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
+    
+    call this%nl_solver%create( convergence_criteria = 'abs_res_norm', &
+                                abs_tol = 1.0e-6_rp, &
+                                rel_tol = 1.0e-6_rp, &
+                                max_iters = 10_ip, &
+                                linear_solver = this%iterative_linear_solver, &
+                                environment = this%fe_space%get_environment() )
 #endif
     call parameter_list%free()
   end subroutine setup_solver
@@ -277,94 +300,72 @@ contains
   subroutine assemble_system (this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
-    class(matrix_t)                  , pointer       :: matrix
-    class(vector_t)                  , pointer       :: rhs
-    integer(ip) :: luout
-    call this%fe_affine_operator%compute()
-    rhs                => this%fe_affine_operator%get_translation()
-    matrix             => this%fe_affine_operator%get_matrix()
+    !class(matrix_t)                  , pointer       :: matrix
+    !class(vector_t)                  , pointer       :: rhs
+    !integer(ip) :: luout
+    !call this%fe_affine_operator%compute()
+    !rhs                => this%fe_affine_operator%get_translation()
+    !matrix             => this%fe_affine_operator%get_matrix()
     
-    luout = io_open ( "matrix.mtx", 'write')
-    select type(matrix)
-    class is (sparse_matrix_t)  
-       call matrix%print_matrix_market(luout) 
-    class DEFAULT
-       assert(.false.) 
-    end select
-    call io_close(luout)
+    !luout = io_open ( "matrix.mtx", 'write')
+    !select type(matrix)
+    !class is (sparse_matrix_t)  
+    !   call matrix%print_matrix_market(luout) 
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
+    !call io_close(luout)
     
-    luout = io_open ( "force_term.mtx", 'write')
-    select type(rhs)
-    class is (serial_scalar_array_t)  
-      call rhs%print_matrix_market(luout) 
-    class DEFAULT
-       assert(.false.) 
-    end select
-    call io_close(luout)
+    !luout = io_open ( "force_term.mtx", 'write')
+    !select type(rhs)
+    !class is (serial_scalar_array_t)  
+    !  call rhs%print_matrix_market(luout) 
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
+    !call io_close(luout)
   end subroutine assemble_system
   
   
   subroutine solve_system(this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout)   :: this
-    class(matrix_t)                         , pointer       :: matrix
-    class(vector_t)                         , pointer       :: rhs
     class(vector_t)                         , pointer       :: dof_values_current 
     class(vector_t)                         , allocatable   :: dof_values_previous
     real(rp) :: current_time, final_time, time_step
     
     ! Time integration machinery
-    type(nonlinear_solver_t)       :: nl_solver
-    type(time_stepping_operator_t) :: time_operator
-    type(dirk_solver_t)            :: time_solver
+
+
     
-#ifdef ENABLE_MKL  
-    call nl_solver%create( convergence_criteria = 'abs_res_norm', &
-                           abs_tol = 1.0e-6_rp, &
-                           rel_tol = 1.0e-6_rp, &
-                           max_iters = 10_ip, &
-                           linear_solver = this%direct_solver, &
-                           environment = this%fe_space%get_environment() )
-#else  
-    call nl_solver%create( convergence_criteria = 'abs_res_norm', &
-                           abs_tol = 1.0e-6_rp, &
-                           rel_tol = 1.0e-6_rp, &
-                           max_iters = 10_ip, &
-                           linear_solver = this%iterative_linear_solver, &
-                           environment = this%fe_space%get_environment() )  
-#endif   
-    
-    call time_operator%create( fe_nl_op = this%fe_affine_operator, &
-                               mass_op = this%mass_operator, &
-                               time_integration_scheme = 'backward_euler' )    
-    call time_solver%create( ts_op = time_operator, &
-                             nl_solver = nl_solver )
-    
-    matrix     => this%fe_affine_operator%get_matrix()
-    rhs        => this%fe_affine_operator%get_translation()
-    dof_values_current => this%solution%get_free_dof_values()
    
     current_time= 0.0_rp
     final_time  = 5.0_rp
     time_step   = 1.0_rp
     ! sbadia: for transient body force/bc's we will need the time t0 too
-    call time_operator%set_time_step_size(time_step)
+    call this%time_operator%set_time_step_size(time_step)
     ! initialize dof_values_current
-	
-	! set a right initial value
-	! put the right forcing term (time independent)
-	! check solution for BE, ...
-	
+
+    ! set a right initial value
+    ! put the right forcing term (time independent)
+    ! check solution for BE, ...
+    call this%fe_space%interpolate(field_id=1, &
+                                   function = this%poisson_analytical_functions%get_solution_function(), &
+                                   fe_function=this%solution, &
+                                   time=current_time)
+    dof_values_current => this%solution%get_free_dof_values()
     call dof_values_current%mold(dof_values_previous)  ! select dynamic type of dof_values_previous
     call dof_values_previous%clone(dof_values_current) ! allocate dof_values_current
     do while ( current_time <= final_time )
-   	   call dof_values_previous%copy(dof_values_current) ! copy entries
-       call time_operator%set_initial_data(dof_values_previous) 
-       call time_solver%apply( dof_values_previous, dof_values_current )
+       call this%poisson_cG_integration%set_current_time(current_time) 
+       call this%fe_space%interpolate_dirichlet_values(this%solution, time=current_time)
+       call dof_values_previous%copy(dof_values_current) ! copy entries
+       call this%time_operator%set_initial_data(dof_values_previous) 
+       call this%time_solver%apply( dof_values_previous, dof_values_current )
        ! sbadia: it is not nice to have to pass the initial data at two different levels 
        call this%write_time_step(current_time)
        current_time = current_time + time_step
-    end do 
+    end do
     
   end subroutine solve_system
     
@@ -477,7 +478,12 @@ contains
     call this%iterative_linear_solver%free()
 #endif
     
+    call this%time_solver%free()
+    call this%nl_solver%free()
+    
+    call this%time_operator%free()
     call this%fe_affine_operator%free()
+    call this%mass_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)

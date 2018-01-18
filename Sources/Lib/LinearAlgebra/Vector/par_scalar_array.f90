@@ -569,11 +569,10 @@ contains
    select type(vector)
    class is (par_scalar_array_t)
      par_scalar_array_same_vector_space = (associated(this%p_env,vector%p_env)) 
-     if ( associated (this%p_env) ) then
-       if(this%p_env%am_i_l1_task()) then
-          par_scalar_array_same_vector_space = par_scalar_array_same_vector_space .and. (associated(this%dof_import,vector%dof_import))
-       end if
-     end if 
+     if(this%p_env%am_i_l1_task()) then
+        par_scalar_array_same_vector_space = par_scalar_array_same_vector_space .and. (associated(this%dof_import,vector%dof_import))
+        par_scalar_array_same_vector_space = par_scalar_array_same_vector_space .and. (this%serial_scalar_array%same_vector_space(vector%serial_scalar_array))
+     end if   
    end select
   end function par_scalar_array_same_vector_space
   

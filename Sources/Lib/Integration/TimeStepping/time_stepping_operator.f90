@@ -159,9 +159,10 @@ module time_stepping_names
      procedure :: create                          => time_stepping_operator_create
      procedure :: free                            => time_stepping_operator_free
      procedure :: set_initial_data                => time_stepping_operator_set_initial_data
-     procedure :: set_time_step_size              => time_stepping_operator_set_time_step_size     
+     procedure :: set_time_step_size              => time_stepping_operator_set_time_step_size
+     procedure :: get_matrix                      => time_stepping_operator_get_matrix
      procedure, private :: allocate_dofs_stages   => time_stepping_operator_allocate_dofs_stages
-     procedure, private :: deallocate_dofs_stages => time_stepping_operator_allocate_dofs_stages
+     procedure, private :: deallocate_dofs_stages => time_stepping_operator_deallocate_dofs_stages
      procedure, private :: get_stage_operator     => time_stepping_operator_get_stage_operator
      !!!procedure :: create             => time_stepping_operator_create
      ! sbadia: It must be defined since it is an operator, but for the moment

@@ -38,23 +38,26 @@ module poisson_analytical_functions_names
     procedure :: set_num_dims    => base_scalar_function_set_num_dims 
   end type base_scalar_function_t
   
-  type, extends(base_scalar_function_t) :: source_term_t
+    type, extends(base_scalar_function_t) :: source_term_t
     private 
    contains
-     procedure :: get_value_space    => source_term_get_value_space
+     procedure :: get_value_space       => source_term_get_value_space
+     procedure :: get_value_space_time  => source_term_get_value_space_time
   end type source_term_t
 
   type, extends(base_scalar_function_t) :: boundary_function_t
     private
    contains
-     procedure :: get_value_space => boundary_function_get_value_space
+     procedure :: get_value_space      => boundary_function_get_value_space
+     procedure :: get_value_space_time => boundary_function_get_value_space_time
   end type boundary_function_t
 
   type, extends(base_scalar_function_t) :: solution_function_t
     private 
    contains
-     procedure :: get_value_space    => solution_function_get_value_space
-     procedure :: get_gradient_space => solution_function_get_gradient_space
+     procedure :: get_value_space      => solution_function_get_value_space
+     procedure :: get_gradient_space   => solution_function_get_gradient_space
+     procedure :: get_value_space_time => solution_function_get_value_space_time
   end type solution_function_t
 
   type poisson_analytical_functions_t
@@ -63,7 +66,7 @@ module poisson_analytical_functions_names
      type(boundary_function_t) :: boundary_function
      type(solution_function_t) :: solution_function
    contains
-     procedure :: set_num_dims      => poisson_analytical_functions_set_num_dims
+     procedure :: set_num_dims            => poisson_analytical_functions_set_num_dims
      procedure :: get_source_term         => poisson_analytical_functions_get_source_term
      procedure :: get_boundary_function   => poisson_analytical_functions_get_boundary_function
      procedure :: get_solution_function   => poisson_analytical_functions_get_solution_function
@@ -73,6 +76,7 @@ module poisson_analytical_functions_names
 
 contains  
 
+  !===============================================================================================
   subroutine base_scalar_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_scalar_function_t), intent(inout)    :: this
@@ -87,8 +91,25 @@ contains
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    result = 0.0_rp 
+    mcheck(.false., "Implementation pending")
   end subroutine source_term_get_value_space
+  
+  !===============================================================================================
+  subroutine source_term_get_value_space_time( this, point, time, result )
+    implicit none
+    class(source_term_t), intent(in)    :: this
+    type(point_t)       , intent(in)    :: point
+    real(rp)            , intent(in)    :: time
+    real(rp)            , intent(inout) :: result
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    if ( this%num_dims == 2 ) then
+      ! (x**2-x)*(y**2-y) - 2*t * ( (y**2-y) + (x**2-x) )
+      result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2)) - & 
+               2.0_rp * time * ((point%get(1)**2-point%get(1)) +  (point%get(2)**2-point%get(2)))
+    else if ( this%num_dims == 3 ) then
+      mcheck(.false., "Implementation pending")
+    end if
+  end subroutine source_term_get_value_space_time
 
   !===============================================================================================
   subroutine boundary_function_get_value_space ( this, point, result )
@@ -96,13 +117,26 @@ contains
     class(boundary_function_t), intent(in)  :: this
     type(point_t)           , intent(in)    :: point
     real(rp)                , intent(inout) :: result
+    mcheck(.false., "Implementation pending")
+  end subroutine boundary_function_get_value_space 
+  
+  !===============================================================================================
+  subroutine boundary_function_get_value_space_time( this, point, time, result )
+    implicit none
+    class(boundary_function_t), intent(in)    :: this
+    type(point_t)             , intent(in)    :: point
+    real(rp)                  , intent(in)    :: time
+    real(rp)                  , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
-      result = point%get(1)+ point%get(2) ! x+y
+      ! (x**2-x)*(y**2-y) - 2*t * ( (y**2-y) + (x**2-x) )
+      result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2)) - & 
+               2.0_rp * time * ((point%get(1)**2-point%get(1)) + (point%get(2)**2-point%get(2)))
     else if ( this%num_dims == 3 ) then
-      result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
-    end if  
-  end subroutine boundary_function_get_value_space 
+      mcheck(.false., "Implementation pending")
+    end if
+  end subroutine boundary_function_get_value_space_time
+  
 
   !===============================================================================================
   subroutine solution_function_get_value_space ( this, point, result )
@@ -118,6 +152,7 @@ contains
     end if  
       
   end subroutine solution_function_get_value_space
+
   
   !===============================================================================================
   subroutine solution_function_get_gradient_space ( this, point, result )
@@ -135,6 +170,22 @@ contains
       call result%set( 3, 1.0_rp ) 
     end if
   end subroutine solution_function_get_gradient_space
+  
+  !===============================================================================================
+  subroutine solution_function_get_value_space_time( this, point, time, result )
+    implicit none
+    class(solution_function_t), intent(in)    :: this
+    type(point_t)             , intent(in)    :: point
+    real(rp)                  , intent(in)    :: time
+    real(rp)                  , intent(inout) :: result
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    if ( this%num_dims == 2 ) then
+      ! (x**2-x)*(y**2-y)*t 
+      result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2))*time
+    else if ( this%num_dims == 3 ) then
+      mcheck(.false., "Implementation pending")
+    end if
+  end subroutine solution_function_get_value_space_time
   
   !===============================================================================================
   subroutine poisson_analytical_functions_set_num_dims ( this, num_dims )

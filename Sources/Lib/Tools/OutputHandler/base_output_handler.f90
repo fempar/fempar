@@ -127,6 +127,7 @@ private
     !-----------------------------------------------------------------
     private
         class(serial_fe_space_t),            pointer             :: fe_space              => NULL()
+        class(fe_cell_iterator_t), allocatable                   :: fe
         type(output_handler_fe_cell_function_t)                  :: ohcff
         type(output_handler_fe_field_t),    allocatable          :: fe_fields(:)
         type(output_handler_field_generator_info_t), allocatable :: field_generators(:)
@@ -275,6 +276,7 @@ contains
             deallocate(this%fe_fields)
         endif
         call this%ohcff%free()
+        call this%free_fe_cell_iterator_wrapper(this%fe)
         nullify(this%fe_space)
         nullify(this%create_fe_cell_iterator)
         nullify(this%free_fe_cell_iterator)
@@ -1067,17 +1069,16 @@ contains
     !-----------------------------------------------------------------
         class(base_output_handler_t), target, intent(inout) :: this
         logical,                              intent(in)    :: update_mesh
-        class(fe_cell_iterator_t), allocatable              :: fe
         type(output_handler_patch_t)                        :: patch
         type(patch_subcell_iterator_t)                      :: subcell_iterator
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_OPEN .or. this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
         assert(associated(this%fe_space))
         
-        call this%create_fe_cell_iterator_wrapper(fe)
         if(update_mesh) then
             ! Create Output Cell Handler and allocate patch fields
-            call this%ohcff%create(fe)
+            call this%create_fe_cell_iterator_wrapper(this%fe)
+            call this%ohcff%create(this%fe)
             this%state = BASE_OUTPUT_HANDLER_STATE_FILL
 
             ! Allocate geometry and connectivity arrays
@@ -1089,11 +1090,11 @@ contains
         
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_FILL)
         call patch%create(this%num_fields+this%num_field_generators, this%num_cell_vectors)
-        call fe%first()
+        call this%fe%first()
         ! Translate coordinates and connectivities to VTK format for every subcell
-        do while ( .not. fe%has_finished())
+        do while ( .not. this%fe%has_finished())
             ! Get Finite element
-            if ( fe%is_local() ) then
+            if ( this%fe%is_local() ) then
                 call this%fill_patch(patch)
                 subcell_iterator = patch%get_subcells_iterator()
 !               ! Fill data
@@ -1102,10 +1103,9 @@ contains
                     call subcell_iterator%next()
                 enddo
             endif
-            call fe%next()
+            call this%fe%next()
         end do
         call patch%free()
-        call this%free_fe_cell_iterator_wrapper(fe)
     end subroutine base_output_handler_fill_data
     
     subroutine base_output_handler_fill_patch(this,  patch)

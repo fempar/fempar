@@ -35,9 +35,11 @@ module poisson_cG_discrete_integration_names
   type, extends(linear_discrete_integration_t) :: poisson_cG_discrete_integration_t
      type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
      type(fe_function_t)                 , pointer :: fe_function          => NULL()
+     real(rp)                                      :: current_time = 0.0_rp
    contains
      procedure :: set_analytical_functions
      procedure :: set_fe_function
+     procedure :: set_current_time
      procedure :: integrate_galerkin
   end type poisson_cG_discrete_integration_t
   
@@ -58,6 +60,13 @@ contains
      type(fe_function_t)             , target, intent(in)    :: fe_function
      this%fe_function => fe_function
   end subroutine set_fe_function
+  
+  subroutine set_current_time (this, current_time)
+     implicit none
+     class(poisson_cG_discrete_integration_t), intent(inout) :: this
+     real(rp)                                , intent(in)    :: current_time
+     this%current_time = current_time
+  end subroutine set_current_time
 
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
@@ -123,7 +132,7 @@ contains
           end do
           
           ! Source term
-          call source_term%get_value(quad_coords(qpoint),source_term_value)
+          call source_term%get_value(quad_coords(qpoint),this%current_time,source_term_value)
           do idof = 1, num_dofs
              elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint)
           end do 

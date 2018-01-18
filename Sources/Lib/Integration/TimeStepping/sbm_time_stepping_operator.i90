@@ -66,6 +66,15 @@ subroutine time_stepping_operator_set_time_step_size( this, dt )
 end subroutine time_stepping_operator_set_time_step_size
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function time_stepping_operator_get_matrix( this )
+  implicit none
+  class(time_stepping_operator_t), intent(in) :: this
+  class(matrix_t), pointer :: time_stepping_operator_get_matrix
+  time_stepping_operator_get_matrix =>  this%fe_op%get_matrix()
+end function time_stepping_operator_get_matrix
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 subroutine time_stepping_operator_allocate_dofs_stages( this )
   implicit none
   class(time_stepping_operator_t), intent(inout) :: this

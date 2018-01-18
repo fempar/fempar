@@ -24,7 +24,6 @@ function fe_affine_operator_get_matrix(this)
   implicit none
   class(fe_affine_operator_t), target, intent(in) :: this
   class(matrix_t), pointer :: fe_affine_operator_get_matrix
-  call this%compute()
   fe_affine_operator_get_matrix => this%assembler%get_matrix()
 end function fe_affine_operator_get_matrix
 
@@ -86,7 +85,6 @@ function fe_affine_operator_get_tangent(this) result(tangent)
   implicit none
   class(fe_affine_operator_t), intent(in) :: this
   type(lvalue_operator_t)          :: tangent
-  call this%compute()
   tangent = this%assembler%get_matrix()
   call tangent%SetTemp()
 end function fe_affine_operator_get_tangent
@@ -95,7 +93,6 @@ function fe_affine_operator_get_translation(this) result(translation)
   implicit none
   class(fe_affine_operator_t), intent(in) :: this
   class(vector_t), pointer                :: translation
-  call this%compute()
   translation => this%assembler%get_array()
 end function fe_affine_operator_get_translation
 
