@@ -43,8 +43,8 @@ contains
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(mass_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)         , intent(inout) :: fe_space
-    class(assembler_t)      , intent(inout) :: assembler
+    class(serial_fe_space_t)          , intent(inout) :: fe_space
+    class(assembler_t)                , intent(inout) :: assembler
 
     ! FE space traversal-related data types
     class(fe_cell_iterator_t), allocatable :: fe
@@ -53,7 +53,7 @@ contains
     type(quadrature_t)       , pointer :: quad
     real(rp)            , allocatable  :: shape_values(:,:)
 
-    ! FE matrix and vector i.e., A_K + f_K
+    ! FE matrix i.e., A_K 
     real(rp), allocatable              :: elmat(:,:)
 
     integer(ip)  :: istat
@@ -70,19 +70,18 @@ contains
        ! Update FE-integration related data structures
        call fe%update_integration()
           
-       ! Very important: this has to be inside the loop, as different FEs canit stat be present!
        quad            => fe%get_quadrature()
        num_quad_points =  quad%get_num_quadrature_points()
        num_dofs        =  fe%get_num_dofs()
        
-       ! Compute element matrix and vector
+       ! Compute element matrix
        elmat = 0.0_rp
        call fe%get_values(shape_values)
        do qpoint = 1, num_quad_points
           factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           do idof = 1, num_dofs
              do jdof = 1, num_dofs
-                ! A_K(i,j) = (grad(phi_i),grad(phi_j))
+                ! A_K(i,j) = ((phi_i),phi_j))
                 elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_values(jdof,qpoint) * shape_values(idof,qpoint)
              end do
           end do 

@@ -279,6 +279,7 @@ contains
         real(rp),             parameter :: tol = 1.0e-10
 #endif
 
+        call x%GuardTemp()
         assert(associated(op%base_direct_solver))
         assert(op%base_direct_solver%matrix_is_set())
         if(.not. op%vector_spaces_are_created()) &
@@ -312,7 +313,7 @@ contains
             class DEFAULT
                 check(.false.)
         end select
-
+        call x%CleanTemp()
 
     end subroutine direct_solver_solve_single_rhs
 

@@ -168,7 +168,7 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
     end if 
     ! sbadia : Is this OK? No extra copy?
     ! sbadia : To be optimized (Why don't we change the concept of residual?)
-    call this%linear_solver%apply( - this%current_residual, this%increment_dof_values )
+    call this%linear_solver%apply( -this%current_residual, this%increment_dof_values )
     call this%update_solution() ! x + dx
     call nonlinear_operator%set_evaluation_point(this%current_dof_values)
     call nonlinear_operator%compute_residual()
