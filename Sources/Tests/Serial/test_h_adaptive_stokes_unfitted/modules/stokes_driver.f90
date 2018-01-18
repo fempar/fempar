@@ -314,43 +314,46 @@ contains
        call this%triangulation%create_cell_iterator(cell)
        allocate(nodal_coords(this%triangulation%get_max_num_shape_functions()),stat=istat); check(istat == 0)
 
-       ! For velocities
-       do while ( .not. vef%has_finished() )
-         if(vef%is_at_boundary()) then
-            call vef%set_set_id(diri_set_id_u)
-         else
-            call vef%set_set_id(0)
-         end if
-         call vef%next()
-       end do
+       if (this%test_params%get_bc_case_id()==1) then
 
-       ! For pressures
-       call cell%first()
-       first_interior_vertex = .true.
-       do while ( .not. cell%has_finished() )
-         if (cell%is_interior()) then
-           do ivef = 1, cell%get_num_vefs()
-             call cell%get_vef(ivef,vef)
-             if (vef%is_proper() .and. vef%get_dim() == 0 .and. (.not. vef%is_at_boundary()) ) then
-               if (first_interior_vertex) then
-                 call vef%set_set_id(diri_set_id_u_and_p)
-                 first_interior_vertex = .false.
-                 exit
-               end if
-             end if
-           end do
-           if (.not. first_interior_vertex) then
-             exit
+         ! For velocities
+         do while ( .not. vef%has_finished() )
+           if(vef%is_at_boundary()) then
+              call vef%set_set_id(diri_set_id_u)
+           else
+              call vef%set_set_id(0)
            end if
-         end if
-         call cell%next()
-       end do
+           call vef%next()
+         end do
 
-       massert(.not. first_interior_vertex,'No interior vertex in interior cell found: refine your mesh!')
+         ! For pressures
+         call cell%first()
+         first_interior_vertex = .true.
+         do while ( .not. cell%has_finished() )
+           if (cell%is_interior()) then
+             do ivef = 1, cell%get_num_vefs()
+               call cell%get_vef(ivef,vef)
+               if (vef%is_proper() .and. vef%get_dim() == 0 .and. (.not. vef%is_at_boundary()) ) then
+                 if (first_interior_vertex) then
+                   call vef%set_set_id(diri_set_id_u_and_p)
+                   first_interior_vertex = .false.
+                   exit
+                 end if
+               end if
+             end do
+             if (.not. first_interior_vertex) then
+               exit
+             end if
+           end if
+           call cell%next()
+         end do
 
-       if (this%test_params%get_bc_case_id()==2 .or. this%test_params%get_bc_case_id()==3) then
+         massert(.not. first_interior_vertex,'No interior vertex in interior cell found: refine your mesh!')
+
+       else if (this%test_params%get_bc_case_id()==2 .or. this%test_params%get_bc_case_id()==3) then
          call vef%first()
          do while ( .not. vef%has_finished() )
+           call vef%set_set_id(0)
            if(vef%is_at_boundary()) then
 
              ! Compute vef mid point coordinate
@@ -367,6 +370,7 @@ contains
              mp = (1.0/real(nodal_iter%get_size(),kind=rp))*mp
 
              if (this%test_params%get_bc_case_id()==2) then
+               call vef%set_set_id(diri_set_id_u)
                if ( abs(mp%get(1)-1.0) < tol &
                  .and. abs(mp%get(2)-0.0)>tol .and. abs(mp%get(2)-1.0)>tol &
                  .and. abs(mp%get(3)-0.0)>tol .and. abs(mp%get(3)-1.0)>tol ) then
@@ -382,6 +386,8 @@ contains
            end if
            call vef%next()
          end do
+       else
+         mcheck(.false.,'Unknwon boundary id case')
        end if
 
 
