@@ -136,6 +136,11 @@ contains
     type(tensor_field_t)       , allocatable  :: boundary_shape_gradients_u(:,:)
     real(rp)                   , allocatable  :: boundary_shape_values_p(:,:)
     type(vector_field_t)                      :: normal_vec
+    
+    integer(ip) :: icell, ncells, ipo
+    class(triangulation_t), pointer :: triangulation
+    integer(ip), parameter :: Npo = 20
+    integer(ip) :: print_points(Npo)
 
     !class(scalar_function_t) , pointer      :: exact_sol
     !type(piecewise_cell_map_t) , pointer :: pw_cell_map
@@ -168,8 +173,22 @@ contains
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
 
+
+    triangulation => fe_space%get_triangulation()
+    ncells = triangulation%get_num_cells()
+    do ipo = 1, Npo
+      icell = (ipo*ncells)/Npo
+      print_points(ipo) = icell
+    end do
+    write(*,*) 'Discrete integration ...'
+    write(*,*) 'num. cells: ', ncells, ' (this can take a while)'
+    icell = 0
+    ipo = 0
+    write(*,'(F8.1x1a1)') 100.0*(real(ipo)/real(Npo)), "%"
+
     call fe%first()
     do while ( .not. fe%has_finished() )
+
 
        call fe%update_integration()
 
@@ -292,6 +311,12 @@ contains
        call fe%assembly( this%fe_function, elmat, elvec, assembler )
        call fe%next()
 
+       icell = icell + 1
+       if ( any(icell == print_points(:))  ) then
+         ipo = ipo + 1
+         write(*,'(F8.1x1a1)') 100.0*(real(ipo)/real(Npo)), "%"
+       end if
+
     end do
 
     if (allocated(shape_values_u    )) deallocate  (shape_values_u          , stat=istat); check(istat==0)
@@ -313,6 +338,9 @@ contains
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
     call fe_space%free_fe_cell_iterator(fe)
+
+
+    write(*,*) 'Discrete integration ... OK'
   end subroutine integrate_galerkin
 
 end module stokes_cG_discrete_integration_names
