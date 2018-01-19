@@ -32,16 +32,20 @@ module mass_discrete_integration_names
 # include "debug.i90"
   private
   type, extends(linear_discrete_integration_t) :: mass_discrete_integration_t
+     class(fe_function_t), pointer :: fe_function => null()
    contains
-     procedure :: integrate_galerkin
-     procedure :: integrate_tangent => integrate_galerkin
+     procedure :: integrate_galerkin    => integrate_tangent 
+     procedure :: integrate_tangent
+     procedure :: integrate_residual 
+     procedure :: set_evaluation_point
+     procedure :: set_fe_function
   end type mass_discrete_integration_t
   
   public :: mass_discrete_integration_t
   
 contains
    
-  subroutine integrate_galerkin ( this, fe_space, assembler )
+  subroutine integrate_tangent ( this, fe_space, assembler )
     implicit none
     class(mass_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)          , intent(inout) :: fe_space
@@ -87,7 +91,6 @@ contains
              end do
           end do 
        end do
-       
        call fe%assembly( elmat, assembler )
        call fe%next()
     end do
@@ -95,6 +98,82 @@ contains
 
     call memfree(shape_values, __FILE__, __LINE__)
     call memfree ( elmat, __FILE__, __LINE__ )
-  end subroutine integrate_galerkin
+  end subroutine integrate_tangent
   
+  subroutine integrate_residual ( this, fe_space, assembler )
+    implicit none
+    class(mass_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)          , intent(inout) :: fe_space
+    class(assembler_t)                , intent(inout) :: assembler
+
+    ! FE space traversal-related data types
+    class(fe_cell_iterator_t), allocatable :: fe
+    
+    ! FE integration-related data types
+    type(quadrature_t)       , pointer :: quad
+    real(rp)            , allocatable  :: shape_values(:,:)
+
+    ! FE matrix i.e., r_K 
+    real(rp), allocatable              :: elvec(:)
+    
+    type(fe_cell_function_scalar_t)    :: u_h
+    real(rp), pointer                  :: u_h_values(:)
+
+    integer(ip)  :: istat
+    integer(ip)  :: qpoint, num_quad_points
+    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
+    real(rp)     :: factor
+
+    max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
+    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
+    
+    call u_h%create(fe_space, field_id=1)
+    
+    call fe_space%create_fe_cell_iterator(fe)
+    do while ( .not. fe%has_finished() )
+       
+       ! Update FE-integration related data structures
+       call fe%update_integration()
+       call u_h%update(fe, this%fe_function)
+       u_h_values => u_h%get_quadrature_points_values()   
+      
+       quad            => fe%get_quadrature()
+       num_quad_points =  quad%get_num_quadrature_points()
+       num_dofs        =  fe%get_num_dofs()
+       
+       ! Compute element vector
+       elvec = 0.0_rp
+       call fe%get_values(shape_values)
+       do qpoint = 1, num_quad_points
+          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          do idof = 1, num_dofs
+             ! r_K(i) = (phi_i,u_h)
+             elvec(idof) = elvec(idof) + factor * shape_values(idof,qpoint) * u_h_values(qpoint)
+          end do 
+       end do
+       
+       call fe%assembly( elvec, assembler )
+       call fe%next()
+    end do
+    call fe_space%free_fe_cell_iterator(fe)
+
+    call memfree(shape_values, __FILE__, __LINE__)
+    call memfree ( elvec, __FILE__, __LINE__ )
+    call u_h%free()
+  end subroutine integrate_residual
+  
+  subroutine set_fe_function (this, fe_function)
+    implicit none
+    class(mass_discrete_integration_t), intent(inout) :: this
+    type(fe_function_t) , target      , intent(in)    :: fe_function
+    this%fe_function => fe_function
+  end subroutine set_fe_function
+  
+  subroutine set_evaluation_point ( this, evaluation_point )
+    implicit none
+    class(mass_discrete_integration_t), intent(inout)  :: this
+    class(vector_t)                   , intent(in)     :: evaluation_point
+    call this%fe_function%set_free_dof_values(evaluation_point)
+  end subroutine set_evaluation_point
+ 
 end module mass_discrete_integration_names

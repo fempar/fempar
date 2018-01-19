@@ -157,7 +157,8 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
     
   do while (.not. this%has_finished())
     this%current_iteration = this%current_iteration + 1
-    call nonlinear_operator%compute_tangent()    
+    call nonlinear_operator%compute_tangent()  
+    
 
     if ( this%current_iteration == 1 ) then
        ! Force symbolic and numerical set-up

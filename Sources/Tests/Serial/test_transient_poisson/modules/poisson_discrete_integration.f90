@@ -32,6 +32,7 @@ module poisson_cG_discrete_integration_names
   implicit none
 # include "debug.i90"
   private
+  
   type, extends(linear_discrete_integration_t) :: poisson_cG_discrete_integration_t
      type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
      type(fe_function_t)                 , pointer :: fe_function          => NULL()
@@ -42,6 +43,7 @@ module poisson_cG_discrete_integration_names
      procedure :: set_current_time
      procedure :: integrate_galerkin
      procedure :: integrate_tangent
+     procedure :: integrate_residual 
   end type poisson_cG_discrete_integration_t
 
   
@@ -211,5 +213,78 @@ contains
     deallocate (shape_gradients, stat=istat); check(istat==0);
     call memfree ( elmat, __FILE__, __LINE__ )
   end subroutine integrate_tangent
+  
+  subroutine integrate_residual ( this, fe_space, assembler )
+    implicit none
+    class(poisson_cG_discrete_integration_t), intent(in)    :: this
+    class(serial_fe_space_t)                , intent(inout) :: fe_space
+    class(assembler_t)                      , intent(inout) :: assembler
+
+    ! FE space traversal-related data types
+    class(fe_cell_iterator_t), allocatable :: fe
+
+    ! FE integration-related data types
+    type(quadrature_t)       , pointer :: quad
+    type(point_t)            , pointer :: quad_coords(:)
+    type(vector_field_t), allocatable  :: shape_gradients(:,:)
+    real(rp)            , allocatable  :: shape_values(:,:)
+
+    ! FE matrix i.e., A_K 
+    real(rp), allocatable              :: elvec(:)
+    type(fe_cell_function_scalar_t)    :: u_h
+    type(vector_field_t), pointer      :: u_h_grads(:)
+
+    integer(ip)  :: istat
+    integer(ip)  :: qpoint, num_quad_points
+    integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
+    real(rp)     :: factor
+    class(scalar_function_t), pointer :: source_term
+    real(rp)     :: source_term_value
+ 
+    source_term => this%analytical_functions%get_source_term()
+    
+    max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
+    call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
+    
+    call u_h%create(fe_space, field_id=1)
+    
+    call fe_space%create_fe_cell_iterator(fe)
+    do while ( .not. fe%has_finished() )
+       ! Update FE-integration related data structures
+       call fe%update_integration()
+       
+       call u_h%update(fe, this%fe_function)
+       u_h_grads => u_h%get_quadrature_points_gradients()   
+          
+       ! Very important: this has to be inside the loop, as different FEs can be present!
+       quad            => fe%get_quadrature()
+       num_quad_points =  quad%get_num_quadrature_points()
+       num_dofs        =  fe%get_num_dofs()
+       
+       ! Get quadrature coordinates to evaluate source_term
+       quad_coords => fe%get_quadrature_points_coordinates()
+
+       ! Compute element matrix and vector
+       elvec = 0.0_rp
+       call fe%get_gradients(shape_gradients)
+       call fe%get_values(shape_values)
+       do qpoint = 1, num_quad_points
+          call source_term%get_value(quad_coords(qpoint),this%current_time,source_term_value)
+          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          do idof = 1, num_dofs
+            ! r_K(i) = (grad(phi_i),grad(u_h))-(f,phi_i)
+            elvec(idof) = elvec(idof) + factor * (shape_gradients(idof,qpoint)*u_h_grads(qpoint)- &
+                                                 (source_term_value*shape_values(idof,qpoint)))
+          end do
+       end do
+       call fe%assembly( elvec, assembler )
+       call fe%next()
+    end do
+    call fe_space%free_fe_cell_iterator(fe)
+    deallocate (shape_gradients, stat=istat); check(istat==0);
+    call memfree(shape_values, __FILE__, __LINE__)
+    call memfree ( elvec, __FILE__, __LINE__ )
+    call u_h%free()
+  end subroutine integrate_residual
   
 end module poisson_cG_discrete_integration_names
