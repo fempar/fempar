@@ -1086,7 +1086,9 @@ contains
       call this%assemble_system()
       call this%setup_solver()
       call this%solve_system()
-      call this%fix_pressure()
+      if ( this%test_params%get_bc_case_id()==1 .and. this%test_params%is_strong_dirichlet_on_fitted_boundary() ) then
+        call this%fix_pressure()
+      end if
       call this%check_solution()
     end if
 
