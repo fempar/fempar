@@ -129,9 +129,8 @@ contains
     real(rp)                  , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
-      ! (x**2-x)*(y**2-y) - 2*t * ( (y**2-y) + (x**2-x) )
-      result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2)) - & 
-               2.0_rp * time * ((point%get(1)**2-point%get(1)) + (point%get(2)**2-point%get(2)))
+      ! (x**2-x)*(y**2-y)*t
+      result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2))*time
     else if ( this%num_dims == 3 ) then
       mcheck(.false., "Implementation pending")
     end if
@@ -144,13 +143,7 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
-      result = point%get(1)+ point%get(2) ! x+y 
-    else if ( this%num_dims == 3 ) then
-      result = point%get(1)+ point%get(2) + point%get(3) ! x+y+z
-    end if  
-      
+    mcheck(.false., "Implementation pending")  
   end subroutine solution_function_get_value_space
 
   
@@ -160,15 +153,7 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-    else if ( this%num_dims == 3 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-      call result%set( 3, 1.0_rp ) 
-    end if
+    mcheck(.false., "Implementation pending")
   end subroutine solution_function_get_gradient_space
   
   !===============================================================================================

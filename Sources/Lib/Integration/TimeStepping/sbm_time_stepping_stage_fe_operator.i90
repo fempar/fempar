@@ -169,7 +169,8 @@ subroutine time_stepping_stage_fe_operator_compute_residual(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this
   class(environment_t)         , pointer :: environment
-  class(assembler_t)           , pointer :: assembler
+  class(assembler_t)           , pointer :: this_assembler
+  class(assembler_t)           , pointer :: fe_op_assembler
   class(discrete_integration_t), pointer :: di_mass_op
   class(discrete_integration_t), pointer :: di_fe_op
   class(serial_fe_space_t)     , pointer :: fe_sp
@@ -177,37 +178,53 @@ subroutine time_stepping_stage_fe_operator_compute_residual(this)
   integer(ip)                  , pointer :: state
   class(vector_t)              , pointer :: residual, x
 
+  class(matrix_t)              , pointer :: A
+  class(vector_t)              , pointer :: b 
+
   state => this%get_state() 
   assert (associated(state))
 
-  assembler   => this%get_assembler()
-  fe_sp       => this%get_fe_space()
-  trial_fe_sp => this%get_trial_fe_space()
-  environment => fe_sp%get_environment()
-  di_fe_op    => this%fe_nl_op%get_discrete_integration()
-  di_mass_op  => this%mass_nl_op%get_discrete_integration()
+  this_assembler   => this%get_assembler()
+  fe_sp            => this%get_fe_space()
+  trial_fe_sp      => this%get_trial_fe_space()
+  environment      => fe_sp%get_environment()
+  di_fe_op         => this%fe_nl_op%get_discrete_integration()
+  di_mass_op       => this%mass_nl_op%get_discrete_integration()
 
   if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
     if ( environment%am_i_l1_task() ) then
-      residual => assembler%get_array()
+      residual => this_assembler%get_array()
       if ( associated(trial_fe_sp) ) then
-         call di_fe_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, assembler )
+         assert ( .not. this%fe_nl_op%is_linear() )
+         call di_fe_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, this_assembler )
          !call residual%scal(this%ts_op%dt, residual)
          ! sbadia: here we should consider as Dirichlet data the time derivative of the fixed value, to be done
          !if ( this%i == this%j ) call di_mass_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, assembler )
       else
          if ( this%fe_nl_op%is_linear() ) then
-            x => this%fe_nl_op%get_evaluation_point()
-            call this%fe_nl_op%apply(x,residual)
+           ! amartin: DIRTY SOLUTION for linear operators
+           !          We are building A, b on the assembler of this%fe_nl_op
+           !          and then r=b-A*x on the assembler of this.
+           !          Besides, we have to init A, b to zero before integration as 
+           !          this%fe_nl_op%set_evaluation_point(x) does NOT initialize to
+           !          zero them. We have to carefully think about how to improve 
+           !          this strategy
+           fe_op_assembler => this%fe_nl_op%get_assembler()
+           call fe_op_assembler%init_array(0.0_rp)
+           call fe_op_assembler%init_matrix(0.0_rp)
+           call di_fe_op%integrate( fe_sp, fe_op_assembler )
+           call fe_op_assembler%compress_storage(csr_format)          
+           x => this%fe_nl_op%get_evaluation_point()
+           b => fe_op_assembler%get_array() 
+           A => fe_op_assembler%get_matrix()
+           call A%apply(x,residual)
+           call residual%axpby(-1.0_rp,b,1.0_rp)     
          else
-           call di_fe_op%integrate_residual( fe_sp, assembler )
-           ! call residual%scal(this%ts_op%dt, residual)
+           call di_fe_op%integrate_residual( fe_sp, this_assembler )
+           call residual%scal(this%ts_op%dt, residual)
            ! sbadia: here we should consider as Dirichlet data the time derivative of the fixed value, to be done
-           if ( this%i == this%j ) call di_mass_op%integrate_residual( fe_sp, assembler )
+           if ( this%i == this%j ) call di_mass_op%integrate_residual( fe_sp, this_assembler )
          end if  
-         
-         
-         
       end if
     end if
 
@@ -232,6 +249,7 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
   class(assembler_t)           , pointer :: assembler
   integer(ip)                  , pointer :: state
   class(matrix_t)              , pointer :: tangent 
+  class(array_t)               , pointer :: array 
 
   state => this%get_state() 
   assert (associated(state))
@@ -251,9 +269,18 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
           call tangent%scal( this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j) ) ! times dt * aij
           call di_mass_op%integrate_petrov_galerkin_tangent( fe_sp, trial_fe_sp, assembler )
        else
+          if ( this%fe_nl_op%is_linear() ) then
+             ! amartin: DIRTY SOLUTION for linear operators
+             !          Besides, we have to init A to zero before integration as 
+             !          this%fe_nl_op%set_evaluation_point(x) does NOT initialize to
+             !          it to zero. We have to carefully think about how to improve 
+             call assembler%init_matrix(0.0_rp)
+          end if 
           call di_fe_op%integrate_tangent( fe_sp, assembler )
           call tangent%scal( this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j) ) ! times dt * aij
           call di_mass_op%integrate_tangent( fe_sp, assembler )
+          ! amartin: Can we avoid calling compress storage? 
+          call assembler%compress_storage(csr_format)          
        end if
     end if
     call assembler%compress_storage(this%get_sparse_matrix_storage_format())

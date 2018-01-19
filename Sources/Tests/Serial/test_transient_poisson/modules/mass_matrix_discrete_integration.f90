@@ -34,6 +34,7 @@ module mass_discrete_integration_names
   type, extends(linear_discrete_integration_t) :: mass_discrete_integration_t
    contains
      procedure :: integrate_galerkin
+     procedure :: integrate_tangent => integrate_galerkin
   end type mass_discrete_integration_t
   
   public :: mass_discrete_integration_t

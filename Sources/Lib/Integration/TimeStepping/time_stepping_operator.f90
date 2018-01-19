@@ -41,6 +41,7 @@ module time_stepping_names
   use par_sparse_assembler_names
 
   use sparse_matrix_names, only: sparse_matrix_t
+  use sparse_matrix_parameters_names
   use block_sparse_matrix_names
   use par_sparse_matrix_names
 

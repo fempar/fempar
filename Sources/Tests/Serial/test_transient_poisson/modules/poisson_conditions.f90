@@ -36,7 +36,7 @@ module poisson_conditions_names
      class(scalar_function_t), pointer :: boundary_function  
    contains
      procedure :: set_boundary_function       => poisson_conditions_set_boundary_function
-     procedure :: get_num_components       => poisson_conditions_get_num_components  
+     procedure :: get_num_components          => poisson_conditions_get_num_components  
      procedure :: get_components_code         => poisson_conditions_get_components_code
      procedure :: get_function                => poisson_conditions_get_function
   end type poisson_conditions_t

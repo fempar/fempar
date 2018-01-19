@@ -57,7 +57,6 @@ module discrete_integration_names
   type, abstract, extends(discrete_integration_t) :: linear_discrete_integration_t
    contains
      procedure :: set_evaluation_point => linear_di_set_evaluation_point
-     procedure :: integrate_tangent     => linear_di_integrate_tangent
   end type linear_discrete_integration_t
   
 
@@ -86,7 +85,7 @@ module discrete_integration_names
        class(assembler_t),    intent(inout) :: assembler
        mcheck(.false.,"You must implement integrate Petrov-Galerkin if you want to use it")       
      end subroutine  integrate_petrov_galerkin 
-	 
+     
      subroutine integrate_residual ( this, fe_space, assembler )
        implicit none
        class(discrete_integration_t)  ,    intent(in)    :: this
@@ -94,8 +93,8 @@ module discrete_integration_names
        class(assembler_t),    intent(inout) :: assembler
        mcheck(.false.,"You must implement integrate Galerkin residual if you want to use it")       
      end subroutine  integrate_residual
-	 
-	 subroutine integrate_petrov_galerkin_residual ( this, fe_space_trial, fe_space_test, assembler )
+    
+     subroutine integrate_petrov_galerkin_residual ( this, fe_space_trial, fe_space_test, assembler )
        implicit none
        class(discrete_integration_t)  ,    intent(in)    :: this
        class(serial_fe_space_t)       ,    intent(inout) :: fe_space_trial
@@ -103,7 +102,7 @@ module discrete_integration_names
        class(assembler_t),    intent(inout) :: assembler
        mcheck(.false.,"You must implement integrate Petrov-Galerkin residual if you want to use it")       
      end subroutine  integrate_petrov_galerkin_residual
-	 
+     
      subroutine integrate_tangent ( this, fe_space, assembler )
        implicit none
        class(discrete_integration_t)  ,    intent(in)    :: this
@@ -111,8 +110,8 @@ module discrete_integration_names
        class(assembler_t),    intent(inout) :: assembler
        mcheck(.false.,"You must implement integrate Galerkin tangent if you want to use it")       
      end subroutine  integrate_tangent
-	 
-	 subroutine integrate_petrov_galerkin_tangent ( this, fe_space_trial, fe_space_test, assembler )
+    
+     subroutine integrate_petrov_galerkin_tangent ( this, fe_space_trial, fe_space_test, assembler )
        implicit none
        class(discrete_integration_t)  ,    intent(in)    :: this
        class(serial_fe_space_t)       ,    intent(inout) :: fe_space_trial
@@ -120,32 +119,25 @@ module discrete_integration_names
        class(assembler_t),    intent(inout) :: assembler
        mcheck(.false.,"You must implement integrate Petrov-Galerkin tangent if you want to use it")       
      end subroutine  integrate_petrov_galerkin_tangent
-	 
+     
      subroutine set_evaluation_point ( this, evaluation_point )
        implicit none
        class(discrete_integration_t)  ,    intent(inout)    :: this
        class(vector_t)                ,    intent(in)       :: evaluation_point     
        mcheck(.false.,"You must implement set_evaluation_point if you want to use it")
      end subroutine  set_evaluation_point 
-	 
-	 subroutine set_boundary_data ( this, boundary_data )
+     
+     subroutine set_boundary_data ( this, boundary_data )
        implicit none
        class(discrete_integration_t)  ,    intent(inout)    :: this
        type(serial_scalar_array_t)    ,    intent(in)       :: boundary_data     
        mcheck(.false.,"You must implement set_boundary_data if you want to use it")
      end subroutine  set_boundary_data 
      
-	 subroutine linear_di_set_evaluation_point ( this, evaluation_point )
+     subroutine linear_di_set_evaluation_point ( this, evaluation_point )
        implicit none
        class(linear_discrete_integration_t)  ,    intent(inout)    :: this    
        class(vector_t)                ,    intent(in)       :: evaluation_point 
-  end subroutine  linear_di_set_evaluation_point 
+     end subroutine  linear_di_set_evaluation_point 
   
-   subroutine linear_di_integrate_tangent ( this, fe_space, assembler )
-       implicit none
-       class(linear_discrete_integration_t)  ,    intent(in)    :: this
-       class(serial_fe_space_t)       ,    intent(inout) :: fe_space
-       class(assembler_t),    intent(inout) :: assembler
-       call this%integrate( fe_space, assembler )
-   end subroutine  linear_di_integrate_tangent
 end module discrete_integration_names
