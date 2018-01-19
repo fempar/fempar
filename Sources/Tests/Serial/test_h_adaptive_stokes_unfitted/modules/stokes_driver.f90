@@ -300,7 +300,7 @@ contains
     end select
 
     ! Impose Dirichlet
-    neumann_set_id = 3
+    neumann_set_id = -1
     if (this%test_params%is_strong_dirichlet_on_fitted_boundary()) then
       diri_set_id_u = 1
       diri_set_id_u_and_p = 2
