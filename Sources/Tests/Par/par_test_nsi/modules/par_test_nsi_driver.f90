@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module par_nsi_driver_names
+module par_test_nsi_driver_names
   use fempar_names
   use par_nsi_params_names
   use nsi_discrete_integration_names
@@ -38,7 +38,7 @@ module par_nsi_driver_names
   implicit none
   private
 
-  type par_nsi_fe_driver_t 
+  type par_test_nsi_fe_driver_t 
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
@@ -103,16 +103,16 @@ module par_nsi_driver_names
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
-  end type par_nsi_fe_driver_t
+  end type par_test_nsi_fe_driver_t
 
   ! Types
-  public :: par_nsi_fe_driver_t
+  public :: par_test_nsi_fe_driver_t
 
 contains
 
   subroutine run_simulation(this) 
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     class(vector_t) , pointer :: unknown
     type(vector_field_t) :: zero_vector_field
     integer(ip) :: istat, field_id
@@ -191,7 +191,7 @@ contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
@@ -199,7 +199,7 @@ contains
 !========================================================================================
 subroutine setup_timers(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     class(execution_context_t), pointer :: w_context
     w_context => this%par_environment%get_w_context()
     call this%timer_triangulation%create(w_context,"SETUP TRIANGULATION")
@@ -212,7 +212,7 @@ end subroutine setup_timers
 !========================================================================================
 subroutine report_timers(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%report(.true.)
     call this%timer_fe_space%report(.false.)
     call this%timer_assemply%report(.false.)
@@ -226,7 +226,7 @@ end subroutine report_timers
 !========================================================================================
 subroutine free_timers(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%free()
     call this%timer_fe_space%free()
     call this%timer_assemply%free()
@@ -237,7 +237,7 @@ end subroutine free_timers
 !========================================================================================
   subroutine setup_environment(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
@@ -251,7 +251,7 @@ end subroutine free_timers
 !========================================================================================
   subroutine setup_triangulation(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     class(vef_iterator_t), allocatable :: vef
     logical :: fixed_pressure
     
@@ -280,7 +280,7 @@ end subroutine free_timers
 
   subroutine setup_discrete_integration(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this    
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this    
     call this%par_nsi_integration%create( this%triangulation%get_num_dims(),this%par_nsi_analytical_functions, &
                                           this%test_params%get_viscosity())       
   end subroutine setup_discrete_integration
@@ -288,7 +288,7 @@ end subroutine free_timers
 !========================================================================================
   subroutine setup_reference_fes(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat, field_id
     class(cell_iterator_t), allocatable       :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
@@ -315,7 +315,7 @@ end subroutine free_timers
 
   subroutine setup_coarse_fe_handlers(this)
     implicit none
-    class(par_nsi_fe_driver_t), target, intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat, field_id
     allocate(this%coarse_fe_handlers(this%par_nsi_integration%get_number_fields()), stat=istat); check(istat==0)
     this%coarse_fe_handlers(1)%p => this%coarse_fe_handler_u
@@ -327,7 +327,7 @@ end subroutine free_timers
 
   subroutine setup_fe_space(this)
     implicit none
-    class(par_nsi_fe_driver_t), target, intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), target, intent(inout) :: this
     class(reference_fe_t)       , pointer       :: reference_fe
     
     call this%par_nsi_analytical_functions%set(this%triangulation%get_num_dims(),1)
@@ -352,7 +352,7 @@ end subroutine free_timers
 
   subroutine setup_operators (this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
     type(parameterlist_t) :: linear_pl
     integer(ip) :: ilev
@@ -412,7 +412,7 @@ end subroutine free_timers
    
   subroutine check_solution(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: scalar_error_norm 
     type(error_norms_vector_t) :: vector_error_norm 
     real(rp)    :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
@@ -485,7 +485,7 @@ end subroutine free_timers
    
   subroutine write_solution(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     type(output_handler_t)                   :: oh
     integer(ip) :: field_id
     character(len=:), allocatable :: name
@@ -510,7 +510,7 @@ end subroutine free_timers
 
   subroutine free(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
 
     !call this%time_integration%free()
@@ -539,15 +539,15 @@ end subroutine free_timers
   !========================================================================================
   subroutine free_environment(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
 
   !========================================================================================
   subroutine free_command_line_parameters(this)
     implicit none
-    class(par_nsi_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     call this%test_params%free()
   end subroutine free_command_line_parameters
   
-end module par_nsi_driver_names
+end module par_test_nsi_driver_names

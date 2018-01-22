@@ -423,7 +423,7 @@ subroutine fe_nonlinear_operator_compute_residual(this)
            call this%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
         end if
      end if
-
+     call this%assembler%compress_storage_array()
      if (this%state == tangent_computed) then
         this%state = assembler_computed
      else ! created
@@ -450,7 +450,7 @@ subroutine fe_nonlinear_operator_compute_tangent(this)
            call this%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
         end if
      end if
-     call this%assembler%compress_storage(this%sparse_matrix_storage_format)
+     call this%assembler%compress_storage_matrix(this%sparse_matrix_storage_format)
      if (this%state == residual_computed) then
         this%state = assembler_computed
      else ! created

@@ -74,7 +74,7 @@ contains
     error = switches%set(key = dir_path_out_key              , value = '--dir-path-out')             ; check(error==0)
     error = switches%set(key = num_dims_key                  , value = '--dim')                      ; check(error==0)
     error = switches%set(key = num_cells_x_dir_key           , value = '--number_of_cells')          ; check(error==0)
-    error = switches%set(key = num_levels_key                , value = '--number_of_levels')         ; check(error==0)
+    error = switches%set(key = num_levels_key                , value = '--num_levels')               ; check(error==0)
     error = switches%set(key = num_parts_x_dir_key           , value = '--number_of_parts_per_dir')  ; check(error==0)
     error = switches%set(key = reference_fe_geo_order_key    , value = '--reference-fe-geo-order')   ; check(error==0)
     error = switches%set(key = reference_fe_orders_key        , value = '--reference-fe-orders'    )   ; check(error==0)
