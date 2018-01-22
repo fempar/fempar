@@ -180,11 +180,11 @@ contains
       icell = (ipo*ncells)/Npo
       print_points(ipo) = icell
     end do
-    write(*,*) 'Discrete integration ...'
-    write(*,*) 'num. cells: ', ncells, ' (this can take a while)'
+    write(*,*) 'Discrete integration ...'; flush(stdout)
+    write(*,*) 'num. cells: ', ncells, ' (this can take a while)'; flush(stdout)
     icell = 0
     ipo = 0
-    write(*,'(F8.1x1a1)') 100.0*(real(ipo)/real(Npo)), "%"
+    write(*,'(F8.1x1a1)') 100.0*(real(ipo)/real(Npo)), "%"; flush(stdout)
 
     call fe%first()
     do while ( .not. fe%has_finished() )
@@ -314,7 +314,7 @@ contains
        icell = icell + 1
        if ( any(icell == print_points(:))  ) then
          ipo = ipo + 1
-         write(*,'(F8.1x1a1)') 100.0*(real(ipo)/real(Npo)), "%"
+         write(*,'(F8.1x1a1)') 100.0*(real(ipo)/real(Npo)), "%"; flush(stdout)
        end if
 
     end do
@@ -340,7 +340,7 @@ contains
     call fe_space%free_fe_cell_iterator(fe)
 
 
-    write(*,*) 'Discrete integration ... OK'
+    write(*,*) 'Discrete integration ... OK'; flush(stdout)
   end subroutine integrate_galerkin
 
 end module stokes_cG_discrete_integration_names

@@ -555,6 +555,13 @@ contains
       FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_sin)
       FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
       iparm = 0
+      iparm(1)   = 1 ! no solver default
+      iparm(2)   = 2 ! fill-in reordering from METIS
+      iparm(8)   = 2 ! numbers of iterative refinement steps
+      iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+      iparm(11)  = 1 ! use scaling 
+      iparm(13)  = 1 ! use maximum weighted matching algorithm 
+      iparm(21)  = 1 ! 1x1 + 2x2 pivots
       FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm)
       assert(FPLError == 0)
       call this%direct_solver%set_type_from_pl(parameter_list)
@@ -676,7 +683,19 @@ contains
     
 #ifdef ENABLE_MKL    
     if (this%test_params%get_lin_solver_type()=='pardiso') then
+
+      write(*,*) '  symbolic_setup ...'; flush(stdout)
+      call this%direct_solver%symbolic_setup()
+      write(*,*) '  symbolic_setup ... OK'; flush(stdout)
+
+      write(*,*) '  numerical_setup ...'; flush(stdout)
+      call this%direct_solver%numerical_setup()
+      write(*,*) '  numerical_setup ... OK'; flush(stdout)
+
+      write(*,*) '  solve ...'; flush(stdout)
       call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
+      write(*,*) '  solve ... OK'; flush(stdout)
+
     else if (this%test_params%get_lin_solver_type()=='minres') then
       call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)
@@ -1071,28 +1090,69 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(stokes_driver_t), intent(inout) :: this
+
     call this%free()
+
+    write(*,*) 'parse_command_line_parameters ...'; flush(stdout)
     call this%parse_command_line_parameters()
+    write(*,*) 'parse_command_line_parameters ... OK'; flush(stdout)
+
+    write(*,*) 'setup_levelset ...'; flush(stdout)
     call this%setup_levelset()
+    write(*,*) 'setup_levelset ... OK'; flush(stdout)
+
+    write(*,*) 'setup_triangulation ...'; flush(stdout)
     call this%setup_triangulation()
+    write(*,*) 'setup_triangulation ... OK'; flush(stdout)
+
+    write(*,*) 'fill_cells_set ...'; flush(stdout)
     call this%fill_cells_set()
+    write(*,*) 'fill_cells_set ... OK'; flush(stdout)
+
+    write(*,*) 'setup_reference_fes ...'; flush(stdout)
     call this%setup_reference_fes()
+    write(*,*) 'setup_reference_fes ... OK'; flush(stdout)
+
+    write(*,*) 'setup_fe_space ...'; flush(stdout)
     call this%setup_fe_space()
+    write(*,*) 'setup_fe_space ... OK'; flush(stdout)
     
-    
+    write(*,*) 'setup_system ...'; flush(stdout)
     call this%setup_system()
+    write(*,*) 'setup_system ... OK'; flush(stdout)
 
     if ( .not. this%test_params%get_only_setup() ) then
+
+      write(*,*) 'assemble_system ...'; flush(stdout)
       call this%assemble_system()
+      write(*,*) 'assemble_system ... OK'; flush(stdout)
+
+      write(*,*) 'setup_solver ...'; flush(stdout)
       call this%setup_solver()
+      write(*,*) 'setup_solver ... OK'; flush(stdout)
+
+      write(*,*) 'solve_system ...'; flush(stdout)
       call this%solve_system()
+      write(*,*) 'solve_system ... OK'; flush(stdout)
+
       if ( this%test_params%get_bc_case_id()==1 .and. this%test_params%is_strong_dirichlet_on_fitted_boundary() ) then
+
+        write(*,*) 'fix_pressure ...'; flush(stdout)
         call this%fix_pressure()
+        write(*,*) 'fix_pressure ... OK'; flush(stdout)
+
       end if
+
+      write(*,*) 'check_solution ...'; flush(stdout)
       call this%check_solution()
+      write(*,*) 'check_solution ... OK'; flush(stdout)
+
     end if
 
+    write(*,*) 'write_solution ...'; flush(stdout)
     call this%write_solution()
+    write(*,*) 'write_solution ... OK'; flush(stdout)
+
     call this%free()
   end subroutine run_simulation
   
