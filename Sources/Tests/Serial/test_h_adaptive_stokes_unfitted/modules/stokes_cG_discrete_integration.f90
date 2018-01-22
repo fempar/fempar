@@ -136,6 +136,14 @@ contains
     type(tensor_field_t)       , allocatable  :: boundary_shape_gradients_u(:,:)
     real(rp)                   , allocatable  :: boundary_shape_values_p(:,:)
     type(vector_field_t)                      :: normal_vec
+
+    ! For Neumann facet integration
+    class(fe_facet_iterator_t), allocatable :: fe_facet
+    real(rp), allocatable :: facemat(:,:,:,:), facevec(:,:)
+    type(tensor_field_t) :: exact_sol_gradient_u
+    real(rp) :: exact_sol_value_p
+    class(scalar_function_t) , pointer      :: exact_sol_p
+    type(vector_field_t)              :: normals(2)
     
     integer(ip) :: icell, ncells, ipo
     class(triangulation_t), pointer :: triangulation
@@ -168,10 +176,14 @@ contains
     source_term_u => this%analytical_functions%get_source_term_u()
     source_term_p => this%analytical_functions%get_source_term_p()
     exact_sol_u   => this%analytical_functions%get_solution_function_u()
+    exact_sol_p   => this%analytical_functions%get_solution_function_p()
 
     num_dofs = fe_space%get_max_num_dofs_on_a_cell()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
+
+    call memalloc ( num_dofs, num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
+    call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
 
 
     triangulation => fe_space%get_triangulation()
@@ -319,6 +331,53 @@ contains
 
     end do
 
+    !! Integrate Neumann boundary conditions
+    !call fe_space%create_fe_facet_iterator(fe_facet)
+
+    !! Loop in faces
+    !do while ( .not. fe_facet%has_finished() )
+
+
+    !  ! Skip faces that are not in the Neumann boundary
+    !  if ( fe_facet%get_set_id() /= -1 ) then
+    !    call fe_facet%next(); cycle
+    !  end if
+
+    !  ! Update FE-integration related data structures
+    !  call fe_facet%update_integration()
+
+    !  quad            => fe_facet%get_quadrature()
+    !  num_quad_points = quad%get_num_quadrature_points()
+
+    !  ! Get quadrature coordinates to evaluate boundary value
+    !  quad_coords => fe_facet%get_quadrature_points_coordinates()
+
+    !  ! Get shape functions at quadrature points
+    !  call fe_facet%get_values(1,shape_values_u,U_FIELD_ID)
+
+    !  ! Compute element vector
+    !  facemat = 0.0_rp
+    !  facevec = 0.0_rp
+    !  do qpoint = 1, num_quad_points
+
+    !    dS = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+    !    call fe_facet%get_normals(qpoint,normals)
+    !    call exact_sol_u%get_gradient(quad_coords(qpoint),exact_sol_gradient_u)
+    !    call exact_sol_p%get_value(quad_coords(qpoint),exact_sol_value_p)
+
+    !    do idof_u = 1, fe_facet%get_num_dofs_field(1,U_FIELD_ID)
+    !       idof = idof_u
+    !       facevec(idof,1) = facevec(idof,1) + dS * ( (viscosity*exact_sol_gradient_u)*normals(1)  + exact_sol_value_p*normals(1) ) * shape_values_u(idof_u,qpoint)
+    !    end do
+
+    !  end do
+
+    !  call fe_facet%assembly( facemat, facevec, assembler )
+    !  call fe_facet%next()
+    !end do
+
+
+
     if (allocated(shape_values_u    )) deallocate  (shape_values_u          , stat=istat); check(istat==0)
     if (allocated(shape_gradients_u )) deallocate  (shape_gradients_u       , stat=istat); check(istat==0)
     if (allocated(shape_values_p    )) call memfree(shape_values_p          , __FILE__, __LINE__)
@@ -337,7 +396,12 @@ contains
 
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
+
+    call memfree ( facemat, __FILE__, __LINE__ )
+    call memfree ( facevec, __FILE__, __LINE__ )
+
     call fe_space%free_fe_cell_iterator(fe)
+    !call fe_space%free_fe_facet_iterator(fe_facet)
 
 
     write(*,*) 'Discrete integration ... OK'; flush(stdout)

@@ -350,7 +350,7 @@ contains
 
          massert(.not. first_interior_vertex,'No interior vertex in interior cell found: refine your mesh!')
 
-       else if (this%test_params%get_bc_case_id()==2 .or. this%test_params%get_bc_case_id()==3 .or. this%test_params%get_bc_case_id()==4) then
+       else if (this%test_params%get_bc_case_id()>=2 .and. this%test_params%get_bc_case_id()<=5) then
          call vef%first()
          do while ( .not. vef%has_finished() )
            call vef%set_set_id(0)
@@ -381,11 +381,13 @@ contains
                if ( abs(mp%get(1)-0.0) < tol .and. mp%get(2)>0.75 .and. mp%get(3)>0.75) then
                  call vef%set_set_id(diri_set_id_u)
                end if
-             else
+             else if (this%test_params%get_bc_case_id()==4) then
                call vef%set_set_id(neumann_set_id)
                if ( abs(mp%get(3)-0.0) < tol ) then
                  call vef%set_set_id(diri_set_id_u)
                end if
+             else
+               call vef%set_set_id(neumann_set_id)
              end if
 
            end if
