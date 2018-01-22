@@ -25,27 +25,24 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fempar_sm_driver_names
+module par_test_nsi_driver_names
   use fempar_names
-  use fempar_sm_params_names
-  use fempar_sm_discrete_integration_names
-  use fempar_sm_conditions_names
-  use fempar_sm_analytical_functions_names
-  use fempar_sm_linear_solver_names
-  use fempar_sm_nonlinear_operator_names
-  use fempar_sm_nonlinear_solver_names
-  use fempar_sm_time_integration_names
+  use par_nsi_params_names
+  use nsi_discrete_integration_names
+  use par_nsi_conditions_names
+  use par_nsi_analytical_functions_names
+  
   
 # include "debug.i90"
 
   implicit none
   private
 
-  type fempar_sm_fe_driver_t 
+  type par_test_nsi_fe_driver_t 
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
-     type(fempar_sm_params_t)       :: test_params
+     type(par_nsi_params_t)       :: test_params
      type(ParameterList_t), pointer :: parameter_list
      
      ! Cells and lower dimension objects container
@@ -54,22 +51,23 @@ module fempar_sm_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                        :: fe_space 
      type(p_reference_fe_t), allocatable         :: reference_fes(:) 
-     type(standard_l1_coarse_fe_handler_t)       :: coarse_fe_handler
-     type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
+     !type(elasticity_pb_bddc_l1_coarse_fe_handler_t) :: coarse_fe_handler_u
+     type(standard_l1_coarse_fe_handler_t)           :: coarse_fe_handler_u
+     type(standard_l1_coarse_fe_handler_t)           :: coarse_fe_handler_p
+     type(p_l1_coarse_fe_handler_t), allocatable     :: coarse_fe_handlers(:)
      
 
-     class(fempar_sm_discrete_integration_t), allocatable :: fempar_sm_integration
-     type(fempar_sm_conditions_t)                :: fempar_sm_conditions
-     type(fempar_sm_analytical_functions_t)      :: fempar_sm_analytical_functions
+     type(nsi_discrete_integration_t)          :: par_nsi_integration
+     type(par_nsi_conditions_t)                :: par_nsi_conditions
+     type(par_nsi_analytical_functions_t)      :: par_nsi_analytical_functions
      
      ! Operators to define and solve the problem
-     type(fe_affine_operator_t)                  :: fe_affine_operator
      type(mlbddc_t)                              :: mlbddc
-     type(linear_solver_t)                       :: linear_solver
-     type(nonlinear_operator_t)                  :: nonlinear_operator
+     type(iterative_linear_solver_t)             :: linear_solver
+     type(fe_nonlinear_operator_t)               :: nonlinear_operator
      type(nonlinear_solver_t)                    :: nonlinear_solver 
      !class(time_integration_t), allocatable     :: time_integration
-     type(theta_time_integration_t)              :: time_integration
+     !type(theta_time_integration_t)              :: time_integration
 
      ! Problem solution FE function
      type(fe_function_t)                         :: solution
@@ -105,47 +103,82 @@ module fempar_sm_driver_names
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
-  end type fempar_sm_fe_driver_t
+  end type par_test_nsi_fe_driver_t
 
   ! Types
-  public :: fempar_sm_fe_driver_t
+  public :: par_test_nsi_fe_driver_t
 
 contains
 
   subroutine run_simulation(this) 
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     class(vector_t) , pointer :: unknown
+    type(vector_field_t) :: zero_vector_field
+    integer(ip) :: istat, field_id
 
     ! Geometry
-    call this%timer_triangulation%start()
+    !call this%timer_triangulation%start()
     call this%setup_triangulation()
-    call this%timer_triangulation%stop()
+    !call this%timer_triangulation%stop()
 
     ! Problem and its FE approximation
-    call this%timer_fe_space%start()
-    call this%setup_discrete_integration()
+    !call this%timer_fe_space%start()
+    call this%setup_discrete_integration()    
     call this%setup_reference_fes()
     call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
-    call this%timer_fe_space%stop()
+
+    
+    ! sbadia : I dont like the relation between discrete integration and fe_space
+    ! I consider that the discrete integration cannot be set up till we can interpolate
+    ! functions, since otherwise we do not have the right bc's. On the other hand, at least in 
+    ! this driver, the fe_space needs first set up the discrete integration...
+    
+    ! Solution and initial guess
+    call this%solution%create(this%fe_space) 
+    call this%zero_scalar%create(0.0_rp)
+    call zero_vector_field%init(0.0_rp)
+    call this%zero_vector%create(zero_vector_field)
+    do field_id = 1, this%par_nsi_integration%get_number_fields()
+       if(this%par_nsi_integration%get_field_type(field_id) == field_type_vector) then
+         call this%fe_space%interpolate(field_id, this%zero_vector, this%solution)
+       else if( this%par_nsi_integration%get_field_type(field_id) == field_type_scalar) then
+         call this%fe_space%interpolate(field_id, this%zero_scalar, this%solution)
+       end if
+    end do
+    call this%fe_space%interpolate_dirichlet_values(this%solution)    
+    call this%par_nsi_integration%set_fe_function(this%solution)
+
+    !call this%timer_fe_space%stop()
 
     ! Construct Linear and nonlinear operators
-    call this%timer_solver_setup%start()
+    !call this%timer_solver_setup%start()
     call this%setup_operators()
-    call this%timer_solver_setup%stop()
+    !call this%timer_solver_setup%stop()
    
     ! Solve the problem
-    call this%timer_solver_run%start()
-    ! Nonlinear steady problems
-    !unknown => this%solution%get_dof_values()
-    !!write(*,*) unknown%nrm2()
-    !call this%nonlinear_solver%solve(this%nonlinear_operator, unknown)
-    !mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged.' )
-
-    call this%time_integration%apply(this%solution)
+    call this%nonlinear_solver%solve(this%nonlinear_operator, this%solution%get_free_dof_values() )
     
-    call this%timer_solver_run%stop()
+    !call this%time_integration%apply(this%solution)
+    
+    !do while(this%current_time < this%final_time )
+    !  
+    !  this%current_time = this%current_time + this%time_step
+    !  call this%initialize_time_step(fe_space, solution)
+    !  call this%print()
+    !  call this%discrete_integration%set_mass_coefficient    (this%get_mass_coefficient())
+    !  call this%discrete_integration%set_residual_coefficient(this%get_residual_coefficient())
+    !  call this%discrete_integration%set_current_time        (this%current_time)
+    !  ! Solve time step
+    !  dof_values => solution%get_free_dof_values() ! initial guess is the previous step
+    !  call this%nonlinear_solver%solve(this%nonlinear_operator,dof_values)
+    !  ! Check if converged
+    !  mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged. Cannot advance to the next step.' )
+    !  call this%update_solution(fe_space,solution)
+    !end do
+    
+    !call this%timer_solver_run%stop()
 
     ! Postprocess
     call this%write_solution()
@@ -158,7 +191,7 @@ contains
 
   subroutine parse_command_line_parameters(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     call this%test_params%create()
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
@@ -166,7 +199,7 @@ contains
 !========================================================================================
 subroutine setup_timers(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     class(execution_context_t), pointer :: w_context
     w_context => this%par_environment%get_w_context()
     call this%timer_triangulation%create(w_context,"SETUP TRIANGULATION")
@@ -179,7 +212,7 @@ end subroutine setup_timers
 !========================================================================================
 subroutine report_timers(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%report(.true.)
     call this%timer_fe_space%report(.false.)
     call this%timer_assemply%report(.false.)
@@ -193,7 +226,7 @@ end subroutine report_timers
 !========================================================================================
 subroutine free_timers(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%free()
     call this%timer_fe_space%free()
     call this%timer_assemply%free()
@@ -204,7 +237,7 @@ end subroutine free_timers
 !========================================================================================
   subroutine setup_environment(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        istat = this%parameter_list%set(key = environment_type_key, value = structured) ; check(istat==0)
@@ -218,7 +251,7 @@ end subroutine free_timers
 !========================================================================================
   subroutine setup_triangulation(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     class(vef_iterator_t), allocatable :: vef
     logical :: fixed_pressure
     
@@ -247,76 +280,68 @@ end subroutine free_timers
 
   subroutine setup_discrete_integration(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
-    integer(ip) :: istat
-    if ( this%test_params%get_discrete_integration_type() == discrete_integration_type_irreducible ) then
-       allocate(irreducible_discrete_integration_t :: this%fempar_sm_integration, stat=istat); check(istat==0)
-    else if(this%test_params%get_discrete_integration_type() == discrete_integration_type_mixed_u_p ) then
-       allocate(mixed_u_p_discrete_integration_t :: this%fempar_sm_integration, stat=istat); check(istat==0)
-   else
-       write(*,*) this%test_params%get_discrete_integration_type()
-       write(*,*) discrete_integration_type_irreducible
-       mcheck(.false.,'Discrete integration not available')
-   end if
-   call this%fempar_sm_integration%create(this%triangulation%get_num_dims(),this%fempar_sm_analytical_functions)
-   !call this%fempar_sm_integration%set_solution(this%solution)
-   
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this    
+    call this%par_nsi_integration%create( this%triangulation%get_num_dims(),this%par_nsi_analytical_functions, &
+                                          this%test_params%get_viscosity())       
   end subroutine setup_discrete_integration
 
 !========================================================================================
   subroutine setup_reference_fes(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat, field_id
     class(cell_iterator_t), allocatable       :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
     
-    allocate(this%reference_fes(this%fempar_sm_integration%get_number_fields()), stat=istat)
+    allocate(this%reference_fes(this%par_nsi_integration%get_number_fields()), stat=istat)
     check(istat==0)
     
-    if ( this%par_environment%am_i_l1_task() ) then
-      call this%triangulation%create_cell_iterator(cell)
+    call this%triangulation%create_cell_iterator(cell)
+    if ( .not. cell%has_finished() ) then   
       reference_fe_geo => cell%get_reference_fe()
-      do field_id = 1, this%fempar_sm_integration%get_number_fields()
+      do field_id = 1, this%par_nsi_integration%get_number_fields()
          this%reference_fes(field_id) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                             fe_type = this%fempar_sm_integration%get_fe_type(field_id), &
+                                                             fe_type = this%par_nsi_integration%get_fe_type(field_id), &
                                                              num_dims = this%triangulation%get_num_dims(), &
-                                                             order = this%test_params%get_reference_fe_order(), &
-                                                             field_type = this%fempar_sm_integration%get_field_type(field_id), &
+                                                             order = this%test_params%get_reference_fe_orders(field_id), &
+                                                             field_type = this%par_nsi_integration%get_field_type(field_id), &
                                                              conformity = .true. )
-      end do      
-      call this%triangulation%free_cell_iterator(cell)
-    end if  
+      end do 
+    end if 
+    call this%triangulation%free_cell_iterator(cell)    
   end subroutine setup_reference_fes
 
 !========================================================================================
 
   subroutine setup_coarse_fe_handlers(this)
     implicit none
-    class(fempar_sm_fe_driver_t), target, intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat, field_id
-    allocate(this%coarse_fe_handlers(this%fempar_sm_integration%get_number_fields()), stat=istat); check(istat==0)
-    do field_id = 1, this%fempar_sm_integration%get_number_fields()
-       this%coarse_fe_handlers(field_id)%p => this%coarse_fe_handler
-    end do
+    allocate(this%coarse_fe_handlers(this%par_nsi_integration%get_number_fields()), stat=istat); check(istat==0)
+    this%coarse_fe_handlers(1)%p => this%coarse_fe_handler_u
+    this%coarse_fe_handlers(2)%p => this%coarse_fe_handler_p
+    
   end subroutine setup_coarse_fe_handlers
 
 !========================================================================================
 
   subroutine setup_fe_space(this)
     implicit none
-    class(fempar_sm_fe_driver_t), target, intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), target, intent(inout) :: this
     class(reference_fe_t)       , pointer       :: reference_fe
     
-    call this%fempar_sm_analytical_functions%set_num_dimensions(this%triangulation%get_num_dims())
-    call this%fempar_sm_conditions%set_number_components(this%fempar_sm_integration%get_number_components())
-    call this%fempar_sm_conditions%set_number_dimensions(this%triangulation%get_num_dims())    
+    call this%par_nsi_analytical_functions%set(this%triangulation%get_num_dims(),1)
+    call this%par_nsi_conditions%set_number_components(this%par_nsi_integration%get_number_components())
+    call this%par_nsi_conditions%set_number_dimensions(this%triangulation%get_num_dims())    
     ! Store exact function to define B.C. in FE space
-    call this%fempar_sm_conditions%set_boundary_function(this%fempar_sm_analytical_functions%get_solution_function_u())
+    call this%par_nsi_conditions%set_boundary_function( this%par_nsi_analytical_functions%get_solution_function_u(), &
+                                                        this%par_nsi_analytical_functions%get_solution_function_p())
     call this%fe_space%create( triangulation       = this%triangulation, &
-                               conditions          = this%fempar_sm_conditions, &
+                               conditions          = this%par_nsi_conditions, &
                                reference_fes       = this%reference_fes, &
-                               coarse_fe_handlers  = this%coarse_fe_handlers)
+                               coarse_fe_handlers  = this%coarse_fe_handlers, &
+                               field_blocks        = this%par_nsi_integration%get_field_blocks(), &
+                               field_coupling      = this%par_nsi_integration%get_field_coupling() )
    
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%fe_space%set_up_cell_integration()
@@ -327,57 +352,26 @@ end subroutine free_timers
 
   subroutine setup_operators (this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
     type(parameterlist_t) :: linear_pl
     integer(ip) :: ilev
     integer(ip) :: FPLError
     integer(ip) :: field_id
     integer(ip) :: istat
-    type(vector_field_t) :: zero_vector_field
     class(vector_t), pointer  :: dof_values
     
     ! FE operator
-    if(this%fempar_sm_integration%is_symmetric().and.this%fempar_sm_integration%is_coercive()) then
-       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-            &                                diagonal_blocks_symmetric_storage = [ .true. ], &
-            &                                diagonal_blocks_symmetric         = [ .true. ], &
-            &                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-            &                                fe_space                          = this%fe_space, &
-            &                                discrete_integration              = this%fempar_sm_integration, &
-            &                                field_blocks                      = this%fempar_sm_integration%get_field_blocks(),            &
-            &                                field_coupling                    = this%fempar_sm_integration%get_field_coupling()) 
-    else if(this%fempar_sm_integration%is_symmetric()) then
-       call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-            &                                diagonal_blocks_symmetric_storage = [ .true. ], &
-            &                                diagonal_blocks_symmetric         = [ .true. ], &
+       call this%nonlinear_operator%create ( sparse_matrix_storage_format      = csr_format, &
+            &                                diagonal_blocks_symmetric_storage = [ .false. ], &
+            &                                diagonal_blocks_symmetric         = [ .false. ], &
             &                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_INDEFINITE ], &
             &                                fe_space                          = this%fe_space, &
-            &                                discrete_integration              = this%fempar_sm_integration, &
-            &                                field_blocks                      = this%fempar_sm_integration%get_field_blocks(),            &
-            &                                field_coupling                    = this%fempar_sm_integration%get_field_coupling()) 
-    end if
+            &                                discrete_integration              = this%par_nsi_integration) 
 
-    ! Solution and initial guess
-    call this%solution%create(this%fe_space) 
-    call this%zero_scalar%create(0.0_rp)
-    call zero_vector_field%init(0.0_rp)
-    call this%zero_vector%create(zero_vector_field)
-    do field_id = 1, this%fempar_sm_integration%get_number_fields()
-       if(this%fempar_sm_integration%get_field_type(field_id) == field_type_vector) then
-         call this%fe_space%interpolate(field_id, this%zero_vector, this%solution)
-       else if( this%fempar_sm_integration%get_field_type(field_id) == field_type_scalar) then
-         call this%fe_space%interpolate(field_id, this%zero_scalar, this%solution)
-       end if
-    end do
-    call this%fe_space%interpolate_dirichlet_values(this%solution)    
-    call this%fempar_sm_integration%set_fe_function(this%solution)
         
     ! BDDC preconditioner
     plist => this%parameter_list 
-    !if ( this%par_environment%get_l1_size() == 1 ) then
-    !   FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-    !end if
     do ilev=1, this%par_environment%get_num_levels()-1
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
        FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
@@ -389,70 +383,58 @@ end subroutine free_timers
     FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
     
     ! Set coarsest-grid solver type (currently NOT inherited from fine level matrices types)
-    if(this%fempar_sm_integration%is_coercive()) then
-       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-    else
-       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
-    end if
-
-    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
-    call this%mlbddc%symbolic_setup()
-    !call this%mlbddc%numerical_setup()
-   
+    FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+    
+    call this%mlbddc%create(this%nonlinear_operator, this%parameter_list)    
+    
     ! Linear solver
     call this%linear_solver%create(this%fe_space%get_environment())
-    if(this%fempar_sm_integration%is_coercive()) then
-       call this%linear_solver%set_type_from_string(cg_name)
-    else
-       call this%linear_solver%set_type_from_string(lgmres_name)
-    end if
-    call this%linear_solver%setup_operators(this%fe_affine_operator, this%mlbddc) 
+    call this%linear_solver%set_type_from_string(lgmres_name)
     call linear_pl%init()
     FPLError = linear_pl%set(key = ils_rtol, value = 1.0e-12_rp); assert(FPLError == 0)
     FPLError = linear_pl%set(key = ils_max_num_iterations, value = 5000); assert(FPLError == 0)
     FPLError = linear_pl%set(key = ils_atol, value = 1.0e-9); assert(FPLError == 0)
-    call this%linear_solver%set_parameters_from_pl(linear_pl) 
+    call this%linear_solver%set_parameters_from_pl(linear_pl)
+    ! sbadia : For the moment identity preconditioner
+    call this%linear_solver%set_operators( this%nonlinear_operator%get_tangent(), this%mlbddc )
 
-    !call this%nonlinear_operator%create(this%fe_affine_operator)
-
-    ! Nonlinear solver ! fempar_sm_abs_res_norm_and_rel_inc_norm
-    call this%nonlinear_solver%create(convergence_criteria = fempar_sm_abs_res_norm, & 
+    ! Nonlinear solver ! abs_res_norm_and_rel_inc_norm
+    call this%nonlinear_solver%create(convergence_criteria = abs_res_norm, & 
          &                                         abs_tol = 1.0e-6,  &
          &                                         rel_tol = 1.0e-9, &
          &                                       max_iters = 10   ,  &
          &                                   linear_solver = this%linear_solver, &
-         &                                     environment = this%par_environment)    
+         &                                     environment = this%par_environment)  
+    
 
-    !allocate(theta_time_integration_t :: this%time_integration, stat = istat); check(istat==0)
-    call this%time_integration%create(this%fe_affine_operator, this%nonlinear_solver, 0.0_rp, 1.0_rp, 5, 1.0_rp)
   end subroutine setup_operators
 
    
   subroutine check_solution(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: scalar_error_norm 
     type(error_norms_vector_t) :: vector_error_norm 
     real(rp)    :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     integer(ip) :: field_id
 
-    do field_id = 1, this%fempar_sm_integration%get_number_fields()
+    do field_id = 1, this%par_nsi_integration%get_number_fields()
 
-       if(this%fempar_sm_integration%get_field_type(field_id) == field_type_vector) then
+       if(this%par_nsi_integration%get_field_type(field_id) == field_type_vector) then
           call vector_error_norm%create(this%fe_space,field_id)    
-          mean      = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, mean_norm)   
-          l1        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, l1_norm)   
-          l2        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, l2_norm)   
-          lp        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, lp_norm)   
-          linfty    = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, linfty_norm)   
-          h1_s      = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, h1_seminorm) 
-          h1        = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, h1_norm) 
-          w1p_s     = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1p_seminorm)   
-          w1p       = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1p_norm)   
-          w1infty_s = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1infty_seminorm) 
-          w1infty   = vector_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_u(), this%solution, w1infty_norm)  
+          mean      = vector_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_u(), this%solution, mean_norm)   
+          l1        = vector_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_u(), this%solution, l1_norm)   
+          l2        = vector_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_u(), this%solution, l2_norm)   
+          lp        = vector_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_u(), this%solution, lp_norm)   
+          linfty    = vector_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_u(), this%solution, linfty_norm)   
+          h1_s      = vector_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_u(), this%solution, h1_seminorm) 
+          h1        = vector_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_u(), this%solution, h1_norm) 
+          w1p_s     = vector_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_u(), this%solution, w1p_seminorm)   
+          w1p       = vector_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_u(), this%solution, w1p_norm)   
+          w1infty_s = vector_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_u(), this%solution, w1infty_seminorm) 
+          w1infty   = vector_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_u(), this%solution, w1infty_norm)  
           if ( this%par_environment%am_i_l1_root() ) then
-             write(*,'(a12,a8)')      this%fempar_sm_integration%get_field_name(field_id), ' field: '
+             write(*,'(a12,a8)')      this%par_nsi_integration%get_field_name(field_id), ' field: '
              write(*,'(a20,e32.25)') 'mean_norm:', mean
              write(*,'(a20,e32.25)') 'l1_norm:', l1
              write(*,'(a20,e32.25)') 'l2_norm:', l2
@@ -466,21 +448,21 @@ end subroutine free_timers
              write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty
           end if
           call vector_error_norm%free()
-       else if( this%fempar_sm_integration%get_field_type(field_id) == field_type_scalar) then
+       else if( this%par_nsi_integration%get_field_type(field_id) == field_type_scalar) then
           call scalar_error_norm%create(this%fe_space,field_id)    
-          mean      = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, mean_norm)   
-          l1        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, l1_norm)   
-          l2        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, l2_norm)   
-          lp        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, lp_norm)   
-          linfty    = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, linfty_norm)   
-          h1_s      = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, h1_seminorm) 
-          h1        = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, h1_norm) 
-          w1p_s     = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1p_seminorm)   
-          w1p       = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1p_norm)   
-          w1infty_s = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1infty_seminorm) 
-          w1infty   = scalar_error_norm%compute(this%fempar_sm_analytical_functions%get_solution_function_p(), this%solution, w1infty_norm)  
+          mean      = scalar_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_p(), this%solution, mean_norm)   
+          l1        = scalar_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_p(), this%solution, l1_norm)   
+          l2        = scalar_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_p(), this%solution, l2_norm)   
+          lp        = scalar_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_p(), this%solution, lp_norm)   
+          linfty    = scalar_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_p(), this%solution, linfty_norm)   
+          h1_s      = scalar_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_p(), this%solution, h1_seminorm) 
+          h1        = scalar_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_p(), this%solution, h1_norm) 
+          w1p_s     = scalar_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_p(), this%solution, w1p_seminorm)   
+          w1p       = scalar_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_p(), this%solution, w1p_norm)   
+          w1infty_s = scalar_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_p(), this%solution, w1infty_seminorm) 
+          w1infty   = scalar_error_norm%compute(this%par_nsi_analytical_functions%get_solution_function_p(), this%solution, w1infty_norm)  
           if ( this%par_environment%am_i_l1_root() ) then
-             write(*,'(a12,a8)')      this%fempar_sm_integration%get_field_name(field_id), ' field: '
+             write(*,'(a12,a8)')      this%par_nsi_integration%get_field_name(field_id), ' field: '
              write(*,'(a20,e32.25)') 'mean_norm:', mean
              write(*,'(a20,e32.25)') 'l1_norm:', l1
              write(*,'(a20,e32.25)') 'l2_norm:', l2
@@ -503,7 +485,7 @@ end subroutine free_timers
    
   subroutine write_solution(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     type(output_handler_t)                   :: oh
     integer(ip) :: field_id
     character(len=:), allocatable :: name
@@ -512,8 +494,8 @@ end subroutine free_timers
        if ( this%par_environment%am_i_l1_task() ) then
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
-        do field_id = 1, this%fempar_sm_integration%get_number_fields()
-           name =  this%fempar_sm_integration%get_field_name(field_id)
+        do field_id = 1, this%par_nsi_integration%get_number_fields()
+           name =  this%par_nsi_integration%get_field_name(field_id)
            call oh%add_fe_function(this%solution, field_id, name)
         end do
         call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
@@ -528,16 +510,15 @@ end subroutine free_timers
 
   subroutine free(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
 
-    call this%time_integration%free()
-    call this%nonlinear_operator%free()
-    call this%nonlinear_solver%free()
-    call this%linear_solver%free()
+    !call this%time_integration%free()
     call this%solution%free()
+    call this%linear_solver%free()
+    call this%nonlinear_solver%free()
+    call this%nonlinear_operator%free()
     call this%mlbddc%free()
-    call this%fe_affine_operator%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)
@@ -550,22 +531,23 @@ end subroutine free_timers
       deallocate(this%coarse_fe_handlers, stat=istat)
       mcheck(istat==0,'Error deallocating')
     end if
+    
     call this%triangulation%free()
-    call this%fempar_sm_integration%free()
+    call this%par_nsi_integration%free()
   end subroutine free  
 
   !========================================================================================
   subroutine free_environment(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     call this%par_environment%free()
   end subroutine free_environment
 
   !========================================================================================
   subroutine free_command_line_parameters(this)
     implicit none
-    class(fempar_sm_fe_driver_t), intent(inout) :: this
+    class(par_test_nsi_fe_driver_t), intent(inout) :: this
     call this%test_params%free()
   end subroutine free_command_line_parameters
   
-end module fempar_sm_driver_names
+end module par_test_nsi_driver_names

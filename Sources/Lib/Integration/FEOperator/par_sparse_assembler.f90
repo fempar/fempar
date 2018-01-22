@@ -44,10 +44,11 @@ module par_sparse_assembler_names
 
   type, extends(assembler_t) :: par_sparse_assembler_t
   contains
-    procedure :: assembly_array   => par_sparse_assembler_assembly_array
-    procedure :: assembly_matrix  => par_sparse_assembler_assembly_matrix
-    procedure :: allocate         => par_sparse_assembler_allocate
-    procedure :: compress_storage => par_sparse_assembler_compress_storage
+    procedure :: assembly_array          => par_sparse_assembler_assembly_array
+    procedure :: assembly_matrix         => par_sparse_assembler_assembly_matrix
+    procedure :: allocate                => par_sparse_assembler_allocate
+    procedure :: compress_storage_matrix => par_sparse_assembler_compress_storage_matrix 
+    procedure :: compress_storage_array  => par_sparse_assembler_compress_storage_array 
   end type
 
 ! Data types
@@ -87,15 +88,15 @@ contains
 
   end subroutine par_sparse_assembler_assembly_array
   
-  subroutine par_sparse_assembler_assembly_matrix( this,            &
-                                                                num_fields,   &
-                                                                field_blocks,    &
-                                                                field_coupling,  &
-                                                                num_row_dofs, &
-                                                                num_col_dofs, &
-                                                                fe_dofs_row,   &
-                                                                fe_dofs_col,   &
-                                                                elmat )
+  subroutine par_sparse_assembler_assembly_matrix( this,           &
+                                                   num_fields,     &
+                                                   field_blocks,   &
+                                                   field_coupling, &
+                                                   num_row_dofs,   &
+                                                   num_col_dofs,   &
+                                                   fe_dofs_row,    &
+                                                   fe_dofs_col,    &
+                                                   elmat )
     implicit none
     class(par_sparse_assembler_t), intent(inout) :: this
     integer(ip)                               , intent(in)    :: num_fields
@@ -134,13 +135,12 @@ contains
     call array%allocate()
   end subroutine par_sparse_assembler_allocate
 
-  subroutine par_sparse_assembler_compress_storage( this, & 
+  subroutine par_sparse_assembler_compress_storage_matrix( this, & 
                                                                  sparse_matrix_storage_format )
     implicit none
     class(par_sparse_assembler_t) , intent(inout) :: this
     character(*)                              , intent(in)    ::  sparse_matrix_storage_format
     class(matrix_t), pointer :: matrix
-    class(array_t) , pointer :: array
     
     matrix=>this%get_matrix() 
     select type(matrix)
@@ -149,6 +149,14 @@ contains
       class default
       check(.false.)
     end select
+    
+  end subroutine par_sparse_assembler_compress_storage_matrix
+		
+  subroutine par_sparse_assembler_compress_storage_array( this )
+    implicit none
+    class(par_sparse_assembler_t) , intent(inout) :: this
+    class(array_t) , pointer :: array
+
     array=>this%get_array() 
     select type(array)
        class is(par_scalar_array_t)
@@ -156,8 +164,8 @@ contains
        class default
        check(.false.)
     end select
-    
-  end subroutine par_sparse_assembler_compress_storage
+
+  end subroutine par_sparse_assembler_compress_storage_array
 
   subroutine element_par_scalar_array_assembly( array, num_fields, num_dofs, fe_dofs, elvec )
     implicit none
