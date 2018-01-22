@@ -1,10 +1,10 @@
-program par_nsi
+program par_test_nsi
   use fempar_names
-  use par_nsi_driver_names
+  use par_test_nsi_driver_names
   !$ use omp_lib
   implicit none
   integer(ip) :: i
-  type(par_nsi_fe_driver_t), save :: test_driver 
+  type(par_test_nsi_fe_driver_t), save :: test_driver 
   !$OMP THREADPRIVATE(test_driver)
 
   !call sleep(20)
@@ -24,4 +24,4 @@ program par_nsi
   call test_driver%free_environment()
   call fempar_finalize()
   !$OMP END PARALLEL   
-end program par_nsi
+end program par_test_nsi
