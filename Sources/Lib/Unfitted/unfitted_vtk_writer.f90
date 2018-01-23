@@ -369,9 +369,8 @@ contains
       !!num_subfacets = triangulation%get_total_num_fitted_sub_facets()
       !!num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
     class is (unfitted_p4est_serial_triangulation_t)
-      mcheck(.false.,'Not yet implemented')
-      !!num_subfacets = triangulation%get_total_num_fitted_sub_facets()
-      !!num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
+      num_subfacets = triangulation%get_total_num_fitted_sub_facets()
+      num_subfacet_nodes = triangulation%get_max_num_nodes_in_subfacet()
     class default
       check(.false.)
     end select
@@ -1044,7 +1043,7 @@ contains
   
     implicit none
     class(unfitted_vtk_writer_t),   intent(inout) :: this
-    class(serial_unfitted_fe_space_t),      intent(inout) :: fe_space
+    class(serial_fe_space_t),      intent(in) :: fe_space
   
     class(fe_facet_iterator_t),allocatable :: fe_facet
     type(quadrature_t), pointer :: quadrature
@@ -1071,7 +1070,7 @@ contains
 
     num_dime       = triangulation%get_num_dims()
 
-    call fe_space%set_up_facet_integration()
+    !call fe_space%set_up_facet_integration()
   
     call fe_space%create_fe_facet_iterator(fe_facet)
 

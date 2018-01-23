@@ -50,6 +50,8 @@ subroutine uim_create(this,fe_space)
       select type(triangulation)
         type is (serial_unfitted_triangulation_t)
           call this%init_cut_fitted_facets_integration()
+         type is (unfitted_p4est_serial_triangulation_t)
+          call this%init_cut_fitted_facets_integration()
       end select
     end if
   end if

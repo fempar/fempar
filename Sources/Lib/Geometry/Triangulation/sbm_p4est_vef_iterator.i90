@@ -86,10 +86,12 @@ function p4est_vef_iterator_get_num_nodes(this)
   integer(ip) :: p4est_vef_iterator_get_num_nodes
   class(reference_fe_t), pointer :: reference_fe_geo
   type(p4est_cell_iterator_t) :: cell
+  type(list_iterator_t) :: dofs_on_bst_vef_iterator
   call cell%create(this%p4est_triangulation)
   call this%get_cell_around(1, cell)
   reference_fe_geo => cell%get_reference_fe()
-  p4est_vef_iterator_get_num_nodes = reference_fe_geo%get_num_shape_functions()
+  dofs_on_bst_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
+  p4est_vef_iterator_get_num_nodes = dofs_on_bst_vef_iterator%get_size()
   call cell%free()
 end function p4est_vef_iterator_get_num_nodes
 

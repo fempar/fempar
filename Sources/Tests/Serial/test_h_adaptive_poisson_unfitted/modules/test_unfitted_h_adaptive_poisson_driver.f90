@@ -516,6 +516,7 @@ contains
     end if
     
     call this%fe_space%set_up_cell_integration()    
+    call this%fe_space%set_up_facet_integration()
 
   end subroutine setup_fe_space
   
@@ -1021,6 +1022,16 @@ contains
         ! Write the unfitted mesh
         call vtk_writer%attach_boundary_quadrature_points(this%fe_space)
         call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_normals.vtu')
+        call vtk_writer%free()
+
+        ! Write the unfitted mesh
+        call vtk_writer%attach_fitted_faces(this%triangulation)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_fitted_facets.vtu')
+        call vtk_writer%free()
+
+        ! Write the unfitted mesh
+        call vtk_writer%attach_facets_quadrature_points(this%fe_space)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_fitted_normals.vtu')
         call vtk_writer%free()
         
         ! Write the solution

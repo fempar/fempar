@@ -399,8 +399,9 @@ module unfitted_triangulations_names
       procedure, non_overridable :: get_total_num_subcells     => upst_get_total_num_subcells
       procedure, non_overridable :: get_max_num_subfacets_in_cell  => upst_get_max_num_subfacets_in_cell
       procedure, non_overridable :: get_max_num_nodes_in_subfacet  => upst_get_max_num_nodes_in_subfacet
-      procedure, non_overridable :: get_total_num_subfacets     => upst_get_total_num_subfacets
-      procedure, non_overridable :: get_max_num_subnodes_in_cell  => upst_get_max_num_subnodes_in_cell
+      procedure, non_overridable :: get_total_num_subfacets        => upst_get_total_num_subfacets
+      procedure, non_overridable :: get_total_num_fitted_sub_facets=> upst_get_total_num_fitted_sub_facets
+      procedure, non_overridable :: get_max_num_subnodes_in_cell   => upst_get_max_num_subnodes_in_cell
 
       ! Printers
       procedure :: print                     => upst_print
