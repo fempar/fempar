@@ -113,9 +113,9 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(par_test_nsi_fe_driver_t), intent(inout) :: this
-    class(vector_t) , pointer :: unknown
+    class(vector_t) , pointer :: free_dofs_values
     type(vector_field_t) :: zero_vector_field
-    integer(ip) :: istat, field_id
+    integer(ip) :: field_id
 
     ! Geometry
     !call this%timer_triangulation%start()
@@ -150,36 +150,15 @@ contains
     call this%fe_space%interpolate_dirichlet_values(this%solution)    
     call this%par_nsi_integration%set_fe_function(this%solution)
 
-    !call this%timer_fe_space%stop()
-
     ! Construct Linear and nonlinear operators
     !call this%timer_solver_setup%start()
     call this%setup_operators()
     !call this%timer_solver_setup%stop()
    
     ! Solve the problem
-    call this%nonlinear_solver%solve(this%nonlinear_operator, this%solution%get_free_dof_values() )
+    free_dofs_values => this%solution%get_free_dof_values()
+    call this%nonlinear_solver%solve(this%nonlinear_operator, free_dofs_values)
     
-    !call this%time_integration%apply(this%solution)
-    
-    !do while(this%current_time < this%final_time )
-    !  
-    !  this%current_time = this%current_time + this%time_step
-    !  call this%initialize_time_step(fe_space, solution)
-    !  call this%print()
-    !  call this%discrete_integration%set_mass_coefficient    (this%get_mass_coefficient())
-    !  call this%discrete_integration%set_residual_coefficient(this%get_residual_coefficient())
-    !  call this%discrete_integration%set_current_time        (this%current_time)
-    !  ! Solve time step
-    !  dof_values => solution%get_free_dof_values() ! initial guess is the previous step
-    !  call this%nonlinear_solver%solve(this%nonlinear_operator,dof_values)
-    !  ! Check if converged
-    !  mcheck( this%nonlinear_solver%has_converged(), 'Nonlinear solver has not converged. Cannot advance to the next step.' )
-    !  call this%update_solution(fe_space,solution)
-    !end do
-    
-    !call this%timer_solver_run%stop()
-
     ! Postprocess
     call this%write_solution()
     call this%check_solution()
