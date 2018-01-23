@@ -119,21 +119,21 @@ subroutine suhpafs_create_fe_cell_iterator(this, fe)
   call fe%create(this)
 end subroutine suhpafs_create_fe_cell_iterator
 
-!!========================================================================================
-!subroutine suhpafs_create_fe_facet_iterator(this, fe_face)
-!  implicit none
-!  class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(in)    :: this
-!  class(fe_facet_iterator_t), allocatable, intent(inout) :: fe_face
-!  class(vef_iterator_t), allocatable :: vef
-!  class(triangulation_t), pointer :: triangulation
-!  integer(ip)          :: istat
-!  call this%free_fe_facet_iterator(fe_face)
-!  triangulation => this%get_triangulation()
-!  call triangulation%create_vef_iterator(vef)
-!  allocate(unfitted_fe_facet_iterator_t :: fe_face, stat=istat); check(istat==0)
-!  call fe_face%create(this,vef)
-!  call triangulation%free_vef_iterator(vef)
-!end subroutine suhpafs_create_fe_facet_iterator
+!========================================================================================
+subroutine suhpafs_create_fe_facet_iterator(this, fe_face)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), target, intent(in)    :: this
+  class(fe_facet_iterator_t), allocatable, intent(inout) :: fe_face
+  class(vef_iterator_t), allocatable :: vef
+  class(triangulation_t), pointer :: triangulation
+  integer(ip)          :: istat
+  call this%free_fe_facet_iterator(fe_face)
+  triangulation => this%get_triangulation()
+  call triangulation%create_vef_iterator(vef)
+  allocate(unfitted_fe_facet_iterator_t :: fe_face, stat=istat); check(istat==0)
+  call fe_face%create(this,vef)
+  call triangulation%free_vef_iterator(vef)
+end subroutine suhpafs_create_fe_facet_iterator
 
 !========================================================================================
 subroutine suhpafs_count_dofs ( this ) 

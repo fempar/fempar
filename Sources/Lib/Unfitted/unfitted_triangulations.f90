@@ -177,6 +177,44 @@ module unfitted_triangulations_names
 
   end type unfitted_p4est_cell_iterator_t
 
+  type, extends(unfitted_vef_iterator_t) :: unfitted_p4est_vef_iterator_t
+    private
+    type(p4est_vef_iterator_t) :: p4est_vef
+  contains
+
+    ! TBPs that change the gid
+    procedure                            :: create                  => upvi_create
+    procedure                            :: free                    => upvi_free
+    procedure                            :: next                    => upvi_next
+    procedure                            :: first                   => upvi_first
+    procedure                            :: set_gid                 => upvi_set_gid
+
+    ! TBPS that only relay on this::p4est_vef
+    procedure                           :: has_finished                    => upvi_has_finished
+    procedure                           :: get_num_nodes                   => upvi_get_num_nodes
+    procedure                           :: get_nodes_coordinates           => upvi_get_nodes_coordinates
+    procedure                           :: get_ggid                        => upvi_get_ggid
+    procedure                           :: set_set_id                      => upvi_set_set_id
+    procedure                           :: get_set_id                      => upvi_get_set_id
+    procedure                           :: get_dim                         => upvi_get_dim
+    procedure                           :: is_at_boundary                  => upvi_is_at_boundary
+    procedure                           :: is_at_interior                  => upvi_is_at_interior
+    procedure                           :: is_local                        => upvi_is_local
+    procedure                           :: is_ghost                        => upvi_is_ghost
+    procedure                           :: is_at_interface                 => upvi_is_at_interface
+    procedure                           :: is_proper                       => upvi_is_proper
+    procedure                           :: is_within_valid_range           => upvi_is_within_valid_range
+    procedure                           :: get_num_cells_around            => upvi_get_num_cells_around
+    procedure                           :: get_cell_around                 => upvi_get_cell_around
+    procedure                           :: get_num_improper_cells_around   => upvi_get_num_improper_cells_around
+    procedure                           :: get_improper_cell_around        => upvi_get_improper_cell_around
+    procedure                           :: get_improper_cell_around_ivef   => upvi_get_improper_cell_around_ivef
+    procedure                           :: get_improper_cell_around_subvef => upvi_get_improper_cell_around_subvef
+    procedure                           :: get_num_half_cells_around       => upvi_get_num_half_cells_around
+    procedure                           :: get_half_cell_around            => upvi_get_half_cell_around
+
+  end type unfitted_p4est_vef_iterator_t
+
   ! We need this to create a par fe space in marching_cubes_t to hold a discrete levelset function
   type, extends(standard_l1_coarse_fe_handler_t) :: mc_dummy_coarse_fe_handler_t
     contains
@@ -349,7 +387,7 @@ module unfitted_triangulations_names
 
       ! Generate iterator by overloading the procedure of the father
       procedure :: create_cell_iterator => upst_create_cell_iterator
-      !procedure :: create_vef_iterator  => upst_create_vef_iterator
+      procedure :: create_vef_iterator  => upst_create_vef_iterator
 
       ! Getters
       procedure, non_overridable, private :: get_marching_cubes   => upst_get_marching_cubes
@@ -414,6 +452,7 @@ contains
 #include "sbm_unfitted_cell_iterator.i90"
 #include "sbm_unfitted_vef_iterator.i90"
 #include "sbm_unfitted_p4est_cell_iterator.i90"
+#include "sbm_unfitted_p4est_vef_iterator.i90"
 #include "sbm_marching_cubes.i90"
 #include "sbm_serial_unfitted_triangulation.i90"
 #include "sbm_unfitted_p4est_serial_triangulation.i90"

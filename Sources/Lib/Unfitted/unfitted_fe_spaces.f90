@@ -222,7 +222,7 @@ module unfitted_fe_spaces_names
       
       ! Creation of the iterator (overrides)
       procedure :: create_fe_cell_iterator       => suhpafs_create_fe_cell_iterator
-      !procedure :: create_fe_facet_iterator      => suhpafs_create_fe_facet_iterator
+      procedure :: create_fe_facet_iterator      => suhpafs_create_fe_facet_iterator
 
       ! Generation of Dofs (overrides)
       procedure :: count_dofs => suhpafs_count_dofs

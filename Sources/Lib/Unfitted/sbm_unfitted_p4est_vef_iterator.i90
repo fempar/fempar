@@ -1,0 +1,232 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! TBPs that change the gid
+
+subroutine upvi_create ( this, triangulation )
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(inout) :: this
+  class(triangulation_t), target, intent(in) :: triangulation
+  call this%unfitted_vef_iterator_t%create(triangulation)
+  call this%p4est_vef%create(triangulation)
+  call this%update_unfitted_cell()
+end subroutine upvi_create
+
+subroutine upvi_free ( this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(inout) :: this
+  call this%unfitted_vef_iterator_t%free()
+  call this%p4est_vef%free()
+end subroutine upvi_free
+
+subroutine upvi_next(this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(inout) :: this
+  call this%unfitted_vef_iterator_t%next()
+  call this%p4est_vef%next()
+  call this%update_unfitted_cell()
+end subroutine upvi_next
+
+subroutine upvi_first(this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(inout) :: this
+  call this%unfitted_vef_iterator_t%first()
+  call this%p4est_vef%first()
+  call this%update_unfitted_cell()
+end subroutine upvi_first
+
+subroutine upvi_set_gid(this, gid)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(inout) :: this
+  integer(ip), intent(in) :: gid
+  call this%unfitted_vef_iterator_t%set_gid(gid)
+  call this%p4est_vef%set_gid(gid)
+  call this%update_unfitted_cell()
+end subroutine upvi_set_gid
+
+! TBPS that only relay on this::p4est_vef
+
+function upvi_has_finished(this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  logical :: upvi_has_finished
+  upvi_has_finished = this%p4est_vef%has_finished()
+end function upvi_has_finished
+
+function upvi_get_num_nodes(this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: upvi_get_num_nodes
+  upvi_get_num_nodes = this%p4est_vef%get_num_nodes()
+end function upvi_get_num_nodes
+
+subroutine upvi_get_nodes_coordinates (this, nodes_coordinates)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  type(point_t)              , intent(inout) :: nodes_coordinates(:)
+  call this%p4est_vef%get_nodes_coordinates(nodes_coordinates)
+end subroutine upvi_get_nodes_coordinates
+
+function upvi_get_ggid (this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  integer(igp) :: upvi_get_ggid
+  upvi_get_ggid = this%p4est_vef%get_ggid()
+end function upvi_get_ggid
+
+subroutine upvi_set_set_id(this,set_id)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(inout) :: this
+  integer(ip)          , intent(in) :: set_id
+  call this%p4est_vef%set_set_id(set_id)
+end subroutine upvi_set_set_id
+
+function upvi_get_set_id(this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: upvi_get_set_id
+  upvi_get_set_id = this%p4est_vef%get_set_id()
+end function upvi_get_set_id
+
+function upvi_get_dim(this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: upvi_get_dim
+  upvi_get_dim = this%p4est_vef%get_dim()
+end function upvi_get_dim
+
+function upvi_is_at_boundary (this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  logical :: upvi_is_at_boundary
+  upvi_is_at_boundary = this%p4est_vef%is_at_boundary()
+end function upvi_is_at_boundary
+
+function upvi_is_at_interior (this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  logical :: upvi_is_at_interior
+  upvi_is_at_interior = this%p4est_vef%is_at_interior()
+end function upvi_is_at_interior
+
+function upvi_is_local (this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  logical :: upvi_is_local
+  upvi_is_local = this%p4est_vef%is_local()
+end function upvi_is_local
+
+function upvi_is_ghost (this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  logical :: upvi_is_ghost
+  upvi_is_ghost = this%p4est_vef%is_ghost()
+end function upvi_is_ghost
+
+function upvi_is_at_interface (this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  logical :: upvi_is_at_interface
+  upvi_is_at_interface = this%p4est_vef%is_at_interface()
+end function upvi_is_at_interface
+
+function upvi_is_proper(this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  logical :: upvi_is_proper
+  upvi_is_proper = this%p4est_vef%is_proper()
+end function upvi_is_proper
+
+function upvi_is_within_valid_range(this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  logical :: upvi_is_within_valid_range
+  upvi_is_within_valid_range = this%p4est_vef%is_within_valid_range()
+end function upvi_is_within_valid_range
+
+function upvi_get_num_cells_around (this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: upvi_get_num_cells_around
+  upvi_get_num_cells_around = this%p4est_vef%get_num_cells_around()
+end function upvi_get_num_cells_around
+
+subroutine upvi_get_cell_around (this, icell_around, cell)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  call this%p4est_vef%get_cell_around(icell_around, cell)
+end subroutine upvi_get_cell_around
+
+function upvi_get_num_improper_cells_around (this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: upvi_get_num_improper_cells_around
+  upvi_get_num_improper_cells_around = this%p4est_vef%get_num_improper_cells_around()
+end function upvi_get_num_improper_cells_around
+
+subroutine upvi_get_improper_cell_around (this, icell_around, cell)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  call this%p4est_vef%get_improper_cell_around(icell_around, cell)
+end subroutine upvi_get_improper_cell_around
+
+function upvi_get_improper_cell_around_ivef(this, icell_around)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t) , intent(in)    :: this
+  integer(ip)                 , intent(in)    :: icell_around
+  integer(ip) :: upvi_get_improper_cell_around_ivef
+  upvi_get_improper_cell_around_ivef = this%p4est_vef%get_improper_cell_around_ivef(icell_around)
+end function upvi_get_improper_cell_around_ivef
+
+function upvi_get_improper_cell_around_subvef(this, icell_around)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t) , intent(in)    :: this
+  integer(ip)                 , intent(in)    :: icell_around
+  integer(ip) :: upvi_get_improper_cell_around_subvef
+  upvi_get_improper_cell_around_subvef = this%p4est_vef%get_improper_cell_around_subvef(icell_around)
+end function upvi_get_improper_cell_around_subvef
+
+function upvi_get_num_half_cells_around (this)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: upvi_get_num_half_cells_around
+  upvi_get_num_half_cells_around = this%p4est_vef%get_num_half_cells_around()
+end function upvi_get_num_half_cells_around
+
+subroutine upvi_get_half_cell_around (this, icell_around, cell)
+  implicit none
+  class(unfitted_p4est_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  call this%p4est_vef%get_half_cell_around(icell_around, cell)
+end subroutine upvi_get_half_cell_around
+
