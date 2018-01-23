@@ -269,7 +269,7 @@ class(hts_nedelec_discrete_integration_t)   , intent(inout)   :: discrete_integr
 ! This subroutine is in charge of adding tangent terms to the current operator 
 ! J(u) = A(u) + A'(u)·u, stored in fe_affine_operator 
 call discrete_integration%set_integration_type('add_tangent_terms')
-call this%fe_affine_operator%numerical_setup() 
+call this%fe_affine_operator%compute() 
 call discrete_integration%set_integration_type('regular')
 
 end subroutine hts_nonlinear_solver_compute_Jacobian 
@@ -284,7 +284,7 @@ Jacobian => this%fe_affine_operator%get_matrix()
  
 select type (Jacobian) 
 class is (sparse_matrix_t) 
-  call this%direct_solver%update_matrix( Jacobian, same_nonzero_pattern=.false.) 
+  call this%direct_solver%replace_matrix( Jacobian, same_nonzero_pattern=.false.) 
   call this%direct_solver%solve( -this%residual , this%increment_dof_values )
 class DEFAULT 
 assert(.false.) 
@@ -383,7 +383,7 @@ subroutine hts_nonlinear_solver_solve_constrained_tangent_system(this, constrain
 
   call parameter_list%free()
 
-  call direct_solver%update_matrix(constrained_coefficient_matrix, same_nonzero_pattern=.false.)
+  call direct_solver%replace_matrix(constrained_coefficient_matrix, same_nonzero_pattern=.false.)
   call direct_solver%solve( minus_constrained_residual, constrained_sol )
   call direct_solver%free()
   
@@ -622,7 +622,7 @@ subroutine line_search_initialize(this)
   call newton_raphson_solver%fe_affine_operator%create_range_vector(this%initial_dof_values)
 
       ! Line search Cubic Backtracking algorithm 
-  call newton_raphson_solver%fe_affine_operator%numerical_setup() 
+  call newton_raphson_solver%fe_affine_operator%compute() 
   call newton_raphson_solver%compute_residual()
   
   call this%initial_dof_values%copy( newton_raphson_solver%current_dof_values )  
@@ -631,7 +631,7 @@ subroutine line_search_initialize(this)
    lambda_0 = this%step_length 
    
   newton_raphson_solver%current_dof_values = this%initial_dof_values + lambda_0*newton_raphson_solver%increment_dof_values  
-  call newton_raphson_solver%fe_affine_operator%numerical_setup()
+  call newton_raphson_solver%fe_affine_operator%compute()
   call newton_raphson_solver%compute_residual()
  
   ! Check if linear is sufficient 
@@ -657,7 +657,7 @@ subroutine line_search_initialize(this)
   
   !  Update solution with new length step 
     newton_raphson_solver%current_dof_values = this%initial_dof_values + lambda*newton_raphson_solver%increment_dof_values 
-    call newton_raphson_solver%fe_affine_operator%numerical_setup() 
+    call newton_raphson_solver%fe_affine_operator%compute() 
     call newton_raphson_solver%compute_residual() 
 
   ! Check if quadratic is sufficient 
@@ -697,7 +697,7 @@ subroutine line_search_initialize(this)
   end if 
   
     newton_raphson_solver%current_dof_values = this%initial_dof_values + lambda*newton_raphson_solver%increment_dof_values 
-    call newton_raphson_solver%fe_affine_operator%numerical_setup() 
+    call newton_raphson_solver%fe_affine_operator%compute() 
     call newton_raphson_solver%compute_residual() 
     ! Check if cubic is sufficient 
     if ( newton_raphson_solver%residual%nrm2()**2 .le. ( this%initial_residual%nrm2()**2 + 2.0_rp*this%alpha*lambda*s)  ) then 

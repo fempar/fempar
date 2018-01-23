@@ -223,8 +223,8 @@ contains
     call this%fe_space%set_up_facet_integration()
 
     ! Operators related data needed for fe_function 
-    call this%block_layout%create( this%fe_space%get_num_fields() )
-    call this%fe_space%generate_global_dof_numbering(this%block_layout)								
+    !call this%block_layout%create( this%fe_space%get_num_fields() )
+    !call this%fe_space%generate_global_dof_numbering()								
   end subroutine setup_fe_space
 
   subroutine interpolate_analytical_functions (this)

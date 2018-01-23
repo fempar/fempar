@@ -49,6 +49,7 @@ module assembler_names
      procedure                                        :: init_array       => assembler_init_array
      procedure                                        :: init_matrix      => assembler_init_matrix
      procedure                                        :: free_in_stages   => assembler_free_in_stages
+     procedure                                        :: free             => assembler_free
      procedure                                        :: get_matrix       => assembler_get_matrix
      procedure                                        :: get_array        => assembler_get_array
   end type assembler_t
@@ -166,6 +167,15 @@ contains
        nullify(this%array)
     end if
   end subroutine assembler_free_in_stages
+  
+  subroutine assembler_free(this)
+    implicit none
+    class(assembler_t), intent(inout) :: this
+    call this%free_in_stages(free_numerical_setup)
+    call this%free_in_stages(free_symbolic_setup)
+    call this%free_in_stages(free_clean)
+
+  end subroutine assembler_free
   
     function assembler_get_matrix(this)
     implicit none

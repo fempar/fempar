@@ -51,9 +51,11 @@ module cell_import_names
      integer(ip), allocatable  :: snd_leids(:)               ! Local elements IDs of the elements to be sent to each neighbour ?
   contains
      
+     procedure, private, non_overridable :: cell_import_create_from_raw_arrays
      procedure, private, non_overridable :: cell_import_create_ip
      procedure, private, non_overridable :: cell_import_create_igp
-     generic                             :: create => cell_import_create_ip, &
+     generic                             :: create => cell_import_create_from_raw_arrays, &
+                                                      cell_import_create_ip, &
                                                       cell_import_create_igp
      procedure, private, non_overridable :: compute_num_neighbours     => cell_import_compute_num_neighbours
      procedure, private, non_overridable :: compute_neighbours_ids        => cell_import_compute_neighbour_ids
@@ -78,6 +80,49 @@ module cell_import_names
   public :: cell_import_t
 
 contains
+
+  subroutine cell_import_create_from_raw_arrays (this, &
+                                                 part_id, &
+                                                 num_parts, &
+                                                 num_ghost_elements, &
+                                                 num_neighbours, &
+                                                 neighbours_ids, &
+                                                 rcv_ptrs, &
+                                                 rcv_leids, & 
+                                                 snd_ptrs, &
+                                                 snd_leids )
+    implicit none
+    class(cell_import_t)  , intent(inout) :: this
+    integer(ip)           , intent(in)    :: part_id
+    integer(ip)           , intent(in)    :: num_parts
+    integer(ip)           , intent(in)    :: num_ghost_elements
+    integer(ip)           , intent(in)    :: num_neighbours
+    integer(ip)           , intent(in)    :: neighbours_ids(:)
+    integer(ip)           , intent(in)    :: rcv_ptrs(:)
+    integer(ip)           , intent(in)    :: rcv_leids(:)
+    integer(ip)           , intent(in)    :: snd_ptrs(:)
+    integer(ip)           , intent(in)    :: snd_leids(:)
+    
+    call this%free()
+    
+    this%part_id            = part_id
+    this%num_parts          = num_parts
+    this%num_ghost_elements = num_ghost_elements
+    this%num_neighbours     = num_neighbours
+    
+    call memalloc ( this%num_neighbours  , this%neighbours_ids, __FILE__, __LINE__)
+    call memalloc ( this%num_neighbours+1, this%rcv_ptrs     , __FILE__, __LINE__)
+    call memalloc ( this%num_neighbours+1, this%snd_ptrs     , __FILE__, __LINE__)
+    this%neighbours_ids = neighbours_ids
+    this%rcv_ptrs       = rcv_ptrs(1:this%num_neighbours+1)
+    this%snd_ptrs       = snd_ptrs(1:this%num_neighbours+1)
+    
+    call memalloc ( this%rcv_ptrs(this%num_neighbours+1)-1, this%rcv_leids, __FILE__, __LINE__)
+    call memalloc ( this%snd_ptrs(this%num_neighbours+1)-1, this%snd_leids, __FILE__, __LINE__)
+    this%rcv_leids = rcv_leids(1:this%rcv_ptrs(this%num_neighbours+1)-1)
+    this%snd_leids = snd_leids(1:this%snd_ptrs(this%num_neighbours+1)-1)
+  end subroutine cell_import_create_from_raw_arrays
+
 
   subroutine cell_import_create_igp (this,                                 & ! Passed-object dummy argument
                                         part_id,                              & ! My part identifier
