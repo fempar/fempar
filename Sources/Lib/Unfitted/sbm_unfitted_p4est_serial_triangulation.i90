@@ -165,6 +165,14 @@ function upst_get_total_num_subfacets(this) result (val)
 end function upst_get_total_num_subfacets
 
 !========================================================================================
+function upst_get_total_num_fitted_sub_facets(this) result (val)
+  implicit none
+  class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_total_num_fitted_sub_facets()
+end function upst_get_total_num_fitted_sub_facets
+
+!========================================================================================
 function upst_get_max_num_subnodes_in_cell(this) result (val)
   implicit none
   class(unfitted_p4est_serial_triangulation_t), intent(in)    :: this
