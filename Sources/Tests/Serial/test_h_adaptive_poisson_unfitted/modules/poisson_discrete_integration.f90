@@ -126,7 +126,7 @@ contains
 
     ! For Neumann facet integration
     class(fe_facet_iterator_t), allocatable :: fe_facet
-    real(rp), allocatable :: facemat(:,:,:,:), facevec(:,:)
+    !real(rp), allocatable :: facemat(:,:,:,:), facevec(:,:)
     type(vector_field_t) :: exact_sol_gradient
     type(vector_field_t) :: normals(2)
 
@@ -158,8 +158,8 @@ contains
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
 
-    call memalloc ( num_dofs, num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
-    call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
+    !call memalloc ( num_dofs, num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
+    !call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
 
     !This is for the Nitsche's BCs
     ! TODO  We assume same ref element for all cells, and for all fields
@@ -367,8 +367,10 @@ contains
       call fe_facet%get_values(1,shape_values,1)
 
       ! Compute element vector
-      facemat = 0.0_rp
-      facevec = 0.0_rp
+      !facemat = 0.0_rp
+      !facevec = 0.0_rp
+      elmat = 0.0_rp
+      elvec = 0.0_rp
       do qpoint = 1, num_quad_points
 
         dS = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
@@ -376,12 +378,16 @@ contains
         call exact_sol%get_gradient(quad_coords(qpoint),exact_sol_gradient)
 
         do idof = 1, fe_facet%get_num_dofs_field(1,1)
-           facevec(idof,1) = facevec(idof,1) + dS * ( exact_sol_gradient*normals(1) ) * shape_values(idof,qpoint)
+           elvec(idof) = elvec(idof) + dS * ( exact_sol_gradient*normals(1) ) * shape_values(idof,qpoint)
         end do
 
       end do
 
-      call fe_facet%assembly( facemat, facevec, assembler )
+      ! We need to use the fe for assembly in order to apply the constraints
+      call fe_facet%get_cell_around(1,fe)
+      call fe%assembly(elmat, elvec, assembler )
+
+      !call fe_facet%assembly( facemat, facevec, assembler )
       call fe_facet%next()
     end do
 
@@ -392,8 +398,8 @@ contains
     if (allocated(shape_gradients         )) deallocate  (shape_gradients         , stat=istat); check(istat==0);
     if (allocated(boundary_shape_gradients)) deallocate  (boundary_shape_gradients, stat=istat); check(istat==0);
 
-    call memfree ( facemat, __FILE__, __LINE__ )
-    call memfree ( facevec, __FILE__, __LINE__ )
+    !call memfree ( facemat, __FILE__, __LINE__ )
+    !call memfree ( facevec, __FILE__, __LINE__ )
 
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
