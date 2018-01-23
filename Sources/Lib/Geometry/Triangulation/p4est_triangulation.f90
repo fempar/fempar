@@ -42,6 +42,7 @@ module p4est_triangulation_names
   use triangulation_names
   use std_vector_integer_ip_names
   use std_vector_integer_igp_names
+  use std_vector_logical_names
   use field_names
   use cell_import_names
   use std_vector_point_names
@@ -49,7 +50,7 @@ module p4est_triangulation_names
   use hash_table_names
   use mpi
   use allocatable_array_names 
-
+  
   implicit none
 # include "debug.i90"
   private
@@ -457,11 +458,11 @@ module p4est_triangulation_names
     type(std_vector_integer_ip_t)          :: improper_vefs_improper_cell_around_subvef
     type(std_vector_integer_ip_t)          :: proper_vefs_dim
     type(std_vector_integer_ip_t)          :: improper_vefs_dim
-    type(std_vector_integer_ip_t)          :: proper_vefs_at_boundary
-    type(std_vector_integer_ip_t)          :: proper_vefs_at_interface
-    type(std_vector_integer_ip_t)          :: improper_vefs_at_interface
-    type(std_vector_integer_ip_t)          :: proper_vefs_is_ghost
-    type(std_vector_integer_ip_t)          :: improper_vefs_is_ghost
+    type(std_vector_logical_t)             :: proper_vefs_at_boundary
+    type(std_vector_logical_t)             :: proper_vefs_at_interface
+    type(std_vector_logical_t)             :: improper_vefs_at_interface
+    type(std_vector_logical_t)             :: proper_vefs_is_ghost
+    type(std_vector_logical_t)             :: improper_vefs_is_ghost
     type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
     type(std_vector_integer_ip_t)          :: cell_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
@@ -484,6 +485,7 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: update_p4est_mesh                                  => p4est_base_triangulation_update_p4est_mesh
     procedure, private        , non_overridable  :: update_topology_from_p4est_mesh                    => p4est_base_triangulation_update_topology_from_p4est_mesh
     procedure, private        , non_overridable  :: extend_p4est_topology_arrays_to_ghost_cells        => p4est_bt_extend_p4est_topology_arrays_to_ghost_cells
+    procedure, private        , non_overridable  :: find_missing_corner_neighbours                     => p4est_bt_find_missing_corner_neighbours
     procedure, private        , non_overridable  :: get_ptr_vefs_x_cell                                => p4est_base_triangulation_get_ptr_vefs_x_cell
     procedure, private        , non_overridable  :: update_lst_vefs_gids_and_cells_around              => p4est_bt_update_lst_vefs_gids_and_cells_around
     procedure, private        , non_overridable  :: update_vefs_is_ghost                               => p4est_bt_update_vefs_is_ghost            

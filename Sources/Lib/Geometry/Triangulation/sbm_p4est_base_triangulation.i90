@@ -110,6 +110,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%comm_cell_ggids()
     call this%comm_cell_myparts()
     call this%extend_p4est_topology_arrays_to_ghost_cells()
+    call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
     call this%update_vefs_is_ghost()
     call this%fill_x_cell_vertex_coordinates()
@@ -553,16 +554,16 @@ contains
 
               ! Fill proper vefs at boundary
               if ( vef_at_boundary ) then
-                 call this%proper_vefs_at_boundary%push_back(1)
+                 call this%proper_vefs_at_boundary%push_back(.true.)
               else
-                 call this%proper_vefs_at_boundary%push_back(0)
+                 call this%proper_vefs_at_boundary%push_back(.false.)
               end if
 
               ! Fill proper vefs at interface 
               if ( vef_at_interface ) then
-                 call this%proper_vefs_at_interface%push_back(1)
+                 call this%proper_vefs_at_interface%push_back(.true.)
               else
-                 call this%proper_vefs_at_interface%push_back(0)
+                 call this%proper_vefs_at_interface%push_back(.false.)
               end if
            else 
               this%num_improper_vefs = this%num_improper_vefs+1
@@ -588,9 +589,9 @@ contains
               
               ! Fill proper vefs at interface 
               if ( vef_at_interface ) then
-                 call this%improper_vefs_at_interface%push_back(1)
+                 call this%improper_vefs_at_interface%push_back(.true.)
               else
-                 call this%improper_vefs_at_interface%push_back(0)
+                 call this%improper_vefs_at_interface%push_back(.false.)
               end if
               
            end if
@@ -775,16 +776,16 @@ contains
 
                  ! Fill proper vefs at boundary
                  if ( vef_at_boundary ) then
-                    call this%proper_vefs_at_boundary%push_back(1)
+                    call this%proper_vefs_at_boundary%push_back(.true.)
                  else
-                    call this%proper_vefs_at_boundary%push_back(0)
+                    call this%proper_vefs_at_boundary%push_back(.false.)
                  end if
                  
                  ! Fill proper vefs at interface 
                  if ( vef_at_interface ) then
-                   call this%proper_vefs_at_interface%push_back(1)
+                   call this%proper_vefs_at_interface%push_back(.true.)
                  else
-                   call this%proper_vefs_at_interface%push_back(0)
+                   call this%proper_vefs_at_interface%push_back(.false.)
                  end if
               else
                  this%num_improper_vefs = this%num_improper_vefs+1
@@ -810,9 +811,9 @@ contains
                  
                  ! Fill proper vefs at interface 
                  if ( vef_at_interface ) then
-                   call this%improper_vefs_at_interface%push_back(1)
+                   call this%improper_vefs_at_interface%push_back(.true.)
                  else
-                   call this%improper_vefs_at_interface%push_back(0)
+                   call this%improper_vefs_at_interface%push_back(.false.)
                  end if
               end if
              else
@@ -903,16 +904,16 @@ contains
 
               ! Fill proper vefs at boundary
               if ( vef_at_boundary ) then
-                 call this%proper_vefs_at_boundary%push_back(1)
+                 call this%proper_vefs_at_boundary%push_back(.true.)
               else
-                 call this%proper_vefs_at_boundary%push_back(0)
+                 call this%proper_vefs_at_boundary%push_back(.false.)
               end if
 
               ! Fill proper vefs at interface 
               if ( vef_at_interface ) then
-                 call this%proper_vefs_at_interface%push_back(1)
+                 call this%proper_vefs_at_interface%push_back(.true.)
               else
-                 call this%proper_vefs_at_interface%push_back(0)
+                 call this%proper_vefs_at_interface%push_back(.false.)
               end if
            else 
               this%num_improper_vefs=this%num_improper_vefs+1
@@ -937,9 +938,9 @@ contains
               
               ! Fill proper vefs at interface 
               if ( vef_at_interface ) then
-                 call this%improper_vefs_at_interface%push_back(1)
+                 call this%improper_vefs_at_interface%push_back(.true.)
               else
-                 call this%improper_vefs_at_interface%push_back(0)
+                 call this%improper_vefs_at_interface%push_back(.false.)
               end if
            end if
         else ! Borrow vef gid from owner
@@ -970,9 +971,9 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
   integer(ip) :: vertex_pos_in_cell
 
   call this%proper_vefs_is_ghost%resize(0)
-  call this%proper_vefs_is_ghost%resize(this%num_proper_vefs,1)
+  call this%proper_vefs_is_ghost%resize(this%num_proper_vefs,.true.)
   call this%improper_vefs_is_ghost%resize(0)
-  call this%improper_vefs_is_ghost%resize(this%num_improper_vefs,1)
+  call this%improper_vefs_is_ghost%resize(this%num_improper_vefs,.true.)
   
   call cell%create(this)
   call coarse_cell%create(this)
@@ -984,29 +985,29 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
       do vef_lid = 1, cell%get_num_vefs()
        call cell%get_vef(vef_lid, vef)
        if ( vef%is_proper() ) then
-         call this%proper_vefs_is_ghost%set(vef%get_gid(),0)
+         call this%proper_vefs_is_ghost%set(vef%get_gid(),.false.)
        else
-         call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),0)
+         call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
          do icell=1, vef%get_num_improper_cells_around()
            call vef%get_improper_cell_around(icell, coarse_cell)
            reference_fe_geo => coarse_cell%get_reference_fe()
            coarse_vef_lid=vef%get_improper_cell_around_ivef(icell)
            call coarse_cell%get_vef(coarse_vef_lid,coarse_vef)
-           call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),0)
+           call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)
             
            vefs_of_vef => reference_fe_geo%get_facets_n_face()
            vefs_of_vef_iterator = vefs_of_vef%create_iterator(coarse_vef_lid)
            do while( .not. vefs_of_vef_iterator%is_upper_bound() )
              vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
              call coarse_cell%get_vef(vef_of_vef_pos_in_cell,coarse_vef)
-             call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),0)
+             call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)
                
              vertices_of_line => reference_fe_geo%get_vertices_n_face()
              vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
              do while( .not. vertices_of_line_iterator%is_upper_bound() )
                vertex_pos_in_cell = vertices_of_line_iterator%get_current()
                call coarse_cell%get_vef(vertex_pos_in_cell,coarse_vef)  
-               call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),0)  
+               call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)  
                call vertices_of_line_iterator%next()
              end do
              call vefs_of_vef_iterator%next()
@@ -1022,7 +1023,7 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
           do icell=1, vef%get_num_improper_cells_around()
            call vef%get_improper_cell_around(icell, coarse_cell)
            if ( coarse_cell%is_local() ) then
-             call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),0)
+             call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
            end if
           end do  
          end if  
@@ -1085,7 +1086,7 @@ subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
              coarse_vef_lid=vef%get_improper_cell_around_ivef(icell)
              call coarse_cell%get_vef(coarse_vef_lid,coarse_vef)
              if ( .not. coarse_vef%is_at_interface() ) then
-               call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),1)
+               call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),.true.)
              end if
              
              vefs_of_vef => reference_fe_geo%get_facets_n_face()
@@ -1094,7 +1095,7 @@ subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
                vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
                call coarse_cell%get_vef(vef_of_vef_pos_in_cell,coarse_vef)
                if ( .not. coarse_vef%is_at_interface() ) then
-                 call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),1)  
+                 call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),.true.)  
                end if
                
                vertices_of_line => reference_fe_geo%get_vertices_n_face()
@@ -1103,7 +1104,7 @@ subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
                  vertex_pos_in_cell = vertices_of_line_iterator%get_current()
                  call coarse_cell%get_vef(vertex_pos_in_cell,coarse_vef)  
                  if ( .not. coarse_vef%is_at_interface() ) then
-                   call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),1)
+                   call this%proper_vefs_at_interface%set(coarse_vef%get_gid(),.true.)
                  end if    
                  call vertices_of_line_iterator%next()
                end do
@@ -1548,6 +1549,8 @@ subroutine p4est_bt_update_cell_import( this )
   
   type(cell_import_t) , pointer :: cell_import
   class(environment_t), pointer :: environment
+
+#ifdef ENABLE_P4EST  
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_allocate_and_fill_cell_import_raw_arrays(this%p4est, &
                                                             this%p4est_ghost, &
@@ -1591,6 +1594,9 @@ subroutine p4est_bt_update_cell_import( this )
   call F90_p4est_locidx_buffer_destroy (rcv_leids)
   call F90_p4est_locidx_buffer_destroy (snd_ptrs)
   call F90_p4est_locidx_buffer_destroy (snd_leids)
+#else
+  call this%not_enabled_error()
+#endif          
 end subroutine p4est_bt_update_cell_import
 
 function p4est_bt_generate_non_consecutive_vef_ggid (cell_ggid, vef_lid) result(vef_gid)
@@ -2450,6 +2456,131 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
   call this%not_enabled_error()
 #endif    
 end subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells
+
+
+subroutine p4est_bt_find_missing_corner_neighbours(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout) :: this
+#ifdef ENABLE_P4EST  
+  integer(ip) :: num_corners_x_cell
+  integer(ip) :: num_edges_x_cell
+  integer(ip) :: num_faces_x_cell
+  integer(ip) :: num_subfacets_facet
+  integer(ip) :: num_subedgets_edget
+  integer(ip) :: icell, jcell, kcell, lcell
+  integer(ip) :: iedge
+  integer(ip) :: edget_id
+  integer(ip) :: jcell_iface, jcell_iedge, kcell_iface, flip, mortar
+  integer(P4EST_F90_QLEVEL) :: jcell_iconn 
+  logical :: face_neighbours_at_the_same_refinement_level
+  logical :: corner_found
+  integer(ip) :: iface_at_edge
+  integer(ip) :: iface_at_corner
+  integer(ip) :: icorner_at_edge
+  integer(ip) :: kcell_icorner, kcell_iedge
+  integer(ip) :: kcell_face_neighbours(2,2)
+  integer(ip) :: kcell_iedge_face_neighbours(2,2)
+  integer(ip) :: kcell_icorner_face_neighbours(2,2)
+  integer(ip) :: aux
+  
+  if ( this%get_num_dims() == 3 ) then   
+     num_corners_x_cell      =  NUM_CORNERS_3D
+     num_edges_x_cell        =  NUM_EDGES_3D
+     num_faces_x_cell        =  NUM_FACES_3D
+     num_subfacets_facet     =  NUM_SUBFACES_FACE_3D
+     num_subedgets_edget     =  NUM_SUBEDGES_EDGE_3D
+     
+     do icell=1, this%get_num_local_cells()
+       do iedge=1, num_edges_x_cell
+        ! Find neigs only by edge
+        jcell = this%quad_to_quad_by_edge(iedge,icell)+1
+        if (icell /= jcell .and. jcell > 0) then
+          jcell_iconn = this%quad_to_edge(iedge,icell)
+          call p8est_eval_edge_connectivity(jcell_iconn, jcell_iedge, flip, mortar)
+          assert (flip==1) ! All cells MUST be aligned with each other
+
+          if ( mortar == num_subedgets_edget+1 ) then ! Half-size edge neighbour 
+            face_neighbours_at_the_same_refinement_level = .true.
+            do edget_id = 1, num_subedgets_edget 
+              jcell = this%quad_to_half_by_edge(edget_id,this%quad_to_quad_by_edge(iedge,icell)+1)+1   
+              do iface_at_edge=1, NUM_FACES_AT_EDGE_3D
+                jcell_iface = P4EST_FACES_AT_EDGE_3D(iface_at_edge,jcell_iedge)
+                jcell_iconn = this%quad_to_face(jcell_iface,jcell)
+                kcell       = this%quad_to_quad(jcell_iface,jcell)+1
+                call p8est_eval_connectivity(jcell_iconn, kcell_iface, flip, mortar)
+                assert (flip==1) ! All cells MUST be aligned with each other
+              
+                ! If octree is 2:1 balanced, then face neighbour cannot be half!!!
+                assert(.not. (mortar==num_subfacets_facet+1))
+              
+                ! If neighbour across jcell_iface is double ...
+                if (mortar >= 1 .and. mortar <= num_subfacets_facet) then
+                  face_neighbours_at_the_same_refinement_level = .false.
+                  exit
+                else
+                  assert(mortar==-1)
+                  kcell_face_neighbours (iface_at_edge,edget_id) = kcell
+                  kcell_iedge_face_neighbours(iface_at_edge,edget_id) = p4est_get_jcell_icorner(jcell_iface,kcell_iface,jcell_iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
+                end if
+              end do
+            end do 
+            
+            ! Generate kcell_icorner_face_neighbours
+            if (face_neighbours_at_the_same_refinement_level) then
+              do edget_id = 1, num_subedgets_edget   
+                do iface_at_edge=1, NUM_FACES_AT_EDGE_3D
+                   kcell = kcell_face_neighbours (iface_at_edge,edget_id)
+                   kcell_iedge = kcell_iedge_face_neighbours(iface_at_edge,edget_id)
+                   
+                   ! Find corner within kcell thorough which a new corner neighbour is to be inserted
+                   corner_found = .false.
+                   find_corner: do icorner_at_edge=1, NUM_EDGE_CORNERS_3D 
+                      kcell_icorner = P4EST_EDGE_CORNERS_3D(icorner_at_edge, kcell_iedge)
+                      do iface_at_corner=1, NUM_FACES_AT_CORNER_3D
+                         kcell_iface = P4EST_FACES_AT_CORNER_3D(iface_at_corner, kcell_icorner)
+                         lcell       = this%quad_to_quad(kcell_iface, kcell)+1
+                         
+                         aux = edget_id+1
+                         if ( aux > num_subedgets_edget) aux = 1 
+                         
+                         if ( lcell == kcell_face_neighbours(iface_at_edge, aux) ) then
+                           corner_found = .true. 
+                           exit find_corner
+                         end if 
+                      end do
+                   end do find_corner
+                  
+                   if ( corner_found ) then
+                     kcell_icorner_face_neighbours(iface_at_edge,edget_id) = kcell_icorner
+                   end if 
+                end do
+              end do 
+              
+              ! Fill missing corner neighbours
+              ! 1. kcell_face_neighbours(1,1) <-> kcell_face_neighbours(2,2)
+              assert ( this%quad_to_corner(kcell_icorner_face_neighbours(1,1), kcell_face_neighbours(1,1)) == -1 )
+              assert ( this%quad_to_corner(kcell_icorner_face_neighbours(2,2), kcell_face_neighbours(2,2)) == -1 )
+              this%quad_to_corner(kcell_icorner_face_neighbours(1,1), kcell_face_neighbours(1,1)) = kcell_face_neighbours(2,2)-1
+              this%quad_to_corner(kcell_icorner_face_neighbours(2,2), kcell_face_neighbours(2,2)) = kcell_face_neighbours(1,1)-1
+              
+              ! 2. kcell_face_neighbours(1,2) <-> kcell_face_neighbours(2,1)
+              assert ( this%quad_to_corner(kcell_icorner_face_neighbours(1,2), kcell_face_neighbours(1,2)) == -1 )
+              assert ( this%quad_to_corner(kcell_icorner_face_neighbours(2,1), kcell_face_neighbours(2,1)) == -1 )
+              this%quad_to_corner(kcell_icorner_face_neighbours(1,2), kcell_face_neighbours(1,2)) = kcell_face_neighbours(2,1)-1
+              this%quad_to_corner(kcell_icorner_face_neighbours(2,1), kcell_face_neighbours(2,1)) = kcell_face_neighbours(1,2)-1
+              
+            end if 
+            
+          end if 
+        end if  
+       end do 
+     end do
+  end if
+  
+#else  
+  call this%not_enabled_error()
+#endif      
+end subroutine p4est_bt_find_missing_corner_neighbours
 
 subroutine p4est_base_triangulation_update_cell_ggids ( this )
   implicit none

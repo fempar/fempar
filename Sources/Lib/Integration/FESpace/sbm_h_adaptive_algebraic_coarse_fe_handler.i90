@@ -179,10 +179,8 @@ subroutine h_adaptive_algebraic_l1_setup_constraint_matrix(this, field_id, par_f
        coarse_dof_lid = own_coarse_dofs_iterator%get_current() - 1 
        call visited_dofs%init(num_cols)       
        
-							WRITE(*,*) '********************** NEW OBJECT= ', object%get_ggid(), '*******************************'
        do ivef_within_object=1, object%get_num_vefs()
           call object%get_vef(ivef_within_object,vef)
-										WRITE(*,*) 'IVEF', vef%get_gid(), 'NPARTS', object%get_num_parts_around()  
           do icell_around=1, vef%get_num_cells_around() 
              call vef%get_cell_around(icell_around,fe)
                 reference_fe => fe%get_reference_fe(field_id)

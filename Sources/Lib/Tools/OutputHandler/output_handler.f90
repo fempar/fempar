@@ -64,6 +64,7 @@ module output_handler_names
 USE FPL
 USE types_names
 USE fe_space_names,              only: serial_fe_space_t, fe_cell_iterator_t, fe_function_t
+USE output_handler_field_generator_names
 USE base_output_handler_names
 USE vtk_output_handler_names
 USE xh5_output_handler_names
@@ -115,9 +116,10 @@ private
         procedure, non_overridable         ::                                   output_handler_create_string
         procedure, non_overridable         ::                                   output_handler_create_mold
         procedure, non_overridable, public :: attach_fe_space                => output_handler_attach_fe_space
-        procedure, non_overridable, public :: set_create_fe_cell_iterator         => output_handler_set_create_fe_cell_iterator
-        procedure, non_overridable, public :: set_free_fe_cell_iterator           => output_handler_set_free_fe_cell_iterator
+        procedure, non_overridable, public :: set_create_fe_cell_iterator    => output_handler_set_create_fe_cell_iterator
+        procedure, non_overridable, public :: set_free_fe_cell_iterator      => output_handler_set_free_fe_cell_iterator
         procedure, non_overridable, public :: add_fe_function                => output_handler_add_fe_function
+        procedure, non_overridable, public :: add_field_generator            => output_handler_add_field_generator
         procedure, non_overridable, public :: add_cell_vector                => output_handler_add_cell_vector
         procedure, non_overridable, public :: open                           => output_handler_open
         procedure, non_overridable, public :: append_time_step               => output_handler_append_time_step
@@ -264,7 +266,15 @@ contains
         assert(allocated(this%state))
         call this%state%add_fe_function(fe_function, field_id, name, diff_operator)
     end subroutine output_handler_add_fe_function
-
+    
+    subroutine output_handler_add_field_generator(this, name, output_handler_field_generator)
+        class(output_handler_t)                ,    intent(inout) :: this
+        character(len=*)                       ,    intent(in)    :: name
+        class(output_handler_field_generator_t),    intent(in)    :: output_handler_field_generator
+    !-----------------------------------------------------------------
+        assert(allocated(this%state))
+        call this%state%add_field_generator(name,output_handler_field_generator)
+    end subroutine output_handler_add_field_generator
 
     subroutine output_handler_add_cell_vector(this, cell_vector, name)
     !-----------------------------------------------------------------

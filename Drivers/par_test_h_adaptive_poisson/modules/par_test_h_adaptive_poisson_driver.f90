@@ -213,13 +213,13 @@ end subroutine free_timers
          call this%triangulation%free_vef_iterator(vef)
        end if   
     
-    do i = 1,5
+    do i = 1,4
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
-     call this%set_cells_set_ids()
+     !call this%set_cells_set_ids()
      !call this%dummy_set_cells_set_ids()
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
@@ -386,8 +386,7 @@ end subroutine free_timers
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-				call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc)
+				call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc)
     call parameter_list%free()
 !#endif   
     
@@ -399,7 +398,7 @@ end subroutine free_timers
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%numerical_setup()
+    call this%fe_affine_operator%compute()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
     
@@ -429,7 +428,7 @@ end subroutine free_timers
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+    call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), &
                                             dof_values)
     
     call this%fe_space%update_hanging_dof_values(this%solution)

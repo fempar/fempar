@@ -44,10 +44,10 @@ module sparse_assembler_names
 
   type, extends(assembler_t) :: sparse_assembler_t
   contains
-    procedure :: assembly_array   => sparse_assembler_assembly_array
-    procedure :: assembly_matrix  => sparse_assembler_assembly_matrix
-    procedure :: allocate         => sparse_assembler_allocate
-    procedure :: compress_storage => sparse_assembler_compress_storage
+    procedure :: assembly_array          => sparse_assembler_assembly_array
+    procedure :: assembly_matrix         => sparse_assembler_assembly_matrix
+    procedure :: allocate                => sparse_assembler_allocate
+    procedure :: compress_storage_matrix => sparse_assembler_compress_storage_matrix 
   end type
 
 ! Data types
@@ -134,7 +134,7 @@ contains
     call array%allocate()
   end subroutine sparse_assembler_allocate
 
-  subroutine sparse_assembler_compress_storage( this, & 
+  subroutine sparse_assembler_compress_storage_matrix( this, & 
                                                              sparse_matrix_storage_format )
     implicit none
     class(sparse_assembler_t) , intent(inout) :: this
@@ -147,8 +147,8 @@ contains
       class default
       check(.false.)
     end select
-  end subroutine sparse_assembler_compress_storage
-
+  end subroutine sparse_assembler_compress_storage_matrix 
+		
   subroutine element_serial_scalar_array_assembly( array, num_fields, num_dofs, fe_dofs, elvec )
     implicit none
     ! Parameters

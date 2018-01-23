@@ -43,9 +43,13 @@ module fempar_names
   use parameter_handler_names
   use output_handler_names
   use output_handler_parameters_names
+  use output_handler_field_generator_names
+  use output_handler_patch_names
+  use output_handler_fe_cell_function_names
   use vtk_parameters_names
   use xh5_parameters_names
   use std_vector_names
+  
   
 
   ! Geometry

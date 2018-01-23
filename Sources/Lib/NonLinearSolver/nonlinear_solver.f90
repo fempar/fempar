@@ -52,6 +52,7 @@ module nonlinear_solver_names
       character(len=:),           allocatable  :: convergence_criteria
       class(vector_t),            pointer      :: current_dof_values => null()
       class(vector_t),            pointer      :: current_residual   => null()
+      class(vector_t),            allocatable  :: minus_current_residual
       class(vector_t),            allocatable  :: initial_residual
       class(vector_t),            allocatable  :: increment_dof_values
       class(linear_solver_t),     pointer      :: linear_solver
@@ -121,7 +122,7 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
   class(nonlinear_solver_t)     , intent(inout) :: this
   class(fe_nonlinear_operator_t), intent(inout) :: nonlinear_operator
   class(vector_t), target       , intent(inout) :: unknown
-
+  
   integer(ip) :: istat
   
   ! Initialize work data
@@ -141,20 +142,17 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
   call nonlinear_operator%compute_residual()
   this%current_residual => nonlinear_operator%get_translation()
   
-  ! Print initial residual
-  call this%print_iteration_output_header()
-  call this%print_current_iteration_output()
-    
   ! Store initial residual for the stopping criterium that needs it
   if (this%convergence_criteria == rel_r0_res_norm) then
-    if(allocated(this%initial_residual)) then
-    call this%initial_residual%free()
-    deallocate(this%initial_residual,stat=istat); check(istat==0)
-    end if
     call nonlinear_operator%create_range_vector(this%initial_residual)
     this%initial_residual = this%current_residual
   end if
-    
+  call nonlinear_operator%create_range_vector(this%minus_current_residual)
+
+  ! Print initial residual
+  call this%print_iteration_output_header()
+  call this%print_current_iteration_output()
+  
   do while (.not. this%has_finished())
     this%current_iteration = this%current_iteration + 1
     call nonlinear_operator%compute_tangent()    
@@ -166,9 +164,16 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
        ! Force only numerical set-up
        call this%linear_solver%update_matrix(same_nonzero_pattern=.true.)
     end if 
-    ! sbadia : Is this OK? No extra copy?
+    
+    ! sbadia : An extra copy is required to store "-residual" !!!!
     ! sbadia : To be optimized (Why don't we change the concept of residual?)
-    call this%linear_solver%apply( - this%current_residual, this%increment_dof_values )
+    ! ifort 18.0.0 (I do not know about other versions) had issues with the
+    ! expression -this%current_residual passed to linear_solver%apply(...) below. 
+    ! Thus, I had to explicitly change the sign of the residual on explicitly 
+    ! allocated memory (handled by create/free)
+    call this%minus_current_residual%scal(-1.0_rp, this%current_residual)
+    
+    call this%linear_solver%apply( this%minus_current_residual, this%increment_dof_values )
     call this%update_solution() ! x + dx
     call nonlinear_operator%set_evaluation_point(this%current_dof_values)
     call nonlinear_operator%compute_residual()
@@ -190,6 +195,10 @@ subroutine nonlinear_solver_free(this)
   if(allocated(this%increment_dof_values)) then
     call this%increment_dof_values%free()
     deallocate(this%increment_dof_values,stat=istat); check(istat==0)
+  end if
+  if(allocated(this%minus_current_residual)) then
+    call this%minus_current_residual%free()
+    deallocate(this%minus_current_residual,stat=istat); check(istat==0)
   end if
   this%current_residual   => null()
   this%current_dof_values => null()
