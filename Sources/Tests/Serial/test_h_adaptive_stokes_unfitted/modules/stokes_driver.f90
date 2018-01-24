@@ -178,6 +178,8 @@ contains
     type(point_t) :: mp
     real(rp), parameter :: tol = 1.0e-10
     type(unfitted_vtk_writer_t) :: vtk_writer
+    integer(ip) :: icell
+    logical :: active_found, innactive_found
 
     ! Create the triangulation, with the levelset function
     call this%triangulation%create(this%parameter_list,this%level_set_function)
@@ -354,7 +356,7 @@ contains
 
          massert(.not. first_interior_vertex,'No interior vertex in interior cell found: refine your mesh!')
 
-       else if (this%test_params%get_bc_case_id()>=2 .and. this%test_params%get_bc_case_id()<=5) then
+       else if (this%test_params%get_bc_case_id()>=2 .and. this%test_params%get_bc_case_id()<=6) then
          call vef%first()
          do while ( .not. vef%has_finished() )
            call vef%set_set_id(0)
@@ -390,24 +392,56 @@ contains
                if ( abs(mp%get(3)-0.0) < tol ) then
                  call vef%set_set_id(diri_set_id_u)
                end if
+             else if (this%test_params%get_bc_case_id()==5) then
+               call vef%set_set_id(neumann_set_id)
              else
                call vef%set_set_id(neumann_set_id)
+               if ( abs(mp%get(1)-0.0) < tol ) then
+                 call vef%set_set_id(diri_set_id_u)
+               end if
              end if
 
            end if
            call vef%next()
          end do
+       else if (this%test_params%get_bc_case_id()==-1) then
+
+         call vef%first()
+         do while ( .not. vef%has_finished() )
+           if(vef%is_at_boundary()) then
+               call vef%set_set_id(neumann_set_id)
+           else
+
+             active_found = .false.
+             innactive_found = .false.
+             do icell = 1, vef%get_num_cells_around()
+               call vef%get_cell_around(icell,cell)
+               if (cell%is_cut() .or. cell%is_interior()) then
+                 active_found = .true.
+               else
+                 innactive_found = .true.
+               end if
+             end do
+
+             if (active_found .and. innactive_found) then
+               call vef%set_set_id(diri_set_id_u)
+             else
+               call vef%set_set_id(0)
+             end if
+
+           end if
+           call vef%next()
+         end do
+
        else
          mcheck(.false.,'Unknwon boundary id case')
        end if
-
 
        call this%triangulation%free_vef_iterator(vef)
        call this%triangulation%free_cell_iterator(cell)
        deallocate(nodal_coords,stat=istat); check(istat == 0)
 
     end if
-
     
     !call this%triangulation%print()
 
@@ -1074,12 +1108,6 @@ contains
         call vtk_writer%attach_triangulation(this%triangulation)
         call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh.vtu')
         call vtk_writer%free()
-
-        ! TODO make it work when no cut cells
-        ! Write the unfitted mesh
-        call vtk_writer%attach_boundary_faces(this%triangulation)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
-        call vtk_writer%free()
         
         ! Write the solution
         call vtk_writer%attach_fe_function(this%solution,this%fe_space)
@@ -1089,6 +1117,12 @@ contains
         ! Write vefs
         call vtk_writer%attach_vefs(this%triangulation,this%conditions)
         call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_vefs.vtu')
+        call vtk_writer%free()
+
+        ! TODO make it work when no cut cells
+        ! Write the unfitted mesh
+        call vtk_writer%attach_boundary_faces(this%triangulation)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
         call vtk_writer%free()
 
     endif
