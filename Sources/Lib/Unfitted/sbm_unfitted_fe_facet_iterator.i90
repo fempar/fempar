@@ -35,7 +35,7 @@ subroutine unfitted_fe_facet_iterator_create( this, fe_space, vef )
   class(vef_iterator_t)    , intent(in)            :: vef
   
   class(unfitted_integration_manager_t), pointer  :: unfitted_integration_manager
-  integer(ip) :: istat
+  integer(ip) :: istat, field_id
   
   select type (fe_space)
     class is ( serial_unfitted_fe_space_t)
@@ -51,8 +51,11 @@ subroutine unfitted_fe_facet_iterator_create( this, fe_space, vef )
   call this%free()
   call this%fe_facet_iterator_t%create(fe_space,vef)
   this%unfitted_integration_manager => unfitted_integration_manager
-  assert(fe_space%get_num_fields()==1)
-  this%unfitted_facet_integrators(1)%p=>null()
+
+  allocate( this%unfitted_facet_integrators(fe_space%get_num_fields()), stat=istat ); check(istat == 0)
+  do field_id = 1, fe_space%get_num_fields()
+    this%unfitted_facet_integrators(field_id)%p=>null()
+  end do
   
 end subroutine unfitted_fe_facet_iterator_create
 
@@ -60,7 +63,13 @@ end subroutine unfitted_fe_facet_iterator_create
 subroutine unfitted_fe_facet_iterator_free( this )
   implicit none
   class(unfitted_fe_facet_iterator_t)   , intent(inout) :: this
-  this%unfitted_facet_integrators(1)%p=>null()
+  integer(ip) :: field_id, istat
+  if (allocated(this%unfitted_facet_integrators)) then
+    do field_id = 1, this%unfitted_integration_manager%fe_space%get_num_fields()
+      this%unfitted_facet_integrators(field_id)%p=>null()
+    end do
+    deallocate( this%unfitted_facet_integrators, stat=istat ); check(istat == 0)
+  end if
   this%unfitted_integration_manager => null()
   this%unfitted_facet_maps => null()
   call this%fe_facet_iterator_t%free()
@@ -80,6 +89,7 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
   class(reference_fe_t), pointer    :: reference_fe_geo
   type(p_fe_cell_iterator_t), pointer :: fes_around(:)
    
+  fes_around => this%get_fes_around()
   
   if (this%is_interior()) then
     call this%fe_facet_iterator_t%update_integration()
@@ -87,10 +97,14 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
   else if (this%is_exterior()) then
     if (this%is_at_boundary()) then
       this%unfitted_facet_maps => this%unfitted_integration_manager%empty_facet_maps(pos_map_on_boundary)
-      this%unfitted_facet_integrators(1)%p => this%unfitted_integration_manager%empty_facet_integrators(pos_map_on_boundary)
+      do field_id = 1, fes_around(1)%p%get_num_fields()
+        this%unfitted_facet_integrators(field_id)%p => this%unfitted_integration_manager%empty_facet_integrators(field_id,pos_map_on_boundary)
+      end do
     else
       this%unfitted_facet_maps => this%unfitted_integration_manager%empty_facet_maps(pos_map_in_domain)
-      this%unfitted_facet_integrators(1)%p => this%unfitted_integration_manager%empty_facet_integrators(pos_map_in_domain)
+      do field_id = 1, fes_around(1)%p%get_num_fields()
+        this%unfitted_facet_integrators(field_id)%p => this%unfitted_integration_manager%empty_facet_integrators(field_id,pos_map_in_domain)
+      end do
     end if
   else if (this%is_cut()) then
     call this%update_sub_triangulation()
@@ -101,7 +115,6 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
     check(.false.)
   end if
   
-  fes_around => this%get_fes_around()
   coords => this%unfitted_facet_maps%get_facet_coordinates()
   call this%get_nodes_coordinates(coords)
 
@@ -125,11 +138,12 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
                        reference_fe_geo)
 
   assert(this%unfitted_integration_manager%fe_space%get_num_fields()==1)
-  field_id=1
-  call this%unfitted_facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
-                              subfacet_lid_within_cells_around, &
-                              this%unfitted_facet_maps, &             
-                              this%get_facet_permutation_index())
+  do field_id = 1, fes_around(1)%p%get_num_fields()
+    call this%unfitted_facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
+                                subfacet_lid_within_cells_around, &
+                                this%unfitted_facet_maps, &             
+                                this%get_facet_permutation_index())
+  end do
 
 end subroutine unfitted_fe_facet_iterator_update_integration
 
@@ -278,19 +292,20 @@ subroutine uffi_update_facet_integrators_interpolation(this)
   assert(istat==key_found)
   assert(ipos>0)
 
-  assert(this%unfitted_integration_manager%fe_space%get_num_fields() == 1)
-  field_id = 1
+  do field_id = 1, this%unfitted_integration_manager%fe_space%get_num_fields()
   
-  if (this%is_at_boundary()) then
-    this%unfitted_facet_integrators(field_id)%p => &
-      this%unfitted_integration_manager%cut_fitted_facet_integrators(pos_map_on_boundary,ipos)
-  else
-    this%unfitted_facet_integrators(field_id)%p => &
-      this%unfitted_integration_manager%cut_fitted_facet_integrators(pos_map_in_domain,ipos)
-  end if
+    if (this%is_at_boundary()) then
+      this%unfitted_facet_integrators(field_id)%p => &
+        this%unfitted_integration_manager%cut_fitted_facet_integrators(field_id,pos_map_on_boundary,ipos)
+    else
+      this%unfitted_facet_integrators(field_id)%p => &
+        this%unfitted_integration_manager%cut_fitted_facet_integrators(field_id,pos_map_in_domain,ipos)
+    end if
 
-  quadrature => this%get_quadrature()
-  call this%unfitted_facet_integrators(field_id)%p%update_interpolation(quadrature)
+    quadrature => this%get_quadrature()
+    call this%unfitted_facet_integrators(field_id)%p%update_interpolation(quadrature)
+
+  end do
 
 end subroutine uffi_update_facet_integrators_interpolation
 
@@ -394,7 +409,6 @@ subroutine unfitted_fe_facet_iterator_get_values_scalar (this, ineigh, values, f
   integer(ip), optional   , intent(in)    :: field_id
   integer(ip)                             :: field_id_
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  assert(field_id==1)
   if ( this%is_cut() ) then
     call this%unfitted_facet_integrators(field_id_)%p%get_values(ineigh, values)
   else if ( this%is_interior() ) then
@@ -414,7 +428,6 @@ subroutine unfitted_fe_facet_iterator_get_values_vector (this, ineigh, values, f
   integer(ip), optional   , intent(in)    :: field_id
   integer(ip)                             :: field_id_
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  assert(field_id==1)
   if ( this%is_cut() ) then
     call this%unfitted_facet_integrators(field_id_)%p%get_values(ineigh, values)
   else if ( this%is_interior() ) then
@@ -434,7 +447,6 @@ subroutine unfitted_fe_facet_iterator_get_gradients_scalar (this, ineigh, gradie
   integer(ip), optional   , intent(in)    :: field_id
   integer(ip)                             :: field_id_
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  assert(field_id==1)
   if ( this%is_cut() ) then
     call this%unfitted_facet_integrators(field_id_)%p%get_gradients(ineigh, gradients)
   else if ( this%is_interior() ) then
@@ -455,7 +467,6 @@ subroutine unfitted_fe_facet_iterator_get_curls_vector (this, ineigh, curls, fie
   integer(ip), optional   , intent(in)    :: field_id
   integer(ip)                             :: field_id_
   field_id_=1; if (present(field_id)) field_id_ = field_id
-  assert(field_id==1)
   if ( this%is_cut() ) then
     call this%unfitted_facet_integrators(field_id_)%p%get_curls(ineigh, curls)
   else if ( this%is_interior() ) then

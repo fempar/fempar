@@ -45,7 +45,7 @@ subroutine uim_create(this,fe_space)
     call this%init_cut_integration()
     call this%init_cut_boundary_integration()
     ! This is a temprorary hack since unfitted facet integration is only implemented for a single field
-    ! and for the serial_unfitted_triangulation_t
+    ! and for the serial_unfitted_triangulation_t and unfitted_p4est_serial_triangulation_t
     if (this%fe_space%get_num_fields()==1) then
       select type(triangulation)
         type is (serial_unfitted_triangulation_t)
@@ -533,12 +533,12 @@ subroutine uim_init_cut_fitted_facets_integration( this )
   field_id = 1
   call fe%first_local_non_void(field_id)
   if (fe%has_finished()) call fe%first()
-  reference_elem => fe%get_reference_fe(field_id)
   reference_elem_null => null()
 
   allocate( this%cut_fitted_facet_quadratures(max_pos), stat=istat ); check(istat==0_ip)
   allocate( this%cut_fitted_facet_maps(pos_map_max_id,max_pos), stat=istat ); check(istat==0_ip)
-  allocate( this%cut_fitted_facet_integrators(pos_map_max_id,max_pos), stat=istat ); check(istat==0_ip)
+  allocate( this%cut_fitted_facet_integrators(fe%get_num_fields(),pos_map_max_id,max_pos), stat=istat ); check(istat==0_ip)
+  allocate( this%empty_facet_integrators(fe%get_num_fields(),pos_map_max_id), stat=istat ); check(istat==0_ip)
   do ipos = 1, max_pos
 
     num_subfacets = pos_to_num_fitted_sub_facets%get(ipos)
@@ -558,11 +558,14 @@ subroutine uim_init_cut_fitted_facets_integration( this )
     call this%cut_fitted_facet_maps(pos_map_on_boundary,ipos)%create(&
       this%cut_fitted_facet_quadratures(ipos), geo_reference_elem, geo_reference_elem_null )
 
-    call this%cut_fitted_facet_integrators(pos_map_in_domain,ipos)%create(&
-      this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem, is_identity_perm = .true. )
-    
-    call this%cut_fitted_facet_integrators(pos_map_on_boundary,ipos)%create(&
-      this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem_null, is_identity_perm = .true. )
+    do field_id = 1,fe%get_num_fields()
+      reference_elem => fe%get_reference_fe(field_id)
+      call this%cut_fitted_facet_integrators(field_id,pos_map_in_domain,ipos)%create(&
+        this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem, is_identity_perm = .true. )
+      
+      call this%cut_fitted_facet_integrators(field_id,pos_map_on_boundary,ipos)%create(&
+        this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem_null, is_identity_perm = .true. )
+    end do
 
   end do
   
@@ -570,8 +573,12 @@ subroutine uim_init_cut_fitted_facets_integration( this )
   call this%empty_facet_quadrature%create(num_dim,0)
   call this%empty_facet_maps(pos_map_in_domain)%create(this%empty_facet_quadrature,geo_reference_elem, geo_reference_elem)
   call this%empty_facet_maps(pos_map_on_boundary)%create(this%empty_facet_quadrature,geo_reference_elem, geo_reference_elem_null)
-  call this%empty_facet_integrators(pos_map_in_domain)%create(this%empty_facet_quadrature,reference_elem, reference_elem)
-  call this%empty_facet_integrators(pos_map_on_boundary)%create(this%empty_facet_quadrature,reference_elem, reference_elem_null)
+
+  do field_id = 1,fe%get_num_fields()
+    reference_elem => fe%get_reference_fe(field_id)
+    call this%empty_facet_integrators(field_id,pos_map_in_domain)%create(this%empty_facet_quadrature,reference_elem, reference_elem)
+    call this%empty_facet_integrators(field_id,pos_map_on_boundary)%create(this%empty_facet_quadrature,reference_elem, reference_elem_null)
+  end do
 
   call this%fe_space%free_fe_cell_iterator(fe)
   call this%fe_space%free_fe_facet_iterator(fe_facet)
@@ -585,7 +592,7 @@ subroutine uim_free_cut_fitted_facets_integration( this )
   implicit none
   class(unfitted_integration_manager_t), intent(inout) :: this
 
-  integer(ip) :: id, istat, jd
+  integer(ip) :: id, istat, jd, kd
 
   if ( allocated( this%cut_fitted_facet_quadratures ) ) then
     do id = 1, size(this%cut_fitted_facet_quadratures,1)
@@ -606,20 +613,27 @@ subroutine uim_free_cut_fitted_facets_integration( this )
   if ( allocated( this%cut_fitted_facet_integrators ) ) then
     do id = 1, size(this%cut_fitted_facet_integrators,1 )
       do jd = 1, size(this%cut_fitted_facet_integrators,2 )
-      call this%cut_fitted_facet_integrators(id,jd)%free()
+        do kd = 1, size(this%cut_fitted_facet_integrators,3 )
+          call this%cut_fitted_facet_integrators(id,jd,kd)%free()
+        end do
       end do
     end do
     deallocate( this%cut_fitted_facet_integrators , stat = istat ); check(istat==0)
   end if
 
+  if ( allocated( this%empty_facet_integrators ) ) then
+    do id = 1, size(this%empty_facet_integrators,1 )
+      do jd = 1, size(this%empty_facet_integrators,2 )
+      call this%empty_facet_integrators(id,jd)%free()
+      end do
+    end do
+    deallocate( this%empty_facet_integrators , stat = istat ); check(istat==0)
+  end if
+
   call this%num_fitted_sub_facets_to_pos%free()
   
-    ! Cerate dummy objects
   call this%empty_facet_quadrature%free()
   call this%empty_facet_maps(pos_map_in_domain)%free()
   call this%empty_facet_maps(pos_map_on_boundary)%free()
-  call this%empty_facet_integrators(pos_map_in_domain)%free()
-  call this%empty_facet_integrators(pos_map_on_boundary)%free()
-  !empty_facet_integrators
 
 end subroutine uim_free_cut_fitted_facets_integration

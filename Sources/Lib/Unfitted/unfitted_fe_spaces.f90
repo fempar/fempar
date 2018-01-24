@@ -100,7 +100,7 @@ module unfitted_fe_spaces_names
     private
     class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
     type(facet_maps_t), pointer :: unfitted_facet_maps => NULL()
-    type(p_facet_integrator_t)  :: unfitted_facet_integrators(1)
+    type(p_facet_integrator_t), allocatable  :: unfitted_facet_integrators(:)
   contains
 
     procedure :: create                               => unfitted_fe_facet_iterator_create
@@ -151,7 +151,7 @@ module unfitted_fe_spaces_names
     type(cell_map_t)                     :: cell_map_subfacet
     type(quadrature_t),       allocatable :: cut_fitted_facet_quadratures(:)
     type(facet_maps_t),       allocatable :: cut_fitted_facet_maps(:,:)
-    type(facet_integrator_t), allocatable :: cut_fitted_facet_integrators(:,:)
+    type(facet_integrator_t), allocatable :: cut_fitted_facet_integrators(:,:,:)
     type(hash_table_ip_ip_t) :: num_fitted_sub_facets_to_pos
 
     ! Auxiliary dummy empty quadratures
@@ -161,7 +161,7 @@ module unfitted_fe_spaces_names
     type(cell_integrator_t), allocatable  :: empty_cell_integrator(:)
     type(quadrature_t)             :: empty_facet_quadrature
     type(facet_maps_t)             :: empty_facet_maps(pos_map_max_id)
-    type(facet_integrator_t)       :: empty_facet_integrators(pos_map_max_id)
+    type(facet_integrator_t), allocatable :: empty_facet_integrators(:,:)
     
     contains
 
