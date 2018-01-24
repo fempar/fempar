@@ -68,6 +68,7 @@ module stokes_params_names
      character(len=:), allocatable :: default_strong_dirichlet_on_fitted_boundary
      character(len=:), allocatable :: default_refinement_pattern
      character(len=:), allocatable :: default_lin_solver_type
+     character(len=:), allocatable :: default_use_levelset_complement
 
      type(Command_Line_Interface):: cli 
 
@@ -102,6 +103,7 @@ module stokes_params_names
      logical :: strong_dirichlet_on_fitted_boundary
      character(len=str_cla_len)    :: refinement_pattern
      character(len=str_cla_len)    :: lin_solver_type
+     logical :: use_levelset_complement
 
    contains
      procedure, non_overridable             :: create       => stokes_create
@@ -135,6 +137,7 @@ module stokes_params_names
      procedure, non_overridable             :: is_strong_dirichlet_on_fitted_boundary
      procedure, non_overridable             :: get_refinement_pattern
      procedure, non_overridable             :: get_lin_solver_type
+     procedure, non_overridable             :: get_use_levelset_complement
   end type stokes_params_t  
 
   ! Types
@@ -198,6 +201,7 @@ contains
     this%default_strong_dirichlet_on_fitted_boundary = '.true.'
     this%default_refinement_pattern = 'uniform'
     this%default_lin_solver_type = 'pardiso'
+    this%default_use_levelset_complement = '.false.'
     
   end subroutine stokes_set_default
   
@@ -305,6 +309,9 @@ contains
     call this%cli%add(switch='--lin_solver_type',switch_ab='-lsolver',help='name of the linear solver to use',&
          &            required=.false.,act='store',def=trim(this%default_lin_solver_type),error=error) 
     check(error==0) 
+    call this%cli%add(switch='--use_levelset_complement',switch_ab='-ulscomp',help='if true then we use the complement of the levelset',&
+         &            required=.false.,act='store',def=trim(this%default_use_levelset_complement),error=error) 
+    check(error==0) 
   end subroutine stokes_add_to_cli
   
   subroutine stokes_parse(this,parameter_list)
@@ -348,6 +355,7 @@ contains
     call this%cli%get(switch='-sdiri',val=this%strong_dirichlet_on_fitted_boundary,error=istat); check(istat==0)
     call this%cli%get(switch='-rpattern',val=this%refinement_pattern,error=istat); check(istat==0)
     call this%cli%get(switch='-lsolver',val=this%lin_solver_type,error=istat); check(istat==0)
+    call this%cli%get(switch='-ulscomp',val=this%use_levelset_complement,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -394,6 +402,7 @@ contains
     if(allocated(this%default_strong_dirichlet_on_fitted_boundary)) deallocate(this%default_strong_dirichlet_on_fitted_boundary)
     if(allocated(this%default_refinement_pattern)) deallocate(this%default_refinement_pattern)
     if(allocated(this%default_lin_solver_type)) deallocate(this%default_lin_solver_type)
+    if(allocated(this%default_use_levelset_complement)) deallocate(this%default_use_levelset_complement)
     call this%cli%free()
   end subroutine stokes_free
 
@@ -604,5 +613,13 @@ contains
     character(len=:), allocatable :: get_lin_solver_type
     get_lin_solver_type = trim(this%lin_solver_type)
   end function get_lin_solver_type 
+
+  !==================================================================================================
+  function get_use_levelset_complement(this)
+    implicit none
+    class(stokes_params_t) , intent(in) :: this
+    logical :: get_use_levelset_complement
+    get_use_levelset_complement = this%use_levelset_complement
+  end function get_use_levelset_complement
 
 end module stokes_params_names

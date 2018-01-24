@@ -150,6 +150,10 @@ contains
         call levset%set_center([0.0,0.0,0.0])
     end select
 
+    if (this%test_params%get_use_levelset_complement()) then
+      call this%level_set_function%set_use_complement(.true.)
+    end if
+
   end subroutine setup_levelset
 
   subroutine setup_triangulation(this)
