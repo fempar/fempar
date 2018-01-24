@@ -111,6 +111,11 @@ contains
     real(rp), parameter :: viscosity = 1.0
     integer(ip), parameter :: U_FIELD_ID = 1
 
+    ! For Neumann facet integration
+    class(fe_facet_iterator_t), allocatable :: fe_facet
+    type(tensor_field_t) :: exact_sol_gradient_u
+    type(vector_field_t) :: normals(2)
+
     !! For Nitsche
     real(rp)    :: dS
     real(rp)    :: tau
@@ -228,6 +233,55 @@ contains
        call fe%next()
 
     end do
+
+    ! Integrate Neumann boundary conditions
+    call fe_space%create_fe_facet_iterator(fe_facet)
+
+    ! Loop in faces
+    do while ( .not. fe_facet%has_finished() )
+
+      ! Skip faces that are not in the Neumann boundary
+      if ( fe_facet%get_set_id() /= -1 ) then
+        call fe_facet%next(); cycle
+      end if
+
+      ! Update FE-integration related data structures
+      call fe_facet%update_integration()
+
+      quad            => fe_facet%get_quadrature()
+      num_quad_points = quad%get_num_quadrature_points()
+
+      ! Get quadrature coordinates to evaluate boundary value
+      quad_coords => fe_facet%get_quadrature_points_coordinates()
+
+      ! Get shape functions at quadrature points
+      call fe_facet%get_values(1,shape_values_u,U_FIELD_ID)
+
+      ! Compute element vector
+      !facemat = 0.0_rp
+      !facevec = 0.0_rp
+      elmat = 0.0_rp
+      elvec = 0.0_rp
+      do qpoint = 1, num_quad_points
+
+        dS = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+        call fe_facet%get_normals(qpoint,normals)
+        call exact_sol_u%get_gradient(quad_coords(qpoint),exact_sol_gradient_u)
+
+        do idof = 1, fe_facet%get_num_dofs_field(1,U_FIELD_ID)
+           elvec(idof) = elvec(idof) + dS * ( viscosity * exact_sol_gradient_u * shape_values_u(idof,qpoint) )*normals(1)
+        end do
+
+      end do
+
+      ! We need to use the fe for assembly in order to apply the constraints
+      call fe_facet%get_cell_around(1,fe)
+      call fe%assembly(elmat, elvec, assembler )
+
+      call fe_facet%next()
+    end do
+
+    call fe_space%free_fe_facet_iterator(fe_facet)
 
     if (allocated(shape_values_u    )) deallocate  (shape_values_u          , stat=istat); check(istat==0)
     if (allocated(shape_gradients_u )) deallocate  (shape_gradients_u       , stat=istat); check(istat==0)

@@ -93,7 +93,7 @@ then
                     is_bconst=".false."
                   fi
 
-                  sdiri=".true."
+                  sdiri=".false."
                   dom="0.0 1.0"
                   if [ $ipat = "debug-1" ]; then
                     sdiri=".false."
