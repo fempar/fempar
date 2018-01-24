@@ -508,6 +508,7 @@ contains
                                reference_fes            = this%reference_fes,&
                                set_ids_to_reference_fes = set_ids_to_reference_fes)
     call this%fe_space%set_up_cell_integration()    
+    call this%fe_space%set_up_facet_integration()
     
   end subroutine setup_fe_space
   
