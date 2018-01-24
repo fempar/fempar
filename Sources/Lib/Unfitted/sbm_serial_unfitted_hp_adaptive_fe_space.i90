@@ -1713,6 +1713,7 @@ subroutine suhpafs_allocate_and_fill_aggregate_ids(this,triangulation)
           do ivef = 1, cell%get_num_vefs()
             call cell%get_vef(ivef,vef)
             if ( .not. vef%is_facet() ) cycle
+            if ( vef%is_exterior() ) cycle
             ifacet = ifacet + 1
 
             ! Find among true neighbors
