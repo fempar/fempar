@@ -182,7 +182,7 @@ contains
     if (this%test_params%is_strong_dirichlet_on_fitted_boundary()) then
       diri_set_id = 1
     else
-      diri_set_id = 0
+      diri_set_id = -1
     end if
 
     ! Create the triangulation, with the levelset function
