@@ -57,6 +57,7 @@ module level_set_functions_gallery_names
     real(rp) :: tolerance = 1.0e-3_rp
     integer(ip) :: num_dims = SPACE_DIM
     real(rp) :: domain(6) = [0, 1, 0, 1, 0, 1]
+    logical :: use_complement = .false.
   contains
     procedure, private :: get_level_set_value => level_set_function_get_level_set_value
     procedure, non_overridable :: set_num_dims  => level_set_function_set_num_dims
@@ -64,6 +65,7 @@ module level_set_functions_gallery_names
     procedure :: set_tolerance                => level_set_function_set_tolerance
     procedure :: set_domain                   => level_set_function_set_domain
     procedure :: get_tolerance                => level_set_function_get_tolerance
+    procedure :: set_use_complement           => level_set_function_set_use_complement
   end type level_set_function_t
 
   type, extends(level_set_function_t) :: level_set_sphere_t
@@ -195,6 +197,9 @@ end subroutine level_set_function_factory_create
     ! Apply tolerance
     if (abs(result) < tol) result = 0.0_rp
 
+    ! Make complement 
+    if (this%use_complement) result = -1.0*result
+
   end subroutine level_set_function_get_value_space
 
 !========================================================================================
@@ -220,6 +225,14 @@ subroutine level_set_function_set_domain ( this, domain )
     real(rp) :: level_set_function_get_tolerance
     level_set_function_get_tolerance = this%tolerance
   end function level_set_function_get_tolerance
+
+!========================================================================================
+  subroutine level_set_function_set_use_complement ( this, use_complement )
+    implicit none
+    class(level_set_function_t), intent(inout) :: this
+    logical, intent(in) :: use_complement
+    this%use_complement = use_complement
+  end subroutine level_set_function_set_use_complement
 
 !========================================================================================
   subroutine level_set_sphere_set_radius ( this, radius_in )
