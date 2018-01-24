@@ -1,0 +1,706 @@
+ENTITIES
+POINT
+Num: 1 HigherEntity: 3 conditions: 1 material: 0
+LAYER: Layer0
+Coord: 0.7071067811865475 0.7071067811865475 0.0
+END POINT
+POINT
+Num: 2 HigherEntity: 3 conditions: 1 material: 0
+LAYER: Layer0
+Coord: -0.7071067811865475 0.7071067811865475 0.0
+END POINT
+POINT
+Num: 3 HigherEntity: 3 conditions: 1 material: 0
+LAYER: Layer0
+Coord: -0.7071067811865475 -0.7071067811865475 0.0
+END POINT
+POINT
+Num: 4 HigherEntity: 3 conditions: 1 material: 0
+LAYER: Layer0
+Coord: 0.7071067811865475 -0.7071067811865475 0.0
+END POINT
+POINT
+Num: 5 HigherEntity: 3 conditions: 1 material: 0
+LAYER: Layer0
+Coord: 0.7071067811865475 0.7071067811865475 1.0
+END POINT
+POINT
+Num: 6 HigherEntity: 3 conditions: 1 material: 0
+LAYER: Layer0
+Coord: -0.7071067811865475 0.7071067811865475 1.0
+END POINT
+POINT
+Num: 7 HigherEntity: 3 conditions: 1 material: 0
+LAYER: Layer0
+Coord: -0.7071067811865475 -0.7071067811865475 1.0
+END POINT
+POINT
+Num: 8 HigherEntity: 3 conditions: 1 material: 0
+LAYER: Layer0
+Coord: 0.7071067811865475 -0.7071067811865475 1.0
+END POINT
+STLINE
+Num: 1 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=25,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 1 2
+END STLINE
+STLINE
+Num: 2 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=26,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 2 3
+END STLINE
+STLINE
+Num: 3 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=27,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 3 4
+END STLINE
+STLINE
+Num: 4 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=20,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 4 1
+END STLINE
+STLINE
+Num: 5 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=28,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 5 6
+END STLINE
+STLINE
+Num: 6 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=29,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 6 7
+END STLINE
+STLINE
+Num: 7 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=30,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 7 8
+END STLINE
+STLINE
+Num: 8 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=24,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 8 5
+END STLINE
+STLINE
+Num: 9 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=31,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 1 5
+END STLINE
+STLINE
+Num: 10 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=21,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 2 6
+END STLINE
+STLINE
+Num: 11 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=22,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 3 7
+END STLINE
+STLINE
+Num: 12 HigherEntity: 2 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=23,NOE=1) Elemtype=0 IsStructured=1 Meshing=Default size=3
+Points: 4 8
+END STLINE
+NURBSURFACE
+Num: 1 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=14,NOE=1) Elemtype=3 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 1 Orientation: SAME1ST
+Line: 2 Orientation: SAME1ST
+Line: 3 Orientation: SAME1ST
+Line: 4 Orientation: SAME1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:-0.7778174593052023,-0.7778174593052023,0.0
+Point 1,2 coords:0.7778174593052023,-0.7778174593052023,0.0
+Point 2,1 coords:-0.7778174593052023,0.7778174593052023,0.0
+Point 2,2 coords:0.7778174593052023,0.7778174593052023,0.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 1
+Center: 5.551115123125783e-17 -2.4980018054066023e-17 0.0
+Normal: 0.0 0.0 1.0
+END NURBSURFACE
+NURBSURFACE
+Num: 2 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=15,NOE=1) Elemtype=3 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 1 Orientation: SAME1ST
+Line: 10 Orientation: SAME1ST
+Line: 5 Orientation: DIFF1ST
+Line: 9 Orientation: DIFF1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:0.7071067811865475,0.7071067811865475,0.0
+Point 1,2 coords:-0.7071067811865475,0.7071067811865475,0.0
+Point 2,1 coords:0.7071067811865475,0.7071067811865475,1.0
+Point 2,2 coords:-0.7071067811865475,0.7071067811865475,1.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 0
+Center: 0.0 0.7071067811865475 0.5
+Normal: 0.0 1.0 -0.0
+END NURBSURFACE
+NURBSURFACE
+Num: 3 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=16,NOE=1) Elemtype=3 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 2 Orientation: SAME1ST
+Line: 11 Orientation: SAME1ST
+Line: 6 Orientation: DIFF1ST
+Line: 10 Orientation: DIFF1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:-0.7071067811865475,0.7071067811865475,0.0
+Point 1,2 coords:-0.7071067811865475,-0.7071067811865475,0.0
+Point 2,1 coords:-0.7071067811865475,0.7071067811865475,1.0
+Point 2,2 coords:-0.7071067811865475,-0.7071067811865475,1.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 0
+Center: -0.7071067811865475 0.0 0.5
+Normal: -1.0 0.0 0.0
+END NURBSURFACE
+NURBSURFACE
+Num: 4 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=17,NOE=1) Elemtype=3 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 3 Orientation: SAME1ST
+Line: 12 Orientation: SAME1ST
+Line: 7 Orientation: DIFF1ST
+Line: 11 Orientation: DIFF1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:-0.7071067811865475,-0.7071067811865475,0.0
+Point 1,2 coords:0.7071067811865475,-0.7071067811865475,0.0
+Point 2,1 coords:-0.7071067811865475,-0.7071067811865475,1.0
+Point 2,2 coords:0.7071067811865475,-0.7071067811865475,1.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 0
+Center: 0.0 -0.7071067811865475 0.5
+Normal: 0.0 -1.0 0.0
+END NURBSURFACE
+NURBSURFACE
+Num: 5 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=18,NOE=1) Elemtype=3 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 4 Orientation: SAME1ST
+Line: 9 Orientation: SAME1ST
+Line: 8 Orientation: DIFF1ST
+Line: 12 Orientation: DIFF1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:0.7071067811865475,-0.7071067811865475,0.0
+Point 1,2 coords:0.7071067811865475,0.7071067811865475,0.0
+Point 2,1 coords:0.7071067811865475,-0.7071067811865475,1.0
+Point 2,2 coords:0.7071067811865475,0.7071067811865475,1.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 0
+Center: 0.7071067811865475 0.0 0.5
+Normal: 1.0 0.0 0.0
+END NURBSURFACE
+NURBSURFACE
+Num: 6 HigherEntity: 1 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=19,NOE=1) Elemtype=3 IsStructured=1 Meshing=Default size=0
+NumLines: 4
+Line: 5 Orientation: SAME1ST
+Line: 6 Orientation: SAME1ST
+Line: 7 Orientation: SAME1ST
+Line: 8 Orientation: SAME1ST
+Number of Control Points= 2 2 Degree= 1 1
+Point 1,1 coords:-0.7778174593052023,-0.7778174593052023,1.0
+Point 1,2 coords:0.7778174593052023,-0.7778174593052023,1.0
+Point 2,1 coords:-0.7778174593052023,0.7778174593052023,1.0
+Point 2,2 coords:0.7778174593052023,0.7778174593052023,1.0
+Number of knots in U= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Number of knots in V= 4
+knot 1 value=0.0
+knot 2 value=0.0
+knot 3 value=1.0
+knot 4 value=1.0
+Non rational
+IsTrimmed: 1
+Center: 5.551115123125783e-17 -2.4980018054066023e-17 1.0
+Normal: 0.0 0.0 1.0
+END NURBSURFACE
+VOLUME
+Num: 1 HigherEntity: 0 conditions: 1 material: 0
+LAYER: Layer0
+Meshing Info: (num=13,NOE=1) Elemtype=5 IsStructured=1 Meshing=Default size=0
+NumSurfaces: 6
+Surface: 1 Orientation: SAME1ST
+Surface: 2 Orientation: DIFF1ST
+Surface: 3 Orientation: DIFF1ST
+Surface: 4 Orientation: DIFF1ST
+Surface: 5 Orientation: DIFF1ST
+Surface: 6 Orientation: DIFF1ST
+Center: 0.0 0.0 0.5
+END VOLUME
+END ENTITIES
+MESH dimension 3 ElemType Hexahedra Nnode 8
+Coordinates
+    1     0.707106781    -0.707106781               1
+    2     0.707106781    -0.707106781     0.666666667
+    3     0.707106781     -0.23570226               1
+    4      0.23570226    -0.707106781               1
+    5      0.23570226    -0.707106781     0.666666667
+    6     0.707106781     -0.23570226     0.666666667
+    7      0.23570226     -0.23570226               1
+    8     0.707106781    -0.707106781     0.333333333
+    9      0.23570226     -0.23570226     0.666666667
+   10      0.23570226    -0.707106781     0.333333333
+   11     0.707106781     -0.23570226     0.333333333
+   12     0.707106781      0.23570226               1
+   13     -0.23570226    -0.707106781               1
+   14      0.23570226     -0.23570226     0.333333333
+   15     -0.23570226    -0.707106781     0.666666667
+   16     0.707106781      0.23570226     0.666666667
+   17     0.707106781    -0.707106781               0
+   18      0.23570226      0.23570226               1
+   19     -0.23570226     -0.23570226               1
+   20     0.707106781     -0.23570226               0
+   21      0.23570226      0.23570226     0.666666667
+   22     -0.23570226     -0.23570226     0.666666667
+   23      0.23570226    -0.707106781               0
+   24     -0.23570226    -0.707106781     0.333333333
+   25     0.707106781      0.23570226     0.333333333
+   26      0.23570226     -0.23570226               0
+   27      0.23570226      0.23570226     0.333333333
+   28     -0.23570226     -0.23570226     0.333333333
+   29     -0.23570226      0.23570226               1
+   30     0.707106781      0.23570226               0
+   31     -0.23570226    -0.707106781               0
+   32     -0.23570226      0.23570226     0.666666667
+   33     0.707106781     0.707106781               1
+   34    -0.707106781    -0.707106781               1
+   35     0.707106781     0.707106781     0.666666667
+   36    -0.707106781    -0.707106781     0.666666667
+   37      0.23570226      0.23570226               0
+   38     -0.23570226     -0.23570226               0
+   39      0.23570226     0.707106781               1
+   40    -0.707106781     -0.23570226               1
+   41     -0.23570226      0.23570226     0.333333333
+   42      0.23570226     0.707106781     0.666666667
+   43    -0.707106781     -0.23570226     0.666666667
+   44     0.707106781     0.707106781     0.333333333
+   45    -0.707106781    -0.707106781     0.333333333
+   46      0.23570226     0.707106781     0.333333333
+   47    -0.707106781     -0.23570226     0.333333333
+   48     -0.23570226      0.23570226               0
+   49     -0.23570226     0.707106781               1
+   50    -0.707106781      0.23570226               1
+   51    -0.707106781      0.23570226     0.666666667
+   52     0.707106781     0.707106781               0
+   53    -0.707106781    -0.707106781               0
+   54     -0.23570226     0.707106781     0.666666667
+   55      0.23570226     0.707106781               0
+   56    -0.707106781     -0.23570226               0
+   57     -0.23570226     0.707106781     0.333333333
+   58    -0.707106781      0.23570226     0.333333333
+   59     -0.23570226     0.707106781               0
+   60    -0.707106781      0.23570226               0
+   61    -0.707106781     0.707106781               1
+   62    -0.707106781     0.707106781     0.666666667
+   63    -0.707106781     0.707106781     0.333333333
+   64    -0.707106781     0.707106781               0
+End Coordinates
+
+Elements
+1 27 25 30 37 46 44 52 55
+2 41 27 37 48 57 46 55 59
+3 58 41 48 60 63 57 59 64
+4 21 16 25 27 42 35 44 46
+5 32 21 27 41 54 42 46 57
+6 51 32 41 58 62 54 57 63
+7 18 12 16 21 39 33 35 42
+8 29 18 21 32 49 39 42 54
+9 50 29 32 51 61 49 54 62
+10 14 11 20 26 27 25 30 37
+11 28 14 26 38 41 27 37 48
+12 47 28 38 56 58 41 48 60
+13 9 6 11 14 21 16 25 27
+14 22 9 14 28 32 21 27 41
+15 43 22 28 47 51 32 41 58
+16 7 3 6 9 18 12 16 21
+17 19 7 9 22 29 18 21 32
+18 40 19 22 43 50 29 32 51
+19 10 8 17 23 14 11 20 26
+20 24 10 23 31 28 14 26 38
+21 45 24 31 53 47 28 38 56
+22 5 2 8 10 9 6 11 14
+23 15 5 10 24 22 9 14 28
+24 36 15 24 45 43 22 28 47
+25 4 1 2 5 7 3 6 9
+26 13 4 5 15 19 7 9 22
+27 34 13 15 36 40 19 22 43
+End Elements
+MESH dimension 3 ElemType Quadrilateral Nnode 4
+Coordinates
+End Coordinates
+
+Elements
+28 55 37 30 52
+29 59 48 37 55
+30 64 60 48 59
+31 37 26 20 30
+32 48 38 26 37
+33 60 56 38 48
+34 26 23 17 20
+35 38 31 23 26
+36 56 53 31 38
+37 55 46 44 52
+38 59 57 46 55
+39 64 63 57 59
+40 46 42 35 44
+41 57 54 42 46
+42 63 62 54 57
+43 42 39 33 35
+44 54 49 39 42
+45 62 61 49 54
+46 60 58 63 64
+47 56 47 58 60
+48 53 45 47 56
+49 58 51 62 63
+50 47 43 51 58
+51 45 36 43 47
+52 51 50 61 62
+53 43 40 50 51
+54 36 34 40 43
+55 31 24 45 53
+56 23 10 24 31
+57 17 8 10 23
+58 24 15 36 45
+59 10 5 15 24
+60 8 2 5 10
+61 15 13 34 36
+62 5 4 13 15
+63 2 1 4 5
+64 20 11 8 17
+65 30 25 11 20
+66 52 44 25 30
+67 11 6 2 8
+68 25 16 6 11
+69 44 35 16 25
+70 6 3 1 2
+71 16 12 3 6
+72 35 33 12 16
+73 39 18 12 33
+74 49 29 18 39
+75 61 50 29 49
+76 18 7 3 12
+77 29 19 7 18
+78 50 40 19 29
+79 7 4 1 3
+80 19 13 4 7
+81 40 34 13 19
+End Elements
+MESH dimension 3 ElemType Linear Nnode 2
+Coordinates
+End Coordinates
+
+Elements
+82 52 55
+83 55 59
+84 59 64
+85 64 60
+86 60 56
+87 56 53
+88 53 31
+89 31 23
+90 23 17
+91 17 20
+92 20 30
+93 30 52
+94 33 39
+95 39 49
+96 49 61
+97 61 50
+98 50 40
+99 40 34
+100 34 13
+101 13 4
+102 4 1
+103 1 3
+104 3 12
+105 12 33
+106 52 44
+107 44 35
+108 35 33
+109 64 63
+110 63 62
+111 62 61
+112 53 45
+113 45 36
+114 36 34
+115 17 8
+116 8 2
+117 2 1
+End Elements
+PROBLEM DATA
+Title:  value: name
+END PROBLEM DATA
+INTERVAL NUMBER: 1
+NUMBER: 11 CONDITION: Point_id
+CONDTYPE: over points
+CONDMESHTYPE: over nodes
+QUESTION: ID:
+VALUE: 0
+QUESTION: Point_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+    1  Conds: 1 0 
+    2  Conds: 1 0 
+    3  Conds: 1 0 
+    4  Conds: 1 0 
+    5  Conds: 1 0 
+    6  Conds: 1 0 
+    7  Conds: 1 0 
+    8  Conds: 1 0 
+End Geometry Entities
+Mesh Entities
+N    52  Conds: 1 1 
+N    64  Conds: 1 2 
+N    53  Conds: 1 3 
+N    17  Conds: 1 4 
+N    33  Conds: 1 5 
+N    61  Conds: 1 6 
+N    34  Conds: 1 7 
+N     1  Conds: 1 8 
+End Mesh Entities
+NUMBER: 21 CONDITION: Line_id
+CONDTYPE: over lines
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Line_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+    1  Conds: 1 0 
+    2  Conds: 1 0 
+    3  Conds: 1 0 
+    4  Conds: 1 0 
+    5  Conds: 1 0 
+    6  Conds: 1 0 
+    7  Conds: 1 0 
+    8  Conds: 1 0 
+    9  Conds: 1 0 
+   10  Conds: 1 0 
+   11  Conds: 1 0 
+   12  Conds: 1 0 
+End Geometry Entities
+Mesh Entities
+E    82  Conds: 1 1 
+E    83  Conds: 1 1 
+E    84  Conds: 1 1 
+E    85  Conds: 1 2 
+E    86  Conds: 1 2 
+E    87  Conds: 1 2 
+E    88  Conds: 1 3 
+E    89  Conds: 1 3 
+E    90  Conds: 1 3 
+E    91  Conds: 1 4 
+E    92  Conds: 1 4 
+E    93  Conds: 1 4 
+E    94  Conds: 1 5 
+E    95  Conds: 1 5 
+E    96  Conds: 1 5 
+E    97  Conds: 1 6 
+E    98  Conds: 1 6 
+E    99  Conds: 1 6 
+E   100  Conds: 1 7 
+E   101  Conds: 1 7 
+E   102  Conds: 1 7 
+E   103  Conds: 1 8 
+E   104  Conds: 1 8 
+E   105  Conds: 1 8 
+E   106  Conds: 1 9 
+E   107  Conds: 1 9 
+E   108  Conds: 1 9 
+E   109  Conds: 1 10 
+E   110  Conds: 1 10 
+E   111  Conds: 1 10 
+E   112  Conds: 1 11 
+E   113  Conds: 1 11 
+E   114  Conds: 1 11 
+E   115  Conds: 1 12 
+E   116  Conds: 1 12 
+E   117  Conds: 1 12 
+End Mesh Entities
+NUMBER: 31 CONDITION: Surface_id
+CONDTYPE: over surfaces
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Surface_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+    1  Conds: 1 0 
+    2  Conds: 1 0 
+    3  Conds: 1 0 
+    4  Conds: 1 0 
+    5  Conds: 1 0 
+    6  Conds: 1 0 
+End Geometry Entities
+Mesh Entities
+E    28  Conds: 1 1 
+E    29  Conds: 1 1 
+E    30  Conds: 1 1 
+E    31  Conds: 1 1 
+E    32  Conds: 1 1 
+E    33  Conds: 1 1 
+E    34  Conds: 1 1 
+E    35  Conds: 1 1 
+E    36  Conds: 1 1 
+E    37  Conds: 1 2 
+E    38  Conds: 1 2 
+E    39  Conds: 1 2 
+E    40  Conds: 1 2 
+E    41  Conds: 1 2 
+E    42  Conds: 1 2 
+E    43  Conds: 1 2 
+E    44  Conds: 1 2 
+E    45  Conds: 1 2 
+E    46  Conds: 1 3 
+E    47  Conds: 1 3 
+E    48  Conds: 1 3 
+E    49  Conds: 1 3 
+E    50  Conds: 1 3 
+E    51  Conds: 1 3 
+E    52  Conds: 1 3 
+E    53  Conds: 1 3 
+E    54  Conds: 1 3 
+E    55  Conds: 1 4 
+E    56  Conds: 1 4 
+E    57  Conds: 1 4 
+E    58  Conds: 1 4 
+E    59  Conds: 1 4 
+E    60  Conds: 1 4 
+E    61  Conds: 1 4 
+E    62  Conds: 1 4 
+E    63  Conds: 1 4 
+E    64  Conds: 1 5 
+E    65  Conds: 1 5 
+E    66  Conds: 1 5 
+E    67  Conds: 1 5 
+E    68  Conds: 1 5 
+E    69  Conds: 1 5 
+E    70  Conds: 1 5 
+E    71  Conds: 1 5 
+E    72  Conds: 1 5 
+E    73  Conds: 1 6 
+E    74  Conds: 1 6 
+E    75  Conds: 1 6 
+E    76  Conds: 1 6 
+E    77  Conds: 1 6 
+E    78  Conds: 1 6 
+E    79  Conds: 1 6 
+E    80  Conds: 1 6 
+E    81  Conds: 1 6 
+End Mesh Entities
+NUMBER: 41 CONDITION: Volume_id
+CONDTYPE: over volumes
+CONDMESHTYPE: over body elements
+QUESTION: ID:
+VALUE: 0
+QUESTION: Volume_number#FUNC#(NumEntity)
+VALUE: 0
+END CONDITION
+Geometry Entities
+    1  Conds: 0 0 
+End Geometry Entities
+Mesh Entities
+E     1  Conds: 0 1 
+E     2  Conds: 0 1 
+E     3  Conds: 0 1 
+E     4  Conds: 0 1 
+E     5  Conds: 0 1 
+E     6  Conds: 0 1 
+E     7  Conds: 0 1 
+E     8  Conds: 0 1 
+E     9  Conds: 0 1 
+E    10  Conds: 0 1 
+E    11  Conds: 0 1 
+E    12  Conds: 0 1 
+E    13  Conds: 0 1 
+E    14  Conds: 0 1 
+E    15  Conds: 0 1 
+E    16  Conds: 0 1 
+E    17  Conds: 0 1 
+E    18  Conds: 0 1 
+E    19  Conds: 0 1 
+E    20  Conds: 0 1 
+E    21  Conds: 0 1 
+E    22  Conds: 0 1 
+E    23  Conds: 0 1 
+E    24  Conds: 0 1 
+E    25  Conds: 0 1 
+E    26  Conds: 0 1 
+E    27  Conds: 0 1 
+End Mesh Entities
+INTERVAL DATA
+END INTERVAL DATA
