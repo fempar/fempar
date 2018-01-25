@@ -211,7 +211,7 @@ end subroutine free_timers
        end if  
    ! end if  
  
-    do i = 1,2
+    do i = 1,3
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%set_cells_set_ids()
@@ -237,7 +237,7 @@ end subroutine free_timers
       call this%triangulation%create_cell_iterator(cell)
       reference_fe_geo => cell%get_reference_fe()
       this%reference_fes(PAR_TEST_MAXWELL_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                   fe_type = fe_type_nedelec, & 
+                                                   fe_type = fe_type_lagrangian, & 
                                                    num_dims = this%triangulation%get_num_dims(), &
                                                    order = this%test_params%get_reference_fe_order(), &
                                                    field_type = field_type_vector, &
@@ -290,6 +290,7 @@ end subroutine free_timers
                                           discrete_integration              = this%maxwell_integration )
     
     call this%solution%create(this%fe_space) 
+				call this%fe_space%interpolate(1, this%maxwell_analytical_functions%get_solution_function(), this%solution)
     call this%fe_space%interpolate_dirichlet_values(this%solution)
     call this%maxwell_integration%set_fe_function(this%solution)
   end subroutine setup_system

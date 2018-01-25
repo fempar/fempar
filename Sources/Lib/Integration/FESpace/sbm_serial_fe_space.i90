@@ -531,19 +531,25 @@ subroutine serial_fe_space_interpolate_scalar_function (this, field_id, function
 
   class(reference_fe_t)    , pointer     :: reference_fe 
   class(fe_cell_iterator_t), allocatable :: fe 
+  class(fe_cell_iterator_t), allocatable :: aux_fe
+  type(fe_vef_iterator_t)                :: vef
   real(rp)                 , allocatable :: dof_values(:)
   class(interpolator_t)    , allocatable :: interpolator
   character(:)             , allocatable :: interpolator_type_
   logical                                :: is_void_field 
   class(triangulation_t)   , pointer     :: triangulation 
-  integer(ip)              , pointer     :: fe_dofs(:)
-  logical                                :: has_free_dofs 
+  integer(ip)                            :: vef_lid
+  integer(ip)                            :: ielem  
+  logical                                :: local_found 
 
   triangulation => this%get_triangulation() 
   if ( triangulation%get_num_cells() == 0) return 
-		
+
   ! Extract reference_fe_t instance associated to field_id for the first non-void element 
   call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(aux_fe)
+  call this%create_fe_vef_iterator(vef)
+
   is_void_field = .true. 
   do while (  (.not. fe%has_finished() )) 
      if ( .not. fe%is_void(field_id)) then 
@@ -567,22 +573,37 @@ subroutine serial_fe_space_interpolate_scalar_function (this, field_id, function
      call make_interpolator  (interpolator_type_, reference_fe%get_topology(), interpolator )
      call interpolator%create(this, field_id)
      do while (.not. fe%has_finished() )  
-        has_free_dofs=.false. 
-        call fe%get_field_fe_dofs(field_id,fe_dofs)
-        if ( any(fe_dofs>0) ) has_free_dofs=.true. 
-								! if ( has_free_dofs .and. .not. fe%is_void(field_id) ) then
-        if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then
+        if ( .not. fe%is_local() .and. .not. fe%is_void(field_id) ) then 
+           vef_loop: do vef_lid = 1, fe%get_num_vefs() 
+              call fe%get_vef(vef_lid, vef)
+              if ( .not. vef%is_ghost() .and. vef%is_proper() ) then
+                 local_found = .false.
+                 do ielem=1, vef%get_num_cells_around()
+                    call vef%get_cell_around(ielem, aux_fe)
+                    if (aux_fe%is_local()) then
+                       local_found = .true.
+                       exit 
+                    end if
+                 end do
+                 if (.not. local_found) exit vef_loop 
+              end if
+           end do vef_loop
+        end if
+
+        if ( (fe%is_local() .and. .not. fe%is_void(field_id)) .or. .not. local_found) then
            call interpolator%evaluate_scalar_function_moments( fe, function, dof_values, time=time )
-           call fe_function%insert_nodal_values(fe, field_id, dof_values)
+           call fe_function%insert_nodal_values(fe, field_id, dof_values) 
         end if
         call fe%next()
      end do
      call memfree( dof_values, __FILE__, __LINE__ )
      call interpolator%free() 
   end if
-		
+
   call this%update_hanging_dof_values(fe_function)
   call this%free_fe_cell_iterator(fe) 
+  call this%free_fe_cell_iterator(aux_fe)
+  call this%free_fe_vef_iterator(vef)
 end subroutine serial_fe_space_interpolate_scalar_function
 
 subroutine serial_fe_space_interpolate_vector_function (this, field_id, function, fe_function, interpolator_type, time)
@@ -596,19 +617,25 @@ subroutine serial_fe_space_interpolate_vector_function (this, field_id, function
 
   class(reference_fe_t)    , pointer     :: reference_fe 
   class(fe_cell_iterator_t), allocatable :: fe 
+  class(fe_cell_iterator_t), allocatable :: aux_fe
+  type(fe_vef_iterator_t)                :: vef
   real(rp)                 , allocatable :: dof_values(:)
   class(interpolator_t)    , allocatable :: interpolator
   character(:)             , allocatable :: interpolator_type_
   logical                  , allocatable :: is_void_field  
   class(triangulation_t)   , pointer     :: triangulation 
-  integer(ip)              , pointer     :: fe_dofs(:)
-  logical                                :: has_free_dofs 
+  integer(ip)                            :: vef_lid
+  integer(ip)                            :: ielem  
+  logical                                :: local_found 
 
   triangulation => this%get_triangulation() 
   if ( triangulation%get_num_cells() == 0) return 
 
   ! Extract reference_fe_t instance associated to field_id for the first non-void element 
   call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(aux_fe)
+  call this%create_fe_vef_iterator(vef)
+
   is_void_field = .true. 
   do while (  (.not. fe%has_finished() )) 
      if ( .not. fe%is_void(field_id) ) then 
@@ -632,22 +659,38 @@ subroutine serial_fe_space_interpolate_vector_function (this, field_id, function
      call make_interpolator  (interpolator_type_, reference_fe%get_topology(), interpolator )
      call interpolator%create(this, field_id)
      do while (.not. fe%has_finished() )  
-        has_free_dofs=.false. 
-        call fe%get_field_fe_dofs(field_id,fe_dofs)
-        if ( any(fe_dofs>0) ) has_free_dofs=.true. 
-       ! if ( has_free_dofs .and. .not. fe%is_void(field_id) ) then
-								if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then
+        if ( .not. fe%is_local() .and. .not. fe%is_void(field_id) ) then 
+           vef_loop: do vef_lid = 1, fe%get_num_vefs() 
+              call fe%get_vef(vef_lid, vef)
+              if ( .not. vef%is_ghost() .and. vef%is_proper() ) then
+                 local_found = .false.
+                 do ielem=1, vef%get_num_cells_around()
+                    call vef%get_cell_around(ielem, aux_fe)
+                    if (aux_fe%is_local()) then
+                       local_found = .true.
+                       exit 
+                    end if
+                 end do
+                 if (.not. local_found) exit vef_loop
+              end if
+           end do vef_loop
+        end if
+
+        if ( (fe%is_local() .and. .not. fe%is_void(field_id)) .or. .not. local_found ) then
            call interpolator%evaluate_vector_function_moments( fe, function, dof_values, time=time )
            call fe_function%insert_nodal_values(fe, field_id, dof_values)
         end if
+
         call fe%next()
      end do
      call memfree( dof_values, __FILE__, __LINE__ ) 
      call interpolator%free() 
   end if
-		
+
   call this%update_hanging_dof_values(fe_function)
   call this%free_fe_cell_iterator(fe)
+  call this%free_fe_cell_iterator(aux_fe)
+  call this%free_fe_vef_iterator(vef)
 end subroutine serial_fe_space_interpolate_vector_function
 
 subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, interpolator_type, time)
