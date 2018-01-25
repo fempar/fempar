@@ -47,8 +47,8 @@ end subroutine upvi_free
 subroutine upvi_next(this)
   implicit none
   class(unfitted_p4est_vef_iterator_t), intent(inout) :: this
-  call this%unfitted_vef_iterator_t%next()
   call this%p4est_vef%next()
+  call this%unfitted_vef_iterator_t%set_gid(this%p4est_vef%get_gid())
   call this%update_unfitted_cell()
 end subroutine upvi_next
 
