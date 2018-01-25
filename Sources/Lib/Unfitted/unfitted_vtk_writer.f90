@@ -1211,7 +1211,7 @@ contains
       return
     end if
 
-    E_IO = VTK_INI_XML(output_format = 'ascii', filename = filename, mesh_topology = 'UnstructuredGrid')
+    E_IO = VTK_INI_XML(output_format = 'binary', filename = filename, mesh_topology = 'UnstructuredGrid')
     E_IO = VTK_GEO_XML(NN = this%Nn, NC = this%Ne, X = this%x, Y = this%y, Z = this%z)
     E_IO = VTK_CON_XML(NC = this%Ne, connect = this%connect, offset = this%offset, cell_type = int(this%cell_type,I1P) )
 
