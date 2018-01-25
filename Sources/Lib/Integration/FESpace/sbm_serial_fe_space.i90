@@ -573,6 +573,7 @@ subroutine serial_fe_space_interpolate_scalar_function (this, field_id, function
      call make_interpolator  (interpolator_type_, reference_fe%get_topology(), interpolator )
      call interpolator%create(this, field_id)
      do while (.not. fe%has_finished() )  
+        local_found=.true. 
         if ( .not. fe%is_local() .and. .not. fe%is_void(field_id) ) then 
            vef_loop: do vef_lid = 1, fe%get_num_vefs() 
               call fe%get_vef(vef_lid, vef)
@@ -659,6 +660,7 @@ subroutine serial_fe_space_interpolate_vector_function (this, field_id, function
      call make_interpolator  (interpolator_type_, reference_fe%get_topology(), interpolator )
      call interpolator%create(this, field_id)
      do while (.not. fe%has_finished() )  
+        local_found=.true. 
         if ( .not. fe%is_local() .and. .not. fe%is_void(field_id) ) then 
            vef_loop: do vef_lid = 1, fe%get_num_vefs() 
               call fe%get_vef(vef_lid, vef)
