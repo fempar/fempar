@@ -30,6 +30,7 @@ module unfitted_vtk_writer_names
  use types_names
  use memor_names
  use field_names
+ use stdio_names
  
  use reference_fe_names
  use triangulation_names
@@ -1168,6 +1169,7 @@ contains
     character(*), intent(in) :: filename
 
     integer(ip) :: E_IO
+    integer(ip) :: iounit
 
     assert(allocated(this%x        ))
     assert(allocated(this%y        ))
@@ -1179,7 +1181,37 @@ contains
     assert(associated(this%environment))
     assert(this%environment%am_i_l1_task())
 
-    E_IO = VTK_INI_XML(output_format = 'binary', filename = filename, mesh_topology = 'UnstructuredGrid')
+
+    if (this%Nn == 0 .or. this%Ne == 0) then
+      iounit = io_open(file=filename,action='write')
+      check(iounit>0)
+      write(iounit,*) '<VTKFile type="UnstructuredGrid" version="0.1" byte_order="LittleEndian">                                 '
+      write(iounit,*) '  <UnstructuredGrid>                                                                                      '
+      write(iounit,*) '    <Piece NumberOfPoints="+0" NumberOfCells="+0">                                                        '
+      write(iounit,*) '      <Points>                                                                                            '
+      write(iounit,*) '        <DataArray type="Float64" NumberOfComponents="3" Name="Points" format="ascii"></DataArray>        '
+      write(iounit,*) '      </Points>                                                                                           '
+      write(iounit,*) '      <Cells>                                                                                             '
+      write(iounit,*) '        <DataArray type="Int32" Name="connectivity" format="ascii"></DataArray>                           '
+      write(iounit,*) '        <DataArray type="Int32" Name="offsets" format="ascii"></DataArray>                                '
+      write(iounit,*) '        <DataArray type="Int8" Name="types" format="ascii"></DataArray>                                   '
+      write(iounit,*) '      </Cells>                                                                                            '
+      write(iounit,*) '      <CellData>                                                                                          '
+      write(iounit,*) '        <DataArray type="Float64" Name="cell_scalars" NumberOfComponents="1" format="ascii"></DataArray>  '
+      write(iounit,*) '        <DataArray type="Float64" Name="part_id" NumberOfComponents="1" format="ascii"> </DataArray>      '
+      write(iounit,*) '      </CellData>                                                                                         '
+      write(iounit,*) '      <PointData>                                                                                         '
+      write(iounit,*) '        <DataArray type="Float64" Name="point_scalars" NumberOfComponents="1" format="ascii"></DataArray> '
+      write(iounit,*) '        <DataArray type="Float64" Name="point_vectors" NumberOfComponents="3" format="ascii"></DataArray> '
+      write(iounit,*) '      </PointData>                                                                                        '
+      write(iounit,*) '    </Piece>                                                                                              '
+      write(iounit,*) '  </UnstructuredGrid>                                                                                     '
+      write(iounit,*) '</VTKFile>                                                                                                '
+      call io_close(iounit)
+      return
+    end if
+
+    E_IO = VTK_INI_XML(output_format = 'ascii', filename = filename, mesh_topology = 'UnstructuredGrid')
     E_IO = VTK_GEO_XML(NN = this%Nn, NC = this%Ne, X = this%x, Y = this%y, Z = this%z)
     E_IO = VTK_CON_XML(NC = this%Ne, connect = this%connect, offset = this%offset, cell_type = int(this%cell_type,I1P) )
 
