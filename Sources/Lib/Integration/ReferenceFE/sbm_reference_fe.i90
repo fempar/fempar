@@ -65,6 +65,14 @@ subroutine reference_fe_free( this )
   this%num_shape_functions = 0
   this%ptr_n_faces_x_dim  = 0
   this%conformity = .true.
+  
+  call this%h_refinement_interpolation%free()
+  if ( allocated(this%h_refinement_subfacet_permutation) ) then
+     call memfree(this%h_refinement_subfacet_permutation,__FILE__,__LINE__)
+  end if
+  if ( allocated(this%h_refinement_subedge_permutation) ) then
+     call memfree(this%h_refinement_subedge_permutation,__FILE__,__LINE__)
+  end if
 
 end subroutine reference_fe_free
 
