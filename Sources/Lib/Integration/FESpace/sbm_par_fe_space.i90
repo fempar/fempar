@@ -1369,6 +1369,8 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
         elem_ggid = fe%get_ggid()
         part_id = fe%get_my_part()
         ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+        cell_gid = fe%get_gid()
+        base_pos = (cell_gid-1)*num_vefs
         call fe%get_field_fe_dofs( field_id, fe_dofs )
         reference_fe => fe%get_reference_fe(field_id)
         own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
@@ -1380,7 +1382,11 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
              cycle
            end if
            free_dofs = .true.
-           if ( fe%is_local() ) all_ghosts = .false.
+           if ( fe%is_local() ) then 
+             all_ghosts = .false.
+           else
+             call this%my_part_id_vefs%set(base_pos+ivef, mypart_id)
+           end if
            if ( elem_ggid >= max_elem_ggid ) then
              max_elem_ggid = elem_ggid
              max_elem_gid  = fe%get_gid()
@@ -1402,31 +1408,9 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
       ! If all parts around a given proper vef are ghost, then 
       ! mypart_id CANNOT become the owner of the DoFs on top of it
       if ( all_ghosts .and. free_dofs ) then
-         do ielem=1, vef%get_num_cells_around()
-           call vef%get_cell_around(ielem,fe)
-           assert ( fe%is_ghost() )
-           
-           ivef = fe%get_vef_lid_from_gid(vef%get_gid())
-           cell_gid = fe%get_gid()
-           base_pos = (cell_gid-1)*num_vefs
-
-           call fe%get_field_fe_dofs( field_id, fe_dofs )
-           reference_fe => fe%get_reference_fe(field_id)
-           own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
-           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-             idof = own_dofs_on_vef_iterator%get_current()
-             dof_gid = fe_dofs(idof)
-             if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
-               call own_dofs_on_vef_iterator%next()
-               cycle
-             end if
-             call this%my_part_id_vefs%set(base_pos+ivef, mypart_id)
-             call own_dofs_on_vef_iterator%next()
-           end do
-         end do
          call vef%next()
          cycle
-      else if ( .not. free_dofs ) then
+      else if ( .not. free_dofs ) then     
          call vef%next()
          cycle
       end if   
