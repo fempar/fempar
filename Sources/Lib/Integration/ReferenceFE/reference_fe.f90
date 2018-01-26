@@ -413,6 +413,10 @@ module reference_fe_names
      integer(ip), allocatable :: num_rotations_x_dim(:)
      integer(ip), allocatable :: num_orientations_x_dim(:)
      type(allocatable_array_ip2_t), allocatable :: own_dof_permutations(:)
+					
+					type(interpolation_t)    :: h_refinement_interpolation
+     integer(ip), allocatable :: h_refinement_subfacet_permutation(:,:,:)
+     integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:)
    contains
      ! TBPs
      ! Fill topology, fe_type, num_dims, order, continuity                                                              
@@ -499,7 +503,11 @@ module reference_fe_names
      procedure (create_data_out_quadrature_interface), deferred :: create_data_out_quadrature 
      procedure (get_num_subcells_interface      )    , deferred :: get_num_subcells
      procedure (get_subcells_connectivity_interface) , deferred :: get_subcells_connectivity
-
+					
+     procedure (get_h_refinement_coefficient_interface)          , deferred :: get_h_refinement_coefficient 
+     procedure (interpolate_nodal_values_on_subcell_interface)   , deferred :: interpolate_nodal_values_on_subcell 
+     procedure (project_nodal_values_on_cell_interface)          , deferred :: project_nodal_values_on_cell
+					
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
@@ -555,6 +563,9 @@ module reference_fe_names
      
      procedure :: get_num_subfacets => reference_fe_get_num_subfacets
      
+     procedure :: get_h_refinement_interpolation => reference_fe_get_h_refinement_interpolation 
+     procedure :: get_h_refinement_subedge_permutation => reference_fe_get_h_refinement_subedge_permutation 
+     procedure :: get_h_refinement_subfacet_permutation => reference_fe_get_h_refinement_subfacet_permutation 
   end type reference_fe_t
 
   type p_reference_fe_t
@@ -919,6 +930,41 @@ module reference_fe_names
         integer(ip),                      intent(in)    :: num_refinements
         integer(ip),                      intent(inout) :: connectivity(:,:)
      end subroutine get_subcells_connectivity_interface
+					
+     !==================================================================================================
+     subroutine get_h_refinement_coefficient_interface ( this, ishape_fe,   & 
+                                                         ishape_coarser_fe, & 
+                                                         qpoint, coefficient )
+       import :: reference_fe_t, ip, rp 
+       implicit none 
+       class(reference_fe_t), target, intent(in)    :: this
+       integer(ip)                  , intent(in)    :: ishape_fe
+       integer(ip)                  , intent(in)    :: ishape_coarser_fe
+       integer(ip)                  , intent(in)    :: qpoint
+       real(rp)                     , intent(inout) :: coefficient
+     end subroutine get_h_refinement_coefficient_interface
+
+     subroutine interpolate_nodal_values_on_subcell_interface ( this,                   &
+                                                                subcell_id,             &
+                                                                nodal_values_on_parent, & 
+                                                                nodal_values_on_child )
+       import :: reference_fe_t, ip, rp 
+       implicit none 
+       class(reference_fe_t), intent(in)    :: this              
+       integer(ip)          , intent(in)    :: subcell_id
+       real(rp)             , intent(in)    :: nodal_values_on_parent(:)
+       real(rp)             , intent(inout) :: nodal_values_on_child(:)
+     end subroutine interpolate_nodal_values_on_subcell_interface
+
+     subroutine project_nodal_values_on_cell_interface ( this,                     &
+                                                         nodal_values_on_children, &
+                                                         nodal_values_on_parent )
+       import :: reference_fe_t, rp 
+       implicit none 
+       class(reference_fe_t), intent(in)    :: this  
+       real(rp)             , intent(in)    :: nodal_values_on_children(:,:)
+       real(rp)             , intent(inout) :: nodal_values_on_parent(:)
+     end subroutine project_nodal_values_on_cell_interface
 										
   end interface
 
@@ -1005,6 +1051,12 @@ contains
        & => lagrangian_reference_fe_apply_cell_map_to_interpolation
   procedure  :: get_default_quadrature_degree &
        & => lagrangian_reference_fe_get_default_quadrature_degree
+  procedure  :: get_h_refinement_coefficient & 
+       & => lagrangian_reference_fe_get_h_refinement_coefficient 
+  procedure :: interpolate_nodal_values_on_subcell & 
+       & => lagrangian_reference_fe_interpolate_nodal_values_on_subcell
+  procedure :: project_nodal_values_on_cell & 
+       & => lagrangian_reference_fe_project_nodal_values_on_cell
 end type lagrangian_reference_fe_t
 
 abstract interface
@@ -1338,9 +1390,7 @@ public :: tet_raviart_thomas_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(lagrangian_reference_fe_t) :: hex_lagrangian_reference_fe_t
 private
-type(interpolation_t)    :: h_refinement_interpolation
-integer(ip), allocatable :: h_refinement_subfacet_permutation(:,:,:)
-integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:)
+
 contains 
 
 procedure :: create => hex_lagrangian_reference_fe_create
@@ -1383,12 +1433,6 @@ procedure          :: project_nodal_values_on_cell                       &
 & => hex_lagrangian_reference_fe_project_nodal_values_on_cell
 procedure          :: get_h_refinement_coefficient                       &
 & => hex_lagrangian_reference_fe_get_h_refinement_coefficient
-procedure          :: get_h_refinement_interpolation                     &
-& => hex_lagrangian_reference_fe_get_h_refinement_interpolation
-procedure          :: get_h_refinement_subedget_permutation               &
-& => hex_lagrangian_reference_fe_get_h_refinement_subedge_perm
-procedure          :: get_h_refinement_subfacet_permutation               &
-& => hex_lagrangian_reference_fe_get_h_refinement_subface_perm
 procedure, private :: compute_num_quadrature_points                   &
 & => hex_lagrangian_reference_fe_compute_num_quadrature_points
 procedure :: fill_qpoints_permutations                                   &
@@ -1430,9 +1474,6 @@ public :: hex_raviart_thomas_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(nedelec_reference_fe_t) :: hex_nedelec_reference_fe_t
 private
-type(interpolation_t)    :: h_refinement_interpolation
-integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:) 
-integer(ip), allocatable :: h_refinement_subfacet_permutation(:,:,:) 
 integer(ip), allocatable :: h_refinement_subcell_permutation(:,:,:)
 contains 
   ! Deferred TBP implementors from reference_fe_t
@@ -1475,17 +1516,7 @@ procedure, private :: fill_n_subcell_permutation                    &
 & => hex_nedelec_reference_fe_fill_n_subcell_permutation
 procedure, private :: fill_n_subfacet_permutation                   &
 & => hex_nedelec_reference_fe_fill_n_subfacet_permutation
-procedure          :: interpolate_nodal_values_on_subcell                &
-& => hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell
-procedure          :: get_h_refinement_coefficient                       &
-& => hex_nedelec_reference_fe_get_h_refinement_coefficient
-procedure          :: get_h_refinement_interpolation                     &
-& => hex_nedelec_reference_fe_get_h_refinement_interpolation
-procedure          :: get_h_refinement_subedget_permutation               &
-& => hex_nedelec_reference_fe_get_h_refinement_subedge_perm
-procedure          :: get_h_refinement_subfacet_permutation               &
-& => hex_nedelec_reference_fe_get_h_refinement_subfacet_perm
-procedure          :: get_h_refinement_subcell_permutation               &
+procedure          :: get_h_refinement_subcell_permutation          &
 & => hex_nedelec_reference_fe_get_h_refinement_subcell_perm
 end type hex_nedelec_reference_fe_t
 
@@ -1577,6 +1608,9 @@ contains
   procedure :: create_data_out_quadrature  => void_reference_fe_create_data_out_quadrature
   procedure :: get_num_subcells            => void_reference_fe_get_num_subcells
   procedure :: get_subcells_connectivity   => void_reference_fe_get_subcells_connectivity
+  procedure :: get_h_refinement_coefficient => void_reference_fe_get_h_refinement_coefficient 
+  procedure :: interpolate_nodal_values_on_subcell  => void_reference_fe_interpolate_nodal_values_on_subcell
+  procedure :: project_nodal_values_on_cell         => void_reference_fe_project_nodal_values_on_cell
 end type void_reference_fe_t
 
 public :: void_reference_fe_t

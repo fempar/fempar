@@ -498,3 +498,27 @@ function reference_fe_get_num_subfacets(this)
   integer(ip) :: reference_fe_get_num_subfacets
   reference_fe_get_num_subfacets = 2**(this%num_dims-1)
 end function reference_fe_get_num_subfacets
+
+!==================================================================================================
+function reference_fe_get_h_refinement_interpolation ( this )
+  implicit none 
+  class(reference_fe_t), target, intent(in) :: this
+  type(interpolation_t), pointer :: reference_fe_get_h_refinement_interpolation
+  reference_fe_get_h_refinement_interpolation => this%h_refinement_interpolation
+end function reference_fe_get_h_refinement_interpolation
+
+!==================================================================================================
+function reference_fe_get_h_refinement_subedge_permutation ( this )
+  implicit none 
+  class(reference_fe_t), target, intent(in) :: this
+  integer(ip), pointer :: reference_fe_get_h_refinement_subedge_permutation(:,:,:)
+  reference_fe_get_h_refinement_subedge_permutation => this%h_refinement_subedge_permutation
+end function reference_fe_get_h_refinement_subedge_permutation
+
+!==================================================================================================
+function reference_fe_get_h_refinement_subfacet_permutation ( this )
+  implicit none 
+  class(reference_fe_t), target, intent(in) :: this
+  integer(ip), pointer :: reference_fe_get_h_refinement_subfacet_permutation(:,:,:)
+  reference_fe_get_h_refinement_subfacet_permutation => this%h_refinement_subfacet_permutation
+end function reference_fe_get_h_refinement_subfacet_permutation

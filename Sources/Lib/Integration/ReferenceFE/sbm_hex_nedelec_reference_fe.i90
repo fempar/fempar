@@ -1106,19 +1106,6 @@ subroutine hex_nedelec_reference_fe_fill_n_subcell_permutation ( this, n_face_di
 end subroutine hex_nedelec_reference_fe_fill_n_subcell_permutation
 
 !==================================================================================================
-subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell ( this,                   &
-     subcell_id,             &
-     nodal_values_on_parent, & 
-     nodal_values_on_child )
-  implicit none 
-  class(hex_nedelec_reference_fe_t), intent(in)    :: this              
-  integer(ip)                         , intent(in)    :: subcell_id
-  real(rp)                            , intent(in)    :: nodal_values_on_parent(:)
-  real(rp)                            , intent(inout) :: nodal_values_on_child(:)
-  !To do 
-end subroutine hex_nedelec_reference_fe_interpolate_nodal_values_on_subcell
-
-!==================================================================================================
 subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_fe,   & 
      ishape_coarser_fe, & 
      qpoint, coefficient )
@@ -1153,30 +1140,6 @@ subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient ( this, ishape_
   end	do
 		
 end subroutine hex_nedelec_reference_fe_get_h_refinement_coefficient 
-
-!==================================================================================================
-function hex_nedelec_reference_fe_get_h_refinement_interpolation ( this )
-  implicit none 
-  class(hex_nedelec_reference_fe_t), target, intent(in) :: this
-  type(interpolation_t), pointer :: hex_nedelec_reference_fe_get_h_refinement_interpolation
-  hex_nedelec_reference_fe_get_h_refinement_interpolation => this%h_refinement_interpolation
-end function hex_nedelec_reference_fe_get_h_refinement_interpolation
-
-!==================================================================================================
-function hex_nedelec_reference_fe_get_h_refinement_subedge_perm ( this )
-  implicit none 
-  class(hex_nedelec_reference_fe_t), target, intent(in) :: this
-  integer(ip), pointer :: hex_nedelec_reference_fe_get_h_refinement_subedge_perm(:,:,:)
-  hex_nedelec_reference_fe_get_h_refinement_subedge_perm => this%h_refinement_subedge_permutation
-end function hex_nedelec_reference_fe_get_h_refinement_subedge_perm
-
-!==================================================================================================
-function hex_nedelec_reference_fe_get_h_refinement_subfacet_perm ( this )
-  implicit none 
-  class(hex_nedelec_reference_fe_t), target, intent(in) :: this
-  integer(ip), pointer :: hex_nedelec_reference_fe_get_h_refinement_subfacet_perm(:,:,:)
-  hex_nedelec_reference_fe_get_h_refinement_subfacet_perm => this%h_refinement_subfacet_permutation
-end function hex_nedelec_reference_fe_get_h_refinement_subfacet_perm
 
 !==================================================================================================
 function hex_nedelec_reference_fe_get_h_refinement_subcell_perm ( this )

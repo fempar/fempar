@@ -715,3 +715,42 @@ subroutine void_reference_fe_create_data_out_quadrature ( this, num_refinements,
   type(quadrature_t)                  , intent(inout) :: quadrature
   check(.false.)
 end subroutine void_reference_fe_create_data_out_quadrature
+
+!==================================================================================================
+subroutine void_reference_fe_get_h_refinement_coefficient ( this, ishape_fe,   & 
+                                                            ishape_coarser_fe, & 
+                                                            qpoint, coefficient )
+  implicit none 
+  class(void_reference_fe_t), target, intent(in)    :: this
+  integer(ip)                                 , intent(in)    :: ishape_fe
+  integer(ip)                                 , intent(in)    :: ishape_coarser_fe
+  integer(ip)                                 , intent(in)    :: qpoint
+  real(rp)                                    , intent(inout) :: coefficient 
+  massert(.false.,'Note: you are calling get_h_refinement_coefficient on a type extension of reference_fe_t where is not implemented.')
+end subroutine void_reference_fe_get_h_refinement_coefficient
+
+!==================================================================================================
+subroutine void_reference_fe_interpolate_nodal_values_on_subcell ( this,                   &
+                                                                   subcell_id,             &
+                                                                   nodal_values_on_parent, & 
+                                                                   nodal_values_on_child )
+  implicit none 
+  class(void_reference_fe_t), intent(in)    :: this              
+  integer(ip)                     , intent(in)    :: subcell_id
+  real(rp)                        , intent(in)    :: nodal_values_on_parent(:)
+  real(rp)                        , intent(inout) :: nodal_values_on_child(:)
+  massert(.false.,'Note: you are calling interpolate_nodal_values_on_subcell on a type extension of reference_fe_t where it is not implemented.') 
+end subroutine void_reference_fe_interpolate_nodal_values_on_subcell
+
+!==================================================================================================
+subroutine void_reference_fe_project_nodal_values_on_cell ( this,                     &
+                                                            nodal_values_on_children, &
+                                                            nodal_values_on_parent )
+  implicit none 
+  class(void_reference_fe_t), intent(in)    :: this  
+  real(rp)                  , intent(in)    :: nodal_values_on_children(:,:)
+  real(rp)                  , intent(inout) :: nodal_values_on_parent(:)
+  massert(.false.,'Note: you are calling project_nodal_values_on_subcell on a type extension of reference_fe_t where it is not implemented.')
+end subroutine void_reference_fe_project_nodal_values_on_cell
+
+
