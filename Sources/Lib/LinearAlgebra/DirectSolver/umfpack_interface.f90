@@ -138,10 +138,10 @@ use iso_c_binding
 !-----------------------------------------------------------------
 ! AMD statistics, computed in UMFPACK_*symbolic:
 !-----------------------------------------------------------------
-! #define UMFPACK_SYMMETRIC_LUNZ 36	/* nz in L+U, if AMD ordering used */
-! #define UMFPACK_SYMMETRIC_FLOPS 37	/* flops for LU, if AMD ordering used */
-! #define UMFPACK_SYMMETRIC_NDENSE 38	/* # of "dense" rows/cols in S+S' */
-! #define UMFPACK_SYMMETRIC_DMAX 39	/* max nz in cols of L, for AMD */
+! #define UMFPACK_SYMMETRIC_LUNZ 36 /* nz in L+U, if AMD ordering used */
+! #define UMFPACK_SYMMETRIC_FLOPS 37 /* flops for LU, if AMD ordering used */
+! #define UMFPACK_SYMMETRIC_NDENSE 38 /* # of "dense" rows/cols in S+S' */
+! #define UMFPACK_SYMMETRIC_DMAX 39 /* max nz in cols of L, for AMD */
 
     integer(c_int), parameter :: UMFPACK_SYMMETRIC_LUNZ   = 36
     integer(c_int), parameter :: UMFPACK_SYMMETRIC_FLOPS  = 37 
@@ -153,10 +153,10 @@ use iso_c_binding
 !-----------------------------------------------------------------
 ! statistcs for singleton pruning
 !-----------------------------------------------------------------
-! #define UMFPACK_COL_SINGLETONS 56	/* # of column singletons */
-! #define UMFPACK_ROW_SINGLETONS 57	/* # of row singletons */
-! #define UMFPACK_N2 58			/* size of S */
-! #define UMFPACK_S_SYMMETRIC 59	/* 1 if S square and symmetricly perm.*/
+! #define UMFPACK_COL_SINGLETONS 56 /* # of column singletons */
+! #define UMFPACK_ROW_SINGLETONS 57 /* # of row singletons */
+! #define UMFPACK_N2 58   /* size of S */
+! #define UMFPACK_S_SYMMETRIC 59 /* 1 if S square and symmetricly perm.*/
 
     integer(c_int), parameter :: UMFPACK_COL_SINGLETONS = 56
     integer(c_int), parameter :: UMFPACK_ROW_SINGLETONS = 57
@@ -168,10 +168,10 @@ use iso_c_binding
 ! estimates computed in UMFPACK_symbolic: 
 !-----------------------------------------------------------------
 ! #define UMFPACK_NUMERIC_SIZE_ESTIMATE 20    /* final size of Numeric->Memory */
-! #define UMFPACK_PEAK_MEMORY_ESTIMATE 21	    /* for symbolic & numeric */
-! #define UMFPACK_FLOPS_ESTIMATE 22	    /* flop count */
-! #define UMFPACK_LNZ_ESTIMATE 23		    /* nz in L, incl. diagonal */
-! #define UMFPACK_UNZ_ESTIMATE 24		    /* nz in U, incl. diagonal */
+! #define UMFPACK_PEAK_MEMORY_ESTIMATE 21     /* for symbolic & numeric */
+! #define UMFPACK_FLOPS_ESTIMATE 22     /* flop count */
+! #define UMFPACK_LNZ_ESTIMATE 23      /* nz in L, incl. diagonal */
+! #define UMFPACK_UNZ_ESTIMATE 24      /* nz in U, incl. diagonal */
 ! #define UMFPACK_VARIABLE_INIT_ESTIMATE 25   /* initial size of Numeric->Memory*/
 ! #define UMFPACK_VARIABLE_PEAK_ESTIMATE 26   /* peak size of Numeric->Memory */
 ! #define UMFPACK_VARIABLE_FINAL_ESTIMATE 27  /* final size of Numeric->Memory */
@@ -194,17 +194,17 @@ use iso_c_binding
 !-----------------------------------------------------------------
 ! exact values, (estimates shown above) computed in UMFPACK_numeric: */
 !-----------------------------------------------------------------
-! #define UMFPACK_NUMERIC_SIZE 40	    /* final size of Numeric->Memory */
-! #define UMFPACK_PEAK_MEMORY 41	    /* for symbolic & numeric */
-! #define UMFPACK_FLOPS 42		    /* flop count */
-! #define UMFPACK_LNZ 43		    /* nz in L, incl. diagonal */
-! #define UMFPACK_UNZ 44		    /* nz in U, incl. diagonal */
-! #define UMFPACK_VARIABLE_INIT 45	    /* initial size of Numeric->Memory*/
-! #define UMFPACK_VARIABLE_PEAK 46	    /* peak size of Numeric->Memory */
-! #define UMFPACK_VARIABLE_FINAL 47	    /* final size of Numeric->Memory */
-! #define UMFPACK_MAX_FRONT_SIZE 48	    /* max frontal matrix size */
-! #define UMFPACK_MAX_FRONT_NROWS 49	    /* max # rows in any front */
-! #define UMFPACK_MAX_FRONT_NCOLS 50	    /* max # columns in any front */
+! #define UMFPACK_NUMERIC_SIZE 40     /* final size of Numeric->Memory */
+! #define UMFPACK_PEAK_MEMORY 41     /* for symbolic & numeric */
+! #define UMFPACK_FLOPS 42      /* flop count */
+! #define UMFPACK_LNZ 43      /* nz in L, incl. diagonal */
+! #define UMFPACK_UNZ 44      /* nz in U, incl. diagonal */
+! #define UMFPACK_VARIABLE_INIT 45     /* initial size of Numeric->Memory*/
+! #define UMFPACK_VARIABLE_PEAK 46     /* peak size of Numeric->Memory */
+! #define UMFPACK_VARIABLE_FINAL 47     /* final size of Numeric->Memory */
+! #define UMFPACK_MAX_FRONT_SIZE 48     /* max frontal matrix size */
+! #define UMFPACK_MAX_FRONT_NROWS 49     /* max # rows in any front */
+! #define UMFPACK_MAX_FRONT_NCOLS 50     /* max # columns in any front */
 
     integer(c_int), parameter :: UMFPACK_NUMERIC_SIZE    = 40
     integer(c_int), parameter :: UMFPACK_PEAK_MEMORY     = 41
@@ -221,26 +221,26 @@ use iso_c_binding
 !-----------------------------------------------------------------
 ! computed in UMFPACK_numeric:
 !-----------------------------------------------------------------
-! #define UMFPACK_NUMERIC_DEFRAG         60	/* # of garbage collections */
-! #define UMFPACK_NUMERIC_REALLOC        61	/* # of memory reallocations */
+! #define UMFPACK_NUMERIC_DEFRAG         60 /* # of garbage collections */
+! #define UMFPACK_NUMERIC_REALLOC        61 /* # of memory reallocations */
 ! #define UMFPACK_NUMERIC_COSTLY_REALLOC 62 /* # of costlly memory realloc's */
 ! #define UMFPACK_COMPRESSED_PATTERN     63 /* # of integers in LU pattern */
-! #define UMFPACK_LU_ENTRIES             64	/* # of reals in LU factors */
-! #define UMFPACK_NUMERIC_TIME           65	/* numeric factorization time */
-! #define UMFPACK_UDIAG_NZ               66	/* nz on diagonal of U */
-! #define UMFPACK_RCOND                  67	/* est. reciprocal condition # */
-! #define UMFPACK_WAS_SCALED             68	/* none, max row, or sum row */
-! #define UMFPACK_RSMIN                  69	/* min (max row) or min (sum row) */
-! #define UMFPACK_RSMAX                  70	/* max (max row) or max (sum row) */
-! #define UMFPACK_UMIN                   71	/* min abs diagonal entry of U */
-! #define UMFPACK_UMAX                   72	/* max abs diagonal entry of U */
-! #define UMFPACK_ALLOC_INIT_USED        73	/* alloc_init parameter used */
-! #define UMFPACK_FORCED_UPDATES         74	/* # of forced updates */
-! #define UMFPACK_NUMERIC_WALLTIME       75	/* numeric wall clock time */
-! #define UMFPACK_NOFF_DIAG              76	/* number of off-diagonal pivots */
+! #define UMFPACK_LU_ENTRIES             64 /* # of reals in LU factors */
+! #define UMFPACK_NUMERIC_TIME           65 /* numeric factorization time */
+! #define UMFPACK_UDIAG_NZ               66 /* nz on diagonal of U */
+! #define UMFPACK_RCOND                  67 /* est. reciprocal condition # */
+! #define UMFPACK_WAS_SCALED             68 /* none, max row, or sum row */
+! #define UMFPACK_RSMIN                  69 /* min (max row) or min (sum row) */
+! #define UMFPACK_RSMAX                  70 /* max (max row) or max (sum row) */
+! #define UMFPACK_UMIN                   71 /* min abs diagonal entry of U */
+! #define UMFPACK_UMAX                   72 /* max abs diagonal entry of U */
+! #define UMFPACK_ALLOC_INIT_USED        73 /* alloc_init parameter used */
+! #define UMFPACK_FORCED_UPDATES         74 /* # of forced updates */
+! #define UMFPACK_NUMERIC_WALLTIME       75 /* numeric wall clock time */
+! #define UMFPACK_NOFF_DIAG              76 /* number of off-diagonal pivots */
 
-! #define UMFPACK_ALL_LNZ                77	/* nz in L, if no dropped entries */
-! #define UMFPACK_ALL_UNZ                78	/* nz in U, if no dropped entries */
+! #define UMFPACK_ALL_LNZ                77 /* nz in L, if no dropped entries */
+! #define UMFPACK_ALL_UNZ                78 /* nz in U, if no dropped entries */
 ! #define UMFPACK_NZDROPPED              79 /* # of dropped small entries */
 
     integer(c_int), parameter :: UMFPACK_NUMERIC_DEFRAG         = 60
@@ -270,10 +270,10 @@ use iso_c_binding
 !-----------------------------------------------------------------
 ! #define UMFPACK_IR_TAKEN       80 /* # of iterative refinement steps taken */
 ! #define UMFPACK_IR_ATTEMPTED   81 /* # of iter. refinement steps attempted */
-! #define UMFPACK_OMEGA1         82	/* omega1, sparse backward error estimate */
-! #define UMFPACK_OMEGA2         83	/* omega2, sparse backward error estimate */
+! #define UMFPACK_OMEGA1         82 /* omega1, sparse backward error estimate */
+! #define UMFPACK_OMEGA2         83 /* omega2, sparse backward error estimate */
 ! #define UMFPACK_SOLVE_FLOPS    84 /* flop count for solve */
-! #define UMFPACK_SOLVE_TIME     85	/* solve time (seconds) */
+! #define UMFPACK_SOLVE_TIME     85 /* solve time (seconds) */
 ! #define UMFPACK_SOLVE_WALLTIME 86 /* solve time (wall clock, seconds) */
 
     integer(c_int), parameter :: UMFPACK_IR_TAKEN       = 80
@@ -293,7 +293,7 @@ use iso_c_binding
 !-----------------------------------------------------------------
 
 ! /* used in all UMFPACK_report_* routines: */
-! #define UMFPACK_PRL 0	/* print level */
+! #define UMFPACK_PRL 0 /* print level */
 
     integer(c_int), parameter :: UMFPACK_PRL = 0
 
@@ -324,7 +324,7 @@ use iso_c_binding
 ! USED IN NUMERIC FACTORIZATION ONLY
 !-----------------------------------------------------------------
 ! #define UMFPACK_PIVOT_TOLERANCE     3  /* threshold partial pivoting setting */
-! #define UMFPACK_ALLOC_INIT          6	 /* initial allocation ratio */
+! #define UMFPACK_ALLOC_INIT          6  /* initial allocation ratio */
 ! #define UMFPACK_SYM_PIVOT_TOLERANCE 15 /* threshold, only for diag. entries */
 ! #define UMFPACK_SCALE               16 /* what row scaling to do */
 ! #define UMFPACK_FRONT_ALLOC_INIT    17 /* frontal matrix allocation ratio */
@@ -491,23 +491,23 @@ use iso_c_binding
 !/* operator in MATLAB.  "at" refers to the array transpose, or the (.') */
 !/* operator in MATLAB. */
 
-!#define UMFPACK_A	    (0)  /* Ax=b    */
-!#define UMFPACK_At	    (1)  /* A'x=b   */
-!#define UMFPACK_Aat	(2)  /* A.'x=b  */
+!#define UMFPACK_A     (0)  /* Ax=b    */
+!#define UMFPACK_At     (1)  /* A'x=b   */
+!#define UMFPACK_Aat (2)  /* A.'x=b  */
 
-!#define UMFPACK_Pt_L	(3)  /* P'Lx=b  */
-!#define UMFPACK_L	    (4)  /* Lx=b    */
-!#define UMFPACK_Lt_P	(5)  /* L'Px=b  */
-!#define UMFPACK_Lat_P	(6)  /* L.'Px=b */
-!#define UMFPACK_Lt	    (7)  /* L'x=b   */
-!#define UMFPACK_Lat	(8)  /* L.'x=b  */
+!#define UMFPACK_Pt_L (3)  /* P'Lx=b  */
+!#define UMFPACK_L     (4)  /* Lx=b    */
+!#define UMFPACK_Lt_P (5)  /* L'Px=b  */
+!#define UMFPACK_Lat_P (6)  /* L.'Px=b */
+!#define UMFPACK_Lt     (7)  /* L'x=b   */
+!#define UMFPACK_Lat (8)  /* L.'x=b  */
 
-!#define UMFPACK_U_Qt	(9)	 /* UQ'x=b  */
-!#define UMFPACK_U	    (10) /* Ux=b    */
-!#define UMFPACK_Q_Ut	(11) /* QU'x=b  */
-!#define UMFPACK_Q_Uat	(12) /* QU.'x=b */
-!#define UMFPACK_Ut	    (13) /* U'x=b   */
-!#define UMFPACK_Uat	(14) /* U.'x=b  */
+!#define UMFPACK_U_Qt (9)  /* UQ'x=b  */
+!#define UMFPACK_U     (10) /* Ux=b    */
+!#define UMFPACK_Q_Ut (11) /* QU'x=b  */
+!#define UMFPACK_Q_Uat (12) /* QU.'x=b */
+!#define UMFPACK_Ut     (13) /* U'x=b   */
+!#define UMFPACK_Uat (14) /* U.'x=b  */
 
     integer(c_int), parameter :: UMFPACK_A     =  0
     integer(c_int), parameter :: UMFPACK_At    =  1

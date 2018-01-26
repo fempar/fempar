@@ -69,7 +69,7 @@ module allocatable_array_ip1_names
 
 contains
 
-  subroutine allocatable_array_ip1_create(this, nd1)	
+  subroutine allocatable_array_ip1_create(this, nd1) 
     implicit none
     class(allocatable_array_ip1_t), intent(inout) :: this
     integer(ip)                   , intent(in)    :: nd1
@@ -78,7 +78,7 @@ contains
     call memalloc(nd1,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip1_create
 
-  subroutine allocatable_array_ip1_free(this)	
+  subroutine allocatable_array_ip1_free(this) 
     implicit none
     class(allocatable_array_ip1_t), intent(inout) :: this
     this%nd1 = 0
@@ -120,7 +120,7 @@ module allocatable_array_ip2_names
 
 contains
 
-  subroutine allocatable_array_ip2_create(this, nd1, nd2)	
+  subroutine allocatable_array_ip2_create(this, nd1, nd2) 
     implicit none
     class(allocatable_array_ip2_t), intent(inout) :: this
     integer(ip)                   , intent(in)  :: nd1, nd2
@@ -130,7 +130,7 @@ contains
     call memalloc(nd1,nd2,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip2_create
 
-  subroutine allocatable_array_ip2_free(this)	
+  subroutine allocatable_array_ip2_free(this) 
     implicit none
     class(allocatable_array_ip2_t), intent(inout) :: this
     this%nd1 = 0
@@ -138,7 +138,7 @@ contains
     if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip2_free
   
-  subroutine allocatable_array_ip2_resize(this, nd1, nd2)	
+  subroutine allocatable_array_ip2_resize(this, nd1, nd2) 
     implicit none
     class(allocatable_array_ip2_t), intent(inout) :: this
     integer(ip)                   , intent(in)  :: nd1, nd2
@@ -186,7 +186,7 @@ module allocatable_array_igp1_names
 
 contains
 
-  subroutine allocatable_array_igp1_create(this, nd1)	
+  subroutine allocatable_array_igp1_create(this, nd1) 
     implicit none
     integer(ip)    , intent(in)  :: nd1
     class(allocatable_array_igp1_t), intent(inout) :: this
@@ -195,7 +195,7 @@ contains
     call memalloc(nd1,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_igp1_create
 
-  subroutine allocatable_array_igp1_free(this)	
+  subroutine allocatable_array_igp1_free(this) 
     implicit none
     class(allocatable_array_igp1_t), intent(inout) :: this
     this%nd1 = 0
@@ -243,7 +243,7 @@ module allocatable_array_rp1_names
 
 contains
 
-  subroutine allocatable_array_rp1_create(this, nd1)	
+  subroutine allocatable_array_rp1_create(this, nd1) 
     implicit none
     class(allocatable_array_rp1_t), intent(inout) :: this
     integer(ip)                   , intent(in)    :: nd1
@@ -252,7 +252,7 @@ contains
     call memalloc(nd1,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp1_create
    
-  subroutine allocatable_array_rp1_resize(this, nd1)	
+  subroutine allocatable_array_rp1_resize(this, nd1) 
     implicit none
     integer(ip)    , intent(in)  :: nd1
     class(allocatable_array_rp1_t), intent(inout) :: this
@@ -262,7 +262,7 @@ contains
     end if
   end subroutine allocatable_array_rp1_resize
 
-  subroutine allocatable_array_rp1_free(this)	
+  subroutine allocatable_array_rp1_free(this) 
     implicit none
     class(allocatable_array_rp1_t), intent(inout) :: this
     this%nd1 = 0
@@ -331,7 +331,7 @@ module allocatable_array_rp2_names
 
 contains
 
-  subroutine allocatable_array_rp2_create(this, nd1, nd2)	
+  subroutine allocatable_array_rp2_create(this, nd1, nd2) 
     implicit none
     integer(ip)    , intent(in)  :: nd1, nd2
     class(allocatable_array_rp2_t), intent(inout) :: this
@@ -341,7 +341,7 @@ contains
     call memalloc(nd1,nd2,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp2_create
 
-  subroutine allocatable_array_rp2_resize(this, nd1, nd2)	
+  subroutine allocatable_array_rp2_resize(this, nd1, nd2) 
     implicit none
     integer(ip)    , intent(in)  :: nd1, nd2
     class(allocatable_array_rp2_t), intent(inout) :: this
@@ -352,7 +352,7 @@ contains
     end if
   end subroutine allocatable_array_rp2_resize
 
-  subroutine allocatable_array_rp2_free(this)	
+  subroutine allocatable_array_rp2_free(this) 
     implicit none
     class(allocatable_array_rp2_t), intent(inout) :: this
     this%nd1 = 0
@@ -394,7 +394,7 @@ module allocatable_array_rp3_names
 
 contains
 
-  subroutine allocatable_array_rp3_create(this, nd1, nd2, nd3)	
+  subroutine allocatable_array_rp3_create(this, nd1, nd2, nd3) 
     implicit none
     class(allocatable_array_rp3_t), intent(inout) :: this
     integer(ip)    , intent(in)  :: nd1, nd2, nd3
@@ -405,7 +405,7 @@ contains
     call memalloc(nd1,nd2,nd3,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp3_create
 
-  subroutine allocatable_array_rp3_free(this)	
+  subroutine allocatable_array_rp3_free(this) 
     implicit none
     class(allocatable_array_rp3_t), intent(inout) :: this
     this%nd1 = 0

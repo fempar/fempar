@@ -192,11 +192,11 @@ module metis_interface_names
 !!$typedef enum {
 !!$  METIS_DBG_INFO       = 1,       /*!< Shows various diagnostic messages */
 !!$  METIS_DBG_TIME       = 2,       /*!< Perform timing analysis */
-!!$  METIS_DBG_COARSEN    = 4,	  /*!< Show the coarsening progress */
-!!$  METIS_DBG_REFINE     = 8,	  /*!< Show the refinement progress */
-!!$  METIS_DBG_IPART      = 16, 	  /*!< Show info on initial partitioning */
-!!$  METIS_DBG_MOVEINFO   = 32, 	  /*!< Show info on vertex moves during refinement */
-!!$  METIS_DBG_SEPINFO    = 64, 	  /*!< Show info on vertex moves during sep refinement */
+!!$  METIS_DBG_COARSEN    = 4,   /*!< Show the coarsening progress */
+!!$  METIS_DBG_REFINE     = 8,   /*!< Show the refinement progress */
+!!$  METIS_DBG_IPART      = 16,    /*!< Show info on initial partitioning */
+!!$  METIS_DBG_MOVEINFO   = 32,    /*!< Show info on vertex moves during refinement */
+!!$  METIS_DBG_SEPINFO    = 64,    /*!< Show info on vertex moves during sep refinement */
 !!$  METIS_DBG_CONNINFO   = 128,     /*!< Show info on minimization of subdomain connectivity */
 !!$  METIS_DBG_CONTIGINFO = 256,     /*!< Show info on elimination of connected components */ 
 !!$  METIS_DBG_MEMORY     = 2048,    /*!< Show info related to wspace allocation */
@@ -204,8 +204,8 @@ module metis_interface_names
 !!$
   integer(c_int), parameter :: METIS_DBG_INFO       = 1    ! /*!< Shows various diagnostic messages */
   integer(c_int), parameter :: METIS_DBG_TIME       = 2    ! /*!< Perform timing analysis */
-  integer(c_int), parameter :: METIS_DBG_COARSEN    = 4	   ! /*!< Show the coarsening progress */
-  integer(c_int), parameter :: METIS_DBG_REFINE     = 8	   ! /*!< Show the refinement progress */
+  integer(c_int), parameter :: METIS_DBG_COARSEN    = 4    ! /*!< Show the coarsening progress */
+  integer(c_int), parameter :: METIS_DBG_REFINE     = 8    ! /*!< Show the refinement progress */
   integer(c_int), parameter :: METIS_DBG_IPART      = 16   ! /*!< Show info on initial partitioning */
   integer(c_int), parameter :: METIS_DBG_MOVEINFO   = 32   ! /*!< Show info on vertex moves during refinement */
   integer(c_int), parameter :: METIS_DBG_SEPINFO    = 64   ! /*!< Show info on vertex moves during sep refinement */

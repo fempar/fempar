@@ -143,7 +143,7 @@ contains
       check(.false.)
     end select
   end subroutine block_sparse_assembler_compress_storage_matrix
-		
+  
   subroutine block_sparse_assembler_allocate(this)
     implicit none
     class(block_sparse_assembler_t), intent(inout) :: this

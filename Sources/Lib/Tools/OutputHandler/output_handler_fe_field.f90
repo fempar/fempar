@@ -300,7 +300,7 @@ contains
         integer(ip)                                  :: num_components
     !-----------------------------------------------------------------
         assert(allocated(this%field_type))
-	
+ 
         assert(allocated(this%diff_operator))
         select case(this%field_type)
             case ( field_type_scalar )

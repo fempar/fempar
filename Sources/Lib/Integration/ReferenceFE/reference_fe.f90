@@ -160,7 +160,7 @@ module reference_fe_names
     
     ! Characteristic length of the reference element
     real(rp)                    :: reference_fe_characteristic_length
-				
+    
     ! Measure of the map of the real element 
     real(rp)                    :: measure 
   contains
@@ -413,8 +413,8 @@ module reference_fe_names
      integer(ip), allocatable :: num_rotations_x_dim(:)
      integer(ip), allocatable :: num_orientations_x_dim(:)
      type(allocatable_array_ip2_t), allocatable :: own_dof_permutations(:)
-					
-					type(interpolation_t)    :: h_refinement_interpolation
+     
+     type(interpolation_t)    :: h_refinement_interpolation
      integer(ip), allocatable :: h_refinement_subfacet_permutation(:,:,:)
      integer(ip), allocatable :: h_refinement_subedge_permutation(:,:,:)
    contains
@@ -503,11 +503,11 @@ module reference_fe_names
      procedure (create_data_out_quadrature_interface), deferred :: create_data_out_quadrature 
      procedure (get_num_subcells_interface      )    , deferred :: get_num_subcells
      procedure (get_subcells_connectivity_interface) , deferred :: get_subcells_connectivity
-					
+     
      procedure (get_h_refinement_coefficient_interface)          , deferred :: get_h_refinement_coefficient 
      procedure (interpolate_nodal_values_on_subcell_interface)   , deferred :: interpolate_nodal_values_on_subcell 
      procedure (project_nodal_values_on_cell_interface)          , deferred :: project_nodal_values_on_cell
-					
+     
      ! generic part of the subroutine above
      procedure :: free  => reference_fe_free
      procedure :: print => reference_fe_print
@@ -930,7 +930,7 @@ module reference_fe_names
         integer(ip),                      intent(in)    :: num_refinements
         integer(ip),                      intent(inout) :: connectivity(:,:)
      end subroutine get_subcells_connectivity_interface
-					
+     
      !==================================================================================================
      subroutine get_h_refinement_coefficient_interface ( this, ishape_fe,   & 
                                                          ishape_coarser_fe, & 
@@ -965,7 +965,7 @@ module reference_fe_names
        real(rp)             , intent(in)    :: nodal_values_on_children(:,:)
        real(rp)             , intent(inout) :: nodal_values_on_parent(:)
      end subroutine project_nodal_values_on_cell_interface
-										
+          
   end interface
 
   public :: reference_fe_t, p_reference_fe_t
@@ -1269,7 +1269,7 @@ abstract interface
     type(quadrature_t)           , intent(in)    :: local_quadrature
     type(interpolation_t)        , intent(inout) :: edget_interpolation
   end subroutine fill_interpolation_restricted_to_edget_interface
-		
+  
 end interface 
 
 public :: nedelec_reference_fe_t

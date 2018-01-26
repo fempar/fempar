@@ -55,7 +55,7 @@ module assembler_names
      procedure                                        :: get_matrix             => assembler_get_matrix
      procedure                                        :: get_array              => assembler_get_array
   end type assembler_t
-		 
+   
   abstract interface
      
      subroutine assembly_array_interface( this,           & 
@@ -111,7 +111,7 @@ module assembler_names
        implicit none
        class(assembler_t) , intent(inout) :: this
      end subroutine compress_storage_array_interface
-					     
+          
     end interface
     
   ! Data types
@@ -131,7 +131,7 @@ contains
     call this%compress_storage_matrix( sparse_matrix_storage_format ) 
     call this%compress_storage_array() 
   end subroutine assembler_compress_storage
-		
+  
   ! Sets the pointer to class(matrix_t) in such a way that this 
   ! can become reponsible to free it later on 
   subroutine assembler_set_matrix(this,matrix)

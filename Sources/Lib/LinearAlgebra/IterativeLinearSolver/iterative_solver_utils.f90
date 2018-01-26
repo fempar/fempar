@@ -152,7 +152,7 @@ contains
     delta_i_mone = q_k%nrm2()
 
     if (delta_i_mone <= rzero) then
-       ierrc = -1	
+       ierrc = -1 
        write (luout,*) '** Warning: icgsro: zero input vector'
        return
     else if ( delta_i_mone > rzero .and. rone/delta_i_mone > rzero ) then

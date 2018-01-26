@@ -38,8 +38,8 @@ module maxwell_analytical_functions_names
   contains
     procedure :: set_num_dims    => base_vector_function_set_num_dims
   end type base_vector_function_t
-		
-		  type, extends(scalar_function_t) :: base_scalar_function_t
+  
+    type, extends(scalar_function_t) :: base_scalar_function_t
     private
     integer(ip) :: num_dims = -1  
   contains
@@ -57,14 +57,14 @@ module maxwell_analytical_functions_names
    contains
      procedure :: get_value_space => boundary_function_Hx_get_value_space
   end type boundary_function_Hx_t
-		
-		  type, extends(base_scalar_function_t) :: boundary_function_Hy_t
+  
+    type, extends(base_scalar_function_t) :: boundary_function_Hy_t
     private
    contains
      procedure :: get_value_space => boundary_function_Hy_get_value_space
   end type boundary_function_Hy_t
-		
-		  type, extends(base_scalar_function_t) :: boundary_function_Hz_t
+  
+    type, extends(base_scalar_function_t) :: boundary_function_Hz_t
     private
    contains
      procedure :: get_value_space => boundary_function_Hz_get_value_space
@@ -81,15 +81,15 @@ module maxwell_analytical_functions_names
      private
      type(source_term_t)          :: source_term
      type(boundary_function_Hx_t) :: boundary_function_Hx
-					type(boundary_function_Hy_t) :: boundary_function_Hy
-					type(boundary_function_Hz_t) :: boundary_function_Hz
+     type(boundary_function_Hy_t) :: boundary_function_Hy
+     type(boundary_function_Hz_t) :: boundary_function_Hz
      type(solution_function_t)    :: solution_function
    contains
      procedure :: set_num_dims            => maxwell_analytical_functions_set_num_dims
      procedure :: get_source_term         => maxwell_analytical_functions_get_source_term
      procedure :: get_boundary_function_Hx   => maxwell_analytical_functions_get_boundary_function_Hx
-					procedure :: get_boundary_function_Hy   => maxwell_analytical_functions_get_boundary_function_Hy
-					procedure :: get_boundary_function_Hz   => maxwell_analytical_functions_get_boundary_function_Hz
+     procedure :: get_boundary_function_Hy   => maxwell_analytical_functions_get_boundary_function_Hy
+     procedure :: get_boundary_function_Hz   => maxwell_analytical_functions_get_boundary_function_Hz
      procedure :: get_solution_function   => maxwell_analytical_functions_get_solution_function
   end type maxwell_analytical_functions_t
 
@@ -103,7 +103,7 @@ contains
     integer(ip), intent(in) ::  num_dims
     this%num_dims = num_dims
   end subroutine base_scalar_function_set_num_dims
-		
+  
   subroutine base_vector_function_set_num_dims ( this, num_dims )
     implicit none
     class(base_vector_function_t), intent(inout)    :: this
@@ -119,8 +119,8 @@ contains
     type(vector_field_t), intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     call result%set(1, -point%get(2) )
-				call result%set(2, point%get(1)  ) 
-				call result%set(3, 0.0_rp) 
+    call result%set(2, point%get(1)  ) 
+    call result%set(3, 0.0_rp) 
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -132,8 +132,8 @@ contains
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     result = - point%get(2)
   end subroutine boundary_function_Hx_get_value_space 
-		
-		  !===============================================================================================
+  
+    !===============================================================================================
   subroutine boundary_function_Hy_get_value_space ( this, point, result )
     implicit none
     class(boundary_function_Hy_t), intent(in)  :: this
@@ -142,8 +142,8 @@ contains
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     result = point%get(1)
   end subroutine boundary_function_Hy_get_value_space 
-		
-		  !===============================================================================================
+  
+    !===============================================================================================
   subroutine boundary_function_Hz_get_value_space ( this, point, result )
     implicit none
     class(boundary_function_Hz_t), intent(in)  :: this
@@ -161,8 +161,8 @@ contains
     type(vector_field_t)      , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     call result%set(1, -point%get(2) )
-				call result%set(2, point%get(1)  ) 
-				call result%set(3, 0.0_rp) 
+    call result%set(2, point%get(1)  ) 
+    call result%set(3, 0.0_rp) 
   end subroutine solution_function_get_value_space
   
   !===============================================================================================
@@ -183,8 +183,8 @@ contains
     integer(ip), intent(in) ::  num_dims
     call this%source_term%set_num_dims(num_dims)
     call this%boundary_function_Hx%set_num_dims(num_dims)
-				call this%boundary_function_Hy%set_num_dims(num_dims)
-				call this%boundary_function_Hz%set_num_dims(num_dims)
+    call this%boundary_function_Hy%set_num_dims(num_dims)
+    call this%boundary_function_Hz%set_num_dims(num_dims)
     call this%solution_function%set_num_dims(num_dims)
   end subroutine maxwell_analytical_functions_set_num_dims 
   
@@ -203,16 +203,16 @@ contains
     class(scalar_function_t), pointer :: maxwell_analytical_functions_get_boundary_function_Hx
     maxwell_analytical_functions_get_boundary_function_Hx => this%boundary_function_Hx
   end function maxwell_analytical_functions_get_boundary_function_Hx
-		
-		  !===============================================================================================
+  
+    !===============================================================================================
   function maxwell_analytical_functions_get_boundary_function_Hy ( this )
     implicit none
     class(maxwell_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: maxwell_analytical_functions_get_boundary_function_Hy
     maxwell_analytical_functions_get_boundary_function_Hy => this%boundary_function_Hy
   end function maxwell_analytical_functions_get_boundary_function_Hy
-		
-		  !===============================================================================================
+  
+    !===============================================================================================
   function maxwell_analytical_functions_get_boundary_function_Hz ( this )
     implicit none
     class(maxwell_analytical_functions_t), target, intent(in)    :: this

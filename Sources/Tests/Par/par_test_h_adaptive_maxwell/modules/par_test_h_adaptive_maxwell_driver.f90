@@ -262,10 +262,10 @@ end subroutine free_timers
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
     call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
-				call this%maxwell_conditions%set_num_dims(this%triangulation%get_num_dims())
+    call this%maxwell_conditions%set_num_dims(this%triangulation%get_num_dims())
     call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
-				call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
-				call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
+    call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
+    call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
 
       call this%fe_space%create( triangulation       = this%triangulation,      &
                                  reference_fes       = this%reference_fes,      &
@@ -290,7 +290,7 @@ end subroutine free_timers
                                           discrete_integration              = this%maxwell_integration )
     
     call this%solution%create(this%fe_space) 
-				call this%fe_space%interpolate(1, this%maxwell_analytical_functions%get_solution_function(), this%solution)
+    call this%fe_space%interpolate(1, this%maxwell_analytical_functions%get_solution_function(), this%solution)
     call this%fe_space%interpolate_dirichlet_values(this%solution)
     call this%maxwell_integration%set_fe_function(this%solution)
   end subroutine setup_system
@@ -620,7 +620,7 @@ end subroutine free_timers
       call this%triangulation%create_cell_iterator(cell) 
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
-								 if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
+         if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
             call cell%set_for_refinement()
           end if
         end if  

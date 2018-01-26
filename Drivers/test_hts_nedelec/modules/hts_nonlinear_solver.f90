@@ -50,7 +50,7 @@ module hts_nonlinear_solver_names
      integer(ip)                                :: current_iteration 
      integer(ip)                                :: ideal_num_iterations 
      integer(ip)                                :: max_num_iterations
-	    real(rp)                                   :: absolute_tolerance
+     real(rp)                                   :: absolute_tolerance
      real(rp)                                   :: relative_tolerance
      type(hts_line_search_t)                    :: line_search  
      character(len=:) , allocatable             :: convergence_criteria 
@@ -62,7 +62,7 @@ module hts_nonlinear_solver_names
      type(serial_scalar_array_t), pointer       :: constraint_vector 
      class(vector_t), allocatable               :: increment_dof_values 
      real(rp)                                   :: increment_lagrange_multiplier 
-	    class(vector_t), allocatable               :: residual 
+     class(vector_t), allocatable               :: residual 
      type(serial_scalar_array_t)                :: constrained_residual 
      class(vector_t), allocatable               :: initial_residual 
      type(direct_solver_t)                      :: direct_solver
@@ -142,7 +142,7 @@ call fe_affine_operator%create_range_vector(this%increment_dof_values)
 ! Create direct solver to update iterates 
     call parameter_list%init()
    
-				iparm      = 0  ! Init all entries to zero
+    iparm      = 0  ! Init all entries to zero
     iparm(1)   = 1  ! no solver default
     iparm(2)   = 2  ! fill-in reordering from METIS
     iparm(8)   = 5  ! numbers of iterative refinement steps
@@ -150,7 +150,7 @@ call fe_affine_operator%create_range_vector(this%increment_dof_values)
     iparm(11)  = 1  ! use scaling 
     iparm(13)  = 1  ! use maximum weighted matching algorithm 
     iparm(21)  = 1  ! 1x1 + 2x2 pivots
-				
+    
     FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
@@ -232,19 +232,19 @@ end subroutine hts_nonlinear_solver_compute_residual
     type(serial_scalar_array_t)      , pointer       :: original_sol
     integer(ip)                      , allocatable   :: original_indices(:)
     integer(ip) :: idof 
-	 
-				   massert( .false. , ' Needs further work for the constrained case' ) 
-						! polymorphic residual 
+  
+       massert( .false. , ' Needs further work for the constrained case' ) 
+      ! polymorphic residual 
       ! original_residual => residual
       ! num_dofs = this%residual%get_size() 
-	
-	   select type (current_dof_values=>this%current_dof_values)
+ 
+    select type (current_dof_values=>this%current_dof_values)
     type is (serial_scalar_array_t)
        original_sol => current_dof_values 
     class DEFAULT
        assert(.false.) 
     end select
-	
+ 
     call this%constrained_residual%init(0.0_rp) 
     call memalloc ( num_dofs, original_indices, __FILE__,__LINE__) 
     do idof = 1,num_dofs
@@ -252,9 +252,9 @@ end subroutine hts_nonlinear_solver_compute_residual
     end do 
     
   ! Build full constrained residual: 
-	   !       [ R - lag_mult · C^t ]
+    !       [ R - lag_mult · C^t ]
     !  R* = [ J_o - C · H          ]
-    		    
+          
     call this%constrained_residual%init(0.0_rp) 
     call this%constrained_residual%insert_subvector(iblock=1,                          &
                                                     size_indices = num_dofs,           &
@@ -342,7 +342,7 @@ subroutine hts_nonlinear_solver_solve_constrained_tangent_system(this, constrain
      assert(.false.) 
   end select
 
-		   massert( .false., ' Needs to be repared if constrained problems wanted' ) 
+     massert( .false., ' Needs to be repared if constrained problems wanted' ) 
     ! original_residual => this%residual
 
   select type (current_dof_values => this%current_dof_values)
@@ -435,7 +435,7 @@ case ('rel_r0_res_norm') ! |R|/|Ro| < rel_tol
 hts_nonlinear_solver_converged = (this%residual%nrm2()/this%initial_residual%nrm2() .lt. this%relative_tolerance ) 
 case ('rel_rhs_res_norm') ! |R|/|b| < rel_tol 
 hts_nonlinear_solver_converged = ( (this%residual%nrm2()/this%current_rhs%nrm2() .lt. this%relative_tolerance) &
-																																		.and. (this%residual%nrm2() .lt. this%absolute_tolerance) ) 
+                                  .and. (this%residual%nrm2() .lt. this%absolute_tolerance) ) 
 case DEFAULT
 assert(.false.) 
 end select 

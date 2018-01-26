@@ -34,14 +34,14 @@ module maxwell_nedelec_conditions_names
   type, extends(conditions_t) :: maxwell_nedelec_conditions_t
      private
      integer(ip)                       :: num_dims
-	 class(scalar_function_t), pointer :: boundary_function_Hx
-	 class(scalar_function_t), pointer :: boundary_function_Hy 
-	 class(scalar_function_t), pointer :: boundary_function_Hz 
+  class(scalar_function_t), pointer :: boundary_function_Hx
+  class(scalar_function_t), pointer :: boundary_function_Hy 
+  class(scalar_function_t), pointer :: boundary_function_Hz 
    contains
      procedure :: set_num_dims          => maxwell_nedelec_conditions_set_num_dims
-	 procedure :: set_boundary_function_Hx    => maxwell_nedelec_conditions_set_boundary_function_Hx
-	 procedure :: set_boundary_function_Hy    => maxwell_nedelec_conditions_set_boundary_function_Hy
-	 procedure :: set_boundary_function_Hz    => maxwell_nedelec_conditions_set_boundary_function_Hz
+  procedure :: set_boundary_function_Hx    => maxwell_nedelec_conditions_set_boundary_function_Hx
+  procedure :: set_boundary_function_Hy    => maxwell_nedelec_conditions_set_boundary_function_Hy
+  procedure :: set_boundary_function_Hz    => maxwell_nedelec_conditions_set_boundary_function_Hz
      procedure :: get_num_components       => maxwell_nedelec_conditions_get_num_components  
      procedure :: get_components_code         => maxwell_nedelec_conditions_get_components_code
      procedure :: get_function                => maxwell_nedelec_conditions_get_function
@@ -107,13 +107,13 @@ contains
     class(scalar_function_t)          , pointer    , intent(out) :: function
     assert ( component_id == 1 .or. component_id == 2 .or. component_id == 3  )
 
-	if ( component_id == 1) then 
-	function => this%boundary_function_Hx
- 	else if ( component_id == 2 ) then 
-	function => this%boundary_function_Hy
-	else if ( component_id == 3 ) then 
-	function => this%boundary_function_Hz
-	end if 
+ if ( component_id == 1) then 
+ function => this%boundary_function_Hx
+  else if ( component_id == 2 ) then 
+ function => this%boundary_function_Hy
+ else if ( component_id == 3 ) then 
+ function => this%boundary_function_Hz
+ end if 
 
   end subroutine maxwell_nedelec_conditions_get_function 
 

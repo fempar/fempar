@@ -32,16 +32,16 @@ module maxwell_conditions_names
 # include "debug.i90"
   private
   type, extends(conditions_t) :: maxwell_conditions_t
-		   private
-		   integer(ip) :: num_dims 
+     private
+     integer(ip) :: num_dims 
      class(scalar_function_t), pointer :: boundary_function_Hx 
-					class(scalar_function_t), pointer :: boundary_function_Hy
-				 class(scalar_function_t), pointer :: boundary_function_Hz
+     class(scalar_function_t), pointer :: boundary_function_Hy
+     class(scalar_function_t), pointer :: boundary_function_Hz
    contains
      procedure :: set_boundary_function_Hx    => maxwell_conditions_set_boundary_function_Hx
-					procedure :: set_boundary_function_Hy    => maxwell_conditions_set_boundary_function_Hy
-					procedure :: set_boundary_function_Hz    => maxwell_conditions_set_boundary_function_Hz
-					procedure :: set_num_dims                => maxwell_conditions_set_num_dims
+     procedure :: set_boundary_function_Hy    => maxwell_conditions_set_boundary_function_Hy
+     procedure :: set_boundary_function_Hz    => maxwell_conditions_set_boundary_function_Hz
+     procedure :: set_num_dims                => maxwell_conditions_set_num_dims
      procedure :: get_num_components          => maxwell_conditions_get_num_components  
      procedure :: get_components_code         => maxwell_conditions_get_components_code
      procedure :: get_function                => maxwell_conditions_get_function
@@ -57,28 +57,28 @@ contains
     class(scalar_function_t), target, intent(in)    :: boundary_function_Hx
     this%boundary_function_Hx => boundary_function_Hx
   end subroutine maxwell_conditions_set_boundary_function_Hx
-		
-		 subroutine maxwell_conditions_set_boundary_function_Hy (this, boundary_function_Hy)
+  
+   subroutine maxwell_conditions_set_boundary_function_Hy (this, boundary_function_Hy)
     implicit none
     class(maxwell_conditions_t)     , intent(inout) :: this
     class(scalar_function_t), target, intent(in)    :: boundary_function_Hy
     this%boundary_function_Hy => boundary_function_Hy
   end subroutine maxwell_conditions_set_boundary_function_Hy
-		
-		 subroutine maxwell_conditions_set_boundary_function_Hz (this, boundary_function_Hz)
+  
+   subroutine maxwell_conditions_set_boundary_function_Hz (this, boundary_function_Hz)
     implicit none
     class(maxwell_conditions_t)     , intent(inout) :: this
     class(scalar_function_t), target, intent(in)    :: boundary_function_Hz
     this%boundary_function_Hz => boundary_function_Hz
   end subroutine maxwell_conditions_set_boundary_function_Hz
 
-		  subroutine maxwell_conditions_set_num_dims (this, num_dims)
+    subroutine maxwell_conditions_set_num_dims (this, num_dims)
     implicit none
     class(maxwell_conditions_t), intent(inout) :: this
     integer(ip)                           , intent(in)    :: num_dims
     this%num_dims = num_dims
   end subroutine maxwell_conditions_set_num_dims 
-		
+  
   function maxwell_conditions_get_num_components(this)
     implicit none
     class(maxwell_conditions_t), intent(in) :: this
@@ -86,7 +86,7 @@ contains
     maxwell_conditions_get_num_components = this%num_dims
   end function maxwell_conditions_get_num_components
 
-		  subroutine maxwell_conditions_get_components_code(this, boundary_id, components_code)
+    subroutine maxwell_conditions_get_components_code(this, boundary_id, components_code)
     implicit none
     class(maxwell_conditions_t), intent(in)  :: this
     integer(ip)                       , intent(in)  :: boundary_id
@@ -107,12 +107,12 @@ contains
     nullify(function)
     if ( component_id == 1 ) then
       function => this%boundary_function_Hx
-				elseif ( component_id == 2 ) then 
-				  function => this%boundary_function_Hy
-				elseif ( component_id == 3 ) then 
-				  function => this%boundary_function_Hz
-				else 
-				assert(.false.) 
+    elseif ( component_id == 2 ) then 
+      function => this%boundary_function_Hy
+    elseif ( component_id == 3 ) then 
+      function => this%boundary_function_Hz
+    else 
+    assert(.false.) 
     end if  
   end subroutine maxwell_conditions_get_function 
 

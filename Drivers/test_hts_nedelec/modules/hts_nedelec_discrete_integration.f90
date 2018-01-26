@@ -47,7 +47,7 @@ module hts_nedelec_discrete_integration_names
      real(rp)                          :: critical_electric_field 
      real(rp)                          :: critical_current
      real(rp)                          :: nonlinear_exponent
-					character(len=:), allocatable     :: hts_device_type 
+     character(len=:), allocatable     :: hts_device_type 
      character(len=:), allocatable     :: integration_type  
      
      ! Solution to integrate nonlinear, time dependent 
@@ -83,7 +83,7 @@ contains
   this%critical_electric_field = hts_nedelec_params%get_critical_electric_field()
   this%critical_current        = hts_nedelec_params%get_critical_current()
   this%nonlinear_exponent      = hts_nedelec_params%get_nonlinear_exponent()
-		this%hts_device_type         = hts_nedelec_params%get_hts_device_type() 
+  this%hts_device_type         = hts_nedelec_params%get_hts_device_type() 
   
   ! Set solution and source term 
   this%theta_method  => theta_method 
@@ -109,8 +109,8 @@ contains
     type(fe_cell_function_vector_t)    :: fe_cell_function_previous, fe_cell_function_current 
     type(vector_field_t), allocatable  :: shape_values_H(:,:)
     type(vector_field_t), allocatable  :: curl_values_H(:,:)    
-				type(tensor_field_t)               :: resistivity_tensor 
-				type(tensor_field_t)               :: tangent_resistivity_tensor 
+    type(tensor_field_t)               :: resistivity_tensor 
+    type(tensor_field_t)               :: tangent_resistivity_tensor 
     
     ! Nonlinear parameters computed in the integrate 
     real(rp)   :: resistivity, tangent_resistivity
@@ -177,18 +177,18 @@ contains
           resistivity  = this%compute_resistivity( H_current_curl_values(qpoint), fe%get_set_id() )
           permeability = this%air_permeability
           
-										! Build (an)isotropic tensor 
-										call resistivity_tensor%init(0.0_rp) 
-										call resistivity_tensor%set(1,1, resistivity) 
-										call resistivity_tensor%set(2,2, resistivity)
-										if ( this%hts_device_type == 'stack' ) then 
-										call resistivity_tensor%set(3,3, 1.0_rp) 
-										elseif ( this%hts_device_type == 'bulk' ) then 
-										call resistivity_tensor%set(3,3, resistivity)
-										else 
-										massert( .false., 'hts_nedelec_discrete_integration :: invalid hts_device_type' ) 
-										end if 
-										
+          ! Build (an)isotropic tensor 
+          call resistivity_tensor%init(0.0_rp) 
+          call resistivity_tensor%set(1,1, resistivity) 
+          call resistivity_tensor%set(2,2, resistivity)
+          if ( this%hts_device_type == 'stack' ) then 
+          call resistivity_tensor%set(3,3, 1.0_rp) 
+          elseif ( this%hts_device_type == 'bulk' ) then 
+          call resistivity_tensor%set(3,3, resistivity)
+          else 
+          massert( .false., 'hts_nedelec_discrete_integration :: invalid hts_device_type' ) 
+          end if 
+          
           ! Previous solution to integrate RHS contribution 
           call fe_cell_function_previous%get_value( qpoint, H_value_previous )
           
@@ -200,15 +200,15 @@ contains
                   
                   if ( this%integration_type=='add_tangent_terms' .and. fe%get_set_id()== hts ) then 
                    tangent_resistivity = this%compute_tangent_resistivity(H_current_curl_values(qpoint), curl_values_H(jdof,qpoint)) 
-																			
-																			! Build tangent resistivity tensor 
-																			call tangent_resistivity_tensor%init(0.0_rp) 
-										         call tangent_resistivity_tensor%set(1,1, tangent_resistivity) 
-										         call tangent_resistivity_tensor%set(2,2, tangent_resistivity) 		
-																			if ( this%hts_device_type == 'bulk' ) then 
-																			call tangent_resistivity_tensor%set(3,3, tangent_resistivity)
-																			end if 
-																			
+                   
+                   ! Build tangent resistivity tensor 
+                   call tangent_resistivity_tensor%init(0.0_rp) 
+                   call tangent_resistivity_tensor%set(1,1, tangent_resistivity) 
+                   call tangent_resistivity_tensor%set(2,2, tangent_resistivity)   
+                   if ( this%hts_device_type == 'bulk' ) then 
+                   call tangent_resistivity_tensor%set(3,3, tangent_resistivity)
+                   end if 
+                   
                    elmat(idof,jdof) = elmat(idof,jdof) + tangent_resistivity_tensor*curl_values_H(idof,qpoint)*H_current_curl_values(qpoint)*factor                    
                   end if       
                   

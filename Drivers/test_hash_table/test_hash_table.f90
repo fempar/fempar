@@ -51,7 +51,7 @@ use types_names
   ! Set global to local values
   !input=18
   !call table%put(input , val=1 , stat=istat) ; if(istat/=now_stored) call table%status(6,istat)
-    		input = 2320000000_igp
+      input = 2320000000_igp
   out =  1; call table%put(key=input+18 , val=out , stat=istat) ; if(istat/=now_stored) call table%status(6,istat)
   out =  2; call table%put(key=input+380, val=out , stat=istat); if(istat/=now_stored) call table%status(6,istat)
   out =  3; call table%put(key=input+25 , val=out , stat=istat); if(istat/=now_stored) call table%status(6,istat)

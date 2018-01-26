@@ -95,9 +95,9 @@ module field_names
   type :: symmetric_tensor_field_t
      private
      real(rp)  :: value(SPACE_DIM,SPACE_DIM)
-   contains			
+   contains   
      procedure, non_overridable :: init  => symmetric_tensor_field_init
-     procedure, non_overridable :: set   => symmetric_tensor_field_set					
+     procedure, non_overridable :: set   => symmetric_tensor_field_set     
   end type symmetric_tensor_field_t
 
   type, extends(vector_field_t) :: point_t

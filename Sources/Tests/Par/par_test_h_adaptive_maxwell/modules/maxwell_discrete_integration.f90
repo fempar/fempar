@@ -125,7 +125,7 @@ contains
                 do jdof = 1, num_dofs
                    ! A_K(i,j) = ( (phi_i,phi_j) + (curl(phi_i),curl(phi_j)) )
                    elmat(idof,jdof) = elmat(idof,jdof) + factor * ( shape_values(jdof,qpoint)*shape_values(idof,qpoint) + &
-																																																																			 shape_curls(jdof,qpoint) * shape_curls(idof,qpoint) ) 
+                                                                    shape_curls(jdof,qpoint) * shape_curls(idof,qpoint) ) 
                 end do
              end do
              

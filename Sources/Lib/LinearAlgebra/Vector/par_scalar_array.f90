@@ -535,7 +535,7 @@ contains
     class(par_scalar_array_t), intent(inout) :: this
     integer(ip)              , intent(in)    :: action
 
-    assert ( action == free_clean .or. action == free_symbolic_setup .or. action == free_numerical_setup )	 
+    assert ( action == free_clean .or. action == free_symbolic_setup .or. action == free_numerical_setup )  
 
     if ( associated ( this%p_env ) ) then
       if(.not. this%p_env%am_i_l1_task()) then
