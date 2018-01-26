@@ -77,16 +77,16 @@ module maxwell_nedelec_analytical_functions_names
      private
      type(source_term_t)                     :: source_term
      type(solution_t)                        :: solution
-	 type(boundary_function_Hx_t)            :: boundary_function_Hx
-	 type(boundary_function_Hy_t)            :: boundary_function_Hy
-	 type(boundary_function_Hz_t)            :: boundary_function_Hz
+  type(boundary_function_Hx_t)            :: boundary_function_Hx
+  type(boundary_function_Hy_t)            :: boundary_function_Hy
+  type(boundary_function_Hz_t)            :: boundary_function_Hz
    contains
      procedure :: set_num_dims               => mn_set_num_dims
      procedure :: get_source_term                  => mn_get_source_term
      procedure :: get_solution                     => mn_get_solution
-	 procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
-	 procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
-	 procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
+  procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
+  procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
+  procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
   end type maxwell_nedelec_analytical_functions_t
 
   public :: maxwell_nedelec_analytical_functions_t
@@ -147,7 +147,7 @@ contains
     type(point_t)           , intent(in)    :: point
     type(tensor_field_t), intent(inout) :: result
     call result%set(2,1, -1.0_rp)
-	call result%set(1,2,  1.0_rp)
+ call result%set(1,2,  1.0_rp)
   end subroutine solution_get_gradient_space
   
   !===============================================================================================

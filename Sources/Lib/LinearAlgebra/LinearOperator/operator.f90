@@ -53,7 +53,7 @@ module operator_names
      
      procedure :: update_matrix                           => operator_update_matrix
      procedure :: get_tangent                             => operator_get_tangent         ! partial A / partial x (x*)
-	    procedure :: get_translation                         => operator_get_translation     ! -1*A(0)
+     procedure :: get_translation                         => operator_get_translation     ! -1*A(0)
      procedure :: free_vector_spaces                      => operator_free_vector_spaces
      procedure :: create_domain_vector                    => operator_create_domain_vector
      procedure :: create_range_vector                     => operator_create_range_vector

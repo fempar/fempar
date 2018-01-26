@@ -5,7 +5,7 @@ subroutine runend
     implicit none 
 #ifdef MPI_H
     include 'mpif.h'
-#endif	
+#endif 
     integer :: code, info, ierror
     logical :: initialized_mpi, finalized_mpi
     code = -1

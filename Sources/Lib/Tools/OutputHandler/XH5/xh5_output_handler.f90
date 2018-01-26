@@ -301,7 +301,7 @@ contains
         
         do i=1, this%get_num_cell_vectors()
             call this%CellValues(i)%create(1, this%get_num_cells())
-	           call this%CellValues(i)%init(0.0_rp)
+            call this%CellValues(i)%init(0.0_rp)
         enddo
     end subroutine xh5_output_handler_allocate_cell_and_nodal_arrays
 

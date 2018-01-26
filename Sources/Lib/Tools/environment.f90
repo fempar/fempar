@@ -1094,13 +1094,13 @@ contains
     call this%l1_to_l2_context%scatter_from_master (input_data, send_counts, displs, output_data_size, output_data )
   end subroutine environment_l2_to_l1_scatterv_rp_1D_array
  !=============================================================================
- 	function environment_get_w_context ( this ) result(w_context)
- 	  implicit none 
- 	  ! Parameters
- 	  class(environment_t),       target, intent(in) :: this
+  function environment_get_w_context ( this ) result(w_context)
+    implicit none 
+    ! Parameters
+    class(environment_t),       target, intent(in) :: this
     class(execution_context_t), pointer            :: w_context
- 	  w_context => this%world_context
- 	end function environment_get_w_context
+    w_context => this%world_context
+  end function environment_get_w_context
   
   
 end module environment_names

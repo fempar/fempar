@@ -194,7 +194,7 @@ contains
 
     ! Operators related data needed for fe_function 
     !call this%block_layout%create( this%fe_space%get_num_fields() )
-    !call this%fe_space%generate_global_dof_numbering()								
+    !call this%fe_space%generate_global_dof_numbering()        
   end subroutine setup_fe_space
 
   subroutine interpolate_analytical_functions (this)
@@ -223,11 +223,11 @@ contains
     call random_number( this%time ) 
     call this%time_solution%create(this%fe_space)
     call this%fe_space%interpolate(  field_id    = MAGNETIC_FIELD_ID,                                    & 
-																																		   function     = this%problem_functions%get_magnetic_field_solution(), &
+                                     function     = this%problem_functions%get_magnetic_field_solution(), &
                                      fe_function  = this%time_solution ,                                  & 
                                      time         = this%time ) 
     call this%fe_space%interpolate( field_id     = PRESSURE_FIELD_ID,                                    &
-																																				function     = this%problem_functions%get_pressure_solution(),       & 
+                                    function     = this%problem_functions%get_pressure_solution(),       & 
                                     fe_function  = this%time_solution ,                                  &  
                                     time         = this%time)
     call this%fe_space%interpolate_dirichlet_values( fe_function = this%time_solution, & 
@@ -263,7 +263,7 @@ contains
     w1infty_s = H_error_norm%compute(H_exact_function, this%solution, w1infty_seminorm) 
     w1infty = H_error_norm%compute(H_exact_function, this%solution, w1infty_norm)
 
-				if ( this%par_environment%am_i_l1_root() ) then 
+    if ( this%par_environment%am_i_l1_root() ) then 
     write(*,*) 'PROJECTED MAGNETIC FIELD FUNCTION ERROR NORMS *************'
     write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
     write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
@@ -277,7 +277,7 @@ contains
     write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
     write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
     write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
-				end if 
+    end if 
     call H_error_norm%free()
 
 
@@ -294,7 +294,7 @@ contains
     w1infty_s = p_error_norm%compute(p_exact_function, this%solution, w1infty_seminorm) 
     w1infty = p_error_norm%compute(p_exact_function, this%solution, w1infty_norm)
 
-				if (this%par_environment%am_i_l1_root()) then 
+    if (this%par_environment%am_i_l1_root()) then 
     write(*,*) 'PROJECTED SCALAR PRESSURE FUNCTION ERROR NORMS ************************'
     write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
     write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
@@ -343,7 +343,7 @@ contains
     w1infty_s = H_error_norm%compute(H_exact_function, this%time_solution, w1infty_seminorm, time=this%time) 
     w1infty = H_error_norm%compute(H_exact_function, this%time_solution, w1infty_norm, time=this%time)
 
-				if (this%par_environment%am_i_l1_root()) then
+    if (this%par_environment%am_i_l1_root()) then
     write(*,*) 'PROJECTED TRANSIENT MAGNETIC FIELD FUNCTION ERROR NORMS *************'
     write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
     write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
@@ -357,7 +357,7 @@ contains
     write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
     write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
     write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
-				end if 
+    end if 
     call H_error_norm%free()
 
 
@@ -374,7 +374,7 @@ contains
     w1infty_s = p_error_norm%compute(p_exact_function, this%time_solution, w1infty_seminorm, time=this%time) 
     w1infty = p_error_norm%compute(p_exact_function, this%time_solution, w1infty_norm, time=this%time)
 
-				if (this%par_environment%am_i_l1_root()) then
+    if (this%par_environment%am_i_l1_root()) then
     write(*,*) 'PROJECTED TRANSIENT SCALAR PRESSURE FUNCTION ERROR NORMS ************************'
     write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
     write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
@@ -387,7 +387,7 @@ contains
     write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
     write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
     write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
-				end if 
+    end if 
     call p_error_norm%free() 
 
   end subroutine check_time_solution

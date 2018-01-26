@@ -203,7 +203,10 @@ subroutine nedelec_free ( this )
   
   ! Free member variables of nedelec_reference_fe_t
   if ( allocated(this%change_basis_matrix) ) &
-     call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
+     call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )   
+					
+		if ( allocated(this%inverse_change_basis_matrix_h_refinement) ) &
+     call memfree ( this%inverse_change_basis_matrix_h_refinement, __FILE__, __LINE__ ) 
      
   this%basis_changed = .false. 
   do i=1, size(this%node_array_vector)
@@ -775,7 +778,6 @@ subroutine nedelec_reference_fe_apply_cell_map( this, cell_map,                 
   type(interpolation_t)           , intent(in)    :: interpolation_reference_cell
   type(interpolation_t)           , intent(inout) :: interpolation_real_cell
   call this%apply_cell_map_to_interpolation(cell_map,interpolation_reference_cell,interpolation_real_cell)
-		call this%apply_scaling_to_interpolation(cell_map, interpolation_real_cell)
 end subroutine nedelec_reference_fe_apply_cell_map
 
 !==================================================================================================
@@ -888,7 +890,6 @@ subroutine nedelec_invert_change_basis_matrix(this)
 #endif 
    
 end subroutine nedelec_invert_change_basis_matrix
-
 
 subroutine nedelec_apply_change_basis_matrix_to_nodal_values ( this, nodal_values_rt, nodal_values_pre_basis )
   implicit none

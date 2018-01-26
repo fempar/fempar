@@ -415,7 +415,7 @@ contains
     type is (hex_lagrangian_reference_fe_t)
        h_refinement_interpolation       => reference_fe%get_h_refinement_interpolation()
        h_refinement_subfacet_permutation => reference_fe%get_h_refinement_subfacet_permutation()
-       h_refinement_subedge_permutation => reference_fe%get_h_refinement_subedget_permutation()
+       h_refinement_subedge_permutation => reference_fe%get_h_refinement_subedge_permutation()
     class default
       assert(.false.)
     end select
