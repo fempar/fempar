@@ -35,7 +35,7 @@ then
      fi
    done  
    
-   for order in 1 2 3 
+   for order in 1 2
    do
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order --dim 3
