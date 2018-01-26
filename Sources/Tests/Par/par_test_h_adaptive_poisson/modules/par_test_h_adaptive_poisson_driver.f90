@@ -377,6 +377,7 @@ end subroutine free_timers
     integer(ip) :: set_ids_to_reference_fes(1,2)
 
     call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+    call this%poisson_analytical_functions%set_solution_polynomial_order(this%test_params%get_reference_fe_order())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
 
     if (this%test_params%get_use_void_fes()) then
