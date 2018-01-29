@@ -94,8 +94,10 @@ end subroutine hex_nedelec_reference_fe_fill_quadrature
 subroutine hex_nedelec_reference_fe_free ( this )
   implicit none 
   class(hex_nedelec_reference_fe_t), intent(inout) :: this 	
-  ! Free member variables of nedelec_reference_fe_t
-  ! (and those of its ancestors)
+  if ( allocated(this%h_refinement_subcell_permutation) ) then
+     call memfree(this%h_refinement_subcell_permutation,__FILE__,__LINE__)
+  end if
+  ! Free member variables of nedelec_reference_fe_t (and those of its ancestors)
   call nedelec_free ( this )  
 end subroutine hex_nedelec_reference_fe_free
 

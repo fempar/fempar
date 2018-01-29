@@ -1516,6 +1516,8 @@ procedure, private :: fill_n_subcell_permutation                    &
 & => hex_nedelec_reference_fe_fill_n_subcell_permutation
 procedure, private :: fill_n_subfacet_permutation                   &
 & => hex_nedelec_reference_fe_fill_n_subfacet_permutation
+procedure  :: get_h_refinement_coefficient                          & 
+& => hex_nedelec_reference_fe_get_h_refinement_coefficient 
 procedure          :: get_h_refinement_subcell_permutation          &
 & => hex_nedelec_reference_fe_get_h_refinement_subcell_perm
 end type hex_nedelec_reference_fe_t
