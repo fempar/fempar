@@ -51,10 +51,10 @@ module serial_block_array_names
      procedure          :: create_and_allocate => serial_block_array_create_blocks_container_and_allocate_blocks
      generic            :: create => serial_block_array_create_only_blocks_container, &
                                      serial_block_array_create_blocks_container_and_blocks
-     procedure          :: allocate => serial_block_array_allocate_blocks 								 
+     procedure          :: allocate => serial_block_array_allocate_blocks          
      
      procedure :: create_view       => serial_block_array_create_view
-     procedure :: print             => serial_block_array_print	
+     procedure :: print             => serial_block_array_print 
      procedure :: get_block         => serial_block_array_get_block
      procedure :: get_nblocks       => serial_block_array_get_nblocks
      
@@ -395,7 +395,7 @@ contains
       end if
     end select
   end function serial_block_array_same_vector_space
-	
+ 
   !=============================================================================
   function serial_block_array_get_num_blocks(this) result(res)
     implicit none 

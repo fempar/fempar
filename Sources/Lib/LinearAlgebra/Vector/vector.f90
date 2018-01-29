@@ -135,7 +135,7 @@ module vector_names
        class(vector_t), intent(in) :: vector
        logical :: same_vector_space_interface
      end function
-					! Provide the number of blocks of the vector
+     ! Provide the number of blocks of the vector
      function get_num_blocks_interface(this) result (res)
        import :: vector_t, ip
        implicit none 
@@ -281,5 +281,5 @@ contains
     
     call op2%CleanTemp()
   end subroutine assign_vector
-				
+    
 end module vector_names

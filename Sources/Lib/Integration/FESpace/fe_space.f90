@@ -553,10 +553,10 @@ module fe_space_names
      procedure, non_overridable, private :: free_has_fixed_dofs                          => serial_fe_space_free_has_fixed_dofs
      procedure                           :: set_up_strong_dirichlet_bcs                  => serial_fe_space_set_up_strong_dirichlet_bcs
      procedure, non_overridable, private :: set_up_strong_dirichlet_bcs_on_vef_and_field => serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
-					procedure                           :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function 
-					procedure                           :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
-					generic                             :: interpolate                                  => interpolate_scalar_function, interpolate_vector_function					
-					procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
+     procedure                           :: interpolate_scalar_function                  => serial_fe_space_interpolate_scalar_function 
+     procedure                           :: interpolate_vector_function                  => serial_fe_space_interpolate_vector_function
+     generic                             :: interpolate                                  => interpolate_scalar_function, interpolate_vector_function     
+     procedure                           :: interpolate_dirichlet_values                 => serial_fe_space_interpolate_dirichlet_values
      procedure                           :: project_dirichlet_values_curl_conforming     => serial_fe_space_project_dirichlet_values_curl_conforming
      procedure, non_overridable, private :: allocate_and_fill_fields_to_project_         => serial_fe_space_allocate_and_fill_fields_to_project_
      procedure, non_overridable, private :: allocate_and_fill_offset_component           => serial_fe_space_allocate_and_fill_offset_component
@@ -818,9 +818,9 @@ module fe_space_names
    procedure                                   :: print                                           => par_fe_space_print
    procedure                                   :: free                                            => par_fe_space_free
    procedure                                   :: create_dof_values                               => par_fe_space_create_dof_values
-			procedure                                   :: interpolate_scalar_function                     => par_fe_space_interpolate_scalar_function
-			procedure                                   :: interpolate_vector_function                     => par_fe_space_interpolate_vector_function  
-			procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
+   procedure                                   :: interpolate_scalar_function                     => par_fe_space_interpolate_scalar_function
+   procedure                                   :: interpolate_vector_function                     => par_fe_space_interpolate_vector_function  
+   procedure                                   :: interpolate_dirichlet_values                    => par_fe_space_interpolate_dirichlet_values
    procedure                                   :: project_dirichlet_values_curl_conforming        => par_fe_space_project_dirichlet_values_curl_conforming
    
    procedure        , non_overridable, private :: setup_coarse_dofs                               => par_fe_space_setup_coarse_dofs
@@ -859,8 +859,8 @@ module fe_space_names
   contains
     ! Deferred methods
     procedure (l1_get_num_coarse_dofs_interface), deferred :: get_num_coarse_dofs
-	   procedure (l1_setup_constraint_matrix)      , deferred :: setup_constraint_matrix
-	   procedure (l1_setup_weighting_operator)     , deferred :: setup_weighting_operator
+    procedure (l1_setup_constraint_matrix)      , deferred :: setup_constraint_matrix
+    procedure (l1_setup_weighting_operator)     , deferred :: setup_weighting_operator
   end type l1_coarse_fe_handler_t
  
   abstract interface
@@ -882,16 +882,16 @@ module fe_space_names
       integer(ip)                  , intent(in)    :: field_id
       type(par_fe_space_t)         , intent(in)    :: par_fe_space
       type(parameterlist_t)        , intent(in)    :: parameter_list
-	     type(coo_sparse_matrix_t)    , intent(inout) :: constraint_matrix
+      type(coo_sparse_matrix_t)    , intent(inout) :: constraint_matrix
     end subroutine l1_setup_constraint_matrix
   
     subroutine l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
-	     import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, rp, ip
+      import :: l1_coarse_fe_handler_t, par_fe_space_t, parameterlist_t, rp, ip
       class(l1_coarse_fe_handler_t) , intent(in)    :: this
       integer(ip)                  , intent(in)    :: field_id
       type(par_fe_space_t)          , intent(in)    :: par_fe_space
       type(parameterlist_t)         , intent(in)    :: parameter_list
-	     real(rp)         , allocatable, intent(inout) :: weighting_operator(:)
+      real(rp)         , allocatable, intent(inout) :: weighting_operator(:)
     end subroutine l1_setup_weighting_operator
   end interface
 
@@ -899,8 +899,8 @@ module fe_space_names
     private
   contains
     procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
-	   procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
-	   procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
+    procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
+    procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
     procedure, nopass     :: get_coarse_space_use_vertices_edges_faces => standard_get_coarse_space_use_vertices_edges_faces
   end type standard_l1_coarse_fe_handler_t
 		
@@ -915,16 +915,16 @@ module fe_space_names
     private
     real(rp), public :: diffusion_inclusion = 1.0_rp
   contains
-	   procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix_multiple
-	   procedure :: setup_weighting_operator => H1_l1_setup_weighting_operator
+    procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix_multiple
+    procedure :: setup_weighting_operator => H1_l1_setup_weighting_operator
   end type H1_l1_coarse_fe_handler_t
   
   type, extends(standard_l1_coarse_fe_handler_t) :: vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
     private
     real(rp), public :: diffusion_inclusion = 1.0_rp
   contains
-	   procedure :: setup_constraint_matrix  => vector_laplacian_l1_setup_constraint_matrix_multiple
-	   procedure :: setup_weighting_operator => vector_laplacian_l1_setup_weighting_operator
+    procedure :: setup_constraint_matrix  => vector_laplacian_l1_setup_constraint_matrix_multiple
+    procedure :: setup_weighting_operator => vector_laplacian_l1_setup_weighting_operator
   end type vector_laplacian_pb_bddc_l1_coarse_fe_handler_t
 
   type, extends(standard_l1_coarse_fe_handler_t) :: elasticity_pb_bddc_l1_coarse_fe_handler_t
@@ -932,8 +932,8 @@ module fe_space_names
     real(rp), public :: elastic_modulus = 1.0_rp
   contains
     procedure :: get_num_coarse_dofs      => elasticity_l1_get_num_coarse_dofs  
-	   procedure :: setup_constraint_matrix  => elasticity_l1_setup_constraint_matrix_multiple
-	   procedure :: setup_weighting_operator => elasticity_l1_setup_weighting_operator
+    procedure :: setup_constraint_matrix  => elasticity_l1_setup_constraint_matrix_multiple
+    procedure :: setup_weighting_operator => elasticity_l1_setup_weighting_operator
   end type elasticity_pb_bddc_l1_coarse_fe_handler_t
   
   public :: p_l1_coarse_fe_handler_t, l1_coarse_fe_handler_t, standard_l1_coarse_fe_handler_t, h_adaptive_algebraic_l1_coarse_fe_handler_t, &
@@ -1012,15 +1012,15 @@ module fe_space_names
     integer(ip) , allocatable                   :: ptr_dofs_x_fe(:)
     integer(ip) , allocatable                   :: lst_dofs_gids(:)
     type(list_t), allocatable                   :: own_dofs_vef_x_fe(:)
-    	
-	   ! Pointer to coarse triangulation this coarse_fe_space has been built from
+     
+    ! Pointer to coarse triangulation this coarse_fe_space has been built from
     type(coarse_triangulation_t), pointer       :: coarse_triangulation => NULL()
-	
+ 
     ! It is the equivalent to the "element_to_dof" at the finer level
     ! Pointers to the start/end of coarse DoFs gids of each field (lst_coarse_dofs)
-    integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:)	
+    integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:) 
     ! List of coarse DoFs gids
-    integer(ip)                   , allocatable :: lst_coarse_dofs(:)	
+    integer(ip)                   , allocatable :: lst_coarse_dofs(:) 
     
     ! Coarse DoFs gids on top of coarse n_faces per field
     ! It provides (for every field) what we get from the reference_fe_t at the
@@ -1074,7 +1074,7 @@ module fe_space_names
     procedure                                   :: get_num_fe_objects                           => coarse_fe_space_get_num_fe_objects
     procedure                                   :: get_total_num_coarse_dofs                    => coarse_fe_space_get_total_num_coarse_dofs
     procedure                                   :: get_block_num_coarse_dofs                    => coarse_fe_space_get_block_num_coarse_dofs
-	   procedure, non_overridable, private         :: free_coarse_dofs                                => coarse_fe_space_free_coarse_dofs
+    procedure, non_overridable, private         :: free_coarse_dofs                                => coarse_fe_space_free_coarse_dofs
     
     procedure                                   :: renum_dofs_first_interior_then_interface     => coarse_fe_space_renum_dofs_first_interior_then_interface
     procedure                         , private :: renum_dofs_block                             => coarse_fe_space_renum_dofs_block
@@ -1180,7 +1180,7 @@ module fe_space_names
     procedure(interpolator_evaluate_scalar_function_moments_interface)     , deferred :: evaluate_scalar_function_moments
     procedure(interpolator_evaluate_vector_function_moments_interface)     , deferred :: evaluate_vector_function_moments 
     procedure(interpolator_evaluate_function_components_moments_interface) , deferred :: evaluate_function_scalar_components_moments
-    procedure(interpolator_free_interface)                                 , deferred :: free 			
+    procedure(interpolator_free_interface)                                 , deferred :: free    
  end type interpolator_t
 
  type p_interpolator_t
@@ -1248,7 +1248,7 @@ module fe_space_names
 contains 
  procedure :: create                                             => nodal_interpolator_create
  procedure :: evaluate_scalar_function_moments                   => nodal_interpolator_evaluate_scalar_function_moments 
- procedure :: evaluate_vector_function_moments                   => nodal_interpolator_evaluate_vector_function_moments		
+ procedure :: evaluate_vector_function_moments                   => nodal_interpolator_evaluate_vector_function_moments  
  procedure :: evaluate_function_scalar_components_moments        => nodal_interpolator_evaluate_function_scalar_components_moments
  procedure :: free                                               => nodal_interpolator_free
 end type nodal_interpolator_t
@@ -1289,7 +1289,7 @@ type(hex_raviart_thomas_reference_fe_t )  , allocatable   :: fes_rt(:)
 type(interpolation_t)                     , allocatable   :: real_cell_interpolations(:) 
 contains 
 procedure :: create                                             => hex_Hcurl_interpolator_create
-procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments  
 procedure :: evaluate_function_scalar_components_moments        => hex_Hcurl_interpolator_evaluate_function_components_moments
 procedure :: free                                               => hex_Hcurl_interpolator_free
 end type hex_Hcurl_interpolator_t
@@ -1301,7 +1301,7 @@ type(tet_lagrangian_reference_fe_t)    , allocatable      :: fes_2D(:)
 type(tet_lagrangian_reference_fe_t )   , allocatable      :: fes_lagrangian(:) 
 contains 
 procedure :: create                                             => tet_Hcurl_interpolator_create
-procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments		
+procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments  
 procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_interpolator_evaluate_function_components_moments
 procedure :: free                                               => tet_Hcurl_interpolator_free
 end type tet_Hcurl_interpolator_t

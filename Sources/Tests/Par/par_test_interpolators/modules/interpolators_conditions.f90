@@ -34,16 +34,16 @@ module interpolators_conditions_names
   type, extends(conditions_t) :: interpolators_conditions_t
      private
      integer(ip)                    :: num_dims
-	 class(scalar_function_t), pointer :: boundary_function_Hx
-	 class(scalar_function_t), pointer :: boundary_function_Hy 
-	 class(scalar_function_t), pointer :: boundary_function_Hz 
-		class(scalar_function_t), pointer :: boundary_function_pressure
+  class(scalar_function_t), pointer :: boundary_function_Hx
+  class(scalar_function_t), pointer :: boundary_function_Hy 
+  class(scalar_function_t), pointer :: boundary_function_Hz 
+  class(scalar_function_t), pointer :: boundary_function_pressure
    contains
      procedure :: set_num_dims          => interpolators_conditions_set_num_dims
-	 procedure :: set_boundary_function_Hx    => interpolators_conditions_set_boundary_function_Hx
-	 procedure :: set_boundary_function_Hy    => interpolators_conditions_set_boundary_function_Hy
-	 procedure :: set_boundary_function_Hz    => interpolators_conditions_set_boundary_function_Hz
-		procedure :: set_boundary_function_pressure => interpolators_conditions_set_boundary_function_pressure
+  procedure :: set_boundary_function_Hx    => interpolators_conditions_set_boundary_function_Hx
+  procedure :: set_boundary_function_Hy    => interpolators_conditions_set_boundary_function_Hy
+  procedure :: set_boundary_function_Hz    => interpolators_conditions_set_boundary_function_Hz
+  procedure :: set_boundary_function_pressure => interpolators_conditions_set_boundary_function_pressure
      procedure :: get_num_components       => interpolators_conditions_get_num_components  
      procedure :: get_components_code         => interpolators_conditions_get_components_code
      procedure :: get_function                => interpolators_conditions_get_function
@@ -80,8 +80,8 @@ contains
     class(scalar_function_t)           , target, intent(in) :: scalar_function
     this%boundary_function_Hz => scalar_function
   end subroutine interpolators_conditions_set_boundary_function_Hz
-		
-		subroutine interpolators_conditions_set_boundary_function_pressure (this, scalar_function)
+  
+  subroutine interpolators_conditions_set_boundary_function_pressure (this, scalar_function)
     implicit none
     class(interpolators_conditions_t), intent(inout)          :: this
     class(scalar_function_t)           , target, intent(in) :: scalar_function
@@ -115,8 +115,8 @@ contains
     integer(ip)                                    , intent(in)  :: component_id
     class(scalar_function_t)          , pointer    , intent(out) :: function
     assert ( component_id == 1 .or. component_id == 2 .or. component_id == 3 .or. component_id == 4 )
-	
-	 if (this%num_dims == 3) then 
+ 
+  if (this%num_dims == 3) then 
        if ( component_id == 1) then 
           function => this%boundary_function_Hx
        else if ( component_id == 2 ) then 

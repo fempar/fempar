@@ -151,7 +151,7 @@ contains
     end select
     
   end subroutine par_sparse_assembler_compress_storage_matrix
-		
+  
   subroutine par_sparse_assembler_compress_storage_array( this )
     implicit none
     class(par_sparse_assembler_t) , intent(inout) :: this

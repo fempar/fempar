@@ -331,13 +331,6 @@ end subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations
 subroutine hex_lagrangian_reference_fe_free ( this )
   implicit none 
   class(hex_lagrangian_reference_fe_t), intent(inout) :: this 
-  call this%h_refinement_interpolation%free()
-  if ( allocated(this%h_refinement_subfacet_permutation) ) then
-     call memfree(this%h_refinement_subfacet_permutation,__FILE__,__LINE__)
-  end if
-  if ( allocated(this%h_refinement_subedge_permutation) ) then
-     call memfree(this%h_refinement_subedge_permutation,__FILE__,__LINE__)
-  end if
   call lagrangian_reference_fe_free ( this )
 end subroutine hex_lagrangian_reference_fe_free
 
@@ -565,30 +558,6 @@ subroutine hex_lagrangian_reference_fe_get_h_refinement_coefficient ( this, isha
      coefficient = 0.0_rp
   end if
 end subroutine hex_lagrangian_reference_fe_get_h_refinement_coefficient
-
-!==================================================================================================
-function hex_lagrangian_reference_fe_get_h_refinement_interpolation ( this )
-  implicit none 
-  class(hex_lagrangian_reference_fe_t), target, intent(in) :: this
-  type(interpolation_t), pointer :: hex_lagrangian_reference_fe_get_h_refinement_interpolation
-  hex_lagrangian_reference_fe_get_h_refinement_interpolation => this%h_refinement_interpolation
-end function hex_lagrangian_reference_fe_get_h_refinement_interpolation
-
-!==================================================================================================
-function hex_lagrangian_reference_fe_get_h_refinement_subedge_perm ( this )
-  implicit none 
-  class(hex_lagrangian_reference_fe_t), target, intent(in) :: this
-  integer(ip), pointer :: hex_lagrangian_reference_fe_get_h_refinement_subedge_perm(:,:,:)
-  hex_lagrangian_reference_fe_get_h_refinement_subedge_perm => this%h_refinement_subedge_permutation
-end function hex_lagrangian_reference_fe_get_h_refinement_subedge_perm
-
-!==================================================================================================
-function hex_lagrangian_reference_fe_get_h_refinement_subface_perm ( this )
-  implicit none 
-  class(hex_lagrangian_reference_fe_t), target, intent(in) :: this
-  integer(ip), pointer :: hex_lagrangian_reference_fe_get_h_refinement_subface_perm(:,:,:)
-  hex_lagrangian_reference_fe_get_h_refinement_subface_perm => this%h_refinement_subfacet_permutation
-end function hex_lagrangian_reference_fe_get_h_refinement_subface_perm
 
 !**************************************************************************************************
 ! Support functions

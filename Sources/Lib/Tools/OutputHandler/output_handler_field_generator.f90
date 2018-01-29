@@ -171,7 +171,7 @@ contains
         class(output_handler_field_generator_info_t), intent(in) :: this
         integer(ip)                                  :: num_components
     !-----------------------------------------------------------------
-	
+ 
         select case(this%get_field_type())
             case ( field_type_scalar )
                 num_components = 1

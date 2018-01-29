@@ -222,13 +222,13 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
      call this%get_function_values( vector_function, quad_points_coordinates, this%edge_function_values, time) 
 
      edge_measure = this%edge_maps(reference_fe_id)%get_measure()	
-     ! Integrate edge boundary moments 1/|edge| * int_edge(f.tau q), q \in P_k-1
+     ! Integrate edge boundary moments  int_edge(f.tau q), q \in P_k-1
      do qpoint = 1, num_quad_points 
         factor = this%edge_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%edge_quadratures(reference_fe_id)%get_weight(qpoint)
         call this%edge_maps(reference_fe_id)%get_tangent(qpoint, tangent)
         do ishape=1, this%fes_1D(reference_fe_id)%get_num_shape_functions()
            call this%fes_1D(reference_fe_id)%get_value(this%edge_interpolations(reference_fe_id), ishape, qpoint, shape_test)
-           dof_values(d+ishape) = dof_values(d+ishape) +  1.0_rp/edge_measure * this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
+										  dof_values(d+ishape) = dof_values(d+ishape) +  this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
         end do
      end do
 
@@ -253,7 +253,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
         call this%get_function_values( vector_function, quad_points_coordinates, this%facet_function_values, time)
 
         facet_measure = this%facet_maps(reference_fe_id)%get_measure() 					
-        ! Integrate face boundary moments 1/|Face| * int_Face(u x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
+        ! Integrate face boundary moments int_Face(u x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
         do qpoint = 1, num_quad_points
            factor = this%facet_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%facet_quadratures(reference_fe_id)%get_weight(qpoint)
            call this%facet_maps(reference_fe_id)%get_normal(qpoint, normal)   
@@ -278,7 +278,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
                  call mapped_shape_test%set(idime, 1.0_rp/col_jacobian%nrm2()*mapped_shape_test%get(idime) ) 
               end do
 
-              dof_values(d+ishape) = dof_values(d+ishape) + 1.0_rp/facet_measure * cross_product_function_normal * mapped_shape_test * factor
+													 dof_values(d+ishape) = dof_values(d+ishape) + cross_product_function_normal * mapped_shape_test * factor
            end do
         end do
         d = d + this%fes_2D(reference_fe_id)%get_num_shape_functions()
@@ -301,12 +301,12 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
           this%real_cell_interpolations(reference_fe_id)) 
 
      cell_measure = this%cell_maps(reference_fe_id)%get_measure()
-     ! Integration of interior moments 1/|K| * int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}
+     ! Integration of interior moments  int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}
      do qpoint = 1, num_quad_points
         factor = this%cell_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%cell_quadratures(reference_fe_id)%get_weight(qpoint)
         do ishape=1, this%fes_rt(reference_fe_id)%get_num_shape_functions() 
            call reference_fe%get_value(this%real_cell_interpolations(reference_fe_id), ishape, qpoint, v_shape_test)
-           dof_values(d+ishape) = dof_values(d+ishape) + 1.0_rp/cell_measure * this%cell_function_values(qpoint,1) * v_shape_test * factor
+											dof_values(d+ishape) = dof_values(d+ishape) +  this%cell_function_values(qpoint,1) * v_shape_test * factor
         end do
      end do
 
@@ -379,8 +379,9 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
              time)
 
         edge_measure = this%edge_maps(reference_fe_id)%get_measure()
-        own_dofs = reference_fe%create_dofs_n_face_iterator(edge_id)
-        ! Integrate edge boundary moments 1/|edge| * int_edge(g·tau q), q \in P_k-1
+
+        own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(edge_id)
+        ! Integrate edge boundary moments int_edge(g·tau q), q \in P_k-1
         do qpoint = 1, num_quad_points
            factor = this%edge_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%edge_quadratures(reference_fe_id)%get_weight(qpoint)
            call this%edge_maps(reference_fe_id)%get_tangent(qpoint, tangent)								
@@ -388,7 +389,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
            do ishape = 1, this%fes_1D(reference_fe_id)%get_num_shape_functions()  
               idof = own_dofs%get_current() 
               call this%fes_1D(reference_fe_id)%get_value(this%edge_interpolations(reference_fe_id), ishape, qpoint, shape_test)
-              dof_values(idof) = dof_values(idof) + 1.0_rp/edge_measure * this%edge_function_values(qpoint,1) * shape_test * tangent * factor 
+														dof_values(idof) = dof_values(idof) + this%edge_function_values(qpoint,1) * shape_test * tangent * factor
               call own_dofs%next() 
            end do
         end do
@@ -426,7 +427,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
                 time)
 
            facet_measure = this%facet_maps(reference_fe_id)%get_measure() 
-           ! Integrate face boundary moments 1/|Face| * int_Face(g x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
+           ! Integrate face boundary moments int_Face(g x n q), q \in Q_k-2,k-1 x Q_k-1,k-2
            do qpoint = 1, this%facet_quadratures(reference_fe_id)%num_quadrature_points
               factor = this%facet_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%facet_quadratures(reference_fe_id)%get_weight(qpoint)
               call this%facet_maps(reference_fe_id)%get_normal(qpoint, normal)
@@ -436,7 +437,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
               call cross_product_function_normal%init(0.0_rp) 
               cross_product_function_normal = cross_product(this%facet_function_values(qpoint,1),normal)
 
-              own_dofs = reference_fe%create_dofs_n_face_iterator(facet_id)
+              own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(facet_id)
               do ishape=1, this%fes_2D(reference_fe_id)%get_num_shape_functions() 
                  idof = own_dofs%get_current() 
                  call this%fes_2D(reference_fe_id)%get_value(this%facet_interpolations(reference_fe_id), ishape, qpoint, v_shape_test)    
@@ -454,7 +455,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
                     call mapped_shape_test%set(idime, 1.0_rp/col_jacobian%get(idime)*mapped_shape_test%get(idime) ) 
                  end do
 
-                 dof_values(idof) = dof_values(idof) + 1.0_rp/facet_measure * cross_product_function_normal * mapped_shape_test * factor
+																	 dof_values(idof) = dof_values(idof) + cross_product_function_normal * mapped_shape_test * factor
                  call own_dofs%next() 
               end do
            end do

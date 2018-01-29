@@ -482,7 +482,7 @@ contains
       serial_scalar_array_same_vector_space = (this%size == vector%size)
     end select
   end function serial_scalar_array_same_vector_space
-	
+ 
   !=============================================================================
   function serial_scalar_array_get_num_blocks(this) result(res)
     implicit none 
