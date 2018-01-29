@@ -29,8 +29,8 @@ subroutine par_fe_space_serial_create_same_reference_fes_on_all_cells( this,    
                                                                        triangulation, &
                                                                        reference_fes, &
                                                                        conditions,    &
-														                                                         field_blocks,  &
-														                                                         field_coupling, &
+                                                                       field_blocks,  &
+                                                                       field_coupling, &
                                                                        generate_global_dof_numbering )
                                                                       
   implicit none
@@ -49,8 +49,8 @@ subroutine par_fe_space_serial_create_different_ref_fes_between_cells( this,    
                                                                reference_fes,            &
                                                                set_ids_to_reference_fes, &
                                                                conditions,               &
-														                                                 field_blocks,             &
-														                                                 field_coupling, &
+                                                               field_blocks,             &
+                                                               field_coupling, &
                                                                generate_global_dof_numbering )
   implicit none
   class(par_fe_space_t)                       , intent(inout) :: this
@@ -70,8 +70,8 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
                                                                 reference_fes,      &
                                                                 coarse_fe_handlers, &
                                                                 conditions,         &
-														                                                  field_blocks,       &
-														                                                  field_coupling, &
+                                                                field_blocks,       &
+                                                                field_coupling, &
                                                                 generate_global_dof_numbering ) 
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
@@ -133,8 +133,8 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
                                                                 set_ids_to_reference_fes, &
                                                                 coarse_fe_handlers,       &
                                                                 conditions,               &
-														                                                  field_blocks,             &
-														                                                  field_coupling, &
+                                                                field_blocks,             &
+                                                                field_coupling, &
                                                                 generate_global_dof_numbering )  
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
@@ -2410,11 +2410,11 @@ end subroutine par_fe_space_create_dof_values
 subroutine par_fe_space_interpolate_scalar_function(this, field_id, function, fe_function, interpolator_type, time )
   implicit none
   class(par_fe_space_t)          , intent(in)    :: this
-		integer(ip)                    , intent(in)    :: field_id
-		class(scalar_function_t)       , intent(in)    :: function
-		type(fe_function_t)            , intent(inout) :: fe_function
-		character(*)         , optional, intent(in)    :: interpolator_type
-		real(rp)             , optional, intent(in)    :: time
+  integer(ip)                    , intent(in)    :: field_id
+  class(scalar_function_t)       , intent(in)    :: function
+  type(fe_function_t)            , intent(inout) :: fe_function
+  character(*)         , optional, intent(in)    :: interpolator_type
+  real(rp)             , optional, intent(in)    :: time
   type(environment_t), pointer :: environment
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -2425,11 +2425,11 @@ end subroutine par_fe_space_interpolate_scalar_function
 subroutine par_fe_space_interpolate_vector_function(this, field_id, function, fe_function, interpolator_type, time )
   implicit none
   class(par_fe_space_t)          , intent(in)    :: this
-		integer(ip)                    , intent(in)    :: field_id
-		class(vector_function_t)       , intent(in)    :: function  
-		type(fe_function_t)            , intent(inout) :: fe_function
-		character(*)         , optional, intent(in)    :: interpolator_type
-		real(rp)             , optional, intent(in)    :: time
+  integer(ip)                    , intent(in)    :: field_id
+  class(vector_function_t)       , intent(in)    :: function  
+  type(fe_function_t)            , intent(inout) :: fe_function
+  character(*)         , optional, intent(in)    :: interpolator_type
+  real(rp)             , optional, intent(in)    :: time
   type(environment_t), pointer :: environment
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -2441,8 +2441,8 @@ subroutine par_fe_space_interpolate_dirichlet_values (this, fe_function, interpo
   implicit none
   class(par_fe_space_t)          , intent(in)    :: this
   type(fe_function_t)            , intent(inout) :: fe_function
-		character(*)         , optional, intent(in)    :: interpolator_type(:)
-		real(rp)             , optional, intent(in)    :: time
+  character(*)         , optional, intent(in)    :: interpolator_type(:)
+  real(rp)             , optional, intent(in)    :: time
   type(environment_t), pointer :: environment
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3121,10 +3121,10 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
   
  function par_fe_space_get_coarse_fe_handler ( this, field_id ) 
     implicit none
-	   class(par_fe_space_t), target, intent(in) :: this
-	   integer(ip)                  , intent(in) :: field_id
-	   class(l1_coarse_fe_handler_t), pointer :: par_fe_space_get_coarse_fe_handler
-	   par_fe_space_get_coarse_fe_handler => this%coarse_fe_handlers(field_id)%p
+    class(par_fe_space_t), target, intent(in) :: this
+    integer(ip)                  , intent(in) :: field_id
+    class(l1_coarse_fe_handler_t), pointer :: par_fe_space_get_coarse_fe_handler
+    par_fe_space_get_coarse_fe_handler => this%coarse_fe_handlers(field_id)%p
   end function par_fe_space_get_coarse_fe_handler
   
   subroutine par_fe_space_refine_and_coarsen_single_fe_function( this, fe_function )

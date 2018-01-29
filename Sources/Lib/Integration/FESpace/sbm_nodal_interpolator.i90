@@ -60,7 +60,7 @@ subroutine nodal_interpolator_create( this, fe_space, field_id  )
      end select
 
      if ( reference_fe_type_is_nodal .and. (source_reference_fe%get_field_type() == reference_fe%get_field_type()) ) then 
-        this%nodal_quadratures(reference_fe_id)%p => reference_fe%get_nodal_quadrature()	
+        this%nodal_quadratures(reference_fe_id)%p => reference_fe%get_nodal_quadrature() 
         call this%cell_maps(reference_fe_id)%create(this%nodal_quadratures(reference_fe_id)%p, fe%get_reference_fe_geo())
      end if
 
@@ -178,7 +178,7 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
   reference_fe_id =  fe%get_reference_fe_id(this%field_id) 
   reference_fe    => fe%get_reference_fe(this%field_id)
 
-  num_nodal_qpoints = this%nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points() 				
+  num_nodal_qpoints = this%nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points()     
   cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates()
   call fe%get_nodes_coordinates( cell_coordinates ) 
   call this%cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
@@ -241,7 +241,7 @@ subroutine nodal_interpolator_free( this )
   deallocate( this%nodal_quadratures, stat=istat); check(istat==0) 
 
   if (allocated(this%scalar_function_values) ) call memfree ( this%scalar_function_values, __FILE__, __LINE__)
-  if (allocated(this%function_values)) deallocate ( this%function_values, stat=istat); check(istat==0)		
+  if (allocated(this%function_values)) deallocate ( this%function_values, stat=istat); check(istat==0)  
 
 
 end subroutine nodal_interpolator_free

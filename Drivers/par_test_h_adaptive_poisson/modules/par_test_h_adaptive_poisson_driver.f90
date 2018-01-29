@@ -107,9 +107,9 @@ module par_test_h_adaptive_poisson_driver_names
      procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_poisson_driver_popcorn_fun
      procedure                  :: set_cells_for_refinement
      procedure                  :: set_cells_set_ids
-					procedure                  :: set_ids_disconnected_parts
-					procedure                  :: set_ids_materials
-					procedure                  :: dummy_set_cells_set_ids 
+     procedure                  :: set_ids_disconnected_parts
+     procedure                  :: set_ids_materials
+     procedure                  :: dummy_set_cells_set_ids 
   end type par_test_h_adaptive_poisson_fe_driver_t
 
   ! Types
@@ -386,7 +386,7 @@ end subroutine free_timers
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-				call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc)
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc)
     call parameter_list%free()
 !#endif   
     
@@ -649,33 +649,33 @@ end subroutine free_timers
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
     class(environment_t), pointer :: environment
-				type(point_t), allocatable                :: cell_coordinates(:)
-				real(rp) :: cx, cy, cz
-				integer(ip) :: inode, istat 
-				
-				
+    type(point_t), allocatable                :: cell_coordinates(:)
+    real(rp) :: cx, cy, cz
+    integer(ip) :: inode, istat 
+    
+    
     environment => this%triangulation%get_environment()
     if ( environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
-						allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
-						
+      allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
+      
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
-								call cell%get_nodes_coordinates(cell_coordinates)
-								cx = 0.0_rp
+        call cell%get_nodes_coordinates(cell_coordinates)
+        cx = 0.0_rp
         cy = 0.0_rp 
-	       cz = 0.0_rp 
+        cz = 0.0_rp 
        do inode=1,cell%get_num_nodes()  
           cx = cx + cell_coordinates(inode)%get(1)
           cy = cy + cell_coordinates(inode)%get(2)
-		        cz = cz + cell_coordinates(inode)%get(3)
+          cz = cz + cell_coordinates(inode)%get(3)
        end do
        cx = cx/real(cell%get_num_nodes(),rp)
        cy = cy/real(cell%get_num_nodes(),rp)
-	      cz = cz/real(cell%get_num_nodes(),rp)
+       cz = cz/real(cell%get_num_nodes(),rp)
          ! if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
          ! if ( (cell%get_gid()==4) .or. (cell%get_level() == 0) )then
-							if ( ((0.3_rp < cx .and. cx < 0.7_rp) .and. (0.3_rp < cy .and. cy < 0.7_rp)) .or. cell%get_level()<2 ) then 
+       if ( ((0.3_rp < cx .and. cx < 0.7_rp) .and. (0.3_rp < cy .and. cy < 0.7_rp)) .or. cell%get_level()<2 ) then 
             call cell%set_for_refinement()
           end if
         end if  
@@ -684,8 +684,8 @@ end subroutine free_timers
       call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine set_cells_for_refinement
-		 
-		subroutine dummy_set_cells_set_ids(this)
+   
+  subroutine dummy_set_cells_set_ids(this)
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
     class(environment_t), pointer :: environment 
@@ -705,14 +705,14 @@ end subroutine free_timers
        call memalloc(this%triangulation%get_num_cells(), this%cell_set_ids, __FILE__, __LINE__)
        ! Initialize all local cell_set_ids to 0, a negative number 
        this%cell_set_ids = 0  
-							if ( environment%get_l1_rank() == 0) then 
-							this%cell_set_ids(1) = 1
-							end if 
+       if ( environment%get_l1_rank() == 0) then 
+       this%cell_set_ids(1) = 1
+       end if 
        call this%triangulation%fill_cells_set(this%cell_set_ids)
     end if
 
   end subroutine dummy_set_cells_set_ids
-		
+  
   
   subroutine set_cells_set_ids(this)
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
@@ -765,7 +765,7 @@ end subroutine free_timers
              call subparts_x_disconnected_part(disconnected_part_id)%get(key=material_id, val=dummy_val, stat=istat); 
              if ( istat == key_not_found ) then
                 call subparts_x_disconnected_part(disconnected_part_id)%put(key=material_id, val=num_subparts_x_disconnected_part(disconnected_part_id), stat=istat);
-																num_subparts_x_disconnected_part(disconnected_part_id) = num_subparts_x_disconnected_part(disconnected_part_id) + 1
+                num_subparts_x_disconnected_part(disconnected_part_id) = num_subparts_x_disconnected_part(disconnected_part_id) + 1
              end if
           end if
           call cell%next() 
@@ -778,9 +778,9 @@ end subroutine free_timers
        end do
 
        ! Fill set_cells_ids composing both numberings 
-       call memalloc(this%triangulation%get_num_cells(), this%cell_set_ids, __FILE__, __LINE__)			
-							this%cell_set_ids = 0
-							
+       call memalloc(this%triangulation%get_num_cells(), this%cell_set_ids, __FILE__, __LINE__)   
+       this%cell_set_ids = 0
+       
        call cell%first() 
        do while (.not. cell%has_finished() )  
           if ( cell%is_local() ) then 
@@ -794,7 +794,7 @@ end subroutine free_timers
        end do
 
        call this%triangulation%fill_cells_set(this%cell_set_ids)
-							WRITE(*,*) 'SECE', this%cell_set_ids 
+       WRITE(*,*) 'SECE', this%cell_set_ids 
 
        call this%triangulation%free_cell_iterator(cell)
        call memfree( cells_ids_disconnected_parts, __FILE__, __LINE__ ) 
@@ -802,7 +802,7 @@ end subroutine free_timers
 
        call memfree( num_subparts_x_disconnected_part, __FILE__, __LINE__ ) 
        call memfree( offcomponent_disconnected_part, __FILE__, __LINE__ )
-       deallocate( subparts_x_disconnected_part, stat=istat); check(istat==0) 				
+       deallocate( subparts_x_disconnected_part, stat=istat); check(istat==0)     
     end if
 
   end subroutine set_cells_set_ids
@@ -859,7 +859,7 @@ end subroutine free_timers
 
     call memalloc( dual_graph%get_num_pointers(), current_position, __FILE__, __LINE__ ) 
     current_position = 0
-    ! Fill dual graph list 		
+    ! Fill dual graph list   
     call this%triangulation%create_cell_iterator(cell)   
     do while ( .not. cell%has_finished() ) 
        if ( cell%is_local() ) then 
@@ -885,7 +885,7 @@ end subroutine free_timers
                    ! Add inverse coupling 
                    aux_adjacent_elements = dual_graph%create_iterator(cell_around_vef%get_gid())
                    call aux_adjacent_elements%set_from_current(current_position(cell_around_vef%get_gid()), cell%get_gid() ) 
-                   current_position(cell_around_vef%get_gid()) = current_position(cell_around_vef%get_gid()) + 1		
+                   current_position(cell_around_vef%get_gid()) = current_position(cell_around_vef%get_gid()) + 1  
                 end if
              end if
 
@@ -950,34 +950,34 @@ end subroutine free_timers
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     integer(ip), allocatable                      , intent(inout) :: cells_ids_materials(:)
 
-				class(environment_t), pointer :: environment
-				class(cell_iterator_t), allocatable :: cell
-				type(point_t), allocatable          :: cell_coordinates(:)
-				real(rp) :: cx, cy, cz
-				integer(ip) :: inode, istat 
-				
+    class(environment_t), pointer :: environment
+    class(cell_iterator_t), allocatable :: cell
+    type(point_t), allocatable          :: cell_coordinates(:)
+    real(rp) :: cx, cy, cz
+    integer(ip) :: inode, istat 
+    
     environment => this%triangulation%get_environment()
     if ( environment%am_i_l1_task() ) then
-				  cells_ids_materials = 0 
-						
+      cells_ids_materials = 0 
+      
       call this%triangulation%create_cell_iterator(cell)
-						allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
-						
+      allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
+      
       do while ( .not. cell%has_finished() )
         if ( cell%is_local() ) then
-								call cell%get_nodes_coordinates(cell_coordinates)
-								cx = 0.0_rp
+        call cell%get_nodes_coordinates(cell_coordinates)
+        cx = 0.0_rp
         cy = 0.0_rp 
-	       cz = 0.0_rp 
+        cz = 0.0_rp 
        do inode=1,cell%get_num_nodes()  
           cx = cx + cell_coordinates(inode)%get(1)
           cy = cy + cell_coordinates(inode)%get(2)
-		        cz = cz + cell_coordinates(inode)%get(3)
+          cz = cz + cell_coordinates(inode)%get(3)
        end do
        cx = cx/real(cell%get_num_nodes(),rp)
        cy = cy/real(cell%get_num_nodes(),rp)
-	      cz = cz/real(cell%get_num_nodes(),rp)
-							if ( ((0.3_rp < cx .and. cx < 0.7_rp) .and. (0.3_rp < cy .and. cy < 0.7_rp)) .or. cell%get_level()<2 ) then 
+       cz = cz/real(cell%get_num_nodes(),rp)
+       if ( ((0.3_rp < cx .and. cx < 0.7_rp) .and. (0.3_rp < cy .and. cy < 0.7_rp)) .or. cell%get_level()<2 ) then 
             cells_ids_materials( cell%get_gid() ) = 1 
           end if
         end if  
@@ -987,7 +987,7 @@ end subroutine free_timers
     end if
 
   end subroutine set_ids_materials
-		  
+    
   subroutine set_cells_for_coarsening(this)
     implicit none
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this

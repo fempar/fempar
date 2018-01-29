@@ -51,7 +51,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   istat = parameters%get(key = num_dims_key, value = num_dims); assert(istat==0)
   call this%set_num_dims(num_dims)
   
-		if( parameters%isPresent(key = hex_mesh_domain_limits_key) ) then
+  if( parameters%isPresent(key = hex_mesh_domain_limits_key) ) then
     istat = parameters%GetShape(key = hex_mesh_domain_limits_key, shape = array_size); check(istat==0)
     assert(array_size(1) >= 2*this%get_num_dims())
     call memalloc(array_size(1), bounding_box_limits,__FILE__,__LINE__)

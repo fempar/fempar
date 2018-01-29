@@ -1706,19 +1706,19 @@ subroutine p4est_bt_fill_cells_set (this, cells_set)
   class(p4est_base_triangulation_t), intent(inout) :: this
   integer(ip)                        , intent(in)    :: cells_set(:)
   integer(ip)  :: i 
-		integer(ip), pointer :: p_cell_set_ids(:)
+  integer(ip), pointer :: p_cell_set_ids(:)
   class(environment_t), pointer :: environment
-		type(cell_import_t), pointer  :: cell_import 
+  type(cell_import_t), pointer  :: cell_import 
 #ifdef ENABLE_P4EST
   environment => this%get_environment()
-		cell_import => this%get_cell_import() 
+  cell_import => this%get_cell_import() 
   if (environment%am_i_l1_task()) then
     assert ( size(cells_set) == this%cell_set_ids%size())
-				do i=1, this%get_num_local_cells()
-				call this%cell_set_ids%set(i, cells_set(i) ) 
-				end do 
-				p_cell_set_ids => this%cell_set_ids%get_pointer() 
-				if(environment%get_l1_size()>1) &
+    do i=1, this%get_num_local_cells()
+    call this%cell_set_ids%set(i, cells_set(i) ) 
+    end do 
+    p_cell_set_ids => this%cell_set_ids%get_pointer() 
+    if(environment%get_l1_size()>1) &
     call environment%l1_neighbours_exchange (cell_import%get_num_neighbours(),    &
                                              cell_import%get_neighbours_ids(),    &
                                              cell_import%get_rcv_ptrs(),          &

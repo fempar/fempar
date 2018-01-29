@@ -29,8 +29,8 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
                                                                    triangulation, &
                                                                    reference_fes, &
                                                                    conditions,    &
-								   field_blocks,  &
-		                                                   field_coupling, &
+           field_blocks,  &
+                                                     field_coupling, &
                                                                    generate_global_dof_numbering)
   implicit none
   class(serial_fe_space_t)                     , intent(inout) :: this
@@ -509,15 +509,15 @@ function select_default_interpolator_type(reference_fe)
   character(:), allocatable :: select_default_interpolator_type
   
   select type ( reference_fe )
-		class is (nedelec_reference_fe_t ) 
+  class is (nedelec_reference_fe_t ) 
     select_default_interpolator_type = interpolator_type_Hcurl
-		class is (lagrangian_reference_fe_t)
+  class is (lagrangian_reference_fe_t)
     select_default_interpolator_type = interpolator_type_nodal  
   class is (void_reference_fe_t)
     check(.false.)
-		class DEFAULT
-		check(.false.) 
-		end select 
+  class DEFAULT
+  check(.false.) 
+  end select 
 end function select_default_interpolator_type 
 
 subroutine serial_fe_space_interpolate_scalar_function (this, field_id, function, fe_function, interpolator_type, time)
@@ -646,7 +646,7 @@ subroutine serial_fe_space_interpolate_vector_function (this, field_id, function
   end do
 
   ! I am already located at the first non-void FE, if it exists 
-  if ( .not. is_void_field ) then  		
+  if ( .not. is_void_field ) then    
      reference_fe => fe%get_reference_fe(field_id)
      call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )
 
@@ -706,7 +706,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   class(fe_cell_iterator_t), allocatable    :: fe 
   class(fe_cell_iterator_t), allocatable    :: aux_fe 
   type(fe_vef_iterator_t)                   :: vef 
-  type(list_iterator_t)                     :: own_dofs_on_vef_iterator 	
+  type(list_iterator_t)                     :: own_dofs_on_vef_iterator  
 
   integer(ip)                :: field_id 
   integer(ip)                :: icomp, component_id 
@@ -731,7 +731,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   triangulation => this%get_triangulation()
   if ( triangulation%get_num_cells() == 0 ) return
   
-  call this%create_fe_cell_iterator(fe)	
+  call this%create_fe_cell_iterator(fe) 
   call this%create_fe_cell_iterator(aux_fe)
   call memalloc( this%get_num_fields(), is_void_field, __FILE__, __LINE__ ) 
 
@@ -778,9 +778,9 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
         call fe%first() 
         do while (.not. fe%has_finished() )     
            if ( fe%at_strong_dirichlet_boundary(field_id) .and. (.not. fe%is_void(field_id)) ) then 
-              reference_fe => fe%get_reference_fe(field_id)	
+              reference_fe => fe%get_reference_fe(field_id) 
               ! Allocate field-dependent values at the first non-void FE 
-              if ( .not. (allocated(dof_values) )) call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )	
+              if ( .not. (allocated(dof_values) )) call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ ) 
               ! Reallocate FE dependent arrays if necessary. Mixed topology case ..? 
               reallocate = .false.
               if (allocated(n_face_mask)) reallocate = ( size(n_face_mask) < fe%get_num_vefs() )                                      
@@ -845,7 +845,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
                   end if
               end do
            end if
-           call fe%next()		
+           call fe%next()  
         end do
         if (allocated(dof_values)) call memfree( dof_values, __FILE__, __LINE__ )
      end if
@@ -1028,7 +1028,7 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
   call this%free_fe_facet_iterator(fe_face)
   call this%free_fe_cell_iterator(fe)
   call matrix%convert(csr_format)
-  				
+      
   call parameter_list%init()
 #ifdef ENABLE_MKL
   FPLError = parameter_list%set(key = direct_solver_type                  ,  value = pardiso_mkl)

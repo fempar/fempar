@@ -204,8 +204,8 @@ subroutine nedelec_free ( this )
   ! Free member variables of nedelec_reference_fe_t
   if ( allocated(this%change_basis_matrix) ) &
      call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )   
-					
-		if ( allocated(this%inverse_change_basis_matrix_h_refinement) ) &
+     
+  if ( allocated(this%inverse_change_basis_matrix_h_refinement) ) &
      call memfree ( this%inverse_change_basis_matrix_h_refinement, __FILE__, __LINE__ ) 
      
   this%basis_changed = .false. 
@@ -234,7 +234,7 @@ subroutine nedelec_fill_vector (this)
   elseif ( this%topology == topology_tet ) then
      topology = 0
   end if 
-	 
+  
   call this%polytope%create( this%num_dims, topology )  
 
   this%num_shape_functions = 0
@@ -820,7 +820,7 @@ subroutine nedelec_apply_cell_map_to_interpolation(this,map,ref,phy)
               do kdime=1,this%num_dims
                  do ldime=1,this%num_dims
                     phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
-					   + map%inv_jacobian(ldime,jdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(kdime,idime,ilocs)
+        + map%inv_jacobian(ldime,jdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(kdime,idime,ilocs)
                  end do
               end do
         end do

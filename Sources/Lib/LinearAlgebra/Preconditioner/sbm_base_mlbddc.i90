@@ -650,7 +650,7 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
   assert ( L2_environment%am_i_l1_task() )
 
   fe_space    => this%get_fe_space()
-  coarse_fe_space => fe_space%get_coarse_fe_space()	
+  coarse_fe_space => fe_space%get_coarse_fe_space() 
 
   allocate ( fe_dofs(coarse_fe_space%get_num_fields()), stat=istat)
   check(istat==0)     

@@ -511,7 +511,7 @@ subroutine bst_cell_iterator_fill_nodes_on_vef_new (this,ivef,node_count)
     if(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)==0) then
        node_count = node_count + 1
        this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)=node_count
-    end	if
+    end if
   end do
   
 end subroutine bst_cell_iterator_fill_nodes_on_vef_new
