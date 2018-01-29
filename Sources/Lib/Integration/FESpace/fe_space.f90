@@ -907,6 +907,7 @@ module fe_space_names
     type, extends(standard_l1_coarse_fe_handler_t) :: h_adaptive_algebraic_l1_coarse_fe_handler_t
     private
   contains
+    procedure             :: setup_weighting_operator                  => h_adaptive_algebraic_l1_setup_weighting_operator
     procedure             :: get_num_coarse_dofs                       => h_adaptive_algebraic_l1_get_num_coarse_dofs
     procedure             :: setup_constraint_matrix                   => h_adaptive_algebraic_l1_setup_constraint_matrix
   end type h_adaptive_algebraic_l1_coarse_fe_handler_t
