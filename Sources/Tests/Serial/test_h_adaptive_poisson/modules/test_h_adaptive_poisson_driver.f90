@@ -314,7 +314,7 @@ contains
 
     else if (this%triangulation%get_num_dims() == 3) then    
       do while ( .not. cell%has_finished() )
-          if ( (cell%get_gid()==6) .or. (cell%get_level() == 0) )then
+          if ( (cell%get_ggid()==1) .or. (cell%get_ggid()==4) .or. (cell%get_ggid()==5) .or. (cell%get_ggid()==8) )then
           call cell%set_for_refinement()
         end if
         call cell%next()
