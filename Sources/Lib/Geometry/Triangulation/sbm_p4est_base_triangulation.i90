@@ -2482,7 +2482,7 @@ subroutine p4est_bt_find_missing_corner_neighbours(this)
        do iedge=1, num_edges_x_cell
         ! Find neigs only by edge
         jcell = this%quad_to_quad_by_edge(iedge,icell)+1
-        if (icell /= jcell .and. jcell > 0) then
+        if ( jcell > 0 ) then
           jcell_iconn = this%quad_to_edge(iedge,icell)
           call p8est_eval_edge_connectivity(jcell_iconn, jcell_iedge, flip, mortar)
           assert (flip==1) ! All cells MUST be aligned with each other
@@ -2565,7 +2565,7 @@ subroutine p4est_bt_find_missing_corner_neighbours(this)
               this%quad_to_corner(kcell_icorner_face_neighbours(1,2), kcell_face_neighbours(1,2)) = kcell_face_neighbours(2,1)-1
               this%quad_to_corner(kcell_icorner_face_neighbours(2,1), kcell_face_neighbours(2,1)) = kcell_face_neighbours(1,2)-1
             end if 
-          else if (mortar == -1) then ! Conformal neighbour
+          else if ( icell /= jcell .and. mortar == -1 ) then ! Conformal neighbour
             both_face_neighbours_are_double = .true.
             do iface_at_edge=1, NUM_FACES_AT_EDGE_3D
               jcell_iface = P4EST_FACES_AT_EDGE_3D(iface_at_edge,jcell_iedge)
@@ -2602,10 +2602,10 @@ subroutine p4est_bt_find_missing_corner_neighbours(this)
                   jcell_iface = P4EST_FACES_AT_CORNER_3D(iface_at_corner, jcell_icorner)
                   jcell_iconn = this%quad_to_face(jcell_iface,jcell)
                   lcell       = this%quad_to_quad(jcell_iface,jcell)+1
-                  if ( lcell /= jcell .and. lcell > 0 ) then
+                  if ( lcell > 0 ) then
                     call p8est_eval_connectivity(jcell_iconn, lcell_iface, flip, mortar)
                     assert (flip==1) ! All cells MUST be aligned with each other
-                    if ( mortar == -1 ) then
+                    if ( lcell /= jcell .and. mortar == -1 ) then
                        ! Go over half-size neighbours of kcell_iface within kcell  
                        do isubface=1, size(this%quad_to_half,1)
                           if ( this%quad_to_half(isubface,this%quad_to_quad(kcell_iface,kcell)+1)+1 == lcell ) then
