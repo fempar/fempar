@@ -15,15 +15,15 @@ then
     if [ -f "$TEST_BINARY_PATH" ]
     then
 
-	for order in 1 2
+	for order in 1 2 3 
 	do  
             if [ $order -eq 1 ] 
             then 
-		for refinement_pattern in even_cells
+		for refinement_pattern in even_cells inner_region 
 		do 
-		    for num_refinements in `seq 3 4`
+		    for num_refinements in 3 4 5 
 		    do 
-			for num_parts in `seq 8 10` 
+			for num_parts in 8 9 10 11 12 13 15 17 19   
 			do 
 			    num_tasks=`expr "$num_parts" + 1` 
 			    echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
@@ -75,9 +75,4 @@ else
 fi
 rm -Rf $TEST_COMBINATIONS_FILE_NAME
 exit $final_exit_code 
-
-
-
-
-
 

@@ -192,8 +192,11 @@ end subroutine free_timers
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
     class(environment_t), pointer :: environment
+    real(rp)                      :: domain(6)
 
-
+    ! Create a structured mesh with a custom domain 
+    domain = this%test_params%get_domain_limits() 
+    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
     call this%triangulation%create(this%parameter_list, this%par_environment)
 
     !! Set the cell ids to use void fes
@@ -761,9 +764,9 @@ end subroutine free_timers
     integer(ip) :: inode, istat
     character(len=:), allocatable :: refinement_pattern_case
     ! Centered refined pattern 
-    real(rp) :: centered_refined_size(0:SPACE_DIM-1)  
+    real(rp) :: inner_region_size(0:SPACE_DIM-1)  
     real(rp) :: domain(6)
-    real(rp) :: cr_lx, cr_ly, cr_lz
+    real(rp) :: ir_lx, ir_ly, ir_lz
     real(rp) :: lx, ly, lz 
 
     environment => this%triangulation%get_environment()
@@ -783,15 +786,15 @@ end subroutine free_timers
              cy = 0.0_rp 
              cz = 0.0_rp 
              select case ( this%test_params%get_refinement_pattern_case() ) 
-             case ( 'even_cells_id' ) 
+             case ( even_cells ) 
                 if ( (mod(cell%get_gid(),2)==0) )then
                    call cell%set_for_refinement()
                 end if
-             case ( 'centered_refined') 
-                centered_refined_size = this%test_params%get_centered_refined_domain_length() 
-                cr_lx = centered_refined_size(0) 
-                cr_ly = centered_refined_size(1) 
-                cr_lz = centered_refined_size(2) 
+             case ( inner_region ) 
+                inner_region_size = this%test_params%get_inner_region_size() 
+                ir_lx = inner_region_size(0) 
+                ir_ly = inner_region_size(1) 
+                ir_lz = inner_region_size(2) 
 
                 domain = this%test_params%get_domain_limits()
                 lx = domain(2)-domain(1) 
@@ -802,15 +805,15 @@ end subroutine free_timers
                    cx = cell_coordinates(inode)%get(1) 
                    cy = cell_coordinates(inode)%get(2) 
                    cz = cell_coordinates(inode)%get(3) 
-                   if ( ( ((lx-cr_lx)/2.0_rp<=cx) .and. (cx<=(lx+cr_lx)/2.0_rp) ) .and. &
-                        ( ((ly-cr_ly)/2.0_rp<=cy) .and. (cy<=(ly+cr_ly)/2.0_rp) ) .and. & 
-                        ( ((lz-cr_lz)/2.0_rp<=cz) .and. (cz<=(lz+cr_lz)/2.0_rp) ) ) then
+                   if ( ( ((lx-ir_lx)/2.0_rp<=cx) .and. (cx<=(lx+ir_lx)/2.0_rp) ) .and. &
+                        ( ((ly-ir_ly)/2.0_rp<=cy) .and. (cy<=(ly+ir_ly)/2.0_rp) ) .and. & 
+                        ( ((lz-ir_lz)/2.0_rp<=cz) .and. (cz<=(lz+ir_lz)/2.0_rp) ) ) then
                       call cell%set_for_refinement(); exit 
                    end if
                 end do
 
              case DEFAULT 
-                assert(.false.) 
+                massert(.false., 'Refinement pattern case selected is not among the options provided: even_cells, inner_region') 
              end select
           end if
           call cell%next()
