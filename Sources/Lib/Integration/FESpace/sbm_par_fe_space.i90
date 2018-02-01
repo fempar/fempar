@@ -1848,11 +1848,11 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
 end function par_fe_space_compute_raw_interface_data_by_continuity
 
 function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
-                                                                  field_id, &
-                                                                  offset, &
-                                                                  ubound_num_itfc_couplings, &
-                                                                  dofs_gid, &
-                                                                  raw_interface_data ) result(num_itfc_couplings)
+                                                                        field_id, &
+                                                                        offset, &
+                                                                        ubound_num_itfc_couplings, &
+                                                                        dofs_gid, &
+                                                                        raw_interface_data ) result(num_itfc_couplings)
   implicit none
   class(par_fe_space_t), intent(inout) :: this
   integer(ip)          , intent(in)    :: field_id
@@ -1870,7 +1870,7 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
   integer(ip)  :: idof, idof_interior, dof_gid
   integer(ip)  :: num_dofs_current_vef
   integer(ip)  :: col, init_col, current_col
-  integer(ip)  :: num_parts, num_parts_from_ghosts, local_part_id, ipart
+  integer(ip)  :: num_parts_nearest_neighbour, num_parts_neighbours_nearest_neighbours, local_part_id, ipart
 
   integer(ip)               :: max_part_id
   integer(ip) , allocatable :: local_idof(:)  
@@ -1913,25 +1913,25 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
 
   ! Allocate touch arrays (we could reduce memory consumption by using hash tables here)
   call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), &
-                  local_idof, __FILE__, __LINE__ )
+       local_idof, __FILE__, __LINE__ )
   call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), &
-                  lst_dofs_current_vef, __FILE__, __LINE__ )
+       lst_dofs_current_vef, __FILE__, __LINE__ )
   call memalloc ( ubound_num_itfc_couplings, dofs_max_part_id, & 
-                  __FILE__, __LINE__ )
+       __FILE__, __LINE__ )
 
   call memalloc ( cell_import%get_num_neighbours(), &
-                  touched_neighbours, &
-                  __FILE__, __LINE__ )
+       touched_neighbours, &
+       __FILE__, __LINE__ )
 
   call memalloc ( cell_import%get_num_neighbours(), &
-                  parts_visited, &
-                  __FILE__, __LINE__ )
-  
+       parts_visited, &
+       __FILE__, __LINE__ )
+
   call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), &
-                  dofs_ggid, __FILE__, __LINE__ )
-  
+       dofs_ggid, __FILE__, __LINE__ )
+
   mypart_id = environment%get_l1_rank() + 1
-  
+
   current_col  = offset + 1
   local_idof   = 0
 
@@ -1941,7 +1941,7 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
   p_lst_ghosts_per_ghost_cell                   => this%lst_ghosts_per_ghost_cell%get_pointer()
   p_rcv_my_part_id_vefs                         => this%rcv_my_part_id_vefs%get_pointer()
   p_rcv_my_part_id_vefs_complete_itfc_couplings => this%rcv_my_part_id_vefs_complete_itfc_couplings%get_pointer()
-  
+
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   call this%create_fe_cell_iterator(fe) 
@@ -1949,8 +1949,8 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
   do while(.not. vef%has_finished())
      if ( vef%is_proper() ) then
         touched_neighbours = .false.
-        num_parts = 0
-        num_parts_from_ghosts = 0
+        num_parts_nearest_neighbour = 0
+        num_parts_neighbours_nearest_neighbours = 0
 
         ! Retrieve max_part_id 
         call vef%get_cell_around(1,fe)
@@ -1958,14 +1958,14 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
         cell_gid    = fe%get_gid()
         base_pos    = (cell_gid-1)*num_vefs
         max_part_id = this%max_part_id_vefs%get(base_pos+ivef)
-        
+
         all_ghosts = .true.
         all_local  = .true.
         num_dofs_current_vef = 0
-        
+
         call ghost_parts_visited%init(100)
         call lst_parts%resize(0)
-        
+
         ! Identify the total set of dofs in current vef
         do ielem=1, vef%get_num_cells_around()
            call vef%get_cell_around(ielem,fe)
@@ -1981,12 +1981,12 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
                  call own_dofs_on_vef_iterator%next()
                  cycle
               end if
-              
+
               if ( fe%is_local() ) then
-                all_ghosts = .false.
+                 all_ghosts = .false.
               else
-                all_local  = .false.
-              end if 
+                 all_local  = .false.
+              end if
 
               base_pos_dofs = this%ptr_dofs_field%get(fe%get_gid())-1
               dofs_ggid(dof_gid) = this%lst_dofs_ggids%get(base_pos_dofs+idof)
@@ -2000,99 +2000,102 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
                  local_part_id = cell_import%get_local_neighbour_id(part_id)
                  if ( .not. touched_neighbours(local_part_id) ) then
                     touched_neighbours (local_part_id) = .true.
-                    num_parts = num_parts + 1
-                    parts_visited (num_parts) = part_id
+                    num_parts_nearest_neighbour = num_parts_nearest_neighbour + 1
+                    parts_visited (num_parts_nearest_neighbour) = part_id
                  end if
               end if
               call own_dofs_on_vef_iterator%next()
            end do
 
            if ( fe%is_local() ) then
-             do j=p_ptr_ghosts_per_local_cell(fe%get_gid()), &
-                  p_ptr_ghosts_per_local_cell(fe%get_gid()+1)-1
-               k = p_lst_ghosts_per_local_cell(j)
-               base_pos   = (k-1)*num_vefs
-               ghost_part = p_rcv_my_part_id_vefs(base_pos+ivef) 
-               if ( ghost_part > 0 .and. ghost_part /= mypart_id ) then
-                 local_part_id = cell_import%get_local_neighbour_id(ghost_part)
-                 if ( .not. touched_neighbours(local_part_id) ) then
-                    touched_neighbours (local_part_id) = .true.
-                    num_parts = num_parts + 1
-                    parts_visited (num_parts) = ghost_part
+              do j=p_ptr_ghosts_per_local_cell(fe%get_gid()), &
+                   p_ptr_ghosts_per_local_cell(fe%get_gid()+1)-1
+                 k = p_lst_ghosts_per_local_cell(j)
+                 base_pos   = (k-1)*num_vefs
+                 ghost_part = p_rcv_my_part_id_vefs(base_pos+ivef) 
+                 if ( ghost_part > 0 .and. ghost_part /= mypart_id ) then
+                    local_part_id = cell_import%get_local_neighbour_id(ghost_part)
+                    if ( .not. touched_neighbours(local_part_id) ) then
+                       touched_neighbours (local_part_id) = .true.
+                       num_parts_nearest_neighbour = num_parts_nearest_neighbour + 1
+                       parts_visited (num_parts_nearest_neighbour) = ghost_part
+                    end if
                  end if
-               end if 
-             end do 
+              end do
            else ! fe%is_ghost()
-            do j=p_ptr_ghosts_per_ghost_cell(fe%get_gid()-triangulation%get_num_local_cells()), &
-                  p_ptr_ghosts_per_ghost_cell(fe%get_gid()+1-triangulation%get_num_local_cells())-1
-               k = p_lst_ghosts_per_ghost_cell(j)
-               base_pos   = (k-1)*num_vefs
-               ghost_part = p_rcv_my_part_id_vefs_complete_itfc_couplings(base_pos+ivef)
-               if ( ghost_part > 0 .and. ghost_part /= mypart_id  ) then
-                 if ( cell_import%is_local_neighbour(ghost_part) ) then
-                   local_part_id = cell_import%get_local_neighbour_id(ghost_part)
-                   if ( .not. touched_neighbours(local_part_id) ) then
-                     touched_neighbours (local_part_id) = .true.
-                     num_parts = num_parts + 1
-                     parts_visited (num_parts) = ghost_part
-                   end if
-                 else
-                   call ghost_parts_visited%get(key=ghost_part,val=aux,stat=istat)
-                   if ( istat == key_not_found ) then
-                     num_parts_from_ghosts = num_parts_from_ghosts + 1
-                     call ghost_parts_visited%put(key=ghost_part,val=aux,stat=istat)
-                     assert ( istat == now_stored )
-                     call lst_parts%push_back(ghost_part)
-                   end if
+              do j=p_ptr_ghosts_per_ghost_cell(fe%get_gid()-triangulation%get_num_local_cells()), &
+                   p_ptr_ghosts_per_ghost_cell(fe%get_gid()+1-triangulation%get_num_local_cells())-1
+                 k = p_lst_ghosts_per_ghost_cell(j)
+                 base_pos   = (k-1)*num_vefs
+                 ghost_part = p_rcv_my_part_id_vefs_complete_itfc_couplings(base_pos+ivef)
+                 if ( ghost_part > 0 .and. ghost_part /= mypart_id  ) then
+                    if ( cell_import%is_local_neighbour(ghost_part) ) then
+                       local_part_id = cell_import%get_local_neighbour_id(ghost_part)
+                       if ( .not. touched_neighbours(local_part_id) ) then
+                          touched_neighbours (local_part_id) = .true.
+                          num_parts_nearest_neighbour = num_parts_nearest_neighbour + 1
+                          parts_visited (num_parts_nearest_neighbour) = ghost_part
+                       end if
+                    else
+                       call ghost_parts_visited%get(key=ghost_part,val=aux,stat=istat)
+                       if ( istat == key_not_found ) then
+                          num_parts_neighbours_nearest_neighbours = num_parts_neighbours_nearest_neighbours + 1
+                          call ghost_parts_visited%put(key=ghost_part,val=aux,stat=istat)
+                          assert ( istat == now_stored )
+                          call lst_parts%push_back(ghost_part)
+                       end if
+                    end if
                  end if
-               end if  
-            end do
-           end if     
-         end do       
+              end do
+           end if
+        end do
 
         init_col = current_col
         do idof=1, num_dofs_current_vef
            dof_gid = lst_dofs_current_vef(idof)
-           do ipart=1, num_parts
-             dofs_gid ( current_col ) = dof_gid 
-             dofs_max_part_id ( current_col-offset ) = max_part_id 
-             if (all_ghosts) then
-               if ( num_parts == 1 ) then
-                 part_id = parts_visited(ipart)
-                 raw_interface_data(neighbor_part_id_row, current_col) = max_part_id
-                 raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid) 
-                 raw_interface_data(owner_flag_row, current_col) = -1
-               else
+           ! If current DoF is only at ghost cells on my processor, then
+           ! independently of the value of num_parts_nearest_neighbour and 
+           ! num_parts_neighbours_nearest_neighbours I will only introduce 
+           ! a single non-owner connection in raw_interface_data
+           if (all_ghosts) then 
+              dofs_gid ( current_col ) = dof_gid 
+              dofs_max_part_id ( current_col-offset ) = max_part_id 
+              raw_interface_data(neighbor_part_id_row, current_col) = max_part_id
+              raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid) 
+              raw_interface_data(owner_flag_row, current_col) = -1
+              current_col = current_col + 1
+           else
+              do ipart=1, num_parts_nearest_neighbour
+                 dofs_gid ( current_col ) = dof_gid 
+                 dofs_max_part_id ( current_col-offset ) = max_part_id 
                  part_id = parts_visited(ipart)
                  raw_interface_data(neighbor_part_id_row, current_col) = part_id
-                 raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid) 
-                 raw_interface_data(owner_flag_row, current_col) = num_parts + num_parts_from_ghosts + 1 
-               end if  
-             else 
-               part_id = parts_visited(ipart)
-               raw_interface_data(neighbor_part_id_row, current_col) = part_id
-               raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid)
-               if (all_local) then
-                 raw_interface_data(owner_flag_row, current_col) = -2 
-               else
-                 raw_interface_data(owner_flag_row, current_col) = num_parts + num_parts_from_ghosts + 1
-               end if
-             end if 
-             current_col = current_col + 1
-           end do
-           do ipart=1, num_parts_from_ghosts
-              dofs_gid ( current_col ) = dof_gid
-              dofs_max_part_id ( current_col-offset ) = max_part_id
-              part_id = lst_parts%get(ipart)
-              raw_interface_data(neighbor_part_id_row, current_col) = part_id
-              raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid)
-              if (all_local) then
-                raw_interface_data(owner_flag_row, current_col) = -2 
-              else
-                raw_interface_data(owner_flag_row, current_col) = num_parts + num_parts_from_ghosts + 1
-              end if
-              current_col = current_col + 1
-           end do           
+                 raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid)
+                 if (all_local) then
+                    raw_interface_data(owner_flag_row, current_col) = -2 
+                 else
+                    raw_interface_data(owner_flag_row, current_col) = num_parts_nearest_neighbour + num_parts_neighbours_nearest_neighbours + 1
+                 end if
+                 current_col = current_col + 1
+              end do
+              do ipart=1, num_parts_neighbours_nearest_neighbours
+                 dofs_gid ( current_col ) = dof_gid
+                 dofs_max_part_id ( current_col-offset ) = max_part_id
+                 part_id = lst_parts%get(ipart)
+                 raw_interface_data(neighbor_part_id_row, current_col) = part_id
+                 raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid)
+                 ! We believe that "all_local == .true. => num_parts_neighbours_nearest_neighbours == 0" is true.
+                 ! In such a case, the if (all_local) statement is NOT required (only the else). We leave it here 
+                 ! as a sanity-check
+                 if (all_local) then
+                    wassert ( num_parts_neighbours_nearest_neighbours == 0, "all_local == .true. => num_parts_neighbours_nearest_neighbours == 0 not TRUE!!!")
+                    raw_interface_data(owner_flag_row, current_col) = -2 
+                 else
+                     raw_interface_data(owner_flag_row, current_col) = num_parts_nearest_neighbour + num_parts_neighbours_nearest_neighbours + 1
+                 end if
+                 current_col = current_col + 1
+              end do
+           end if
         end do
      end if
      call vef%next()
@@ -2103,7 +2106,7 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
 
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_vef_iterator(vef)
-  
+
   ! Free touch arrays
   call memfree ( local_idof, __FILE__, __LINE__ )
   call memfree ( lst_dofs_current_vef, __FILE__, __LINE__ )
@@ -2112,67 +2115,67 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
   call memfree ( dofs_ggid, __FILE__, __LINE__ )
 
   call this%raw_interface_data_by_continuity_decide_owner (offset, &
-                                                           current_col-1, &
-                                                           raw_interface_data,&
-                                                           dofs_max_part_id,&
-                                                           dofs_gid)
+       current_col-1, &
+       raw_interface_data,&
+       dofs_max_part_id,&
+       dofs_gid)
 
   call memfree ( dofs_max_part_id, __FILE__, __LINE__ )
   num_itfc_couplings = current_col-1 
-  
+
   call memalloc ( num_itfc_couplings, perm, __FILE__, __LINE__ )
   call memalloc ( num_itfc_couplings, buf , __FILE__, __LINE__ )
   start_col=1
   do i=1,num_itfc_couplings-1
-    if ( raw_interface_data (neighbor_part_id_row,i) /= & 
-         raw_interface_data (neighbor_part_id_row,i+1) ) then
-      end_col   = i
-      !write(*,*) 'XXX', start_col, end_col    
+     if ( raw_interface_data (neighbor_part_id_row,i) /= & 
+          raw_interface_data (neighbor_part_id_row,i+1) ) then
+        end_col   = i
+        !write(*,*) 'XXX', start_col, end_col    
 
-      if (start_col < end_col) then
-        k=1
-        do j=start_col, end_col
-          perm(j)=k
-          k=k+1  
-        end do 
+        if (start_col < end_col) then
+           k=1
+           do j=start_col, end_col
+              perm(j)=k
+              k=k+1  
+           end do
 
-        call sort_array_cols_by_row_element( dof_gid_row, &
-                                             num_rows_raw_interface_data, &
-                                             end_col-start_col+1, &
-                                             raw_interface_data(1:,start_col:end_col), &
-                                             perm(start_col:end_col))
+           call sort_array_cols_by_row_element( dof_gid_row, &
+                num_rows_raw_interface_data, &
+                end_col-start_col+1, &
+                raw_interface_data(1:,start_col:end_col), &
+                perm(start_col:end_col))
 
-        buf(start_col:end_col) = dofs_gid(start_col:end_col)
-        j=1
-        do col=start_col, end_col 
-          dofs_gid(col) = buf(start_col+perm(start_col+j-1)-1)
-          j=j+1
-        end do
+           buf(start_col:end_col) = dofs_gid(start_col:end_col)
+           j=1
+           do col=start_col, end_col 
+              dofs_gid(col) = buf(start_col+perm(start_col+j-1)-1)
+              j=j+1
+           end do
 
-      end if 
-      start_col = i+1 
-    end if 
+        end if
+        start_col = i+1 
+     end if
   end do
 
   end_col=num_itfc_couplings
   if (start_col < end_col) then
-    k=1
-    do j=start_col, end_col
-      perm(j)=k
-      k=k+1
-    end do
+     k=1
+     do j=start_col, end_col
+        perm(j)=k
+        k=k+1
+     end do
 
-    call sort_array_cols_by_row_element( dof_gid_row, &
-                                         num_rows_raw_interface_data, &
-                                         end_col-start_col+1, &
-                                         raw_interface_data(1:,start_col:end_col), &
-                                         perm(start_col:end_col))
-    buf(start_col:end_col) = dofs_gid(start_col:end_col)
-    j=1
-    do col=start_col, end_col 
-       dofs_gid(col) = buf(start_col+perm(start_col+j-1)-1)
-       j=j+1
-    end do
+     call sort_array_cols_by_row_element( dof_gid_row, &
+          num_rows_raw_interface_data, &
+          end_col-start_col+1, &
+          raw_interface_data(1:,start_col:end_col), &
+          perm(start_col:end_col))
+     buf(start_col:end_col) = dofs_gid(start_col:end_col)
+     j=1
+     do col=start_col, end_col 
+        dofs_gid(col) = buf(start_col+perm(start_col+j-1)-1)
+        j=j+1
+     end do
   end if
   !write(*,*) 'YYY', start_col, end_col    
   call memfree ( perm, __FILE__, __LINE__ )

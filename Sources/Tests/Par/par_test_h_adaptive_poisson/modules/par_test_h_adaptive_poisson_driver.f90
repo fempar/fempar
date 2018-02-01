@@ -192,8 +192,11 @@ end subroutine free_timers
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
     class(environment_t), pointer :: environment
+    real(rp)                      :: domain(6)
 
-
+    ! Create a structured mesh with a custom domain 
+    domain = this%test_params%get_domain_limits() 
+    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
     call this%triangulation%create(this%parameter_list, this%par_environment)
 
     !! Set the cell ids to use void fes
@@ -557,6 +560,7 @@ end subroutine free_timers
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    real(rp) :: requested_precision
     
     call error_norm%create(this%fe_space,1)    
     mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
@@ -571,17 +575,18 @@ end subroutine free_timers
     w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
-      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-04 )
+      requested_precision=1.0e-8_rp
+      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < requested_precision )
+      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < requested_precision )
+      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < requested_precision )
+      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < requested_precision )
+      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < requested_precision )
+      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < requested_precision )
+      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < requested_precision )
+      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < requested_precision )
+      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < requested_precision )
+      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < requested_precision )
+      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < requested_precision )
     end if  
     call error_norm%free()
   end subroutine check_solution
@@ -754,19 +759,66 @@ end subroutine free_timers
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
     class(environment_t), pointer :: environment
+    type(point_t), allocatable    :: cell_coordinates(:)
+    real(rp) :: cx, cy, cz
+    integer(ip) :: inode, istat
+    character(len=:), allocatable :: refinement_pattern_case
+    ! Centered refined pattern 
+    real(rp) :: inner_region_size(0:SPACE_DIM-1)  
+    real(rp) :: domain(6)
+    real(rp) :: ir_lx, ir_ly, ir_lz
+    real(rp) :: lx, ly, lz 
+
     environment => this%triangulation%get_environment()
+    
     if ( environment%am_i_l1_task() ) then
-      call this%triangulation%create_cell_iterator(cell)
-      do while ( .not. cell%has_finished() )
-        if ( cell%is_local() ) then
-          if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
-          !if ( (cell%get_gid()==8) .or. (cell%get_level() == 0) )then
-            call cell%set_for_refinement()
-          end if  
-        end if  
-        call cell%next()
-      end do
-      call this%triangulation%free_cell_iterator(cell)
+       call this%triangulation%create_cell_iterator(cell)
+       allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
+
+       do while ( .not. cell%has_finished() )
+          if ( cell%is_local() ) then       
+             if ( cell%get_level() == 0 ) then
+                call cell%set_for_refinement() 
+                call cell%next(); cycle 
+             end if
+             call cell%get_nodes_coordinates(cell_coordinates)
+             cx = 0.0_rp
+             cy = 0.0_rp 
+             cz = 0.0_rp 
+             select case ( this%test_params%get_refinement_pattern_case() ) 
+             case ( even_cells ) 
+                if ( (mod(cell%get_gid(),2)==0) )then
+                   call cell%set_for_refinement()
+                end if
+             case ( inner_region ) 
+                inner_region_size = this%test_params%get_inner_region_size() 
+                ir_lx = inner_region_size(0) 
+                ir_ly = inner_region_size(1) 
+                ir_lz = inner_region_size(2) 
+
+                domain = this%test_params%get_domain_limits()
+                lx = domain(2)-domain(1) 
+                ly = domain(4)-domain(3) 
+                lz = domain(6)-domain(5) 
+
+                do inode=1,cell%get_num_nodes() 
+                   cx = cell_coordinates(inode)%get(1) 
+                   cy = cell_coordinates(inode)%get(2) 
+                   cz = cell_coordinates(inode)%get(3) 
+                   if ( ( ((lx-ir_lx)/2.0_rp<=cx) .and. (cx<=(lx+ir_lx)/2.0_rp) ) .and. &
+                        ( ((ly-ir_ly)/2.0_rp<=cy) .and. (cy<=(ly+ir_ly)/2.0_rp) ) .and. & 
+                        ( ((lz-ir_lz)/2.0_rp<=cz) .and. (cz<=(lz+ir_lz)/2.0_rp) ) ) then
+                      call cell%set_for_refinement(); exit 
+                   end if
+                end do
+
+             case DEFAULT 
+                massert(.false., 'Refinement pattern case selected is not among the options provided: even_cells, inner_region') 
+             end select
+          end if
+          call cell%next()
+       end do
+       call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine set_cells_for_refinement
   
