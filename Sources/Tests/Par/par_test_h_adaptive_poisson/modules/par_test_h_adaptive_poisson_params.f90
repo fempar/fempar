@@ -11,6 +11,12 @@ module par_test_h_adaptive_poisson_params_names
   character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'
   character(len=*), parameter :: use_void_fes_key           = 'use_void_fes'
   character(len=*), parameter :: use_void_fes_case_key      = 'use_void_fes_case'
+  ! Meshing parameters 
+  character(len=*), parameter :: refinement_pattern_case_key        = 'refinement_pattern_case'
+  character(len=*), parameter :: domain_limits_key                  = 'domain_limits'
+  character(len=*), parameter :: centered_refined_domain_length_key = 'centered_refined_domain_length'
+  character(len=*), parameter :: num_refinements_key                = 'num_refinements'
+  character(len=*), parameter :: min_num_refinements_key            = 'min_num_refinements'
 
   type, extends(parameter_handler_t) :: par_test_h_adaptive_poisson_params_t
      private
@@ -24,6 +30,11 @@ module par_test_h_adaptive_poisson_params_names
        procedure, non_overridable             :: get_triangulation_type
        procedure, non_overridable             :: get_use_void_fes
        procedure, non_overridable             :: get_use_void_fes_case
+       procedure, non_overridable             :: get_refinement_pattern_case 
+       procedure, non_overridable             :: get_domain_limits
+       procedure, non_overridable             :: get_centered_refined_domain_length
+       procedure, non_overridable             :: get_num_refinements 
+       procedure, non_overridable             :: get_min_num_refinements
        !procedure, non_overridable             :: get_num_dims
   end type par_test_h_adaptive_poisson_params_t
 
@@ -64,6 +75,11 @@ contains
     error = list%set(key = coarse_space_use_faces_key        , value =  .true.)                      ; check(error==0)
     error = list%set(key = use_void_fes_key                  , value =  .false.)                     ; check(error==0)
     error = list%set(key = use_void_fes_case_key             , value =  'popcorn')                   ; check(error==0)
+    error = list%set(key = refinement_pattern_case_key       , value =  'centered_refined')          ; check(error==0)
+    error = list%set(key = domain_limits_key                 , value = [0.0,1.0,0.0,1.0,0.0,1.0]) ; check(error==0)
+    error = list%set(key = centered_refined_domain_length_key, value = [0.1,0.1,0.1]) ; check(error==0)
+    error = list%set(key = num_refinements_key               , value = 3) ; check(error==0)
+    error = list%set(key = min_num_refinements_key           , value = 1) ; check(error==0)
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -83,6 +99,11 @@ contains
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
     error = switches%set(key = use_void_fes_key              , value = '--use-void-fes' )            ; check(error==0)
     error = switches%set(key = use_void_fes_case_key         , value = '--use-void-fes-case' )       ; check(error==0)
+    error = switches%set(key = refinement_pattern_case_key   , value = '--refinement_pattern_case' )       ; check(error==0)
+    error = switches%set(key = domain_limits_key      , value = '--domain_limits')     ; check(error==0)
+    error = switches%set(key = centered_refined_domain_length_key  , value = '--cr_domain_length') ; check(error==0)
+    error = switches%set(key = num_refinements_key    , value = '--num_refinements') ; check(error==0)
+    error = switches%set(key = min_num_refinements_key, value = '--min_num_refinements') ; check(error==0)
 
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -101,6 +122,11 @@ contains
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
     error = switches_ab%set(key = use_void_fes_key              , value = '-use-voids' )  ; check(error==0)
     error = switches_ab%set(key = use_void_fes_case_key         , value = '-use-voids-case' ); check(error==0)
+    error = switches_ab%set(key = refinement_pattern_case_key   , value = '-refinement-pattern-case' ); check(error==0)
+    error = switches_ab%set(key = domain_limits_key          , value = '-dl')       ; check(error==0)
+    error = switches_ab%set(key = centered_refined_domain_length_key      , value = '-cr_dl')    ; check(error==0)
+    error = switches_ab%set(key = num_refinements_key        , value = '-num_refs')    ; check(error==0)
+    error = switches_ab%set(key = min_num_refinements_key    , value = '-min_num_refs')    ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -117,7 +143,12 @@ contains
     error = helpers%set(key = coarse_space_use_faces_key    , value  = 'Include face coarse DoFs in coarse FE space' )  ; check(error==0)
     error = helpers%set(key = use_void_fes_key              , value  = 'Use a hybrid FE space formed by full and void FEs' )  ; check(error==0)
     error = helpers%set(key = use_void_fes_case_key         , value  = 'Select where to put void fes using one of the predefined patterns. Possible values: `popcorn`, `half`, `quarter` ' ); check(error==0)
-    
+    error = helpers%set(key = refinement_pattern_case_key   , value  = 'Select refinement pattern. Possible values: `centered_refined`, `even_cells_id' ); check(error==0)
+    error = helpers%set(key = domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
+    error = helpers%set(key = centered_refined_domain_length_key , value = 'Concentric with the domain refined area length) ') ; check(error==0)
+    error = helpers%set(key = num_refinements_key     , value = 'Number of adaptive mesh refinements from a plain cell')                ; check(error==0)
+    error = helpers%set(key = min_num_refinements_key     , value = 'Minimum level of refinement for any cell')                ; check(error==0)
+ 
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
     write(msg(33:33),'(i1)') triangulation_generate_from_mesh
@@ -146,6 +177,11 @@ contains
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
     error = required%set(key = use_void_fes_key              , value = .false.) ; check(error==0)
     error = required%set(key = use_void_fes_case_key         , value = .false.) ; check(error==0)
+    error = required%set(key = refinement_pattern_case_key   , value = .false.) ; check(error==0)
+    error = required%set(key = domain_limits_key,                   value = .false.) ; check(error==0)
+    error = required%set(key = centered_refined_domain_length_key , value = .false.)  ; check(error==0)
+    error = required%set(key = num_refinements_key,                 value = .false.)  ; check(error==0)
+    error = required%set(key = min_num_refinements_key,             value = .false.)  ; check(error==0)
 
   end subroutine par_test_h_adaptive_poisson_params_define_parameters
 
@@ -255,5 +291,70 @@ contains
     error = list%GetAsString(key = use_void_fes_case_key, string = get_use_void_fes_case)
     assert(error==0)
   end function get_use_void_fes_case
+  
+    !==================================================================================================
+  function get_refinement_pattern_case(this)
+    implicit none
+    class(par_test_h_adaptive_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable                 :: get_refinement_pattern_case
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(refinement_pattern_case_key, 'string'))
+    error = list%GetAsString(key = refinement_pattern_case_key, string = get_refinement_pattern_case)
+    assert(error==0)
+  end function get_refinement_pattern_case
+  
+  !==================================================================================================
+  function get_domain_limits(this)
+    implicit none
+    class(par_test_h_adaptive_poisson_params_t) , intent(in) :: this
+    real(rp)                                  :: get_domain_limits(6)
+    type(ParameterList_t), pointer            :: list
+    integer(ip)                               :: error
+    list  => this%get_values()
+    assert(list%isAssignable(domain_limits_key, get_domain_limits))
+    error = list%Get(key = domain_limits_key, Value = get_domain_limits)
+    assert(error==0)
+  end function get_domain_limits
+
+  !==================================================================================================
+  function get_centered_refined_domain_length(this)
+    implicit none
+    class(par_test_h_adaptive_poisson_params_t) , intent(in) :: this
+    real(rp)                                  :: get_centered_refined_domain_length(0:SPACE_DIM-1)
+    type(ParameterList_t), pointer            :: list
+    integer(ip)                               :: error
+    list  => this%get_values()
+    assert(list%isAssignable(centered_refined_domain_length_key, get_centered_refined_domain_length))
+    error = list%Get(key = centered_refined_domain_length_key, Value = get_centered_refined_domain_length)
+    assert(error==0)
+  end function get_centered_refined_domain_length
+
+  !==================================================================================================
+  function get_num_refinements(this)
+    implicit none
+    class(par_test_h_adaptive_poisson_params_t) , intent(in) :: this
+    integer(ip)                                   :: get_num_refinements
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(num_refinements_key, get_num_refinements))
+    error = list%Get(key = num_refinements_key, Value = get_num_refinements)
+    assert(error==0)
+  end function get_num_refinements
+
+  !==================================================================================================
+  function get_min_num_refinements(this)
+    implicit none
+    class(par_test_h_adaptive_poisson_params_t) , intent(in) :: this
+    integer(ip)                                   :: get_min_num_refinements
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(min_num_refinements_key, get_min_num_refinements))
+    error = list%Get(key = min_num_refinements_key, Value = get_min_num_refinements)
+    assert(error==0)
+  end function get_min_num_refinements
 
 end module par_test_h_adaptive_poisson_params_names
