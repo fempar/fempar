@@ -213,7 +213,7 @@ end subroutine free_timers
          call this%triangulation%free_vef_iterator(vef)
        end if   
     
-    do i = 1,4
+    do i = 1, this%test_params%get_num_refinements()
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%redistribute()
@@ -644,44 +644,71 @@ end subroutine free_timers
     end do
   end function par_test_h_adaptive_poisson_driver_popcorn_fun
   
-  subroutine set_cells_for_refinement(this)
+subroutine set_cells_for_refinement(this)
     implicit none
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
     class(environment_t), pointer :: environment
-    type(point_t), allocatable                :: cell_coordinates(:)
+    type(point_t), allocatable    :: cell_coordinates(:)
     real(rp) :: cx, cy, cz
-    integer(ip) :: inode, istat 
-    
-    
+    integer(ip) :: inode, istat
+    character(len=:), allocatable :: refinement_pattern_case
+    ! Centered refined pattern 
+    real(rp) :: inner_region_size(0:SPACE_DIM-1)  
+    real(rp) :: domain(6)
+    real(rp) :: ir_lx, ir_ly, ir_lz
+    real(rp) :: lx, ly, lz 
+
     environment => this%triangulation%get_environment()
+    
     if ( environment%am_i_l1_task() ) then
-      call this%triangulation%create_cell_iterator(cell)
-      allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
-      
-      do while ( .not. cell%has_finished() )
-        if ( cell%is_local() ) then
-        call cell%get_nodes_coordinates(cell_coordinates)
-        cx = 0.0_rp
-        cy = 0.0_rp 
-        cz = 0.0_rp 
-       do inode=1,cell%get_num_nodes()  
-          cx = cx + cell_coordinates(inode)%get(1)
-          cy = cy + cell_coordinates(inode)%get(2)
-          cz = cz + cell_coordinates(inode)%get(3)
-       end do
-       cx = cx/real(cell%get_num_nodes(),rp)
-       cy = cy/real(cell%get_num_nodes(),rp)
-       cz = cz/real(cell%get_num_nodes(),rp)
-         ! if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
-         ! if ( (cell%get_gid()==4) .or. (cell%get_level() == 0) )then
-       if ( ((0.3_rp < cx .and. cx < 0.7_rp) .and. (0.3_rp < cy .and. cy < 0.7_rp)) .or. cell%get_level()<2 ) then 
-            call cell%set_for_refinement()
+       call this%triangulation%create_cell_iterator(cell)
+       allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
+
+       do while ( .not. cell%has_finished() )
+          if ( cell%is_local() ) then       
+             if ( cell%get_level() == 0 ) then
+                call cell%set_for_refinement() 
+                call cell%next(); cycle 
+             end if
+             call cell%get_nodes_coordinates(cell_coordinates)
+             cx = 0.0_rp
+             cy = 0.0_rp 
+             cz = 0.0_rp 
+             select case ( this%test_params%get_refinement_pattern_case() ) 
+             case ( even_cells ) 
+                if ( (mod(cell%get_gid(),2)==0) )then
+                   call cell%set_for_refinement()
+                end if
+             case ( inner_region ) 
+                inner_region_size = this%test_params%get_inner_region_size() 
+                ir_lx = inner_region_size(0) 
+                ir_ly = inner_region_size(1) 
+                ir_lz = inner_region_size(2) 
+
+                domain = this%test_params%get_domain_limits()
+                lx = domain(2)-domain(1) 
+                ly = domain(4)-domain(3) 
+                lz = domain(6)-domain(5) 
+
+                do inode=1,cell%get_num_nodes() 
+                   cx = cell_coordinates(inode)%get(1) 
+                   cy = cell_coordinates(inode)%get(2) 
+                   cz = cell_coordinates(inode)%get(3) 
+                   if ( ( ((lx-ir_lx)/2.0_rp<=cx) .and. (cx<=(lx+ir_lx)/2.0_rp) ) .and. &
+                        ( ((ly-ir_ly)/2.0_rp<=cy) .and. (cy<=(ly+ir_ly)/2.0_rp) ) .and. & 
+                        ( ((lz-ir_lz)/2.0_rp<=cz) .and. (cz<=(lz+ir_lz)/2.0_rp) ) ) then
+                      call cell%set_for_refinement(); exit 
+                   end if
+                end do
+
+             case DEFAULT 
+                massert(.false., 'Refinement pattern case selected is not among the options provided: even_cells, inner_region') 
+             end select
           end if
-        end if  
-        call cell%next()
-      end do
-      call this%triangulation%free_cell_iterator(cell)
+          call cell%next()
+       end do
+       call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine set_cells_for_refinement
    
@@ -712,8 +739,7 @@ end subroutine free_timers
     end if
 
   end subroutine dummy_set_cells_set_ids
-  
-  
+    
   subroutine set_cells_set_ids(this)
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     class(environment_t), pointer :: environment 
