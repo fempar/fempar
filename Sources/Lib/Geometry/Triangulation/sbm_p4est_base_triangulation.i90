@@ -2467,12 +2467,14 @@ subroutine p4est_bt_find_missing_corner_neighbours(this)
   integer(ip) :: num_faces_x_cell
   integer(ip) :: num_subfacets_facet
   integer(ip) :: num_subedgets_edget
-  integer(ip) :: icell, jcell, kcell, lcell
+  integer(ip) :: icell, jcell, kcell
+  integer(ip) :: lcell, lcell_iface, lcell_icorner
   integer(ip) :: iedge
   integer(ip) :: edget_id
-  integer(ip) :: jcell_iface, jcell_iedge, kcell_iface, flip, mortar
+  integer(ip) :: jcell_icorner, jcell_iface, jcell_iedge, kcell_iface, flip, mortar
   integer(P4EST_F90_QLEVEL) :: jcell_iconn 
   logical :: face_neighbours_at_the_same_refinement_level
+  logical :: both_face_neighbours_are_double
   logical :: corner_found
   integer(ip) :: iface_at_edge
   integer(ip) :: iface_at_corner
@@ -2482,6 +2484,7 @@ subroutine p4est_bt_find_missing_corner_neighbours(this)
   integer(ip) :: kcell_iedge_face_neighbours(2,2)
   integer(ip) :: kcell_icorner_face_neighbours(2,2)
   integer(ip) :: aux
+  integer(ip) :: isubface 
   
   if ( this%get_num_dims() == 3 ) then   
      num_corners_x_cell      =  NUM_CORNERS_3D
@@ -2490,11 +2493,11 @@ subroutine p4est_bt_find_missing_corner_neighbours(this)
      num_subfacets_facet     =  NUM_SUBFACES_FACE_3D
      num_subedgets_edget     =  NUM_SUBEDGES_EDGE_3D
      
-     do icell=1, this%get_num_local_cells()
+     do icell=1, this%get_num_cells()
        do iedge=1, num_edges_x_cell
         ! Find neigs only by edge
         jcell = this%quad_to_quad_by_edge(iedge,icell)+1
-        if (icell /= jcell .and. jcell > 0) then
+        if ( jcell > 0 ) then
           jcell_iconn = this%quad_to_edge(iedge,icell)
           call p8est_eval_edge_connectivity(jcell_iconn, jcell_iedge, flip, mortar)
           assert (flip==1) ! All cells MUST be aligned with each other
@@ -2503,26 +2506,34 @@ subroutine p4est_bt_find_missing_corner_neighbours(this)
             face_neighbours_at_the_same_refinement_level = .true.
             do edget_id = 1, num_subedgets_edget 
               jcell = this%quad_to_half_by_edge(edget_id,this%quad_to_quad_by_edge(iedge,icell)+1)+1   
-              do iface_at_edge=1, NUM_FACES_AT_EDGE_3D
-                jcell_iface = P4EST_FACES_AT_EDGE_3D(iface_at_edge,jcell_iedge)
-                jcell_iconn = this%quad_to_face(jcell_iface,jcell)
-                kcell       = this%quad_to_quad(jcell_iface,jcell)+1
-                call p8est_eval_connectivity(jcell_iconn, kcell_iface, flip, mortar)
-                assert (flip==1) ! All cells MUST be aligned with each other
-              
-                ! If octree is 2:1 balanced, then face neighbour cannot be half!!!
-                assert(.not. (mortar==num_subfacets_facet+1))
-              
-                ! If neighbour across jcell_iface is double ...
-                if (mortar >= 1 .and. mortar <= num_subfacets_facet) then
-                  face_neighbours_at_the_same_refinement_level = .false.
-                  exit
-                else
-                  assert(mortar==-1)
-                  kcell_face_neighbours (iface_at_edge,edget_id) = kcell
-                  kcell_iedge_face_neighbours(iface_at_edge,edget_id) = p4est_get_jcell_icorner(jcell_iface,kcell_iface,jcell_iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
-                end if
-              end do
+              if ( jcell > 0 ) then
+                do iface_at_edge=1, NUM_FACES_AT_EDGE_3D
+                  jcell_iface = P4EST_FACES_AT_EDGE_3D(iface_at_edge,jcell_iedge)
+                  jcell_iconn = this%quad_to_face(jcell_iface,jcell)
+                  kcell       = this%quad_to_quad(jcell_iface,jcell)+1
+                  if ( kcell /= jcell .and. kcell > 0 ) then
+                    call p8est_eval_connectivity(jcell_iconn, kcell_iface, flip, mortar)
+                    assert (flip==1) ! All cells MUST be aligned with each other
+                  
+                    ! If octree is 2:1 balanced, then face neighbour cannot be half!!!
+                    assert(.not. (mortar==num_subfacets_facet+1))
+                  
+                    ! If neighbour across jcell_iface is double ...
+                    if (mortar >= 1 .and. mortar <= num_subfacets_facet) then
+                      face_neighbours_at_the_same_refinement_level = .false.
+                      exit
+                    else
+                      assert(mortar==-1)
+                      kcell_face_neighbours (iface_at_edge,edget_id) = kcell
+                      kcell_iedge_face_neighbours(iface_at_edge,edget_id) = p4est_get_jcell_icorner(jcell_iface,kcell_iface,jcell_iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
+                    end if
+                  else
+                    face_neighbours_at_the_same_refinement_level = .false.
+                  end if
+                end do
+              else
+                face_neighbours_at_the_same_refinement_level = .false.
+              end if
             end do 
             
             ! Generate kcell_icorner_face_neighbours
@@ -2568,9 +2579,74 @@ subroutine p4est_bt_find_missing_corner_neighbours(this)
               assert ( this%quad_to_corner(kcell_icorner_face_neighbours(2,1), kcell_face_neighbours(2,1)) == -1 )
               this%quad_to_corner(kcell_icorner_face_neighbours(1,2), kcell_face_neighbours(1,2)) = kcell_face_neighbours(2,1)-1
               this%quad_to_corner(kcell_icorner_face_neighbours(2,1), kcell_face_neighbours(2,1)) = kcell_face_neighbours(1,2)-1
-              
             end if 
+          else if ( icell /= jcell .and. mortar == -1 ) then ! Conformal neighbour
+            both_face_neighbours_are_double = .true.
+            do iface_at_edge=1, NUM_FACES_AT_EDGE_3D
+              jcell_iface = P4EST_FACES_AT_EDGE_3D(iface_at_edge,jcell_iedge)
+              jcell_iconn = this%quad_to_face(jcell_iface,jcell)
+              kcell       = this%quad_to_quad(jcell_iface,jcell)+1
+              if ( kcell /= jcell .and. kcell > 0 ) then
+                call p8est_eval_connectivity(jcell_iconn, kcell_iface, flip, mortar)
+                assert (flip==1) ! All cells MUST be aligned with each other
+                
+                ! If neighbour across jcell_iface is NOT double ...
+                if (.not. (mortar >= 1 .and. mortar <= num_subfacets_facet)) then
+                  both_face_neighbours_are_double = .false.
+                  exit
+                end if
+              else
+                both_face_neighbours_are_double = .false.
+              end if
+            end do
+
+            !write (*,*) 'XXX', icell, iedge, jcell, jcell_iedge, kcell, kcell_iface, both_face_neighbours_are_double
             
+            ! If both face neighbours are double ... then corner neighbour is missing
+            if ( both_face_neighbours_are_double ) then
+              ! Go over corners of jcell_iedge on jcell
+              corner_found = .false.
+              find_corner_bis: do icorner_at_edge=1, NUM_EDGE_CORNERS_3D 
+                jcell_icorner = P4EST_EDGE_CORNERS_3D(icorner_at_edge, jcell_iedge)
+                
+                ! Go over faces of current corner on jcell 
+                do iface_at_corner=1, NUM_FACES_AT_CORNER_3D
+                  ! Check whether the current face is conformal, and if so, whether
+                  ! the cell across this face belongs to the set of half cells across
+                  ! any of the two coarse faces traversed above (registered in (kcell,kcell_iface))
+                  jcell_iface = P4EST_FACES_AT_CORNER_3D(iface_at_corner, jcell_icorner)
+                  jcell_iconn = this%quad_to_face(jcell_iface,jcell)
+                  lcell       = this%quad_to_quad(jcell_iface,jcell)+1
+                  if ( lcell > 0 ) then
+                    call p8est_eval_connectivity(jcell_iconn, lcell_iface, flip, mortar)
+                    assert (flip==1) ! All cells MUST be aligned with each other
+                    if ( lcell /= jcell .and. mortar == -1 ) then
+                       ! Go over half-size neighbours of kcell_iface within kcell  
+                       do isubface=1, size(this%quad_to_half,1)
+                          if ( this%quad_to_half(isubface,this%quad_to_quad(kcell_iface,kcell)+1)+1 == lcell ) then
+                             corner_found = .true.
+                             exit find_corner_bis
+                          end if  
+                       end do
+                    end if 
+                  end if
+                end do
+              end do find_corner_bis 
+              
+              if ( corner_found ) then
+                ! jcell, jcell_icorner, jcell_iface, lcell_iface
+                lcell_icorner = p4est_get_jcell_icorner(jcell_iface,lcell_iface,jcell_icorner,P4EST_CORNER_IN_FACE_3D,P4EST_FACE_CORNERS_3D)
+                if ( this%quad_to_corner(lcell_icorner                          , lcell) == -1 ) then
+                  assert ( this%quad_to_corner(P4EST_OPPOSITE_CORNER_3D(lcell_icorner), icell) == -1 )
+                  this%quad_to_corner(lcell_icorner                          , lcell) = icell-1 
+                  this%quad_to_corner(P4EST_OPPOSITE_CORNER_3D(lcell_icorner), icell) = lcell-1 
+                else 
+                  assert ( this%quad_to_corner(lcell_icorner                          , lcell) == icell-1 )
+                  assert ( this%quad_to_corner(P4EST_OPPOSITE_CORNER_3D(lcell_icorner), icell) == lcell-1  )
+                end if
+              end if
+
+            end if 
           end if 
         end if  
        end do 
