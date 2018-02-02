@@ -625,13 +625,13 @@ contains
            
            ! Find neigs only by edge
            jcell = this%quad_to_quad_by_edge(iedge,icell)+1
-           if (icell /= jcell .and. jcell > 0) then
+           if (jcell > 0) then
               jcell_iconn = this%quad_to_edge(iedge,icell)         
 
               call p8est_eval_edge_connectivity(jcell_iconn, jcell_iedge, flip, mortar)
               assert (flip==1) ! All cells MUST be aligned with each other
               
-              if (mortar == -1) then ! Conformal neighbour
+              if (icell /= jcell .and. mortar == -1) then ! Conformal neighbour
                  min_cell   = min(min_cell,jcell)
                  if (min_cell == jcell) then
                     min_iedge   = this%quad_to_edge(iedge,icell)+1

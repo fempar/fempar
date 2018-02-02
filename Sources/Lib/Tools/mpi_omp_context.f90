@@ -159,6 +159,14 @@ module mpi_omp_context_names
 
   ! Types
   public :: mpi_omp_context_t
+  
+  interface
+     subroutine report_bindings(Fcomm) bind(c,name='report_bindings')
+       use iso_c_binding
+       implicit none
+       integer, value, intent(in) :: Fcomm
+     end subroutine report_bindings
+  end interface
 
 contains
 
@@ -233,7 +241,9 @@ contains
     call this%set_num_tasks   ( this%max_num_threads*(this%num_ranks-1)+ this%min_num_threads )
     
     !write(*,*) 'After task def',this%get_current_task(),this%get_num_tasks()
-
+#ifdef DEBUG
+    call report_bindings(this%icontxt)
+#endif
   end subroutine mpi_omp_context_create
 
   !=============================================================================
