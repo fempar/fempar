@@ -916,7 +916,9 @@ module fe_space_names
     private
     integer(ip), allocatable :: dof_gid_to_cdof_id_in_object(:) 
   contains
+    procedure             :: free                                      => h_adaptive_algebraic_l1_Hcurl_free
     procedure             :: setup_weighting_operator                  => h_adaptive_algebraic_l1_Hcurl_setup_weighting_operator
+    procedure             :: setup_object_dofs                         => h_adaptive_algebraic_l1_Hcurl_setup_object_dofs
     procedure             :: get_num_coarse_dofs                       => h_adaptive_algebraic_l1_Hcurl_get_num_coarse_dofs
     procedure             :: setup_constraint_matrix                   => h_adaptive_algebraic_l1_Hcurl_setup_constraint_matrix
   end type h_adaptive_algebraic_l1_Hcurl_coarse_fe_handler_t
