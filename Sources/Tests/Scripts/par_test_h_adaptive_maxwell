@@ -18,7 +18,7 @@ then
   #then
 
 
-   for order in 1 2 3 4 5 
+   for order in 1 2 3 
    do
      echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order"
      $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -order $order
