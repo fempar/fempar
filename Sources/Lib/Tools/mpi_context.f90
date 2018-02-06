@@ -468,7 +468,7 @@ contains
        &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
        &                                          alpha, beta, x, y)
     implicit none
-    class(mpi_context_t), intent(in) :: this
+    class(mpi_context_t), intent(inout) :: this
 
     ! Control info to receive
     integer(ip)             , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
