@@ -53,17 +53,13 @@ void report_bindings(const MPI_Fint Fcomm)
     memset(hnbuf, 0, sizeof(hnbuf));
     (void)gethostname(hnbuf, sizeof(hnbuf));
 #ifndef _OPENMP
-    #pragma omp parallel private(thread, coremask, clbuf)
-    {
-    thread = omp_get_thread_num();
+    thread = 0;
     (void)sched_getaffinity(0, sizeof(coremask), &coremask);
     cpuset_to_cstr(&coremask, clbuf);
-    #pragma omp barrier
     printf("Hello from rank %d, thread %d, on %s. (core affinity = %s)\n",
            rank, thread, hnbuf, clbuf);
-    }
 #else
-    thread = 0;
+    thread = omp_get_thread_num();
     (void)sched_getaffinity(0, sizeof(coremask), &coremask);
     cpuset_to_cstr(&coremask, clbuf);
     #pragma omp barrier

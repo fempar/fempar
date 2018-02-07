@@ -252,9 +252,7 @@ subroutine get_hash_table(tbl,key,val,stat)
   assert (key>=int(tbl%vec_min,key_size))
   hash = int(int(tbl%vec_min,key_size) + (key-int(tbl%vec_min,key_size)) - ((key-int(tbl%vec_min,key_size))/int(tbl%vec_len,key_size)) * int(tbl%vec_len,key_size),ip)
   assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
-!!$OMP CRITICAL (hash_table_lock)
   call tbl%vec(hash)%put(key=key,val=val,stat=stat)
-!!$OMP END CRITICAL (hash_table_lock)
 
   if(stat==now_stored) then
      stat = new_index
@@ -283,9 +281,7 @@ subroutine put_hash_table(tbl,key,val,stat)
   assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
   val_ = val 
 
-!!$OMP CRITICAL (hash_table_lock)
   call tbl%vec(hash)%put(key=key,val=val_,stat=stat)
-!!$OMP END CRITICAL (hash_table_lock)
 
 end subroutine put_hash_table
 
@@ -301,9 +297,7 @@ subroutine del_hash_table(tbl,key,stat)
   !hash = tbl%vec_min + (key-tbl%vec_min) - ((key-tbl%vec_min)/tbl%vec_len) * tbl%vec_len
   hash = int(int(tbl%vec_min,key_size) + (key-int(tbl%vec_min,key_size)) - ((key-int(tbl%vec_min,key_size))/int(tbl%vec_len,key_size)) * int(tbl%vec_len,key_size),ip)
   assert ( (hash>=tbl%vec_min).and.(hash<=tbl%vec_min+tbl%vec_len-1))
-!!$OMP CRITICAL (hash_table_lock)
   call tbl%vec(hash)%del(key=key,stat=stat)
-!!$OMP END CRITICAL (hash_table_lock)
   if (stat == child_not_found) then
      call tbl%print
      stop

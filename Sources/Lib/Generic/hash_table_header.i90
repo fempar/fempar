@@ -39,8 +39,8 @@
   !  val_type
   !  
   type hash_node
-     class(hash_node), pointer :: child => null()
-     class(hash_node), pointer :: parent => null()
+     type(hash_node), pointer :: child => null()
+     type(hash_node), pointer :: parent => null()
      key_type :: key = -1
      val_type :: val
    contains

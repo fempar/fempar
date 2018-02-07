@@ -48,10 +48,14 @@ module p4est_triangulation_names
   use std_vector_point_names
   use FPL
   use hash_table_names
-  use mpi
   use allocatable_array_names 
-  
+#ifdef MPI_MOD
+  use mpi
+#endif
   implicit none
+#ifdef MPI_H
+  include 'mpif.h'
+#endif
 # include "debug.i90"
   private
   
