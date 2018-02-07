@@ -255,21 +255,10 @@ subroutine h_adaptive_algebraic_l1_Hcurl_setup_object_dofs(this, field_id, par_f
   call object%first() 
   do while ( .not. object%has_finished() )
 
-     select case ( object%get_dim() )
-     case (0)
-        if (.not. use_vertices) then
-           call object%next(); cycle
-        end if
-     case (1)
-        if (.not. use_edges) then
-           call object%next(); cycle
-        end if
-     case (2)
-        if (.not. use_faces) then
-           call object%next(); cycle
-        end if
-     end select
-
+     if ( object%get_num_parts_around() <= 2 ) then 
+     call object%next(); cycle 
+     end if 
+     
      num_fine_dofs = 0
      do ivef_within_object=1, object%get_num_vefs()
         call object%get_vef(ivef_within_object,vef)
@@ -367,20 +356,9 @@ subroutine h_adaptive_algebraic_l1_Hcurl_get_num_coarse_dofs(this, field_id, par
 
   do while ( .not. object%has_finished() )
 
-     select case ( object%get_dim() )
-     case (0)
-        if (.not. use_vertices) then
-           call object%next(); cycle
-        end if
-     case (1)
-        if (.not. use_edges) then
-           call object%next(); cycle
-        end if
-     case (2)
-        if (.not. use_faces) then
-           call object%next(); cycle
-        end if
-     end select
+     if ( object%get_num_parts_around() <= 2 ) then 
+     call object%next(); cycle 
+     end if 
 
      num_fine_dofs = 0
      do ivef_within_object=1, object%get_num_vefs()

@@ -713,10 +713,10 @@ subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this )
   integer(ip), allocatable :: disconnected_cells_set_id(:) 
 
   call memalloc(this%get_num_local_cells(), disconnected_cells_set_id, __FILE__, __LINE__)
-  disconnected_cells_set_id = 0
+  disconnected_cells_set_id = -1
 
   ! Generate dual graph 
-  call this%generate_dual_graph(dual_graph) 
+   call this%generate_dual_graph(dual_graph) 
 
   ! Fill disconnected parts array with recursive depth first search algorithm  
   disconnected_part_id  = 0 
@@ -728,108 +728,13 @@ subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this )
   end do
 
   ! Fill disconnected cells set 
+  call this%create_disconnected_cells_set() 
   call this%fill_disconnected_cells_set( disconnected_cells_set_id ) 
 
   ! Free data 
   call dual_graph%free() 
   call memfree(disconnected_cells_set_id, __FILE__, __LINE__ )
 end subroutine triangulation_allocate_and_fill_disconnected_cells_set_id
-
-subroutine triangulation_generate_dual_graph(this, dual_graph) 
-  implicit none 
-  class(triangulation_t), intent(inout) :: this
-  type(list_t)          , intent(inout) :: dual_graph
-
-  class(cell_iterator_t), allocatable :: cell
-  type(list_iterator_t)               :: adjacent_elements
-  type(list_iterator_t)               :: aux_adjacent_elements 
-  class(vef_iterator_t), allocatable  :: vef 
-  class(cell_iterator_t), allocatable :: cell_around_vef 
-  integer(ip)                         :: icell_around 
-  integer(ip)                         :: ivef_within_cell 
-  integer(ip), allocatable            :: current_position(:) 
-
-  assert ( this%environment%am_i_l1_task() )
-  
-  ! Build graph: elements are vertices, edges link elements that share a facet 
-  call this%create_cell_iterator(cell_around_vef)
-  call this%create_vef_iterator(vef)
-  call dual_graph%create( this%get_num_local_cells() )
-
-  ! Fill dual_graph pointer  
-  do while ( .not. vef%has_finished() ) 
-     
-     if ( (.not. vef%is_facet()) .or. (vef%is_at_interface()) .or. (.not. vef%is_local()) ) then 
-     call vef%next(); cycle 
-     end if 
-     
-     if ( vef%is_proper() ) then 
-        do icell_around = 1, vef%get_num_cells_around() 
-           call vef%get_cell_around(icell_around, cell_around_vef) 
-           if ( cell_around_vef%is_local() ) then 
-              call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
-           end if
-        end do
-        ! Add improper to proper coupling in both directions to achieve an undirected graph 
-     elseif (.not. vef%is_proper()) then
-        call vef%get_cell_around(1, cell_around_vef) 
-        if ( cell_around_vef%is_local() ) then 
-           call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
-        end if
-        call vef%get_improper_cell_around(1, cell_around_vef) 
-        if ( cell_around_vef%is_local() ) then 
-           call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
-        end if
-     end if
-     call vef%next() 
-  end do
-
-  call dual_graph%calculate_header()
-  call dual_graph%allocate_list_from_pointer()
-
-  call memalloc( dual_graph%get_num_pointers(), current_position, __FILE__, __LINE__ ) 
-  current_position = 0
-  
-  ! Fill undirected dual graph 
-  
-  ! Fill dual graph list   
-  call this%create_cell_iterator(cell)   
-  do while ( .not. cell%has_finished() ) 
-     if ( cell%is_local() ) then 
-        adjacent_elements = dual_graph%create_iterator(cell%get_gid())
-        do ivef_within_cell = 1, cell%get_num_vefs() 
-           call cell%get_vef(ivef_within_cell, vef) 
-           ! Proper to proper coupling
-           if ( vef%is_facet() .and. vef%get_num_cells_around()==2 ) then 
-              do icell_around = 1, vef%get_num_cells_around() 
-                 call vef%get_cell_around(icell_around, cell_around_vef) 
-                 if ( cell_around_vef%get_gid() /= cell%get_gid() .and. cell_around_vef%is_local() ) then 
-                    call adjacent_elements%set_from_current(current_position(cell%get_gid()), cell_around_vef%get_gid())
-                    current_position(cell%get_gid()) = current_position(cell%get_gid()) + 1
-                 end if
-              end do
-           elseif ( vef%is_facet() .and. (.not. vef%is_proper()) ) then
-              ! Add improper to proper coupling 
-              assert( vef%get_num_improper_cells_around() == 1 ) 
-              call vef%get_improper_cell_around(1, cell_around_vef) 
-              if ( cell_around_vef%get_gid() /= cell%get_gid() .and. cell_around_vef%is_local() ) then 
-                 call adjacent_elements%set_from_current(current_position(cell%get_gid()),cell_around_vef%get_gid())
-                 current_position(cell%get_gid()) = current_position(cell%get_gid()) + 1
-                 ! Add inverse coupling 
-                 aux_adjacent_elements = dual_graph%create_iterator(cell_around_vef%get_gid())
-                 call aux_adjacent_elements%set_from_current(current_position(cell_around_vef%get_gid()), cell%get_gid() ) 
-                 current_position(cell_around_vef%get_gid()) = current_position(cell_around_vef%get_gid()) + 1  
-              end if
-           end if
-
-        end do
-     end if
-     call cell%next()
-  end do
-
-  call this%free_cell_iterator(cell_around_vef)
-  call this%free_vef_iterator(vef)
-end subroutine triangulation_generate_dual_graph
 
 recursive subroutine triangulation_depth_first_search_algorithm(this, icell, dual_graph, disconnected_part_id, disconnected_cells_set_id)
   implicit none 
@@ -844,7 +749,7 @@ recursive subroutine triangulation_depth_first_search_algorithm(this, icell, dua
   disconnected_cells_set_id(icell) = disconnected_part_id 
   adjacent_elements = dual_graph%create_iterator(icell) 
   do while ( .not. adjacent_elements%is_upper_bound() ) 
-     if ( disconnected_cells_set_id(adjacent_elements%get_current()) == 0 ) then 
+     if ( disconnected_cells_set_id(adjacent_elements%get_current()) < 0 ) then 
         call this%depth_first_search_algorithm( adjacent_elements%get_current(), dual_graph, disconnected_part_id, disconnected_cells_set_id )
      end if
      call adjacent_elements%next() 

@@ -734,9 +734,10 @@ module triangulation_names
      
      ! Private methods for disconnected parts identification 
      procedure, non_overridable, private :: allocate_and_fill_disconnected_cells_set_id => triangulation_allocate_and_fill_disconnected_cells_set_id 
-     procedure, non_overridable, private :: generate_dual_graph                         => triangulation_generate_dual_graph
      procedure, non_overridable, private :: depth_first_search_algorithm                => triangulation_depth_first_search_algorithm
-     procedure(fill_disconnected_cells_set_interface), private, deferred :: fill_disconnected_cells_set
+     procedure(generate_dual_graph_interface)          , private, deferred :: generate_dual_graph
+     procedure(create_disconnected_cells_set_interface), private, deferred :: create_disconnected_cells_set
+     procedure(fill_disconnected_cells_set_interface)  , private, deferred :: fill_disconnected_cells_set
   end type triangulation_t
   
   abstract interface
@@ -788,10 +789,21 @@ module triangulation_names
        integer(ip) :: get_num_reference_fes_interface
      end function get_num_reference_fes_interface
      
+     subroutine generate_dual_graph_interface(this, dual_graph) 
+       import :: triangulation_t, list_t 
+     class(triangulation_t), intent(inout) :: this
+     type(list_t)          , intent(inout) :: dual_graph
+     end subroutine generate_dual_graph_interface
+  
+     subroutine create_disconnected_cells_set_interface ( this ) 
+       import :: triangulation_t
+       class(triangulation_t), intent(inout)   :: this
+     end subroutine create_disconnected_cells_set_interface 
+     
      subroutine fill_disconnected_cells_set_interface ( this, disconnected_cells_set ) 
-     import :: triangulation_t, ip 
-     class(triangulation_t), intent(inout)   :: this
-     integer(ip)             , intent(in)    :: disconnected_cells_set(:)
+       import :: triangulation_t, ip 
+       class(triangulation_t), intent(inout)   :: this
+       integer(ip)             , intent(in)    :: disconnected_cells_set(:)
      end subroutine fill_disconnected_cells_set_interface 
   end interface
   
@@ -885,6 +897,7 @@ module triangulation_names
     procedure, non_overridable, private  :: fill_nodes_on_vef_new         => bst_cell_iterator_fill_nodes_on_vef_new
     procedure, non_overridable, private  :: fill_nodes_on_vef_from_source => bst_cell_iterator_fill_nodes_on_vef_from_source
     procedure, non_overridable, private  :: fill_internal_nodes_new       => bst_cell_iterator_fill_internal_nodes_new
+    
   end type bst_cell_iterator_t
   
   type, extends(vef_iterator_t) :: bst_vef_iterator_t
@@ -993,6 +1006,8 @@ module triangulation_names
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
      procedure, non_overridable, private :: allocate_disconnected_cells_set     => bst_allocate_disconnected_cells_set
      procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
+     procedure, non_overridable, private :: generate_dual_graph                 => bst_generate_dual_graph 
+     procedure, non_overridable, private :: create_disconnected_cells_set       => bst_create_disconnected_cells_set
      procedure, non_overridable, private :: fill_disconnected_cells_set         => bst_fill_disconnected_cells_set
      procedure, non_overridable, private :: free_ptr_vefs_x_cell                => bst_free_ptr_vefs_x_cell
      procedure, non_overridable, private :: free_lst_vefs_gids                  => bst_free_lst_vefs_gids 

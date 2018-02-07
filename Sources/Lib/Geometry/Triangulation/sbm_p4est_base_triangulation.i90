@@ -1735,6 +1735,121 @@ subroutine p4est_bt_fill_cells_set (this, cells_set)
 #endif        
 end subroutine p4est_bt_fill_cells_set 
 
+subroutine p4est_bt_generate_dual_graph(this, dual_graph) 
+  implicit none 
+  class(p4est_base_triangulation_t), intent(inout) :: this
+  type(list_t)                     , intent(inout) :: dual_graph
+
+  class(cell_iterator_t), allocatable :: cell
+  type(list_iterator_t)               :: adjacent_elements
+  type(list_iterator_t)               :: aux_adjacent_elements 
+  class(vef_iterator_t), allocatable  :: vef 
+  class(cell_iterator_t), allocatable :: cell_around_vef 
+  integer(ip)                         :: icell, icell_around 
+  integer(ip)                         :: ivef_within_cell 
+  integer(ip), allocatable            :: current_position(:) 
+  class(environment_t), pointer       :: environment
+
+  environment => this%get_environment()
+  assert ( environment%am_i_l1_task() )
+
+  ! Build graph: elements are vertices, edges link elements that share a facet 
+  call this%create_cell_iterator(cell_around_vef)
+  call this%create_vef_iterator(vef)
+  call dual_graph%create( this%get_num_local_cells() )
+
+  ! Fill dual_graph pointer  
+  do while ( .not. vef%has_finished() ) 
+
+     if ( .not. vef%is_facet() .or. vef%is_ghost() .or. vef%is_at_interface() ) then 
+        call vef%next(); cycle 
+     end if
+
+     ! Proper to proper coupling 
+     if ( vef%is_proper() .and. vef%get_num_cells_around()==2 ) then 
+        do icell_around = 1, vef%get_num_cells_around() 
+           call vef%get_cell_around(icell_around, cell_around_vef) 
+           call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
+           assert( cell_around_vef%is_local() )
+        end do
+      ! Add improper to proper coupling 
+     elseif (.not. vef%is_proper()) then
+        assert( vef%get_num_improper_cells_around() == 1 ) 
+        call vef%get_improper_cell_around(1, cell_around_vef) 
+        call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
+        assert(cell_around_vef%is_local())
+
+        assert( vef%get_num_cells_around() == 1 ) 
+        call vef%get_cell_around(1, cell_around_vef) 
+        call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
+        assert(cell_around_vef%is_local())
+
+     end if
+     call vef%next() 
+  end do
+
+  call dual_graph%calculate_header()
+  call dual_graph%allocate_list_from_pointer()
+
+  ! Fill dual graph list   
+  call memalloc( dual_graph%get_num_pointers(), current_position, __FILE__, __LINE__ ) 
+  current_position = 0
+  call this%create_cell_iterator(cell)   
+  do while ( .not. cell%has_finished() ) 
+     if ( cell%is_local() ) then 
+        adjacent_elements = dual_graph%create_iterator(cell%get_gid())
+        do ivef_within_cell = 1, cell%get_num_vefs() 
+          
+           call cell%get_vef(ivef_within_cell, vef)
+           if ( .not. vef%is_facet() .or. vef%is_at_interface() ) then 
+           cycle 
+           end if 
+           
+           ! Proper to proper coupling
+           if ( vef%is_proper() .and. vef%get_num_cells_around()==2 ) then 
+              do icell_around = 1, vef%get_num_cells_around() 
+                 call vef%get_cell_around(icell_around, cell_around_vef) 
+                 if ( cell_around_vef%get_gid() /= cell%get_gid() .and. cell_around_vef%is_local() ) then 
+                    call adjacent_elements%set_from_current(current_position(cell%get_gid()), cell_around_vef%get_gid())
+                    current_position(cell%get_gid()) = current_position(cell%get_gid()) + 1
+                 end if
+              end do
+           elseif ( .not. vef%is_proper() ) then
+              ! Add improper to proper coupling 
+              assert( vef%get_num_improper_cells_around() == 1 ) 
+              call vef%get_improper_cell_around(1, cell_around_vef) 
+              if ( cell_around_vef%get_gid() /= cell%get_gid() .and. cell_around_vef%is_local() ) then 
+                 call adjacent_elements%set_from_current(current_position(cell%get_gid()),cell_around_vef%get_gid())
+                 current_position(cell%get_gid()) = current_position(cell%get_gid()) + 1
+                 ! Add inverse coupling 
+                 aux_adjacent_elements = dual_graph%create_iterator(cell_around_vef%get_gid())
+                 call aux_adjacent_elements%set_from_current(current_position(cell_around_vef%get_gid()), cell%get_gid() ) 
+                 current_position(cell_around_vef%get_gid()) = current_position(cell_around_vef%get_gid()) + 1  
+              end if
+           end if
+
+        end do
+     end if
+     call cell%next()
+  end do
+
+#ifdef DEBUG  
+  do icell=1, this%get_num_local_cells() 
+  massert( dual_graph%get_sublist_size(icell) == current_position(icell), 'Dual graph has not been filled correctly. ')  
+  end do 
+#endif
+  call this%free_cell_iterator(cell)
+  call this%free_cell_iterator(cell_around_vef)
+  call this%free_vef_iterator(vef)
+  call memfree(current_position, __FILE__, __LINE__ ) 
+end subroutine p4est_bt_generate_dual_graph
+
+subroutine p4est_bt_create_disconnected_cells_set (this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)   :: this
+  ! To fill 
+end subroutine p4est_bt_create_disconnected_cells_set
+
 subroutine p4est_bt_fill_disconnected_cells_set (this, disconnected_cells_set)
   implicit none
   class(p4est_base_triangulation_t), intent(inout)   :: this

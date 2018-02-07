@@ -365,7 +365,7 @@ end subroutine free_timers
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
     call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-8_rp)
     assert(FPLError == 0)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 1000)
     assert(FPLError == 0)

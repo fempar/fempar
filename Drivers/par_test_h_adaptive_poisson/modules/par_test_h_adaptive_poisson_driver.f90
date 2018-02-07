@@ -542,27 +542,13 @@ end subroutine free_timers
     call this%timer_solver_setup%start()
     call this%setup_solver()
     call this%timer_solver_setup%stop()
-
+    call this%write_solution()
+        
     call this%timer_solver_run%start()
     call this%solve_system()
     call this%timer_solver_run%stop()
-
-    call this%check_solution()
-    
-    !call this%set_cells_for_refinement()
-    !call this%triangulation%refine_and_coarsen()
-    !call this%fe_space%refine_and_coarsen(this%solution)
-    !call this%fe_space%set_up_cell_integration()
-    
-    !call this%check_solution()
-    
-    !call this%set_cells_for_refinement()
-    !call this%triangulation%redistribute()
-    !call this%fe_space%redistribute(this%solution)
-    !call this%fe_space%set_up_cell_integration()
-    
+       
     call this%check_solution()   
-    call this%write_solution()
     call this%free()
   end subroutine run_simulation
   
