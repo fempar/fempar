@@ -69,10 +69,10 @@ Given a driver ```driver_name```, to run it (assuming it has been compiled, see 
 
 ```
 $ cd build/DRIVERS/driver_name/bin
-$ mpirun P ./driver_name [options]
+$ mpirun -np P ./driver_name [options]
 ```
 
-where ```P``` is the number of processors to be used. Clearly, ```mpirun P``` must be eliminated to run serial drivers.
+where ```P``` is the number of MPI processes to be used. Clearly, ```mpirun -np P``` must be eliminated to run serial drivers.
 
 To see the different options and default values we can do
 

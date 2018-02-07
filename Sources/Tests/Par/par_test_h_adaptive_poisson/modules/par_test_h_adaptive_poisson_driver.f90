@@ -764,16 +764,26 @@ end subroutine free_timers
     integer(ip) :: inode, istat
     character(len=:), allocatable :: refinement_pattern_case
     ! Centered refined pattern 
-    real(rp) :: inner_region_size(0:SPACE_DIM-1)  
-    real(rp) :: domain(6)
-    real(rp) :: ir_lx, ir_ly, ir_lz
-    real(rp) :: lx, ly, lz 
+    real(rp)               :: inner_region_size(0:SPACE_DIM-1)  
+    real(rp)               :: domain(6)
+    real(rp)               :: domain_length(0:SPACE_DIM-1) 
+    logical, allocatable   :: is_node_coord_within_inner_region(:)  
+    integer(ip)            :: idime 
 
     environment => this%triangulation%get_environment()
-    
+
     if ( environment%am_i_l1_task() ) then
        call this%triangulation%create_cell_iterator(cell)
        allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
+
+       if ( this%test_params%get_refinement_pattern_case() == inner_region ) then 
+          call memalloc(this%triangulation%get_num_dims(), is_node_coord_within_inner_region, __FILE__, __LINE__ ) 
+          inner_region_size = this%test_params%get_inner_region_size() 
+          domain = this%test_params%get_domain_limits()
+          domain_length(0) = domain(2)-domain(1) 
+          domain_length(1) = domain(4)-domain(3) 
+          domain_length(2) = domain(6)-domain(5) 
+       end if
 
        do while ( .not. cell%has_finished() )
           if ( cell%is_local() ) then       
@@ -782,35 +792,26 @@ end subroutine free_timers
                 call cell%next(); cycle 
              end if
              call cell%get_nodes_coordinates(cell_coordinates)
-             cx = 0.0_rp
-             cy = 0.0_rp 
-             cz = 0.0_rp 
              select case ( this%test_params%get_refinement_pattern_case() ) 
              case ( even_cells ) 
                 if ( (mod(cell%get_gid(),2)==0) )then
                    call cell%set_for_refinement()
                 end if
              case ( inner_region ) 
-                inner_region_size = this%test_params%get_inner_region_size() 
-                ir_lx = inner_region_size(0) 
-                ir_ly = inner_region_size(1) 
-                ir_lz = inner_region_size(2) 
-
-                domain = this%test_params%get_domain_limits()
-                lx = domain(2)-domain(1) 
-                ly = domain(4)-domain(3) 
-                lz = domain(6)-domain(5) 
-
-                do inode=1,cell%get_num_nodes() 
-                   cx = cell_coordinates(inode)%get(1) 
-                   cy = cell_coordinates(inode)%get(2) 
-                   cz = cell_coordinates(inode)%get(3) 
-                   if ( ( ((lx-ir_lx)/2.0_rp<=cx) .and. (cx<=(lx+ir_lx)/2.0_rp) ) .and. &
-                        ( ((ly-ir_ly)/2.0_rp<=cy) .and. (cy<=(ly+ir_ly)/2.0_rp) ) .and. & 
-                        ( ((lz-ir_lz)/2.0_rp<=cz) .and. (cz<=(lz+ir_lz)/2.0_rp) ) ) then
-                      call cell%set_for_refinement(); exit 
-                   end if
-                end do
+                node_loop: do inode=1, cell%get_num_nodes()      
+                   is_node_coord_within_inner_region=.false. 
+                   do idime=0, this%triangulation%get_num_dims()-1
+                      if ( (domain_length(idime)-inner_region_size(idime))/2.0_rp <= cell_coordinates(inode)%get(idime+1) .and. &
+                           (domain_length(idime)+inner_region_size(idime))/2.0_rp >= cell_coordinates(inode)%get(idime+1) ) then 
+                         is_node_coord_within_inner_region(idime+1)=.true. 
+                      else 
+                         cycle node_loop   
+                      end if
+                   end do
+                   if ( all(is_node_coord_within_inner_region) ) then 
+                   call cell%set_for_refinement(); exit 
+                   end if 
+                end do node_loop 
 
              case DEFAULT 
                 massert(.false., 'Refinement pattern case selected is not among the options provided: even_cells, inner_region') 
@@ -820,6 +821,8 @@ end subroutine free_timers
        end do
        call this%triangulation%free_cell_iterator(cell)
     end if
+    
+    if (allocated(is_node_coord_within_inner_region)) call memfree(is_node_coord_within_inner_region)
   end subroutine set_cells_for_refinement
   
   subroutine set_cells_set_ids(this)
