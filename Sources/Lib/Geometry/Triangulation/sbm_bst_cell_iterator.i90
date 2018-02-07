@@ -187,6 +187,14 @@ function bst_cell_iterator_get_set_id(this)
   bst_cell_iterator_get_set_id = this%base_static_triangulation%cells_set(this%gid)
 end function bst_cell_iterator_get_set_id
 
+function bst_cell_iterator_get_disconnected_set_id(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip) :: bst_cell_iterator_get_disconnected_set_id
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_get_disconnected_set_id = this%base_static_triangulation%disconnected_cells_set_ids(this%gid)
+end function bst_cell_iterator_get_disconnected_set_id
+
 function bst_cell_iterator_get_num_vefs (this)
   implicit none
   class(bst_cell_iterator_t), intent(in) :: this

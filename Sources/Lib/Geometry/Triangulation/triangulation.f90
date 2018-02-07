@@ -99,8 +99,10 @@ module triangulation_names
     procedure(cell_get_nodes_coordinates_interface), deferred :: get_nodes_coordinates
     
     ! Set IDs-related TBPs
-    procedure(cell_get_set_id_interface)            , deferred :: get_set_id
-    procedure(cell_set_set_id_interface)            , deferred :: set_set_id
+    procedure(cell_get_set_id_interface)             , deferred :: get_set_id
+    procedure(cell_set_set_id_interface)             , deferred :: set_set_id
+    ! Disconnected part cell set id 
+    procedure(cell_get_disconnected_set_id_interface), deferred :: get_disconnected_set_id
  
     ! XFEM-related TBPs
     procedure(update_sub_triangulation_interface)   , deferred :: update_sub_triangulation
@@ -332,6 +334,12 @@ module triangulation_names
        class(cell_iterator_t), intent(inout)  :: this
        integer(ip)           , intent(in)     :: set_id
      end subroutine cell_set_set_id_interface
+     
+     function cell_get_disconnected_set_id_interface ( this )
+       import :: ip, cell_iterator_t
+       class(cell_iterator_t), intent(in)    :: this
+       integer(ip) :: cell_get_disconnected_set_id_interface
+     end function cell_get_disconnected_set_id_interface
 
      subroutine update_sub_triangulation_interface( this )
        import :: cell_iterator_t
@@ -837,6 +845,7 @@ module triangulation_names
     procedure                            :: get_my_part             => bst_cell_iterator_get_mypart
     procedure                            :: set_set_id              => bst_cell_iterator_set_set_id
     procedure                            :: get_set_id              => bst_cell_iterator_get_set_id
+    procedure                            :: get_disconnected_set_id => bst_cell_iterator_get_disconnected_set_id
     procedure                            :: get_num_vefs            => bst_cell_iterator_get_num_vefs
     procedure                            :: get_num_nodes           => bst_cell_iterator_get_num_nodes
     procedure                            :: get_node_gid            => bst_cell_iterator_get_node_gid
@@ -982,13 +991,15 @@ module triangulation_names
      procedure, non_overridable, private :: allocate_cells_mypart               => bst_allocate_cells_mypart
      procedure, non_overridable, private :: fill_local_cells_mypart             => bst_fill_local_cells_mypart
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
+     procedure, non_overridable, private :: allocate_disconnected_cells_set     => bst_allocate_disconnected_cells_set
      procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
      procedure, non_overridable, private :: fill_disconnected_cells_set         => bst_fill_disconnected_cells_set
      procedure, non_overridable, private :: free_ptr_vefs_x_cell                => bst_free_ptr_vefs_x_cell
      procedure, non_overridable, private :: free_lst_vefs_gids                  => bst_free_lst_vefs_gids 
      procedure, non_overridable, private :: free_cells_ggid                     => bst_free_cells_ggid
      procedure, non_overridable, private :: free_cells_mypart                   => bst_free_cells_mypart
-     procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set
+     procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set 
+     procedure, non_overridable, private :: free_disconnected_cells_set         => bst_free_disconnected_cells_set
      procedure, non_overridable, private :: orient_tet_mesh                     => bst_orient_tet_mesh
 
      ! Private methods to perform nearest neighbor exchange

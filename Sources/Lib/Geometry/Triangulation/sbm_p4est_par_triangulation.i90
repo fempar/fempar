@@ -90,6 +90,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call old_lst_vefs_gids%free()
         call this%clear_refinement_and_coarsening_flags()
         call this%clear_cell_set_ids()
+        call this%clear_disconnected_cell_set_ids() 
         call this%set_up_lst_itfc_vefs()
         !call this%update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%update_local_proper_vefs_actually_on_the_interface()
@@ -115,6 +116,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call old_lst_vefs_gids%free()
         call this%clear_refinement_and_coarsening_flags()
         call this%clear_cell_set_ids()
+        call this%clear_disconnected_cell_set_ids()
         call this%set_up_lst_itfc_vefs()
         !call this%update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%clear_vef_set_ids()
@@ -179,6 +181,7 @@ subroutine p4est_par_triangulation_free ( this)
         call this%improper_vefs_is_ghost%free()
         call this%refinement_and_coarsening_flags%free()
         call this%cell_set_ids%free()
+        call this%disconnected_cell_set_ids%free() 
         call this%proper_vefs_set_ids%free()
         call this%improper_vefs_set_ids%free()
         call this%new_vef_set_ids%free()
@@ -273,6 +276,22 @@ subroutine p4est_par_triangulation_free ( this)
   call this%not_enabled_error()
 #endif
 end subroutine p4est_par_triangulation_free
+
+subroutine p4est_par_triangulation_clear_disconnected_cell_set_ids(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(inout) :: this
+  integer(ip) :: istat
+  class(environment_t), pointer :: environment
+#ifdef ENABLE_P4EST
+  environment => this%get_environment()
+  if (environment%am_i_l1_task()) then
+    call this%disconnected_cell_set_ids%resize(0)
+    call this%disconnected_cell_set_ids%resize(this%get_num_cells(), 0)
+  end if  
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_par_triangulation_clear_disconnected_cell_set_ids
 
 subroutine p4est_par_triangulation_redistribute ( this )
   implicit none

@@ -92,6 +92,8 @@ module environment_names
      procedure :: free                           => environment_free
      procedure :: print                          => environment_print
      procedure :: created                        => environment_created
+     procedure :: report_times                   => environment_report_times
+
      ! Getters
      procedure :: get_num_levels                 => environment_get_num_levels
      procedure :: get_num_tasks                  => environment_get_num_tasks
@@ -480,6 +482,14 @@ contains
 
   end subroutine environment_free
 
+  subroutine environment_report_times ( this, show_header, luout )
+    implicit none 
+    class(environment_t), intent(inout) :: this
+    logical, intent(in), optional      :: show_header 
+    integer(ip), intent(in), optional  :: luout
+    call this%l1_context%report_times(show_header, luout)
+  end subroutine environment_report_times
+ 
   !=============================================================================
   recursive subroutine environment_print ( this )
     implicit none 
@@ -728,7 +738,7 @@ contains
        num_snd, list_snd, snd_ptrs, pack_idx,   &
        alpha, beta, x, y)
     implicit none
-    class(environment_t), intent(in) :: this
+    class(environment_t), intent(inout) :: this
 
     ! Control info to receive
     integer(ip)             , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)

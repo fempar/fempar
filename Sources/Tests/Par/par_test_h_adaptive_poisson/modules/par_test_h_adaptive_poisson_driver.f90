@@ -321,7 +321,7 @@ end subroutine free_timers
     do i = 1, this%test_params%get_num_refinements() 
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
-      !call this%set_cells_set_ids()
+      call this%set_cells_set_ids()
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do

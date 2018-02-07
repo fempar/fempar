@@ -145,11 +145,9 @@ contains
     implicit none
     integer(imp), intent(in)    :: lbyts
 
-!!$OMP CRITICAL (memor_lock)
     mecur = mecur+lbyts
     memax = max(memax,mecur)
     meall = meall+1
-!!$OMP END CRITICAL (memor_lock)
 
   end subroutine memsum
 
@@ -158,10 +156,8 @@ contains
     implicit none
     integer(imp), intent(in)    :: lbyts
 
-!!$OMP CRITICAL (memor_lock)
     mecur = mecur-lbyts
     medea = medea+1
-!!$OMP END CRITICAL (memor_lock)
 
   end subroutine memsub
 

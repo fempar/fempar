@@ -127,6 +127,13 @@ subroutine bst_allocate_cells_set (this)
   call memalloc ( this%num_local_cells + this%num_ghost_cells, this%cells_set, __FILE__, __LINE__ )
 end subroutine bst_allocate_cells_set
 
+subroutine bst_allocate_disconnected_cells_set (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  call this%free_disconnected_cells_set()
+  call memalloc ( this%num_local_cells + this%num_ghost_cells, this%disconnected_cells_set_ids, __FILE__, __LINE__ )
+end subroutine bst_allocate_disconnected_cells_set
+
 subroutine bst_fill_cells_set (this, cells_set)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
@@ -196,6 +203,12 @@ subroutine bst_free_cells_set (this)
   class(base_static_triangulation_t), intent(inout) :: this
   if (allocated (this%cells_set)) call memfree ( this%cells_set, __FILE__, __LINE__ )
 end subroutine bst_free_cells_set
+
+subroutine bst_free_disconnected_cells_set (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  if (allocated (this%disconnected_cells_set_ids)) call memfree ( this%disconnected_cells_set_ids, __FILE__, __LINE__ )
+end subroutine bst_free_disconnected_cells_set
 
 subroutine bst_orient_tet_mesh(this,lst_vefs_gids_ghost_extended)
   implicit none
@@ -883,6 +896,7 @@ subroutine bst_print ( this )
         call this%free_cells_ggid()
         call this%free_cells_mypart() 
         call this%free_cells_set()
+        call this%free_disconnected_cells_set()
      
         ! Free vef-related data
         call this%free_vefs_ggid()

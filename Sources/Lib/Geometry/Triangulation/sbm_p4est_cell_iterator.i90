@@ -105,6 +105,14 @@ function p4est_cell_iterator_get_set_id(this)
   p4est_cell_iterator_get_set_id = this%p4est_triangulation%cell_set_ids%get(this%get_gid())
 end function p4est_cell_iterator_get_set_id
 
+function p4est_cell_iterator_get_disconnected_set_id(this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_cell_iterator_get_disconnected_set_id
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  p4est_cell_iterator_get_disconnected_set_id = this%p4est_triangulation%disconnected_cell_set_ids%get(this%get_gid())
+end function p4est_cell_iterator_get_disconnected_set_id
+
 function p4est_cell_iterator_get_level(this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this

@@ -15,15 +15,15 @@ then
     if [ -f "$TEST_BINARY_PATH" ]
     then
 
-	for order in 1 2
+	for order in 1
 	do  
             if [ $order -eq 1 ] 
             then 
 		for refinement_pattern in even_cells
 		do 
-		    for num_refinements in `seq 3 4`
+		    for num_refinements in 3
 		    do 
-			for num_parts in `seq 8 10` 
+			for num_parts in 9 
 			do 
 			    num_tasks=`expr "$num_parts" + 1` 
 			    echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
@@ -46,7 +46,7 @@ then
             else 
                 # TESTING high order h_adaptivity for a fixed case 
 		num_tasks=6 
-		num_refinements=4
+		num_refinements=3
 		refinement_pattern=even_cells 
 
 		echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"

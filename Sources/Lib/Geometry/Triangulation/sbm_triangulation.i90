@@ -727,7 +727,7 @@ subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this )
      end if
   end do
 
-  ! Communicate to let ghosts know about the disconnected subcell id 
+  ! Fill disconnected cells set 
   call this%fill_disconnected_cells_set( disconnected_cells_set_id ) 
 
   ! Free data 
@@ -741,7 +741,6 @@ subroutine triangulation_generate_dual_graph(this, dual_graph)
   type(list_t)          , intent(inout) :: dual_graph
 
   class(cell_iterator_t), allocatable :: cell
-  class(environment_t), pointer :: environment 
   type(list_iterator_t)               :: adjacent_elements
   type(list_iterator_t)               :: aux_adjacent_elements 
   class(vef_iterator_t), allocatable  :: vef 
@@ -750,6 +749,8 @@ subroutine triangulation_generate_dual_graph(this, dual_graph)
   integer(ip)                         :: ivef_within_cell 
   integer(ip), allocatable            :: current_position(:) 
 
+  assert ( this%environment%am_i_l1_task() )
+  
   ! Build graph: elements are vertices, edges link elements that share a facet 
   call this%create_cell_iterator(cell_around_vef)
   call this%create_vef_iterator(vef)
@@ -757,7 +758,12 @@ subroutine triangulation_generate_dual_graph(this, dual_graph)
 
   ! Fill dual_graph pointer  
   do while ( .not. vef%has_finished() ) 
-     if ( (.not. vef%is_at_interface() ) .and. vef%is_local() .and. vef%is_facet() .and. vef%get_num_cells_around() == 2 ) then 
+     
+     if ( (.not. vef%is_facet()) .or. (vef%is_at_interface()) .or. (.not. vef%is_local()) ) then 
+     call vef%next(); cycle 
+     end if 
+     
+     if ( vef%is_proper() ) then 
         do icell_around = 1, vef%get_num_cells_around() 
            call vef%get_cell_around(icell_around, cell_around_vef) 
            if ( cell_around_vef%is_local() ) then 
@@ -765,7 +771,7 @@ subroutine triangulation_generate_dual_graph(this, dual_graph)
            end if
         end do
         ! Add improper to proper coupling in both directions to achieve an undirected graph 
-     elseif ( (.not. vef%is_at_interface() ) .and. vef%is_local() .and. vef%is_facet() .and. (.not. vef%is_proper()) ) then
+     elseif (.not. vef%is_proper()) then
         call vef%get_cell_around(1, cell_around_vef) 
         if ( cell_around_vef%is_local() ) then 
            call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
@@ -783,6 +789,9 @@ subroutine triangulation_generate_dual_graph(this, dual_graph)
 
   call memalloc( dual_graph%get_num_pointers(), current_position, __FILE__, __LINE__ ) 
   current_position = 0
+  
+  ! Fill undirected dual graph 
+  
   ! Fill dual graph list   
   call this%create_cell_iterator(cell)   
   do while ( .not. cell%has_finished() ) 
@@ -818,6 +827,8 @@ subroutine triangulation_generate_dual_graph(this, dual_graph)
      call cell%next()
   end do
 
+  call this%free_cell_iterator(cell_around_vef)
+  call this%free_vef_iterator(vef)
 end subroutine triangulation_generate_dual_graph
 
 recursive subroutine triangulation_depth_first_search_algorithm(this, icell, dual_graph, disconnected_part_id, disconnected_cells_set_id)

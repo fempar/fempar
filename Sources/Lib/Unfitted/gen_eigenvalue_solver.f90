@@ -238,12 +238,12 @@ function gen_eigenvalue_solver_chol_solve_lapack(this) result (stat)
   ! TODO @fverdugo FEMPAT PRIORITY HIGH EFFORT LOW
   ! How to avoid implicit interface warning?
   ! How to know if we have to call the double or single precision version?
-!#ifdef ENABLE_LAPACK
+#ifdef ENABLE_LAPACK
   call DSYGV(1,'N','L',this%N,this%A,this%N,this%B,this%N,this%lambdas(:,1),this%work,this%lwork,stat)
-!#else
-!  write (0,*) 'Error: gen_eigenvalue_solver.f90 was not compiled with -DENABLE_LAPACK.'
-!  check(.false.)
-!#endif
+#else
+  write (0,*) 'Error: gen_eigenvalue_solver.f90 was not compiled with -DENABLE_LAPACK.'
+  check(.false.)
+#endif
 
 end function gen_eigenvalue_solver_chol_solve_lapack
 
@@ -296,13 +296,13 @@ function gen_eigenvalue_solver_qz_solve_lapack(this) result (stat)
   ! TODO @fverdugo FEMPAT PRIORITY HIGH EFFORT LOW
   ! How to avoid implicit interface warning?
   ! How to know if we have to call the double or single precision version?
-!#ifdef ENABLE_LAPACK
+#ifdef ENABLE_LAPACK
   call DGGEV('N','N',this%N,this%A,this%N,this%B,this%N,this%alphar,this%alphai,this%beta,&
   this%vl,this%ldvl,this%vr,this%ldvr,this%work,this%lwork,stat)
-!#else
-!  write (0,*) 'Error: gen_eigenvalue_solver.f90 was not compiled with -DENABLE_LAPACK.'
-!  check(.false.)
-!#endif
+#else
+  write (0,*) 'Error: gen_eigenvalue_solver.f90 was not compiled with -DENABLE_LAPACK.'
+  check(.false.)
+#endif
 
   ! Compute the lambdas
   ! TODO @fverdugo FEMPAT PRIORITY HIGH EFFORT LOW

@@ -234,7 +234,7 @@ contains
        &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
        &                                          alpha, beta, x, y)
     implicit none
-    class(serial_context_t), intent(in) :: this
+    class(serial_context_t), intent(inout) :: this
     integer(ip)             , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
     integer(ip)             , intent(in) :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
     integer(ip)             , intent(in) :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)

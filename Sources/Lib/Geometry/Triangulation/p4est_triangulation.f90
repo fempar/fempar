@@ -48,10 +48,14 @@ module p4est_triangulation_names
   use std_vector_point_names
   use FPL
   use hash_table_names
-  use mpi
   use allocatable_array_names 
-  
+#ifdef MPI_MOD
+  use mpi
+#endif
   implicit none
+#ifdef MPI_H
+  include 'mpif.h'
+#endif
 # include "debug.i90"
   private
   
@@ -325,6 +329,7 @@ module p4est_triangulation_names
     procedure                            :: get_reference_fe        => p4est_cell_iterator_get_reference_fe
     procedure                            :: get_reference_fe_id     => p4est_cell_iterator_get_reference_fe_id
     procedure                            :: get_set_id              => p4est_cell_iterator_get_set_id
+    procedure                            :: get_disconnected_set_id => p4est_cell_iterator_get_disconnected_set_id
     procedure                            :: set_set_id              => p4est_cell_iterator_set_set_id
     procedure                            :: get_level               => p4est_cell_iterator_get_level
     procedure                            :: get_num_vefs            => p4est_cell_iterator_get_num_vefs
@@ -568,6 +573,7 @@ module p4est_triangulation_names
     procedure, private                          :: p4est_par_triangulation_create
     generic                                     :: create                                           => p4est_par_triangulation_create
     procedure                                   :: free                                             => p4est_par_triangulation_free 
+    procedure                                   :: clear_disconnected_cell_set_ids                  => p4est_par_triangulation_clear_disconnected_cell_set_ids
     procedure                                   :: redistribute                                     => p4est_par_triangulation_redistribute
     procedure                                   :: update_migration_control_data                    => p4est_par_triangulation_update_migration_control_data
     procedure                                   :: migrate_cell_set_ids                             => p4est_par_triangulation_migrate_cell_set_ids

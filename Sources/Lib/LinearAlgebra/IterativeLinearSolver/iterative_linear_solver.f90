@@ -70,6 +70,7 @@ module iterative_linear_solver_names
      procedure :: free                            => iterative_linear_solver_free
      procedure :: apply                           => iterative_linear_solver_apply
      procedure :: apply_add                       => iterative_linear_solver_apply_add
+     procedure :: solve                           => iterative_linear_solver_apply
      procedure :: print_convergence_history       => iterative_linear_solver_print_convergence_history
      procedure :: set_type_from_pl                => iterative_linear_solver_set_type_from_pl
      procedure :: set_parameters_from_pl          => iterative_linear_solver_set_parameters_from_pl

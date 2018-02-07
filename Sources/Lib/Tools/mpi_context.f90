@@ -113,6 +113,14 @@ module mpi_context_names
 
   ! Types
   public :: mpi_context_t
+  
+  interface
+     subroutine report_bindings(Fcomm) bind(c,name='report_bindings')
+       use iso_c_binding
+       implicit none
+       integer, value, intent(in) :: Fcomm
+     end subroutine report_bindings
+  end interface
 
 contains
 
@@ -166,6 +174,9 @@ contains
     call mpi_comm_rank(this%icontxt,current_task,istat) ; check(istat == mpi_success)
     call this%set_current_task(current_task)
     call this%set_num_tasks(num_tasks)
+#ifdef DEBUG
+    call report_bindings(this%icontxt)
+#endif
   end subroutine mpi_context_create
 
   !=============================================================================
@@ -430,7 +441,7 @@ contains
        recv_rank = this%get_num_tasks() - subcontxt2%get_num_tasks()
     end if
 
-    if(this%get_current_task()==send_rank) then
+    if(this%get_current_task()==send_rank.and.recv_rank<this%get_num_tasks()) then
        call mpi_send(condition, 1, mpi_context_lg, recv_rank,  &
                & mpi_context_tag, this%icontxt, istat); check( istat == mpi_success )
     else if(this%get_current_task()==recv_rank) then
@@ -457,7 +468,7 @@ contains
        &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
        &                                          alpha, beta, x, y)
     implicit none
-    class(mpi_context_t), intent(in) :: this
+    class(mpi_context_t), intent(inout) :: this
 
     ! Control info to receive
     integer(ip)             , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
