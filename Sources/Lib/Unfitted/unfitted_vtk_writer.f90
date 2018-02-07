@@ -1071,7 +1071,7 @@ contains
 
     num_dime       = triangulation%get_num_dims()
 
-    !call fe_space%set_up_facet_integration()
+    !call fe_space%serial_fe_space_t%set_up_facet_integration()
   
     call fe_space%create_fe_facet_iterator(fe_facet)
 

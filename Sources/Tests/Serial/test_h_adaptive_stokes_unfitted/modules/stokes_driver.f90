@@ -545,8 +545,9 @@ contains
                                conditions               = this%conditions, &
                                reference_fes            = this%reference_fes,&
                                set_ids_to_reference_fes = set_ids_to_reference_fes)
-    call this%fe_space%set_up_cell_integration()    
-    call this%fe_space%set_up_facet_integration()
+    call this%fe_space%set_up_cell_integration()
+    ! TODO: this is hack. The fe_facet created inside set_up_facet_integration() has to be the standard one (not the unfitted)
+    call this%fe_space%serial_fe_space_t%set_up_facet_integration()
     
   end subroutine setup_fe_space
   
