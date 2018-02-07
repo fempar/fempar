@@ -620,9 +620,10 @@ module triangulation_names
      type(list_t)                          :: vefs_object
      type(list_t)                          :: faces_object
      type(list_t)                          :: parts_object
-     integer(ip)                           :: num_subparts = 0    ! num of subparts around part (including those subparts which are local)
-     type(list_t)                          :: subparts_object        ! num and list of subparts GIDs around each coarse n_face
-     type(hash_table_ip_ip_t)              :: g2l_subparts           ! Translator among the GIDs of subparts and LIDs
+     integer(ip)                           :: max_num_disconnected_parts = 0 ! Max number of different disconnected subparts among procs.  
+     integer(ip)                           :: num_subparts = 0               ! num of subparts around part (including those subparts which are local)
+     type(list_t)                          :: subparts_object                ! num and list of subparts GIDs around each coarse n_face
+     type(hash_table_ip_ip_t)              :: g2l_subparts                   ! Translator among the GIDs of subparts and LIDs
      type(coarse_triangulation_t), pointer :: coarse_triangulation => NULL()
      
      ! Scratch data required for non-conforming triangulations
@@ -723,6 +724,11 @@ module triangulation_names
      procedure, non_overridable, private :: fetch_my_part_id_proper_vefs_on_non_owner_cells           => t_fetch_my_part_id_proper_vefs_on_non_owner_cells
      procedure, non_overridable, private :: free_non_conforming_scratch_data                          => triangulation_free_non_conforming_scratch_data
      
+     ! Private methods for disconnected parts identification 
+     procedure, non_overridable, private :: allocate_and_fill_disconnected_cells_set_id => triangulation_allocate_and_fill_disconnected_cells_set_id 
+     procedure, non_overridable, private :: generate_dual_graph                         => triangulation_generate_dual_graph
+     procedure, non_overridable, private :: depth_first_search_algorithm                => triangulation_depth_first_search_algorithm
+     procedure(fill_disconnected_cells_set_interface), private, deferred :: fill_disconnected_cells_set
   end type triangulation_t
   
   abstract interface
@@ -773,6 +779,12 @@ module triangulation_names
        class(triangulation_t), intent(in) :: this
        integer(ip) :: get_num_reference_fes_interface
      end function get_num_reference_fes_interface
+     
+     subroutine fill_disconnected_cells_set_interface ( this, disconnected_cells_set ) 
+     import :: triangulation_t, ip 
+     class(triangulation_t), intent(inout)   :: this
+     integer(ip)             , intent(in)    :: disconnected_cells_set(:)
+     end subroutine fill_disconnected_cells_set_interface 
   end interface
   
   ! Parameters to define vef_type. Observe that
@@ -912,10 +924,11 @@ module triangulation_names
     
      integer(ip)                           :: num_vertices
      
-     integer(igp), allocatable             :: cells_ggid(:)       ! Num local cells + num ghost cells
-     integer(ip) , allocatable             :: cells_mypart(:)     ! Num local cells + num ghost cells
-     integer(ip) , allocatable             :: cells_set(:)        ! Num local cells + num ghost cells
-     integer(ip) , allocatable             :: ptr_vefs_x_cell(:)  ! Num local cells + num ghost cells + 1
+     integer(igp), allocatable             :: cells_ggid(:)                 ! Num local cells + num ghost cells
+     integer(ip) , allocatable             :: cells_mypart(:)               ! Num local cells + num ghost cells
+     integer(ip) , allocatable             :: cells_set(:)                  ! Num local cells + num ghost cells
+     integer(ip) , allocatable             :: disconnected_cells_set_ids(:) ! Num local cells + num ghost cells 
+     integer(ip) , allocatable             :: ptr_vefs_x_cell(:)            ! Num local cells + num ghost cells + 1
      integer(ip) , allocatable             :: lst_vefs_gids(:)
  
      
@@ -970,6 +983,7 @@ module triangulation_names
      procedure, non_overridable, private :: fill_local_cells_mypart             => bst_fill_local_cells_mypart
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
      procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
+     procedure, non_overridable, private :: fill_disconnected_cells_set         => bst_fill_disconnected_cells_set
      procedure, non_overridable, private :: free_ptr_vefs_x_cell                => bst_free_ptr_vefs_x_cell
      procedure, non_overridable, private :: free_lst_vefs_gids                  => bst_free_lst_vefs_gids 
      procedure, non_overridable, private :: free_cells_ggid                     => bst_free_cells_ggid

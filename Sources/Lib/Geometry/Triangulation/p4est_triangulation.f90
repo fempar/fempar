@@ -466,6 +466,7 @@ module p4est_triangulation_names
     type(std_vector_logical_t)             :: improper_vefs_is_ghost
     type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
     type(std_vector_integer_ip_t)          :: cell_set_ids
+    type(std_vector_integer_ip_t)          :: disconnected_cell_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: cell_myparts
@@ -501,6 +502,7 @@ module p4est_triangulation_names
     procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable  :: clear_cell_set_ids                                 => p4est_bt_clear_cell_set_ids
     procedure                                    :: fill_cells_set                                     => p4est_bt_fill_cells_set
+    procedure, private        , non_overridable  :: fill_disconnected_cells_set                        => p4est_bt_fill_disconnected_cells_set
     procedure, private        , non_overridable  :: clear_vef_set_ids                                  => p4est_bt_clear_vef_set_ids
     procedure, private        , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import
     procedure, private, nopass, non_overridable  :: generate_non_consecutive_vef_ggid                  => p4est_bt_generate_non_consecutive_vef_ggid

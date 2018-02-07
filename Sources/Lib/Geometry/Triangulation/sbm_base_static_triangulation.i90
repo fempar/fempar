@@ -147,6 +147,26 @@ subroutine bst_fill_cells_set (this, cells_set)
                                              this%cells_set)
 end subroutine bst_fill_cells_set
 
+subroutine bst_fill_disconnected_cells_set (this, disconnected_cells_set)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(ip)                       , intent(in)    :: disconnected_cells_set(:)
+  
+  assert ( size(disconnected_cells_set) == this%num_local_cells )
+  this%disconnected_cells_set_ids(1:this%num_local_cells) = disconnected_cells_set
+  if(this%environment%get_l1_size()>1) &
+    call this%environment%l1_neighbours_exchange ( this%cell_import%get_num_neighbours(), &
+                                             this%cell_import%get_neighbours_ids(),    &
+                                             this%cell_import%get_rcv_ptrs(),          &
+                                             this%cell_import%get_rcv_leids(),         &
+                                             this%cell_import%get_num_neighbours(),    &
+                                             this%cell_import%get_neighbours_ids(),    &
+                                             this%cell_import%get_snd_ptrs(),          &
+                                             this%cell_import%get_snd_leids(),         &
+                                             this%disconnected_cells_set_ids,          & 
+                                             this%disconnected_cells_set_ids)
+end subroutine bst_fill_disconnected_cells_set
+
 subroutine bst_free_ptr_vefs_x_cell (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this

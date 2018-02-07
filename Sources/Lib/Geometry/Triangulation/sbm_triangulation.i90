@@ -683,6 +683,9 @@ subroutine triangulation_compute_vefs_and_parts_object(this)
   integer(ip), allocatable :: perm_itfc_vefs(:)
 
   assert ( this%environment%am_i_l1_task() )
+  
+  ! Allocate and fill disconnected cells set identifiers 
+  call this%allocate_and_fill_disconnected_cells_set_id() 
 
   ! Subparts itinerary
   if ( this%is_conforming() ) then
@@ -701,6 +704,142 @@ subroutine triangulation_compute_vefs_and_parts_object(this)
   call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
 end subroutine triangulation_compute_vefs_and_parts_object
 
+subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this ) 
+  implicit none 
+  class(triangulation_t), intent(inout) :: this
+  type(list_t)             :: dual_graph
+  integer(ip)              :: icell 
+  integer(ip)              :: disconnected_part_id 
+  integer(ip), allocatable :: disconnected_cells_set_id(:) 
+
+  call memalloc(this%get_num_local_cells(), disconnected_cells_set_id, __FILE__, __LINE__)
+  disconnected_cells_set_id = 0
+
+  ! Generate dual graph 
+  call this%generate_dual_graph(dual_graph) 
+
+  ! Fill disconnected parts array with recursive depth first search algorithm  
+  disconnected_part_id  = 0 
+  do icell = 1, dual_graph%get_num_pointers()  
+     if ( disconnected_cells_set_id( icell ) < 0 ) then 
+        call this%depth_first_search_algorithm( icell, dual_graph, disconnected_part_id, disconnected_cells_set_id ) 
+        disconnected_part_id  = disconnected_part_id  + 1
+     end if
+  end do
+
+  ! Communicate to let ghosts know about the disconnected subcell id 
+  call this%fill_disconnected_cells_set( disconnected_cells_set_id ) 
+
+  ! Free data 
+  call dual_graph%free() 
+  call memfree(disconnected_cells_set_id, __FILE__, __LINE__ )
+end subroutine triangulation_allocate_and_fill_disconnected_cells_set_id
+
+subroutine triangulation_generate_dual_graph(this, dual_graph) 
+  implicit none 
+  class(triangulation_t), intent(inout) :: this
+  type(list_t)          , intent(inout) :: dual_graph
+
+  class(cell_iterator_t), allocatable :: cell
+  class(environment_t), pointer :: environment 
+  type(list_iterator_t)               :: adjacent_elements
+  type(list_iterator_t)               :: aux_adjacent_elements 
+  class(vef_iterator_t), allocatable  :: vef 
+  class(cell_iterator_t), allocatable :: cell_around_vef 
+  integer(ip)                         :: icell_around 
+  integer(ip)                         :: ivef_within_cell 
+  integer(ip), allocatable            :: current_position(:) 
+
+  ! Build graph: elements are vertices, edges link elements that share a facet 
+  call this%create_cell_iterator(cell_around_vef)
+  call this%create_vef_iterator(vef)
+  call dual_graph%create( this%get_num_local_cells() )
+
+  ! Fill dual_graph pointer  
+  do while ( .not. vef%has_finished() ) 
+     if ( (.not. vef%is_at_interface() ) .and. vef%is_local() .and. vef%is_facet() .and. vef%get_num_cells_around() == 2 ) then 
+        do icell_around = 1, vef%get_num_cells_around() 
+           call vef%get_cell_around(icell_around, cell_around_vef) 
+           if ( cell_around_vef%is_local() ) then 
+              call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
+           end if
+        end do
+        ! Add improper to proper coupling in both directions to achieve an undirected graph 
+     elseif ( (.not. vef%is_at_interface() ) .and. vef%is_local() .and. vef%is_facet() .and. (.not. vef%is_proper()) ) then
+        call vef%get_cell_around(1, cell_around_vef) 
+        if ( cell_around_vef%is_local() ) then 
+           call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
+        end if
+        call vef%get_improper_cell_around(1, cell_around_vef) 
+        if ( cell_around_vef%is_local() ) then 
+           call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
+        end if
+     end if
+     call vef%next() 
+  end do
+
+  call dual_graph%calculate_header()
+  call dual_graph%allocate_list_from_pointer()
+
+  call memalloc( dual_graph%get_num_pointers(), current_position, __FILE__, __LINE__ ) 
+  current_position = 0
+  ! Fill dual graph list   
+  call this%create_cell_iterator(cell)   
+  do while ( .not. cell%has_finished() ) 
+     if ( cell%is_local() ) then 
+        adjacent_elements = dual_graph%create_iterator(cell%get_gid())
+        do ivef_within_cell = 1, cell%get_num_vefs() 
+           call cell%get_vef(ivef_within_cell, vef) 
+           ! Proper to proper coupling
+           if ( vef%is_facet() .and. vef%get_num_cells_around()==2 ) then 
+              do icell_around = 1, vef%get_num_cells_around() 
+                 call vef%get_cell_around(icell_around, cell_around_vef) 
+                 if ( cell_around_vef%get_gid() /= cell%get_gid() .and. cell_around_vef%is_local() ) then 
+                    call adjacent_elements%set_from_current(current_position(cell%get_gid()), cell_around_vef%get_gid())
+                    current_position(cell%get_gid()) = current_position(cell%get_gid()) + 1
+                 end if
+              end do
+           elseif ( vef%is_facet() .and. (.not. vef%is_proper()) ) then
+              ! Add improper to proper coupling 
+              assert( vef%get_num_improper_cells_around() == 1 ) 
+              call vef%get_improper_cell_around(1, cell_around_vef) 
+              if ( cell_around_vef%get_gid() /= cell%get_gid() .and. cell_around_vef%is_local() ) then 
+                 call adjacent_elements%set_from_current(current_position(cell%get_gid()),cell_around_vef%get_gid())
+                 current_position(cell%get_gid()) = current_position(cell%get_gid()) + 1
+                 ! Add inverse coupling 
+                 aux_adjacent_elements = dual_graph%create_iterator(cell_around_vef%get_gid())
+                 call aux_adjacent_elements%set_from_current(current_position(cell_around_vef%get_gid()), cell%get_gid() ) 
+                 current_position(cell_around_vef%get_gid()) = current_position(cell_around_vef%get_gid()) + 1  
+              end if
+           end if
+
+        end do
+     end if
+     call cell%next()
+  end do
+
+end subroutine triangulation_generate_dual_graph
+
+recursive subroutine triangulation_depth_first_search_algorithm(this, icell, dual_graph, disconnected_part_id, disconnected_cells_set_id)
+  implicit none 
+  class(triangulation_t)  , intent(inout)  :: this
+  integer(ip)             , intent(in)     :: icell 
+  type(list_t)            , intent(in)     :: dual_graph
+  integer(ip)             , intent(in)     :: disconnected_part_id  
+  integer(ip), allocatable, intent(inout)  :: disconnected_cells_set_id(:)
+
+  type(list_iterator_t) :: adjacent_elements 
+
+  disconnected_cells_set_id(icell) = disconnected_part_id 
+  adjacent_elements = dual_graph%create_iterator(icell) 
+  do while ( .not. adjacent_elements%is_upper_bound() ) 
+     if ( disconnected_cells_set_id(adjacent_elements%get_current()) == 0 ) then 
+        call this%depth_first_search_algorithm( adjacent_elements%get_current(), dual_graph, disconnected_part_id, disconnected_cells_set_id )
+     end if
+     call adjacent_elements%next() 
+  end do
+
+end subroutine triangulation_depth_first_search_algorithm
 
 subroutine triangulation_compute_vefs_and_parts_object_body(this, parts_itfc_vefs, perm_itfc_vefs, parts_object, vefs_object)
   implicit none
@@ -1158,18 +1297,18 @@ subroutine triangulation_setup_coarse_triangulation ( this )
      ! lgt1 MPI tasks (recursively) build coarse triangulation
      allocate  ( this%coarse_triangulation, stat = istat )
      check( istat == 0 )
-     call this%coarse_triangulation%create ( environment              = this%environment%get_next_level(), &
-          num_dims               = num_dims, &
-          num_local_cells              = num_local_coarse_cells, &
-          cells_gid                    = coarse_cells_gid, &
-          ptr_vefs_x_cell            = coarse_vefs_displs, &
-          lst_vefs_gids                = lst_coarse_vef_gids, &
-          lst_vefs_dim           = lst_coarse_vef_dim, &
-          num_itfc_cells               = num_itfc_coarse_cells, &
-          lst_itfc_cells               = coarse_dgraph_recv_counts, &
-          ptr_ext_neighs_x_itfc_cell = coarse_dgraph_displs, &
-          lst_ext_neighs_gids          = lextn, &
-          lst_ext_neighs_part_ids      = lextp )
+     call this%coarse_triangulation%create ( environment                = this%environment%get_next_level(), &
+                                             num_dims                   = num_dims, &
+                                             num_local_cells            = num_local_coarse_cells, &
+                                             cells_gid                  = coarse_cells_gid, &
+                                             ptr_vefs_x_cell            = coarse_vefs_displs, &
+                                             lst_vefs_gids              = lst_coarse_vef_gids, &
+                                             lst_vefs_dim               = lst_coarse_vef_dim, &
+                                             num_itfc_cells             = num_itfc_coarse_cells, &
+                                             lst_itfc_cells             = coarse_dgraph_recv_counts, &
+                                             ptr_ext_neighs_x_itfc_cell = coarse_dgraph_displs, &
+                                             lst_ext_neighs_gids        = lextn, &
+                                             lst_ext_neighs_part_ids    = lextp )
   else
      ! L1 tasks do not hold any piece of the coarse triangulation
      nullify(this%coarse_triangulation)
