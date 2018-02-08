@@ -154,80 +154,13 @@ subroutine bst_fill_cells_set (this, cells_set)
                                              this%cells_set)
 end subroutine bst_fill_cells_set
 
-subroutine bst_generate_dual_graph(this, dual_graph) 
-  implicit none 
-  class(base_static_triangulation_t), intent(inout) :: this
-  type(list_t)                      , intent(inout) :: dual_graph
-
-  class(cell_iterator_t), allocatable :: cell
-  type(list_iterator_t)               :: adjacent_elements
-  class(vef_iterator_t), allocatable  :: vef 
-  class(cell_iterator_t), allocatable :: cell_around_vef 
-  integer(ip)                         :: icell, icell_around 
-  integer(ip)                         :: ivef_within_cell 
-
-  assert ( this%environment%am_i_l1_task() )
-
-  ! Build graph: elements are vertices, edges link elements that share a facet 
-  call this%create_cell_iterator(cell_around_vef)
-  call this%create_vef_iterator(vef)
-  call dual_graph%create( this%get_num_local_cells() )
-
-  ! Fill dual_graph pointer  
-  do while ( .not. vef%has_finished() ) 
-
-     if ( .not. vef%is_facet() .or. vef%is_at_interface() ) then 
-        call vef%next(); cycle 
-     end if
-        assert(vef%get_num_cells_around()==2)
-        do icell_around = 1, vef%get_num_cells_around() 
-           call vef%get_cell_around(icell_around, cell_around_vef) 
-           call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
-           assert( cell_around_vef%is_local() )
-        end do
-     call vef%next() 
-  end do
-
-  call dual_graph%calculate_header()
-  call dual_graph%allocate_list_from_pointer()
-
-  ! Fill dual graph list   
-  call this%create_cell_iterator(cell)   
-  do while ( .not. cell%has_finished() ) 
-     if ( cell%is_local() ) then 
-        adjacent_elements = dual_graph%create_iterator(cell%get_gid())
-        do ivef_within_cell = 1, cell%get_num_vefs()         
-           call cell%get_vef(ivef_within_cell, vef)
-           
-           if ( .not. vef%is_facet() .or. vef%is_at_interface() ) then 
-           cycle 
-           end if 
-           
-              assert(vef%get_num_cells_around()==2) 
-              do icell_around = 1, vef%get_num_cells_around() 
-                 call vef%get_cell_around(icell_around, cell_around_vef) 
-                 if ( cell_around_vef%get_gid() /= cell%get_gid() .and. cell_around_vef%is_local() ) then 
-                    call adjacent_elements%set_current(cell_around_vef%get_gid())
-                    call adjacent_elements%next() 
-                 end if
-              end do
-        end do
-     end if
-     call cell%next()
-  end do
-
-  call this%free_cell_iterator(cell)
-  call this%free_cell_iterator(cell_around_vef)
-  call this%free_vef_iterator(vef)
-end subroutine bst_generate_dual_graph
-
-subroutine bst_create_disconnected_cells_set (this)
+subroutine bst_update_disconnected_cells_set (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
   if (allocated( this%disconnected_cells_set_ids )) call memfree( this%disconnected_cells_set_ids, __FILE__, __LINE__) 
   call memalloc( this%get_num_cells(), this%disconnected_cells_set_ids, __FILE__, __LINE__) 
   this%disconnected_cells_set_ids = 0
-end subroutine bst_create_disconnected_cells_set
+end subroutine bst_update_disconnected_cells_set
 
 subroutine bst_fill_disconnected_cells_set (this, disconnected_cells_set)
   implicit none

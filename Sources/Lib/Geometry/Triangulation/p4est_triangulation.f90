@@ -507,9 +507,8 @@ module p4est_triangulation_names
     procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable  :: clear_cell_set_ids                                 => p4est_bt_clear_cell_set_ids
     procedure                                    :: fill_cells_set                                     => p4est_bt_fill_cells_set
-    procedure, private        , non_overridable  :: generate_dual_graph                                => p4est_bt_generate_dual_graph 
-    procedure, private        , non_overridable  :: create_disconnected_cells_set                      => p4est_bt_create_disconnected_cells_set
-    procedure, private        , non_overridable  :: fill_disconnected_cells_set                        => p4est_bt_fill_disconnected_cells_set
+    procedure                 , non_overridable  :: update_disconnected_cells_set                      => p4est_bt_update_disconnected_cells_set
+    procedure                 , non_overridable  :: fill_disconnected_cells_set                        => p4est_bt_fill_disconnected_cells_set
     procedure, private        , non_overridable  :: clear_vef_set_ids                                  => p4est_bt_clear_vef_set_ids
     procedure, private        , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import
     procedure, private, nopass, non_overridable  :: generate_non_consecutive_vef_ggid                  => p4est_bt_generate_non_consecutive_vef_ggid

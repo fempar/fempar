@@ -716,8 +716,8 @@ subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this )
   disconnected_cells_set_id = -1
 
   ! Generate dual graph 
-   call this%generate_dual_graph(dual_graph) 
-
+    call this%generate_dual_graph(dual_graph)
+    
   ! Fill disconnected parts array with recursive depth first search algorithm  
   disconnected_part_id  = 0 
   do icell = 1, dual_graph%get_num_pointers()  
@@ -726,15 +726,207 @@ subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this )
         disconnected_part_id  = disconnected_part_id  + 1
      end if
   end do
-
+  
   ! Fill disconnected cells set 
-  call this%create_disconnected_cells_set() 
-  call this%fill_disconnected_cells_set( disconnected_cells_set_id ) 
+  ! call this%update_disconnected_cells_set() 
+  ! call this%fill_disconnected_cells_set( disconnected_cells_set_id ) 
 
   ! Free data 
   call dual_graph%free() 
   call memfree(disconnected_cells_set_id, __FILE__, __LINE__ )
 end subroutine triangulation_allocate_and_fill_disconnected_cells_set_id
+
+subroutine triangulation_generate_dual_graph(this, dual_graph) 
+  implicit none 
+  class(triangulation_t), intent(inout) :: this
+  type(list_t)          , intent(inout) :: dual_graph
+  integer(ip)                           :: num_requested_shared_nodes 
+
+  class(cell_iterator_t), allocatable :: cell
+  class(vef_iterator_t), allocatable  :: vef 
+  class(cell_iterator_t), allocatable :: cell_around_vef 
+  integer(ip)                         :: icell, icell_around 
+  integer(ip)                         :: ivef_within_cell 
+  type(list_iterator_t)               :: adjacent_elements
+  type(list_iterator_t)               :: aux_adjacent_elements 
+  integer(ip), allocatable            :: current_position(:) 
+  class(environment_t), pointer       :: environment
+
+  integer(ip)                           :: istat 
+  integer(ip)                           :: counter 
+  type(hash_table_ip_ip_t), allocatable :: couplings_counter(:)  
+
+  environment => this%get_environment()
+  assert ( environment%am_i_l1_task() )
+  ! So far coupling through faces. It should depend on the problem. 
+  num_requested_shared_nodes = 2**(this%get_num_dims()-1) 
+
+  ! Build dual graph (V,E): cells become vertices (V) and links (E) between two cells appear 
+  ! if both cells share a requested number of nodes 
+  call this%create_cell_iterator(cell) 
+  call this%create_cell_iterator(cell_around_vef)
+  call this%create_vef_iterator(vef)
+  call dual_graph%create( this%get_num_local_cells() )
+
+  allocate ( couplings_counter(this%get_num_local_cells()), stat=istat ); check(istat==0)  
+  do icell=1, this%get_num_local_cells() 
+     call couplings_counter(icell)%init(this%get_num_local_cells())
+  end do
+  counter=0
+  ! Fill dual_graph pointer  
+  do while ( .not. cell%has_finished() ) 
+     if ( cell%is_local() ) then 
+        do ivef_within_cell = 1, cell%get_num_vefs()
+           call cell%get_vef(ivef_within_cell, vef)
+           if (vef%get_dim() /= 0 ) cycle 
+           do icell_around = 1, vef%get_num_cells_around() 
+              call vef%get_cell_around(icell_around, cell_around_vef) 
+              if ( cell%get_gid() /= cell_around_vef%get_gid() .and. cell_around_vef%is_local() ) then 
+                 call couplings_counter(cell%get_gid())%get( key=cell_around_vef%get_gid(), val=counter, stat=istat) 
+                 if ( istat==key_not_found) then 
+                    counter = 1
+                    call couplings_counter(cell%get_gid())%put( key=cell_around_vef%get_gid(), val=counter, stat=istat); assert(istat==now_stored)
+                 elseif (istat==key_found .and. counter<num_requested_shared_nodes) then 
+                    counter = counter + 1
+                    call couplings_counter(cell%get_gid())%del( key=cell_around_vef%get_gid(), stat=istat); assert(istat==deleted)
+                    call couplings_counter(cell%get_gid())%put( key=cell_around_vef%get_gid(), val=counter, stat=istat); assert(istat==now_stored)
+                 end if
+                 if ( counter == num_requested_shared_nodes ) call dual_graph%sum_to_pointer_index(cell%get_gid(), 1)
+                end if 
+           end do
+
+           ! Add improper-proper and proper-improper coupling (coarse cell does not see improper vertex)  
+           if (.not. vef%is_proper()) then     
+              do icell_around = 1, vef%get_num_improper_cells_around() 
+                 call vef%get_improper_cell_around(icell_around, cell_around_vef) 
+                 if ( cell%get_gid() /= cell_around_vef%get_gid() .and. cell_around_vef%is_local() ) then 
+                    ! Improper to proper coupling            
+                    call couplings_counter(cell%get_gid())%get( key=cell_around_vef%get_gid(), val=counter, stat=istat);
+                    if ( istat==key_not_found) then 
+                       counter = 1
+                       call couplings_counter(cell%get_gid())%put( key=cell_around_vef%get_gid(), val=counter, stat=istat); assert(istat==now_stored)
+                    elseif (istat==key_found .and. counter<num_requested_shared_nodes) then 
+                       counter = counter + 1
+                       call couplings_counter(cell%get_gid())%del( key=cell_around_vef%get_gid(), stat=istat); assert(istat==deleted)
+                       call couplings_counter(cell%get_gid())%put( key=cell_around_vef%get_gid(), val=counter, stat=istat); assert(istat==now_stored)
+                    end if
+                    if ( counter == num_requested_shared_nodes ) call dual_graph%sum_to_pointer_index(cell%get_gid(), 1)
+                    ! Proper to improper coupling 
+                    call couplings_counter(cell_around_vef%get_gid())%get( key=cell%get_gid(), val=counter, stat=istat); 
+                    if ( istat==key_not_found) then 
+                       counter = 1
+                       call couplings_counter(cell_around_vef%get_gid())%put( key=cell%get_gid(), val=counter, stat=istat); assert(istat==now_stored)
+                    elseif (istat==key_found .and. counter<num_requested_shared_nodes) then 
+                       counter = counter + 1
+                       call couplings_counter(cell_around_vef%get_gid())%del( key=cell%get_gid(), stat=istat); assert(istat==deleted)
+                       call couplings_counter(cell_around_vef%get_gid())%put( key=cell%get_gid(), val=counter, stat=istat); assert(istat==now_stored)                      
+                    end if
+                    if ( counter == num_requested_shared_nodes ) call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)
+                 end if
+              end do
+           end if
+        end do
+     end if
+     call cell%next() 
+  end do
+
+  call dual_graph%calculate_header()
+  call dual_graph%allocate_list_from_pointer()
+
+  ! Fill dual graph list   
+  do icell=1, this%get_num_local_cells() 
+     call couplings_counter(icell)%init(this%get_num_local_cells())
+  end do
+  call memalloc( dual_graph%get_num_pointers(), current_position, __FILE__, __LINE__ ) 
+  counter = 0
+  current_position = 0  
+  
+    call cell%first() 
+    do while ( .not. cell%has_finished() ) 
+     if ( cell%is_local() ) then 
+        adjacent_elements = dual_graph%create_iterator(cell%get_gid())
+        do ivef_within_cell = 1, cell%get_num_vefs() 
+           call cell%get_vef(ivef_within_cell, vef)
+           if (vef%get_dim() /= 0 ) cycle
+           do icell_around = 1, vef%get_num_cells_around() 
+              call vef%get_cell_around(icell_around, cell_around_vef) 
+              if ( cell%get_gid() /= cell_around_vef%get_gid() .and. cell_around_vef%is_local() ) then 
+                 call couplings_counter(cell%get_gid())%get( key=cell_around_vef%get_gid(), val=counter, stat=istat); 
+                 if ( istat==key_not_found) then 
+                    counter = 1
+                    call couplings_counter(cell%get_gid())%put( key=cell_around_vef%get_gid(), val=counter, stat=istat); assert(istat==now_stored)
+                 elseif (istat==key_found .and. counter<num_requested_shared_nodes) then 
+                    counter = counter + 1
+                    call couplings_counter(cell%get_gid())%del( key=cell_around_vef%get_gid(), stat=istat); assert(istat==deleted)
+                    call couplings_counter(cell%get_gid())%put( key=cell_around_vef%get_gid(), val=counter, stat=istat); assert(istat==now_stored)
+                 end if
+                    if ( counter == num_requested_shared_nodes ) then 
+                    call adjacent_elements%set_from_current(current_position(cell%get_gid()), cell_around_vef%get_gid())
+                    current_position(cell%get_gid()) = current_position(cell%get_gid()) + 1
+                    end if 
+              end if
+           end do
+
+           ! Add improper-proper and proper-improper coupling (coarse cell does not see improper vertex)  
+           if (.not. vef%is_proper()) then     
+              do icell_around = 1, vef%get_num_improper_cells_around() 
+                 call vef%get_improper_cell_around(icell_around, cell_around_vef) 
+                 if ( cell%get_gid() /= cell_around_vef%get_gid() .and. cell_around_vef%is_local() ) then
+                    ! Improper to proper coupling 
+                    adjacent_elements = dual_graph%create_iterator(cell%get_gid())
+                    call couplings_counter(cell%get_gid())%get( key=cell_around_vef%get_gid(), val=counter, stat=istat); 
+                    if ( istat==key_not_found) then 
+                       counter = 1
+                       call couplings_counter(cell%get_gid())%put( key=cell_around_vef%get_gid(), val=counter, stat=istat); assert(istat==now_stored)
+                    elseif (istat==key_found .and. counter<num_requested_shared_nodes) then 
+                       counter = counter + 1
+                       call couplings_counter(cell%get_gid())%del( key=cell_around_vef%get_gid(), stat=istat); assert(istat==deleted)
+                       call couplings_counter(cell%get_gid())%put( key=cell_around_vef%get_gid(), val=counter, stat=istat); assert(istat==now_stored)
+                    end if
+                       if ( counter == num_requested_shared_nodes ) then
+                       call adjacent_elements%set_from_current(current_position(cell%get_gid()), cell_around_vef%get_gid() ) 
+                       current_position(cell%get_gid()) = current_position(cell%get_gid()) + 1 
+                       end if 
+                    ! Proper to improper coupling 
+                    aux_adjacent_elements = dual_graph%create_iterator(cell_around_vef%get_gid())
+                    call couplings_counter(cell_around_vef%get_gid())%get( key=cell%get_gid(), val=counter, stat=istat); 
+                    if ( istat==key_not_found) then 
+                       counter = 1
+                       call couplings_counter(cell_around_vef%get_gid())%put( key=cell%get_gid(), val=counter, stat=istat); assert(istat==now_stored)
+                    elseif (istat==key_found .and. counter<num_requested_shared_nodes) then 
+                       counter = counter + 1
+                       call couplings_counter(cell_around_vef%get_gid())%del( key=cell%get_gid(), stat=istat); assert(istat==deleted)
+                       call couplings_counter(cell_around_vef%get_gid())%put( key=cell%get_gid(), val=counter, stat=istat); assert(istat==now_stored)
+                    end if
+                    if ( counter == num_requested_shared_nodes ) then
+                       call aux_adjacent_elements%set_from_current(current_position(cell_around_vef%get_gid()), cell%get_gid() ) 
+                       current_position(cell_around_vef%get_gid()) = current_position(cell_around_vef%get_gid()) + 1
+                    end if 
+                 end if
+              end do
+           end if
+        end do
+     end if
+     call cell%next() 
+  end do
+  ! call dual_graph%print(6) 
+
+  do icell=1, this%get_num_local_cells() 
+     call couplings_counter(icell)%free()
+  end do
+  deallocate(couplings_counter,stat=istat); check(istat==0) 
+  
+#ifdef DEBUG  
+  do icell=1, this%get_num_local_cells() 
+     massert( dual_graph%get_sublist_size(icell) == current_position(icell), 'Dual graph has not been filled correctly. ')  
+  end do
+#endif
+  
+  call this%free_cell_iterator(cell)
+  call this%free_cell_iterator(cell_around_vef)
+  call this%free_vef_iterator(vef)
+  call memfree(current_position, __FILE__, __LINE__ ) 
+end subroutine triangulation_generate_dual_graph
 
 recursive subroutine triangulation_depth_first_search_algorithm(this, icell, dual_graph, disconnected_part_id, disconnected_cells_set_id)
   implicit none 
