@@ -1735,6 +1735,21 @@ subroutine p4est_bt_fill_cells_set (this, cells_set)
 #endif        
 end subroutine p4est_bt_fill_cells_set 
 
+function p4est_bt_compute_max_cells_set_id (this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)   :: this
+  integer(ip)                                        :: p4est_bt_compute_max_cells_set_id
+  integer(ip)         , pointer :: p_cell_set_ids(:)
+  class(environment_t), pointer :: environment 
+  
+  p_cell_set_ids => this%cell_set_ids%get_pointer()
+  p4est_bt_compute_max_cells_set_id = maxval(p_cell_set_ids) + 1
+  
+  environment => this%get_environment()
+  call environment%l1_max(p4est_bt_compute_max_cells_set_id) 
+      
+end function p4est_bt_compute_max_cells_set_id 
+
 subroutine p4est_bt_update_disconnected_cells_set (this)
   implicit none
   class(p4est_base_triangulation_t), intent(inout)   :: this

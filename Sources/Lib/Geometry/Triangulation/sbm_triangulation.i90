@@ -704,6 +704,13 @@ subroutine triangulation_compute_vefs_and_parts_object(this)
   call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
 end subroutine triangulation_compute_vefs_and_parts_object
 
+function triangulation_get_max_cell_set_id( this ) 
+  implicit none 
+  class(triangulation_t), intent(inout) :: this
+  integer(ip) :: triangulation_get_max_cell_set_id
+  triangulation_get_max_cell_set_id = this%max_cell_set_id
+end function triangulation_get_max_cell_set_id
+
 subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this ) 
   implicit none 
   class(triangulation_t), intent(inout) :: this
@@ -711,7 +718,9 @@ subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this )
   integer(ip)              :: icell 
   integer(ip)              :: disconnected_part_id 
   integer(ip), allocatable :: disconnected_cells_set_id(:) 
-
+  class(environment_t), pointer       :: environment
+  integer(ip)              :: max_num_different_cell_set_ids 
+      
   call memalloc(this%get_num_local_cells(), disconnected_cells_set_id, __FILE__, __LINE__)
   disconnected_cells_set_id = -1
 
@@ -727,11 +736,14 @@ subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this )
      end if
   end do
   
-  ! Fill disconnected cells set 
-  ! call this%update_disconnected_cells_set() 
-  ! call this%fill_disconnected_cells_set( disconnected_cells_set_id ) 
+   ! Fill disconnected cells set 
+    call this%update_disconnected_cells_set() 
+    call this%fill_disconnected_cells_set( disconnected_cells_set_id ) 
 
-  ! Free data 
+    ! Get max number set_id among processors
+    this%max_cell_set_id = this%compute_max_cells_set_id() 
+    
+  ! Free data
   call dual_graph%free() 
   call memfree(disconnected_cells_set_id, __FILE__, __LINE__ )
 end subroutine triangulation_allocate_and_fill_disconnected_cells_set_id

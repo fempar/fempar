@@ -154,6 +154,17 @@ subroutine bst_fill_cells_set (this, cells_set)
                                              this%cells_set)
 end subroutine bst_fill_cells_set
 
+function bst_compute_max_cells_set_id (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(ip)                                       :: bst_compute_max_cells_set_id
+  class(environment_t), pointer :: environment 
+  
+  bst_compute_max_cells_set_id = maxval(this%cells_set) + 1
+  environment => this%get_environment()
+  call environment%l1_max(bst_compute_max_cells_set_id) 
+end function bst_compute_max_cells_set_id 
+
 subroutine bst_update_disconnected_cells_set (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
