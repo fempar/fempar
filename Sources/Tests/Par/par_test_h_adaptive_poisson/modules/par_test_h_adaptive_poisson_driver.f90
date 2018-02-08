@@ -326,7 +326,7 @@ end subroutine free_timers
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
     
-    call this%triangulation%setup_coarse_triangulation()
+    !call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -636,6 +636,7 @@ end subroutine free_timers
     call this%setup_triangulation()
     call this%timer_triangulation%stop()
 
+    
     call this%timer_fe_space%start()
     call this%setup_reference_fes()
     call this%setup_coarse_fe_handlers()
@@ -646,16 +647,19 @@ end subroutine free_timers
     call this%setup_system()
     call this%assemble_system()
     call this%timer_assemply%stop()
+    
+    call this%write_solution()
 
-    call this%timer_solver_setup%start()
-    call this%setup_solver()
-    call this%timer_solver_setup%stop()
 
-    call this%timer_solver_run%start()
-    call this%solve_system()
-    call this%timer_solver_run%stop()
+    !call this%timer_solver_setup%start()
+    !call this%setup_solver()
+    !call this%timer_solver_setup%stop()
 
-    call this%check_solution()
+    !call this%timer_solver_run%start()
+    !call this%solve_system()
+    !call this%timer_solver_run%stop()
+
+    !call this%check_solution()
     
     !call this%set_cells_for_refinement()
     !call this%triangulation%refine_and_coarsen()
@@ -672,7 +676,7 @@ end subroutine free_timers
     !call this%check_solution()
 
     
-    call this%write_solution()
+    !call this%write_solution()
     call this%free()
   end subroutine run_simulation
   
@@ -792,6 +796,9 @@ end subroutine free_timers
                 call cell%next(); cycle 
              end if
              call cell%get_nodes_coordinates(cell_coordinates)
+             cx = 0.0_rp
+             cy = 0.0_rp 
+             cz = 0.0_rp 
              select case ( this%test_params%get_refinement_pattern_case() ) 
              case ( even_cells ) 
                 if ( (mod(cell%get_gid(),2)==0) )then
@@ -811,8 +818,7 @@ end subroutine free_timers
                    if ( all(is_node_coord_within_inner_region) ) then 
                    call cell%set_for_refinement(); exit 
                    end if 
-                end do node_loop 
-
+                end do node_loop
              case DEFAULT 
                 massert(.false., 'Refinement pattern case selected is not among the options provided: even_cells, inner_region') 
              end select
