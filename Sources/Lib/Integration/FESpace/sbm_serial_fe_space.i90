@@ -3357,6 +3357,7 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   
   call fe_function%create(this)
   fe_function = transformed_fe_function
+  call this%update_hanging_dof_values(fe_function)
     
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
@@ -3523,6 +3524,7 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
     
     call fe_functions(ifunc)%p%create(this)
     call fe_functions(ifunc)%p%copy(transformed_fe_function)
+    call this%update_hanging_dof_values(fe_functions(ifunc)%p)
   
   end do
   

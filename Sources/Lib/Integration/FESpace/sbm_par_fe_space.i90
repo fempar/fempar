@@ -3313,6 +3313,8 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
           call new_fe%next()
         end do
         
+        call this%update_hanging_dof_values(fe_function)
+        
         call this%free_fe_cell_iterator(new_fe)
         call transformed_fe_function%free()
         call memfree(old_nodal_values,__FILE__,__LINE__)
@@ -3810,6 +3812,8 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
             end do 
             call new_fe%next()
           end do
+          
+          call this%update_hanging_dof_values(fe_functions(ifunc)%p)
           
         end do
         
