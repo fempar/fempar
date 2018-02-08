@@ -49,6 +49,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   call this%set_triangulation(triangulation)
   call this%set_num_fields(size(reference_fes))
   call this%allocate_and_fill_reference_fes(reference_fes)
+  call this%allocate_and_fill_set_ids_to_reference_fes(  RESHAPE([(i, i=1,size(reference_fes))], [size(reference_fes),1]) )
   call this%allocate_field_cell_to_ref_fes()
   call this%fill_field_cell_to_ref_fes_same_on_all_cells()
   call this%check_cell_vs_fe_topology_consistency()
@@ -99,6 +100,7 @@ subroutine serial_fe_space_create_different_ref_fes_between_cells( this,        
   call this%set_triangulation(triangulation)
   call this%set_num_fields(size(set_ids_to_reference_fes,1))
   call this%allocate_and_fill_reference_fes(reference_fes)
+  call this%allocate_and_fill_set_ids_to_reference_fes(set_ids_to_reference_fes)
   call this%allocate_field_cell_to_ref_fes()
   call this%fill_field_cell_to_ref_fes_different_ref_fes_between_cells(set_ids_to_reference_fes)
   call this%check_cell_vs_fe_topology_consistency()
@@ -130,6 +132,7 @@ subroutine serial_fe_space_free (this)
   implicit none
   class(serial_fe_space_t)    , intent(inout) :: this
   call this%free_reference_fes()
+  call this%free_set_ids_to_reference_fes()
   call this%free_field_cell_to_ref_fes()
   call this%free_fe_space_type_x_field()
   call this%free_facet_gids()
@@ -197,13 +200,11 @@ subroutine serial_fe_space_allocate_and_fill_fe_space_type_x_field(this)
   class(reference_fe_t), pointer ::reference_fe
   call this%free_fe_space_type_x_field()
   call memalloc ( this%num_fields, this%fe_space_type_x_field, __FILE__, __LINE__ )
-  call this%create_fe_cell_iterator(fe)
-  if ( .not. fe%has_finished() )  then
-    do field_id=1, this%get_num_fields()
-      this%fe_space_type_x_field(field_id) = fe%get_fe_space_type(field_id)
-    end do
-  end if
+  do field_id=1, this%get_num_fields()
+    this%fe_space_type_x_field(field_id) = this%determine_fe_space_type(field_id)
+  end do
 #ifdef DEBUG  
+  call this%create_fe_cell_iterator(fe)
   call fe%next()
   do while ( .not. fe%has_finished())
      do field_id=1, this%get_num_fields()
@@ -211,8 +212,8 @@ subroutine serial_fe_space_allocate_and_fill_fe_space_type_x_field(this)
      end do
      call fe%next()
   end do
-#endif  
   call this%free_fe_cell_iterator(fe)
+#endif  
 end subroutine serial_fe_space_allocate_and_fill_fe_space_type_x_field
 
 subroutine serial_fe_space_free_fe_space_type_x_field(this)
@@ -1372,6 +1373,27 @@ subroutine serial_fe_space_free_reference_fes ( this )
   end if
 end subroutine serial_fe_space_free_reference_fes
 
+!========================================================================================
+subroutine sfs_allocate_and_fill_set_ids_to_reference_fes(this, set_ids_to_reference_fes)
+  implicit none
+  class(serial_fe_space_t)           , intent(inout) :: this
+  integer(ip)                        , intent(in)    :: set_ids_to_reference_fes(:,:)
+  call this%free_set_ids_to_reference_fes()
+  call memalloc ( size(set_ids_to_reference_fes,1), &
+                  size(set_ids_to_reference_fes,2), &
+                  this%set_ids_to_reference_fes, __FILE__, __LINE__ )
+  this%set_ids_to_reference_fes = set_ids_to_reference_fes
+end subroutine sfs_allocate_and_fill_set_ids_to_reference_fes
+
+!========================================================================================
+subroutine sfs_free_set_ids_to_reference_fes(this)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  if ( allocated(this%set_ids_to_reference_fes) ) then
+    call memfree ( this%set_ids_to_reference_fes, __FILE__, __LINE__ )
+  end if
+end subroutine sfs_free_set_ids_to_reference_fes
+
 subroutine serial_fe_space_allocate_field_cell_to_ref_fes ( this )
   implicit none
   class(serial_fe_space_t)          , intent(inout) :: this
@@ -2419,33 +2441,36 @@ function serial_fe_space_get_field_type ( this, field_id )
   class(serial_fe_space_t), target, intent(in) :: this
   integer(ip)                     , intent(in) :: field_id
   character(:), pointer :: serial_fe_space_get_field_type
-  class(fe_cell_iterator_t), allocatable :: fe
-  class(reference_fe_t), pointer :: reference_fe
-
-  call this%create_fe_cell_iterator(fe)
-  reference_fe => fe%get_reference_fe(field_id)
-  serial_fe_space_get_field_type => reference_fe%get_field_type()
-  call this%free_fe_cell_iterator(fe)
+  serial_fe_space_get_field_type => this%reference_fes(this%set_ids_to_reference_fes(field_id,1))%p%get_field_type()
 end function serial_fe_space_get_field_type
+
+function serial_fe_space_determine_fe_space_type(this, field_id)
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip)             , intent(in) :: field_id
+  integer(ip)                          :: serial_fe_space_determine_fe_space_type
+  class(reference_fe_t), pointer       :: reference_fe
+  reference_fe => this%reference_fes(this%set_ids_to_reference_fes(field_id,1))%p
+  if ( reference_fe%get_conformity() .and. reference_fe%get_continuity()  ) then
+    serial_fe_space_determine_fe_space_type = fe_space_type_cg
+  else if ( reference_fe%get_conformity() .and. .not. reference_fe%get_continuity() ) then
+    serial_fe_space_determine_fe_space_type = fe_space_type_dg_conforming
+  else 
+    serial_fe_space_determine_fe_space_type = fe_space_type_dg
+  end if
+end function serial_fe_space_determine_fe_space_type
+
 
 function serial_fe_space_get_num_components ( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this
   integer(ip) :: serial_fe_space_get_num_components
-  class(fe_cell_iterator_t), allocatable :: fe
-  class(reference_fe_t), pointer :: reference_fe
   integer(ip) :: field_id
-
-  call this%create_fe_cell_iterator(fe)
   serial_fe_space_get_num_components = 0
-  if ( .not. fe%has_finished() ) then
-    do field_id = 1, this%get_num_fields()
-     reference_fe => fe%get_reference_fe(field_id)
+  do field_id = 1, this%get_num_fields()
      serial_fe_space_get_num_components = serial_fe_space_get_num_components + &
-          reference_fe%get_num_field_components()
-    end do
-  end if 
-  call this%free_fe_cell_iterator(fe)
+          this%reference_fes(this%set_ids_to_reference_fes(field_id,1))%p%get_num_field_components()
+  end do
 end function serial_fe_space_get_num_components
 
 function serial_fe_space_get_max_num_shape_functions( this )

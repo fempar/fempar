@@ -471,10 +471,11 @@ module fe_space_names
      type(std_vector_integer_ip_t)               :: cell_quadratures_degree
      
      ! Mapping of FEs to reference FE and FEs-related integration containers
+     integer(ip)                   , allocatable :: set_ids_to_reference_fes(:,:)         ! The (num_fields,num_cell_set_ids) table provided by the user to %create()
      type(std_vector_integer_ip_t) , allocatable :: field_cell_to_ref_fes(:)
      type(std_vector_integer_ip_t)               :: max_order_reference_fe_id_x_cell      ! Stores Key=max_order_reference_fe_id for all FEs
      type(hash_table_ip_ip_t)                    :: cell_quadratures_and_maps_position    ! Key = [geo_reference_fe_id,quadrature_degree]
-     type(hash_table_ip_ip_t)                    :: cell_integrators_position      ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
+     type(hash_table_ip_ip_t)                    :: cell_integrators_position             ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
      
      ! Finite Face-related integration containers
      type(std_vector_quadrature_t)               :: facet_quadratures
@@ -533,6 +534,8 @@ module fe_space_names
      procedure, non_overridable          :: allocate_and_fill_reference_fes              => serial_fe_space_allocate_and_fill_reference_fes
      procedure, non_overridable, private :: free_reference_fes                           => serial_fe_space_free_reference_fes
      
+     procedure                           :: allocate_and_fill_set_ids_to_reference_fes   => sfs_allocate_and_fill_set_ids_to_reference_fes
+     procedure                           :: free_set_ids_to_reference_fes                => sfs_free_set_ids_to_reference_fes
      procedure, non_overridable          :: allocate_field_cell_to_ref_fes               => serial_fe_space_allocate_field_cell_to_ref_fes
      procedure, non_overridable, private :: free_field_cell_to_ref_fes                   => serial_fe_space_free_field_cell_to_ref_fes
      procedure, non_overridable          :: fill_field_cell_to_ref_fes_same_on_all_cells => serial_fe_space_fill_field_cell_to_ref_fes_same_on_all_cells
@@ -600,10 +603,11 @@ module fe_space_names
      procedure                 , private :: renum_dofs_block                         => serial_fe_space_renum_dofs_block
  
      ! Getters
-     procedure                           :: get_num_dims                           => serial_fe_space_get_num_dims
+     procedure                           :: get_num_dims                              => serial_fe_space_get_num_dims
      procedure, non_overridable          :: get_num_reference_fes                     => serial_fe_space_get_num_reference_fes
-     procedure, non_overridable          :: get_reference_fe                             => serial_fe_space_get_reference_fe
-     procedure, non_overridable          :: get_field_type                               => serial_fe_space_get_field_type 
+     procedure, non_overridable          :: get_reference_fe                          => serial_fe_space_get_reference_fe
+     procedure, non_overridable          :: get_field_type                            => serial_fe_space_get_field_type 
+     procedure, non_overridable, private :: determine_fe_space_type                   => serial_fe_space_determine_fe_space_type
      procedure, non_overridable          :: get_num_components                        => serial_fe_space_get_num_components
      procedure, non_overridable          :: get_max_num_shape_functions               => serial_fe_space_get_max_num_shape_functions
      procedure, non_overridable          :: get_max_num_dofs_on_a_cell                => serial_fe_space_get_max_num_dofs_on_a_cell
