@@ -1340,7 +1340,11 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   call this%lst_dofs_ggids%resize(this%ptr_dofs_field%get(triangulation%get_num_cells()+1)-1,-1_igp)
   
   call fe%first()
-  num_vefs = fe%get_num_vefs()
+  if ( .not. fe%has_finished() ) then
+    num_vefs = fe%get_num_vefs()
+  else
+    num_vefs = 0
+  end if   
   
   call this%max_part_id_vefs%resize(0) 
   call this%max_part_id_vefs%resize(triangulation%get_num_cells()*num_vefs,0) 
@@ -1663,7 +1667,11 @@ subroutine pfs_compute_exchange_control_data_to_complete_itfc_couplings ( this, 
   end do 
   
   call this%create_fe_cell_iterator(fe)
-  num_vefs = fe%get_num_vefs()
+  if ( .not. fe%has_finished() ) then
+    num_vefs = fe%get_num_vefs()
+  else
+    num_vefs = 0
+  end if  
   call this%free_fe_cell_iterator(fe)
   
   call this%rcv_my_part_id_vefs_complete_itfc_couplings%resize(0)
@@ -1945,7 +1953,11 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   call this%create_fe_cell_iterator(fe) 
-  num_vefs = fe%get_num_vefs()
+  if ( .not. fe%has_finished() ) then
+    num_vefs = fe%get_num_vefs()
+  else
+    num_vefs = 0
+  end if  
   do while(.not. vef%has_finished())
      if ( vef%is_proper() ) then
         touched_neighbours = .false.
