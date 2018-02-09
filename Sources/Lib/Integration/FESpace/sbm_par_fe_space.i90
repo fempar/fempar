@@ -3700,9 +3700,9 @@ subroutine par_fe_space_redistribute( this, fe_function )
       end if 
     else
       if ( this%ptr_dofs_x_fe(field_id+1)%size() > 1 ) then
-      epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid+1)-1
+      epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
       else 
-      epos = old_ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid+1)-1
+      epos = old_ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
       end if 
     end if
     get_new_num_dofs = epos-spos+1
