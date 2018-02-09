@@ -658,6 +658,7 @@ subroutine fe_cell_iterator_set_has_fixed_dofs ( this, field_id )
   integer(ip)            , intent(in)    :: field_id
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: i 
+  assert( .not. this%is_void(field_id) )
   call this%get_field_fe_dofs(field_id, fe_dofs)
   do i=1, size(fe_dofs)
     if ( this%is_fixed_dof(fe_dofs(i)) ) then
@@ -673,6 +674,7 @@ subroutine fe_cell_iterator_set_has_hanging_dofs ( this, field_id )
   integer(ip)              , intent(in)    :: field_id
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: i 
+  assert( .not. this%is_void(field_id) )
   call this%get_field_fe_dofs(field_id, fe_dofs)
   do i=1, size(fe_dofs)
     if ( this%is_hanging_dof(fe_dofs(i)) ) then
