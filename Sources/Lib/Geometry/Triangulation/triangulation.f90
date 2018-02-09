@@ -638,6 +638,40 @@ module triangulation_names
      type(std_vector_integer_ip_t)         :: ptr_ghosts_per_ghost_cell
      type(std_vector_integer_ip_t)         :: lst_ghosts_per_ghost_cell
      type(std_vector_integer_ip_t)         :: rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells 
+     
+     
+     ! Scratch data required for non-conforming triangulations, assuming that 
+     ! there might be more than one subpart per local subdomain
+     type(std_vector_integer_ip_t)              :: num_subparts_vefs
+     type(std_vector_integer_ip_t), allocatable :: lst_subparts_vefwise(:)
+     
+     ! These are the data structures required to perform the "ghost-to-owner" 
+     ! nearest neighbour exchange (i.e., owner processors receive the list of 
+     ! subparts around each vef of its local cells from nearest neighbours)
+     type(std_vector_integer_ip_t)              :: snd_num_subparts_vefs 
+     type(std_vector_integer_ip_t)              :: snd_ptrs_lst_subparts
+     type(std_vector_integer_ip_t)              :: rcv_num_subparts_vefs 
+     type(std_vector_integer_ip_t)              :: rcv_ptrs_lst_subparts
+     type(std_vector_integer_ip_t)              :: lst_subparts_pack_idx
+     type(std_vector_integer_ip_t)              :: lst_subparts_vefs
+     type(std_vector_integer_ip_t)              :: rcv_lst_subparts_vefs
+     type(std_vector_integer_ip_t)              :: ptrs_to_rcv_lst_subparts  
+     
+     ! These are the data structures required to perform the "owner-to-ghost" 
+     ! nearest neighbour exchange (i.e., non-owner processors receive the list of 
+     ! subparts around each vef of the corresponding owner cells from nearest neighbours)
+     type(std_vector_integer_ip_t)              :: snd_ptrs_num_subparts_vefs_owner_to_ghost
+     type(std_vector_integer_ip_t)              :: snd_leids_num_subparts_vefs_owner_to_ghost
+     type(std_vector_integer_ip_t)              :: rcv_ptrs_num_subparts_vefs_owner_to_ghost
+     type(std_vector_integer_ip_t)              :: rcv_num_subparts_vefs_owner_to_ghost
+    
+     type(std_vector_integer_ip_t)              :: snd_ptrs_lst_subparts_owner_to_ghost 
+     type(std_vector_integer_ip_t)              :: lst_subparts_pack_idx_owner_to_ghost 
+     type(std_vector_integer_ip_t)              :: rcv_ptrs_lst_subparts_owner_to_ghost 
+     type(std_vector_integer_ip_t)              :: lst_subparts_vefs_owner_to_ghost
+     type(std_vector_integer_ip_t)              :: rcv_lst_subparts_vefs_owner_to_ghost
+     type(std_vector_integer_ip_t)              :: ptrs_to_rcv_lst_subparts_owner_to_ghost  
+     
  contains  
      ! Will the triangulation_t be ALWAYS conforming? (e.g., no matter 
      ! whether it is transformed, refined, coarsened, etc.)
@@ -693,19 +727,20 @@ module triangulation_names
      procedure, non_overridable :: free_lst_itfc_vefs      => triangulation_free_lst_itfc_vefs
 
      ! Private methods to compute objects
-     procedure, non_overridable          :: get_num_subparts                               => triangulation_get_num_subparts
-     procedure, non_overridable          :: get_subpart_lid                                => triangulation_get_subpart_lid
-     procedure, non_overridable, private :: compute_vefs_and_parts_object                  => triangulation_compute_vefs_and_parts_object
-     procedure, non_overridable, private :: compute_vefs_and_parts_object_body             => triangulation_compute_vefs_and_parts_object_body
-     procedure, non_overridable, private :: compute_parts_itfc_vefs                        => triangulation_compute_parts_itfc_vefs
-     procedure, non_overridable, private :: compute_subparts_itfc_vefs_conforming_mesh     => triangulation_compute_subparts_itfc_vefs_conforming_mesh
-     procedure, non_overridable, private :: compute_subparts_itfc_vefs_non_conforming_mesh => triangulation_compute_subparts_itfc_vefs_non_conforming_mesh
-     procedure, non_overridable, private :: compute_parts_object_from_subparts_object      => triangulation_compute_parts_object_from_subparts_object
-     procedure, non_overridable, private :: compute_part_id_from_subpart_gid               => triangulation_compute_part_id_from_subpart_gid
-     procedure, non_overridable, private :: compute_objects_dim                            => triangulation_compute_objects_dim
-     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => triangulation_compute_objects_neighbours_exchange_data
-     procedure, non_overridable, private :: compute_num_global_objects_and_their_gids      => triangulation_compute_num_global_objs_and_their_gids
-     procedure, non_overridable, private :: free_objects_ggids_and_dim                     => triangulation_free_objects_ggids_and_dim
+     procedure, non_overridable          :: get_num_subparts                                   => triangulation_get_num_subparts
+     procedure, non_overridable          :: get_subpart_lid                                    => triangulation_get_subpart_lid
+     procedure, non_overridable, private :: compute_vefs_and_parts_object                      => triangulation_compute_vefs_and_parts_object
+     procedure, non_overridable, private :: compute_vefs_and_parts_object_body                 => triangulation_compute_vefs_and_parts_object_body
+     procedure, non_overridable, private :: compute_parts_itfc_vefs                            => triangulation_compute_parts_itfc_vefs
+     procedure, non_overridable, private :: compute_subparts_itfc_vefs_conforming_mesh         => triangulation_compute_subparts_itfc_vefs_conforming_mesh
+     procedure, non_overridable, private :: compute_subparts_itfc_vefs_non_conforming_mesh     => triangulation_compute_subparts_itfc_vefs_non_conforming_mesh
+     procedure, non_overridable, private :: compute_subparts_itfc_vefs_non_conforming_mesh_bis => t_compute_subparts_itfc_vefs_non_conforming_mesh_bis
+     procedure, non_overridable, private :: compute_parts_object_from_subparts_object          => triangulation_compute_parts_object_from_subparts_object
+     procedure, non_overridable, private :: compute_part_id_from_subpart_gid                   => triangulation_compute_part_id_from_subpart_gid
+     procedure, non_overridable, private :: compute_objects_dim                                => triangulation_compute_objects_dim
+     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data           => triangulation_compute_objects_neighbours_exchange_data
+     procedure, non_overridable, private :: compute_num_global_objects_and_their_gids          => triangulation_compute_num_global_objs_and_their_gids
+     procedure, non_overridable, private :: free_objects_ggids_and_dim                         => triangulation_free_objects_ggids_and_dim
      
      ! Private methods for coarser triangulation set-up
      procedure, non_overridable          :: setup_coarse_triangulation                 => triangulation_setup_coarse_triangulation
@@ -719,9 +754,25 @@ module triangulation_names
      procedure, non_overridable, private :: adapt_coarse_raw_arrays                    => triangulation_adapt_coarse_raw_arrays
      
      ! Private methods for set up of scratch data related to non-conforming triangulations
-     procedure, non_overridable, private :: fetch_my_part_id_proper_vefs_on_owner_cells               => t_fetch_my_part_id_proper_vefs_on_owner_cells
-     procedure, non_overridable, private :: fetch_my_part_id_proper_vefs_on_non_owner_cells           => t_fetch_my_part_id_proper_vefs_on_non_owner_cells
-     procedure, non_overridable, private :: free_non_conforming_scratch_data                          => triangulation_free_non_conforming_scratch_data
+     procedure, non_overridable, private :: fetch_my_part_id_proper_vefs_on_owner_cells              => t_fetch_my_part_id_proper_vefs_on_owner_cells
+     procedure, non_overridable, private :: fetch_my_part_id_proper_vefs_on_non_owner_cells          => t_fetch_my_part_id_proper_vefs_on_non_owner_cells
+     procedure, non_overridable, private :: free_non_conforming_scratch_data                         => triangulation_free_non_conforming_scratch_data
+     
+     procedure, non_overridable, private :: fetch_num_and_lst_subparts_proper_vefs_ghost_to_owner    => t_fetch_num_and_lst_subparts_proper_vefs_ghost_to_owner
+     procedure, non_overridable, private :: compute_ptr_and_lst_ghosts_per_local_cell                => t_compute_ptr_and_lst_ghosts_per_local_cell
+     procedure, non_overridable, private :: fetch_num_subparts_proper_vefs_ghost_to_owner            => t_fetch_num_subparts_proper_vefs_ghost_to_owner
+     procedure, non_overridable, private :: compute_near_neigh_ctrl_data_ghost_to_owner_lst_subparts => t_compute_near_neigh_ctrl_data_ghost_to_owner_lst_subparts
+     procedure, non_overridable, private :: fetch_lst_subparts_proper_vefs_on_owner_cells            => t_fetch_lst_subparts_proper_vefs_ghost_to_owner
+     procedure, non_overridable, private :: compute_ptrs_to_rcv_lst_subparts_ghost_to_owner          => t_compute_ptrs_to_rcv_lst_subparts_ghost_to_owner
+     
+     procedure, non_overridable, private :: fetch_num_and_lst_subparts_proper_vefs_owner_to_ghost    => t_fetch_num_and_lst_subparts_proper_vefs_owner_to_ghost
+     procedure, non_overridable, private :: compute_ptr_and_lst_ghosts_per_ghost_cell                => t_compute_ptr_and_lst_ghosts_per_ghost_cell
+     procedure, non_overridable, private :: compute_near_neigh_ctrl_data_owner_to_ghost_num_subparts => t_compute_near_neigh_ctrl_data_owner_to_ghost_num_subparts
+     procedure, non_overridable, private :: fetch_num_subparts_proper_vefs_owner_to_ghost            => t_fetch_num_subparts_proper_vefs_owner_to_ghost
+     procedure, non_overridable, private :: compute_near_neigh_ctrl_data_owner_to_ghost_lst_subparts => t_compute_near_neigh_ctrl_data_owner_to_ghost_lst_subparts
+     procedure, non_overridable, private :: fetch_lst_subparts_proper_vefs_owner_to_ghost            => t_fetch_lst_subparts_proper_vefs_owner_to_ghost
+     procedure, non_overridable, private :: compute_ptrs_to_rcv_lst_subparts_owner_to_ghost          => t_compute_ptrs_to_rcv_lst_subparts_owner_to_ghost
+
      
   end type triangulation_t
   

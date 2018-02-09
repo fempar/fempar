@@ -326,7 +326,7 @@ end subroutine free_timers
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
     
-    !call this%triangulation%setup_coarse_triangulation()
+    call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -648,18 +648,15 @@ end subroutine free_timers
     call this%assemble_system()
     call this%timer_assemply%stop()
     
-    call this%write_solution()
+    call this%timer_solver_setup%start()
+    call this%setup_solver()
+    call this%timer_solver_setup%stop()
 
+    call this%timer_solver_run%start()
+    call this%solve_system()
+    call this%timer_solver_run%stop()
 
-    !call this%timer_solver_setup%start()
-    !call this%setup_solver()
-    !call this%timer_solver_setup%stop()
-
-    !call this%timer_solver_run%start()
-    !call this%solve_system()
-    !call this%timer_solver_run%stop()
-
-    !call this%check_solution()
+    call this%check_solution()
     
     !call this%set_cells_for_refinement()
     !call this%triangulation%refine_and_coarsen()
@@ -676,7 +673,7 @@ end subroutine free_timers
     !call this%check_solution()
 
     
-    !call this%write_solution()
+    call this%write_solution()
     call this%free()
   end subroutine run_simulation
   
