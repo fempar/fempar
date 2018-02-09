@@ -1915,6 +1915,7 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
   integer(ip) , allocatable :: perm(:)
   integer(igp), allocatable :: buf(:)
   integer(igp), allocatable :: dofs_ggid(:)
+  logical :: first_fe_with_free_or_hanging_dofs_on_vef
 
   environment   => this%get_environment()
   triangulation => this%get_triangulation()
@@ -1966,12 +1967,8 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
         num_parts_nearest_neighbour = 0
         num_parts_neighbours_nearest_neighbours = 0
 
-        ! Retrieve max_part_id 
-        call vef%get_cell_around(1,fe)
-        ivef        = fe%get_vef_lid_from_gid(vef%get_gid())
-        cell_gid    = fe%get_gid()
-        base_pos    = (cell_gid-1)*num_vefs
-        max_part_id = this%max_part_id_vefs%get(base_pos+ivef)
+        max_part_id = 0
+        first_fe_with_free_or_hanging_dofs_on_vef = .true.
 
         all_ghosts = .true.
         all_local  = .true.
@@ -2002,6 +1999,13 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
                  all_local  = .false.
               end if
 
+              if ( first_fe_with_free_or_hanging_dofs_on_vef ) then
+                cell_gid    = fe%get_gid()
+                base_pos    = (cell_gid-1)*num_vefs
+                max_part_id = this%max_part_id_vefs%get(base_pos+ivef)
+                first_fe_with_free_or_hanging_dofs_on_vef = .false.
+              end if
+              
               base_pos_dofs = this%ptr_dofs_field%get(fe%get_gid())-1
               dofs_ggid(dof_gid) = this%lst_dofs_ggids%get(base_pos_dofs+idof)
 
