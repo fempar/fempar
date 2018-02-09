@@ -850,7 +850,7 @@ recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
      if ( 1.0_rp/this%W(idof) > 2 ) then     
      if ( abs(array_entries(idof)) > 1e-14_rp ) then 
      WRITE(*,*) 'DIFFERENCE IS', array_entries(idof), 'FOR idof', idof, 'PRESENT in', 1.0_rp/this%W(idof), 'parts'
-     massert(.false., 'This degree of freedom should be restricted')
+     wassert(.false., 'This degree of freedom should be restricted')
      end if 
      end if
      end do 

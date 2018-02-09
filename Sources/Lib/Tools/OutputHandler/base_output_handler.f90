@@ -132,8 +132,8 @@ private
         type(output_handler_fe_field_t),    allocatable          :: fe_fields(:)
         type(output_handler_field_generator_info_t), allocatable :: field_generators(:)
         type(output_handler_cell_vector_t), allocatable          :: cell_vectors(:)
-        procedure(create_fe_cell_iterator_interface), nopass, pointer :: create_fe_cell_iterator    => NULL()
-        procedure(free_fe_cell_iterator_interface)  , nopass, pointer :: free_fe_cell_iterator      => NULL()
+        procedure(create_fe_cell_iterator_interface)   , pointer :: create_fe_cell_iterator    => NULL()
+        procedure(free_fe_cell_iterator_interface)     , pointer :: free_fe_cell_iterator      => NULL()
         integer(ip)                                              :: state                 = BASE_OUTPUT_HANDLER_STATE_INIT
         integer(ip)                                              :: num_fields           = 0
         integer(ip)                                              :: num_field_generators = 0
@@ -183,14 +183,18 @@ private
     end type
 
     interface
-      subroutine create_fe_cell_iterator_interface(fe)
+      subroutine create_fe_cell_iterator_interface(this,fe)
+        import base_output_handler_t
         import :: fe_cell_iterator_t
-        class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
+        class(base_output_handler_t)             , intent(in)    :: this
+        class(fe_cell_iterator_t)   , allocatable, intent(inout) :: fe
       end subroutine create_fe_cell_iterator_interface
       
-      subroutine free_fe_cell_iterator_interface(fe)
+      subroutine free_fe_cell_iterator_interface(this,fe)
+        import base_output_handler_t
         import :: fe_cell_iterator_t
-        class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
+        class(base_output_handler_t)             , intent(in)    :: this
+        class(fe_cell_iterator_t)   , allocatable, intent(inout) :: fe
       end subroutine free_fe_cell_iterator_interface
     end interface
     

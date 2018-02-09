@@ -136,21 +136,11 @@ subroutine h_adaptive_algebraic_l1_get_num_coarse_dofs(this, field_id, par_fe_sp
   call par_fe_space%create_fe_cell_iterator(fe)
   call par_fe_space%create_fe_vef_iterator(vef)
   do while ( .not. object%has_finished() )
-     select case ( object%get_dim() )
-     case (0)
-       if (.not. use_vertices) then
-         call object%next(); cycle
-       end if  
-     case (1)
-       if (.not. use_edges) then
-         call object%next(); cycle
-       end if  
-     case (2)
-       if (.not. use_faces) then
-         call object%next(); cycle
-       end if  
-     end select
-    
+  
+     if ( object%get_num_parts_around() <= 2 ) then 
+     call object%next(); cycle 
+     end if 
+     
      dofs_on_vef = .false.
      do ivef_within_object=1, object%get_num_vefs()
         call object%get_vef(ivef_within_object,vef)

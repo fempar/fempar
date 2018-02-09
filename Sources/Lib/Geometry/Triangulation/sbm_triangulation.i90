@@ -771,7 +771,7 @@ subroutine triangulation_generate_dual_graph(this, dual_graph)
   environment => this%get_environment()
   assert ( environment%am_i_l1_task() )
   ! So far coupling through faces. It should depend on the problem. 
-  num_requested_shared_nodes = 2**(this%get_num_dims()-1) 
+  num_requested_shared_nodes = 1 !2**(this%get_num_dims()-1) 
 
   ! Build dual graph (V,E): cells become vertices (V) and links (E) between two cells appear 
   ! if both cells share a requested number of nodes 

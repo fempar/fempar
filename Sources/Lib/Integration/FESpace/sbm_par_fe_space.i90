@@ -1340,7 +1340,11 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   call this%lst_dofs_ggids%resize(this%ptr_dofs_field%get(triangulation%get_num_cells()+1)-1,-1_igp)
   
   call fe%first()
-  num_vefs = fe%get_num_vefs()
+  if ( .not. fe%has_finished() ) then
+    num_vefs = fe%get_num_vefs()
+  else
+    num_vefs = 0
+  end if   
   
   call this%max_part_id_vefs%resize(0) 
   call this%max_part_id_vefs%resize(triangulation%get_num_cells()*num_vefs,0) 
@@ -1663,7 +1667,11 @@ subroutine pfs_compute_exchange_control_data_to_complete_itfc_couplings ( this, 
   end do 
   
   call this%create_fe_cell_iterator(fe)
-  num_vefs = fe%get_num_vefs()
+  if ( .not. fe%has_finished() ) then
+    num_vefs = fe%get_num_vefs()
+  else
+    num_vefs = 0
+  end if  
   call this%free_fe_cell_iterator(fe)
   
   call this%rcv_my_part_id_vefs_complete_itfc_couplings%resize(0)
@@ -1945,7 +1953,11 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   call this%create_fe_cell_iterator(fe) 
-  num_vefs = fe%get_num_vefs()
+  if ( .not. fe%has_finished() ) then
+    num_vefs = fe%get_num_vefs()
+  else
+    num_vefs = 0
+  end if  
   do while(.not. vef%has_finished())
      if ( vef%is_proper() ) then
         touched_neighbours = .false.
@@ -3553,7 +3565,7 @@ subroutine par_fe_space_redistribute( this, fe_function )
     
     new2old     => p4est_par_triangulation%get_migration_new2old()
     
-    if ( p4est_par_triangulation%get_num_cells() > 0 ) then
+    if ( p4est_par_triangulation%get_num_cells() > 0 .or. num_snd>0 ) then
       old_num_local_cells = p4est_par_triangulation%get_previous_num_local_cells()
       old_num_ghost_cells = p4est_par_triangulation%get_previous_num_ghost_cells()
       call this%update_after_redistribute(old_ptr_dofs_x_fe, &
@@ -3647,7 +3659,7 @@ subroutine par_fe_space_redistribute( this, fe_function )
       deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
       call old_lst_dofs_gids%free()  
       call this%free_fe_cell_iterator(fe)
-    end if 
+     end if 
   end if
  contains 
 
@@ -3681,9 +3693,17 @@ subroutine par_fe_space_redistribute( this, fe_function )
     integer(ip) :: spos, epos
     spos = this%ptr_dofs_x_fe(field_id)%get(current_new_cell_lid)
     if ( field_id == this%get_num_fields() ) then
+      if ( this%ptr_dofs_x_fe(1)%size() > 1 ) then 
       epos = this%ptr_dofs_x_fe(1)%get(current_new_cell_lid+1)-1
+      else 
+      epos = old_ptr_dofs_x_fe(1)%get(current_new_cell_lid+1)-1
+      end if 
     else
+      if ( this%ptr_dofs_x_fe(field_id+1)%size() > 1 ) then
       epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
+      else 
+      epos = old_ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
+      end if 
     end if
     get_new_num_dofs = epos-spos+1
   end function get_new_num_dofs
