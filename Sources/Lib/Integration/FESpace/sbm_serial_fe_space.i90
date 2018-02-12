@@ -2060,12 +2060,21 @@ subroutine serial_fe_space_count_dofs ( this )
                            end if
                           end if
                         else if ( .not. per_field_improper_vefs_visited (field_id,vef_lid) ) then
-                           num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
-                           if (num_own_dofs_on_vef>0) then
-                             per_field_improper_vefs_visited (field_id,vef_lid) = .true.
-                             this%num_dofs_x_field(field_id) = this%num_dofs_x_field(field_id) + &
-                                                                num_own_dofs_on_vef 
-                           end if                                     
+                           do ielem=1, vef%get_num_improper_cells_around()
+                             call vef%get_improper_cell_around(ielem, coarser_fe)
+                             if ( coarser_fe%is_local() .and. (.not. coarser_fe%is_void(field_id)) ) then
+                               local_found = .true.
+                               exit
+                             end if
+                           end do
+                           if ( local_found ) then
+                             num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
+                             if (num_own_dofs_on_vef>0) then
+                               per_field_improper_vefs_visited (field_id,vef_lid) = .true.
+                               this%num_dofs_x_field(field_id) = this%num_dofs_x_field(field_id) + &
+                                                                  num_own_dofs_on_vef 
+                             end if
+                           end if
                         end if
                      end if
                    end if
@@ -2308,7 +2317,14 @@ subroutine serial_fe_space_list_dofs ( this )
                           add_dofs = per_field_visited_proper_vefs_at_interface(field_id,vef%get_gid()) 
                         else 
                           is_owner = ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 )
-                          add_dofs = .not. vef%has_free_dofs(field_id,coarser_fe)
+                          add_dofs = .false.
+                          do ielem=1, vef%get_num_improper_cells_around()
+                            call vef%get_improper_cell_around(ielem, coarser_fe)
+                            if ( coarser_fe%is_local() .and. (.not. coarser_fe%is_void(field_id)) ) then
+                              add_dofs = .true.
+                              exit
+                            end if
+                          end do
                         end if
                         
                         if ( add_dofs ) then       
