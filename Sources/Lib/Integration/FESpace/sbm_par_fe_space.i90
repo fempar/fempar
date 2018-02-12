@@ -4152,7 +4152,7 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
     
     new2old     => p4est_par_triangulation%get_migration_new2old()
     
-    if ( p4est_par_triangulation%get_num_cells() > 0 ) then
+    if ( p4est_par_triangulation%get_num_cells() > 0 .or. num_snd>0 ) then
       old_num_local_cells = p4est_par_triangulation%get_previous_num_local_cells()
       old_num_ghost_cells = p4est_par_triangulation%get_previous_num_ghost_cells()
       call this%update_after_redistribute(old_ptr_dofs_x_fe, &
@@ -4284,9 +4284,17 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
     integer(ip) :: spos, epos
     spos = this%ptr_dofs_x_fe(field_id)%get(current_new_cell_lid)
     if ( field_id == this%get_num_fields() ) then
+      if ( this%ptr_dofs_x_fe(1)%size() > 1 ) then 
       epos = this%ptr_dofs_x_fe(1)%get(current_new_cell_lid+1)-1
+      else 
+      epos = old_ptr_dofs_x_fe(1)%get(current_new_cell_lid+1)-1
+      end if 
     else
+      if ( this%ptr_dofs_x_fe(field_id+1)%size() > 1 ) then
       epos = this%ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
+      else 
+      epos = old_ptr_dofs_x_fe(field_id+1)%get(current_new_cell_lid)-1
+      end if 
     end if
     get_new_num_dofs = epos-spos+1
   end function get_new_num_dofs
