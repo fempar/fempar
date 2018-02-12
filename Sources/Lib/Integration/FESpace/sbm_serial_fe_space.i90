@@ -2354,6 +2354,8 @@ subroutine serial_fe_space_list_dofs ( this )
                     end if
                  end do  
               end if
+              call fe%determine_has_fixed_dofs(field_id)
+              call fe%determine_has_hanging_dofs(field_id)
            end if
          end do
      end if
