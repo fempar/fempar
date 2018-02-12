@@ -129,6 +129,13 @@ function triangulation_get_num_itfc_vefs ( this )
   triangulation_get_num_itfc_vefs = this%lst_itfc_vefs%size()
 end function triangulation_get_num_itfc_vefs
 
+function triangulation_coarse_triangulation_is_set_up(this)
+  implicit none
+  class(triangulation_t), intent(in) :: this
+  logical :: triangulation_coarse_triangulation_is_set_up
+  triangulation_coarse_triangulation_is_set_up = this%coarse_triangulation_set_up
+end function triangulation_coarse_triangulation_is_set_up
+
 subroutine triangulation_set_environment ( this, environment )
   implicit none
   class(triangulation_t), intent(inout) :: this
@@ -1032,6 +1039,8 @@ subroutine triangulation_setup_coarse_triangulation ( this )
   integer(ip)                      :: num_local_coarse_cells
   integer(ip)                      :: num_itfc_coarse_cells
 
+  call this%free_coarse_triangulation_l1_data()
+  call this%free_coarse_triangulation_lgt1_data()
 
   if ( this%environment%am_i_l1_task() ) then
      call this%compute_vefs_and_parts_object()
@@ -1117,6 +1126,8 @@ subroutine triangulation_setup_coarse_triangulation ( this )
   call memfree (coarse_dgraph_displs, __FILE__, __LINE__)
   call memfree (lextn, __FILE__, __LINE__)
   call memfree (lextp, __FILE__, __LINE__)
+  
+  this%coarse_triangulation_set_up = .true.
 end subroutine triangulation_setup_coarse_triangulation
 
 subroutine triangulation_gather_coarse_cell_gids( this, coarse_cell_gids)
@@ -1970,38 +1981,54 @@ end subroutine triangulation_free_object_iterator
 recursive subroutine triangulation_free ( this )
   implicit none
   class(triangulation_t), target, intent(inout) :: this
-  integer(ip) :: icell, ivef, istat
   
   if ( associated(this%environment) ) then
      if ( this%environment%am_i_l1_task() ) then
-        this%num_dims = -1 
-        
+        this%num_dims = -1         
         call this%cell_import%free()
         this%num_local_cells = -1
         this%num_ghost_cells = -1
-        
         call this%free_lst_itfc_vefs()
-
-        ! Free coarse objects-related data
-        call this%free_objects_ggids_and_dim()
-        call this%vefs_object%free()
-        call this%parts_object%free()
-        call this%subparts_object%free()
-        call this%g2l_subparts%free()
-        this%num_objects = -1
-        this%num_global_objects = -1
-        if ( .not. this%is_conforming() ) then
-         call this%free_non_conforming_scratch_data()
-        end if  
+        call this%free_coarse_triangulation_l1_data()
      else ! I am lgt1_task
-        if (associated(this%coarse_triangulation)) then
-          call this%coarse_triangulation%free()
-          deallocate ( this%coarse_triangulation, stat=istat)
-          check(istat == 0)
-        end if
+        call this%free_coarse_triangulation_lgt1_data()
      end if
      call this%free_environment()  
+     this%coarse_triangulation_set_up = .false.
   end if
 end subroutine triangulation_free
 
+subroutine triangulation_free_coarse_triangulation_l1_data(this)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  if ( associated(this%environment) ) then
+    if ( this%environment%am_i_l1_task() ) then
+      ! Free coarse objects-related data
+      call this%free_objects_ggids_and_dim()
+      call this%vefs_object%free()
+      call this%parts_object%free()
+      call this%subparts_object%free()
+      call this%g2l_subparts%free()
+      this%num_objects = -1
+      this%num_global_objects = -1
+      if ( .not. this%is_conforming() ) then
+        call this%free_non_conforming_scratch_data()
+      end if  
+    end if
+  end if
+end subroutine triangulation_free_coarse_triangulation_l1_data
 
+recursive subroutine triangulation_free_coarse_triangulation_lgt1_data(this)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  integer(ip) :: istat
+  if ( associated(this%environment) ) then
+    if ( this%environment%am_i_lgt1_task() ) then
+      if (associated(this%coarse_triangulation)) then
+        call this%coarse_triangulation%free()
+        deallocate ( this%coarse_triangulation, stat=istat)
+        check(istat == 0)
+      end if
+    end if
+  end if
+end subroutine triangulation_free_coarse_triangulation_lgt1_data

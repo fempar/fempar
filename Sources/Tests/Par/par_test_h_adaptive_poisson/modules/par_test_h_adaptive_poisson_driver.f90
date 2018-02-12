@@ -665,13 +665,12 @@ end subroutine free_timers
     
     call this%check_solution()
     
-    !call this%set_cells_for_refinement()
-    !call this%triangulation%redistribute()
-    !call this%fe_space%redistribute(this%solution)
-    !call this%fe_space%set_up_cell_integration()
+    call this%set_cells_for_refinement()
+    call this%triangulation%redistribute()
+    call this%fe_space%redistribute(this%solution)
+    call this%fe_space%set_up_cell_integration()
     
-    !call this%check_solution()
-
+    call this%check_solution()
     
     call this%write_solution()
     call this%free()

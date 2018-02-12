@@ -124,10 +124,13 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
     call this%set_up_lst_itfc_vefs() 
    end if 
+   ! Re-set up coarse_triangulation()
+   if ( this%coarse_triangulation_is_set_up() ) then
+     call this%setup_coarse_triangulation()
+   end if  
 #else
   call this%not_enabled_error()
 #endif  
-  
 end subroutine p4est_base_triangulation_refine_and_coarsen
 
 function p4est_base_triangulation_get_ptr_vefs_x_cell(this, icell)
