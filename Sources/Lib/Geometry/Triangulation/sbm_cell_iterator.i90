@@ -87,8 +87,8 @@ function cell_iterator_get_mysubpart ( this )
   class(cell_iterator_t), intent(in) :: this
   integer(ip) :: cell_iterator_get_mysubpart
   assert ( this%get_set_id() >= 0 )
-  cell_iterator_get_mysubpart = this%get_my_part() + this%get_set_id()*this%triangulation%cell_import%get_num_parts() ! & 
-    ! +  this%get_disconnected_set_id()*this%triangulation%get_max_cell_set_id()*this%triangulation%cell_import%get_num_parts()                                 
+  cell_iterator_get_mysubpart = this%get_my_part() + this%get_set_id()*this%triangulation%cell_import%get_num_parts()  & 
+     +  this%get_disconnected_set_id()*this%triangulation%get_max_cell_set_id()*this%triangulation%cell_import%get_num_parts()                                 
 end function cell_iterator_get_mysubpart
 
 function cell_iterator_get_mysubpart_lid ( this )

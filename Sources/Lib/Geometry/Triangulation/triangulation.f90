@@ -628,25 +628,23 @@ module triangulation_names
      type(list_t)                          :: vefs_object
      type(list_t)                          :: faces_object
      type(list_t)                          :: parts_object
-     integer(ip)                           :: max_cell_set_id = 0     ! Max number of different disconnected subparts among procs.  
-     integer(ip)                           :: num_subparts = 0        ! num of subparts around part (including those subparts which are local)
-     type(list_t)                          :: subparts_object         ! num and list of subparts GIDs around each coarse n_face
-     type(hash_table_ip_ip_t)              :: g2l_subparts            ! Translator among the GIDs of subparts and LIDs
+     integer(ip)                           :: max_cell_set_id = 0        ! Max number of different disconnected subparts among procs.  
+     integer(ip)                           :: num_subparts = 0           ! num of subparts around part (including those subparts which are local)
+     character(len=:), allocatable         :: subparts_coupling_criteria 
+     type(list_t)                          :: subparts_object            ! num and list of subparts GIDs around each coarse n_face
+     type(hash_table_ip_ip_t)              :: g2l_subparts               ! Translator among the GIDs of subparts and LIDs
      type(coarse_triangulation_t), pointer :: coarse_triangulation => NULL()
      
-     ! Scratch data required for non-conforming triangulations
-     type(std_vector_integer_ip_t)         :: my_part_id_vefs
-     type(std_vector_integer_ip_t)         :: rcv_my_part_id_vefs 
-     type(std_vector_integer_ip_t)         :: ptr_ghosts_per_local_cell
-     type(std_vector_integer_ip_t)         :: lst_ghosts_per_local_cell
-     
-     type(std_vector_integer_ip_t)         :: num_cells_to_send_x_local_cell
-     type(std_vector_integer_ip_t)         :: snd_ptrs_complete_my_part_id_non_owner_cells
-     type(std_vector_integer_ip_t)         :: snd_leids_complete_my_part_id_non_owner_cells
-     type(std_vector_integer_ip_t)         :: rcv_ptrs_complete_my_part_id_non_owner_cells
-     type(std_vector_integer_ip_t)         :: ptr_ghosts_per_ghost_cell
-     type(std_vector_integer_ip_t)         :: lst_ghosts_per_ghost_cell
-     type(std_vector_integer_ip_t)         :: rcv_my_part_id_vefs_complete_my_part_id_non_owner_cells 
+     ! Scratch data required for non-conforming triangulations, assuming that 
+     ! there might be more than one subpart per local subdomain
+     type(std_vector_integer_ip_t), allocatable :: lst_subparts_vefwise(:)     
+     type(std_vector_integer_ip_t)              :: num_subparts_vefs_cell_wise
+     type(std_vector_integer_ip_t)              :: snd_ptrs_lst_subparts_cell_wise
+     type(std_vector_integer_ip_t)              :: lst_subparts_pack_idx_cell_wise
+     type(std_vector_integer_ip_t)              :: rcv_ptrs_lst_subparts_cell_wise
+     type(std_vector_integer_ip_t)              :: lst_subparts_vefs_cell_wise
+     type(std_vector_integer_ip_t)              :: rcv_lst_subparts_vefs_cell_wise
+     type(std_vector_integer_ip_t)              :: ptrs_to_rcv_lst_subparts_vefs_cell_wise
  contains  
      ! Will the triangulation_t be ALWAYS conforming? (e.g., no matter 
      ! whether it is transformed, refined, coarsened, etc.)
@@ -702,19 +700,19 @@ module triangulation_names
      procedure, non_overridable :: free_lst_itfc_vefs      => triangulation_free_lst_itfc_vefs
 
      ! Private methods to compute objects
-     procedure, non_overridable          :: get_num_subparts                               => triangulation_get_num_subparts
-     procedure, non_overridable          :: get_subpart_lid                                => triangulation_get_subpart_lid
-     procedure, non_overridable, private :: compute_vefs_and_parts_object                  => triangulation_compute_vefs_and_parts_object
-     procedure, non_overridable, private :: compute_vefs_and_parts_object_body             => triangulation_compute_vefs_and_parts_object_body
-     procedure, non_overridable, private :: compute_parts_itfc_vefs                        => triangulation_compute_parts_itfc_vefs
-     procedure, non_overridable, private :: compute_subparts_itfc_vefs_conforming_mesh     => triangulation_compute_subparts_itfc_vefs_conforming_mesh
-     procedure, non_overridable, private :: compute_subparts_itfc_vefs_non_conforming_mesh => triangulation_compute_subparts_itfc_vefs_non_conforming_mesh
-     procedure, non_overridable, private :: compute_parts_object_from_subparts_object      => triangulation_compute_parts_object_from_subparts_object
-     procedure, non_overridable, private :: compute_part_id_from_subpart_gid               => triangulation_compute_part_id_from_subpart_gid
-     procedure, non_overridable, private :: compute_objects_dim                            => triangulation_compute_objects_dim
-     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data       => triangulation_compute_objects_neighbours_exchange_data
-     procedure, non_overridable, private :: compute_num_global_objects_and_their_gids      => triangulation_compute_num_global_objs_and_their_gids
-     procedure, non_overridable, private :: free_objects_ggids_and_dim                     => triangulation_free_objects_ggids_and_dim
+     procedure, non_overridable          :: get_num_subparts                                   => triangulation_get_num_subparts
+     procedure, non_overridable          :: get_subpart_lid                                    => triangulation_get_subpart_lid
+     procedure, non_overridable, private :: compute_vefs_and_parts_object                      => triangulation_compute_vefs_and_parts_object
+     procedure, non_overridable, private :: compute_vefs_and_parts_object_body                 => triangulation_compute_vefs_and_parts_object_body
+     procedure, non_overridable, private :: compute_parts_itfc_vefs                            => triangulation_compute_parts_itfc_vefs
+     procedure, non_overridable, private :: compute_subparts_itfc_vefs_conforming_mesh         => triangulation_compute_subparts_itfc_vefs_conforming_mesh
+     procedure, non_overridable, private :: compute_subparts_itfc_vefs_non_conforming_mesh     => triangulation_compute_subparts_itfc_vefs_non_conforming_mesh
+     procedure, non_overridable, private :: compute_parts_object_from_subparts_object          => triangulation_compute_parts_object_from_subparts_object
+     procedure, non_overridable, private :: compute_part_id_from_subpart_gid                   => triangulation_compute_part_id_from_subpart_gid
+     procedure, non_overridable, private :: compute_objects_dim                                => triangulation_compute_objects_dim
+     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data           => triangulation_compute_objects_neighbours_exchange_data
+     procedure, non_overridable, private :: compute_num_global_objects_and_their_gids          => triangulation_compute_num_global_objs_and_their_gids
+     procedure, non_overridable, private :: free_objects_ggids_and_dim                         => triangulation_free_objects_ggids_and_dim
      
      ! Private methods for coarser triangulation set-up
      procedure, non_overridable          :: setup_coarse_triangulation                 => triangulation_setup_coarse_triangulation
@@ -728,12 +726,18 @@ module triangulation_names
      procedure, non_overridable, private :: adapt_coarse_raw_arrays                    => triangulation_adapt_coarse_raw_arrays
      
      ! Private methods for set up of scratch data related to non-conforming triangulations
-     procedure, non_overridable, private :: fetch_my_part_id_proper_vefs_on_owner_cells               => t_fetch_my_part_id_proper_vefs_on_owner_cells
-     procedure, non_overridable, private :: fetch_my_part_id_proper_vefs_on_non_owner_cells           => t_fetch_my_part_id_proper_vefs_on_non_owner_cells
-     procedure, non_overridable, private :: free_non_conforming_scratch_data                          => triangulation_free_non_conforming_scratch_data
+     procedure, non_overridable, private :: compute_local_lst_subparts_vefwise              => t_compute_local_lst_subparts_vefwise
+     procedure, non_overridable, private :: exchange_lst_subparts_round                     => t_exchange_lst_subparts_round
+     procedure, non_overridable, private :: fetch_num_subparts_vefs_cell_wise               => t_fetch_num_subparts_vefs_cell_wise
+     procedure, non_overridable, private :: compute_near_neigh_ctrl_data_lst_subparts       => t_compute_near_neigh_ctrl_data_lst_subparts
+     procedure, non_overridable, private :: fetch_lst_subparts_vefs_cell_wise               => t_fetch_lst_subparts_vefs_cell_wise
+     procedure, non_overridable, private :: compute_ptrs_to_rcv_lst_subparts_vefs_cell_wise => t_compute_ptrs_to_rcv_lst_subparts_vefs_cell_wise
+     procedure, non_overridable, private :: update_lst_subparts_vefwise_after_exchange      => t_update_lst_subparts_vefwise_after_exchange
+     procedure, non_overridable, private :: free_non_conforming_scratch_data                => triangulation_free_non_conforming_scratch_data
      
      ! Methods for disconnected parts identification 
      procedure                           :: get_max_cell_set_id                         => triangulation_get_max_cell_set_id
+     procedure, non_overridable          :: set_subparts_coupling_criteria              => triangulation_set_subparts_coupling_criteria 
      procedure, non_overridable, private :: allocate_and_fill_disconnected_cells_set_id => triangulation_allocate_and_fill_disconnected_cells_set_id 
      procedure, non_overridable, private :: depth_first_search_algorithm                => triangulation_depth_first_search_algorithm
      procedure, non_overridable, private :: generate_dual_graph                         => triangulation_generate_dual_graph  
@@ -840,6 +844,13 @@ module triangulation_names
   character(len=*), parameter :: triangulation_generate_key          = 'triangulation_generate'
   public :: geometry_interpolation_order_key
   public :: triangulation_generate_key
+  
+  character(len=*), parameter :: subparts_coupling_criteria_key = 'subparts_coupling_criteria'
+  character(len=*), parameter :: loose_coupling                 = 'loose_coupling' 
+  character(len=*), parameter :: strong_coupling                = 'strong_coupling' 
+  public :: subparts_coupling_criteria_key 
+  public :: loose_coupling
+  public :: strong_coupling 
   
   type, extends(cell_iterator_t) :: bst_cell_iterator_t
     private

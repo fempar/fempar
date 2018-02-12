@@ -845,15 +845,15 @@ recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
      if ( par_environment%am_i_l1_task() ) then 
      array_entries => serial_array%get_entries()
      
-     do idof=1, size(this%W)
-     ! Should be an edge object comm 
-     if ( 1.0_rp/this%W(idof) > 2 ) then     
-     if ( abs(array_entries(idof)) > 1e-14_rp ) then 
-     WRITE(*,*) 'DIFFERENCE IS', array_entries(idof), 'FOR idof', idof, 'PRESENT in', 1.0_rp/this%W(idof), 'parts'
-     wassert(.false., 'This degree of freedom should be restricted')
-     end if 
-     end if
-     end do 
+     !do idof=1, size(this%W)
+     !! Should be an edge object comm 
+     !if ( 1.0_rp/this%W(idof) > 2 ) then     
+     !if ( abs(array_entries(idof)) > 1e-15_rp ) then 
+     !WRITE(*,*) 'DIFFERENCE IS', array_entries(idof), 'FOR idof', idof, 'PRESENT in', 1.0_rp/this%W(idof), 'parts'
+     !wassert(.false., 'This degree of freedom should be restricted')
+     !end if 
+     !end if
+     !end do 
      end if 
      call delta_copy%free()
      
