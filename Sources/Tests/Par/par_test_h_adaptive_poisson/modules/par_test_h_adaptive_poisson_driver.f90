@@ -671,7 +671,6 @@ end subroutine free_timers
     call this%fe_space%set_up_cell_integration()
     
     call this%check_solution()
-
     
     call this%write_solution()
     call this%free()

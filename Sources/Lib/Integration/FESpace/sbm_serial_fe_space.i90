@@ -47,6 +47,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   call this%free()
 
   call this%set_triangulation(triangulation)
+  call this%set_environment(triangulation%get_environment())
   call this%set_num_fields(size(reference_fes))
   call this%allocate_and_fill_reference_fes(reference_fes)
   call this%allocate_and_fill_set_ids_to_reference_fes(  RESHAPE([(i, i=1,size(reference_fes))], [size(reference_fes),1]) )
@@ -98,6 +99,7 @@ subroutine serial_fe_space_create_different_ref_fes_between_cells( this,        
   call this%free()
   
   call this%set_triangulation(triangulation)
+  call this%set_environment(triangulation%get_environment())
   call this%set_num_fields(size(set_ids_to_reference_fes,1))
   call this%allocate_and_fill_reference_fes(reference_fes)
   call this%allocate_and_fill_set_ids_to_reference_fes(set_ids_to_reference_fes)
@@ -149,6 +151,8 @@ subroutine serial_fe_space_free (this)
   call this%free_has_hanging_dofs_x_fe()
   call this%free_constraining_dofs_arrays()
   call this%block_layout%free()
+  nullify(this%triangulation)
+  nullify(this%environment)
 end subroutine serial_fe_space_free
 
 subroutine serial_fe_space_free_constraining_dofs_arrays (this)
@@ -2574,11 +2578,18 @@ subroutine serial_fe_space_set_triangulation( this, triangulation )
   this%triangulation => triangulation
 end subroutine serial_fe_space_set_triangulation
 
+subroutine serial_fe_space_set_environment( this, environment)
+  implicit none
+  class(serial_fe_space_t)                  , intent(inout) :: this 
+  class(environment_t), target              , intent(in)    :: environment
+  this%environment => environment
+end subroutine serial_fe_space_set_environment
+
 function serial_fe_space_get_environment(this) result(environment)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
   class(environment_t), pointer:: environment 
-  environment => this%triangulation%get_environment()
+  environment => this%environment
 end function serial_fe_space_get_environment
 
 function serial_fe_space_get_conditions( this) result(conditions)
@@ -3249,7 +3260,7 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   integer(ip)                                     :: error
   
 #ifdef ENABLE_P4EST  
-    triangulation => this%get_triangulation()
+  triangulation => this%get_triangulation()
   select type(triangulation)
   class is (p4est_serial_triangulation_t)
     refinement_and_coarsening_flags => triangulation%get_refinement_and_coarsening_flags()

@@ -347,6 +347,12 @@ subroutine p4est_par_triangulation_redistribute ( this )
       call F90_p8est_destroy(p4est_old)
     end if
   end if
+  
+  ! Re-set up coarse_triangulation()
+  if ( this%coarse_triangulation_is_set_up() ) then
+    call this%setup_coarse_triangulation()
+  end if 
+  
 #else
   call this%not_enabled_error()
 #endif

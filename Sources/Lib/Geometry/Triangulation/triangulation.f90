@@ -621,6 +621,7 @@ module triangulation_names
      type(cell_import_t)                   :: cell_import   
      
      ! Data structures to create objects (coarse cell info)
+     logical                               :: coarse_triangulation_set_up = .false.
      integer(ip)                           :: num_global_objects = 0
      integer(ip)                           :: num_objects = 0
      integer(igp), allocatable             :: objects_ggids(:)
@@ -666,11 +667,12 @@ module triangulation_names
      procedure, non_overridable :: set_num_vefs             => triangulation_set_num_vefs
      
      
-     procedure, non_overridable :: get_environment          => triangulation_get_environment
-     procedure, non_overridable :: get_cell_import          => triangulation_get_cell_import
-     procedure, non_overridable :: get_num_objects          => triangulation_get_num_objects
-     procedure, non_overridable :: get_coarse_triangulation => triangulation_get_coarse_triangulation
-     procedure, non_overridable :: get_num_itfc_vefs        => triangulation_get_num_itfc_vefs
+     procedure, non_overridable :: get_environment                => triangulation_get_environment
+     procedure, non_overridable :: get_cell_import                => triangulation_get_cell_import
+     procedure, non_overridable :: get_num_objects                => triangulation_get_num_objects
+     procedure, non_overridable :: get_coarse_triangulation       => triangulation_get_coarse_triangulation
+     procedure, non_overridable :: get_num_itfc_vefs              => triangulation_get_num_itfc_vefs
+     procedure, non_overridable :: coarse_triangulation_is_set_up => triangulation_coarse_triangulation_is_set_up
      
      procedure, non_overridable :: set_environment          => triangulation_set_environment
      procedure, non_overridable :: allocate_environment     => triangulation_allocate_environment
@@ -716,6 +718,9 @@ module triangulation_names
      
      ! Private methods for coarser triangulation set-up
      procedure, non_overridable          :: setup_coarse_triangulation                 => triangulation_setup_coarse_triangulation
+     procedure, non_overridable          :: free_coarse_triangulation_l1_data          => triangulation_free_coarse_triangulation_l1_data
+     procedure, non_overridable          :: free_coarse_triangulation_lgt1_data        => triangulation_free_coarse_triangulation_lgt1_data
+        
      procedure, non_overridable, private :: gather_coarse_cell_gids                    => triangulation_gather_coarse_cell_gids
      procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs   => triangulation_gather_coarse_vefs_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_vefs_gids                    => triangulation_gather_coarse_vefs_gids
@@ -744,6 +749,7 @@ module triangulation_names
      procedure(compute_max_cells_set_id_interface)     , deferred :: compute_max_cells_set_id 
      procedure(update_disconnected_cells_set_interface), deferred :: update_disconnected_cells_set
      procedure(fill_disconnected_cells_set_interface)  , deferred :: fill_disconnected_cells_set
+
   end type triangulation_t
   
   abstract interface

@@ -514,6 +514,11 @@ module fe_space_names
      
      ! ( Polymorphic ) pointer to a triangulation it was created from
      class(triangulation_t)            , pointer :: triangulation => NULL()
+
+     ! ( Polymorphic) pointer to environment within triangulation. This member variable
+     ! lets serial_fe_space_t work with it even if triangulation does not longer exist
+     class(environment_t)              , pointer :: environment   => NULL()
+     
      
      ! Constraining DOFs arrays to give support to h-adaptivity
      type(std_vector_integer_ip_t)               :: ptr_constraining_free_dofs
@@ -617,6 +622,7 @@ module fe_space_names
      procedure, non_overridable          :: get_max_order                                => serial_fe_space_get_max_order
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure, non_overridable          :: set_triangulation                            => serial_fe_space_set_triangulation
+     procedure, non_overridable          :: set_environment                              => serial_fe_space_set_environment
      procedure                           :: get_environment                              => serial_fe_space_get_environment
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
@@ -738,7 +744,12 @@ module fe_space_names
   
  type, extends(serial_fe_space_t) :: par_fe_space_t
    private   
-   ! Multilevel fe space   
+   ! Multilevel fe space 
+   
+   ! A reference to the type(parameterlist_t) instance 
+   ! par_fe_space%setup_coarse_fe_space() was called with
+   type(parameterlist_t)         , pointer     :: parameter_list => NULL()
+   
    ! It is the equivalent to the "element_to_dof" at the finer level
    ! Pointers to the start/end of coarse DoFs GIDs of each field (lst_coarse_dofs)
    integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:)
@@ -831,6 +842,8 @@ module fe_space_names
    procedure, nopass, non_overridable, private :: generate_coarse_dof_ggid                        => par_fe_space_generate_coarse_dof_ggid
    procedure        , non_overridable, private :: free_coarse_dofs                                => par_fe_space_free_coarse_dofs
    procedure        , non_overridable          :: setup_coarse_fe_space                           => par_fe_space_setup_coarse_fe_space
+   procedure        , non_overridable, private :: free_coarse_fe_space_l1_data                    => par_fe_space_free_coarse_fe_space_l1_data
+   procedure        , non_overridable, private :: free_coarse_fe_space_lgt1_data                  => par_fe_space_free_coarse_fe_space_lgt1_data
    procedure        , non_overridable, private :: transfer_num_fields                             => par_fe_space_transfer_num_fields
    procedure        , non_overridable, private :: transfer_fe_space_type                          => par_fe_space_transfer_fe_space_type
    procedure        , non_overridable, private :: gather_ptr_dofs_x_fe                            => par_fe_space_gather_ptr_dofs_x_fe
@@ -1032,7 +1045,11 @@ module fe_space_names
      
     ! Pointer to coarse triangulation this coarse_fe_space has been built from
     type(coarse_triangulation_t), pointer       :: coarse_triangulation => NULL()
- 
+    
+    ! Pointer to environment within coarse_triangulation_t. This lets coarse_fe_space_t
+    ! to use the environment even if the coarse triangulation does no longer exist
+    class(environment_t)        , pointer       :: environment          => NULL()
+    
     ! It is the equivalent to the "element_to_dof" at the finer level
     ! Pointers to the start/end of coarse DoFs gids of each field (lst_coarse_dofs)
     integer(ip)                   , allocatable :: ptr_coarse_dofs_x_field(:) 
