@@ -278,8 +278,10 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
              end if
            end if   
          end do
+         if ( .not. fe%is_void(field_id) ) then
+           call fe%determine_has_fixed_dofs(field_id)
+         end if
        end if 
-       call fe%determine_has_fixed_dofs(field_id)
        call fe%next()
      end do
 
@@ -324,8 +326,8 @@ subroutine suhpafs_procedure_fill_fe_dofs_and_count_dofs( this, field_id )
            end if
 
          end do
+         call fe%determine_has_fixed_dofs(field_id)
        end if 
-       call fe%determine_has_fixed_dofs(field_id)
        call fe%next()
      end do
 
@@ -603,10 +605,9 @@ subroutine suhpafs_setup_cut_cells_constraints(this)
           end if
         end if
       end do
-
+      ! Needed?
+      call fe%determine_has_hanging_dofs(field_id)
     end if
-    ! Needed?
-    call fe%determine_has_hanging_dofs(field_id)
     call fe%next()
   end do
 
