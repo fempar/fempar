@@ -193,13 +193,13 @@ end subroutine free_timers
     integer(ip) :: inode, num
     class(environment_t), pointer :: environment
     real(rp)                      :: domain(6)
-    character(len=:), allocatable :: subparts_coupling_criteria 
+    character(len=:), allocatable :: subparts_coupling_criteria
 
     ! Create a structured mesh with a custom domain 
     domain = this%test_params%get_domain_limits() 
-    subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria() 
+    subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria()
     istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
-    istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0) 
+    istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0)
     call this%triangulation%create(this%parameter_list, this%par_environment)
 
     !! Set the cell ids to use void fes
@@ -324,11 +324,11 @@ end subroutine free_timers
     do i = 1, this%test_params%get_num_refinements() 
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
-      call this%set_cells_set_ids()
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
     
+    call this%set_cells_set_ids()
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
@@ -661,7 +661,6 @@ end subroutine free_timers
 
     call this%check_solution()
     call this%write_solution()
-    
     call this%set_cells_for_refinement()
     call this%triangulation%refine_and_coarsen()
     call this%fe_space%refine_and_coarsen(this%solution)
@@ -672,9 +671,11 @@ end subroutine free_timers
     call this%set_cells_for_refinement()
     call this%triangulation%redistribute()
     call this%fe_space%redistribute(this%solution)
-    call this%fe_space%set_up_cell_integration()   
+    call this%fe_space%set_up_cell_integration()
+    
     call this%check_solution()
     
+    call this%write_solution()
     call this%free()
   end subroutine run_simulation
   
@@ -698,7 +699,7 @@ end subroutine free_timers
       check(istat==0)
     end if
     call this%triangulation%free()
-    if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
+    !if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
   end subroutine free  
 
   !========================================================================================
@@ -764,6 +765,7 @@ end subroutine free_timers
     type(point_t), allocatable    :: cell_coordinates(:)
     real(rp) :: cx, cy, cz
     integer(ip) :: inode, istat
+    character(len=:), allocatable :: refinement_pattern_case
     ! Centered refined pattern 
     real(rp)               :: inner_region_size(0:SPACE_DIM-1)  
     real(rp)               :: domain(6)
@@ -788,7 +790,7 @@ end subroutine free_timers
 
        do while ( .not. cell%has_finished() )
           if ( cell%is_local() ) then       
-             if ( cell%get_level() == 0 ) then
+             if ( cell%get_level() < this%test_params%get_min_num_refinements() ) then
                 call cell%set_for_refinement() 
                 call cell%next(); cycle 
              end if
@@ -838,7 +840,7 @@ end subroutine free_timers
     if ( environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
       do while ( .not. cell%has_finished() )
-        ! call cell%set_set_id(int(cell%get_ggid(),ip))
+        call cell%set_set_id(int(cell%get_ggid(),ip))
         call cell%next()
       end do
       call this%triangulation%free_cell_iterator(cell)

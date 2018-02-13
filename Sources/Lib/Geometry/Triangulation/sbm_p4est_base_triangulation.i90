@@ -1135,6 +1135,10 @@ subroutine p4est_bt_update_cell_set_ids(this)
   integer(ip) :: old_cell_set_id
   integer(ip) :: transformation_flag
   integer(ip) :: i, j
+  integer(ip)         , pointer :: p_cell_set_ids(:)
+  class(environment_t), pointer :: environment
+  type(cell_import_t) , pointer :: cell_import 
+  
   
 #ifdef ENABLE_P4EST
   call old_cell_set_ids%copy(this%cell_set_ids)
@@ -1170,6 +1174,23 @@ subroutine p4est_bt_update_cell_set_ids(this)
   end do
   call old_cell_set_ids%free()
   call this%cell_set_ids%resize(this%cell_set_ids%size()+this%get_num_ghost_cells(),0)
+  
+  environment => this%get_environment()
+  cell_import => this%get_cell_import() 
+  if (environment%am_i_l1_task()) then
+    p_cell_set_ids => this%cell_set_ids%get_pointer() 
+    if(environment%get_l1_size()>1) &
+    call environment%l1_neighbours_exchange (cell_import%get_num_neighbours(),    &
+                                             cell_import%get_neighbours_ids(),    &
+                                             cell_import%get_rcv_ptrs(),          &
+                                             cell_import%get_rcv_leids(),         &
+                                             cell_import%get_num_neighbours(),    &
+                                             cell_import%get_neighbours_ids(),    &
+                                             cell_import%get_snd_ptrs(),          &
+                                             cell_import%get_snd_leids(),         &
+                                             p_cell_set_ids,                      & 
+                                             p_cell_set_ids)
+  end if
 #else
   call this%not_enabled_error()
 #endif        

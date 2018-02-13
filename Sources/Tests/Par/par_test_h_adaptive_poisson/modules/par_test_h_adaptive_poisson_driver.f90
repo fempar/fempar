@@ -324,11 +324,10 @@ end subroutine free_timers
     do i = 1, this%test_params%get_num_refinements() 
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
-      call this%set_cells_set_ids()
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
-    
+    call this%set_cells_set_ids()
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
@@ -699,7 +698,7 @@ end subroutine free_timers
       check(istat==0)
     end if
     call this%triangulation%free()
-    !if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
+    if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
   end subroutine free  
 
   !========================================================================================
