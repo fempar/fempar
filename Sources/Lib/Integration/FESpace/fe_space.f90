@@ -357,7 +357,7 @@ module fe_space_names
      final                               :: fe_vef_iterator_final
      
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
-     procedure, non_overridable          :: is_fe_facet                       => fe_vef_iterator_is_fe_facet
+     procedure, non_overridable, private :: is_fe_facet                       => fe_vef_iterator_is_fe_facet
      procedure, non_overridable, private :: has_free_dofs                     => fe_vef_iterator_has_free_dofs
      
      procedure                 , private :: fe_vef_iterator_get_fe_around
