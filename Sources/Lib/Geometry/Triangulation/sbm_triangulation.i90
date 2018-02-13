@@ -672,7 +672,6 @@ subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this )
   else 
      disconnected_cells_set_id = -1
 
-     ! Generate dual graph 
      call this%generate_dual_graph(dual_graph)
 
      ! Fill disconnected parts array with recursive depth first search algorithm  
@@ -685,11 +684,10 @@ subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this )
      end do
   end if
 
-  ! Fill disconnected cells set 
-  call this%update_disconnected_cells_set() 
+  call this%resize_disconnected_cells_set() 
   call this%fill_disconnected_cells_set( disconnected_cells_set_id ) 
 
-  ! Get max number set_id among processors
+  ! Get upper bound for cell_set_ids among same level tasks 
   this%max_cell_set_id = this%compute_max_cells_set_id() 
 
   ! Free data
@@ -1340,7 +1338,8 @@ subroutine triangulation_setup_coarse_triangulation ( this )
                                              lst_itfc_cells             = coarse_dgraph_recv_counts, &
                                              ptr_ext_neighs_x_itfc_cell = coarse_dgraph_displs, &
                                              lst_ext_neighs_gids        = lextn, &
-                                             lst_ext_neighs_part_ids    = lextp )
+                                             lst_ext_neighs_part_ids    = lextp, &
+                                             subparts_coupling_criteria = this%subparts_coupling_criteria )
   else
      ! L1 tasks do not hold any piece of the coarse triangulation
      nullify(this%coarse_triangulation)

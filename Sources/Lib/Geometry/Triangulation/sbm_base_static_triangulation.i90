@@ -165,13 +165,13 @@ function bst_compute_max_cells_set_id (this)
   call environment%l1_max(bst_compute_max_cells_set_id) 
 end function bst_compute_max_cells_set_id 
 
-subroutine bst_update_disconnected_cells_set (this)
+subroutine bst_resize_disconnected_cells_set (this)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
   if (allocated( this%disconnected_cells_set_ids )) call memfree( this%disconnected_cells_set_ids, __FILE__, __LINE__) 
   call memalloc( this%get_num_cells(), this%disconnected_cells_set_ids, __FILE__, __LINE__) 
   this%disconnected_cells_set_ids = 0
-end subroutine bst_update_disconnected_cells_set
+end subroutine bst_resize_disconnected_cells_set
 
 subroutine bst_fill_disconnected_cells_set (this, disconnected_cells_set)
   implicit none

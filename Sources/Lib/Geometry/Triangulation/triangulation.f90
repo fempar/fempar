@@ -747,7 +747,7 @@ module triangulation_names
      procedure, non_overridable, private :: depth_first_search_algorithm                => triangulation_depth_first_search_algorithm
      procedure, non_overridable, private :: generate_dual_graph                         => triangulation_generate_dual_graph  
      procedure(compute_max_cells_set_id_interface)     , deferred :: compute_max_cells_set_id 
-     procedure(update_disconnected_cells_set_interface), deferred :: update_disconnected_cells_set
+     procedure(resize_disconnected_cells_set_interface), deferred :: resize_disconnected_cells_set
      procedure(fill_disconnected_cells_set_interface)  , deferred :: fill_disconnected_cells_set
 
   end type triangulation_t
@@ -807,10 +807,10 @@ module triangulation_names
        integer(ip) :: compute_max_cells_set_id_interface
      end function compute_max_cells_set_id_interface
      
-     subroutine update_disconnected_cells_set_interface ( this ) 
+     subroutine resize_disconnected_cells_set_interface ( this ) 
        import :: triangulation_t
        class(triangulation_t), intent(inout)   :: this
-     end subroutine update_disconnected_cells_set_interface 
+     end subroutine resize_disconnected_cells_set_interface 
      
      subroutine fill_disconnected_cells_set_interface ( this, disconnected_cells_set ) 
        import :: triangulation_t, ip 
@@ -1026,7 +1026,7 @@ module triangulation_names
      procedure, non_overridable, private :: allocate_disconnected_cells_set     => bst_allocate_disconnected_cells_set
      procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
      procedure                           :: compute_max_cells_set_id            => bst_compute_max_cells_set_id
-     procedure                           :: update_disconnected_cells_set       => bst_update_disconnected_cells_set
+     procedure                           :: resize_disconnected_cells_set       => bst_resize_disconnected_cells_set
      procedure                           :: fill_disconnected_cells_set         => bst_fill_disconnected_cells_set
      procedure, non_overridable, private :: free_ptr_vefs_x_cell                => bst_free_ptr_vefs_x_cell
      procedure, non_overridable, private :: free_lst_vefs_gids                  => bst_free_lst_vefs_gids 

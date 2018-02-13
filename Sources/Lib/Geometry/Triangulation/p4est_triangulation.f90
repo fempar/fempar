@@ -508,7 +508,7 @@ module p4est_triangulation_names
     procedure                 , non_overridable  :: clear_cell_set_ids                                 => p4est_bt_clear_cell_set_ids
     procedure                                    :: fill_cells_set                                     => p4est_bt_fill_cells_set
     procedure                                    :: compute_max_cells_set_id                           => p4est_bt_compute_max_cells_set_id
-    procedure                                    :: update_disconnected_cells_set                      => p4est_bt_update_disconnected_cells_set
+    procedure                                    :: resize_disconnected_cells_set                      => p4est_bt_resize_disconnected_cells_set
     procedure                                    :: fill_disconnected_cells_set                        => p4est_bt_fill_disconnected_cells_set
     procedure, private        , non_overridable  :: clear_vef_set_ids                                  => p4est_bt_clear_vef_set_ids
     procedure, private        , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import

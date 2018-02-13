@@ -1774,12 +1774,12 @@ function p4est_bt_compute_max_cells_set_id (this)
       
 end function p4est_bt_compute_max_cells_set_id 
 
-subroutine p4est_bt_update_disconnected_cells_set (this)
+subroutine p4est_bt_resize_disconnected_cells_set (this)
   implicit none
   class(p4est_base_triangulation_t), intent(inout)   :: this
    call this%disconnected_cell_set_ids%resize(0)
    call this%disconnected_cell_set_ids%resize(this%get_num_cells(),0)
-end subroutine p4est_bt_update_disconnected_cells_set
+end subroutine p4est_bt_resize_disconnected_cells_set
 
 subroutine p4est_bt_fill_disconnected_cells_set (this, disconnected_cells_set)
   implicit none
