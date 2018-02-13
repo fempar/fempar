@@ -459,18 +459,26 @@ function fe_facet_iterator_get_facet_integrator(this, field_id)
   integer(ip)                           :: facet_integrators_position_key
   integer(ip)                           :: facet_integrators_position
   integer(ip)                           :: reference_fes_id(2)
+  logical                               :: local_fe_around_itfc_fe_facet_is_void
   
   assert ( field_id >= 1 .and. field_id <= this%fe_space%get_num_fields() )
  
   reference_fes_id(2) = 0 
+  local_fe_around_itfc_fe_facet_is_void = .false.
   do icell_around = 1, this%get_num_cells_around()
+     if ( this%is_at_interface()                     .and. & 
+          this%fes_around(icell_around)%p%is_local() .and. & 
+          this%fes_around(icell_around)%p%is_void(field_id) ) then
+       local_fe_around_itfc_fe_facet_is_void = .true.
+     end if
      reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id)%get(this%fes_around(icell_around)%p%get_gid())
   end do
   
   facet_integrators_position_key = &
        this%fe_space%generate_facet_integrators_position_key(this%get_quadrature_degree(), &
                                                                reference_fes_id(1), &
-                                                               reference_fes_id(2) )
+                                                               reference_fes_id(2), &
+                                                               local_fe_around_itfc_fe_facet_is_void )
        
   call this%fe_space%facet_integrators_position%get(key=facet_integrators_position_key, &
                                                       val=facet_integrators_position, &
@@ -488,17 +496,25 @@ subroutine fe_facet_iterator_update_facet_integrators(this)
   integer(ip)                           :: facet_integrators_position_key
   integer(ip)                           :: facet_integrators_position
   integer(ip)                           :: reference_fes_id(2)
+  logical                               :: local_fe_around_itfc_fe_facet_is_void
   integer(ip)                           :: field_id
   
   do field_id = 1, this%fe_space%num_fields
      reference_fes_id(2) = 0 
+     local_fe_around_itfc_fe_facet_is_void = .false.
      do icell_around = 1, this%get_num_cells_around()
+        if ( this%is_at_interface()                     .and. & 
+             this%fes_around(icell_around)%p%is_local() .and. & 
+             this%fes_around(icell_around)%p%is_void(field_id) ) then
+          local_fe_around_itfc_fe_facet_is_void = .true.
+        end if
         reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id)%get(this%fes_around(icell_around)%p%get_gid())
      end do
      facet_integrators_position_key = &
         this%fe_space%generate_facet_integrators_position_key(this%get_quadrature_degree(), &
-                                                               reference_fes_id(1), &
-                                                               reference_fes_id(2) )
+                                                               reference_fes_id(1),         &
+                                                               reference_fes_id(2),         &
+                                                               local_fe_around_itfc_fe_facet_is_void )
        
      call this%fe_space%facet_integrators_position%get(key=facet_integrators_position_key, &
                                                       val=facet_integrators_position, &
