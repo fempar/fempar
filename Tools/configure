@@ -176,7 +176,7 @@ then
    esac
 else
 
-   var=$(cat CMakeCache.txt | grep CMAKE_Fortran_COMPILER | grep FILEPATH | cut -f2 -d= | sort | uniq)
+   var=$(cat CMakeCache.txt | grep CMAKE_Fortran_COMPILER | grep STRING | cut -f2 -d= | sort | uniq)
 
    base_command="cmake $common_cmake_variables"
    msg1="U cannot change compiler if u already selected one before. The previous compiler was ($var)."
@@ -194,9 +194,13 @@ fi
 if [ "$DRIVER" == 1 ]
 then
      command="$base_command -DFEMPAR_DRIVER=$FEMPAR_DRIVER"
-     echo $command  > configure.log
+     echo ================================================== >> configure.log
+     date >> configure.log
+     echo $command  >> configure.log
      eval $command
 else
-     echo $base_command > configure.log    
+     echo ================================================== >> configure.log
+     date >> configure.log
+     echo $base_command >> configure.log    
      eval $base_command 	
 fi
