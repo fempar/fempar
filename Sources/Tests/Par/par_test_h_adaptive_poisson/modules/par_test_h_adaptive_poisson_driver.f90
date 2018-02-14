@@ -81,8 +81,7 @@ module par_test_h_adaptive_poisson_driver_names
      type(timer_t) :: timer_triangulation
      type(timer_t) :: timer_fe_space
      type(timer_t) :: timer_assemply
-     type(timer_t) :: timer_solver_setup
-     type(timer_t) :: timer_solver_run
+     type(timer_t) :: timer_solver
 
    contains
      procedure                  :: parse_command_line_parameters
@@ -101,6 +100,7 @@ module par_test_h_adaptive_poisson_driver_names
      procedure        , private :: check_solution
      procedure        , private :: write_solution
      procedure                  :: run_simulation
+     procedure        , private :: print_info 
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
@@ -130,8 +130,7 @@ subroutine setup_timers(this)
     call this%timer_triangulation%create(w_context,"SETUP TRIANGULATION")
     call this%timer_fe_space%create(     w_context,"SETUP FE SPACE")
     call this%timer_assemply%create(     w_context,"FE INTEGRATION AND ASSEMBLY")
-    call this%timer_solver_setup%create( w_context,"SETUP SOLVER AND PRECONDITIONER")
-    call this%timer_solver_run%create(   w_context,"SOLVER RUN")
+    call this%timer_solver%create(   w_context,"PRECONDITIONER SETUP + SOLVER RUN")
 end subroutine setup_timers
 
 !========================================================================================
@@ -141,8 +140,7 @@ subroutine report_timers(this)
     call this%timer_triangulation%report(.true.)
     call this%timer_fe_space%report(.false.)
     call this%timer_assemply%report(.false.)
-    call this%timer_solver_setup%report(.false.)
-    call this%timer_solver_run%report(.false.)
+    call this%timer_solver%report(.false.)
     if (this%par_environment%get_l1_rank() == 0) then
       write(*,*)
     end if
@@ -155,8 +153,7 @@ subroutine free_timers(this)
     call this%timer_triangulation%free()
     call this%timer_fe_space%free()
     call this%timer_assemply%free()
-    call this%timer_solver_setup%free()
-    call this%timer_solver_run%free()
+    call this%timer_solver%free()
 end subroutine free_timers
 
 !========================================================================================
@@ -327,7 +324,6 @@ end subroutine free_timers
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
-    call this%set_cells_set_ids()
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
   
@@ -401,6 +397,7 @@ end subroutine free_timers
     end if
     
     call this%fe_space%set_up_cell_integration()
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     !call this%fe_space%print()
   end subroutine setup_fe_space
   
@@ -476,7 +473,6 @@ end subroutine free_timers
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
     ! Set-up MLBDDC preconditioner
-    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()
@@ -650,15 +646,14 @@ end subroutine free_timers
     call this%assemble_system()
     call this%timer_assemply%stop()
     
-    call this%timer_solver_setup%start()
+    call this%timer_solver%start()
     call this%setup_solver()
-    call this%timer_solver_setup%stop()
-
-    call this%timer_solver_run%start()
     call this%solve_system()
-    call this%timer_solver_run%stop()
+    call this%timer_solver%stop()
 
     call this%check_solution()
+    
+    call this%print_info() 
     
     call this%set_cells_for_refinement()
     call this%triangulation%refine_and_coarsen()
@@ -695,6 +690,10 @@ end subroutine free_timers
         call this%reference_fes(i)%free()
       end do
       deallocate(this%reference_fes, stat=istat)
+      check(istat==0)
+    end if
+    if ( allocated(this%coarse_fe_handlers) ) then
+      deallocate(this%coarse_fe_handlers, stat=istat)
       check(istat==0)
     end if
     call this%triangulation%free()
@@ -863,6 +862,52 @@ end subroutine free_timers
       call this%triangulation%free_cell_iterator(cell)
     end if
   end subroutine set_cells_for_coarsening
+  
+      !========================================================================================
+  subroutine print_info (this)
+    implicit none
+    class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
+
+    integer(ip) :: num_sub_domains
+    real(rp) :: num_total_cells
+    real(rp) :: num_dofs
+    real(rp) :: num_interface_dofs 
+    integer(ip) :: num_coarse_dofs
+
+    class(environment_t), pointer :: environment
+    class(coarse_fe_space_t), pointer :: coarse_fe_space
+    class(execution_context_t), pointer :: w_context
+
+    environment => this%fe_space%get_environment()
+
+    if (environment%am_i_l1_task()) then
+      num_total_cells      = real(this%triangulation%get_num_local_cells(),kind=rp)
+      num_dofs             = real(this%fe_space%get_field_num_dofs(1),kind=rp)
+      num_interface_dofs   = real(this%fe_space%get_total_num_interface_dofs(),kind=rp)
+
+      call environment%l1_sum(num_total_cells )
+      call environment%l1_sum(num_dofs        )
+      call environment%l1_sum(num_interface_dofs )
+    end if
+
+    w_context => environment%get_w_context()
+    call w_context%barrier()
+    
+    if (environment%get_l1_rank() == 0) then
+      num_sub_domains = environment%get_l1_size()
+      write(*,'(a35,i22)') 'num_sub_domains:', num_sub_domains
+      write(*,'(a35,i22)') 'num_total_cells:', nint(num_total_cells     , kind=ip )
+      write(*,'(a35,i22)') 'num_dofs (sub-assembled):', nint(num_dofs            , kind=ip )
+      write(*,'(a35,i22)') 'num_interface_dofs (sub-assembled):', nint(num_interface_dofs  , kind=ip )
+    end if
+ 
+      if (environment%am_i_lgt1_task()) then
+        coarse_fe_space => this%fe_space%get_coarse_fe_space()
+        num_coarse_dofs = coarse_fe_space%get_field_num_dofs(1)
+        write(*,'(a35,i22)') 'num_coarse_dofs:', num_coarse_dofs
+      end if
+
+  end subroutine print_info
   
   
 end module par_test_h_adaptive_poisson_driver_names
