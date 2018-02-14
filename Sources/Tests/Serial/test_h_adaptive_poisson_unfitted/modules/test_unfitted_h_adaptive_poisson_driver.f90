@@ -109,6 +109,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
      procedure        , private :: check_solution
      procedure        , private :: check_solution_vector
      procedure        , private :: write_solution
+     procedure        , private :: compute_smallest_vol_fraction
      procedure        , private :: write_filling_curve
      procedure        , private :: free
   end type test_unfitted_h_adaptive_poisson_driver_t
@@ -1043,6 +1044,53 @@ contains
     endif
   end subroutine write_solution
 
+
+  subroutine compute_smallest_vol_fraction(this)
+    implicit none
+    class(test_unfitted_h_adaptive_poisson_driver_t), intent(in) :: this
+
+    class(fe_cell_iterator_t), allocatable :: fe
+    type(quadrature_t), pointer :: quad
+    integer(ip)  :: qpoint, num_quad_points
+    type(cell_map_t), pointer :: cell_map
+    real(rp) :: dV, V, Vmin
+    integer(ip) :: iounit
+
+    Vmin = 1.0e10
+
+    call this%fe_space%create_fe_cell_iterator(fe)
+    do while (.not. fe%has_finished())
+
+       call fe%update_integration()
+
+       quad            => fe%get_quadrature()
+       cell_map        => fe%get_cell_map()
+       num_quad_points = quad%get_num_quadrature_points()
+
+       if (fe%is_cut()) then
+
+         V = 0.0
+         do qpoint = 1, num_quad_points
+            dV = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            V = V + dV
+         end do
+         Vmin = min(V,Vmin)
+
+       end if
+
+      call fe%next()
+    end do
+    call this%fe_space%free_fe_cell_iterator(fe)
+
+    if (this%test_params%get_write_aggr_info()) then
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_min_vol.csv',action='write')
+      check(iounit>0)
+      write(iounit,'(a,e32.25)') 'volume_min ;', Vmin
+      call io_close(iounit)
+    end if
+
+  end subroutine compute_smallest_vol_fraction
+
   subroutine write_filling_curve(this)
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(in) :: this
@@ -1132,6 +1180,7 @@ contains
     
     
     call this%setup_system()
+    call this%compute_smallest_vol_fraction()
 
     if ( .not. this%test_params%get_only_setup() ) then
       call this%assemble_system()
