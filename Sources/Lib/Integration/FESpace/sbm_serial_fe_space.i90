@@ -811,7 +811,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
                       ! Get scalar boundary functions 
                       call this%conditions%get_components_code( vef%get_set_id(), components_code )
                       component_id = offset_component(field_id) + 1
-                      if (components_code(component_id)) then
+                      if ( any(components_code(component_id:component_id+reference_fe%get_num_field_components()-1)) ) then
                          n_face_mask(vef_lid) = .true. 
                          ! Retreive the scalar functions corresponding to the components of the function to be projected
                          do icomp=1, reference_fe%get_num_field_components()
@@ -839,8 +839,9 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
                     own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
                     do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
                        idof = own_dofs_on_vef_iterator%get_current()   
-                       assert ( fe_dofs(idof) < 0 )
+                       if( fe%is_strong_dirichlet_dof(fe_dofs(idof))) then
                        fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
+                       end if 
                        call own_dofs_on_vef_iterator%next()  
                     end do
                   end if

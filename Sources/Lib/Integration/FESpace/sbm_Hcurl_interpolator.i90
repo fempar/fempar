@@ -26,16 +26,15 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 ! ================================================================================
-subroutine Hcurl_interpolator_evaluate_scalar_function_moments(this, fe, scalar_function, dof_values, n_face_mask, time ) 
+subroutine Hcurl_interpolator_evaluate_scalar_function_moments(this, fe, scalar_function, dof_values, time ) 
   implicit none
   class(Hcurl_interpolator_t)           , intent(inout) :: this
   class(fe_cell_iterator_t)             , intent(in)    :: fe
   class(scalar_function_t)              , intent(in)    :: scalar_function
   real(rp) , allocatable                , intent(inout) :: dof_values(:) 
-  logical  , optional                   , intent(in)    :: n_face_mask(:)
   real(rp) , optional                   , intent(in)    :: time 
   ! Does not apply for vector FEs
-  assert(.false.) 
+  massert(.false., 'Evaluation of scalar function moments does not make sense for this interpolator type') 
 end subroutine Hcurl_interpolator_evaluate_scalar_function_moments
 
 ! ================================================================================

@@ -138,13 +138,12 @@ subroutine tet_Hcurl_interpolator_create( this, fe_space, field_id )
 end subroutine tet_Hcurl_interpolator_create
 
 ! ================================================================================
-subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, n_face_mask, time ) 
+subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, time ) 
   implicit none
   class(tet_Hcurl_interpolator_t) , intent(inout) :: this
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(vector_function_t)        , intent(in)    :: vector_function
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
-  logical  , optional             , intent(in)    :: n_face_mask(:)
   real(rp) , optional             , intent(in)    :: time 
 
   ! Edge moments evaluation 

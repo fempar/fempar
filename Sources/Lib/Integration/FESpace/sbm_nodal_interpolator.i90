@@ -70,13 +70,12 @@ subroutine nodal_interpolator_create( this, fe_space, field_id  )
 end subroutine nodal_interpolator_create
 
 ! ================================================================================
-subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar_function, dof_values, n_face_mask, time ) 
+subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar_function, dof_values, time ) 
   implicit none
   class(nodal_interpolator_t)        , intent(inout) :: this
   class(fe_cell_iterator_t)          , intent(in)    :: fe
   class(scalar_function_t)           , intent(in)    :: scalar_function
   real(rp) , allocatable             , intent(inout) :: dof_values(:) 
-  logical  , optional                , intent(in)    :: n_face_mask(:)
   real(rp) , optional                , intent(in)    :: time 
 
   integer(ip)                      :: reference_fe_id 
@@ -110,13 +109,12 @@ subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar
 end subroutine nodal_interpolator_evaluate_scalar_function_moments
 
 ! ================================================================================
-subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, n_face_mask, time ) 
+subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, time ) 
   implicit none
   class(nodal_interpolator_t)     , intent(inout) :: this
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(vector_function_t)        , intent(in)    :: vector_function
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
-  logical  , optional             , intent(in)    :: n_face_mask(:)
   real(rp) , optional             , intent(in)    :: time 
 
   integer(ip)                      :: reference_fe_id 
@@ -189,7 +187,7 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
 
   dof_values = 0.0_rp 
   do vef_lid = 1, fe%get_num_vefs() 
-     if ( n_face_mask(vef_lid) .eqv. .true. ) then 
+     if ( n_face_mask(vef_lid) ) then 
 
         own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid)
         do while ( .not. own_dofs%is_upper_bound() ) 

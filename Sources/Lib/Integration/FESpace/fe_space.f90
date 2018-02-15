@@ -1194,25 +1194,23 @@ module fe_space_names
       integer(ip)              , intent(in)    :: field_id
     end subroutine interpolator_create_interface
 
-    subroutine interpolator_evaluate_scalar_function_moments_interface( this, fe, scalar_function, dof_values, n_face_mask, time )
+    subroutine interpolator_evaluate_scalar_function_moments_interface( this, fe, scalar_function, dof_values, time )
       import :: interpolator_t, scalar_function_t, fe_cell_iterator_t, rp   
       implicit none
       class(interpolator_t)           , intent(inout) :: this
       class(fe_cell_iterator_t)       , intent(in)    :: fe
       class(scalar_function_t)        , intent(in)    :: scalar_function
       real(rp) , allocatable          , intent(inout) :: dof_values(:) 
-      logical  , optional             , intent(in)    :: n_face_mask(:)
       real(rp) , optional             , intent(in)    :: time 
     end subroutine interpolator_evaluate_scalar_function_moments_interface
 
-    subroutine interpolator_evaluate_vector_function_moments_interface( this, fe, vector_function, dof_values, n_face_mask, time )
+    subroutine interpolator_evaluate_vector_function_moments_interface( this, fe, vector_function, dof_values, time )
       import :: interpolator_t, vector_function_t, fe_cell_iterator_t, rp   
       implicit none
       class(interpolator_t)           , intent(inout) :: this
       class(fe_cell_iterator_t)       , intent(in)    :: fe
       class(vector_function_t)        , intent(in)    :: vector_function
       real(rp) , allocatable          , intent(inout) :: dof_values(:) 
-      logical  , optional             , intent(in)    :: n_face_mask(:)
       real(rp) , optional             , intent(in)    :: time 
     end subroutine interpolator_evaluate_vector_function_moments_interface
 
