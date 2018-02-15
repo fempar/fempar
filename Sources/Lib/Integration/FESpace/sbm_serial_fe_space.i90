@@ -843,8 +843,9 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
                     own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
                     do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
                        idof = own_dofs_on_vef_iterator%get_current()   
-                       assert ( fe_dofs(idof) < 0 )
+                       if( fe%is_strong_dirichlet_dof(fe_dofs(idof))) then
                        fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
+                       end if 
                        call own_dofs_on_vef_iterator%next()  
                     end do
                   end if

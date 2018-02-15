@@ -739,8 +739,8 @@ subroutine triangulation_generate_dual_graph(this, dual_graph)
   allocate ( couplings_counter(this%get_num_local_cells()), stat=istat ); check(istat==0)
   call memalloc( this%get_num_local_cells(), num_coupled_cells, __FILE__, __LINE__ ) 
   do icell=1, this%get_num_local_cells() 
-     call coupled_cells(icell)%init(this%get_num_local_cells())
-     call couplings_counter(icell)%init(this%get_num_local_cells())
+     call coupled_cells(icell)%init(10)
+     call couplings_counter(icell)%init(10)
   end do
 
   num_coupled_cells=0
@@ -854,7 +854,7 @@ recursive subroutine triangulation_depth_first_search_algorithm(this, icell, dua
   integer(ip)             , intent(in)     :: icell 
   type(list_t)            , intent(in)     :: dual_graph
   integer(ip)             , intent(in)     :: disconnected_part_id  
-  integer(ip), allocatable, intent(inout)  :: disconnected_cells_set_id(:)
+  integer(ip)             , intent(inout)  :: disconnected_cells_set_id(:)
 
   type(list_iterator_t) :: adjacent_elements 
 
@@ -864,7 +864,7 @@ recursive subroutine triangulation_depth_first_search_algorithm(this, icell, dua
      if ( disconnected_cells_set_id(adjacent_elements%get_current()) < 0 ) then 
         call this%depth_first_search_algorithm( adjacent_elements%get_current(), dual_graph, disconnected_part_id, disconnected_cells_set_id )
      end if
-     call adjacent_elements%next() 
+     call adjacent_elements%next()
   end do
 
 end subroutine triangulation_depth_first_search_algorithm
