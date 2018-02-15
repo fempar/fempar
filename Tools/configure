@@ -176,19 +176,10 @@ then
    esac
 else
 
-   var=$(cat CMakeCache.txt | grep CMAKE_Fortran_COMPILER | grep STRING | cut -f2 -d= | sort | uniq)
+   base_command="cmake . "
+   echo "CMakeCache.txt detected! Any option other than -d (--driver) will be ignored, including default ones."
+   echo "Changing the compiler, build-type, third party library requires cleaning and configuring again."
 
-   base_command="cmake $common_cmake_variables"
-   msg1="U cannot change compiler if u already selected one before. The previous compiler was ($var)."
-   msg2="If u want to change compiler, remove build directory, and rerun configure."
-   if [ "$c_flag_present" == 1 ] 
-   then 
-      echo "WARNING: -c option ignored!!! $msg1"
-      echo "         $msg2"
-   else
-      echo "WARNING: Default compiler (Intel) ignored!!! $msg1"
-      echo "         $msg2"
-   fi 
 fi
        
 if [ "$DRIVER" == 1 ]
