@@ -150,9 +150,10 @@ subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector
 end subroutine nodal_interpolator_evaluate_vector_function_moments
 
 !==================================================================================================
-subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, n_face_mask, fe, vector_function_scalar_components, dof_values, time)
+subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, n_face_mask, components_code, fe, vector_function_scalar_components, dof_values, time)
   class(nodal_interpolator_t)     , intent(inout) :: this
   logical                         , intent(in)    :: n_face_mask(:) 
+  logical                         , intent(in)    :: components_code(:)
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
@@ -175,7 +176,8 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
   if ( present(time) ) time_(1) = time
   reference_fe_id =  fe%get_reference_fe_id(this%field_id) 
   reference_fe    => fe%get_reference_fe(this%field_id)
-
+  massert ( size(components_code) == reference_fe%get_num_field_components(), 'Passed components_code slice does not correspond to number field components' )
+  
   num_nodal_qpoints = this%nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points() 				
   cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates()
   call fe%get_nodes_coordinates( cell_coordinates ) 
@@ -205,6 +207,7 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
               massert ( .false. , "interpolate_boundary_scalar_component :: not available for tensor field type" )
            end select
 
+           if ( components_code(icomp) ) then 
            if(present(time)) then
               call vector_function_scalar_components(icomp, vef_lid)%p%get_values_set_space_time(nodal_coordinates(inode_scalar:inode_scalar), & 
                    time_,                                        & 
@@ -215,6 +218,7 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
            end if
 
            dof_values(idof) = this%scalar_function_values(inode_scalar,1) 
+           end if 
            call own_dofs%next()
         end do
      end if

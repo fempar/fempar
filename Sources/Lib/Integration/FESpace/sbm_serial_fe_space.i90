@@ -811,26 +811,28 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
                       ! Get scalar boundary functions 
                       call this%conditions%get_components_code( vef%get_set_id(), components_code )
                       component_id = offset_component(field_id) + 1
-                      if ( any(components_code(component_id:component_id+reference_fe%get_num_field_components()-1)) ) then
+                      do icomp=1, reference_fe%get_num_field_components()
+                        if ( components_code(component_id+icomp-1) ) then
                          n_face_mask(vef_lid) = .true. 
                          ! Retreive the scalar functions corresponding to the components of the function to be projected
-                         do icomp=1, reference_fe%get_num_field_components()
                             call this%conditions%get_function(vef%get_set_id(),                 &
-                                 component_id+icomp-1,             &
-                                 function_scalar_components(icomp, vef_lid)%p)
-                         end do
-                      end if
+                                                              component_id+icomp-1,             &
+                                                              function_scalar_components(icomp, vef_lid)%p)
+                         end if
+                      end do
                      end if   
                    end if
                  end if
               end do              
               
               ! Evaluate moments on the FE dirichlet boundary 
-              call interpolators(field_id)%p%evaluate_function_scalar_components_moments( n_face_mask,                & 
-                   fe,                         &
-                   function_scalar_components, &
-                   dof_values,                 &
-                   time = time )
+              call interpolators(field_id)%p%evaluate_function_scalar_components_moments( n_face_mask,                                                         & 
+                                                                                          components_code(offset_component(field_id)+1:                        & 
+                                                                                          offset_component(field_id)+reference_fe%get_num_field_components()), & 
+                                                                                          fe,                                                                  &
+                                                                                          function_scalar_components,                                          &
+                                                                                          dof_values,                                                          &
+                                                                                          time = time )
 
 
               ! Insert nodal values on vefs at the dirichlet boundary 

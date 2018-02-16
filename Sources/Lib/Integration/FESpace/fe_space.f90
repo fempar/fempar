@@ -1214,11 +1214,12 @@ module fe_space_names
       real(rp) , optional             , intent(in)    :: time 
     end subroutine interpolator_evaluate_vector_function_moments_interface
 
-    subroutine interpolator_evaluate_function_components_moments_interface( this, n_face_mask, fe, vector_function_scalar_components, dof_values, time )
+    subroutine interpolator_evaluate_function_components_moments_interface( this, n_face_mask, components_code, fe, vector_function_scalar_components, dof_values, time )
       import :: interpolator_t, fe_cell_iterator_t, p_scalar_function_t, rp, ip 
       implicit none 
       class(interpolator_t)           , intent(inout) :: this
       logical                         , intent(in)    :: n_face_mask(:) 
+      logical                         , intent(in)    :: components_code(:) 
       class(fe_cell_iterator_t)       , intent(in)    :: fe
       class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
       real(rp) , allocatable          , intent(inout) :: dof_values(:) 

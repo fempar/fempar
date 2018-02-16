@@ -70,6 +70,7 @@ contains
     if ( boundary_id == 1 ) then
       components_code(1:size(components_code)) = .true.
     end if
+    components_code(1)=.false. 
   end subroutine vector_poisson_conditions_get_components_code
   
   subroutine vector_poisson_conditions_get_function ( this, boundary_id, component_id, function )
