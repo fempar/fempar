@@ -133,7 +133,16 @@ done
 echo Configuring with the following options
 echo COMPILER = $COMPILER
 echo BUILD_TYPE = $BUILD_TYPE
-if [ $DRIVER == 1 ]; then echo FEMPAR_DRIVER = $FEMPAR_DRIVER; fi
+if [ $DRIVER == 1 ]
+then 
+    if [ -d $FEMPAR_SOURCES../Drivers/$FEMPAR_DRIVER ]
+    then
+	echo FEMPAR_DRIVER = $FEMPAR_DRIVER
+    else
+	echo "Cannot find driver $FEMPAR_DRIVER in $FEMPAR_SOURCES../Drivers" 
+	exit
+    fi
+fi
 echo OPENMP = $OPENMP
 echo BLAS = $BLAS
 echo LAPACK = $LAPACK
@@ -162,7 +171,7 @@ if [ $MKL == "ON" ]; then
     fi
 fi
 
-common_cmake_variables="-DFEMPAR_ENABLE_TESTS=$TESTS -DFEMPAR_ENABLE_OPENMP=$OPENMP -DFEMPAR_ENABLE_MKL=$MKL -DFEMPAR_ENABLE_P4EST=$P4EST -DFORTRAN_EXTRA_FLAGS=${FORTRAN_EXTRA_FLAGS} -DC_EXTRA_FLAGS=${C_EXTRA_FLAGS} -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DMPIEXEC_PREFLAGS=$MPIEXEC_PREFLAGS $MACROS $FEMPAR_SOURCES"
+common_cmake_variables="-DFEMPAR_ENABLE_TESTS=$TESTS -DFEMPAR_ENABLE_OPENMP=$OPENMP -DFEMPAR_ENABLE_MKL=$MKL -DFEMPAR_ENABLE_P4EST=$P4EST -DFORTRAN_EXTRA_FLAGS=${FORTRAN_EXTRA_FLAGS} -DC_EXTRA_FLAGS=${C_EXTRA_FLAGS} -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DMPIEXEC_PREFLAGS=$MPIEXEC_PREFLAGS $MACROS"
 
 if [ ! -f ./CMakeCache.txt ] 
 then 
@@ -175,8 +184,8 @@ then
    ;; 
    esac
 else
-
-   base_command="cmake . "
+   FEMPAR_SOURCES=.
+   base_command="cmake "
    echo "CMakeCache.txt detected! Any option other than -d (--driver) will be ignored, including default ones."
    echo "Changing the compiler, build-type, third party library requires cleaning and configuring again."
 
@@ -184,7 +193,7 @@ fi
        
 if [ "$DRIVER" == 1 ]
 then
-     command="$base_command -DFEMPAR_DRIVER=$FEMPAR_DRIVER"
+     command="$base_command -DFEMPAR_DRIVER=$FEMPAR_DRIVER $FEMPAR_SOURCES"
      echo ================================================== >> configure.log
      date >> configure.log
      echo $command  >> configure.log
