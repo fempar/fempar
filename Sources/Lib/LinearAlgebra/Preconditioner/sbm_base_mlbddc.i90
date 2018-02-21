@@ -26,6 +26,50 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+subroutine base_mlbddc_set_state_start(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_START
+end subroutine base_mlbddc_set_state_start
+
+subroutine base_mlbddc_set_state_created(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_CREATED
+end subroutine base_mlbddc_set_state_created
+
+subroutine base_mlbddc_set_state_symbolic(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_SYMBOLIC
+end subroutine base_mlbddc_set_state_symbolic
+
+subroutine base_mlbddc_set_state_numeric(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_NUMERIC
+end subroutine base_mlbddc_set_state_numeric
+
+function base_mlbddc_state_is_start(this) result(is_start)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_start
+  is_start = this%state == BASE_MLBDDC_STATE_START
+end function base_mlbddc_state_is_start
+
+function base_mlbddc_state_is_created(this) result(is_start)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_start
+  is_start = this%state == BASE_MLBDDC_STATE_CREATED
+end function base_mlbddc_state_is_created
+
+function base_mlbddc_state_is_symbolic(this) result(is_symbolic_setup)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_symbolic_setup
+  is_symbolic_setup = this%state == BASE_MLBDDC_STATE_SYMBOLIC
+end function base_mlbddc_state_is_symbolic
+
+function base_mlbddc_state_is_numeric(this) result(is_numerical_setup)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_numerical_setup
+  is_numerical_setup= this%state == BASE_MLBDDC_STATE_NUMERIC
+end function base_mlbddc_state_is_numeric
+
 subroutine base_mlbddc_assert_dirichlet_solver_params ( this )
   implicit none
   class(base_mlbddc_t), intent(in) :: this
@@ -55,26 +99,31 @@ recursive subroutine base_mlbddc_symbolic_setup ( this )
   class(base_mlbddc_t), intent(inout) :: this
   type(environment_t), pointer :: par_environment  
   par_environment => this%get_par_environment()
-
-  if( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then
+  
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if ( this%state_is_created() ) then
+    if( par_environment%am_i_l1_task() ) then
+      if ( par_environment%get_l1_size() > 1 ) then
         call this%setup_constraint_matrix()
         call this%setup_weighting_operator()
-     end if
-  end if
+      end if
+    end if
 
-  call this%symbolic_setup_coarse_grid_matrix()
-  call this%symbolic_setup_mlbddc_coarse()
+    call this%symbolic_setup_coarse_grid_matrix()
+    call this%symbolic_setup_mlbddc_coarse()
 
-  if ( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then      
+    if ( par_environment%am_i_l1_task() ) then
+      if ( par_environment%get_l1_size() > 1 ) then      
         call this%symbolic_setup_dirichlet_problem()
         call this%symbolic_setup_dirichlet_solver()
         call this%symbolic_setup_constrained_neumann_problem()
         call this%symbolic_setup_constrained_neumann_solver()
-     else
+      else
         call this%symbolic_setup_coarse_solver()
-     end if
+      end if
+    end if
+    call this%set_state_symbolic()
   end if
 end subroutine base_mlbddc_symbolic_setup
 
@@ -312,26 +361,38 @@ recursive subroutine base_mlbddc_numerical_setup ( this )
   class(base_mlbddc_t)        , intent(inout)   :: this
   type(environment_t), pointer         :: par_environment
 
-  par_environment => this%get_par_environment()
-  if ( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then  
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if ( this%state_is_created() ) then
+    call this%symbolic_setup()
+  end if 
+  
+  assert ( this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if ( this%state_is_symbolic() ) then
+    par_environment => this%get_par_environment()
+    if ( par_environment%am_i_l1_task() ) then
+      if ( par_environment%get_l1_size() > 1 ) then  
         call this%numerical_setup_constrained_neumann_problem()
         call this%numerical_setup_constrained_neumann_solver()
         call this%setup_coarse_grid_basis()
-     end if
-  end if
+      end if
+    end if
 
-  call this%numerical_setup_coarse_grid_matrix()
-  call this%numerical_setup_mlbddc_coarse()
+    call this%numerical_setup_coarse_grid_matrix()
+    call this%numerical_setup_mlbddc_coarse()
 
-  if ( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then  
+    if ( par_environment%am_i_l1_task() ) then
+       if ( par_environment%get_l1_size() > 1 ) then  
         call this%numerical_setup_dirichlet_problem()
         call this%numerical_setup_dirichlet_solver()
-     else if ( par_environment%get_l1_size() == 1 ) then
+       else if ( par_environment%get_l1_size() == 1 ) then
         call this%numerical_setup_coarse_solver()
-     end if
+       end if
+    end if
+    call this%set_state_numeric()
   end if
+  
 end subroutine base_mlbddc_numerical_setup
 
 
@@ -718,6 +779,21 @@ recursive subroutine base_mlbddc_apply (this, x, y)
   class(base_mlbddc_t)   , intent(inout)    :: this
   class(vector_t)   , intent(in)    :: x
   class(vector_t)   , intent(inout) :: y
+  
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+
+  if (this%state_is_created() ) then
+    call this%symbolic_setup()
+  end if 
+  
+  assert ( this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if (this%state_is_symbolic() ) then
+    call this%numerical_setup()
+  end if 
+  
+  assert ( this%state_is_numeric() )
+  
   call this%abort_if_not_in_domain(x)
   call this%abort_if_not_in_range(y)
   call x%GuardTemp()
@@ -1418,10 +1494,23 @@ end subroutine base_mlbddc_free
 subroutine base_mlbddc_free_clean(this)
   implicit none
   class(base_mlbddc_t)           , intent(inout) :: this
+  
+  assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+
+  if ( this%state_is_numeric() ) then
+    call this%free_numerical_setup() 
+  end if
+  
+  if ( this%state_is_symbolic() ) then
+    call this%free_symbolic_setup() 
+  end if
+  
   call this%nullify_operator()
   call this%free_vector_spaces()
   nullify(this%mlbddc_params)
   nullify(this%environment)
+  
+  call this%set_state_start()
 end subroutine base_mlbddc_free_clean
 
 recursive subroutine base_mlbddc_free_symbolic_setup(this)
@@ -1430,8 +1519,14 @@ recursive subroutine base_mlbddc_free_symbolic_setup(this)
   type(environment_t)   , pointer       :: par_environment
   integer(ip)                               :: istat
 
+  assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+
+  if ( this%state_is_numeric() ) then
+    call this%free_numerical_setup() 
+  end if
+  
   ! This will be replaced by an apropriate check on the state diagram
-  if ( this%is_operator_associated() ) then 
+  if ( this%state_is_symbolic() ) then 
      par_environment => this%get_par_environment()
      if ( par_environment%am_i_l1_task() ) then
         if ( par_environment%get_l1_size() > 1 ) then
@@ -1464,6 +1559,7 @@ recursive subroutine base_mlbddc_free_symbolic_setup(this)
           check( istat == 0 )
         end if  
      end if
+     call this%set_state_created()
   end if
 end subroutine base_mlbddc_free_symbolic_setup
 
@@ -1509,8 +1605,11 @@ recursive subroutine base_mlbddc_free_numerical_setup(this)
   implicit none
   class(base_mlbddc_t)           , intent(inout) :: this
   type(environment_t)   , pointer       :: par_environment
+ 
+  assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  
   ! This will be replaced by an apropriate check on the state diagram
-  if ( this%is_operator_associated() ) then 
+  if ( this%state_is_numeric() ) then 
      par_environment => this%get_par_environment()
      if ( par_environment%am_i_l1_task() ) then
         if ( par_environment%get_l1_size() > 1 ) then
@@ -1530,6 +1629,7 @@ recursive subroutine base_mlbddc_free_numerical_setup(this)
            call this%coarse_grid_matrix%free_in_stages(free_numerical_setup)
         end if   
      end if
+     call this%set_state_symbolic()
   end if
 end subroutine base_mlbddc_free_numerical_setup
 
