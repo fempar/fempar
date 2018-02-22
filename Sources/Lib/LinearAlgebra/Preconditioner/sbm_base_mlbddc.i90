@@ -86,6 +86,75 @@ subroutine base_mlbddc_assert_neumann_solver_params ( this )
   assert ( this%mlbddc_params%isSubList(Key=mlbddc_neumann_solver_params) ) 
 end subroutine base_mlbddc_assert_neumann_solver_params 
 
+subroutine base_mlbddc_parse_or_transfer_coarse_matrix_params ( this, &
+                                                                coarse_matrix_symmetric_storage, &
+                                                                coarse_matrix_is_symmetric, &
+                                                                coarse_matrix_sign  )
+  implicit none
+  class(base_mlbddc_t), intent(in)    :: this
+  logical             , intent(inout) :: coarse_matrix_symmetric_storage
+  logical             , intent(inout) :: coarse_matrix_is_symmetric
+  integer(ip)         , intent(inout) :: coarse_matrix_sign
+  
+  integer(ip) :: ierr
+  type(ParameterList_t), pointer :: coarse_matrix_params
+  type(par_sparse_matrix_t), pointer :: par_sparse_matrix
+  
+  assert ( associated(this%mlbddc_params) )
+  assert ( associated(this%environment) )
+  if ( this%mlbddc_params%isPresent(Key=mlbddc_coarse_matrix_params) ) then
+#ifdef DEBUG  
+    assert ( this%mlbddc_params%isSubList(Key=mlbddc_coarse_matrix_params) ) 
+    ierr = this%mlbddc_params%getSubList(Key     = mlbddc_coarse_matrix_params, & 
+                                         SubList = coarse_matrix_params) 
+    assert(ierr==0)
+    assert(coarse_matrix_params%isPresent(mlbddc_coarse_matrix_symmetric_storage))
+    assert(coarse_matrix_params%isAssignable(mlbddc_coarse_matrix_symmetric_storage, coarse_matrix_symmetric_storage))
+    assert(coarse_matrix_params%isPresent(mlbddc_coarse_matrix_is_symmetric))
+    assert(coarse_matrix_params%isAssignable(mlbddc_coarse_matrix_is_symmetric, coarse_matrix_is_symmetric))
+    assert(coarse_matrix_params%isPresent(mlbddc_coarse_matrix_sign))
+    assert(coarse_matrix_params%isAssignable(mlbddc_coarse_matrix_sign, coarse_matrix_sign))
+#endif 
+    ierr = coarse_matrix_params%Get(Key=mlbddc_coarse_matrix_symmetric_storage, Value=coarse_matrix_symmetric_storage)
+    assert(ierr == 0)
+    ierr = coarse_matrix_params%Get(Key=mlbddc_coarse_matrix_is_symmetric, Value=coarse_matrix_is_symmetric)
+    assert(ierr == 0)
+    ierr = coarse_matrix_params%Get(Key=mlbddc_coarse_matrix_sign, Value=coarse_matrix_sign)
+    assert(ierr == 0)
+  else
+     if ( this%environment%am_i_l1_to_l2_task() ) then
+        if ( this%environment%am_i_l1_task() ) then
+           par_sparse_matrix => this%get_par_sparse_matrix()
+           coarse_matrix_symmetric_storage = par_sparse_matrix%get_symmetric_storage()
+           coarse_matrix_is_symmetric      = par_sparse_matrix%is_symmetric()
+           coarse_matrix_sign              = par_sparse_matrix%get_sign()
+        end if
+
+        if ( this%environment%am_i_l1_to_l2_root() ) then
+           ! Recv side
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_symmetric_storage, &
+                output_data=coarse_matrix_symmetric_storage)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_is_symmetric, &
+                output_data=coarse_matrix_is_symmetric)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_sign, &
+                output_data=coarse_matrix_sign)
+        else
+           ! Send. side
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_symmetric_storage, &
+                output_data=coarse_matrix_symmetric_storage)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_is_symmetric, &
+                output_data=coarse_matrix_is_symmetric)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_sign, &
+                output_data=coarse_matrix_sign)
+        end if
+     end if
+  end if
+end subroutine base_mlbddc_parse_or_transfer_coarse_matrix_params
+
+
+
+
+
 subroutine base_mlbddc_assert_coarse_solver_params ( this )
   implicit none
   class(base_mlbddc_t), intent(in) :: this
@@ -231,7 +300,13 @@ subroutine base_mlbddc_symbolic_setup_coarse_grid_matrix ( this )
   integer(ip)                               :: istat
   class(base_fe_space_t), pointer :: fe_space
   type(coarse_fe_space_t), pointer :: coarse_fe_space
+  logical     :: cm_symmetric_storage, cm_is_symmetric
+  integer(ip) :: cm_sign
 
+  call this%parse_or_transfer_coarse_matrix_params(cm_symmetric_storage, &
+                                                   cm_is_symmetric, &
+                                                   cm_sign)
+  
   L1_environment => this%get_par_environment()
   if ( L1_environment%am_i_lgt1_task() ) then
      ! lgt1 MPI tasks symbolically set-up this%coarse_grid_matrix
@@ -243,10 +318,9 @@ subroutine base_mlbddc_symbolic_setup_coarse_grid_matrix ( this )
      L2_environment  => L1_environment%get_next_level()
      call this%coarse_grid_matrix%create( p_env             = L2_environment, &
           dof_import        = coarse_fe_space%get_block_dof_import(1), &
-          symmetric_storage = .true., &
-          is_symmetric      = .true., &
-          sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
-
+          symmetric_storage = cm_symmetric_storage, &
+          is_symmetric      = cm_is_symmetric, &
+          sign              = cm_sign )
      if ( L2_environment%am_i_l1_task() ) then
         call this%coarse_grid_matrix_symbolic_assembly()
      end if

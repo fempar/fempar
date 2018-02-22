@@ -361,9 +361,6 @@ end subroutine free_timers
     end do
     FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
     
-    ! Set coarsest-grid solver type (currently NOT inherited from fine level matrices types)
-    FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
-    
     call this%mlbddc%create(this%nonlinear_operator, this%parameter_list)    
     
     ! Linear solver

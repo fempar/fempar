@@ -412,7 +412,7 @@ end subroutine free_timers
     implicit none
     class(par_test_poisson_fe_driver_t), target, intent(inout) :: this
     type(parameterlist_t) :: parameter_list
-    type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
+    type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse, coarse_matrix_params
 
     integer(ip) :: ilev
     integer(ip) :: FPLError
@@ -440,23 +440,37 @@ end subroutine free_timers
        ! Set current level Dirichlet solver parameters
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
        FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-       FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       if ( ilev > 1 ) then
+         FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
+       else
+         FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       end if 
        FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
        
        ! Set current level Neumann solver parameters
        neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
        FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-       FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+       if ( ilev > 1 ) then
+         FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
+       else
+         FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+       end if
        FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-     
+       
+       ! Set current level Coarse-grid matrix parameters
+       coarse_matrix_params => plist%NewSubList(key=mlbddc_coarse_matrix_params)
+       FPLError = coarse_matrix_params%set(key=mlbddc_coarse_matrix_symmetric_storage, value=.false.); assert(FPLError == 0)
+       FPLError = coarse_matrix_params%set(key=mlbddc_coarse_matrix_is_symmetric     , value=.false.); assert(FPLError == 0)
+       FPLError = coarse_matrix_params%set(key=mlbddc_coarse_matrix_sign             , value=SPARSE_MATRIX_SIGN_UNKNOWN); assert(FPLError == 0)
+      
        coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
        plist  => coarse 
     end do
     ! Set coarsest-grid solver parameters
     FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 

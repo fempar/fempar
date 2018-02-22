@@ -68,10 +68,14 @@ module mlbddc_names
 # include "debug.i90"
  private
 
- character(len=*), parameter :: mlbddc_dirichlet_solver_params = "mlbddc_dirichlet_solver_params"
- character(len=*), parameter :: mlbddc_neumann_solver_params   = "mlbddc_neumann_solver_params"
- character(len=*), parameter :: mlbddc_coarse_solver_params    = "mlbddc_coarse_solver_params"
-
+ character(len=*), parameter :: mlbddc_dirichlet_solver_params            = "mlbddc_dirichlet_solver_params"
+ character(len=*), parameter :: mlbddc_neumann_solver_params              = "mlbddc_neumann_solver_params"
+ character(len=*), parameter :: mlbddc_coarse_matrix_params               = "mlbddc_coarse_matrix_params"
+ character(len=*), parameter :: mlbddc_coarse_matrix_symmetric_storage    = "mlbddc_coarse_matrix_symmetric_storage"
+ character(len=*), parameter :: mlbddc_coarse_matrix_is_symmetric         = "mlbddc_coarse_matrix_is_symmetric"
+ character(len=*), parameter :: mlbddc_coarse_matrix_sign                 = "mlbddc_coarse_matrix_sign"
+ character(len=*), parameter :: mlbddc_coarse_solver_params               = "mlbddc_coarse_solver_params"
+ 
  integer(ip), parameter :: BASE_MLBDDC_STATE_START    = 0
  integer(ip), parameter :: BASE_MLBDDC_STATE_CREATED  = 1
  integer(ip), parameter :: BASE_MLBDDC_STATE_SYMBOLIC = 2 ! Symbolic data already computed
@@ -182,6 +186,7 @@ module mlbddc_names
    ! Parameter treatment-related TBPs
    procedure, non_overridable, private :: assert_dirichlet_solver_params                   => base_mlbddc_assert_dirichlet_solver_params 
    procedure, non_overridable, private :: assert_neumann_solver_params                     => base_mlbddc_assert_neumann_solver_params 
+   procedure, non_overridable, private :: parse_or_transfer_coarse_matrix_params           => base_mlbddc_parse_or_transfer_coarse_matrix_params 
    procedure, non_overridable, private :: assert_coarse_solver_params                      => base_mlbddc_assert_coarse_solver_params 
 
    ! Symbolic setup-related TBPs
@@ -323,6 +328,7 @@ end type base_mlbddc_t
  
  public :: mlbddc_t
  public :: mlbddc_dirichlet_solver_params, mlbddc_neumann_solver_params, mlbddc_coarse_solver_params
+ public :: mlbddc_coarse_matrix_params, mlbddc_coarse_matrix_symmetric_storage, mlbddc_coarse_matrix_is_symmetric, mlbddc_coarse_matrix_sign
 
 contains
 
