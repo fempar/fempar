@@ -113,16 +113,22 @@ module reference_fe_names
   public :: quadrature_t, p_quadrature_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#define duties interpolation_duties
+#define task_01 compute_first_derivatives
+#define task_02 compute_second_derivatives
+#include "duties_header.i90"
+
   type interpolation_t
      private
-     integer(ip)                    ::  &
-          num_dims = 0,        &      
-          num_shape_functions = 0,   &      
-          num_quadrature_points = 0, &      
+     type(interpolation_duties_t)   :: my_duties
+     integer(ip)                    :: &
+          num_dims = 0              ,  &      
+          num_shape_functions = 0   ,  &      
+          num_quadrature_points = 0 ,  &      
           num_entries_symmetric_tensor = 0
-     real(rp), allocatable        ::  &
-          shape_functions(:,:,:),     &   
-          shape_derivatives(:,:,:,:), &   
+     real(rp), allocatable        ::   &
+          shape_functions(:,:,:),      &   
+          shape_derivatives(:,:,:,:),  &   
           hessian(:,:,:,:)     
    contains
      procedure, non_overridable :: create => interpolation_create
@@ -133,14 +139,13 @@ module reference_fe_names
      procedure, non_overridable, private :: is_needed_to_allocate => interpolation_is_needed_to_allocate
   end type interpolation_t
 
-  public :: interpolation_t
+  public :: interpolation_t, interpolation_duties_t
 
   type base_map_t
     private
-    ! Number of dimensions
+
     integer(ip)                 :: num_dims
-    
-    ! Number of quadrature points
+    integer(ip)                 :: num_nodes
     integer(ip)                 :: num_quadrature_points
     
     ! Map's Jacobian (num_dims,num_dims,num_quadrature_points)
@@ -176,21 +181,31 @@ module reference_fe_names
     procedure, non_overridable :: get_reference_h                   => base_map_get_reference_h
     procedure, non_overridable :: get_measure                       => base_map_get_measure 
   end type base_map_t
-  
+
+#define duties cell_map_duties
+#define task_01 compute_jacobian_inverse
+#define task_02 compute_jacobian_derivative
+#include "duties_header.i90"
+
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  cell_map_t
      private
+     type(cell_map_duties_t)  :: my_duties
      ! Map's Jacobian inverse (num_dims,num_dims,num_quadrature_points)       
      real(rp), allocatable    :: inv_jacobian(:,:,:)     
  
      ! Map's 2nd derivatives (num_dime,num_dime,num_dime,num_quadrature_points)         
-     real(rp), allocatable    :: d2sdx(:,:,:,:)
-     
+     integer(ip)           :: num_entries_symmetric_tensor
+     real(rp), allocatable :: d2sdx(:,:,:,:)
+     ! and temporary arrays to update them
+     real(rp), allocatable :: wmat1(:,:,:)
+     real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
+
      ! Map's Jacobian sign
      logical                  :: det_jacobian_positiveness
    contains
-        procedure, non_overridable :: create                            => cell_map_create
-     procedure, non_overridable :: restricted_to_facet                    => cell_map_restricted_to_facet
+     procedure, non_overridable :: create                            => cell_map_create
+     procedure, non_overridable :: restricted_to_facet               => cell_map_restricted_to_facet
      procedure                  :: free                              => cell_map_free
      procedure, non_overridable :: update                            => cell_map_update
      procedure, non_overridable :: print                             => cell_map_print
@@ -206,7 +221,7 @@ module reference_fe_names
   interface assignment(=)
      module procedure assign_cell_map, assign_cell_map_array
   end interface assignment(=)
-  
+
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  facet_map_t
      private
@@ -245,6 +260,7 @@ module reference_fe_names
   end type p_cell_map_t
 
   public :: cell_map_t, facet_map_t, edge_map_t, p_cell_map_t
+  public :: cell_map_duties_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -430,6 +446,7 @@ module reference_fe_names
      procedure(create_interpolation_restricted_to_facet_interface), deferred :: create_interpolation_restricted_to_facet
      procedure(create_facet_interpolation_interface)    , deferred :: create_facet_interpolation
      procedure(create_edget_interpolation_interface)    , deferred :: create_edget_interpolation
+     !procedure(assign_cell_map_duties_interface)        , deferred :: assign_cell_map_duties
      procedure(apply_cell_map_interface)                , deferred :: apply_cell_map
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
@@ -604,13 +621,13 @@ module reference_fe_names
        integer(ip), optional, intent(in)    :: degree
      end subroutine create_facet_quadrature_interface
 
-     subroutine create_interpolation_interface ( this, quadrature, interpolation, compute_hessian )
-       import :: reference_fe_t, quadrature_t, interpolation_t
+     subroutine create_interpolation_interface ( this, quadrature, interpolation, interpolation_duties )
+       import :: reference_fe_t, quadrature_t, interpolation_t, interpolation_duties_t
        implicit none 
        class(reference_fe_t), intent(in)    :: this 
        type(quadrature_t)   , intent(in)    :: quadrature
        type(interpolation_t), intent(inout) :: interpolation
-       logical    , optional, intent(in)    :: compute_hessian
+       type(interpolation_duties_t), optional, intent(in) :: interpolation_duties
      end subroutine create_interpolation_interface
 
      subroutine create_interpolation_restricted_to_facet_interface ( this, facet_lid , subfacet_lid, &
@@ -866,12 +883,18 @@ module reference_fe_names
        real(rp)  :: get_characteristic_length_interface 
      end function get_characteristic_length_interface
 
+     subroutine assign_cell_map_duties (interpolation_duties,cell_map_duties)
+        import :: interpolation_duties_t, cell_map_duties_t
+        type(interpolation_duties_t), intent(in)  :: interpolation_duties
+        type(cell_map_duties_t)     , intent(out) :: cell_map_duties
+     end subroutine assign_cell_map_duties
+
      subroutine apply_cell_map_interface ( this, cell_map, interpolation_reference_cell,        &
           &                            interpolation_real_cell )
        import :: reference_fe_t, cell_map_t, interpolation_t
        implicit none 
        class(reference_fe_t), intent(in)    :: this 
-       type(cell_map_t)       , intent(in)    :: cell_map
+       type(cell_map_t)     , intent(in)    :: cell_map
        type(interpolation_t), intent(in)    :: interpolation_reference_cell
        type(interpolation_t), intent(inout) :: interpolation_real_cell
      end subroutine apply_cell_map_interface
@@ -1617,10 +1640,16 @@ end type void_reference_fe_t
 
 public :: void_reference_fe_t
 
+#define duties cell_integrator_duties
+#define task_01 compute_first_derivatives
+#define task_02 compute_second_derivatives
+#include "duties_header.i90"
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type cell_integrator_t 
 
 private
+type(cell_integrator_duties_t) :: my_duties
 integer(ip)                    :: num_shape_functions
 integer(ip)                    :: num_quadrature_points
 class(reference_fe_t), pointer :: reference_fe
@@ -1715,6 +1744,7 @@ type(cell_integrator_t), pointer :: p => NULL()
 end type p_cell_integrator_t
 
 public :: cell_integrator_t, p_cell_integrator_t
+public :: cell_integrator_duties_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type cell_integrator_facet_restriction_t
@@ -1831,6 +1861,7 @@ contains
   ! Includes with all the TBP and supporting subroutines for the types above.
   ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
+#undef duties
 #include "sbm_quadrature.i90"
 
 #include "sbm_interpolation.i90"
@@ -1873,5 +1904,19 @@ contains
 
 #include "sbm_reference_fe_factory.i90"
 
+#define duties interpolation_duties
+#define task_01 compute_first_derivatives
+#define task_02 compute_second_derivatives
+#include "duties_body.i90"
+
+#define duties cell_map_duties
+#define task_01 compute_jacobian_inverse
+#define task_02 compute_jacobian_derivative
+#include "duties_body.i90"
+
+#define duties cell_integrator_duties
+#define task_01 compute_first_derivatives
+#define task_02 compute_second_derivatives
+#include "duties_body.i90"
 
 end module reference_fe_names

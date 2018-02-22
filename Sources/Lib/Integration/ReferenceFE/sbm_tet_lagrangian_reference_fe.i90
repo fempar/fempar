@@ -651,7 +651,8 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation_pre_basis ( this, quad
   do q_point=1, quadrature%get_num_quadrature_points()
      call tet_polynomial_prebase%evaluate(q_point, values, gradients)
      interpolation%shape_functions(1,:,q_point) = values(:)
-     interpolation%shape_derivatives(1,:,:,q_point) = gradients(:,:)
+     if(interpolation%my_duties%compute_first_derivatives_is_assigned()) &
+          &  interpolation%shape_derivatives(1,:,:,q_point) = gradients(:,:)
   end do
 
   ! Free auxiliary memory
@@ -770,7 +771,6 @@ subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, inter
 
   ! Initialize both shape functions and derivatives to zero.
   interpolation%shape_functions   = 0.0_rp
-  interpolation%shape_derivatives = 0.0_rp
   num_shape_functions_x_component = this%num_shape_functions/this%num_field_components
 
   ! Compute shape functions
@@ -783,17 +783,21 @@ subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, inter
      end do
   end do
 
-  ! Compute shape derivatives
-  do qpoint = 1, interpolation%num_quadrature_points
-     do i=1, num_shape_functions_x_component
-        do j=1, num_shape_functions_x_component
-           do jdime=1, this%num_dims
-              interpolation%shape_derivatives(1, jdime, i, qpoint) = interpolation%shape_derivatives(1, jdime, i, qpoint) + &
-                   this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(1, jdime, j, qpoint)
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     ! Compute shape derivatives
+     interpolation%shape_derivatives = 0.0_rp
+     do qpoint = 1, interpolation%num_quadrature_points
+        do i=1, num_shape_functions_x_component
+           do j=1, num_shape_functions_x_component
+              do jdime=1, this%num_dims
+                 interpolation%shape_derivatives(1, jdime, i, qpoint) = interpolation%shape_derivatives(1, jdime, i, qpoint) + &
+                      this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(1, jdime, j, qpoint)
+              end do
            end do
         end do
      end do
-  end do
+  end if
+
 end subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation
 
 !==================================================================================================

@@ -27,21 +27,44 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! cell_integrator_t type procedures
-subroutine cell_integrator_create( this, quadrature, reference_fe )
+subroutine cell_integrator_create( this, quadrature, reference_fe, cell_integrator_duties)
   implicit none
   ! Parameters
-  class(cell_integrator_t), intent(inout) :: this 
-  type(quadrature_t)        ,  intent(in)   :: quadrature
-  class(reference_fe_t), target,  intent(in)   :: reference_fe  
+  class(cell_integrator_t)                , intent(inout) :: this 
+  type(quadrature_t)                      ,  intent(in)   :: quadrature
+  class(reference_fe_t)         , target  ,  intent(in)   :: reference_fe  
+  type(cell_integrator_duties_t), optional, intent(in)    :: cell_integrator_duties ! Optional for the moment
+  type(interpolation_duties_t) :: interpolation_duties
 
   call this%free()
-  
+  ! QUARANTINE: to remove it when all invocations to create send cell_integrator_duties
+  if(present(cell_integrator_duties)) then
+     call this%my_duties%assign_compute_first_derivatives(cell_integrator_duties%compute_first_derivatives_is_assigned())
+     call this%my_duties%assign_compute_second_derivatives(cell_integrator_duties%compute_second_derivatives_is_assigned())
+  else ! Assign default duties (those we had before duties control)
+     call this%my_duties%assign_compute_first_derivatives(.true.)
+     call this%my_duties%assign_compute_second_derivatives(.false.)
+  end if
+  ! Define interpolation duties
+  if(this%my_duties%compute_first_derivatives_is_assigned()) then
+     call interpolation_duties%assign_compute_first_derivatives(.true.)
+  else
+     call interpolation_duties%assign_compute_first_derivatives(.false.)
+  end if
+  if(this%my_duties%compute_second_derivatives_is_assigned()) then
+     call interpolation_duties%assign_compute_second_derivatives(.true.)
+  else
+     call interpolation_duties%assign_compute_second_derivatives(.false.)
+  end if
+
   this%num_quadrature_points = quadrature%num_quadrature_points
   this%num_shape_functions   = reference_fe%num_shape_functions
-  this%reference_fe             => reference_fe
+  this%reference_fe          => reference_fe
 
-  call reference_fe%create_interpolation( quadrature, this%interpolation_reference_cell )
+  call reference_fe%create_interpolation( quadrature, this%interpolation_reference_cell, interpolation_duties)
+
   call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
+
 end subroutine cell_integrator_create
 
 subroutine cell_integrator_restricted_to_facet( this, quadrature, reference_fe, facet_lid, subfacet_lid )

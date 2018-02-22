@@ -92,23 +92,16 @@ subroutine lagrangian_reference_fe_create_facet_quadrature ( this, quadrature, d
 end subroutine lagrangian_reference_fe_create_facet_quadrature
 
 !==================================================================================================
-subroutine lagrangian_reference_fe_create_interpolation ( this, quadrature, & 
-     &                                                    interpolation, compute_hessian )
+subroutine lagrangian_reference_fe_create_interpolation ( this, quadrature, interpolation, & 
+     &                                                    interpolation_duties)
   implicit none 
-  class(lagrangian_reference_fe_t), intent(in)    :: this 
-  type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation
-  logical               , optional, intent(in)    :: compute_hessian
-
-  integer(ip) :: ntens, i
-
-  ntens = 0
-  do i = 1, this%num_dims
-     ntens = ntens + i
-  end do
+  class(lagrangian_reference_fe_t), intent(in)       :: this 
+  type(quadrature_t)              , intent(in)       :: quadrature
+  type(interpolation_t)           , intent(inout)    :: interpolation
+  type(interpolation_duties_t), optional, intent(in) :: interpolation_duties
 
   call interpolation%create( this%num_dims, this%node_array%num_nodes, &
-       quadrature%num_quadrature_points, ntens, compute_hessian )
+       &                     quadrature%num_quadrature_points, interpolation_duties )
 
   call this%fill_interpolation( quadrature, interpolation )
 
@@ -129,7 +122,7 @@ subroutine lrfe_create_interpolation_restricted_to_facet( this,facet_lid, &
 
   ! Allocate the arrays of the interpolation
   call facet_interpolation%create(this%num_dims,this%node_array%num_nodes, &
-       & local_quadrature%num_quadrature_points, 0 )
+       & local_quadrature%num_quadrature_points )
 
   ! Fill the values of the shape functions
   call this%fill_interp_restricted_to_facet(local_quadrature,facet_lid,subfacet_lid,facet_interpolation)
@@ -146,7 +139,7 @@ subroutine lagrangian_reference_fe_create_facet_interpolation (this, quadrature,
   type(interpolation_t)           , intent(inout) :: facet_interpolation
 
   type(p_reference_fe_t) :: aux_reference_fe
-
+  
   aux_reference_fe = make_reference_fe ( this%topology, &
        this%fe_type, &
        this%num_dims-1, &
@@ -154,7 +147,7 @@ subroutine lagrangian_reference_fe_create_facet_interpolation (this, quadrature,
        this%field_type, &
        this%conformity )
 
-  call aux_reference_fe%p%create_interpolation ( quadrature, facet_interpolation )
+  call aux_reference_fe%p%create_interpolation ( quadrature, facet_interpolation)
   call aux_reference_fe%free()
 end subroutine lagrangian_reference_fe_create_facet_interpolation
 
@@ -339,6 +332,7 @@ subroutine lagrangian_reference_fe_get_gradient_scalar( this, actual_cell_interp
   assert( this%field_type == field_type_scalar )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradient scalar requires cell interpolation to compute derivaties ')
   call vector_field%init(0.0_rp)
   do idime=1,this%num_dims
      call vector_field%set(idime,actual_cell_interpolation%shape_derivatives(1,idime,ishape,qpoint))
@@ -358,6 +352,7 @@ subroutine lagrangian_reference_fe_get_gradient_vector( this, actual_cell_interp
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradient vector requires cell interpolation to compute derivaties ')
   call tensor_field%init(0.0_rp)
   do idime=1,this%num_dims
      call tensor_field%set(idime,this%node_component_array(ishape,2), &
@@ -376,7 +371,8 @@ subroutine lagrangian_reference_fe_get_gradients_scalar( this, actual_cell_inter
   integer(ip) :: idime, ishape, qpoint, istat, actual_qpoint
   logical     :: reallocate
   assert( this%field_type == field_type_scalar )
-  
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradients scalar requires cell interpolation to compute derivaties ')
+
   reallocate = .false.
   if (allocated(gradients)) reallocate = (size(gradients,1) < this%num_shape_functions) .or. &
                                          (size(gradients,2) < actual_cell_interpolation%num_quadrature_points)                                  
@@ -420,7 +416,8 @@ subroutine lagrangian_reference_fe_get_gradients_vector( this, actual_cell_inter
   integer(ip) :: idime, ishape, qpoint, istat, actual_qpoint
   logical     :: reallocate
   assert( this%field_type == field_type_vector )
-  
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradients vector requires cell interpolation to compute derivaties ')
+
   reallocate = .false.
   if (allocated(gradients)) reallocate = (size(gradients,1) < this%num_shape_functions) .or. &
                                           (size(gradients,2) < actual_cell_interpolation%num_quadrature_points)                                  
@@ -468,6 +465,7 @@ subroutine lagrangian_reference_fe_get_divergence_vector( this, actual_cell_inte
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get divergence vector requires cell interpolation to compute derivaties ')
 
   scalar_field = actual_cell_interpolation%shape_derivatives(1,this%node_component_array(ishape,2), &
        & this%node_component_array(ishape,1), &
@@ -485,7 +483,8 @@ subroutine lagrangian_reference_fe_get_divergences_vector( this, actual_cell_int
   integer(ip) :: ishape, qpoint, actual_qpoint
   logical     :: reallocate
   assert( this%field_type == field_type_vector )
-  
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get divergences vector requires cell interpolation to compute derivaties ')
+
   reallocate = .false.
   if (allocated(divergences)) reallocate = (size(divergences,1) < this%num_shape_functions) .or. &
                                            (size(divergences,2) < actual_cell_interpolation%num_quadrature_points)
@@ -524,6 +523,7 @@ subroutine lagrangian_reference_fe_get_curl_vector( this, actual_cell_interpolat
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )  
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get curl vector requires cell interpolation to compute derivaties ')
 
  ishape_scalar = this%node_component_array(ishape,1) 
  icomp         = this%node_component_array(ishape,2)
@@ -561,6 +561,8 @@ subroutine lagrangian_reference_fe_get_curls_vector(this, actual_cell_interpolat
   logical     :: reallocate
   integer(ip)   :: icomp, ishape_scalar 
   assert( this%field_type == field_type_vector )
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get curls vector requires cell interpolation to compute derivaties ')
+
   reallocate = .false.
   if (allocated(curls)) reallocate = (size(curls,1) < this%num_shape_functions) .or. &
                                       (size(curls,2) < actual_cell_interpolation%num_quadrature_points)                                  
@@ -977,19 +979,13 @@ end subroutine lagrangian_reference_fe_extend_list_components
 subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,phy)
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this 
-  type(cell_map_t)                  , intent(in)    :: map
+  type(cell_map_t)                , intent(in)    :: map
   type(interpolation_t)           , intent(in)    :: ref
   type(interpolation_t)           , intent(inout) :: phy
   real(rp), allocatable :: wmat1(:,:,:)
   real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
   integer(ip) :: ndime,nnode,nlocs,ntens
   integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
-  logical     :: khes
-
-  khes = .false.
-  if ( allocated( ref%hessian ) ) then 
-     khes = .true.
-  end if
 
   ndime = ref%num_dims
   ntens = ref%num_entries_symmetric_tensor
@@ -1002,18 +998,19 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
 
   ! First derivatives do
   !if(phy%kder==1) then
-  phy%shape_derivatives=0.0_rp
-  do ilocs=1,phy%num_quadrature_points
-     do inode=1,size(phy%shape_functions,2)!phy%num_shape_functions
-        do idime=1,ndime
-           do jdime=1,ndime
-              phy%shape_derivatives(1,idime,inode,ilocs) = phy%shape_derivatives(1,idime,inode,ilocs) &
-                   + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(1,jdime,inode,ilocs)
+  if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+     phy%shape_derivatives=0.0_rp
+     do ilocs=1,phy%num_quadrature_points
+        do inode=1,size(phy%shape_functions,2)!phy%num_shape_functions
+           do idime=1,ndime
+              do jdime=1,ndime
+                 phy%shape_derivatives(1,idime,inode,ilocs) = phy%shape_derivatives(1,idime,inode,ilocs) &
+                      + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(1,jdime,inode,ilocs)
+              end do
            end do
         end do
      end do
-  end do
-  !end if
+  end if
 
   ! Second derivatives are
   !
@@ -1021,46 +1018,45 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
   !       = (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j)
   !       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
   !
-  if( khes ) then
-     call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
+  if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+    call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
      call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
      do ilocs=1,nlocs
-        if( khes ) then
-           ! Transforms the array HESSI to a symmetric matrix WMAT1
-           do inode=1,nnode
-              do itens = 1, ntens
-                 wvec1(itens) = ref%hessian(1,itens,inode,ilocs)
-              end do
-              call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
+        ! Transforms the array HESSI to a symmetric matrix WMAT1
+        do inode=1,nnode
+           do itens = 1, ntens
+              wvec1(itens) = ref%hessian(1,itens,inode,ilocs)
            end do
-           ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
-           do inode=1,nnode
-              call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
-                   &        ndime,ndime)
-           end do
-        end if
-        if( khes ) then
-           ! Add second cartesian derivatives of the map times 
-           ! first derivatives of shape functions
-           do inode=1,nnode
-              do idime=1,ndime
-                 do jdime=1,ndime
-                    do kdime=1,ndime
-                       wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
-                            & + ref%shape_derivatives(1,kdime,inode,ilocs) &
-                            &   * map%d2sdx(kdime,idime,jdime,ilocs)
-                    end do
+           call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
+        end do
+        ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
+        do inode=1,nnode
+           call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
+                &        ndime,ndime)
+        end do
+        ! Add second cartesian derivatives of the map times 
+        ! first derivatives of shape functions
+        do inode=1,nnode
+           do idime=1,ndime
+              do jdime=1,ndime
+                 do kdime=1,ndime
+                    wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
+                         & + ref%shape_derivatives(1,kdime,inode,ilocs) &
+                         &   * map%d2sdx(kdime,idime,jdime,ilocs)
                  end do
               end do
            end do
-        end if
-
+        end do
         ! Writes the Hessian matrix as an array
         do inode=1,nnode
-           do itens = 1, ntens
-              wvec1(itens) = phy%hessian(1,itens,inode,ilocs)
-           end do
+           ! do itens = 1, ntens
+           !    wvec1(itens) = phy%hessian(1,itens,inode,ilocs)
+           ! end do
+           ! call store_symmetric_matrix_as_vector(wmat2(1,1,inode),wvec1,ndime,ntens)
            call store_symmetric_matrix_as_vector(wmat2(1,1,inode),wvec1,ndime,ntens)
+           do itens = 1, ntens
+              phy%hessian(1,itens,inode,ilocs) = wvec1(itens)
+           end do
         end do
      end do
      call memfree(wmat1,__FILE__,__LINE__)

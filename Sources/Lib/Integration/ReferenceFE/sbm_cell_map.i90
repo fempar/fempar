@@ -27,48 +27,82 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !cell_map_t type procedures
-subroutine cell_map_create( this, quadrature, reference_fe_geometry )
+subroutine cell_map_create( this, quadrature, reference_fe_geometry, cell_map_duties )
   implicit none
   ! Parameters
-  class(cell_map_t)    , intent(inout) :: this
-  type(quadrature_t)   , intent(in)    :: quadrature
-  class(reference_fe_t), intent(in)    :: reference_fe_geometry
+  class(cell_map_t)      , intent(inout) :: this
+  type(quadrature_t)     , intent(in)    :: quadrature
+  class(reference_fe_t)  , intent(in)    :: reference_fe_geometry
+  type(cell_map_duties_t), optional, intent(in)    :: cell_map_duties
+  type(interpolation_duties_t) :: interpolation_duties
 
   integer(ip) :: num_nodes
   integer(ip) :: istat
 
   call this%free()
-  this%num_dims        = reference_fe_geometry%num_dims
-  this%num_quadrature_points = quadrature%num_quadrature_points
+  this%num_dims                     = reference_fe_geometry%get_num_dims()
+  this%num_nodes                    = reference_fe_geometry%get_num_shape_functions()
+  this%num_entries_symmetric_tensor = this%interpolation%num_entries_symmetric_tensor ! Encapsulation missing here 
+  this%num_quadrature_points        = quadrature%num_quadrature_points                ! Encapsulation missing here 
 
-  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation )
+  ! QUARANTINE: to remove it when all invocations to create send cell_map_duties
+  if(present(cell_map_duties)) then
+     this%my_duties = cell_map_duties
+  else
+     call this%my_duties%assign_compute_jacobian_inverse(.true.)
+     call this%my_duties%assign_compute_jacobian_derivative(.false.)
+  end if
 
   call memalloc(this%num_dims, &
                 this%num_dims, &
                 this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
 
-  call memalloc(this%num_dims, &
-                this%num_dims, &
-                this%num_quadrature_points, &
-                this%inv_jacobian,__FILE__,__LINE__)
-
   call memalloc(this%num_quadrature_points, &
                 this%det_jacobian,__FILE__,__LINE__)
 
-
-  allocate(this%quadrature_points_coordinates(this%num_quadrature_points), stat=istat)
-  check(istat==0)
-
-  num_nodes = reference_fe_geometry%get_num_shape_functions()
-  allocate(this%nodes_coordinates(num_nodes), stat=istat)
-  check(istat==0)
-
+  allocate(this%quadrature_points_coordinates(this%num_quadrature_points), stat=istat); check(istat==0)
+  allocate(this%nodes_coordinates(this%num_nodes), stat=istat); check(istat==0)
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
+
+  if(this%my_duties%compute_jacobian_derivative_is_assigned()) then
+     call this%my_duties%assign_compute_jacobian_inverse(.true.)
+     call memalloc(this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_quadrature_points, &
+          &        this%d2sdx,__FILE__,__LINE__)
+
+     call memalloc(this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_nodes, &
+          &        this%wmat1,__FILE__,__LINE__)
+
+     call memalloc(this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_nodes, &
+          &        this%wmat2,__FILE__,__LINE__)
+
+     call memalloc(this%num_entries_symmetric_tensor,this%wvec1,__FILE__,__LINE__)
+
+     call interpolation_duties%assign_compute_second_derivatives(.true.)
+  else
+     call interpolation_duties%assign_compute_second_derivatives(.false.)
+  end if
+
+  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation, interpolation_duties)
+
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+     call memalloc(this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_quadrature_points, &
+          &        this%inv_jacobian,__FILE__,__LINE__)
+  end if
+
 end subroutine cell_map_create 
 
 !==================================================================================================
-subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadrature, reference_fe_geometry )
+subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadrature, reference_fe_geometry, cell_map_duties )
   implicit none
   ! Parameters
   class(cell_map_t)    , intent(inout) :: this
@@ -76,28 +110,36 @@ subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadratu
   integer(ip)          , intent(in)    :: subfacet_lid
   type(quadrature_t)   , intent(in)    :: quadrature
   class(reference_fe_t), intent(in)    :: reference_fe_geometry
+  type(cell_map_duties_t), optional, intent(in)  :: cell_map_duties
 
   integer(ip) :: num_nodes
   integer(ip) :: istat
 
   call this%free()
-  this%num_dims        = reference_fe_geometry%num_dims
-  this%num_quadrature_points = quadrature%num_quadrature_points
+  this%num_dims                     = reference_fe_geometry%get_num_dims()
+  this%num_nodes                    = reference_fe_geometry%get_num_shape_functions()
+  this%num_entries_symmetric_tensor = this%interpolation%num_entries_symmetric_tensor ! Encapsulation missing here 
+  this%num_quadrature_points        = quadrature%num_quadrature_points                ! Encapsulation missing here 
+
+  ! QUARANTINE: to remove it when all invocations to create send cell_map_duties
+  if(present(cell_map_duties)) then
+     this%my_duties = cell_map_duties
+  else
+     call this%my_duties%assign_compute_jacobian_inverse(.true.)
+     call this%my_duties%assign_compute_jacobian_derivative(.false.)
+  end if
+
+  ! QUARANTINE: No second derivatives on the face so far. The default interpolation (wo hessians) will be created.
+  mcheck(.not.this%my_duties%compute_jacobian_derivative_is_assigned(),'Jacobian derivative on the face not ready.')
 
   call reference_fe_geometry%create_interpolation_restricted_to_facet( facet_lid,    &
                                                         subfacet_lid, &
                                                         quadrature,       &
                                                         this%interpolation )
-
   call memalloc(this%num_dims, &
                 this%num_dims, &
                 this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
-
-  call memalloc(this%num_dims, &
-                this%num_dims, &
-                this%num_quadrature_points, &
-                this%inv_jacobian,__FILE__,__LINE__)
 
   call memalloc(this%num_quadrature_points, &
                 this%det_jacobian,__FILE__,__LINE__)
@@ -110,6 +152,14 @@ subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadratu
   check(istat==0)
 
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
+
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+     call memalloc(this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_quadrature_points, &
+          &        this%inv_jacobian,__FILE__,__LINE__)
+  end if
+
 end subroutine cell_map_restricted_to_facet
 
 !==================================================================================================
@@ -117,8 +167,15 @@ subroutine cell_map_free( this )
   implicit none
   class(cell_map_t), intent(inout) :: this
   call this%base_map_t%free()
-  if ( allocated(this%inv_jacobian) ) call memfree(this%inv_jacobian,__FILE__,__LINE__)
-  if ( allocated(this%d2sdx) ) call memfree(this%d2sdx,__FILE__,__LINE__)
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+     call memfree(this%inv_jacobian,__FILE__,__LINE__)
+  end if
+  if(this%my_duties%compute_jacobian_derivative_is_assigned()) then
+     call memfree(this%wmat1,__FILE__,__LINE__)
+     call memfree(this%wmat2,__FILE__,__LINE__)
+     call memfree(this%wvec1,__FILE__,__LINE__)
+     call memfree(this%d2sdx,__FILE__,__LINE__)
+  end if
 end subroutine cell_map_free
 
 !==================================================================================================
@@ -131,45 +188,40 @@ subroutine cell_map_update( this, quadrature)
   type(quadrature_t), intent(in)    :: quadrature
 
   ! Locals
-  real(rp), allocatable :: wmat1(:,:,:)
-  real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
-  real(rp)    :: hnatu
-  real(rp)    :: enor0,h_tem
-  integer(ip) :: ndime,nnode,nlocs,ntens
   integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
-  logical :: khes
   type(vector_field_t) :: aux_vector
 
-  khes = .false.
-  if ( allocated( this%interpolation%hessian ) ) then 
-     khes = .true.
-  end if
-
-  ndime = this%interpolation%num_dims
-  nnode = size(this%interpolation%shape_functions,2)
-  nlocs = this%interpolation%num_quadrature_points
-
-  this%measure = 0.0_rp 
-  do ilocs=1,nlocs
+  do ilocs=1,this%num_quadrature_points
      ! Matmul is not thread safe
-     !map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
-     do jdime=1,ndime
+     ! map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
+     do jdime=1,this%num_dims
         aux_vector = 0.0_rp
-        do inode=1,nnode
+        do inode=1,this%num_nodes
            aux_vector = aux_vector + this%nodes_coordinates(inode) * &
                 & this%interpolation%shape_derivatives(1,jdime,inode,ilocs)
         end do
-        do idime=1,ndime
+        do idime=1,this%num_dims
            this%jacobian(idime,jdime,ilocs) = aux_vector%get(idime)
         end do
      end do
-     ! J^(-t)
-     call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),ndime)
-     this%measure = this%measure + abs(this%det_jacobian(ilocs)) * quadrature%get_weight(ilocs)
   end do
+
+  this%measure = 0.0_rp 
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+     do ilocs=1,this%num_quadrature_points
+        call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),this%num_dims)
+        this%measure = this%measure + abs(this%det_jacobian(ilocs)) * quadrature%get_weight(ilocs)
+     end do
+  else
+     do ilocs=1,this%num_quadrature_points
+        call determinant(this%jacobian(:,:,ilocs),this%det_jacobian(ilocs),this%num_dims)
+        this%measure = this%measure + abs(this%det_jacobian(ilocs)) * quadrature%get_weight(ilocs)
+     end do
+  end if
+
   ! When using oriented tetrahedral meshes |J| may become negative, absolute value should be used
   ! to ensure positiveness
-  if (nlocs > 0) then
+  if (this%num_quadrature_points > 0) then
      if (this%det_jacobian(1)<0.0_rp) then
         this%det_jacobian_positiveness = .false.
         this%det_jacobian = abs(this%det_jacobian)
@@ -183,68 +235,60 @@ subroutine cell_map_update( this, quadrature)
   ! Evaluation (Gauss) point coordinates
   call this%compute_quadrature_points_coordinates()
 
-  ! ! Second derivatives of the map
-  if( khes ) then
-     ntens=this%interpolation%num_entries_symmetric_tensor
-     ! Check that second derivativesof the map have been allocated.
-     assert(ndime==size(this%d2sdx,dim=1))
-     assert(nlocs==size(this%d2sdx,dim=4))
+  ! Second derivatives of the map
+  if(this%my_duties%compute_jacobian_derivative_is_assigned()) then
 
-     call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
-     call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
-     call memalloc(ntens,wvec1,__FILE__,__LINE__)
-
-     do ilocs=1,nlocs
+     do ilocs=1,this%num_quadrature_points
         ! Transforms the array HESSI to a symmetric matrix WMAT1
-        do inode=1,nnode
-           do itens = 1, ntens
-              wvec1(itens) = this%interpolation%hessian(1,itens,inode,ilocs)
+        do inode=1,this%num_nodes
+           do itens = 1, this%num_entries_symmetric_tensor
+              this%wvec1(itens) = this%interpolation%hessian(1,itens,inode,ilocs)
            end do
-           call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
+           call vetoma(this%wvec1,this%wmat1(1,1,inode),this%num_dims,this%num_entries_symmetric_tensor)
         end do
 
         ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for
         ! each node
-        do inode=1,nnode
-           call btdbma(wmat2(1,1,inode),wmat1(1,1,inode), &
-                &        this%inv_jacobian(:,:,ilocs),ndime,ndime)
+        do inode=1,this%num_nodes
+           call btdbma(this%wmat2(1,1,inode),this%wmat1(1,1,inode), &
+                &        this%inv_jacobian(:,:,ilocs),this%num_dims,this%num_dims)
         end do
 
         ! Obtains (d^2 s_k / d x_i d x_j) as the solution of the system
         ! (d x_l / d s_k) (d^2 s_k / d x_i d x_j) 
         !     = - (d^2 x_l / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j), 
         ! for l,i,j = 1,...,NDIME
-        do kdime=1,ndime
-           do idime=1,ndime
-              do jdime=1,ndime
+        do kdime=1,this%num_dims
+           do idime=1,this%num_dims
+              do jdime=1,this%num_dims
                  this%d2sdx(kdime,idime,jdime,ilocs)=0.0_rp
-                 do ldime=1,ndime
-                    do inode=1,nnode
+                 do ldime=1,this%num_dims
+                    do inode=1,this%num_nodes
                        this%d2sdx(kdime,idime,jdime,ilocs) =    &
                             & this%d2sdx(kdime,idime,jdime,ilocs) &
                             & - this%inv_jacobian(kdime,ldime,ilocs)     &
-                            &   * wmat2(idime,jdime,inode) * quadrature%coordinates(ldime,inode)
+                            &   * this%wmat2(idime,jdime,inode) * quadrature%coordinates(ldime,inode)
                     end do
                  end do
               end do
            end do
         end do
      end do
-     call memfree(wmat1,__FILE__,__LINE__)
-     call memfree(wmat2,__FILE__,__LINE__)
   end if
 
 end subroutine cell_map_update
 
 !==================================================================================================
-subroutine cell_map_update_interpolation( this, quadrature, reference_fe_geometry )
-  implicit none
-  class(cell_map_t)    , intent(inout) :: this
-  type(quadrature_t)   , intent(in)    :: quadrature
-  class(reference_fe_t), intent(in)    :: reference_fe_geometry
-  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation )
-end subroutine cell_map_update_interpolation
+! Not used...eliminated
+! subroutine cell_map_update_interpolation( this, quadrature, reference_fe_geometry )
+!   implicit none
+!   class(cell_map_t)    , intent(inout) :: this
+!   type(quadrature_t)   , intent(in)    :: quadrature
+!   class(reference_fe_t), intent(in)    :: reference_fe_geometry
+!   call reference_fe_geometry%create_interpolation( quadrature, this%interpolation )
+! end subroutine cell_map_update_interpolation
 
+!==================================================================================================
 subroutine cell_map_print( this )
   implicit none
   class(cell_map_t) :: this
@@ -261,6 +305,7 @@ subroutine cell_map_print( this )
   end do
 end subroutine cell_map_print
 
+!==================================================================================================
 function cell_map_get_det_jacobian ( this, i )
   implicit none
   class(cell_map_t), intent(in) :: this
@@ -269,6 +314,7 @@ function cell_map_get_det_jacobian ( this, i )
   cell_map_get_det_jacobian = this%det_jacobian(i)
 end function cell_map_get_det_jacobian
 
+!==================================================================================================
 function cell_map_get_det_jacobians ( this )
   implicit none
   class(cell_map_t), target, intent(in) :: this
@@ -288,22 +334,27 @@ function cell_map_compute_h ( this, qpoin)
   integer(ip) :: i,j
 
   assert( qpoin>=1 .and. qpoin <= this%num_quadrature_points)
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
 
-  inverse_h = 0.0_rp
-  do idime = 1, this%num_dims
-     do jdime = 1,  this%num_dims
-        inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,qpoin)**2.0_rp
+     inverse_h = 0.0_rp
+     do idime = 1, this%num_dims
+        do jdime = 1,  this%num_dims
+           inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,qpoin)**2.0_rp
+        end do
+        inverse_h(idime) = sqrt(inverse_h(idime))
      end do
-     inverse_h(idime) = sqrt(inverse_h(idime))
-  end do
 
-  volumetric_h = inverse_h(1)
-  do j = 2, this%num_dims
-     volumetric_h = volumetric_h * inverse_h(j)
-  end do
-  volumetric_h = 1.0_rp / volumetric_h
-  volumetric_h = volumetric_h**(1.0_rp/real(this%num_dims))
-  cell_map_compute_h = this%reference_fe_characteristic_length*volumetric_h
+     volumetric_h = inverse_h(1)
+     do j = 2, this%num_dims
+        volumetric_h = volumetric_h * inverse_h(j)
+     end do
+     volumetric_h = 1.0_rp / volumetric_h
+     volumetric_h = volumetric_h**(1.0_rp/real(this%num_dims))
+     cell_map_compute_h = this%reference_fe_characteristic_length*volumetric_h
+  else
+     mcheck(.false.,'Calling cell_map_compute_h requires compute_jacobian_inverse_is_assigned to be true')
+  end if
+
 end function cell_map_compute_h
 
 !==================================================================================================
@@ -318,20 +369,25 @@ function cell_map_compute_h_min ( this, qpoin)
   integer(ip) :: i,j
 
   assert( qpoin>=1 .and. qpoin <= this%num_quadrature_points)
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
 
-  inverse_h = 0.0_rp
-  do idime = 1, this%num_dims
-     do jdime = 1,  this%num_dims
-        inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,qpoin)**2.0_rp
+     inverse_h = 0.0_rp
+     do idime = 1, this%num_dims
+        do jdime = 1,  this%num_dims
+           inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,qpoin)**2.0_rp
+        end do
+        inverse_h(idime) = sqrt(inverse_h(idime))
      end do
-     inverse_h(idime) = sqrt(inverse_h(idime))
-  end do  
 
-  minimum_h = 1.0_rp/inverse_h(1)
-  do j = 2, this%num_dims
-     minimum_h = min(minimum_h, 1.0_rp/inverse_h(j))
-  end do
-  cell_map_compute_h_min = this%reference_fe_characteristic_length*minimum_h
+     minimum_h = 1.0_rp/inverse_h(1)
+     do j = 2, this%num_dims
+        minimum_h = min(minimum_h, 1.0_rp/inverse_h(j))
+     end do
+     cell_map_compute_h_min = this%reference_fe_characteristic_length*minimum_h
+  else
+     mcheck(.false.,'Calling cell_map_compute_h_min requires compute_jacobian_inverse_is_assigned to be true')
+  end if
+
 end function cell_map_compute_h_min
 
 !==================================================================================================
@@ -346,20 +402,25 @@ function cell_map_compute_h_max ( this, qpoin)
   integer(ip) :: i,j
 
   assert( qpoin>=1 .and. qpoin <= this%num_quadrature_points)
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
 
-  inverse_h = 0.0_rp
-  do idime = 1, this%num_dims
-     do jdime = 1,  this%num_dims
-        inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,qpoin)**2.0_rp
+     inverse_h = 0.0_rp
+     do idime = 1, this%num_dims
+        do jdime = 1,  this%num_dims
+           inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,qpoin)**2.0_rp
+        end do
+        inverse_h(idime) = sqrt(inverse_h(idime))
      end do
-     inverse_h(idime) = sqrt(inverse_h(idime))
-  end do  
 
-  maximum_h = 1.0_rp/inverse_h(1)
-  do j = 2, this%num_dims
-     maximum_h = max(maximum_h, 1.0_rp/inverse_h(j))
-  end do
-  cell_map_compute_h_max = this%reference_fe_characteristic_length*maximum_h
+     maximum_h = 1.0_rp/inverse_h(1)
+     do j = 2, this%num_dims
+        maximum_h = max(maximum_h, 1.0_rp/inverse_h(j))
+     end do
+     cell_map_compute_h_max = this%reference_fe_characteristic_length*maximum_h
+  else
+     mcheck(.false.,'Calling cell_map_compute_h_min requires compute_jacobian_inverse_is_assigned to be true')
+  end if
+
 end function cell_map_compute_h_max
 
 !==================================================================================================
@@ -370,6 +431,7 @@ function cell_map_get_coordinates(this)
   cell_map_get_coordinates => this%nodes_coordinates
 end function cell_map_get_coordinates
 
+!==================================================================================================
 function cell_map_get_quadrature_points_coordinates(this)
   implicit none
   class(cell_map_t)   , target, intent(in) :: this
@@ -380,18 +442,22 @@ end function cell_map_get_quadrature_points_coordinates
 !==================================================================================================
 subroutine cell_map_get_inv_jacobian_tensor ( this, qpoin, inv_jacobian )
   implicit none
-  class(cell_map_t)        , intent(in)  :: this
+  class(cell_map_t)      , intent(in)  :: this
   integer(ip)            , intent(in)  :: qpoin
   type(tensor_field_t)   , intent(out) :: inv_jacobian
   ! Locals
   integer(ip) :: idime,jdime
 
-  call inv_jacobian%init(0.0_rp)
-  do jdime = 1, this%num_dims
-     do idime = 1,  this%num_dims
-        call inv_jacobian%set(idime,jdime,this%inv_jacobian(idime,jdime,qpoin))
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+     call inv_jacobian%init(0.0_rp)
+     do jdime = 1, this%num_dims
+        do idime = 1,  this%num_dims
+           call inv_jacobian%set(idime,jdime,this%inv_jacobian(idime,jdime,qpoin))
+        end do
      end do
-  end do
+  else
+     mcheck(.false.,'Calling cell_map_get_inv_jacobian_tensor requires compute_jacobian_inverse_is_assigned to be true')
+  end if
 
 end subroutine cell_map_get_inv_jacobian_tensor
 
@@ -426,14 +492,20 @@ function cell_map_apply_inv_jacobian ( this, qpoin, v_in ) result ( v_out )
   type(vector_field_t) :: v_out
   integer(ip)          :: idime,jdime
   real(rp)             :: vector_value
+
   assert( qpoin>=1 .and. qpoin <= this%num_quadrature_points)
-  call v_out%init(0.0_rp)
-  do jdime = 1, this%num_dims
-     vector_value = v_in%get(jdime)
-     do idime = 1,  this%num_dims
-        call v_out%add(idime, this%inv_jacobian(idime,jdime,qpoin)*vector_value)
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+     call v_out%init(0.0_rp)
+     do jdime = 1, this%num_dims
+        vector_value = v_in%get(jdime)
+        do idime = 1,  this%num_dims
+           call v_out%add(idime, this%inv_jacobian(idime,jdime,qpoin)*vector_value)
+        end do
      end do
-  end do  
+  else
+     mcheck(.false.,'Calling cell_map_get_inv_jacobian_tensor requires compute_jacobian_inverse_is_assigned to be true')
+  end if
+
 end function cell_map_apply_inv_jacobian
 
 !==================================================================================================
@@ -448,18 +520,16 @@ end function cell_map_get_reference_h
 subroutine cell_map_compute_quadrature_points_coordinates(this)
   implicit none
   class(cell_map_t), intent(inout) :: this
-  integer(ip)   :: qpoin,inode,nnode,nquad
+  integer(ip)   :: qpoin,inode
 
-  nnode = this%interpolation%num_shape_functions
-  nquad = this%num_quadrature_points
-  do qpoin = 1,nquad
+  do qpoin = 1,this%num_quadrature_points
      call this%quadrature_points_coordinates(qpoin)%init(0.0_rp)
-     do inode=1,nnode
+     do inode=1,this%num_nodes
         this%quadrature_points_coordinates(qpoin) = this%quadrature_points_coordinates(qpoin) + &
-             & this%nodes_coordinates(inode) * this%interpolation%shape_functions(1,inode,qpoin)
+             &    this%nodes_coordinates(inode) * this%interpolation%shape_functions(1,inode,qpoin)
      end do
   end do
-  
+
 end subroutine cell_map_compute_quadrature_points_coordinates
 
 !==================================================================================================
@@ -479,6 +549,7 @@ subroutine cell_map_get_jacobian_normalized_column ( this, column_id, qpoint, no
   normalized_column = normalized_column * (1.0_rp/normalized_column%nrm2())
 end subroutine cell_map_get_jacobian_normalized_column
 
+!==================================================================================================
 function cell_map_is_det_jacobian_positive ( this )
   implicit none
   class(cell_map_t)     , intent(in)    :: this
@@ -486,10 +557,12 @@ function cell_map_is_det_jacobian_positive ( this )
   cell_map_is_det_jacobian_positive = this%det_jacobian_positiveness
 end function cell_map_is_det_jacobian_positive
 
+!==================================================================================================
 subroutine assign_cell_map ( this, other )
   implicit none
   type(cell_map_t)     , intent(inout) :: this
   type(cell_map_t)     , intent(in)    :: other
+
   call this%free()
   call this%base_map_t%copy(other%base_map_t)
   call memalloc(this%num_dims, &
@@ -497,22 +570,41 @@ subroutine assign_cell_map ( this, other )
                 this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
   this%jacobian = other%jacobian
-  call memalloc(this%num_dims, &
-                this%num_dims, &
-                this%num_quadrature_points, &
-                this%inv_jacobian,__FILE__,__LINE__)
-  this%inv_jacobian = other%inv_jacobian
-  if ( allocated(other%d2sdx) ) then
-    call memalloc(this%num_dims, &
-                  this%num_dims, &
-                  this%num_dims, &
-                  this%num_quadrature_points, &
-                  this%d2sdx,__FILE__,__LINE__)
-    this%d2sdx = other%d2sdx
-  end if
   this%det_jacobian_positiveness = other%det_jacobian_positiveness
+
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+     call memalloc(this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_quadrature_points, &
+          &        this%inv_jacobian,__FILE__,__LINE__)
+     this%inv_jacobian = other%inv_jacobian
+  end if
+
+  if(this%my_duties%compute_jacobian_derivative_is_assigned()) then
+     call memalloc(this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_quadrature_points, &
+          &        this%d2sdx,__FILE__,__LINE__)
+
+     call memalloc(this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_nodes, &
+          &        this%wmat1,__FILE__,__LINE__)
+
+     call memalloc(this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_nodes, &
+          &        this%wmat2,__FILE__,__LINE__)
+
+     call memalloc(this%num_entries_symmetric_tensor,this%wvec1,__FILE__,__LINE__)
+    this%d2sdx = other%d2sdx
+
+  end if
+
 end subroutine assign_cell_map
 
+!==================================================================================================
 subroutine assign_cell_map_array ( cell_map_array1, cell_map_array2 ) 
   implicit none       
   type(cell_map_t), intent(inout) :: cell_map_array1(:)
@@ -520,11 +612,11 @@ subroutine assign_cell_map_array ( cell_map_array1, cell_map_array2 )
   integer(ip) :: i
   assert( size(cell_map_array1) == size(cell_map_array2) )
   do i = 1,size(cell_map_array1)
-    call assign_cell_map(cell_map_array1(i),cell_map_array2(i))
+     call assign_cell_map(cell_map_array1(i),cell_map_array2(i))
   end do
 end subroutine assign_cell_map_array
 
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+!==================================================================================================
 ! p_cell_map_t type procedures
 subroutine p_cell_map_allocate( this )
   implicit none
@@ -538,3 +630,53 @@ subroutine p_cell_map_free( this )
   call this%p%free()
   deallocate(this%p)
 end subroutine p_cell_map_free
+
+!==================================================================================================
+subroutine determinant(a,deter,nsize)
+  !-----------------------------------------------------------------------
+  !
+  ! This routine inverts a square matrix A -> Mat(nsize,nsize). The
+  ! inverse is stored in B. Its determinant is DETER
+  !    
+  !-----------------------------------------------------------------------
+  implicit none
+  integer(ip), intent(in)  :: nsize
+  real(rp),    intent(in)  :: a(nsize,nsize)
+  real(rp),    intent(out) :: deter
+  integer(ip)              :: isize,jsize
+  real(rp)                 :: denom,t1,t2,t3,t4
+
+  select case (nsize)
+
+  case(1)
+     deter=a(1,1)
+
+  case(2)
+     deter=a(1,1)*a(2,2)-a(2,1)*a(1,2)
+
+  case(3)
+     t1  = a(2,2)*a(3,3) - a(3,2)*a(2,3)
+     t2  =-a(2,1)*a(3,3) + a(3,1)*a(2,3)
+     t3  = a(2,1)*a(3,2) - a(3,1)*a(2,2)
+     deter = a(1,1)*t1 + a(1,2)*t2 + a(1,3)*t3
+
+  case(4)
+     t1= a(2,2)*a(3,3)*a(4,4) + a(2,3)*a(3,4)*a(4,2)&
+          + a(2,4)*a(3,2)*a(4,3) - a(2,3)*a(3,2)*a(4,4)&
+          - a(2,2)*a(3,4)*a(4,3) - a(2,4)*a(3,3)*a(4,2)
+     t2=-a(2,1)*a(3,3)*a(4,4) - a(2,3)*a(3,4)*a(4,1)&
+          - a(2,4)*a(3,1)*a(4,3) + a(2,4)*a(3,3)*a(4,1)&
+          + a(2,3)*a(3,1)*a(4,4) + a(2,1)*a(3,4)*a(4,3)
+     t3=+a(2,1)*a(3,2)*a(4,4) + a(2,2)*a(3,4)*a(4,1)&
+          + a(2,4)*a(3,1)*a(4,2) - a(2,4)*a(3,2)*a(4,1)&
+          - a(2,2)*a(3,1)*a(4,4) - a(2,1)*a(3,4)*a(4,2)
+     t4=-a(2,1)*a(3,2)*a(4,3) - a(2,2)*a(3,3)*a(4,1)&
+          - a(2,3)*a(3,1)*a(4,2) + a(2,3)*a(3,2)*a(4,1)&
+          + a(2,2)*a(3,1)*a(4,3) + a(2,1)*a(3,3)*a(4,2)
+     deter= a(1,1)*t1 + a(1,2)*t2 + a(1,3)*t3 + a(1,4)*t4
+
+  case default
+     mcheck(.false.,'determinant not available for nsize>4')
+  end select
+
+end subroutine determinant

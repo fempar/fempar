@@ -25,48 +25,57 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 subroutine interpolation_create( this, &
                                  num_dims, &
                                  num_shape_functions, &
                                  num_quadrature_points, & 
-                                 num_entries_symmetric_tensor, &
-                                 compute_hessian )
+                                 interpolation_duties)
   implicit none
-  class(interpolation_t), intent(inout) :: this
-  integer(ip)              , intent(in)    :: num_dims, & 
-                                              num_shape_functions, & 
-                                              num_quadrature_points
-  integer(ip)              , intent(in)    :: num_entries_symmetric_tensor
-  logical, optional        , intent(in)    :: compute_hessian
-
+  class(interpolation_t)      , intent(inout) :: this
+  integer(ip)                 , intent(in)    :: num_dims, & 
+                                                 num_shape_functions, & 
+                                                 num_quadrature_points
+  type(interpolation_duties_t), optional, intent(in) :: interpolation_duties
+  integer(ip) :: idime
   if (.not. this%is_needed_to_allocate( num_dims,        &
                                         num_shape_functions,   &
                                         num_quadrature_points, &
-                                        num_entries_symmetric_tensor,&
-                                        compute_hessian&
-                                      ) ) return
-
+                                        interpolation_duties) ) return
   call this%free()
+  ! QUARANTINE: to remove it when all invocations to create send integrator_duties
+  if(present(interpolation_duties)) then
+     this%my_duties = interpolation_duties
+  else
+     call this%my_duties%assign_compute_first_derivatives(.true.)
+     call this%my_duties%assign_compute_second_derivatives(.false.)
+  end if
+     
+  this%num_dims                     = num_dims
+  this%num_shape_functions          = num_shape_functions
+  this%num_quadrature_points        = num_quadrature_points
+  this%num_entries_symmetric_tensor = 0
 
-  this%num_dims = num_dims
-  this%num_shape_functions = num_shape_functions
-  this%num_quadrature_points = num_quadrature_points
-  this%num_entries_symmetric_tensor = num_entries_symmetric_tensor
-  call memalloc(SPACE_DIM, num_shape_functions, &
-                num_quadrature_points, &
-                this%shape_functions, __FILE__,__LINE__, 0.0_rp)
-  call memalloc(SPACE_DIM,SPACE_DIM, &
-                num_shape_functions, &
-                num_quadrature_points, &
-                this%shape_derivatives, __FILE__, __LINE__, 0.0_rp)
-  if ( present(compute_hessian) ) then
-     if ( compute_hessian ) then 
-        call memalloc(SPACE_DIM,num_entries_symmetric_tensor,&
-                      num_shape_functions,&
-                      num_quadrature_points, &
-                      this%hessian,__FILE__,__LINE__) 
-     end if
+  call memalloc(SPACE_DIM, &
+       &        this%num_shape_functions, &
+       &        this%num_quadrature_points, &
+       &        this%shape_functions, __FILE__,__LINE__, 0.0_rp)
+
+  if(this%my_duties%compute_first_derivatives_is_assigned()) then
+     call memalloc(SPACE_DIM,SPACE_DIM, &
+          &        this%num_shape_functions, &
+          &        this%num_quadrature_points, &
+          &        this%shape_derivatives, __FILE__, __LINE__, 0.0_rp)
+  end if
+
+  if(this%my_duties%compute_second_derivatives_is_assigned()) then
+     do idime = 1, this%num_dims
+        this%num_entries_symmetric_tensor = this%num_entries_symmetric_tensor + idime
+     end do
+     call memalloc(SPACE_DIM, &
+          &        this%num_entries_symmetric_tensor,&
+          &        this%num_shape_functions,&
+          &        this%num_quadrature_points, &
+          &        this%hessian,__FILE__,__LINE__) 
   end if
   
 end subroutine interpolation_create
@@ -74,13 +83,17 @@ end subroutine interpolation_create
 subroutine interpolation_free( this)
   implicit none
   class(interpolation_t), intent(inout) :: this
-  this%num_dims = 0
-  this%num_shape_functions = 0
-  this%num_quadrature_points = 0
+  this%num_dims                     = 0
+  this%num_shape_functions          = 0
+  this%num_quadrature_points        = 0
   this%num_entries_symmetric_tensor = 0
   if(allocated(this%shape_functions)) call memfree(this%shape_functions,__FILE__,__LINE__)
-  if(allocated(this%shape_derivatives)) call memfree(this%shape_derivatives,   __FILE__,__LINE__)
-  if(allocated(this%hessian)) call memfree(this%hessian,   __FILE__,__LINE__)
+  if(this%my_duties%compute_first_derivatives_is_assigned()) then
+     if(allocated(this%shape_derivatives)) call memfree(this%shape_derivatives,   __FILE__,__LINE__) ! Is allocated needed?
+  end if
+  if(this%my_duties%compute_second_derivatives_is_assigned()) then
+     if(allocated(this%hessian)) call memfree(this%hessian,   __FILE__,__LINE__) ! Is allocated needed?
+  end if
 end subroutine interpolation_free
 
 subroutine interpolation_copy(this, source_interpolation)
@@ -89,43 +102,39 @@ subroutine interpolation_copy(this, source_interpolation)
   type(interpolation_t), intent(in)     :: source_interpolation
 
   call this%clone(source_interpolation)
-
   this%shape_functions = source_interpolation%shape_functions
-  this%shape_derivatives = source_interpolation%shape_derivatives
-  if ( allocated(source_interpolation%hessian) ) then
-				this%hessian = source_interpolation%hessian
-  end if
+  if(this%my_duties%compute_first_derivatives_is_assigned())  this%shape_derivatives = source_interpolation%shape_derivatives
+  if(this%my_duties%compute_second_derivatives_is_assigned()) this%hessian = source_interpolation%hessian
 
 end subroutine interpolation_copy
 
 subroutine interpolation_clone(this, source_interpolation)
   implicit none
   class(interpolation_t), intent(inout) :: this
-		type(interpolation_t), intent(in)     :: source_interpolation
+  type(interpolation_t) , intent(in)    :: source_interpolation
 
   if (.not. this%is_needed_to_allocate( source_interpolation%num_dims,        & 
                                         source_interpolation%num_shape_functions,   &
                                         source_interpolation%num_quadrature_points, & 
-                                        source_interpolation%num_entries_symmetric_tensor,&
-                                        allocated(source_interpolation%hessian)&
-                                        ) ) return
-	
+                                        source_interpolation%my_duties ) ) return
+ 
   call this%free()
-  this%num_dims = source_interpolation%num_dims
-  this%num_shape_functions = source_interpolation%num_shape_functions
+  this%my_duties             = source_interpolation%my_duties
+  this%num_dims              = source_interpolation%num_dims
+  this%num_shape_functions   = source_interpolation%num_shape_functions
   this%num_quadrature_points = source_interpolation%num_quadrature_points
   this%num_entries_symmetric_tensor = source_interpolation%num_entries_symmetric_tensor
   call memalloc(SPACE_DIM,this%num_shape_functions,this%num_quadrature_points, &
-																this%shape_functions,__FILE__,__LINE__)
-  call memalloc(SPACE_DIM,SPACE_DIM,this%num_shape_functions,&
-																this%num_quadrature_points,this%shape_derivatives,   __FILE__,__LINE__)
-  if ( allocated(source_interpolation%hessian) ) then
-    call memalloc(this%num_dims,this%num_entries_symmetric_tensor,this%num_shape_functions,&
-																		this%num_quadrature_points,this%hessian,   __FILE__,__LINE__) 
+       &        this%shape_functions,__FILE__,__LINE__)
+  if(this%my_duties%compute_first_derivatives_is_assigned()) then
+     call memalloc(SPACE_DIM,SPACE_DIM,this%num_shape_functions,&
+          &        this%num_quadrature_points,this%shape_derivatives,   __FILE__,__LINE__)
   end if
+  if(this%my_duties%compute_second_derivatives_is_assigned()) then
+    call memalloc(this%num_dims,this%num_entries_symmetric_tensor,this%num_shape_functions, &
+         &        this%num_quadrature_points,this%hessian,   __FILE__,__LINE__) 
+ end if
 end subroutine interpolation_clone
-
-
 
 subroutine interpolation_print ( this )
   implicit none
@@ -144,51 +153,52 @@ subroutine interpolation_print ( this )
      end do
   end do
 
-  write(*,*) '*************** SHAPE DERIVATIVES ******************'                      
-
-  do i = 1, size(this%shape_derivatives,1)                                                             
-     do j = 1, size(this%shape_derivatives,2)                                                         
-        do k = 1, size(this%shape_derivatives,3)                                                     
-           do l = 1, size(this%shape_derivatives,4)                                                        
-              write(*,*) 'shape derivative D_',j,'phi^',k,'_(dim_',i,')','(gp=',l,')= ',this%shape_derivatives(i,j,k,l)
+  if(this%my_duties%compute_first_derivatives_is_assigned()) then
+     write(*,*) '*************** SHAPE DERIVATIVES ******************'                      
+     do i = 1, size(this%shape_derivatives,1)                                                             
+        do j = 1, size(this%shape_derivatives,2)                                                         
+           do k = 1, size(this%shape_derivatives,3)                                                     
+              do l = 1, size(this%shape_derivatives,4)                                                        
+                 write(*,*) 'shape derivative D_',j,'phi^',k,'_(dim_',i,')','(gp=',l,')= ',this%shape_derivatives(i,j,k,l)
+              end do
            end do
         end do
      end do
-  end do
-  write(*,*) 'shape_derivatives: ', this%shape_derivatives
-  if ( allocated( this%hessian ) ) then
+  end if
+
+  if(this%my_duties%compute_second_derivatives_is_assigned()) then
      write(*,*) 'hessian: ', this%hessian
   else
      write(*,*) 'hessian not computed '
   end if
+
 end subroutine interpolation_print
 
-function interpolation_is_needed_to_allocate(              &
-                                 this,                     &
-                                 num_dims,        &
+function interpolation_is_needed_to_allocate(           &
+                                 this,                  &
+                                 num_dims,              &
                                  num_shape_functions,   &
                                  num_quadrature_points, &
-                                 num_entries_symmetric_tensor,&
-                                 compute_hessian ) result ( is_needed )
+                                 interpolation_duties) result ( is_needed )
   implicit none
-  class(interpolation_t), intent(inout) :: this
-  integer(ip),            intent(in)    :: num_dims
-  integer(ip),            intent(in)    :: num_shape_functions
-  integer(ip),            intent(in)    :: num_quadrature_points
-  integer(ip),            intent(in)    :: num_entries_symmetric_tensor
-  logical, optional,      intent(in)    :: compute_hessian
+  class(interpolation_t)      , intent(inout) :: this
+  integer(ip)                 , intent(in)    :: num_dims
+  integer(ip)                 , intent(in)    :: num_shape_functions
+  integer(ip)                 , intent(in)    :: num_quadrature_points
+  type(interpolation_duties_t), optional, intent(in)    :: interpolation_duties
   logical :: is_needed
 
   ! We rely on the stored integers.
   ! Its is important that calling free() will set them to 0.
   ! And that they always have a valid numerical value
   is_needed = .false.
-  if (this%num_dims .ne. num_dims)               is_needed = .true.
+  if(present(interpolation_duties)) then
+     is_needed = .not. (interpolation_duties%compute_first_derivatives_is_assigned()  .eqv. this%my_duties%compute_first_derivatives_is_assigned() )
+     if(is_needed) return
+     is_needed = .not. (interpolation_duties%compute_second_derivatives_is_assigned() .eqv. this%my_duties%compute_second_derivatives_is_assigned())
+  end if
+  if (this%num_dims .ne. num_dims)                           is_needed = .true.
   if (this%num_shape_functions .ne. num_shape_functions)     is_needed = .true.
   if (this%num_quadrature_points .ne. num_quadrature_points) is_needed = .true.
-  if (present(compute_hessian)) then
-    if (compute_hessian .and. (this%num_entries_symmetric_tensor .ne. num_entries_symmetric_tensor))&
-    is_needed = .true.
-  end if
 
 end function interpolation_is_needed_to_allocate
