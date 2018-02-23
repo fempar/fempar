@@ -314,10 +314,9 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
 end subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments
 
 !==================================================================================================
-subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_face_mask, components_code, fe, vector_function_scalar_components, dof_values, time)
+subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_face_mask, fe, vector_function_scalar_components, dof_values, time)
   class(hex_Hcurl_interpolator_t) , intent(inout) :: this
-  logical                         , intent(in)    :: n_face_mask(:) 
-  logical                         , intent(in)    :: components_code(:)
+  logical                         , intent(in)    :: n_face_mask(:,:) 
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
@@ -352,15 +351,13 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
   reference_fe_geo => fe%get_reference_fe_geo()
   cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates() 
   call fe%get_nodes_coordinates( cell_coordinates ) 
-  massert ( size(components_code) == reference_fe%get_num_field_components(), 'Passed components_code slice does not correspond to number field components' )
 
   call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values)
   dof_values = 0.0_rp 
   do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
        reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
 
-     if ( n_face_mask(edge_id) ) then 
-        assert(components_code(1)) 
+     if ( n_face_mask(1,edge_id) ) then 
         num_quad_points      = this%edge_quadratures(reference_fe_id)%get_num_quadrature_points()
         call this%reallocate_if_needed(num_quad_points , this%edge_function_values)
         call this%reallocate_if_needed(num_quad_points , this%scalar_function_values_on_edge)
@@ -408,8 +405,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
      do facet_id = reference_fe%get_first_facet_id(), & 
           reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
 
-        if ( n_face_mask(facet_id) ) then 
-           assert(components_code(1))
+        if ( n_face_mask(1,facet_id) ) then 
            num_quad_points         =  this%facet_quadratures(reference_fe_id)%get_num_quadrature_points()
            call this%reallocate_if_needed(num_quad_points , this%facet_function_values)
            call this%reallocate_if_needed(num_quad_points , this%scalar_function_values_on_facet)

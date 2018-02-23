@@ -723,7 +723,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   type(p_interpolator_t)   , allocatable :: interpolators(:) 
   character(:)             , allocatable :: interpolator_type_
   logical                  , allocatable :: is_void_field(:) 
-  logical                  , allocatable :: n_face_mask(:) 
+  logical                  , allocatable :: n_face_mask(:,:) 
   logical                                :: reallocate 
   logical                                :: local_found
   integer(ip)                            :: ielem
@@ -771,9 +771,6 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   assert(associated(this%conditions) )
   call memalloc ( this%get_num_components(), components_code, __FILE__, __LINE__ )
 
-  allocate ( function_scalar_components(this%triangulation%get_num_dims(), fe%get_num_vefs()), stat=istat); check(istat==0);
-  call memalloc( fe%get_num_vefs(), n_face_mask, __FILE__, __LINE__ ) 
-
   do field_id = 1, this%get_num_fields()
      if ( .not. is_void_field(field_id) ) then 
         call fe%first() 
@@ -784,10 +781,16 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
               if ( .not. (allocated(dof_values) )) call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ )	
               ! Reallocate FE dependent arrays if necessary. Mixed topology case ..? 
               reallocate = .false.
-              if (allocated(n_face_mask)) reallocate = ( size(n_face_mask) < fe%get_num_vefs() )                                      
+              if (allocated(n_face_mask)) reallocate = ( size(n_face_mask,2) < fe%get_num_vefs() )                                      
               if ( (.not. allocated(n_face_mask)) .or. reallocate) then
                  if (allocated(n_face_mask)) call memfree(n_face_mask, __FILE__,__LINE__); 
-                 call memalloc(fe%get_num_vefs(), n_face_mask, __FILE__,__LINE__);
+                 call memalloc(this%triangulation%get_num_dims(), fe%get_num_vefs(), n_face_mask, __FILE__,__LINE__);
+              end if
+              reallocate = .false.
+              if (allocated(function_scalar_components)) reallocate = ( size(function_scalar_components,2) < fe%get_num_vefs() )                                      
+              if ( (.not. allocated(function_scalar_components)) .or. reallocate) then
+                 if (allocated(function_scalar_components)) deallocate(function_scalar_components, stat=istat); check(istat==0)  
+                 allocate ( function_scalar_components(this%triangulation%get_num_dims(), fe%get_num_vefs()), stat=istat); check(istat==0)
               end if
 
               call fe%get_field_fe_dofs(field_id,fe_dofs)
@@ -797,57 +800,54 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
               do vef_lid = 1, fe%get_num_vefs() 
                  call fe%get_vef(vef_lid, vef)
                  if ( .not. vef%is_ghost() ) then
-                   if ( vef%get_set_id() /= 0 .and. vef%is_proper() ) then
-                     local_found = .false.
-                     do ielem=1, vef%get_num_cells_around()
-                       call vef%get_cell_around(ielem, aux_fe)
-                       if (aux_fe%is_local()) then
-                          local_found = .true.
-                          exit
+                    if ( vef%get_set_id() /= 0 .and. vef%is_proper() ) then
+                       local_found = .false.
+                       do ielem=1, vef%get_num_cells_around()
+                          call vef%get_cell_around(ielem, aux_fe)
+                          if (aux_fe%is_local()) then
+                             local_found = .true.
+                             exit
+                          end if
+                       end do
+
+                       if (  fe%is_local() .or. .not. local_found ) then
+                          ! Get scalar boundary functions 
+                          call this%conditions%get_components_code( vef%get_set_id(), components_code )
+                          component_id = offset_component(field_id) + 1
+                          do icomp=1, reference_fe%get_num_field_components()
+                             if ( components_code(component_id+icomp-1) ) then
+                                n_face_mask(icomp, vef_lid) = .true. 
+                                ! Retreive the scalar functions corresponding to the components of the function to be projected
+                                call this%conditions%get_function(vef%get_set_id(),                 &
+                                                                  component_id+icomp-1,             &
+                                                                  function_scalar_components(icomp, vef_lid)%p)
+                             end if
+                          end do
                        end if
-                     end do
-                     
-                     if (  fe%is_local() .or. .not. local_found ) then
-                      ! Get scalar boundary functions 
-                      call this%conditions%get_components_code( vef%get_set_id(), components_code )
-                      component_id = offset_component(field_id) + 1
-                      do icomp=1, reference_fe%get_num_field_components()
-                        if ( components_code(component_id+icomp-1) ) then
-                         n_face_mask(vef_lid) = .true. 
-                         ! Retreive the scalar functions corresponding to the components of the function to be projected
-                            call this%conditions%get_function(vef%get_set_id(),                 &
-                                                              component_id+icomp-1,             &
-                                                              function_scalar_components(icomp, vef_lid)%p)
-                         end if
-                      end do
-                     end if   
-                   end if
+                    end if
                  end if
-              end do              
-              
+              end do
+
               ! Evaluate moments on the FE dirichlet boundary 
-              call interpolators(field_id)%p%evaluate_function_scalar_components_moments( n_face_mask,                                                         & 
-                                                                                          components_code(offset_component(field_id)+1:                        & 
-                                                                                          offset_component(field_id)+reference_fe%get_num_field_components()), & 
-                                                                                          fe,                                                                  &
-                                                                                          function_scalar_components,                                          &
-                                                                                          dof_values,                                                          &
-                                                                                          time = time )
+              if (  fe%is_local() .or. .not. local_found ) then
+                 call interpolators(field_id)%p%evaluate_function_scalar_components_moments( n_face_mask,                & 
+                                                                                             fe,                         &
+                                                                                             function_scalar_components, &
+                                                                                             dof_values,                 &
+                                                                                             time = time )
 
-
-              ! Insert nodal values on vefs at the dirichlet boundary 
-              do vef_lid = 1, fe%get_num_vefs() 
-                 if ( n_face_mask(vef_lid) ) then 
+                 ! Insert nodal values on vefs at the dirichlet boundary
+                 do vef_lid = 1, fe%get_num_vefs() 
                     own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
                     do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
                        idof = own_dofs_on_vef_iterator%get_current()   
                        if( fe%is_strong_dirichlet_dof(fe_dofs(idof))) then
-                       fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
-                       end if 
+                          fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
+                       end if
                        call own_dofs_on_vef_iterator%next()  
                     end do
-                  end if
-              end do
+                 end do
+              end if
            end if
            call fe%next()		
         end do
