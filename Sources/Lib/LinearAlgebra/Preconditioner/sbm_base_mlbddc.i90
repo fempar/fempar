@@ -103,11 +103,11 @@ subroutine base_mlbddc_parse_or_transfer_coarse_matrix_params ( this, &
   assert ( associated(this%mlbddc_params) )
   assert ( associated(this%environment) )
   if ( this%mlbddc_params%isPresent(Key=mlbddc_coarse_matrix_params) ) then
-#ifdef DEBUG  
-    assert ( this%mlbddc_params%isSubList(Key=mlbddc_coarse_matrix_params) ) 
+    assert ( this%mlbddc_params%isSubList(Key=mlbddc_coarse_matrix_params) )
     ierr = this%mlbddc_params%getSubList(Key     = mlbddc_coarse_matrix_params, & 
                                          SubList = coarse_matrix_params) 
     assert(ierr==0)
+#ifdef DEBUG
     assert(coarse_matrix_params%isPresent(mlbddc_coarse_matrix_symmetric_storage))
     assert(coarse_matrix_params%isAssignable(mlbddc_coarse_matrix_symmetric_storage, coarse_matrix_symmetric_storage))
     assert(coarse_matrix_params%isPresent(mlbddc_coarse_matrix_is_symmetric))
