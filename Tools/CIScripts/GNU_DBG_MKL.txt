@@ -41,8 +41,6 @@ mkdir build
 cd build
 mkdir THIRDPARTY
 mkdir FEMPAR
-mkdir tmp
-export TMPDIR=$(pwd)/tmp
 
 ##################################
 # CONFIGURE AND COMPILE THIRDPARTY

@@ -41,8 +41,6 @@ mkdir build
 cd build
 mkdir THIRDPARTY
 mkdir FEMPAR
-mkdir tmp
-export TMPDIR=$(pwd)/tmp
 
 ##################################
 # CONFIGURE AND COMPILE THIRDPARTY
@@ -78,5 +76,4 @@ ctest -j8 -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D Experimen
 cd ../
 cd ../
 rm -rf build
-
 
