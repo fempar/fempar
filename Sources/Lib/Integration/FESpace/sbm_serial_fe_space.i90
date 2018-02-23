@@ -719,7 +719,6 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   integer(ip)              , pointer     :: fe_dofs(:)
   real(rp)                 , pointer     :: fixed_dof_values_entries(:)
   integer(ip)                            :: idof, vef_lid, istat
-  type(point_t)            , pointer     :: coordinates(:)
   type(p_interpolator_t)   , allocatable :: interpolators(:) 
   character(:)             , allocatable :: interpolator_type_
   logical                  , allocatable :: is_void_field(:) 
@@ -864,11 +863,11 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   end do
   deallocate( interpolators, stat=istat); check(istat==0) 
 
-  deallocate( function_scalar_components, stat=istat); check(istat==0);
   call memfree( components_code, __FILE__, __LINE__ ) 
   call memfree( offset_component, __FILE__, __LINE__ )
   call memfree( is_void_field, __FILE__, __LINE__ )
-  call memfree( n_face_mask, __FILE__, __LINE__ )
+  if (allocated(function_scalar_components) ) deallocate( function_scalar_components, stat=istat); check(istat==0)
+  if (allocated(n_face_mask) ) call memfree( n_face_mask, __FILE__,__LINE__)
 
 end subroutine serial_fe_space_interpolate_dirichlet_values
 
