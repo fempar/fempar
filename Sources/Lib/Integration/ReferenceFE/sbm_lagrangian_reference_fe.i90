@@ -171,7 +171,6 @@ subroutine lagrangian_reference_fe_create_edget_interpolation (this, quadrature,
   call aux_reference_fe%p%create_interpolation ( quadrature, edget_interpolation )
   call aux_reference_fe%free()
 end subroutine lagrangian_reference_fe_create_edget_interpolation
-
 !==================================================================================================
 subroutine lagrangian_reference_fe_apply_cell_map( this, cell_map,                 &
      & interpolation_reference_cell, &
@@ -976,6 +975,24 @@ subroutine lagrangian_reference_fe_extend_list_components(this, list_1d)
 end subroutine lagrangian_reference_fe_extend_list_components
 
 !==================================================================================================
+subroutine lagrangian_reference_fe_assign_cell_map_duties (this, interpolation_duties,cell_map_duties)
+  class(lagrangian_reference_fe_t)       , intent(in)  :: this 
+  type(interpolation_duties_t), intent(in)  :: interpolation_duties
+  type(cell_map_duties_t)     , intent(out) :: cell_map_duties
+
+  call cell_map_duties%assign_compute_jacobian_inverse(.false.)
+  call cell_map_duties%assign_compute_jacobian_derivative(.false.)
+  if(interpolation_duties%compute_second_derivatives_is_assigned()) then
+     call cell_map_duties%assign_compute_jacobian_inverse(.true.)
+     call cell_map_duties%assign_compute_jacobian_derivative(.true.)
+     return
+  end if
+  if(interpolation_duties%compute_first_derivatives_is_assigned()) then
+     call cell_map_duties%assign_compute_jacobian_inverse(.true.)
+  end if
+
+end subroutine lagrangian_reference_fe_assign_cell_map_duties
+!==================================================================================================
 subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,phy)
   implicit none
   class(lagrangian_reference_fe_t), intent(in)    :: this 
@@ -1018,7 +1035,7 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
   !       = (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j)
   !       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
   !
-  if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+  if(phy%my_duties%compute_second_derivatives_is_assigned()) then
     call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
      call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
      do ilocs=1,nlocs

@@ -188,7 +188,6 @@ else
    base_command="cmake "
    echo "CMakeCache.txt detected! Any option other than -d (--driver) will be ignored, including default ones."
    echo "Changing the compiler, build-type, third party library requires cleaning and configuring again."
-
 fi
        
 if [ "$DRIVER" == 1 ]
@@ -199,8 +198,9 @@ then
      echo $command  >> configure.log
      eval $command
 else
+     command="$base_command $FEMPAR_SOURCES"
      echo ================================================== >> configure.log
      date >> configure.log
-     echo $base_command >> configure.log    
-     eval $base_command 	
+     echo $command >> configure.log    
+     eval $command 	
 fi

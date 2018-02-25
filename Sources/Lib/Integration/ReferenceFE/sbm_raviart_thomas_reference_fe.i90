@@ -773,7 +773,6 @@ end subroutine raviart_thomas_create_data_out_quadrature
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
-
 !==================================================================================================
 subroutine raviart_thomas_apply_cell_map_to_interpolation(this,map,ref,phy)
   implicit none

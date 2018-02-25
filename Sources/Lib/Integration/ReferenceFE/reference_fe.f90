@@ -446,7 +446,7 @@ module reference_fe_names
      procedure(create_interpolation_restricted_to_facet_interface), deferred :: create_interpolation_restricted_to_facet
      procedure(create_facet_interpolation_interface)    , deferred :: create_facet_interpolation
      procedure(create_edget_interpolation_interface)    , deferred :: create_edget_interpolation
-     !procedure(assign_cell_map_duties_interface)        , deferred :: assign_cell_map_duties
+     procedure(assign_cell_map_duties_interface)        , deferred :: assign_cell_map_duties
      procedure(apply_cell_map_interface)                , deferred :: apply_cell_map
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
@@ -883,11 +883,12 @@ module reference_fe_names
        real(rp)  :: get_characteristic_length_interface 
      end function get_characteristic_length_interface
 
-     subroutine assign_cell_map_duties (interpolation_duties,cell_map_duties)
-        import :: interpolation_duties_t, cell_map_duties_t
+     subroutine assign_cell_map_duties_interface (this, interpolation_duties,cell_map_duties)
+        import :: reference_fe_t, interpolation_duties_t, cell_map_duties_t
+        class(reference_fe_t)       , intent(in)  :: this 
         type(interpolation_duties_t), intent(in)  :: interpolation_duties
         type(cell_map_duties_t)     , intent(out) :: cell_map_duties
-     end subroutine assign_cell_map_duties
+      end subroutine assign_cell_map_duties_interface
 
      subroutine apply_cell_map_interface ( this, cell_map, interpolation_reference_cell,        &
           &                            interpolation_real_cell )
@@ -1026,7 +1027,8 @@ contains
   procedure :: create_interpolation_restricted_to_facet => lrfe_create_interpolation_restricted_to_facet
   procedure :: create_facet_interpolation  => lagrangian_reference_fe_create_facet_interpolation
   procedure :: create_edget_interpolation  => lagrangian_reference_fe_create_edget_interpolation
-  procedure :: apply_cell_map      => lagrangian_reference_fe_apply_cell_map
+  procedure :: assign_cell_map_duties      => lagrangian_reference_fe_assign_cell_map_duties
+  procedure :: apply_cell_map            => lagrangian_reference_fe_apply_cell_map
   procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node  => lagrangian_reference_fe_get_scalar_from_vector_node
   procedure :: get_max_order             => lagrangian_reference_fe_get_max_order
@@ -1249,6 +1251,7 @@ procedure :: create_interpolation_restricted_to_edget       => nedelec_create_in
 procedure :: create_facet_interpolation      => nedelec_create_facet_interpolation
 procedure :: create_edget_interpolation      => nedelec_create_edget_interpolation
 procedure :: create_edge_quadrature          => nedelec_create_edge_quadrature
+procedure :: assign_cell_map_duties          => nedelec_assign_cell_map_duties
 procedure :: evaluate_fe_function_scalar          &
     & => nedelec_evaluate_fe_function_scalar
 procedure :: evaluate_fe_function_vector          & 
@@ -1601,8 +1604,9 @@ contains
   procedure :: create_interpolation_restricted_to_facet   => void_reference_fe_create_interpolation_restricted_to_facet
   procedure :: create_facet_interpolation  => void_reference_fe_create_facet_interpolation
   procedure :: create_edget_interpolation  => void_reference_fe_create_edget_interpolation
-  procedure :: apply_cell_map             => void_reference_fe_apply_cell_map
-  procedure :: get_component_node               => void_reference_fe_get_component_node
+  procedure :: assign_cell_map_duties      => void_reference_fe_assign_cell_map_duties
+  procedure :: apply_cell_map              => void_reference_fe_apply_cell_map
+  procedure :: get_component_node          => void_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node => void_reference_fe_get_scalar_from_vector_node
   procedure :: get_max_order               => void_reference_fe_get_max_order
   procedure :: get_value_scalar            => void_reference_fe_get_value_scalar
@@ -1640,16 +1644,10 @@ end type void_reference_fe_t
 
 public :: void_reference_fe_t
 
-#define duties cell_integrator_duties
-#define task_01 compute_first_derivatives
-#define task_02 compute_second_derivatives
-#include "duties_header.i90"
-
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type cell_integrator_t 
 
 private
-type(cell_integrator_duties_t) :: my_duties
 integer(ip)                    :: num_shape_functions
 integer(ip)                    :: num_quadrature_points
 class(reference_fe_t), pointer :: reference_fe
@@ -1744,7 +1742,6 @@ type(cell_integrator_t), pointer :: p => NULL()
 end type p_cell_integrator_t
 
 public :: cell_integrator_t, p_cell_integrator_t
-public :: cell_integrator_duties_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type cell_integrator_facet_restriction_t
@@ -1912,11 +1909,6 @@ contains
 #define duties cell_map_duties
 #define task_01 compute_jacobian_inverse
 #define task_02 compute_jacobian_derivative
-#include "duties_body.i90"
-
-#define duties cell_integrator_duties
-#define task_01 compute_first_derivatives
-#define task_02 compute_second_derivatives
 #include "duties_body.i90"
 
 end module reference_fe_names

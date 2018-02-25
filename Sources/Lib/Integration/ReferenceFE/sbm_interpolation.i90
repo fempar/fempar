@@ -42,7 +42,6 @@ subroutine interpolation_create( this, &
                                         num_quadrature_points, &
                                         interpolation_duties) ) return
   call this%free()
-  ! QUARANTINE: to remove it when all invocations to create send integrator_duties
   if(present(interpolation_duties)) then
      this%my_duties = interpolation_duties
   else

@@ -46,6 +46,7 @@ subroutine base_map_copy( this, other )
   integer(ip) :: istat
   call this%free()
   this%num_dims = other%num_dims
+  this%num_nodes = other%num_nodes
   this%num_quadrature_points = other%num_quadrature_points
   call memalloc(this%num_quadrature_points, &
                 this%det_jacobian,__FILE__,__LINE__)

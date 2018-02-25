@@ -767,6 +767,17 @@ end subroutine nedelec_get_subelements_connectivity
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
 !==================================================================================================
+subroutine nedelec_assign_cell_map_duties (this, interpolation_duties,cell_map_duties)
+  class(nedelec_reference_fe_t), intent(in)  :: this 
+  type(interpolation_duties_t) , intent(in)  :: interpolation_duties
+  type(cell_map_duties_t)      , intent(out) :: cell_map_duties
+
+  call cell_map_duties%assign_compute_jacobian_inverse(.true.)
+  call cell_map_duties%assign_compute_jacobian_derivative(.false.)
+  massert(.not.interpolation_duties%compute_second_derivatives_is_assigned(),'Hessian not implemented for Nedelec')
+
+end subroutine nedelec_assign_cell_map_duties
+!==================================================================================================
 subroutine nedelec_reference_fe_apply_cell_map( this, cell_map,                 &
      & interpolation_reference_cell, &
      & interpolation_real_cell )

@@ -460,7 +460,6 @@ module fe_space_names
 
   type, extends(base_fe_space_t) :: serial_fe_space_t 
      !private      ! UNDER QUARANTINE
-     type(cell_integrator_duties_t) :: cell_integrator_duties
 
      ! Reference FE container
      integer(ip)                                 :: reference_fes_size

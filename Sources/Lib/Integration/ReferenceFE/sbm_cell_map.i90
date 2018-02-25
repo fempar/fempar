@@ -64,6 +64,7 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry, cell_map_du
   allocate(this%quadrature_points_coordinates(this%num_quadrature_points), stat=istat); check(istat==0)
   allocate(this%nodes_coordinates(this%num_nodes), stat=istat); check(istat==0)
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
+  call interpolation_duties%assign_compute_first_derivatives(.true.)
 
   if(this%my_duties%compute_jacobian_derivative_is_assigned()) then
      call this%my_duties%assign_compute_jacobian_inverse(.true.)
@@ -570,17 +571,12 @@ subroutine assign_cell_map ( this, other )
                 this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
   this%jacobian = other%jacobian
+  this%det_jacobian = other%det_jacobian
   this%det_jacobian_positiveness = other%det_jacobian_positiveness
 
-  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
-     call memalloc(this%num_dims, &
-          &        this%num_dims, &
-          &        this%num_quadrature_points, &
-          &        this%inv_jacobian,__FILE__,__LINE__)
-     this%inv_jacobian = other%inv_jacobian
-  end if
-
+  call this%my_duties%assign_compute_jacobian_derivative(other%my_duties%compute_jacobian_derivative_is_assigned())
   if(this%my_duties%compute_jacobian_derivative_is_assigned()) then
+     massert(other%my_duties%compute_jacobian_inverse_is_assigned(),'Error in cell_map copy')
      call memalloc(this%num_dims, &
           &        this%num_dims, &
           &        this%num_dims, &
@@ -600,6 +596,15 @@ subroutine assign_cell_map ( this, other )
      call memalloc(this%num_entries_symmetric_tensor,this%wvec1,__FILE__,__LINE__)
     this%d2sdx = other%d2sdx
 
+  end if
+
+  call this%my_duties%assign_compute_jacobian_inverse(other%my_duties%compute_jacobian_inverse_is_assigned())
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+     call memalloc(this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_quadrature_points, &
+          &        this%inv_jacobian,__FILE__,__LINE__)
+     this%inv_jacobian = other%inv_jacobian
   end if
 
 end subroutine assign_cell_map

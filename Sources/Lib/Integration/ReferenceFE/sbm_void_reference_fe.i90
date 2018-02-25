@@ -153,6 +153,17 @@ subroutine void_reference_fe_create_edget_interpolation (this, quadrature, edget
 end subroutine void_reference_fe_create_edget_interpolation
 
 !==================================================================================================
+subroutine void_reference_fe_assign_cell_map_duties (this, interpolation_duties,cell_map_duties)
+  class(void_reference_fe_t)       , intent(in)  :: this 
+  type(interpolation_duties_t), intent(in)  :: interpolation_duties
+  type(cell_map_duties_t)     , intent(out) :: cell_map_duties
+  
+  call cell_map_duties%assign_compute_jacobian_inverse(.false.)
+  call cell_map_duties%assign_compute_jacobian_derivative(.false.)
+  
+end subroutine void_reference_fe_assign_cell_map_duties
+
+!==================================================================================================
 subroutine void_reference_fe_apply_cell_map( this, cell_map,                 &
      & interpolation_reference_cell, &
      & interpolation_real_cell )
