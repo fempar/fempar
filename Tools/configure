@@ -54,7 +54,7 @@ OPTIONS:
 EOF
 }
 # NOTE: This requires GNU getopt.
-TEMP=`getopt -o hc:b:d:s: --long help,compiler:,build-type:,driver:,surces:,fflags:,cflags:,with-openmp,without-openmp,with-blas,without-blas,with-lapack,without-lapack,with-mkl,without-mkl,with-p4est,without-p4est,with-umfpack,without-umfpack,with-metis,without-metis,with-gidpost,without-gidpost,with-tests,without-tests -n 'configure' -- "$@"`
+TEMP=`getopt -o hc:b:d:s: --long help,compiler:,build-type:,driver:,sources:,fflags:,cflags:,with-openmp,without-openmp,with-blas,without-blas,with-lapack,without-lapack,with-mkl,without-mkl,with-p4est,without-p4est,with-umfpack,without-umfpack,with-metis,without-metis,with-gidpost,without-gidpost,with-tests,without-tests -n 'configure' -- "$@"`
 
 if [ $? != 0 ] ; then usage >&2 ; exit 1 ; fi
 
@@ -171,7 +171,7 @@ if [ $MKL == "ON" ]; then
     fi
 fi
 
-common_cmake_variables="-DFEMPAR_ENABLE_TESTS=$TESTS -DFEMPAR_ENABLE_OPENMP=$OPENMP -DFEMPAR_ENABLE_MKL=$MKL -DFEMPAR_ENABLE_P4EST=$P4EST -DFORTRAN_EXTRA_FLAGS=${FORTRAN_EXTRA_FLAGS} -DC_EXTRA_FLAGS=${C_EXTRA_FLAGS} -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DMPIEXEC_PREFLAGS=$MPIEXEC_PREFLAGS $MACROS"
+common_cmake_variables="-DFEMPAR_ENABLE_TESTS=$TESTS -DFEMPAR_ENABLE_OPENMP=$OPENMP -DFORTRAN_EXTRA_FLAGS=${FORTRAN_EXTRA_FLAGS} -DC_EXTRA_FLAGS=${C_EXTRA_FLAGS} -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DMPIEXEC_PREFLAGS=$MPIEXEC_PREFLAGS $MACROS $FEMPAR_SOURCES"
 
 if [ ! -f ./CMakeCache.txt ] 
 then 
@@ -192,7 +192,7 @@ fi
        
 if [ "$DRIVER" == 1 ]
 then
-     command="$base_command -DFEMPAR_DRIVER=$FEMPAR_DRIVER $FEMPAR_SOURCES"
+     command="$base_command -DFEMPAR_DRIVER=$FEMPAR_DRIVER" 
      echo ================================================== >> configure.log
      date >> configure.log
      echo $command  >> configure.log

@@ -184,6 +184,7 @@ contains
 
     ! 5) Iteration
     num_iterations = 0
+    did_converge = .false.
     loop_cg: do
        num_iterations = num_iterations + 1
 

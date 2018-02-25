@@ -72,6 +72,7 @@ module serial_context_names
      procedure :: root_send_master_rcv_ip_1D_array => serial_context_root_send_master_rcv_ip_1D_array
      procedure :: root_send_master_rcv_rp          => serial_context_root_send_master_rcv_rp
      procedure :: root_send_master_rcv_rp_1D_array => serial_context_root_send_master_rcv_rp_1D_array
+     procedure :: root_send_master_rcv_logical     => serial_context_root_send_master_rcv_logical
      procedure :: gather_to_master_ip              => serial_context_gather_to_master_ip           
      procedure :: gather_to_master_igp             => serial_context_gather_to_master_igp          
      procedure :: gather_to_master_ip_1D_array     => serial_context_gather_to_master_ip_1D_array  
@@ -437,6 +438,15 @@ contains
     real(rp)            , intent(inout)   :: output_data(:)
     check(.false.)       ! This routine should be never called
   end subroutine serial_context_root_send_master_rcv_rp_1D_array
+  
+  !=============================================================================
+  subroutine serial_context_root_send_master_rcv_logical ( this, input_data, output_data )
+    implicit none
+    class(serial_context_t), intent(in)      :: this
+    logical                , intent(in)      :: input_data
+    logical                , intent(inout)   :: output_data
+    check(.false.)       ! This routine should be never called
+  end subroutine serial_context_root_send_master_rcv_logical 
   
   !=============================================================================
   !=============================================================================
