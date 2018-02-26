@@ -828,7 +828,6 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
               end do
 
               ! Evaluate moments on the FE dirichlet boundary 
-              if (  fe%is_local() .or. .not. local_found ) then
                  call interpolators(field_id)%p%evaluate_function_scalar_components_moments( n_face_mask,                & 
                                                                                              fe,                         &
                                                                                              function_scalar_components, &
@@ -837,18 +836,19 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
 
                  ! Insert nodal values on vefs at the dirichlet boundary
                  do vef_lid = 1, fe%get_num_vefs() 
-                    own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
-                    do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
-                       idof = own_dofs_on_vef_iterator%get_current()   
-                       if( fe%is_strong_dirichlet_dof(fe_dofs(idof))) then
-                          fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
-                       end if
-                       call own_dofs_on_vef_iterator%next()  
-                    end do
+                    if ( any(n_face_mask(:,vef_lid)) ) then 
+                       own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
+                       do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
+                          idof = own_dofs_on_vef_iterator%get_current()   
+                          if( fe%is_strong_dirichlet_dof(fe_dofs(idof))) then
+                             fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
+                          end if
+                          call own_dofs_on_vef_iterator%next()  
+                       end do
+                    end if
                  end do
               end if
-           end if
-           call fe%next()		
+           call fe%next()
         end do
         if (allocated(dof_values)) call memfree( dof_values, __FILE__, __LINE__ )
      end if
