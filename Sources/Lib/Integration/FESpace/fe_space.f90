@@ -253,6 +253,7 @@ module fe_space_names
     procedure, non_overridable          :: is_fixed_dof                               => fe_cell_iterator_is_fixed_dof
     procedure                           :: is_hanging_dof                             => fe_cell_iterator_is_hanging_dof
     procedure, non_overridable          :: compute_volume                             => fe_cell_iterator_compute_volume
+    procedure, non_overridable          :: compute_characteristic_length              => fe_cell_iterator_compute_characteristic_length
     
     procedure, non_overridable          :: get_default_quadrature_degree              => fe_cell_iterator_get_default_quadrature_degree
     procedure, non_overridable          :: get_quadrature_degree                      => fe_cell_iterator_get_quadrature_degree

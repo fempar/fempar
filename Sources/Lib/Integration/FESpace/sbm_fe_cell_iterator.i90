@@ -742,6 +742,14 @@ function fe_cell_iterator_compute_volume ( this )
   end do
 end function fe_cell_iterator_compute_volume
 
+function fe_cell_iterator_compute_characteristic_length(this,qpoint)
+  implicit none
+  class(fe_cell_iterator_t), target , intent(in) :: this
+  integer(ip)                       , intent(in) :: qpoint
+  real(rp) :: fe_cell_iterator_compute_characteristic_length
+  fe_cell_iterator_compute_characteristic_length = this%cell_map%compute_h(qpoint)
+end function fe_cell_iterator_compute_characteristic_length
+
 function fe_cell_iterator_get_quadrature_degree ( this )
   implicit none
   class(fe_cell_iterator_t), intent(in) :: this
