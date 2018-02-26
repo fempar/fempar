@@ -37,6 +37,7 @@ module error_estimator_names
   
   
   type, abstract :: error_estimator_t
+    private
     class(serial_fe_space_t)         , pointer     :: fe_space => NULL()
     type(std_vector_real_rp_t)       , allocatable :: local_estimates
     real(rp)                                       :: global_estimate
@@ -49,25 +50,25 @@ module error_estimator_names
    contains
     procedure (compute_local_estimates_interface)  , deferred :: compute_local_estimates
     procedure (compute_local_true_errors_interface), deferred :: compute_local_true_errors
-    procedure                           :: create                           => eee_create
-    procedure                           :: free                             => eee_free
-    !procedure, non_overridable          :: setup_adaptive_strategy          => eee_setup_adaptive_strategys
-    !procedure, non_overridable          :: compute_global_estimate          => eee_compute_global_estimate
-    !procedure, non_overridable          :: compute_global_true_error        => eee_compute_global_true_error
-    !procedure, non_overridable          :: compute_local_effectivities      => eee_get_local_effectivities
-    !procedure, non_overridable          :: compute_global_effectivity       => eee_get_global_effectivity
-    procedure, non_overridable          :: get_local_estimates              => eee_get_local_estimates
-    procedure, non_overridable          :: get_local_estimate_entries       => eee_get_local_estimate_entries
-    procedure, non_overridable          :: get_global_estimate              => eee_get_global_estimate
-    procedure, non_overridable          :: get_local_true_errors            => eee_get_local_true_errors
-    procedure, non_overridable          :: get_local_true_error_entries     => eee_get_local_true_error_entries
-    procedure, non_overridable          :: get_global_true_error            => eee_get_global_true_error
-    procedure, non_overridable          :: get_local_effectivities          => eee_get_local_effectivities
-    procedure, non_overridable          :: get_local_effectivity_entries    => eee_get_local_effectivity_entries
-    procedure, non_overridable          :: get_global_effectivity           => eee_get_global_effectivity
-    !procedure, non_overridable          :: print_estimator_history_header   => eee_print_estimator_history_header
-    !procedure, non_overridable          :: print_estimator_history_new_line => eee_print_estimator_history_new_line
-    !procedure, non_overridable          :: print_estimator_history_footer   => eee_print_estimator_history_footer
+    procedure                           :: create                           => ee_create
+    procedure                           :: free                             => ee_free
+    !procedure, non_overridable          :: compute_global_estimate          => ee_compute_global_estimate
+    !procedure, non_overridable          :: compute_global_true_error        => ee_compute_global_true_error
+    !procedure, non_overridable          :: compute_local_effectivities      => ee_get_local_effectivities
+    !procedure, non_overridable          :: compute_global_effectivity       => ee_get_global_effectivity
+    procedure, non_overridable          :: get_fe_space                     => ee_get_fe_space
+    procedure, non_overridable          :: get_local_estimates              => ee_get_local_estimates
+    procedure, non_overridable          :: get_local_estimate_entries       => ee_get_local_estimate_entries
+    procedure, non_overridable          :: get_global_estimate              => ee_get_global_estimate
+    procedure, non_overridable          :: get_local_true_errors            => ee_get_local_true_errors
+    procedure, non_overridable          :: get_local_true_error_entries     => ee_get_local_true_error_entries
+    procedure, non_overridable          :: get_global_true_error            => ee_get_global_true_error
+    procedure, non_overridable          :: get_local_effectivities          => ee_get_local_effectivities
+    procedure, non_overridable          :: get_local_effectivity_entries    => ee_get_local_effectivity_entries
+    procedure, non_overridable          :: get_global_effectivity           => ee_get_global_effectivity
+    !procedure, non_overridable          :: print_estimator_history_header   => ee_print_estimator_history_header
+    !procedure, non_overridable          :: print_estimator_history_new_line => ee_print_estimator_history_new_line
+    !procedure, non_overridable          :: print_estimator_history_footer   => ee_print_estimator_history_footer
   end type error_estimator_t
   
   abstract interface
@@ -88,16 +89,16 @@ module error_estimator_names
 
 contains
 
- subroutine eee_create ( this, fe_space, parameter_list )
+ subroutine ee_create ( this, fe_space, parameter_list )
    implicit none
    class(error_estimator_t)        , intent(inout) :: this
    class(serial_fe_space_t), target, intent(in)    :: fe_space
    type(parameterlist_t)           , intent(in)    :: parameter_list
    call this%free()
    this%fe_space => fe_space
- end subroutine eee_create
+ end subroutine ee_create
 
- subroutine eee_free ( this )
+ subroutine ee_free ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
    nullify(this%fe_space)
@@ -109,69 +110,76 @@ contains
    call this%local_estimates%free()
    call this%local_true_errors%free()
    call this%local_effectivities%free()
- end subroutine eee_free
+ end subroutine ee_free
  
- function eee_get_local_estimates ( this )
+ function ee_get_fe_space ( this )
    implicit none
    class(error_estimator_t), target, intent(inout) :: this
-   type(std_vector_real_rp_t), pointer :: eee_get_local_estimates
-   eee_get_local_estimates => this%local_estimates
- end function eee_get_local_estimates
+   class(serial_fe_space_t), pointer :: ee_get_fe_space
+   ee_get_fe_space => this%fe_space
+ end function ee_get_fe_space
  
- function eee_get_local_estimate_entries ( this )
+ function ee_get_local_estimates ( this )
    implicit none
    class(error_estimator_t), target, intent(inout) :: this
-   real(rp), pointer :: eee_get_local_estimate_entries(:)
-   eee_get_local_estimate_entries => this%local_estimates%get_pointer()
- end function eee_get_local_estimate_entries
+   type(std_vector_real_rp_t), pointer :: ee_get_local_estimates
+   ee_get_local_estimates => this%local_estimates
+ end function ee_get_local_estimates
  
- function eee_get_global_estimate ( this )
+ function ee_get_local_estimate_entries ( this )
+   implicit none
+   class(error_estimator_t), target, intent(inout) :: this
+   real(rp), pointer :: ee_get_local_estimate_entries(:)
+   ee_get_local_estimate_entries => this%local_estimates%get_pointer()
+ end function ee_get_local_estimate_entries
+ 
+ function ee_get_global_estimate ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
-   real(rp) :: eee_get_global_estimate
-   eee_get_global_estimate = this%global_estimate
- end function eee_get_global_estimate
+   real(rp) :: ee_get_global_estimate
+   ee_get_global_estimate = this%global_estimate
+ end function ee_get_global_estimate
  
- function eee_get_local_true_errors ( this )
+ function ee_get_local_true_errors ( this )
    implicit none
    class(error_estimator_t), target, intent(inout) :: this
-   type(std_vector_real_rp_t), pointer :: eee_get_local_true_errors
-   eee_get_local_true_errors => this%local_true_errors
- end function eee_get_local_true_errors
+   type(std_vector_real_rp_t), pointer :: ee_get_local_true_errors
+   ee_get_local_true_errors => this%local_true_errors
+ end function ee_get_local_true_errors
  
- function eee_get_local_true_error_entries ( this )
+ function ee_get_local_true_error_entries ( this )
    implicit none
    class(error_estimator_t), target, intent(inout) :: this
-   real(rp), pointer :: eee_get_local_true_error_entries(:)
-   eee_get_local_true_error_entries => this%local_true_errors%get_pointer()
- end function eee_get_local_true_error_entries
+   real(rp), pointer :: ee_get_local_true_error_entries(:)
+   ee_get_local_true_error_entries => this%local_true_errors%get_pointer()
+ end function ee_get_local_true_error_entries
  
- function eee_get_global_true_error ( this )
+ function ee_get_global_true_error ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
-   real(rp) :: eee_get_global_true_error
-   eee_get_global_true_error = this%global_true_error
- end function eee_get_global_true_error
+   real(rp) :: ee_get_global_true_error
+   ee_get_global_true_error = this%global_true_error
+ end function ee_get_global_true_error
  
- function eee_get_local_effectivities ( this )
+ function ee_get_local_effectivities ( this )
    implicit none
    class(error_estimator_t), target, intent(inout) :: this
-   type(std_vector_real_rp_t), pointer :: eee_get_local_effectivities
-   eee_get_local_effectivities => this%local_effectivities
- end function eee_get_local_effectivities
+   type(std_vector_real_rp_t), pointer :: ee_get_local_effectivities
+   ee_get_local_effectivities => this%local_effectivities
+ end function ee_get_local_effectivities
  
- function eee_get_local_effectivity_entries ( this )
+ function ee_get_local_effectivity_entries ( this )
    implicit none
    class(error_estimator_t), target, intent(inout) :: this
-   real(rp), pointer :: eee_get_local_effectivity_entries(:)
-   eee_get_local_effectivity_entries => this%local_effectivities%get_pointer()
- end function eee_get_local_effectivity_entries
+   real(rp), pointer :: ee_get_local_effectivity_entries(:)
+   ee_get_local_effectivity_entries => this%local_effectivities%get_pointer()
+ end function ee_get_local_effectivity_entries
  
- function eee_get_global_effectivity ( this )
+ function ee_get_global_effectivity ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
-   real(rp) :: eee_get_global_effectivity
-   eee_get_global_effectivity = this%global_effectivity
- end function eee_get_global_effectivity
+   real(rp) :: ee_get_global_effectivity
+   ee_get_global_effectivity = this%global_effectivity
+ end function ee_get_global_effectivity
 
 end module error_estimator_names

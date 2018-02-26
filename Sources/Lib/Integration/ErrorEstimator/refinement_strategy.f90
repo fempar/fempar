@@ -43,7 +43,7 @@ module refinement_strategy_names
   
   type :: error_objective_refinement_strategy_t
     private
-    class(error_estimator_t), pointer :: error_estimator
+    class(error_estimator_t), pointer :: error_estimator => NULL()
     real(rp)                          :: error_objective
     real(rp)                          :: objective_tolerance
     integer(ip)                       :: current_mesh_iteration
