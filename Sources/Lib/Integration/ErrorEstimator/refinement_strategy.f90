@@ -92,7 +92,7 @@ contains
     real(rp)             :: error_upper_bound, error_lower_bound
     refinement_and_coarsening_flags_entries => refinement_and_coarsening_flags%get_pointer()
     num_of_entries     = size(local_estimate_entries)
-    local_estimate_entries => this%error_estimator%get_local_estimate_entries()
+    local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
     error_upper_bound  = this%error_objective * ( 1.0_rp + this%objective_tolerance )
     error_lower_bound  = this%error_objective * ( 1.0_rp - this%objective_tolerance )
     do i = 1, num_of_entries
@@ -113,7 +113,7 @@ contains
     real(rp), pointer :: local_estimate_entries(:)
     real(rp)          :: max_local_estimate, min_local_estimate
     real(rp)          :: error_upper_bound, error_lower_bound
-    local_estimate_entries => this%error_estimator%get_local_estimate_entries()
+    local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
     max_local_estimate = maxval(local_estimate_entries)
     min_local_estimate = minval(local_estimate_entries)
     error_upper_bound  = this%error_objective * ( 1.0_rp + this%objective_tolerance )
