@@ -25,14 +25,14 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module test_poisson_params_names
+module test_poisson_error_estimator_params_names
   use fempar_names
 # include "debug.i90"
 
   implicit none
   private
 
-  type test_poisson_params_t  
+  type test_poisson_error_estimator_params_t
      private 
      ! IO parameters
      character(len=:), allocatable :: default_dir_path 
@@ -92,16 +92,16 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: get_use_void_fes
      procedure, non_overridable             :: get_use_void_fes_case
-  end type test_poisson_params_t  
+  end type test_poisson_error_estimator_params_t  
 
   ! Types
-  public :: test_poisson_params_t
+  public :: test_poisson_error_estimator_params_t
 
 contains
 
   subroutine test_poisson_create(this)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(test_poisson_error_estimator_params_t), intent(inout) :: this
     
     call this%free()
     
@@ -120,7 +120,7 @@ contains
   
   subroutine test_poisson_set_default(this)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(test_poisson_error_estimator_params_t), intent(inout) :: this
     ! IO parameters
     this%default_dir_path       = 'data/'
     this%default_prefix         = 'square'
@@ -131,7 +131,7 @@ contains
     this%default_write_solution = '.false.'
     this%default_laplacian_type = 'scalar'
     
-    this%default_triangulation_type = 'unstructured'
+    this%default_triangulation_type = 'structured'
     this%default_num_dims = '2'
     this%default_nx = '1'
     this%default_ny = '1'
@@ -147,7 +147,7 @@ contains
   !==================================================================================================
   subroutine test_poisson_add_to_cli(this)
     implicit none
-    class(test_poisson_params_t) , intent(inout) :: this
+    class(test_poisson_error_estimator_params_t) , intent(inout) :: this
 
     ! Locals
     integer(ip) :: error
@@ -217,7 +217,7 @@ contains
   
   subroutine test_poisson_parse(this,parameter_list)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(test_poisson_error_estimator_params_t), intent(inout) :: this
     type(ParameterList_t)       , intent(inout) :: parameter_list
     integer(ip) :: istat
     
@@ -264,7 +264,7 @@ contains
 
   subroutine test_poisson_free(this)
     implicit none
-    class(test_poisson_params_t), intent(inout) :: this
+    class(test_poisson_error_estimator_params_t), intent(inout) :: this
     if(allocated(this%default_dir_path)) deallocate(this%default_dir_path)              
     if(allocated(this%default_prefix)) deallocate(this%default_prefix)                    
     if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
@@ -280,7 +280,7 @@ contains
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_dir_path
     get_dir_path = trim(this%dir_path)
   end function get_dir_path
@@ -288,7 +288,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_prefix
     get_prefix = trim(this%prefix)
   end function get_prefix
@@ -296,7 +296,7 @@ contains
   !==================================================================================================
   function get_dir_path_out(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_dir_path_out
     get_dir_path_out = trim(this%dir_path_out)
   end function get_dir_path_out
@@ -304,7 +304,7 @@ contains
   !==================================================================================================
   function get_fe_formulation(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_fe_formulation
     get_fe_formulation = trim(this%fe_formulation)
   end function get_fe_formulation
@@ -312,7 +312,7 @@ contains
   !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     integer(ip) :: get_reference_fe_geo_order
     get_reference_fe_geo_order = this%reference_fe_geo_order
   end function get_reference_fe_geo_order
@@ -320,7 +320,7 @@ contains
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     integer(ip) :: get_reference_fe_order
     get_reference_fe_order = this%reference_fe_order
   end function get_reference_fe_order
@@ -328,7 +328,7 @@ contains
   !==================================================================================================
   function get_write_solution(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     logical :: get_write_solution
     get_write_solution = this%write_solution
   end function get_write_solution
@@ -336,7 +336,7 @@ contains
   !==================================================================================================
   function get_laplacian_type(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_laplacian_type
     get_laplacian_type = trim(this%laplacian_type)
   end function get_laplacian_type 
@@ -344,7 +344,7 @@ contains
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     character(len=:), allocatable :: get_triangulation_type
     get_triangulation_type = trim(this%triangulation_type)
   end function get_triangulation_type 
@@ -352,7 +352,7 @@ contains
   !==================================================================================================
   function get_num_dims(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     integer(ip) :: get_num_dims
     get_num_dims = this%num_dims
   end function get_num_dims
@@ -360,7 +360,7 @@ contains
   !==================================================================================================
   function get_use_void_fes(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     logical                                   :: get_use_void_fes
     get_use_void_fes = this%use_void_fes
   end function get_use_void_fes
@@ -368,9 +368,9 @@ contains
   !==================================================================================================
   function get_use_void_fes_case(this)
     implicit none
-    class(test_poisson_params_t) , intent(in) :: this
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
     character(len=:), allocatable             :: get_use_void_fes_case
     get_use_void_fes_case = trim(this%use_void_fes_case)
   end function get_use_void_fes_case
 
-end module test_poisson_params_names
+end module test_poisson_error_estimator_params_names

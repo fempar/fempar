@@ -27,10 +27,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module test_poisson_error_estimator_driver_names
   use fempar_names
-  use test_poisson_params_names
+  use test_poisson_error_estimator_params_names
   use poisson_cG_discrete_integration_names
   use poisson_conditions_names
   use poisson_analytical_functions_names
+  use poisson_cG_error_estimator_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO   ! VTK_IO
     
@@ -42,35 +43,34 @@ module test_poisson_error_estimator_driver_names
   type test_poisson_error_estimator_driver_t 
      private 
      
-     type(test_poisson_params_t)                  :: test_params
-     type(ParameterList_t)                        :: parameter_list
+     type(test_poisson_error_estimator_params_t) :: test_params
+     type(ParameterList_t)                       :: parameter_list
      
-     type(p4est_serial_triangulation_t)           :: triangulation
+     type(p4est_serial_triangulation_t)          :: triangulation
      
-     type(serial_fe_space_t)                      :: fe_space 
-     type(p_reference_fe_t), allocatable          :: reference_fes(:) 
+     type(serial_fe_space_t)                     :: fe_space 
+     type(p_reference_fe_t), allocatable         :: reference_fes(:) 
      
-     type(poisson_cG_discrete_integration_t)      :: poisson_cG_integration
-     type(poisson_conditions_t)                   :: poisson_conditions
-     type(poisson_analytical_functions_t)         :: poisson_analytical_functions
+     type(poisson_cG_discrete_integration_t)     :: poisson_cG_integration
+     type(poisson_conditions_t)                  :: poisson_conditions
+     type(poisson_analytical_functions_t)        :: poisson_analytical_functions
+     type(poisson_cG_error_estimator_t)          :: poisson_cG_error_estimator
      
-     type(fe_affine_operator_t)                   :: fe_affine_operator
+     type(fe_affine_operator_t)                  :: fe_affine_operator
      
 #ifdef ENABLE_MKL
-     type(direct_solver_t)                        :: direct_solver
+     type(direct_solver_t)                       :: direct_solver
 #else
-     type(iterative_linear_solver_t)              :: iterative_linear_solver
+     type(iterative_linear_solver_t)             :: iterative_linear_solver
 #endif
      
-     type(fe_function_t)                          :: solution
+     type(fe_function_t)                         :: solution
      
    contains
      procedure          :: run_simulation
      procedure, private :: parse_command_line_parameters
      procedure, private :: setup_triangulation
-     procedure, private :: set_cells_for_refinement
-     procedure, private :: set_cells_for_coarsening
-     procedure, private :: fill_cells_set
+     procedure, private :: set_cells_for_uniform_refinement
      procedure, private :: setup_reference_fes
      procedure, private :: setup_fe_space
      procedure, private :: refine_and_coarsen
@@ -97,101 +97,39 @@ contains
   subroutine setup_triangulation(this)
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
-    integer(ip) :: i
+    class(vef_iterator_t), allocatable :: vef
+    integer(ip)                        :: i
     call this%triangulation%create(this%parameter_list)
+    if ( .not. this%test_params%get_use_void_fes() ) then
+      call this%triangulation%create_vef_iterator(vef)
+      do while ( .not. vef%has_finished() )
+        if(vef%is_at_boundary()) then
+          call vef%set_set_id(1)
+        else
+          call vef%set_set_id(0)
+        end if
+        call vef%next()
+      end do
+      call this%triangulation%free_vef_iterator(vef)
+    end if
     do i = 1,2
-      call this%set_cells_for_refinement()
+      call this%set_cells_for_uniform_refinement()
       call this%triangulation%refine_and_coarsen()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
   end subroutine setup_triangulation
   
-  subroutine set_cells_for_refinement(this)
+  subroutine set_cells_for_uniform_refinement(this)
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
-    class(cell_iterator_t)      , allocatable :: cell
-    type(point_t), allocatable :: coords(:)
-    integer(ip) :: istat, k
-    real(rp) ::  x,y
-    real(rp), parameter :: Re = 0.46875
-    real(rp), parameter :: Ri = 0.15625
-    real(rp) :: R
-    integer(ip), parameter :: max_num_cell_nodes = 4
-    integer(ip), parameter :: max_level = 4
-
-    call this%triangulation%create_cell_iterator(cell)
-    if (this%triangulation%get_num_dims() == 2) then
-      allocate(coords(max_num_cell_nodes),stat=istat); check(istat==0)
-
-      do while ( .not. cell%has_finished() )
-        !if ( mod(cell%get_gid()-1,2) == 0 ) then
-        !  call cell%set_for_refinement()
-        !end if
-
-        call cell%get_nodes_coordinates(coords)
-        x = 0.0
-        y = 0.0
-        do k=1,max_num_cell_nodes
-         x = x + (1.0/max_num_cell_nodes)*coords(k)%get(1)
-         y = y + (1.0/max_num_cell_nodes)*coords(k)%get(2)
-        end do
-        R = sqrt( (x-0.5)**2 + (y-0.5)**2 )
-       
-        if ( ((R - Re) < 0.0) .and. ((R - Ri) > 0.0) .and. (cell%get_level()<= max_level) .or. (cell%get_level() == 0) )then
-          call cell%set_for_refinement()
-        end if
-
-
-        call cell%next()
-      end do
-      deallocate(coords,stat=istat); check(istat==0)
-
-    else if (this%triangulation%get_num_dims() == 3) then    
-      do while ( .not. cell%has_finished() )
-          if ( (cell%get_ggid()==1) .or. (cell%get_ggid()==4) .or. (cell%get_ggid()==5) .or. (cell%get_ggid()==8) )then
-          call cell%set_for_refinement()
-        end if
-        call cell%next()
-      end do
-
-    else
-      mcheck(.false.,'Only for 2D and 3D')
-
-    end if
-
-    call this%triangulation%free_cell_iterator(cell)
-
-  end subroutine set_cells_for_refinement
-  
-  subroutine set_cells_for_coarsening(this)
-    implicit none
-    class(test_poisson_error_estimator_driver_t), intent(inout) :: this
-    class(cell_iterator_t)      , allocatable :: cell
+    class(cell_iterator_t), allocatable :: cell
     call this%triangulation%create_cell_iterator(cell)
     do while ( .not. cell%has_finished() )
-      call cell%set_for_coarsening()
+      call cell%set_for_refinement()
       call cell%next()
     end do
     call this%triangulation%free_cell_iterator(cell)
-  end subroutine set_cells_for_coarsening
-  
-  subroutine fill_cells_set(this)
-    implicit none
-    class(test_poisson_error_estimator_driver_t), intent(inout) :: this
-    integer(ip), allocatable :: cell_set_ids(:)
-    class(cell_iterator_t), allocatable :: cell
-    call memalloc(this%triangulation%get_num_cells(),cell_set_ids)
-    call this%triangulation%create_cell_iterator(cell)
-    do while( .not. cell%has_finished() )
-      if (cell%is_local()) then
-        cell_set_ids(cell%get_gid()) = cell%get_gid()
-      end if
-      call cell%next()
-    end do
-    call this%triangulation%free_cell_iterator(cell)
-    call this%triangulation%fill_cells_set(cell_set_ids)
-    call memfree(cell_set_ids)
-  end subroutine fill_cells_set
+  end subroutine set_cells_for_uniform_refinement
   
   subroutine setup_reference_fes(this)
     implicit none
@@ -226,20 +164,16 @@ contains
   subroutine refine_and_coarsen(this)
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
-    integer(ip) :: i
-    do i=1,3
-      if ( i == 2 ) then 
-        if (this%triangulation%get_num_dims() == 2) then
-          call this%set_cells_for_coarsening()
-        end if
-      else
-        call this%set_cells_for_refinement()
-      end if
-      call this%triangulation%refine_and_coarsen()
-      call this%fe_space%refine_and_coarsen( this%solution )
-      call this%fe_space%set_up_cell_integration()
-      call this%check_solution()
-    end do
+    call this%poisson_cG_error_estimator%create(this%fe_space,this%parameter_list)
+    call this%poisson_cG_error_estimator%set_analytical_functions(this%poisson_analytical_functions)
+    call this%poisson_cG_error_estimator%set_fe_function(this%solution)
+    call this%poisson_cG_error_estimator%compute_local_estimates()
+    call this%poisson_cG_error_estimator%compute_global_estimate()
+    call this%poisson_cG_error_estimator%compute_local_true_errors()
+    call this%poisson_cG_error_estimator%compute_global_true_error()
+    !call this%poisson_cG_error_estimator%compute_local_effectivities()
+    !call this%poisson_cG_error_estimator%compute_global_effectivity()
+    call this%poisson_cG_error_estimator%free()
   end subroutine refine_and_coarsen
   
   subroutine setup_system (this)
@@ -286,7 +220,6 @@ contains
     end select
 #else
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-    !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
@@ -295,6 +228,7 @@ contains
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
 #endif
     call parameter_list%free()
+    
   end subroutine setup_solver
   
   subroutine assemble_system (this)
@@ -303,22 +237,6 @@ contains
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
     call this%fe_affine_operator%compute()
-    rhs                => this%fe_affine_operator%get_translation()
-    matrix             => this%fe_affine_operator%get_matrix()
-    
-    select type(matrix)
-    class is (sparse_matrix_t)  
-       !call matrix%print_matrix_market(6) 
-    class DEFAULT
-       assert(.false.) 
-    end select
-    
-    select type(rhs)
-    class is (serial_scalar_array_t)  
-    !call rhs%print(6) 
-    class DEFAULT
-       assert(.false.) 
-    end select
   end subroutine assemble_system
   
   subroutine solve_system(this)
@@ -339,21 +257,12 @@ contains
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: error_norm
-    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    real(rp) :: l2, h1
     real(rp) :: error_tolerance
     
     call error_norm%create(this%fe_space,1)
-    mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    l1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)
+    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm)
 
 #ifdef ENABLE_MKL
     error_tolerance = 1.0e-08
@@ -361,18 +270,10 @@ contains
     error_tolerance = 1.0e-06
 #endif
     
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
     write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
     write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
     call error_norm%free()
+    
   end subroutine check_solution
   
   subroutine write_solution(this)
@@ -425,7 +326,7 @@ contains
   
   subroutine run_simulation(this) 
     implicit none
-    class(test_poisson_error_estimator_driver_t), intent(inout) :: this    
+    class(test_poisson_error_estimator_driver_t), intent(inout) :: this
     call this%free()
     call this%parse_command_line_parameters()
     call this%setup_triangulation()
@@ -445,6 +346,7 @@ contains
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
+    call this%poisson_cG_error_estimator%free()
     call this%solution%free()
 #ifdef ENABLE_MKL        
     call this%direct_solver%free()

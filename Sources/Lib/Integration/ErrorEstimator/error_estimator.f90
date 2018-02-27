@@ -39,15 +39,15 @@ module error_estimator_names
   
   type, abstract :: error_estimator_t
     private
-    class(serial_fe_space_t)         , pointer     :: fe_space => NULL()
-    type(std_vector_real_rp_t)       , allocatable :: sq_local_estimates
-    real(rp)                                       :: global_estimate
-    type(std_vector_real_rp_t)       , allocatable :: sq_local_true_errors
-    real(rp)                                       :: global_true_error
-    type(std_vector_real_rp_t)       , allocatable :: local_effectivities
-    real(rp)                                       :: global_effectivity
-    integer(ip)                                    :: output_mode
-    integer(ip)                                    :: logical_unit
+    class(serial_fe_space_t)  , pointer :: fe_space => NULL()
+    type(std_vector_real_rp_t)          :: sq_local_estimates
+    real(rp)                            :: global_estimate
+    type(std_vector_real_rp_t)          :: sq_local_true_errors
+    real(rp)                            :: global_true_error
+    type(std_vector_real_rp_t)          :: local_effectivities
+    real(rp)                            :: global_effectivity
+    integer(ip)                         :: output_mode
+    integer(ip)                         :: logical_unit
    contains
     procedure (compute_local_estimates_interface)  , deferred :: compute_local_estimates
     procedure (compute_local_true_errors_interface), deferred :: compute_local_true_errors

@@ -116,7 +116,6 @@ contains
      end if
      call fe%next()
    end do
-   call fe_space%free_fe_cell_iterator(fe)
    
    call fe_space%set_up_facet_integration()
    call fe_facet_function%create(fe_space,1)
@@ -145,8 +144,11 @@ contains
                                                      0.5_rp * sq_local_face_estimate_value
        end do
      end if
+     call fe_face%next()
    end do
    call fe_facet_function%free()
+   call fe_space%free_fe_cell_iterator(fe)
+   call fe_space%free_fe_facet_iterator(fe_face)
    
  end subroutine pcGee_compute_local_estimates
 
@@ -207,6 +209,8 @@ contains
      end if
      call fe%next()
    end do
+   call fe_cell_function%free()
+   call fe_space%free_fe_cell_iterator(fe)
    
    deallocate(work_array_gradients, stat=istat)
    check(istat==0)
