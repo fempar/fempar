@@ -135,11 +135,11 @@ echo COMPILER = $COMPILER
 echo BUILD_TYPE = $BUILD_TYPE
 if [ $DRIVER == 1 ]
 then 
-    if [ -d $FEMPAR_SOURCES../Drivers/$FEMPAR_DRIVER ]
+    if [ -d $FEMPAR_SOURCES/../Drivers/$FEMPAR_DRIVER ]
     then
 	echo FEMPAR_DRIVER = $FEMPAR_DRIVER
     else
-	echo "Cannot find driver $FEMPAR_DRIVER in $FEMPAR_SOURCES../Drivers" 
+	echo "Cannot find driver $FEMPAR_DRIVER in $FEMPAR_SOURCES/../Drivers" 
 	exit
     fi
 fi
@@ -185,7 +185,7 @@ then
    esac
 else
    FEMPAR_SOURCES=.
-   base_command="cmake "
+   base_command="cmake $FEMPAR_SOURCES"
    echo "CMakeCache.txt detected! Any option other than -d (--driver) will be ignored, including default ones."
    echo "Changing the compiler, build-type, third party library requires cleaning and configuring again."
 fi
