@@ -79,6 +79,7 @@ module iterative_linear_solver_names
      procedure :: set_initial_solution            => iterative_linear_solver_set_initial_solution
      procedure :: set_type_from_string            => iterative_linear_solver_set_type_from_string
      procedure :: update_matrix                   => iterative_linear_solver_update_matrix
+     procedure :: get_num_iterations              => iterative_linear_solver_get_num_iterations
   end type iterative_linear_solver_t
   
   public :: iterative_linear_solver_t
@@ -206,9 +207,7 @@ contains
      assert ( this%base_iterative_linear_solver%get_state() == start )
      this%state = solver_type_set
    end subroutine iterative_linear_solver_set_type_from_string
-   
-   
-   
+     
    subroutine iterative_linear_solver_update_matrix(this, same_nonzero_pattern)
    !-----------------------------------------------------------------
    !< Update matrix pointer 
@@ -222,5 +221,13 @@ contains
      prec => this%base_iterative_linear_solver%get_M()
      call prec%update_matrix(same_nonzero_pattern)
    end subroutine iterative_linear_solver_update_matrix
+      
+   function iterative_linear_solver_get_num_iterations(this)
+     implicit none
+     class(iterative_linear_solver_t), intent(in) :: this
+     integer(ip) :: iterative_linear_solver_get_num_iterations
+     iterative_linear_solver_get_num_iterations = this%base_iterative_linear_solver%get_num_iterations()
+   end function iterative_linear_solver_get_num_iterations
+    
    
 end module iterative_linear_solver_names
