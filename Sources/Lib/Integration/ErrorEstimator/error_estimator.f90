@@ -55,8 +55,8 @@ module error_estimator_names
     procedure                           :: free                             => ee_free
     procedure, non_overridable          :: compute_global_estimate          => ee_compute_global_estimate
     procedure, non_overridable          :: compute_global_true_error        => ee_compute_global_true_error
-    procedure, non_overridable          :: compute_local_effectivities      => ee_get_local_effectivities
-    procedure, non_overridable          :: compute_global_effectivity       => ee_get_global_effectivity
+    procedure, non_overridable          :: compute_local_effectivities      => ee_compute_local_effectivities
+    procedure, non_overridable          :: compute_global_effectivity       => ee_compute_global_effectivity
     procedure, non_overridable          :: get_fe_space                     => ee_get_fe_space
     procedure, non_overridable          :: get_sq_local_estimates           => ee_get_sq_local_estimates
     procedure, non_overridable          :: get_sq_local_estimate_entries    => ee_get_sq_local_estimate_entries
@@ -149,11 +149,11 @@ contains
    end do
  end subroutine ee_compute_local_effectivities
  
- subroutine ee_compute_global_effectivities ( this )
+ subroutine ee_compute_global_effectivity ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
    this%global_effectivity = this%global_estimate / this%global_true_error
- end subroutine ee_compute_global_effectivities
+ end subroutine ee_compute_global_effectivity
  
  function ee_get_fe_space ( this )
    implicit none

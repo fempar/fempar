@@ -75,12 +75,12 @@ contains
    type(point_t)             , pointer     :: quad_coords(:)
    real(rp)                                :: factor, h_length
    integer(ip)                             :: qpoint, num_quad_points, ineigh
-   class(fe_facet_iterator_t), allocatable :: fe_face
+   class(fe_facet_iterator_t), allocatable :: fe_facet
    type(fe_facet_function_scalar_t)        :: fe_facet_function
    type(vector_field_t)                    :: normals(2)
    type(vector_field_t)                    :: fe_function_gradient
    real(rp)                                :: sq_local_estimate_value
-   real(rp)                                :: sq_local_face_estimate_value
+   real(rp)                                :: sq_local_face_estimate_value, jump
    
    fe_space      => this%get_fe_space()
    triangulation => fe_space%get_triangulation()
@@ -105,50 +105,51 @@ contains
        quad => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()
        quad_coords => fe%get_quadrature_points_coordinates()
-       h_length = 1.0_rp
        do qpoint = 1, num_quad_points
          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
          h_length = fe%compute_characteristic_length(qpoint)
          call source_term%get_value(quad_coords(qpoint),source_term_value)
-         sq_local_estimate_value = sq_local_estimate_value + h_length * factor * source_term_value
+         sq_local_estimate_value = sq_local_estimate_value + & 
+           ( h_length ** 2.0_rp ) * factor * ( source_term_value ** 2.0_rp )
        end do
-       sq_local_estimate_entries(fe%get_gid()) = sq_local_estimate_value ** 2.0_rp
+       sq_local_estimate_entries(fe%get_gid()) = sq_local_estimate_value 
      end if
      call fe%next()
    end do
    
    call fe_space%set_up_facet_integration()
    call fe_facet_function%create(fe_space,1)
-   call fe_space%create_fe_facet_iterator(fe_face)
-   do while ( .not. fe_face%has_finished() )
-     if ( fe_face%is_local() .and. fe_face%is_at_field_interior(1) ) then
+   call fe_space%create_fe_facet_iterator(fe_facet)
+   do while ( .not. fe_facet%has_finished() )
+     if ( fe_facet%is_local() .and. fe_facet%is_at_field_interior(1) ) then
        sq_local_face_estimate_value = 0.0_rp
-       call fe_face%update_integration()
-       quad => fe_face%get_quadrature()
+       call fe_facet%update_integration()
+       quad => fe_facet%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()
-       call fe_facet_function%update(fe_face,this%fe_function)
+       call fe_facet_function%update(fe_facet,this%fe_function)
        do qpoint = 1, num_quad_points
-         call fe_face%get_normals(qpoint,normals)
-         factor   = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-         h_length = fe_face%compute_characteristic_length(qpoint)
-         do ineigh = 1, fe_face%get_num_cells_around()
+         jump = 0.0_rp
+         call fe_facet%get_normals(qpoint,normals)
+         do ineigh = 1, fe_facet%get_num_cells_around()
            call fe_facet_function%get_gradient(qpoint,ineigh,fe_function_gradient)
-           sq_local_face_estimate_value = sq_local_face_estimate_value + & 
-             ( h_length ** 0.5_rp ) * factor * normals(ineigh) * fe_function_gradient
+           jump = jump + normals(ineigh) * fe_function_gradient
          end do
+         factor   = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+         h_length = fe_facet%compute_characteristic_length(qpoint)
+         sq_local_face_estimate_value = sq_local_face_estimate_value + & 
+                                        h_length * factor * ( jump ** 2.0_rp )
        end do
-       sq_local_face_estimate_value = sq_local_face_estimate_value ** 2.0_rp
-       do ineigh = 1, fe_face%get_num_cells_around()
-         call fe_face%get_cell_around(ineigh,fe)
+       do ineigh = 1, fe_facet%get_num_cells_around()
+         call fe_facet%get_cell_around(ineigh,fe)
          sq_local_estimate_entries(fe%get_gid()) = sq_local_estimate_entries(fe%get_gid()) + &
                                                      0.5_rp * sq_local_face_estimate_value
        end do
      end if
-     call fe_face%next()
+     call fe_facet%next()
    end do
    call fe_facet_function%free()
    call fe_space%free_fe_cell_iterator(fe)
-   call fe_space%free_fe_facet_iterator(fe_face)
+   call fe_space%free_fe_facet_iterator(fe_facet)
    
  end subroutine pcGee_compute_local_estimates
 

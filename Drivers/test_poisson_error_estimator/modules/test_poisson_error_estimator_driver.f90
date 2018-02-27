@@ -35,6 +35,8 @@ module test_poisson_error_estimator_driver_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO   ! VTK_IO
     
+#define ENABLE_MKL = .true.
+  
 # include "debug.i90"
 
   implicit none
@@ -112,11 +114,9 @@ contains
       end do
       call this%triangulation%free_vef_iterator(vef)
     end if
-    do i = 1,2
-      call this%set_cells_for_uniform_refinement()
-      call this%triangulation%refine_and_coarsen()
-      call this%triangulation%clear_refinement_and_coarsening_flags()
-    end do
+    call this%set_cells_for_uniform_refinement()
+    call this%triangulation%refine_and_coarsen()
+    call this%triangulation%clear_refinement_and_coarsening_flags()
   end subroutine setup_triangulation
   
   subroutine set_cells_for_uniform_refinement(this)
@@ -164,16 +164,47 @@ contains
   subroutine refine_and_coarsen(this)
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
+    integer(ip) :: i
+    real(rp)    :: global_estimate, global_true_error, global_effectivity
     call this%poisson_cG_error_estimator%create(this%fe_space,this%parameter_list)
     call this%poisson_cG_error_estimator%set_analytical_functions(this%poisson_analytical_functions)
     call this%poisson_cG_error_estimator%set_fe_function(this%solution)
-    call this%poisson_cG_error_estimator%compute_local_estimates()
-    call this%poisson_cG_error_estimator%compute_global_estimate()
-    call this%poisson_cG_error_estimator%compute_local_true_errors()
-    call this%poisson_cG_error_estimator%compute_global_true_error()
-    !call this%poisson_cG_error_estimator%compute_local_effectivities()
-    !call this%poisson_cG_error_estimator%compute_global_effectivity()
-    call this%poisson_cG_error_estimator%free()
+    
+    do i = 1,5
+      
+      if ( i > 1 ) then
+        call this%set_cells_for_uniform_refinement()
+        call this%triangulation%refine_and_coarsen()
+        call this%fe_space%refine_and_coarsen( this%solution )
+        call this%fe_space%set_up_cell_integration()
+        call this%fe_space%interpolate_dirichlet_values(this%solution)
+        call this%fe_affine_operator%reallocate_after_remesh()
+        call this%assemble_system()
+        call this%direct_solver%replace_matrix( matrix = this%fe_affine_operator%get_matrix(), & 
+                                                same_nonzero_pattern = .false. )
+        call this%solve_system()
+        call this%check_solution()
+      end if
+      
+      call this%poisson_cG_error_estimator%compute_local_estimates()
+      call this%poisson_cG_error_estimator%compute_global_estimate()
+      
+      call this%poisson_cG_error_estimator%compute_local_true_errors()
+      call this%poisson_cG_error_estimator%compute_global_true_error()
+      
+      call this%poisson_cG_error_estimator%compute_local_effectivities()
+      call this%poisson_cG_error_estimator%compute_global_effectivity()
+      
+      global_estimate    = this%poisson_cG_error_estimator%get_global_estimate()
+      global_true_error  = this%poisson_cG_error_estimator%get_global_true_error()
+      global_effectivity = this%poisson_cG_error_estimator%get_global_effectivity()
+      
+      write(*,'(a20,e32.25)') 'global_estimate:'  , global_estimate
+      write(*,'(a20,e32.25)') 'global_true_error:', global_true_error
+      write(*,'(a20,e32.25)') 'global_true_error:', global_effectivity
+      
+    end do
+    
   end subroutine refine_and_coarsen
   
   subroutine setup_system (this)
@@ -257,21 +288,16 @@ contains
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: error_norm
-    real(rp) :: l2, h1
-    real(rp) :: error_tolerance
+    real(rp) :: l2, h1, h1_s
     
     call error_norm%create(this%fe_space,1)
-    l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)
-    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm)
-
-#ifdef ENABLE_MKL
-    error_tolerance = 1.0e-08
-#else
-    error_tolerance = 1.0e-06
-#endif
+    l2   = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution,     l2_norm)
+    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm)
+    h1   = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution,     h1_norm)
     
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'l2_norm:'    , l2
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s
+    write(*,'(a20,e32.25)') 'h1_norm:'    , h1
     call error_norm%free()
     
   end subroutine check_solution
