@@ -43,13 +43,52 @@ module nonlinear_solver_names
   character(len=*), parameter :: rel_r0_res_norm               = 'rel_r0_res_norm'               ! |r(x_i)| <= rel_tol*|r(x_0)|
   character(len=*), parameter :: abs_res_norm_and_rel_inc_norm = 'abs_res_norm_and_rel_inc_norm' ! |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
 
+  character(len=*), parameter :: no_search          = 'no_search' 
+  character(len=*), parameter :: cubic_backtracking = 'cubic_backtracking' 
+    
+  type, abstract :: line_search_t 
+    private 
+	  real(rp)    :: step_length 
+      integer(ip) :: alpha 
+      integer(ip) :: current_iterate 
+      integer(ip) :: max_num_iterates 
+  contains 
+      procedure(find_max_step_length_interface), private, deferred :: find_max_step_length
+  end type line_search_t 
+  
+  abstract interface
+     
+    subroutine find_max_step_length_interface(this, nonlinear_operator) 
+	import :: line_search_t, fe_nonlinear_operator_t 
+    implicit none 
+	class(line_search_t)          , intent(inout) :: this 
+	class(fe_nonlinear_operator_t), intent(inout) :: nonlinear_operator 
+	end subroutine find_max_step_length_interface
+	
+  end interface 
+  
+  type, extends(line_search_t) :: cubic_backtracking_line_search_t 
+  private 
+  contains 
+  procedure, private :: find_max_step_length => cubic_backtracking_line_search_find_max_step_length
+  end type 
+  
+  type, extends(line_search_t) :: static_line_search_t 
+  private 
+  contains 
+  procedure, private :: find_max_step_length => static_line_search_find_max_step_length
+  end type 
+      
+  public :: no_search, cubic_backtracking 
+  
   type :: nonlinear_solver_t
-    private
+    private 
       integer(ip)                              :: current_iteration
       integer(ip)                              :: max_number_iterations
       real(rp)                                 :: absolute_tolerance
       real(rp)                                 :: relative_tolerance
       character(len=:),           allocatable  :: convergence_criteria
+	  class(line_search_t),       allocatable  :: line_search 
       class(vector_t),            pointer      :: current_dof_values => null()
       class(vector_t),            pointer      :: current_residual   => null()
       class(vector_t),            allocatable  :: minus_current_residual
@@ -77,7 +116,7 @@ module nonlinear_solver_names
       procedure, private :: print_final_output               => nonlinear_solver_print_final_output
 
   end type nonlinear_solver_t
-
+  
   public :: nonlinear_solver_t
   public :: abs_res_norm
   public :: rel_inc_norm
@@ -93,7 +132,8 @@ subroutine nonlinear_solver_create(this, &
                                    rel_tol, &
                                    max_iters, &
                                    linear_solver, &
-                                   environment)
+                                   environment, &
+								   line_search_type )
   implicit none
   class(nonlinear_solver_t)        , intent(inout) :: this
   character(len=*)                 , intent(in)    :: convergence_criteria
@@ -102,10 +142,13 @@ subroutine nonlinear_solver_create(this, &
   integer(ip)                      , intent(in)    :: max_iters
   class(linear_solver_t)   , target, intent(in)    :: linear_solver
   class(environment_t)     , target, intent(in)    :: environment
+  character(len=*)       , optional, intent(in)    :: line_search_type 
+  
+  character(:), allocatable :: line_search_type_ 
   
   call this%free()
   
-  ! Initialize options
+  ! Initialize options 
   this%current_iteration     = 1
   this%convergence_criteria  = convergence_criteria
   this%absolute_tolerance    = abs_tol
@@ -113,6 +156,14 @@ subroutine nonlinear_solver_create(this, &
   this%max_number_iterations = max_iters
   this%linear_solver  => linear_solver
   this%environment    => environment
+  
+  if (present(line_search_type)) then  
+  line_search_type_ = line_search_type 
+  else 
+  line_search_type_ = no_search 
+  end if 
+  call make_line_search(line_search_type_, this%line_search) 
+    
 end subroutine nonlinear_solver_create
 
 !==============================================================================
@@ -124,6 +175,7 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
   class(vector_t), target       , intent(inout) :: unknown
   
   integer(ip) :: istat
+  
   
   ! Initialize work data
   if(allocated(this%increment_dof_values)) then
@@ -169,7 +221,8 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
     call this%minus_current_residual%scal(-1.0_rp, this%current_residual)
     
     call this%linear_solver%apply( this%minus_current_residual, this%increment_dof_values )
-    call this%update_solution() ! x + dx
+	call this%line_search%find_max_step_length(nonlinear_operator)  
+    call this%update_solution() ! x + lambda*dx
     call nonlinear_operator%set_evaluation_point(this%current_dof_values)
     call nonlinear_operator%compute_residual()
     call this%print_iteration_output_header()
@@ -248,7 +301,8 @@ end function nonlinear_solver_get_current_iteration
 subroutine nonlinear_solver_update_solution(this)
   implicit none
   class(nonlinear_solver_t), intent(inout) :: this
-  call this%current_dof_values%axpby(1.0_rp, this%increment_dof_values, 1.0_rp)
+  
+  call this%current_dof_values%axpby(this%line_search%step_length, this%increment_dof_values, 1.0_rp)
 end subroutine nonlinear_solver_update_solution
 
 !==============================================================================
@@ -321,5 +375,52 @@ subroutine nonlinear_solver_print_final_output(this)
    if ( this%environment%am_i_l1_root() ) write(*,*) ' ---- Newton NL failed to converge after', this%current_iteration, 'iterations --- '
   end if
 end subroutine nonlinear_solver_print_final_output
+
+! =============================================================================
+subroutine make_line_search(line_search_type, line_search) 
+implicit none 
+character(len=*)                 , intent(in)      :: line_search_type 
+class(line_search_t), allocatable, intent(inout)   :: line_search 
+
+  select case ( line_search_type ) 
+  case ( no_search ) 
+    allocate ( static_line_search_t :: line_search )
+  case ( cubic_backtracking ) 
+    allocate ( cubic_backtracking_line_search_t :: line_search )
+  case DEFAULT 
+  massert(.false., 'Specified line search technique is not valid') 
+  end select 
+
+end subroutine  make_line_search
+
+!==============================================================================
+! Algorithm from 'Brune, P. Knepley, M. Smith, B. and Tu, X. Composing scalable 
+! nonlinear algebraic solvers. SIAM Review, 57(4) p. 540'
+subroutine cubic_backtracking_line_search_find_max_step_length(this, nonlinear_operator) 
+implicit none 
+class(cubic_backtracking_line_search_t) , intent(inout) :: this 
+class(fe_nonlinear_operator_t)          , intent(inout) :: nonlinear_operator 
+real(rp) :: initial_residual_norm 
+real(rp) :: mu 
+class(vector_t), pointer :: current_residual 
+
+! Initialize parameters  
+this%step_length      = 1.0_rp 
+this%current_iterate  = 0
+this%max_num_iterates = 4
+this%alpha            = 1.0e-4_rp 
+
+current_residual      => nonlinear_operator%get_translation()
+initial_residual_norm =  current_residual%nrm2() 
+
+end subroutine cubic_backtracking_line_search_find_max_step_length
+
+!==============================================================================
+subroutine static_line_search_find_max_step_length(this, nonlinear_operator) 
+implicit none 
+class(static_line_search_t)   , intent(inout) :: this 
+class(fe_nonlinear_operator_t), intent(inout) :: nonlinear_operator 
+this%step_length = 1.0_rp 
+end subroutine static_line_search_find_max_step_length
 
 end module nonlinear_solver_names
