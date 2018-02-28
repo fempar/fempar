@@ -1283,9 +1283,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   type(list_iterator_t) :: own_dofs_on_vef_iterator
   type(fe_vef_iterator_t) :: vef
   class(fe_cell_iterator_t), allocatable :: fe
-  class(fe_cell_iterator_t), allocatable :: fe_max
   integer(ip), pointer :: fe_dofs(:)
-  integer(ip), pointer :: max_fe_dofs(:)
   logical, allocatable :: touched_neighbours(:)
   integer(ip) :: ielem, part_id, ivef, dof_gid
   integer(ip) :: mypart_id, max_part_id, idof
@@ -1356,9 +1354,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
                   touched_neighbours, __FILE__, __LINE__ )
   
   mypart_id = environment%get_l1_rank()+1
-  
-  call this%create_fe_cell_iterator(fe_max)
-  
+    
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   do while(.not. vef%has_finished())
@@ -1417,10 +1413,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
       else if ( .not. free_dofs ) then     
          call vef%next()
          cycle
-      end if   
-      
-      call fe_max%set_gid(max_elem_gid)
-      call fe_max%get_field_fe_dofs(field_id, max_fe_dofs)
+      end if  
       
       do ielem=1, vef%get_num_cells_around()
         call vef%get_cell_around(ielem,fe)
@@ -1526,7 +1519,6 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   p_ptr_ghosts_per_local_cell(1)=1 
  
   call this%free_fe_cell_iterator(fe)
-  call this%free_fe_cell_iterator(fe_max)
   call this%free_fe_vef_iterator(vef)
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
   call memfree ( local_idof, __FILE__, __LINE__ )
