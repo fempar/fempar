@@ -49,9 +49,10 @@ module refinement_strategy_names
     integer(ip)                       :: current_mesh_iteration
     integer(ip)                       :: max_num_mesh_iterations
    contains
-    procedure :: create                  => eors_create
-    procedure :: update_refinement_flags => eors_update_refinement_flags
-    procedure :: has_finished_refinement => eors_has_finished_refinement
+    procedure :: create                     => eors_create
+    procedure :: update_refinement_flags    => eors_update_refinement_flags
+    procedure :: has_finished_refinement    => eors_has_finished_refinement
+    procedure :: get_current_mesh_iteration => eors_get_current_mesh_iteration
   end type error_objective_refinement_strategy_t
   
   public :: error_objective_refinement_strategy_t
@@ -122,5 +123,11 @@ contains
     if ( this%current_mesh_iteration > this%max_num_mesh_iterations ) &
       write(*,*) 'Error objective mesh refinement strategy exceeded the maximum number of iterations'
   end function eors_has_finished_refinement
+  
+  function eors_get_current_mesh_iteration(this)
+    class(error_objective_refinement_strategy_t), intent(inout) :: this
+    integer(ip) :: eors_get_current_mesh_iteration
+    eors_get_current_mesh_iteration = this%current_mesh_iteration
+  end function eors_get_current_mesh_iteration
   
 end module refinement_strategy_names

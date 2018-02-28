@@ -67,6 +67,8 @@ module test_poisson_error_estimator_driver_names
      
      type(fe_function_t)                         :: solution
      
+     type(output_handler_t)                      :: output_handler
+     
    contains
      procedure          :: run_simulation
      procedure, private :: parse_command_line_parameters
@@ -74,13 +76,15 @@ module test_poisson_error_estimator_driver_names
      procedure, private :: set_cells_for_uniform_refinement
      procedure, private :: setup_reference_fes
      procedure, private :: setup_fe_space
-     procedure, private :: refine_and_coarsen
+     procedure, private :: generate_adapted_mesh
      procedure, private :: setup_system
      procedure, private :: setup_solver
      procedure, private :: assemble_system
      procedure, private :: solve_system
      procedure, private :: check_solution
-     procedure, private :: write_solution
+     procedure, private :: output_handler_initialize
+     procedure, private :: output_current_mesh_and_solution
+     procedure, private :: output_handler_finalize
      procedure, private :: free
   end type test_poisson_error_estimator_driver_t
 
@@ -160,7 +164,7 @@ contains
     call this%fe_space%set_up_cell_integration()
   end subroutine setup_fe_space
   
-  subroutine refine_and_coarsen(this)
+  subroutine generate_adapted_mesh(this)
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
     type(poisson_cG_error_estimator_t)          :: poisson_cG_error_estimator
@@ -180,6 +184,7 @@ contains
     assert(FPLError == 0)
     
     call refinement_strategy%create(poisson_cG_error_estimator,parameter_list)
+    call this%output_current_mesh_and_solution(refinement_strategy%get_current_mesh_iteration())
     
     do while ( .not. refinement_strategy%has_finished_refinement() )
       
@@ -211,13 +216,14 @@ contains
                                               same_nonzero_pattern = .false. )
       call this%solve_system()
       call this%check_solution()
+      call this%output_current_mesh_and_solution(refinement_strategy%get_current_mesh_iteration())
       
     end do
     
     call parameter_list%free()
     call poisson_cG_error_estimator%free()
     
-  end subroutine refine_and_coarsen
+  end subroutine generate_adapted_mesh
   
   subroutine setup_system (this)
     implicit none
@@ -314,53 +320,46 @@ contains
     
   end subroutine check_solution
   
-  subroutine write_solution(this)
+  subroutine output_handler_initialize(this)
     implicit none
-    class(test_poisson_error_estimator_driver_t), intent(in) :: this
-    type(output_handler_t)                   :: oh
-    character(len=:), allocatable            :: path
-    character(len=:), allocatable            :: prefix
-    real(rp),allocatable :: cell_vector(:)
-    integer(ip) :: N, P, pid, i
-    class(cell_iterator_t), allocatable :: cell
+    class(test_poisson_error_estimator_driver_t), intent(inout) :: this
+    character(len=:)     , allocatable :: path
+    character(len=:)     , allocatable :: prefix
+    type(parameterlist_t)              :: parameter_list
+    integer(ip)                        :: error
     if(this%test_params%get_write_solution()) then
-        path = this%test_params%get_dir_path_out()
-        prefix = this%test_params%get_prefix()
-        call oh%create()
-        call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'solution')
-        call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
-        call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
-        
-        call this%triangulation%create_cell_iterator(cell)
-        if (this%test_params%get_use_void_fes()) then
-          do while( .not. cell%has_finished() )
-            cell_vector(cell%get_gid()) = cell%get_set_id()
-            call cell%next()
-          end do
-          call oh%add_cell_vector(cell_vector,'cell_set_ids')
-        else
-          N=this%triangulation%get_num_cells()
-          P=6
-          do pid=0, P-1
-              i=0
-              do while ( i < (N*(pid+1))/P - (N*pid)/P ) 
-                cell_vector(cell%get_gid()) = pid 
-                call cell%next()
-                i=i+1
-              end do
-          end do
-          call oh%add_cell_vector(cell_vector,'cell_set_ids')
-        end if
-        call this%triangulation%free_cell_iterator(cell)
-        
-        call oh%open(path, prefix)
-        call oh%write()
-        call oh%close()
-        call oh%free()
-        call memfree(cell_vector,__FILE__,__LINE__)
+      path = this%test_params%get_dir_path_out()
+      prefix = this%test_params%get_prefix()
+      call this%output_handler%create()
+      call this%output_handler%attach_fe_space(this%fe_space)
+      call this%output_handler%add_fe_function(this%solution, 1, 'solution')
+      call this%output_handler%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
+      call parameter_list%init()
+      error = parameter_list%set(key=oh_staticgrid, value=.false.)
+      check (error==0)
+      call this%output_handler%open(path, prefix, parameter_list)
+      call parameter_list%free()
     endif
-  end subroutine write_solution
+  end subroutine output_handler_initialize
+  
+  subroutine output_current_mesh_and_solution(this,current_step)
+    implicit none
+    class(test_poisson_error_estimator_driver_t), intent(inout) :: this
+    integer(ip)                                 , intent(in) :: current_step
+    if(this%test_params%get_write_solution()) then
+      call this%output_handler%append_time_step(real(current_step,rp))
+      call this%output_handler%write()
+    endif
+  end subroutine output_current_mesh_and_solution
+  
+  subroutine output_handler_finalize(this)
+    implicit none
+    class(test_poisson_error_estimator_driver_t), intent(inout) :: this
+    if(this%test_params%get_write_solution()) then
+      call this%output_handler%close()
+      call this%output_handler%free()
+    endif
+  end subroutine output_handler_finalize
   
   subroutine run_simulation(this) 
     implicit none
@@ -374,9 +373,9 @@ contains
     call this%assemble_system()
     call this%setup_solver()
     call this%solve_system()
-    call this%check_solution()
-    call this%refine_and_coarsen()
-    call this%write_solution()
+    call this%output_handler_initialize()
+    call this%generate_adapted_mesh()
+    call this%output_handler_finalize()
     call this%free()
   end subroutine run_simulation
   
