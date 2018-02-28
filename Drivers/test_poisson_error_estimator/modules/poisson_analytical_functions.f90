@@ -32,10 +32,13 @@ module poisson_analytical_functions_names
 # include "debug.i90"
   private
 
+  real(rp), parameter :: alpha = 60.0_rp
+  real(rp), parameter :: x0(3) = (/ 1.25_rp, -0.25_rp, 0.00_rp /)
+
   type, extends(scalar_function_t) :: base_scalar_function_t
     integer(ip) :: num_dims = -1  
   contains
-    procedure :: set_num_dims    => base_scalar_function_set_num_dims 
+    procedure :: set_num_dims        => base_scalar_function_set_num_dims 
   end type base_scalar_function_t
   
   type, extends(base_scalar_function_t) :: source_term_t
@@ -47,7 +50,7 @@ module poisson_analytical_functions_names
   type, extends(base_scalar_function_t) :: boundary_function_t
     private
    contains
-     procedure :: get_value_space => boundary_function_get_value_space
+     procedure :: get_value_space    => boundary_function_get_value_space
   end type boundary_function_t
 
   type, extends(base_scalar_function_t) :: solution_function_t
@@ -86,26 +89,25 @@ contains
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 ) 
-    if ( this%num_dims == 2 ) then
-      result = -4.0_rp 
-    else if ( this%num_dims == 3 ) then
-      result = -6.0_rp 
-    end if  
+    type(vector_field_t) :: r_vec
+    real(rp)             :: r_nrm
+    r_vec = point - vector_field_t(x0)
+    r_nrm = r_vec%nrm2()
+    result = 2.0_rp*(alpha**3.0_rp)*(r_nrm-1)/((1+(alpha**2.0_rp)*(r_nrm-1)**2.0_rp)**2.0_rp) - &
+             (this%num_dims-1)*alpha/(r_nrm*(1+(alpha**2.0_rp)*(r_nrm-1)**2.0_rp))
   end subroutine source_term_get_value_space
 
   !===============================================================================================
   subroutine boundary_function_get_value_space ( this, point, result )
     implicit none
     class(boundary_function_t), intent(in)  :: this
-    type(point_t)           , intent(in)    :: point
-    real(rp)                , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
-      result = point%get(1) ** 2.0_rp + point%get(2) ** 2.0_rp
-    else if ( this%num_dims == 3 ) then
-      result = point%get(1) ** 2.0_rp + point%get(2) ** 2.0_rp + point%get(3) ** 2.0_rp
-    end if
+    type(point_t)             , intent(in)    :: point
+    real(rp)                  , intent(inout) :: result
+    type(vector_field_t) :: r_vec
+    real(rp)             :: r_nrm
+    r_vec = point - vector_field_t(x0)
+    r_nrm = r_vec%nrm2()
+    result = atan(alpha*(r_nrm-1.0_rp))
   end subroutine boundary_function_get_value_space 
 
   !===============================================================================================
@@ -114,12 +116,11 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
-      result = point%get(1) ** 2.0_rp + point%get(2) ** 2.0_rp
-    else if ( this%num_dims == 3 ) then
-      result = point%get(1) ** 2.0_rp + point%get(2) ** 2.0_rp + point%get(3) ** 2.0_rp
-    end if
+    type(vector_field_t) :: r_vec
+    real(rp)             :: r_nrm
+    r_vec = point - vector_field_t(x0)
+    r_nrm = r_vec%nrm2()
+    result = atan(alpha*(r_nrm-1.0_rp))
   end subroutine solution_function_get_value_space
   
   !===============================================================================================
@@ -128,15 +129,14 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
-      call result%set( 1, point%get(1) * 2.0_rp )
-      call result%set( 2, point%get(2) * 2.0_rp )
-    else if ( this%num_dims == 3 ) then
-      call result%set( 1, point%get(1) * 2.0_rp )
-      call result%set( 2, point%get(2) * 2.0_rp )
-      call result%set( 3, point%get(3) * 2.0_rp )
-    end if
+    type(vector_field_t) :: r_vec
+    real(rp)             :: r_nrm
+    integer(ip)          :: idime
+    r_vec = point - vector_field_t(x0)
+    r_nrm = r_vec%nrm2()
+    do idime = 1,this%num_dims
+      call result%set(idime,(alpha*r_vec%get(idime))/(r_nrm*(1+(alpha**2.0_rp)*(r_nrm-1)**2.0_rp)))
+    end do
   end subroutine solution_function_get_gradient_space
   
   !===============================================================================================
