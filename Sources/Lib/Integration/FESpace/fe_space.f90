@@ -457,13 +457,14 @@ module fe_space_names
   integer(ip), parameter :: fe_space_type_dg_conforming             = 2 ! DG approximation of L^2 spaces (does not involve coupling by face)
   
   integer(ip), parameter :: fe_space_default_quadrature_degree_flag = -1000
-  
+
   type, extends(base_fe_space_t) :: serial_fe_space_t 
      !private      ! UNDER QUARANTINE
+
      ! Reference FE container
      integer(ip)                                 :: reference_fes_size
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
-     
+
      ! Finite Element-related integration containers
      type(std_vector_quadrature_t)               :: cell_quadratures
      type(std_vector_cell_map_t)                 :: cell_maps
@@ -669,13 +670,13 @@ module fe_space_names
 #endif     
 
  end type serial_fe_space_t  
- 
+
  public :: serial_fe_space_t, serial_fe_space_set_up_strong_dirichlet_bcs
  public :: fe_space_type_cg, fe_space_type_dg
  public :: fe_cell_iterator_t
  public :: fe_vef_iterator_t
  public :: fe_facet_iterator_t
- 
+
  type base_fe_object_iterator_t
    private
    type(object_iterator_t) :: object
