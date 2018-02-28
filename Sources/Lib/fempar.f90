@@ -108,6 +108,7 @@ module fempar_names
   use function_library_names
   use error_norms_names
   use error_estimator_names
+  use refinement_strategy_names
   use block_layout_names
   
 contains

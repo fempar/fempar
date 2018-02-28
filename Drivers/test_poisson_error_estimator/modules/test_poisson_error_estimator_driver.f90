@@ -56,7 +56,6 @@ module test_poisson_error_estimator_driver_names
      type(poisson_cG_discrete_integration_t)     :: poisson_cG_integration
      type(poisson_conditions_t)                  :: poisson_conditions
      type(poisson_analytical_functions_t)        :: poisson_analytical_functions
-     type(poisson_cG_error_estimator_t)          :: poisson_cG_error_estimator
      
      type(fe_affine_operator_t)                  :: fe_affine_operator
      
@@ -164,46 +163,59 @@ contains
   subroutine refine_and_coarsen(this)
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
-    integer(ip) :: i
-    real(rp)    :: global_estimate, global_true_error, global_effectivity
-    call this%poisson_cG_error_estimator%create(this%fe_space,this%parameter_list)
-    call this%poisson_cG_error_estimator%set_analytical_functions(this%poisson_analytical_functions)
-    call this%poisson_cG_error_estimator%set_fe_function(this%solution)
+    type(poisson_cG_error_estimator_t)          :: poisson_cG_error_estimator
+    type(error_objective_refinement_strategy_t) :: refinement_strategy
+    real(rp)              :: global_estimate, global_true_error, global_effectivity
+    type(ParameterList_t) :: parameter_list
+    integer(ip)           :: FPLError
     
-    do i = 1,5
+    call poisson_cG_error_estimator%create(this%fe_space,this%parameter_list)
+    call poisson_cG_error_estimator%set_analytical_functions(this%poisson_analytical_functions)
+    call poisson_cG_error_estimator%set_fe_function(this%solution)
+    
+    call parameter_list%init()
+    FPLError = parameter_list%set(key = error_objective_key                   , value = 0.01_rp)
+    FPLError = FPLError + parameter_list%set(key = objective_tolerance_key    , value = 0.1_rp)
+    FPLError = FPLError + parameter_list%set(key = max_num_mesh_iterations_key, value = 100)
+    assert(FPLError == 0)
+    
+    call refinement_strategy%create(poisson_cG_error_estimator,parameter_list)
+    
+    do while ( .not. refinement_strategy%has_finished_refinement() )
       
-      if ( i > 1 ) then
-        call this%set_cells_for_uniform_refinement()
-        call this%triangulation%refine_and_coarsen()
-        call this%fe_space%refine_and_coarsen( this%solution )
-        call this%fe_space%set_up_cell_integration()
-        call this%fe_space%interpolate_dirichlet_values(this%solution)
-        call this%fe_affine_operator%reallocate_after_remesh()
-        call this%assemble_system()
-        call this%direct_solver%replace_matrix( matrix = this%fe_affine_operator%get_matrix(), & 
-                                                same_nonzero_pattern = .false. )
-        call this%solve_system()
-        call this%check_solution()
-      end if
+      call poisson_cG_error_estimator%compute_local_estimates()
+      call poisson_cG_error_estimator%compute_global_estimate()
       
-      call this%poisson_cG_error_estimator%compute_local_estimates()
-      call this%poisson_cG_error_estimator%compute_global_estimate()
+      call poisson_cG_error_estimator%compute_local_true_errors()
+      call poisson_cG_error_estimator%compute_global_true_error()
       
-      call this%poisson_cG_error_estimator%compute_local_true_errors()
-      call this%poisson_cG_error_estimator%compute_global_true_error()
+      call poisson_cG_error_estimator%compute_local_effectivities()
+      call poisson_cG_error_estimator%compute_global_effectivity()
       
-      call this%poisson_cG_error_estimator%compute_local_effectivities()
-      call this%poisson_cG_error_estimator%compute_global_effectivity()
+      global_estimate    = poisson_cG_error_estimator%get_global_estimate()
+      global_true_error  = poisson_cG_error_estimator%get_global_true_error()
+      global_effectivity = poisson_cG_error_estimator%get_global_effectivity()
       
-      global_estimate    = this%poisson_cG_error_estimator%get_global_estimate()
-      global_true_error  = this%poisson_cG_error_estimator%get_global_true_error()
-      global_effectivity = this%poisson_cG_error_estimator%get_global_effectivity()
+      write(*,'(a20,e32.25)') 'global_estimate:'   , global_estimate
+      write(*,'(a20,e32.25)') 'global_true_error:' , global_true_error
+      write(*,'(a20,e32.25)') 'global_effectivity:', global_effectivity
       
-      write(*,'(a20,e32.25)') 'global_estimate:'  , global_estimate
-      write(*,'(a20,e32.25)') 'global_true_error:', global_true_error
-      write(*,'(a20,e32.25)') 'global_true_error:', global_effectivity
+      call refinement_strategy%update_refinement_flags(this%triangulation%get_refinement_and_coarsening_flags())
+      call this%triangulation%refine_and_coarsen()
+      call this%fe_space%refine_and_coarsen( this%solution )
+      call this%fe_space%set_up_cell_integration()
+      call this%fe_space%interpolate_dirichlet_values(this%solution)
+      call this%fe_affine_operator%reallocate_after_remesh()
+      call this%assemble_system()
+      call this%direct_solver%replace_matrix( matrix = this%fe_affine_operator%get_matrix(), & 
+                                              same_nonzero_pattern = .false. )
+      call this%solve_system()
+      call this%check_solution()
       
     end do
+    
+    call parameter_list%free()
+    call poisson_cG_error_estimator%free()
     
   end subroutine refine_and_coarsen
   
@@ -372,7 +384,6 @@ contains
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
-    call this%poisson_cG_error_estimator%free()
     call this%solution%free()
 #ifdef ENABLE_MKL        
     call this%direct_solver%free()

@@ -29,7 +29,7 @@ module refinement_strategy_names
   use types_names
   use fe_space_names
   use p4est_triangulation_names
-  use std_vector_real_rp_names
+  use std_vector_integer_ip_names
   use error_estimator_names
   use FPL
   
@@ -85,21 +85,21 @@ contains
   
   subroutine eors_update_refinement_flags(this,refinement_and_coarsening_flags)
     class(error_objective_refinement_strategy_t), intent(inout) :: this
-    type(std_vector_real_rp_t)                  , intent(inout) :: refinement_and_coarsening_flags
-    real(rp)   , pointer :: refinement_and_coarsening_flags_entries(:)
+    type(std_vector_integer_ip_t)               , intent(inout) :: refinement_and_coarsening_flags
+    integer(ip), pointer :: refinement_and_coarsening_flags_entries(:)
     integer(ip)          :: i, num_of_entries
-    real(rp)   , pointer :: local_estimate_entries(:)
-    real(rp)             :: error_upper_bound, error_lower_bound
+    real(rp)   , pointer :: sq_local_estimate_entries(:)
+    real(rp)             :: sq_error_upper_bound, sq_error_lower_bound
     refinement_and_coarsening_flags_entries => refinement_and_coarsening_flags%get_pointer()
-    num_of_entries     = size(local_estimate_entries)
-    local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
-    error_upper_bound  = this%error_objective * ( 1.0_rp + this%objective_tolerance )
-    error_lower_bound  = this%error_objective * ( 1.0_rp - this%objective_tolerance )
+    sq_local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
+    num_of_entries        = size(sq_local_estimate_entries)
+    sq_error_upper_bound  = ( this%error_objective * ( 1.0_rp + this%objective_tolerance ) ) ** 2.0_rp
+    sq_error_lower_bound  = ( this%error_objective * ( 1.0_rp - this%objective_tolerance ) ) ** 2.0_rp
     do i = 1, num_of_entries
-      if ( local_estimate_entries(i) > error_upper_bound ) then
+      if ( sq_local_estimate_entries(i) > sq_error_upper_bound ) then
         refinement_and_coarsening_flags_entries(i) = refinement
-      else if ( local_estimate_entries(i) < error_lower_bound ) then
-        refinement_and_coarsening_flags_entries(i) = coarsening
+      else if ( sq_local_estimate_entries(i) < sq_error_lower_bound ) then
+        !refinement_and_coarsening_flags_entries(i) = coarsening
       else
         refinement_and_coarsening_flags_entries(i) = do_nothing
       end if
@@ -110,16 +110,14 @@ contains
   function eors_has_finished_refinement(this)
     class(error_objective_refinement_strategy_t), intent(inout) :: this
     logical :: eors_has_finished_refinement
-    real(rp), pointer :: local_estimate_entries(:)
-    real(rp)          :: max_local_estimate, min_local_estimate
-    real(rp)          :: error_upper_bound, error_lower_bound
-    local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
-    max_local_estimate = maxval(local_estimate_entries)
-    min_local_estimate = minval(local_estimate_entries)
-    error_upper_bound  = this%error_objective * ( 1.0_rp + this%objective_tolerance )
-    error_lower_bound  = this%error_objective * ( 1.0_rp - this%objective_tolerance )
-    eors_has_finished_refinement = ( ( ( max_local_estimate < error_upper_bound )  .and. &
-                                       ( min_local_estimate > error_lower_bound ) ) .or. & 
+    real(rp), pointer :: sq_local_estimate_entries(:)
+    real(rp)          :: max_local_estimate
+    real(rp)          :: sq_error_upper_bound
+    sq_local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
+    max_local_estimate = maxval(sq_local_estimate_entries)
+    sq_error_upper_bound  = ( this%error_objective * ( 1.0_rp + this%objective_tolerance ) ) ** 2.0_rp
+    eors_has_finished_refinement = ( ( this%current_mesh_iteration > 1             .and. &
+                                       max_local_estimate < sq_error_upper_bound )  .or. & 
                                      ( this%current_mesh_iteration > this%max_num_mesh_iterations ) )
     if ( this%current_mesh_iteration > this%max_num_mesh_iterations ) &
       write(*,*) 'Error objective mesh refinement strategy exceeded the maximum number of iterations'
