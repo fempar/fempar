@@ -723,11 +723,10 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   integer(ip)              , pointer     :: fe_dofs(:)
   real(rp)                 , pointer     :: fixed_dof_values_entries(:)
   integer(ip)                            :: idof, vef_lid, istat
-  type(point_t)            , pointer     :: coordinates(:)
   type(p_interpolator_t)   , allocatable :: interpolators(:) 
   character(:)             , allocatable :: interpolator_type_
   logical                  , allocatable :: is_void_field(:) 
-  logical                  , allocatable :: n_face_mask(:) 
+  logical                  , allocatable :: n_face_mask(:,:) 
   logical                                :: reallocate 
   logical                                :: local_found
   integer(ip)                            :: ielem
@@ -775,9 +774,6 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   assert(associated(this%conditions) )
   call memalloc ( this%get_num_components(), components_code, __FILE__, __LINE__ )
 
-  allocate ( function_scalar_components(this%triangulation%get_num_dims(), fe%get_num_vefs()), stat=istat); check(istat==0);
-  call memalloc( fe%get_num_vefs(), n_face_mask, __FILE__, __LINE__ ) 
-
   do field_id = 1, this%get_num_fields()
      if ( .not. is_void_field(field_id) ) then 
         call fe%first() 
@@ -788,10 +784,16 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
               if ( .not. (allocated(dof_values) )) call memalloc( reference_fe%get_num_shape_functions(), dof_values, __FILE__, __LINE__ ) 
               ! Reallocate FE dependent arrays if necessary. Mixed topology case ..? 
               reallocate = .false.
-              if (allocated(n_face_mask)) reallocate = ( size(n_face_mask) < fe%get_num_vefs() )                                      
+              if (allocated(n_face_mask)) reallocate = ( size(n_face_mask,2) < fe%get_num_vefs() )                                      
               if ( (.not. allocated(n_face_mask)) .or. reallocate) then
                  if (allocated(n_face_mask)) call memfree(n_face_mask, __FILE__,__LINE__); 
-                 call memalloc(fe%get_num_vefs(), n_face_mask, __FILE__,__LINE__);
+                 call memalloc(this%triangulation%get_num_dims(), fe%get_num_vefs(), n_face_mask, __FILE__,__LINE__);
+              end if
+              reallocate = .false.
+              if (allocated(function_scalar_components)) reallocate = ( size(function_scalar_components,2) < fe%get_num_vefs() )                                      
+              if ( (.not. allocated(function_scalar_components)) .or. reallocate) then
+                 if (allocated(function_scalar_components)) deallocate(function_scalar_components, stat=istat); check(istat==0)  
+                 allocate ( function_scalar_components(this%triangulation%get_num_dims(), fe%get_num_vefs()), stat=istat); check(istat==0)
               end if
 
               call fe%get_field_fe_dofs(field_id,fe_dofs)
@@ -801,57 +803,56 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
               do vef_lid = 1, fe%get_num_vefs() 
                  call fe%get_vef(vef_lid, vef)
                  if ( .not. vef%is_ghost() ) then
-                   if ( vef%get_set_id() /= 0 .and. vef%is_proper() ) then
-                     local_found = .false.
-                     do ielem=1, vef%get_num_cells_around()
-                       call vef%get_cell_around(ielem, aux_fe)
-                       if (aux_fe%is_local()) then
-                          local_found = .true.
-                          exit
+                    if ( vef%get_set_id() /= 0 .and. vef%is_proper() ) then
+                       local_found = .false.
+                       do ielem=1, vef%get_num_cells_around()
+                          call vef%get_cell_around(ielem, aux_fe)
+                          if (aux_fe%is_local()) then
+                             local_found = .true.
+                             exit
+                          end if
+                       end do
+
+                       if (  fe%is_local() .or. .not. local_found ) then
+                          ! Get scalar boundary functions 
+                          call this%conditions%get_components_code( vef%get_set_id(), components_code )
+                          component_id = offset_component(field_id) + 1
+                          do icomp=1, reference_fe%get_num_field_components()
+                             if ( components_code(component_id+icomp-1) ) then
+                                n_face_mask(icomp, vef_lid) = .true. 
+                                ! Retreive the scalar functions corresponding to the components of the function to be projected
+                                call this%conditions%get_function(vef%get_set_id(),                 &
+                                                                  component_id+icomp-1,             &
+                                                                  function_scalar_components(icomp, vef_lid)%p)
+                             end if
+                          end do
                        end if
-                     end do
-                     
-                     if (  fe%is_local() .or. .not. local_found ) then
-                      ! Get scalar boundary functions 
-                      call this%conditions%get_components_code( vef%get_set_id(), components_code )
-                      component_id = offset_component(field_id) + 1
-                      if (components_code(component_id)) then
-                         n_face_mask(vef_lid) = .true. 
-                         ! Retreive the scalar functions corresponding to the components of the function to be projected
-                         do icomp=1, reference_fe%get_num_field_components()
-                            call this%conditions%get_function(vef%get_set_id(),                 &
-                                 component_id+icomp-1,             &
-                                 function_scalar_components(icomp, vef_lid)%p)
-                         end do
-                      end if
-                     end if   
-                   end if
+                    end if
                  end if
-              end do              
-              
-              ! Evaluate moments on the FE dirichlet boundary 
-              call interpolators(field_id)%p%evaluate_function_scalar_components_moments( n_face_mask,                & 
-                   fe,                         &
-                   function_scalar_components, &
-                   dof_values,                 &
-                   time = time )
-
-
-              ! Insert nodal values on vefs at the dirichlet boundary 
-              do vef_lid = 1, fe%get_num_vefs() 
-                 if ( n_face_mask(vef_lid) ) then 
-                    own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
-                    do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
-                       idof = own_dofs_on_vef_iterator%get_current()   
-                       if( fe%is_strong_dirichlet_dof(fe_dofs(idof))) then
-                       fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
-                       end if 
-                       call own_dofs_on_vef_iterator%next()  
-                    end do
-                  end if
               end do
-           end if
-           call fe%next()  
+
+              ! Evaluate moments on the FE dirichlet boundary 
+                 call interpolators(field_id)%p%evaluate_function_scalar_components_moments( n_face_mask,                & 
+                                                                                             fe,                         &
+                                                                                             function_scalar_components, &
+                                                                                             dof_values,                 &
+                                                                                             time = time )
+
+                 ! Insert nodal values on vefs at the dirichlet boundary
+                 do vef_lid = 1, fe%get_num_vefs() 
+                    if ( any(n_face_mask(:,vef_lid)) ) then 
+                       own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid) 
+                       do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() ) 
+                          idof = own_dofs_on_vef_iterator%get_current()   
+                          if( fe%is_strong_dirichlet_dof(fe_dofs(idof))) then
+                             fixed_dof_values_entries(-fe_dofs(idof)) = dof_values(idof) 
+                          end if
+                          call own_dofs_on_vef_iterator%next()  
+                       end do
+                    end if
+                 end do
+              end if
+           call fe%next()
         end do
         if (allocated(dof_values)) call memfree( dof_values, __FILE__, __LINE__ )
      end if
@@ -866,11 +867,11 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   end do
   deallocate( interpolators, stat=istat); check(istat==0) 
 
-  deallocate( function_scalar_components, stat=istat); check(istat==0);
   call memfree( components_code, __FILE__, __LINE__ ) 
   call memfree( offset_component, __FILE__, __LINE__ )
   call memfree( is_void_field, __FILE__, __LINE__ )
-  call memfree( n_face_mask, __FILE__, __LINE__ )
+  if (allocated(function_scalar_components) ) deallocate( function_scalar_components, stat=istat); check(istat==0)
+  if (allocated(n_face_mask) ) call memfree( n_face_mask, __FILE__,__LINE__)
 
 end subroutine serial_fe_space_interpolate_dirichlet_values
 
@@ -1528,10 +1529,10 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_x_cell ( this )
   call this%free_fe_cell_iterator(fe) 
 end subroutine serial_fe_space_compute_max_order_reference_fe_id_x_cell 
 
-subroutine serial_fe_space_set_up_cell_integration ( this )
+subroutine serial_fe_space_set_up_cell_integration ( this, interpolation_duties )
   implicit none
-  class(serial_fe_space_t), target, intent(inout) :: this
-
+  class(serial_fe_space_t)      , target  , intent(inout) :: this
+  type(interpolation_duties_t), optional, intent(in)    :: interpolation_duties(:)
   type(fe_cell_iterator_t) :: fe
 
   integer(ip)         :: cell_quadrature_and_map_position
@@ -1549,6 +1550,25 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
   type(quadrature_t)     , pointer :: current_quadrature
   type(cell_map_t)       , pointer :: current_cell_map
   type(cell_integrator_t), pointer :: current_cell_integrator
+  type(cell_map_duties_t)          :: cell_map_duties, current_cell_map_duties
+  type(interpolation_duties_t)     :: current_interpolation_duties
+  logical :: compute_first_derivatives, compute_second_derivatives
+
+  ! Select higher derivatives of all inerpolations to define the mapping
+  if(present(interpolation_duties)) then
+     assert(size(interpolation_duties)== this%get_num_fields())
+     do field_id=1, this%get_num_fields()
+        call current_interpolation_duties%assign_compute_first_derivatives( &
+             & current_interpolation_duties%compute_first_derivatives_is_assigned() .or.  &
+             & interpolation_duties(field_id)%compute_first_derivatives_is_assigned())
+        call current_interpolation_duties%assign_compute_second_derivatives( &
+             & current_interpolation_duties%compute_second_derivatives_is_assigned() .or.  &
+             & interpolation_duties(field_id)%compute_second_derivatives_is_assigned())
+     end do
+  else ! Assign default duties (those we had before duties control)
+     call current_interpolation_duties%assign_compute_first_derivatives(.true.)
+     call current_interpolation_duties%assign_compute_second_derivatives(.false.)
+  end if
   
   call this%compute_max_order_reference_fe_id_x_cell()
   max_order_reference_fe_id_x_cell => this%max_order_reference_fe_id_x_cell%get_pointer()
@@ -1579,7 +1599,20 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
         call reference_fe%create_quadrature(current_quadrature)
         call this%cell_maps%resize(cell_quadrature_and_map_position)
         current_cell_map => this%cell_maps%get_pointer(cell_quadrature_and_map_position)
-        call current_cell_map%create(current_quadrature,fe%get_reference_fe_geo())
+        ! Checck if any field needs jacobian inverse and/or derivative
+        call cell_map_duties%assign_compute_jacobian_inverse(.false.)
+        call cell_map_duties%assign_compute_jacobian_derivative(.false.)
+        do field_id=1, this%get_num_fields()
+           reference_fe => fe%get_reference_fe(field_id)
+           call reference_fe%assign_cell_map_duties(current_interpolation_duties,current_cell_map_duties)
+           call cell_map_duties%assign_compute_jacobian_inverse( &
+             & cell_map_duties%compute_jacobian_inverse_is_assigned() .or.  &
+             & current_cell_map_duties%compute_jacobian_inverse_is_assigned())
+           call cell_map_duties%assign_compute_jacobian_derivative( &
+             & cell_map_duties%compute_jacobian_derivative_is_assigned() .or.  &
+             & current_cell_map_duties%compute_jacobian_derivative_is_assigned())
+        end do
+        call current_cell_map%create(current_quadrature,fe%get_reference_fe_geo(),cell_map_duties)
         cell_quadrature_and_map_position = cell_quadrature_and_map_position + 1
      end if
 
@@ -1596,7 +1629,8 @@ subroutine serial_fe_space_set_up_cell_integration ( this )
            current_quadrature => fe%get_quadrature()
            call this%cell_integrators%resize(cell_integrator_position)
            current_cell_integrator => this%cell_integrators%get_pointer(cell_integrator_position)
-           call current_cell_integrator%create(current_quadrature,fe%get_reference_fe(field_id))
+           if(present(interpolation_duties)) current_interpolation_duties = interpolation_duties(field_id)
+           call current_cell_integrator%create(current_quadrature,fe%get_reference_fe(field_id),current_interpolation_duties)
            cell_integrator_position = cell_integrator_position + 1
         end if
      end do

@@ -70,13 +70,12 @@ subroutine nodal_interpolator_create( this, fe_space, field_id  )
 end subroutine nodal_interpolator_create
 
 ! ================================================================================
-subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar_function, dof_values, n_face_mask, time ) 
+subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar_function, dof_values, time ) 
   implicit none
   class(nodal_interpolator_t)        , intent(inout) :: this
   class(fe_cell_iterator_t)          , intent(in)    :: fe
   class(scalar_function_t)           , intent(in)    :: scalar_function
   real(rp) , allocatable             , intent(inout) :: dof_values(:) 
-  logical  , optional                , intent(in)    :: n_face_mask(:)
   real(rp) , optional                , intent(in)    :: time 
 
   integer(ip)                      :: reference_fe_id 
@@ -110,13 +109,12 @@ subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar
 end subroutine nodal_interpolator_evaluate_scalar_function_moments
 
 ! ================================================================================
-subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, n_face_mask, time ) 
+subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, time ) 
   implicit none
   class(nodal_interpolator_t)     , intent(inout) :: this
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(vector_function_t)        , intent(in)    :: vector_function
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
-  logical  , optional             , intent(in)    :: n_face_mask(:)
   real(rp) , optional             , intent(in)    :: time 
 
   integer(ip)                      :: reference_fe_id 
@@ -154,7 +152,7 @@ end subroutine nodal_interpolator_evaluate_vector_function_moments
 !==================================================================================================
 subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, n_face_mask, fe, vector_function_scalar_components, dof_values, time)
   class(nodal_interpolator_t)     , intent(inout) :: this
-  logical                         , intent(in)    :: n_face_mask(:) 
+  logical                         , intent(in)    :: n_face_mask(:,:) 
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
@@ -177,8 +175,7 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
   if ( present(time) ) time_(1) = time
   reference_fe_id =  fe%get_reference_fe_id(this%field_id) 
   reference_fe    => fe%get_reference_fe(this%field_id)
-
-  num_nodal_qpoints = this%nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points()     
+  num_nodal_qpoints = this%nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points() 				
   cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates()
   call fe%get_nodes_coordinates( cell_coordinates ) 
   call this%cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
@@ -189,7 +186,6 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
 
   dof_values = 0.0_rp 
   do vef_lid = 1, fe%get_num_vefs() 
-     if ( n_face_mask(vef_lid) .eqv. .true. ) then 
 
         own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid)
         do while ( .not. own_dofs%is_upper_bound() ) 
@@ -207,6 +203,7 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
               massert ( .false. , "interpolate_boundary_scalar_component :: not available for tensor field type" )
            end select
 
+           if ( n_face_mask(icomp, vef_lid) ) then 
            if(present(time)) then
               call vector_function_scalar_components(icomp, vef_lid)%p%get_values_set_space_time(nodal_coordinates(inode_scalar:inode_scalar), & 
                    time_,                                        & 
@@ -217,9 +214,10 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
            end if
 
            dof_values(idof) = this%scalar_function_values(inode_scalar,1) 
+           end if 
            call own_dofs%next()
         end do
-     end if
+
   end do
 
 end subroutine nodal_interpolator_evaluate_function_scalar_components_moments

@@ -285,7 +285,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   integer(ip)              :: ivalu, info, offcomponent 
 
   interpolation%shape_functions   = 0.0_rp
-  interpolation%shape_derivatives = 0.0_rp
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) interpolation%shape_derivatives = 0.0_rp
 
   ! The Nedelec tet prebasis ND_k is built as a direct sum of two prebasis, so they are built and added:  
   ! prebasis_1: [P_{k-1}]^d
@@ -310,15 +310,22 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   ! Fill first set of pre-basis functions (replicated prebase_1 in directions)
   do idime=1, interpolation%num_dims 
      do q_point=1, quadrature%get_num_quadrature_points()
-        c=(idime-1)*num_polynomials_prebase_1
         call tet_polynomial_prebase_1%evaluate(q_point, values, gradients)
+        c=(idime-1)*num_polynomials_prebase_1
         do ipoly=1,num_polynomials_prebase_1
            c=c+1
            interpolation%shape_functions(idime,c,q_point) = values(ipoly)
-           do jdime=1, interpolation%num_dims
-              interpolation%shape_derivatives(idime,jdime,c,q_point) = gradients(jdime,ipoly)
-           end do
         end do
+        if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+           c=(idime-1)*num_polynomials_prebase_1
+           do ipoly=1,num_polynomials_prebase_1
+              c=c+1
+              interpolation%shape_functions(idime,c,q_point) = values(ipoly)
+              do jdime=1, interpolation%num_dims
+                 interpolation%shape_derivatives(idime,jdime,c,q_point) = gradients(jdime,ipoly)
+              end do
+           end do
+        end if
      end do
   end do
 
@@ -353,12 +360,14 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
         do idime=1, interpolation%num_dims 
            offcomponent = (idime-1)*tet_polynomial_prebase_2%get_num_polynomials()
            do ivalu=1, tet_polynomial_prebase_2%get_num_polynomials()
-              interpolation%shape_functions(idime,c+ipoly,q_point) =  & 
-                   interpolation%shape_functions(idime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*values(ivalu) 
-              do jdime=1, interpolation%num_dims
-                 interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) = & 
-                      interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*gradients(jdime,ivalu)
-              end do
+              interpolation%shape_functions(idime,c+ipoly,q_point) =  &	
+                   interpolation%shape_functions(idime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*values(ivalu)
+              if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+                 do jdime=1, interpolation%num_dims
+                    interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) = & 
+                         interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*gradients(jdime,ivalu)
+                 end do
+              end if
            end do
         end do
      end do

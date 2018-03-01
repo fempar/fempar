@@ -74,6 +74,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
                                      field_type_scalar, & 
                                      conformity=.true.)  
   
+  dummy_comm = 0
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
     call F90_p4est_new(dummy_comm,this%p4est_connectivity, this%p4est)

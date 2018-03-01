@@ -32,14 +32,16 @@ subroutine mlbddc_coarse_create ( this, fe_space, par_sparse_matrix, mlbddc_para
   type(par_sparse_matrix_t), target, intent(in)    :: par_sparse_matrix
   type(parameterlist_t)    , target, intent(in)    :: mlbddc_params 
   class(triangulation_t), pointer :: triangulation
-
+  
   call this%free()
+  assert ( this%state_is_start() )
   this%fe_space => fe_space
   triangulation => fe_space%get_triangulation()
   call this%set_par_environment(triangulation%get_environment())
   this%par_sparse_matrix => par_sparse_matrix
   this%mlbddc_params => mlbddc_params
   call this%create_vector_spaces()
+  call this%set_state_created()
 end subroutine mlbddc_coarse_create
 
 subroutine mlbddc_coarse_create_vector_spaces (this)

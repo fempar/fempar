@@ -138,13 +138,12 @@ subroutine tet_Hcurl_interpolator_create( this, fe_space, field_id )
 end subroutine tet_Hcurl_interpolator_create
 
 ! ================================================================================
-subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, n_face_mask, time ) 
+subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, time ) 
   implicit none
   class(tet_Hcurl_interpolator_t) , intent(inout) :: this
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(vector_function_t)        , intent(in)    :: vector_function
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
-  logical  , optional             , intent(in)    :: n_face_mask(:)
   real(rp) , optional             , intent(in)    :: time 
 
   ! Edge moments evaluation 
@@ -282,7 +281,7 @@ end subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments
 !==================================================================================================
 subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_face_mask, fe, vector_function_scalar_components, dof_values, time)
   class(tet_Hcurl_interpolator_t) , intent(inout) :: this
-  logical                         , intent(in)    :: n_face_mask(:)  
+  logical                         , intent(in)    :: n_face_mask(:,:)  
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
@@ -322,7 +321,7 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
   do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
        reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
 
-     if ( n_face_mask(edge_id) ) then 
+     if ( n_face_mask(1,edge_id) ) then 
         num_quad_points = this%edge_quadratures(reference_fe_id)%get_num_quadrature_points()
         call this%reallocate_if_needed(num_quad_points , this%edge_function_values)
         call this%reallocate_if_needed(num_quad_points , this%scalar_function_values_on_edge)
@@ -365,8 +364,7 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
      do facet_id = reference_fe%get_first_facet_id(), & 
           reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
 
-        if ( n_face_mask(facet_id) ) then 
-
+        if ( n_face_mask(1,facet_id) ) then 
            num_quad_points =  this%facet_quadratures(reference_fe_id)%get_num_quadrature_points()
            call this%reallocate_if_needed(num_quad_points , this%facet_function_values)
            call this%reallocate_if_needed(num_quad_points , this%scalar_function_values_on_facet)

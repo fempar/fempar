@@ -210,7 +210,7 @@ contains
     subroutine base_direct_solver_symbolic_setup(this)
         class(base_direct_solver_t), intent(inout) :: this
         ! Check pre-conditions
-        check(this%matrix_is_set())
+        assert(this%matrix_is_set())
         if(this%state_is_symbolic() .or. this%state_is_numeric()) return
         if (this%symbolic_setup_body()) call this%set_state_symbolic()
     end subroutine base_direct_solver_symbolic_setup

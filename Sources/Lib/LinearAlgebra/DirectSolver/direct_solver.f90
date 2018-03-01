@@ -57,7 +57,7 @@ private
         procedure, non_overridable, public :: set_parameters_from_pl  => direct_solver_set_parameters_from_pl
         procedure, non_overridable, public :: set_matrix              => direct_solver_set_matrix
         procedure, non_overridable, public :: replace_matrix          => direct_solver_replace_matrix
-        procedure, non_overridable, public :: update_matrix           => direct_solver_update_matrix
+        procedure,                  public :: update_matrix           => direct_solver_update_matrix
         procedure, non_overridable         :: create_vector_spaces    => direct_solver_create_vector_spaces
         procedure, non_overridable, public :: symbolic_setup          => direct_solver_symbolic_setup
         procedure, non_overridable, public :: numerical_setup         => direct_solver_numerical_setup

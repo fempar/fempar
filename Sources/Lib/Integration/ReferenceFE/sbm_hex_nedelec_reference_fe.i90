@@ -175,7 +175,7 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis( this, quadratu
   ! they must be initialized provided the code below just computes the
   ! single non-zero component of each shape function
   interpolation%shape_functions   = 0.0_rp
-  interpolation%shape_derivatives = 0.0_rp
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) interpolation%shape_derivatives = 0.0_rp
 
   if ( present(order_vector) ) then
     order_vector_ = order_vector
@@ -211,17 +211,23 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_pre_basis( this, quadratu
                    tensor_product_gradients,__FILE__,__LINE__)
 
      do q_point=1, quadrature%get_num_quadrature_points()
-        c=(idime-1)*tensor_product_polynomial_space%get_num_polynomials()
         call tensor_product_polynomial_space%evaluate(q_point, &
                                                       tensor_product_values, &
                                                       tensor_product_gradients)
+        c=(idime-1)*tensor_product_polynomial_space%get_num_polynomials()
         do i=1, tensor_product_polynomial_space%get_num_polynomials()
            c = c+1
            interpolation%shape_functions(idime,c,q_point) = tensor_product_values(i)
-           do jdime = 1,interpolation%num_dims
-              interpolation%shape_derivatives(idime,jdime,c,q_point) = tensor_product_gradients(jdime,i)
-           end do
         end do
+        if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+           c=(idime-1)*tensor_product_polynomial_space%get_num_polynomials()
+           do i=1, tensor_product_polynomial_space%get_num_polynomials()
+              c = c+1
+              do jdime = 1,interpolation%num_dims
+                 interpolation%shape_derivatives(idime,jdime,c,q_point) = tensor_product_gradients(jdime,i)
+              end do
+           end do
+        end if
      end do
   
    
@@ -264,7 +270,7 @@ subroutine hex_nedelec_rf_fill_interpolation_pre_basis_quadrature_array( this, q
   ! they must be initialized provided the code below just computes the
   ! single non-zero component of each shape function
   interpolation%shape_functions   = 0.0_rp
-  interpolation%shape_derivatives = 0.0_rp
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) interpolation%shape_derivatives = 0.0_rp
 
   if ( present(order_vector) ) then
     order_vector_ = order_vector
@@ -300,22 +306,29 @@ subroutine hex_nedelec_rf_fill_interpolation_pre_basis_quadrature_array( this, q
                    tensor_product_gradients,__FILE__,__LINE__)
 
      do q_point=1, quadrature(idime)%get_num_quadrature_points()
-        c=(idime-1)*tensor_product_polynomial_space%get_num_polynomials()
-        q=(idime-1)*quadrature(1)%get_num_quadrature_points() 
         call tensor_product_polynomial_space%evaluate(q_point, &
                                                       tensor_product_values, &
                                                       tensor_product_gradients)
-        
+        c=(idime-1)*tensor_product_polynomial_space%get_num_polynomials()
+        q=(idime-1)*quadrature(1)%get_num_quadrature_points() 
         q = q+q_point
         do i=1, tensor_product_polynomial_space%get_num_polynomials()
            c = c+1
            interpolation%shape_functions(1,c,q) = tensor_product_values(i)
-           do jdime = 1,interpolation%num_dims
-              interpolation%shape_derivatives(1,jdime,c,q) = tensor_product_gradients(jdime,i)
-           end do
         end do
+        if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+           c=(idime-1)*tensor_product_polynomial_space%get_num_polynomials()
+           q=(idime-1)*quadrature(1)%get_num_quadrature_points() 
+           q = q+q_point
+           do i=1, tensor_product_polynomial_space%get_num_polynomials()
+              c = c+1
+              do jdime = 1,interpolation%num_dims
+                 interpolation%shape_derivatives(1,jdime,c,q) = tensor_product_gradients(jdime,i)
+              end do
+           end do
+        end if
      end do
-  
+
      ! Free auxiliary memory
      do jdime=1,interpolation%num_dims
         call polynomial_1D_basis(jdime)%free()
@@ -659,9 +672,7 @@ subroutine hex_nedelec_reference_fe_change_basis(this)
      ! create reduced order interpolation
      call reduced_order_cell_interpolation%create( this%num_dims, &
           num_interior_moments, &
-          cell_quadrature%num_quadrature_points, &
-          num_entries_symmetric_tensor=0, &
-          compute_hessian = .false. )
+          cell_quadrature%num_quadrature_points )
 
      call this%fill_interpolation_pre_basis( cell_quadrature, reduced_order_cell_interpolation, reduced_order_vector)
 
@@ -945,7 +956,7 @@ subroutine hex_nedelec_reference_fe_fill_h_refinement_interpolation ( this )
      global_num_quad_points = global_num_quad_points + h_refined_quadrature(idime)%get_num_quadrature_points() 
   end do
 
-  call this%h_refinement_interpolation%create( this%num_dims, num_nodes, global_num_quad_points, ntens )
+  call this%h_refinement_interpolation%create( this%num_dims, num_nodes, global_num_quad_points )
 
   call this%fill_interpolation_pre_basis_quadrature_array( h_refined_quadrature, this%h_refinement_interpolation ) 
 
