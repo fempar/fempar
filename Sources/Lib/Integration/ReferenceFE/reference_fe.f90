@@ -541,7 +541,7 @@ module reference_fe_names
 
      ! Getters
      procedure :: get_topology => reference_fe_get_topology
-     !procedure :: get_fe_type => reference_fe_get_fe_type
+     procedure :: get_fe_type => reference_fe_get_fe_type
      procedure :: get_field_type => reference_fe_get_field_type
      procedure :: get_num_dims => reference_fe_get_num_dims
      procedure :: get_order => reference_fe_get_order

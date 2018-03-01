@@ -3047,15 +3047,22 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
            coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
            do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
               ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current()
-              if ( coarser_reference_fe%get_component_node(ishape_coarser_fe) == reference_fe%get_component_node(ishape_fe) ) then
-                if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
-                  call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, &
-                       this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+1)
-                else
-                  call this%ptr_constraining_free_dofs%set(hanging_dof_lid+1, &
-                       this%ptr_constraining_free_dofs%get(hanging_dof_lid+1)+1)
+
+              if ( coarser_reference_fe%get_fe_type() == fe_type_lagrangian ) then
+                if ( coarser_reference_fe%get_component_node(ishape_coarser_fe) /= reference_fe%get_component_node(ishape_fe) ) then
+                  call coarser_fe_dofs_on_vef_iterator%next()
+                  cycle
                 end if
               end if
+
+              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
+                call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, &
+                     this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+1)
+              else
+                call this%ptr_constraining_free_dofs%set(hanging_dof_lid+1, &
+                     this%ptr_constraining_free_dofs%get(hanging_dof_lid+1)+1)
+              end if
+
               call coarser_fe_dofs_on_vef_iterator%next()
            end do
            call fe_own_dofs_on_vef_iterator%next() 
@@ -3191,28 +3198,33 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
            do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
               ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current() 
 
-              if ( coarser_reference_fe%get_component_node(ishape_coarser_fe) == reference_fe%get_component_node(ishape_fe) ) then
-
-                ! Evaluate coefficient
-                call coarser_reference_fe%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient)
-
-                ! Set dependency and coefficient into the corresponding std_vector data structure
-                if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
-                  call this%constraining_dirichlet_dofs%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
-                       coarser_fe_fe_dofs(ishape_coarser_fe))
-                  call this%constraining_dirichlet_dofs_coefficients%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
-                       coefficient)
-                  call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, &
-                       this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
-                else
-                  call this%constraining_free_dofs%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
-                       coarser_fe_fe_dofs(ishape_coarser_fe))
-                  call this%constraining_free_dofs_coefficients%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
-                       coefficient)
-                  call this%ptr_constraining_free_dofs%set(hanging_dof_lid, &
-                       this%ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
+              ! In Lagrangian FEs the constraints are component by component (i.e., a DOF in component x will never constrain a DOF
+              ! in component y or z)
+              if ( coarser_reference_fe%get_fe_type() == fe_type_lagrangian ) then
+                if ( coarser_reference_fe%get_component_node(ishape_coarser_fe) /= reference_fe%get_component_node(ishape_fe) ) then
+                  call coarser_fe_dofs_on_vef_iterator%next()
+                  cycle
                 end if
+              end if
 
+              ! Evaluate coefficient
+              call coarser_reference_fe%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient)
+
+              ! Set dependency and coefficient into the corresponding std_vector data structure
+              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
+                call this%constraining_dirichlet_dofs%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                     coarser_fe_fe_dofs(ishape_coarser_fe))
+                call this%constraining_dirichlet_dofs_coefficients%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                     coefficient)
+                call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, &
+                     this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
+              else
+                call this%constraining_free_dofs%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                     coarser_fe_fe_dofs(ishape_coarser_fe))
+                call this%constraining_free_dofs_coefficients%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                     coefficient)
+                call this%ptr_constraining_free_dofs%set(hanging_dof_lid, &
+                     this%ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
               end if
 
               call coarser_fe_dofs_on_vef_iterator%next()
