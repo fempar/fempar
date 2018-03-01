@@ -702,7 +702,7 @@ end subroutine free_timers
     if ( environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
       do while ( .not. cell%has_finished() )
-        call cell%set_set_id(int(cell%get_ggid(),ip))
+        call cell%set_set_id(0)
         call cell%next()
       end do
       call this%triangulation%free_cell_iterator(cell)
