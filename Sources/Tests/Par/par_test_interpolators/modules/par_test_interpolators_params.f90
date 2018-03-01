@@ -9,7 +9,7 @@ module par_test_interpolators_params_names
   character(len=*), parameter :: reference_fe_order_key          = 'reference_fe_order'    
   character(len=*), parameter :: write_solution_key              = 'write_solution'        
   character(len=*), parameter :: triangulation_type_key          = 'triangulation_type'    
-		character(len=*), parameter :: variable_degree_within_field_key  = 'variable_degree_within_field'
+  character(len=*), parameter :: variable_degree_within_field_key  = 'variable_degree_within_field'
   
   type, extends(parameter_handler_t) :: par_test_interpolators_params_t
      private
@@ -21,7 +21,7 @@ module par_test_interpolators_params_names
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_triangulation_type
-							procedure, non_overridable             :: get_is_variable_degree_within_field
+       procedure, non_overridable             :: get_is_variable_degree_within_field
   end type par_test_interpolators_params_t
 
   ! Types
@@ -47,7 +47,7 @@ contains
     error = list%set(key = prefix_key              , value = 'square') ; check(error==0)
     error = list%set(key = dir_path_out_key        , value = '.')      ; check(error==0)
     error = list%set(key = num_dims_key            , value =  2)       ; check(error==0)
-	   !error = list%set(key = hex_mesh_domain_limits_key        , value =  [0,1,0,1,0,1])       ; check(error==0)      
+    !error = list%set(key = hex_mesh_domain_limits_key        , value =  [0,1,0,1,0,1])       ; check(error==0)      
     error = list%set(key = num_cells_x_dir_key     , value =  [12,12,12])          ; check(error==0)
     error = list%set(key = is_dir_periodic_key     , value =  [0,0,0])             ; check(error==0)
     error = list%set(key = num_levels_key          , value =  3)                   ; check(error==0)
@@ -57,14 +57,14 @@ contains
     error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
     error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
     error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
-				error = list%set(key = variable_degree_within_field_key , value =  .false.)                      ; check(error==0)
+    error = list%set(key = variable_degree_within_field_key , value =  .false.)                      ; check(error==0)
  
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
     error = switches%set(key = prefix_key                    , value = '--prefix')                   ; check(error==0)
     error = switches%set(key = dir_path_out_key              , value = '--dir-path-out')             ; check(error==0)
     error = switches%set(key = num_dims_key                  , value = '--dim')                      ; check(error==0)
-	!error = switches%set(key = hex_mesh_domain_limits_key    , value = '--domain_limits')            ; check(error==0)
+ !error = switches%set(key = hex_mesh_domain_limits_key    , value = '--domain_limits')            ; check(error==0)
     error = switches%set(key = num_cells_x_dir_key           , value = '--number_of_cells')          ; check(error==0)
     error = switches%set(key = num_levels_key                , value = '--number_of_levels')         ; check(error==0)
     error = switches%set(key = num_parts_x_dir_key   , value = '--number_of_parts_per_dir')  ; check(error==0)
@@ -73,13 +73,13 @@ contains
     error = switches%set(key = write_solution_key            , value = '--write-solution'        )   ; check(error==0)
     error = switches%set(key = triangulation_generate_key    , value = '--trinagulation-type'    )   ; check(error==0)
     error = switches%set(key = execution_context_key         , value = '--execution_context'    )    ; check(error==0)
-				error = switches%set(key = variable_degree_within_field_key, value = '--variable_degree'    )    ; check(error==0)
+    error = switches%set(key = variable_degree_within_field_key, value = '--variable_degree'    )    ; check(error==0)
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
     error = switches_ab%set(key = dir_path_out_key           , value = '-o')        ; check(error==0) 
     error = switches_ab%set(key = num_dims_key               , value = '-dm')       ; check(error==0)
-	!error = switches_ab%set(key = hex_mesh_domain_limits_key , value = '-dl')       ; check(error==0)
+ !error = switches_ab%set(key = hex_mesh_domain_limits_key , value = '-dl')       ; check(error==0)
     error = switches_ab%set(key = num_cells_x_dir_key        , value = '-n')        ; check(error==0) 
     error = switches_ab%set(key = num_levels_key             , value = '-l')        ; check(error==0)
     error = switches_ab%set(key = num_parts_x_dir_key, value = '-np')       ; check(error==0)
@@ -88,20 +88,20 @@ contains
     error = switches_ab%set(key = write_solution_key         , value = '-wsolution'); check(error==0)
     error = switches_ab%set(key = triangulation_generate_key , value = '-tt')       ; check(error==0)
     error = switches_ab%set(key = execution_context_key      , value = '-exe')       ; check(error==0)
-				error = switches_ab%set(key = variable_degree_within_field_key      , value = '-variable_degree')       ; check(error==0)
+    error = switches_ab%set(key = variable_degree_within_field_key      , value = '-variable_degree')       ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
     error = helpers%set(key = dir_path_out_key               , value = 'Output Directory')                         ; check(error==0)
     error = helpers%set(key = num_dims_key                   , value = 'Number of space dimensions')               ; check(error==0)
-	!error = helpers%set(key = hex_mesh_domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
+ !error = helpers%set(key = hex_mesh_domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
     error = helpers%set(key = num_cells_x_dir_key            , value = 'Number of cells per dir')                  ; check(error==0)
     error = helpers%set(key = num_levels_key                 , value = 'Number of levels')                         ; check(error==0)
     error = helpers%set(key = num_parts_x_dir_key            , value = 'Number of parts per dir and per level')    ; check(error==0)
     error = helpers%set(key = reference_fe_geo_order_key     , value = 'Order of the triangulation reference fe')  ; check(error==0)
     error = helpers%set(key = reference_fe_order_key         , value = 'Order of the fe space reference fe')       ; check(error==0)
     error = helpers%set(key = write_solution_key             , value = 'Write solution in VTK format')             ; check(error==0)
-				error = helpers%set(key = variable_degree_within_field_key , value = 'Different order Reference_fes are considered for the same field'); check(error==0)
+    error = helpers%set(key = variable_degree_within_field_key , value = 'Different order Reference_fes are considered for the same field'); check(error==0)
     
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -112,12 +112,12 @@ contains
     write(msg(9:9),'(i1)') serial_context
     write(msg(20:20),'(i1)') mpi_context
     error = helpers%set(key = execution_context_key     , value = msg)  ; check(error==0)
-	
+ 
     error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
     error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
     error = required%set(key = dir_path_out_key              , value = .false.) ; check(error==0)
     error = required%set(key = num_dims_key                  , value = .false.) ; check(error==0)
-	!error = required%set(key = hex_mesh_domain_limits_key    , value = .false.) ; check(error==0)
+ !error = required%set(key = hex_mesh_domain_limits_key    , value = .false.) ; check(error==0)
     error = required%set(key = num_cells_x_dir_key           , value = .false.) ; check(error==0)
     error = required%set(key = num_levels_key                , value = .false.) ; check(error==0)
     error = required%set(key = num_parts_x_dir_key   , value = .false.) ; check(error==0)
@@ -126,7 +126,7 @@ contains
     error = required%set(key = write_solution_key               , value = .false.) ; check(error==0)
     error = required%set(key = triangulation_generate_key       , value = .false.) ; check(error==0)
     error = required%set(key = execution_context_key            , value = .false.) ; check(error==0)
-				error = required%set(key = variable_degree_within_field_key , value = .false.) ; check(error==0)
+    error = required%set(key = variable_degree_within_field_key , value = .false.) ; check(error==0)
 
   end subroutine par_test_interpolators_params_define_parameters
 
@@ -210,8 +210,8 @@ contains
     error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
     assert(error==0)
   end function get_triangulation_type 
-		
-		  !==================================================================================================
+  
+    !==================================================================================================
   function get_is_variable_degree_within_field(this)
     implicit none
     class(par_test_interpolators_params_t) , intent(in) :: this

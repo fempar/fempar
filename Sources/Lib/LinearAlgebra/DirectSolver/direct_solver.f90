@@ -22,6 +22,7 @@
 ! and/or the HSL Mathematical Software Library (or a modified version of them), 
 ! containing parts covered by the terms of their respective licenses, the
 ! licensors of this Program grant you additional permission to convey the 
+! licensors of this Program grant you additional permission to convey the 
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -31,6 +32,7 @@ module direct_solver_names
     USE types_names
     USE memor_names
     USE operator_names
+    USE linear_solver_names
     USE vector_space_names
     USE base_direct_solver_names
     USE direct_solver_parameters_names
@@ -45,7 +47,7 @@ implicit none
 
 private
 
-    type, extends(operator_t) :: direct_solver_t
+    type, extends(linear_solver_t) :: direct_solver_t
     private
         class(base_direct_solver_t), pointer :: base_direct_solver  => NULL()
     contains
@@ -54,7 +56,8 @@ private
         procedure, non_overridable, public :: set_type_from_pl        => direct_solver_set_type_from_pl
         procedure, non_overridable, public :: set_parameters_from_pl  => direct_solver_set_parameters_from_pl
         procedure, non_overridable, public :: set_matrix              => direct_solver_set_matrix
-        procedure, non_overridable, public :: update_matrix           => direct_solver_update_matrix
+        procedure, non_overridable, public :: replace_matrix          => direct_solver_replace_matrix
+        procedure,                  public :: update_matrix           => direct_solver_update_matrix
         procedure, non_overridable         :: create_vector_spaces    => direct_solver_create_vector_spaces
         procedure, non_overridable, public :: symbolic_setup          => direct_solver_symbolic_setup
         procedure, non_overridable, public :: numerical_setup         => direct_solver_numerical_setup
@@ -63,7 +66,6 @@ private
         procedure, non_overridable         :: solve_several_rhs       => direct_solver_solve_several_rhs
         procedure,                  public :: apply                   => direct_solver_apply
         procedure,                  public :: apply_add               => direct_solver_apply_add
-        procedure, non_overridable, public :: is_linear               => direct_solver_is_linear
         procedure, non_overridable, public :: free_in_stages          => direct_solver_free_in_stages
         procedure, non_overridable, public :: free                    => direct_solver_free
         generic,                    public :: solve                   => solve_single_rhs, solve_several_rhs
@@ -124,37 +126,70 @@ contains
         assert(associated(this%base_direct_solver))
         call this%base_direct_solver%set_parameters_from_pl(parameter_list)
     end subroutine direct_solver_set_parameters_from_pl
-
-
-
+    
     subroutine direct_solver_set_matrix(this, matrix)
     !-----------------------------------------------------------------
-    !< Associate the concrete direct solver with a matrix
+    !< Associate the concrete direct solver with an matrix
     !-----------------------------------------------------------------
         class(direct_solver_t),         intent(inout) :: this
-        type(sparse_matrix_t),  target, intent(in)    :: matrix
+        class(operator_t),              intent(in)    :: matrix
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
-        call this%base_direct_solver%set_matrix(matrix)
+        select type(matrix)
+        class is (sparse_matrix_t)
+          call this%base_direct_solver%set_matrix(matrix)
+        class is (lvalue_operator_t)
+          select type ( op => matrix%get_operator() ) 
+          class is (sparse_matrix_t)
+            call this%base_direct_solver%set_matrix(op)
+          class default
+            mcheck(.false., "direct_solver_set_matrix:: matrix MUST be of dynamic type sparse_matrix_t")
+          end select 
+        class default
+          mcheck(.false., "direct_solver_set_matrix:: matrix MUST be of dynamic type sparse_matrix_t")
+        end select
     end subroutine direct_solver_set_matrix
-
-
-    subroutine direct_solver_update_matrix(this, matrix, same_nonzero_pattern)
+    
+   subroutine direct_solver_replace_matrix(this, matrix, same_nonzero_pattern)
     !-----------------------------------------------------------------
     !< Update matrix pointer 
     !< If same_nonzero_pattern numerical_setup has to be performed
     !< If not same_nonzero_pattern symbolic_setup has to be performed
     !-----------------------------------------------------------------
         class(direct_solver_t),        intent(inout) :: this
-        type(sparse_matrix_t), target, intent(in)    :: matrix
+        class(operator_t),             intent(in)    :: matrix
         logical,                       intent(in)    :: same_nonzero_pattern
     !-----------------------------------------------------------------
         assert(associated(this%base_direct_solver))
-        call this%base_direct_solver%update_matrix(matrix, same_nonzero_pattern)
+        select type(matrix)
+        class is (sparse_matrix_t)
+          call this%base_direct_solver%replace_matrix(matrix, same_nonzero_pattern)  
+        class is (lvalue_operator_t)
+          select type ( op => matrix%get_operator() ) 
+          class is (sparse_matrix_t)
+            call this%base_direct_solver%replace_matrix(op, same_nonzero_pattern)  
+          class default
+            mcheck(.false., "direct_solver_update_matrix:: matrix MUST be of dynamic type sparse_matrix_t")
+          end select 
+        class default
+          mcheck(.false., "direct_solver_update_matrix:: matrix MUST be of dynamic type sparse_matrix_t")
+        end select
         if(.not. same_nonzero_pattern) call this%free_vector_spaces()
+    end subroutine direct_solver_replace_matrix
+    
+    subroutine direct_solver_update_matrix(this, same_nonzero_pattern)
+    !-----------------------------------------------------------------
+    !< Update matrix pointer 
+    !< If same_nonzero_pattern numerical_setup has to be performed
+    !< If not same_nonzero_pattern symbolic_setup has to be performed
+    !-----------------------------------------------------------------
+        class(direct_solver_t),        intent(inout) :: this
+        logical,                       intent(in)    :: same_nonzero_pattern
+    !-----------------------------------------------------------------
+      call this%base_direct_solver%update_matrix(same_nonzero_pattern)  
+      if(.not. same_nonzero_pattern) call this%free_vector_spaces()
     end subroutine direct_solver_update_matrix
-
-
+    
     subroutine direct_solver_create_vector_spaces ( this ) 
     !-----------------------------------------------------------------
     !< Clone vector spaces from matrix vector spaces
@@ -347,7 +382,7 @@ contains
     !-----------------------------------------------------------------
     !< Call to Solve (Computes y <- A^-1 * x)
     !-----------------------------------------------------------------
-        class(direct_solver_t), intent(in)    :: this
+        class(direct_solver_t), intent(inout)    :: this
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y
     !-----------------------------------------------------------------
@@ -359,7 +394,7 @@ contains
     !-----------------------------------------------------------------
     !< Call to Solve (Computes y <- A^-1 * x + y)
     !-----------------------------------------------------------------
-        class(direct_solver_t), intent(in)    :: this
+        class(direct_solver_t), intent(inout)    :: this
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y
         class(vector_t), allocatable          :: w
@@ -374,18 +409,6 @@ contains
         deallocate(w, stat=istat); check(istat==0)
     end subroutine direct_solver_apply_add
     
-
-    function direct_solver_is_linear(this) result(is_linear)
-    !-----------------------------------------------------------------
-    !< Return .false.
-    !-----------------------------------------------------------------
-        class(direct_solver_t), intent(in) :: this
-        logical                            :: is_linear
-    !-----------------------------------------------------------------
-        is_linear = .true.
-    end function direct_solver_is_linear
-
-
     subroutine direct_solver_free_in_stages(this, action)
     !-----------------------------------------------------------------
     !< Free direct solver in stages

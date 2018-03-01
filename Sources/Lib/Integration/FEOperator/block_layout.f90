@@ -74,6 +74,16 @@ contains
     
     integer(ip) :: ifield, jfield
     
+#ifdef DEBUG
+    if ( present(field_id_to_block_id) ) then
+       assert ( size(field_id_to_block_id) == num_fields )
+    end if
+    if ( present(field_coupling) ) then
+       assert ( size(field_coupling,1) == num_fields )
+       assert ( size(field_coupling,2) == num_fields )
+    end if
+#endif
+    
     assert ( num_fields >= 1 )
     call this%free()
     this%num_fields = num_fields

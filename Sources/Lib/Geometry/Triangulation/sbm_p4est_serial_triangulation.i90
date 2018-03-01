@@ -33,7 +33,9 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   integer(ip) :: istat
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   class(environment_t), pointer :: environment
-  integer(ip) :: num_dims
+  integer(ip) :: num_dims, idime 
+  integer(ip), allocatable :: array_size(:)
+  real(rp)   , allocatable :: bounding_box_limits(:)
   integer(ip) :: dummy_comm
   
 #ifdef ENABLE_P4EST
@@ -49,22 +51,44 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   istat = parameters%get(key = num_dims_key, value = num_dims); assert(istat==0)
   call this%set_num_dims(num_dims)
   
+		if( parameters%isPresent(key = hex_mesh_domain_limits_key) ) then
+    istat = parameters%GetShape(key = hex_mesh_domain_limits_key, shape = array_size); check(istat==0)
+    assert(array_size(1) >= 2*this%get_num_dims())
+    call memalloc(array_size(1), bounding_box_limits,__FILE__,__LINE__)
+    assert(parameters%isAssignable(hex_mesh_domain_limits_key, bounding_box_limits))
+    istat = parameters%get(key = hex_mesh_domain_limits_key , value = bounding_box_limits); check(istat==0)
+    do idime = 1,this%get_num_dims()
+      this%bounding_box_limits(idime,1) = bounding_box_limits(2*idime-1)
+      this%bounding_box_limits(idime,2) = bounding_box_limits(2*idime)
+      assert(this%bounding_box_limits(idime,2)>this%bounding_box_limits(idime,1))
+    end do
+    call memfree(bounding_box_limits,__FILE__,__LINE__)
+  else
+    this%bounding_box_limits(:,1) = 0.0_rp
+    this%bounding_box_limits(:,2) = 1.0_rp
+  end if
+  
   call this%reference_fe_geo%create( topology_hex, &
                                      this%get_num_dims(), &
                                      1, &
                                      field_type_scalar, & 
                                      conformity=.true.)  
   
+  dummy_comm = 0
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_connectivity_new_unitsquare(this%p4est_connectivity)
     call F90_p4est_new(dummy_comm,this%p4est_connectivity, this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
-    call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%fill_x_cell_vertex_coordinates()
     call this%update_cell_import()
+    call this%update_cell_ggids()
+    call this%update_cell_myparts()
     call this%comm_cell_ggids()
     call this%comm_cell_myparts()
+    call this%extend_p4est_topology_arrays_to_ghost_cells()
+    call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+    call this%update_vefs_is_ghost()
+    call this%fill_x_cell_vertex_coordinates()
     call old_lst_vefs_gids%free()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
@@ -80,11 +104,16 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call F90_p8est_new(dummy_comm,this%p4est_connectivity, this%p4est)
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
-    call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%fill_x_cell_vertex_coordinates()
     call this%update_cell_import()
+    call this%update_cell_ggids()
+    call this%update_cell_myparts()
     call this%comm_cell_ggids()
     call this%comm_cell_myparts()
+    call this%extend_p4est_topology_arrays_to_ghost_cells()
+    call this%find_missing_corner_neighbours()
+    call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
+    call this%update_vefs_is_ghost()
+    call this%fill_x_cell_vertex_coordinates()
     call old_lst_vefs_gids%free()
     call this%clear_refinement_and_coarsening_flags()
     call this%clear_cell_set_ids()
@@ -189,9 +218,10 @@ subroutine p4est_serial_triangulation_free ( this)
     
   this%num_proper_vefs = -1
   this%num_improper_vefs = -1
+  this%bounding_box_limits = 0.0_rp
   this%previous_num_local_cells = -1
   this%previous_num_ghost_cells = -1
-  
+
   call this%reference_fe_geo%free()
   call this%free_environment()
 #else

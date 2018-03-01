@@ -447,7 +447,7 @@ end subroutine free_timers
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
 
-    call this%fe_affine_operator%numerical_setup()
+    call this%fe_affine_operator%compute()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
 
@@ -560,12 +560,12 @@ end subroutine free_timers
 
 #ifdef ENABLE_MKL
     if (this%test_params%get_use_preconditioner()) then
-      call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
+      call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
     else
-      call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+      call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
     end if
 #else
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
 #endif   
     
   end subroutine setup_solver
@@ -629,7 +629,7 @@ end subroutine free_timers
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+    call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), &
                                             dof_values)
     
     !select type (dof_values)

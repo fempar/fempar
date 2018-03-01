@@ -113,6 +113,7 @@ module base_direct_solver_names
         procedure, non_overridable, public :: set_name                     => base_direct_solver_set_name
         procedure, non_overridable, public :: set_matrix                   => base_direct_solver_set_matrix
         procedure, non_overridable, public :: get_matrix                   => base_direct_solver_get_matrix
+        procedure, non_overridable, public :: replace_matrix            => base_direct_solver_replace_matrix
         procedure, non_overridable, public :: update_matrix                => base_direct_solver_update_matrix
         procedure, non_overridable, public :: matrix_is_set                => base_direct_solver_matrix_is_set
         procedure, non_overridable, public :: set_state_start              => base_direct_solver_set_state_start
@@ -209,7 +210,7 @@ contains
     subroutine base_direct_solver_symbolic_setup(this)
         class(base_direct_solver_t), intent(inout) :: this
         ! Check pre-conditions
-        check(this%matrix_is_set())
+        assert(this%matrix_is_set())
         if(this%state_is_symbolic() .or. this%state_is_numeric()) return
         if (this%symbolic_setup_body()) call this%set_state_symbolic()
     end subroutine base_direct_solver_symbolic_setup
@@ -315,7 +316,7 @@ contains
         matrix => this%matrix
     end function base_direct_solver_get_matrix
 
-    subroutine base_direct_solver_update_matrix(this, matrix, same_nonzero_pattern)
+    subroutine base_direct_solver_replace_matrix(this, matrix, same_nonzero_pattern)
     !-----------------------------------------------------------------
     !< Update matrix pointer 
     !< If same_nonzero_pattern performs returns to SYMBOLIC state
@@ -326,6 +327,25 @@ contains
         logical,                       intent(in)    :: same_nonzero_pattern
     !-----------------------------------------------------------------
         this%matrix => matrix
+        if(same_nonzero_pattern .and. this%state == BASE_DIRECT_SOLVER_STATE_NUMERIC) then
+            this%numerical_setup_pending = .true.
+        elseif(.not. same_nonzero_pattern .and. &
+               (this%state == BASE_DIRECT_SOLVER_STATE_SYMBOLIC .or. &
+                this%state == BASE_DIRECT_SOLVER_STATE_NUMERIC)) then
+                call this%free_symbolic()
+        endif
+    end subroutine base_direct_solver_replace_matrix
+    
+    
+        subroutine base_direct_solver_update_matrix(this, same_nonzero_pattern)
+    !-----------------------------------------------------------------
+    !< Update matrix pointer 
+    !< If same_nonzero_pattern performs returns to SYMBOLIC state
+    !< If not same_nonzero_pattern returns to START state
+    !-----------------------------------------------------------------
+        class(base_direct_solver_t),   intent(inout) :: this
+        logical,                       intent(in)    :: same_nonzero_pattern
+    !-----------------------------------------------------------------
         if(same_nonzero_pattern .and. this%state == BASE_DIRECT_SOLVER_STATE_NUMERIC) then
             this%numerical_setup_pending = .true.
         elseif(.not. same_nonzero_pattern .and. &

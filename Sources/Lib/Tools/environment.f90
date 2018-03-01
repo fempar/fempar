@@ -92,6 +92,8 @@ module environment_names
      procedure :: free                           => environment_free
      procedure :: print                          => environment_print
      procedure :: created                        => environment_created
+     procedure :: report_times                   => environment_report_times
+
      ! Getters
      procedure :: get_num_levels                 => environment_get_num_levels
      procedure :: get_num_tasks                  => environment_get_num_tasks
@@ -167,10 +169,12 @@ module environment_names
      procedure, private :: environment_l1_to_l2_transfer_ip_1D_array
      procedure, private :: environment_l1_to_l2_transfer_rp
      procedure, private :: environment_l1_to_l2_transfer_rp_1D_array
+     procedure, private :: environment_l1_to_l2_transfer_logical
      generic  :: l1_to_l2_transfer => environment_l1_to_l2_transfer_ip, &
           environment_l1_to_l2_transfer_ip_1D_array, &
           environment_l1_to_l2_transfer_rp, &
-          environment_l1_to_l2_transfer_rp_1D_array
+          environment_l1_to_l2_transfer_rp_1D_array, &
+          environment_l1_to_l2_transfer_logical
 
      ! Deferred TBPs inherited from class(environment_t)
      !procedure :: info                        => environment_info
@@ -480,6 +484,14 @@ contains
 
   end subroutine environment_free
 
+  subroutine environment_report_times ( this, show_header, luout )
+    implicit none 
+    class(environment_t), intent(inout) :: this
+    logical, intent(in), optional      :: show_header 
+    integer(ip), intent(in), optional  :: luout
+    call this%l1_context%report_times(show_header, luout)
+  end subroutine environment_report_times
+ 
   !=============================================================================
   recursive subroutine environment_print ( this )
     implicit none 
@@ -728,7 +740,7 @@ contains
        num_snd, list_snd, snd_ptrs, pack_idx,   &
        alpha, beta, x, y)
     implicit none
-    class(environment_t), intent(in) :: this
+    class(environment_t), intent(inout) :: this
 
     ! Control info to receive
     integer(ip)             , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
@@ -1000,6 +1012,16 @@ contains
   end subroutine environment_l1_to_l2_transfer_rp_1D_array
   
   !=============================================================================
+  subroutine environment_l1_to_l2_transfer_logical ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)      :: this
+    logical             , intent(in)      :: input_data
+    logical             , intent(inout)   :: output_data
+    assert ( this%am_i_l1_to_l2_task() )
+    call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
+  end subroutine environment_l1_to_l2_transfer_logical
+  
+  !=============================================================================
   subroutine environment_l2_from_l1_gather_ip ( this, input_data, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
@@ -1094,13 +1116,13 @@ contains
     call this%l1_to_l2_context%scatter_from_master (input_data, send_counts, displs, output_data_size, output_data )
   end subroutine environment_l2_to_l1_scatterv_rp_1D_array
  !=============================================================================
- 	function environment_get_w_context ( this ) result(w_context)
- 	  implicit none 
- 	  ! Parameters
- 	  class(environment_t),       target, intent(in) :: this
+  function environment_get_w_context ( this ) result(w_context)
+    implicit none 
+    ! Parameters
+    class(environment_t),       target, intent(in) :: this
     class(execution_context_t), pointer            :: w_context
- 	  w_context => this%world_context
- 	end function environment_get_w_context
+    w_context => this%world_context
+  end function environment_get_w_context
   
   
 end module environment_names

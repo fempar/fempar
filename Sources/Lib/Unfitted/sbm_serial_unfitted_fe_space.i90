@@ -31,12 +31,18 @@ subroutine sufs_create_same_reference_fes_on_all_cells(&
   this, &
   triangulation, &
   reference_fes, &
-  conditions )
+  conditions,    &
+  field_blocks,  &
+  field_coupling, &
+  generate_global_dof_numbering)
   implicit none
   class(serial_unfitted_fe_space_t)           , intent(inout) :: this
   class(triangulation_t)            , target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
+  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
+  logical                           , optional, intent(in)    :: field_coupling(:,:)
+  logical                           , optional , intent(in)   :: generate_global_dof_numbering
   mcheck(.false.,'You cannot create an unfitted fe space with the same reference fe on all cells (you need void and non void ref elems)')
 end subroutine sufs_create_same_reference_fes_on_all_cells
 
@@ -46,16 +52,27 @@ subroutine sufs_space_create_different_ref_fes_between_cells(&
     triangulation, &
     reference_fes, &
     set_ids_to_reference_fes, &
-    conditions )
+    conditions,   &
+    field_blocks, &
+    field_coupling, &
+    generate_global_dof_numbering)
   implicit none
   class(serial_unfitted_fe_space_t)           , intent(inout) :: this
   class(triangulation_t)            , target  , intent(in)    :: triangulation
   type(p_reference_fe_t)                      , intent(in)    :: reference_fes(:)
   integer(ip)                                 , intent(in)    :: set_ids_to_reference_fes(:,:)
   class(conditions_t)       , target, optional, intent(in)    :: conditions
+  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
+  logical                           , optional, intent(in)    :: field_coupling(:,:)
+  logical                           , optional , intent(in)   :: generate_global_dof_numbering
   call this%free()
-  call this%serial_fe_space_t%create(&
-    triangulation,reference_fes,set_ids_to_reference_fes,conditions)
+  call this%serial_fe_space_t%create(triangulation, &
+                                     reference_fes, &
+                                     set_ids_to_reference_fes, &
+                                     conditions, &
+                                     field_blocks, &
+                                     field_coupling, &
+                                     generate_global_dof_numbering)
   select type(triangulation)
   class is (serial_unfitted_triangulation_t)
     this%unfitted_triangulation => triangulation

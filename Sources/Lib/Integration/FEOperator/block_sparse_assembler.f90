@@ -46,10 +46,10 @@ module block_sparse_assembler_names
 
   type, extends(assembler_t) :: block_sparse_assembler_t
 contains
-  procedure :: assembly_array   => block_sparse_assembler_assembly_array
-  procedure :: assembly_matrix  => block_sparse_assembler_assembly_matrix
-  procedure :: compress_storage => block_sparse_assembler_compress_storage
-  procedure :: allocate         => block_sparse_assembler_allocate
+  procedure :: assembly_array          => block_sparse_assembler_assembly_array
+  procedure :: assembly_matrix         => block_sparse_assembler_assembly_matrix
+  procedure :: compress_storage_matrix => block_sparse_assembler_compress_storage_matrix 
+  procedure :: allocate                => block_sparse_assembler_allocate
 end type
 
 ! Data types
@@ -130,7 +130,7 @@ contains
 
   end subroutine block_sparse_assembler_assembly_matrix
 
-  subroutine block_sparse_assembler_compress_storage(this,sparse_matrix_storage_format)
+  subroutine block_sparse_assembler_compress_storage_matrix(this,sparse_matrix_storage_format)
     implicit none
     class(block_sparse_assembler_t), intent(inout) :: this
     character(*)                                , intent(in)    :: sparse_matrix_storage_format
@@ -142,8 +142,8 @@ contains
       class default
       check(.false.)
     end select
-  end subroutine block_sparse_assembler_compress_storage
-
+  end subroutine block_sparse_assembler_compress_storage_matrix
+  
   subroutine block_sparse_assembler_allocate(this)
     implicit none
     class(block_sparse_assembler_t), intent(inout) :: this

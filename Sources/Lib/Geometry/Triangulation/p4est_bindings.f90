@@ -619,6 +619,49 @@ module p4est_bindings_names
        integer(P4EST_F90_GLOIDX), intent(out) :: ghost_ggids(*)
      end subroutine F90_p8est_fill_ghost_ggids
      
+     subroutine F90_p4est_allocate_and_fill_cell_import_raw_arrays(p4est, &
+                                                                   p4est_ghost, &
+                                                                   num_neighbours, &
+                                                                   neighbour_ids, &
+                                                                   rcv_ptrs, &
+                                                                   rcv_leids, & 
+                                                                   snd_ptrs, &
+                                                                   snd_leids) bind(c, name="F90_p4est_allocate_and_fill_cell_import_raw_arrays")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX
+       implicit none
+       type(c_ptr)              , value, intent(in)   :: p4est
+       type(c_ptr)              , value, intent(in)   :: p4est_ghost
+       integer(P4EST_F90_LOCIDX)       , intent(out)  :: num_neighbours
+       type(c_ptr)                     , intent(out)  :: neighbour_ids
+       type(c_ptr)                     , intent(out)  :: rcv_ptrs
+       type(c_ptr)                     , intent(out)  :: rcv_leids
+       type(c_ptr)                     , intent(out)  :: snd_ptrs
+       type(c_ptr)                     , intent(out)  :: snd_leids
+     end subroutine F90_p4est_allocate_and_fill_cell_import_raw_arrays
+     
+     subroutine F90_p8est_allocate_and_fill_cell_import_raw_arrays(p4est, &
+                                                                   p4est_ghost, &
+                                                                   num_neighbours, &
+                                                                   neighbour_ids, &
+                                                                   rcv_ptrs, &
+                                                                   rcv_leids, & 
+                                                                   snd_ptrs, &
+                                                                   snd_leids) bind(c, name="F90_p8est_allocate_and_fill_cell_import_raw_arrays")
+       use, intrinsic :: iso_c_binding
+       import :: P4EST_F90_LOCIDX
+       implicit none
+       type(c_ptr)              , value, intent(in)   :: p4est
+       type(c_ptr)              , value, intent(in)   :: p4est_ghost
+       integer(P4EST_F90_LOCIDX)       , intent(out)  :: num_neighbours
+       type(c_ptr)                     , intent(out)  :: neighbour_ids
+       type(c_ptr)                     , intent(out)  :: rcv_ptrs
+       type(c_ptr)                     , intent(out)  :: rcv_leids
+       type(c_ptr)                     , intent(out)  :: snd_ptrs
+       type(c_ptr)                     , intent(out)  :: snd_leids
+     end subroutine F90_p8est_allocate_and_fill_cell_import_raw_arrays
+     
+     
      subroutine F90_p4est_compute_migration_control_data (p4est_old, p4est_new, num_ranks, lst_ranks, ptr_ranks, local_ids, old2new) &
           bind(c, name="F90_p4est_compute_migration_control_data")
        use, intrinsic :: iso_c_binding

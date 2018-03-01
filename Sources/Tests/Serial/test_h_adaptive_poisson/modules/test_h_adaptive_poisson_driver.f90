@@ -314,7 +314,7 @@ contains
 
     else if (this%triangulation%get_num_dims() == 3) then    
       do while ( .not. cell%has_finished() )
-          if ( (cell%get_gid()==6) .or. (cell%get_level() == 0) )then
+          if ( (cell%get_ggid()==1) .or. (cell%get_ggid()==4) .or. (cell%get_ggid()==5) .or. (cell%get_ggid()==8) )then
           call cell%set_for_refinement()
         end if
         call cell%next()
@@ -415,7 +415,7 @@ contains
     type is (hex_lagrangian_reference_fe_t)
        h_refinement_interpolation       => reference_fe%get_h_refinement_interpolation()
        h_refinement_subfacet_permutation => reference_fe%get_h_refinement_subfacet_permutation()
-       h_refinement_subedge_permutation => reference_fe%get_h_refinement_subedget_permutation()
+       h_refinement_subedge_permutation => reference_fe%get_h_refinement_subedge_permutation()
     class default
       assert(.false.)
     end select
@@ -595,7 +595,7 @@ contains
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
 #endif
     call parameter_list%free()
   end subroutine setup_solver
@@ -606,7 +606,7 @@ contains
     class(test_h_adaptive_poisson_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%numerical_setup()
+    call this%fe_affine_operator%compute()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
     

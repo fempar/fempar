@@ -66,6 +66,7 @@ USE mpi_context_names
 USE base_output_handler_names
 USE output_handler_parameters_names
 USE output_handler_fe_field_names
+USE output_handler_field_generator_names
 USE fe_space_names,             only: serial_fe_space_t
 USE output_handler_patch_names, only: patch_subcell_accessor_t
 USE reference_fe_names,         only: topology_hex, topology_tet
@@ -264,6 +265,7 @@ contains
         integer(ip)                                :: num_dims
         type(output_handler_fe_field_t), pointer   :: field
         integer(ip)                                :: i
+        type(output_handler_field_generator_info_t), pointer :: field_generator
     !-----------------------------------------------------------------
         num_nodes      = this%get_num_nodes()
         num_cells      = this%get_num_cells()
@@ -291,9 +293,15 @@ contains
             call this%FieldValues(i)%create(field%get_num_components(), this%get_num_nodes())
             call this%FieldValues(i)%init(0.0_rp)
         end do
+        do i=1, this%get_num_field_generators()
+            field_generator => this%get_field_generator(i)
+            call this%FieldValues(this%get_num_fields()+i)%create(field_generator%get_num_components(), this%get_num_nodes())
+            call this%FieldValues(this%get_num_fields()+i)%init(0.0_rp)
+        end do
+        
         do i=1, this%get_num_cell_vectors()
             call this%CellValues(i)%create(1, this%get_num_cells())
-	           call this%CellValues(i)%init(0.0_rp)
+            call this%CellValues(i)%init(0.0_rp)
         enddo
     end subroutine xh5_output_handler_allocate_cell_and_nodal_arrays
 
@@ -310,6 +318,7 @@ contains
         integer(ip)                                :: num_vertices
         integer(ip)                                :: num_dims
         integer(ip)                                :: num_fields
+        integer(ip)                                :: num_field_generators
         integer(ip)                                :: num_cell_vectors
         integer(ip)                                :: num_components
         integer(ip)                                :: connectivities_offset
@@ -317,7 +326,8 @@ contains
     !-----------------------------------------------------------------
         num_vertices   = subcell_accessor%get_num_vertices()
         num_dims = subcell_accessor%get_num_dims()
-        num_fields     = this%get_num_fields()
+        num_fields = this%get_num_fields()
+        num_field_generators = this%get_num_field_generators()
         num_cell_vectors = this%get_num_cell_vectors()
 
 
@@ -355,7 +365,7 @@ contains
             end select
         endif
 
-        do i=1, num_fields
+        do i=1, num_fields+num_field_generators
             num_components = this%FieldValues(i)%get_num_components()
             Value => this%FieldValues(i)%get_value()
             call subcell_accessor%get_field(i, Value((num_components*this%node_offset)+1:num_components*(this%node_offset+num_vertices)))
@@ -380,6 +390,7 @@ contains
         class(serial_fe_space_t),           pointer   :: fe_space
         type(environment_t),                pointer   :: environment
         type(output_handler_fe_field_t),    pointer   :: field
+        type(output_handler_field_generator_info_t), pointer :: field_generator
         type(output_handler_cell_vector_t), pointer   :: cell_vector
         real(rp), pointer                             :: Value(:)
         integer(ip)                                   :: attribute_type
@@ -394,7 +405,7 @@ contains
         assert(associated(environment))
 
         if( environment%am_i_l1_task()) then
-            if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_num_fields()))
+            if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_num_fields()+this%get_num_field_generators()))
             if(.not. allocated(this%CellValues)) allocate(this%CellValues(this%get_num_cell_vectors()))
 
             call this%fill_data(update_mesh = (.not. this%StaticGrid .or. this%num_steps <= 1))
@@ -430,7 +441,17 @@ contains
                                              Center = XDMF_ATTRIBUTE_CENTER_NODE ,  &
                                              Values = Value)
             enddo
-
+            
+            do i=1, this%get_num_field_generators()
+                field_generator => this%get_field_generator(i)
+                Value => this%FieldValues(this%get_num_fields()+i)%get_value()
+                attribute_type = num_components_to_xh5_AttributeType(this%FieldValues(this%get_num_fields()+i)%get_num_components())
+                call this%xh5%WriteAttribute(Name   = field_generator%get_name(),             &
+                                             Type   = attribute_type,               &
+                                             Center = XDMF_ATTRIBUTE_CENTER_NODE ,  &
+                                             Values = Value)
+            enddo
+            
             do i=1, this%get_num_cell_vectors()
                 cell_vector => this%get_cell_vector(i)
                 Value => this%CellValues(i)%get_value()

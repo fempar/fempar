@@ -32,13 +32,19 @@ subroutine pufs_create_same_reference_fes_on_all_cells(&
   triangulation, &
   reference_fes, &
   coarse_fe_handlers, &
-  conditions )
+  conditions,    & 
+  field_blocks,  &
+  field_coupling, & 
+  generate_global_dof_numbering )
   implicit none
-  class(par_unfitted_fe_space_t)            , intent(inout)  :: this
-  class(triangulation_t), target, intent(in)     :: triangulation
-  type(p_reference_fe_t)                    , intent(in)     :: reference_fes(:)
-  type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
-  class(conditions_t)             , optional, intent(in)     :: conditions
+  class(par_unfitted_fe_space_t)            , intent(inout) :: this
+  class(triangulation_t)            , target, intent(in)    :: triangulation
+  type(p_reference_fe_t)                    , intent(in)    :: reference_fes(:)
+  type(p_l1_coarse_fe_handler_t)            , intent(in)    :: coarse_fe_handlers(:)
+  class(conditions_t)             , optional, intent(in)    :: conditions
+  integer(ip)                     , optional, intent(in)    :: field_blocks(:)
+  logical                         , optional, intent(in)    :: field_coupling(:,:)
+  logical                         , optional, intent(in)    :: generate_global_dof_numbering
   mcheck(.false.,'You cannot create an unfitted fe space with the same reference fe on all cells (you need void and non void ref elems)')
 end subroutine pufs_create_same_reference_fes_on_all_cells
 
@@ -49,7 +55,10 @@ subroutine pufs_create_different_ref_fes_between_cells( &
     reference_fes, &
     set_ids_to_reference_fes, &
     coarse_fe_handlers, &
-    conditions )
+    conditions,    &
+    field_blocks,  &
+    field_coupling, & 
+    generate_global_dof_numbering )
   implicit none
   class(par_unfitted_fe_space_t)            , intent(inout)  :: this
   class(triangulation_t), target, intent(in)     :: triangulation
@@ -57,9 +66,19 @@ subroutine pufs_create_different_ref_fes_between_cells( &
   integer(ip)                               , intent(in)     :: set_ids_to_reference_fes(:,:)
   type(p_l1_coarse_fe_handler_t)            , intent(in)     :: coarse_fe_handlers(:)
   class(conditions_t)             , optional, intent(in)     :: conditions
+  integer(ip)                       , optional, intent(in)    :: field_blocks(:)
+  logical                           , optional, intent(in)    :: field_coupling(:,:)
+  logical                           , optional , intent(in)   :: generate_global_dof_numbering
+
   call this%free()
-  call this%par_fe_space_t%create(&
-    triangulation,reference_fes,set_ids_to_reference_fes,coarse_fe_handlers,conditions)
+  call this%par_fe_space_t%create(triangulation, &
+                                  reference_fes, &
+                                  set_ids_to_reference_fes, &
+                                  coarse_fe_handlers, &
+                                  conditions, &
+                                  field_blocks, &
+                                  field_coupling, &
+                                  generate_global_dof_numbering)
   select type(triangulation)
   class is (par_unfitted_triangulation_t)
     this%unfitted_triangulation => triangulation

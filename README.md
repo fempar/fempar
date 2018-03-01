@@ -11,8 +11,8 @@ Finite Element Multiphysics PARallel solvers
 - [Wiki](https://gitlab.com/fempar/fempar/wikis/home)
 - [Source code documentation](http://fempar.org/documentation/)
 - [Issue tracker](https://gitlab.com/fempar/fempar/issues)
-- [Continuous integration dashboard](https://gitlab.com/fempar/fempar/builds)
-- [Testing dashboard](http://my.cdash.org/index.php?project=Fempar)
+- [Continuous integration dashboard available at servercomfus (requires VPN connection to CIMNE Castelldefels local network)](http://ci.servercomfus/projects/2)
+- [Testing dashboard available at servercomfus (requires VPN connection to CIMNE Castelldefels local network)](http://servercomfus:8080/index.php?project=fempar)
 
 ## Compilation
 
@@ -69,10 +69,10 @@ Given a driver ```driver_name```, to run it (assuming it has been compiled, see 
 
 ```
 $ cd build/DRIVERS/driver_name/bin
-$ mpirun P ./driver_name [options]
+$ mpirun -np P ./driver_name [options]
 ```
 
-where ```P``` is the number of processors to be used. Clearly, ```mpirun P``` must be eliminated to run serial drivers.
+where ```P``` is the number of MPI processes to be used. Clearly, ```mpirun -np P``` must be eliminated to run serial drivers.
 
 To see the different options and default values we can do
 
