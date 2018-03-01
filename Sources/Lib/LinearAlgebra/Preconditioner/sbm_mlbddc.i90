@@ -143,10 +143,15 @@ subroutine mlbddc_update_matrix(this, same_nonzero_pattern )
       call this%numerical_setup()
     end if   
   else
-    call this%free_numerical_setup()
-    call this%free_symbolic_setup()
-    call this%symbolic_setup()
-    call this%numerical_setup()
+    if ( this%state_is_numeric() ) then
+      call this%free_numerical_setup()
+      call this%free_symbolic_setup()
+      call this%symbolic_setup()
+      call this%numerical_setup()
+    else if ( this%state_is_symbolic() ) then
+      call this%free_symbolic_setup()
+      call this%symbolic_setup()
+    end if
   end if 
 end subroutine mlbddc_update_matrix
 

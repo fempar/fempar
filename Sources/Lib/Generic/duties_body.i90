@@ -1,0 +1,121 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#ifdef __GFORTRAN__
+#define paste(a) a
+#define concat(a,b) paste(a)b
+#define reconcat(a,b) paste(a)b
+#else
+#define paste(a,b) a ## b
+#define concat(a,b) paste(a,b)
+#define reconcat(a,b) paste(a,b)
+#endif
+
+subroutine concat(duties,_assign)(this, that)
+  implicit none 
+  class( concat(duties,_t) ), intent(inout) :: this
+  type ( concat(duties,_t) ), intent(in)    :: that
+  this%assigned = that%assigned
+end subroutine concat(duties,_assign)
+
+#ifdef task_01 
+subroutine reconcat(duties,concat(_assign_,task_01))(this,assigned)
+  implicit none
+  class( concat(duties,_t) ), intent(inout) :: this
+  logical       , intent(in)    :: assigned
+  this%assigned( concat(duties,task_01) ) = assigned
+end subroutine reconcat(duties,concat(_assign_,task_01))
+function reconcat(concat(duties,_),concat(task_01,_is_assigned)) (this) result(flag)
+  implicit none
+  class( concat(duties,_t) ), intent(in) :: this
+  logical :: flag
+  flag = this%assigned( concat(duties,task_01) ) 
+end function reconcat(concat(duties,_),concat(task_01,_is_assigned)) 
+#endif
+
+
+#ifdef task_02 
+subroutine reconcat(duties,concat(_assign_,task_02))(this,assigned)
+  implicit none
+  class( concat(duties,_t) ), intent(inout) :: this
+  logical       , intent(in)    :: assigned
+  this%assigned( concat(duties,task_02) ) = assigned
+end subroutine reconcat(duties,concat(_assign_,task_02))
+function reconcat(concat(duties,_),concat(task_02,_is_assigned))(this) result(flag)
+  implicit none
+  class( concat(duties,_t) ), intent(in) :: this
+  logical :: flag
+  flag =  this%assigned( concat(duties,task_02) ) 
+end function reconcat(concat(duties,_),concat(task_02,_is_assigned))
+#endif
+
+#ifdef task_03 
+subroutine reconcat(duties,concat(_assign_,task_03))(this,assigned)
+  implicit none
+  class( concat(duties,_t) ), intent(inout) :: this
+  logical       , intent(in)    :: assigned
+  this%assigned( concat(duties,task_03) ) = assigned
+end subroutine reconcat(duties,concat(_assign_,task_03))
+function reconcat(concat(duties,_),concat(task_03,_is_assigned)) (this) result(flag)
+  implicit none
+  class( concat(duties,_t) ), intent(in) :: this
+  logical :: flag
+  flag = this%assigned( concat(duties,task_03) ) 
+end function reconcat(concat(duties,_),concat(task_03,_is_assigned)) 
+#endif
+
+#ifdef task_04 
+subroutine reconcat(duties,concat(_assign_,task_04))(this,assigned)
+  implicit none
+  class( concat(duties,_t) ), intent(inout) :: this
+  logical       , intent(in)    :: assigned
+  this%assigned( concat(duties,task_04) ) = assigned
+end subroutine reconcat(duties,concat(_assign_,task_04))
+function reconcat(concat(duties,_),concat(task_04,_is_assigned)) (this) result(flag)
+  implicit none
+  class( concat(duties,_t) ), intent(in) :: this
+  logical :: flag
+  flag = this%assigned( concat(duties,task_04) ) 
+end function reconcat(concat(duties,_),concat(task_04,_is_assigned)) 
+#endif
+
+#ifdef task_05 
+subroutine reconcat(duties,concat(_assign_,task_05))(this,assigned)
+  implicit none
+  class( concat(duties,_t) ), intent(inout) :: this
+  logical       , intent(in)    :: assigned
+  this%assigned( concat(duties,task_05) ) = assigned
+end subroutine reconcat(duties,concat(_assign_,task_05))
+function reconcat(concat(duties,_),concat(task_05,_is_assigned)) (this) result(flag)
+  implicit none
+  class( concat(duties,_t) ), intent(in) :: this
+  logical :: flag
+  flag = this%assigned( concat(duties,task_05) ) 
+end function reconcat(concat(duties,_),concat(task_05,_is_assigned)) 
+#endif
+
+
