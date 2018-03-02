@@ -71,6 +71,7 @@ subroutine lagrange_polynomial_get_values (this,x,p_x)
      end do
      p_x(1) = p_x(1)*(x-this%coefficients(i))
   end do
+  p_x(3) = 2.0_rp*p_x(3)
   p_x = p_x*this%coefficients(this%order+1)
 end subroutine lagrange_polynomial_get_values
 
