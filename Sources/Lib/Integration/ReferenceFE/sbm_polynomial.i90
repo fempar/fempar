@@ -123,7 +123,7 @@ subroutine monomial_get_values(this,x,p_x)
     p_x(2) = 0.0_rp
   end if 
   if ( this%order >= 2 ) then
-    p_x(3) = (real(this%order,rp)-1.0_rp)*real(this%order,rp) * x**(real(this%order,rp)-1.0_rp)
+    p_x(3) = (real(this%order,rp)-1.0_rp)*real(this%order,rp) * x**(real(this%order,rp)-2.0_rp)
   else
     p_x(3) = 0.0_rp
   end if  
