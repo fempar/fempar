@@ -85,13 +85,14 @@ subroutine tensor_product_polynomial_space_fill( this, points )
   end do
 end subroutine tensor_product_polynomial_space_fill
 
-subroutine tensor_product_polynomial_space_evaluate( this, q_point, values, gradients )
+subroutine tensor_product_polynomial_space_evaluate( this, q_point, values, gradients, second_derivatives )
   implicit none
   class(tensor_product_polynomial_space_t), intent(in)    :: this
   integer(ip)                             , intent(in)    :: q_point
   real(rp)                                , intent(inout) :: values(:)
   real(rp)                                , intent(inout) :: gradients(:,:)
-  integer(ip) :: ijk(SPACE_DIM),idime,ishape,jdime
+  real(rp)                     , optional , intent(inout) :: second_derivatives(:,:)
+  integer(ip) :: ijk(SPACE_DIM),idime,ishape,jdime,ldime,itens
   values = 1.0_rp
   
   !write(*,*) 'iq',q_point
@@ -121,6 +122,38 @@ subroutine tensor_product_polynomial_space_evaluate( this, q_point, values, grad
         end do
      end do
   end do    
+  if ( present(second_derivatives) ) then
+     do ishape = 1, this%num_polynomials
+        call index_to_ijk(ishape, this%num_dims, this%num_pols_dim, ijk)
+        do idime = 1, this%num_dims
+           do jdime = idime, this%num_dims
+              if ( idime == jdime ) then
+                 ! itens = idime
+                 second_derivatives(idime,ishape) = & 
+                    this%work_shape_data(idime)%a(3,ijk(idime),q_point)
+                 do ldime = 1, this%num_dims
+                    if ( ldime /= idime ) then
+                       second_derivatives(idime,ishape) = second_derivatives(idime,ishape) * & 
+                          this%work_shape_data(ldime)%a(1,ijk(ldime),q_point)
+                    end if
+                 end do
+              else
+                 itens = idime + jdime + this%num_dims - 2
+                 second_derivatives(itens,ishape) =                       & 
+                    this%work_shape_data(idime)%a(2,ijk(idime),q_point) * & 
+                    this%work_shape_data(idime)%a(2,ijk(jdime),q_point)
+                 do ldime = 1, this%num_dims
+                    if ( ldime /= idime .and. ldime /= jdime ) then
+                       second_derivatives(itens,ishape) =    & 
+                          second_derivatives(itens,ishape) * & 
+                          this%work_shape_data(ldime)%a(1,ijk(ldime),q_point)
+                    end if
+                 end do
+              end if
+           end do
+        end do
+     end do
+  end if
 end subroutine tensor_product_polynomial_space_evaluate   
 
 ! Truncated tensor product polynomial space TBP
@@ -157,12 +190,13 @@ subroutine truncated_tensor_product_polynomial_space_create ( this, dim, polynom
   end do countp
 end subroutine truncated_tensor_product_polynomial_space_create
 
-subroutine truncated_tensor_product_polynomial_space_evaluate(this, q_point, values, gradients)
+subroutine truncated_tensor_product_polynomial_space_evaluate(this, q_point, values, gradients, second_derivatives)
   implicit none
   class(truncated_tensor_product_polynomial_space_t), intent(in) :: this
   integer(ip)                             , intent(in)    :: q_point
   real(rp)                                , intent(inout) :: values(:)
   real(rp)                                , intent(inout) :: gradients(:,:)
+  real(rp)                     , optional , intent(inout) :: second_derivatives(:,:)
   integer(ip) :: ishape, i,j, idime, jdime, max_polynomials, ijk(SPACE_DIM)
   
   
