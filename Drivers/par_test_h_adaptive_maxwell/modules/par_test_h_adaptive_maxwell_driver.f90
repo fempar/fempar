@@ -313,6 +313,7 @@ end subroutine free_timers
     coarse_fe_handler => this%coarse_fe_handler 
 				select type (coarse_fe_handler) 
 				class is (h_adaptive_algebraic_l1_Hcurl_coarse_fe_handler_t) 
+    call coarse_fe_handler%set_num_dims(this%triangulation%get_num_dims())
 				call coarse_fe_handler%setup_object_dofs(1, this%fe_space, this%parameter_list)
 				class DEFAULT 
 				end select 

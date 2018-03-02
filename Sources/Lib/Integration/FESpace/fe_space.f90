@@ -932,8 +932,10 @@ module fe_space_names
   
      type, extends(standard_l1_coarse_fe_handler_t) :: h_adaptive_algebraic_l1_Hcurl_coarse_fe_handler_t
     private
+    integer(ip)              :: num_dims 
     integer(ip), allocatable :: dof_gid_to_cdof_id_in_object(:) 
   contains
+    procedure             :: set_num_dims                              => h_adaptive_algebraic_l1_Hcurl_set_num_dims 
     procedure             :: free                                      => h_adaptive_algebraic_l1_Hcurl_free
     procedure             :: setup_weighting_operator                  => h_adaptive_algebraic_l1_Hcurl_setup_weighting_operator
     procedure             :: setup_object_dofs                         => h_adaptive_algebraic_l1_Hcurl_setup_object_dofs
