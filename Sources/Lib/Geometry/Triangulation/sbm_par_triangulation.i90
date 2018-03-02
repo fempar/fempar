@@ -101,13 +101,17 @@ subroutine par_triangulation_create ( this, parameters, environment)
      geometry_interpolation_order = 1
   end if
   
-  if( parameters%isPresent(subparts_coupling_criteria_key) ) then
-     assert(parameters%isAssignable(subparts_coupling_criteria_key, subparts_coupling_criteria))
-     istat = parameters%GetAsString(key = subparts_coupling_criteria_key, string = subparts_coupling_criteria) 
-     assert(istat==0)
-     call this%set_subparts_coupling_criteria(subparts_coupling_criteria)
-  else
-     call this%set_subparts_coupling_criteria(loose_coupling) 
+  if(triangulation_generate==triangulation_generate_from_mesh) then
+     if( parameters%isPresent(subparts_coupling_criteria_key) ) then
+        assert(parameters%isAssignable(subparts_coupling_criteria_key, subparts_coupling_criteria))
+        istat = parameters%GetAsString(key = subparts_coupling_criteria_key, string = subparts_coupling_criteria) 
+        assert(istat==0)
+        call this%set_subparts_coupling_criteria(subparts_coupling_criteria)
+     else
+        call this%set_subparts_coupling_criteria(loose_coupling) 
+     end if
+  elseif(triangulation_generate==triangulation_generate_structured) then
+     call this%set_subparts_coupling_criteria(all_coupled)
   end if
 
   call this%free()

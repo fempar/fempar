@@ -1767,7 +1767,7 @@ function p4est_bt_compute_max_cells_set_id (this)
   class(environment_t), pointer :: environment 
   
   p_cell_set_ids => this%cell_set_ids%get_pointer()
-  p4est_bt_compute_max_cells_set_id = maxval(p_cell_set_ids) + 1
+  p4est_bt_compute_max_cells_set_id = maxval(p_cell_set_ids)
   
   environment => this%get_environment()
   call environment%l1_max(p4est_bt_compute_max_cells_set_id) 

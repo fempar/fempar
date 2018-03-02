@@ -622,9 +622,7 @@ subroutine triangulation_compute_vefs_and_parts_object(this)
 
   assert ( this%environment%am_i_l1_task() )
   
-  ! Allocate and fill disconnected cells set identifiers 
   call this%allocate_and_fill_disconnected_cells_set_id() 
-
   ! Subparts itinerary
   if ( this%is_conforming() ) then
     call this%compute_subparts_itfc_vefs_conforming_mesh(parts_itfc_vefs,perm_itfc_vefs)
@@ -659,36 +657,26 @@ end function triangulation_get_max_cell_set_id
 subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this ) 
   implicit none 
   class(triangulation_t), intent(inout) :: this
-  type(list_t)             :: dual_graph
-  integer(ip)              :: icell 
-  integer(ip)              :: disconnected_part_id 
-  integer(ip), allocatable :: disconnected_cells_set_id(:) 
-  class(environment_t), pointer       :: environment
-  integer(ip)              :: max_num_different_cell_set_ids 
+  type(list_t)                          :: dual_graph
+  integer(ip)                           :: icell 
+  integer(ip)                           :: disconnected_part_id 
+  integer(ip), allocatable              :: disconnected_cells_set_id(:) 
+  class(environment_t), pointer         :: environment
 
   call memalloc(this%get_num_local_cells(), disconnected_cells_set_id, __FILE__, __LINE__)
-  if ( this%environment%get_l1_size() <= 1 ) then 
+  
+  if ( this%subparts_coupling_criteria == all_coupled .or. this%environment%get_l1_size() <= 1 ) then 
      disconnected_cells_set_id = 0 
   else 
-     disconnected_cells_set_id = -1
-
      call this%generate_dual_graph(dual_graph)
+     call this%compute_disconnected_cells_set_id(dual_graph, disconnected_cells_set_id )
 
-     ! Fill disconnected parts array with recursive depth first search algorithm  
-     disconnected_part_id  = 0 
-     do icell = 1, dual_graph%get_num_pointers()  
-        if ( disconnected_cells_set_id( icell ) < 0 ) then 
-           call this%depth_first_search_algorithm( icell, dual_graph, disconnected_part_id, disconnected_cells_set_id ) 
-           disconnected_part_id  = disconnected_part_id  + 1
-        end if
-     end do
-  end if
-
+     ! Get max cell_set_ids among same level tasks 
+     this%max_cell_set_id = this%compute_max_cells_set_id() 
+ end if
+      
   call this%resize_disconnected_cells_set() 
   call this%fill_disconnected_cells_set( disconnected_cells_set_id ) 
-
-  ! Get upper bound for cell_set_ids among same level tasks 
-  this%max_cell_set_id = this%compute_max_cells_set_id() 
 
   ! Free data
   call dual_graph%free() 
@@ -833,26 +821,72 @@ subroutine triangulation_generate_dual_graph(this, dual_graph)
   call this%free_vef_iterator(vef)
 end subroutine triangulation_generate_dual_graph
 
-recursive subroutine triangulation_depth_first_search_algorithm(this, icell, dual_graph, disconnected_part_id, disconnected_cells_set_id)
+! Connected components of the graph are computed with the Breadth First Search algorithm. 
+subroutine triangulation_compute_disconnected_cells_set_id(this, dual_graph, disconnected_cells_set_id)
   implicit none 
   class(triangulation_t)  , intent(inout)  :: this
-  integer(ip)             , intent(in)     :: icell 
   type(list_t)            , intent(in)     :: dual_graph
-  integer(ip)             , intent(in)     :: disconnected_part_id  
   integer(ip)             , intent(inout)  :: disconnected_cells_set_id(:)
 
-  type(list_iterator_t) :: adjacent_elements 
+  ! BFS algorithm 
+  integer(ip)              :: head, tail 
+  integer(ip), allocatable :: queue(:) 
+  logical    , allocatable :: enqueued_cell(:) 
+  type(list_iterator_t)    :: adjacent_cells
+  integer(ip)              :: cell_lid 
+  integer(ip)              :: disconnected_set_id
+  integer(ip)              :: initial_cell  
 
-  disconnected_cells_set_id(icell) = disconnected_part_id 
-  adjacent_elements = dual_graph%create_iterator(icell) 
-  do while ( .not. adjacent_elements%is_upper_bound() ) 
-     if ( disconnected_cells_set_id(adjacent_elements%get_current()) < 0 ) then 
-        call this%depth_first_search_algorithm( adjacent_elements%get_current(), dual_graph, disconnected_part_id, disconnected_cells_set_id )
-     end if
-     call adjacent_elements%next()
+  ! Initialize disconnected_cells_set_id to an unassigned state 
+  disconnected_cells_set_id=-1 
+
+  call memalloc(dual_graph%get_num_pointers(), queue        , __FILE__, __LINE__ ) 
+  call memalloc(dual_graph%get_num_pointers(), enqueued_cell, __FILE__, __LINE__ )
+  enqueued_cell=.false. 
+  initial_cell = 1
+
+  disconnected_set_id= 0 
+  ! While any cell is unassigned 
+  do while ( minval(disconnected_cells_set_id) == -1 ) 
+
+     do while ( disconnected_cells_set_id(initial_cell) /= -1 ) 
+        initial_cell=initial_cell+1
+     end do
+
+     ! Initialize queue  
+     head=1
+     tail=1 
+     queue=0
+     ! Enqueue initial cell
+     queue(1)=initial_cell
+     tail=tail+1 
+     enqueued_cell(initial_cell)=.true.  
+     ! While Q is not empty 
+     do while ( head /= tail ) 
+        ! Dequeue next cell 
+        cell_lid = queue(head)
+        head=head+1 
+        if ( disconnected_cells_set_id(cell_lid) == -1 ) then 
+           disconnected_cells_set_id(cell_lid)=disconnected_set_id
+           adjacent_cells=dual_graph%create_iterator(cell_lid)
+           do while ( .not. adjacent_cells%is_upper_bound() ) 
+              cell_lid = adjacent_cells%get_current() 
+              if ( disconnected_cells_set_id(cell_lid)==-1 .and. .not. enqueued_cell(cell_lid) ) then 
+                 ! Enqueue neighbour cell 
+                 enqueued_cell(cell_lid)=.true. 
+                 queue(tail) = cell_lid
+                 tail=tail+1
+              end if
+              call adjacent_cells%next() 
+           end do
+        end if
+     end do
+     
+     disconnected_set_id = disconnected_set_id + 1
   end do
-
-end subroutine triangulation_depth_first_search_algorithm
+  call memfree(queue, __FILE__, __LINE__ )
+  call memfree(enqueued_cell, __FILE__, __LINE__)
+end subroutine triangulation_compute_disconnected_cells_set_id
 
 subroutine triangulation_compute_vefs_and_parts_object_body(this, parts_itfc_vefs, perm_itfc_vefs, parts_object, vefs_object)
   implicit none

@@ -160,7 +160,7 @@ function bst_compute_max_cells_set_id (this)
   integer(ip)                                       :: bst_compute_max_cells_set_id
   class(environment_t), pointer :: environment 
   
-  bst_compute_max_cells_set_id = maxval(this%cells_set) + 1
+  bst_compute_max_cells_set_id = maxval(this%cells_set)
   environment => this%get_environment()
   call environment%l1_max(bst_compute_max_cells_set_id) 
 end function bst_compute_max_cells_set_id 

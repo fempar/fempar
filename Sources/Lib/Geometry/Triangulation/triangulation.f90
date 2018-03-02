@@ -629,7 +629,7 @@ module triangulation_names
      type(list_t)                          :: vefs_object
      type(list_t)                          :: faces_object
      type(list_t)                          :: parts_object
-     integer(ip)                           :: max_cell_set_id = 0        ! Max number of different disconnected subparts among procs.  
+     integer(ip)                           :: max_cell_set_id = 0        ! Max cell_set_id among parts   
      integer(ip)                           :: num_subparts = 0           ! num of subparts around part (including those subparts which are local)
      character(len=:), allocatable         :: subparts_coupling_criteria 
      type(list_t)                          :: subparts_object            ! num and list of subparts GIDs around each coarse n_face
@@ -744,7 +744,7 @@ module triangulation_names
      procedure                           :: get_max_cell_set_id                         => triangulation_get_max_cell_set_id
      procedure, non_overridable          :: set_subparts_coupling_criteria              => triangulation_set_subparts_coupling_criteria 
      procedure, non_overridable, private :: allocate_and_fill_disconnected_cells_set_id => triangulation_allocate_and_fill_disconnected_cells_set_id 
-     procedure, non_overridable, private :: depth_first_search_algorithm                => triangulation_depth_first_search_algorithm
+     procedure, non_overridable, private :: compute_disconnected_cells_set_id           => triangulation_compute_disconnected_cells_set_id
      procedure, non_overridable, private :: generate_dual_graph                         => triangulation_generate_dual_graph  
      procedure(compute_max_cells_set_id_interface)     , deferred :: compute_max_cells_set_id 
      procedure(resize_disconnected_cells_set_interface), deferred :: resize_disconnected_cells_set
@@ -852,6 +852,7 @@ module triangulation_names
   public :: triangulation_generate_key
   
   character(len=*), parameter :: subparts_coupling_criteria_key = 'subparts_coupling_criteria'
+  character(len=*), parameter :: all_coupled                    = 'all_coupled'
   character(len=*), parameter :: loose_coupling                 = 'loose_coupling' 
   character(len=*), parameter :: strong_coupling                = 'strong_coupling' 
   public :: subparts_coupling_criteria_key 
