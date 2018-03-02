@@ -575,6 +575,7 @@ subroutine par_fe_space_compute_blocks_dof_import ( this )
      call this%compute_dof_import(iblock)
    else
      call this%compute_dof_import_non_conforming_mesh(iblock)
+     call this%compute_lst_parts_around_itfc_dofs(1)
    end if
   end do
 end subroutine par_fe_space_compute_blocks_dof_import
@@ -2301,6 +2302,175 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
   !end do 
 
 end subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner
+
+subroutine pfs_compute_lst_parts_around_itfc_dofs(this, field_id) 
+  implicit none
+  class(par_fe_space_t), intent(in) :: this
+  integer(ip)          , intent(in) :: field_id
+
+  class(fe_cell_iterator_t), allocatable :: fe 
+  type(fe_vef_iterator_t) :: vef 
+  class(triangulation_t), pointer :: triangulation
+  type(cell_import_t), pointer :: cell_import
+  class(environment_t), pointer :: environment
+  integer(ip) :: num_parts_around
+ 
+  integer(ip), allocatable :: lst_parts_around_itfc_dofs(:,:)
+  integer(ip), allocatable :: dof_gid_to_itfc_dof_gid(:)
+  integer(ip) :: block_id
+  integer(ip) :: num_blk_proper_dofs
+  integer(ip) :: num_blk_improper_dofs
+  integer(ip) :: num_itfc_dofs
+  integer(ip) :: current_itfc_dof
+  integer(ip) :: part_id
+  integer(ip) :: local_part_id
+  integer(ip) :: mypart_id
+  integer(ip) :: ielem
+  integer(ip) :: idof
+  integer(ip) :: ivef
+  integer(ip) :: dof_gid
+  integer(ip) :: num_parts
+ 
+  logical, allocatable :: touched_neighbours(:)
+  integer(ip), allocatable :: parts_visited(:)
+  integer(ip), pointer :: fe_dofs(:)
+  logical :: dofs_found
+  class(reference_fe_t), pointer :: reference_fe
+  type(list_iterator_t) :: own_dofs_on_vef_iterator
+
+  triangulation => this%get_triangulation()
+  cell_import   => triangulation%get_cell_import()
+  environment   => triangulation%get_environment()
+  num_parts_around = cell_import%get_num_neighbours()+1
+
+  call this%create_itfc_fe_vef_iterator(vef)
+  call this%create_fe_cell_iterator(fe) 
+  
+  block_id = this%block_layout%get_block_id(field_id)
+  num_blk_proper_dofs    = this%block_layout%get_block_num_dofs(block_id)
+  num_blk_improper_dofs  = this%ptr_constraining_free_dofs%size() 
+  call memalloc(num_blk_proper_dofs+num_blk_improper_dofs,&
+                dof_gid_to_itfc_dof_gid, __FILE__, __LINE__ )
+  call count_itfc_dofs_and_fill_dof_gid_to_itfc_dof_gid()
+  
+  ! Allocate and initialize lst_parts_around_itfc_dofs
+  num_parts_around = cell_import%get_num_neighbours()+1
+  call memalloc ( num_parts_around+1, &
+                  num_itfc_dofs, &
+                  lst_parts_around_itfc_dofs, __FILE__, __LINE__ )
+  
+  ! Fill lst_parts_around_itfc_dofs_using_cells_around()
+  call fill_lst_parts_around_itfc_dofs_using_cells_around()
+  
+  !call fill_lst_parts_around_by_hanging_nodes_coupling()
+  
+  call this%free_fe_vef_iterator(vef)
+  call this%free_fe_cell_iterator(fe)
+  call memfree(dof_gid_to_itfc_dof_gid, __FILE__, __LINE__ )
+contains
+  subroutine count_itfc_dofs_and_fill_dof_gid_to_itfc_dof_gid()
+    implicit none
+    num_itfc_dofs   = 0
+    dof_gid_to_itfc_dof_gid=-1
+    do while(.not. vef%has_finished())
+       dofs_found = .false.
+       do ielem=1, vef%get_num_cells_around()
+          call vef%get_cell_around(ielem,fe)
+          ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+          reference_fe => fe%get_reference_fe(field_id)
+          call fe%get_field_fe_dofs( field_id, fe_dofs )
+          own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+          do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+             idof =  own_dofs_on_vef_iterator%get_current()
+             dof_gid = fe_dofs(idof)
+             if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+                call own_dofs_on_vef_iterator%next()
+                cycle
+             end if
+
+             dofs_found = .true.
+             if ( dof_gid_to_itfc_dof_gid(get_consecutive_dof_gid(dof_gid)) ==-1) then
+                num_itfc_dofs = num_itfc_dofs+1    
+                dof_gid_to_itfc_dof_gid(get_consecutive_dof_gid(dof_gid))=num_itfc_dofs 
+             end if
+             call own_dofs_on_vef_iterator%next()
+          end do
+          if (dofs_found) exit 
+       end do
+       call vef%next()
+    end do
+  end subroutine count_itfc_dofs_and_fill_dof_gid_to_itfc_dof_gid
+
+  subroutine fill_lst_parts_around_itfc_dofs_using_cells_around()
+    implicit none
+    lst_parts_around_itfc_dofs = 0
+    call memalloc ( cell_import%get_num_neighbours(), &
+         touched_neighbours, &
+         __FILE__, __LINE__ )
+
+    call memalloc ( cell_import%get_num_neighbours(), &
+         parts_visited, &
+         __FILE__, __LINE__ )
+
+    mypart_id = environment%get_l1_rank() + 1
+    current_itfc_dof = 1
+    call vef%first()
+    do while(.not. vef%has_finished())
+       touched_neighbours = .false.
+       num_parts = 0 
+       dofs_found = .false.
+       ! Retrieve parts around current vef
+       do ielem=1, vef%get_num_cells_around()
+          call vef%get_cell_around(ielem,fe)
+          part_id = fe%get_my_part()
+          if ( part_id /= mypart_id ) then
+             local_part_id = cell_import%get_local_neighbour_id(part_id)
+             if ( .not. touched_neighbours(local_part_id) ) then
+                touched_neighbours (local_part_id) = .true.
+                num_parts = num_parts + 1
+                parts_visited (num_parts) = part_id
+             end if
+          end if
+       end do
+
+       ! Go over DoFs around current vef and list parts around
+       do ielem=1, vef%get_num_cells_around()
+          call fe%get_field_fe_dofs( field_id, fe_dofs )
+          reference_fe => fe%get_reference_fe(field_id)
+          own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+          do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+             idof =  own_dofs_on_vef_iterator%get_current()
+             dof_gid = fe_dofs(idof)
+             if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+                call own_dofs_on_vef_iterator%next()
+                cycle
+             end if
+
+             lst_parts_around_itfc_dofs(1,current_itfc_dof) = num_parts + 1 
+             lst_parts_around_itfc_dofs(2,current_itfc_dof) = mypart_id
+             lst_parts_around_itfc_dofs(3:size(parts_visited)+3,current_itfc_dof) = parts_visited(1:num_parts)
+             current_itfc_dof = current_itfc_dof + 1 
+
+             call own_dofs_on_vef_iterator%next()
+          end do
+          if (dofs_found) exit 
+       end do
+       call vef%next()
+    end do
+    call memfree ( parts_visited, __FILE__, __LINE__ )
+    call memfree ( touched_neighbours, __FILE__, __LINE__ )
+  end subroutine fill_lst_parts_around_itfc_dofs_using_cells_around
+
+  function get_consecutive_dof_gid(dof_gid)
+    implicit none
+    integer(ip), intent(in) :: dof_gid
+    integer(ip) :: get_consecutive_dof_gid
+    get_consecutive_dof_gid = abs(dof_gid)
+    if ( fe%is_hanging_dof(dof_gid) ) then
+       get_consecutive_dof_gid = (get_consecutive_dof_gid-this%num_dirichlet_dofs) + num_blk_proper_dofs  
+    end if
+  end function get_consecutive_dof_gid
+end subroutine pfs_compute_lst_parts_around_itfc_dofs
 
 function par_fe_space_compute_raw_interface_data_by_facet_integ ( this, &
                                                                  fe_space_id, &
