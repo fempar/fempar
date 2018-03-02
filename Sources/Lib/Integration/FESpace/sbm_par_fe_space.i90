@@ -2317,6 +2317,7 @@ subroutine pfs_compute_lst_parts_around_itfc_dofs(this, field_id)
  
   integer(ip), allocatable :: lst_parts_around_itfc_dofs(:,:)
   integer(ip), allocatable :: dof_gid_to_itfc_dof_gid(:)
+  integer(ip), allocatable :: itfc_dof_gid_to_dof_gid(:)
   integer(ip) :: block_id
   integer(ip) :: num_blk_proper_dofs
   integer(ip) :: num_blk_improper_dofs
@@ -2348,7 +2349,7 @@ subroutine pfs_compute_lst_parts_around_itfc_dofs(this, field_id)
   
   block_id = this%block_layout%get_block_id(field_id)
   num_blk_proper_dofs    = this%block_layout%get_block_num_dofs(block_id)
-  num_blk_improper_dofs  = this%ptr_constraining_free_dofs%size() 
+  num_blk_improper_dofs  = this%ptr_constraining_free_dofs%size()-1 
   call memalloc(num_blk_proper_dofs+num_blk_improper_dofs,&
                 dof_gid_to_itfc_dof_gid, __FILE__, __LINE__ )
   call count_itfc_dofs_and_fill_dof_gid_to_itfc_dof_gid()
@@ -2359,14 +2360,19 @@ subroutine pfs_compute_lst_parts_around_itfc_dofs(this, field_id)
                   num_itfc_dofs, &
                   lst_parts_around_itfc_dofs, __FILE__, __LINE__ )
   
+  call memalloc ( num_itfc_dofs, itfc_dof_gid_to_dof_gid, __FILE__, __LINE__ )
+  
+  
   ! Fill lst_parts_around_itfc_dofs_using_cells_around()
   call fill_lst_parts_around_itfc_dofs_using_cells_around()
   
-  !call fill_lst_parts_around_by_hanging_nodes_coupling()
+  call complete_lst_parts_around_itfc_dofs_using_constraints()
   
   call this%free_fe_vef_iterator(vef)
   call this%free_fe_cell_iterator(fe)
   call memfree(dof_gid_to_itfc_dof_gid, __FILE__, __LINE__ )
+  call memfree(itfc_dof_gid_to_dof_gid, __FILE__, __LINE__ )
+  call memfree(lst_parts_around_itfc_dofs, __FILE__, __LINE__ )
 contains
   subroutine count_itfc_dofs_and_fill_dof_gid_to_itfc_dof_gid()
     implicit none
@@ -2435,6 +2441,8 @@ contains
 
        ! Go over DoFs around current vef and list parts around
        do ielem=1, vef%get_num_cells_around()
+          call vef%get_cell_around(ielem,fe)
+          ivef = fe%get_vef_lid_from_gid(vef%get_gid())
           call fe%get_field_fe_dofs( field_id, fe_dofs )
           reference_fe => fe%get_reference_fe(field_id)
           own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
@@ -2448,8 +2456,11 @@ contains
 
              lst_parts_around_itfc_dofs(1,current_itfc_dof) = num_parts + 1 
              lst_parts_around_itfc_dofs(2,current_itfc_dof) = mypart_id
-             lst_parts_around_itfc_dofs(3:size(parts_visited)+3,current_itfc_dof) = parts_visited(1:num_parts)
+             lst_parts_around_itfc_dofs(3:num_parts+2,current_itfc_dof) = parts_visited(1:num_parts)
+             
+             itfc_dof_gid_to_dof_gid(current_itfc_dof) = dof_gid
              current_itfc_dof = current_itfc_dof + 1 
+             dofs_found = .true.
 
              call own_dofs_on_vef_iterator%next()
           end do
@@ -2460,7 +2471,59 @@ contains
     call memfree ( parts_visited, __FILE__, __LINE__ )
     call memfree ( touched_neighbours, __FILE__, __LINE__ )
   end subroutine fill_lst_parts_around_itfc_dofs_using_cells_around
-
+  
+  subroutine complete_lst_parts_around_itfc_dofs_using_constraints()
+    implicit none
+    integer(ip) :: free_dof_gid
+    integer(ip) :: pos
+    integer(ip) :: source_col
+    integer(ip) :: target_col
+    integer(ip) :: i 
+    integer(ip) :: pos_in_ptr
+    do i=1, num_itfc_dofs
+      dof_gid=itfc_dof_gid_to_dof_gid(i)
+      if (fe%is_hanging_dof(dof_gid)) then
+        pos_in_ptr= abs(dof_gid)-this%num_dirichlet_dofs
+        do pos=this%ptr_constraining_free_dofs%get(pos_in_ptr), this%ptr_constraining_free_dofs%get(pos_in_ptr+1)-1 
+          free_dof_gid = this%constraining_free_dofs%get(pos)
+          source_col = dof_gid_to_itfc_dof_gid(get_consecutive_dof_gid(dof_gid))
+          target_col = dof_gid_to_itfc_dof_gid(free_dof_gid)
+          assert ( source_col /= -1 .and. target_col /= -1 )
+          call merge_lst_parts_around_itfc_dofs_cols (source_col, target_col)
+        end do
+      end if
+    end do
+  end subroutine complete_lst_parts_around_itfc_dofs_using_constraints
+  
+  subroutine merge_lst_parts_around_itfc_dofs_cols ( source_col, target_col )
+    implicit none
+    integer(ip), intent(in) :: source_col
+    integer(ip), intent(in) :: target_col
+    integer(ip) :: num_parts_col1
+    integer(ip) :: num_parts_col2
+    integer(ip) :: part_id_col1
+    integer(ip) :: part_id_col2
+    integer(ip) :: i, j
+    logical :: found
+    num_parts_col2=lst_parts_around_itfc_dofs(1,target_col)
+    do i=2,num_parts_col2+1
+       part_id_col2=lst_parts_around_itfc_dofs(i,target_col)
+       found = .false.
+       num_parts_col1=lst_parts_around_itfc_dofs(1,source_col)
+       do j=2,num_parts_col1+1
+         part_id_col1=lst_parts_around_itfc_dofs(j,source_col)
+         if ( part_id_col1 == part_id_col2 ) then
+           found = .true.
+           exit
+         end if
+       end do
+       if ( .not. found ) then
+         lst_parts_around_itfc_dofs(1,source_col) = lst_parts_around_itfc_dofs(1,source_col) + 1 
+         lst_parts_around_itfc_dofs(lst_parts_around_itfc_dofs(1,source_col),source_col) = part_id_col2  
+       end if
+    end do 
+  end subroutine merge_lst_parts_around_itfc_dofs_cols
+  
   function get_consecutive_dof_gid(dof_gid)
     implicit none
     integer(ip), intent(in) :: dof_gid
