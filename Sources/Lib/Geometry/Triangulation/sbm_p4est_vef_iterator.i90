@@ -428,7 +428,8 @@ function fempar_to_p4est_face(iface,num_dims)
 end function fempar_to_p4est_face
 
 function p4est_connectivity_has_half_neighbours(conn,num_dims)
-  integer(kind=1), intent(in) :: conn
+  implicit none
+  integer(P4EST_F90_QLEVEL), intent(in) :: conn
   integer(ip), intent(in) :: num_dims
   logical :: p4est_connectivity_has_half_neighbours
   p4est_connectivity_has_half_neighbours = .false.
