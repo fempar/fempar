@@ -1036,8 +1036,9 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
   !       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
   !
   if(phy%my_duties%compute_second_derivatives_is_assigned()) then
-    call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
+     call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
      call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
+     call memalloc(ntens,wvec1,__FILE__,__LINE__)
      do ilocs=1,nlocs
         ! Transforms the array HESSI to a symmetric matrix WMAT1
         do inode=1,nnode
@@ -1078,6 +1079,7 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
      end do
      call memfree(wmat1,__FILE__,__LINE__)
      call memfree(wmat2,__FILE__,__LINE__)
+     call memfree(wvec1,__FILE__,__LINE__)
   end if
 end subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation
 
