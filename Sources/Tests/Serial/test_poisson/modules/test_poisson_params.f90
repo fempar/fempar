@@ -41,6 +41,7 @@ module test_poisson_params_names
      character(len=:), allocatable :: default_fe_formulation
      character(len=:), allocatable :: default_reference_fe_geo_order
      character(len=:), allocatable :: default_reference_fe_order
+     character(len=:), allocatable :: default_reference_fe_type
      character(len=:), allocatable :: default_write_solution
      character(len=:), allocatable :: default_laplacian_type
      character(len=:), allocatable :: default_triangulation_type
@@ -63,6 +64,7 @@ module test_poisson_params_names
      character(len=str_cla_len)    :: fe_formulation
      integer(ip)                   :: reference_fe_geo_order
      integer(ip)                   :: reference_fe_order
+     character(len=str_cla_len)    :: reference_fe_type
      logical                       :: write_solution
      character(len=str_cla_len)    :: laplacian_type
 
@@ -86,6 +88,7 @@ module test_poisson_params_names
      procedure, non_overridable             :: get_fe_formulation
      procedure, non_overridable             :: get_reference_fe_geo_order
      procedure, non_overridable             :: get_reference_fe_order
+     procedure, non_overridable             :: get_reference_fe_type
      procedure, non_overridable             :: get_write_solution
      procedure, non_overridable             :: get_laplacian_type
      procedure, non_overridable             :: get_triangulation_type
@@ -128,6 +131,7 @@ contains
     this%default_fe_formulation = 'cG'
     this%default_reference_fe_geo_order = '1'
     this%default_reference_fe_order = '1'
+    this%default_reference_fe_type = fe_type_lagrangian
     this%default_write_solution = '.false.'
     this%default_laplacian_type = 'scalar'
     
@@ -171,6 +175,8 @@ contains
     check(error==0)  
     call this%cli%add(switch='--reference-fe-order',switch_ab='-order',help='Order of the fe space reference fe',&
          &            required=.false.,act='store',def=trim(this%default_reference_fe_order),error=error) 
+       call this%cli%add(switch='--reference-fe-type',switch_ab='-fe-type',help='Type of reference fe',&
+         &            required=.false.,act='store',def=trim(this%default_reference_fe_type),error=error) 
     check(error==0) 
     call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
          &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
@@ -230,6 +236,7 @@ contains
     call this%cli%get(switch='-f',val=this%fe_formulation,error=istat); check(istat==0)
     call this%cli%get(switch='-gorder',val=this%reference_fe_geo_order,error=istat); check(istat==0)
     call this%cli%get(switch='-order',val=this%reference_fe_order,error=istat); check(istat==0)
+    call this%cli%get(switch='-fe-type',val=this%reference_fe_type,error=istat); check(istat==0)
     call this%cli%get(switch='-wsolution',val=this%write_solution,error=istat); check(istat==0)
     call this%cli%get(switch='-lt',val=this%laplacian_type,error=istat); check(istat==0)
 
@@ -271,6 +278,7 @@ contains
     if(allocated(this%default_dir_path_out)) deallocate(this%default_dir_path_out)
     if(allocated(this%default_reference_fe_geo_order)) deallocate(this%default_reference_fe_geo_order)
     if(allocated(this%default_reference_fe_order)) deallocate(this%default_reference_fe_order)
+    if(allocated(this%default_reference_fe_type)) deallocate(this%default_reference_fe_type)
     if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
     if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
     if(allocated(this%default_use_void_fes)) deallocate(this%default_use_void_fes) 
@@ -325,6 +333,14 @@ contains
     integer(ip) :: get_reference_fe_order
     get_reference_fe_order = this%reference_fe_order
   end function get_reference_fe_order
+
+  !==================================================================================================
+  function get_reference_fe_type(this)
+    implicit none
+    class(test_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable :: get_reference_fe_type
+    get_reference_fe_type = this%reference_fe_type
+  end function get_reference_fe_type
   
   !==================================================================================================
   function get_write_solution(this)

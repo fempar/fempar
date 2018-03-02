@@ -390,6 +390,7 @@ module reference_fe_names
   character(*), parameter :: topology_hex = "hex"
   character(*), parameter :: topology_tet = "tet"
   character(*), parameter :: fe_type_lagrangian = "Lagrangian"
+  character(*), parameter :: fe_type_serendipity = "Serendipity"
   character(*), parameter :: fe_type_raviart_thomas = "Raviart_Thomas"
   character(*), parameter :: fe_type_nedelec = "Nedelec"
   character(*), parameter :: fe_type_void = "Void"
@@ -1021,6 +1022,7 @@ contains
 
   procedure :: create                    => lagrangian_reference_fe_create
   procedure :: fill_scalar               => lagrangian_reference_fe_fill_scalar
+  procedure :: fill_topology             => lagrangian_reference_fe_fill_topology
   procedure :: create_quadrature         => lagrangian_reference_fe_create_quadrature
   procedure :: create_facet_quadrature    => lagrangian_reference_fe_create_facet_quadrature
   procedure :: create_interpolation      => lagrangian_reference_fe_create_interpolation
@@ -1468,6 +1470,63 @@ end type hex_lagrangian_reference_fe_t
 public :: hex_lagrangian_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+integer(ip), parameter :: serendipity_to_lagr(2:3,0:4) =&
+  reshape([0,0,0,0,0,0,0,0,2,0],[2,5])
+
+type, extends(lagrangian_reference_fe_t) :: hex_serendipity_reference_fe_t
+private
+
+contains 
+
+procedure :: create => hsrf_create
+
+  ! Deferred TBP implementors from reference_fe_t
+procedure :: check_compatibility_of_n_faces                                 &
+&   => hsrf_check_compatibility_of_n_faces
+procedure :: get_characteristic_length                                   &
+&   => hsrf_get_characteristic_length
+procedure :: get_num_subcells                                         &
+&   => hsrf_get_num_subcells
+procedure :: get_subcells_connectivity                                   &
+&   => hsrf_get_subcells_connectivity
+procedure :: blending                                                    &
+&   => hsrf_blending           
+! Deferred TBP implementors from lagrangian_reference_fe_t
+procedure          :: create_data_out_quadrature                         & 
+    => hex_serendipity_create_data_out_quadrature
+procedure, private :: fill_quadrature                                    &
+& => hsrf_fill_quadrature
+procedure, private :: fill_nodal_quadrature                              &
+& => hsrf_fill_nodal_quadrature
+procedure, private :: fill_interpolation                                 &
+& => hsrf_fill_interpolation
+procedure, private :: fill_interp_restricted_to_facet                            &
+& => hsrf_fill_interp_restricted_to_facet
+! Overwriten TBPs from lagrangian_reference_fe_t
+procedure :: free                                                        &
+& => hsrf_free
+! Concrete TBPs of this derived data type
+procedure, private :: fill_h_refinement_interpolation                    &
+& => hsrf_fill_h_refinement_interpolation
+procedure, private :: fill_h_refinement_permutations                     &
+& => hsrf_fill_h_refinement_permutations
+procedure, private :: fill_n_subfacet_permutation                         &
+& => hsrf_fill_n_subfacet_permutation
+procedure          :: interpolate_nodal_values_on_subcell                &
+& => hsrf_interpolate_nodal_values_on_subcell
+procedure          :: project_nodal_values_on_cell                       &
+& => hsrf_project_nodal_values_on_cell
+procedure          :: get_h_refinement_coefficient                       &
+& => hsrf_get_h_refinement_coefficient
+procedure, private :: compute_num_quadrature_points                   &
+& => hsrf_compute_num_quadrature_points
+procedure :: fill_qpoints_permutations                                   &
+& => hsrf_fill_qpoints_permutations
+end type hex_serendipity_reference_fe_t
+
+public :: hex_serendipity_reference_fe_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(raviart_thomas_reference_fe_t) :: hex_raviart_thomas_reference_fe_t
 private
 contains 
@@ -1876,6 +1935,8 @@ contains
 #include "sbm_hex_lagrangian_reference_fe.i90"
 
 #include "sbm_tet_lagrangian_reference_fe.i90"
+
+#include "sbm_hex_serendipity_reference_fe.i90"
 
 #include "sbm_hex_raviart_thomas_reference_fe.i90"
 

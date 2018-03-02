@@ -1192,29 +1192,14 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
   type(facet_iterator_t) :: facet_iterator
   type(list_iterator_t) :: list_iterator
   integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM)
-  ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
-  if ( this%topology == topology_hex) then
-     topology = 2**this%num_dims-1
-  elseif ( this%topology == topology_tet ) then
-     topology = 0
-  end if
-  call this%polytope%create( this%num_dims, topology )  
+
+  call this%fill_topology()
+  
+  num_n_faces = this%num_n_faces+1
+  
   call this%node_array%create( this%polytope, this%order_vector ) 
-  num_n_faces = this%polytope%get_num_n_faces()
   ! Number nodes
   this%num_shape_functions = this%node_array%get_num_nodes()
-  ! Number n-faces ( I don't like it, not volume included...)
-  this%num_n_faces = num_n_faces-1
-  ! num_n-faces_dim
-  this%ptr_n_faces_x_dim = 0
-  this%ptr_n_faces_x_dim(1) = 1
-  do i = 1,num_n_faces
-     n_face_dim = this%polytope%get_n_face_dim(i)
-     this%ptr_n_faces_x_dim( n_face_dim+2 ) = this%ptr_n_faces_x_dim( n_face_dim+2 ) + 1
-  end do
-  do i = 1,this%num_dims+1
-     this%ptr_n_faces_x_dim(i+1) = this%ptr_n_faces_x_dim(i+1) + this%ptr_n_faces_x_dim(i)
-  end do
   ! own_dofs_nodes_n-face  
   call this%own_dofs_n_face%create( num_n_faces )
   do i = 1,num_n_faces
@@ -1257,6 +1242,53 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         call list_iterator%next()
      end do
   end do
+
+  if ( this%conformity .and. this%continuity ) then
+  else
+     call this%own_dofs_n_face%create(n=num_n_faces )
+     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%num_shape_functions)
+     call this%own_dofs_n_face%calculate_header()
+     call this%own_dofs_n_face%allocate_list_from_pointer()
+     list_iterator = this%own_dofs_n_face%create_iterator()
+     i=1
+     do while(.not. list_iterator%is_upper_bound())
+        call list_iterator%set_current(i)
+        call list_iterator%next()
+        i = i + 1 
+     enddo
+  end if
+end subroutine lagrangian_reference_fe_fill_scalar
+
+subroutine lagrangian_reference_fe_fill_topology (this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout)    :: this 
+  type(node_iterator_t) :: node_iterator
+  type(facet_iterator_t) :: facet_iterator
+  type(list_iterator_t) :: list_iterator
+  integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM)
+
+  ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
+  if ( this%topology == topology_hex) then
+     topology = 2**this%num_dims-1
+  elseif ( this%topology == topology_tet ) then
+     topology = 0
+  end if
+  call this%polytope%create( this%num_dims, topology )  
+  num_n_faces = this%polytope%get_num_n_faces()
+  ! Number n-faces ( I don't like it, not volume included...)
+  this%num_n_faces = num_n_faces-1
+
+  ! num_n-faces_dim
+  this%ptr_n_faces_x_dim = 0
+  this%ptr_n_faces_x_dim(1) = 1
+  do i = 1,num_n_faces
+     n_face_dim = this%polytope%get_n_face_dim(i)
+     this%ptr_n_faces_x_dim( n_face_dim+2 ) = this%ptr_n_faces_x_dim( n_face_dim+2 ) + 1
+  end do
+  do i = 1,this%num_dims+1
+     this%ptr_n_faces_x_dim(i+1) = this%ptr_n_faces_x_dim(i+1) + this%ptr_n_faces_x_dim(i)
+  end do
+ 
   ! vertices_n-face
   call this%vertices_n_face%create(num_n_faces)
   ones_dim = 1
@@ -1301,6 +1333,7 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         call list_iterator%next()
      end do
   end do
+
   ! orientation
   call this%orientation%create(num_n_faces)
   do i = 1,num_n_faces
@@ -1308,22 +1341,7 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         this%orientation%a(i) = facet_orientation( this%polytope%get_n_face(i), this%num_dims )
      end if
   end do
-  ! own_nodes_n-face and facet_integration_coupling_nodes_n-face
-  if ( this%conformity .and. this%continuity ) then
-  else
-     call this%own_dofs_n_face%create(n=num_n_faces )
-     call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%num_shape_functions)
-     call this%own_dofs_n_face%calculate_header()
-     call this%own_dofs_n_face%allocate_list_from_pointer()
-     list_iterator = this%own_dofs_n_face%create_iterator()
-     i=1
-     do while(.not. list_iterator%is_upper_bound())
-        call list_iterator%set_current(i)
-        call list_iterator%next()
-        i = i + 1 
-     enddo
-  end if
-end subroutine lagrangian_reference_fe_fill_scalar
+end subroutine lagrangian_reference_fe_fill_topology
 
 !=================================================================================================
 function get_quadratures_from_hex(quadrature)

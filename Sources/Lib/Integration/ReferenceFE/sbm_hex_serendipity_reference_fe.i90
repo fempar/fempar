@@ -32,7 +32,7 @@
 
 !==================================================================================================
 
-subroutine hex_lagrangian_reference_fe_create(this, &
+subroutine hsrf_create(this, &
                                               topology, &
                                               num_dims, &
                                               order, &
@@ -40,26 +40,158 @@ subroutine hex_lagrangian_reference_fe_create(this, &
                                               conformity, &
                                               continuity )
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(inout)  :: this
+  class(hex_serendipity_reference_fe_t), intent(inout)  :: this
   character(*)                        , intent(in)    :: topology
   integer(ip)                         , intent(in)    :: num_dims
   integer(ip)                         , intent(in)    :: order
   character(*)                        , intent(in)    :: field_type
   logical                             , intent(in)    :: conformity
   logical              , optional     , intent(in)    :: continuity
-  call lagrangian_reference_fe_create(this,topology,num_dims,order,field_type,conformity,continuity)
+  call this%free()
+  call this%set_common_data(num_dims,order,field_type,conformity,continuity)
+  call this%set_topology ( topology )
+  call this%set_fe_type( fe_type_serendipity )
+  call this%fill()
+  call this%create_nodal_quadrature()
   call this%fill_h_refinement_interpolation()
   call this%fill_h_refinement_permutations()
-end subroutine hex_lagrangian_reference_fe_create
+end subroutine hsrf_create
 
-function hex_lagrangian_reference_fe_check_compatibility_of_n_faces                   &
+subroutine hsrf_fill_scalar (this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout)    :: this 
+  type(node_iterator_t) :: node_iterator
+  type(facet_iterator_t) :: facet_iterator
+  type(list_iterator_t) :: list_iterator
+  integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM)
+  type(node_array_t) :: node_array_dim_2
+  type(node_array_t) :: node_array_dim_3
+  integer(ip) :: current_dof_lid
+
+  call this%fill_topology()
+  
+  num_n_faces = this%num_n_faces+1
+  
+  call this%node_array%create( this%polytope, this%order_vector ) 
+  call node_array_dim_2%create( this%polytope, [serendipity_to_lagr(2,this%order_vector(1)),&
+                                                serendipity_to_lagr(2,this%order_vector(2)),&
+                                                serendipity_to_lagr(2,this%order_vector(3)) ] )
+  call node_array_dim_3%create( this%polytope, [serendipity_to_lagr(3,this%order_vector(1)),&
+                                                serendipity_to_lagr(3,this%order_vector(2)),&
+                                                serendipity_to_lagr(3,this%order_vector(3)) ] )
+
+  call this%own_dofs_n_face%create( num_n_faces )
+  do i = 1,num_n_faces
+    if (this%get_n_face_dim(i) <= 1) then
+      call count_own_dofs_n_face(this%node_array , i)
+    else if (this%get_n_face_dim(i) == 2) then
+      call count_own_dofs_n_face(node_array_dim_2, i)
+    else
+      call count_own_dofs_n_face(node_array_dim_3, i)
+    end if
+  end do
+
+  call this%own_dofs_n_face%calculate_header()
+  call this%own_dofs_n_face%allocate_list_from_pointer()
+  list_iterator = this%own_dofs_n_face%create_iterator()
+
+  current_dof_lid = 0
+  do while (.not. list_iterator%is_upper_bound())
+    current_dof_lid = current_dof_lid + 1
+    call list_iterator%set_current(current_dof_lid)
+    call list_iterator%next()
+  end do
+
+  ! Number nodes
+  this%num_shape_functions = current_dof_lid
+
+
+  !!-------------------
+  !call this%dofs_n_face
+
+  !! Number nodes
+  !this%num_shape_functions = this%node_array%get_num_nodes()
+  !! own_dofs_nodes_n-face  
+  !call this%own_dofs_n_face%create( num_n_faces )
+  !do i = 1,num_n_faces
+  !   node_iterator = this%node_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .false. )
+  !   do while (.not. node_iterator%has_finished() )
+  !      call this%own_dofs_n_face%sum_to_pointer_index(i,1)
+  !      call node_iterator%next()
+  !   end do
+  !end do
+  !call this%own_dofs_n_face%calculate_header()
+  !call this%own_dofs_n_face%allocate_list_from_pointer()
+  !list_iterator = this%own_dofs_n_face%create_iterator()
+  !do i = 1,num_n_faces
+  !   node_iterator = this%node_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .false. )
+  !   do while (.not. node_iterator%has_finished() )
+  !      node = node_iterator%current()
+  !      call list_iterator%set_current(node)
+  !      call node_iterator%next()
+  !      call list_iterator%next()
+  !   end do
+  !end do
+  !! nodes_n-face
+  !call this%dofs_n_face%create(num_n_faces)
+  !do i = 1,num_n_faces
+  !   node_iterator = this%node_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
+  !   do while (.not. node_iterator%has_finished() )
+  !      call this%dofs_n_face%sum_to_pointer_index(i,1)
+  !      call node_iterator%next()
+  !   end do
+  !end do
+  !call this%dofs_n_face%calculate_header()
+  !call this%dofs_n_face%allocate_list_from_pointer()  
+  !list_iterator = this%dofs_n_face%create_iterator()
+  !do i = 1,num_n_faces
+  !   node_iterator = this%node_array%create_node_iterator( this%polytope%get_n_face(i), own_boundary = .true. )
+  !   do while (.not. node_iterator%has_finished() )
+  !      node = node_iterator%current()
+  !      call list_iterator%set_current(node)
+  !      call node_iterator%next()
+  !      call list_iterator%next()
+  !   end do
+  !end do
+
+  !if ( this%conformity .and. this%continuity ) then
+  !else
+  !   call this%own_dofs_n_face%create(n=num_n_faces )
+  !   call this%own_dofs_n_face%sum_to_pointer_index( this%own_dofs_n_face%get_num_pointers(), this%num_shape_functions)
+  !   call this%own_dofs_n_face%calculate_header()
+  !   call this%own_dofs_n_face%allocate_list_from_pointer()
+  !   list_iterator = this%own_dofs_n_face%create_iterator()
+  !   i=1
+  !   do while(.not. list_iterator%is_upper_bound())
+  !      call list_iterator%set_current(i)
+  !      call list_iterator%next()
+  !      i = i + 1 
+  !   enddo
+  !end if
+
+  contains
+
+    subroutine count_own_dofs_n_face(node_array, n_face_id)
+      implicit none
+      type(node_array_t), intent(in) :: node_array
+      integer(ip)       , intent(in) :: n_face_id
+        node_iterator = node_array%create_node_iterator( this%polytope%get_n_face(n_face_id), own_boundary = .false. )
+        do while (.not. node_iterator%has_finished() )
+           call this%own_dofs_n_face%sum_to_pointer_index(n_face_id,1)
+           call node_iterator%next()
+        end do
+    end subroutine count_own_dofs_n_face
+
+end subroutine hsrf_fill_scalar
+
+function hsrf_check_compatibility_of_n_faces                   &
      &                      (target_reference_fe,source_reference_fe, source_n_face_id,target_n_face_id)
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)  :: target_reference_fe
+  class(hex_serendipity_reference_fe_t), intent(in)  :: target_reference_fe
   class(reference_fe_t)               , intent(in)  :: source_reference_fe
   integer(ip)                         , intent(in)  :: source_n_face_id ! Local n-face ID
   integer(ip)                         , intent(in)  :: target_n_face_id ! Local n-face ID
-  logical :: hex_lagrangian_reference_fe_check_compatibility_of_n_faces 
+  logical :: hsrf_check_compatibility_of_n_faces 
   integer(ip) :: idime
 
   select type(source_reference_fe)
@@ -73,37 +205,37 @@ function hex_lagrangian_reference_fe_check_compatibility_of_n_faces             
      assert (target_reference_fe%get_n_face_dim(target_n_face_id) < 3)
      assert (target_reference_fe%num_field_components == source_reference_fe%num_field_components)
      assert (target_reference_fe%get_num_own_dofs_n_face(target_n_face_id) == source_reference_fe%get_num_own_dofs_n_face(source_n_face_id))
-     hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .true.
+     hsrf_check_compatibility_of_n_faces = .true.
      class default
-     hex_lagrangian_reference_fe_check_compatibility_of_n_faces = .false.
+     hsrf_check_compatibility_of_n_faces = .false.
   end select
 
-end function hex_lagrangian_reference_fe_check_compatibility_of_n_faces
+end function hsrf_check_compatibility_of_n_faces
 
 !==================================================================================================
-function hex_lagrangian_reference_fe_get_characteristic_length ( this )
+function hsrf_get_characteristic_length ( this )
   implicit none 
-  class(hex_lagrangian_reference_fe_t), intent(in) :: this 
-  real(rp)  :: hex_lagrangian_reference_fe_get_characteristic_length 
-  hex_lagrangian_reference_fe_get_characteristic_length =  2.0_rp
-end function hex_lagrangian_reference_fe_get_characteristic_length
+  class(hex_serendipity_reference_fe_t), intent(in) :: this 
+  real(rp)  :: hsrf_get_characteristic_length 
+  hsrf_get_characteristic_length =  2.0_rp
+end function hsrf_get_characteristic_length
 
 !**************************************************************************************************
 ! Deferred TBP implementors from lagrangian_reference_fe_t
 !**************************************************************************************************
 
 !==================================================================================================
-function hex_lagrangian_reference_fe_get_num_subcells(this, num_refinements) result(num_subcells)
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+function hsrf_get_num_subcells(this, num_refinements) result(num_subcells)
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: num_refinements
   integer(ip)                                         :: num_subcells
   num_subcells = (num_refinements+1)**this%num_dims
-end function hex_lagrangian_reference_fe_get_num_subcells
+end function hsrf_get_num_subcells
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_get_subcells_connectivity(this, num_refinements, connectivity)
+subroutine hsrf_get_subcells_connectivity(this, num_refinements, connectivity)
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: num_refinements
   integer(ip)                         , intent(inout) :: connectivity(:,:)
   integer(ip) :: order_vector(this%num_dims)
@@ -137,12 +269,12 @@ subroutine hex_lagrangian_reference_fe_get_subcells_connectivity(this, num_refin
         connectivity(local_node, subelem) = ijk_to_index(global_coord, order_vector,this%num_dims)+1
      end do
   end do
-end subroutine hex_lagrangian_reference_fe_get_subcells_connectivity
+end subroutine hsrf_get_subcells_connectivity
 
 !==================================================================================================
-subroutine hex_lagrangian_create_data_out_quadrature ( this, num_refinements, quadrature )
+subroutine hex_serendipity_create_data_out_quadrature ( this, num_refinements, quadrature )
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: num_refinements
   type(quadrature_t)                  , intent(inout) :: quadrature
 
@@ -164,20 +296,20 @@ subroutine hex_lagrangian_create_data_out_quadrature ( this, num_refinements, qu
   quadrature%weight = 1.0_rp
   
   call node_array%free()
-end subroutine hex_lagrangian_create_data_out_quadrature
+end subroutine hex_serendipity_create_data_out_quadrature
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_quadrature ( this, quadrature ) 
+subroutine hsrf_fill_quadrature ( this, quadrature ) 
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                  , intent(inout) :: quadrature
   call quadrature%fill_hex_gauss_legendre()
-end subroutine hex_lagrangian_reference_fe_fill_quadrature
+end subroutine hsrf_fill_quadrature
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
+subroutine hsrf_fill_nodal_quadrature( this, quadrature )
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this 
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this 
   type(quadrature_t)                  , intent(inout) :: quadrature
   integer(ip) :: i
   do i=1,this%num_dims
@@ -188,13 +320,13 @@ subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
 	 end if 
   end do
   quadrature%weight = 1.0_rp
-end subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature
+end subroutine hsrf_fill_nodal_quadrature
 
 ! This subroutine fills the interpolation using the polynomial_names machinery
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, interpolation, order_vector )
+subroutine hsrf_fill_interpolation( this, quadrature, interpolation, order_vector )
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in) :: this
+  class(hex_serendipity_reference_fe_t), intent(in) :: this
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation    
   integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
@@ -239,15 +371,15 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
   call polynomial_1D%free()
   call tensor_product_polynomial_space%free()
 
-end subroutine hex_lagrangian_reference_fe_fill_interpolation
+end subroutine hsrf_fill_interpolation
 
 ! Here we define the dim-1 quadrature and next translate the nodes
 ! using the facet type to dim. Next, use the same machinary as for the volume with this new quadrature.
 !!==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_interp_restricted_to_facet( this, local_quadrature, & 
+subroutine hsrf_fill_interp_restricted_to_facet( this, local_quadrature, & 
      & facet_lid, subfacet_lid, facet_interpolation )
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                  , intent(in)    :: local_quadrature
   integer(ip)                         , intent(in)    :: facet_lid
   integer(ip)                         , intent(in)    :: subfacet_lid
@@ -276,41 +408,23 @@ subroutine hex_lagrangian_reference_fe_fill_interp_restricted_to_facet( this, lo
   end do
   call this%fill_interpolation( aux_quadrature, facet_interpolation ) 
   call aux_quadrature%free()
-end subroutine hex_lagrangian_reference_fe_fill_interp_restricted_to_facet
-
-!==================================================================================================
-subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )
-  implicit none
-  integer(ip)                         , intent(in) :: index
-  integer(ip)                         , intent(in) :: ndime
-  integer(ip)                         , intent(in) :: n_pols_dim(SPACE_DIM)
-  integer(ip)                         , intent(inout) :: ijk(SPACE_DIM)
-  integer(ip) :: i,aux
-  ijk = 0
-  aux = (index-1)
-  do i = 1,ndime-1
-     ijk(i) = mod(aux, n_pols_dim(i))
-     aux = aux/n_pols_dim(i)
-  end do
-  ijk(ndime) = aux
-  !ijk(1:ndime) = ijk(1:ndime)
-end subroutine index_to_ijk
+end subroutine hsrf_fill_interp_restricted_to_facet
 
 ! @sbadia: It could be replaced by an anisotropic quadrature
 !==================================================================================================
-function hex_lagrangian_reference_fe_compute_num_quadrature_points( this, degree, dimension )
+function hsrf_compute_num_quadrature_points( this, degree, dimension )
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this
   integer(ip)                         , intent(in)    :: degree
   integer(ip)                         , intent(in)    :: dimension
-  integer(ip) :: hex_lagrangian_reference_fe_compute_num_quadrature_points
-  hex_lagrangian_reference_fe_compute_num_quadrature_points = int(ceiling(real(degree + 1,rp)/2.0_rp)**real(dimension,rp),ip)
-end function hex_lagrangian_reference_fe_compute_num_quadrature_points
+  integer(ip) :: hsrf_compute_num_quadrature_points
+  hsrf_compute_num_quadrature_points = int(ceiling(real(degree + 1,rp)/2.0_rp)**real(dimension,rp),ip)
+end function hsrf_compute_num_quadrature_points
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations(this, quadrature, qpoints_perm)
+subroutine hsrf_fill_qpoints_permutations(this, quadrature, qpoints_perm)
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this
   type(quadrature_t)                  , intent(in)    :: quadrature
   type(allocatable_array_ip2_t)       , intent(inout) :: qpoints_perm
   integer(ip)    :: ndime, n_q_points, order
@@ -324,20 +438,20 @@ subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations(this, quadratur
                                           this%polytope, &
                                           qpoints_perm )
   
-end subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations
+end subroutine hsrf_fill_qpoints_permutations
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_free ( this )
+subroutine hsrf_free ( this )
   implicit none 
-  class(hex_lagrangian_reference_fe_t), intent(inout) :: this 
+  class(hex_serendipity_reference_fe_t), intent(inout) :: this 
   call lagrangian_reference_fe_free ( this )
-end subroutine hex_lagrangian_reference_fe_free
+end subroutine hsrf_free
 
 ! Subroutine to deal with high order parametrizations of the boundary
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_blending(this,values)
+subroutine hsrf_blending(this,values)
   implicit none
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this
   type(point_t)                       , intent(inout) :: values(:)
 
   integer(ip) :: i,j, ipoin, nlocs, ndime,nnode
@@ -377,40 +491,40 @@ subroutine hex_lagrangian_reference_fe_blending(this,values)
      end do
   end if
 
-end subroutine hex_lagrangian_reference_fe_blending
+end subroutine hsrf_blending
 
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation ( this )
+subroutine hsrf_fill_h_refinement_interpolation ( this )
   implicit none 
-  class(hex_lagrangian_reference_fe_t), intent(inout) :: this
+  class(hex_serendipity_reference_fe_t), intent(inout) :: this
   type(quadrature_t) :: h_refined_quadrature
   integer(ip)        :: num_refinements
   num_refinements = 1
   call this%create_data_out_quadrature( max((num_refinements+1)*this%order-1,0), h_refined_quadrature )
   call this%create_interpolation( h_refined_quadrature, this%h_refinement_interpolation )
   call h_refined_quadrature%free()
-end subroutine hex_lagrangian_reference_fe_fill_h_refinement_interpolation
+end subroutine hsrf_fill_h_refinement_interpolation
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_h_refinement_permutations ( this )
+subroutine hsrf_fill_h_refinement_permutations ( this )
   implicit none 
-  class(hex_lagrangian_reference_fe_t), intent(inout) :: this
+  class(hex_serendipity_reference_fe_t), intent(inout) :: this
   call this%fill_n_subfacet_permutation(this%num_dims-1, &
                                        this%h_refinement_subfacet_permutation)
   if ( this%num_dims == 3 ) then
      call this%fill_n_subfacet_permutation(this%num_dims-2, &
                                           this%h_refinement_subedge_permutation)
   end if
-end subroutine hex_lagrangian_reference_fe_fill_h_refinement_permutations
+end subroutine hsrf_fill_h_refinement_permutations
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_fill_n_subfacet_permutation ( this, n_face_dime, permutation_array )
+subroutine hsrf_fill_n_subfacet_permutation ( this, n_face_dime, permutation_array )
   implicit none 
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this              
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this              
   integer(ip)                         , intent(in)    :: n_face_dime
   integer(ip)           , allocatable , intent(inout) :: permutation_array(:,:,:)
   integer(ip)           :: num_refinements, num_n_faces, num_n_subfaces, num_dofs_on_n_face
@@ -447,15 +561,15 @@ subroutine hex_lagrangian_reference_fe_fill_n_subfacet_permutation ( this, n_fac
 
   call h_refinement_node_array%free()
   
-end subroutine hex_lagrangian_reference_fe_fill_n_subfacet_permutation
+end subroutine hsrf_fill_n_subfacet_permutation
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_interpolate_nodal_values_on_subcell ( this,                   &
+subroutine hsrf_interpolate_nodal_values_on_subcell ( this,                   &
                                                                              subcell_id,             &
                                                                              nodal_values_on_parent, & 
                                                                              nodal_values_on_child )
   implicit none 
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this              
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this              
   integer(ip)                         , intent(in)    :: subcell_id
   real(rp)                            , intent(in)    :: nodal_values_on_parent(:)
   real(rp)                            , intent(inout) :: nodal_values_on_child(:)
@@ -490,14 +604,14 @@ subroutine hex_lagrangian_reference_fe_interpolate_nodal_values_on_subcell ( thi
   
   call h_refinement_node_array%free()
   
-end subroutine hex_lagrangian_reference_fe_interpolate_nodal_values_on_subcell
+end subroutine hsrf_interpolate_nodal_values_on_subcell
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell ( this,                     &
+subroutine hsrf_project_nodal_values_on_cell ( this,                     &
                                                                       nodal_values_on_children, &
                                                                       nodal_values_on_parent )
   implicit none 
-  class(hex_lagrangian_reference_fe_t), intent(in)    :: this  
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this  
   real(rp)                            , intent(in)    :: nodal_values_on_children(:,:)
   real(rp)                            , intent(inout) :: nodal_values_on_parent(:)
   type(node_iterator_t) :: node_iterator
@@ -534,14 +648,14 @@ subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell ( this,     
      end do
   end do
   
-end subroutine hex_lagrangian_reference_fe_project_nodal_values_on_cell
+end subroutine hsrf_project_nodal_values_on_cell
 
 !==================================================================================================
-subroutine hex_lagrangian_reference_fe_get_h_refinement_coefficient ( this, ishape_fe,   & 
+subroutine hsrf_get_h_refinement_coefficient ( this, ishape_fe,   & 
                                                                       ishape_coarser_fe, & 
                                                                       qpoint, coefficient )
   implicit none 
-  class(hex_lagrangian_reference_fe_t), target, intent(in)    :: this
+  class(hex_serendipity_reference_fe_t), target, intent(in)    :: this
   integer(ip)                                 , intent(in)    :: ishape_fe
   integer(ip)                                 , intent(in)    :: ishape_coarser_fe
   integer(ip)                                 , intent(in)    :: qpoint
@@ -556,36 +670,5 @@ subroutine hex_lagrangian_reference_fe_get_h_refinement_coefficient ( this, isha
   else
      coefficient = 0.0_rp
   end if
-end subroutine hex_lagrangian_reference_fe_get_h_refinement_coefficient
+end subroutine hsrf_get_h_refinement_coefficient
 
-!**************************************************************************************************
-! Support functions
-!**************************************************************************************************
-
-! Subroutine to deal with high order parametrizations of the boundary
-! Only implemented in 2D
-!==================================================================================================
-subroutine blend_2D(r,s,x1,x2,x3,x4,x5,x6,x7,x8,x)
-  implicit none
-  real(rp), intent(in)  :: r,s
-  type(point_t), intent(in)  :: x1,x2,x3,x4,x5,x6,x7,x8
-  type(point_t), intent(out) :: x
-
-  !     3---6---------4
-  !     |   .         |
-  !     |   .         |
-  !     |   .         |
-  !     7...x........ 8
-  !     |   .         |
-  !     1---5---------2
-
-  x =   ( - 0.25_rp * (1-r) * (1-s)) *x1 &
-       & + ( - 0.25_rp * (1+r) * (1-s)) *x2 &
-       & + ( - 0.25_rp * (1-r) * (1+s)) *x3 &
-       & + ( - 0.25_rp * (1+r) * (1+s)) *x4 &
-       & + ( 0.5_rp * (1-s)) * x5 &
-       & + ( 0.5_rp * (1+s)) * x6 &
-       & + ( 0.5_rp * (1-r)) * x7 &
-       & + ( 0.5_rp * (1+r)) * x8
-
-end subroutine blend_2D

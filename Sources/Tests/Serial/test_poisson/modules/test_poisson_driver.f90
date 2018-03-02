@@ -268,7 +268,9 @@ contains
     class(cell_iterator_t)      , allocatable :: cell
     class(reference_fe_t), pointer :: reference_fe_geo
     character(:), allocatable :: field_type
+    character(:), allocatable :: fe_type
     
+    fe_type = this%test_params%get_reference_fe_type()
 
     if (this%test_params%get_use_void_fes()) then
       allocate(this%reference_fes(2), stat=istat)
@@ -290,7 +292,7 @@ contains
     call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe()
     this%reference_fes(TEST_POISSON_FULL) =  make_reference_fe ( topology = reference_fe_geo%get_topology(), &
-                                                                 fe_type = fe_type_lagrangian, &
+                                                                 fe_type = fe_type, &
                                                                  num_dims = this%triangulation%get_num_dims(), &
                                                                  order = this%test_params%get_reference_fe_order(), &
                                                                  field_type = field_type, &
