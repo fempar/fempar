@@ -46,6 +46,7 @@ module fe_cell_function_names
    real(rp)            , allocatable :: nodal_values(:)  
    real(rp)            , allocatable :: quadrature_points_values(:)
    type(vector_field_t), allocatable :: quadrature_points_gradients(:)
+   real(rp)            , allocatable :: quadrature_points_laplacians(:)
   contains
      procedure, non_overridable :: create                                => fe_cell_function_scalar_create
      procedure, non_overridable :: update                                => fe_cell_function_scalar_update
@@ -57,8 +58,10 @@ module fe_cell_function_names
      procedure, non_overridable :: get_nodal_values                      => fe_cell_function_scalar_get_nodal_values
      procedure, non_overridable :: get_quadrature_points_values          => fe_cell_function_scalar_get_quadrature_points_values
      procedure, non_overridable :: get_quadrature_points_gradients       => fe_cell_function_scalar_get_quadrature_points_gradients
+     procedure, non_overridable :: get_quadrature_points_laplacians      => fe_cell_function_scalar_get_quadrature_points_laplacians
      procedure, non_overridable :: get_value                             => fe_cell_function_scalar_get_value
      procedure, non_overridable :: get_gradient                          => fe_cell_function_scalar_get_gradient
+     procedure, non_overridable :: get_laplacian                         => fe_cell_function_scalar_get_laplacian
      procedure, non_overridable :: set_current_num_nodes              => fe_cell_function_scalar_set_current_num_nodes
      procedure, non_overridable :: set_current_num_quadrature_points  => fe_cell_function_scalar_set_current_num_quadrature_points
      procedure, non_overridable :: free                                  => fe_cell_function_scalar_free
@@ -72,6 +75,7 @@ module fe_cell_function_names
    real(rp)            , allocatable :: nodal_values(:)  
    type(vector_field_t), allocatable :: quadrature_points_values(:)
    type(tensor_field_t), allocatable :: quadrature_points_gradients(:)
+   type(vector_field_t), allocatable :: quadrature_points_laplacians(:)
   contains
      procedure, non_overridable :: create                                => fe_cell_function_vector_create
      procedure, non_overridable :: update                                => fe_cell_function_vector_update
@@ -83,9 +87,11 @@ module fe_cell_function_names
      procedure, non_overridable :: get_nodal_values                      => fe_cell_function_vector_get_nodal_values      
      procedure, non_overridable :: get_quadrature_points_values          => fe_cell_function_vector_get_quadrature_points_values
      procedure, non_overridable :: get_quadrature_points_gradients       => fe_cell_function_vector_get_quadrature_points_gradients
+     procedure, non_overridable :: get_quadrature_points_laplacians      => fe_cell_function_vector_get_quadrature_points_laplacians
      procedure, non_overridable :: compute_quadrature_points_curl_values => fe_cell_function_vector_compute_quadrature_points_curl_values
      procedure, non_overridable :: get_value                             => fe_cell_function_vector_get_value
      procedure, non_overridable :: get_gradient                          => fe_cell_function_vector_get_gradient 
+     procedure, non_overridable :: get_laplacian                         => fe_cell_function_vector_get_laplacian
      procedure, non_overridable :: compute_curl                          => fe_cell_function_vector_compute_curl 
      procedure, non_overridable :: compute_divergence                    => fe_cell_function_vector_compute_divergence 
      procedure, non_overridable :: set_current_num_nodes              => fe_cell_function_vector_set_current_num_nodes
