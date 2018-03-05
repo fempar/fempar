@@ -49,6 +49,7 @@ module unfitted_solution_checker_names
     class(serial_fe_space_t), pointer :: fe_space       => null()
     class(fe_function_t),     pointer :: fe_function    => null()
     class(scalar_function_t), pointer :: exact_solution => null()
+    integer(ip) :: field_id
   contains
     procedure, non_overridable :: create              => unfitted_solution_checker_create
     procedure, non_overridable :: free                => unfitted_solution_checker_free
@@ -60,15 +61,21 @@ module unfitted_solution_checker_names
 contains
 
   !=================================================================================================
-  subroutine unfitted_solution_checker_create(this,fe_space,fe_function,exact_solution)
+  subroutine unfitted_solution_checker_create(this,fe_space,fe_function,exact_solution,field_id)
     implicit none
     class(unfitted_solution_checker_t),        intent(inout) :: this
     class(serial_fe_space_t), target, intent(in) :: fe_space
     class(fe_function_t),     target, intent(in) :: fe_function
     class(scalar_function_t), target, intent(in) :: exact_solution
+    integer(ip)          , optional , intent(in) :: field_id
     this%fe_space       => fe_space
     this%fe_function    => fe_function
     this%exact_solution => exact_solution
+    if (present(field_id)) then
+      this%field_id = field_id
+    else
+      this%field_id = 1
+    end if
   end subroutine unfitted_solution_checker_create
 
   !=================================================================================================
@@ -154,11 +161,11 @@ contains
        !This cannot be outside the loop
        quad            => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()
-       cell_int         => fe%get_cell_integrator(1)
+       cell_int         => fe%get_cell_integrator(this%field_id)
 
        ! Recover nodal values
        !TODO we assume a single field
-       call this%fe_function%gather_nodal_values(fe,1,nodal_vals)
+       call this%fe_function%gather_nodal_values(fe,this%field_id,nodal_vals)
 
        !TODO move outside
        call memalloc(num_quad_points,element_vals,__FILE__, __LINE__)
@@ -193,8 +200,8 @@ contains
          dV = fe%get_det_jacobian(igp) * quad%get_weight(igp)
          error_l2_norm      = error_l2_norm      + error_l2_gp  *dV
          error_h1_semi_norm = error_h1_semi_norm + error_h1sn_gp*dV
-         h1_semi_norm       = h1_semi_norm       + l2_gp        *dV
-         l2_norm            = l2_norm            + h1sn_gp      *dV
+         h1_semi_norm       = h1_semi_norm       + h1sn_gp*dV
+         l2_norm            = l2_norm            + l2_gp  *dV
 
        end do
 
@@ -213,7 +220,7 @@ contains
            num_quad_points = quad%get_num_quadrature_points()
            pw_cell_map       => fe%get_boundary_piecewise_cell_map()
            quad_coords     => pw_cell_map%get_quadrature_points_coordinates()
-           cell_int         => fe%get_boundary_cell_integrator(1)
+           cell_int         => fe%get_boundary_cell_integrator(this%field_id)
 
            !TODO move outside
            call memalloc(num_quad_points,element_vals,__FILE__, __LINE__)
@@ -245,8 +252,8 @@ contains
              dV = pw_cell_map%get_det_jacobian(igp) * quad%get_weight(igp)
              error_l2_norm_boundary     = error_l2_norm_boundary      + error_l2_gp  *dV
              error_h1_semi_norm_boundary= error_h1_semi_norm_boundary + error_h1sn_gp*dV
-             h1_semi_norm_boundary      = h1_semi_norm_boundary       + l2_gp        *dV
-             l2_norm_boundary           = l2_norm_boundary            + h1sn_gp      *dV
+             h1_semi_norm_boundary      = h1_semi_norm_boundary       + h1sn_gp*dV
+             l2_norm_boundary           = l2_norm_boundary            + l2_gp  *dV
 
            end do
 

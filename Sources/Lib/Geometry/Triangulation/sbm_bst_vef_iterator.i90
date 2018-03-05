@@ -287,3 +287,18 @@ function bst_vef_iterator_get_improper_cell_around_subvef(this, icell_around)
   integer(ip) :: bst_vef_iterator_get_improper_cell_around_subvef
   mcheck(.false., "bst_vef_iterator_t does not have improper cells around")
 end function bst_vef_iterator_get_improper_cell_around_subvef
+
+function bst_vef_iterator_get_num_half_cells_around (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  integer(ip) :: bst_vef_iterator_get_num_half_cells_around
+  bst_vef_iterator_get_num_half_cells_around = 0 
+end function bst_vef_iterator_get_num_half_cells_around
+
+subroutine bst_vef_iterator_get_half_cell_around (this, icell_around, cell)
+  implicit none
+  class(bst_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  mcheck(.false., "bst_vef_iterator_t does not have half cells around")
+end subroutine bst_vef_iterator_get_half_cell_around

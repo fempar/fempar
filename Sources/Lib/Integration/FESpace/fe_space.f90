@@ -163,7 +163,6 @@ module fe_space_names
     procedure, non_overridable           :: get_permutation_index   => base_fe_cell_iterator_get_permutation_index
     
     procedure                            :: update_sub_triangulation    => base_fe_cell_iterator_update_sub_triangulation
-    procedure                            :: get_mc_case                 => base_fe_cell_iterator_get_mc_case
     procedure                            :: get_num_subcells            => base_fe_cell_iterator_get_num_subcells
     procedure                            :: get_num_subcell_nodes       => base_fe_cell_iterator_get_num_subcell_nodes
     procedure                            :: get_phys_coords_of_subcell  => base_fe_cell_iterator_get_phys_coords_of_subcell
@@ -203,13 +202,13 @@ module fe_space_names
     procedure, non_overridable          :: allocate_scratch_data                      => fe_cell_iterator_allocate_scratch_data
     procedure, non_overridable          :: allocate_block_based_scratch_data          => fe_cell_iterator_allocate_block_based_scratch_data
     procedure, non_overridable          :: free_scratch_data                          => fe_cell_iterator_free_scratch_data
-    procedure, non_overridable, private :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
-    procedure, non_overridable, private :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
+    procedure, non_overridable          :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
+    procedure, non_overridable          :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
     procedure, non_overridable          :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
     procedure, non_overridable          :: generate_own_dofs_vef                      => fe_cell_iterator_generate_own_dofs_vef
     procedure, non_overridable          :: generate_own_dofs_vef_component_wise       => fe_cell_iterator_generate_own_dofs_vef_component_wise
     procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe          => fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
-    procedure, non_overridable, private :: generate_dofs_facet_integration_coupling   => fe_cell_iterator_generate_dofs_facet_integration_coupling
+    procedure, non_overridable          :: generate_dofs_facet_integration_coupling   => fe_cell_iterator_generate_dofs_facet_integration_coupling
     procedure, non_overridable, private :: renum_dofs_block                           => fe_cell_iterator_renum_dofs_block
     procedure, non_overridable, private :: renum_dofs_field                           => fe_cell_iterator_renum_dofs_field
     procedure, non_overridable, private :: update_scratch_data                        => fe_cell_iterator_update_scratch_data
@@ -321,7 +320,9 @@ module fe_space_names
    
   type p_fe_cell_iterator_t
     class(fe_cell_iterator_t), pointer :: p 
-  end type p_fe_cell_iterator_t
+  end type p_fe_cell_iterator_t 
+  
+  public :: p_fe_cell_iterator_t
   
   type :: base_fe_vef_iterator_t
     private
@@ -343,6 +344,17 @@ module fe_space_names
      procedure, non_overridable          :: is_at_interface           => base_fe_vef_iterator_is_at_interface
      procedure, non_overridable          :: is_facet                   => base_fe_vef_iterator_is_facet
      
+     procedure, non_overridable          :: update_sub_triangulation  => base_fe_vef_iterator_update_sub_triangulation
+     procedure, non_overridable          :: get_num_subvefs           => base_fe_vef_iterator_get_num_subvefs
+     procedure, non_overridable          :: get_num_subvef_nodes      => base_fe_vef_iterator_get_num_subvef_nodes
+     procedure, non_overridable          :: get_phys_coords_of_subvef => base_fe_vef_iterator_get_phys_coords_of_subvef
+     procedure, non_overridable          :: get_ref_coords_of_subvef  => base_fe_vef_iterator_get_ref_coords_of_subvef
+     procedure, non_overridable          :: is_cut                    => base_fe_vef_iterator_is_cut
+     procedure, non_overridable          :: is_exterior               => base_fe_vef_iterator_is_exterior
+     procedure, non_overridable          :: is_interior               => base_fe_vef_iterator_is_interior
+     procedure, non_overridable          :: is_exterior_subvef        => base_fe_vef_iterator_is_exterior_subvef
+     procedure, non_overridable          :: is_interior_subvef        => base_fe_vef_iterator_is_interior_subvef
+     
      procedure                           :: get_num_cells_around      => base_fe_vef_iterator_get_num_cells_around
      procedure, non_overridable          :: base_fe_vef_iterator_get_cell_around
      generic                             :: get_cell_around           => base_fe_vef_iterator_get_cell_around
@@ -358,7 +370,7 @@ module fe_space_names
      
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
      procedure, non_overridable          :: is_fe_facet                       => fe_vef_iterator_is_fe_facet
-     procedure, non_overridable, private :: has_free_dofs                     => fe_vef_iterator_has_free_dofs
+     procedure, non_overridable          :: has_free_dofs                     => fe_vef_iterator_has_free_dofs
      
      procedure                 , private :: fe_vef_iterator_get_fe_around
      generic                             :: get_cell_around                   => fe_vef_iterator_get_fe_around
@@ -379,7 +391,7 @@ module fe_space_names
     class(fe_cell_iterator_t) , allocatable  :: fe1
     class(fe_cell_iterator_t) , allocatable  :: fe2
     type(p_fe_cell_iterator_t)               :: fes_around(2)
-    type(facet_maps_t)  , pointer           :: facet_maps => NULL()
+    type(facet_maps_t), pointer              :: facet_maps => NULL()
     type(p_facet_integrator_t), allocatable :: facet_integrators(:)
    contains
     procedure                           :: create                         => fe_facet_iterator_create
@@ -396,7 +408,7 @@ module fe_space_names
     procedure, non_overridable          :: get_num_cells_around          => fe_facet_iterator_get_num_cells_around
     procedure, non_overridable, private :: fe_vef_iterator_get_fe_around => fe_facet_iterator_get_fe_around
     procedure, non_overridable, private :: update_fes_around             => fe_facet_iterator_update_fes_around
-    procedure, non_overridable          :: update_integration            => fe_facet_iterator_update_integration
+    procedure                           :: update_integration            => fe_facet_iterator_update_integration
     procedure, non_overridable          :: get_num_dofs_field            => fe_facet_iterator_get_num_dofs_field
     procedure, non_overridable, private :: fe_facet_iterator_assembly_array
     procedure, non_overridable, private :: fe_facet_iterator_assembly_matrix
@@ -409,7 +421,7 @@ module fe_space_names
     procedure, non_overridable          :: get_default_quadrature_degree  => fe_facet_iterator_get_default_quadrature_degree
     procedure, non_overridable          :: get_quadrature_degree          => fe_facet_iterator_get_quadrature_degree
     procedure, non_overridable          :: set_quadrature_degree          => fe_facet_iterator_set_quadrature_degree
-    procedure, non_overridable          :: get_quadrature                 => fe_facet_iterator_get_quadrature
+    procedure                           :: get_quadrature                 => fe_facet_iterator_get_quadrature
 
     procedure, non_overridable, private :: get_facet_maps                => fe_facet_iterator_get_facet_map
     procedure, non_overridable          :: update_facet_maps             => fe_facet_iterator_update_facet_maps
@@ -419,20 +431,22 @@ module fe_space_names
     procedure                 , private :: compute_fe_facet_permutation_index => fe_facet_iterator_compute_fe_facet_permutation_index
     procedure, non_overridable          :: get_lpos_within_cell_around   => fe_facet_iterator_get_lpos_within_cell_around
     procedure, non_overridable          :: get_facet_permutation_index   => fe_facet_iterator_get_fe_facet_permutation_index 
-    procedure, non_overridable, private :: get_subfacet_lid_cell_around  => fe_facet_iterator_get_subfacet_lid_cell_around
+    procedure, non_overridable          :: get_subfacet_lid_cell_around  => fe_facet_iterator_get_subfacet_lid_cell_around
     
-    procedure, non_overridable :: get_quadrature_points_coordinates => fe_facet_iterator_get_quadrature_points_coordinates
-    procedure, non_overridable :: get_normals                       => fe_facet_iterator_get_normals
-    procedure, non_overridable :: get_det_jacobian                  => fe_facet_iterator_get_det_jacobian
-    procedure, non_overridable :: compute_characteristic_length     => fe_facet_iterator_compute_characteristic_length
+    procedure                           :: get_quadrature_points_coordinates => fe_facet_iterator_get_quadrature_points_coordinates
+    procedure                           :: get_normals                       => fe_facet_iterator_get_normals
+    procedure                           :: get_det_jacobian                  => fe_facet_iterator_get_det_jacobian
+    procedure                           :: compute_characteristic_length     => fe_facet_iterator_compute_characteristic_length
+    
+    procedure                           :: get_fes_around  => fe_facet_iterator_get_fes_around
     
     
-    procedure, non_overridable :: get_values_scalar     => fe_facet_iterator_get_values_scalar
-    procedure, non_overridable :: get_values_vector     => fe_facet_iterator_get_values_vector
-    generic                    :: get_values            => get_values_scalar, get_values_vector
-    procedure, non_overridable :: get_gradients_scalar  => fe_facet_iterator_get_gradients_scalar
-    generic                    :: get_gradients         => get_gradients_scalar
-    procedure, non_overridable :: get_curls             => fe_facet_iterator_get_curls_vector 
+    procedure :: get_values_scalar     => fe_facet_iterator_get_values_scalar
+    procedure :: get_values_vector     => fe_facet_iterator_get_values_vector
+    generic   :: get_values            => get_values_scalar, get_values_vector
+    procedure :: get_gradients_scalar  => fe_facet_iterator_get_gradients_scalar
+    generic   :: get_gradients         => get_gradients_scalar
+    procedure :: get_curls             => fe_facet_iterator_get_curls_vector 
     
     procedure, non_overridable :: get_active_cell_id    => fe_facet_iterator_get_active_cell_id
     
@@ -459,7 +473,7 @@ module fe_space_names
   integer(ip), parameter :: fe_space_default_quadrature_degree_flag = -1000
 
   type, extends(base_fe_space_t) :: serial_fe_space_t 
-     !private      ! UNDER QUARANTINE
+     private
 
      ! Reference FE container
      integer(ip)                                 :: reference_fes_size
@@ -603,9 +617,9 @@ module fe_space_names
 
      procedure                           :: create_dof_values                        => serial_fe_space_create_dof_values
      procedure                           :: generate_global_dof_numbering            => serial_fe_space_generate_global_dof_numbering
-     procedure                           :: allocate_num_dofs_x_field                =>  serial_fe_space_allocate_num_dofs_x_field
-     procedure                 , private :: count_dofs                               => serial_fe_space_count_dofs
-     procedure                 , private :: list_dofs                                => serial_fe_space_list_dofs
+     procedure                           :: allocate_num_dofs_x_field                => serial_fe_space_allocate_num_dofs_x_field
+     procedure                           :: count_dofs                               => serial_fe_space_count_dofs
+     procedure                           :: list_dofs                                => serial_fe_space_list_dofs
      procedure                 , private :: renum_dofs_block                         => serial_fe_space_renum_dofs_block
  
      ! Getters
@@ -628,14 +642,23 @@ module fe_space_names
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure                           :: get_num_fixed_dofs                           => serial_fe_space_get_num_fixed_dofs
+     procedure, non_overridable          :: set_num_fixed_dofs                           => serial_fe_space_set_num_fixed_dofs
      procedure                           :: get_num_dirichlet_dofs                       => serial_fe_space_get_num_dirichlet_dofs
      procedure                           :: get_num_hanging_dofs                         => serial_fe_space_get_num_hanging_dofs
+     procedure, non_overridable          :: set_num_hanging_dofs                         => serial_fe_space_set_num_hanging_dofs
      procedure                           :: get_num_blocks                            => serial_fe_space_get_num_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling
      procedure                           :: get_block_num_dofs                        => serial_fe_space_get_block_num_dofs
      procedure                           :: set_block_num_dofs                        => serial_fe_space_set_block_num_dofs
      procedure, non_overridable          :: get_block_layout                             => serial_fe_space_get_block_layout
+     procedure, non_overridable          :: get_ptr_constraining_free_dofs               => serial_fe_space_get_ptr_constraining_free_dofs
+     procedure, non_overridable          :: get_ptr_constraining_dirichlet_dofs          => serial_fe_space_get_ptr_constraining_dirichlet_dofs
+     procedure, non_overridable          :: get_constraining_free_dofs                   => serial_fe_space_get_constraining_free_dofs
+     procedure, non_overridable          :: get_constraining_free_dofs_coefficients      => serial_fe_space_get_constraining_free_dofs_coefficients
+     procedure, non_overridable          :: get_constraining_dirichlet_dofs              => serial_fe_space_get_constraining_dirichlet_dofs
+     procedure, non_overridable          :: get_constraining_dirichlet_dofs_coefficients => serial_fe_space_get_constraining_dirichlet_dofs_coefficients
+     procedure, non_overridable          :: get_constraints_independent_term             => serial_fe_space_get_constraints_independent_term
      
      ! fes, fe_vefs and fe_faces traversals-related TBPs
      procedure                           :: create_fe_cell_iterator                           => serial_fe_space_create_fe_cell_iterator
@@ -643,7 +666,7 @@ module fe_space_names
      procedure, non_overridable          :: create_fe_vef_iterator                       => serial_fe_space_create_fe_vef_iterator     
      procedure, non_overridable          :: create_itfc_fe_vef_iterator                  => serial_fe_space_create_itfc_fe_vef_iterator     
      procedure, non_overridable          :: free_fe_vef_iterator                         => serial_fe_space_free_fe_vef_iterator
-     procedure, non_overridable          :: create_fe_facet_iterator                      => serial_fe_space_create_fe_facet_iterator
+     procedure                           :: create_fe_facet_iterator                      => serial_fe_space_create_fe_facet_iterator
      procedure, non_overridable          :: free_fe_facet_iterator                        => serial_fe_space_free_fe_facet_iterator
 
      procedure, non_overridable          :: allocate_and_init_has_hanging_dofs_x_fe       => serial_fe_space_allocate_and_init_has_hanging_dofs_x_fe
@@ -658,7 +681,7 @@ module fe_space_names
      procedure, non_overridable, private :: free_constraining_dirichlet_dofs_coefficients => serial_fe_space_free_constraining_dirichlet_dofs_coefficients
      procedure, non_overridable, private :: free_constraints_independent_term             => serial_fe_space_free_constraints_independent_term
 
-     procedure, non_overridable          :: setup_hanging_node_constraints               => serial_fe_space_setup_hanging_node_constraints
+     procedure                           :: setup_hanging_node_constraints               => serial_fe_space_setup_hanging_node_constraints
 
      procedure, non_overridable, private :: project_field_cell_to_ref_fes                 => serial_fe_space_project_field_cell_to_ref_fes
      procedure, non_overridable, private :: project_fe_integration_arrays                 => serial_fe_space_project_fe_integration_arrays

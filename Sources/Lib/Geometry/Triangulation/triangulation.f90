@@ -106,7 +106,6 @@ module triangulation_names
  
     ! XFEM-related TBPs
     procedure(update_sub_triangulation_interface)   , deferred :: update_sub_triangulation
-    procedure(get_mc_case_interface)                , deferred :: get_mc_case
     procedure(get_num_subcells_interface)           , deferred :: get_num_subcells
     procedure(get_num_subcell_nodes_interface)      , deferred :: get_num_subcell_nodes
     procedure(get_phys_coords_of_subcell_interface) , deferred :: get_phys_coords_of_subcell
@@ -149,7 +148,7 @@ module triangulation_names
      procedure                           :: next                      => vef_iterator_next
      procedure                           :: has_finished              => vef_iterator_has_finished
      procedure, non_overridable          :: get_gid                   => vef_iterator_get_gid
-     procedure, non_overridable          :: set_gid                   => vef_iterator_set_gid
+     procedure                           :: set_gid                   => vef_iterator_set_gid
      procedure, non_overridable          :: get_triangulation         => vef_iterator_get_triangulation
      procedure, non_overridable          :: is_facet                  => vef_iterator_is_facet
      
@@ -172,12 +171,26 @@ module triangulation_names
      procedure(is_local_interface)            , deferred :: is_local 
      procedure(is_at_interface)               , deferred :: is_at_interface
 
+     ! XFEM-related TBPs
+     procedure               :: update_sub_triangulation  => vef_iterator_update_sub_triangulation
+     procedure               :: get_num_subvefs           => vef_iterator_get_num_subvefs
+     procedure               :: get_num_subvef_nodes      => vef_iterator_get_num_subvef_nodes
+     procedure               :: get_phys_coords_of_subvef => vef_iterator_get_phys_coords_of_subvef
+     procedure               :: get_ref_coords_of_subvef  => vef_iterator_get_ref_coords_of_subvef
+     procedure               :: is_cut                    => vef_iterator_is_cut
+     procedure               :: is_exterior               => vef_iterator_is_exterior
+     procedure               :: is_interior               => vef_iterator_is_interior
+     procedure               :: is_exterior_subvef        => vef_iterator_is_exterior_subvef
+     procedure               :: is_interior_subvef        => vef_iterator_is_interior_subvef
+
      ! h-adaptive FEM
      procedure(is_proper_interface)                       , deferred :: is_proper
      procedure(get_num_improper_cells_around_interface)   , deferred :: get_num_improper_cells_around
      procedure(get_improper_cell_around_interface)        , deferred :: get_improper_cell_around
      procedure(get_improper_cell_around_ivef_interface)   , deferred :: get_improper_cell_around_ivef
      procedure(get_improper_cell_around_subvef_interface) , deferred :: get_improper_cell_around_subvef
+     procedure(get_num_half_cells_around_interface)       , deferred :: get_num_half_cells_around
+     procedure(get_half_cell_around_interface)            , deferred :: get_half_cell_around
   end type vef_iterator_t
 
   type, extends(vef_iterator_t) :: itfc_vef_iterator_t
@@ -216,6 +229,8 @@ module triangulation_names
      procedure          :: get_improper_cell_around         => itfc_vef_iterator_get_improper_cell_around 
      procedure          :: get_improper_cell_around_ivef    => itfc_vef_iterator_get_improper_cell_around_ivef
      procedure          :: get_improper_cell_around_subvef  => itfc_vef_iterator_get_improper_cell_around_subvef
+     procedure          :: get_num_half_cells_around        => itfc_vef_iterator_get_num_half_cells_around
+     procedure          :: get_half_cell_around             => itfc_vef_iterator_get_half_cell_around 
   end type itfc_vef_iterator_t
 
   abstract interface
@@ -345,12 +360,6 @@ module triangulation_names
        import :: cell_iterator_t
        class(cell_iterator_t), intent(inout) :: this
      end subroutine update_sub_triangulation_interface
-     
-     function get_mc_case_interface( this )
-       import :: cell_iterator_t, ip
-       class(cell_iterator_t), intent(in) :: this
-       integer(ip) :: get_mc_case_interface
-     end function get_mc_case_interface
      
      function get_num_subcells_interface( this ) result ( num_subcells )
        import :: cell_iterator_t, ip
@@ -572,6 +581,19 @@ module triangulation_names
        integer(ip)           , intent(in)    :: icell_around
        integer(ip) :: get_improper_cell_around_subvef_interface
      end function get_improper_cell_around_subvef_interface
+
+     function get_num_half_cells_around_interface (this)
+       import :: vef_iterator_t, ip
+       class(vef_iterator_t), intent(in) :: this
+       integer(ip) :: get_num_half_cells_around_interface
+     end function get_num_half_cells_around_interface
+
+     subroutine get_half_cell_around_interface (this, icell_around, cell)
+       import :: vef_iterator_t, cell_iterator_t, ip
+       class(vef_iterator_t) , intent(in)    :: this
+       integer(ip)           , intent(in)    :: icell_around
+       class(cell_iterator_t), intent(inout) :: cell
+     end subroutine get_half_cell_around_interface
   end interface
   
   type object_iterator_t
@@ -691,7 +713,7 @@ module triangulation_names
     
      ! Get num Reference FEs
      procedure(get_num_reference_fes_interface) , deferred :: get_num_reference_fes
-
+     procedure(get_max_num_shape_functions_interface), deferred :: get_max_num_shape_functions
  
      ! Objects-related traversals
      procedure, non_overridable :: create_object_iterator  => triangulation_create_object_iterator
@@ -800,7 +822,7 @@ module triangulation_names
        class(triangulation_t), intent(in) :: this
        integer(ip) :: get_num_reference_fes_interface
      end function get_num_reference_fes_interface
-       
+
      function compute_max_cells_set_id_interface ( this ) 
        import :: triangulation_t, ip
        class(triangulation_t), intent(inout)   :: this
@@ -817,6 +839,13 @@ module triangulation_names
        class(triangulation_t), intent(inout)   :: this
        integer(ip)           , intent(in)      :: disconnected_cells_set(:)
      end subroutine fill_disconnected_cells_set_interface 
+
+     function get_max_num_shape_functions_interface ( this )
+       import :: triangulation_t, ip
+       class(triangulation_t), intent(in) :: this
+       integer(ip) :: get_max_num_shape_functions_interface
+     end function get_max_num_shape_functions_interface
+
   end interface
   
   ! Parameters to define vef_type. Observe that
@@ -893,7 +922,6 @@ module triangulation_names
 
     ! Declare dummy procedures to be implemented in the corresponding derived classes 
     procedure :: update_sub_triangulation    => bst_cell_iterator_update_sub_triangulation
-    procedure :: get_mc_case                 => bst_cell_iterator_get_mc_case
     procedure :: get_num_subcells      => bst_cell_iterator_get_num_subcells
     procedure :: get_num_subcell_nodes => bst_cell_iterator_get_num_subcell_nodes
     procedure :: get_phys_coords_of_subcell  => bst_cell_iterator_get_phys_coords_of_subcell
@@ -957,6 +985,8 @@ module triangulation_names
      procedure                           :: get_improper_cell_around        => bst_vef_iterator_get_improper_cell_around
      procedure                           :: get_improper_cell_around_ivef   => bst_vef_iterator_get_improper_cell_around_ivef
      procedure                           :: get_improper_cell_around_subvef => bst_vef_iterator_get_improper_cell_around_subvef
+     procedure                           :: get_num_half_cells_around       => bst_vef_iterator_get_num_half_cells_around
+     procedure                           :: get_half_cell_around            => bst_vef_iterator_get_half_cell_around
   end type bst_vef_iterator_t
       
   integer(ip), parameter      :: max_num_reference_fes_geo = 3

@@ -125,6 +125,71 @@ end subroutine evaluate_monomials
     end do
   end subroutine At_times_B_times_A
 
+  subroutine find_facets_neighbors_in_mesh(T,nbel,facets,nbef,neigs)
+    implicit none
+    integer(ip), intent(in)    :: T(:,:)
+    integer(ip), intent(in)    :: nbel
+    integer(ip), intent(in)    :: facets(:,:)
+    integer(ip), intent(in)    :: nbef
+    integer(ip), intent(inout) :: neigs(:,:)
 
+    integer(ip) :: iel
+    integer(ip) :: ifa
+
+    assert(size(T,2)>=nbel)
+    assert(size(facets,2)==nbef)
+    assert(size(neigs,1)==nbef)
+    assert(size(neigs,2)>=nbel)
+
+    do iel = 1, nbel
+      do ifa = 1, nbef
+      neigs(ifa,iel) = find_neigbour(T,iel,nbel,facets,ifa)
+      end do
+    end do
+
+    contains
+
+      function find_neigbour(T,iel,nbel,facets,ifa)
+        implicit none
+        integer(ip), intent(in)    :: T(:,:)
+        integer(ip), intent(in)    :: iel
+        integer(ip), intent(in)    :: nbel
+        integer(ip), intent(in)    :: facets(:,:)
+        integer(ip), intent(in)    :: ifa
+        integer(ip) :: find_neigbour
+
+        integer(ip) :: jel
+        integer(ip) :: jen
+        integer(ip) :: ifn
+        logical :: has_all_facets_nodes
+        logical :: node_found
+
+        find_neigbour = 0
+        do jel = 1, nbel
+          if (iel /= jel) then
+
+            has_all_facets_nodes = .true.
+            do ifn = 1, size(facets,1)
+
+              node_found = .false.
+              do jen = 1,size(T,1)
+                if ( T(jen,jel) == T(facets(ifn,ifa),iel) ) then
+                  node_found = .true.
+                  exit
+                end if
+              end do
+
+              has_all_facets_nodes = has_all_facets_nodes .and. node_found
+            end do
+
+            if (has_all_facets_nodes) then
+              assert(find_neigbour == 0)
+              find_neigbour = jel
+            end if
+
+          end if
+        end do
+      end function find_neigbour
+  end subroutine find_facets_neighbors_in_mesh
 
 end module unfitted_temporary_names
