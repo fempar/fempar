@@ -1816,6 +1816,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
 
   class(reference_fe_t), pointer :: reference_fe
   integer(ip)          , pointer :: max_order_field_cell_to_ref_fes_face(:)
+  type(quadrature_t), pointer    :: quadrature
 
   type(quadrature_t)      , pointer :: current_facet_quadrature
   type(facet_maps_t)      , pointer :: current_facet_maps
@@ -1861,7 +1862,8 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
         call reference_fe%create_facet_quadrature(current_facet_quadrature,fe_face%get_quadrature_degree())
         call this%facet_maps%resize(facet_maps_position)
         current_facet_maps => this%facet_maps%get_pointer(facet_maps_position)
-        call current_facet_maps%create( fe_face%get_quadrature(), &
+        quadrature => fe_face%get_quadrature()
+        call current_facet_maps%create( quadrature, &
                                         reference_fes_geo(1)%p,   &
                                         reference_fes_geo(2)%p )
         facet_quadrature_position = facet_quadrature_position + 1
@@ -1888,7 +1890,8 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
         if (istat == now_stored) then
            call this%facet_integrators%resize(facet_integrator_position)
            current_facet_integrator => this%facet_integrators%get_pointer(facet_integrator_position)
-           call current_facet_integrator%create(fe_face%get_quadrature(), &
+           quadrature => fe_face%get_quadrature()
+           call current_facet_integrator%create(quadrature, &
                 reference_fes(1)%p, &
                 reference_fes(2)%p )
            facet_integrator_position = facet_integrator_position + 1
@@ -2638,6 +2641,13 @@ function serial_fe_space_get_num_fixed_dofs(this)
   serial_fe_space_get_num_fixed_dofs = this%num_fixed_dofs
 end function serial_fe_space_get_num_fixed_dofs
 
+subroutine serial_fe_space_set_num_fixed_dofs(this,num_fixed_dofs)
+  implicit none
+  class(serial_fe_space_t), intent(inout)    :: this 
+  integer(ip), intent(inout) :: num_fixed_dofs
+  this%num_fixed_dofs = num_fixed_dofs
+end subroutine serial_fe_space_set_num_fixed_dofs
+
 function serial_fe_space_get_num_dirichlet_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
@@ -2651,6 +2661,13 @@ function serial_fe_space_get_num_hanging_dofs(this)
   integer(ip) :: serial_fe_space_get_num_hanging_dofs
   serial_fe_space_get_num_hanging_dofs = this%num_hanging_dofs
 end function serial_fe_space_get_num_hanging_dofs
+
+subroutine serial_fe_space_set_num_hanging_dofs(this,num_hanging_dofs)
+  implicit none
+  class(serial_fe_space_t), intent(inout)    :: this 
+  integer(ip), intent(in) :: num_hanging_dofs
+  this%num_hanging_dofs = num_hanging_dofs
+end subroutine serial_fe_space_set_num_hanging_dofs
 
 function serial_fe_space_get_num_blocks( this)
   implicit none
@@ -2717,6 +2734,55 @@ function serial_fe_space_get_block_layout ( this )
   type(block_layout_t), pointer :: serial_fe_space_get_block_layout
   serial_fe_space_get_block_layout => this%block_layout
 end function serial_fe_space_get_block_layout
+
+function serial_fe_space_get_ptr_constraining_free_dofs(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_integer_ip_t), pointer :: serial_fe_space_get_ptr_constraining_free_dofs
+  serial_fe_space_get_ptr_constraining_free_dofs => this%ptr_constraining_free_dofs
+end function serial_fe_space_get_ptr_constraining_free_dofs
+
+function serial_fe_space_get_ptr_constraining_dirichlet_dofs(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_integer_ip_t), pointer :: serial_fe_space_get_ptr_constraining_dirichlet_dofs
+  serial_fe_space_get_ptr_constraining_dirichlet_dofs => this%ptr_constraining_dirichlet_dofs
+end function serial_fe_space_get_ptr_constraining_dirichlet_dofs
+
+function serial_fe_space_get_constraining_free_dofs(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_integer_ip_t), pointer :: serial_fe_space_get_constraining_free_dofs
+  serial_fe_space_get_constraining_free_dofs => this%constraining_free_dofs
+end function serial_fe_space_get_constraining_free_dofs
+
+function serial_fe_space_get_constraining_free_dofs_coefficients(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_real_rp_t), pointer :: serial_fe_space_get_constraining_free_dofs_coefficients
+  serial_fe_space_get_constraining_free_dofs_coefficients => this%constraining_free_dofs_coefficients
+end function serial_fe_space_get_constraining_free_dofs_coefficients
+
+function serial_fe_space_get_constraining_dirichlet_dofs(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_integer_ip_t), pointer :: serial_fe_space_get_constraining_dirichlet_dofs
+  serial_fe_space_get_constraining_dirichlet_dofs => this%constraining_dirichlet_dofs
+end function serial_fe_space_get_constraining_dirichlet_dofs
+
+function serial_fe_space_get_constraining_dirichlet_dofs_coefficients(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+  type(std_vector_real_rp_t), pointer :: serial_fe_space_get_constraining_dirichlet_dofs_coefficients
+  serial_fe_space_get_constraining_dirichlet_dofs_coefficients => this%constraining_dirichlet_dofs_coefficients
+end function serial_fe_space_get_constraining_dirichlet_dofs_coefficients
+
+function serial_fe_space_get_constraints_independent_term(this)
+  implicit none
+  class(serial_fe_space_t), target, intent(in) :: this
+     type(std_vector_real_rp_t), pointer :: serial_fe_space_get_constraints_independent_term
+     serial_fe_space_get_constraints_independent_term => this%constraints_independent_term
+end function serial_fe_space_get_constraints_independent_term
 
 subroutine serial_fe_space_create_fe_cell_iterator ( this, fe )
 
@@ -2971,6 +3037,7 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
         fe_own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(improper_vef_ivef)
         do while (.not. fe_own_dofs_on_vef_iterator%is_upper_bound() )
            improper_dof_lid = fe_dofs(fe_own_dofs_on_vef_iterator%get_current())
+           ishape_fe = fe_own_dofs_on_vef_iterator%get_current()
 
            if ( fe%is_free_dof(improper_dof_lid) ) exit
 
@@ -2979,13 +3046,23 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
 
            coarser_fe_dofs_on_vef_iterator = coarser_reference_fe%create_dofs_on_n_face_iterator(coarser_fe_ivef)
            do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
-              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
-                 call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, &
-                      this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+1)
-              else
-                 call this%ptr_constraining_free_dofs%set(hanging_dof_lid+1, &
-                      this%ptr_constraining_free_dofs%get(hanging_dof_lid+1)+1)
+              ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current()
+
+              if ( coarser_reference_fe%get_fe_type() == fe_type_lagrangian ) then
+                if ( coarser_reference_fe%get_component_node(ishape_coarser_fe) /= reference_fe%get_component_node(ishape_fe) ) then
+                  call coarser_fe_dofs_on_vef_iterator%next()
+                  cycle
+                end if
               end if
+
+              if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(coarser_fe_dofs_on_vef_iterator%get_current()) ) ) then
+                call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid+1, &
+                     this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid+1)+1)
+              else
+                call this%ptr_constraining_free_dofs%set(hanging_dof_lid+1, &
+                     this%ptr_constraining_free_dofs%get(hanging_dof_lid+1)+1)
+              end if
+
               call coarser_fe_dofs_on_vef_iterator%next()
            end do
            call fe_own_dofs_on_vef_iterator%next() 
@@ -3121,24 +3198,33 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
            do while (.not. coarser_fe_dofs_on_vef_iterator%is_upper_bound() )
               ishape_coarser_fe = coarser_fe_dofs_on_vef_iterator%get_current() 
 
+              ! In Lagrangian FEs the constraints are component by component (i.e., a DOF in component x will never constrain a DOF
+              ! in component y or z)
+              if ( coarser_reference_fe%get_fe_type() == fe_type_lagrangian ) then
+                if ( coarser_reference_fe%get_component_node(ishape_coarser_fe) /= reference_fe%get_component_node(ishape_fe) ) then
+                  call coarser_fe_dofs_on_vef_iterator%next()
+                  cycle
+                end if
+              end if
+
               ! Evaluate coefficient
               call coarser_reference_fe%get_h_refinement_coefficient(ishape_fe,ishape_coarser_fe,qpoint,coefficient)
 
               ! Set dependency and coefficient into the corresponding std_vector data structure
               if ( fe%is_strong_dirichlet_dof( coarser_fe_fe_dofs(ishape_coarser_fe) ) ) then
-                 call this%constraining_dirichlet_dofs%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
-                      coarser_fe_fe_dofs(ishape_coarser_fe))
-                 call this%constraining_dirichlet_dofs_coefficients%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
-                      coefficient)
-                 call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, &
-                      this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
+                call this%constraining_dirichlet_dofs%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                     coarser_fe_fe_dofs(ishape_coarser_fe))
+                call this%constraining_dirichlet_dofs_coefficients%set(this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid),&
+                     coefficient)
+                call this%ptr_constraining_dirichlet_dofs%set(hanging_dof_lid, &
+                     this%ptr_constraining_dirichlet_dofs%get(hanging_dof_lid)+1)
               else
-                 call this%constraining_free_dofs%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
-                      coarser_fe_fe_dofs(ishape_coarser_fe))
-                 call this%constraining_free_dofs_coefficients%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
-                      coefficient)
-                 call this%ptr_constraining_free_dofs%set(hanging_dof_lid, &
-                      this%ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
+                call this%constraining_free_dofs%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                     coarser_fe_fe_dofs(ishape_coarser_fe))
+                call this%constraining_free_dofs_coefficients%set(this%ptr_constraining_free_dofs%get(hanging_dof_lid),&
+                     coefficient)
+                call this%ptr_constraining_free_dofs%set(hanging_dof_lid, &
+                     this%ptr_constraining_free_dofs%get(hanging_dof_lid)+1)
               end if
 
               call coarser_fe_dofs_on_vef_iterator%next()
