@@ -177,6 +177,8 @@ subroutine cell_map_free( this )
      call memfree(this%wvec1,__FILE__,__LINE__)
      call memfree(this%d2sdx,__FILE__,__LINE__)
   end if
+  call this%my_duties%assign_compute_jacobian_inverse(.false.)
+  call this%my_duties%assign_compute_jacobian_derivative(.false.)
 end subroutine cell_map_free
 
 !==================================================================================================
