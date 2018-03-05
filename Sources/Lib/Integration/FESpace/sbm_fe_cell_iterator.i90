@@ -883,6 +883,15 @@ function fe_cell_iterator_get_cell_integrator ( this, field_id )
   fe_cell_iterator_get_cell_integrator => this%cell_integrators(field_id)%p
 end function fe_cell_iterator_get_cell_integrator
 
+function fe_cell_iterator_get_interpolation_duties ( this, field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)   :: this
+  integer(ip)              , intent(in)   :: field_id
+  type(interpolation_duties_t), pointer :: fe_cell_iterator_get_interpolation_duties
+  fe_cell_iterator_get_interpolation_duties => & 
+    this%cell_integrators(field_id)%p%get_interpolation_duties_real_cell()
+end function fe_cell_iterator_get_interpolation_duties
+
 subroutine fe_cell_iterator_get_fe_vef(this, ivef, fe_vef)
   implicit none
   class(fe_cell_iterator_t)   , intent(in)    :: this

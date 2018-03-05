@@ -122,6 +122,14 @@ function cell_integrator_get_interpolation_real_cell(this)
 end function cell_integrator_get_interpolation_real_cell
 
 !==================================================================================================
+function cell_integrator_get_interpolation_duties_real_cell(this)
+  implicit none
+  class(cell_integrator_t), target, intent(in) :: this
+  type(interpolation_duties_t), pointer :: cell_integrator_get_interpolation_duties_real_cell
+  cell_integrator_get_interpolation_duties_real_cell => this%interpolation_real_cell%my_duties
+end function cell_integrator_get_interpolation_duties_real_cell
+
+!==================================================================================================
 subroutine cell_integrator_get_value_scalar (this, ishape, qpoint, scalar_field)
   implicit none
   class(cell_integrator_t), intent(in)    :: this

@@ -1734,6 +1734,8 @@ procedure, non_overridable :: get_interpolation_reference_cell =>               
 procedure, non_overridable :: get_interpolation_real_cell =>                                    &
 &                                   cell_integrator_get_interpolation_real_cell
 
+procedure, non_overridable :: get_interpolation_duties_real_cell =>                             &
+&                                   cell_integrator_get_interpolation_duties_real_cell
 
 procedure, non_overridable, private :: get_value_scalar           => cell_integrator_get_value_scalar
 procedure, non_overridable, private :: get_value_vector           => cell_integrator_get_value_vector
