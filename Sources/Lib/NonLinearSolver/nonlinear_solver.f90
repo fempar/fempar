@@ -44,8 +44,9 @@ module nonlinear_solver_names
   character(len=*), parameter :: rel_r0_res_norm               = 'rel_r0_res_norm'               ! |r(x_i)| <= rel_tol*|r(x_0)|
   character(len=*), parameter :: abs_res_norm_and_rel_inc_norm = 'abs_res_norm_and_rel_inc_norm' ! |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
 
-  character(len=*), parameter :: static             = 'static' 
-  character(len=*), parameter :: cubic_backtracking = 'cubic_backtracking' 
+  character(len=*), parameter :: static              = 'static' 
+  character(len=*), parameter :: cubic_backtracking  = 'cubic_backtracking' 
+  character(len=*), parameter :: L2_iterative_secant = 'L2_iterative_secant'
     
   type, abstract :: line_search_t 
      private 
@@ -101,6 +102,15 @@ module nonlinear_solver_names
      procedure, private :: free                  => cubic_backtracking_line_search_free 
      procedure, private :: determine_step_length => cubic_backtracking_line_search_determine_step_length
   end type cubic_backtracking_line_search_t
+  
+    type, extends(line_search_t) :: L2_iterative_secant_line_search_t 
+     private 
+     class(vector_t), allocatable :: initial_dof_values 
+   contains 
+     procedure, private :: create                => L2_iterative_secant_line_search_create 
+     procedure, private :: free                  => L2_iterative_secant_line_search_free 
+     procedure, private :: determine_step_length => L2_iterative_secant_line_search_determine_step_length
+  end type L2_iterative_secant_line_search_t
 
 public :: static, cubic_backtracking 
   
@@ -248,6 +258,7 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
     
     call this%linear_solver%apply( this%minus_current_residual, this%increment_dof_values )
     call this%line_search%determine_step_length(this%increment_dof_values, this%current_dof_values, nonlinear_operator)  
+    WRITE(*,*) 'Updating w/ Lambda:', this%line_search%get_step_length()
     call this%update_solution(this%line_search%get_step_length()) ! x + lambda*dx
     call nonlinear_operator%set_evaluation_point(this%current_dof_values)
     call nonlinear_operator%compute_residual()
@@ -415,6 +426,8 @@ subroutine make_line_search(line_search_type, line_search)
      allocate ( static_line_search_t :: line_search )
   case ( cubic_backtracking ) 
      allocate ( cubic_backtracking_line_search_t :: line_search )
+  case ( L2_iterative_secant ) 
+     allocate ( L2_iterative_secant_line_search_t :: line_search )
   case DEFAULT 
      massert(.false., 'Specified line search technique is not valid') 
   end select
@@ -500,7 +513,7 @@ subroutine cubic_backtracking_line_search_determine_step_length(this, increment_
   ! Initialize parameters  
   this%step_length      = 1.0_rp 
   this%current_iterate  = 0
-  this%max_num_iterates = 4
+  this%max_num_iterates = 3
   this%alpha            = 1.0e-4_rp 
 
   current_residual      => nonlinear_operator%get_translation()
@@ -517,9 +530,9 @@ subroutine cubic_backtracking_line_search_determine_step_length(this, increment_
   call nonlinear_operator%set_evaluation_point(current_dof_values)
   call nonlinear_operator%compute_residual()
   if ( current_residual%nrm2()**2 <= initial_residual_norm + 2.0_rp*this%alpha*this%step_length*s ) then 
-     ! The initial step length is sufficient 
+     ! Initial time steps fulfills the Armijo condition   
      call nonlinear_operator%set_evaluation_point(this%initial_dof_values) 
-     this%current_iterate  = 1; return 
+     return 
   end if
 
   previous_residual_norm = current_residual%nrm2()
@@ -537,12 +550,12 @@ subroutine cubic_backtracking_line_search_determine_step_length(this, increment_
   call nonlinear_operator%set_evaluation_point(current_dof_values)
   call nonlinear_operator%compute_residual()
   if ( current_residual%nrm2()**2 <= initial_residual_norm + 2.0_rp*this%alpha*this%step_length*s ) then 
-     ! Quadratic is sufficient 
+     ! Quadratic interpolation of F(step_length) is enough  
      call nonlinear_operator%set_evaluation_point(this%initial_dof_values) 
-     this%current_iterate  = this%current_iterate + 1; return 
+     return 
   end if
 
-  do while ( this%current_iterate < this%max_num_iterates + 2) 
+  do while ( this%current_iterate < this%max_num_iterates) 
      this%current_iterate=this%current_iterate+1
 
      t1 = 0.5_rp*( previous_residual_norm**2 - initial_residual_norm**2) - this%step_length*s 
@@ -552,12 +565,12 @@ subroutine cubic_backtracking_line_search_determine_step_length(this, increment_
      b  = this%step_length*( t2/previous_step_length**2 - t1/this%step_length**2)/(this%step_length - previous_step_length)
      d  = max ( b**2.0_rp - 3.0_rp*a*s, 0.0_rp )
 
-     if (abs(a) < 1e-14) then 
+     if (abs(a) < 1.0e-14_rp) then 
         trial_step_length = -s/(2.0_rp*b)
      else 
         trial_step_length = (sqrt(d)-b)/(3.0_rp*a) 
      end if
-
+     
      previous_step_length   = this%step_length 
      previous_residual_norm = current_residual%nrm2() 
      ! Update step length 
@@ -573,8 +586,8 @@ subroutine cubic_backtracking_line_search_determine_step_length(this, increment_
      call nonlinear_operator%set_evaluation_point(current_dof_values)
      call nonlinear_operator%compute_residual()
      if ( current_residual%nrm2()**2 <= initial_residual_norm + 2.0_rp*this%alpha*this%step_length*s) then 
+        ! Cubic interpolation of F(step_length) is enough
         call nonlinear_operator%set_evaluation_point(this%initial_dof_values) 
-        ! Cubic is sufficient 
         return 
      end if
 
@@ -583,5 +596,89 @@ subroutine cubic_backtracking_line_search_determine_step_length(this, increment_
   ! If it did not achieve to satisfy the condition, go back to the previous state 
   call nonlinear_operator%set_evaluation_point(this%initial_dof_values)
 end subroutine cubic_backtracking_line_search_determine_step_length
+
+! =============================================================================
+subroutine L2_iterative_secant_line_search_free(this) 
+  class(L2_iterative_secant_line_search_t), intent(inout) :: this 
+  integer(ip) :: istat 
+
+  if(allocated(this%initial_dof_values)) then
+     call this%initial_dof_values%free()
+     deallocate(this%initial_dof_values,stat=istat); check(istat==0)
+  end if
+
+end subroutine L2_iterative_secant_line_search_free
+
+! =============================================================================
+subroutine L2_iterative_secant_line_search_create(this, nonlinear_operator) 
+  class(L2_iterative_secant_line_search_t) , intent(inout) :: this 
+  class(fe_nonlinear_operator_t)          , intent(in)    :: nonlinear_operator 
+  call nonlinear_operator%create_domain_vector(this%initial_dof_values)
+end subroutine L2_iterative_secant_line_search_create
+
+!==============================================================================
+! Algorithm from 'Brune, P. Knepley, M. Smith, B. and Tu, X. Composing scalable 
+! nonlinear algebraic solvers. SIAM Review, 57(4) p. 540'
+subroutine L2_iterative_secant_line_search_determine_step_length(this, increment_dof_values, current_dof_values, nonlinear_operator) 
+  implicit none 
+  class(L2_iterative_secant_line_search_t) , intent(inout) :: this 
+  class(vector_t)                          , intent(in)    :: increment_dof_values
+  class(vector_t)                          , intent(inout) :: current_dof_values
+  class(fe_nonlinear_operator_t)           , intent(inout) :: nonlinear_operator 
+
+  class(vector_t), pointer :: current_residual
+  real(rp)                 :: previous_step_length
+  real(rp)                 :: trial_step_length 
+  real(rp)                 :: previous_res_norm 
+  real(rp)                 :: current_res_norm  
+  real(rp)                 :: half_step_res_norm 
+  real(rp)                 :: curr_grad_res_norm 
+  real(rp)                 :: prev_grad_res_norm 
+  real(rp)                 :: step_length_update
+
+  ! Initialize parameters  
+  this%step_length      = 1.0_rp 
+  this%current_iterate  = 0
+  this%max_num_iterates = 3
+
+  previous_step_length = 0.0_rp 
+  current_residual     => nonlinear_operator%get_translation()
+  previous_res_norm    =  current_residual%nrm2() 
+  call this%initial_dof_values%copy(current_dof_values)
+
+  do while ( this%current_iterate < this%max_num_iterates )
+     this%current_iterate = this%current_iterate + 1
+
+     ! Evaluate F( (lambda_i + lambda_{i-1})/2 )
+     call current_dof_values%axpby(0.5_rp*(previous_step_length+this%step_length), increment_dof_values, 1.0_rp)
+     call nonlinear_operator%set_evaluation_point(current_dof_values)
+     call nonlinear_operator%compute_residual()
+     half_step_res_norm = current_residual%nrm2() 
+
+     ! Evaluate F(lambda_i) 
+     call current_dof_values%axpby(0.5_rp*(this%step_length-previous_step_length), increment_dof_values, 1.0_rp)
+     call nonlinear_operator%set_evaluation_point(current_dof_values)
+     call nonlinear_operator%compute_residual()
+     current_res_norm = current_residual%nrm2() 
+
+     curr_grad_res_norm = (3.0_rp*current_res_norm**2 - 4.0_rp*half_step_res_norm**2 +        previous_res_norm**2)/(this%step_length-previous_step_length)
+     prev_grad_res_norm = (       current_res_norm**2 - 4.0_rp*half_step_res_norm**2 + 3.0_rp*previous_res_norm**2)/(this%step_length-previous_step_length)
+
+     ! Update step length 
+     step_length_update = -curr_grad_res_norm*(this%step_length-previous_step_length)/(curr_grad_res_norm-prev_grad_res_norm)
+     if ( abs(step_length_update) > 1e-5_rp .and. step_length_update>0) then 
+        this%step_length  = this%step_length  + step_length_update 
+     else 
+        call nonlinear_operator%set_evaluation_point(this%initial_dof_values)
+        return 
+     end if
+
+     ! Return nonlinear operator to the starting point  
+
+     previous_step_length = this%step_length 
+     previous_res_norm    = current_residual%nrm2()
+  end do
+
+end subroutine L2_iterative_secant_line_search_determine_step_length
 
 end module nonlinear_solver_names
