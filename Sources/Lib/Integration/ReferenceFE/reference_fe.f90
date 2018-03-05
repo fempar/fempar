@@ -498,6 +498,10 @@ module reference_fe_names
      procedure(get_curls_vector_interface)              , deferred :: get_curls_vector
      generic :: get_curls => get_curls_vector
 
+     procedure(get_laplacian_scalar_interface)       , deferred :: get_laplacian_scalar
+     procedure(get_laplacian_vector_interface)       , deferred :: get_laplacian_vector
+     generic :: get_laplacian => get_laplacian_scalar, get_laplacian_vector
+
      procedure(evaluate_fe_function_scalar_interface), deferred :: evaluate_fe_function_scalar
      procedure(evaluate_fe_function_vector_interface), deferred :: evaluate_fe_function_vector
      procedure(evaluate_fe_function_tensor_interface), deferred :: evaluate_fe_function_tensor
@@ -805,6 +809,28 @@ module reference_fe_names
        integer(ip)          , optional   , intent(in)    :: qpoints_perm(:)
      end subroutine get_curls_vector_interface
 
+     subroutine get_laplacian_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,        &
+          &                                     scalar_field )
+       import :: reference_fe_t, interpolation_t, ip, rp
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       integer(ip)          , intent(in)    :: ishape
+       integer(ip)          , intent(in)    :: qpoint
+       real(rp)             , intent(inout) :: scalar_field
+     end subroutine get_laplacian_scalar_interface
+
+     subroutine get_laplacian_vector_interface( this, actual_cell_interpolation, ishape, qpoint,        &
+          &                                     vector_field )
+       import :: reference_fe_t, interpolation_t, vector_field_t, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       integer(ip)          , intent(in)    :: ishape
+       integer(ip)          , intent(in)    :: qpoint
+       type(vector_field_t) , intent(inout) :: vector_field
+     end subroutine get_laplacian_vector_interface
+
      subroutine evaluate_fe_function_scalar_interface( this,                      &
                                                        actual_cell_interpolation, &
                                                        nodal_values,              &
@@ -1044,6 +1070,8 @@ contains
   procedure :: get_divergences_vector    => lagrangian_reference_fe_get_divergences_vector
   procedure :: get_curl_vector           => lagrangian_reference_fe_get_curl_vector
   procedure :: get_curls_vector          => lagrangian_reference_fe_get_curls_vector
+  procedure :: get_laplacian_scalar      => lagrangian_reference_fe_get_laplacian_scalar
+  procedure :: get_laplacian_vector      => lagrangian_reference_fe_get_laplacian_vector
   procedure :: create_nodal_quadrature   => lagrangian_reference_fe_create_nodal_quadrature
   procedure :: has_nodal_quadrature      => lagrangian_reference_fe_has_nodal_quadrature
   procedure :: get_nodal_quadrature      => lagrangian_reference_fe_get_nodal_quadrature
@@ -1621,6 +1649,8 @@ contains
   procedure :: get_divergences_vector      => void_reference_fe_get_divergences_vector
   procedure :: get_curl_vector             => void_reference_fe_get_curl_vector
   procedure :: get_curls_vector            => void_reference_fe_get_curls_vector
+  procedure :: get_laplacian_scalar        => void_reference_fe_get_laplacian_scalar
+  procedure :: get_laplacian_vector        => void_reference_fe_get_laplacian_vector
   procedure :: evaluate_fe_function_scalar => void_reference_fe_evaluate_fe_function_scalar
   procedure :: evaluate_fe_function_vector => void_reference_fe_evaluate_fe_function_vector
   procedure :: evaluate_fe_function_tensor => void_reference_fe_evaluate_fe_function_tensor
