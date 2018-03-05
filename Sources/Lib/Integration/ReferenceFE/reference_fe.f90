@@ -514,6 +514,11 @@ module reference_fe_names
      generic :: evaluate_gradient_fe_function => evaluate_gradient_fe_function_scalar, &
           & evaluate_gradient_fe_function_vector
 
+     procedure(evaluate_laplacian_fe_function_scalar_interface), deferred :: evaluate_laplacian_fe_function_scalar
+     procedure(evaluate_laplacian_fe_function_vector_interface), deferred :: evaluate_laplacian_fe_function_vector
+     generic :: evaluate_laplacian_fe_function => evaluate_laplacian_fe_function_scalar, &
+          & evaluate_laplacian_fe_function_vector
+
      procedure (check_compatibility_of_n_faces_interface), deferred :: &
           &     check_compatibility_of_n_faces
      procedure (get_characteristic_length_interface) , deferred :: get_characteristic_length
@@ -891,6 +896,30 @@ module reference_fe_names
        type(tensor_field_t) , allocatable, intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
      
+     subroutine evaluate_laplacian_fe_function_scalar_interface( this,                      &
+                                                                 actual_cell_interpolation, &
+                                                                 nodal_values,              &
+                                                                 quadrature_points_values)
+       import :: reference_fe_t, interpolation_t, rp
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp)             , intent(in)    :: nodal_values(:)
+       real(rp), allocatable, intent(inout) :: quadrature_points_values(:)
+     end subroutine evaluate_laplacian_fe_function_scalar_interface
+
+     subroutine evaluate_laplacian_fe_function_vector_interface( this,                      &
+                                                               & actual_cell_interpolation, &
+                                                               & nodal_values,              &
+                                                               & quadrature_points_values)
+       import :: reference_fe_t, interpolation_t, rp, vector_field_t
+       implicit none
+       class(reference_fe_t)            , intent(in)    :: this 
+       type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+       real(rp)                         , intent(in)    :: nodal_values(:)
+       type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+     end subroutine evaluate_laplacian_fe_function_vector_interface
+     
      function check_compatibility_of_n_faces_interface(target_reference_fe, &
           &                       source_reference_fe, source_n_face_id,target_n_face_id)
        import :: reference_fe_t, ip
@@ -1085,6 +1114,10 @@ contains
        & => lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
   procedure :: evaluate_gradient_fe_function_vector &
        & => lagrangian_reference_fe_evaluate_gradient_fe_function_vector
+  procedure :: evaluate_laplacian_fe_function_scalar          &
+       & => lagrangian_reference_fe_evaluate_laplacian_fe_function_scalar
+  procedure :: evaluate_laplacian_fe_function_vector          & 
+       & => lagrangian_reference_fe_evaluate_laplacian_fe_function_vector
   procedure :: free                      => lagrangian_reference_fe_free
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                         & 
@@ -1656,6 +1689,10 @@ contains
   procedure :: evaluate_fe_function_tensor => void_reference_fe_evaluate_fe_function_tensor
   procedure :: evaluate_gradient_fe_function_scalar => void_reference_fe_evaluate_gradient_fe_function_scalar
   procedure :: evaluate_gradient_fe_function_vector => void_reference_fe_evaluate_gradient_fe_function_vector
+  procedure :: evaluate_laplacian_fe_function_scalar          &
+       & => void_reference_fe_evaluate_laplacian_fe_function_scalar
+  procedure :: evaluate_laplacian_fe_function_vector          & 
+       & => void_reference_fe_evaluate_laplacian_fe_function_vector
   procedure :: check_compatibility_of_n_faces       => void_reference_fe_check_compatibility_of_n_faces
   procedure :: get_characteristic_length            => void_reference_fe_get_characteristic_length  
   procedure :: generate_own_dofs_cell_permutations            => void_reference_fe_generate_own_dofs_cell_permutations
@@ -1760,6 +1797,11 @@ procedure, non_overridable, private :: cell_integrator_evaluate_gradient_fe_func
 procedure, non_overridable, private :: cell_integrator_evaluate_gradient_fe_function_vector
 generic :: evaluate_gradient_fe_function => cell_integrator_evaluate_gradient_fe_function_scalar, &
 & cell_integrator_evaluate_gradient_fe_function_vector
+
+procedure, non_overridable, private :: cell_integrator_evaluate_laplacian_fe_function_scalar
+procedure, non_overridable, private :: cell_integrator_evaluate_laplacian_fe_function_vector
+generic :: evaluate_laplacian_fe_function => cell_integrator_evaluate_laplacian_fe_function_scalar, &
+& cell_integrator_evaluate_laplacian_fe_function_vector
 
 end type cell_integrator_t
 

@@ -1410,6 +1410,36 @@ subroutine fe_cell_iterator_evaluate_gradient_fe_function_vector ( this,        
   field_id_=1; if (present(field_id)) field_id_ = field_id
   call this%cell_integrators(field_id_)%p%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
 end subroutine fe_cell_iterator_evaluate_gradient_fe_function_vector
+!=================================================================================================
+subroutine fe_cell_iterator_evaluate_laplacian_fe_function_scalar ( this,                     &
+                                                                    nodal_values,             &
+                                                                    quadrature_points_values, &
+                                                                    field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp)                , intent(in)    :: nodal_values(:)
+  real(rp), allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%evaluate_laplacian_fe_function(nodal_values,quadrature_points_values)
+end subroutine fe_cell_iterator_evaluate_laplacian_fe_function_scalar
+!=================================================================================================
+subroutine fe_cell_iterator_evaluate_laplacian_fe_function_vector ( this,                     &
+                                                                    nodal_values,             &
+                                                                    quadrature_points_values, &
+                                                                    field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(vector_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%evaluate_laplacian_fe_function(nodal_values,quadrature_points_values)
+end subroutine fe_cell_iterator_evaluate_laplacian_fe_function_vector
 
 subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
   implicit none
