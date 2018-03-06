@@ -110,6 +110,79 @@ function vef_iterator_is_within_valid_range (this)
   vef_iterator_is_within_valid_range  = (this%gid >= 1 .and. .not. this%has_finished())
 end function vef_iterator_is_within_valid_range
 
+subroutine vef_iterator_update_sub_triangulation( this )
+  implicit none
+  class(vef_iterator_t), intent(inout) :: this
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end subroutine vef_iterator_update_sub_triangulation
+
+function vef_iterator_get_num_subvefs( this ) result ( num_subvefs )
+  implicit none
+  class(vef_iterator_t), intent(in)    :: this
+  integer(ip) :: num_subvefs
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end function vef_iterator_get_num_subvefs
+
+function vef_iterator_get_num_subvef_nodes( this ) result ( num_nodes_subvef )
+  implicit none
+  class(vef_iterator_t), intent(in)    :: this
+  integer(ip) :: num_nodes_subvef
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end function vef_iterator_get_num_subvef_nodes
+
+subroutine vef_iterator_get_phys_coords_of_subvef( this, subvef, points )
+  implicit none
+  class(vef_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subvef
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end subroutine vef_iterator_get_phys_coords_of_subvef
+
+subroutine vef_iterator_get_ref_coords_of_subvef( this, subvef, points )
+  implicit none
+  class(vef_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subvef
+  type(point_t),                   intent(inout) :: points(:)
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end subroutine vef_iterator_get_ref_coords_of_subvef
+
+function vef_iterator_is_cut( this ) result ( is_cut )
+  implicit none
+  class(vef_iterator_t), intent(in)    :: this
+  logical :: is_cut
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end function vef_iterator_is_cut
+
+function vef_iterator_is_interior( this ) result ( is_interior )
+  implicit none
+  class(vef_iterator_t), intent(in)  :: this
+  logical :: is_interior
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end function vef_iterator_is_interior
+
+function vef_iterator_is_exterior( this ) result ( is_exterior )
+  implicit none
+  class(vef_iterator_t), intent(in)  :: this
+  logical :: is_exterior
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end function vef_iterator_is_exterior
+
+function vef_iterator_is_interior_subvef( this, subvef ) result ( is_in )
+  implicit none
+  class(vef_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subvef
+  logical :: is_in
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end function vef_iterator_is_interior_subvef
+
+function vef_iterator_is_exterior_subvef( this, subvef ) result ( is_out )
+  implicit none
+  class(vef_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subvef
+  logical :: is_out
+  mcheck(.false.,'This procedure can only be called by some child derived data types')
+end function vef_iterator_is_exterior_subvef
+
 !function vef_iterator_is_proper ( this ) 
 !  implicit none
 !  class(vef_iterator_t), intent(in) :: this

@@ -113,16 +113,22 @@ module reference_fe_names
   public :: quadrature_t, p_quadrature_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#define duties interpolation_duties
+#define task_01 compute_first_derivatives
+#define task_02 compute_second_derivatives
+#include "duties_header.i90"
+
   type interpolation_t
      private
-     integer(ip)                    ::  &
-          num_dims = 0,        &      
-          num_shape_functions = 0,   &      
-          num_quadrature_points = 0, &      
+     type(interpolation_duties_t)   :: my_duties
+     integer(ip)                    :: &
+          num_dims = 0              ,  &      
+          num_shape_functions = 0   ,  &      
+          num_quadrature_points = 0 ,  &      
           num_entries_symmetric_tensor = 0
-     real(rp), allocatable        ::  &
-          shape_functions(:,:,:),     &   
-          shape_derivatives(:,:,:,:), &   
+     real(rp), allocatable        ::   &
+          shape_functions(:,:,:),      &   
+          shape_derivatives(:,:,:,:),  &   
           hessian(:,:,:,:)     
    contains
      procedure, non_overridable :: create => interpolation_create
@@ -133,14 +139,13 @@ module reference_fe_names
      procedure, non_overridable, private :: is_needed_to_allocate => interpolation_is_needed_to_allocate
   end type interpolation_t
 
-  public :: interpolation_t
+  public :: interpolation_t, interpolation_duties_t
 
   type base_map_t
     private
-    ! Number of dimensions
+
     integer(ip)                 :: num_dims
-    
-    ! Number of quadrature points
+    integer(ip)                 :: num_nodes
     integer(ip)                 :: num_quadrature_points
     
     ! Map's Jacobian (num_dims,num_dims,num_quadrature_points)
@@ -166,7 +171,7 @@ module reference_fe_names
   contains
     procedure                  :: free                              => base_map_free
     procedure, non_overridable :: copy                              => base_map_copy
-    procedure, non_overridable :: update_interpolation              => base_map_update_interpolation
+    procedure                  :: update_interpolation              => base_map_update_interpolation
     procedure, non_overridable :: get_coordinates                   => base_map_get_coordinates
     procedure, non_overridable :: get_quadrature_points_coordinates => base_map_get_quadrature_points_coordinates
     procedure, non_overridable :: compute_quadrature_points_coordinates    => base_map_compute_quadrature_points_coordinates
@@ -176,23 +181,34 @@ module reference_fe_names
     procedure, non_overridable :: get_reference_h                   => base_map_get_reference_h
     procedure, non_overridable :: get_measure                       => base_map_get_measure 
   end type base_map_t
-  
+
+#define duties cell_map_duties
+#define task_01 compute_jacobian_inverse
+#define task_02 compute_jacobian_derivative
+#include "duties_header.i90"
+
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  cell_map_t
      private
+     type(cell_map_duties_t)  :: my_duties
      ! Map's Jacobian inverse (num_dims,num_dims,num_quadrature_points)       
      real(rp), allocatable    :: inv_jacobian(:,:,:)     
  
      ! Map's 2nd derivatives (num_dime,num_dime,num_dime,num_quadrature_points)         
-     real(rp), allocatable    :: d2sdx(:,:,:,:)
-     
+     integer(ip)           :: num_entries_symmetric_tensor
+     real(rp), allocatable :: d2sdx(:,:,:,:)
+     ! and temporary arrays to update them
+     real(rp), allocatable :: wmat1(:,:,:)
+     real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
+
      ! Map's Jacobian sign
      logical                  :: det_jacobian_positiveness
    contains
-        procedure, non_overridable :: create                            => cell_map_create
-     procedure, non_overridable :: restricted_to_facet                    => cell_map_restricted_to_facet
+     procedure, non_overridable :: create                            => cell_map_create
+     procedure, non_overridable :: restricted_to_facet               => cell_map_restricted_to_facet
      procedure                  :: free                              => cell_map_free
      procedure, non_overridable :: update                            => cell_map_update
+     procedure, non_overridable :: update_interpolation_restricted_to_facet => cell_map_update_interpolation_restricted_to_facet
      procedure, non_overridable :: print                             => cell_map_print
      procedure, non_overridable :: compute_h                         => cell_map_compute_h
      procedure, non_overridable :: compute_h_min                     => cell_map_compute_h_min
@@ -206,7 +222,7 @@ module reference_fe_names
   interface assignment(=)
      module procedure assign_cell_map, assign_cell_map_array
   end interface assignment(=)
-  
+
   ! %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  facet_map_t
      private
@@ -215,6 +231,7 @@ module reference_fe_names
    contains
      procedure, non_overridable :: create            => facet_map_create
      procedure, non_overridable :: update            => facet_map_update
+     procedure                  :: update_interpolation => facet_map_update_interpolation
      procedure                  :: free              => facet_map_free
      procedure, non_overridable :: get_normal        => facet_map_get_normal
      procedure, non_overridable :: get_raw_normals   => facet_map_get_raw_normals
@@ -245,6 +262,7 @@ module reference_fe_names
   end type p_cell_map_t
 
   public :: cell_map_t, facet_map_t, edge_map_t, p_cell_map_t
+  public :: cell_map_duties_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -258,11 +276,14 @@ module reference_fe_names
    contains
      procedure, non_overridable :: create               => cell_map_facet_restriction_create
      procedure, non_overridable :: update               => cell_map_facet_restriction_update
+     procedure, non_overridable :: update_interpolation => cell_map_facet_restriction_update_interpolation
      procedure, non_overridable :: free                 => cell_map_facet_restriction_free
      procedure, non_overridable :: copy                 => cell_map_facet_restriction_copy
      procedure, non_overridable :: get_coordinates      => cell_map_facet_restriction_get_coordinates
      procedure, non_overridable :: get_current_cell_map => cell_map_facet_restriction_get_current_cell_map 
   end type cell_map_facet_restriction_t
+  
+  public :: cell_map_facet_restriction_t
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
   type polytope_t
@@ -430,6 +451,7 @@ module reference_fe_names
      procedure(create_interpolation_restricted_to_facet_interface), deferred :: create_interpolation_restricted_to_facet
      procedure(create_facet_interpolation_interface)    , deferred :: create_facet_interpolation
      procedure(create_edget_interpolation_interface)    , deferred :: create_edget_interpolation
+     procedure(assign_cell_map_duties_interface)        , deferred :: assign_cell_map_duties
      procedure(apply_cell_map_interface)                , deferred :: apply_cell_map
      procedure(get_component_node_interface)            , deferred :: get_component_node
      procedure(get_scalar_from_vector_node_interface)   , deferred :: get_scalar_from_vector_node
@@ -481,6 +503,10 @@ module reference_fe_names
      procedure(get_curls_vector_interface)              , deferred :: get_curls_vector
      generic :: get_curls => get_curls_vector
 
+     procedure(get_laplacian_scalar_interface)       , deferred :: get_laplacian_scalar
+     procedure(get_laplacian_vector_interface)       , deferred :: get_laplacian_vector
+     generic :: get_laplacian => get_laplacian_scalar, get_laplacian_vector
+
      procedure(evaluate_fe_function_scalar_interface), deferred :: evaluate_fe_function_scalar
      procedure(evaluate_fe_function_vector_interface), deferred :: evaluate_fe_function_vector
      procedure(evaluate_fe_function_tensor_interface), deferred :: evaluate_fe_function_tensor
@@ -492,6 +518,11 @@ module reference_fe_names
      procedure(evaluate_gradient_fe_function_vector_interface), deferred :: evaluate_gradient_fe_function_vector
      generic :: evaluate_gradient_fe_function => evaluate_gradient_fe_function_scalar, &
           & evaluate_gradient_fe_function_vector
+
+     procedure(evaluate_laplacian_fe_function_scalar_interface), deferred :: evaluate_laplacian_fe_function_scalar
+     procedure(evaluate_laplacian_fe_function_vector_interface), deferred :: evaluate_laplacian_fe_function_vector
+     generic :: evaluate_laplacian_fe_function => evaluate_laplacian_fe_function_scalar, &
+          & evaluate_laplacian_fe_function_vector
 
      procedure (check_compatibility_of_n_faces_interface), deferred :: &
           &     check_compatibility_of_n_faces
@@ -519,7 +550,7 @@ module reference_fe_names
 
      ! Getters
      procedure :: get_topology => reference_fe_get_topology
-     !procedure :: get_fe_type => reference_fe_get_fe_type
+     procedure :: get_fe_type => reference_fe_get_fe_type
      procedure :: get_field_type => reference_fe_get_field_type
      procedure :: get_num_dims => reference_fe_get_num_dims
      procedure :: get_order => reference_fe_get_order
@@ -604,13 +635,13 @@ module reference_fe_names
        integer(ip), optional, intent(in)    :: degree
      end subroutine create_facet_quadrature_interface
 
-     subroutine create_interpolation_interface ( this, quadrature, interpolation, compute_hessian )
-       import :: reference_fe_t, quadrature_t, interpolation_t
+     subroutine create_interpolation_interface ( this, quadrature, interpolation, interpolation_duties )
+       import :: reference_fe_t, quadrature_t, interpolation_t, interpolation_duties_t
        implicit none 
        class(reference_fe_t), intent(in)    :: this 
        type(quadrature_t)   , intent(in)    :: quadrature
        type(interpolation_t), intent(inout) :: interpolation
-       logical    , optional, intent(in)    :: compute_hessian
+       type(interpolation_duties_t), optional, intent(in) :: interpolation_duties
      end subroutine create_interpolation_interface
 
      subroutine create_interpolation_restricted_to_facet_interface ( this, facet_lid , subfacet_lid, &
@@ -788,6 +819,28 @@ module reference_fe_names
        integer(ip)          , optional   , intent(in)    :: qpoints_perm(:)
      end subroutine get_curls_vector_interface
 
+     subroutine get_laplacian_scalar_interface( this, actual_cell_interpolation, ishape, qpoint,        &
+          &                                     scalar_field )
+       import :: reference_fe_t, interpolation_t, ip, rp
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       integer(ip)          , intent(in)    :: ishape
+       integer(ip)          , intent(in)    :: qpoint
+       real(rp)             , intent(inout) :: scalar_field
+     end subroutine get_laplacian_scalar_interface
+
+     subroutine get_laplacian_vector_interface( this, actual_cell_interpolation, ishape, qpoint,        &
+          &                                     vector_field )
+       import :: reference_fe_t, interpolation_t, vector_field_t, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       integer(ip)          , intent(in)    :: ishape
+       integer(ip)          , intent(in)    :: qpoint
+       type(vector_field_t) , intent(inout) :: vector_field
+     end subroutine get_laplacian_vector_interface
+
      subroutine evaluate_fe_function_scalar_interface( this,                      &
                                                        actual_cell_interpolation, &
                                                        nodal_values,              &
@@ -848,6 +901,30 @@ module reference_fe_names
        type(tensor_field_t) , allocatable, intent(inout) :: quadrature_points_values(:)
      end subroutine evaluate_gradient_fe_function_vector_interface
      
+     subroutine evaluate_laplacian_fe_function_scalar_interface( this,                      &
+                                                                 actual_cell_interpolation, &
+                                                                 nodal_values,              &
+                                                                 quadrature_points_values)
+       import :: reference_fe_t, interpolation_t, rp
+       implicit none
+       class(reference_fe_t), intent(in)    :: this 
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp)             , intent(in)    :: nodal_values(:)
+       real(rp), allocatable, intent(inout) :: quadrature_points_values(:)
+     end subroutine evaluate_laplacian_fe_function_scalar_interface
+
+     subroutine evaluate_laplacian_fe_function_vector_interface( this,                      &
+                                                               & actual_cell_interpolation, &
+                                                               & nodal_values,              &
+                                                               & quadrature_points_values)
+       import :: reference_fe_t, interpolation_t, rp, vector_field_t
+       implicit none
+       class(reference_fe_t)            , intent(in)    :: this 
+       type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+       real(rp)                         , intent(in)    :: nodal_values(:)
+       type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+     end subroutine evaluate_laplacian_fe_function_vector_interface
+     
      function check_compatibility_of_n_faces_interface(target_reference_fe, &
           &                       source_reference_fe, source_n_face_id,target_n_face_id)
        import :: reference_fe_t, ip
@@ -866,12 +943,19 @@ module reference_fe_names
        real(rp)  :: get_characteristic_length_interface 
      end function get_characteristic_length_interface
 
+     subroutine assign_cell_map_duties_interface (this, interpolation_duties,cell_map_duties)
+        import :: reference_fe_t, interpolation_duties_t, cell_map_duties_t
+        class(reference_fe_t)       , intent(in)  :: this 
+        type(interpolation_duties_t), intent(in)  :: interpolation_duties
+        type(cell_map_duties_t)     , intent(out) :: cell_map_duties
+      end subroutine assign_cell_map_duties_interface
+
      subroutine apply_cell_map_interface ( this, cell_map, interpolation_reference_cell,        &
           &                            interpolation_real_cell )
        import :: reference_fe_t, cell_map_t, interpolation_t
        implicit none 
        class(reference_fe_t), intent(in)    :: this 
-       type(cell_map_t)       , intent(in)    :: cell_map
+       type(cell_map_t)     , intent(in)    :: cell_map
        type(interpolation_t), intent(in)    :: interpolation_reference_cell
        type(interpolation_t), intent(inout) :: interpolation_real_cell
      end subroutine apply_cell_map_interface
@@ -1003,7 +1087,8 @@ contains
   procedure :: create_interpolation_restricted_to_facet => lrfe_create_interpolation_restricted_to_facet
   procedure :: create_facet_interpolation  => lagrangian_reference_fe_create_facet_interpolation
   procedure :: create_edget_interpolation  => lagrangian_reference_fe_create_edget_interpolation
-  procedure :: apply_cell_map      => lagrangian_reference_fe_apply_cell_map
+  procedure :: assign_cell_map_duties      => lagrangian_reference_fe_assign_cell_map_duties
+  procedure :: apply_cell_map            => lagrangian_reference_fe_apply_cell_map
   procedure :: get_component_node        => lagrangian_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node  => lagrangian_reference_fe_get_scalar_from_vector_node
   procedure :: get_max_order             => lagrangian_reference_fe_get_max_order
@@ -1019,6 +1104,8 @@ contains
   procedure :: get_divergences_vector    => lagrangian_reference_fe_get_divergences_vector
   procedure :: get_curl_vector           => lagrangian_reference_fe_get_curl_vector
   procedure :: get_curls_vector          => lagrangian_reference_fe_get_curls_vector
+  procedure :: get_laplacian_scalar      => lagrangian_reference_fe_get_laplacian_scalar
+  procedure :: get_laplacian_vector      => lagrangian_reference_fe_get_laplacian_vector
   procedure :: create_nodal_quadrature   => lagrangian_reference_fe_create_nodal_quadrature
   procedure :: has_nodal_quadrature      => lagrangian_reference_fe_has_nodal_quadrature
   procedure :: get_nodal_quadrature      => lagrangian_reference_fe_get_nodal_quadrature
@@ -1032,6 +1119,10 @@ contains
        & => lagrangian_reference_fe_evaluate_gradient_fe_function_scalar
   procedure :: evaluate_gradient_fe_function_vector &
        & => lagrangian_reference_fe_evaluate_gradient_fe_function_vector
+  procedure :: evaluate_laplacian_fe_function_scalar          &
+       & => lagrangian_reference_fe_evaluate_laplacian_fe_function_scalar
+  procedure :: evaluate_laplacian_fe_function_vector          & 
+       & => lagrangian_reference_fe_evaluate_laplacian_fe_function_vector
   procedure :: free                      => lagrangian_reference_fe_free
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                         & 
@@ -1226,6 +1317,7 @@ procedure :: create_interpolation_restricted_to_edget       => nedelec_create_in
 procedure :: create_facet_interpolation      => nedelec_create_facet_interpolation
 procedure :: create_edget_interpolation      => nedelec_create_edget_interpolation
 procedure :: create_edge_quadrature          => nedelec_create_edge_quadrature
+procedure :: assign_cell_map_duties          => nedelec_assign_cell_map_duties
 procedure :: evaluate_fe_function_scalar          &
     & => nedelec_evaluate_fe_function_scalar
 procedure :: evaluate_fe_function_vector          & 
@@ -1578,8 +1670,9 @@ contains
   procedure :: create_interpolation_restricted_to_facet   => void_reference_fe_create_interpolation_restricted_to_facet
   procedure :: create_facet_interpolation  => void_reference_fe_create_facet_interpolation
   procedure :: create_edget_interpolation  => void_reference_fe_create_edget_interpolation
-  procedure :: apply_cell_map             => void_reference_fe_apply_cell_map
-  procedure :: get_component_node               => void_reference_fe_get_component_node
+  procedure :: assign_cell_map_duties      => void_reference_fe_assign_cell_map_duties
+  procedure :: apply_cell_map              => void_reference_fe_apply_cell_map
+  procedure :: get_component_node          => void_reference_fe_get_component_node
   procedure :: get_scalar_from_vector_node => void_reference_fe_get_scalar_from_vector_node
   procedure :: get_max_order               => void_reference_fe_get_max_order
   procedure :: get_value_scalar            => void_reference_fe_get_value_scalar
@@ -1594,11 +1687,17 @@ contains
   procedure :: get_divergences_vector      => void_reference_fe_get_divergences_vector
   procedure :: get_curl_vector             => void_reference_fe_get_curl_vector
   procedure :: get_curls_vector            => void_reference_fe_get_curls_vector
+  procedure :: get_laplacian_scalar        => void_reference_fe_get_laplacian_scalar
+  procedure :: get_laplacian_vector        => void_reference_fe_get_laplacian_vector
   procedure :: evaluate_fe_function_scalar => void_reference_fe_evaluate_fe_function_scalar
   procedure :: evaluate_fe_function_vector => void_reference_fe_evaluate_fe_function_vector
   procedure :: evaluate_fe_function_tensor => void_reference_fe_evaluate_fe_function_tensor
   procedure :: evaluate_gradient_fe_function_scalar => void_reference_fe_evaluate_gradient_fe_function_scalar
   procedure :: evaluate_gradient_fe_function_vector => void_reference_fe_evaluate_gradient_fe_function_vector
+  procedure :: evaluate_laplacian_fe_function_scalar          &
+       & => void_reference_fe_evaluate_laplacian_fe_function_scalar
+  procedure :: evaluate_laplacian_fe_function_vector          & 
+       & => void_reference_fe_evaluate_laplacian_fe_function_vector
   procedure :: check_compatibility_of_n_faces       => void_reference_fe_check_compatibility_of_n_faces
   procedure :: get_characteristic_length            => void_reference_fe_get_characteristic_length  
   procedure :: generate_own_dofs_cell_permutations            => void_reference_fe_generate_own_dofs_cell_permutations
@@ -1634,12 +1733,15 @@ procedure, non_overridable :: free           => cell_integrator_free
 procedure, non_overridable :: update         => cell_integrator_update
 procedure, non_overridable :: print          => cell_integrator_print
 procedure, non_overridable :: update_interpolation  => cell_integrator_update_interpolation
+procedure, non_overridable :: update_interpolation_restricted_to_facet  => cell_integrator_update_interpolation_restricted_to_facet
 
 procedure, non_overridable :: get_interpolation_reference_cell =>                               &
 &                                   cell_integrator_get_interpolation_reference_cell
 procedure, non_overridable :: get_interpolation_real_cell =>                                    &
 &                                   cell_integrator_get_interpolation_real_cell
 
+procedure, non_overridable :: get_interpolation_duties_real_cell =>                             &
+&                                   cell_integrator_get_interpolation_duties_real_cell
 
 procedure, non_overridable, private :: get_value_scalar           => cell_integrator_get_value_scalar
 procedure, non_overridable, private :: get_value_vector           => cell_integrator_get_value_vector
@@ -1704,6 +1806,11 @@ procedure, non_overridable, private :: cell_integrator_evaluate_gradient_fe_func
 generic :: evaluate_gradient_fe_function => cell_integrator_evaluate_gradient_fe_function_scalar, &
 & cell_integrator_evaluate_gradient_fe_function_vector
 
+procedure, non_overridable, private :: cell_integrator_evaluate_laplacian_fe_function_scalar
+procedure, non_overridable, private :: cell_integrator_evaluate_laplacian_fe_function_vector
+generic :: evaluate_laplacian_fe_function => cell_integrator_evaluate_laplacian_fe_function_scalar, &
+& cell_integrator_evaluate_laplacian_fe_function_vector
+
 end type cell_integrator_t
 
 interface assignment(=)
@@ -1727,6 +1834,7 @@ public :: cell_integrator_t, p_cell_integrator_t
    contains
      procedure, non_overridable :: create                      => cell_integrator_facet_restriction_create
      procedure, non_overridable :: update                      => cell_integrator_facet_restriction_update
+     procedure, non_overridable :: update_interpolation        => cell_integrator_facet_restriction_update_interpolation
      procedure, non_overridable :: free                        => cell_integrator_facet_restriction_free
      procedure, non_overridable :: copy                        => cell_integrator_facet_restriction_copy
      procedure, non_overridable :: get_current_cell_integrator => cell_integrator_facet_restriction_get_current_cell_integrator
@@ -1756,6 +1864,7 @@ contains
   procedure, non_overridable :: get_normals          => facet_maps_get_normals
   procedure, non_overridable :: get_det_jacobian     => facet_maps_get_det_jacobian
   procedure, non_overridable :: get_facet_map        => facet_maps_get_facet_map
+  procedure, non_overridable :: get_cell_maps        => facet_maps_get_cell_maps
 end type facet_maps_t
 
 public :: facet_maps_t
@@ -1777,8 +1886,9 @@ type facet_integrator_t
   type(allocatable_array_ip2_t)             :: qpoints_perm
 contains
   procedure, non_overridable :: create             => facet_integrator_create
-  procedure, non_overridable :: update             => facet_integrator_update
   procedure, non_overridable :: free               => facet_integrator_free
+  procedure, non_overridable :: update             => facet_integrator_update
+  procedure, non_overridable :: update_interpolation => facet_integrator_update_interpolation
   procedure, non_overridable :: set_is_at_boundary_and_active_cell_id &
     => facet_integrator_set_is_at_boundary_and_active_cell_id
   procedure, non_overridable :: get_is_at_boundary => facet_integrator_get_is_at_boundary
@@ -1831,6 +1941,7 @@ contains
   ! Includes with all the TBP and supporting subroutines for the types above.
   ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
+#undef duties
 #include "sbm_quadrature.i90"
 
 #include "sbm_interpolation.i90"
@@ -1873,5 +1984,14 @@ contains
 
 #include "sbm_reference_fe_factory.i90"
 
+#define duties interpolation_duties
+#define task_01 compute_first_derivatives
+#define task_02 compute_second_derivatives
+#include "duties_body.i90"
+
+#define duties cell_map_duties
+#define task_01 compute_jacobian_inverse
+#define task_02 compute_jacobian_derivative
+#include "duties_body.i90"
 
 end module reference_fe_names

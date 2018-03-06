@@ -90,7 +90,7 @@ ENDIF()
 #################################################################
 
 # Set of fempar variable prefixes
-SET(VARIABLE_PREFIXES FEMPAR_ENABLE "MPI[A-Za-z0-9_]*(EXEC|COMPILER|LIBRARIES|INCLUDES)" MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN ZLIB)
+SET(VARIABLE_PREFIXES FEMPAR_ENABLE "MPI[A-Za-z0-9_]*(EXEC|COMPILER|LIBRARIES|INCLUDES)" MKL BLAS LAPACK GIDPOST METIS WSMP HSL_MI20 HSL_MA87 P4EST UMFPACK ZOLTAN ZLIB QHULL)
 
 # Look into CMakeCache for all variables starting with the prefixes defined in VARIABLE_PREFIXES and store them into FEMPAR_VARIABLES
 # FEMPAR_VARIABLES is a list of variables that are going to be passed to FEMPAR external project configuration step

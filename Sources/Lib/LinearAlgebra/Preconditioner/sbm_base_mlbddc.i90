@@ -1599,7 +1599,6 @@ recursive subroutine base_mlbddc_free_symbolic_setup(this)
     call this%free_numerical_setup() 
   end if
   
-  ! This will be replaced by an apropriate check on the state diagram
   if ( this%state_is_symbolic() ) then 
      par_environment => this%get_par_environment()
      if ( par_environment%am_i_l1_task() ) then
@@ -1682,7 +1681,6 @@ recursive subroutine base_mlbddc_free_numerical_setup(this)
  
   assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
   
-  ! This will be replaced by an apropriate check on the state diagram
   if ( this%state_is_numeric() ) then 
      par_environment => this%get_par_environment()
      if ( par_environment%am_i_l1_task() ) then

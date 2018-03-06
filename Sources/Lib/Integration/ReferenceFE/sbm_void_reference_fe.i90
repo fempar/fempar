@@ -74,26 +74,19 @@ subroutine void_reference_fe_create_facet_quadrature ( this, quadrature, degree 
 end subroutine void_reference_fe_create_facet_quadrature
 
 !==================================================================================================
-subroutine void_reference_fe_create_interpolation ( this, quadrature, & 
-     &                                              interpolation, compute_hessian )
+subroutine void_reference_fe_create_interpolation ( this, quadrature, interpolation, & 
+     &                                              interpolation_duties)
   implicit none 
   class(void_reference_fe_t), intent(in)    :: this 
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation
-  logical               , optional, intent(in)    :: compute_hessian
-
-  integer(ip) :: ntens, i
-
-  ntens = 0
-  do i = 1, this%num_dims
-     ntens = ntens + i
-  end do
+  type(interpolation_duties_t), optional , intent(in)    :: interpolation_duties
 
   call interpolation%create( this%num_dims, &
                              this%num_shape_functions, &
                              quadrature%num_quadrature_points, &
-                             ntens, &
-                             compute_hessian )
+                             interpolation_duties)
+  
   !call this%fill_interpolation( quadrature, interpolation )
 end subroutine void_reference_fe_create_interpolation
 
@@ -112,7 +105,7 @@ subroutine void_reference_fe_create_interpolation_restricted_to_facet( this,face
 
   ! Allocate the arrays of the interpolation
   call facet_interpolation%create(this%num_dims,this%node_array%num_nodes, &
-       & local_quadrature%num_quadrature_points, 0 )
+       & local_quadrature%num_quadrature_points )
 
   ! Fill the values of the shape functions
   !call this%fill_interp_restricted_to_facet(local_quadrature,facet_lid,facet_interpolation)
@@ -158,6 +151,17 @@ subroutine void_reference_fe_create_edget_interpolation (this, quadrature, edget
   call aux_reference_fe%p%create_interpolation ( quadrature, edget_interpolation )
   call aux_reference_fe%free()
 end subroutine void_reference_fe_create_edget_interpolation
+
+!==================================================================================================
+subroutine void_reference_fe_assign_cell_map_duties (this, interpolation_duties,cell_map_duties)
+  class(void_reference_fe_t)       , intent(in)  :: this 
+  type(interpolation_duties_t), intent(in)  :: interpolation_duties
+  type(cell_map_duties_t)     , intent(out) :: cell_map_duties
+  
+  call cell_map_duties%assign_compute_jacobian_inverse(.false.)
+  call cell_map_duties%assign_compute_jacobian_derivative(.false.)
+  
+end subroutine void_reference_fe_assign_cell_map_duties
 
 !==================================================================================================
 subroutine void_reference_fe_apply_cell_map( this, cell_map,                 &
@@ -393,6 +397,28 @@ subroutine void_reference_fe_get_curls_vector(this, actual_cell_interpolation, c
   check(.false.)
 end subroutine void_reference_fe_get_curls_vector
 
+subroutine void_reference_fe_get_laplacian_scalar( this, actual_cell_interpolation, & 
+     & ishape, qpoint, scalar_field )
+  implicit none
+  class(void_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)     , intent(in)    :: actual_cell_interpolation 
+  integer(ip)               , intent(in)    :: ishape
+  integer(ip)               , intent(in)    :: qpoint
+  real(rp)                  , intent(inout) :: scalar_field
+  check(.false.)
+end subroutine void_reference_fe_get_laplacian_scalar
+
+subroutine void_reference_fe_get_laplacian_vector( this, actual_cell_interpolation, & 
+     & ishape, qpoint, vector_field )
+  implicit none
+  class(void_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)     , intent(in)    :: actual_cell_interpolation 
+  integer(ip)               , intent(in)    :: ishape
+  integer(ip)               , intent(in)    :: qpoint
+  type(vector_field_t)      , intent(inout) :: vector_field
+  check(.false.)
+end subroutine void_reference_fe_get_laplacian_vector
+
 !==================================================================================================
 subroutine void_reference_fe_evaluate_fe_function_scalar( this,                      &
      &  actual_cell_interpolation, &
@@ -504,6 +530,63 @@ subroutine void_reference_fe_evaluate_gradient_fe_function_vector( this,        
     call quadrature_points_values(i)%init(0.0_rp)
   end do
 end subroutine void_reference_fe_evaluate_gradient_fe_function_vector
+
+!==================================================================================================
+subroutine void_reference_fe_evaluate_laplacian_fe_function_scalar( this,   &
+     &  actual_cell_interpolation, &
+     &  nodal_values,              &
+     &  quadrature_points_values)
+  implicit none
+  class(void_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  real(rp)                        , intent(in)    :: nodal_values(:)
+  real(rp), allocatable           , intent(inout) :: quadrature_points_values(:)
+  integer(ip) :: qpoint, ishape
+  real(rp)    :: shape_laplacian
+
+  if ( allocated(quadrature_points_values) ) then
+      if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
+         call memrealloc (actual_cell_interpolation%num_quadrature_points, & 
+                          quadrature_points_values, __FILE__, __LINE__)
+      end if
+  else
+    call memalloc (actual_cell_interpolation%num_quadrature_points, & 
+                   quadrature_points_values, __FILE__, __LINE__)
+  end if
+  
+  do qpoint = 1, actual_cell_interpolation%num_quadrature_points
+     quadrature_points_values(qpoint) = 0.0_rp
+  end do
+
+end subroutine void_reference_fe_evaluate_laplacian_fe_function_scalar
+
+!==================================================================================================
+subroutine void_reference_fe_evaluate_laplacian_fe_function_vector( this,   &
+     &  actual_cell_interpolation, &
+     &  nodal_values,              &
+     &  quadrature_points_values)
+  implicit none
+  class(void_reference_fe_t)       , intent(in)    :: this 
+  type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  integer(ip)          :: qpoint, inode, icomp, inode_scalar, istat
+  type(vector_field_t) :: shape_laplacian
+
+  if ( allocated(quadrature_points_values) ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
+      deallocate(quadrature_points_values, stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
+    end if
+  else
+    allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
+  end if
+  
+  do qpoint = 1, actual_cell_interpolation%num_quadrature_points
+     call quadrature_points_values(qpoint)%init(0.0_rp)
+  end do
+
+end subroutine void_reference_fe_evaluate_laplacian_fe_function_vector
 
 !==================================================================================================
 function void_reference_fe_check_compatibility_of_n_faces                   &

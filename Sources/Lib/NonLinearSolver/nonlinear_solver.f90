@@ -157,13 +157,8 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
     this%current_iteration = this%current_iteration + 1
     call nonlinear_operator%compute_tangent()    
 
-    if ( this%current_iteration == 1 ) then
-       ! Force symbolic and numerical set-up
-       call this%linear_solver%update_matrix(same_nonzero_pattern=.false.)
-    else
-       ! Force only numerical set-up
-       call this%linear_solver%update_matrix(same_nonzero_pattern=.true.)
-    end if 
+    ! Force numerical set-up
+    call this%linear_solver%update_matrix(same_nonzero_pattern=.true.)
     
     ! sbadia : An extra copy is required to store "-residual" !!!!
     ! sbadia : To be optimized (Why don't we change the concept of residual?)

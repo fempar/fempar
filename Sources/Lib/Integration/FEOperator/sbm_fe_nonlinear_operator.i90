@@ -323,6 +323,7 @@ subroutine fe_nonlinear_operator_set_evaluation_point(this,x)
   implicit none
   class(fe_nonlinear_operator_t), intent(in)    :: this
   class(vector_t) , intent(in)    :: x
+  assert ( associated(this%state) )
   call x%GuardTemp()
   call this%discrete_integration%set_evaluation_point(x)
   this%state = created
@@ -351,6 +352,7 @@ function fe_nonlinear_operator_get_matrix(this)
   implicit none
   class(fe_nonlinear_operator_t), target, intent(in) :: this
   class(matrix_t), pointer :: fe_nonlinear_operator_get_matrix
+  assert ( associated(this%state)  )
   fe_nonlinear_operator_get_matrix => this%assembler%get_matrix()
 end function fe_nonlinear_operator_get_matrix
 

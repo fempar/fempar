@@ -68,23 +68,16 @@ end function nedelec_reference_fe_get_scalar_from_vector_node
 ! Deferred TBP implementors from reference_fe_t
 !**************************************************************************************************
 !==================================================================================================
-subroutine nedelec_create_interpolation ( this, quadrature, & 
-     &                                    interpolation, compute_hessian )
+subroutine nedelec_create_interpolation ( this, quadrature, interpolation, & 
+     &                                    interpolation_duties)
   implicit none 
   class(nedelec_reference_fe_t), intent(in)    :: this 
-  type(quadrature_t)              , intent(in)    :: quadrature
-  type(interpolation_t)           , intent(inout) :: interpolation
-  logical               , optional, intent(in)    :: compute_hessian
-
-  integer(ip) :: ntens, i
-
-  ntens = 0
-  do i = 1, this%num_dims
-     ntens = ntens + i
-  end do
+  type(quadrature_t)           , intent(in)    :: quadrature
+  type(interpolation_t)        , intent(inout) :: interpolation
+  type(interpolation_duties_t), optional , intent(in)    :: interpolation_duties
 
   call interpolation%create( this%num_dims, this%num_shape_functions, &
-                             quadrature%num_quadrature_points, ntens, compute_hessian )
+                             quadrature%num_quadrature_points, interpolation_duties )
 
   call this%fill_interpolation( quadrature, interpolation )
 
@@ -106,8 +99,7 @@ subroutine nedelec_create_interpolation_restricted_to_facet( this, facet_lid, &
   ! Allocate the arrays of the interpolation
   call facet_interpolation%create(this%num_dims, &
                                  this%num_shape_functions, &
-                                 local_quadrature%num_quadrature_points, &
-                                 0 )
+                                 local_quadrature%num_quadrature_points)
 
   ! Fill the values of the shape functions
   call this%fill_interp_restricted_to_facet(local_quadrature, &
@@ -130,8 +122,7 @@ subroutine nedelec_create_interpolation_restricted_to_edget( this, local_edge_id
   ! Allocate the arrays of the interpolation
   call edget_interpolation%create(this%num_dims, &
                                  this%num_shape_functions, &
-                                 local_quadrature%num_quadrature_points, &
-                                 0 )
+                                 local_quadrature%num_quadrature_points)
 
   ! Fill the values of the shape functions, gradients, etc.
   call this%fill_interpolation_restricted_to_edget(local_edge_id, &
@@ -477,7 +468,8 @@ subroutine nedelec_get_gradient_vector( this, actual_cell_interpolation, &
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
-  
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Nedelec reference FE get gradient vector requires cell interpolation to compute derivaties ')
+
   do i=1, this%num_dims
     do j=1, this%num_dims
      call tensor_field%set(i,j,actual_cell_interpolation%shape_derivatives(j,i,ishape,qpoint))
@@ -495,7 +487,8 @@ subroutine nedelec_get_gradients_vector( this, actual_cell_interpolation, gradie
   logical     :: reallocate
   
   assert( this%field_type == field_type_vector )
-  
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Nedelec reference FE get gradients vector requires cell interpolation to compute derivaties ')
+
   reallocate = .false.
   if (allocated(gradients)) reallocate = (size(gradients,1) < this%num_shape_functions) .or. &
                                           (size(gradients,2) < actual_cell_interpolation%num_quadrature_points)                                  
@@ -541,6 +534,7 @@ subroutine nedelec_get_divergence_vector( this, actual_cell_interpolation, &
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Nedelec reference FE get divergence vector requires cell interpolation to compute derivaties ')
 
   scalar_field = 0.0_rp
   do idime = 1, this%num_dims
@@ -559,7 +553,8 @@ subroutine nedelec_get_divergences_vector( this, actual_cell_interpolation, dive
   integer(ip) :: idime, ishape, qpoint, actual_qpoint
   logical     :: reallocate
   assert( this%field_type == field_type_vector )
-  
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Nedelec reference FE get divergences vector requires cell interpolation to compute derivaties ')
+
   reallocate = .false.
   if (allocated(divergences)) reallocate = (size(divergences,1) < this%num_shape_functions) .or. &
                                            (size(divergences,2) < actual_cell_interpolation%num_quadrature_points)
@@ -601,7 +596,8 @@ subroutine nedelec_get_curl_vector( this, actual_cell_interpolation, &
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )  
   assert( SPACE_DIM == 3 )
-  
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Nedelec reference FE get curl vector requires cell interpolation to compute derivaties ')
+
   call vector_field%init(0.0_rp)
   if (this%num_dims == 2) then 
                              ! d_x u_y - d_y u_x
@@ -633,6 +629,8 @@ subroutine nedelec_get_curls_vector( this, actual_cell_interpolation, curls, qpo
   logical     :: reallocate
   integer(ip)   :: icomp, ishape_scalar 
   assert( this%field_type == field_type_vector )
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Nedelec reference FE get curls vector requires cell interpolation to compute derivaties ')
+
   reallocate = .false.
   if (allocated(curls)) reallocate = (size(curls,1) < this%num_shape_functions) .or. &
                                       (size(curls,2) < actual_cell_interpolation%num_quadrature_points)                                  
@@ -769,6 +767,17 @@ end subroutine nedelec_get_subelements_connectivity
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
 !==================================================================================================
+subroutine nedelec_assign_cell_map_duties (this, interpolation_duties,cell_map_duties)
+  class(nedelec_reference_fe_t), intent(in)  :: this 
+  type(interpolation_duties_t) , intent(in)  :: interpolation_duties
+  type(cell_map_duties_t)      , intent(out) :: cell_map_duties
+
+  call cell_map_duties%assign_compute_jacobian_inverse(.true.)
+  call cell_map_duties%assign_compute_jacobian_derivative(.false.)
+  massert(.not.interpolation_duties%compute_second_derivatives_is_assigned(),'Hessian not implemented for Nedelec')
+
+end subroutine nedelec_assign_cell_map_duties
+!==================================================================================================
 subroutine nedelec_reference_fe_apply_cell_map( this, cell_map,                 &
      & interpolation_reference_cell, &
      & interpolation_real_cell )
@@ -812,22 +821,26 @@ subroutine nedelec_apply_cell_map_to_interpolation(this,map,ref,phy)
     
   ! Contra-Piola map for shape derivatives
   ! \phi(x_g) = \phi(F(X_g))=  inv(J)^t (phi(X_g)) inv(J)
-  phy%shape_derivatives=0.0_rp
-  do ilocs=1,phy%num_quadrature_points
-     do inode=1,this%num_shape_functions
-        do idime=1,this%num_dims
-           do jdime=1,this%num_dims
-              do kdime=1,this%num_dims
-                 do ldime=1,this%num_dims
-                    phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
-					   + map%inv_jacobian(ldime,jdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(kdime,idime,ilocs)
+  if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+     phy%shape_derivatives=0.0_rp
+     do ilocs=1,phy%num_quadrature_points
+        do inode=1,this%num_shape_functions
+           do idime=1,this%num_dims
+              do jdime=1,this%num_dims
+                 do kdime=1,this%num_dims
+                    do ldime=1,this%num_dims
+                       phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
+                            + map%inv_jacobian(ldime,jdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(kdime,idime,ilocs)
+                    end do
                  end do
               end do
-        end do
+           end do
         end do
      end do
-  end do 
-  
+  end if
+
+  massert(.not.phy%my_duties%compute_second_derivatives_is_assigned(),'Hessian not implemented for Nedelec')
+
 end subroutine nedelec_apply_cell_map_to_interpolation
 
 subroutine nedelec_invert_change_basis_matrix(this)
@@ -931,11 +944,8 @@ subroutine nedelec_apply_change_basis_matrix_to_interpolation(this, interpolatio
   
   integer(ip)           :: i, j, idime, jdime, qpoint
 
-  ! Initialize both shape functions and derivatives to zero.
-  interpolation%shape_functions   = 0.0_rp
-  interpolation%shape_derivatives = 0.0_rp
-    
   ! Compute shape functions
+  interpolation%shape_functions   = 0.0_rp
   do qpoint = 1, interpolation%num_quadrature_points
      do i=1, this%num_shape_functions
         do j=1, this%num_shape_functions
@@ -947,18 +957,20 @@ subroutine nedelec_apply_change_basis_matrix_to_interpolation(this, interpolatio
      end do
   end do
    
-  ! Compute shape derivatives
-  do qpoint = 1, interpolation%num_quadrature_points
-     do i=1, this%num_shape_functions
-        do j=1, this%num_shape_functions
-           do idime=1, this%num_dims
-              do jdime=1, this%num_dims
-                 interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
-                      this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     ! Compute shape derivatives
+     interpolation%shape_derivatives = 0.0_rp
+    do qpoint = 1, interpolation%num_quadrature_points
+        do i=1, this%num_shape_functions
+           do j=1, this%num_shape_functions
+              do idime=1, this%num_dims
+                 do jdime=1, this%num_dims
+                    interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
+                         this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
+                 end do
               end do
            end do
         end do
      end do
-  end do
-  
+  end if
 end subroutine nedelec_apply_change_basis_matrix_to_interpolation

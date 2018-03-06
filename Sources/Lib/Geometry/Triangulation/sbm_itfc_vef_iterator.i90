@@ -204,3 +204,18 @@ function itfc_vef_iterator_get_improper_cell_around_subvef(this, icell_around)
   integer(ip) :: itfc_vef_iterator_get_improper_cell_around_subvef
   itfc_vef_iterator_get_improper_cell_around_subvef = this%vef%get_improper_cell_around_subvef(icell_around)
 end function itfc_vef_iterator_get_improper_cell_around_subvef
+
+function itfc_vef_iterator_get_num_half_cells_around (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  integer(ip) :: itfc_vef_iterator_get_num_half_cells_around
+  itfc_vef_iterator_get_num_half_cells_around = this%vef%get_num_half_cells_around() 
+end function itfc_vef_iterator_get_num_half_cells_around
+
+subroutine itfc_vef_iterator_get_half_cell_around (this, icell_around, cell)
+  implicit none
+  class(itfc_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  call this%vef%get_half_cell_around(icell_around,cell)
+end subroutine itfc_vef_iterator_get_half_cell_around
