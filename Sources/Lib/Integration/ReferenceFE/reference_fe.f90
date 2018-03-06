@@ -947,7 +947,7 @@ module reference_fe_names
         import :: reference_fe_t, interpolation_duties_t, cell_map_duties_t
         class(reference_fe_t)       , intent(in)  :: this 
         type(interpolation_duties_t), intent(in)  :: interpolation_duties
-        type(cell_map_duties_t)     , intent(out) :: cell_map_duties
+        type(cell_map_duties_t)     , intent(inout) :: cell_map_duties
       end subroutine assign_cell_map_duties_interface
 
      subroutine apply_cell_map_interface ( this, cell_map, interpolation_reference_cell,        &
