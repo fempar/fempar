@@ -64,23 +64,28 @@ contains
 
  subroutine pcGee_compute_local_estimates(this)
    class(poisson_cG_error_estimator_t), intent(inout) :: this
-   class(serial_fe_space_t)  , pointer     :: fe_space
-   class(triangulation_t)    , pointer     :: triangulation
-   type(std_vector_real_rp_t), pointer     :: sq_local_estimates
-   real(rp)                  , pointer     :: sq_local_estimate_entries(:)
-   class(scalar_function_t)  , pointer     :: source_term
-   real(rp)                                :: source_term_value
-   class(fe_cell_iterator_t) , allocatable :: fe
-   type(quadrature_t)        , pointer     :: quad
-   type(point_t)             , pointer     :: quad_coords(:)
-   real(rp)                                :: factor, h_length
-   integer(ip)                             :: qpoint, num_quad_points, ineigh
-   class(fe_facet_iterator_t), allocatable :: fe_facet
-   type(fe_facet_function_scalar_t)        :: fe_facet_function
-   type(vector_field_t)                    :: normals(2)
-   type(vector_field_t)                    :: fe_function_gradient
-   real(rp)                                :: sq_local_estimate_value
-   real(rp)                                :: sq_local_face_estimate_value, jump
+   class(serial_fe_space_t)    , pointer     :: fe_space
+   class(triangulation_t)      , pointer     :: triangulation
+   type(std_vector_real_rp_t)  , pointer     :: sq_local_estimates
+   real(rp)                    , pointer     :: sq_local_estimate_entries(:)
+   class(scalar_function_t)    , pointer     :: source_term
+   real(rp)                                  :: source_term_value
+   class(fe_cell_iterator_t)   , allocatable :: fe
+   type(fe_cell_function_scalar_t)           :: fe_cell_function
+   type(fe_cell_function_duties_t)           :: fe_cell_function_duties
+   type(quadrature_t)          , pointer     :: quad
+   type(point_t)               , pointer     :: quad_coords(:)
+   real(rp)                    , pointer     :: laplacians(:)
+   real(rp)                                  :: factor, h_length
+   integer(ip)                               :: qpoint, num_quad_points, ineigh
+   class(fe_facet_iterator_t)  , allocatable :: fe_facet
+   type(fe_facet_function_scalar_t)          :: fe_facet_function
+   type(vector_field_t)                      :: normals(2)
+   type(vector_field_t)                      :: fe_function_gradient
+   real(rp)                                  :: sq_local_estimate_value
+   real(rp)                                  :: sq_local_face_estimate_value, jump
+   type(interpolation_duties_t), allocatable :: interpolation_duties(:)
+   integer(ip)                               :: istat
    
    fe_space      => this%get_fe_space()
    triangulation => fe_space%get_triangulation()
@@ -95,13 +100,22 @@ contains
    
    assert (associated(this%fe_function))
    
-   call fe_space%set_up_cell_integration()
+   allocate(interpolation_duties(1),stat=istat); check(istat==0)
+   call interpolation_duties(1)%assign_compute_first_derivatives(.true.)
+   call interpolation_duties(1)%assign_compute_second_derivatives(.true.)
+   
+   call fe_space%set_up_cell_integration(interpolation_duties)
    call fe_space%create_fe_cell_iterator(fe)
-   massert(fe%get_max_order_all_fields()==1,'Poisson cG error estimator only for linear FEs')
+   call fe_cell_function_duties%assign_evaluate_values(.false.)
+   call fe_cell_function_duties%assign_evaluate_gradients(.false.)
+   call fe_cell_function_duties%assign_evaluate_laplacians(.true.)
+   call fe_cell_function%create(fe_space,1,fe_cell_function_duties)
    do while ( .not. fe%has_finished() )
      if ( fe%is_local() ) then
        sq_local_estimate_value = 0.0_rp
        call fe%update_integration()
+       call fe_cell_function%update(fe,this%fe_function)
+       laplacians => fe_cell_function%get_quadrature_points_laplacians()
        quad => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()
        quad_coords => fe%get_quadrature_points_coordinates()
@@ -110,12 +124,13 @@ contains
          h_length = fe%compute_characteristic_length(qpoint)
          call source_term%get_value(quad_coords(qpoint),source_term_value)
          sq_local_estimate_value = sq_local_estimate_value + & 
-           ( h_length ** 2.0_rp ) * factor * ( source_term_value ** 2.0_rp )
+           ( h_length ** 2.0_rp ) * factor * ( source_term_value + laplacians(qpoint) ) ** 2.0_rp
        end do
        sq_local_estimate_entries(fe%get_gid()) = sq_local_estimate_value 
      end if
      call fe%next()
    end do
+   call fe_cell_function%free()
    
    call fe_space%set_up_facet_integration()
    call fe_facet_function%create(fe_space,1)
@@ -150,6 +165,11 @@ contains
    call fe_facet_function%free()
    call fe_space%free_fe_cell_iterator(fe)
    call fe_space%free_fe_facet_iterator(fe_facet)
+   
+   if ( allocated(interpolation_duties) ) then
+     deallocate(interpolation_duties, stat=istat)
+     check(istat==0)
+   end if
    
  end subroutine pcGee_compute_local_estimates
 
