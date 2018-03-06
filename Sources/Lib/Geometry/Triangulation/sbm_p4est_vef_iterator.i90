@@ -86,10 +86,12 @@ function p4est_vef_iterator_get_num_nodes(this)
   integer(ip) :: p4est_vef_iterator_get_num_nodes
   class(reference_fe_t), pointer :: reference_fe_geo
   type(p4est_cell_iterator_t) :: cell
+  type(list_iterator_t) :: dofs_on_bst_vef_iterator
   call cell%create(this%p4est_triangulation)
   call this%get_cell_around(1, cell)
   reference_fe_geo => cell%get_reference_fe()
-  p4est_vef_iterator_get_num_nodes = reference_fe_geo%get_num_shape_functions()
+  dofs_on_bst_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
+  p4est_vef_iterator_get_num_nodes = dofs_on_bst_vef_iterator%get_size()
   call cell%free()
 end function p4est_vef_iterator_get_num_nodes
 
@@ -410,3 +412,111 @@ function p4est_vef_iterator_get_improper_cell_around_subvef(this, icell_around)
   position_in_lst_cells_around = this%p4est_triangulation%ptr_improper_cells_around%get(abs(this%get_gid())) + icell_around-1
   p4est_vef_iterator_get_improper_cell_around_subvef = this%p4est_triangulation%improper_vefs_improper_cell_around_subvef%get(position_in_lst_cells_around)
 end function p4est_vef_iterator_get_improper_cell_around_subvef
+
+function fempar_to_p4est_face(iface,num_dims)
+  implicit none
+  integer(ip), intent(in) :: iface
+  integer(ip), intent(in) :: num_dims
+  integer(ip) :: fempar_to_p4est_face
+  if (num_dims==2) then
+    fempar_to_p4est_face = FEMPAR_2_P4EST_FACE_2D(iface)
+  else if (num_dims==3) then
+    fempar_to_p4est_face = FEMPAR_2_P4EST_FACE_3D(iface)
+  else
+    mcheck(.false., 'Only for 2d and 3d')
+  end if
+end function fempar_to_p4est_face
+
+function p4est_connectivity_has_half_neighbours(conn,num_dims)
+  implicit none
+  integer(P4EST_F90_QLEVEL), intent(in) :: conn
+  integer(ip), intent(in) :: num_dims
+  logical :: p4est_connectivity_has_half_neighbours
+  p4est_connectivity_has_half_neighbours = .false.
+  if (num_dims==2) then
+    if (-8<=conn .and. conn<=-1) then
+      p4est_connectivity_has_half_neighbours = .true.
+    end if
+  else if (num_dims==3) then
+    if (-24<=conn .and. conn<=-1) then
+      p4est_connectivity_has_half_neighbours = .true.
+    end if
+  else
+    mcheck(.false., 'Only for 2d and 3d')
+  end if
+end function p4est_connectivity_has_half_neighbours
+
+function p4est_vef_iterator_get_num_half_cells_around (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_vef_iterator_get_num_half_cells_around
+
+  type(p4est_cell_iterator_t)    :: cell
+  integer(ip)                    :: cell_iface
+  integer(P4EST_F90_QLEVEL)      :: cell_conn 
+  integer(ip)                    :: num_dims
+  class(reference_fe_t), pointer :: reference_fe
+
+  assert ( this%is_within_valid_range() )
+  massert( this%is_facet(), 'Procedure only implemented for facets (for the moment)')
+  if (.not. this%is_proper()) then
+    p4est_vef_iterator_get_num_half_cells_around = 0
+    return
+  end if
+
+  call cell%create(this%p4est_triangulation)
+  call this%get_cell_around(1, cell)
+  reference_fe => cell%get_reference_fe()
+  num_dims = this%p4est_triangulation%get_num_dims()
+  cell_iface = cell%get_vef_lid_from_gid(this%get_gid()) - reference_fe%get_first_facet_id() + 1
+  cell_iface = fempar_to_p4est_face(cell_iface,num_dims)
+  cell_conn = this%p4est_triangulation%quad_to_face(cell_iface,cell%get_gid())
+  if ( p4est_connectivity_has_half_neighbours(cell_conn,num_dims)) then
+    if (num_dims==2) then
+      p4est_vef_iterator_get_num_half_cells_around = 2
+    else if (num_dims==3) then
+      p4est_vef_iterator_get_num_half_cells_around = 4
+    else
+      mcheck(.false., 'Only for 2d and 3d')
+    end if
+  else
+    p4est_vef_iterator_get_num_half_cells_around = 0
+  end if
+  call cell%free()
+
+end function p4est_vef_iterator_get_num_half_cells_around
+
+subroutine p4est_vef_iterator_get_half_cell_around (this, icell_around, cell)
+  implicit none
+  class(p4est_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+
+  type(p4est_cell_iterator_t)    :: p4est_cell
+  integer(ip)                    :: cell_iface
+  integer(P4EST_F90_QLEVEL)      :: cell_conn 
+  class(reference_fe_t), pointer :: reference_fe
+  integer(ip)                    :: cell_gid
+  integer(ip)                    :: num_dims
+
+  assert ( this%is_within_valid_range() )
+  assert ( this%is_proper() )
+  assert ( icell_around >= 1 .and. icell_around <= this%get_num_half_cells_around() )
+  massert( this%is_facet(), 'Procedure only implemented for facets (for the moment)')
+
+  call p4est_cell%create(this%p4est_triangulation)
+  call this%get_cell_around(1, p4est_cell)
+  reference_fe => p4est_cell%get_reference_fe()
+  cell_iface = p4est_cell%get_vef_lid_from_gid(this%get_gid()) - reference_fe%get_first_facet_id() + 1
+  num_dims = this%p4est_triangulation%get_num_dims()
+  cell_iface = fempar_to_p4est_face(cell_iface,num_dims)
+  cell_conn = this%p4est_triangulation%quad_to_face(cell_iface,p4est_cell%get_gid())
+  if ( p4est_connectivity_has_half_neighbours(cell_conn,num_dims)) then
+      cell_gid = 1+this%p4est_triangulation%quad_to_half( icell_around, 1+this%p4est_triangulation%quad_to_quad(cell_iface,p4est_cell%get_gid()) )
+  else
+    check(.false.)
+  end if
+  call p4est_cell%free()
+  call cell%set_gid(cell_gid)
+
+end subroutine p4est_vef_iterator_get_half_cell_around

@@ -93,6 +93,8 @@ subroutine interpolation_free( this)
   if(this%my_duties%compute_second_derivatives_is_assigned()) then
      if(allocated(this%hessian)) call memfree(this%hessian,   __FILE__,__LINE__) ! Is allocated needed?
   end if
+  call this%my_duties%assign_compute_first_derivatives(.false.)
+  call this%my_duties%assign_compute_second_derivatives(.false.)
 end subroutine interpolation_free
 
 subroutine interpolation_copy(this, source_interpolation)

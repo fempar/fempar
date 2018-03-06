@@ -140,8 +140,6 @@ contains
       call fe_space%free_fe_cell_iterator(fe)
       return
     end if
-    quad            => fe%get_quadrature()
-    num_quad_points = quad%get_num_quadrature_points()
 
     ! TODO We assume that all non-void FEs are the same...
     num_dofs = fe%get_num_dofs()

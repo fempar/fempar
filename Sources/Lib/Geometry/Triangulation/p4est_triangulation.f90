@@ -101,6 +101,7 @@ module p4est_triangulation_names
   integer(ip), target :: P4EST_OPPOSITE_CORNER_2D(NUM_CORNERS_2D) = [ 4, 3, 2, 1 ]
   integer(ip), target :: P4EST_2_FEMPAR_CORNER_2D(NUM_CORNERS_2D) = [ 1, 2, 3, 4 ]
   integer(ip), target :: P4EST_2_FEMPAR_FACE_2D  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
+  integer(ip), target :: FEMPAR_2_P4EST_FACE_2D  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
   
   integer(ip), target :: P4EST_FACES_SUBFACE_IMPROPER_VERTEX_LID_2D(NUM_FACES_2D,NUM_SUBFACES_FACE_2D) = & 
                                                   reshape([ 4, 3, 4, 2, &
@@ -289,6 +290,7 @@ module p4est_triangulation_names
   integer(ip), target :: P4EST_OPPOSITE_CORNER_3D(NUM_CORNERS_3D) = [ 8, 7, 6, 5, 4, 3, 2, 1 ]
   integer(ip), target :: P4EST_2_FEMPAR_CORNER_3D(NUM_CORNERS_3D) = [ 1, 2, 3, 4, 5, 6, 7, 8 ]
   integer(ip), target :: P4EST_2_FEMPAR_FACE_3D  (NUM_FACES_3D)   = [ 5, 6, 3, 4, 1, 2 ]
+  integer(ip), target :: FEMPAR_2_P4EST_FACE_3D  (NUM_FACES_3D)   = [ 5, 6, 3, 4, 1, 2 ]
   integer(ip), target :: P4EST_2_FEMPAR_EDGE_3D  (NUM_EDGES_3D)   = [ 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12 ]
   
   integer(ip), target :: P4EST_FACES_SUBFACE_FACE_NEIGHBOUR_3D(NUM_FACES_3D/2, NUM_SUBFACES_FACE_3D, 2) = &
@@ -353,7 +355,6 @@ module p4est_triangulation_names
     procedure                            :: get_permutation_index   => p4est_cell_iterator_get_permutation_index
     
     procedure                            :: update_sub_triangulation    => p4est_cell_iterator_update_sub_triangulation
-    procedure                            :: get_mc_case                 => p4est_cell_iterator_get_mc_case
     procedure                            :: get_num_subcells            => p4est_cell_iterator_get_num_subcells
     procedure                            :: get_num_subcell_nodes       => p4est_cell_iterator_get_num_subcell_nodes
     procedure                            :: get_phys_coords_of_subcell  => p4est_cell_iterator_get_phys_coords_of_subcell
@@ -400,6 +401,8 @@ module p4est_triangulation_names
      procedure                           :: get_improper_cell_around        => p4est_vef_iterator_get_improper_cell_around
      procedure                           :: get_improper_cell_around_ivef   => p4est_vef_iterator_get_improper_cell_around_ivef
      procedure                           :: get_improper_cell_around_subvef => p4est_vef_iterator_get_improper_cell_around_subvef
+     procedure                           :: get_num_half_cells_around       => p4est_vef_iterator_get_num_half_cells_around
+     procedure                           :: get_half_cell_around            => p4est_vef_iterator_get_half_cell_around
   end type p4est_vef_iterator_t
  
   

@@ -30,7 +30,10 @@ module unfitted_fe_spaces_names
   use types_names
   use memor_names
   use field_names
+  use list_types_names
   use block_layout_names
+  use std_vector_names
+  use hash_table_names
   
   use triangulation_names
   use p4est_triangulation_names
@@ -42,11 +45,19 @@ module unfitted_fe_spaces_names
   
   use unfitted_triangulations_names
   use piecewise_cell_map_names
+  use level_set_functions_gallery_names
+
+  use ParameterList
 
   implicit none
 # include "debug.i90"
   private
-
+  
+  
+  integer(ip), parameter :: pos_map_in_domain = 1
+  integer(ip), parameter :: pos_map_on_boundary = 2
+  integer(ip), parameter :: pos_map_max_id = 2
+  
  ! Types from unfitted branch that are *** UNDER QUARANTINE ***
  type, extends(fe_cell_iterator_t) :: unfitted_fe_cell_iterator_t
     private
@@ -85,12 +96,37 @@ module unfitted_fe_spaces_names
 
   end type unfitted_fe_cell_iterator_t
 
+ type, extends(fe_facet_iterator_t) :: unfitted_fe_facet_iterator_t
+    private
+    class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
+    type(facet_maps_t), pointer :: unfitted_facet_maps => NULL()
+    type(p_facet_integrator_t), allocatable  :: unfitted_facet_integrators(:)
+  contains
+
+    procedure :: create                               => unfitted_fe_facet_iterator_create
+    procedure :: free                                 => unfitted_fe_facet_iterator_free
+    procedure :: update_integration                   => unfitted_fe_facet_iterator_update_integration
+    procedure, private :: update_quadrature           => unfitted_fe_facet_iterator_update_quadrature
+    procedure :: get_quadrature                       => unfitted_fe_facet_iterator_get_quadrature
+    procedure, non_overridable :: update_facet_maps_interpolation  => unfitted_fe_facet_iterator_update_facet_maps_interpolation
+    procedure, non_overridable :: update_facet_integrators_interpolation => uffi_update_facet_integrators_interpolation
+    procedure :: get_quadrature_points_coordinates    => unfitted_fe_facet_iterator_get_quadrature_points_coordinates
+    procedure :: get_normals                          => unfitted_fe_facet_iterator_get_normals
+    procedure :: get_det_jacobian                     => unfitted_fe_facet_iterator_get_det_jacobian
+    procedure :: compute_characteristic_length        => unfitted_fe_facet_iterator_compute_characteristic_length
+
+    procedure :: get_values_scalar     => unfitted_fe_facet_iterator_get_values_scalar
+    procedure :: get_values_vector     => unfitted_fe_facet_iterator_get_values_vector
+    procedure :: get_gradients_scalar  => unfitted_fe_facet_iterator_get_gradients_scalar
+    procedure :: get_curls             => unfitted_fe_facet_iterator_get_curls_vector 
+
+  end type unfitted_fe_facet_iterator_t
+
   type :: unfitted_integration_manager_t
 
     private
 
     class(serial_fe_space_t), pointer :: fe_space       => NULL()
-    class(marching_cubes_t),  pointer :: marching_cubes => NULL()
 
     ! All the machinery for integrating in subcells
     type(quadrature_t)                     :: quadrature_subelem
@@ -99,6 +135,7 @@ module unfitted_fe_spaces_names
     type(quadrature_t),        allocatable :: cut_quadratures(:)
     type(cell_map_t),            allocatable :: cut_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_cell_integrators(:,:)
+    type(hash_table_ip_ip_t) :: num_sub_cells_to_pos
 
     ! All the machinery for integrating in subfacets
     type(quadrature_t)                     :: quadrature_subfacet
@@ -106,12 +143,25 @@ module unfitted_fe_spaces_names
     type(piecewise_cell_map_t),  allocatable :: cut_boundary_piecewise_cell_maps(:)
     type(cell_map_t),            allocatable :: cut_boundary_cell_maps(:)
     type(cell_integrator_t),   allocatable :: cut_boundary_cell_integrators(:,:)    
+    type(hash_table_ip_ip_t) :: num_unfitted_sub_facets_to_pos
+
+    ! All the machinery to integrate in fitted subfacets
+    type(tet_lagrangian_reference_fe_t)   :: geo_reference_subfacet
+    type(quadrature_t)                     :: quadrature_fitted_subfacet
+    type(cell_map_t)                     :: cell_map_subfacet
+    type(quadrature_t),       allocatable :: cut_fitted_facet_quadratures(:)
+    type(facet_maps_t),       allocatable :: cut_fitted_facet_maps(:,:)
+    type(facet_integrator_t), allocatable :: cut_fitted_facet_integrators(:,:,:)
+    type(hash_table_ip_ip_t) :: num_fitted_sub_facets_to_pos
 
     ! Auxiliary dummy empty quadratures
     type(quadrature_t)             :: empty_quadrature
     type(cell_map_t)                 :: empty_cell_map
     type(piecewise_cell_map_t)       :: empty_piecewise_cell_map
     type(cell_integrator_t), allocatable  :: empty_cell_integrator(:)
+    type(quadrature_t)             :: empty_facet_quadrature
+    type(facet_maps_t)             :: empty_facet_maps(pos_map_max_id)
+    type(facet_integrator_t), allocatable :: empty_facet_integrators(:,:)
     
     contains
 
@@ -127,6 +177,8 @@ module unfitted_fe_spaces_names
       procedure, non_overridable, private :: free_cut_integration   => uim_free_cut_integration
       procedure, non_overridable, private :: init_cut_boundary_integration   => uim_init_cut_boundary_integration
       procedure, non_overridable, private :: free_cut_boundary_integration   => uim_free_cut_boundary_integration
+      procedure, non_overridable, private :: init_cut_fitted_facets_integration   => uim_init_cut_fitted_facets_integration
+      procedure, non_overridable, private :: free_cut_fitted_facets_integration   => uim_free_cut_fitted_facets_integration
 
   end type unfitted_integration_manager_t
 
@@ -145,6 +197,7 @@ module unfitted_fe_spaces_names
 
       ! Creation of the iterator
       procedure :: create_fe_cell_iterator           => sufs_create_fe_cell_iterator
+      procedure :: create_fe_facet_iterator          => sufs_create_fe_facet_iterator
 
   end type serial_unfitted_fe_space_t
 
@@ -153,8 +206,13 @@ module unfitted_fe_spaces_names
       class(unfitted_p4est_serial_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
       type(unfitted_integration_manager_t) :: unfitted_integration
       integer(ip), allocatable :: aggregate_ids(:)
-      real(rp) :: max_separation_from_root = -1.0_rp
+      logical    , allocatable :: is_in_aggregate_x_cell(:)
+      real(rp)   , allocatable :: aggregate_size(:)
       logical :: use_constraints = .true.
+      type(ParameterList_t), public :: debug_info
+      integer(ip) :: num_hanging_dofs_full_cells
+      integer(ip) :: num_hanging_dofs_other
+      integer(ip) :: num_aggregated_dofs
     contains
       ! Creation / deletion methods
       procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => suhpafs_create_same_reference_fes_on_all_cells
@@ -162,21 +220,33 @@ module unfitted_fe_spaces_names
       procedure           :: free                                                   => suhpafs_free
       procedure           :: set_use_constraints                                    => suhpafs_set_use_constraints
       
-      ! Creation of the iterator
-      procedure :: create_fe_cell_iterator                                               => suhpafs_create_fe_cell_iterator
-      
-      ! Creation of constrained degrees of freedom
-      procedure          :: generate_global_dof_numbering                                           => suhpafs_generate_global_dof_numbering 
-      procedure, non_overridable :: fill_fe_dofs_and_count_dofs                            => suhpafs_procedure_fill_fe_dofs_and_count_dofs
+      ! Creation of the iterator (overrides)
+      procedure :: create_fe_cell_iterator       => suhpafs_create_fe_cell_iterator
+      procedure :: create_fe_facet_iterator      => suhpafs_create_fe_facet_iterator
+
+      ! Generation of Dofs (overrides)
+      procedure :: count_dofs => suhpafs_count_dofs
+      procedure :: list_dofs  => suhpafs_list_dofs
+      procedure :: setup_hanging_node_constraints => suhpafs_setup_hanging_node_constraints
+
+      ! Mesh refinement
+      procedure :: refine_mesh_for_small_aggregates => suhpafs_refine_mesh_for_small_aggregates
 
       ! Getters
-      procedure, non_overridable :: get_aggregate_ids                               => suhpafs_get_aggregate_ids
-      procedure, non_overridable :: get_max_separation_from_root                    => suhpafs_get_max_separation_from_root
+      procedure, non_overridable :: get_aggregate_ids          => suhpafs_get_aggregate_ids
+      procedure, non_overridable :: get_aggregate_size         => suhpafs_get_aggregate_size
+      procedure, non_overridable :: get_is_in_aggregate_x_cell => suhpafs_get_is_in_aggregate_x_cell
+
+      ! Printers
+      procedure, non_overridable :: print_debug_info => suhpafs_print_debug_info
 
       ! Private TBPs
-      procedure, private, non_overridable :: allocate_and_fill_aggregate_ids        => suhpafs_allocate_and_fill_aggregate_ids
-      procedure, private, non_overridable :: setup_cut_cells_constraints            => suhpafs_setup_cut_cells_constraints
-      
+      procedure, private, non_overridable :: allocate_and_fill_aggregate_ids         => suhpafs_allocate_and_fill_aggregate_ids
+      procedure, private, non_overridable :: check_for_full_neighbors                => suhpafs_check_for_full_neighbors
+      procedure, private, non_overridable :: fill_proper_vef_constrains_full_cell    => suhpafs_fill_proper_vef_constrains_full_cell
+      procedure, private, non_overridable :: setup_only_hanging_node_constraints     => suhpafs_setup_only_hanging_node_constraints
+      procedure, private, non_overridable :: setup_only_cell_aggregation_constraints => suhpafs_setup_only_cell_aggregation_constraints
+      procedure, private, non_overridable :: compute_aggregate_sizes                 => suhpafs_compute_aggregate_sizes
 
   end type serial_unfitted_hp_adaptive_fe_space_t
 
@@ -195,6 +265,7 @@ module unfitted_fe_spaces_names
 
       ! Creation of the iterator
       procedure :: create_fe_cell_iterator           => pufs_create_fe_cell_iterator
+      !procedure :: create_fe_facet_iterator          => pufs_create_fe_facet_iterator
 
   end type par_unfitted_fe_space_t
 
@@ -207,6 +278,7 @@ module unfitted_fe_spaces_names
 contains
 
 #include "../Unfitted/sbm_unfitted_fe_cell_iterator.i90"
+#include "../Unfitted/sbm_unfitted_fe_facet_iterator.i90"
 #include "../Unfitted/sbm_unfitted_integration_manager.i90"
 #include "../Unfitted/sbm_serial_unfitted_fe_space.i90"
 #include "../Unfitted/sbm_serial_unfitted_hp_adaptive_fe_space.i90"

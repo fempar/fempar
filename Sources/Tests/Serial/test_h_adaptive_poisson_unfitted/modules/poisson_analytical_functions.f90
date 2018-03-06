@@ -169,7 +169,11 @@ contains
     x1 = point%get(1)
     x2 = point%get(2)
     x3 = point%get(3)
-    val = degree*(degree-1)*( x1**(degree-2) + x2**(degree-2) + x3**(degree-2))
+    if (degree == 1) then
+      val = 0.0
+    else
+      val = degree*(degree-1)*( x1**(degree-2) + x2**(degree-2) + x3**(degree-2))
+    end if
   end subroutine sol_ex001_3d_lapl_u
 
   !==============================================================================================
