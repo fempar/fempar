@@ -36,10 +36,16 @@ module fe_cell_function_names
   implicit none
 # include "debug.i90"
   private
- 
+  
+#define duties fe_cell_function_duties
+#define task_01 evaluate_values
+#define task_02 evaluate_gradients
+#define task_03 evaluate_laplacians
+#include "duties_header.i90"
   
   type fe_cell_function_scalar_t
    private
+   type(fe_cell_function_duties_t)   :: my_duties
    integer(ip)                       :: field_id
    integer(ip)                       :: current_num_nodes             
    integer(ip)                       :: current_num_quadrature_points
@@ -69,6 +75,7 @@ module fe_cell_function_names
   
   type fe_cell_function_vector_t
    private
+   type(fe_cell_function_duties_t)   :: my_duties
    integer(ip)                       :: field_id
    integer(ip)                       :: current_num_nodes             
    integer(ip)                       :: current_num_quadrature_points           
@@ -101,6 +108,7 @@ module fe_cell_function_names
   
   type fe_cell_function_tensor_t
    private
+   type(fe_cell_function_duties_t)   :: my_duties
    integer(ip)                       :: field_id
    integer(ip)                       :: current_num_nodes            
    integer(ip)                       :: current_num_quadrature_points     
@@ -120,11 +128,18 @@ module fe_cell_function_names
      procedure, non_overridable :: free                                 => fe_cell_function_tensor_free
   end type fe_cell_function_tensor_t
   
- public :: fe_cell_function_scalar_t, fe_cell_function_vector_t, fe_cell_function_tensor_t  
+ public :: fe_cell_function_scalar_t, fe_cell_function_vector_t, & 
+           fe_cell_function_tensor_t, fe_cell_function_duties_t
  
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 #include "sbm_fe_cell_function.i90"
+
+#define duties fe_cell_function_duties
+#define task_01 evaluate_values
+#define task_02 evaluate_gradients
+#define task_03 evaluate_laplacians
+#include "duties_body.i90"
 
 end module fe_cell_function_names
