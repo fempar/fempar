@@ -252,15 +252,14 @@ subroutine fe_cell_function_scalar_free ( this )
      check(istat==0)
   end if
   if (allocated(this%quadrature_points_values)) then
-     call memfree ( this%quadrature_points_values, __FILE__, __LINE__)
+     call memfree ( this%quadrature_points_values, __FILE__, __LINE__ )
   end if
   if (allocated(this%quadrature_points_gradients)) then
      deallocate ( this%quadrature_points_gradients, stat = istat )
      check(istat==0)
   end if
   if (allocated(this%quadrature_points_laplacians)) then
-     deallocate ( this%quadrature_points_laplacians, stat = istat )
-     check(istat==0)
+     call memfree ( this%quadrature_points_laplacians, __FILE__, __LINE__ )
   end if
 end subroutine fe_cell_function_scalar_free
 
