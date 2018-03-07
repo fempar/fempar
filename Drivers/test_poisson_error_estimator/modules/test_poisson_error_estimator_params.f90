@@ -53,26 +53,30 @@ module test_poisson_error_estimator_params_names
      character(len=:), allocatable :: default_is_periodic_in_z
      character(len=:), allocatable :: default_use_void_fes
      character(len=:), allocatable :: default_use_void_fes_case
+     character(len=:), allocatable :: default_refinement_strategy
+     character(len=:), allocatable :: default_analytical_functions_type
 
      type(Command_Line_Interface):: cli 
 
      ! IO parameters
-     character(len=str_cla_len)    :: dir_path
-     character(len=str_cla_len)    :: prefix
-     character(len=str_cla_len)    :: dir_path_out
-     character(len=str_cla_len)    :: fe_formulation
-     integer(ip)                   :: reference_fe_geo_order
-     integer(ip)                   :: reference_fe_order
-     logical                       :: write_solution
-     character(len=str_cla_len)    :: laplacian_type
+     character(len=str_cla_len) :: dir_path
+     character(len=str_cla_len) :: prefix
+     character(len=str_cla_len) :: dir_path_out
+     character(len=str_cla_len) :: fe_formulation
+     integer(ip)                :: reference_fe_geo_order
+     integer(ip)                :: reference_fe_order
+     logical                    :: write_solution
+     character(len=str_cla_len) :: laplacian_type
 
-     character(len=str_cla_len)    :: triangulation_type
-     integer(ip) :: num_dims     
+     character(len=str_cla_len) :: triangulation_type
+     integer(ip) :: num_dims
      integer(ip) :: num_cells_x_dir(0:SPACE_DIM-1)
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
      
-     logical                       :: use_void_fes
-     character(len=str_cla_len)    :: use_void_fes_case
+     logical                    :: use_void_fes
+     character(len=str_cla_len) :: use_void_fes_case
+     character(len=str_cla_len) :: refinement_strategy
+     character(len=str_cla_len) :: analytical_functions_type
 
    contains
      procedure, non_overridable             :: create       => test_poisson_create
@@ -92,6 +96,9 @@ module test_poisson_error_estimator_params_names
      procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: get_use_void_fes
      procedure, non_overridable             :: get_use_void_fes_case
+     procedure, non_overridable             :: get_refinement_strategy
+     procedure, non_overridable             :: get_analytical_functions_type
+     
   end type test_poisson_error_estimator_params_t  
 
   ! Types
@@ -142,6 +149,9 @@ contains
     
     this%default_use_void_fes = '.false.'
     this%default_use_void_fes_case = 'popcorn'
+    this%default_refinement_strategy = 'uniform'
+    this%default_analytical_functions_type = 'polynomial'
+    
   end subroutine test_poisson_set_default
   
   !==================================================================================================
@@ -179,7 +189,6 @@ contains
          &            required=.false.,act='store',def=trim(this%default_laplacian_type),choices='scalar,vector',error=error) 
     check(error==0) 
     
-    
     call this%cli%add(switch='--triangulation-type',switch_ab='-tt',help='Structured or unstructured (GiD) triangulation?',&
          &            required=.false.,act='store',def=trim(this%default_triangulation_type),choices='structured,unstructured',error=error) 
     check(error==0) 
@@ -212,7 +221,14 @@ contains
     call this%cli%add(switch='--use-void-fes-case',switch_ab='-use-voids-case',help='Select where to put void fes using one of the predefined patterns. Possible values: `popcorn`, `half`, `quarter`',&
          &            required=.false.,act='store',def=trim(this%default_use_void_fes_case),error=error) 
     check(error==0) 
-
+    
+    call this%cli%add(switch='--refinement_strategy',switch_ab='-rs',help='uniform or error_objective refinement strategy?',&
+         &            required=.false.,act='store',def=trim(this%default_refinement_strategy),error=error) 
+    check(error==0) 
+    call this%cli%add(switch='--analytical_functions_type',switch_ab='-af',help='polynomial or shock analytical functions?',&
+         &            required=.false.,act='store',def=trim(this%default_analytical_functions_type),error=error) 
+    check(error==0) 
+    
   end subroutine test_poisson_add_to_cli
   
   subroutine test_poisson_parse(this,parameter_list)
@@ -241,8 +257,12 @@ contains
     call this%cli%get(switch='-px',val=this%is_dir_periodic(0),error=istat); check(istat==0)
     call this%cli%get(switch='-py',val=this%is_dir_periodic(1),error=istat); check(istat==0)
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
+
     call this%cli%get(switch='-use-voids',val=this%use_void_fes,error=istat); check(istat==0)
     call this%cli%get(switch='-use-voids-case',val=this%use_void_fes_case,error=istat); check(istat==0)
+
+    call this%cli%get(switch='-rs',val=this%refinement_strategy,error=istat); check(istat==0)
+    call this%cli%get(switch='-af',val=this%analytical_functions_type,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -273,7 +293,8 @@ contains
     if(allocated(this%default_write_solution)) deallocate(this%default_write_solution)
     if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
     if(allocated(this%default_use_void_fes)) deallocate(this%default_use_void_fes) 
-    if(allocated(this%default_use_void_fes_case)) deallocate(this%default_use_void_fes_case) 
+    if(allocated(this%default_use_void_fes_case)) deallocate(this%default_use_void_fes_case)
+    if(allocated(this%default_analytical_functions_type)) deallocate(this%default_analytical_functions_type)
     call this%cli%free()
   end subroutine test_poisson_free
 
@@ -361,7 +382,7 @@ contains
   function get_use_void_fes(this)
     implicit none
     class(test_poisson_error_estimator_params_t) , intent(in) :: this
-    logical                                   :: get_use_void_fes
+    logical :: get_use_void_fes
     get_use_void_fes = this%use_void_fes
   end function get_use_void_fes
 
@@ -369,8 +390,24 @@ contains
   function get_use_void_fes_case(this)
     implicit none
     class(test_poisson_error_estimator_params_t) , intent(in) :: this
-    character(len=:), allocatable             :: get_use_void_fes_case
+    character(len=:), allocatable :: get_use_void_fes_case
     get_use_void_fes_case = trim(this%use_void_fes_case)
   end function get_use_void_fes_case
-
+  
+  !==================================================================================================
+  function get_refinement_strategy(this)
+    implicit none
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
+    character(len=:), allocatable :: get_refinement_strategy
+    get_refinement_strategy = trim(this%refinement_strategy)
+  end function get_refinement_strategy 
+  
+  !==================================================================================================
+  function get_analytical_functions_type(this)
+    implicit none
+    class(test_poisson_error_estimator_params_t) , intent(in) :: this
+    character(len=:), allocatable :: get_analytical_functions_type
+    get_analytical_functions_type = trim(this%analytical_functions_type)
+  end function get_analytical_functions_type
+  
 end module test_poisson_error_estimator_params_names

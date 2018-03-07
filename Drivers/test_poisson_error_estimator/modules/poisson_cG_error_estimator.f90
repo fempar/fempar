@@ -27,7 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module poisson_cG_error_estimator_names
   use fempar_names
-  use poisson_analytical_functions_names
+  use analytical_functions_names
   
   implicit none
 # include "debug.i90"
@@ -35,8 +35,8 @@ module poisson_cG_error_estimator_names
   
   
   type, extends(error_estimator_t) :: poisson_cG_error_estimator_t
-    type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
-    type(fe_function_t)                 , pointer :: fe_function          => NULL()
+    class(base_analytical_functions_t), pointer :: analytical_functions => NULL()
+    type(fe_function_t)               , pointer :: fe_function          => NULL()
    contains
     procedure :: set_analytical_functions  => pcGee_set_analytical_functions
     procedure :: set_fe_function           => pcGee_set_fe_function
@@ -50,8 +50,8 @@ contains
 
  subroutine pcGee_set_analytical_functions ( this, analytical_functions )
    implicit none
-   class(poisson_cG_error_estimator_t)          , intent(inout) :: this
-   type(poisson_analytical_functions_t), target , intent(in)    :: analytical_functions
+   class(poisson_cG_error_estimator_t)         , intent(inout) :: this
+   class(base_analytical_functions_t) , target , intent(in)    :: analytical_functions
    this%analytical_functions => analytical_functions
  end subroutine pcGee_set_analytical_functions
 

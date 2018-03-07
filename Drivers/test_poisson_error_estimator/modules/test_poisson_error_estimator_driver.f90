@@ -30,7 +30,7 @@ module test_poisson_error_estimator_driver_names
   use test_poisson_error_estimator_params_names
   use poisson_cG_discrete_integration_names
   use poisson_conditions_names
-  use poisson_analytical_functions_names
+  use analytical_functions_names
   use poisson_cG_error_estimator_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO   ! VTK_IO
@@ -51,11 +51,11 @@ module test_poisson_error_estimator_driver_names
      type(p4est_serial_triangulation_t)          :: triangulation
      
      type(serial_fe_space_t)                     :: fe_space 
-     type(p_reference_fe_t), allocatable         :: reference_fes(:) 
+     type(p_reference_fe_t)      , allocatable   :: reference_fes(:)
      
      type(poisson_cG_discrete_integration_t)     :: poisson_cG_integration
      type(poisson_conditions_t)                  :: poisson_conditions
-     type(poisson_analytical_functions_t)        :: poisson_analytical_functions
+     type(analytical_functions_t)                :: poisson_analytical_functions
      
      type(fe_affine_operator_t)                  :: fe_affine_operator
      
@@ -156,6 +156,7 @@ contains
   subroutine setup_fe_space(this)
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
+    call this%poisson_analytical_functions%create(this%test_params)
     call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
     call this%fe_space%create( triangulation       = this%triangulation, &
@@ -167,23 +168,40 @@ contains
   subroutine generate_adapted_mesh(this)
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
-    type(poisson_cG_error_estimator_t)          :: poisson_cG_error_estimator
-    type(error_objective_refinement_strategy_t) :: refinement_strategy
-    real(rp)              :: global_estimate, global_true_error, global_effectivity
+    type(poisson_cG_error_estimator_t)              :: poisson_cG_error_estimator
+    class(refinement_strategy_t)      , allocatable :: refinement_strategy
+    !type(error_objective_refinement_strategy_t) :: refinement_strategy
+    real(rp)              :: global_estimate(2), global_true_error(2), global_effectivity
     type(ParameterList_t) :: parameter_list
-    integer(ip)           :: FPLError
+    integer(ip)           :: FPLError, istat, max_num_mesh_iterations
+    logical               :: test
+    real(rp)              :: theoretical_rate, tol_rate = 0.1_rp
+    
+    global_estimate = 1.0_rp; global_true_error = 1.0_rp
     
     call poisson_cG_error_estimator%create(this%fe_space,this%parameter_list)
-    call poisson_cG_error_estimator%set_analytical_functions(this%poisson_analytical_functions)
+    call poisson_cG_error_estimator%set_analytical_functions(this%poisson_analytical_functions%get_analytical_functions())
     call poisson_cG_error_estimator%set_fe_function(this%solution)
     
     call parameter_list%init()
     FPLError = parameter_list%set(key = error_objective_key                   , value = 0.01_rp)
     FPLError = FPLError + parameter_list%set(key = objective_tolerance_key    , value = 0.1_rp)
-    FPLError = FPLError + parameter_list%set(key = max_num_mesh_iterations_key, value = 100)
+    max_num_mesh_iterations = 10
+    FPLError = FPLError + parameter_list%set(key = max_num_mesh_iterations_key, value = max_num_mesh_iterations)
+    FPLError = FPLError + parameter_list%set(key = num_uniform_refinements_key, value = 3)
     assert(FPLError == 0)
     
+    if ( this%test_params%get_refinement_strategy() == 'uniform' ) then
+      theoretical_rate = 1.0_rp/(2.0_rp ** real(this%reference_fes(1)%p%get_order(),rp))
+      allocate ( uniform_refinement_strategy_t :: refinement_strategy , stat = istat ); check( istat == 0 )
+    else if ( this%test_params%get_refinement_strategy() == 'error_objective' ) then
+      allocate ( error_objective_refinement_strategy_t :: refinement_strategy , stat = istat ); check( istat == 0 )
+    else
+      mcheck(.false.,'test_poisson_error_estimator: Refinement strategy not supported.')
+    end if
+    
     call refinement_strategy%create(poisson_cG_error_estimator,parameter_list)
+    
     call this%output_current_mesh_and_solution(refinement_strategy%get_current_mesh_iteration())
     
     do while ( .not. refinement_strategy%has_finished_refinement() )
@@ -197,13 +215,29 @@ contains
       call poisson_cG_error_estimator%compute_local_effectivities()
       call poisson_cG_error_estimator%compute_global_effectivity()
       
-      global_estimate    = poisson_cG_error_estimator%get_global_estimate()
-      global_true_error  = poisson_cG_error_estimator%get_global_true_error()
-      global_effectivity = poisson_cG_error_estimator%get_global_effectivity()
+      global_estimate(2)   = poisson_cG_error_estimator%get_global_estimate()
+      global_true_error(2) = poisson_cG_error_estimator%get_global_true_error()
+      global_effectivity   = poisson_cG_error_estimator%get_global_effectivity()
       
-      write(*,'(a20,e32.25)') 'global_estimate:'   , global_estimate
-      write(*,'(a20,e32.25)') 'global_true_error:' , global_true_error
+      write(*,'(a20,e32.25)') 'global_estimate:'   , global_estimate(2)
+      write(*,'(a20,e32.25)') 'slope_estimate:'    , global_estimate(2)/global_estimate(1)
+      write(*,'(a20,e32.25)') 'global_true_error:' , global_true_error(2)
+      write(*,'(a20,e32.25)') 'slope_true_error:'  , global_true_error(2)/global_true_error(1)
+      write(*,'(a20,e32.25)') 'slope_theoretical:' , theoretical_rate
       write(*,'(a20,e32.25)') 'global_effectivity:', global_effectivity
+      
+      ! Some checks for the tests
+      if ( this%test_params%get_refinement_strategy() == 'uniform' .and. &
+           refinement_strategy%get_current_mesh_iteration() > 0 ) then
+        test = abs((global_estimate(2)/global_estimate(1)-theoretical_rate)/theoretical_rate) < tol_rate
+        mcheck( test, 'Uniform refinement: Theoretical rate of convergence is not verified' )
+      else if ( this%test_params%get_refinement_strategy() == 'error_objective' ) then
+        test = ( refinement_strategy%get_current_mesh_iteration() < max_num_mesh_iterations )
+        mcheck( test, 'Error objective was not reached in the expected num mesh iterations' )
+      end if
+      
+      global_estimate(1)   = global_estimate(2)
+      global_true_error(1) = global_true_error(2)
       
       call refinement_strategy%update_refinement_flags(this%triangulation%get_refinement_and_coarsening_flags())
       call this%triangulation%refine_and_coarsen()
@@ -215,20 +249,25 @@ contains
       call this%direct_solver%replace_matrix( matrix = this%fe_affine_operator%get_matrix(), & 
                                               same_nonzero_pattern = .false. )
       call this%solve_system()
-      call this%check_solution()
+      !call this%check_solution()
       call this%output_current_mesh_and_solution(refinement_strategy%get_current_mesh_iteration())
       
     end do
     
     call parameter_list%free()
     call poisson_cG_error_estimator%free()
+    call refinement_strategy%free()
+    if ( allocated(refinement_strategy) ) then 
+      deallocate ( refinement_strategy, stat = istat )
+      check( istat == 0 )
+    end if
     
   end subroutine generate_adapted_mesh
   
   subroutine setup_system (this)
     implicit none
     class(test_poisson_error_estimator_driver_t), intent(inout) :: this
-    call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
+    call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions%get_analytical_functions())
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format,                               &
                                           diagonal_blocks_symmetric_storage = [ .true. ],                               &
                                           diagonal_blocks_symmetric         = [ .true. ],                               &
@@ -373,6 +412,7 @@ contains
     call this%assemble_system()
     call this%setup_solver()
     call this%solve_system()
+    !call this%check_solution()
     call this%output_handler_initialize()
     call this%generate_adapted_mesh()
     call this%output_handler_finalize()
@@ -391,6 +431,7 @@ contains
 #endif
     call this%fe_affine_operator%free()
     call this%fe_space%free()
+    call this%poisson_analytical_functions%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)
         call this%reference_fes(i)%p%free()

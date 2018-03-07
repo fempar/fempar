@@ -27,14 +27,14 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module poisson_cG_discrete_integration_names
   use fempar_names
-  use poisson_analytical_functions_names
+  use analytical_functions_names
   
   implicit none
 # include "debug.i90"
   private
   type, extends(discrete_integration_t) :: poisson_cG_discrete_integration_t
-     type(poisson_analytical_functions_t), pointer :: analytical_functions => NULL()
-     type(fe_function_t)                 , pointer :: fe_function          => NULL()
+     class(base_analytical_functions_t), pointer :: analytical_functions => NULL()
+     type(fe_function_t)               , pointer :: fe_function          => NULL()
    contains
      procedure :: set_analytical_functions
      procedure :: set_fe_function
@@ -47,23 +47,23 @@ contains
    
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
-     class(poisson_cG_discrete_integration_t)    , intent(inout) :: this
-     type(poisson_analytical_functions_t), target, intent(in)    :: analytical_functions
+     class(poisson_cG_discrete_integration_t)         , intent(inout) :: this
+     class(base_analytical_functions_t)      , target , intent(in)    :: analytical_functions
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
 
   subroutine set_fe_function (this, fe_function)
      implicit none
-     class(poisson_cG_discrete_integration_t), intent(inout) :: this
-     type(fe_function_t)             , target, intent(in)    :: fe_function
+     class(poisson_cG_discrete_integration_t)         , intent(inout) :: this
+     type(fe_function_t)                     , target , intent(in)    :: fe_function
      this%fe_function => fe_function
   end subroutine set_fe_function
 
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(poisson_cG_discrete_integration_t), intent(in)    :: this
-    class(serial_fe_space_t)         , intent(inout) :: fe_space
-    class(assembler_t)      , intent(inout) :: assembler
+    class(serial_fe_space_t)                , intent(inout) :: fe_space
+    class(assembler_t)                      , intent(inout) :: assembler
 
     ! FE space traversal-related data types
     class(fe_cell_iterator_t), allocatable :: fe
