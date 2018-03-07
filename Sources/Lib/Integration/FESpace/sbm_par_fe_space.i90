@@ -2303,11 +2303,13 @@ subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner ( this, &
 
 end subroutine par_fe_space_raw_interface_data_by_continuity_decide_owner
 
-subroutine pfs_compute_lst_parts_around_itfc_dofs(this, field_id) 
+subroutine pfs_compute_lst_parts_around_itfc_dofs(this, &
+                                                  field_id )
   implicit none
-  class(par_fe_space_t), intent(in) :: this
-  integer(ip)          , intent(in) :: field_id
+  class(par_fe_space_t)   , intent(inout)    :: this
+  integer(ip)             , intent(in)       :: field_id
 
+  
   class(fe_cell_iterator_t), allocatable :: fe 
   type(fe_vef_iterator_t) :: vef 
   class(triangulation_t), pointer :: triangulation
@@ -2315,9 +2317,7 @@ subroutine pfs_compute_lst_parts_around_itfc_dofs(this, field_id)
   class(environment_t), pointer :: environment
   integer(ip) :: num_parts_around
  
-  integer(ip), allocatable :: lst_parts_around_itfc_dofs(:,:)
-  integer(ip), allocatable :: dof_gid_to_itfc_dof_gid(:)
-  integer(ip), allocatable :: itfc_dof_gid_to_dof_gid(:)
+
   integer(ip) :: block_id
   integer(ip) :: num_blk_proper_dofs
   integer(ip) :: num_blk_improper_dofs
@@ -2351,17 +2351,16 @@ subroutine pfs_compute_lst_parts_around_itfc_dofs(this, field_id)
   num_blk_proper_dofs    = this%block_layout%get_block_num_dofs(block_id)
   num_blk_improper_dofs  = this%ptr_constraining_free_dofs%size()-1 
   call memalloc(num_blk_proper_dofs+num_blk_improper_dofs,&
-                dof_gid_to_itfc_dof_gid, __FILE__, __LINE__ )
+                this%dof_gid_to_itfc_dof_gid, __FILE__, __LINE__ )
   call count_itfc_dofs_and_fill_dof_gid_to_itfc_dof_gid()
   
   ! Allocate and initialize lst_parts_around_itfc_dofs
   num_parts_around = cell_import%get_num_neighbours()+1
   call memalloc ( num_parts_around+1, &
                   num_itfc_dofs, &
-                  lst_parts_around_itfc_dofs, __FILE__, __LINE__ )
+                  this%lst_parts_around_itfc_dofs, __FILE__, __LINE__ )
   
-  call memalloc ( num_itfc_dofs, itfc_dof_gid_to_dof_gid, __FILE__, __LINE__ )
-  
+  call memalloc ( num_itfc_dofs, this%itfc_dof_gid_to_dof_gid, __FILE__, __LINE__ )
   
   ! Fill lst_parts_around_itfc_dofs_using_cells_around()
   call fill_lst_parts_around_itfc_dofs_using_cells_around()
@@ -2370,14 +2369,14 @@ subroutine pfs_compute_lst_parts_around_itfc_dofs(this, field_id)
   
   call this%free_fe_vef_iterator(vef)
   call this%free_fe_cell_iterator(fe)
-  call memfree(dof_gid_to_itfc_dof_gid, __FILE__, __LINE__ )
-  call memfree(itfc_dof_gid_to_dof_gid, __FILE__, __LINE__ )
-  call memfree(lst_parts_around_itfc_dofs, __FILE__, __LINE__ )
+  call memfree(this%dof_gid_to_itfc_dof_gid, __FILE__, __LINE__ )
+  call memfree(this%itfc_dof_gid_to_dof_gid, __FILE__, __LINE__ )
+  call memfree(this%lst_parts_around_itfc_dofs, __FILE__, __LINE__ )
 contains
   subroutine count_itfc_dofs_and_fill_dof_gid_to_itfc_dof_gid()
     implicit none
     num_itfc_dofs   = 0
-    dof_gid_to_itfc_dof_gid=-1
+    this%dof_gid_to_itfc_dof_gid=-1
     do while(.not. vef%has_finished())
        dofs_found = .false.
        do ielem=1, vef%get_num_cells_around()
@@ -2395,9 +2394,9 @@ contains
              end if
 
              dofs_found = .true.
-             if ( dof_gid_to_itfc_dof_gid(get_consecutive_dof_gid(dof_gid)) ==-1) then
+             if ( this%dof_gid_to_itfc_dof_gid(get_consecutive_dof_gid(dof_gid)) ==-1) then
                 num_itfc_dofs = num_itfc_dofs+1    
-                dof_gid_to_itfc_dof_gid(get_consecutive_dof_gid(dof_gid))=num_itfc_dofs 
+                this%dof_gid_to_itfc_dof_gid(get_consecutive_dof_gid(dof_gid))=num_itfc_dofs 
              end if
              call own_dofs_on_vef_iterator%next()
           end do
@@ -2409,7 +2408,7 @@ contains
 
   subroutine fill_lst_parts_around_itfc_dofs_using_cells_around()
     implicit none
-    lst_parts_around_itfc_dofs = 0
+    this%lst_parts_around_itfc_dofs = 0
     call memalloc ( cell_import%get_num_neighbours(), &
          touched_neighbours, &
          __FILE__, __LINE__ )
@@ -2454,11 +2453,11 @@ contains
                 cycle
              end if
 
-             lst_parts_around_itfc_dofs(1,current_itfc_dof) = num_parts + 1 
-             lst_parts_around_itfc_dofs(2,current_itfc_dof) = mypart_id
-             lst_parts_around_itfc_dofs(3:num_parts+2,current_itfc_dof) = parts_visited(1:num_parts)
+             this%lst_parts_around_itfc_dofs(1,current_itfc_dof) = num_parts + 1 
+             this%lst_parts_around_itfc_dofs(2,current_itfc_dof) = mypart_id
+             this%lst_parts_around_itfc_dofs(3:num_parts+2,current_itfc_dof) = parts_visited(1:num_parts)
              
-             itfc_dof_gid_to_dof_gid(current_itfc_dof) = dof_gid
+             this%itfc_dof_gid_to_dof_gid(current_itfc_dof) = dof_gid
              current_itfc_dof = current_itfc_dof + 1 
              dofs_found = .true.
 
@@ -2481,13 +2480,13 @@ contains
     integer(ip) :: i 
     integer(ip) :: pos_in_ptr
     do i=1, num_itfc_dofs
-      dof_gid=itfc_dof_gid_to_dof_gid(i)
+      dof_gid=this%itfc_dof_gid_to_dof_gid(i)
       if (fe%is_hanging_dof(dof_gid)) then
         pos_in_ptr= abs(dof_gid)-this%num_dirichlet_dofs
         do pos=this%ptr_constraining_free_dofs%get(pos_in_ptr), this%ptr_constraining_free_dofs%get(pos_in_ptr+1)-1 
           free_dof_gid = this%constraining_free_dofs%get(pos)
-          source_col = dof_gid_to_itfc_dof_gid(get_consecutive_dof_gid(dof_gid))
-          target_col = dof_gid_to_itfc_dof_gid(free_dof_gid)
+          source_col = this%dof_gid_to_itfc_dof_gid(get_consecutive_dof_gid(dof_gid))
+          target_col = this%dof_gid_to_itfc_dof_gid(free_dof_gid)
           assert ( source_col /= -1 .and. target_col /= -1 )
           call merge_lst_parts_around_itfc_dofs_cols (source_col, target_col)
         end do
@@ -2505,21 +2504,21 @@ contains
     integer(ip) :: part_id_col2
     integer(ip) :: i, j
     logical :: found
-    num_parts_col2=lst_parts_around_itfc_dofs(1,target_col)
+    num_parts_col2=this%lst_parts_around_itfc_dofs(1,target_col)
     do i=2,num_parts_col2+1
-       part_id_col2=lst_parts_around_itfc_dofs(i,target_col)
+       part_id_col2=this%lst_parts_around_itfc_dofs(i,target_col)
        found = .false.
-       num_parts_col1=lst_parts_around_itfc_dofs(1,source_col)
+       num_parts_col1=this%lst_parts_around_itfc_dofs(1,source_col)
        do j=2,num_parts_col1+1
-         part_id_col1=lst_parts_around_itfc_dofs(j,source_col)
+         part_id_col1=this%lst_parts_around_itfc_dofs(j,source_col)
          if ( part_id_col1 == part_id_col2 ) then
            found = .true.
            exit
          end if
        end do
        if ( .not. found ) then
-         lst_parts_around_itfc_dofs(1,source_col) = lst_parts_around_itfc_dofs(1,source_col) + 1 
-         lst_parts_around_itfc_dofs(lst_parts_around_itfc_dofs(1,source_col),source_col) = part_id_col2  
+         this%lst_parts_around_itfc_dofs(1,source_col) = this%lst_parts_around_itfc_dofs(1,source_col) + 1 
+         this%lst_parts_around_itfc_dofs(this%lst_parts_around_itfc_dofs(1,source_col),source_col) = part_id_col2  
        end if
     end do 
   end subroutine merge_lst_parts_around_itfc_dofs_cols
@@ -2534,6 +2533,398 @@ contains
     end if
   end function get_consecutive_dof_gid
 end subroutine pfs_compute_lst_parts_around_itfc_dofs
+
+subroutine par_fe_space_fetch_num_parts_dofs_cell_wise(this, field_id)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: field_id
+  class(fe_cell_iterator_t), allocatable :: fe
+  type(fe_vef_iterator_t) :: vef
+  class(environment_t), pointer :: environment
+  class(triangulation_t), pointer :: triangulation
+  type(cell_import_t), pointer :: cell_import
+  integer(ip) :: ielem, base_pos, cell_gid, ivef
+  integer(ip), pointer :: p_num_parts_dofs_cell_wise(:)
+  integer(ip) :: num_dofs
+  integer(ip), pointer :: fe_dofs(:)
+  type(list_iterator_t) :: own_dofs_on_vef_iterator
+  logical :: dofs_found
+  class(reference_fe_t), pointer :: reference_fe
+  integer(ip) :: dof_gid, idof
+  
+  
+  call this%create_fe_cell_iterator(fe)
+  if ( .not. fe%has_finished() ) then
+    num_dofs = fe%get_num_dofs_field(field_id) 
+  else
+    num_dofs = 0
+  end if
+  
+  triangulation   => this%get_triangulation()
+  
+  call this%num_parts_dofs_cell_wise%resize(0)
+  call this%num_parts_dofs_cell_wise%resize(triangulation%get_num_cells()*num_dofs,0) 
+  p_num_parts_dofs_cell_wise => this%num_parts_dofs_cell_wise%get_pointer()
+  
+  ! For each proper vef on the interface, go over its local cells, and
+  ! assign the number of parts it is around on a cell-wise manner
+  call this%create_itfc_fe_vef_iterator(vef)
+  do while(.not. vef%has_finished())
+    if ( vef%is_proper() ) then
+      do ielem=1, vef%get_num_cells_around()
+        call vef%get_cell_around(ielem,fe)        
+        if ( fe%is_local() ) then
+          ivef = fe%get_vef_lid_from_gid(vef%get_gid())
+          cell_gid = fe%get_gid()
+          base_pos = (cell_gid-1)*num_dofs
+          
+          dofs_found = .false.
+          reference_fe => fe%get_reference_fe(field_id)
+          call fe%get_field_fe_dofs( field_id, fe_dofs )
+          
+          own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
+          do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+             idof =  own_dofs_on_vef_iterator%get_current()
+             dof_gid = fe_dofs(idof)
+             if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+                call own_dofs_on_vef_iterator%next()
+                cycle
+             end if
+             dofs_found = .true.
+             if ( fe%is_free_dof(dof_gid) ) then
+               p_num_parts_dofs_cell_wise(base_pos+idof) = this%lst_parts_around_itfc_dofs(1,this%dof_gid_to_itfc_dof_gid(dof_gid))
+             end if
+             
+             call own_dofs_on_vef_iterator%next()
+          end do
+          if (dofs_found) exit
+        end if
+      end do
+    end if
+    call vef%next()
+  end do 
+  call this%free_fe_vef_iterator(vef)
+  call this%free_fe_cell_iterator(fe)
+
+  environment     => this%get_environment()
+  cell_import     => triangulation%get_cell_import()
+  call environment%l1_neighbours_exchange ( num_rcv    = cell_import%get_num_neighbours(), &
+                                            list_rcv   = cell_import%get_neighbours_ids(),&
+                                            rcv_ptrs   = cell_import%get_rcv_ptrs(),&
+                                            unpack_idx = cell_import%get_rcv_leids(), &
+                                            num_snd    = cell_import%get_num_neighbours(), &
+                                            list_snd   = cell_import%get_neighbours_ids(),&
+                                            snd_ptrs   = cell_import%get_snd_ptrs(),&
+                                            pack_idx   = cell_import%get_snd_leids(),&
+                                            x          = p_num_parts_dofs_cell_wise, &
+                                            y          = p_num_parts_dofs_cell_wise, &
+                                            chunk_size = num_dofs)
+end subroutine par_fe_space_fetch_num_parts_dofs_cell_wise
+
+subroutine par_fe_space_compute_near_neigh_ctrl_data_lst_parts(this, field_id)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: field_id
+  
+  integer(ip), pointer :: snd_ptrs(:)
+  integer(ip), pointer :: snd_leids(:)
+  integer(ip), pointer :: rcv_ptrs(:)
+  integer(ip), pointer :: rcv_leids(:)
+  
+  ! Second ghost to owner comm.
+  integer(ip), pointer :: p_snd_ptrs_lst_parts_cell_wise(:)
+  integer(ip), pointer :: p_rcv_ptrs_lst_parts_cell_wise(:)
+  integer(ip), pointer :: p_num_parts_dofs_cell_wise(:)
+  
+  integer(ip) :: i, j, k, l, m, n, icell, current
+  integer(ip) :: cell_gid, ghost_cell_gid
+  integer(ip) :: start_pos, end_pos, num_parts, num_dofs
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(triangulation_t), pointer :: triangulation
+  type(cell_import_t), pointer :: cell_import
+
+  call this%create_fe_cell_iterator(fe)
+  if ( .not. fe%has_finished() ) then
+    num_dofs = fe%get_num_dofs_field(field_id) 
+  else
+    num_dofs = 0
+  end if
+  call this%free_fe_cell_iterator(fe)
+  
+  triangulation => this%get_triangulation()
+  cell_import   => triangulation%get_cell_import()
+  
+  ! Init send data structures
+  call this%snd_ptrs_lst_parts_cell_wise%resize(0)
+  call this%snd_ptrs_lst_parts_cell_wise%resize(cell_import%get_num_neighbours()+1,0)
+  p_snd_ptrs_lst_parts_cell_wise => this%snd_ptrs_lst_parts_cell_wise%get_pointer()
+  call this%lst_parts_pack_idx_cell_wise%resize(0)
+  
+  p_num_parts_dofs_cell_wise => this%num_parts_dofs_cell_wise%get_pointer()
+  snd_ptrs  => cell_import%get_snd_ptrs()
+  snd_leids => cell_import%get_snd_leids()
+  current = 1 
+  ! Compute send data structures 
+  do i=1, cell_import%get_num_neighbours()
+     do j=snd_ptrs(i), snd_ptrs(i+1)-1
+        k=snd_leids(j)
+        
+        start_pos = (k-1)*num_dofs+1
+        end_pos   = (k  )*num_dofs
+        num_parts = 0
+        do m=start_pos, end_pos
+          num_parts=num_parts+p_num_parts_dofs_cell_wise(m)
+        end do
+             
+        do m=1, num_parts
+         call this%lst_parts_pack_idx_cell_wise%push_back(current)
+         current = current + 1
+        end do  
+             
+        p_snd_ptrs_lst_parts_cell_wise(i+1) = &
+            p_snd_ptrs_lst_parts_cell_wise(i+1) + num_parts
+     end do 
+  end do
+  
+  p_snd_ptrs_lst_parts_cell_wise(1)=1
+  do i=1, cell_import%get_num_neighbours()
+    p_snd_ptrs_lst_parts_cell_wise(i+1) = p_snd_ptrs_lst_parts_cell_wise(i+1) + &
+                                              p_snd_ptrs_lst_parts_cell_wise(i)
+  end do 
+  
+  !! 2. "Recv side"
+  rcv_ptrs  => cell_import%get_rcv_ptrs()
+  rcv_leids => cell_import%get_rcv_leids()
+  call this%rcv_ptrs_lst_parts_cell_wise%resize(cell_import%get_num_neighbours()+1,0)
+  p_rcv_ptrs_lst_parts_cell_wise => this%rcv_ptrs_lst_parts_cell_wise%get_pointer()
+  p_rcv_ptrs_lst_parts_cell_wise = 0
+  do i=1, cell_import%get_num_neighbours()
+   do j=rcv_ptrs(i), rcv_ptrs(i+1)-1
+     k=rcv_leids(j)
+     start_pos = (k-1)*num_dofs+1
+     end_pos   = (k  )*num_dofs
+     num_parts=0
+     do m=start_pos, end_pos 
+       num_parts=num_parts+p_num_parts_dofs_cell_wise(m)
+     end do
+     p_rcv_ptrs_lst_parts_cell_wise(i+1) = & 
+        p_rcv_ptrs_lst_parts_cell_wise(i+1) + num_parts
+   end do
+  end do 
+  ! Length to header
+  p_rcv_ptrs_lst_parts_cell_wise(1)=1
+  do i=1,cell_import%get_num_neighbours()
+    p_rcv_ptrs_lst_parts_cell_wise(i+1) = & 
+      p_rcv_ptrs_lst_parts_cell_wise(i+1)+p_rcv_ptrs_lst_parts_cell_wise(i) 
+  end do
+end subroutine par_fe_space_compute_near_neigh_ctrl_data_lst_parts
+
+subroutine par_fe_space_compute_ptrs_to_rcv_lst_parts_dofs_cell_wise(this, field_id)
+  implicit none
+  class(par_fe_space_t), intent(inout)    :: this
+  integer(ip)          , intent(in)       :: field_id
+  integer(ip), pointer :: p_num_parts_dofs_cell_wise(:)
+  integer(ip), pointer :: p_ptrs_to_rcv_lst_parts_dofs_cell_wise(:)
+  integer(ip), pointer :: rcv_leids(:)
+  integer(ip) :: i, j, k, num_parts 
+  integer(ip) :: start_pos, end_pos 
+  integer(ip) :: num_dofs
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(triangulation_t), pointer :: triangulation
+  type(cell_import_t), pointer :: cell_import
+  
+  call this%create_fe_cell_iterator(fe)
+  if ( .not. fe%has_finished() ) then
+    num_dofs = fe%get_num_dofs_field(field_id) 
+  else
+    num_dofs = 0
+  end if
+  call this%free_fe_cell_iterator(fe)
+  
+  triangulation => this%get_triangulation()
+  cell_import   => triangulation%get_cell_import()
+
+  rcv_leids => cell_import%get_rcv_leids()
+  call this%ptrs_to_rcv_lst_parts_dofs_cell_wise%resize(size(rcv_leids)+1)
+  p_ptrs_to_rcv_lst_parts_dofs_cell_wise => this%ptrs_to_rcv_lst_parts_dofs_cell_wise%get_pointer()
+  p_ptrs_to_rcv_lst_parts_dofs_cell_wise = 0
+  p_num_parts_dofs_cell_wise => this%num_parts_dofs_cell_wise%get_pointer()
+
+  do i=1, size(rcv_leids) 
+   k = rcv_leids(i)
+   start_pos = (k-1)*num_dofs+1
+   end_pos   = (k  )*num_dofs
+   num_parts = 0
+   do j=start_pos, end_pos
+     num_parts=num_parts+p_num_parts_dofs_cell_wise(j)
+   end do
+   p_ptrs_to_rcv_lst_parts_dofs_cell_wise(i+1) = & 
+      p_ptrs_to_rcv_lst_parts_dofs_cell_wise(i+1) + num_parts
+  end do
+  ! Length to header
+  p_ptrs_to_rcv_lst_parts_dofs_cell_wise(1)=1
+  do i=1,size(rcv_leids)
+     p_ptrs_to_rcv_lst_parts_dofs_cell_wise(i+1) = & 
+       p_ptrs_to_rcv_lst_parts_dofs_cell_wise(i+1)+p_ptrs_to_rcv_lst_parts_dofs_cell_wise(i) 
+  end do 
+end subroutine par_fe_space_compute_ptrs_to_rcv_lst_parts_dofs_cell_wise
+
+subroutine par_fe_space_fetch_lst_parts_dofs_cell_wise(this,field_id)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip), pointer :: p_lst_parts_dofs_cell_wise(:)
+  integer(ip), pointer :: p_rcv_lst_parts_dofs_cell_wise(:)
+  integer(ip), pointer :: p_rcv_ptrs_lst_parts_dofs_cell_wise(:)
+  integer(ip), pointer :: p_snd_ptrs_lst_parts_dofs_cell_wise(:)
+  class(environment_t), pointer :: environment
+  integer(ip) :: i, j, k, l, ivef
+  integer(ip) :: num_parts, num_dofs
+  integer(ip), pointer :: snd_leids(:)
+  integer(ip), pointer :: snd_ptrs(:)
+  integer(ip) :: current
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(fe_vef_iterator_t), allocatable :: vef
+  class(triangulation_t), pointer :: triangulation
+  type(cell_import_t), pointer :: cell_import
+  
+  p_snd_ptrs_lst_parts_dofs_cell_wise => this%snd_ptrs_lst_parts_cell_wise%get_pointer()
+  call this%lst_parts_dofs_cell_wise%resize(p_snd_ptrs_lst_parts_dofs_cell_wise(cell_import%get_num_neighbours()+1)-1)
+  p_lst_parts_dofs_cell_wise => this%lst_parts_dofs_cell_wise%get_pointer()
+  
+  p_rcv_ptrs_lst_parts_dofs_cell_wise => this%rcv_ptrs_lst_parts_cell_wise%get_pointer()
+  call this%rcv_lst_parts_dofs_cell_wise%resize(p_rcv_ptrs_lst_parts_dofs_cell_wise(cell_import%get_num_neighbours()+1)-1)
+  p_rcv_lst_parts_dofs_cell_wise => this%rcv_lst_parts_dofs_cell_wise%get_pointer()
+
+  call this%create_fe_cell_iterator(fe)
+  if ( .not. fe%has_finished() ) then
+    num_dofs = fe%get_num_dofs_field(field_id) 
+  else
+    num_dofs = 0
+  end if
+  
+  triangulation => this%get_triangulation()
+  cell_import   => triangulation%get_cell_import()
+  
+  call this%create_fe_vef_iterator(vef)
+  snd_ptrs  => cell_import%get_snd_ptrs()
+  snd_leids => cell_import%get_snd_leids()
+  current = 1 
+  do i=1, cell_import%get_num_neighbours()
+    do j=snd_ptrs(i), snd_ptrs(i+1)-1
+       k=snd_leids(j)
+       call fe%set_gid(k)
+       do ivef=1, fe%get_num_vefs()
+         call fe%get_vef(ivef, vef)
+         
+         !if ( vef%is_proper() ) then    
+         !  do l=1, this%lst_parts_vefwise(vef%get_gid())%size()
+         !    p_lst_parts_dofs_cell_wise(current) = this%lst_parts_vefwise(vef%get_gid())%get(l)
+         !    current = current + 1
+         !  end do 
+         !end if
+       end do
+    end do
+  end do  
+  call this%free_fe_cell_iterator(fe)
+  call this%free_fe_vef_iterator(vef)
+  
+  environment             => this%get_environment()
+  call environment%l1_neighbours_exchange ( num_rcv    = cell_import%get_num_neighbours(), &
+                                            list_rcv   = cell_import%get_neighbours_ids(), &
+                                            rcv_ptrs   = p_rcv_ptrs_lst_parts_dofs_cell_wise, &
+                                            rcv_buf    = p_rcv_lst_parts_dofs_cell_wise, &
+                                            num_snd    = cell_import%get_num_neighbours(), &
+                                            list_snd   = cell_import%get_neighbours_ids(), &
+                                            snd_ptrs   = p_snd_ptrs_lst_parts_dofs_cell_wise, &
+                                            pack_idx   = this%lst_parts_pack_idx_cell_wise%get_pointer(), &
+                                            x          = p_lst_parts_dofs_cell_wise)
+  
+end subroutine par_fe_space_fetch_lst_parts_dofs_cell_wise
+
+!subroutine t_update_lst_subparts_vefwise_after_exchange(this)
+!  implicit none
+!  class(triangulation_t), intent(inout) :: this
+!  class(cell_iterator_t), allocatable   :: cell
+!  class(vef_iterator_t) , allocatable   :: itfc_vef
+!  integer(ip) :: k, ivef, jvef, num_vefs, icell, base_pos
+!  integer(ip), pointer :: p_num_subparts_vefs_cell_wise(:)
+!  integer(ip), pointer :: p_ptrs_to_rcv_lst_subparts_vefs_cell_wise(:)
+!  integer(ip), pointer :: p_rcv_lst_subparts_vefs_cell_wise(:)
+!  integer(ip) :: subpart_gid
+!  integer(ip) :: offset, start_pos
+!  
+!  call this%create_itfc_vef_iterator(itfc_vef)
+!  call this%create_cell_iterator(cell)
+!  
+!  if ( .not. cell%has_finished() ) then
+!    num_vefs = cell%get_num_vefs() 
+!  else
+!    num_vefs = 0
+!  end if
+!  
+!  p_num_subparts_vefs_cell_wise             => this%num_subparts_vefs_cell_wise%get_pointer()
+!  p_ptrs_to_rcv_lst_subparts_vefs_cell_wise => this%ptrs_to_rcv_lst_subparts_vefs_cell_wise%get_pointer()
+!  p_rcv_lst_subparts_vefs_cell_wise         => this%rcv_lst_subparts_vefs_cell_wise%get_pointer()
+!  
+!  call itfc_vef%first()
+!  do while(.not. itfc_vef%has_finished() )
+!     if ( itfc_vef%is_proper() ) then
+!       do icell=1, itfc_vef%get_num_cells_around()
+!          call itfc_vef%get_cell_around(icell,cell)
+!          ivef = cell%get_vef_lid_from_gid(itfc_vef%get_gid())   
+!          if ( cell%is_ghost() ) then
+!             k = cell%get_gid()
+!             base_pos = (k-1)*num_vefs
+!             offset = 0  
+!             do jvef=1, ivef-1
+!               offset = offset + p_num_subparts_vefs_cell_wise(base_pos+jvef)
+!             end do
+!             start_pos = p_ptrs_to_rcv_lst_subparts_vefs_cell_wise(k-this%get_num_local_cells())-1
+!             do k=1, p_num_subparts_vefs_cell_wise(base_pos+ivef)
+!               subpart_gid = p_rcv_lst_subparts_vefs_cell_wise(start_pos+offset+k)
+!               assert (subpart_gid > 0)
+!               call insert(subpart_gid,this%lst_subparts_vefwise(itfc_vef%get_gid()))
+!             end do 
+!          end if   
+!       end do
+!     end if
+!     call itfc_vef%next()
+!  end do
+!  
+!  call this%free_vef_iterator(itfc_vef)
+!  call this%free_cell_iterator(cell)
+!  
+!contains 
+
+!   function is_present ( entry, vector ) 
+!     implicit none
+!     integer(ip)                  , intent(in) :: entry
+!     type(std_vector_integer_ip_t), intent(in) :: vector
+!     logical :: is_present 
+!     integer(ip) :: i
+!     is_present = .false.
+!     do i=1, vector%size()
+!      if ( vector%get(i) == entry ) then
+!        is_present = .true.
+!        return
+!      end if
+!     end do
+!   end function is_present
+!   
+!   subroutine insert (entry, vector)
+!     implicit none
+!     integer(ip)                  , intent(in)    :: entry
+!     type(std_vector_integer_ip_t), intent(inout) :: vector
+!     if ( .not. is_present(entry, vector) ) then
+!       call vector%push_back(entry)
+!     end if
+!   end subroutine 
+!  
+!end subroutine t_update_lst_subparts_vefwise_after_exchange
+
+
+
 
 function par_fe_space_compute_raw_interface_data_by_facet_integ ( this, &
                                                                  fe_space_id, &

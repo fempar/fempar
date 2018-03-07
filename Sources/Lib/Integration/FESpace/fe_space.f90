@@ -782,6 +782,18 @@ module fe_space_names
 
    type(std_vector_real_rp_t)                  :: old_fe_function_nodal_values
    type(std_vector_real_rp_t)                  :: new_fe_function_nodal_values
+   
+   integer(ip), allocatable                    :: lst_parts_around_itfc_dofs(:,:)
+   integer(ip), allocatable                    :: dof_gid_to_itfc_dof_gid(:)
+   integer(ip), allocatable                    :: itfc_dof_gid_to_dof_gid(:)
+   type(std_vector_integer_ip_t)               :: num_parts_dofs_cell_wise
+   type(std_vector_integer_ip_t)               :: snd_ptrs_lst_parts_cell_wise
+   type(std_vector_integer_ip_t)               :: rcv_ptrs_lst_parts_cell_wise
+   type(std_vector_integer_ip_t)               :: lst_parts_pack_idx_cell_wise
+   type(std_vector_integer_ip_t)               :: ptrs_to_rcv_lst_parts_dofs_cell_wise
+   type(std_vector_integer_ip_t)               :: lst_parts_dofs_cell_wise
+   type(std_vector_integer_ip_t)               :: rcv_lst_parts_dofs_cell_wise
+   
  contains
    procedure          :: serial_fe_space_create_same_reference_fes_on_all_cells    => par_fe_space_serial_create_same_reference_fes_on_all_cells 
    procedure          :: serial_fe_space_create_different_ref_fes_between_cells    => par_fe_space_serial_create_different_ref_fes_between_cells 
