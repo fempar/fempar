@@ -74,7 +74,7 @@ subroutine interpolation_create( this, &
           &        this%num_entries_symmetric_tensor,&
           &        this%num_shape_functions,&
           &        this%num_quadrature_points, &
-          &        this%hessian,__FILE__,__LINE__) 
+          &        this%hessian,__FILE__,__LINE__, 0.0_rp) 
   end if
   
 end subroutine interpolation_create
