@@ -130,7 +130,7 @@ subroutine truncated_tensor_product_polynomial_space_create ( this, dim, polynom
   class(truncated_tensor_product_polynomial_space_t), intent(inout) :: this
   integer(ip)                         , intent(in)    :: dim
   type(polynomial_basis_t), intent(in)    :: polynomial_1D_basis(:)
-  integer(ip) :: i, j, work_array(3), max_polynomials, ijk(SPACE_DIM)
+  integer(ip) :: i, j, max_polynomials, ijk(SPACE_DIM)
   
   this%num_dims = dim
   this%num_polynomials = 1
@@ -142,15 +142,9 @@ subroutine truncated_tensor_product_polynomial_space_create ( this, dim, polynom
      max_polynomials = max_polynomials*this%num_pols_dim(i)
   end do
   
-  work_array = this%num_pols_dim-1
-  call sort(SPACE_DIM, work_array)
-  i = 0
   this%num_polynomials = 0
   countp : do i=1,max_polynomials
      call index_to_ijk(i,this%num_dims, this%num_pols_dim, ijk)
-     do j=1,dim
-        if (ijk(j) > this%num_pols_dim(j))  cycle countp
-     end do
      if (sum(ijk)-SPACE_DIM < maxval(this%num_pols_dim)) then
         this%num_polynomials = this%num_polynomials + 1
      end if
@@ -176,9 +170,6 @@ subroutine truncated_tensor_product_polynomial_space_evaluate(this, q_point, val
   ishape = 1
   countp : do i=1,max_polynomials
      call index_to_ijk(i,this%num_dims, this%num_pols_dim, ijk)
-     do j=1,this%num_dims
-        if (ijk(j) > this%num_pols_dim(j))  cycle countp
-     end do
      if (sum(ijk)-SPACE_DIM < maxval(this%num_pols_dim)) then
         do idime=1,this%num_dims
            values(ishape) = values(ishape)*this%work_shape_data(idime)%a(1,ijk(idime),q_point) 
