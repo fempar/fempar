@@ -1093,10 +1093,10 @@ end subroutine lagrangian_reference_fe_extend_list_components
 subroutine lagrangian_reference_fe_assign_cell_map_duties (this, interpolation_duties,cell_map_duties)
   class(lagrangian_reference_fe_t)       , intent(in)  :: this 
   type(interpolation_duties_t), intent(in)  :: interpolation_duties
-  type(cell_map_duties_t)     , intent(out) :: cell_map_duties
+  type(cell_map_duties_t)     , intent(inout) :: cell_map_duties
 
-  call cell_map_duties%assign_compute_jacobian_inverse(.false.)
-  call cell_map_duties%assign_compute_jacobian_derivative(.false.)
+  !call cell_map_duties%assign_compute_jacobian_inverse(.false.)
+  !call cell_map_duties%assign_compute_jacobian_derivative(.false.)
   if(interpolation_duties%compute_second_derivatives_is_assigned()) then
      call cell_map_duties%assign_compute_jacobian_inverse(.true.)
      call cell_map_duties%assign_compute_jacobian_derivative(.true.)
@@ -1129,8 +1129,8 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
   !phy%shape_functions = ref%shape_functions 
 
   ! First derivatives do
-  !if(phy%kder==1) then
   if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+     massert(map%my_duties%compute_jacobian_inverse_is_assigned(),'First derivatives mapping to physical space require a map with Jacobian inverse') 
      phy%shape_derivatives=0.0_rp
      do ilocs=1,phy%num_quadrature_points
         do inode=1,size(phy%shape_functions,2)!phy%num_shape_functions
@@ -1151,6 +1151,7 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
   !       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
   !
   if(phy%my_duties%compute_second_derivatives_is_assigned()) then
+     massert(map%my_duties%compute_jacobian_inverse_is_assigned(),'Second derivatives mapping to physical space require a map with Jacobian inverse') 
      call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
      call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
      call memalloc(ntens,wvec1,__FILE__,__LINE__)
@@ -1167,19 +1168,21 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
            call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
                 &        ndime,ndime)
         end do
-        ! Add second cartesian derivatives of the map times 
-        ! first derivatives of shape functions
-        do inode=1,nnode
-           do idime=1,ndime
-              do jdime=1,ndime
-                 do kdime=1,ndime
-                    wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
-                         & + ref%shape_derivatives(1,kdime,inode,ilocs) &
-                         &   * map%d2sdx(kdime,idime,jdime,ilocs)
+        if(map%my_duties%compute_jacobian_derivative_is_assigned()) then
+           ! Add second cartesian derivatives of the map times 
+           ! first derivatives of shape functions
+           do inode=1,nnode
+              do idime=1,ndime
+                 do jdime=1,ndime
+                    do kdime=1,ndime
+                       wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
+                            & + ref%shape_derivatives(1,kdime,inode,ilocs) &
+                            &   * map%d2sdx(kdime,idime,jdime,ilocs)
+                    end do
                  end do
               end do
            end do
-        end do
+        end if
         ! Writes the Hessian matrix as an array
         do inode=1,nnode
            ! do itens = 1, ntens
