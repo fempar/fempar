@@ -85,6 +85,7 @@ contains
    real(rp)                                  :: sq_local_estimate_value
    real(rp)                                  :: sq_local_face_estimate_value, jump
    type(interpolation_duties_t), allocatable :: interpolation_duties(:)
+   type(cell_map_duties_t)                   :: cell_map_duties
    integer(ip)                               :: istat
    
    fe_space      => this%get_fe_space()
@@ -100,18 +101,23 @@ contains
    
    assert (associated(this%fe_function))
    
+   assert (fe_space%get_num_fields()==1)
+   
    allocate(interpolation_duties(1),stat=istat); check(istat==0)
    call interpolation_duties(1)%assign_compute_first_derivatives(.true.)
    call interpolation_duties(1)%assign_compute_second_derivatives(.true.)
    
-   call fe_space%set_up_cell_integration(interpolation_duties)
+   call cell_map_duties%assign_compute_jacobian_inverse(.true.)
+   call cell_map_duties%assign_compute_jacobian_derivative(.false.)
+   
+   call fe_space%set_up_cell_integration(interpolation_duties,cell_map_duties)
    call fe_space%create_fe_cell_iterator(fe)
    call fe_cell_function_duties%assign_evaluate_values(.false.)
    call fe_cell_function_duties%assign_evaluate_gradients(.false.)
    call fe_cell_function_duties%assign_evaluate_laplacians(.true.)
    call fe_cell_function%create(fe_space,1,fe_cell_function_duties)
    do while ( .not. fe%has_finished() )
-     if ( fe%is_local() ) then
+     if ( fe%is_local() .and. .not. fe%is_void(1) ) then
        sq_local_estimate_value = 0.0_rp
        call fe%update_integration()
        call fe_cell_function%update(fe,this%fe_function)
