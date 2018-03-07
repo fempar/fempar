@@ -54,8 +54,8 @@ subroutine hsrf_create(this, &
   call this%fill()
   call this%create_nodal_quadrature()
   call this%change_basis()
-  call this%fill_h_refinement_interpolation()
-  call this%fill_h_refinement_permutations()
+  !!call this%fill_h_refinement_interpolation()
+  !!call this%fill_h_refinement_permutations()
 end subroutine hsrf_create
 
 subroutine hsrf_free ( this )
@@ -307,6 +307,14 @@ subroutine hsrf_allocate_and_fill_node_component_array(this)
   end do
 
 end subroutine hsrf_allocate_and_fill_node_component_array
+
+subroutine hsrf_fill_field_components (this)
+  implicit none
+  class(hex_serendipity_reference_fe_t), intent(inout) :: this
+  call this%extend_list_components( this%dofs_n_face )
+  call this%extend_list_components( this%own_dofs_n_face )
+  this%num_shape_functions = this%num_nodes * this%num_field_components
+end subroutine hsrf_fill_field_components
 
 subroutine hsrf_create_interpolation ( this, quadrature, interpolation, & 
      &                                                    interpolation_duties)

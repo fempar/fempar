@@ -1069,7 +1069,7 @@ contains
        & => lagrangian_reference_fe_generate_own_dofs_cell_permutations
   procedure :: fill_qpoints_permutations           &
        & => lagrangian_reference_fe_fill_qpoints_permutations
-  procedure, private, non_overridable :: fill_field_components        & 
+  procedure, private :: fill_field_components        & 
        & => lagrangian_reference_fe_fill_field_components
 
   !     procedure, private, non_overridable :: get_node_coordinates_array   & 
@@ -1500,6 +1500,8 @@ procedure :: create_nodal_quadrature           => hsrf_create_nodal_quadrature
 procedure, private :: fill_nodal_quadrature    => hsrf_fill_nodal_quadrature
 procedure, private :: allocate_and_fill_node_component_array         &
           & => hsrf_allocate_and_fill_node_component_array
+procedure, private :: fill_field_components        & 
+          & => hsrf_fill_field_components
 procedure :: create_interpolation                                    &
           & => hsrf_create_interpolation
 procedure, private :: fill_interpolation                             &
