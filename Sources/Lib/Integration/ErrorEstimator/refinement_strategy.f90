@@ -37,36 +37,137 @@ module refinement_strategy_names
 # include "debug.i90"
   private
   
+  character(len=*), parameter :: num_uniform_refinements_key = 'num_uniform_refinements'
+  
   character(len=*), parameter :: error_objective_key         = 'error_objective'
   character(len=*), parameter :: objective_tolerance_key     = 'objective_tolerance'
   character(len=*), parameter :: max_num_mesh_iterations_key = 'max_num_mesh_iterations'
   
-  type :: error_objective_refinement_strategy_t
+  type, abstract :: refinement_strategy_t
     private
     class(error_estimator_t), pointer :: error_estimator => NULL()
+    integer(ip)                       :: current_mesh_iteration
+   contains
+    procedure ( set_parameters_interface )         , deferred :: set_parameters
+    procedure ( update_refinement_flags_interface ), deferred :: update_refinement_flags
+    procedure ( has_finished_refinement_interface ), deferred :: has_finished_refinement
+    procedure :: create                     => refinement_strategy_create
+    procedure :: free                       => refinement_strategy_free
+    procedure :: get_error_estimator        => refinement_strategy_get_error_estimator
+    procedure :: get_current_mesh_iteration => refinement_strategy_get_current_mesh_iteration
+  end type refinement_strategy_t
+  
+  abstract interface
+  
+    subroutine set_parameters_interface(this,parameter_list)
+      import :: refinement_strategy_t, parameterlist_t
+      class(refinement_strategy_t) , intent(inout) :: this
+      type(parameterlist_t)        , intent(in)    :: parameter_list
+    end subroutine set_parameters_interface
+  
+    subroutine update_refinement_flags_interface(this,refinement_and_coarsening_flags)
+      import :: refinement_strategy_t, std_vector_integer_ip_t
+      class(refinement_strategy_t) , intent(inout) :: this
+      type(std_vector_integer_ip_t), intent(inout) :: refinement_and_coarsening_flags
+    end subroutine update_refinement_flags_interface
+  
+    function has_finished_refinement_interface(this)
+      import :: refinement_strategy_t
+      class(refinement_strategy_t), intent(inout) :: this
+      logical :: has_finished_refinement_interface
+    end function has_finished_refinement_interface
+  
+  end interface
+  
+  type, extends(refinement_strategy_t) :: uniform_refinement_strategy_t
+    private
+    integer(ip)                       :: num_uniform_refinements
+   contains
+    procedure :: set_parameters             => urs_set_parameters
+    procedure :: update_refinement_flags    => urs_update_refinement_flags
+    procedure :: has_finished_refinement    => urs_has_finished_refinement
+  end type uniform_refinement_strategy_t
+  
+  type, extends(refinement_strategy_t) :: error_objective_refinement_strategy_t
+    private
     real(rp)                          :: error_objective
     real(rp)                          :: objective_tolerance
-    integer(ip)                       :: current_mesh_iteration
     integer(ip)                       :: max_num_mesh_iterations
    contains
-    procedure :: create                     => eors_create
+    procedure :: set_parameters             => eors_set_parameters
     procedure :: update_refinement_flags    => eors_update_refinement_flags
     procedure :: has_finished_refinement    => eors_has_finished_refinement
-    procedure :: get_current_mesh_iteration => eors_get_current_mesh_iteration
   end type error_objective_refinement_strategy_t
   
-  public :: error_objective_refinement_strategy_t
-  
+  public :: num_uniform_refinements_key
   public :: error_objective_key, objective_tolerance_key, max_num_mesh_iterations_key
+  
+  public :: refinement_strategy_t
+  public :: uniform_refinement_strategy_t, error_objective_refinement_strategy_t
   
 contains
   
-  subroutine eors_create(this,error_estimator,parameter_list)
-    class(error_objective_refinement_strategy_t)         , intent(inout) :: this
-    class(error_estimator_t)                    , target , intent(in)    :: error_estimator
-    type(parameterlist_t)                                , intent(in)    :: parameter_list
-    integer(ip) :: FPLerror
+  subroutine refinement_strategy_create(this,error_estimator,parameter_list)
+    class(refinement_strategy_t)         , intent(inout) :: this
+    class(error_estimator_t)    , target , intent(in)    :: error_estimator
+    type(parameterlist_t)                , intent(in)    :: parameter_list
+    call this%free()
     this%error_estimator => error_estimator
+    call this%set_parameters(parameter_list)
+    this%current_mesh_iteration = 0
+  end subroutine refinement_strategy_create
+  
+  subroutine refinement_strategy_free(this)
+    class(refinement_strategy_t), intent(inout) :: this
+    nullify(this%error_estimator)
+    this%current_mesh_iteration = 0
+  end subroutine refinement_strategy_free
+  
+  function refinement_strategy_get_error_estimator(this)
+    class(refinement_strategy_t), intent(inout) :: this
+    class(error_estimator_t), pointer :: refinement_strategy_get_error_estimator
+    refinement_strategy_get_error_estimator => this%error_estimator
+  end function refinement_strategy_get_error_estimator
+  
+  function refinement_strategy_get_current_mesh_iteration(this)
+    class(refinement_strategy_t), intent(inout) :: this
+    integer(ip) :: refinement_strategy_get_current_mesh_iteration
+    refinement_strategy_get_current_mesh_iteration = this%current_mesh_iteration
+  end function refinement_strategy_get_current_mesh_iteration
+  
+  subroutine urs_set_parameters(this,parameter_list)
+    class(uniform_refinement_strategy_t), intent(inout) :: this
+    type(parameterlist_t)               , intent(in)    :: parameter_list
+    integer(ip) :: FPLerror
+    assert(parameter_list%isPresent(num_uniform_refinements_key))
+    assert(parameter_list%isAssignable(num_uniform_refinements_key,this%num_uniform_refinements))
+    FPLerror = parameter_list%get(key = num_uniform_refinements_key, value = this%num_uniform_refinements)
+    assert(FPLerror==0)
+  end subroutine urs_set_parameters
+  
+  subroutine urs_update_refinement_flags(this,refinement_and_coarsening_flags)
+    class(uniform_refinement_strategy_t), intent(inout) :: this
+    type(std_vector_integer_ip_t)       , intent(inout) :: refinement_and_coarsening_flags
+    integer(ip), pointer :: refinement_and_coarsening_flags_entries(:)
+    integer(ip)          :: i, num_of_entries
+    refinement_and_coarsening_flags_entries => refinement_and_coarsening_flags%get_pointer()
+    num_of_entries = size(refinement_and_coarsening_flags_entries)
+    do i = 1, num_of_entries
+      refinement_and_coarsening_flags_entries(i) = refinement
+    end do
+    this%current_mesh_iteration = this%current_mesh_iteration + 1
+  end subroutine urs_update_refinement_flags
+  
+  function urs_has_finished_refinement(this)
+    class(uniform_refinement_strategy_t), intent(inout) :: this
+    logical :: urs_has_finished_refinement
+    urs_has_finished_refinement = ( this%current_mesh_iteration > this%num_uniform_refinements )
+  end function urs_has_finished_refinement
+  
+  subroutine eors_set_parameters(this,parameter_list)
+    class(error_objective_refinement_strategy_t), intent(inout) :: this
+    type(parameterlist_t)                       , intent(in)    :: parameter_list
+    integer(ip) :: FPLerror
     assert(parameter_list%isPresent(error_objective_key))
     assert(parameter_list%isAssignable(error_objective_key,this%error_objective))
     FPLerror = parameter_list%get(key = error_objective_key, value = this%error_objective)
@@ -81,8 +182,7 @@ contains
     else
       this%max_num_mesh_iterations = 100
     end if
-    this%current_mesh_iteration = 0
-  end subroutine eors_create
+  end subroutine eors_set_parameters
   
   subroutine eors_update_refinement_flags(this,refinement_and_coarsening_flags)
     class(error_objective_refinement_strategy_t), intent(inout) :: this
@@ -100,6 +200,9 @@ contains
       if ( sq_local_estimate_entries(i) > sq_error_upper_bound ) then
         refinement_and_coarsening_flags_entries(i) = refinement
       else if ( sq_local_estimate_entries(i) < sq_error_lower_bound ) then
+        ! TO-DO: It seems that the cell is coarsened, even if
+        !        one of its siblings is marked as `do_nothing`
+        !        or `refinement`. This kills the algorithm.
         !refinement_and_coarsening_flags_entries(i) = coarsening
       else
         refinement_and_coarsening_flags_entries(i) = do_nothing
@@ -123,11 +226,5 @@ contains
     if ( this%current_mesh_iteration > this%max_num_mesh_iterations ) &
       write(*,*) 'Error objective mesh refinement strategy exceeded the maximum number of iterations'
   end function eors_has_finished_refinement
-  
-  function eors_get_current_mesh_iteration(this)
-    class(error_objective_refinement_strategy_t), intent(inout) :: this
-    integer(ip) :: eors_get_current_mesh_iteration
-    eors_get_current_mesh_iteration = this%current_mesh_iteration
-  end function eors_get_current_mesh_iteration
   
 end module refinement_strategy_names
