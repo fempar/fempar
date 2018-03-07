@@ -176,7 +176,7 @@ contains
     call this%cli%add(switch='--reference-fe-order',switch_ab='-order',help='Order of the fe space reference fe',&
          &            required=.false.,act='store',def=trim(this%default_reference_fe_order),error=error) 
        call this%cli%add(switch='--reference-fe-type',switch_ab='-fe-type',help='Type of reference fe',&
-         &            required=.false.,act='store',def=trim(this%default_reference_fe_type),error=error) 
+         required=.false.,act='store',def=trim(this%default_reference_fe_type),choices=fe_type_lagrangian//','//fe_type_serendipity,error=error) 
     check(error==0) 
     call this%cli%add(switch='--write-solution',switch_ab='-wsolution',help='Write solution in VTK format',&
          &            required=.false.,act='store',def=trim(this%default_write_solution),error=error) 
