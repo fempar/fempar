@@ -1063,6 +1063,8 @@ contains
   ! Concrete TBPs of this derived data type
   procedure, private :: fill                         & 
        & => lagrangian_reference_fe_fill
+  procedure, private :: allocate_and_fill_node_component_array &
+       & => lrf_allocate_and_fill_node_component_array
   procedure :: generate_own_dofs_cell_permutations           &
        & => lagrangian_reference_fe_generate_own_dofs_cell_permutations
   procedure :: fill_qpoints_permutations           &
@@ -1306,7 +1308,7 @@ public :: nedelec_reference_fe_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(lagrangian_reference_fe_t) :: tet_lagrangian_reference_fe_t
 private
-  logical               :: basis_changed
+  logical               :: basis_changed = .false.
   real(rp), allocatable :: change_basis_matrix(:,:)
 contains 
   ! Deferred TBP implementors from reference_fe_t
@@ -1470,6 +1472,12 @@ end type hex_lagrangian_reference_fe_t
 public :: hex_lagrangian_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+! The implementation hex_serendipity_reference_fe_t is based on the paper:
+! Douglas N. Arnold, Gerard Awanou,
+! The Serendipity Family of Finite Elements,
+! Found Comput Math (2011) 11: 337–344
+! DOI 10.1007/s10208-011-9087-3
+
 integer(ip), parameter :: serendipity_to_lagr(2:3,0:4) =&
   reshape([0,0,0,0,0,0,0,0,2,0],[2,5])
 
@@ -1478,13 +1486,32 @@ private
 
   type(node_array_t) :: node_array_dim_2
   type(node_array_t) :: node_array_dim_3
+  integer(ip) :: num_nodes = -1
+  logical               :: basis_changed = .false.
+  real(rp), allocatable :: change_basis_matrix(:,:)
 
 
 contains 
 
-procedure :: create      => hsrf_create
-procedure :: free        => hsrf_free
-procedure :: fill_scalar => hsrf_fill_scalar
+procedure :: create                            => hsrf_create
+procedure :: free                              => hsrf_free
+procedure :: fill_scalar                       => hsrf_fill_scalar
+procedure :: create_nodal_quadrature           => hsrf_create_nodal_quadrature
+procedure, private :: fill_nodal_quadrature    => hsrf_fill_nodal_quadrature
+procedure, private :: allocate_and_fill_node_component_array         &
+          & => hsrf_allocate_and_fill_node_component_array
+procedure :: create_interpolation                                    &
+          & => hsrf_create_interpolation
+procedure, private :: fill_interpolation                             &
+          & => hsrf_fill_interpolation
+procedure, private :: fill_interpolation_pre_basis                   &
+          & => hsrf_fill_interpolation_pre_basis
+procedure, private :: change_basis                                   &
+          & => hsrf_change_basis
+procedure, private :: invert_change_basis_matrix                     &
+          & => hsrf_invert_change_basis_matrix
+procedure, private :: apply_change_basis_matrix_to_interpolation     &
+          & => hsrf_apply_change_basis_to_interpolation 
 
 !!  ! Deferred TBP implementors from reference_fe_t
 !!procedure :: check_compatibility_of_n_faces                                 &
@@ -1502,8 +1529,6 @@ procedure :: fill_scalar => hsrf_fill_scalar
 !!    => hex_serendipity_create_data_out_quadrature
 !!procedure, private :: fill_quadrature                                    &
 !!& => hsrf_fill_quadrature
-!!procedure, private :: fill_nodal_quadrature                              &
-!!& => hsrf_fill_nodal_quadrature
 !!procedure, private :: fill_interpolation                                 &
 !!& => hsrf_fill_interpolation
 !!procedure, private :: fill_interp_restricted_to_facet                            &

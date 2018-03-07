@@ -36,7 +36,6 @@ subroutine tet_lagrangian_reference_fe_free(this)
   class(tet_lagrangian_reference_fe_t), intent(inout) ::  this
   integer(ip) :: i
 
-  ! Free member variables of raviart_thomas_reference_fe_t
   if ( allocated(this%change_basis_matrix) ) &
        call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
 

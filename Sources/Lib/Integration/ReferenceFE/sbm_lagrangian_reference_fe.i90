@@ -826,7 +826,7 @@ end subroutine lagrangian_reference_fe_free
 subroutine lagrangian_reference_fe_fill (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout) :: this
-  integer(ip) :: c, i, j, dimension, num_interior_dofs, num_interior_dofs_scalar
+  integer(ip) :: j, dimension, num_interior_dofs, num_interior_dofs_scalar
   integer(ip) :: column, inode, idime, inode_scalar, num_columns
 
   this%order_vector = this%order
@@ -886,6 +886,17 @@ subroutine lagrangian_reference_fe_fill (this)
      !this%num_nodes_scalar = this%num_shape_functions
   end if
 
+  call this%allocate_and_fill_node_component_array()
+
+end subroutine lagrangian_reference_fe_fill
+
+!==================================================================================================
+subroutine lrf_allocate_and_fill_node_component_array(this)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(inout) :: this
+
+  integer(ip) :: i, j , c
+
   call memalloc( this%num_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
   call memalloc( this%node_array%num_nodes,     & 
        & this%num_field_components, & 
@@ -902,7 +913,7 @@ subroutine lagrangian_reference_fe_fill (this)
      end do
   end do
 
-end subroutine lagrangian_reference_fe_fill
+end subroutine lrf_allocate_and_fill_node_component_array
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_generate_own_dofs_cell_permutations (this)

@@ -273,7 +273,7 @@ function reference_fe_get_n_face_dim ( this, n_face_id )
 
   integer(ip) :: i 
   assert ( n_face_id >= 1 .and. n_face_id <= this%num_n_faces+1 ) 
-  do i = 1, this%num_dims
+  do i = 1, this%num_dims+1
      if ( n_face_id < this%ptr_n_faces_x_dim(i+1) ) then
         reference_fe_get_n_face_dim = i - 1 
         exit

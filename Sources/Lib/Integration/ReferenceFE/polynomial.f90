@@ -112,9 +112,15 @@ module polynomial_names
      procedure, non_overridable :: create   => truncated_tensor_product_polynomial_space_create
      procedure, non_overridable :: evaluate => truncated_tensor_product_polynomial_space_evaluate
   end type truncated_tensor_product_polynomial_space_t
+
+  type, extends(tensor_product_polynomial_space_t) :: serendipity_polynomial_space_t
+   contains
+     procedure, non_overridable :: create   => serendipity_polynomial_space_create
+     procedure, non_overridable :: evaluate => serendipity_polynomial_space_evaluate
+  end type serendipity_polynomial_space_t
   
   public :: polynomial_t, lagrange_polynomial_t, monomial_t, polynomial_basis_t
-  public :: tensor_product_polynomial_space_t, truncated_tensor_product_polynomial_space_t
+  public :: tensor_product_polynomial_space_t, truncated_tensor_product_polynomial_space_t, serendipity_polynomial_space_t
 
 contains
  

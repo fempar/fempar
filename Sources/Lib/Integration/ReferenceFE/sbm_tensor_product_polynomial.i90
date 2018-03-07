@@ -185,6 +185,67 @@ subroutine truncated_tensor_product_polynomial_space_evaluate(this, q_point, val
   end do countp
 end subroutine truncated_tensor_product_polynomial_space_evaluate
 
+! Serendipity polynomial space TBP
+!==================================================================================================
+subroutine serendipity_polynomial_space_create ( this, dim, polynomial_1D_basis )
+  implicit none
+  class(serendipity_polynomial_space_t), intent(inout) :: this
+  integer(ip)                         , intent(in)    :: dim
+  type(polynomial_basis_t), intent(in)    :: polynomial_1D_basis(:)
+  integer(ip) :: i, j, max_polynomials, ijk(SPACE_DIM)
+  
+  this%num_dims = dim
+  this%num_polynomials = 1
+  this%num_pols_dim = 1
+  max_polynomials = 1
+  do i = 1, dim
+     call this%polynomial_1D_basis(i)%copy(polynomial_1D_basis(i))
+     this%num_pols_dim(i) = size(polynomial_1D_basis(i)%polynomials)
+     max_polynomials = max_polynomials*this%num_pols_dim(i)
+  end do
+  
+  this%num_polynomials = 0
+  countp : do i=1,max_polynomials
+     call index_to_ijk(i,this%num_dims, this%num_pols_dim, ijk)
+     if (superlinear_order(ijk) < maxval(this%num_pols_dim)) then
+        this%num_polynomials = this%num_polynomials + 1
+     end if
+  end do countp
+end subroutine serendipity_polynomial_space_create
+
+subroutine serendipity_polynomial_space_evaluate(this, q_point, values, gradients)
+  implicit none
+  class(serendipity_polynomial_space_t), intent(in) :: this
+  integer(ip)                             , intent(in)    :: q_point
+  real(rp)                                , intent(inout) :: values(:)
+  real(rp)                                , intent(inout) :: gradients(:,:)
+  integer(ip) :: ishape, i,j, idime, jdime, max_polynomials, ijk(SPACE_DIM)
+  
+  
+  max_polynomials = 1
+  do i = 1, this%num_dims
+     max_polynomials = max_polynomials*this%num_pols_dim(i)
+  end do
+  values = 1.0_rp
+  gradients = 0.0_rp
+  gradients(1:this%num_dims,:) = 1.0_rp
+  ishape = 1
+  countp : do i=1,max_polynomials
+     call index_to_ijk(i,this%num_dims, this%num_pols_dim, ijk)
+     if (superlinear_order(ijk) < maxval(this%num_pols_dim)) then
+        do idime=1,this%num_dims
+           values(ishape) = values(ishape)*this%work_shape_data(idime)%a(1,ijk(idime),q_point) 
+           gradients(idime,ishape) = gradients(idime,ishape)*this%work_shape_data(idime)%a(2,ijk(idime),q_point)
+           do jdime=1,this%num_dims
+              if (idime /= jdime) then
+                 gradients(idime,ishape) = gradients(idime,ishape)*this%work_shape_data(jdime)%a(1,ijk(jdime),q_point)
+              end if
+           end do
+        end do
+        ishape = ishape + 1
+     end if
+  end do countp
+end subroutine serendipity_polynomial_space_evaluate
 
 ! Support subroutines
 !==================================================================================================
@@ -205,3 +266,33 @@ subroutine index_to_ijk( index, ndime, n_pols_dim, ijk )
   ijk(ndime) = aux
   ijk = ijk+1
 end subroutine index_to_ijk
+
+function superlinear_order(ijk)
+
+  implicit none
+  integer(ip), intent(in) :: ijk(SPACE_DIM)
+  integer(ip) :: superlinear_order
+
+  integer(ip) :: idime
+
+  superlinear_order = 0
+  do idime = 1, SPACE_DIM
+    superlinear_order = superlinear_order + l(ijk(idime)-1)
+  end do
+
+  contains
+
+    function l(alpha)
+      implicit none
+      integer(ip), intent(in) :: alpha
+      integer(ip) :: l
+      if (alpha == 1) then
+        l = 0
+      else
+        l = alpha
+      end if
+    end function l
+
+end function superlinear_order
+
+

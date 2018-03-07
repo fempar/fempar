@@ -53,6 +53,7 @@ subroutine hsrf_create(this, &
   call this%set_fe_type( fe_type_serendipity )
   call this%fill()
   call this%create_nodal_quadrature()
+  call this%change_basis()
   call this%fill_h_refinement_interpolation()
   call this%fill_h_refinement_permutations()
 end subroutine hsrf_create
@@ -61,8 +62,12 @@ subroutine hsrf_free ( this )
   implicit none 
   class(hex_serendipity_reference_fe_t), intent(inout) :: this 
   call hex_lagrangian_reference_fe_free ( this )
+  if ( allocated(this%change_basis_matrix) ) &
+       call memfree ( this%change_basis_matrix, __FILE__, __LINE__ )     
+  this%basis_changed = .false. 
   call this%node_array_dim_2%free()
   call this%node_array_dim_3%free()
+  this%num_nodes = -1
 end subroutine hsrf_free
 
 subroutine hsrf_fill_scalar (this)
@@ -112,6 +117,7 @@ subroutine hsrf_fill_scalar (this)
 
   ! Number nodes
   this%num_shape_functions = current_dof_lid
+  this%num_nodes = current_dof_lid
 
   call this%dofs_n_face%create( num_n_faces )
 
@@ -218,6 +224,309 @@ subroutine hsrf_fill_scalar (this)
     end subroutine list_dof_in_n_face
 
 end subroutine hsrf_fill_scalar
+
+subroutine hsrf_create_nodal_quadrature (this)
+  implicit none
+  class(hex_serendipity_reference_fe_t), intent(inout) :: this
+  
+  ! Create nodal quadrature
+  call this%nodal_quadrature%create( this%num_dims, this%num_nodes )
+  ! Fill nodal quadrature
+  call this%fill_nodal_quadrature ( this%nodal_quadrature )  
+
+end subroutine hsrf_create_nodal_quadrature
+
+subroutine hsrf_fill_nodal_quadrature( this, quadrature )
+  implicit none
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this 
+  type(quadrature_t)                  , intent(inout) :: quadrature
+  integer(ip) :: idime, current_node, n_face_id
+
+
+  do idime=1,this%num_dims
+    current_node = 1
+    do n_face_id = 1,this%num_n_faces + 1
+      if (this%get_n_face_dim(n_face_id) <= 1) then
+        call generate_coordinates(this%node_array,idime,n_face_id,current_node)
+      else if (this%get_n_face_dim(n_face_id) == 2) then
+        call generate_coordinates(this%node_array_dim_2,idime,n_face_id,current_node)
+      else
+        call generate_coordinates(this%node_array_dim_3,idime,n_face_id,current_node)
+      end if
+    end do
+  end do
+
+  quadrature%weight = 1.0_rp
+
+  contains
+
+    subroutine generate_coordinates(node_array,idime, n_face_id,current_node)
+      implicit none
+      type(node_array_t), intent(in) :: node_array
+      integer(ip)       , intent(in) :: n_face_id
+      integer(ip)       , intent(in) :: idime
+      integer(ip)       , intent(inout) :: current_node
+
+      type(node_iterator_t) :: node_iterator
+
+        node_iterator = node_array%create_node_iterator( this%polytope%get_n_face(n_face_id), own_boundary = .false. )
+        do while (.not. node_iterator%has_finished() )
+           if (this%order_vector(idime) > 0 ) then 
+             quadrature%coordinates(idime,current_node) = this%node_array%coordinates(idime,node_iterator%current())*(2.0_rp/this%order_vector(idime))-1.0_rp
+           else 
+             quadrature%coordinates(idime,current_node) = this%node_array%coordinates(idime,node_iterator%current())
+           end if 
+           current_node = current_node + 1
+           call node_iterator%next()
+        end do
+    end subroutine generate_coordinates
+
+end subroutine hsrf_fill_nodal_quadrature
+
+subroutine hsrf_allocate_and_fill_node_component_array(this)
+
+  implicit none
+  class(hex_serendipity_reference_fe_t), intent(inout) :: this
+
+  integer(ip) :: i, j , c
+
+  call memalloc( this%num_shape_functions, 2, this%node_component_array, __FILE__, __LINE__ )
+  call memalloc( this%num_nodes,     & 
+       & this%num_field_components, & 
+       & this%node_array_component,    & 
+       & __FILE__, __LINE__ )
+
+  c = 1
+  do i = 1, this%num_field_components
+     do j = 1, this%num_nodes
+        this%node_component_array(c,1) = j
+        this%node_component_array(c,2) = i   
+        this%node_array_component(j,i) = c
+        c = c+1
+     end do
+  end do
+
+end subroutine hsrf_allocate_and_fill_node_component_array
+
+subroutine hsrf_create_interpolation ( this, quadrature, interpolation, & 
+     &                                                    interpolation_duties)
+  implicit none 
+  class(hex_serendipity_reference_fe_t), intent(in)       :: this 
+  type(quadrature_t)              , intent(in)       :: quadrature
+  type(interpolation_t)           , intent(inout)    :: interpolation
+  type(interpolation_duties_t), optional, intent(in) :: interpolation_duties
+
+  call interpolation%create( this%num_dims, this%num_nodes, &
+       &                     quadrature%num_quadrature_points, interpolation_duties )
+
+  call this%fill_interpolation( quadrature, interpolation )
+
+end subroutine hsrf_create_interpolation
+
+subroutine hsrf_fill_interpolation( this, quadrature, interpolation, order_vector )
+  implicit none
+  class(hex_serendipity_reference_fe_t), intent(in) :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation    
+  integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
+
+  type(interpolation_t) :: interpolation_pre_basis
+
+  if ( .not. this%basis_changed ) then
+     call this%fill_interpolation_pre_basis ( quadrature, interpolation, order_vector )
+  else
+     call interpolation_pre_basis%clone(interpolation)
+     call this%fill_interpolation_pre_basis ( quadrature, interpolation_pre_basis, order_vector ) 
+     call this%apply_change_basis_matrix_to_interpolation ( interpolation_pre_basis, interpolation )
+     call interpolation_pre_basis%free()
+  end if
+
+end subroutine hsrf_fill_interpolation
+
+subroutine hsrf_fill_interpolation_pre_basis ( this, quadrature, interpolation, order_vector ) 
+  implicit none 
+  class(hex_serendipity_reference_fe_t), intent(in) :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  type(interpolation_t)           , intent(inout) :: interpolation
+  integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
+
+  type(serendipity_polynomial_space_t)        :: serendipity_polynomial_prebasis
+  type(polynomial_basis_t)  :: monomial_1D_basis(SPACE_DIM)
+  type(monomial_t)                      :: monomial_1D
+
+  real(rp), allocatable :: values(:)
+  real(rp), allocatable :: gradients(:,:)
+  integer(ip) :: idime, q_point
+
+  do idime=1,interpolation%num_dims
+     call monomial_1D%generate_basis(this%order_vector(idime), monomial_1D_basis(idime) )
+  end do
+
+  call serendipity_polynomial_prebasis%create(interpolation%num_dims,monomial_1D_basis)
+  call serendipity_polynomial_prebasis%fill( quadrature%get_coordinates() )
+
+  call memalloc(serendipity_polynomial_prebasis%get_num_polynomials(),values,__FILE__,__LINE__)
+  call memalloc(SPACE_DIM,serendipity_polynomial_prebasis%get_num_polynomials(),gradients,__FILE__,__LINE__)
+
+  do q_point=1, quadrature%get_num_quadrature_points()
+     call serendipity_polynomial_prebasis%evaluate(q_point, values, gradients)
+     interpolation%shape_functions(1,:,q_point) = values(:)
+     if(interpolation%my_duties%compute_first_derivatives_is_assigned()) &
+          &  interpolation%shape_derivatives(1,:,:,q_point) = gradients(:,:)
+  end do
+
+  ! Free auxiliary memory
+  if(allocated(values))    call memfree(values,__FILE__,__LINE__)
+  if(allocated(gradients)) call memfree(gradients,__FILE__,__LINE__)
+
+  do idime=1,interpolation%num_dims
+     call monomial_1D_basis(idime)%free()
+  end do
+  call monomial_1D%free()
+  call serendipity_polynomial_prebasis%free()
+end subroutine hsrf_fill_interpolation_pre_basis
+
+subroutine hsrf_change_basis(this) 
+  implicit none
+  class(hex_serendipity_reference_fe_t), intent(inout) ::  this
+
+  type(interpolation_t)   :: interpolation
+  integer(ip)             :: i, j, num_shape_functions_x_component
+
+  num_shape_functions_x_component = this%num_shape_functions/this%num_field_components
+  call memalloc(num_shape_functions_x_component,num_shape_functions_x_component,this%change_basis_matrix,__FILE__,__LINE__)
+  call this%create_interpolation(this%nodal_quadrature,interpolation)
+  do i=1,num_shape_functions_x_component
+     do j=1,num_shape_functions_x_component
+        !write(*,*) 'Shape',j,'point',i
+        !write(*,*) interpolation%shape_functions(1,j,i)
+        this%change_basis_matrix(i,j) = interpolation%shape_functions(1,j,i)
+     end do
+  end do
+  call interpolation%free()
+  call this%invert_change_basis_matrix()
+  this%basis_changed = .true.
+end subroutine hsrf_change_basis
+
+subroutine hsrf_invert_change_basis_matrix(this)
+  implicit none
+  class(hex_serendipity_reference_fe_t), intent(inout) :: this 
+
+  integer(ip) :: error
+  integer(ip), allocatable :: ipiv(:)
+  real(rp), allocatable :: inverse_change_basis_matrix(:,:)  
+  integer(ip) :: i, num_shape_functions_x_component
+
+  num_shape_functions_x_component = this%num_shape_functions/this%num_field_components
+  assert ( allocated(this%change_basis_matrix) )
+  assert ( size(this%change_basis_matrix,1) == num_shape_functions_x_component )
+  assert ( size(this%change_basis_matrix,2) == num_shape_functions_x_component )
+
+  ! Solve linear system with several RHS
+  ! Compute LU factorization of this%change_basis_matrix
+#ifdef ENABLE_LAPACK
+  call memalloc ( num_shape_functions_x_component, ipiv, __FILE__,__LINE__ )
+
+  call memalloc ( num_shape_functions_x_component, & 
+       num_shape_functions_x_component, &
+       inverse_change_basis_matrix, &
+       __FILE__,__LINE__ )
+
+  call DGETRF( num_shape_functions_x_component, & 
+       num_shape_functions_x_component, &
+       this%change_basis_matrix, &
+       num_shape_functions_x_component, &
+       ipiv, &
+       error )
+  check ( error == 0 )
+
+  inverse_change_basis_matrix = 0.0_rp
+  do i=1, num_shape_functions_x_component
+     inverse_change_basis_matrix(i,i) = 1.0_rp
+  end do
+
+  call DGETRS( 'N', & 
+       num_shape_functions_x_component, &
+       num_shape_functions_x_component, &
+       this%change_basis_matrix, &
+       num_shape_functions_x_component, &
+       ipiv, &
+       inverse_change_basis_matrix, &
+       num_shape_functions_x_component, &
+       error )
+  check ( error == 0 )
+
+  !do i=1, this%num_shape_functions
+  !   this%change_basis_matrix(i,:) = 0.0_rp!inverse_change_basis_matrix(:,i)
+  !end do
+
+  !call memfree (  inverse_change_basis_matrix, __FILE__, __LINE__  )
+
+  if ( allocated(this%change_basis_matrix) ) call memfree (  this%change_basis_matrix, __FILE__, __LINE__  )
+
+  call memmovealloc(inverse_change_basis_matrix, &
+       this%change_basis_matrix, __FILE__, __LINE__ )
+  !write(*,*) this%change_basis_matrix(1,:)
+  !write(*,*) this%change_basis_matrix(2,:)
+  !write(*,*) this%change_basis_matrix(3,:)
+  call memfree ( ipiv, __FILE__,__LINE__ )
+#else
+  write (0,*) 'Error: reference_fe.f90 was not compiled with -DENABLE_LAPACK.'
+  write (0,*) 'Error: You must activate this cpp macro in order to use the LAPACK'
+  check(.false.)
+#endif 
+
+end subroutine hsrf_invert_change_basis_matrix
+
+subroutine hsrf_apply_change_basis_to_interpolation(this, interpolation_pre_basis, interpolation)
+  implicit none
+  class(hex_serendipity_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)                   , intent(in)    :: interpolation_pre_basis
+  type(interpolation_t)                   , intent(inout) :: interpolation
+
+  integer(ip)           :: i, j, jdime, qpoint, num_shape_functions_x_component
+
+  ! Initialize both shape functions and derivatives to zero.
+  interpolation%shape_functions   = 0.0_rp
+  num_shape_functions_x_component = this%num_shape_functions/this%num_field_components
+
+  ! Compute shape functions
+  do qpoint = 1, interpolation%num_quadrature_points
+     do i=1, num_shape_functions_x_component
+        do j=1, num_shape_functions_x_component
+           interpolation%shape_functions(1, i, qpoint) = interpolation%shape_functions(1, i, qpoint) + &
+                this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(1, j, qpoint)
+        end do
+     end do
+  end do
+
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     ! Compute shape derivatives
+     interpolation%shape_derivatives = 0.0_rp
+     do qpoint = 1, interpolation%num_quadrature_points
+        do i=1, num_shape_functions_x_component
+           do j=1, num_shape_functions_x_component
+              do jdime=1, this%num_dims
+                 interpolation%shape_derivatives(1, jdime, i, qpoint) = interpolation%shape_derivatives(1, jdime, i, qpoint) + &
+                      this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(1, jdime, j, qpoint)
+              end do
+           end do
+        end do
+     end do
+  end if
+
+end subroutine hsrf_apply_change_basis_to_interpolation
+
+
+
+
+
+
+
+
+
+
+
 
 !function hsrf_check_compatibility_of_n_faces                   &
 !     &                      (target_reference_fe,source_reference_fe, source_n_face_id,target_n_face_id)
@@ -341,72 +650,8 @@ end subroutine hsrf_fill_scalar
 !  call quadrature%fill_hex_gauss_legendre()
 !end subroutine hsrf_fill_quadrature
 !
-!!==================================================================================================
-!subroutine hsrf_fill_nodal_quadrature( this, quadrature )
-!  implicit none
-!  class(hex_serendipity_reference_fe_t), intent(in)    :: this 
-!  type(quadrature_t)                  , intent(inout) :: quadrature
-!  integer(ip) :: i
-!  do i=1,this%num_dims
-!     if (this%order_vector(i) > 0 ) then 
-!     quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(2.0_rp/this%order_vector(i))-1.0_rp
-!	 else 
-!	 quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)
-!	 end if 
-!  end do
-!  quadrature%weight = 1.0_rp
-!end subroutine hsrf_fill_nodal_quadrature
 !
 !! This subroutine fills the interpolation using the polynomial_names machinery
-!!==================================================================================================
-!subroutine hsrf_fill_interpolation( this, quadrature, interpolation, order_vector )
-!  implicit none
-!  class(hex_serendipity_reference_fe_t), intent(in) :: this
-!  type(quadrature_t)              , intent(in)    :: quadrature
-!  type(interpolation_t)           , intent(inout) :: interpolation    
-!  integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
-!  type(tensor_product_polynomial_space_t) :: tensor_product_polynomial_space
-!  type(polynomial_basis_t)    :: polynomial_1D_basis(SPACE_DIM)
-!  type(lagrange_polynomial_t)             :: polynomial_1D
-!
-!  real(rp), allocatable :: tensor_product_values(:)
-!  real(rp), allocatable :: tensor_product_gradients(:,:)
-!
-!  integer(ip) :: idime, q_point
-!
-!  do idime=1,interpolation%num_dims
-!     call polynomial_1D%generate_basis( this%order_vector(idime), polynomial_1D_basis(idime) )
-!  end do
-!
-!  call tensor_product_polynomial_space%create(interpolation%num_dims,polynomial_1D_basis)
-!  call tensor_product_polynomial_space%fill( quadrature%get_coordinates() )
-!
-!  !assert ( interpolation%num_shape_functions == tensor_product_polynomial_space%get_num_polynomials() )
-!
-!  call memalloc(tensor_product_polynomial_space%get_num_polynomials(),tensor_product_values,__FILE__,__LINE__)
-!  call memalloc(SPACE_DIM,tensor_product_polynomial_space%get_num_polynomials(),tensor_product_gradients,__FILE__,__LINE__)
-!
-!  do q_point=1, quadrature%get_num_quadrature_points()
-!     do idime = 1, interpolation%num_dims
-!        call tensor_product_polynomial_space%evaluate(q_point, &
-!             tensor_product_values, &
-!             tensor_product_gradients)
-!        interpolation%shape_functions(1,:,q_point) = tensor_product_values(:)
-!        if(interpolation%my_duties%compute_first_derivatives_is_assigned()) &
-!             &   interpolation%shape_derivatives(1,:,:,q_point) = tensor_product_gradients(:,:)
-!     end do
-!  end do
-!
-!  ! Free auxiliary memory
-!  if(allocated(tensor_product_values))    call memfree(tensor_product_values,__FILE__,__LINE__)
-!  if(allocated(tensor_product_gradients)) call memfree(tensor_product_gradients,__FILE__,__LINE__)
-!  do idime=1,interpolation%num_dims
-!     call polynomial_1D_basis(idime)%free()
-!  end do
-!  call polynomial_1D%free()
-!  call tensor_product_polynomial_space%free()
-!
-!end subroutine hsrf_fill_interpolation
 !
 !! Here we define the dim-1 quadrature and next translate the nodes
 !! using the facet type to dim. Next, use the same machinary as for the volume with this new quadrature.
