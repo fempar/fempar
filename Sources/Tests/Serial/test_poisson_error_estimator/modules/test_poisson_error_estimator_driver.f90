@@ -34,8 +34,6 @@ module test_poisson_error_estimator_driver_names
   use poisson_cG_error_estimator_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO   ! VTK_IO
-    
-#define ENABLE_MKL = .true.
   
 # include "debug.i90"
 
