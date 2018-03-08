@@ -149,13 +149,6 @@ end function cell_iterator_get_mysubpart_lid
 !  mcheck(.false.,'This subroutine can only be called by some descendent classes')
 !end subroutine cell_iterator_update_sub_triangulation
 
-!function cell_iterator_get_mc_case( this ) result ( mc_case )
-!  implicit none
-!  class(cell_iterator_t), intent(in)    :: this
-!  integer(ip) :: mc_case
-!  mcheck(.false.,'This subroutine can only be called by some descendent classes')
-!end function cell_iterator_get_mc_case
-
 !function cell_iterator_get_num_subcells( this ) result ( num_subcells )
 !  implicit none
 !  class(cell_iterator_t), intent(in) :: this

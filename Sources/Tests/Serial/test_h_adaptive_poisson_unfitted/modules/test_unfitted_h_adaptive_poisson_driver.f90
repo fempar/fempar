@@ -33,6 +33,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
   use level_set_functions_gallery_names
   use unfitted_vtk_writer_names
   use unfitted_solution_checker_names
+  use unfitted_solution_checker_vector_names
   use level_set_functions_gallery_names
   use unfitted_vtk_writer_names
   use test_poisson_params_names
@@ -101,7 +102,6 @@ module test_unfitted_h_adaptive_poisson_driver_names
      procedure        , private :: fill_cells_set
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
-     !procedure        , private :: refine_and_coarsen
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
@@ -109,6 +109,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
      procedure        , private :: check_solution
      procedure        , private :: check_solution_vector
      procedure        , private :: write_solution
+     procedure        , private :: compute_smallest_vol_fraction
      procedure        , private :: write_filling_curve
      procedure        , private :: free
   end type test_unfitted_h_adaptive_poisson_driver_t
@@ -133,6 +134,8 @@ contains
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
     type(level_set_function_factory_t) :: level_set_factory
+    real(rp) :: dom1d(2)
+    real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
     massert( this%parameter_list%isPresent   (key = num_dims_key), 'Use -tt structured' )
@@ -145,12 +148,15 @@ contains
     ! Set options of the base class
     call this%level_set_function%set_num_dims(num_dime)
     call this%level_set_function%set_tolerance(this%test_params%get_levelset_tolerance())
-    if (this%test_params%get_domain_limits() == '[-1,1]') then
-      call this%level_set_function%set_domain([-1.0_rp,1.0_rp,-1.0_rp,1.0_rp,-1.0_rp,1.0_rp])
-    else if (.not. this%test_params%get_domain_limits() == '[0,1]') then
-      mcheck(.false.,'Wrong domain limits: '//this%test_params%get_domain_limits())
-    end if
-
+    dom1d = this%test_params%get_domain_limits()
+    mcheck(dom1d(2)>dom1d(1),'Upper limit has to be bigger than lower limit')
+    dom3d(1) = dom1d(1)
+    dom3d(2) = dom1d(2)
+    dom3d(3) = dom1d(1)
+    dom3d(4) = dom1d(2)
+    dom3d(5) = dom1d(1)
+    dom3d(6) = dom1d(2)
+    call this%level_set_function%set_domain(dom3d)
 
     ! Set options of the derived classes
     ! TODO a parameter list would be better to define the level set function together with its parameters
@@ -158,6 +164,7 @@ contains
     select type ( levset )
       class is (level_set_sphere_t)
         call levset%set_radius(0.9)
+        call levset%set_center([0.0,0.0,0.0])
     end select
 
   end subroutine setup_levelset
@@ -170,6 +177,14 @@ contains
     class(cell_iterator_t), allocatable :: cell
     integer(ip) :: ilev
     integer(ip) :: max_levels
+    integer(ip) :: diri_set_id
+    real(rp)    :: target_size
+
+    if (this%test_params%is_strong_dirichlet_on_fitted_boundary()) then
+      diri_set_id = 1
+    else
+      diri_set_id = -1
+    end if
 
     ! Create the triangulation, with the levelset function
     call this%triangulation%create(this%parameter_list,this%level_set_function)
@@ -179,7 +194,7 @@ contains
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
-             call vef%set_set_id(1)
+             call vef%set_set_id(diri_set_id)
           else
              call vef%set_set_id(0)
           end if
@@ -187,22 +202,144 @@ contains
        end do
        call this%triangulation%free_vef_iterator(vef)
     end if
-    
-    max_levels = this%test_params%get_max_level()
-    do ilev = 1, max_levels
-      ! Refine one level uniformly
-      call this%triangulation%create_cell_iterator(cell)
-      do while (.not. cell%has_finished())
+
+    ! Create initial refined mesh
+    select case ( trim(this%test_params%get_refinement_pattern()) )
+      case ('uniform')
+
+        max_levels = this%test_params%get_max_level()
+        do ilev = 1, max_levels
+          call this%triangulation%create_cell_iterator(cell)
+          do while (.not. cell%has_finished())
+            call cell%set_for_refinement()
+            call cell%next()
+          end do
+          call this%triangulation%refine_and_coarsen()
+          call this%triangulation%clear_refinement_and_coarsening_flags()
+          call this%triangulation%free_cell_iterator(cell)
+        end do
+        call this%triangulation%update_cut_cells(this%level_set_function)
+
+      case ('adaptive-1')
+
+        max_levels = this%test_params%get_max_level()
+        do ilev = 1, max_levels
+          call this%triangulation%create_cell_iterator(cell)
+          do while (.not. cell%has_finished())
+            if (ilev <= 2) then
+              call cell%set_for_refinement()
+            else if (ilev == max_levels) then
+              if (cell%is_interior()) then
+                call cell%set_for_do_nothing()
+              else if (cell%is_cut()) then
+                call cell%set_for_refinement()
+              else
+                call cell%set_for_coarsening()
+              end if
+            else
+              if (cell%is_interior()) then
+                call cell%set_for_refinement()
+              else if (cell%is_cut()) then
+                call cell%set_for_refinement()
+              else
+                call cell%set_for_coarsening()
+              end if
+            end if
+            call cell%next()
+          end do
+          call this%triangulation%refine_and_coarsen()
+          call this%triangulation%clear_refinement_and_coarsening_flags()
+          call this%triangulation%update_cut_cells(this%level_set_function)
+          call this%triangulation%free_cell_iterator(cell)
+        end do
+
+      case ('adaptive-2')
+
+        max_levels = this%test_params%get_max_level()
+        do ilev = 1, max_levels
+          call this%triangulation%create_cell_iterator(cell)
+          do while (.not. cell%has_finished())
+            if (ilev <= 2) then
+              call cell%set_for_refinement()
+            else
+              if (cell%is_interior()) then
+                call cell%set_for_refinement()
+              else if (cell%is_cut()) then
+                call cell%set_for_refinement()
+              else
+                call cell%set_for_coarsening()
+              end if
+            end if
+            call cell%next()
+          end do
+          call this%triangulation%refine_and_coarsen()
+          call this%triangulation%clear_refinement_and_coarsening_flags()
+          call this%triangulation%update_cut_cells(this%level_set_function)
+          call this%triangulation%free_cell_iterator(cell)
+        end do
+
+      case ('adaptive-3')
+
+        max_levels = this%test_params%get_max_level()
+        do ilev = 1, max_levels
+          call this%triangulation%create_cell_iterator(cell)
+          do while (.not. cell%has_finished())
+            if (ilev <= 2) then
+              call cell%set_for_refinement()
+            else
+              if (cell%is_interior()) then
+                call cell%set_for_refinement()
+              else if (cell%is_cut()) then
+                call cell%set_for_refinement()
+              else
+                call cell%set_for_coarsening()
+              end if
+            end if
+            call cell%next()
+          end do
+          call this%triangulation%refine_and_coarsen()
+          call this%triangulation%clear_refinement_and_coarsening_flags()
+          call this%triangulation%update_cut_cells(this%level_set_function)
+          call this%triangulation%free_cell_iterator(cell)
+        end do
+
+        target_size = 1.0/(2.0**this%test_params%get_max_level())
+        call this%fe_space%refine_mesh_for_small_aggregates(this%triangulation,target_size,this%level_set_function)
+
+      case ('debug-1')
+
+        call this%triangulation%create_cell_iterator(cell)
         call cell%set_for_refinement()
-        call cell%next()
-      end do
-      call this%triangulation%refine_and_coarsen()
-      call this%triangulation%clear_refinement_and_coarsening_flags()
-      call this%triangulation%free_cell_iterator(cell)
-    end do
-    
-    ! Update the marching cubes accordingly (TODO: move this inside refine and coarsen)
-    call this%triangulation%update_cut_cells(this%level_set_function)
+        call this%triangulation%refine_and_coarsen()
+        call this%triangulation%clear_refinement_and_coarsening_flags()
+        call this%triangulation%update_cut_cells(this%level_set_function)
+        call cell%set_gid(2)
+        call cell%set_for_refinement()
+        call this%triangulation%refine_and_coarsen()
+        call this%triangulation%clear_refinement_and_coarsening_flags()
+        call this%triangulation%update_cut_cells(this%level_set_function)
+        call this%triangulation%free_cell_iterator(cell)
+
+      case ('debug-2')
+
+        call this%triangulation%create_cell_iterator(cell)
+        call cell%set_for_refinement()
+        call this%triangulation%refine_and_coarsen()
+        call this%triangulation%clear_refinement_and_coarsening_flags()
+        call this%triangulation%update_cut_cells(this%level_set_function)
+        !call cell%set_gid(1)
+        !call cell%set_for_refinement()
+        call cell%set_gid(3)
+        call cell%set_for_refinement()
+        call this%triangulation%refine_and_coarsen()
+        call this%triangulation%clear_refinement_and_coarsening_flags()
+        call this%triangulation%update_cut_cells(this%level_set_function)
+        call this%triangulation%free_cell_iterator(cell)
+
+      case default
+            mcheck(.false.,'Refinement pattern `'//trim(this%test_params%get_refinement_pattern())//'` not known')
+    end select
+
     
     !call this%triangulation%print()
 
@@ -367,66 +504,29 @@ contains
                                  reference_fes            = this%reference_fes,&
                                  set_ids_to_reference_fes = set_ids_to_reference_fes)
     else
-      mcheck(.false., 'Not yed tested for vector problems')
-      !call this%vector_poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
-      !call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_boundary_function()) 
-      !call this%fe_space%create( triangulation       = this%triangulation,             &
-      !                           conditions          = this%vector_poisson_conditions, &
-      !                           reference_fes            = this%reference_fes,&
-      !                           set_ids_to_reference_fes = set_ids_to_reference_fes)
-    end if 
+      call this%vector_poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+      call this%vector_poisson_analytical_functions%set_is_in_fe_space(this%test_params%is_in_fe_space())
+      call this%vector_poisson_analytical_functions%set_degree(this%test_params%get_reference_fe_order())
+      call this%vector_poisson_conditions%set_boundary_function(this%vector_poisson_analytical_functions%get_solution_function()) 
+      call this%vector_poisson_conditions%set_num_dims(this%triangulation%get_num_dims())
+      call this%fe_space%set_use_constraints(this%test_params%get_use_constraints())
+      call this%fe_space%create( triangulation       = this%triangulation,             &
+                                 conditions          = this%vector_poisson_conditions, &
+                                 reference_fes            = this%reference_fes,&
+                                 set_ids_to_reference_fes = set_ids_to_reference_fes)
+    end if
     
+    call this%fe_space%set_up_cell_integration()
+    ! TODO: this is hack. The fe_facet created inside set_up_facet_integration() has to be the standard one (not the unfitted)
+    call this%fe_space%serial_fe_space_t%set_up_facet_integration()
+
   end subroutine setup_fe_space
-  
-!  subroutine refine_and_coarsen(this)
-!    implicit none
-!    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
-!    integer(ip) :: i
-!    
-!    integer(ip) :: set_ids_to_reference_fes(1,2)
-!
-!    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_FULL) = SERIAL_UNF_POISSON_SET_ID_FULL
-!    set_ids_to_reference_fes(1,SERIAL_UNF_POISSON_SET_ID_VOID) = SERIAL_UNF_POISSON_SET_ID_VOID
-!    
-!    do i=1, 10
-!       
-!       call this%triangulation%clear_refinement_and_coarsening_flags()
-!       if ( mod(i,3) == 0 ) then 
-!          call this%set_cells_for_coarsening()
-!       else
-!         call this%set_cells_for_refinement()
-!       end if
-!       !call this%fill_cells_set()
-!       call this%triangulation%refine_and_coarsen()
-!       
-!       if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-!         call this%fe_space%refine_and_coarsen(this%solution) 
-!       else
-!         mcheck(.false.,'Only tested for scalar problems')
-!         !call this%fe_space%refine_and_coarsen( triangulation       = this%triangulation,             &
-!         !                                       conditions          = this%vector_poisson_conditions, &
-!         !                                       fe_function         = this%solution,           &
-!         !                                       set_ids_to_reference_fes = set_ids_to_reference_fes)
-!       end if
-!       
-!       call this%fe_space%set_up_cell_integration()
-!       
-!       !if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-!       !  call this%check_solution()
-!       !else
-!       !  call this%check_solution_vector()
-!       !end if
-!       
-!    end do  
-!    
-!    call this%triangulation%update_cut_cells(this%level_set_function)
-!    
-!  end subroutine refine_and_coarsen
   
   subroutine setup_system (this)
     implicit none
     class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
 
+    integer(ip) :: iounit
 
     if ( this%test_params%get_laplacian_type() == 'scalar' ) then    
       call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
@@ -438,19 +538,30 @@ contains
                                             diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                             fe_space                          = this%fe_space,                            &
                                             discrete_integration              = this%poisson_cG_integration )
+      call this%poisson_cG_integration%set_fe_function(this%solution)
     else
-       call this%vector_poisson_integration%set_source_term(this%vector_poisson_analytical_functions%get_source_term())
+       call this%vector_poisson_integration%set_analytical_functions(this%vector_poisson_analytical_functions)
+       call this%vector_poisson_integration%set_unfitted_boundary_is_dirichlet(this%test_params%get_unfitted_boundary_is_dirichlet())
+       call this%vector_poisson_integration%set_is_constant_nitches_beta(this%test_params%get_is_constant_nitches_beta())
        call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format,                               &
                                              diagonal_blocks_symmetric_storage = [ .true. ],                               &
                                              diagonal_blocks_symmetric         = [ .true. ],                               &
                                              diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                              fe_space                          = this%fe_space,                            &
                                              discrete_integration              = this%vector_poisson_integration )
+      call this%vector_poisson_integration%set_fe_function(this%solution)
     end if
 
     call this%solution%create(this%fe_space)
     call this%fe_space%interpolate_dirichlet_values(this%solution)
-    call this%poisson_cG_integration%set_fe_function(this%solution)
+
+    ! Write some info
+    if (this%test_params%get_write_aggr_info()) then
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_aggr_info.csv',action='write')
+      check(iounit>0)
+      call this%fe_space%print_debug_info(iounit)
+      call io_close(iounit)
+    end if
     
   end subroutine setup_system
   
@@ -522,7 +633,12 @@ contains
     
     select type(rhs)
     class is (serial_scalar_array_t)  
-    !call rhs%print(6) 
+       if (this%test_params%get_write_matrix()) then
+       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_vector.mm',action='write')
+       check(iounit>0)
+       call rhs%print(iounit) 
+       call io_close(iounit)
+       end if
     class DEFAULT
        assert(.false.) 
     end select
@@ -603,7 +719,7 @@ contains
     write(*,'(a,e32.25)') 'rel_error_l2_norm_boundary:     ', error_l2_norm_boundary      /l2_norm_boundary
     write(*,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
 
-    if (this%test_params%get_write_matrix()) then
+    if (this%test_params%get_write_error_norms()) then
       iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
       check(iounit>0)
       write(iounit,'(a,e32.25)') 'l2_norm                ;', l2_norm
@@ -618,7 +734,6 @@ contains
       write(iounit,'(a,e32.25)') 'error_h1_semi_norm_boundary    ;', error_h1_semi_norm_boundary    
       write(iounit,'(a,e32.25)') 'rel_error_l2_norm_boundary     ;', error_l2_norm_boundary      /l2_norm_boundary
       write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary;', error_h1_semi_norm_boundary /h1_semi_norm_boundary
-      write(iounit,'(a,e32.25)'   ) 'max_separation_from_root       ;', this%fe_space%get_max_separation_from_root()
       call io_close(iounit)
     end if
 
@@ -676,46 +791,116 @@ contains
 !    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
 !    call error_norm%free()
 !  end subroutine check_solution
-  
+
   subroutine check_solution_vector(this)
     implicit none
-    class(test_unfitted_h_adaptive_poisson_driver_t), intent(in) :: this
-    type(error_norms_vector_t) :: error_norm
-    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
-    real(rp) :: error_tolerance
-    
-    call error_norm%create(this%fe_space,1)
-    mean = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    l1 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    l2 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    lp = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    linfty = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    h1_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    h1 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    w1p_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    w1p = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    w1infty_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    w1infty = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
 
-#ifdef ENABLE_MKL    
+    type(unfitted_solution_checker_vector_t) :: solution_checker
+
+    real(rp) :: error_h1_semi_norm
+    real(rp) :: error_l2_norm
+    real(rp) :: h1_semi_norm
+    real(rp) :: l2_norm
+
+    real(rp) :: l2_norm_boundary           
+    real(rp) :: h1_semi_norm_boundary      
+    real(rp) :: error_l2_norm_boundary     
+    real(rp) :: error_h1_semi_norm_boundary
+
+    real(rp) :: error_tolerance, tol
+    integer(ip) :: iounit
+
+    call solution_checker%create(this%fe_space,this%solution,this%vector_poisson_analytical_functions%get_solution_function())
+    call solution_checker%compute_error_norms(error_h1_semi_norm,error_l2_norm,h1_semi_norm,l2_norm,&
+           error_h1_semi_norm_boundary, error_l2_norm_boundary, h1_semi_norm_boundary, l2_norm_boundary)
+    call solution_checker%free()
+
+    write(*,'(a,e32.25)') 'l2_norm:               ', l2_norm
+    write(*,'(a,e32.25)') 'h1_semi_norm:          ', h1_semi_norm
+    write(*,'(a,e32.25)') 'error_l2_norm:         ', error_l2_norm
+    write(*,'(a,e32.25)') 'error_h1_semi_norm:    ', error_h1_semi_norm
+    write(*,'(a,e32.25)') 'rel_error_l2_norm:     ', error_l2_norm/l2_norm
+    write(*,'(a,e32.25)') 'rel_error_h1_semi_norm:', error_h1_semi_norm/h1_semi_norm
+
+    write(*,'(a,e32.25)') 'l2_norm_boundary:               ', l2_norm_boundary               
+    write(*,'(a,e32.25)') 'h1_semi_norm_boundary:          ', h1_semi_norm_boundary          
+    write(*,'(a,e32.25)') 'error_l2_norm_boundary:         ', error_l2_norm_boundary         
+    write(*,'(a,e32.25)') 'error_h1_semi_norm_boundary:    ', error_h1_semi_norm_boundary    
+    write(*,'(a,e32.25)') 'rel_error_l2_norm_boundary:     ', error_l2_norm_boundary      /l2_norm_boundary
+    write(*,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary:', error_h1_semi_norm_boundary /h1_semi_norm_boundary
+
+    if (this%test_params%get_write_error_norms()) then
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_error_norms.csv',action='write')
+      check(iounit>0)
+      write(iounit,'(a,e32.25)') 'l2_norm                ;', l2_norm
+      write(iounit,'(a,e32.25)') 'h1_semi_norm           ;', h1_semi_norm
+      write(iounit,'(a,e32.25)') 'error_l2_norm          ;', error_l2_norm
+      write(iounit,'(a,e32.25)') 'error_h1_semi_norm     ;', error_h1_semi_norm
+      write(iounit,'(a,e32.25)') 'rel_error_l2_norm      ;', error_l2_norm/l2_norm
+      write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm ;', error_h1_semi_norm/h1_semi_norm
+      write(iounit,'(a,e32.25)') 'l2_norm_boundary               ;', l2_norm_boundary               
+      write(iounit,'(a,e32.25)') 'h1_semi_norm_boundary          ;', h1_semi_norm_boundary          
+      write(iounit,'(a,e32.25)') 'error_l2_norm_boundary         ;', error_l2_norm_boundary         
+      write(iounit,'(a,e32.25)') 'error_h1_semi_norm_boundary    ;', error_h1_semi_norm_boundary    
+      write(iounit,'(a,e32.25)') 'rel_error_l2_norm_boundary     ;', error_l2_norm_boundary      /l2_norm_boundary
+      write(iounit,'(a,e32.25)') 'rel_error_h1_semi_norm_boundary;', error_h1_semi_norm_boundary /h1_semi_norm_boundary
+      call io_close(iounit)
+    end if
+
+#ifdef ENABLE_MKL
     error_tolerance = 1.0e-08
 #else
     error_tolerance = 1.0e-06
-#endif    
-    
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
-    call error_norm%free()
+#endif
+
+    if ( this%test_params%are_checks_active() ) then
+      tol = error_tolerance*l2_norm
+      check( error_l2_norm < tol )
+      tol = error_tolerance*h1_semi_norm
+      check( error_h1_semi_norm < tol )
+    end if
   end subroutine check_solution_vector
+  
+!  subroutine check_solution_vector(this)
+!    implicit none
+!    class(test_unfitted_h_adaptive_poisson_driver_t), intent(in) :: this
+!    type(error_norms_vector_t) :: error_norm
+!    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+!    real(rp) :: error_tolerance
+!    
+!    call error_norm%create(this%fe_space,1)
+!    mean = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, mean_norm)   
+!    l1 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+!    l2 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+!    lp = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+!    linfty = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+!    h1_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+!    h1 = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+!    w1p_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+!    w1p = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+!    w1infty_s = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+!    w1infty = error_norm%compute(this%vector_poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm)
+!
+!#ifdef ENABLE_MKL    
+!    error_tolerance = 1.0e-08
+!#else
+!    error_tolerance = 1.0e-06
+!#endif    
+!    
+!    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance )
+!    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance )
+!    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance )
+!    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance )
+!    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance )
+!    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
+!    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
+!    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
+!    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
+!    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
+!    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+!    call error_norm%free()
+!  end subroutine check_solution_vector
   
   subroutine write_solution(this)
     implicit none
@@ -725,6 +910,8 @@ contains
     character(len=:), allocatable            :: prefix
     real(rp),allocatable :: cell_vector(:)
     real(rp),allocatable :: cell_vector_set_ids(:)
+    real(rp), allocatable :: cell_rel_pos(:)
+    real(rp), allocatable :: cell_in_aggregate(:)
     integer(ip) :: N, P, pid, i
     class(cell_iterator_t), allocatable :: cell
     
@@ -744,16 +931,19 @@ contains
         call oh%add_fe_function(this%solution, 1, 'grad_solution', grad_diff_operator)
         call memalloc(this%triangulation%get_num_cells(),cell_vector,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),cell_vector_set_ids,__FILE__,__LINE__)
+        call memalloc(this%triangulation%get_num_cells(),cell_rel_pos,__FILE__,__LINE__)
+        call memalloc(this%triangulation%get_num_cells(),cell_in_aggregate,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggrs_ids,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggrs_ids_color,__FILE__,__LINE__)
         call memalloc(this%triangulation%get_num_cells(),aggregate_ids_color,__FILE__,__LINE__)
         
-        aggregate_ids => this%fe_space%get_aggregate_ids()
-        aggrs_ids(:) = real(aggregate_ids,kind=rp)
-
-        aggregate_ids_color(:) = aggregate_ids
-        call colorize_aggregate_ids(this%triangulation,aggregate_ids_color)
-        aggrs_ids_color(:) = real(aggregate_ids_color,kind=rp)
+        if (this%test_params%get_use_constraints()) then
+          aggregate_ids => this%fe_space%get_aggregate_ids()
+          aggrs_ids(:) = real(aggregate_ids,kind=rp)
+          aggregate_ids_color(:) = aggregate_ids
+          call colorize_aggregate_ids(this%triangulation,aggregate_ids_color)
+          aggrs_ids_color(:) = real(aggregate_ids_color,kind=rp)
+        end if
         
         N=this%triangulation%get_num_cells()
         P=6
@@ -768,19 +958,46 @@ contains
         end do
         call this%triangulation%free_cell_iterator(cell)
 
+        cell_rel_pos(:) = 0.0_rp
         call this%triangulation%create_cell_iterator(cell)
         do while (.not. cell%has_finished())
           cell_vector_set_ids(cell%get_gid()) = cell%get_set_id()
+          if (cell%is_cut()) then
+            cell_rel_pos(cell%get_gid()) = 0.0_rp
+          else if (cell%is_interior()) then
+            cell_rel_pos(cell%get_gid()) = -1.0_rp
+          else if (cell%is_exterior()) then
+            cell_rel_pos(cell%get_gid()) = 1.0_rp
+          else
+            mcheck(.false.,'Cell can only be either interior, exterior or cut')
+          end if
           call cell%next()
         end do
-        call this%triangulation%free_cell_iterator(cell)
+        
+        if (this%test_params%get_use_constraints()) then
+          cell_in_aggregate(:) = 0.0_rp
+          call cell%first()
+          do while (.not. cell%has_finished())
+            if (cell%is_cut()) then
+              cell_in_aggregate(cell%get_gid()) = 1.0_rp
+              cell_in_aggregate(aggregate_ids(cell%get_gid())) = 1.0_rp
+            end if
+            call cell%next()
+          end do
+        end if
 
+        call this%triangulation%free_cell_iterator(cell)
 
         call oh%add_cell_vector(cell_vector,'cell_ids')
         call oh%add_cell_vector(cell_vector_set_ids,'cell_set_ids')
+        call oh%add_cell_vector(cell_rel_pos,'cell_rel_pos')
         
-        call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
-        call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
+        if (this%test_params%get_use_constraints()) then
+          call oh%add_cell_vector(cell_in_aggregate,'cell_in_aggregate')
+        
+          call oh%add_cell_vector(aggrs_ids,'aggregate_ids')
+          call oh%add_cell_vector(aggrs_ids_color,'aggregate_ids_color')
+        end if
 
         call oh%open(path, prefix)
         call oh%write()
@@ -788,6 +1005,8 @@ contains
         call oh%free()
         call memfree(cell_vector,__FILE__,__LINE__)
         call memfree(cell_vector_set_ids,__FILE__,__LINE__)
+        call memfree(cell_rel_pos,__FILE__,__LINE__)
+        call memfree(cell_in_aggregate,__FILE__,__LINE__)
         call memfree(aggrs_ids,__FILE__,__LINE__)
         call memfree(aggrs_ids_color,__FILE__,__LINE__)
         call memfree(aggregate_ids_color,__FILE__,__LINE__)
@@ -801,15 +1020,76 @@ contains
         call vtk_writer%attach_boundary_faces(this%triangulation)
         call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
         call vtk_writer%free()
+
+        ! Write the unfitted mesh
+        call vtk_writer%attach_boundary_quadrature_points(this%fe_space)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_normals.vtu')
+        call vtk_writer%free()
+
+        ! Write the unfitted mesh
+        call vtk_writer%attach_fitted_faces(this%triangulation)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_fitted_facets.vtu')
+        call vtk_writer%free()
+
+        ! Write the unfitted mesh
+        call vtk_writer%attach_facets_quadrature_points(this%fe_space)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_fitted_normals.vtu')
+        call vtk_writer%free()
         
         ! Write the solution
         call vtk_writer%attach_fe_function(this%solution,this%fe_space)
         call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh_solution.vtu')
         call vtk_writer%free()
-        
 
     endif
   end subroutine write_solution
+
+
+  subroutine compute_smallest_vol_fraction(this)
+    implicit none
+    class(test_unfitted_h_adaptive_poisson_driver_t), intent(in) :: this
+
+    class(fe_cell_iterator_t), allocatable :: fe
+    type(quadrature_t), pointer :: quad
+    integer(ip)  :: qpoint, num_quad_points
+    type(cell_map_t), pointer :: cell_map
+    real(rp) :: dV, V, Vmin
+    integer(ip) :: iounit
+
+    Vmin = 1.0e10
+
+    call this%fe_space%create_fe_cell_iterator(fe)
+    do while (.not. fe%has_finished())
+
+       call fe%update_integration()
+
+       quad            => fe%get_quadrature()
+       cell_map        => fe%get_cell_map()
+       num_quad_points = quad%get_num_quadrature_points()
+
+       if (fe%is_cut()) then
+
+         V = 0.0
+         do qpoint = 1, num_quad_points
+            dV = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            V = V + dV
+         end do
+         Vmin = min(V,Vmin)
+
+       end if
+
+      call fe%next()
+    end do
+    call this%fe_space%free_fe_cell_iterator(fe)
+
+    if (this%test_params%get_write_aggr_info()) then
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_min_vol.csv',action='write')
+      check(iounit>0)
+      write(iounit,'(a,e32.25)') 'volume_min ;', Vmin
+      call io_close(iounit)
+    end if
+
+  end subroutine compute_smallest_vol_fraction
 
   subroutine write_filling_curve(this)
     implicit none
@@ -889,37 +1169,30 @@ contains
   
   subroutine run_simulation(this) 
     implicit none
-    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this    
+    class(test_unfitted_h_adaptive_poisson_driver_t), intent(inout) :: this
     call this%free()
     call this%parse_command_line_parameters()
     call this%setup_levelset()
     call this%setup_triangulation()
     call this%fill_cells_set()
     call this%setup_reference_fes()
-    
-    !! It is conter intuitive that this is needed for adapting the mesh
-    !call this%setup_fe_space()
-    !call this%setup_system()
-    !call this%assemble_system()
-    !call this%solution%create(this%fe_space) 
-    
-    !! Adapt mesh
-    !call this%refine_and_coarsen()
-    !call this%fill_cells_set()
-    
-    ! Setup fe space and co for the new mesh 
     call this%setup_fe_space()
+    
+    
     call this%setup_system()
-    call this%assemble_system()
-    call this%setup_solver()
-    !call this%solution%create(this%fe_space) 
-    call this%solve_system()
-    if ( this%test_params%get_laplacian_type() == 'scalar' ) then
-      call this%check_solution()
-    else
-      mcheck(.false.,'Only for scalar fnctions')
-    !  call this%check_solution_vector()
+    call this%compute_smallest_vol_fraction()
+
+    if ( .not. this%test_params%get_only_setup() ) then
+      call this%assemble_system()
+      call this%setup_solver()
+      call this%solve_system()
+      if ( this%test_params%get_laplacian_type() == 'scalar' ) then
+        call this%check_solution()
+      else
+        call this%check_solution_vector()
+      end if
     end if
+
     call this%write_solution()
     call this%write_filling_curve()
     call this%free()

@@ -50,6 +50,7 @@ contains
   STD_VECTOR_ERASE(type(cell_integrator_t),cell_integrator)
   STD_VECTOR_COPY(type(cell_integrator_t),cell_integrator)
   STD_VECTOR_SET(type(cell_integrator_t),cell_integrator)
+  STD_VECTOR_CAT(type(cell_integrator_t),cell_integrator)
   STD_VECTOR_SIZE(type(cell_integrator_t),cell_integrator)
   STD_VECTOR_CAPACITY(type(cell_integrator_t),cell_integrator)
   STD_VECTOR_GET(type(cell_integrator_t),cell_integrator)
