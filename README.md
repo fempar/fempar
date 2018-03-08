@@ -11,5 +11,75 @@ Finite Element Multiphysics PARallel solvers
 - [Wiki](https://gitlab.com/fempar/fempar/wikis/home)
 - [Source code documentation](http://fempar.org/documentation/)
 - [Issue tracker](https://gitlab.com/fempar/fempar/issues)
-- [Continuous integration dashboard](https://gitlab.com/fempar/fempar/builds)
-- [Testing dashboard](http://my.cdash.org/index.php?project=Fempar)
+- [Continuous integration dashboard available at servercomfus (requires VPN connection to CIMNE Castelldefels local network)](http://ci.servercomfus/projects/2)
+- [Testing dashboard available at servercomfus (requires VPN connection to CIMNE Castelldefels local network)](http://servercomfus:8080/index.php?project=fempar)
+
+## Compilation
+
+**FEMPAR** compiles with GNU Fortran compiler 5.3.0 (and newer versions) and Intel Fortran compiler 16.0.0 (and newer versions).
+
+**FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
+
+The easiest way to compile **FEMPAR** under Linux is (with compilation of tests included):
+
+```
+$ mkdir build
+$ cd build
+$ cmake ../fempar/SuperBuild -DFEMPAR_ENABLE_TESTS=ON
+$ make
+```
+
+In order to configure the compilation of a driver (right after the previous steps):
+
+```
+$ cd build
+$ cmake . -DFEMPAR_DRIVER=driver_folder_name
+$ make
+```
+
+In order to compile FEMPAR library and tests if the first block of commands has been executed:
+
+```
+$ cd build/FEMPAR
+$ make -jP
+```
+with ```P``` being the number of parallel processes involved in the compilation
+
+## Run tests
+
+In order to run the all tests in fast mode:
+
+```
+$ cd build/FEMPAR
+$ ctest -R fast -VV
+```
+
+or 
+
+```
+$ cd build/FEMPAR
+$ ctest -R test_name
+```
+
+to run a particular test.
+
+## Run drivers
+
+Given a driver ```driver_name```, to run it (assuming it has been compiled, see above), we do:
+
+```
+$ cd build/DRIVERS/driver_name/bin
+$ mpirun -np P ./driver_name [options]
+```
+
+where ```P``` is the number of MPI processes to be used. Clearly, ```mpirun -np P``` must be eliminated to run serial drivers.
+
+To see the different options and default values we can do
+
+```
+$ ./driver_name --help
+```
+
+
+
+

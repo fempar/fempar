@@ -1,0 +1,304 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine bst_vef_iterator_create ( this, triangulation )
+  implicit none
+  class(bst_vef_iterator_t)             , intent(inout)      :: this
+  class(triangulation_t), target        , intent(in) :: triangulation
+  call this%free()
+  call vef_iterator_create(this,triangulation)
+  select type(triangulation)
+  class is(base_static_triangulation_t)
+    this%base_static_triangulation => triangulation
+  class default
+    mcheck(.false., "bst_vef_iterator_create :: bst_vef_iterator_t can only be created from a descendant of base_static_triangulation_t")
+  end select
+end subroutine bst_vef_iterator_create
+
+subroutine bst_vef_iterator_free ( this)
+  implicit none
+  class(bst_vef_iterator_t), intent(inout) :: this
+  call vef_iterator_free(this)
+  nullify(this%base_static_triangulation)
+end subroutine bst_vef_iterator_free
+
+subroutine bst_vef_iterator_free_final ( this)
+  implicit none
+  type(bst_vef_iterator_t), intent(inout) :: this
+  assert (this%gid == -1)
+  assert (.not. associated(this%base_static_triangulation))
+end subroutine bst_vef_iterator_free_final
+
+function bst_vef_iterator_get_num_nodes(this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  integer(ip) :: bst_vef_iterator_get_num_nodes
+  type(bst_cell_iterator_t) :: cell
+  class(reference_fe_t), pointer :: reference_fe
+  type(list_iterator_t) :: dofs_on_bst_vef_iterator
+  call cell%create(this%triangulation)
+  call this%get_cell_around(1, cell)
+  reference_fe => cell%get_reference_fe()
+  dofs_on_bst_vef_iterator = reference_fe%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
+  bst_vef_iterator_get_num_nodes = dofs_on_bst_vef_iterator%get_size()
+  call cell%free()
+end function bst_vef_iterator_get_num_nodes
+
+subroutine bst_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
+  implicit none
+  class(bst_vef_iterator_t), intent(in)    :: this
+  type(point_t)            , intent(inout) :: nodes_coordinates(:)
+  type(bst_cell_iterator_t)                     :: cell
+  integer(ip)                                   :: inode_within_cell
+  integer(ip)                                   :: inode_within_vef
+  class(reference_fe_t), pointer                :: reference_fe_geo
+  type(list_iterator_t)                         :: dofs_on_bst_vef_iterator
+  
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  assert ( allocated ( this%base_static_triangulation%coordinates ) )
+  
+  call cell%create(this%base_static_triangulation)
+  call this%get_cell_around(1, cell)
+  reference_fe_geo => cell%get_reference_fe()
+  dofs_on_bst_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
+  inode_within_vef = 1
+  do while (.not. dofs_on_bst_vef_iterator%is_upper_bound())     
+    inode_within_cell = dofs_on_bst_vef_iterator%get_current()
+    nodes_coordinates(inode_within_vef) = this%base_static_triangulation%coordinates(cell%get_node_gid(inode_within_cell))
+    call dofs_on_bst_vef_iterator%next()
+    inode_within_vef = inode_within_vef + 1
+  end do
+  call cell%free()
+end subroutine bst_vef_iterator_get_nodes_coordinates
+
+function bst_vef_iterator_get_ggid (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  integer(igp) :: bst_vef_iterator_get_ggid
+  assert (this%gid >= 1 .and. .not. this%has_finished())
+  bst_vef_iterator_get_ggid = this%base_static_triangulation%vefs_ggid(this%gid)
+end function bst_vef_iterator_get_ggid
+
+subroutine bst_vef_iterator_set_set_id(this,set_id)
+  implicit none
+  class(bst_vef_iterator_t), intent(inout) :: this
+  integer(ip)          , intent(in) :: set_id
+  assert (this%gid >= 1 .and. .not. this%has_finished())
+  this%base_static_triangulation%vefs_set(this%gid) = set_id
+end subroutine bst_vef_iterator_set_set_id  
+
+subroutine bst_vef_iterator_set_geom_id(this,geom_id)
+  implicit none
+  class(bst_vef_iterator_t), intent(inout) :: this
+  integer(ip)          , intent(in) :: geom_id
+  assert (this%gid >= 1 .and. .not. this%has_finished())
+  this%base_static_triangulation%vefs_geometry(this%gid) = geom_id
+end subroutine bst_vef_iterator_set_geom_id  
+
+function bst_vef_iterator_get_set_id(this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  integer(ip) :: bst_vef_iterator_get_set_id
+  assert (this%gid >= 1 .and. .not. this%has_finished())
+  bst_vef_iterator_get_set_id = this%base_static_triangulation%vefs_set(this%gid)
+end function bst_vef_iterator_get_set_id  
+
+function bst_vef_iterator_get_geom_id(this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  integer(ip) :: bst_vef_iterator_get_geom_id
+  assert (this%gid >= 1 .and. .not. this%has_finished())
+  bst_vef_iterator_get_geom_id = this%base_static_triangulation%vefs_geometry(this%gid)
+end function bst_vef_iterator_get_geom_id  
+
+subroutine bst_vef_iterator_set_dim(this,vef_dim)
+  implicit none
+  class(bst_vef_iterator_t), intent(inout) :: this
+  integer(ip)          , intent(in)    :: vef_dim
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  this%base_static_triangulation%vefs_type(this%gid) = (this%base_static_triangulation%vefs_type(this%gid)/10) * 10 + vef_dim
+end subroutine bst_vef_iterator_set_dim
+
+subroutine bst_vef_iterator_set_it_at_boundary(this)
+  implicit none
+  class(bst_vef_iterator_t), intent(inout) :: this
+  integer(ip) :: vef_dim
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  vef_dim = mod(this%base_static_triangulation%vefs_type(this%gid),10)
+  this%base_static_triangulation%vefs_type(this%gid) = (this%base_static_triangulation%vefs_type(this%gid)/100) * 100 + 10 + vef_dim
+end subroutine bst_vef_iterator_set_it_at_boundary
+
+subroutine bst_vef_iterator_set_it_as_local(this)
+  implicit none
+  class(bst_vef_iterator_t), intent(inout) :: this
+  integer(ip) :: vef_dim_and_bound
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%gid),100)
+  this%base_static_triangulation%vefs_type(this%gid) = vef_dim_and_bound
+end subroutine bst_vef_iterator_set_it_as_local
+
+subroutine bst_vef_iterator_set_it_at_interface(this)
+  implicit none
+  class(bst_vef_iterator_t), intent(inout) :: this
+  integer(ip) :: vef_dim_and_bound
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%gid),100)
+  this%base_static_triangulation%vefs_type(this%gid) = 100 + vef_dim_and_bound
+end subroutine bst_vef_iterator_set_it_at_interface
+
+subroutine bst_vef_iterator_set_it_as_ghost(this)
+  implicit none
+  class(bst_vef_iterator_t), intent(inout) :: this
+  integer(ip) :: vef_dim_and_bound
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%gid),100)
+  this%base_static_triangulation%vefs_type(this%gid) = 200 + vef_dim_and_bound
+end subroutine bst_vef_iterator_set_it_as_ghost
+
+function bst_vef_iterator_get_dim(this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  integer(ip) :: bst_vef_iterator_get_dim
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_vef_iterator_get_dim  = mod(this%base_static_triangulation%vefs_type(this%gid),10)
+end function bst_vef_iterator_get_dim
+
+function bst_vef_iterator_is_at_interior (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  logical :: bst_vef_iterator_is_at_interior 
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_vef_iterator_is_at_interior  = .not. this%is_at_boundary()
+end function bst_vef_iterator_is_at_interior
+
+function bst_vef_iterator_is_at_boundary (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  logical :: bst_vef_iterator_is_at_boundary 
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_vef_iterator_is_at_boundary  = (mod(this%base_static_triangulation%vefs_type(this%gid)/10,10)==1)
+end function bst_vef_iterator_is_at_boundary
+
+function bst_vef_iterator_is_local (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  logical :: bst_vef_iterator_is_local 
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_vef_iterator_is_local  = (this%base_static_triangulation%vefs_type(this%gid)/100==0)
+end function bst_vef_iterator_is_local
+
+function bst_vef_iterator_is_at_interface (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  logical :: bst_vef_iterator_is_at_interface 
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_vef_iterator_is_at_interface  = (this%base_static_triangulation%vefs_type(this%gid)/100==1)
+end function bst_vef_iterator_is_at_interface
+
+function bst_vef_iterator_is_ghost (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  logical :: bst_vef_iterator_is_ghost 
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_vef_iterator_is_ghost  = (this%base_static_triangulation%vefs_type(this%gid)/100==2)
+end function bst_vef_iterator_is_ghost
+
+function bst_vef_iterator_get_num_cells_around (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  integer(ip) :: bst_vef_iterator_get_num_cells_around
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_vef_iterator_get_num_cells_around = this%base_static_triangulation%ptrs_cells_around(this%gid+1)- &
+       this%base_static_triangulation%ptrs_cells_around(this%gid)
+end function bst_vef_iterator_get_num_cells_around
+
+subroutine bst_vef_iterator_get_cell_around (this, icell_around, cell)
+  implicit none
+  class(bst_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  integer(ip)                          :: position_in_lst_cells_around
+  integer(ip)                          :: icell 
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
+  position_in_lst_cells_around = this%base_static_triangulation%ptrs_cells_around(this%gid) + icell_around-1
+  icell = this%base_static_triangulation%lst_cells_around(position_in_lst_cells_around)
+  call cell%set_gid(icell)
+end subroutine bst_vef_iterator_get_cell_around
+
+function bst_vef_iterator_is_proper(this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  logical :: bst_vef_iterator_is_proper
+  bst_vef_iterator_is_proper = .true.
+end function bst_vef_iterator_is_proper
+
+function bst_vef_iterator_get_num_improper_cells_around (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  integer(ip) :: bst_vef_iterator_get_num_improper_cells_around
+  bst_vef_iterator_get_num_improper_cells_around = 0 
+end function bst_vef_iterator_get_num_improper_cells_around
+
+subroutine bst_vef_iterator_get_improper_cell_around (this, icell_around, cell)
+  implicit none
+  class(bst_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  mcheck(.false., "bst_vef_iterator_t does not have improper cells around")
+end subroutine bst_vef_iterator_get_improper_cell_around
+
+function bst_vef_iterator_get_improper_cell_around_ivef(this, icell_around)
+  implicit none
+  class(bst_vef_iterator_t) , intent(in)    :: this
+  integer(ip)               , intent(in)    :: icell_around
+  integer(ip) :: bst_vef_iterator_get_improper_cell_around_ivef
+  mcheck(.false., "bst_vef_iterator_t does not have improper cells around")
+end function bst_vef_iterator_get_improper_cell_around_ivef
+
+function bst_vef_iterator_get_improper_cell_around_subvef(this, icell_around)
+  implicit none
+  class(bst_vef_iterator_t) , intent(in)    :: this
+  integer(ip)               , intent(in)    :: icell_around
+  integer(ip) :: bst_vef_iterator_get_improper_cell_around_subvef
+  mcheck(.false., "bst_vef_iterator_t does not have improper cells around")
+end function bst_vef_iterator_get_improper_cell_around_subvef
+
+function bst_vef_iterator_get_num_half_cells_around (this)
+  implicit none
+  class(bst_vef_iterator_t), intent(in) :: this
+  integer(ip) :: bst_vef_iterator_get_num_half_cells_around
+  bst_vef_iterator_get_num_half_cells_around = 0 
+end function bst_vef_iterator_get_num_half_cells_around
+
+subroutine bst_vef_iterator_get_half_cell_around (this, icell_around, cell)
+  implicit none
+  class(bst_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  mcheck(.false., "bst_vef_iterator_t does not have half cells around")
+end subroutine bst_vef_iterator_get_half_cell_around

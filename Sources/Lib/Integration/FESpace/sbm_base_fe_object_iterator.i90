@@ -37,12 +37,12 @@ subroutine base_fe_object_iterator_next(this)
   call this%object%next()
 end subroutine base_fe_object_iterator_next
 
-subroutine base_fe_object_iterator_set_lid(this, lid)
+subroutine base_fe_object_iterator_set_gid(this, lid)
   implicit none
   class(base_fe_object_iterator_t), intent(inout) :: this
   integer(ip)             , intent(in)    :: lid
-  call this%object%set_lid(lid)
-end subroutine base_fe_object_iterator_set_lid
+  call this%object%set_gid(lid)
+end subroutine base_fe_object_iterator_set_gid
 
 function base_fe_object_iterator_has_finished(this)
   implicit none
@@ -51,40 +51,40 @@ function base_fe_object_iterator_has_finished(this)
   base_fe_object_iterator_has_finished = this%object%has_finished()
 end function base_fe_object_iterator_has_finished
 
-function base_fe_object_iterator_get_lid (this)
-  implicit none
-  class(base_fe_object_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_object_iterator_get_lid
-  base_fe_object_iterator_get_lid = this%object%get_lid()
-end function base_fe_object_iterator_get_lid
-
 function base_fe_object_iterator_get_gid (this)
   implicit none
   class(base_fe_object_iterator_t), intent(in) :: this
-  integer(igp) :: base_fe_object_iterator_get_gid
+  integer(ip) :: base_fe_object_iterator_get_gid
   base_fe_object_iterator_get_gid = this%object%get_gid()
 end function base_fe_object_iterator_get_gid
 
-function base_fe_object_iterator_get_dimension (this)
+function base_fe_object_iterator_get_ggid (this)
   implicit none
   class(base_fe_object_iterator_t), intent(in) :: this
-  integer(igp) :: base_fe_object_iterator_get_dimension
-  base_fe_object_iterator_get_dimension = this%object%get_dimension()
-end function base_fe_object_iterator_get_dimension
+  integer(igp) :: base_fe_object_iterator_get_ggid
+  base_fe_object_iterator_get_ggid = this%object%get_ggid()
+end function base_fe_object_iterator_get_ggid
 
-function base_fe_object_iterator_get_number_parts_around(this)
+function base_fe_object_iterator_get_dim (this)
   implicit none
   class(base_fe_object_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_object_iterator_get_number_parts_around
-  base_fe_object_iterator_get_number_parts_around = this%object%get_number_parts_around()
-end function base_fe_object_iterator_get_number_parts_around
+  integer(igp) :: base_fe_object_iterator_get_dim
+  base_fe_object_iterator_get_dim = this%object%get_dim()
+end function base_fe_object_iterator_get_dim
 
-function base_fe_object_iterator_get_number_subparts_around(this)
+function base_fe_object_iterator_get_num_parts_around(this)
   implicit none
   class(base_fe_object_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_object_iterator_get_number_subparts_around
-  base_fe_object_iterator_get_number_subparts_around = this%object%get_number_subparts_around()
-end function base_fe_object_iterator_get_number_subparts_around
+  integer(ip) :: base_fe_object_iterator_get_num_parts_around
+  base_fe_object_iterator_get_num_parts_around = this%object%get_num_parts_around()
+end function base_fe_object_iterator_get_num_parts_around
+
+function base_fe_object_iterator_get_num_subparts_around(this)
+  implicit none
+  class(base_fe_object_iterator_t), intent(in) :: this
+  integer(ip) :: base_fe_object_iterator_get_num_subparts_around
+  base_fe_object_iterator_get_num_subparts_around = this%object%get_num_subparts_around()
+end function base_fe_object_iterator_get_num_subparts_around
 
 function base_fe_object_iterator_create_parts_around_iterator(this)
   implicit none
@@ -107,25 +107,10 @@ function base_fe_object_iterator_get_num_vefs(this)
   base_fe_object_iterator_get_num_vefs = this%object%get_num_vefs()
 end function base_fe_object_iterator_get_num_vefs
 
-function base_fe_object_iterator_get_num_faces(this)
-  implicit none
-  class(base_fe_object_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_object_iterator_get_num_faces
-  base_fe_object_iterator_get_num_faces = this%object%get_num_faces()
-end function base_fe_object_iterator_get_num_faces
-
 subroutine base_fe_object_iterator_get_vef(this, ivef, vef)
   implicit none
   class(base_fe_object_iterator_t), intent(in)    :: this
   integer(ip)                     , intent(in)    :: ivef
-  type(vef_iterator_t)            , intent(inout) :: vef
+  class(vef_iterator_t)           , intent(inout) :: vef
   call this%object%get_vef(ivef,vef)
 end subroutine base_fe_object_iterator_get_vef
-
-subroutine base_fe_object_iterator_get_face(this, iface, face)
-  implicit none
-  class(base_fe_object_iterator_t), intent(in)    :: this
-  integer(ip)                     , intent(in)    :: iface
-  type(face_iterator_t)           , intent(inout) :: face
-  call this%object%get_face(iface,face)
-end subroutine base_fe_object_iterator_get_face

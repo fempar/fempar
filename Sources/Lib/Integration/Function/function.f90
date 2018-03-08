@@ -35,10 +35,10 @@ module function_names
   private
   type :: array_function_t
      private
-     integer(ip)  :: number_components = 1
+     integer(ip)  :: num_components = 1
    contains
-     procedure, non_overridable :: set_number_components  => array_set_number_components
-     procedure, non_overridable :: get_number_components  => array_function_get_number_components
+     procedure, non_overridable :: set_num_components  => array_set_num_components
+     procedure, non_overridable :: get_num_components  => array_function_get_num_components
      procedure  :: get_component_value_space              => array_function_get_component_value_space
      procedure  :: get_component_value_space_time         => array_function_get_component_value_space_time
      generic    :: get_component_value                    => get_component_value_space, get_component_value_space_time
@@ -93,6 +93,10 @@ module function_names
      generic                    :: get_gradients_set            => get_gradients_set_space, get_gradients_set_space_time     
   end type vector_function_t
 
+  type :: p_vector_function_t
+    class(vector_function_t), pointer :: p => NULL()
+  end type p_vector_function_t
+  
   type :: tensor_function_t
      private
    contains
@@ -104,11 +108,23 @@ module function_names
      generic                    :: get_values_set            => get_values_set_space, get_values_set_space_time     
   end type tensor_function_t
 
+  type, extends(scalar_function_t) :: vector_component_function_t
+     private
+     class(vector_function_t), pointer :: vector_function => NULL()
+     integer(ip)                       :: component = 0
+   contains
+     procedure                  :: set                          => vector_component_function_set
+     procedure                  :: get_value_space              => vector_component_function_get_value_space
+     procedure                  :: get_value_space_time         => vector_component_function_get_value_space_time
+     procedure                  :: get_gradient_space           => vector_component_function_get_gradient_space
+     procedure                  :: get_gradient_space_time      => vector_component_function_get_gradient_space_time
+   end type vector_component_function_t
+
   ! Functions
-  public :: array_function_t, scalar_function_t, vector_function_t, tensor_function_t
+  public :: array_function_t, scalar_function_t, vector_function_t, tensor_function_t, vector_component_function_t
   
   ! Pointer to functions
-  public :: p_scalar_function_t
+  public :: p_scalar_function_t, p_vector_function_t
 
 contains
 ! One only needs to fill array_get_component_value_space or array_get_component_value_space_time
@@ -131,5 +147,7 @@ contains
 ! root tensor_function_t. For efficiency purposes, these functions can also be filled in user
 ! defined functions that inherit from tensor_function_t
 #include "sbm_tensor_function.i90"
+! One only needs to call set to assign the vector it gets the values from
+#include "sbm_vector_component_function.i90"
 
 end module function_names

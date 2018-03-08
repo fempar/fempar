@@ -99,7 +99,7 @@ module block_vector_names
      procedure :: nrm2 => block_vector_nrm2
      procedure :: clone => block_vector_clone
      procedure :: same_vector_space => block_vector_same_vector_space
-     procedure :: get_number_blocks
+     procedure :: get_num_blocks
      procedure :: extract_subvector => block_vector_extract_subvector
      procedure :: insert_subvector => block_vector_insert_subvector
   end type block_vector_t
@@ -373,11 +373,14 @@ contains
  ! op1 <- clone(op2) 
  subroutine block_vector_clone(op1,op2)
    implicit none
-   class(block_vector_t), intent(inout) :: op1
-   class(vector_t), intent(in)    :: op2
+   class(block_vector_t), target, intent(inout) :: op1
+   class(vector_t)      , target, intent(in)    :: op2
    ! Locals
    integer(ip) :: iblk
-
+   class(vector_t), pointer :: p
+   p => op1
+   if(associated(p,op2)) return ! It's aliasing
+    
    call op2%GuardTemp()
    select type(op2)
    class is (block_vector_t)
@@ -421,17 +424,17 @@ contains
      end if
    end select
  end function block_vector_same_vector_space
-	
- function get_number_blocks(this) result(res)
+ 
+ function get_num_blocks(this) result(res)
    implicit none 
    class(block_vector_t), intent(in) :: this
    integer(ip) :: res
    integer(ip) :: i
    res = 0
    do i=1,this%nblocks
-      res = res + this%blocks(i)%vector%get_number_blocks()
+      res = res + this%blocks(i)%vector%get_num_blocks()
    end do
- end function get_number_blocks
+ end function get_num_blocks
  
   !=============================================================================
   subroutine block_vector_extract_subvector( this, &

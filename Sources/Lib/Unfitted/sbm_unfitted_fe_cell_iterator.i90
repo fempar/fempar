@@ -1,0 +1,485 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!=============================================================================================
+subroutine unfitted_fe_cell_iterator_create( this, fe_space )
+  implicit none
+  class(unfitted_fe_cell_iterator_t)   , intent(inout) :: this
+  class(serial_fe_space_t), target, intent(in)    :: fe_space
+  
+  class(unfitted_integration_manager_t), pointer  :: unfitted_integration_manager
+  class(triangulation_t),    pointer  :: triangulation
+  integer(ip) :: istat
+  
+  triangulation => fe_space%get_triangulation()
+  select type (fe_space)
+    class is ( serial_unfitted_fe_space_t)
+      unfitted_integration_manager => fe_space%unfitted_integration
+    class is (par_unfitted_fe_space_t)
+      unfitted_integration_manager => fe_space%unfitted_integration  
+    class is ( serial_unfitted_hp_adaptive_fe_space_t)
+      unfitted_integration_manager => fe_space%unfitted_integration  
+    class default
+      check(.false.)
+  end select
+
+  call this%free()
+  call this%fe_cell_iterator_t%create(fe_space)
+  this%unfitted_integration_manager => unfitted_integration_manager
+  
+end subroutine unfitted_fe_cell_iterator_create
+
+!=============================================================================================
+subroutine unfitted_fe_cell_iterator_free( this )
+  implicit none
+  class(unfitted_fe_cell_iterator_t)   , intent(inout) :: this
+  this%unfitted_integration_manager => null()
+  call this%fe_cell_iterator_t%free()
+end subroutine unfitted_fe_cell_iterator_free
+
+!=============================================================================================
+function unfitted_fe_cell_iterator_get_quadrature(this) result (quadrature)
+  implicit none
+  class(unfitted_fe_cell_iterator_t),  intent(in) :: this
+  type(quadrature_t),              pointer   :: quadrature
+  integer(ip) :: ipos, num_subcells, istat
+  ! The quadrature method has to be functional also for ghost elements.
+  ! serial_fe_space_set_up_cell_integration uses it...
+  ! QUESTION: Since fempar never integrates in ghost elements, 
+  ! why serial_fe_space_set_up_cell_integration needs quadratures in ghost elements??
+  ! Anyway, for ghost elems we take the quadrature of the standard fe_cell_iterator to make things work
+  if (this%is_ghost()) then
+    quadrature => this%fe_cell_iterator_t%get_quadrature()
+    return
+  end if
+  ! For local elems we possibly take the modified quadrature
+  assert(this%is_local())
+  if ( this%is_cut() ) then
+    num_subcells = this%get_num_subcells()
+    call this%unfitted_integration_manager%num_sub_cells_to_pos%get(key=num_subcells,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
+    quadrature => this%unfitted_integration_manager%cut_quadratures(ipos)
+  else if ( this%is_interior() ) then
+    quadrature => this%fe_cell_iterator_t%get_quadrature()
+  else if ( this%is_exterior() ) then
+    quadrature => this%fe_cell_iterator_t%get_quadrature()
+    assert(quadrature%get_num_quadrature_points() == 0)
+  else
+    check(.false.)
+  end if
+end function unfitted_fe_cell_iterator_get_quadrature
+
+!==================================================================================================
+subroutine unfitted_fe_cell_iterator_update_cell_map ( this )
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: ipos, num_subcells, istat
+  assert(this%is_local())
+  assert(this%is_cut())
+  num_subcells = this%get_num_subcells()
+  call this%unfitted_integration_manager%num_sub_cells_to_pos%get(key=num_subcells,val=ipos,stat=istat)
+  assert(istat==key_found)
+  assert(ipos>0)
+  call this%set_cell_map(this%unfitted_integration_manager%cut_cell_maps(ipos))
+end subroutine unfitted_fe_cell_iterator_update_cell_map
+
+!==================================================================================================
+subroutine unfitted_fe_cell_iterator_update_cell_integrators ( this )
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(inout)   :: this
+  integer(ip) :: field_id
+  integer(ip) :: ipos, num_subcells, istat
+  assert(this%is_local())
+  assert(this%is_cut())
+  num_subcells = this%get_num_subcells()
+  call this%unfitted_integration_manager%num_sub_cells_to_pos%get(key=num_subcells,val=ipos,stat=istat)
+  assert(istat==key_found)
+  assert(ipos>0)
+  do field_id=1, this%get_num_fields()  
+    call this%set_cell_integrator(field_id,this%unfitted_integration_manager%cut_cell_integrators(ipos,field_id))
+  end do  
+end subroutine unfitted_fe_cell_iterator_update_cell_integrators
+
+!=============================================================================================
+function unfitted_fe_cell_iterator_get_boundary_quadrature(this) result (quadrature)
+  implicit none
+  class(unfitted_fe_cell_iterator_t),  intent(in) :: this
+  type(quadrature_t), pointer      :: quadrature
+  integer(ip) :: num_subfacets, ipos, istat
+  assert(this%is_local())
+  if ( this%is_cut() ) then
+    num_subfacets = this%get_num_subfacets()
+    call this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos%get(key=num_subfacets,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
+    quadrature => this%unfitted_integration_manager%cut_boundary_quadratures_cell_dim(ipos)
+  else
+    quadrature => this%unfitted_integration_manager%empty_quadrature
+  end if
+end function unfitted_fe_cell_iterator_get_boundary_quadrature
+
+!=============================================================================================
+function unfitted_fe_cell_iterator_get_boundary_piecewise_cell_map(this) result (cell_map)
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(in) :: this
+  type(piecewise_cell_map_t), pointer :: cell_map
+  integer(ip) :: num_subfacets, ipos, istat
+  assert(this%is_local())
+  if ( this%is_cut() ) then
+    num_subfacets = this%get_num_subfacets()
+    call this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos%get(key=num_subfacets,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
+    cell_map => this%unfitted_integration_manager%cut_boundary_piecewise_cell_maps(ipos)
+  else
+    cell_map => this%unfitted_integration_manager%empty_piecewise_cell_map
+  end if
+end function unfitted_fe_cell_iterator_get_boundary_piecewise_cell_map
+
+!=============================================================================================
+
+function unfitted_fe_cell_iterator_get_boundary_cell_map(this) result (cell_map)
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(in) :: this
+  type(cell_map_t), pointer :: cell_map
+  integer(ip) :: num_subfacets, ipos, istat
+  assert(this%is_local())
+  if ( this%is_cut() ) then
+    num_subfacets = this%get_num_subfacets()
+    call this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos%get(key=num_subfacets,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
+    cell_map => this%unfitted_integration_manager%cut_boundary_cell_maps(ipos)
+  else
+    cell_map => this%unfitted_integration_manager%empty_cell_map
+  end if
+end function unfitted_fe_cell_iterator_get_boundary_cell_map
+
+
+!=============================================================================================
+function unfitted_fe_cell_iterator_get_boundary_cell_integrator(this, field_id) result (cell_int)
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(in)   :: this
+  integer(ip)         , intent(in)   :: field_id
+  type(cell_integrator_t), pointer :: cell_int
+  integer(ip) :: num_subfacets, ipos, istat
+  assert(this%is_local())
+  if ( this%is_cut() ) then
+    num_subfacets = this%get_num_subfacets()
+    call this%unfitted_integration_manager%num_unfitted_sub_facets_to_pos%get(key=num_subfacets,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
+    cell_int => this%unfitted_integration_manager%cut_boundary_cell_integrators(ipos,field_id)
+  else
+    cell_int => this%unfitted_integration_manager%empty_cell_integrator(field_id)
+  end if
+end function unfitted_fe_cell_iterator_get_boundary_cell_integrator
+
+!=============================================================================================
+subroutine unfitted_fe_cell_iterator_update_integration( this )
+
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(inout) :: this
+
+  integer(ip) :: field_id
+  type(point_t)            , pointer :: coordinates(:)
+  type(cell_map_t)           , pointer :: cell_map
+  type(quadrature_t)       , pointer :: quadrature
+  type(cell_integrator_t), pointer :: cell_integrator
+  
+  assert(this%is_local())
+  
+  if ( .not. this%is_cut() ) then
+    call this%fe_cell_iterator_t%update_integration()
+  else 
+    call this%update_sub_triangulation()
+    call this%update_cell_map()
+    call this%update_cell_integrators()
+
+    call this%update_cut_quadratures()
+    call this%update_cut_cell_maps()
+    call this%update_cut_cell_integrators()
+  
+    cell_map => this%get_cell_map()
+    coordinates => cell_map%get_coordinates()
+    call this%get_nodes_coordinates(coordinates)
+
+    quadrature => this%get_quadrature()
+    call cell_map%update(quadrature)
+    do field_id = 1, this%get_num_fields()
+       cell_integrator => this%get_cell_integrator(field_id)
+       call cell_integrator%update(cell_map)
+    end do
+  end if
+end subroutine unfitted_fe_cell_iterator_update_integration
+
+!=============================================================================================
+subroutine unfitted_fe_cell_iterator_update_boundary_integration( this )
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(inout) :: this
+  assert(this%is_local())
+  call this%update_sub_triangulation()
+  call this%update_cut_boundary_quadratures()
+  call this%update_cut_boundary_cell_maps()
+  call this%update_cut_boundary_cell_integrators()
+end subroutine unfitted_fe_cell_iterator_update_boundary_integration
+
+!=============================================================================================
+subroutine unfitted_fe_cell_iterator_update_cut_quadratures( this )
+
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(inout) :: this
+
+  type(quadrature_t), pointer :: quadrature
+  real(rp),           pointer :: quadrature_points_coordinates(:,:)
+  real(rp),           pointer :: quadrature_weights(:)
+  integer(ip)                 :: num_gp, igp, num_dim
+  type(quadrature_t), pointer :: quadrature_subelem
+  real(rp),           pointer :: quadrature_weights_subelem(:)
+  integer(ip)                 :: num_gp_subelem, igp_subelem, num_dim_subelem
+  type(cell_map_t),     pointer :: cell_map_subelem
+  type(point_t),      pointer :: nodal_coords_subelem(:)
+  type(point_t),      pointer :: mapped_quadrature_coords_subelem(:)
+  integer(ip)                 :: subcell, idi
+  real(rp)                    :: coef, dV_subelem
+
+  assert(this%is_local())
+  assert(this%is_cut())
+
+  ! Recover info about the quadrature of the current element
+  quadrature => this%get_quadrature()
+  quadrature_points_coordinates => quadrature%get_coordinates()
+  quadrature_weights     => quadrature%get_weights()
+  num_gp                 =  quadrature%get_num_quadrature_points()
+  num_dim                =  quadrature%get_num_dims()
+
+  ! Recover info about the quadrature of the sub-element
+  quadrature_subelem => this%unfitted_integration_manager%quadrature_subelem
+  quadrature_weights_subelem     => quadrature_subelem%get_weights()
+  num_gp_subelem                 =  quadrature_subelem%get_num_quadrature_points()
+  num_dim_subelem                =  quadrature_subelem%get_num_dims()
+
+  ! Check that both quadratures are compatible in size
+  assert( num_dim == num_dim_subelem )
+  assert( num_gp  == num_gp_subelem*this%get_num_subcells() )
+
+  ! Recover the fe map between the reference sub-element and the reference element
+  cell_map_subelem                   => this%unfitted_integration_manager%cell_map_subelem
+  nodal_coords_subelem             => cell_map_subelem%get_coordinates()
+  mapped_quadrature_coords_subelem => cell_map_subelem%get_quadrature_points_coordinates()
+
+  ! Compute modified quadrature for the element
+  igp = 1
+  do subcell = 1, this%get_num_subcells()
+
+    ! Take the coordinates of the sub-element in the ref space of the element
+    call this%get_ref_coords_of_subcell( subcell, nodal_coords_subelem )
+
+    ! Compute the Jacobian of the mapping between the ref sub-element and ref element
+    call cell_map_subelem%update( quadrature_subelem )
+
+    ! Determine if the current sub-cell is interior or exterior
+    ! TODO this way of discarding the exterior sub-cells can be improved
+    ! (i.e. doing the loop, and allocating data only for interior sub-cells )
+    if ( this%is_interior_subcell(subcell) ) then
+      coef = 1.0_rp
+    else if ( this%is_exterior_subcell(subcell) ) then
+      coef = 0.0_rp
+    else
+      check(.false.)
+    end if
+
+    do igp_subelem = 1, num_gp_subelem
+
+      ! Correct the weights
+      dV_subelem = cell_map_subelem%get_det_jacobian(igp_subelem)
+      assert(dV_subelem>0.0_rp .or. abs(dV_subelem)<1.0e-10_rp)
+      quadrature_weights(igp) = coef*dV_subelem*quadrature_weights_subelem(igp_subelem)
+
+      ! Map the coordinates
+      do idi = 1, num_dim
+        quadrature_points_coordinates(idi,igp) = mapped_quadrature_coords_subelem(igp_subelem)%get(idi)
+      end do
+
+      igp = igp + 1
+    end do
+
+    end do
+
+end subroutine unfitted_fe_cell_iterator_update_cut_quadratures
+
+!=============================================================================================
+subroutine unfitted_fe_cell_iterator_update_cut_cell_maps( this )
+
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(inout) :: this
+
+  type(quadrature_t), pointer :: quadrature
+  type(cell_map_t), pointer :: cell_map
+  class(reference_fe_t), pointer :: geo_reference_elem
+  assert(this%is_local())
+  assert(this%is_cut())
+  cell_map => this%get_cell_map()
+  quadrature => this%get_quadrature()
+  geo_reference_elem => this%get_reference_fe_geo()
+  call cell_map%update_interpolation( quadrature, geo_reference_elem )
+end subroutine unfitted_fe_cell_iterator_update_cut_cell_maps
+
+!=============================================================================================
+subroutine unfitted_fe_cell_iterator_update_cut_cell_integrators( this )
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(inout) :: this
+
+  type(quadrature_t), pointer :: quadrature
+  type(cell_integrator_t), pointer :: cell_integrator
+  integer(ip) :: field_id
+
+  assert(this%is_local())
+  assert(this%is_cut())
+  quadrature => this%get_quadrature()
+  do field_id = 1, this%get_num_fields()
+    cell_integrator => this%get_cell_integrator(field_id)
+    call cell_integrator%update_interpolation( quadrature )
+  end do
+
+end subroutine unfitted_fe_cell_iterator_update_cut_cell_integrators
+
+!=============================================================================================
+subroutine unfitted_fe_cell_iterator_update_cut_boundary_quadratures( this )
+
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(inout) :: this
+
+  type(point_t), pointer :: nodal_coords(:), quad_coords(:)
+  type(piecewise_cell_map_t), pointer :: pw_cell_map
+  integer(ip) :: subfacet, nini, nend, idi, igp
+  real(rp), pointer :: quad_coords_aux(:,:)
+  type(quadrature_t), pointer :: quad
+
+  assert(this%is_local())
+  quad => this%get_boundary_quadrature()
+  pw_cell_map => this%get_boundary_piecewise_cell_map()
+  nodal_coords => pw_cell_map%get_coordinates()
+
+  ! Set the nodal coordinates of the piecewise map for each subfacet (in the ref space of the cell)
+  do subfacet = 1, this%get_num_subfacets()
+    nend = subfacet * this%get_num_subfacet_nodes()
+    nini = nend    - this%get_num_subfacet_nodes() + 1
+    call this%get_ref_coords_of_subfacet( subfacet, nodal_coords(nini:nend) )
+  end do
+
+  ! Compute coordinates
+  call pw_cell_map%compute_quadrature_points_coordinates()
+
+  ! Extract the coordinates and store them inside the quadrature
+  quad_coords => pw_cell_map%get_quadrature_points_coordinates()
+  quad_coords_aux => quad%get_coordinates()
+  ! TODO its a nightmare that the quadrature does not work with point_t!
+  do idi = 1, quad%get_num_dims()
+    do igp = 1, quad%get_num_quadrature_points()
+      quad_coords_aux(idi,igp) = quad_coords(igp)%get(idi)
+    end do
+  end do
+
+  ! At this point quad contains the coordinates of the sub-faces gauss points in the ref space of the cell
+
+end subroutine unfitted_fe_cell_iterator_update_cut_boundary_quadratures
+
+!=============================================================================================
+subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_maps( this )
+
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(inout) :: this
+
+  type(point_t), pointer :: nodal_coords(:)
+  type(piecewise_cell_map_t), pointer :: pw_cell_map
+  integer(ip) :: subfacet, nini, nend
+
+  assert(this%is_local())
+  pw_cell_map => this%get_boundary_piecewise_cell_map()
+  nodal_coords => pw_cell_map%get_coordinates()
+
+  ! Set the nodal coordinates of the piecewise map for each subfacet (in the phys space of the cell)
+  do subfacet = 1, this%get_num_subfacets()
+    nend = subfacet * this%get_num_subfacet_nodes()
+    nini = nend    - this%get_num_subfacet_nodes() + 1
+    call this%get_phys_coords_of_subfacet( subfacet, nodal_coords(nini:nend) )
+  end do
+
+  ! Update the piecewise fe map
+  call pw_cell_map%update_facet_map(this%unfitted_integration_manager%quadrature_subfacet)
+
+  ! At this point the piecewise fe map contains the det_jacobian, coordinates of quad points on phys space and the normals
+
+end subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_maps
+
+!=============================================================================================
+subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators( this )
+
+  implicit none
+  class(unfitted_fe_cell_iterator_t), intent(inout) :: this
+
+  type(quadrature_t), pointer :: quad
+  type(cell_map_t), pointer :: cell_map
+  type(cell_integrator_t), pointer :: cell_int
+  class  (reference_fe_t), pointer  :: reference_fe_geometry
+  integer(ip) :: field_id
+  type(point_t), pointer :: coordinates(:)
+
+  assert(this%is_local())
+  quad => this%get_boundary_quadrature()
+  cell_map => this%get_boundary_cell_map()
+  reference_fe_geometry => this%get_reference_fe_geo()
+
+  ! The quadrature points have changed.
+  ! Update the interior interpolation of fe map and cell integrators
+  call cell_map%update_interpolation( quad, reference_fe_geometry )
+  do field_id = 1, this%get_num_fields()
+    cell_int => this%get_boundary_cell_integrator(field_id)
+    call cell_int%update_interpolation( quad )
+  end do
+
+  ! Set the coordinates of the fe map for the current physical cell
+  coordinates => cell_map%get_coordinates()
+  call this%get_nodes_coordinates(coordinates)
+
+  ! Compute the jacobian and co
+  call cell_map%update( quad )
+
+  ! Compute shape function derivatives 
+  do field_id = 1, this%get_num_fields()
+    cell_int => this%get_boundary_cell_integrator(field_id)
+     call cell_int%update(cell_map)
+  end do
+
+  ! At this point we can extract info about shape function from the cell integrator
+
+end subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators
+
+

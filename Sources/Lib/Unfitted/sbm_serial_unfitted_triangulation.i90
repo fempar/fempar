@@ -1,0 +1,180 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!========================================================================================
+subroutine sut_create(this, parameters, level_set_function)
+  implicit none
+  class(serial_unfitted_triangulation_t), target, intent(inout) :: this
+  type(ParameterList_t)                         , intent(inout) :: parameters
+  class(level_set_function_t),            target, intent(in)    :: level_set_function
+  call this%free()
+  call this%serial_triangulation_t%create(parameters)
+  call this%marching_cubes%create(this, level_set_function)
+end subroutine sut_create
+
+!========================================================================================
+subroutine sut_free(this)
+  implicit none
+  class(serial_unfitted_triangulation_t), target, intent(inout) :: this
+  call this%serial_triangulation_t%free()
+  call this%marching_cubes%free()
+end subroutine sut_free
+
+!========================================================================================
+subroutine sut_serial_triangulation_create( this, parameters)
+  implicit none
+  class(serial_unfitted_triangulation_t), target, intent(inout) :: this
+  type(ParameterList_t)             , intent(inout) :: parameters
+  check(.false.)
+end subroutine sut_serial_triangulation_create
+
+!========================================================================================
+subroutine sut_create_cell_iterator ( this, cell )
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(cell_iterator_t), allocatable, intent(inout) :: cell
+  integer(ip) :: istat
+  call this%free_cell_iterator(cell)
+  allocate(unfitted_cell_iterator_t :: cell, stat=istat); check(istat==0)
+  call cell%create(this)
+end subroutine sut_create_cell_iterator
+
+!========================================================================================
+subroutine sut_create_vef_iterator ( this, vef )
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  class(vef_iterator_t), allocatable, intent(inout) :: vef
+  integer(ip) :: istat
+  call this%free_vef_iterator(vef)
+  allocate(unfitted_vef_iterator_t :: vef, stat=istat); check(istat==0)
+  call vef%create(this)
+end subroutine sut_create_vef_iterator
+
+!========================================================================================
+function sut_get_marching_cubes(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), target, intent(in)    :: this
+  class(marching_cubes_t), pointer :: val
+  val => this%marching_cubes
+end function sut_get_marching_cubes
+
+!========================================================================================
+function sut_get_num_cut_cells(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_num_cut_cells()
+end function sut_get_num_cut_cells
+
+!========================================================================================
+function sut_get_num_interior_cells(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_num_interior_cells()
+end function sut_get_num_interior_cells
+
+!========================================================================================
+function sut_get_num_exterior_cells(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_num_exterior_cells()
+end function sut_get_num_exterior_cells
+
+!========================================================================================
+function sut_get_max_num_subcells_in_cell(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_max_num_subcells_in_cell()
+end function sut_get_max_num_subcells_in_cell
+
+!========================================================================================
+function sut_get_max_num_nodes_in_subcell(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_max_num_nodes_in_subcell()
+end function sut_get_max_num_nodes_in_subcell
+
+!========================================================================================
+function sut_get_total_num_subcells(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_total_num_subcells()
+end function sut_get_total_num_subcells
+
+!========================================================================================
+function sut_get_max_num_subfacets_in_cell(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_max_num_subfacets_in_cell()
+end function sut_get_max_num_subfacets_in_cell
+
+!========================================================================================
+function sut_get_max_num_nodes_in_subfacet(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_max_num_nodes_in_subfacet()
+end function sut_get_max_num_nodes_in_subfacet
+
+!========================================================================================
+function sut_get_total_num_subfacets(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_total_num_subfacets()
+end function sut_get_total_num_subfacets
+
+!========================================================================================
+function sut_get_total_num_fitted_sub_facets(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_total_num_fitted_sub_facets()
+end function sut_get_total_num_fitted_sub_facets
+
+!========================================================================================
+function sut_get_max_num_subnodes_in_cell(this) result (val)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  integer(ip) :: val
+  val = this%marching_cubes%get_max_num_subnodes_in_cell()
+end function sut_get_max_num_subnodes_in_cell
+
+!========================================================================================
+subroutine sut_print(this)
+  implicit none
+  class(serial_unfitted_triangulation_t), intent(in)    :: this
+  call this%marching_cubes%print()
+end subroutine sut_print
+

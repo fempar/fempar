@@ -25,15 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine quadrature_create ( this, number_dimensions, number_quadrature_points ) 
+subroutine quadrature_create ( this, num_dims, num_quadrature_points ) 
   implicit none       
   class(quadrature_t), intent(inout) :: this
-  integer(ip)           , intent(in)    :: number_dimensions, number_quadrature_points
+  integer(ip)           , intent(in)    :: num_dims, num_quadrature_points
   call this%free()
-  this%number_dimensions = number_dimensions
-  this%number_quadrature_points = number_quadrature_points
-  call memalloc(SPACE_DIM,number_quadrature_points,this%coordinates,__FILE__,__LINE__)
-  call memalloc(number_quadrature_points,this%weight,__FILE__,__LINE__)
+  this%num_dims = num_dims
+  this%num_quadrature_points = num_quadrature_points
+  call memalloc(SPACE_DIM,num_quadrature_points,this%coordinates,__FILE__,__LINE__)
+  call memalloc(num_quadrature_points,this%weight,__FILE__,__LINE__)
   this%coordinates=0.0_rp
   this%weight=0.0_rp
 end subroutine quadrature_create
@@ -41,8 +41,8 @@ end subroutine quadrature_create
 subroutine quadrature_free ( this)
   implicit none       
   class(quadrature_t), intent(inout) :: this
-  this%number_dimensions = 0
-  this%number_quadrature_points = 0
+  this%num_dims = 0
+  this%num_quadrature_points = 0
   if(allocated(this%coordinates)) call memfree(this%coordinates,__FILE__,__LINE__)
   if(allocated(this%weight)) call memfree(this%weight,__FILE__,__LINE__)
 end subroutine quadrature_free
@@ -50,25 +50,25 @@ end subroutine quadrature_free
 subroutine quadrature_print ( this )
   implicit none
   class(quadrature_t), intent(in) :: this
-  write(*,*) 'number_dimensions: ', this%number_dimensions
-  write(*,*) 'number_quadrature_points: ', this%number_quadrature_points
+  write(*,*) 'num_dims: ', this%num_dims
+  write(*,*) 'num_quadrature_points: ', this%num_quadrature_points
   write(*,*) 'coordinates: ', this%coordinates
   write(*,*) 'weight: ', this%weight
 end subroutine quadrature_print
 
-function quadrature_get_number_dimensions ( this )
+function quadrature_get_num_dims ( this )
   implicit none
   class(quadrature_t), intent(in) :: this
-  integer(ip) :: quadrature_get_number_dimensions
-  quadrature_get_number_dimensions = this%number_dimensions
-end function quadrature_get_number_dimensions
+  integer(ip) :: quadrature_get_num_dims
+  quadrature_get_num_dims = this%num_dims
+end function quadrature_get_num_dims
 
-function quadrature_get_number_quadrature_points ( this )
+function quadrature_get_num_quadrature_points ( this )
   implicit none
   class(quadrature_t), intent(in) :: this
-  integer(ip) :: quadrature_get_number_quadrature_points
-  quadrature_get_number_quadrature_points = this%number_quadrature_points
-end function quadrature_get_number_quadrature_points
+  integer(ip) :: quadrature_get_num_quadrature_points
+  quadrature_get_num_quadrature_points = this%num_quadrature_points
+end function quadrature_get_num_quadrature_points
 
 function quadrature_get_coordinates ( this )
   implicit none
@@ -77,6 +77,20 @@ function quadrature_get_coordinates ( this )
   quadrature_get_coordinates => this%coordinates
 end function quadrature_get_coordinates
 
+subroutine quadrature_get_coordinates_as_points ( this, points )
+  implicit none
+  class(quadrature_t), intent(in)    :: this
+  type(point_t), intent(inout) :: points(:)
+  integer(ip) :: ipo, idi
+  assert( size(points) == this%num_quadrature_points )
+  do ipo = 1, this%num_quadrature_points
+    call points(ipo)%init(0.0_rp)
+    do idi = 1, this%num_dims
+     call points(ipo)%set( idi, this%coordinates(idi,ipo) )
+    end do
+  end do  
+end subroutine quadrature_get_coordinates_as_points
+
 function quadrature_get_weight ( this, i )
   implicit none
   class(quadrature_t), intent(in) :: this
@@ -84,6 +98,13 @@ function quadrature_get_weight ( this, i )
   real(rp) :: quadrature_get_weight
   quadrature_get_weight = this%weight(i)
 end function quadrature_get_weight
+
+function quadrature_get_weights ( this )
+  implicit none
+  class(quadrature_t), target, intent(in) :: this
+  real(rp), pointer :: quadrature_get_weights(:)
+  quadrature_get_weights => this%weight
+end function quadrature_get_weights
 
 ! function quadrature_get_pointer_coordinates ( this )
 !   implicit none
@@ -115,3 +136,1211 @@ subroutine p_quadrature_free ( this)
      nullify(this%p)
   end if   
 end subroutine p_quadrature_free
+
+subroutine quadrature_fill_tet_gauss_legendre ( this ) 
+  !-----------------------------------------------------------------------
+  ! 
+  !     This routine sets up the integration constants of open rules for
+  !     triangles and tetrahedra mapping hexahedra quadratures.
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  class(quadrature_t), intent(inout) :: this
+
+  if (get_from_hex(this)) then
+     call this%fill_hex_gauss_legendre()
+     if (this%num_dims==1) then
+        ! x' = (x+1)/2
+        this%coordinates(1,:) = (this%coordinates(1,:)+1.0_rp) / 2.0_rp        
+        ! w' = w/2
+        this%weight = this%weight / 2.0_rp
+     elseif (this%num_dims==2) then
+        ! x' = (x+1)/2
+        this%coordinates(1,:) = (this%coordinates(1,:)+1.0_rp) / 2.0_rp
+        ! y' = (1-x')(y+1)/2
+        this%coordinates(2,:) = (1.0_rp - this%coordinates(1,:)) * &
+             ((1.0_rp + this%coordinates(2,:)) / 2.0_rp)
+        ! w' = (1-x')/4
+        this%weight = (1.0_rp - this%coordinates(1,:)) /4.0_rp * &
+             this%weight
+
+     elseif (this%num_dims==3) then
+        ! x' = (x+1)/2
+        this%coordinates(1,:) = (this%coordinates(1,:)+1.0_rp) / 2.0_rp
+        ! y' = (1-x')(y+1)/2
+        this%coordinates(2,:) = (1.0_rp - this%coordinates(1,:)) * &
+             ((1.0_rp + this%coordinates(2,:)) / 2.0_rp)
+        ! z' = (1-x'-y')(z+1)/2
+        this%coordinates(3,:) = (1.0_rp - this%coordinates(1,:)    &
+             - this%coordinates(2,:)) * &
+             ((1.0_rp + this%coordinates(3,:)) / 2.0_rp)
+        ! w' = ((1-x')^2+y'(x'-1))/8
+        this%weight = ((1.0_rp - this%coordinates(1,:))**2.0_rp + &
+             this%coordinates(2,:)*(this%coordinates(1,:) - 1.0_rp)) / 8.0_rp * &
+             this%weight
+     end if
+  else 
+     call this%fill_tet_gauss_legendre_hard_coded() 
+  end if
+end subroutine quadrature_fill_tet_gauss_legendre
+
+! Change this functions if new hard-coded Gauss quadratures for tet are implemeted.
+function get_from_hex(this)
+  implicit none
+  type(quadrature_t), intent(in) :: this
+  logical :: get_from_hex
+  get_from_hex = .true.
+  if ((this%num_dims.eq.2).and.(this%num_quadrature_points.lt.29)) then
+     get_from_hex = .false.
+  elseif ((this%num_dims.eq.3).and.(this%num_quadrature_points.lt.12)) then
+     get_from_hex = .false.
+  end if
+end function get_from_hex
+
+subroutine quadrature_fill_tet_gauss_legendre_symmetric_hard_coded ( this ) 
+  !-----------------------------------------------------------------------
+  ! 
+  !     This routine sets up the integration constants of open rules for
+  !     triangles and tetrahedra
+  ! 
+  !             NDIME = 2             NDIME = 3
+  ! 
+  !          NGAUS  EXACT POL.     NGAUS  EXACT POL. 
+  !          -----  ----------     -----  ----------
+  !            1       p1            1       p1
+  !            3       p2            4       p2
+  !            4       p3            5       p3
+  !            6       p4           11       p4
+  !            7       p5           14       p5
+  !           13       p7
+  !           19       p9
+  !           28       p11
+  !
+  !-----------------------------------------------------------------------
+  implicit none
+  class(quadrature_t), intent(inout) :: this
+  real(rp)    :: a,b,c,d,e,f,g,h,p,q,r,s,t,u,v,w,x,y,z
+  real(rp)    :: w1,w2,w3,w4,w5,w6,w7,w8
+  real(rp)    :: ex1,et1,ez1,ex2,et2,ez2
+  integer(ip) :: ndime,ngaus
+
+  ndime = this%num_dims
+  ngaus = this%num_quadrature_points
+
+  ! Line integral (the same as for brick elements)
+  if(ndime==1) then
+     if(ngaus==1) then
+        this%coordinates(1,1)=0.5_rp
+        this%weight(  1)=1.0_rp
+     else if(ngaus==2) then
+        this%coordinates(1,1)= 0.211324865405187_rp
+        this%coordinates(1,2)= 0.788675134594813_rp
+        this%weight(  1)= 0.5_rp
+        this%weight(  2)= 0.5_rp
+     else if(ngaus==3) then
+        this%coordinates(1,1)= 0.112701665379258_rp
+        this%coordinates(1,2)= 0.5_rp
+        this%coordinates(1,3)= 0.887298334620742_rp
+        this%weight(  1)= 0.277777777777778_rp
+        this%weight(  2)= 0.444444444444444_rp
+        this%weight(  3)= 0.277777777777778_rp
+     else
+        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
+        check(.false.)
+     end if
+
+     ! Area integral (triangles)
+  else if(ndime==2) then
+     if(ngaus==1) then
+        this%coordinates(1,1)= 1.0_rp/3.0_rp
+        this%coordinates(2,1)= 1.0_rp/3.0_rp
+        this%weight(  1)= 1.0_rp/2.0_rp
+     else if(ngaus==3) then
+        this%coordinates(1,2)= 2.0_rp/3.0_rp
+        this%coordinates(2,2)= 1.0_rp/6.0_rp
+        this%coordinates(1,3)= 1.0_rp/6.0_rp
+        this%coordinates(2,3)= 2.0_rp/3.0_rp
+        this%coordinates(1,1)= 1.0_rp/6.0_rp
+        this%coordinates(2,1)= 1.0_rp/6.0_rp
+        this%weight(  2)= 1.0_rp/6.0_rp
+        this%weight(  3)= 1.0_rp/6.0_rp
+        this%weight(  1)= 1.0_rp/6.0_rp
+     else if(ngaus==4) then
+        this%coordinates(1,1)= 1.0_rp/3.0_rp
+        this%coordinates(2,1)= 1.0_rp/3.0_rp
+        this%coordinates(1,2)= 1.0_rp/5.0_rp
+        this%coordinates(2,2)= 1.0_rp/5.0_rp
+        this%coordinates(1,3)= 3.0_rp/5.0_rp
+        this%coordinates(2,3)= 1.0_rp/5.0_rp
+        this%coordinates(1,4)= 1.0_rp/5.0_rp
+        this%coordinates(2,4)= 3.0_rp/5.0_rp
+        this%weight(  1)=-27.0_rp/96.0_rp
+        this%weight(  2)= 25.0_rp/96.0_rp
+        this%weight(  3)= 25.0_rp/96.0_rp
+        this%weight(  4)= 25.0_rp/96.0_rp 
+     else if(ngaus==6) then
+        ex1 = 0.816847572980459_rp
+        et1 = 0.091576213509771_rp
+        ez1 = 0.091576213509771_rp
+        ex2 = 0.108103018168070_rp
+        et2 = 0.445948490915965_rp
+        ez2 = 0.445948490915965_rp
+        this%coordinates(1,3)= ex1
+        this%coordinates(2,3)= et1
+        this%coordinates(1,1)= et1
+        this%coordinates(2,1)= ez1
+        this%coordinates(1,6)= ez1
+        this%coordinates(2,6)= ex1
+        this%coordinates(1,4)= ex2
+        this%coordinates(2,4)= et2
+        this%coordinates(1,5)= et2
+        this%coordinates(2,5)= ez2
+        this%coordinates(1,2)= ez2
+        this%coordinates(2,2)= ex2
+        a = 0.054975870996713638_rp
+        b = 0.1116907969117165_rp    
+        this%weight(3)  = a
+        this%weight(1)  = a
+        this%weight(6)  = a
+        this%weight(4)  = b
+        this%weight(5)  = b
+        this%weight(2)  = b
+     else if(ngaus==7) then
+        a = 1.0_rp / 3.0_rp
+        b = ( 9.0_rp + 2.0_rp * sqrt ( 15.0_rp ) ) / 21.0_rp
+        c = ( 6.0_rp -          sqrt ( 15.0_rp ) ) / 21.0_rp
+        d = ( 9.0_rp - 2.0_rp * sqrt ( 15.0_rp ) ) / 21.0_rp
+        e = ( 6.0_rp +          sqrt ( 15.0_rp ) ) / 21.0_rp
+        w1 = 0.1125_rp
+        w2 = ( 155.0_rp - sqrt ( 15.0_rp ) ) / 2400.0_rp
+        w3 = ( 155.0_rp + sqrt ( 15.0_rp ) ) / 2400.0_rp
+        this%coordinates(1,1)= a
+        this%coordinates(2,1)= a
+        this%coordinates(1,2)= b
+        this%coordinates(2,2)= c
+        this%coordinates(1,3)= c
+        this%coordinates(2,3)= b
+        this%coordinates(1,4)= c
+        this%coordinates(2,4)= c
+        this%coordinates(1,5)= d
+        this%coordinates(2,5)= e
+        this%coordinates(1,6)= e
+        this%coordinates(2,6)= d
+        this%coordinates(1,7)= e
+        this%coordinates(2,7)= e
+        this%weight(  1)= w1
+        this%weight(  2)= w2
+        this%weight(  3)= w2
+        this%weight(  4)= w2
+        this%weight(  5)= w3
+        this%weight(  6)= w3
+        this%weight(  7)= w3
+     else if(ngaus==13) then
+        a = 0.333333333333333_rp
+        b = 0.479308067841923_rp
+        c = 0.869739794195568_rp
+        d = 0.638444188569809_rp
+        e = 0.260345966079038_rp
+        f = 0.065130102902216_rp
+        g = 0.312865496004875_rp
+        h = 0.048690315425316_rp
+        w1=-0.149570044467670_rp/2.0_rp
+        w2= 0.175615257433204_rp/2.0_rp
+        w3= 0.053347235608839_rp/2.0_rp
+        w4= 0.077113760890257_rp/2.0_rp
+        this%coordinates(1, 1)= a
+        this%coordinates(2, 1)= a         
+        this%coordinates(1, 2)= e
+        this%coordinates(2, 2)= e
+        this%coordinates(1, 3)= b
+        this%coordinates(2, 3)= e        
+        this%coordinates(1, 4)= e
+        this%coordinates(2, 4)= b        
+        this%coordinates(1, 5)= f
+        this%coordinates(2, 5)= f        
+        this%coordinates(1, 6)= c
+        this%coordinates(2, 6)= f        
+        this%coordinates(1, 7)= f
+        this%coordinates(2, 7)= c        
+        this%coordinates(1, 8)= d
+        this%coordinates(2, 8)= g        
+        this%coordinates(1, 9)= d
+        this%coordinates(2, 9)= h        
+        this%coordinates(1,10)= g
+        this%coordinates(2,10)= d        
+        this%coordinates(1,11)= g
+        this%coordinates(2,11)= h        
+        this%coordinates(1,12)= h
+        this%coordinates(2,12)= d        
+        this%coordinates(1,13)= h
+        this%coordinates(2,13)= g
+        this%weight( 1) = w1
+        this%weight( 2) = w2
+        this%weight( 3) = w2
+        this%weight( 4) = w2
+        this%weight( 5) = w3
+        this%weight( 6) = w3
+        this%weight( 7) = w3
+        this%weight( 8) = w4
+        this%weight( 9) = w4
+        this%weight(10) = w4
+        this%weight(11) = w4
+        this%weight(12) = w4
+        this%weight(13) = w4
+     else if(ngaus==19) then
+        a = 1.0_rp / 3.0_rp
+        b = 0.02063496160252593_rp
+        c = 0.4896825191987370_rp
+        d = 0.1258208170141290_rp
+        e = 0.4370895914929355_rp
+        f = 0.6235929287619356_rp
+        g = 0.1882035356190322_rp
+        r = 0.9105409732110941_rp
+        s = 0.04472951339445297_rp
+        t = 0.7411985987844980_rp
+        u = 0.03683841205473626_rp
+        v = 0.22196298916076573_rp
+
+        w1 = 0.09713579628279610_rp/2.0_rp
+        w2 = 0.03133470022713983_rp/2.0_rp
+        w3 = 0.07782754100477543_rp/2.0_rp
+        w4 = 0.07964773892720910_rp/2.0_rp
+        w5 = 0.02557767565869810_rp/2.0_rp
+        w6 = 0.04328353937728940_rp/2.0_rp
+
+        this%coordinates(1, 1) = a 
+        this%coordinates(1, 2) = b
+        this%coordinates(1, 3) = c 
+        this%coordinates(1, 4) = c 
+        this%coordinates(1, 5) = d 
+        this%coordinates(1, 6) = e
+        this%coordinates(1, 7) = e
+        this%coordinates(1, 8) = f 
+        this%coordinates(1, 9) = g 
+        this%coordinates(1,10) = g
+        this%coordinates(1,11) = r
+        this%coordinates(1,12) = s
+        this%coordinates(1,13) = s
+        this%coordinates(1,14) = t
+        this%coordinates(1,15) = t
+        this%coordinates(1,16) = u
+        this%coordinates(1,17) = u
+        this%coordinates(1,18) = v
+        this%coordinates(1,19) = v
+
+        this%coordinates(2, 1) = a
+        this%coordinates(2, 2) = c
+        this%coordinates(2, 3) = b
+        this%coordinates(2, 4) = c
+        this%coordinates(2, 5) = e
+        this%coordinates(2, 6) = d
+        this%coordinates(2, 7) = e
+        this%coordinates(2, 8) = g
+        this%coordinates(2, 9) = f
+        this%coordinates(2,10) = g
+        this%coordinates(2,11) = s
+        this%coordinates(2,12) = r
+        this%coordinates(2,13) = s
+        this%coordinates(2,14) = u
+        this%coordinates(2,15) = v
+        this%coordinates(2,16) = t
+        this%coordinates(2,17) = v
+        this%coordinates(2,18) = t
+        this%coordinates(2,19) = u
+
+        this%weight( 1) = w1
+        this%weight( 2) = w2
+        this%weight( 3) = w2
+        this%weight( 4) = w2
+        this%weight( 5) = w3
+        this%weight( 6) = w3
+        this%weight( 7) = w3
+        this%weight( 8) = w4
+        this%weight( 9) = w4
+        this%weight(10) = w4
+        this%weight(11) = w5
+        this%weight(12) = w5
+        this%weight(13) = w5
+        this%weight(14) = w6
+        this%weight(15) = w6
+        this%weight(16) = w6
+        this%weight(17) = w6
+        this%weight(18) = w6
+        this%weight(19) = w6
+     else if(ngaus==28) then
+        a = 1.0_rp / 3.0_rp
+        b = 0.9480217181434233_rp
+        c = 0.02598914092828833_rp
+        d = 0.8114249947041546_rp
+        e = 0.09428750264792270_rp
+        f = 0.01072644996557060_rp
+        g = 0.4946367750172147_rp
+        p = 0.5853132347709715_rp
+        q = 0.2073433826145142_rp
+        r = 0.1221843885990187_rp
+        s = 0.4389078057004907_rp
+        t = 0.6779376548825902_rp
+        u = 0.04484167758913055_rp
+        v = 0.27722066752827925_rp
+        w = 0.8588702812826364_rp
+        x = 0.0_rp
+        y = 0.1411297187173636_rp
+
+        w1 = 0.08797730116222190_rp/2.0_rp
+        w2 = 0.008744311553736190_rp/2.0_rp
+        w3 = 0.03808157199393533_rp/2.0_rp
+        w4 = 0.01885544805613125_rp/2.0_rp
+        w5 = 0.07215969754474100_rp/2.0_rp
+        w6 = 0.06932913870553720_rp/2.0_rp
+        w7 = 0.04105631542928860_rp/2.0_rp
+        w8 = 0.007362383783300573_rp/2.0_rp
+
+        this%coordinates(1, 1) = a  
+        this%coordinates(1, 2) = b  
+        this%coordinates(1, 3) = c  
+        this%coordinates(1, 4) = c  
+        this%coordinates(1, 5) = d  
+        this%coordinates(1, 6) = e  
+        this%coordinates(1, 7) = e  
+        this%coordinates(1, 8) = f  
+        this%coordinates(1, 9) = g
+        this%coordinates(1,10) = g
+        this%coordinates(1,11) = p 
+        this%coordinates(1,12) = q 
+        this%coordinates(1,13) = q
+        this%coordinates(1,14) = r 
+        this%coordinates(1,15) = s 
+        this%coordinates(1,16) = s 
+        this%coordinates(1,17) = t 
+        this%coordinates(1,18) = t 
+        this%coordinates(1,19) = u 
+        this%coordinates(1,20) = u 
+        this%coordinates(1,21) = v 
+        this%coordinates(1,22) = v 
+        this%coordinates(1,23) = w 
+        this%coordinates(1,24) = w 
+        this%coordinates(1,25) = x 
+        this%coordinates(1,26) = x 
+        this%coordinates(1,27) = y 
+        this%coordinates(1,28) = y
+
+        this%coordinates(2, 1) = a  
+        this%coordinates(2, 2) = c  
+        this%coordinates(2, 3) = b  
+        this%coordinates(2, 4) = c  
+        this%coordinates(2, 5) = e  
+        this%coordinates(2, 6) = d  
+        this%coordinates(2, 7) = e  
+        this%coordinates(2, 8) = g  
+        this%coordinates(2, 9) = f  
+        this%coordinates(2,10) = g  
+        this%coordinates(2,11) = q  
+        this%coordinates(2,12) = p  
+        this%coordinates(2,13) = q
+        this%coordinates(2,14) = s  
+        this%coordinates(2,15) = r  
+        this%coordinates(2,16) = s  
+        this%coordinates(2,17) = u  
+        this%coordinates(2,18) = v  
+        this%coordinates(2,19) = t  
+        this%coordinates(2,20) = v  
+        this%coordinates(2,21) = t  
+        this%coordinates(2,22) = u  
+        this%coordinates(2,23) = x  
+        this%coordinates(2,24) = y  
+        this%coordinates(2,25) = w  
+        this%coordinates(2,26) = y  
+        this%coordinates(2,27) = w  
+        this%coordinates(2,28) = x
+
+        this%weight( 1) = w1 
+        this%weight( 2) = w2
+        this%weight( 3) = w2 
+        this%weight( 4) = w2 
+        this%weight( 5) = w3 
+        this%weight( 6) = w3 
+        this%weight( 7) = w3 
+        this%weight( 8) = w4 
+        this%weight( 9) = w4 
+        this%weight(10) = w4 
+        this%weight(11) = w5 
+        this%weight(12) = w5 
+        this%weight(13) = w5
+        this%weight(14) = w6 
+        this%weight(15) = w6 
+        this%weight(16) = w6 
+        this%weight(17) = w7 
+        this%weight(18) = w7 
+        this%weight(19) = w7 
+        this%weight(20) = w7 
+        this%weight(21) = w7 
+        this%weight(22) = w7 
+        this%weight(23) = w8 
+        this%weight(24) = w8 
+        this%weight(25) = w8 
+        this%weight(26) = w8 
+        this%weight(27) = w8 
+        this%weight(28) = w8
+     else
+        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
+        check(.false.)
+     end if
+
+     ! Volume integral ( tetrahedra )
+  else if(ndime==3) then
+     if(ngaus==1) then
+        this%coordinates(1,1)= 1.0_rp/4.0_rp
+        this%coordinates(2,1)= 1.0_rp/4.0_rp
+        this%coordinates(3,1)= 1.0_rp/4.0_rp
+        this%weight(1)  = 1.0_rp/6.0_rp
+     else if(ngaus==4) then
+        a=0.5854101966249685_rp
+        b=0.1381966011250105_rp
+        this%coordinates(1,1)= b
+        this%coordinates(2,1)= b
+        this%coordinates(3,1)= b
+        this%coordinates(1,2)= a
+        this%coordinates(2,2)= b
+        this%coordinates(3,2)= b
+        this%coordinates(1,3)= b
+        this%coordinates(2,3)= a
+        this%coordinates(3,3)= b
+        this%coordinates(1,4)= b
+        this%coordinates(2,4)= b
+        this%coordinates(3,4)= a
+        this%weight(  1)= 1.0_rp/24.0_rp
+        this%weight(  2)= 1.0_rp/24.0_rp
+        this%weight(  3)= 1.0_rp/24.0_rp
+        this%weight(  4)= 1.0_rp/24.0_rp
+     else if(ngaus==5) then
+        this%coordinates(1,1)= 1.0_rp/4.0_rp
+        this%coordinates(2,1)= 1.0_rp/4.0_rp
+        this%coordinates(3,1)= 1.0_rp/4.0_rp
+        this%coordinates(1,2)= 1.0_rp/6.0_rp
+        this%coordinates(2,2)= 1.0_rp/6.0_rp
+        this%coordinates(3,2)= 1.0_rp/6.0_rp
+        this%coordinates(1,3)= 1.0_rp/2.0_rp
+        this%coordinates(2,3)= 1.0_rp/6.0_rp
+        this%coordinates(3,3)= 1.0_rp/6.0_rp
+        this%coordinates(1,4)= 1.0_rp/6.0_rp
+        this%coordinates(2,4)= 1.0_rp/2.0_rp
+        this%coordinates(3,4)= 1.0_rp/6.0_rp
+        this%coordinates(1,5)= 1.0_rp/6.0_rp
+        this%coordinates(2,5)= 1.0_rp/6.0_rp
+        this%coordinates(3,5)= 1.0_rp/2.0_rp
+        this%weight(  1)=-2.0_rp/15.0_rp
+        this%weight(  2)= 1.5_rp/20.0_rp
+        this%weight(  3)= 1.5_rp/20.0_rp
+        this%weight(  4)= 1.5_rp/20.0_rp
+        this%weight(  5)= 1.5_rp/20.0_rp
+     else if(ngaus==11) then
+        a=0.3994035761667992_rp
+        b=0.1005964238332008_rp
+        c=343.0_rp/7500.0_rp/6.0_rp
+        d=56.0_rp/375.0_rp/6.0_rp
+        this%coordinates(1,1) = 1.0_rp/4.0_rp
+        this%coordinates(2,1) = 1.0_rp/4.0_rp
+        this%coordinates(3,1) = 1.0_rp/4.0_rp
+        this%coordinates(1,2) = 11.0_rp/14.0_rp
+        this%coordinates(2,2) = 1.0_rp/14.0_rp
+        this%coordinates(3,2) = 1.0_rp/14.0_rp
+        this%coordinates(1,3) = 1.0_rp/14.0_rp
+        this%coordinates(2,3) = 11.0_rp/14.0_rp
+        this%coordinates(3,3) = 1.0_rp/14.0_rp
+        this%coordinates(1,4) = 1.0_rp/14.0_rp
+        this%coordinates(2,4) = 1.0_rp/14.0_rp
+        this%coordinates(3,4) = 11.0_rp/14.0_rp
+        this%coordinates(1,5) = 1.0_rp/14.0_rp
+        this%coordinates(2,5) = 1.0_rp/14.0_rp
+        this%coordinates(3,5) = 1.0_rp/14.0_rp
+        this%coordinates(1,6) = a
+        this%coordinates(2,6) = a
+        this%coordinates(3,6) = b
+        this%coordinates(1,7) = a
+        this%coordinates(2,7) = b
+        this%coordinates(3,7) = a
+        this%coordinates(1,8) = a
+        this%coordinates(2,8) = b
+        this%coordinates(3,8) = b
+        this%coordinates(1,9) = b
+        this%coordinates(2,9) = a
+        this%coordinates(3,9) = a
+        this%coordinates(1,10)= b
+        this%coordinates(2,10)= a
+        this%coordinates(3,10)= b
+        this%coordinates(1,11)= b
+        this%coordinates(2,11)= b
+        this%coordinates(3,11)= a
+        this%weight(1)   =-148.0_rp/1875.0_rp/6.0_rp
+        this%weight(2)   = c
+        this%weight(3)   = c
+        this%weight(4)   = c
+        this%weight(5)   = c
+        this%weight(6)   = d
+        this%weight(7)   = d
+        this%weight(8)   = d
+        this%weight(9)   = d
+        this%weight(10)  = d
+        this%weight(11)  = d
+     else if(ngaus==14) then
+        a=0.0673422422100983_rp
+        b=0.3108859192633005_rp
+        c=0.7217942490673264_rp
+        d=0.0927352503108912_rp
+        e=0.4544962958743506_rp
+        f=0.0455037041256494_rp
+        p=0.1126879257180162_rp/6.0_rp
+        q=0.0734930431163619_rp/6.0_rp
+        r=0.0425460207770812_rp/6.0_rp
+        this%coordinates(1,1) = a
+        this%coordinates(2,1) = b
+        this%coordinates(3,1) = b
+        this%coordinates(1,2) = b
+        this%coordinates(2,2) = a
+        this%coordinates(3,2) = b
+        this%coordinates(1,3) = b
+        this%coordinates(2,3) = b
+        this%coordinates(3,3) = a
+        this%coordinates(1,4) = b
+        this%coordinates(2,4) = b
+        this%coordinates(3,4) = b
+        this%coordinates(1,5) = c
+        this%coordinates(2,5) = d
+        this%coordinates(3,5) = d
+        this%coordinates(1,6) = d
+        this%coordinates(2,6) = c
+        this%coordinates(3,6) = d
+        this%coordinates(1,7) = d
+        this%coordinates(2,7) = d
+        this%coordinates(3,7) = c
+        this%coordinates(1,8) = d
+        this%coordinates(2,8) = d
+        this%coordinates(3,8) = d
+        this%coordinates(1,9) = e
+        this%coordinates(2,9) = e
+        this%coordinates(3,9) = f
+        this%coordinates(1,10)= e
+        this%coordinates(2,10)= f
+        this%coordinates(3,10)= e
+        this%coordinates(1,11)= e
+        this%coordinates(2,11)= f
+        this%coordinates(3,11)= f
+        this%coordinates(1,12)= f
+        this%coordinates(2,12)= e
+        this%coordinates(3,12)= e
+        this%coordinates(1,13)= f
+        this%coordinates(2,13)= e
+        this%coordinates(3,13)= f
+        this%coordinates(1,14)= f
+        this%coordinates(2,14)= f
+        this%coordinates(3,14)= e
+        this%weight(1)   = p
+        this%weight(2)   = p
+        this%weight(3)   = p
+        this%weight(4)   = p
+        this%weight(5)   = q
+        this%weight(6)   = q
+        this%weight(7)   = q
+        this%weight(8)   = q
+        this%weight(9)   = r
+        this%weight(10)  = r
+        this%weight(11)  = r
+        this%weight(12)  = r
+        this%weight(13)  = r
+        this%weight(14)  = r
+     else
+        write(*,*) __FILE__,__LINE__,'ERROR:: Quadrature not defined',ndime,ngaus
+        check(.false.)
+     end if
+  end if
+
+end subroutine quadrature_fill_tet_gauss_legendre_symmetric_hard_coded
+
+subroutine quadrature_fill_hex_gauss_legendre(this)
+  implicit none
+  class(quadrature_t), intent(inout) :: this
+  real(rp), allocatable :: x(:),w(:)
+  integer(ip) :: nlocs,qpoin,ilocs,jlocs,klocs
+
+  if(this%num_dims==1) then
+     nlocs=this%num_quadrature_points
+  else if(this%num_dims==2) then
+     nlocs=nint(sqrt(real(this%num_quadrature_points,rp)))
+  else if(this%num_dims==3) then
+     nlocs=nint(real(this%num_quadrature_points,rp)**(1.0_rp/3.0_rp))
+  else
+     mcheck(.false.,'quadrature_fill_hex_gauss_legendre needs (easy) modifications to work in d>3')
+  end if
+
+  call memalloc(nlocs,x,__FILE__,__LINE__)
+  call memalloc(nlocs,w,__FILE__,__LINE__)
+
+  call legendre_compute_glr (nlocs, x, w )
+
+  if(this%num_dims==1) then
+     qpoin=0
+     do ilocs=1,nlocs
+        qpoin=qpoin+1
+        this%weight(  qpoin)=w(ilocs)
+        this%coordinates(1,qpoin)=x(ilocs)
+     end do
+  else if(this%num_dims==2) then
+     qpoin=0
+     do jlocs=1,nlocs
+        do ilocs=1,nlocs
+           qpoin=qpoin+1
+           this%weight(  qpoin)=w(ilocs)*w(jlocs)
+           this%coordinates(1,qpoin)=x(ilocs)
+           this%coordinates(2,qpoin)=x(jlocs)
+        end do
+     end do
+  else if(this%num_dims==3) then
+     qpoin=0
+     do klocs=1,nlocs
+        do jlocs=1,nlocs
+           do ilocs=1,nlocs
+              qpoin=qpoin+1
+              this%weight(  qpoin)=w(ilocs)*w(jlocs)*w(klocs)
+              this%coordinates(1,qpoin)=x(ilocs)
+              this%coordinates(2,qpoin)=x(jlocs)
+              this%coordinates(3,qpoin)=x(klocs)
+           end do
+        end do
+     end do
+  end if
+
+  call memfree(x,__FILE__,__LINE__)
+  call memfree(w,__FILE__,__LINE__)
+
+end subroutine quadrature_fill_hex_gauss_legendre
+
+subroutine legendre_compute_glr ( n, x, w )
+
+!*****************************************************************************80
+!
+!! LEGENDRE_COMPUTE_GLR: Legendre quadrature by the Glaser-Liu-Rokhlin method.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    20 October 2009
+!
+!  Author:
+!
+!    Original MATLAB version by Nick Hale.
+!    FORTRAN90 version by John Burkardt.
+!
+!  Reference:
+!
+!    Andreas Glaser, Xiangtao Liu, Vladimir Rokhlin, 
+!    A fast algorithm for the calculation of the roots of special functions, 
+!    SIAM Journal on Scientific Computing,
+!    Volume 29, Number 4, pages 1420-1438, 2007.
+!
+!  Parameters:
+!
+!    Input, integer ( ip ) N, the order.
+!
+!    Output, real ( rp ) X(N), the abscissas.
+!
+!    Output, real ( rp ) W(N), the weights.
+!
+  implicit none
+  integer(ip), intent(in)  :: n
+  real(rp)   , intent(out) :: w(n)
+  real(rp)   , intent(out) :: x(n)
+  real(rp) :: p
+  real(rp) :: pp
+!
+!  Get the value and derivative of the N-th Legendre polynomial at 0.0.
+!
+  call legendre_compute_glr0 ( n, p, pp )
+!
+!  If N is odd, then zero is a root.
+!
+  if ( mod ( n, 2 ) == 1 ) then
+
+    x((n+1)/2) = 0.0_rp
+    w((n+1)/2) = pp
+!
+!  If N is even, we have to compute a root.
+!
+  else
+
+    call legendre_compute_glr2 ( p, n, x((n/2)+1), w((n/2)+1) )
+
+  end if
+!
+!  Get the complete set of roots and derivatives.
+!
+  call legendre_compute_glr1 ( n, x, w )
+!
+!  Compute W.
+!
+  w(1:n) = 2.0_rp / &
+    ( 1.0_rp - x(1:n) ) / ( 1.0_rp + x(1:n) ) / w(1:n) / w(1:n)
+
+  w(1:n) = 2.0_rp * w(1:n) / sum ( w(1:n) )
+
+end subroutine legendre_compute_glr
+
+subroutine legendre_compute_glr0 ( n, p, pp )
+
+!*****************************************************************************80
+!
+!! LEGENDRE_COMPUTE_GLR0 gets a starting value for the fast algorithm.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    16 October 2009
+!
+!  Author:
+!
+!    Original MATLAB version by Nick Hale.
+!    FORTRAN90 version by John Burkardt.
+!
+!  Reference:
+!
+!    Andreas Glaser, Xiangtao Liu, Vladimir Rokhlin, 
+!    A fast algorithm for the calculation of the roots of special functions, 
+!    SIAM Journal on Scientific Computing,
+!    Volume 29, Number 4, pages 1420-1438, 2007.
+!
+!  Parameters:
+!
+!    Input, integer ( ip ) N, the order of the Legendre polynomial.
+!
+!    Output, real ( rp ) P, PP, the value of the N-th Legendre polynomial
+!    and its derivative at 0.
+!
+  implicit none
+  integer(ip), intent(in)  :: n
+  real(rp)   , intent(out) :: p
+  real(rp)   , intent(out) :: pp
+
+  integer(ip) :: k
+  real(rp)    :: pm1
+  real(rp)    :: pm2
+  real(rp)    :: ppm1
+  real(rp)    :: ppm2
+  real(rp)    :: rk
+!
+!  Compute coefficients of P_m(0), Pm'(0), m = 0,..,N
+!
+  pm2 = 0.0_rp
+  pm1 = 1.0_rp
+  ppm2 = 0.0_rp
+  ppm1 = 0.0_rp
+
+  do k = 0, n - 1
+    rk = real ( k, rp )
+    p = - rk * pm2 / ( rk + 1.0_rp )
+    pp = ( ( 2.0_rp * rk + 1.0_rp ) * pm1 &
+                     - rk             * ppm2 ) &
+         / (           rk + 1.0_rp )
+    pm2 = pm1
+    pm1 = p
+    ppm2 = ppm1
+    ppm1 = pp
+  end do
+
+end subroutine legendre_compute_glr0
+
+subroutine legendre_compute_glr1 ( n, x, w )
+
+!*****************************************************************************80
+!
+!! LEGENDRE_COMPUTE_GLR1 gets the complete set of Legendre points and weights.
+!
+!  Discussion:
+!
+!    This routine requires that a starting estimate be provided for one
+!    root and its derivative.  This information will be stored in entry
+!    (N+1)/2 if N is odd, or N/2 if N is even, of X and W.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    15 November 2009
+!
+!  Author:
+!
+!    Original C++ version by Nick Hale.
+!    FORTRAN90 version by John Burkardt.
+!
+!  Reference:
+!
+!    Andreas Glaser, Xiangtao Liu, Vladimir Rokhlin, 
+!    A fast algorithm for the calculation of the roots of special functions, 
+!    SIAM Journal on Scientific Computing,
+!    Volume 29, Number 4, pages 1420-1438, 2007.
+!
+!  Parameters:
+!
+!    Input, integer ( ip ) N, the order of the Legendre polynomial.
+!
+!    Input/output, real(rp)    :: X(N).  On input, a starting value
+!    has been set in one entry.  On output, the roots of the Legendre 
+!    polynomial.
+!
+!    Input/output, real(rp)    :: W(N).  On input, a starting value
+!    has been set in one entry.  On output, the derivatives of the Legendre 
+!    polynomial at the zeros.
+!
+!  Local Parameters:
+!
+!    Local, integer ( ip ) M, the number of terms in the Taylor expansion.
+!
+  implicit none
+  integer(ip), intent(in)  :: n
+  real(rp)   , intent(out) :: w(n)
+  real(rp)   , intent(out) :: x(n)
+  integer(ip), parameter   :: m = 30
+
+  real(rp)    :: dk
+  real(rp)    :: dn
+  real(rp)    :: h
+  integer(ip) :: j
+  integer(ip) :: k
+  integer(ip) :: l
+  integer(ip) :: n2
+  integer(ip) :: s
+  real(rp)    :: u(m+2)
+  real(rp)    :: up(m+1)
+  real(rp)    :: xp
+
+  if ( mod ( n, 2 ) == 1 ) then
+    n2 = ( n - 1 ) / 2 - 1
+    s = 1
+  else
+    n2 = n / 2 - 1
+    s = 0
+  end if
+
+  dn = real ( n, rp )
+
+  do j = n2 + 1, n - 2
+
+    xp = x(j+1)
+
+    h = rk2_leg ( pi/2.0_rp, -pi/2.0_rp, xp, n ) - xp
+
+    u(1) = 0.0_rp
+    u(2) = 0.0_rp
+    u(3) = w(j+1)
+
+    up(1) = 0.0_rp
+    up(2) = u(3)
+
+    do k = 0, m - 2
+
+      dk = real ( k, rp )
+
+      u(k+4) = &
+      ( &
+        2.0_rp * xp * ( dk + 1.0_rp ) * u(k+3) &
+        + ( dk * ( dk + 1.0_rp ) - dn * ( dn + 1.0_rp ) ) * u(k+2) &
+        / ( dk + 1.0_rp ) &
+      ) / ( 1.0_rp - xp ) / ( 1.0_rp + xp ) / ( dk + 2.0_rp )
+
+      up(k+3) = ( dk + 2.0_rp ) * u(k+4)
+
+    end do
+
+    do l = 0, 4
+      h = h - ts_mult ( u, h, m ) / ts_mult ( up, h, m-1 )
+    end do
+
+    x(j+2) = xp + h
+    w(j+2) = ts_mult ( up, h, m - 1 )   
+
+  end do
+
+  do k = 0, n2 + s
+    x(k+1) = - x(n-1-k+1)
+    w(k+1) = w(n-1-k+1)
+  end do
+
+end subroutine legendre_compute_glr1
+
+subroutine legendre_compute_glr2 ( pn0, n, x1, d1 )
+
+!*****************************************************************************80
+!
+!! LEGENDRE_COMPUTE_GLR2 finds the first real root.
+!
+!  Discussion:
+!
+!    This routine is only called if N is even.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    20 October 2009
+!
+!  Author:
+!
+!    Original MATLAB version by Nick Hale.
+!    FORTRAN90 version by John Burkardt.
+!
+!  Reference:
+!
+!    Andreas Glaser, Xiangtao Liu, Vladimir Rokhlin, 
+!    A fast algorithm for the calculation of the roots of special functions, 
+!    SIAM Journal on Scientific Computing,
+!    Volume 29, Number 4, pages 1420-1438, 2007.
+!
+!  Parameters:
+!
+!    Input, real(rp)    :: PN0, the value of the N-th Legendre polynomial
+!    at 0.
+!
+!    Input, integer(ip) :: N, the order of the Legendre polynomial.
+!
+!    Output, real(rp)    :: X1, the first real root.
+!
+!    Output, real(rp)    :: D1, the derivative at X1.
+!
+!  Local Parameters:
+!
+!    Local, integer(ip) :: M, the number of terms in the Taylor expansion.
+!
+  implicit none
+  real(rp)   , intent(in)  :: pn0
+  integer(ip), intent(in)  :: n
+  real(rp)   , intent(out) :: x1
+  real(rp)   , intent(out) :: d1
+  integer(ip), parameter   :: m = 30
+
+  real(rp)    :: eps
+  integer(ip) :: i
+  integer(ip) :: k
+  integer(ip) :: kk
+  integer(ip) :: l
+  real(rp)    :: rk
+  real(rp)    :: rn
+  real(rp)    :: scale
+  real(rp)    :: step
+  real(rp)    :: theta
+  real(rp)    :: u(m+1)
+  real(rp)    :: up(m+1)
+  real(rp)    :: x1k(m+1)
+
+  k = ( n + 1 ) / 2
+
+  theta = pi * real ( 4 * k - 1, rp ) / real ( 4 * n + 2, rp )
+
+  x1 = ( 1.0_rp - real ( n - 1, rp ) &
+    / real ( 8 * n * n * n, rp ) &
+    - 1.0_rp / real ( 384 * n * n * n * n, ip ) &
+    * ( 39.0_rp - 28.0_rp / ( sin ( theta ) * sin ( theta ) ) ) ) &
+    * cos ( theta )
+!
+!  Scaling.
+!
+  scale = 1.0_rp / x1
+!
+!  Recurrence relation for Legendre polynomials.
+!
+  u(1:m+1) = 0.0_rp
+  up(1:m+1) = 0.0_rp
+
+  rn = real ( n, rp )
+
+  u(1) = pn0
+
+  do k = 0, m - 2, 2
+
+    rk = real ( k, rp )
+
+    u(k+3) = ( rk * ( rk + 1.0_rp ) - rn * ( rn + 1.0_rp ) ) * u(k+1) &
+      / ( rk + 1.0_rp ) / ( rk + 2.0_rp ) / scale / scale
+
+    up(k+2) = ( rk + 2.0_rp ) * u(k+3) * scale
+
+  end do
+!
+!  Flip for more accuracy in inner product calculation
+!
+  u = u(m+1:1:-1)
+  up = up(m+1:1:-1)
+
+  x1k(1:m+1) = 1.0_rp
+
+  step = huge ( step )
+  l = 0
+!
+!  Newton iteration.
+!
+  eps = epsilon ( eps )
+
+  do while ( eps < abs ( step ) .and. l < 10 )
+    l = l + 1
+    step = dot_product ( u(1:m+1),  x1k(1:m+1) ) &
+         / dot_product ( up(1:m+1), x1k(1:m+1) )
+    x1 = x1 - step
+    x1k(1) = 1.0_rp
+    x1k(2) = scale * x1
+    do kk = 3, m + 1
+      x1k(kk) = x1k(kk-1) * scale * x1
+    end do
+    x1k(1:m+1) = x1k(m+1:1:-1)
+  end do
+
+  d1 = dot_product ( up(1:m+1), x1k(1:m+1) )
+
+end subroutine legendre_compute_glr2
+
+function rk2_leg ( t1, t2, x, n )
+
+!*****************************************************************************80
+!
+!! RK2_LEG advances the value of X(T) using a Runge-Kutta method.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    15 November 2009
+!
+!  Author:
+!
+!    Original C++ version by Nick Hale.
+!    FORTRAN90 version by John Burkardt.
+!
+!  Parameters:
+!
+!    Input, real(rp)    :: T1, T2, the range of the integration interval.
+!
+!    Input, real(rp)    :: X, the value of X at T1.
+!
+!    Input, integer(ip) :: N, the number of steps to take.
+!
+!    Output, real(rp)    :: RK2_LEG, the value of X at T2.
+!
+  implicit none
+  real(rp)   , intent(in) :: t1
+  real(rp)   , intent(in) :: t2
+  real(rp)   , intent(in) :: x
+  integer(ip), intent(in) :: n
+  integer(ip), parameter  :: m = 10
+
+  real(rp)    :: f
+  real(rp)    :: h
+  integer(ip) :: j
+  real(rp)    :: k1
+  real(rp)    :: k2
+  real(rp)    :: rk2_leg
+  real(rp)    :: snn1
+  real(rp)    :: t
+  real(rp)    :: x2
+
+  x2 = x
+
+  h = ( t2 - t1 ) / real ( m, rp )
+  snn1 = sqrt ( real ( n * ( n + 1 ), rp ) )
+  t = t1
+
+  do j = 0, m - 1
+
+    f = ( 1.0_rp - x2 ) * ( 1.0_rp + x2 )
+    k1 = - h * f / ( snn1 * sqrt ( f ) - 0.5_rp * x2 * sin ( 2.0_rp * t ) )
+    x2 = x2 + k1
+
+    t = t + h
+
+    f = ( 1.0_rp - x2 ) * ( 1.0_rp + x2 )
+    k2 = - h * f / ( snn1 * sqrt ( f ) - 0.5_rp * x2 * sin ( 2.0_rp * t ) )
+    x2 = x2 + 0.5_rp * ( k2 - k1 )
+
+  end do
+
+  rk2_leg = x2
+
+end function rk2_leg
+
+function ts_mult ( u, h, n )
+
+!*****************************************************************************80
+!
+!! TS_MULT evaluates a polynomial.
+!
+!  Licensing:
+!
+!    This code is distributed under the GNU LGPL license. 
+!
+!  Modified:
+!
+!    17 May 2013
+!
+!  Author:
+!
+!    Original C++ version by Nick Hale.
+!    FORTRAN90 version by John Burkardt.
+!
+!  Parameters:
+!
+!    Input, real(rp)    :: U(N+1), the polynomial coefficients.
+!    U(1) is ignored.
+!
+!    Input, real(rp)    :: H, the polynomial argument.
+!
+!    Input, integer(ip) :: N, the number of terms to compute.
+!
+!    Output, real(rp)    :: TS_MULT, the value of the polynomial.
+!
+  implicit none
+  integer(ip), intent(in) :: n
+  real(rp)   , intent(in) :: h
+  real(rp)   , intent(in) :: u(n+1)
+
+  real(rp)    :: hk
+  integer(ip) :: k
+  real(rp)    :: ts
+  real(rp)    :: ts_mult
+  
+  ts = 0.0_rp
+  hk = 1.0_rp
+  do k = 1, n
+    ts = ts + u(k+1) * hk
+    hk = hk * h
+  end do
+
+  ts_mult = ts
+
+end function ts_mult
+
+subroutine assign_quadrature ( quadrature1, quadrature2 ) 
+  implicit none       
+  type(quadrature_t), intent(inout) :: quadrature1
+  type(quadrature_t), intent(in)    :: quadrature2
+  call quadrature1%create(quadrature2%num_dims,quadrature2%num_quadrature_points)
+  quadrature1%coordinates=quadrature2%coordinates
+  quadrature1%weight=quadrature2%weight
+end subroutine assign_quadrature
+
+subroutine assign_quadrature_array ( quadrature_array1, quadrature_array2 ) 
+  implicit none       
+  type(quadrature_t), intent(inout) :: quadrature_array1(:)
+  type(quadrature_t), intent(in)    :: quadrature_array2(:)
+  integer(ip) :: i
+  assert( size(quadrature_array1) == size(quadrature_array2) )
+  do i = 1,size(quadrature_array1)
+    call assign_quadrature(quadrature_array1(i),quadrature_array2(i))
+  end do
+end subroutine assign_quadrature_array

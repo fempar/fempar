@@ -1,0 +1,206 @@
+#!/bin/bash -i
+#
+# To write this script we used:
+# https://stackoverflow.com/questions/402377/using-getopts-in-bash-shell-script-to-get-long-and-short-command-line-options
+#
+# We assume compilers and variables can be found by cmake, i.e.
+# that approrpriate environment variables have been set (we suggest
+# using environment modules). If this is not the case, it can be
+# done here, e.g., modifying these lines:
+#source /opt/intel/bin/compilervars.sh intel64
+#export HDF5_ROOT=/opt/hdf5/1.10.0/GNU/6.2.0/openmpi/1.8.4
+#export MKLROOT=/opt/intel/mkl
+#
+usage()
+{
+cat << EOF
+usage: $0 [options]
+
+This script calls cmake with appropriate options.
+
+OPTIONS:
+   -h --help 
+        Show this message
+   -c --compiler compiler 
+        Select compiler to be used: Intel (default) or GNU
+   -b --build-type
+        Select build type Debug(default), Release or RelWithDebInfo  
+   -d --driver drivername
+        Configure for the driver drivername
+   -s --sources path 
+        Provide the absolute o relative path to FEMPAR'S superbuild folder
+   --fflags fortran_extra_flags
+        Extra Fortran flags to be added to those defined in CMake files
+   --cflags c_extra_flags
+        Extra C flags to be added to those defined in CMake files
+   --with-openmp
+   --without-openmp (default)
+   --with-blas (default)
+   --without-blas
+   --with-lapack (default)
+   --without-lapack
+   --with-mkl (default)
+   --without-mkl
+   --with-p4est (default)
+   --without-p4est
+   --with-umfpack (default)
+   --without-umfpack
+   --with-metis (default)
+   --without-metis
+   --with-gidpost
+   --without-gidpost (default)
+   --with-tests (default)
+   --without-tests
+EOF
+}
+# NOTE: This requires GNU getopt.
+TEMP=`getopt -o hc:b:d:s: --long help,compiler:,build-type:,driver:,sources:,fflags:,cflags:,with-openmp,without-openmp,with-blas,without-blas,with-lapack,without-lapack,with-mkl,without-mkl,with-p4est,without-p4est,with-umfpack,without-umfpack,with-metis,without-metis,with-gidpost,without-gidpost,with-tests,without-tests -n 'configure' -- "$@"`
+
+if [ $? != 0 ] ; then usage >&2 ; exit 1 ; fi
+
+# Note the quotes around `$TEMP': they are essential!
+#echo "$TEMP"
+eval set -- "$TEMP"
+
+#echo $1
+COMPILER=Intel
+BUILD_TYPE=Debug
+DRIVER=0
+FEMPAR_SOURCES=../SuperBuild/
+#
+OPENMP=OFF
+BLAS=ON
+LAPACK=ON
+MKL=ON
+P4EST=ON
+UMFPACK=ON
+METIS=ON
+GIDPOST=OFF
+TESTS=ON
+ 
+c_flag_present=0
+while true; do
+    case "$1" in
+	-h | --help )     usage; exit 1;;
+	-c | --compiler ) 
+            c_flag_present=1
+	    if [ "$2" != "Intel" ] && [ "$2" != "GNU" ] ; then
+		echo Wrong compiler "$2"
+		echo
+		usage
+		exit
+	    else
+		COMPILER=$2
+	    fi
+            shift 2 ;;
+	-b | --build-type )
+	    if [ "$2" != "Release" ] && [ "$2" != "Debug" ] && [ "$2" != "RelWithDebInfo" ] ; then
+		echo Wrong build-type "$2"
+		echo
+		usage
+		exit
+	    else
+		BUILD_TYPE=$2
+	    fi
+            shift 2 ;;
+	-d | --driver )     FEMPAR_DRIVER=$2; DRIVER=1; shift 2;;
+	-s | --sources )    FEMPAR_SOURCES=$2; shift 2;;
+	--fflags )          FORTRAN_EXTRA_FLAGS=$2; shift 2;;
+	--cflags )          C_EXTRA_FLAGS=$2; shift 2;;
+	--with-openmp )     OPENMP=ON; shift ;;
+	--without-openmp )  OPENMP=OFF; shift ;;
+	--with-blas )       BLAS=ON; shift ;;
+	--without-blas )    BLAS=OFF; shift ;;
+	--with-lapack )     LAPACK=ON; shift ;;
+	--without-lapack )  LAPACK=OFF; shift ;;
+	--with-mkl )        MKL=ON; shift ;;
+	--without-mkl )     MKL=OFF; shift ;;
+	--with-p4est )      P4EST=ON; shift ;;
+	--without-p4est )   P4EST=OFF; shift ;;
+	--with-umfpack )    UMFPACK=ON; shift ;;
+	--without-umfpack ) UMFPACK=OFF; shift ;;
+	--with-metis )      METIS=ON; shift ;;
+	--without-metis )   METIS=FF; shift ;;
+	--with-gidpost )    GIDPOST=ON; shift ;;
+	--without-gidpost ) GIDPOST=OFF; shift ;;
+	--with-tests )      TESTS=ON; shift ;;
+	--without-tests )   TESTS=OFF; shift ;;
+	-- ) shift; break ;;
+	* ) break ;;
+    esac
+done
+
+echo Configuring with the following options
+echo COMPILER = $COMPILER
+echo BUILD_TYPE = $BUILD_TYPE
+if [ $DRIVER == 1 ]
+then 
+    if [ -d $FEMPAR_SOURCES/../Drivers/$FEMPAR_DRIVER ]
+    then
+	echo FEMPAR_DRIVER = $FEMPAR_DRIVER
+    else
+	echo "Cannot find driver $FEMPAR_DRIVER in $FEMPAR_SOURCES/../Drivers" 
+	exit
+    fi
+fi
+echo OPENMP = $OPENMP
+echo BLAS = $BLAS
+echo LAPACK = $LAPACK
+echo MKL = $MKL 
+echo P4EST = $P4EST 
+echo UMFPACK = $UMFPACK
+echo METIS = $METIS
+echo GIDPOST = $GIDPOST
+echo TESTS = $TESTS
+
+MACROS="-DFEMPAR_ENABLE_BLAS=$BLAS -DFEMPAR_ENABLE_LAPACK=$LAPACK -DFEMPAR_ENABLE_MKL=$MKL -DFEMPAR_ENABLE_P4EST=$P4EST -DFEMPAR_ENABLE_UMFPACK=$UMFPACK -DFEMPAR_ENABLE_METIS=$METIS -DFEMPAR_ENABLE_GIDPOST=$GIDPOST"
+
+MPIEXEC_PREFLAGS=
+NUM=`mpirun --version 2>&1 | grep -c "Open MPI"`
+if [ $NUM -gt 0 ]; then
+    NUM=`mpirun --version  2>&1 | grep -i mpirun | cut -d" " -f4 | cut -d"." -f1`
+    if [ $NUM -gt 2 ]; then
+	# echo Using Open MPI 3.0 or greater requires -oversubscribe
+	MPIEXEC_PREFLAGS=-oversubscribe
+    fi
+fi
+
+if [ $MKL == "ON" ]; then
+    if [ "$MKLROOT" == "" ]; then
+	echo Set MKLROOT if you want cmake to find MKL library
+    fi
+fi
+
+common_cmake_variables="-DFEMPAR_ENABLE_TESTS=$TESTS -DFEMPAR_ENABLE_OPENMP=$OPENMP -DFORTRAN_EXTRA_FLAGS=${FORTRAN_EXTRA_FLAGS} -DC_EXTRA_FLAGS=${C_EXTRA_FLAGS} -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DMPIEXEC_PREFLAGS=$MPIEXEC_PREFLAGS $MACROS $FEMPAR_SOURCES"
+
+if [ ! -f ./CMakeCache.txt ] 
+then 
+   case $COMPILER in
+   Intel)
+     base_command="cmake -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc $common_cmake_variables"
+   ;; 
+   GNU)
+     base_command="cmake -DCMAKE_Fortran_COMPILER=gfortran -DCMAKE_C_COMPILER=gcc $common_cmake_variables"
+   ;; 
+   esac
+else
+   FEMPAR_SOURCES=.
+   base_command="cmake $FEMPAR_SOURCES"
+   echo "CMakeCache.txt detected! Any option other than -d (--driver) will be ignored, including default ones."
+   echo "Changing the compiler, build-type, third party library requires cleaning and configuring again."
+
+fi
+       
+if [ "$DRIVER" == 1 ]
+then
+     command="$base_command -DFEMPAR_DRIVER=$FEMPAR_DRIVER" 
+     echo ================================================== >> configure.log
+     date >> configure.log
+     echo $command  >> configure.log
+     eval $command
+else
+     echo ================================================== >> configure.log
+     date >> configure.log
+     echo $base_command >> configure.log    
+     eval $base_command 	
+fi

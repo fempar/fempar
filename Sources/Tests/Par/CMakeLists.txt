@@ -45,6 +45,10 @@ IF(MPI_FOUND)
                 # If there is an script with the name of the executable, add the current target to the Cmake-CTest system
                      ADD_TEST(${EXE_NAME}_TEST ${SCRIPTS_TESTS_PATH}/${EXE_NAME} ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_PREFLAGS} ${EXECUTABLE_OUTPUT_PATH}/${EXE_NAME} ${DATA_TESTS_PATH}/${EXE_NAME})
                 ENDIF()
+                IF(EXISTS ${SCRIPTS_TESTS_PATH}/${EXE_NAME}_fast)
+                # If there is an script with the name of the executable, add the current target to the Cmake-CTest system
+                     ADD_TEST(${EXE_NAME}_TEST_fast ${SCRIPTS_TESTS_PATH}/${EXE_NAME}_fast ${MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} ${MPIEXEC_PREFLAGS} ${EXECUTABLE_OUTPUT_PATH}/${EXE_NAME} ${DATA_TESTS_PATH}/${EXE_NAME})
+                ENDIF()
             ENDIF()
         ENDFOREACH()
     ENDFOREACH()

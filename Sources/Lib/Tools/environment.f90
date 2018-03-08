@@ -58,9 +58,11 @@ module environment_names
 
   integer(ip)     , parameter :: structured   = 0
   integer(ip)     , parameter :: unstructured = 1
+  integer(ip)     , parameter :: p4est        = 2 
   character(len=*), parameter :: environment_type_key = 'environment_type'
   public :: structured
   public :: unstructured
+  public :: p4est
   public :: environment_type_key
 
   ! This type manages the assigment of tasks to different levels as well as
@@ -71,7 +73,7 @@ module environment_names
      private 
      integer(ip)                       :: state = not_created
      integer(ip)                       :: num_levels = 0         ! =0 when parts are not assigned to tasks
-     integer(ip)         , allocatable :: num_parts_per_level(:)
+     integer(ip)         , allocatable :: num_parts_x_level(:)
      integer(ip)         , allocatable :: parts_mapping(:)
      class(execution_context_t), allocatable :: world_context          ! All tasks context (=l1+lgt1 tasks)
      class(execution_context_t), allocatable :: l1_context             ! 1st lev tasks context
@@ -90,6 +92,8 @@ module environment_names
      procedure :: free                           => environment_free
      procedure :: print                          => environment_print
      procedure :: created                        => environment_created
+     procedure :: report_times                   => environment_report_times
+
      ! Getters
      procedure :: get_num_levels                 => environment_get_num_levels
      procedure :: get_num_tasks                  => environment_get_num_tasks
@@ -113,24 +117,34 @@ module environment_names
 
 
      procedure, private :: environment_l1_neighbours_exchange_rp
+     procedure, private :: environment_l1_neighbours_exchange_wo_alpha_beta_rp
      procedure, private :: environment_l1_neighbours_exchange_ip
      procedure, private :: environment_l1_neighbours_exchange_igp
      procedure, private :: environment_l1_neighbours_exchange_single_ip
      procedure, private :: environment_l1_neighbours_exchange_wo_pack_unpack_ieep
+     procedure, private :: environment_l1_neighbours_exchange_wo_unpack_ip
      generic   :: l1_neighbours_exchange      => environment_l1_neighbours_exchange_rp, &
-          environment_l1_neighbours_exchange_ip,&
-          environment_l1_neighbours_exchange_igp,&
-          environment_l1_neighbours_exchange_single_ip, &
-          environment_l1_neighbours_exchange_wo_pack_unpack_ieep
+                                                 environment_l1_neighbours_exchange_wo_alpha_beta_rp, &
+                                                 environment_l1_neighbours_exchange_ip,&
+                                                 environment_l1_neighbours_exchange_igp,&
+                                                 environment_l1_neighbours_exchange_single_ip, &
+                                                 environment_l1_neighbours_exchange_wo_pack_unpack_ieep, &
+                                                 environment_l1_neighbours_exchange_wo_unpack_ip
 
      procedure, private :: environment_l1_scatter_scalar_ip
-     generic   :: l1_scatter => environment_l1_scatter_scalar_ip                                                 
+     procedure, private :: environment_l1_scatter_scalar_igp
+     generic   :: l1_scatter => environment_l1_scatter_scalar_ip, &
+                                environment_l1_scatter_scalar_igp
 
      procedure, private :: environment_l1_gather_scalar_ip
-     generic   :: l1_gather => environment_l1_gather_scalar_ip 
+     procedure, private :: environment_l1_gather_scalar_igp
+     generic   :: l1_gather => environment_l1_gather_scalar_ip, &
+                               environment_l1_gather_scalar_igp
 
      procedure, private :: environment_l1_bcast_scalar_ip
-     generic   :: l1_bcast => environment_l1_bcast_scalar_ip 
+     procedure, private :: environment_l1_bcast_scalar_igp
+     generic   :: l1_bcast => environment_l1_bcast_scalar_ip, &
+                              environment_l1_bcast_scalar_igp 
 
      procedure, private :: environment_l2_from_l1_gather_ip
      procedure, private :: environment_l2_from_l1_gather_igp
@@ -155,10 +169,12 @@ module environment_names
      procedure, private :: environment_l1_to_l2_transfer_ip_1D_array
      procedure, private :: environment_l1_to_l2_transfer_rp
      procedure, private :: environment_l1_to_l2_transfer_rp_1D_array
+     procedure, private :: environment_l1_to_l2_transfer_logical
      generic  :: l1_to_l2_transfer => environment_l1_to_l2_transfer_ip, &
           environment_l1_to_l2_transfer_ip_1D_array, &
           environment_l1_to_l2_transfer_rp, &
-          environment_l1_to_l2_transfer_rp_1D_array
+          environment_l1_to_l2_transfer_rp_1D_array, &
+          environment_l1_to_l2_transfer_logical
 
      ! Deferred TBPs inherited from class(environment_t)
      !procedure :: info                        => environment_info
@@ -235,9 +251,9 @@ contains
     integer(ip)             , intent(in)    :: lunio
     call this%free()
     read ( lunio, '(10i10)' ) this%num_levels
-    call memalloc ( this%num_levels, this%num_parts_per_level,__FILE__,__LINE__  )
+    call memalloc ( this%num_levels, this%num_parts_x_level,__FILE__,__LINE__  )
     call memalloc ( this%num_levels, this%parts_mapping,__FILE__,__LINE__  )
-    read ( lunio, '(10i10)' ) this%num_parts_per_level
+    read ( lunio, '(10i10)' ) this%num_parts_x_level
     read ( lunio, '(10i10)' ) this%parts_mapping
   end subroutine environment_read_file
 
@@ -248,7 +264,7 @@ contains
     integer(ip)             , intent(in) :: lunio
     assert( this%num_levels>0)
     write ( lunio, '(10i10)' ) this%num_levels
-    write ( lunio, '(10i10)' ) this%num_parts_per_level
+    write ( lunio, '(10i10)' ) this%num_parts_x_level
     write ( lunio, '(10i10)' ) this%parts_mapping    
   end subroutine environment_write_file
 
@@ -259,7 +275,7 @@ contains
     class(environment_t), intent(inout) :: this
     type(ParameterList_t)   , intent(in)    :: parameters
 
-    ! Some refactoring is needed here separating number_of_parts_per_level (and dir)
+    ! Some refactoring is needed here separating num_parts_x_level (and dir)
     ! from the rest of the mesh information.
     type(uniform_hex_mesh_t) :: uniform_hex_mesh
 
@@ -272,7 +288,7 @@ contains
     character(len=:), allocatable   :: name
     integer(ip)                     :: lunio
     integer(ip)               :: num_levels
-    integer(ip) , allocatable :: num_parts_per_level(:)
+    integer(ip) , allocatable :: num_parts_x_level(:)
     integer(ip) , allocatable :: parts_mapping(:)
 
     call this%free()
@@ -344,19 +360,35 @@ contains
        ! can be executed in current context (long-lasting Alberto's concern). 
        call uniform_hex_mesh%generate_levels_and_parts(this%world_context%get_current_task(), &
             &                                          num_levels, &
-            &                                          num_parts_per_level, &
+            &                                          num_parts_x_level, &
             &                                          parts_mapping)
-       call this%assign_parts_to_tasks(num_levels, num_parts_per_level, parts_mapping)
-       call memfree(num_parts_per_level,__FILE__,__LINE__)
+       call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
+       call memfree(num_parts_x_level,__FILE__,__LINE__)
        call memfree(parts_mapping,__FILE__,__LINE__)
        check(this%get_num_tasks() <= this%world_context%get_num_tasks())
 
        ! Recursively create multilevel environment
        call this%fill_contexts()
-
        call uniform_hex_mesh%free()
-
+    else if(environment_type==p4est) then
+        ! This part is absolutely temporary. To re-think for num_levels > 2
+        num_levels = 2
+        call memalloc( num_levels, num_parts_x_level, __FILE__, __LINE__ )
+        num_parts_x_level(1) = this%world_context%get_num_tasks()-1
+        num_parts_x_level(2) = 1
+        
+        call memalloc( num_levels, parts_mapping, __FILE__, __LINE__ )
+        parts_mapping(1) = this%world_context%get_current_task()+1
+        parts_mapping(2) = 1
+        call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
+        call this%fill_contexts()
+        
+        call memfree(num_parts_x_level,__FILE__,__LINE__)
+        call memfree(parts_mapping,__FILE__,__LINE__)
+        check(this%get_num_tasks() <= this%world_context%get_num_tasks()) 
+        
     end if
+    
     this%state = created_from_scratch
 
   end subroutine environment_create
@@ -375,13 +407,13 @@ contains
     assert ( this%world_context%get_current_task() >= 0 )
 
     ! Create this%l1_context and this%lgt1_context by splitting world_context
-    call this%world_context%split_by_condition ( this%world_context%get_current_task() < this%num_parts_per_level(1), this%l1_context, this%lgt1_context )
+    call this%world_context%split_by_condition ( this%world_context%get_current_task() < this%num_parts_x_level(1), this%l1_context, this%lgt1_context )
 
     ! Create l1_to_l2_context, where inter-level data transfers actually occur
     if ( this%num_levels > 1 ) then
        if(this%l1_context%get_current_task() >= 0) then
           my_color = this%parts_mapping(2)
-       else if( this%lgt1_context%get_current_task() < this%num_parts_per_level(2)  ) then
+       else if( this%lgt1_context%get_current_task() < this%num_parts_x_level(2)  ) then
           my_color = this%lgt1_context%get_current_task()+1
        else
           my_color = undefined_color
@@ -397,7 +429,7 @@ contains
        allocate(next_level%world_context,mold=this%world_context,stat=istat);check(istat==0)
        this%next_level => next_level
        this%next_level%world_context = this%lgt1_context
-       call this%next_level%assign_parts_to_tasks(this%num_levels-1, this%num_parts_per_level(2:),this%parts_mapping(2:))
+       call this%next_level%assign_parts_to_tasks(this%num_levels-1, this%num_parts_x_level(2:),this%parts_mapping(2:))
        call this%next_level%fill_contexts()
     else
        nullify(this%next_level)
@@ -407,12 +439,12 @@ contains
   end subroutine environment_fill_contexts
 
   !=============================================================================
-  subroutine environment_assign_parts_to_tasks ( this, num_levels, num_parts_per_level, parts_mapping)
+  subroutine environment_assign_parts_to_tasks ( this, num_levels, num_parts_x_level, parts_mapping)
     implicit none 
     ! Parameters
     class(environment_t), intent(inout) :: this
     integer(ip)         , intent(in)    :: num_levels
-    integer(ip)         , intent(in)    :: num_parts_per_level(num_levels)
+    integer(ip)         , intent(in)    :: num_parts_x_level(num_levels)
     integer(ip)         , intent(in)    :: parts_mapping(num_levels)
     integer(ip)                         :: istat
 
@@ -420,9 +452,9 @@ contains
     call this%free()
     this%num_levels = num_levels
     call memalloc(this%num_levels, this%parts_mapping,__FILE__,__LINE__ )
-    call memalloc(this%num_levels, this%num_parts_per_level,__FILE__,__LINE__ )
+    call memalloc(this%num_levels, this%num_parts_x_level,__FILE__,__LINE__ )
     this%parts_mapping = parts_mapping
-    this%num_parts_per_level = num_parts_per_level
+    this%num_parts_x_level = num_parts_x_level
 
   end subroutine environment_assign_parts_to_tasks
 
@@ -447,11 +479,19 @@ contains
     if(this%num_levels > 0) then
        this%num_levels = 0
        call memfree(this%parts_mapping , __FILE__, __LINE__ )
-       call memfree(this%num_parts_per_level, __FILE__, __LINE__ )
+       call memfree(this%num_parts_x_level, __FILE__, __LINE__ )
     end if
 
   end subroutine environment_free
 
+  subroutine environment_report_times ( this, show_header, luout )
+    implicit none 
+    class(environment_t), intent(inout) :: this
+    logical, intent(in), optional      :: show_header 
+    integer(ip), intent(in), optional  :: luout
+    call this%l1_context%report_times(show_header, luout)
+  end subroutine environment_report_times
+ 
   !=============================================================================
   recursive subroutine environment_print ( this )
     implicit none 
@@ -494,7 +534,7 @@ contains
     assert(this%num_levels>0)
     environment_get_num_tasks = 0
     do ilevel=1,this%num_levels
-       environment_get_num_tasks = environment_get_num_tasks + this%num_parts_per_level(ilevel)
+       environment_get_num_tasks = environment_get_num_tasks + this%num_parts_x_level(ilevel)
     end do
   end function environment_get_num_tasks
 
@@ -698,9 +738,9 @@ contains
   subroutine environment_l1_neighbours_exchange_rp ( this, & 
        num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        num_snd, list_snd, snd_ptrs, pack_idx,   &
-       alpha, beta, x)
+       alpha, beta, x, y)
     implicit none
-    class(environment_t), intent(in) :: this
+    class(environment_t), intent(inout) :: this
 
     ! Control info to receive
     integer(ip)             , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
@@ -712,19 +752,21 @@ contains
 
     ! Floating point data
     real(rp), intent(in)    :: alpha, beta
-    real(rp), intent(inout) :: x(:)
+    real(rp), intent(in)    :: x(:)
+    real(rp), intent(inout) :: y(:)
 
     assert (this%am_i_l1_task())
     call this%l1_context%neighbours_exchange ( num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
          &                                      num_snd, list_snd, snd_ptrs, pack_idx,   &
-         &                                      alpha, beta, x)
+         &                                      alpha, beta, x, y)
 
   end subroutine environment_l1_neighbours_exchange_rp
+  
   !=============================================================================
-  subroutine environment_l1_neighbours_exchange_ip ( this, & 
-       &                                                 num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
-       &                                                 num_snd, list_snd, snd_ptrs, pack_idx,   &
-       &                                                 x, chunk_size)
+  subroutine environment_l1_neighbours_exchange_wo_alpha_beta_rp ( this, & 
+       &                                                           num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                                           num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                                           x, y, chunk_size)
     implicit none
     class(environment_t), intent(in)    :: this
     ! Control info to receive
@@ -734,13 +776,38 @@ contains
     integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
     integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
     ! Raw data to be exchanged
-    integer(ip)             , intent(inout) :: x(:)
+    real(rp)                , intent(in)    :: x(:)
+    real(rp)                , intent(inout) :: y(:)
+    integer(ip)   , optional, intent(in)    :: chunk_size  
+  
+    assert( this%am_i_l1_task() )
+    call this%l1_context%neighbours_exchange ( num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+         &                                     num_snd, list_snd, snd_ptrs, pack_idx,   &
+         &                                     x,y,chunk_size)
+  end subroutine environment_l1_neighbours_exchange_wo_alpha_beta_rp
+
+  !=============================================================================
+  subroutine environment_l1_neighbours_exchange_ip ( this, & 
+       &                                             num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                             num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                              x, y, chunk_size)
+    implicit none
+    class(environment_t), intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    integer(ip)             , intent(in)    :: x(:)
+    integer(ip)             , intent(inout) :: y(:)
     integer(ip)   , optional, intent(in)    :: chunk_size
 
     assert( this%am_i_l1_task() )
     call this%l1_context%neighbours_exchange ( num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
          &                                     num_snd, list_snd, snd_ptrs, pack_idx,   &
-         &                                     x,chunk_size)
+         &                                     x,y,chunk_size)
 
   end subroutine environment_l1_neighbours_exchange_ip
 
@@ -748,7 +815,7 @@ contains
   subroutine environment_l1_neighbours_exchange_igp ( this, & 
        num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
        num_snd, list_snd, snd_ptrs, pack_idx,   &
-       x, chunk_size)
+       x, y, chunk_size, mask)
     implicit none
     class(environment_t), intent(in)    :: this
     ! Control info to receive
@@ -758,14 +825,16 @@ contains
     integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
     integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
     ! Raw data to be exchanged
-    integer(igp)            , intent(inout) :: x(:)
+    integer(igp)            , intent(in)    :: x(:)
+    integer(igp)            , intent(inout) :: y(:)
     integer(ip)   , optional, intent(in)    :: chunk_size
+    integer(igp)  , optional, intent(in)    :: mask
 
     assert( this%am_i_l1_task() )
 
     call this%l1_context%neighbours_exchange ( num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
          &                                     num_snd, list_snd, snd_ptrs, pack_idx,   &
-         &                                     x, chunk_size)
+         &                                     x, y, chunk_size, mask)
 
   end subroutine environment_l1_neighbours_exchange_igp
 
@@ -793,23 +862,23 @@ contains
 
   !=============================================================================
   subroutine environment_l1_neighbours_exchange_wo_pack_unpack_ieep ( this, &
-       &                                                                  number_neighbours, &
-       &                                                                  neighbour_ids, &
-       &                                                                  snd_ptrs, &
-       &                                                                  snd_buf, & 
-       &                                                                  rcv_ptrs, &
-       &                                                                  rcv_buf )
+       &                                                              num_neighbours, &
+       &                                                              neighbour_ids, &
+       &                                                              snd_ptrs, &
+       &                                                              snd_buf, & 
+       &                                                              rcv_ptrs, &
+       &                                                              rcv_buf )
     ! Parameters
     class(environment_t)  , intent(in)    :: this 
-    integer(ip)               , intent(in)    :: number_neighbours
-    integer(ip)               , intent(in)    :: neighbour_ids(number_neighbours)
-    integer(ip)               , intent(in)    :: snd_ptrs(number_neighbours+1)
-    integer(ieep)             , intent(in)    :: snd_buf(snd_ptrs(number_neighbours+1)-1)   
-    integer(ip)               , intent(in)    :: rcv_ptrs(number_neighbours+1)
-    integer(ieep)             , intent(out)   :: rcv_buf(rcv_ptrs(number_neighbours+1)-1)
+    integer(ip)               , intent(in)    :: num_neighbours
+    integer(ip)               , intent(in)    :: neighbour_ids(num_neighbours)
+    integer(ip)               , intent(in)    :: snd_ptrs(num_neighbours+1)
+    integer(ieep)             , intent(in)    :: snd_buf(snd_ptrs(num_neighbours+1)-1)   
+    integer(ip)               , intent(in)    :: rcv_ptrs(num_neighbours+1)
+    integer(ieep)             , intent(out)   :: rcv_buf(rcv_ptrs(num_neighbours+1)-1)
 
     assert ( this%am_i_l1_task() )
-    call this%l1_context%neighbours_exchange ( number_neighbours, &
+    call this%l1_context%neighbours_exchange ( num_neighbours, &
          &                                     neighbour_ids, &
          &                                     snd_ptrs, &
          &                                     snd_buf, & 
@@ -817,6 +886,34 @@ contains
          &                                     rcv_buf )
 
   end subroutine environment_l1_neighbours_exchange_wo_pack_unpack_ieep
+
+  !=============================================================================
+  subroutine environment_l1_neighbours_exchange_wo_unpack_ip ( this, &
+                                                               num_rcv, list_rcv, rcv_ptrs, rcv_buf, &
+                                                               num_snd, list_snd, snd_ptrs, pack_idx,   &
+                                                               x, chunk_size)
+    implicit none
+    class(environment_t)    , intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(out)   :: rcv_buf(:)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    integer(ip)             , intent(in)    :: x(:)
+    integer(ip)   , optional, intent(in)    :: chunk_size
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%neighbours_exchange ( num_rcv, &
+         &                                     list_rcv, &
+         &                                     rcv_ptrs, &
+         &                                     rcv_buf, & 
+         &                                     num_snd, &
+         &                                     list_snd,& 
+         &                                     snd_ptrs,& 
+         &                                     pack_idx,& 
+         &                                     x, chunk_size )
+  end subroutine environment_l1_neighbours_exchange_wo_unpack_ip
 
   !=============================================================================
   subroutine environment_l1_gather_scalar_ip ( this, input_data, output_data )
@@ -827,7 +924,18 @@ contains
     assert ( this%am_i_l1_task() )
     call this%l1_context%gather ( input_data, output_data )
   end subroutine environment_l1_gather_scalar_ip
-
+  
+  !=============================================================================
+  subroutine environment_l1_gather_scalar_igp ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)   :: this
+    integer(igp)             , intent(in)   :: input_data
+    integer(igp)             , intent(out)  :: output_data(:) ! ( this%l1_context%get_num_tasks())
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%gather ( input_data, output_data )
+  end subroutine environment_l1_gather_scalar_igp
+  
+  !=============================================================================
   subroutine environment_l1_scatter_scalar_ip ( this, input_data, output_data )
     implicit none
     class(environment_t), intent(in)   :: this
@@ -836,17 +944,33 @@ contains
     assert( this%am_i_l1_task() )
     call this%l1_context%scatter ( input_data, output_data )
   end subroutine environment_l1_scatter_scalar_ip
-
+  
+  !=============================================================================
+  subroutine environment_l1_scatter_scalar_igp ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)   :: this
+    integer(igp)        , intent(in)   :: input_data(:) ! ( this%l1_context%get_num_tasks())
+    integer(igp)        , intent(out)  :: output_data
+    assert( this%am_i_l1_task() )
+    call this%l1_context%scatter ( input_data, output_data )
+  end subroutine environment_l1_scatter_scalar_igp
+  
   subroutine environment_l1_bcast_scalar_ip ( this, data )
     implicit none
     class(environment_t), intent(in)    :: this
     integer(ip)             , intent(inout) :: data
-    integer(ip) :: icontxt
     assert ( this%am_i_l1_task() )
     call this%l1_context%bcast ( data )
   end subroutine environment_l1_bcast_scalar_ip
+  
+  subroutine environment_l1_bcast_scalar_igp ( this, data )
+    implicit none
+    class(environment_t), intent(in)    :: this
+    integer(igp)             , intent(inout) :: data
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%bcast ( data )
+  end subroutine environment_l1_bcast_scalar_igp
 
-  !=============================================================================
   !=============================================================================
   subroutine environment_l1_to_l2_transfer_ip ( this, input_data, output_data )
     implicit none
@@ -886,6 +1010,16 @@ contains
     assert ( this%am_i_l1_to_l2_task() )
     call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
   end subroutine environment_l1_to_l2_transfer_rp_1D_array
+  
+  !=============================================================================
+  subroutine environment_l1_to_l2_transfer_logical ( this, input_data, output_data )
+    implicit none
+    class(environment_t), intent(in)      :: this
+    logical             , intent(in)      :: input_data
+    logical             , intent(inout)   :: output_data
+    assert ( this%am_i_l1_to_l2_task() )
+    call this%l1_to_l2_context%root_send_master_rcv(input_data, output_data )
+  end subroutine environment_l1_to_l2_transfer_logical
   
   !=============================================================================
   subroutine environment_l2_from_l1_gather_ip ( this, input_data, output_data )
@@ -982,13 +1116,13 @@ contains
     call this%l1_to_l2_context%scatter_from_master (input_data, send_counts, displs, output_data_size, output_data )
   end subroutine environment_l2_to_l1_scatterv_rp_1D_array
  !=============================================================================
- 	function environment_get_w_context ( this ) result(w_context)
- 	  implicit none 
- 	  ! Parameters
- 	  class(environment_t),       target, intent(in) :: this
+  function environment_get_w_context ( this ) result(w_context)
+    implicit none 
+    ! Parameters
+    class(environment_t),       target, intent(in) :: this
     class(execution_context_t), pointer            :: w_context
- 	  w_context => this%world_context
- 	end function environment_get_w_context
+    w_context => this%world_context
+  end function environment_get_w_context
   
   
 end module environment_names

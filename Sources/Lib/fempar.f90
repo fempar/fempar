@@ -36,23 +36,28 @@ module fempar_names
   use postpro_names
   use environment_names 
   use execution_context_names
- 	use mpi_context_names
+  use mpi_context_names
   use flap, only : command_line_interface
   use FPL
   use timer_names
   use parameter_handler_names
+  use base_output_handler_names
   use output_handler_names
   use output_handler_parameters_names
+  use output_handler_field_generator_names
+  use output_handler_patch_names
+  use output_handler_fe_cell_function_names
   use vtk_parameters_names
   use xh5_parameters_names
-  use std_vector_integer_ip_names
-  use std_vector_real_rp_names
+  use std_vector_names
+  
   
 
   ! Geometry
   use metis_interface_names
   use mesh_distribution_names
-  use base_static_triangulation_names
+  use triangulation_names
+  use p4est_triangulation_names
 
   use cell_import_names
   use mesh_names
@@ -77,6 +82,8 @@ module fempar_names
   use block_preconditioner_lu_names
   use block_operator_names
   use block_vector_names
+  use linear_solver_names
+  use nonlinear_solver_names
   use direct_solver_names
   use direct_solver_parameters_names
   use direct_solver_creational_methods_dictionary_names
@@ -92,17 +99,17 @@ module fempar_names
   use field_names
   use polynomial_names
   use fe_space_names
-  use fe_function_names
-  use cell_fe_function_names
-  use face_fe_function_names
+  use fe_cell_function_names
+  use fe_facet_function_names
   use conditions_names
   use discrete_integration_names
-  use matrix_array_assembler_names
-  use fe_affine_operator_names
+  use assembler_names
+  use fe_nonlinear_operator_names
   use function_names
   use function_library_names
   use error_norms_names
-
+  use block_layout_names
+  
 contains
 
   subroutine FEMPAR_INIT()

@@ -34,15 +34,17 @@ module maxwell_nedelec_discrete_integration_names
   type, extends(discrete_integration_t) :: maxwell_nedelec_discrete_integration_t
      private
      class(vector_function_t), pointer :: source_term        => NULL()
+     type(fe_function_t)     , pointer :: fe_function        => NULL()
    contains
      procedure :: set_source_term
-     procedure :: integrate
+     procedure :: set_fe_function
+     procedure :: integrate_galerkin
   end type maxwell_nedelec_discrete_integration_t
   
   public :: maxwell_nedelec_discrete_integration_t
   
 contains
-   
+
   subroutine set_source_term (this, vector_function)
     implicit none
     class(maxwell_nedelec_discrete_integration_t), intent(inout) :: this
@@ -50,20 +52,25 @@ contains
     this%source_term => vector_function
   end subroutine set_source_term
 
-  subroutine integrate ( this, fe_space, matrix_array_assembler )
+  subroutine set_fe_function (this, fe_function)
+    implicit none
+    class(maxwell_nedelec_discrete_integration_t), intent(inout) :: this
+    type(fe_function_t)                  , target, intent(in)    :: fe_function
+    this%fe_function => fe_function
+  end subroutine set_fe_function
+
+  subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
     class(maxwell_nedelec_discrete_integration_t), intent(in)    :: this
     class(serial_fe_space_t)                    , intent(inout) :: fe_space
-    class(matrix_array_assembler_t)             , intent(inout) :: matrix_array_assembler
+    class(assembler_t)             , intent(inout) :: assembler
 
     ! FE space traversal-related data types
-    class(fe_iterator_t), allocatable :: fe
+    class(fe_cell_iterator_t), allocatable :: fe
     
     ! FE integration-related data types
-    type(fe_map_t)           , pointer :: fe_map
     type(quadrature_t)       , pointer :: quad
     type(point_t)            , pointer :: quad_coords(:)
-    type(cell_integrator_t), pointer :: cell_int_H
     type(vector_field_t), allocatable  :: H_shape_values(:,:)
     type(vector_field_t), allocatable  :: H_shape_curls(:,:)
     
@@ -75,46 +82,27 @@ contains
     integer(ip)  :: idof, jdof, num_dofs
     real(rp)     :: factor
     type(vector_field_t), allocatable :: source_term_values(:)
-
-    integer(ip)  :: number_fields
-
-    integer(ip), pointer :: field_blocks(:)
-    logical    , pointer :: field_coupling(:,:)
-
-    type(i1p_t), allocatable :: elem2dof(:)
-    integer(ip), allocatable :: num_dofs_per_field(:) 
     
     assert ( associated(this%source_term) )
+    assert ( associated(this%fe_function) ) 
     
-    number_fields = fe_space%get_number_fields()
-    allocate( elem2dof(number_fields), stat=istat); check(istat==0);
-    field_blocks => fe_space%get_field_blocks()
-    field_coupling => fe_space%get_field_coupling()
-    
-    call fe_space%initialize_fe_integration()
-    call fe_space%create_fe_iterator(fe)
+    call fe_space%set_up_cell_integration()
+    call fe_space%create_fe_cell_iterator(fe)
 
-    num_dofs = fe%get_number_dofs()
+    num_dofs = fe%get_num_dofs()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
-    call memalloc ( number_fields, num_dofs_per_field, __FILE__, __LINE__ )
-    call fe%get_number_dofs_per_field(num_dofs_per_field)
     quad             => fe%get_quadrature()
-    num_quad_points  = quad%get_number_quadrature_points()
-    fe_map           => fe%get_fe_map()
-    cell_int_H => fe%get_cell_integrator(1)
+    num_quad_points  = quad%get_num_quadrature_points()
     allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
 
     do while ( .not. fe%has_finished())
        
        ! Update FE-integration related data structures
        call fe%update_integration()
-       
-       ! Get DoF numbering within current FE
-       call fe%get_elem2dof(elem2dof)
 
        ! Get quadrature coordinates to evaluate boundary value
-       quad_coords => fe_map%get_quadrature_coordinates()
+       quad_coords => fe%get_quadrature_points_coordinates()
        
        ! Evaluate pressure source term at quadrature points
        call this%source_term%get_values_set(quad_coords, source_term_values)
@@ -122,13 +110,13 @@ contains
        ! Compute element matrix and vector
        elmat = 0.0_rp
        elvec = 0.0_rp
-       call cell_int_H%get_values(H_shape_values)
-       call cell_int_H%get_curls(H_shape_curls)
+       call fe%get_values(H_shape_values)
+       call fe%get_curls(H_shape_curls)
        do qpoint = 1, num_quad_points
-          factor = fe_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
           ! \int_(curl(v).curl(u))
-          do idof=1, num_dofs_per_field(1)
-            do jdof=1, num_dofs_per_field(1)
+          do idof=1, num_dofs
+            do jdof=1, num_dofs
               elmat(idof,jdof) = elmat(idof,jdof) + &
                                  (H_shape_values(idof,qpoint)*H_shape_values(jdof,qpoint) + H_shape_curls(jdof,qpoint)*H_shape_curls(idof,qpoint))*factor
             end do
@@ -137,20 +125,16 @@ contains
           end do
        end do
        
-       ! Apply boundary conditions
-       call fe%impose_strong_dirichlet_bcs( elmat, elvec )
-       call matrix_array_assembler%assembly( number_fields, num_dofs_per_field, elem2dof, field_blocks, field_coupling, elmat, elvec )
+       call fe%assembly( this%fe_function, elmat, elvec, assembler )
        call fe%next()
     end do
-    call fe_space%free_fe_iterator(fe)
+    call fe_space%free_fe_cell_iterator(fe)
 
     deallocate(H_shape_curls, stat=istat); check(istat==0);
     deallocate(H_shape_values, stat=istat); check(istat==0);
     deallocate (source_term_values, stat=istat); check(istat==0);
-    deallocate (elem2dof, stat=istat); check(istat==0);
-    call memfree ( num_dofs_per_field, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
-  end subroutine integrate
+  end subroutine integrate_galerkin
   
 end module maxwell_nedelec_discrete_integration_names

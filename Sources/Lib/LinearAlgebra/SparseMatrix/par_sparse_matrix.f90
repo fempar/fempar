@@ -257,7 +257,7 @@ contains
         this%dof_import_domain => dof_import
         this%dof_import_range  => dof_import
         if (this%p_env%am_i_l1_task()) then
-          call this%sparse_matrix%create(dof_import%get_number_dofs(), symmetric_storage, is_symmetric, sign, nz)
+          call this%sparse_matrix%create(dof_import%get_num_dofs(), symmetric_storage, is_symmetric, sign, nz)
         end if
         call this%create_vector_spaces()        
     end subroutine par_sparse_matrix_create_square
@@ -277,7 +277,7 @@ contains
         this%dof_import_domain => dof_import_domain
         this%dof_import_range  => dof_import_range
         if (this%p_env%am_i_l1_task()) then
-          call this%sparse_matrix%create(dof_import_range%get_number_dofs(), dof_import_domain%get_number_dofs(),nz)
+          call this%sparse_matrix%create(dof_import_range%get_num_dofs(), dof_import_domain%get_num_dofs(),nz)
         end if
         call this%create_vector_spaces()
     end subroutine par_sparse_matrix_create_rectangular
@@ -685,7 +685,7 @@ contains
     !-----------------------------------------------------------------
     !< Apply matrix vector product y=op*x
     !-----------------------------------------------------------------
-        class(par_sparse_matrix_t), intent(in)    :: this
+        class(par_sparse_matrix_t), intent(inout)    :: this
         class(vector_t),        intent(in)    :: x
         class(vector_t),        intent(inout) :: y 
     !-----------------------------------------------------------------
@@ -711,7 +711,7 @@ contains
     !-----------------------------------------------------------------
     !< Apply matrix vector product y=op*x+y
     !-----------------------------------------------------------------
-        class(par_sparse_matrix_t), intent(in)    :: this
+        class(par_sparse_matrix_t), intent(inout)    :: this
         class(vector_t),            intent(in)    :: x
         class(vector_t),            intent(inout) :: y 
     !-----------------------------------------------------------------

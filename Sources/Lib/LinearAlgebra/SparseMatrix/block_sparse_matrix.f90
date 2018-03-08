@@ -67,7 +67,7 @@ module block_sparse_matrix_names
      !                            block_sparse_matrix_create_offdiagonal_block
      procedure :: set_block_to_zero => block_sparse_matrix_set_block_to_zero                     
      
-					procedure :: compress_storage              => block_sparse_matrix_compress_storage
+     procedure :: compress_storage              => block_sparse_matrix_compress_storage
      procedure :: allocate                      => block_sparse_matrix_allocate
      procedure :: init                          => block_sparse_matrix_init
      procedure :: free_in_stages                => block_sparse_matrix_free_in_stages
@@ -138,7 +138,7 @@ contains
   subroutine block_sparse_matrix_compress_storage(this, sparse_matrix_storage_format )
     implicit none
     class(block_sparse_matrix_t), intent(inout) :: this
-				character(*)                , intent(in)    :: sparse_matrix_storage_format
+    character(*)                , intent(in)    :: sparse_matrix_storage_format
 
     integer(ip) :: ib,jb
     do ib=1, this%nblocks
@@ -149,7 +149,7 @@ contains
        end do
     end do
   end subroutine block_sparse_matrix_compress_storage
-		
+  
   !=============================================================================
   subroutine block_sparse_matrix_allocate(this)
     implicit none
@@ -238,7 +238,7 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine block_sparse_matrix_apply(this,x,y)
     implicit none
-    class(block_sparse_matrix_t), intent(in)    :: this
+    class(block_sparse_matrix_t), intent(inout)    :: this
     class(vector_t), intent(in)    :: x
     class(vector_t), intent(inout) :: y
     ! Locals
@@ -256,7 +256,7 @@ contains
   ! Implicitly assumes that y is already allocated
   subroutine block_sparse_matrix_apply_add(this,x,y)
     implicit none
-    class(block_sparse_matrix_t), intent(in)    :: this
+    class(block_sparse_matrix_t), intent(inout)    :: this
     class(vector_t),              intent(in)    :: x
     class(vector_t),              intent(inout) :: y
     ! Locals

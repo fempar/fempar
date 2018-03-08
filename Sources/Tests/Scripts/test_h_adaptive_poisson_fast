@@ -1,0 +1,132 @@
+#!/bin/sh
+TEST_BINARY_PATH="$1"
+TEST_INPUT_DATA_PATH="$2"
+final_exit_code=0
+if [ -f "$TEST_BINARY_PATH" ]
+then
+# if [ -d "$TEST_INPUT_DATA_PATH" ] 
+#   then
+      ###############################################################################################################################
+      # Scalar-valued tests
+      ###############################################################################################################################
+
+      # Square + Quads 
+      for gorder in 1
+      do
+       for order in 2 
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true."
+            $TEST_BINARY_PATH -tt structured -dim 2  -order $order -wsolution .true.
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      # Square + Quads + dG
+      for gorder in 1
+      do
+       for order in 2
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -f dG"
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -f dG
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+            
+      # Square + Quads + Hybrid Void/Full FEs (quarter pattern)
+      for gorder in 1
+      do
+       for order in 2
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true."
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true.
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      # Square + Quads + Hybrid Void/Full FEs + dG (quarter pattern)
+      for gorder in 1
+      do
+       for order in 2
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -f dG"
+            $TEST_BINARY_PATH -tt structured -dim 2 -order $order -use-voids T -use-voids-case quarter -wsolution .true. -f dG
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+      
+      ###############################################################################################################################
+      # Vector-valued tests
+      ###############################################################################################################################
+
+      # Square + Quads
+      for gorder in 1
+      do
+       for order in 2 
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2  -order $order -lt vector"
+            $TEST_BINARY_PATH -tt structured -dim 2  -order $order -lt vector
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+      
+      # Cube + Hexas 
+      for gorder in 1
+      do
+       for order in 2 
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 3  -order $order -wsolution .true."
+            $TEST_BINARY_PATH -tt structured -dim 3  -order $order -wsolution .true.
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+
+
+
+ #  else
+ #     echo "$0: input data directory not found!"
+ #     final_exit_code=1
+ #  fi
+else
+  echo "$0: BINARY not found! Value PROVIDED: $1."
+  final_exit_code=1
+fi
+rm -Rf $TEST_INPUT_FILE
+exit $final_exit_code

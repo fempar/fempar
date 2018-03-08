@@ -26,6 +26,50 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+subroutine base_mlbddc_set_state_start(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_START
+end subroutine base_mlbddc_set_state_start
+
+subroutine base_mlbddc_set_state_created(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_CREATED
+end subroutine base_mlbddc_set_state_created
+
+subroutine base_mlbddc_set_state_symbolic(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_SYMBOLIC
+end subroutine base_mlbddc_set_state_symbolic
+
+subroutine base_mlbddc_set_state_numeric(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_NUMERIC
+end subroutine base_mlbddc_set_state_numeric
+
+function base_mlbddc_state_is_start(this) result(is_start)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_start
+  is_start = this%state == BASE_MLBDDC_STATE_START
+end function base_mlbddc_state_is_start
+
+function base_mlbddc_state_is_created(this) result(is_start)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_start
+  is_start = this%state == BASE_MLBDDC_STATE_CREATED
+end function base_mlbddc_state_is_created
+
+function base_mlbddc_state_is_symbolic(this) result(is_symbolic_setup)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_symbolic_setup
+  is_symbolic_setup = this%state == BASE_MLBDDC_STATE_SYMBOLIC
+end function base_mlbddc_state_is_symbolic
+
+function base_mlbddc_state_is_numeric(this) result(is_numerical_setup)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_numerical_setup
+  is_numerical_setup= this%state == BASE_MLBDDC_STATE_NUMERIC
+end function base_mlbddc_state_is_numeric
+
 subroutine base_mlbddc_assert_dirichlet_solver_params ( this )
   implicit none
   class(base_mlbddc_t), intent(in) :: this
@@ -42,6 +86,75 @@ subroutine base_mlbddc_assert_neumann_solver_params ( this )
   assert ( this%mlbddc_params%isSubList(Key=mlbddc_neumann_solver_params) ) 
 end subroutine base_mlbddc_assert_neumann_solver_params 
 
+subroutine base_mlbddc_parse_or_transfer_coarse_matrix_params ( this, &
+                                                                coarse_matrix_symmetric_storage, &
+                                                                coarse_matrix_is_symmetric, &
+                                                                coarse_matrix_sign  )
+  implicit none
+  class(base_mlbddc_t), intent(in)    :: this
+  logical             , intent(inout) :: coarse_matrix_symmetric_storage
+  logical             , intent(inout) :: coarse_matrix_is_symmetric
+  integer(ip)         , intent(inout) :: coarse_matrix_sign
+  
+  integer(ip) :: ierr
+  type(ParameterList_t), pointer :: coarse_matrix_params
+  type(par_sparse_matrix_t), pointer :: par_sparse_matrix
+  
+  assert ( associated(this%mlbddc_params) )
+  assert ( associated(this%environment) )
+  if ( this%mlbddc_params%isPresent(Key=mlbddc_coarse_matrix_params) ) then
+    assert ( this%mlbddc_params%isSubList(Key=mlbddc_coarse_matrix_params) )
+    ierr = this%mlbddc_params%getSubList(Key     = mlbddc_coarse_matrix_params, & 
+                                         SubList = coarse_matrix_params) 
+    assert(ierr==0)
+#ifdef DEBUG
+    assert(coarse_matrix_params%isPresent(mlbddc_coarse_matrix_symmetric_storage))
+    assert(coarse_matrix_params%isAssignable(mlbddc_coarse_matrix_symmetric_storage, coarse_matrix_symmetric_storage))
+    assert(coarse_matrix_params%isPresent(mlbddc_coarse_matrix_is_symmetric))
+    assert(coarse_matrix_params%isAssignable(mlbddc_coarse_matrix_is_symmetric, coarse_matrix_is_symmetric))
+    assert(coarse_matrix_params%isPresent(mlbddc_coarse_matrix_sign))
+    assert(coarse_matrix_params%isAssignable(mlbddc_coarse_matrix_sign, coarse_matrix_sign))
+#endif 
+    ierr = coarse_matrix_params%Get(Key=mlbddc_coarse_matrix_symmetric_storage, Value=coarse_matrix_symmetric_storage)
+    assert(ierr == 0)
+    ierr = coarse_matrix_params%Get(Key=mlbddc_coarse_matrix_is_symmetric, Value=coarse_matrix_is_symmetric)
+    assert(ierr == 0)
+    ierr = coarse_matrix_params%Get(Key=mlbddc_coarse_matrix_sign, Value=coarse_matrix_sign)
+    assert(ierr == 0)
+  else
+     if ( this%environment%am_i_l1_to_l2_task() ) then
+        if ( this%environment%am_i_l1_task() ) then
+           par_sparse_matrix => this%get_par_sparse_matrix()
+           coarse_matrix_symmetric_storage = par_sparse_matrix%get_symmetric_storage()
+           coarse_matrix_is_symmetric      = par_sparse_matrix%is_symmetric()
+           coarse_matrix_sign              = par_sparse_matrix%get_sign()
+        end if
+
+        if ( this%environment%am_i_l1_to_l2_root() ) then
+           ! Recv side
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_symmetric_storage, &
+                output_data=coarse_matrix_symmetric_storage)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_is_symmetric, &
+                output_data=coarse_matrix_is_symmetric)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_sign, &
+                output_data=coarse_matrix_sign)
+        else
+           ! Send. side
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_symmetric_storage, &
+                output_data=coarse_matrix_symmetric_storage)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_is_symmetric, &
+                output_data=coarse_matrix_is_symmetric)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_sign, &
+                output_data=coarse_matrix_sign)
+        end if
+     end if
+  end if
+end subroutine base_mlbddc_parse_or_transfer_coarse_matrix_params
+
+
+
+
+
 subroutine base_mlbddc_assert_coarse_solver_params ( this )
   implicit none
   class(base_mlbddc_t), intent(in) :: this
@@ -55,26 +168,31 @@ recursive subroutine base_mlbddc_symbolic_setup ( this )
   class(base_mlbddc_t), intent(inout) :: this
   type(environment_t), pointer :: par_environment  
   par_environment => this%get_par_environment()
-
-  if( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then
+  
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if ( this%state_is_created() ) then
+    if( par_environment%am_i_l1_task() ) then
+      if ( par_environment%get_l1_size() > 1 ) then
         call this%setup_constraint_matrix()
         call this%setup_weighting_operator()
-     end if
-  end if
+      end if
+    end if
 
-  call this%symbolic_setup_coarse_grid_matrix()
-  call this%symbolic_setup_mlbddc_coarse()
+    call this%symbolic_setup_coarse_grid_matrix()
+    call this%symbolic_setup_mlbddc_coarse()
 
-  if ( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then      
+    if ( par_environment%am_i_l1_task() ) then
+      if ( par_environment%get_l1_size() > 1 ) then      
         call this%symbolic_setup_dirichlet_problem()
         call this%symbolic_setup_dirichlet_solver()
         call this%symbolic_setup_constrained_neumann_problem()
         call this%symbolic_setup_constrained_neumann_solver()
-     else
+      else
         call this%symbolic_setup_coarse_solver()
-     end if
+      end if
+    end if
+    call this%set_state_symbolic()
   end if
 end subroutine base_mlbddc_symbolic_setup
 
@@ -102,14 +220,14 @@ subroutine base_mlbddc_symbolic_setup_dirichlet_problem ( this)
   par_sparse_matrix => this%get_par_sparse_matrix()
   A => par_sparse_matrix%get_sparse_matrix()
   if ( A%get_symmetric_storage() ) then
-     call A%split_2x2_symbolic( num_row = fe_space%get_block_number_interior_dofs(1), &
-          num_col = fe_space%get_block_number_interior_dofs(1), &
+     call A%split_2x2_symbolic( num_row = fe_space%get_block_num_interior_dofs(1), &
+          num_col = fe_space%get_block_num_interior_dofs(1), &
           A_II    = this%A_II, &
           A_IG    = this%A_IG, &
           A_GG    = this%A_GG)
   else
-     call A%split_2x2_symbolic( num_row = fe_space%get_block_number_interior_dofs(1), &
-          num_col = fe_space%get_block_number_interior_dofs(1), &
+     call A%split_2x2_symbolic( num_row = fe_space%get_block_num_interior_dofs(1), &
+          num_col = fe_space%get_block_num_interior_dofs(1), &
           A_II    = this%A_II, &
           A_IG    = this%A_IG, &
           A_GI    = this%A_GI, &
@@ -182,7 +300,13 @@ subroutine base_mlbddc_symbolic_setup_coarse_grid_matrix ( this )
   integer(ip)                               :: istat
   class(base_fe_space_t), pointer :: fe_space
   type(coarse_fe_space_t), pointer :: coarse_fe_space
+  logical     :: cm_symmetric_storage, cm_is_symmetric
+  integer(ip) :: cm_sign
 
+  call this%parse_or_transfer_coarse_matrix_params(cm_symmetric_storage, &
+                                                   cm_is_symmetric, &
+                                                   cm_sign)
+  
   L1_environment => this%get_par_environment()
   if ( L1_environment%am_i_lgt1_task() ) then
      ! lgt1 MPI tasks symbolically set-up this%coarse_grid_matrix
@@ -194,10 +318,9 @@ subroutine base_mlbddc_symbolic_setup_coarse_grid_matrix ( this )
      L2_environment  => L1_environment%get_next_level()
      call this%coarse_grid_matrix%create( p_env             = L2_environment, &
           dof_import        = coarse_fe_space%get_block_dof_import(1), &
-          symmetric_storage = .true., &
-          is_symmetric      = .true., &
-          sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
-
+          symmetric_storage = cm_symmetric_storage, &
+          is_symmetric      = cm_is_symmetric, &
+          sign              = cm_sign )
      if ( L2_environment%am_i_l1_task() ) then
         call this%coarse_grid_matrix_symbolic_assembly()
      end if
@@ -212,8 +335,8 @@ subroutine base_mlbddc_coarse_grid_matrix_symbolic_assembly ( this )
   class(base_mlbddc_t)           , intent(inout) :: this
   type(environment_t)   , pointer       :: L1_environment
   type(environment_t)   , pointer       :: L2_environment
-  type(coarse_fe_iterator_t) :: coarse_fe
-  type(i1p_t), allocatable :: elem2dof(:)
+  type(coarse_fe_cell_iterator_t) :: coarse_fe
+  type(i1p_t), allocatable :: fe_dofs(:)
   logical, pointer :: field_coupling(:,:)
   integer(ip) :: ifield, jfield, i, j, istat
   class(base_fe_space_t), pointer :: fe_space
@@ -227,21 +350,21 @@ subroutine base_mlbddc_coarse_grid_matrix_symbolic_assembly ( this )
   fe_space    => this%get_fe_space()
   coarse_fe_space => fe_space%get_coarse_fe_space()
 
-  allocate ( elem2dof(coarse_fe_space%get_number_fields()), stat=istat)
+  allocate ( fe_dofs(coarse_fe_space%get_num_fields()), stat=istat)
   check(istat==0)     
 
   field_coupling => coarse_fe_space%get_field_coupling()
 
-  call coarse_fe_space%create_coarse_fe_iterator(coarse_fe)
+  call coarse_fe_space%create_coarse_fe_cell_iterator(coarse_fe)
   do while ( .not. coarse_fe%has_finished() )
-     call coarse_fe%get_elem2dof(elem2dof)
-     do ifield=1, coarse_fe_space%get_number_fields()
-        do jfield=1, coarse_fe_space%get_number_fields()
+     call coarse_fe%get_fe_dofs(fe_dofs)
+     do ifield=1, coarse_fe_space%get_num_fields()
+        do jfield=1, coarse_fe_space%get_num_fields()
            if ((field_coupling(ifield,jfield))) then
-              do j=1, size(elem2dof(jfield)%p)
-                 do i=1, size(elem2dof(ifield)%p)
-                    call this%coarse_grid_matrix%insert(ia=elem2dof(ifield)%p(i), &
-                         ja=elem2dof(jfield)%p(j) )
+              do j=1, size(fe_dofs(jfield)%p)
+                 do i=1, size(fe_dofs(ifield)%p)
+                    call this%coarse_grid_matrix%insert(ia=fe_dofs(ifield)%p(i), &
+                         ja=fe_dofs(jfield)%p(j) )
                  end do
               end do
            end if
@@ -249,9 +372,9 @@ subroutine base_mlbddc_coarse_grid_matrix_symbolic_assembly ( this )
      end do
      call coarse_fe%next()
   end do
-  call coarse_fe_space%free_coarse_fe_iterator(coarse_fe)
+  call coarse_fe_space%free_coarse_fe_cell_iterator(coarse_fe)
 
-  deallocate ( elem2dof, stat=istat )
+  deallocate ( fe_dofs, stat=istat )
   check(istat==0)
   
   call this%coarse_grid_matrix%convert(csr_format)
@@ -312,26 +435,38 @@ recursive subroutine base_mlbddc_numerical_setup ( this )
   class(base_mlbddc_t)        , intent(inout)   :: this
   type(environment_t), pointer         :: par_environment
 
-  par_environment => this%get_par_environment()
-  if ( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then  
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if ( this%state_is_created() ) then
+    call this%symbolic_setup()
+  end if 
+  
+  assert ( this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if ( this%state_is_symbolic() ) then
+    par_environment => this%get_par_environment()
+    if ( par_environment%am_i_l1_task() ) then
+      if ( par_environment%get_l1_size() > 1 ) then  
         call this%numerical_setup_constrained_neumann_problem()
         call this%numerical_setup_constrained_neumann_solver()
         call this%setup_coarse_grid_basis()
-     end if
-  end if
+      end if
+    end if
 
-  call this%numerical_setup_coarse_grid_matrix()
-  call this%numerical_setup_mlbddc_coarse()
+    call this%numerical_setup_coarse_grid_matrix()
+    call this%numerical_setup_mlbddc_coarse()
 
-  if ( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then  
+    if ( par_environment%am_i_l1_task() ) then
+       if ( par_environment%get_l1_size() > 1 ) then  
         call this%numerical_setup_dirichlet_problem()
         call this%numerical_setup_dirichlet_solver()
-     else if ( par_environment%get_l1_size() == 1 ) then
+       else if ( par_environment%get_l1_size() == 1 ) then
         call this%numerical_setup_coarse_solver()
-     end if
+       end if
+    end if
+    call this%set_state_numeric()
   end if
+  
 end subroutine base_mlbddc_numerical_setup
 
 
@@ -342,29 +477,34 @@ subroutine base_mlbddc_numerical_setup_dirichlet_problem (this)
   type(par_sparse_matrix_t) , pointer       :: par_sparse_matrix
   type(sparse_matrix_t)     , pointer       :: A
 
+  type(environment_t)  , pointer :: par_environment
+  par_environment => this%get_par_environment()
+
   assert ( this%am_i_l1_task() )
   fe_space => this%get_fe_space()
   par_sparse_matrix => this%get_par_sparse_matrix()
   A => par_sparse_matrix%get_sparse_matrix()
   if ( A%get_symmetric_storage() ) then
-     call A%split_2x2_numeric(  num_row = fe_space%get_block_number_interior_dofs(1), &
-          num_col = fe_space%get_block_number_interior_dofs(1), &
+     call A%split_2x2_numeric(  num_row = fe_space%get_block_num_interior_dofs(1), &
+          num_col = fe_space%get_block_num_interior_dofs(1), &
           A_II    = this%A_II, &
           A_IG    = this%A_IG, &
           A_GG    = this%A_GG)
   else
-     call A%split_2x2_numeric(  num_row = fe_space%get_block_number_interior_dofs(1), &
-          num_col = fe_space%get_block_number_interior_dofs(1), &
+     call A%split_2x2_numeric(  num_row = fe_space%get_block_num_interior_dofs(1), &
+          num_col = fe_space%get_block_num_interior_dofs(1), &
           A_II    = this%A_II, &
           A_IG    = this%A_IG, &
           A_GI    = this%A_GI, &
           A_GG    = this%A_GG)
   end if
 
-  !call A%print(6)
-  !call this%A_II%print(6)
-  !call this%A_IG%print(6)
-  !call this%A_GG%print(6)
+  !call par_environment%l1_barrier()
+  !call A%print_matrix_market(6)
+  !call this%A_II%print_matrix_market(6)
+  !call this%A_IG%print_matrix_market(6)
+  !call this%A_GG%print_matrix_market(6)
+  !call par_environment%l1_barrier()
 end subroutine base_mlbddc_numerical_setup_dirichlet_problem
 
 subroutine base_mlbddc_numerical_setup_dirichlet_solver(this)
@@ -405,8 +545,8 @@ subroutine base_mlbddc_allocate_coarse_grid_basis ( this )
   assert ( this%am_i_l1_task() )
   fe_space => this%get_fe_space() 
   call this%free_coarse_grid_basis()
-  call memalloc (fe_space%get_block_number_dofs(1), &
-       fe_space%get_block_number_coarse_dofs(1), &
+  call memalloc (fe_space%get_block_num_dofs(1), &
+       fe_space%get_block_num_coarse_dofs(1), &
        this%Phi, &
        __FILE__, &
        __LINE__) 
@@ -414,8 +554,8 @@ end subroutine base_mlbddc_allocate_coarse_grid_basis
 
 subroutine base_mlbddc_setup_coarse_grid_basis ( this )
   implicit none
-  class(base_mlbddc_t)           , intent(inout) :: this
-  class(base_fe_space_t)      , pointer       :: fe_space
+  class(base_mlbddc_t)  , intent(inout) :: this
+  class(base_fe_space_t), pointer       :: fe_space
   real(rp), allocatable                     :: work1(:,:)
   real(rp), allocatable                     :: work2(:,:)
   integer(ip)                               :: i, j
@@ -424,28 +564,28 @@ subroutine base_mlbddc_setup_coarse_grid_basis ( this )
   fe_space => this%get_fe_space() 
 
   call memalloc ( this%constrained_neumann_matrix%get_num_rows(), &
-       fe_space%get_block_number_coarse_dofs(1), &
+       fe_space%get_block_num_coarse_dofs(1), &
        work1, __FILE__,__LINE__ )
 
   call memalloc ( this%constrained_neumann_matrix%get_num_rows(), &
-       fe_space%get_block_number_coarse_dofs(1), &
+       fe_space%get_block_num_coarse_dofs(1), &
        work2, __FILE__,__LINE__ )
 
   work1 = 0.0_rp
   work2 = 0.0_rp
   j=1
-  do i = fe_space%get_block_number_dofs(1)+1, this%constrained_neumann_matrix%get_num_rows()
+  do i = fe_space%get_block_num_dofs(1)+1, this%constrained_neumann_matrix%get_num_rows()
      work1 (i,j) = 1.0_rp
      j = j + 1 
   end do
 
-  if (fe_space%get_block_number_coarse_dofs(1)>0) then
+  if (fe_space%get_block_num_coarse_dofs(1)>0) then
     call this%constrained_neumann_solver%solve(work1, &
          work2)
   end if
 
   call this%allocate_coarse_grid_basis()
-  this%Phi = work2 (1:fe_space%get_block_number_dofs(1),:) 
+  this%Phi = work2 (1:fe_space%get_block_num_dofs(1),:) 
 
   call memfree ( work1, __FILE__,__LINE__ )
   call memfree ( work2, __FILE__,__LINE__ )
@@ -471,21 +611,21 @@ subroutine base_mlbddc_compute_subdomain_elmat ( this, subdomain_elmat )
      call memfree ( subdomain_elmat, __FILE__, __LINE__ )
   end if
 
-  call memalloc ( fe_space%get_block_number_coarse_dofs(1), &
-       fe_space%get_block_number_coarse_dofs(1), &
+  call memalloc ( fe_space%get_block_num_coarse_dofs(1), &
+       fe_space%get_block_num_coarse_dofs(1), &
        subdomain_elmat, &
        __FILE__, &
        __LINE__ );
 
   call memalloc ( A%get_num_rows(), & 
-       fe_space%get_block_number_coarse_dofs(1), &
+       fe_space%get_block_num_coarse_dofs(1), &
        work, &
        __FILE__, & 
        __LINE__ )
 
   work = 0.0_rp
-  if ( fe_space%get_block_number_coarse_dofs(1) > 0 ) then
-     call A%apply_to_dense_matrix ( n     = fe_space%get_block_number_coarse_dofs(1), &
+  if ( fe_space%get_block_num_coarse_dofs(1) > 0 ) then
+     call A%apply_to_dense_matrix ( n     = fe_space%get_block_num_coarse_dofs(1), &
           alpha = 1.0_rp, &
           ldb   = A%get_num_rows(), &
           b     = this%Phi, &
@@ -495,11 +635,11 @@ subroutine base_mlbddc_compute_subdomain_elmat ( this, subdomain_elmat )
   end if
   subdomain_elmat = 0.0_rp
 #ifdef ENABLE_BLAS
-  if ( fe_space%get_block_number_coarse_dofs(1) > 0 ) then
+  if ( fe_space%get_block_num_coarse_dofs(1) > 0 ) then
      call DGEMM( 'T', &
           'N', &
-          fe_space%get_block_number_coarse_dofs(1), &
-          fe_space%get_block_number_coarse_dofs(1), &
+          fe_space%get_block_num_coarse_dofs(1), &
+          fe_space%get_block_num_coarse_dofs(1), &
           A%get_num_rows(), &
           1.0, &
           this%Phi, &
@@ -508,7 +648,7 @@ subroutine base_mlbddc_compute_subdomain_elmat ( this, subdomain_elmat )
           A%get_num_rows(), &
           0.0, &
           subdomain_elmat, &
-          fe_space%get_block_number_coarse_dofs(1))
+          fe_space%get_block_num_coarse_dofs(1))
   end if
 #else
   write (0,*) 'Error: mlbddc.f90 was not compiled with -DENABLE_BLAS.'
@@ -525,7 +665,7 @@ subroutine base_mlbddc_compute_subdomain_elmat_counts_and_displs ( this, counts,
   integer(ip), allocatable  , intent(inout) :: displs(:)
   type(environment_t), pointer :: par_environment
   integer(ip) :: i, l1_to_l2_size
-  type(coarse_fe_iterator_t) :: coarse_fe
+  type(coarse_fe_cell_iterator_t) :: coarse_fe
 
   class(base_fe_space_t)   , pointer :: fe_space
   type(coarse_fe_space_t), pointer :: coarse_fe_space
@@ -543,15 +683,15 @@ subroutine base_mlbddc_compute_subdomain_elmat_counts_and_displs ( this, counts,
 
   i = 1
   counts(l1_to_l2_size) = 0
-  call coarse_fe_space%create_coarse_fe_iterator(coarse_fe)
+  call coarse_fe_space%create_coarse_fe_cell_iterator(coarse_fe)
   do while ( .not. coarse_fe%has_finished() )
      if ( coarse_fe%is_local() ) then
-        counts(i) = coarse_fe%get_number_dofs()**2    
+        counts(i) = coarse_fe%get_num_dofs()**2    
         i = i +1
      end if
      call coarse_fe%next()
   end do
-  call coarse_fe_space%free_coarse_fe_iterator(coarse_fe)
+  call coarse_fe_space%free_coarse_fe_cell_iterator(coarse_fe)
 
 
   displs(1) = 0
@@ -632,8 +772,8 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
 
   type(environment_t)   , pointer       :: L1_environment
   type(environment_t)   , pointer       :: L2_environment
-  type(coarse_fe_iterator_t) :: coarse_fe
-  type(i1p_t), allocatable :: elem2dof(:)
+  type(coarse_fe_cell_iterator_t) :: coarse_fe
+  type(i1p_t), allocatable :: fe_dofs(:)
   logical, pointer :: field_coupling(:,:)
   integer(ip) :: ifield, jfield, i, j, istat, offset, offset_i, offset_j, LDA
   class(base_fe_space_t)   , pointer :: fe_space
@@ -647,38 +787,38 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
   fe_space    => this%get_fe_space()
   coarse_fe_space => fe_space%get_coarse_fe_space()	
 
-  allocate ( elem2dof(coarse_fe_space%get_number_fields()), stat=istat)
+  allocate ( fe_dofs(coarse_fe_space%get_num_fields()), stat=istat)
   check(istat==0)     
   field_coupling => coarse_fe_space%get_field_coupling()
   offset  = 0 
-  call coarse_fe_space%create_coarse_fe_iterator(coarse_fe)
+  call coarse_fe_space%create_coarse_fe_cell_iterator(coarse_fe)
   do while ( .not. coarse_fe%has_finished() )
-     call coarse_fe%get_elem2dof(elem2dof)
-     LDA = coarse_fe%get_number_dofs()
+     call coarse_fe%get_fe_dofs(fe_dofs)
+     LDA = coarse_fe%get_num_dofs()
      if ( coarse_fe%is_local() ) then
         offset_i = 0
-        do ifield=1, coarse_fe_space%get_number_fields()
+        do ifield=1, coarse_fe_space%get_num_fields()
           offset_j = 0
-          do jfield=1, coarse_fe_space%get_number_fields()
+          do jfield=1, coarse_fe_space%get_num_fields()
               if ((field_coupling(ifield,jfield))) then
-                 do j=1, size(elem2dof(jfield)%p)
-                    do i=1, size(elem2dof(ifield)%p)
-                       call this%coarse_grid_matrix%insert(ia = elem2dof(ifield)%p(i) , &
-                            ja  = elem2dof(jfield)%p(j), &
+                 do j=1, size(fe_dofs(jfield)%p)
+                    do i=1, size(fe_dofs(ifield)%p)
+                       call this%coarse_grid_matrix%insert(ia = fe_dofs(ifield)%p(i) , &
+                            ja  = fe_dofs(jfield)%p(j), &
                             val = subdomain_elmat_gathered(offset+(offset_j+j-1)*LDA+(offset_i+i)) )
                     end do
                  end do
               end if
-              offset_j = offset_j +  size(elem2dof(jfield)%p)
+              offset_j = offset_j +  size(fe_dofs(jfield)%p)
            end do
-           offset_i = offset_i +  size(elem2dof(ifield)%p)
+           offset_i = offset_i +  size(fe_dofs(ifield)%p)
         end do
      end if
      offset = offset + LDA**2
      call coarse_fe%next()
   end do
-  call coarse_fe_space%free_coarse_fe_iterator(coarse_fe)
-  deallocate ( elem2dof, stat=istat )
+  call coarse_fe_space%free_coarse_fe_cell_iterator(coarse_fe)
+  deallocate ( fe_dofs, stat=istat )
   check(istat==0)     
   call this%coarse_grid_matrix%convert(csr_format)
   !call this%coarse_grid_matrix%print_matrix_market(6)
@@ -710,9 +850,24 @@ end subroutine base_mlbddc_numerical_setup_coarse_solver
 recursive subroutine base_mlbddc_apply (this, x, y)
   implicit none
   ! Parameters
-  class(base_mlbddc_t)   , intent(in)    :: this
+  class(base_mlbddc_t)   , intent(inout)    :: this
   class(vector_t)   , intent(in)    :: x
   class(vector_t)   , intent(inout) :: y
+  
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+
+  if (this%state_is_created() ) then
+    call this%symbolic_setup()
+  end if 
+  
+  assert ( this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if (this%state_is_symbolic() ) then
+    call this%numerical_setup()
+  end if 
+  
+  assert ( this%state_is_numeric() )
+  
   call this%abort_if_not_in_domain(x)
   call this%abort_if_not_in_range(y)
   call x%GuardTemp()
@@ -730,7 +885,7 @@ end subroutine base_mlbddc_apply
 recursive subroutine base_mlbddc_apply_add(this, x, y)
   implicit none
   ! Parameters
-  class(base_mlbddc_t)   , intent(in)    :: this
+  class(base_mlbddc_t)   , intent(inout)    :: this
   class(vector_t)   , intent(in)    :: x
   class(vector_t)   , intent(inout) :: y
   class(vector_t), allocatable      :: w
@@ -750,7 +905,7 @@ end subroutine base_mlbddc_apply_add
 
 recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
   implicit none
-  class(base_mlbddc_t)         , intent(in)    :: this
+  class(base_mlbddc_t)         , intent(inout)    :: this
   type(par_scalar_array_t), intent(in)    :: x
   type(par_scalar_array_t), intent(inout) :: y
 
@@ -950,17 +1105,17 @@ subroutine base_mlbddc_compute_coarse_dofs_values ( this, vector, coarse_dofs_va
      call memfree ( coarse_dofs_values, __FILE__, __LINE__ )
   end if
 
-  call memalloc ( fe_space%get_block_number_coarse_dofs(1), &
+  call memalloc ( fe_space%get_block_num_coarse_dofs(1), &
        coarse_dofs_values, &
        __FILE__, &
        __LINE__ );
 
   coarse_dofs_values = 0.0_rp
 #ifdef ENABLE_BLAS
-  if (fe_space%get_block_number_coarse_dofs(1) .ne.0 ) then
+  if (fe_space%get_block_num_coarse_dofs(1) .ne.0 ) then
     call DGEMV(  'T', & 
          serial_scalar_array%get_size(), &
-         fe_space%get_block_number_coarse_dofs(1), &
+         fe_space%get_block_num_coarse_dofs(1), &
          1.0_rp, &
          this%Phi, &
          serial_scalar_array%get_size(), &
@@ -984,7 +1139,7 @@ subroutine base_mlbddc_compute_coarse_dofs_values_counts_and_displs ( this, coun
   integer(ip), allocatable  , intent(inout) :: displs(:)
   type(environment_t), pointer :: par_environment
   integer(ip) :: i, l1_to_l2_size
-  type(coarse_fe_iterator_t) :: coarse_fe
+  type(coarse_fe_cell_iterator_t) :: coarse_fe
   class(base_fe_space_t)   , pointer :: fe_space
   type(coarse_fe_space_t), pointer :: coarse_fe_space
 
@@ -1001,15 +1156,15 @@ subroutine base_mlbddc_compute_coarse_dofs_values_counts_and_displs ( this, coun
 
   i=1
   counts(l1_to_l2_size) = 0
-  call coarse_fe_space%create_coarse_fe_iterator(coarse_fe)
+  call coarse_fe_space%create_coarse_fe_cell_iterator(coarse_fe)
   do while ( .not. coarse_fe%has_finished() )
      if ( coarse_fe%is_local() ) then
-        counts(i) = coarse_fe%get_number_dofs()
+        counts(i) = coarse_fe%get_num_dofs()
         i=i+1
      end if
      call coarse_fe%next()
   end do
-  call coarse_fe_space%free_coarse_fe_iterator(coarse_fe)
+  call coarse_fe_space%free_coarse_fe_cell_iterator(coarse_fe)
   displs(1) = 0
   do i=2, l1_to_l2_size
      displs(i) = displs(i-1) + counts(i-1)
@@ -1070,11 +1225,11 @@ subroutine base_mlbddc_coarse_grid_residual_assembly ( this, coarse_dofs_values_
 
   type(environment_t)   , pointer       :: L1_environment
   type(environment_t)   , pointer       :: L2_environment
-  type(coarse_fe_iterator_t)                :: coarse_fe
+  type(coarse_fe_cell_iterator_t)                :: coarse_fe
   class(base_fe_space_t)   , pointer :: fe_space
   type(coarse_fe_space_t), pointer :: coarse_fe_space
 
-  type(i1p_t), allocatable :: elem2dof(:)
+  type(i1p_t), allocatable :: fe_dofs(:)
   integer(ip) :: ifield, i, istat, current
 
   L1_environment => this%get_par_environment()
@@ -1084,16 +1239,16 @@ subroutine base_mlbddc_coarse_grid_residual_assembly ( this, coarse_dofs_values_
   fe_space => this%get_fe_space()
   coarse_fe_space => fe_space%get_coarse_fe_space()
 
-  allocate ( elem2dof(coarse_fe_space%get_number_fields()), stat=istat)
+  allocate ( fe_dofs(coarse_fe_space%get_num_fields()), stat=istat)
   check(istat==0)     
   current = 1
-  call coarse_fe_space%create_coarse_fe_iterator(coarse_fe)
+  call coarse_fe_space%create_coarse_fe_cell_iterator(coarse_fe)
   do while ( .not. coarse_fe%has_finished() )
-     call coarse_fe%get_elem2dof(elem2dof)
+     call coarse_fe%get_fe_dofs(fe_dofs)
      if ( coarse_fe%is_local() ) then
-        do ifield=1, coarse_fe_space%get_number_fields()
-           do i=1, size(elem2dof(ifield)%p)
-              call coarse_grid_vector%add(i   =  elem2dof(ifield)%p(i), &
+        do ifield=1, coarse_fe_space%get_num_fields()
+           do i=1, size(fe_dofs(ifield)%p)
+              call coarse_grid_vector%add(i   =  fe_dofs(ifield)%p(i), &
                    val = coarse_dofs_values_gathered(current) )
               current = current + 1
            end do
@@ -1101,8 +1256,8 @@ subroutine base_mlbddc_coarse_grid_residual_assembly ( this, coarse_dofs_values_
      end if
      call coarse_fe%next()
   end do
-  call coarse_fe_space%free_coarse_fe_iterator(coarse_fe)
-  deallocate ( elem2dof, stat=istat )
+  call coarse_fe_space%free_coarse_fe_cell_iterator(coarse_fe)
+  deallocate ( fe_dofs, stat=istat )
   check(istat==0)
   call coarse_grid_vector%comm()
 end subroutine base_mlbddc_coarse_grid_residual_assembly
@@ -1170,7 +1325,7 @@ subroutine base_mlbddc_scatter_coarse_grid_correction ( this, coarse_grid_vector
 
   else 
      if ( allocated (coarse_dofs_values) ) call memfree( coarse_dofs_values, __FILE__, __LINE__ )
-     call memalloc ( fe_space%get_block_number_coarse_dofs(1), &
+     call memalloc ( fe_space%get_block_num_coarse_dofs(1), &
           coarse_dofs_values, &
           __FILE__, __LINE__ );
 
@@ -1188,8 +1343,8 @@ subroutine base_mlbddc_fill_coarse_dofs_values_scattered ( this, coarse_grid_vec
   type(par_scalar_array_t) , intent(in)     :: coarse_grid_vector
   real(rp)                 , intent(inout)  :: coarse_dofs_values_scattered(*)
   type(environment_t), pointer    :: par_environment
-  type(i1p_t)           , allocatable :: elem2dof(:)
-  type(coarse_fe_iterator_t)          :: coarse_fe
+  type(i1p_t)           , allocatable :: fe_dofs(:)
+  type(coarse_fe_cell_iterator_t)          :: coarse_fe
   integer(ip)                         :: istat, current, ifield
   class(base_fe_space_t)   , pointer :: fe_space
   type(coarse_fe_space_t), pointer :: coarse_fe_space
@@ -1200,26 +1355,26 @@ subroutine base_mlbddc_fill_coarse_dofs_values_scattered ( this, coarse_grid_vec
   fe_space => this%get_fe_space()
   coarse_fe_space => fe_space%get_coarse_fe_space()
 
-  allocate ( elem2dof(coarse_fe_space%get_number_fields()), stat=istat)
+  allocate ( fe_dofs(coarse_fe_space%get_num_fields()), stat=istat)
   check(istat==0)
 
   current = 1
-  call coarse_fe_space%create_coarse_fe_iterator(coarse_fe) 
+  call coarse_fe_space%create_coarse_fe_cell_iterator(coarse_fe) 
   do while ( .not. coarse_fe%has_finished() )
-     call coarse_fe%get_elem2dof(elem2dof)
+     call coarse_fe%get_fe_dofs(fe_dofs)
      if ( coarse_fe%is_local() ) then
-        do ifield=1, coarse_fe_space%get_number_fields()
+        do ifield=1, coarse_fe_space%get_num_fields()
            call coarse_grid_vector%extract_subvector ( iblock       = 1, &
-                size_indices = size(elem2dof(ifield)%p), &
-                indices     = elem2dof(ifield)%p, &
+                size_indices = size(fe_dofs(ifield)%p), &
+                indices     = fe_dofs(ifield)%p, &
                 values      = coarse_dofs_values_scattered(current) )
-           current = current + size(elem2dof(ifield)%p)
+           current = current + size(fe_dofs(ifield)%p)
         end do
      end if
      call coarse_fe%next()
   end do
-  call coarse_fe_space%free_coarse_fe_iterator(coarse_fe)
-  deallocate ( elem2dof, stat=istat )
+  call coarse_fe_space%free_coarse_fe_cell_iterator(coarse_fe)
+  deallocate ( fe_dofs, stat=istat )
   check(istat==0)
 end subroutine base_mlbddc_fill_coarse_dofs_values_scattered
 
@@ -1243,10 +1398,10 @@ subroutine base_mlbddc_interpolate_coarse_grid_correction (this, coarse_dofs_val
   serial_scalar_array_entries => serial_scalar_array%get_entries()
 
 #ifdef ENABLE_BLAS
-  if (fe_space%get_block_number_coarse_dofs(1) .ne. 0) then
+  if (fe_space%get_block_num_coarse_dofs(1) .ne. 0) then
     call DGEMV(  'N', & 
          serial_scalar_array%get_size(), &
-         fe_space%get_block_number_coarse_dofs(1), &
+         fe_space%get_block_num_coarse_dofs(1), &
          1.0_rp, &
          this%Phi, &
          serial_scalar_array%get_size(), &
@@ -1280,7 +1435,7 @@ end subroutine base_mlbddc_solve_dirichlet_problem
 
 subroutine base_mlbddc_apply_A_GI(this, x_I, y_G)
   implicit none
-  class(base_mlbddc_t)           , intent(in)    :: this
+  class(base_mlbddc_t)           , intent(inout)    :: this
   type(par_scalar_array_t)  , intent(in)    :: x_I
   type(par_scalar_array_t)  , intent(inout) :: y_G
   type(par_sparse_matrix_t), pointer :: par_sparse_matrix
@@ -1304,7 +1459,7 @@ end subroutine base_mlbddc_apply_A_GI
 
 subroutine base_mlbddc_apply_A_IG(this, x_G, y_I)
   implicit none
-  class(base_mlbddc_t)           , intent(in)    :: this
+  class(base_mlbddc_t)           , intent(inout)    :: this
   type(par_scalar_array_t)  , intent(in)    :: x_G
   type(par_scalar_array_t)  , intent(inout) :: y_I
   type(par_sparse_matrix_t), pointer :: par_sparse_matrix
@@ -1330,28 +1485,28 @@ subroutine base_mlbddc_solve_constrained_neumann_problem(this, x, y)
   type(serial_scalar_array_t)          :: augmented_y
   real(rp), allocatable                :: augmented_x_entries(:)
   real(rp), allocatable                :: augmented_y_entries(:)
-  integer(ip)                          :: block_number_dofs
-  integer(ip)                          :: block_number_coarse_dofs
+  integer(ip)                          :: block_num_dofs
+  integer(ip)                          :: block_num_coarse_dofs
   class(base_fe_space_t)       , pointer :: fe_space
 
   fe_space => this%get_fe_space()
   if ( this%am_i_l1_task() ) then
-     block_number_dofs        = fe_space%get_block_number_dofs(1)
-     block_number_coarse_dofs = fe_space%get_block_number_coarse_dofs(1)
+     block_num_dofs        = fe_space%get_block_num_dofs(1)
+     block_num_coarse_dofs = fe_space%get_block_num_coarse_dofs(1)
 
      x_serial => x%get_serial_scalar_array()
 
      ! Set-up augmented_x from x_serial
-     call augmented_x%create(block_number_dofs + block_number_coarse_dofs)
-     call memalloc ( block_number_dofs + block_number_coarse_dofs, & 
+     call augmented_x%create(block_num_dofs + block_num_coarse_dofs)
+     call memalloc ( block_num_dofs + block_num_coarse_dofs, & 
           augmented_x_entries, __FILE__,__LINE__)  
-     augmented_x_entries(1:block_number_dofs)  = x_serial%get_entries() 
-     augmented_x_entries(block_number_dofs+1:) = 0.0_rp 
+     augmented_x_entries(1:block_num_dofs)  = x_serial%get_entries() 
+     augmented_x_entries(block_num_dofs+1:) = 0.0_rp 
      call augmented_x%set_view_entries(augmented_x_entries)
 
      ! Set-up augmented_y
-     call augmented_y%create(block_number_dofs + block_number_coarse_dofs)
-     call memalloc ( block_number_dofs + block_number_coarse_dofs, & 
+     call augmented_y%create(block_num_dofs + block_num_coarse_dofs)
+     call memalloc ( block_num_dofs + block_num_coarse_dofs, & 
           augmented_y_entries, __FILE__,__LINE__)  
      call augmented_y%set_view_entries(augmented_y_entries)
      call this%constrained_neumann_solver%solve(augmented_x, &
@@ -1360,7 +1515,7 @@ subroutine base_mlbddc_solve_constrained_neumann_problem(this, x, y)
      ! Set-up y from augmented_y
      y_serial         => y%get_serial_scalar_array()
      y_serial_entries => y_serial%get_entries()
-     y_serial_entries = augmented_y_entries(1:block_number_dofs)
+     y_serial_entries = augmented_y_entries(1:block_num_dofs)
 
      call memfree ( augmented_x_entries, __FILE__,__LINE__)  
      call memfree ( augmented_y_entries, __FILE__,__LINE__)  
@@ -1395,10 +1550,10 @@ subroutine base_mlbddc_create_interior_interface_views ( this, x, x_I, X_G )
   class(base_fe_space_t), pointer :: fe_space
   fe_space => this%get_fe_space()
   call x%create_view(1, &
-       fe_space%get_block_number_interior_dofs(1), &
+       fe_space%get_block_num_interior_dofs(1), &
        x_I)
-  call x%create_view(fe_space%get_block_number_interior_dofs(1)+1, &
-       fe_space%get_block_number_dofs(1), &
+  call x%create_view(fe_space%get_block_num_interior_dofs(1)+1, &
+       fe_space%get_block_num_dofs(1), &
        x_G)
 end subroutine base_mlbddc_create_interior_interface_views
 
@@ -1413,9 +1568,23 @@ end subroutine base_mlbddc_free
 subroutine base_mlbddc_free_clean(this)
   implicit none
   class(base_mlbddc_t)           , intent(inout) :: this
+  
+  assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+
+  if ( this%state_is_numeric() ) then
+    call this%free_numerical_setup() 
+  end if
+  
+  if ( this%state_is_symbolic() ) then
+    call this%free_symbolic_setup() 
+  end if
+  
   call this%nullify_operator()
   call this%free_vector_spaces()
   nullify(this%mlbddc_params)
+  nullify(this%environment)
+  
+  call this%set_state_start()
 end subroutine base_mlbddc_free_clean
 
 recursive subroutine base_mlbddc_free_symbolic_setup(this)
@@ -1424,8 +1593,13 @@ recursive subroutine base_mlbddc_free_symbolic_setup(this)
   type(environment_t)   , pointer       :: par_environment
   integer(ip)                               :: istat
 
-  ! This will be replaced by an apropriate check on the state diagram
-  if ( this%is_operator_associated() ) then 
+  assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+
+  if ( this%state_is_numeric() ) then
+    call this%free_numerical_setup() 
+  end if
+  
+  if ( this%state_is_symbolic() ) then 
      par_environment => this%get_par_environment()
      if ( par_environment%am_i_l1_task() ) then
         if ( par_environment%get_l1_size() > 1 ) then
@@ -1436,21 +1610,29 @@ recursive subroutine base_mlbddc_free_symbolic_setup(this)
            nullify (this%mlbddc_coarse)
            nullify (this%coarse_grid_matrix)
            call this%constraint_matrix%free()
-           call memfree(this%W, __FILE__, __LINE__)
+           if ( allocated(this%W) ) then 
+             call memfree(this%W, __FILE__, __LINE__)
+           end if
         else
            call this%free_symbolic_setup_coarse_solver()
         end if
      else
-        ! mlbddc_coarse should be freed before coarse_fe_space
-        ! (as the former was created from the latter)
-        call this%mlbddc_coarse%free_symbolic_setup()
-        call this%mlbddc_coarse%free_clean()
-        deallocate (this%mlbddc_coarse, stat=istat)
-        check (istat==0)
-        call this%coarse_grid_matrix%free()
-        deallocate  ( this%coarse_grid_matrix, stat = istat )
-        check( istat == 0 )
+        if ( associated(this%mlbddc_coarse) ) then
+          ! mlbddc_coarse should be freed before coarse_fe_space
+          ! (as the former was created from the latter)
+          call this%mlbddc_coarse%free_symbolic_setup()
+          call this%mlbddc_coarse%free_clean()
+          deallocate (this%mlbddc_coarse, stat=istat)
+          check (istat==0)
+        end if  
+        
+        if ( associated(this%coarse_grid_matrix) ) then
+          call this%coarse_grid_matrix%free()
+          deallocate  ( this%coarse_grid_matrix, stat = istat )
+          check( istat == 0 )
+        end if  
      end if
+     call this%set_state_created()
   end if
 end subroutine base_mlbddc_free_symbolic_setup
 
@@ -1496,8 +1678,10 @@ recursive subroutine base_mlbddc_free_numerical_setup(this)
   implicit none
   class(base_mlbddc_t)           , intent(inout) :: this
   type(environment_t)   , pointer       :: par_environment
-  ! This will be replaced by an apropriate check on the state diagram
-  if ( this%is_operator_associated() ) then 
+ 
+  assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if ( this%state_is_numeric() ) then 
      par_environment => this%get_par_environment()
      if ( par_environment%am_i_l1_task() ) then
         if ( par_environment%get_l1_size() > 1 ) then
@@ -1510,9 +1694,14 @@ recursive subroutine base_mlbddc_free_numerical_setup(this)
            call this%free_numerical_setup_coarse_solver()
         end if
      else
-        call this%mlbddc_coarse%free_numerical_setup()
-        call this%coarse_grid_matrix%free_in_stages(free_numerical_setup)
+        if (associated(this%mlbddc_coarse)) then
+           call this%mlbddc_coarse%free_numerical_setup()
+        end if 
+        if (associated(this%coarse_grid_matrix)) then
+           call this%coarse_grid_matrix%free_in_stages(free_numerical_setup)
+        end if   
      end if
+     call this%set_state_symbolic()
   end if
 end subroutine base_mlbddc_free_numerical_setup
 
@@ -1582,6 +1771,20 @@ function base_mlbddc_is_linear( this )
   base_mlbddc_is_linear = .true.
 end function base_mlbddc_is_linear
 
+function base_mlbddc_get_par_environment(this)
+  implicit none
+  class(base_mlbddc_t), target, intent(in) :: this
+  class(environment_t), pointer :: base_mlbddc_get_par_environment
+  base_mlbddc_get_par_environment => this%environment
+end function base_mlbddc_get_par_environment
+
+subroutine base_mlbddc_set_par_environment(this, environment)
+  implicit none
+  class(base_mlbddc_t)       , intent(inout) :: this
+  class(environment_t), target, intent(in)    :: environment
+  this%environment => environment
+end subroutine base_mlbddc_set_par_environment
+
 function base_mlbddc_is_operator_associated( this )
   implicit none
   class(base_mlbddc_t)          , intent(in) :: this
@@ -1609,9 +1812,4 @@ function base_mlbddc_get_fe_space(this)
   assert(.false.)
 end function base_mlbddc_get_fe_space
 
-function base_mlbddc_get_par_environment(this)
-  implicit none
-  class(base_mlbddc_t), intent(in) :: this
-  type(environment_t), pointer :: base_mlbddc_get_par_environment
-  assert(.false.)
-end function base_mlbddc_get_par_environment
+

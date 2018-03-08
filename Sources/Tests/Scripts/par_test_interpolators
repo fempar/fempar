@@ -1,0 +1,91 @@
+#!/bin/sh
+export MKL_NUM_THREADS=1
+export OMP_NUM_THREADS=1
+MPIEXEC_PATH="$1"
+MPIEXEC_NP_FLAG="$2"
+MPIEXEC_PREFLAGS="$3"
+TEST_BINARY_PATH="$4"
+TEST_INPUT_DATA_PATH="$5"
+final_exit_code=0
+if [ -f "$TEST_BINARY_PATH" ]
+then
+ if [ -d "$TEST_INPUT_DATA_PATH" ] 
+   then
+      # Square + Quads       
+      for gorder in 1
+      do
+       for order in 1 2 3
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "mpirun -np 5 $TEST_BINARY_PATH -tt 1 -dm 2 -n 4 4 0 -l 2 -np 2 2 0 1 1 0 -order $order -gorder $gorder"
+            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 2 -n 4 4 0 -l 2 -np 2 2 0 1 1 0 -order $order -gorder $gorder  
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+      # Cube + Hexas         
+      for gorder in 1
+      do
+       for order in 1 2 3
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "mpirun -np 9 $TEST_BINARY_PATH -tt 1 -dm 3 -nx 2 -ny 2 -nz 2 -order $order -gorder $gorder"
+            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 9 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -dm 3 -n 4 4 4 -l 2 -np 2 2 2 1 1 1 -order $order -gorder $gorder 
+            if [ $? -ne 0 ] 
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+      # Square +  Tetrahedra       
+      for gorder in 1
+      do
+       for order in 1 2 3
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "mpirun -np 5 $TEST_BINARY_PATH -tt 0 -dm 2 --dir-path $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder"
+            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 0 -dm 2 --dir-path  $TEST_INPUT_DATA_PATH/square_tetrahedra.gid --prefix square_tetrahedra -order $order -gorder $gorder
+            if [ $? -ne 0 ]
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+      # Cube + Tetrahedra
+      for gorder in 1
+      do
+        for order in 1 2 3
+        do
+          if [ $order -ge $gorder ]
+          then
+            echo "mpirun -np 5 $TEST_BINARY_PATH -tt 0 -dm 3 --dir-path $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid/ --prefix cube_tetrahedra -order $order -gorder $gorder"
+            $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 0 -dm 3 --dir-path  $TEST_INPUT_DATA_PATH/cube_tetrahedra.gid --prefix cube_tetrahedra -order $order -gorder $gorder
+            if [ $? -ne 0 ]
+            then
+             final_exit_code=1
+            fi
+          fi
+        done
+      done
+
+   else
+      echo "$0: input data directory not found!"
+      final_exit_code=1
+   fi
+else
+  echo "$0: BINARY not found! Value PROVIDED: $4."
+  final_exit_code=1
+fi
+rm -Rf $TEST_INPUT_FILE
+exit $final_exit_code

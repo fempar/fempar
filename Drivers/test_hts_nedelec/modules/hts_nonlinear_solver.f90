@@ -49,8 +49,8 @@ module hts_nonlinear_solver_names
   type :: hts_nonlinear_solver_t
      integer(ip)                                :: current_iteration 
      integer(ip)                                :: ideal_num_iterations 
-     integer(ip)                                :: max_number_iterations
-	    real(rp)                                   :: absolute_tolerance
+     integer(ip)                                :: max_num_iterations
+     real(rp)                                   :: absolute_tolerance
      real(rp)                                   :: relative_tolerance
      type(hts_line_search_t)                    :: line_search  
      character(len=:) , allocatable             :: convergence_criteria 
@@ -62,7 +62,7 @@ module hts_nonlinear_solver_names
      type(serial_scalar_array_t), pointer       :: constraint_vector 
      class(vector_t), allocatable               :: increment_dof_values 
      real(rp)                                   :: increment_lagrange_multiplier 
-	    class(vector_t), allocatable               :: residual 
+     class(vector_t), allocatable               :: residual 
      type(serial_scalar_array_t)                :: constrained_residual 
      class(vector_t), allocatable               :: initial_residual 
      type(direct_solver_t)                      :: direct_solver
@@ -85,8 +85,7 @@ module hts_nonlinear_solver_names
      procedure :: get_apply_current_constraint     => hts_nonlinear_solver_get_apply_current_constraint 
      procedure :: print_current_iteration_output   => hts_nonlinear_solver_print_current_iteration_output
      procedure :: print_final_output               => hts_nonlinear_solver_print_final_output 
-     procedure :: get_constrained_rhs_norm 
-     procedure :: get_constrained_Au_norm 
+     procedure :: get_constrained_rhs_norm  
      procedure :: free                             => hts_nonlinear_solver_free 
   end type hts_nonlinear_solver_t 
   
@@ -117,7 +116,7 @@ this%current_iteration     = 0
 this%convergence_criteria  = convergence_criteria 
 this%absolute_tolerance    = abs_tol
 this%relative_tolerance    = rel_tol
-this%max_number_iterations = max_iters 
+this%max_num_iterations    = max_iters 
 this%ideal_num_iterations  = ideal_iters 
 this%apply_current_constraint = apply_constraint 
 
@@ -143,6 +142,15 @@ call fe_affine_operator%create_range_vector(this%increment_dof_values)
 ! Create direct solver to update iterates 
     call parameter_list%init()
    
+    iparm      = 0  ! Init all entries to zero
+    iparm(1)   = 1  ! no solver default
+    iparm(2)   = 2  ! fill-in reordering from METIS
+    iparm(8)   = 5  ! numbers of iterative refinement steps
+    iparm(10)  = 14 ! perturb the pivot elements with 1E-8
+    iparm(11)  = 1  ! use scaling 
+    iparm(13)  = 1  ! use maximum weighted matching algorithm 
+    iparm(21)  = 1  ! 1x1 + 2x2 pivots
+    
     FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
@@ -188,7 +196,8 @@ real(rp)  , optional                  , intent(in)     :: constraint_value
 
 this%current_iteration = 0 
 call this%compute_residual()
-this%initial_residual   = this%residual 
+this%initial_residual   = this%residual
+call this%increment_dof_values%init(0.0_rp)
 
 if (present(constraint_value))  then 
 this%constraint_value  = constraint_value 
@@ -204,7 +213,6 @@ class(hts_nonlinear_solver_t)         , intent(inout)  :: this
 ! Compute current residual 
 call this%residual%init(0.0_rp)
 call this%fe_affine_operator%apply( this%current_dof_values, this%residual ) 
-
 ! Build constrained residual if needed 
 if (this%apply_current_constraint) then 
 call this%compute_constrained_residual() 
@@ -224,22 +232,19 @@ end subroutine hts_nonlinear_solver_compute_residual
     type(serial_scalar_array_t)      , pointer       :: original_sol
     integer(ip)                      , allocatable   :: original_indices(:)
     integer(ip) :: idof 
-	 
-       select type (residual=>this%residual)
-    type is (serial_scalar_array_t)
-       original_residual => residual
-       num_dofs = residual%get_size() 
-    class DEFAULT
-       assert(.false.) 
-    end select
-	
-	   select type (current_dof_values=>this%current_dof_values)
+  
+       massert( .false. , ' Needs further work for the constrained case' ) 
+      ! polymorphic residual 
+      ! original_residual => residual
+      ! num_dofs = this%residual%get_size() 
+ 
+    select type (current_dof_values=>this%current_dof_values)
     type is (serial_scalar_array_t)
        original_sol => current_dof_values 
     class DEFAULT
        assert(.false.) 
     end select
-	
+ 
     call this%constrained_residual%init(0.0_rp) 
     call memalloc ( num_dofs, original_indices, __FILE__,__LINE__) 
     do idof = 1,num_dofs
@@ -247,9 +252,9 @@ end subroutine hts_nonlinear_solver_compute_residual
     end do 
     
   ! Build full constrained residual: 
-	   !       [ R - lag_mult · C^t ]
+    !       [ R - lag_mult · C^t ]
     !  R* = [ J_o - C · H          ]
-    		    
+          
     call this%constrained_residual%init(0.0_rp) 
     call this%constrained_residual%insert_subvector(iblock=1,                          &
                                                     size_indices = num_dofs,           &
@@ -269,7 +274,7 @@ class(hts_nedelec_discrete_integration_t)   , intent(inout)   :: discrete_integr
 ! This subroutine is in charge of adding tangent terms to the current operator 
 ! J(u) = A(u) + A'(u)·u, stored in fe_affine_operator 
 call discrete_integration%set_integration_type('add_tangent_terms')
-call this%fe_affine_operator%numerical_setup() 
+call this%fe_affine_operator%compute() 
 call discrete_integration%set_integration_type('regular')
 
 end subroutine hts_nonlinear_solver_compute_Jacobian 
@@ -278,18 +283,27 @@ end subroutine hts_nonlinear_solver_compute_Jacobian
 subroutine hts_nonlinear_solver_solve_tangent_system(this)
 implicit none 
 class(hts_nonlinear_solver_t)               , intent(inout)     :: this  
-class(matrix_t), pointer       :: Jacobian
+class(matrix_t), pointer         :: Jacobian
+type(serial_scalar_array_t)      :: rhs 
 
 Jacobian => this%fe_affine_operator%get_matrix() 
  
+select type ( residual=>this%residual) 
+class is ( serial_scalar_array_t ) 
+call rhs%clone(residual)
+call rhs%axpby( -1.0_rp, residual, 0.0_rp)
+class DEFAULT 
+end select 
+
 select type (Jacobian) 
 class is (sparse_matrix_t) 
-  call this%direct_solver%update_matrix( Jacobian, same_nonzero_pattern=.false.) 
+  call this%direct_solver%replace_matrix( Jacobian, same_nonzero_pattern=.false.) 
   call this%direct_solver%solve( -this%residual , this%increment_dof_values )
 class DEFAULT 
 assert(.false.) 
 end select 
 
+call rhs%free() 
 end subroutine hts_nonlinear_solver_solve_tangent_system   
 
 ! ---------------------------------------------------------------------------------------
@@ -328,12 +342,8 @@ subroutine hts_nonlinear_solver_solve_constrained_tangent_system(this, constrain
      assert(.false.) 
   end select
 
-  select type (residual=>this%residual)
-  type is (serial_scalar_array_t)
-     original_residual => residual
-     class DEFAULT
-     assert(.false.) 
-  end select
+     massert( .false., ' Needs to be repared if constrained problems wanted' ) 
+    ! original_residual => this%residual
 
   select type (current_dof_values => this%current_dof_values)
   type is (serial_scalar_array_t)
@@ -383,7 +393,7 @@ subroutine hts_nonlinear_solver_solve_constrained_tangent_system(this, constrain
 
   call parameter_list%free()
 
-  call direct_solver%update_matrix(constrained_coefficient_matrix, same_nonzero_pattern=.false.)
+  call direct_solver%replace_matrix(constrained_coefficient_matrix, same_nonzero_pattern=.false.)
   call direct_solver%solve( minus_constrained_residual, constrained_sol )
   call direct_solver%free()
   
@@ -424,7 +434,8 @@ hts_nonlinear_solver_converged = ( (this%residual%nrm2() .lt. this%absolute_tole
 case ('rel_r0_res_norm') ! |R|/|Ro| < rel_tol 
 hts_nonlinear_solver_converged = (this%residual%nrm2()/this%initial_residual%nrm2() .lt. this%relative_tolerance ) 
 case ('rel_rhs_res_norm') ! |R|/|b| < rel_tol 
-hts_nonlinear_solver_converged = (this%residual%nrm2()/this%current_rhs%nrm2() .lt. this%relative_tolerance ) 
+hts_nonlinear_solver_converged = ( (this%residual%nrm2()/this%current_rhs%nrm2() .lt. this%relative_tolerance) &
+                                  .and. (this%residual%nrm2() .lt. this%absolute_tolerance) ) 
 case DEFAULT
 assert(.false.) 
 end select 
@@ -452,7 +463,7 @@ implicit none
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 logical                                                :: hts_nonlinear_solver_finished
 
-hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_number_iterations) .or. (this%residual%nrm2()>1e15_rp) )  &
+hts_nonlinear_solver_finished = ( ( this%converged() .or. (this%current_iteration .gt. this%max_num_iterations) .or. (this%residual%nrm2()>1e30_rp) )  &
                                    .and. this%current_iteration .gt. 0 )
 
 end function hts_nonlinear_solver_finished
@@ -518,7 +529,7 @@ case ('rel_r0_res_norm')      ! |R*|/|Ro*| < rel_tol
 assert(.false.) ! Not implemented 
 case ('rel_rhs_res_norm')     ! |R*|/|b*| < rel_tol 
   write(6,'(a14,i3,a16,es21.15, a10, es21.15, a15, es21.15)')  'NL iteration ', this%current_iteration, '  |R*|/|b*| ', this%constrained_residual%nrm2()/this%get_constrained_rhs_norm(), &
-                                               '  |R*| ', this%constrained_residual%nrm2(), ' |R*|/|A*u*|', this%constrained_residual%nrm2()/this%get_constrained_Au_norm() 
+                                               '  |R*| ', this%constrained_residual%nrm2()
 case DEFAULT
 assert(.false.) 
 end select 
@@ -549,47 +560,16 @@ real(rp) :: get_constrained_rhs_norm
 get_constrained_rhs_norm = sqrt(this%current_rhs%nrm2()**2 + this%constraint_value**2)
 end function get_constrained_rhs_norm
 
-function get_constrained_Au_norm(this)  
-implicit none 
-class(hts_nonlinear_solver_t) , intent(inout) :: this
-type(serial_scalar_array_t) , pointer :: original_residual, original_sol
-type(serial_scalar_array_t) :: Au
-real(rp) :: CH
-real(rp) :: get_constrained_Au_norm 
-
-  select type (residual=>this%residual)
-  type is (serial_scalar_array_t)
-     original_residual => residual
-     class DEFAULT
-     assert(.false.) 
-  end select
-
-  select type (current_dof_values => this%current_dof_values)
-  type is (serial_scalar_array_t)
-     original_sol => current_dof_values 
-     class DEFAULT
-     assert(.false.) 
-  end select
-  
-   call Au%create_and_allocate( original_sol%get_size() ) 
-   Au = original_residual + this%line_search%step_length*this%constraint_vector
-   CH = this%constraint_vector%dot(original_sol)
-   get_constrained_Au_norm = sqrt( Au%nrm2()**2  + CH**2 ) 
-   
-   call Au%free()
-   
-end function get_constrained_Au_norm
-
 ! ---------------------------------------------------------------------------------------
 subroutine hts_nonlinear_solver_free(this) 
 implicit none 
 class(hts_nonlinear_solver_t)         , intent(inout)  :: this 
 
-if (allocated(this%residual)) call this%residual%free()
+if ( allocated(this%residual) ) call this%residual%free()
 call this%constrained_residual%free()
 call this%line_search%free()
-if (allocated(this%initial_residual)) call this%initial_residual%free()
-if (allocated(this%increment_dof_values)) call this%increment_dof_values%free()
+if ( allocated(this%initial_residual) )    call this%initial_residual%free()
+if ( allocated(this%increment_dof_values) )call this%increment_dof_values%free()
  
 ! call this%direct_solver%free() 
 
@@ -622,7 +602,7 @@ subroutine line_search_initialize(this)
   call newton_raphson_solver%fe_affine_operator%create_range_vector(this%initial_dof_values)
 
       ! Line search Cubic Backtracking algorithm 
-  call newton_raphson_solver%fe_affine_operator%numerical_setup() 
+  call newton_raphson_solver%fe_affine_operator%compute() 
   call newton_raphson_solver%compute_residual()
   
   call this%initial_dof_values%copy( newton_raphson_solver%current_dof_values )  
@@ -631,7 +611,7 @@ subroutine line_search_initialize(this)
    lambda_0 = this%step_length 
    
   newton_raphson_solver%current_dof_values = this%initial_dof_values + lambda_0*newton_raphson_solver%increment_dof_values  
-  call newton_raphson_solver%fe_affine_operator%numerical_setup()
+  call newton_raphson_solver%fe_affine_operator%compute()
   call newton_raphson_solver%compute_residual()
  
   ! Check if linear is sufficient 
@@ -657,7 +637,7 @@ subroutine line_search_initialize(this)
   
   !  Update solution with new length step 
     newton_raphson_solver%current_dof_values = this%initial_dof_values + lambda*newton_raphson_solver%increment_dof_values 
-    call newton_raphson_solver%fe_affine_operator%numerical_setup() 
+    call newton_raphson_solver%fe_affine_operator%compute() 
     call newton_raphson_solver%compute_residual() 
 
   ! Check if quadratic is sufficient 
@@ -697,7 +677,7 @@ subroutine line_search_initialize(this)
   end if 
   
     newton_raphson_solver%current_dof_values = this%initial_dof_values + lambda*newton_raphson_solver%increment_dof_values 
-    call newton_raphson_solver%fe_affine_operator%numerical_setup() 
+    call newton_raphson_solver%fe_affine_operator%compute() 
     call newton_raphson_solver%compute_residual() 
     ! Check if cubic is sufficient 
     if ( newton_raphson_solver%residual%nrm2()**2 .le. ( this%initial_residual%nrm2()**2 + 2.0_rp*this%alpha*lambda*s)  ) then 

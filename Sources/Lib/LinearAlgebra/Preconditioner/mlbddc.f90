@@ -34,9 +34,9 @@ module mlbddc_names
  use FPL
  
  ! Integration related modules
- use base_static_triangulation_names
+ use triangulation_names
  use fe_space_names
- use fe_affine_operator_names
+ use fe_nonlinear_operator_names
  
  ! Linear Algebra related modules
  use operator_names
@@ -68,12 +68,64 @@ module mlbddc_names
 # include "debug.i90"
  private
 
- character(len=*), parameter :: mlbddc_dirichlet_solver_params = "mlbddc_dirichlet_solver_params"
- character(len=*), parameter :: mlbddc_neumann_solver_params   = "mlbddc_neumann_solver_params"
- character(len=*), parameter :: mlbddc_coarse_solver_params    = "mlbddc_coarse_solver_params"
+ character(len=*), parameter :: mlbddc_dirichlet_solver_params            = "mlbddc_dirichlet_solver_params"
+ character(len=*), parameter :: mlbddc_neumann_solver_params              = "mlbddc_neumann_solver_params"
+ character(len=*), parameter :: mlbddc_coarse_matrix_params               = "mlbddc_coarse_matrix_params"
+ character(len=*), parameter :: mlbddc_coarse_matrix_symmetric_storage    = "mlbddc_coarse_matrix_symmetric_storage"
+ character(len=*), parameter :: mlbddc_coarse_matrix_is_symmetric         = "mlbddc_coarse_matrix_is_symmetric"
+ character(len=*), parameter :: mlbddc_coarse_matrix_sign                 = "mlbddc_coarse_matrix_sign"
+ character(len=*), parameter :: mlbddc_coarse_solver_params               = "mlbddc_coarse_solver_params"
+ 
+ integer(ip), parameter :: BASE_MLBDDC_STATE_START    = 0
+ integer(ip), parameter :: BASE_MLBDDC_STATE_CREATED  = 1
+ integer(ip), parameter :: BASE_MLBDDC_STATE_SYMBOLIC = 2 ! Symbolic data already computed
+ integer(ip), parameter :: BASE_MLBDDC_STATE_NUMERIC  = 3 ! Numerical data already computed
 
+  !-----------------------------------------------------------------
+  ! State transition diagram for type(base_mlbddc_t)
+  !-----------------------------------------------------------------
+  ! Input State         | Action                | Output State 
+  !-----------------------------------------------------------------
+  ! Start               | create                | Created
+  ! Start               | free_clean            | Start
+  ! Start               | free_symbolic         | Start
+  ! Start               | free_numeric          | Start
+  ! Start               | update_matrix         | Start ! it does nothing
+
+ 
+  ! Created             | symbolic_setup        | Symbolic         ! perform symbolic_setup()
+  ! Created             | numerical_setup       | Numeric          ! perform symbolic_setup()+numerical_setup()
+  ! Created             | apply                 | Numeric          ! perform symbolic_setup()+numerical_setup()
+  ! Created             | free_clean            | Start
+  ! Created             | free_symbolic         | Create           ! it does nothing
+  ! Created             | free_numeric          | Create           ! it does nothing
+  ! Created             | update_matrix         | Create           ! it does nothing
+
+  ! Symbolic            | symbolic_setup                        | Symbolic         ! it does nothing
+  ! Symbolic            | numerical_setup                       | Numeric          ! perform numerical_setup() 
+  ! Symbolic            | apply                                 | Numeric          ! perform numerical_setup()
+  ! Symbolic            | free_clean                            | Start
+  ! Symbolic            | free_symbolic                         | Created
+  ! Symbolic            | free_numeric                          | Symbolic         ! it does nothing
+  ! Symbolic            | update_matrix + same_nonzero_pattern  | Symbolic         ! it does nothing
+  ! Symbolic            | update_matrix + !same_nonzero_pattern | Symbolic         ! free_symbolic()+symbolic_setup()
+    
+    
+  ! Numeric             | symbolic_setup                        | Numeric          ! it does nothing
+  ! Numeric             | numeric_setup                         | Numeric          ! it does nothing
+  ! Numeric             | apply                                 | Numeric          ! it does nothing
+  ! Numeric             | free_numeric                          | Symbolic
+  ! Numeric             | free_symbolic                         | Created
+  ! Numeric             | free_clean                            | Start
+  ! Numeric             | update_matrix + same_nonzero_pattern  | Numeric          ! free_numerical_setup()+numerical_setup()
+  ! Numeric             | update_matrix + !same_nonzero_pattern | Numeric          ! free_numerical_setup()+free_symbolic_setup()
+                                                                                   ! symbolic_setup()+numeric_setup()
  type, abstract, extends(operator_t) :: base_mlbddc_t
    private
+   
+   integer(ip)                                 :: state  = BASE_MLBDDC_STATE_START
+   
+   class(environment_t), pointer               :: environment => NULL()
 
    ! Constraint matrix (to be filled by a process to be customized by the user)
    type(coo_sparse_matrix_t)                   :: constraint_matrix
@@ -102,7 +154,7 @@ module mlbddc_names
    ! Coarse-grid matrix. It is temporarily stored in a type(par_sparse_matrix_t)
    ! data structure, although, in my opinion, in the seek of extensibility, 
    ! some sort of operator is required here that plays the same role as
-   ! type(fe_affine_operator_t) on L1 tasks. It will be a nullified pointer on 
+   ! type(fe_nonlinear_operator_t) on L1 tasks. It will be a nullified pointer on 
    ! L1 tasks, and associated via target allocation in the case of L2-Ln tasks.
    type(par_sparse_matrix_t)     , pointer     :: coarse_grid_matrix => NULL()
 
@@ -119,9 +171,22 @@ module mlbddc_names
    ! value being in turn a (sub) parameter list
    type(parameterlist_t)         , pointer     :: mlbddc_params   => NULL()
  contains
+ 
+   ! State transition handling-related TBPs
+   procedure, non_overridable, private :: set_state_start              => base_mlbddc_set_state_start
+   procedure, non_overridable, private :: set_state_created            => base_mlbddc_set_state_created
+   procedure, non_overridable, private :: set_state_symbolic           => base_mlbddc_set_state_symbolic
+   procedure, non_overridable, private :: set_state_numeric            => base_mlbddc_set_state_numeric
+   procedure, non_overridable, private :: state_is_start               => base_mlbddc_state_is_start
+   procedure, non_overridable, private :: state_is_created             => base_mlbddc_state_is_created
+   procedure, non_overridable, private :: state_is_symbolic            => base_mlbddc_state_is_symbolic
+   procedure, non_overridable, private :: state_is_numeric             => base_mlbddc_state_is_numeric
+ 
+ 
    ! Parameter treatment-related TBPs
    procedure, non_overridable, private :: assert_dirichlet_solver_params                   => base_mlbddc_assert_dirichlet_solver_params 
    procedure, non_overridable, private :: assert_neumann_solver_params                     => base_mlbddc_assert_neumann_solver_params 
+   procedure, non_overridable, private :: parse_or_transfer_coarse_matrix_params           => base_mlbddc_parse_or_transfer_coarse_matrix_params 
    procedure, non_overridable, private :: assert_coarse_solver_params                      => base_mlbddc_assert_coarse_solver_params 
 
    ! Symbolic setup-related TBPs
@@ -196,11 +261,12 @@ module mlbddc_names
    
    procedure, non_overridable, private :: am_i_l1_task                                     => base_mlbddc_am_i_l1_task
    procedure                           :: is_linear                                        => base_mlbddc_is_linear
+   procedure, private                  :: get_par_environment                              => base_mlbddc_get_par_environment
+   procedure, private                  :: set_par_environment                              => base_mlbddc_set_par_environment
    
    ! TBPs which are though to be overrided by sub_classes
    procedure, private                  :: get_par_sparse_matrix                            => base_mlbddc_get_par_sparse_matrix
    procedure, private                  :: get_fe_space                                     => base_mlbddc_get_fe_space
-   procedure, private                  :: get_par_environment                              => base_mlbddc_get_par_environment
    procedure, private                  :: is_operator_associated                           => base_mlbddc_is_operator_associated
    procedure, private                  :: nullify_operator                                 => base_mlbddc_nullify_operator
 end type base_mlbddc_t
@@ -212,10 +278,10 @@ end type base_mlbddc_t
    ! This pointer is set-up during mlbddc_t%create() and re-used in the rest of stages.
    ! Therefore, type(parameter_list_t) to which type(mlbddc_t) points to MUST NOT BE
    ! freed before type(mlbddc_t)
-   type(parameterlist_t)         , pointer :: parameter_list
+   type(parameterlist_t)            , pointer :: parameter_list
    
-   ! Pointer to the fe_affine_operator_t this mlbddc_t instance has been created from
-   type(fe_affine_operator_t)    , pointer :: fe_affine_operator => NULL()
+   ! Pointer to the fe_nonlinear_operator_t this mlbddc_t instance has been created from
+   type(fe_nonlinear_operator_t)    , pointer :: fe_nonlinear_operator => NULL()
  contains
     procedure, non_overridable          :: create                                          => mlbddc_create
     procedure, non_overridable, private :: create_vector_spaces                            => mlbddc_create_vector_spaces
@@ -223,10 +289,12 @@ end type base_mlbddc_t
     ! Symbolic-setup related TBPs
     procedure,                  private :: setup_constraint_matrix                         => mlbddc_setup_constraint_matrix
     procedure,                  private :: setup_weighting_operator                        => mlbddc_setup_weighting_operator
+    
+    ! Update-matrix related TBPs
+    procedure                           :: update_matrix                                   => mlbddc_update_matrix
         
     ! Miscellaneous 
     procedure, private                  :: get_par_sparse_matrix                            => mlbddc_get_par_sparse_matrix
-    procedure, private                  :: get_par_environment                              => mlbddc_get_par_environment
     procedure, private                  :: get_fe_space                                     => mlbddc_get_fe_space
     procedure, private                  :: get_par_fe_space                                 => mlbddc_get_par_fe_space
     procedure                 , private :: is_operator_associated                           => mlbddc_is_operator_associated
@@ -252,7 +320,6 @@ end type base_mlbddc_t
       
           
    procedure, private                  :: get_par_sparse_matrix                            => mlbddc_coarse_get_par_sparse_matrix
-   procedure, private                  :: get_par_environment                              => mlbddc_coarse_get_par_environment
    procedure, private                  :: get_fe_space                                     => mlbddc_coarse_get_fe_space
    procedure, private                  :: get_coarse_fe_space                              => mlbddc_coarse_get_coarse_fe_space
    procedure                 , private :: is_operator_associated                           => mlbddc_coarse_is_operator_associated
@@ -261,6 +328,7 @@ end type base_mlbddc_t
  
  public :: mlbddc_t
  public :: mlbddc_dirichlet_solver_params, mlbddc_neumann_solver_params, mlbddc_coarse_solver_params
+ public :: mlbddc_coarse_matrix_params, mlbddc_coarse_matrix_symmetric_storage, mlbddc_coarse_matrix_is_symmetric, mlbddc_coarse_matrix_sign
 
 contains
 

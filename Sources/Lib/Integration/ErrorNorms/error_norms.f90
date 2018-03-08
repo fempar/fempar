@@ -32,9 +32,8 @@ module error_norms_names
   use environment_names
   use reference_fe_names
   use field_names
-  use fe_function_names
   use function_names
-  use cell_fe_function_names
+  use fe_cell_function_names
 # include "debug.i90"
   implicit none
   private
@@ -70,10 +69,10 @@ module error_norms_names
      
      ! Work arrays to store type(fe_function_t) values and gradients 
      ! restricted to field_id + current cell
-     type(cell_fe_function_scalar_t)       :: cell_fe_function
+     type(fe_cell_function_scalar_t)       :: fe_cell_function
      
      ! Work arrays to store exact function (and difference of fe - exact functions) 
-     ! values and gradients. Size = (max_number_of_quadrature_points, 1). A 2-rank array 
+     ! values and gradients. Size = (max_num_quadrature_points, 1). A 2-rank array 
      ! is required provided the current interface of tensor-valued function_t data types
      real(rp)                , allocatable :: work_array_values(:,:)
      type(vector_field_t)    , allocatable :: work_array_gradients(:,:)
@@ -101,10 +100,10 @@ module error_norms_names
      
      ! Work arrays to store type(fe_function_t) values and gradients 
      ! restricted to field_id + current cell
-     type(cell_fe_function_vector_t)       :: cell_fe_function
+     type(fe_cell_function_vector_t)       :: fe_cell_function
      
      ! Work arrays to store exact function (and difference of fe - exact functions) 
-     ! values, gradients and curls. Size = (max_number_of_quadrature_points, 1). A 2-rank array 
+     ! values, gradients and curls. Size = (max_num_quadrature_points, 1). A 2-rank array 
      ! is required provided the current interface of tensor-valued function_t data types
      type(vector_field_t)    , allocatable :: work_array_values(:,:)
      type(tensor_field_t)    , allocatable :: work_array_gradients(:,:)
@@ -171,7 +170,7 @@ contains
        call environment%l1_max(aux)
        norm = norm + aux
     end select
-	
+ 
     select case ( trim(norm_type) )
     case(hcurl_seminorm) 
        assert( present(curl_values_norm) )
@@ -202,7 +201,7 @@ contains
                      (trim(norm_type) == w1infty_norm) .or. &
                      (trim(norm_type) == h1_seminorm) .or. &
                      (trim(norm_type) == hdiv_seminorm) .or. &
-					                (trim(norm_type) == hcurl_seminorm)    .or. &
+                     (trim(norm_type) == hcurl_seminorm)    .or. &
                      (trim(norm_type) == w1p_seminorm) .or. &
                      (trim(norm_type) == w1infty_seminorm) )
   end function error_norm_is_supported

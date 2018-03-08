@@ -63,6 +63,7 @@ USE vtk_utils_names
 USE base_output_handler_names
 USE output_handler_fe_field_names
 USE output_handler_parameters_names
+USE output_handler_field_generator_names
 USE vtk_parameters_names
 USE fe_space_names,             only: serial_fe_space_t
 USE output_handler_patch_names, only: patch_subcell_accessor_t
@@ -107,7 +108,7 @@ private
         type(output_handler_fe_field_2D_value_t), allocatable :: FieldValues(:)
         type(output_handler_fe_field_1D_value_t), allocatable :: CellValues(:)
         real(rp),                                 allocatable :: Times(:)
-        integer(ip)                                           :: number_steps = 0
+        integer(ip)                                           :: num_steps = 0
         integer(ip)                                           :: node_offset  = 0
         integer(ip)                                           :: cell_offset  = 0
     contains
@@ -161,7 +162,7 @@ contains
         endif
         this%node_offset  = 0
         this%cell_offset  = 0
-        this%number_steps = 0
+        this%num_steps = 0
     end subroutine vtk_output_handler_free_body
 
 
@@ -200,17 +201,17 @@ contains
     end subroutine vtk_output_handler_open_body
 
 
-    subroutine vtk_output_handler_resize_times_if_needed(this, number_steps)
+    subroutine vtk_output_handler_resize_times_if_needed(this, num_steps)
     !-----------------------------------------------------------------
-    !< Resize Times steps array if needed for the new number_steps
+    !< Resize Times steps array if needed for the new num_steps
     !-----------------------------------------------------------------
         class(vtk_output_handler_t), intent(inout) :: this
-        integer(ip),                 intent(in)    :: number_steps
+        integer(ip),                 intent(in)    :: num_steps
         integer(ip)                                :: new_size 
     !-----------------------------------------------------------------
         if(.not. allocated(this%Times)) then
             call memalloc(100, this%times, __FILE__, __LINE__)
-        elseif(number_steps > size(this%Times)) then
+        elseif(num_steps > size(this%Times)) then
             new_size = int(1.5*size(this%Times))
             call memrealloc(new_size,this%Times,__FILE__,__LINE__)
         endif
@@ -232,9 +233,9 @@ contains
         assert(associated(environment))
 
         if( environment%am_i_l1_task()) then
-            this%number_steps = this%number_steps + 1
-            call this%resize_times_if_needed(this%number_steps)
-            this%Times(this%number_steps) = value
+            this%num_steps = this%num_steps + 1
+            call this%resize_times_if_needed(this%num_steps)
+            this%Times(this%num_steps) = value
         endif
         this%node_offset = 0
         this%cell_offset = 0
@@ -246,51 +247,56 @@ contains
     !< Allocate cell and nodal arrays
     !-----------------------------------------------------------------
         class(vtk_output_handler_t), intent(inout) :: this
-        integer(ip)                                :: number_nodes
-        integer(ip)                                :: number_cells
+        integer(ip)                                :: num_nodes
+        integer(ip)                                :: num_cells
         type(output_handler_fe_field_t), pointer   :: field
+        type(output_handler_field_generator_info_t), pointer :: field_generator
         integer(ip)                                :: i
     !-----------------------------------------------------------------
-        number_nodes = this%get_number_nodes()
-        number_cells = this%get_number_cells()
+        num_nodes = this%get_num_nodes()
+        num_cells = this%get_num_cells()
         if(allocated(this%X)) then
-            call memrealloc(number_nodes, this%X,              __FILE__, __LINE__)
+            call memrealloc(num_nodes, this%X,              __FILE__, __LINE__)
         else
-            call memalloc(  number_nodes, this%X,              __FILE__, __LINE__)
+            call memalloc(  num_nodes, this%X,              __FILE__, __LINE__)
         endif
         if(allocated(this%Y)) then
-            call memrealloc(number_nodes, this%Y,              __FILE__, __LINE__)
+            call memrealloc(num_nodes, this%Y,              __FILE__, __LINE__)
         else
-            call memalloc(  number_nodes, this%Y,              __FILE__, __LINE__)
+            call memalloc(  num_nodes, this%Y,              __FILE__, __LINE__)
         endif
         if(allocated(this%Z)) then
-            call memrealloc(number_nodes, this%Z,              __FILE__, __LINE__)
+            call memrealloc(num_nodes, this%Z,              __FILE__, __LINE__,0.0_rp)
         else
-            call memalloc(  number_nodes, this%Z,              __FILE__, __LINE__)
-            this%Z = 0_rp
+            call memalloc(  num_nodes, this%Z,              __FILE__, __LINE__,0.0_rp)
         endif
         if(allocated(this%Offset)) then
-            call memrealloc(number_cells, this%Offset,         __FILE__, __LINE__)
+            call memrealloc(num_cells, this%Offset,         __FILE__, __LINE__)
         else
-            call memalloc(  number_cells, this%Offset,         __FILE__, __LINE__)
+            call memalloc(  num_cells, this%Offset,         __FILE__, __LINE__)
         endif
         if(allocated(this%CellTypes)) then
-            call memrealloc(number_cells, this%CellTypes,      __FILE__, __LINE__)
+            call memrealloc(num_cells, this%CellTypes,      __FILE__, __LINE__)
         else
-            call memalloc(  number_cells, this%CellTypes,      __FILE__, __LINE__)
+            call memalloc(  num_cells, this%CellTypes,      __FILE__, __LINE__)
         endif
         if(allocated(this%Connectivities)) then
-            call memrealloc(number_nodes, this%Connectivities, __FILE__, __LINE__)
+            call memrealloc(num_nodes, this%Connectivities, __FILE__, __LINE__)
         else
-            call memalloc(  number_nodes, this%Connectivities, __FILE__, __LINE__)
+            call memalloc(  num_nodes, this%Connectivities, __FILE__, __LINE__)
         endif
-        do i=1, this%get_number_fields()
+        do i=1, this%get_num_fields()
             field => this%get_fe_field(i)
-            call this%FieldValues(i)%create(field%get_number_components(), this%get_number_nodes())
+            call this%FieldValues(i)%create(field%get_num_components(), this%get_num_nodes())
             call this%FieldValues(i)%init(0.0_rp)
         end do
-        do i=1, this%get_number_cell_vectors()
-            call this%CellValues(i)%create(1, this%get_number_cells())
+        do i=1, this%get_num_field_generators()
+            field_generator => this%get_field_generator(i)
+            call this%FieldValues(this%get_num_fields()+i)%create(field_generator%get_num_components(), this%get_num_nodes())
+            call this%FieldValues(this%get_num_fields()+i)%init(0.0_rp)
+        end do
+        do i=1, this%get_num_cell_vectors()
+            call this%CellValues(i)%create(1, this%get_num_cells())
             call this%CellValues(i)%init(0.0_rp)
         enddo
     end subroutine vtk_output_handler_allocate_cell_and_nodal_arrays
@@ -306,43 +312,45 @@ contains
         integer(ip), allocatable                   :: Connectivity(:)
         real(rp),                        pointer   :: FieldValue(:,:)
         real(rp),                        pointer   :: CellValue(:)
-        integer(ip)                                :: number_vertices
-        integer(ip)                                :: number_dimensions
-        integer(ip)                                :: number_fields
-        integer(ip)                                :: number_cell_vectors
-        integer(ip)                                :: number_components
+        integer(ip)                                :: num_vertices
+        integer(ip)                                :: num_dims
+        integer(ip)                                :: num_fields
+        integer(ip)                                :: num_field_generators
+        integer(ip)                                :: num_cell_vectors
+        integer(ip)                                :: num_components
         integer(ip)                                :: i
     !-----------------------------------------------------------------
-        number_vertices     = subcell_accessor%get_number_vertices()
-        number_dimensions   = subcell_accessor%get_number_dimensions()
-        number_fields       = this%get_number_fields()
-        number_cell_vectors = this%get_number_cell_vectors()
+        num_vertices     = subcell_accessor%get_num_vertices()
+        num_dims   = subcell_accessor%get_num_dims()
+        num_fields       = this%get_num_fields()
+        num_field_generators = this%get_num_field_generators()
+        num_cell_vectors = this%get_num_cell_vectors()
 
-        if(.not. this%StaticGrid .or. this%number_steps <= 1) then 
-            call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+number_vertices), &
-                                                  this%Y(this%node_offset+1:this%node_offset+number_vertices), &
-                                                  this%Z(this%node_offset+1:this%node_offset+number_vertices))
+        if(.not. this%StaticGrid .or. this%num_steps <= 1) then 
+            call subcell_accessor%get_coordinates(this%X(this%node_offset+1:this%node_offset+num_vertices), &
+                                                  this%Y(this%node_offset+1:this%node_offset+num_vertices), &
+                                                  this%Z(this%node_offset+1:this%node_offset+num_vertices))
 
-            this%Connectivities(this%node_offset+1:this%node_offset+number_vertices) = &
-                                (/(i, i=this%node_offset, this%node_offset+number_vertices-1)/)
+            this%Connectivities(this%node_offset+1:this%node_offset+num_vertices) = &
+                                (/(i, i=this%node_offset, this%node_offset+num_vertices-1)/)
         endif
 
-        do i=1, number_fields
-            number_components = this%FieldValues(i)%get_number_components()
+        do i=1, num_fields+num_field_generators
+            num_components = this%FieldValues(i)%get_num_components()
             FieldValue => this%FieldValues(i)%get_value()
-            call subcell_accessor%get_field(i, FieldValue(1:number_components,this%node_offset+1:this%node_offset+number_vertices))
+            call subcell_accessor%get_field(i, FieldValue(1:num_components,this%node_offset+1:this%node_offset+num_vertices))
         enddo
 
-        this%node_offset = this%node_offset + number_vertices
+        this%node_offset = this%node_offset + num_vertices
         this%cell_offset = this%cell_offset + 1
 
-        do i=1, number_cell_vectors
+        do i=1, num_cell_vectors
             CellValue => this%CellValues(i)%get_value()
             call subcell_accessor%get_cell_vector(i, CellValue(this%cell_offset:this%cell_offset))
         enddo
 
         this%Offset(this%cell_offset) = this%node_offset
-        this%CellTypes(this%cell_offset) = topology_to_vtk_celltype(subcell_accessor%get_cell_type(), number_dimensions)
+        this%CellTypes(this%cell_offset) = topology_to_vtk_celltype(subcell_accessor%get_cell_type(), num_dims)
 
     end subroutine vtk_output_handler_append_cell
 
@@ -369,13 +377,13 @@ contains
         if( environment%am_i_l1_task()) then
 
             assert(allocated(this%Path) .and. allocated(this%FilePrefix))
-            if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_number_fields()))
-            if(.not. allocated(this%CellValues)) allocate(this%CellValues(this%get_number_cell_vectors()))
+            if(.not. allocated(this%FieldValues)) allocate(this%FieldValues(this%get_num_fields()+this%get_num_field_generators()))
+            if(.not. allocated(this%CellValues)) allocate(this%CellValues(this%get_num_cell_vectors()))
 
-            call this%fill_data(update_mesh = (.not. this%StaticGrid .or. this%number_steps <= 1))
+            call this%fill_data(update_mesh = (.not. this%StaticGrid .or. this%num_steps <= 1))
 
-            if(this%number_steps > 0) then
-                path     = get_vtk_output_path(trim(adjustl(this%Path)), this%Times(this%number_steps))
+            if(this%num_steps > 0) then
+                path     = get_vtk_output_path(trim(adjustl(this%Path)), this%Times(this%num_steps))
             else
                 path     = get_vtk_output_path(trim(adjustl(this%Path)), vtk_default_step_value)
             endif
@@ -410,8 +418,9 @@ contains
         integer(ip),                     intent(in) :: task_id
         character(len=:), allocatable               :: filename
         type(output_handler_fe_field_t),    pointer :: field
+        type(output_handler_field_generator_info_t), pointer :: field_generator
         type(output_handler_cell_vector_t), pointer :: cell_vector
-        integer(ip)                                 :: number_components
+        integer(ip)                                 :: num_components
         integer(ip)                                 :: file_id
         real(rp), pointer                           :: FieldValue(:,:)
         real(rp), pointer                           :: CellValue(:)
@@ -425,14 +434,14 @@ contains
                    mesh_topology = 'UnstructuredGrid',      &
                    cf=file_id)
         assert(E_IO == 0)
-        E_IO = VTK_GEO_XML(NN = this%get_number_nodes(), &
-                           NC = this%get_number_cells(), &
+        E_IO = VTK_GEO_XML(NN = this%get_num_nodes(), &
+                           NC = this%get_num_cells(), &
                            X  = this%X,                  &
                            Y  = this%Y,                  &
                            Z  = this%Z,                  &
                            cf = file_id)
         assert(E_IO == 0)
-        E_IO = VTK_CON_XML(NC        = this%get_number_cells(), &
+        E_IO = VTK_CON_XML(NC        = this%get_num_cells(), &
                            connect   = this%Connectivities,     &
                            offset    = this%Offset,             &
                            cell_type = this%CellTypes,          &
@@ -441,11 +450,18 @@ contains
 
         E_IO = VTK_DAT_XML(var_location='Node',var_block_action='OPEN', cf=file_id)
         assert(E_IO == 0)
-        do i=1, this%get_number_fields()
+        do i=1, this%get_num_fields()
             field => this%get_fe_field(i)
             FieldValue => this%FieldValues(i)%get_value()
-            number_components = size(FieldValue,1)
-            E_IO = VTK_VAR_XML(NC_NN=this%get_number_nodes(), N_COL=number_components, varname=field%get_name(), var=FieldValue, cf=file_id)
+            num_components = size(FieldValue,1)
+            E_IO = VTK_VAR_XML(NC_NN=this%get_num_nodes(), N_COL=num_components, varname=field%get_name(), var=FieldValue, cf=file_id)
+            assert(E_IO == 0)
+        enddo
+        do i=1, this%get_num_field_generators()
+            field_generator => this%get_field_generator(i)
+            FieldValue => this%FieldValues(this%get_num_fields()+i)%get_value()
+            num_components = size(FieldValue,1)
+            E_IO = VTK_VAR_XML(NC_NN=this%get_num_nodes(), N_COL=num_components, varname=field_generator%get_name(), var=FieldValue, cf=file_id)
             assert(E_IO == 0)
         enddo
         E_IO = VTK_DAT_XML(var_location='Node', var_block_action='CLOSE', cf=file_id)
@@ -453,10 +469,10 @@ contains
 
         E_IO = VTK_DAT_XML(var_location='Cell',var_block_action='OPEN', cf=file_id)
         assert(E_IO == 0)
-        do i=1, this%get_number_cell_vectors()
+        do i=1, this%get_num_cell_vectors()
             cell_vector => this%get_cell_vector(i)
             CellValue => this%CellValues(i)%get_value()
-            E_IO = VTK_VAR_XML(NC_NN=this%get_number_cells(), varname=cell_vector%get_name(), var=CellValue, cf=file_id)
+            E_IO = VTK_VAR_XML(NC_NN=this%get_num_cells(), varname=cell_vector%get_name(), var=CellValue, cf=file_id)
             assert(E_IO == 0)
         enddo
         E_IO = VTK_DAT_XML(var_location='Cell', var_block_action='CLOSE', cf=file_id)
@@ -469,7 +485,7 @@ contains
     end subroutine vtk_output_handler_write_vtu
 
 
-    subroutine vtk_output_handler_write_pvtu(this, dir_path, prefix, number_parts)
+    subroutine vtk_output_handler_write_pvtu(this, dir_path, prefix, num_parts)
     !-----------------------------------------------------------------
     !< Write the pvtu file containing the number of parts
     !< (only root processor)
@@ -477,12 +493,13 @@ contains
         class(vtk_output_handler_t),    intent(in)  :: this
         character(len=*),               intent(in)  :: dir_path
         character(len=*),               intent(in)  :: prefix
-        integer(ip),                    intent(in)  :: number_parts
+        integer(ip),                    intent(in)  :: num_parts
         character(len=:), allocatable               :: path
         character(len=:), allocatable               :: filename
         class(serial_fe_space_t),           pointer :: fe_space
         type(environment_t),                pointer :: environment
         type(output_handler_fe_field_t),    pointer :: field
+        type(output_handler_field_generator_info_t), pointer :: field_generator
         type(output_handler_cell_vector_t), pointer :: cell_vector
         integer(ip)                                 :: file_id
         integer(ip)                                 :: E_IO
@@ -497,7 +514,7 @@ contains
                             tp            = 'Float64',           &
                             cf            = file_id)
         assert(E_IO == 0)
-        do i=0, number_parts-1
+        do i=0, num_parts-1
             E_IO = PVTK_GEO_XML(source=trim(adjustl(get_vtk_filename(prefix, i))), cf=file_id)
             assert(E_IO == 0)
         enddo
@@ -505,21 +522,31 @@ contains
         E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'OPEN', cf=file_id)
         assert(E_IO == 0)
         ! Write point data fields
-        do i=1, this%get_number_fields()
+        do i=1, this%get_num_fields()
             field => this%get_fe_field(i)
             E_IO = PVTK_VAR_XML(varname = trim(adjustl(field%get_name())),             &
                                 tp      = 'Float64',                                   &
-                                Nc      = this%FieldValues(i)%get_number_components(), &
+                                Nc      = this%FieldValues(i)%get_num_components(), &
                                 cf      = file_id )
             assert(E_IO == 0)
         enddo
+        ! Write point data fields
+        do i=1, this%get_num_field_generators()
+            field_generator => this%get_field_generator(i)
+            E_IO = PVTK_VAR_XML(varname = trim(adjustl(field_generator%get_name())),             &
+                                tp      = 'Float64',                                   &
+                                Nc      = this%FieldValues(i+this%get_num_fields())%get_num_components(), &
+                                cf      = file_id )
+            assert(E_IO == 0)
+        enddo
+        
         E_IO = PVTK_DAT_XML(var_location = 'Node', var_block_action = 'CLOSE', cf=file_id)
         assert(E_IO == 0)
 
         E_IO = PVTK_DAT_XML(var_location = 'Cell', var_block_action = 'OPEN', cf=file_id)
         assert(E_IO == 0)
         ! Write point data fields
-        do i=1, this%get_number_cell_vectors()
+        do i=1, this%get_num_cell_vectors()
             cell_vector => this%get_cell_vector(i)
             E_IO = PVTK_VAR_XML(varname = trim(adjustl(cell_vector%get_name())),       &
                                 tp      = 'Float64',                                   &
@@ -556,8 +583,8 @@ contains
         assert(E_IO==0)
         if(allocated(this%Times)) then
             ! Transient simulation
-            assert(size(this%Times,1) >= this%number_steps)
-            do step=1, this%number_steps
+            assert(size(this%Times,1) >= this%num_steps)
+            do step=1, this%num_steps
                 pvtu_path     = trim(adjustl(get_vtk_output_directory_name(this%Times(step))))
                 pvtu_filename = trim(adjustl(get_pvtu_filename(prefix)))
                 E_IO = PVD_DAT_XML(filename=pvtu_path//'/'//pvtu_filename, timestep=this%Times(step), cf=file_id)
@@ -582,7 +609,7 @@ contains
     !-----------------------------------------------------------------
         class(vtk_output_handler_t), intent(inout) :: this
     !-----------------------------------------------------------------
-        this%number_steps = 0
+        this%num_steps = 0
         if(allocated(this%Times)) call memfree(this%Times, __FILE__, __LINE__)
     end subroutine vtk_output_handler_close_body
 

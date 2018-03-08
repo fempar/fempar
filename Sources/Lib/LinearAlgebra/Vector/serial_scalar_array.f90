@@ -103,7 +103,7 @@ module serial_scalar_array_names
      procedure :: same_vector_space      => serial_scalar_array_same_vector_space
      procedure :: free_in_stages         => serial_scalar_array_free_in_stages
      procedure :: default_initialization => serial_scalar_array_default_init
-     procedure :: get_number_blocks      => serial_scalar_array_get_number_blocks
+     procedure :: get_num_blocks      => serial_scalar_array_get_num_blocks
      procedure :: extract_subvector      => serial_scalar_array_extract_subvector
      procedure :: insert_subvector       => serial_scalar_array_insert_subvector
   end type serial_scalar_array_t
@@ -417,8 +417,12 @@ contains
   ! op1 <- clone(op2) 
   subroutine serial_scalar_array_clone(op1,op2)
     implicit none
-    class(serial_scalar_array_t),intent(inout) :: op1
-    class(vector_t), intent(in)                :: op2
+    class(serial_scalar_array_t), target, intent(inout) :: op1
+    class(vector_t), target, intent(in)                :: op2
+    class(vector_t), pointer :: p
+    p => op1
+    if(associated(p,op2)) return ! It's aliasing
+    
     call op2%GuardTemp()
     select type(op2)
        class is (serial_scalar_array_t)
@@ -478,14 +482,14 @@ contains
       serial_scalar_array_same_vector_space = (this%size == vector%size)
     end select
   end function serial_scalar_array_same_vector_space
-	
+ 
   !=============================================================================
-  function serial_scalar_array_get_number_blocks(this) result(res)
+  function serial_scalar_array_get_num_blocks(this) result(res)
     implicit none 
     class(serial_scalar_array_t), intent(in)   :: this
     integer(ip) :: res
     res = 1
-  end function serial_scalar_array_get_number_blocks
+  end function serial_scalar_array_get_num_blocks
  
   !=============================================================================
   subroutine serial_scalar_array_extract_subvector( this, &

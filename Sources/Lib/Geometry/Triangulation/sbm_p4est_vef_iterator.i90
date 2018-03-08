@@ -1,0 +1,522 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine p4est_vef_iterator_create ( this, triangulation )
+  implicit none
+  class(p4est_vef_iterator_t)               , intent(inout) :: this
+  class(triangulation_t), target            , intent(in)    :: triangulation
+  call this%free()
+  call vef_iterator_create(this,triangulation)
+  select type(triangulation)
+  class is (p4est_base_triangulation_t)
+    this%p4est_triangulation => triangulation
+  class default
+    assert(.false.)
+  end select
+end subroutine p4est_vef_iterator_create
+
+subroutine p4est_vef_iterator_free ( this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(inout) :: this
+  call vef_iterator_free(this)
+  nullify ( this%p4est_triangulation )
+end subroutine p4est_vef_iterator_free
+
+subroutine p4est_vef_iterator_free_final ( this)
+  implicit none
+  type(p4est_vef_iterator_t), intent(inout) :: this
+   assert(.not. associated(this%p4est_triangulation ))
+end subroutine p4est_vef_iterator_free_final
+
+!subroutine p4est_vef_iterator_first(this)
+!  implicit none
+!  class(p4est_vef_iterator_t), intent(inout) :: this
+!  this%gid = 1
+!end subroutine p4est_vef_iterator_first
+
+subroutine p4est_vef_iterator_next(this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(inout) :: this
+  if ( this%get_gid() > 0 .and. this%get_gid() < this%p4est_triangulation%num_proper_vefs ) then
+     call this%set_gid(this%get_gid()+1)
+  else if ( this%get_gid() > 0 .and. this%get_gid() == this%p4est_triangulation%num_proper_vefs ) then
+     call this%set_gid(-1)
+  else 
+     call this%set_gid(this%get_gid()-1)
+  end if  
+end subroutine p4est_vef_iterator_next
+
+function p4est_vef_iterator_has_finished(this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_has_finished
+  p4est_vef_iterator_has_finished = ((this%p4est_triangulation%num_improper_vefs==0) .and. (this%p4est_triangulation%num_proper_vefs==0))
+  if ( .not. p4est_vef_iterator_has_finished ) then 
+    p4est_vef_iterator_has_finished = (this%get_gid() < 0 .and. this%get_gid() < -this%p4est_triangulation%num_improper_vefs)
+  end if  
+end function p4est_vef_iterator_has_finished
+
+function p4est_vef_iterator_get_num_nodes(this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_vef_iterator_get_num_nodes
+  class(reference_fe_t), pointer :: reference_fe_geo
+  type(p4est_cell_iterator_t) :: cell
+  type(list_iterator_t) :: dofs_on_bst_vef_iterator
+  call cell%create(this%p4est_triangulation)
+  call this%get_cell_around(1, cell)
+  reference_fe_geo => cell%get_reference_fe()
+  dofs_on_bst_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
+  p4est_vef_iterator_get_num_nodes = dofs_on_bst_vef_iterator%get_size()
+  call cell%free()
+end function p4est_vef_iterator_get_num_nodes
+
+subroutine p4est_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  type(point_t)              , intent(inout) :: nodes_coordinates(:)
+  type(p4est_cell_iterator_t)                   :: cell
+  integer(ip)                                   :: inode_within_cell
+  integer(ip)                                   :: inode_within_vef
+  integer(ip)                                   :: num_vertices
+  class(reference_fe_t), pointer :: reference_fe_geo
+  type(list_iterator_t)                         :: dofs_on_vef_iterator
+  
+  assert ( this%get_gid() <= this%p4est_triangulation%num_proper_vefs .and. .not. this%has_finished() )
+  
+  call cell%create(this%p4est_triangulation)
+  call this%get_cell_around(1, cell)
+  reference_fe_geo => cell%get_reference_fe()
+  num_vertices = reference_fe_geo%get_num_vertices()
+  dofs_on_vef_iterator = reference_fe_geo%create_dofs_on_n_face_iterator(cell%get_vef_lid_from_gid(this%get_gid()))
+  inode_within_vef = 1
+  do while (.not. dofs_on_vef_iterator%is_upper_bound())     
+    inode_within_cell = dofs_on_vef_iterator%get_current()
+    nodes_coordinates(inode_within_vef) =                     &
+      this%p4est_triangulation%per_cell_vertex_coordinates%get( & 
+           (cell%get_gid()-1)*num_vertices+inode_within_cell)
+    call dofs_on_vef_iterator%next()
+    inode_within_vef = inode_within_vef + 1
+  end do
+  call cell%free()
+end subroutine p4est_vef_iterator_get_nodes_coordinates
+
+!function p4est_vef_iterator_get_triangulation(this)
+!  implicit none
+!  class(p4est_vef_iterator_t), intent(in) :: this
+!  class(base_static_triangulation_t), pointer :: p4est_vef_iterator_get_triangulation
+!  p4est_vef_iterator_get_triangulation => this%base_static_triangulation
+!end function p4est_vef_iterator_get_triangulation
+
+!function p4est_vef_iterator_get_lid (this)
+!  implicit none
+!  class(p4est_vef_iterator_t), intent(in) :: this
+!  integer(ip) :: p4est_vef_iterator_get_lid
+!  p4est_vef_iterator_get_lid = this%gid
+!end function p4est_vef_iterator_get_lid
+
+function p4est_vef_iterator_get_ggid (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  integer(igp) :: p4est_vef_iterator_get_ggid
+  p4est_vef_iterator_get_ggid = this%get_gid()
+end function p4est_vef_iterator_get_ggid
+
+subroutine p4est_vef_iterator_set_set_id(this,set_id)
+  implicit none
+  class(p4est_vef_iterator_t), intent(inout) :: this
+  integer(ip)          , intent(in) :: set_id
+  assert ( this%is_within_valid_range() )
+  if ( this%is_proper() ) then
+    call this%p4est_triangulation%proper_vefs_set_ids%set(this%get_gid(),set_id)
+  else 
+    call this%p4est_triangulation%improper_vefs_set_ids%set(abs(this%get_gid()),set_id)
+  end if
+end subroutine p4est_vef_iterator_set_set_id  
+
+!subroutine p4est_vef_iterator_set_geom_id(this,geom_id)
+!  implicit none
+!  class(p4est_vef_iterator_t), intent(inout) :: this
+!  integer(ip)          , intent(in) :: geom_id
+!  assert (this%gid >= 1 .and. .not. this%has_finished())
+!  this%base_static_triangulation%vefs_geometry(this%gid) = geom_id
+!end subroutine p4est_vef_iterator_set_geom_id  
+
+function p4est_vef_iterator_get_set_id(this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_vef_iterator_get_set_id
+  assert ( this%is_within_valid_range() )
+  if ( this%is_proper() ) then
+    p4est_vef_iterator_get_set_id = this%p4est_triangulation%proper_vefs_set_ids%get(this%get_gid())
+  else 
+    p4est_vef_iterator_get_set_id = this%p4est_triangulation%improper_vefs_set_ids%get(abs(this%get_gid()))
+  end if
+  
+end function p4est_vef_iterator_get_set_id  
+
+!function p4est_vef_iterator_get_geom_id(this)
+!  implicit none
+!  class(p4est_vef_iterator_t), intent(in) :: this
+!  integer(ip) :: p4est_vef_iterator_get_geom_id
+!  assert (this%gid >= 1 .and. .not. this%has_finished())
+!  p4est_vef_iterator_get_geom_id = this%base_static_triangulation%vefs_geometry(this%gid)
+!end function p4est_vef_iterator_get_geom_id  
+
+!subroutine p4est_vef_iterator_set_dim(this,vef_dim)
+!  implicit none
+!  class(p4est_vef_iterator_t), intent(inout) :: this
+!  integer(ip)          , intent(in)    :: vef_dim
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+!  this%base_static_triangulation%vefs_type(this%gid) = (this%base_static_triangulation%vefs_type(this%gid)/10) * 10 + vef_dim
+!end subroutine p4est_vef_iterator_set_dim
+
+!subroutine p4est_vef_iterator_set_it_at_boundary(this)
+!  implicit none
+!  class(p4est_vef_iterator_t), intent(inout) :: this
+!  integer(ip) :: vef_dim
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+!  vef_dim = mod(this%base_static_triangulation%vefs_type(this%gid),10)
+!  this%base_static_triangulation%vefs_type(this%gid) = (this%base_static_triangulation%vefs_type(this%gid)/100) * 100 + 10 + vef_dim
+!end subroutine p4est_vef_iterator_set_it_at_boundary
+
+!subroutine p4est_vef_iterator_set_it_as_local(this)
+!  implicit none
+!  class(p4est_vef_iterator_t), intent(inout) :: this
+!  integer(ip) :: vef_dim_and_bound
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+!  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%gid),100)
+!  this%base_static_triangulation%vefs_type(this%gid) = vef_dim_and_bound
+!end subroutine p4est_vef_iterator_set_it_as_local
+
+!subroutine p4est_vef_iterator_set_it_at_interface(this)
+!  implicit none
+!  class(p4est_vef_iterator_t), intent(inout) :: this
+!  integer(ip) :: vef_dim_and_bound
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+!  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%gid),100)
+!  this%base_static_triangulation%vefs_type(this%gid) = 100 + vef_dim_and_bound
+!end subroutine p4est_vef_iterator_set_it_at_interface
+
+!subroutine p4est_vef_iterator_set_it_as_ghost(this)
+!  implicit none
+!  class(p4est_vef_iterator_t), intent(inout) :: this
+!  integer(ip) :: vef_dim_and_bound
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+!  vef_dim_and_bound = mod(this%base_static_triangulation%vefs_type(this%gid),100)
+!  this%base_static_triangulation%vefs_type(this%gid) = 200 + vef_dim_and_bound
+!end subroutine p4est_vef_iterator_set_it_as_ghost
+
+function p4est_vef_iterator_get_dim(this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_vef_iterator_get_dim
+  assert ( this%is_within_valid_range() )
+  if ( this%is_proper() ) then
+    p4est_vef_iterator_get_dim  = this%p4est_triangulation%proper_vefs_dim%get(this%get_gid())
+  else
+    p4est_vef_iterator_get_dim  = this%p4est_triangulation%improper_vefs_dim%get(abs(this%get_gid()))
+  end if
+end function p4est_vef_iterator_get_dim
+
+function p4est_vef_iterator_is_at_boundary (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_is_at_boundary 
+  assert ( this%is_within_valid_range()  )
+  p4est_vef_iterator_is_at_boundary  = .false.
+  if ( this%get_gid() > 0 ) then
+    p4est_vef_iterator_is_at_boundary = (this%p4est_triangulation%proper_vefs_at_boundary%get(this%get_gid()))
+  end if 
+end function p4est_vef_iterator_is_at_boundary
+
+function p4est_vef_iterator_is_at_interior (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_is_at_interior
+  p4est_vef_iterator_is_at_interior = .false.
+end function p4est_vef_iterator_is_at_interior
+
+function p4est_vef_iterator_is_local (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_is_local 
+  assert ( this%is_within_valid_range() )
+  p4est_vef_iterator_is_local  = .true.
+end function p4est_vef_iterator_is_local
+
+function p4est_vef_iterator_is_at_interface (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_is_at_interface 
+  assert ( this%is_within_valid_range() )
+  if ( this%is_ghost() ) then
+    p4est_vef_iterator_is_at_interface  = .false.
+    return
+  end if
+  if ( this%is_proper() ) then
+    p4est_vef_iterator_is_at_interface  = (this%p4est_triangulation%proper_vefs_at_interface%get(this%get_gid()))
+  else
+    p4est_vef_iterator_is_at_interface  = (this%p4est_triangulation%improper_vefs_at_interface%get(abs(this%get_gid())))
+  end if
+end function p4est_vef_iterator_is_at_interface
+
+!function p4est_vef_iterator_is_face (this)
+!  implicit none
+!  class(p4est_vef_iterator_t), intent(in) :: this
+!  logical :: p4est_vef_iterator_is_face
+!  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+!  p4est_vef_iterator_is_face  = (this%base_static_triangulation%get_num_dims()-1 == this%get_dim())
+!end function p4est_vef_iterator_is_face
+
+function p4est_vef_iterator_is_ghost (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_is_ghost 
+  assert ( this%is_within_valid_range() )
+  
+  if ( this%get_gid() == 0 ) then
+    p4est_vef_iterator_is_ghost  = .true.
+  else if ( this%is_proper() ) then
+    p4est_vef_iterator_is_ghost  = ( this%p4est_triangulation%proper_vefs_is_ghost%get(this%get_gid()))
+  else
+    p4est_vef_iterator_is_ghost  = ( this%p4est_triangulation%improper_vefs_is_ghost%get(abs(this%get_gid())) )
+  end if
+end function p4est_vef_iterator_is_ghost
+
+function p4est_vef_iterator_is_proper(this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_is_proper
+  assert ( this%is_within_valid_range() )
+  p4est_vef_iterator_is_proper = (this%get_gid() > 0)
+end function p4est_vef_iterator_is_proper
+
+function p4est_vef_iterator_is_within_valid_range(this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_is_within_valid_range
+  p4est_vef_iterator_is_within_valid_range = & 
+          (this%get_gid() == 0) .or. & 
+          (this%get_gid() > 0 .and. this%get_gid() <= this%p4est_triangulation%num_proper_vefs) & 
+          .or. (this%get_gid() < 0 .and. this%get_gid() >= -this%p4est_triangulation%num_improper_vefs)
+end function p4est_vef_iterator_is_within_valid_range
+
+function p4est_vef_iterator_get_num_cells_around (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_vef_iterator_get_num_cells_around
+  assert ( this%is_within_valid_range() )
+  if ( this%is_proper() ) then
+   p4est_vef_iterator_get_num_cells_around  =  this%p4est_triangulation%ptr_cells_around_proper_vefs%get(this%get_gid()+1)-&
+                                                this%p4est_triangulation%ptr_cells_around_proper_vefs%get(this%get_gid())
+  else                                          
+   p4est_vef_iterator_get_num_cells_around  =  this%p4est_triangulation%ptr_cells_around_improper_vefs%get(abs(this%get_gid())+1)-&
+                                                this%p4est_triangulation%ptr_cells_around_improper_vefs%get(abs(this%get_gid()))
+  end if
+end function p4est_vef_iterator_get_num_cells_around
+
+subroutine p4est_vef_iterator_get_cell_around (this, icell_around, cell)
+  implicit none
+  class(p4est_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  integer(ip)                          :: position_in_lst_cells_around
+  integer(ip)                          :: icell 
+  assert ( this%is_within_valid_range() )
+  assert ( icell_around >= 1 .and. icell_around <= this%get_num_cells_around() )
+  if ( this%is_proper() ) then  
+    position_in_lst_cells_around = this%p4est_triangulation%ptr_cells_around_proper_vefs%get(this%get_gid()) + icell_around-1
+    icell = this%p4est_triangulation%lst_cells_around_proper_vefs%get(position_in_lst_cells_around)
+  else
+    position_in_lst_cells_around = this%p4est_triangulation%ptr_cells_around_improper_vefs%get(abs(this%get_gid())) + icell_around-1
+    icell = this%p4est_triangulation%lst_cells_around_improper_vefs%get(position_in_lst_cells_around)
+  end if
+  call cell%set_gid(icell)
+end subroutine p4est_vef_iterator_get_cell_around
+
+function p4est_vef_iterator_get_num_improper_cells_around (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_vef_iterator_get_num_improper_cells_around
+  assert ( this%is_within_valid_range() )
+  if ( this%is_proper() ) then
+   p4est_vef_iterator_get_num_improper_cells_around  =  0
+  else                                          
+   p4est_vef_iterator_get_num_improper_cells_around  =  this%p4est_triangulation%ptr_improper_cells_around%get(abs(this%get_gid())+1)-&
+                                                         this%p4est_triangulation%ptr_improper_cells_around%get(abs(this%get_gid()))
+  end if
+end function p4est_vef_iterator_get_num_improper_cells_around
+
+subroutine p4est_vef_iterator_get_improper_cell_around (this, icell_around, cell)
+  implicit none
+  class(p4est_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  integer(ip)                          :: position_in_lst_cells_around
+  integer(ip)                          :: icell 
+  assert ( this%is_within_valid_range() )
+  assert ( .not. this%is_proper() )
+  assert ( icell_around >= 1 .and. icell_around <= this%get_num_improper_cells_around() )
+  position_in_lst_cells_around = this%p4est_triangulation%ptr_improper_cells_around%get(abs(this%get_gid())) + icell_around-1
+  icell = this%p4est_triangulation%lst_improper_cells_around%get(position_in_lst_cells_around)
+  call cell%set_gid(icell)
+end subroutine p4est_vef_iterator_get_improper_cell_around
+
+function p4est_vef_iterator_get_improper_cell_around_ivef(this, icell_around)
+  implicit none
+  class(p4est_vef_iterator_t) , intent(in)    :: this
+  integer(ip)                 , intent(in)    :: icell_around
+  integer(ip) :: p4est_vef_iterator_get_improper_cell_around_ivef
+  integer(ip) :: position_in_lst_cells_around
+  assert ( this%is_within_valid_range() )
+  assert ( .not. this%is_proper() )
+  assert ( icell_around >= 1 .and. icell_around <= this%get_num_improper_cells_around() )
+  position_in_lst_cells_around = this%p4est_triangulation%ptr_improper_cells_around%get(abs(this%get_gid())) + icell_around-1
+  p4est_vef_iterator_get_improper_cell_around_ivef = this%p4est_triangulation%improper_vefs_improper_cell_around_ivef%get(position_in_lst_cells_around)
+end function p4est_vef_iterator_get_improper_cell_around_ivef
+
+function p4est_vef_iterator_get_improper_cell_around_subvef(this, icell_around)
+  implicit none
+  class(p4est_vef_iterator_t) , intent(in)    :: this
+  integer(ip)                 , intent(in)    :: icell_around
+  integer(ip) :: p4est_vef_iterator_get_improper_cell_around_subvef
+  integer(ip) :: position_in_lst_cells_around
+  assert ( this%is_within_valid_range() )
+  assert ( .not. this%is_proper() )
+  assert ( icell_around >= 1 .and. icell_around <= this%get_num_improper_cells_around() )
+  position_in_lst_cells_around = this%p4est_triangulation%ptr_improper_cells_around%get(abs(this%get_gid())) + icell_around-1
+  p4est_vef_iterator_get_improper_cell_around_subvef = this%p4est_triangulation%improper_vefs_improper_cell_around_subvef%get(position_in_lst_cells_around)
+end function p4est_vef_iterator_get_improper_cell_around_subvef
+
+function fempar_to_p4est_face(iface,num_dims)
+  implicit none
+  integer(ip), intent(in) :: iface
+  integer(ip), intent(in) :: num_dims
+  integer(ip) :: fempar_to_p4est_face
+  if (num_dims==2) then
+    fempar_to_p4est_face = FEMPAR_2_P4EST_FACE_2D(iface)
+  else if (num_dims==3) then
+    fempar_to_p4est_face = FEMPAR_2_P4EST_FACE_3D(iface)
+  else
+    mcheck(.false., 'Only for 2d and 3d')
+  end if
+end function fempar_to_p4est_face
+
+function p4est_connectivity_has_half_neighbours(conn,num_dims)
+  implicit none
+  integer(P4EST_F90_QLEVEL), intent(in) :: conn
+  integer(ip), intent(in) :: num_dims
+  logical :: p4est_connectivity_has_half_neighbours
+  p4est_connectivity_has_half_neighbours = .false.
+  if (num_dims==2) then
+    if (-8<=conn .and. conn<=-1) then
+      p4est_connectivity_has_half_neighbours = .true.
+    end if
+  else if (num_dims==3) then
+    if (-24<=conn .and. conn<=-1) then
+      p4est_connectivity_has_half_neighbours = .true.
+    end if
+  else
+    mcheck(.false., 'Only for 2d and 3d')
+  end if
+end function p4est_connectivity_has_half_neighbours
+
+function p4est_vef_iterator_get_num_half_cells_around (this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_vef_iterator_get_num_half_cells_around
+
+  type(p4est_cell_iterator_t)    :: cell
+  integer(ip)                    :: cell_iface
+  integer(P4EST_F90_QLEVEL)      :: cell_conn 
+  integer(ip)                    :: num_dims
+  class(reference_fe_t), pointer :: reference_fe
+
+  assert ( this%is_within_valid_range() )
+  massert( this%is_facet(), 'Procedure only implemented for facets (for the moment)')
+  if (.not. this%is_proper()) then
+    p4est_vef_iterator_get_num_half_cells_around = 0
+    return
+  end if
+
+  call cell%create(this%p4est_triangulation)
+  call this%get_cell_around(1, cell)
+  reference_fe => cell%get_reference_fe()
+  num_dims = this%p4est_triangulation%get_num_dims()
+  cell_iface = cell%get_vef_lid_from_gid(this%get_gid()) - reference_fe%get_first_facet_id() + 1
+  cell_iface = fempar_to_p4est_face(cell_iface,num_dims)
+  cell_conn = this%p4est_triangulation%quad_to_face(cell_iface,cell%get_gid())
+  if ( p4est_connectivity_has_half_neighbours(cell_conn,num_dims)) then
+    if (num_dims==2) then
+      p4est_vef_iterator_get_num_half_cells_around = 2
+    else if (num_dims==3) then
+      p4est_vef_iterator_get_num_half_cells_around = 4
+    else
+      mcheck(.false., 'Only for 2d and 3d')
+    end if
+  else
+    p4est_vef_iterator_get_num_half_cells_around = 0
+  end if
+  call cell%free()
+
+end function p4est_vef_iterator_get_num_half_cells_around
+
+subroutine p4est_vef_iterator_get_half_cell_around (this, icell_around, cell)
+  implicit none
+  class(p4est_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+
+  type(p4est_cell_iterator_t)    :: p4est_cell
+  integer(ip)                    :: cell_iface
+  integer(P4EST_F90_QLEVEL)      :: cell_conn 
+  class(reference_fe_t), pointer :: reference_fe
+  integer(ip)                    :: cell_gid
+  integer(ip)                    :: num_dims
+
+  assert ( this%is_within_valid_range() )
+  assert ( this%is_proper() )
+  assert ( icell_around >= 1 .and. icell_around <= this%get_num_half_cells_around() )
+  massert( this%is_facet(), 'Procedure only implemented for facets (for the moment)')
+
+  call p4est_cell%create(this%p4est_triangulation)
+  call this%get_cell_around(1, p4est_cell)
+  reference_fe => p4est_cell%get_reference_fe()
+  cell_iface = p4est_cell%get_vef_lid_from_gid(this%get_gid()) - reference_fe%get_first_facet_id() + 1
+  num_dims = this%p4est_triangulation%get_num_dims()
+  cell_iface = fempar_to_p4est_face(cell_iface,num_dims)
+  cell_conn = this%p4est_triangulation%quad_to_face(cell_iface,p4est_cell%get_gid())
+  if ( p4est_connectivity_has_half_neighbours(cell_conn,num_dims)) then
+      cell_gid = 1+this%p4est_triangulation%quad_to_half( icell_around, 1+this%p4est_triangulation%quad_to_quad(cell_iface,p4est_cell%get_gid()) )
+  else
+    check(.false.)
+  end if
+  call p4est_cell%free()
+  call cell%set_gid(cell_gid)
+
+end subroutine p4est_vef_iterator_get_half_cell_around

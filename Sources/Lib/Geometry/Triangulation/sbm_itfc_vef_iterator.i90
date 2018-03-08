@@ -1,0 +1,221 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine itfc_vef_iterator_create(this, triangulation)
+  implicit none
+  class(itfc_vef_iterator_t)    , intent(inout) :: this
+  class(triangulation_t), target, intent(in)    :: triangulation
+  call this%free()
+  call this%create_for_extensions(triangulation)
+  call triangulation%create_vef_iterator(this%vef)
+  call this%first()
+end subroutine itfc_vef_iterator_create
+
+subroutine itfc_vef_iterator_free(this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(inout) :: this
+  integer(ip) :: istat
+  if ( allocated(this%vef) ) then
+    call this%vef%free()
+    deallocate(this%vef, stat=istat)
+    check(istat==0)
+  end if
+  this%itfc_gid=-1
+  call this%free_for_extensions()
+end subroutine itfc_vef_iterator_free
+
+subroutine itfc_vef_iterator_first (this) 
+  implicit none
+  class(itfc_vef_iterator_t), intent(inout) :: this
+  this%itfc_gid = 1
+  if ( .not. this%has_finished() ) then
+    call this%set_gid(this%triangulation%lst_itfc_vefs%get(this%itfc_gid))
+    call this%vef%set_gid(this%triangulation%lst_itfc_vefs%get(this%itfc_gid))
+  end if
+end subroutine itfc_vef_iterator_first
+
+subroutine itfc_vef_iterator_next ( this ) 
+  implicit none
+  class(itfc_vef_iterator_t), intent(inout)    :: this
+  this%itfc_gid = this%itfc_gid + 1
+  if ( .not. this%has_finished() ) then
+    call this%set_gid(this%triangulation%lst_itfc_vefs%get(this%itfc_gid))
+    call this%vef%set_gid(this%triangulation%lst_itfc_vefs%get(this%itfc_gid))
+  end if
+end subroutine itfc_vef_iterator_next
+
+function itfc_vef_iterator_has_finished ( this ) 
+  implicit none
+  class(itfc_vef_iterator_t), intent(in)    :: this
+  logical :: itfc_vef_iterator_has_finished
+  itfc_vef_iterator_has_finished = (this%itfc_gid > this%triangulation%lst_itfc_vefs%size())
+end function itfc_vef_iterator_has_finished
+
+function itfc_vef_iterator_get_num_nodes(this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  integer(ip) :: itfc_vef_iterator_get_num_nodes
+  itfc_vef_iterator_get_num_nodes = this%vef%get_num_nodes()
+end function itfc_vef_iterator_get_num_nodes
+
+subroutine itfc_vef_iterator_get_nodes_coordinates (this, nodes_coordinates)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in)    :: this
+  type(point_t)            , intent(inout) :: nodes_coordinates(:)
+  call this%vef%get_nodes_coordinates(nodes_coordinates)
+end subroutine itfc_vef_iterator_get_nodes_coordinates
+
+function itfc_vef_iterator_get_ggid (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  integer(igp) :: itfc_vef_iterator_get_ggid
+  itfc_vef_iterator_get_ggid = this%vef%get_ggid()
+end function itfc_vef_iterator_get_ggid
+
+subroutine itfc_vef_iterator_set_set_id(this,set_id)
+  implicit none
+  class(itfc_vef_iterator_t), intent(inout) :: this
+  integer(ip)          , intent(in) :: set_id
+  call this%vef%set_set_id(set_id)
+end subroutine itfc_vef_iterator_set_set_id  
+
+function itfc_vef_iterator_get_set_id(this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  integer(ip) :: itfc_vef_iterator_get_set_id
+  itfc_vef_iterator_get_set_id = this%vef%get_set_id()
+end function itfc_vef_iterator_get_set_id  
+
+function itfc_vef_iterator_get_dim(this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  integer(ip) :: itfc_vef_iterator_get_dim
+  itfc_vef_iterator_get_dim = this%vef%get_dim()
+end function itfc_vef_iterator_get_dim
+
+function itfc_vef_iterator_is_at_interior (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  logical :: itfc_vef_iterator_is_at_interior 
+  itfc_vef_iterator_is_at_interior = this%vef%is_at_interior()
+end function itfc_vef_iterator_is_at_interior
+
+function itfc_vef_iterator_is_at_boundary (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  logical :: itfc_vef_iterator_is_at_boundary 
+  itfc_vef_iterator_is_at_boundary = this%vef%is_at_boundary()
+end function itfc_vef_iterator_is_at_boundary
+
+function itfc_vef_iterator_is_local (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  logical :: itfc_vef_iterator_is_local 
+  itfc_vef_iterator_is_local = this%vef%is_local()
+end function itfc_vef_iterator_is_local
+
+function itfc_vef_iterator_is_at_interface (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  logical :: itfc_vef_iterator_is_at_interface 
+  itfc_vef_iterator_is_at_interface = this%vef%is_at_interface()
+end function itfc_vef_iterator_is_at_interface
+
+function itfc_vef_iterator_is_ghost (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  logical :: itfc_vef_iterator_is_ghost 
+  itfc_vef_iterator_is_ghost = this%vef%is_ghost()
+end function itfc_vef_iterator_is_ghost
+
+function itfc_vef_iterator_get_num_cells_around (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  integer(ip) :: itfc_vef_iterator_get_num_cells_around
+  itfc_vef_iterator_get_num_cells_around = this%vef%get_num_cells_around()
+end function itfc_vef_iterator_get_num_cells_around
+
+subroutine itfc_vef_iterator_get_cell_around (this, icell_around, cell)
+  implicit none
+  class(itfc_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  call this%vef%get_cell_around(icell_around,cell)
+end subroutine itfc_vef_iterator_get_cell_around
+
+function itfc_vef_iterator_is_proper(this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  logical :: itfc_vef_iterator_is_proper
+  itfc_vef_iterator_is_proper = this%vef%is_proper()
+end function itfc_vef_iterator_is_proper
+
+function itfc_vef_iterator_get_num_improper_cells_around (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  integer(ip) :: itfc_vef_iterator_get_num_improper_cells_around
+  itfc_vef_iterator_get_num_improper_cells_around = this%vef%get_num_improper_cells_around() 
+end function itfc_vef_iterator_get_num_improper_cells_around
+
+subroutine itfc_vef_iterator_get_improper_cell_around (this, icell_around, cell)
+  implicit none
+  class(itfc_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  call this%vef%get_improper_cell_around(icell_around,cell)
+end subroutine itfc_vef_iterator_get_improper_cell_around
+
+function itfc_vef_iterator_get_improper_cell_around_ivef(this, icell_around)
+  implicit none
+  class(itfc_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  integer(ip) :: itfc_vef_iterator_get_improper_cell_around_ivef
+  itfc_vef_iterator_get_improper_cell_around_ivef = this%vef%get_improper_cell_around_ivef(icell_around)
+end function itfc_vef_iterator_get_improper_cell_around_ivef
+
+function itfc_vef_iterator_get_improper_cell_around_subvef(this, icell_around)
+  implicit none
+  class(itfc_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  integer(ip) :: itfc_vef_iterator_get_improper_cell_around_subvef
+  itfc_vef_iterator_get_improper_cell_around_subvef = this%vef%get_improper_cell_around_subvef(icell_around)
+end function itfc_vef_iterator_get_improper_cell_around_subvef
+
+function itfc_vef_iterator_get_num_half_cells_around (this)
+  implicit none
+  class(itfc_vef_iterator_t), intent(in) :: this
+  integer(ip) :: itfc_vef_iterator_get_num_half_cells_around
+  itfc_vef_iterator_get_num_half_cells_around = this%vef%get_num_half_cells_around() 
+end function itfc_vef_iterator_get_num_half_cells_around
+
+subroutine itfc_vef_iterator_get_half_cell_around (this, icell_around, cell)
+  implicit none
+  class(itfc_vef_iterator_t) , intent(in)    :: this
+  integer(ip)           , intent(in)    :: icell_around
+  class(cell_iterator_t), intent(inout) :: cell
+  call this%vef%get_half_cell_around(icell_around,cell)
+end subroutine itfc_vef_iterator_get_half_cell_around

@@ -1,0 +1,246 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+! ================================================================================
+subroutine nodal_interpolator_create( this, fe_space, field_id  )
+  implicit none
+  class(nodal_interpolator_t) , intent(inout) :: this 
+  class(serial_fe_space_t) , intent(in)    :: fe_space
+  integer(ip)              , intent(in)    :: field_id
+  integer(ip) :: num_nodal_qpoints, istat 
+  class(fe_cell_iterator_t), allocatable :: fe
+  class(reference_fe_t), pointer :: source_reference_fe 
+  class(reference_fe_t), pointer :: reference_fe
+
+  integer(ip) :: reference_fe_id
+  integer(ip) :: num_reference_fes 
+  logical     :: reference_fe_type_is_nodal 
+
+  this%field_id = field_id
+
+  call fe_space%create_fe_cell_iterator(fe) 
+  source_reference_fe => fe%get_reference_fe(field_id) 
+  num_reference_fes = fe_space%get_num_reference_fes()
+  allocate ( this%cell_maps(num_reference_fes), stat=istat); check(istat==0)
+  allocate ( this%nodal_quadratures(num_reference_fes), stat=istat); check(istat==0)
+
+  do reference_fe_id = 1, num_reference_fes 
+     reference_fe => fe_space%get_reference_fe(reference_fe_id) 
+
+     reference_fe_type_is_nodal = .false. 
+     select type( reference_fe ) 
+     type is (hex_lagrangian_reference_fe_t) 
+        reference_fe_type_is_nodal = .true. 
+     type is (tet_lagrangian_reference_fe_t)  
+        reference_fe_type_is_nodal = .true.
+     end select
+
+     if ( reference_fe_type_is_nodal .and. (source_reference_fe%get_field_type() == reference_fe%get_field_type()) ) then 
+        this%nodal_quadratures(reference_fe_id)%p => reference_fe%get_nodal_quadrature()	
+        call this%cell_maps(reference_fe_id)%create(this%nodal_quadratures(reference_fe_id)%p, fe%get_reference_fe_geo())
+     end if
+
+  end do
+
+  call fe_space%free_fe_cell_iterator(fe)
+end subroutine nodal_interpolator_create
+
+! ================================================================================
+subroutine nodal_interpolator_evaluate_scalar_function_moments( this, fe, scalar_function, dof_values, time ) 
+  implicit none
+  class(nodal_interpolator_t)        , intent(inout) :: this
+  class(fe_cell_iterator_t)          , intent(in)    :: fe
+  class(scalar_function_t)           , intent(in)    :: scalar_function
+  real(rp) , allocatable             , intent(inout) :: dof_values(:) 
+  real(rp) , optional                , intent(in)    :: time 
+
+  integer(ip)                      :: reference_fe_id 
+  class(reference_fe_t) , pointer  :: reference_fe 
+  type(point_t)         , pointer  :: cell_coordinates(:) 
+  type(point_t)         , pointer  :: nodal_coordinates(:)
+  integer(ip)                      :: num_nodal_qpoints
+  real(rp)                         :: time_(1) 
+
+  if ( present(time) ) time_(1) = time 
+  reference_fe_id =  fe%get_reference_fe_id(this%field_id)
+  reference_fe    => fe%get_reference_fe(this%field_id) 
+
+  num_nodal_qpoints = this%nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points()
+  cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates()
+  call fe%get_nodes_coordinates( cell_coordinates ) 
+  call this%cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
+  nodal_coordinates => this%cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
+
+  call this%reallocate_if_needed( num_nodal_qpoints, this%scalar_function_values ) 
+  call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values )
+  dof_values = 0.0_rp 
+
+  if ( present(time) ) then 
+     call scalar_function%get_values_set(nodal_coordinates, time_, this%scalar_function_values(1:num_nodal_qpoints, 1:1) )
+     dof_values(1:num_nodal_qpoints) = this%scalar_function_values(1:num_nodal_qpoints, 1) 
+  else 
+     call scalar_function%get_values_set(nodal_coordinates, dof_values)
+  end if
+
+end subroutine nodal_interpolator_evaluate_scalar_function_moments
+
+! ================================================================================
+subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector_function, dof_values, time ) 
+  implicit none
+  class(nodal_interpolator_t)     , intent(inout) :: this
+  class(fe_cell_iterator_t)       , intent(in)    :: fe
+  class(vector_function_t)        , intent(in)    :: vector_function
+  real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+  real(rp) , optional             , intent(in)    :: time 
+
+  integer(ip)                      :: reference_fe_id 
+  class(reference_fe_t) , pointer  :: reference_fe 
+  type(point_t)         , pointer  :: cell_coordinates(:) 
+  type(point_t)         , pointer  :: nodal_coordinates(:)
+  integer(ip)                      :: inode, num_nodal_qpoints
+  integer(ip)                      :: icomp, inode_scalar 
+  real(rp)                         :: time_(1) 
+
+  if ( present(time) ) time_(1) = time 
+  reference_fe_id =  fe%get_reference_fe_id(this%field_id)
+  reference_fe    => fe%get_reference_fe(this%field_id) 
+
+  num_nodal_qpoints = this%nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points()
+  cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates()
+  call fe%get_nodes_coordinates( cell_coordinates ) 
+  call this%cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
+  nodal_coordinates => this%cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
+
+  call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values )
+  call this%reallocate_if_needed( num_nodal_qpoints, this%function_values) 
+
+  call this%get_function_values( vector_function, nodal_coordinates, this%function_values, time)
+
+  dof_values = 0.0_rp
+  do inode=1, reference_fe%get_num_shape_functions() 
+     icomp             = reference_fe%get_component_node(inode) 
+     inode_scalar      = reference_fe%get_scalar_from_vector_node(inode)
+     dof_values(inode) = this%function_values(inode_scalar,1)%get(icomp)
+  end do
+
+end subroutine nodal_interpolator_evaluate_vector_function_moments
+
+!==================================================================================================
+subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, n_face_mask, fe, vector_function_scalar_components, dof_values, time)
+  class(nodal_interpolator_t)     , intent(inout) :: this
+  logical                         , intent(in)    :: n_face_mask(:,:) 
+  class(fe_cell_iterator_t)       , intent(in)    :: fe
+  class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
+  real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+  real(rp) , optional             , intent(in)    :: time
+
+  integer(ip)                         :: reference_fe_id 
+  class(reference_fe_t) , pointer     :: reference_fe 
+  type(point_t) , pointer             :: cell_coordinates(:) 
+  type(point_t) , pointer             :: nodal_coordinates(:)
+  integer(ip)                         :: num_nodal_qpoints
+  integer(ip)                         :: qpoint, inode, idime 
+
+  real(rp)                            :: time_(1)
+  integer(ip)                         :: vef_lid 
+  type(list_iterator_t)               :: own_dofs
+  integer(ip)                         :: idof, icomp, inode_scalar
+  integer(ip)                         :: istat 
+  logical                             :: reallocate 
+
+  if ( present(time) ) time_(1) = time
+  reference_fe_id =  fe%get_reference_fe_id(this%field_id) 
+  reference_fe    => fe%get_reference_fe(this%field_id)
+  
+  num_nodal_qpoints = this%nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points() 				
+  cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates()
+  call fe%get_nodes_coordinates( cell_coordinates ) 
+  call this%cell_maps(reference_fe_id)%compute_quadrature_points_coordinates()
+  nodal_coordinates => this%cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
+
+  call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values) 
+  call this%reallocate_if_needed( num_nodal_qpoints, this%scalar_function_values) 
+
+  dof_values = 0.0_rp 
+  do vef_lid = 1, fe%get_num_vefs() 
+
+        own_dofs = reference_fe%create_own_dofs_on_n_face_iterator(vef_lid)
+        do while ( .not. own_dofs%is_upper_bound() ) 
+           idof         = own_dofs%get_current() 
+
+           ! Fill vector function values 
+           select case(reference_fe%get_field_type())
+           case ( field_type_scalar )
+              inode_scalar = idof
+              icomp        = 1
+           case ( field_type_vector )
+              inode_scalar = reference_fe%get_scalar_from_vector_node(idof)
+              icomp        = reference_fe%get_component_node(idof)
+           case DEFAULT 
+              massert ( .false. , "interpolate_boundary_scalar_component :: not available for tensor field type" )
+           end select
+
+           if ( n_face_mask(icomp, vef_lid) ) then 
+           if(present(time)) then
+              call vector_function_scalar_components(icomp, vef_lid)%p%get_values_set_space_time(nodal_coordinates(inode_scalar:inode_scalar), & 
+                   time_,                                        & 
+                   this%scalar_function_values(inode_scalar:inode_scalar,:))
+           else
+              call vector_function_scalar_components(icomp, vef_lid)%p%get_values_set_space(nodal_coordinates(inode_scalar:inode_scalar), & 
+                   this%scalar_function_values(inode_scalar:inode_scalar,1))
+           end if
+
+           dof_values(idof) = this%scalar_function_values(inode_scalar,1) 
+           end if 
+           call own_dofs%next()
+        end do
+
+  end do
+
+end subroutine nodal_interpolator_evaluate_function_scalar_components_moments
+
+! ================================================================================
+subroutine nodal_interpolator_free( this ) 
+  implicit none
+  class(nodal_interpolator_t)   , intent(inout) :: this
+  integer(ip) :: i, istat 
+
+  do i=1, size(this%cell_maps) 
+     call this%cell_maps(i)%free() 
+  end do
+  deallocate( this%cell_maps, stat=istat); check(istat==0) 
+
+  do i=1, size(this%nodal_quadratures) 
+     nullify(this%nodal_quadratures(i)%p) 
+  end do
+  deallocate( this%nodal_quadratures, stat=istat); check(istat==0) 
+
+  if (allocated(this%scalar_function_values) ) call memfree ( this%scalar_function_values, __FILE__, __LINE__)
+  if (allocated(this%function_values)) deallocate ( this%function_values, stat=istat); check(istat==0)		
+
+
+end subroutine nodal_interpolator_free

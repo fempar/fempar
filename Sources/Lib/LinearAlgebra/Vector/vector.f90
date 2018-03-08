@@ -44,7 +44,7 @@ module vector_names
      procedure (nrm2_interface), deferred     :: nrm2
      procedure (clone_interface), deferred    :: clone
      procedure (same_vector_space_interface), deferred :: same_vector_space
-     procedure (get_number_blocks_interface), deferred :: get_number_blocks
+     procedure (get_num_blocks_interface), deferred :: get_num_blocks
      procedure (vector_extract_subvector_interface), deferred :: extract_subvector 
      procedure (vector_insert_subvector_interface) , deferred :: insert_subvector 
      
@@ -123,8 +123,8 @@ module vector_names
      subroutine clone_interface(op1,op2)
        import :: vector_t
        implicit none
-       class(vector_t)         ,intent(inout) :: op1
-       class(vector_t)         ,intent(in)    :: op2
+       class(vector_t),target         ,intent(inout) :: op1
+       class(vector_t),target         ,intent(in)    :: op2
      end subroutine clone_interface
      ! Determines whether this belongs to the same
      ! vector space as vector   
@@ -135,13 +135,13 @@ module vector_names
        class(vector_t), intent(in) :: vector
        logical :: same_vector_space_interface
      end function
-					! Provide the number of blocks of the vector
-     function get_number_blocks_interface(this) result (res)
+     ! Provide the number of blocks of the vector
+     function get_num_blocks_interface(this) result (res)
        import :: vector_t, ip
        implicit none 
        class(vector_t), intent(in)   :: this
        integer(ip) :: res
-     end function get_number_blocks_interface
+     end function get_num_blocks_interface
      ! Extract subvector from a subset of indices of a vector
      subroutine vector_extract_subvector_interface( this, &
                                                   & iblock, &
@@ -268,8 +268,11 @@ contains
   ! op1 <- op2
   subroutine assign_vector(op1,op2) 
     implicit none
-    class(vector_t), intent(inout):: op1
-    class(vector_t), intent(in):: op2
+    class(vector_t), target, intent(inout):: op1
+    class(vector_t), target, intent(in):: op2
+    class(vector_t), pointer :: p
+    p => op1
+    if(associated(p,op2)) return ! It's aliasing
 
     call op2%GuardTemp()
     
@@ -278,5 +281,5 @@ contains
     
     call op2%CleanTemp()
   end subroutine assign_vector
-				
+    
 end module vector_names

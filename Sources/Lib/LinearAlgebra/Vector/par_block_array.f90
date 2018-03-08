@@ -50,13 +50,13 @@ module par_block_array_names
      integer(ip) :: state = not_created
      integer(ip) :: nblocks = 0
      type(par_scalar_array_t), allocatable :: blocks(:)
-   contains	 
+   contains  
      procedure, private :: par_block_array_create_only_blocks_container
      !procedure, private :: par_block_array_create_blocks_container_and_blocks
      generic :: create => par_block_array_create_only_blocks_container!, & 
      !                     par_block_array_create_blocks_container_and_blocks
      !procedure :: create_and_allocate => par_block_array_create_blocks_container_and_allocate_blocks
-     procedure :: allocate => par_block_array_create_blocks_allocate_blocks						  
+     procedure :: allocate => par_block_array_create_blocks_allocate_blocks        
 
      procedure :: create_view       => par_block_array_create_view
      procedure :: print             => par_block_array_print
@@ -74,7 +74,7 @@ module par_block_array_names
      procedure :: comm              => par_block_array_comm
      procedure :: same_vector_space => par_block_array_same_vector_space
      procedure :: free_in_stages    => par_block_array_free_in_stages
-     procedure :: get_number_blocks => par_block_array_get_number_blocks
+     procedure :: get_num_blocks => par_block_array_get_num_blocks
      procedure :: extract_subvector => par_block_array_extract_subvector
      procedure :: insert_subvector  => par_block_array_insert_subvector
   end type par_block_array_t
@@ -361,11 +361,14 @@ contains
   subroutine par_block_array_clone(op1,op2)
     implicit none
     ! Parameters
-    class(par_block_array_t)    , intent(inout) :: op1
-    class(vector_t), intent(in)    :: op2
-
+    class(par_block_array_t), target    , intent(inout) :: op1
+    class(vector_t), target, intent(in)    :: op2
     ! Locals
     integer(ip) :: ib
+    class(vector_t), pointer :: p
+    p => op1
+    if(associated(p,op2)) return ! It's aliasing
+    
     assert(op1%state == blocks_container_created)
     call op2%GuardTemp()
     select type(op2)
@@ -448,14 +451,14 @@ contains
       end if
     end select
   end function par_block_array_same_vector_space
-	
+ 
   !=============================================================================
-  function par_block_array_get_number_blocks(this) result(res)
+  function par_block_array_get_num_blocks(this) result(res)
     implicit none 
     class(par_block_array_t), intent(in)   :: this
     integer(ip) :: res
     res = this%nblocks
-  end function par_block_array_get_number_blocks
+  end function par_block_array_get_num_blocks
 
   !=============================================================================
   subroutine par_block_array_extract_subvector( this, &

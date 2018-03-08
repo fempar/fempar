@@ -1,0 +1,37 @@
+BeginZE cube_tetrahedra.gid/cube_tetrahedra.vv
+   x -2.1461939811706543 2.1461939811706543
+   y 1.1180340051651001 -1.1180340051651001
+   z -1.6180340051651001 0.618034005165100098
+   e 1.1180340051651001
+   v 0.637195464296742342 -0.587574547470651742 -0.376690802934843028
+   r -0.326867375852334718
+   m 0.0257203802466392517 -0.995055556297302246 -0.0959334447979927063 0 -0.502543807029724121 -0.0958280414342880249 0.859224677085876465 0 -0.86416923999786377 0.026111038401722908 -0.502523839473724365 0 0 0 0 1
+   c -3.2895497271021116e-17 0 0.5
+   pd 0
+   pno 0
+   pfo 0
+   pf 4
+   pv 0
+   NowUse 1
+   DrawingType 0
+   LightVector 90 90 150 0
+   OGLShadow(UseShadows) 0
+   OGLShadow(RenderMode) RenderNice
+   OGLShadow(ShadowBias) -0.002
+   OGLShadow(AmbientShadows) 1
+   OGLShadow(UseFBO) 0
+   OGLShadow(FBOSize) 2048
+   OGLShadow(DimmedLightFactor) 0.02
+   OGLStereo(UseStereo) 0
+   OGLStereo(RelativeEyeDistance) 1
+   OGLStereo(FlipEyes) 0
+   OGLStereo(StereoMode) AnaglyphColors
+   OGLStereo(EyeDistance) 0.075
+   OGLStereo(LeftEyeDistance) 1 0 0 1
+   OGLStereo(RightEyeDistance) 0 1 1 1
+EndZE cube_tetrahedra.gid/cube_tetrahedra.vv
+
+BeginMirror
+   Mirror 0 Angle 0.0 AngleFake -15.0 SizeFactor 2.0 HeightOffset 0.25 Color #d9e5f24d Backlight Off EdgeStyle No Type Scene DrawMode Mirror
+EndMirror
+

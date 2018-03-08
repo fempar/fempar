@@ -25,36 +25,41 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine mlbddc_create ( this, fe_affine_operator, mlbddc_params )
+subroutine mlbddc_create ( this, fe_nonlinear_operator, mlbddc_params )
   implicit none
   class(mlbddc_t)                   , intent(inout) :: this
-  type(fe_affine_operator_t), target, intent(in)    :: fe_affine_operator
+  class(fe_nonlinear_operator_t), target, intent(in)    :: fe_nonlinear_operator
   type(parameterlist_t)    , target , intent(in)    :: mlbddc_params
   type(par_fe_space_t), pointer :: fe_space
-
+  class(triangulation_t), pointer :: triangulation
+  
   call this%free()
+  
+  assert ( this%state_is_start() )
 
-  this%fe_affine_operator => fe_affine_operator
-  this%mlbddc_params      => mlbddc_params
-  fe_space                => this%get_par_fe_space()
+  this%fe_nonlinear_operator => fe_nonlinear_operator
+  this%mlbddc_params         => mlbddc_params
+  fe_space                   => this%get_par_fe_space()
+  triangulation              => fe_space%get_triangulation()
+  call this%set_par_environment(triangulation%get_environment())
   call this%create_vector_spaces()
-
-  assert ( fe_space%get_number_blocks() == 1 )
+  assert ( fe_space%get_num_blocks() == 1 )
+  call this%set_state_created()
 end subroutine mlbddc_create
 
 subroutine mlbddc_create_vector_spaces (this)
   implicit none
   class(mlbddc_t), intent(inout)  :: this
-  type(vector_space_t), pointer :: fe_affine_operator_domain_vector_space
-  type(vector_space_t), pointer :: fe_affine_operator_range_vector_space
+  type(vector_space_t), pointer :: fe_nonlinear_operator_domain_vector_space
+  type(vector_space_t), pointer :: fe_nonlinear_operator_range_vector_space
   type(vector_space_t), pointer :: mlbddc_domain_vector_space
   type(vector_space_t), pointer :: mlbddc_range_vector_space
-  fe_affine_operator_domain_vector_space => this%fe_affine_operator%get_domain_vector_space()
-  fe_affine_operator_range_vector_space => this%fe_affine_operator%get_range_vector_space()
+  fe_nonlinear_operator_domain_vector_space => this%fe_nonlinear_operator%get_domain_vector_space()
+  fe_nonlinear_operator_range_vector_space => this%fe_nonlinear_operator%get_range_vector_space()
   mlbddc_domain_vector_space => this%get_domain_vector_space()
   mlbddc_range_vector_space => this%get_range_vector_space()
-  call fe_affine_operator_domain_vector_space%clone(mlbddc_domain_vector_space)
-  call fe_affine_operator_range_vector_space%clone(mlbddc_range_vector_space)
+  call fe_nonlinear_operator_domain_vector_space%clone(mlbddc_domain_vector_space)
+  call fe_nonlinear_operator_range_vector_space%clone(mlbddc_range_vector_space)
 end subroutine mlbddc_create_vector_spaces
 
 subroutine mlbddc_setup_constraint_matrix (this)
@@ -75,11 +80,11 @@ subroutine mlbddc_setup_constraint_matrix (this)
 
   ! Free any dynamic memory that constraint_matrix may have inside and create it (transposed)
   call this%constraint_matrix%free()
-  num_cols = par_fe_space%get_block_number_dofs        (block_id=block_id)
-  num_rows = par_fe_space%get_block_number_coarse_dofs (block_id=block_id) 
+  num_cols = par_fe_space%get_block_num_dofs        (block_id=block_id)
+  num_rows = par_fe_space%get_block_num_coarse_dofs (block_id=block_id) 
   call this%constraint_matrix%create ( num_cols, num_rows )
   
-  do field_id = 1, par_fe_space%get_number_fields()
+  do field_id = 1, par_fe_space%get_num_fields()
      if ( field_blocks(field_id) == block_id ) then
         coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
         call coarse_fe_handler%setup_constraint_matrix(par_fe_space      = par_fe_space, &
@@ -109,11 +114,11 @@ subroutine mlbddc_setup_weighting_operator (this)
  field_blocks => par_fe_space%get_field_blocks()
 
   if (allocated(this%W) ) call memfree ( this%W, __FILE__, __LINE__ )
-  num_rows = par_fe_space%get_block_number_dofs(block_id=block_id)
+  num_rows = par_fe_space%get_block_num_dofs(block_id=block_id)
   call memalloc ( num_rows, this%W, __FILE__, __LINE__ )
   this%W = 1.0_rp
 
- do field_id = 1, par_fe_space%get_number_fields()
+ do field_id = 1, par_fe_space%get_num_fields()
     if ( field_blocks(field_id) == block_id ) then
        coarse_fe_handler => par_fe_space%get_coarse_fe_handler(field_id=field_id)
        call coarse_fe_handler%setup_weighting_operator(par_fe_space       = par_fe_space, &
@@ -125,8 +130,33 @@ subroutine mlbddc_setup_weighting_operator (this)
 
 end subroutine mlbddc_setup_weighting_operator
 
+subroutine mlbddc_update_matrix(this, same_nonzero_pattern )
+  implicit none
+  class(mlbddc_t)          , intent(inout) :: this
+  logical                  , intent(in)    :: same_nonzero_pattern
+  
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+
+  if ( same_nonzero_pattern ) then
+    if ( this%state_is_numeric() ) then
+      call this%free_numerical_setup()
+      call this%numerical_setup()
+    end if   
+  else
+    if ( this%state_is_numeric() ) then
+      call this%free_numerical_setup()
+      call this%free_symbolic_setup()
+      call this%symbolic_setup()
+      call this%numerical_setup()
+    else if ( this%state_is_symbolic() ) then
+      call this%free_symbolic_setup()
+      call this%symbolic_setup()
+    end if
+  end if 
+end subroutine mlbddc_update_matrix
+
 ! Helper function that extracts a run-time polymorphic class(matrix_t)
-! from the fe_affine_operator, and dynamically casts it into  
+! from the fe_nonlinear_operator, and dynamically casts it into  
 ! type(par_sparse_matrix_t). If the dynamic cast cannot be performed 
 ! [because class(matrix_t) is NOT of type(par_sparse_matrix_t)], then it 
 ! aborts the execution of the program.
@@ -134,9 +164,9 @@ function mlbddc_get_par_sparse_matrix(this)
   implicit none
   class(mlbddc_t)          , intent(in) :: this
   type(par_sparse_matrix_t), pointer    :: mlbddc_get_par_sparse_matrix
-  class(matrix_t)          , pointer    :: matrix
-  matrix => this%fe_affine_operator%get_matrix()
-  select type(matrix)
+  class(matrix_t), pointer              :: matrix
+  matrix => this%fe_nonlinear_operator%get_matrix()
+  select type( matrix )
   type is (par_sparse_matrix_t)
      mlbddc_get_par_sparse_matrix => matrix
      class default
@@ -152,7 +182,7 @@ function mlbddc_get_fe_space(this)
 end function mlbddc_get_fe_space
 
 ! Helper function that extracts a run-time polymorphic class(serial_fe_space_t)
-! from the fe_affine_operator, and dynamically casts it into  
+! from the fe_nonlinear_operator, and dynamically casts it into  
 ! type(par_fe_space_t). If the dynamic cast cannot be performed 
 ! [because class(serial_fe_space_t) is NOT of type(par_fe_space_t)], then it 
 ! aborts the execution of the program.
@@ -161,7 +191,7 @@ function mlbddc_get_par_fe_space(this)
   class(mlbddc_t)          , intent(in) :: this
   type(par_fe_space_t)     , pointer    :: mlbddc_get_par_fe_space
   class(serial_fe_space_t) , pointer    :: fe_space
-  fe_space => this%fe_affine_operator%get_fe_space()
+  fe_space => this%fe_nonlinear_operator%get_fe_space()
   select type(fe_space)
   class is (par_fe_space_t)
      mlbddc_get_par_fe_space => fe_space
@@ -169,15 +199,6 @@ function mlbddc_get_par_fe_space(this)
      check(.false.)
   end select
 end function mlbddc_get_par_fe_space
-
-function mlbddc_get_par_environment(this)
-  implicit none
-  class(mlbddc_t)          , intent(in) :: this
-  type(environment_t)  , pointer    :: mlbddc_get_par_environment
-  type(par_fe_space_t)     , pointer    :: coarse_fe_space
-  coarse_fe_space => this%get_par_fe_space()
-  mlbddc_get_par_environment => coarse_fe_space%get_par_environment()
-end function mlbddc_get_par_environment
 
 function mlbddc_am_i_l1_task(this)
   implicit none
@@ -199,11 +220,11 @@ function mlbddc_is_operator_associated( this )
   implicit none
   class(mlbddc_t)          , intent(in) :: this
   logical :: mlbddc_is_operator_associated
-  mlbddc_is_operator_associated = associated(this%fe_affine_operator)
+  mlbddc_is_operator_associated = associated(this%fe_nonlinear_operator)
 end function mlbddc_is_operator_associated
 
 subroutine mlbddc_nullify_operator ( this )
   implicit none
   class(mlbddc_t), intent(inout) :: this
-  nullify(this%fe_affine_operator)
+  nullify(this%fe_nonlinear_operator)
 end subroutine mlbddc_nullify_operator 

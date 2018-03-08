@@ -51,7 +51,7 @@ module xh5_utils_names
 ! [[topology_to_xh5_celltype(function)]], 
 ! [[topology_to_xh5_topologytype(function)]], 
 ! [[dimensions_to_xh5_unstructured_GeometryType(function)]], 
-! [[number_components_to_xh5_AttributeType(function)]]
+! [[num_components_to_xh5_AttributeType(function)]]
 !--------------------------------------------------------------------- 
 USE types_names
 USE xh5_parameters_names
@@ -68,7 +68,7 @@ private
 public :: topology_to_xh5_celltype
 public :: topology_to_xh5_topologytype
 public :: dimensions_to_xh5_unstructured_GeometryType
-public :: number_components_to_xh5_AttributeType
+public :: num_components_to_xh5_AttributeType
 
 contains
 
@@ -144,14 +144,14 @@ contains
     end function topology_to_xh5_TopologyType
 
 
-    function number_components_to_xh5_AttributeType(number_components) result(attribute_type)
+    function num_components_to_xh5_AttributeType(num_components) result(attribute_type)
     !-----------------------------------------------------------------
     !< Translate the number of components into XH5 attribute type
     !-----------------------------------------------------------------
-        integer(ip), intent(in)    :: number_components
+        integer(ip), intent(in)    :: num_components
         integer(ip)                :: attribute_type
     !-----------------------------------------------------------------
-        select case (number_components)
+        select case (num_components)
             case (1)
                 attribute_type = XDMF_ATTRIBUTE_TYPE_SCALAR
             case (2,3)
@@ -161,10 +161,10 @@ contains
             case (9)
                 attribute_type = XDMF_ATTRIBUTE_TYPE_TENSOR
             case DEFAULT
-                write(error_unit,*) 'number_components_to_xh5_AttributeType: number_componets not supported ', number_components
+                write(error_unit,*) 'num_components_to_xh5_AttributeType: num_componets not supported ', num_components
                 check(.false.)    
         end select
-    end function number_components_to_xh5_AttributeType
+    end function num_components_to_xh5_AttributeType
 
 end module xh5_utils_names
 

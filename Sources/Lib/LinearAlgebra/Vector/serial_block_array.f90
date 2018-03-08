@@ -51,10 +51,10 @@ module serial_block_array_names
      procedure          :: create_and_allocate => serial_block_array_create_blocks_container_and_allocate_blocks
      generic            :: create => serial_block_array_create_only_blocks_container, &
                                      serial_block_array_create_blocks_container_and_blocks
-     procedure          :: allocate => serial_block_array_allocate_blocks 								 
+     procedure          :: allocate => serial_block_array_allocate_blocks          
      
      procedure :: create_view       => serial_block_array_create_view
-     procedure :: print             => serial_block_array_print	
+     procedure :: print             => serial_block_array_print 
      procedure :: get_block         => serial_block_array_get_block
      procedure :: get_nblocks       => serial_block_array_get_nblocks
      
@@ -68,7 +68,7 @@ module serial_block_array_names
      procedure :: clone             => serial_block_array_clone
      procedure :: same_vector_space => serial_block_array_same_vector_space
      procedure :: free_in_stages    => serial_block_array_free_in_stages
-     procedure :: get_number_blocks => serial_block_array_get_number_blocks
+     procedure :: get_num_blocks => serial_block_array_get_num_blocks
      procedure :: extract_subvector => serial_block_array_extract_subvector
      procedure :: insert_subvector  => serial_block_array_insert_subvector
   end type serial_block_array_t
@@ -321,12 +321,14 @@ contains
   subroutine serial_block_array_clone(op1,op2)
     implicit none
     ! Parameters
-    class(serial_block_array_t)     , intent(inout) :: op1
-    class(vector_t), intent(in)    :: op2
-
+    class(serial_block_array_t), target     , intent(inout) :: op1
+    class(vector_t), target, intent(in)    :: op2
     ! Locals
     integer(ip) :: ib
-
+    class(vector_t), pointer :: p
+    p => op1
+    if(associated(p,op2)) return ! It's aliasing
+    
     call op2%GuardTemp()
     select type(op2)
        class is (serial_block_array_t)
@@ -393,14 +395,14 @@ contains
       end if
     end select
   end function serial_block_array_same_vector_space
-	
+ 
   !=============================================================================
-  function serial_block_array_get_number_blocks(this) result(res)
+  function serial_block_array_get_num_blocks(this) result(res)
     implicit none 
     class(serial_block_array_t), intent(in)   :: this
     integer(ip) :: res
     res = this%nblocks
-  end function serial_block_array_get_number_blocks
+  end function serial_block_array_get_num_blocks
   
   !=============================================================================
   subroutine serial_block_array_extract_subvector( this, &

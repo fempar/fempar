@@ -1,0 +1,153 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+!==================================================================================================
+subroutine base_map_free( this )
+  implicit none
+  class(base_map_t), intent(inout) :: this
+  if(allocated(this%jacobian)) call memfree(this%jacobian,__FILE__,__LINE__)
+  if(allocated(this%det_jacobian)) call memfree(this%det_jacobian,__FILE__,__LINE__)
+  if(allocated(this%quadrature_points_coordinates)) deallocate(this%quadrature_points_coordinates)
+  if(allocated(this%nodes_coordinates)) deallocate(this%nodes_coordinates)
+  call this%interpolation%free()
+end subroutine base_map_free
+
+!==================================================================================================
+subroutine base_map_copy( this, other )
+  implicit none
+  class(base_map_t), intent(inout) :: this
+  type (base_map_t), intent(in)    :: other
+  integer(ip) :: istat
+  call this%free()
+  this%num_dims = other%num_dims
+  this%num_nodes = other%num_nodes
+  this%num_quadrature_points = other%num_quadrature_points
+  call memalloc(this%num_quadrature_points, &
+                this%det_jacobian,__FILE__,__LINE__)
+  this%det_jacobian = other%det_jacobian
+  allocate(this%quadrature_points_coordinates(this%num_quadrature_points), stat=istat)
+  check(istat==0)
+  this%quadrature_points_coordinates = other%quadrature_points_coordinates
+  allocate(this%nodes_coordinates(size(other%nodes_coordinates)), stat=istat)
+  check(istat==0)
+  this%nodes_coordinates = other%nodes_coordinates
+  call this%interpolation%copy(other%interpolation)
+  this%reference_fe_characteristic_length = other%reference_fe_characteristic_length
+end subroutine base_map_copy
+
+!==================================================================================================
+subroutine base_map_update_interpolation( this, quadrature, reference_fe_geometry )
+  implicit none
+  class(base_map_t)               , intent(inout) :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
+  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation )
+end subroutine base_map_update_interpolation
+
+!==================================================================================================
+function base_map_get_coordinates(this)
+  implicit none
+  class(base_map_t)   , target, intent(in) :: this
+  type(point_t), pointer :: base_map_get_coordinates(:)
+  base_map_get_coordinates => this%nodes_coordinates
+end function base_map_get_coordinates
+
+!==================================================================================================
+function base_map_get_quadrature_points_coordinates(this)
+  implicit none
+  class(base_map_t)   , target, intent(in) :: this
+  type(point_t), pointer :: base_map_get_quadrature_points_coordinates(:)
+  base_map_get_quadrature_points_coordinates => this%quadrature_points_coordinates
+end function base_map_get_quadrature_points_coordinates
+
+!==================================================================================================
+subroutine base_map_compute_quadrature_points_coordinates(this)
+  implicit none
+  class(base_map_t), intent(inout) :: this
+  integer(ip)   :: qpoin,inode,nnode,nquad
+  nnode = this%interpolation%num_shape_functions
+  nquad = this%num_quadrature_points
+  do qpoin = 1,nquad
+     call this%quadrature_points_coordinates(qpoin)%init(0.0_rp)
+     do inode=1,nnode
+        this%quadrature_points_coordinates(qpoin) = this%quadrature_points_coordinates(qpoin) + &
+             & this%nodes_coordinates(inode) * this%interpolation%shape_functions(1,inode,qpoin)
+     end do
+  end do
+end subroutine base_map_compute_quadrature_points_coordinates
+
+!==================================================================================================
+function base_map_get_det_jacobian ( this, i )
+  implicit none
+  class(base_map_t), intent(in) :: this
+  integer(ip)    , intent(in) :: i
+  real(rp) :: base_map_get_det_jacobian
+  base_map_get_det_jacobian = this%det_jacobian(i)
+end function base_map_get_det_jacobian
+
+!==================================================================================================
+function base_map_get_det_jacobians ( this )
+  implicit none
+  class(base_map_t), target, intent(in) :: this
+  real(rp), pointer :: base_map_get_det_jacobians(:)
+  base_map_get_det_jacobians => this%det_jacobian
+end function base_map_get_det_jacobians
+
+!==================================================================================================
+subroutine base_map_get_jacobian_column ( this, column_id, qpoint, column )
+  implicit none
+  class(base_map_t)   , intent(in)    :: this
+  integer(ip)         , intent(in)    :: column_id
+  integer(ip)         , intent(in)    :: qpoint
+  type(vector_field_t), intent(out)   :: column 
+  
+  integer(ip) :: idime
+  
+  call column%init(0.0_rp)
+  do idime=1, this%num_dims
+    call column%set(idime, this%jacobian(idime, column_id, qpoint))
+  end do
+
+end subroutine base_map_get_jacobian_column
+
+!==================================================================================================
+function base_map_get_reference_h ( this )
+  implicit none
+  class(base_map_t), intent(in) :: this
+  real(rp) :: base_map_get_reference_h
+  base_map_get_reference_h = this%reference_fe_characteristic_length
+end function base_map_get_reference_h
+
+!==================================================================================================
+function base_map_get_measure( this )
+  implicit none
+  class(base_map_t), intent(in) :: this
+  real(rp) :: base_map_get_measure
+  base_map_get_measure = this%measure
+end function base_map_get_measure

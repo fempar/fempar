@@ -42,13 +42,13 @@ subroutine base_fe_vef_iterator_next(this)
   call this%vef%next()
 end subroutine base_fe_vef_iterator_next
 
-subroutine base_fe_vef_iterator_set_lid(this, lid)
+subroutine base_fe_vef_iterator_set_gid(this, gid)
   implicit none
   class(base_fe_vef_iterator_t), intent(inout) :: this
-  integer(ip)             , intent(in)    :: lid
+  integer(ip)             , intent(in)    :: gid
   assert(allocated(this%vef))
-  call this%vef%set_lid(lid)
-end subroutine base_fe_vef_iterator_set_lid
+  call this%vef%set_gid(gid)
+end subroutine base_fe_vef_iterator_set_gid
 
 function base_fe_vef_iterator_has_finished(this)
   implicit none
@@ -58,13 +58,13 @@ function base_fe_vef_iterator_has_finished(this)
   base_fe_vef_iterator_has_finished = this%vef%has_finished()
 end function base_fe_vef_iterator_has_finished
 
-function base_fe_vef_iterator_get_lid (this)
+function base_fe_vef_iterator_get_gid (this)
   implicit none
   class(base_fe_vef_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_vef_iterator_get_lid
+  integer(ip) :: base_fe_vef_iterator_get_gid
   assert(allocated(this%vef))
-  base_fe_vef_iterator_get_lid = this%vef%get_lid()
-end function base_fe_vef_iterator_get_lid
+  base_fe_vef_iterator_get_gid = this%vef%get_gid()
+end function base_fe_vef_iterator_get_gid
 
 function base_fe_vef_iterator_get_set_id(this)
   implicit none
@@ -74,13 +74,20 @@ function base_fe_vef_iterator_get_set_id(this)
   base_fe_vef_iterator_get_set_id = this%vef%get_set_id()
 end function base_fe_vef_iterator_get_set_id  
 
-function base_fe_vef_iterator_get_dimension(this)
+subroutine base_fe_vef_iterator_get_nodes_coordinates (this, vef_coordinates)
+  implicit none
+  class(base_fe_vef_iterator_t), intent(inout) :: this
+  type(point_t)                , intent(inout) :: vef_coordinates(:)
+  call this%vef%get_nodes_coordinates(vef_coordinates)
+end subroutine base_fe_vef_iterator_get_nodes_coordinates
+
+function base_fe_vef_iterator_get_dim(this)
   implicit none
   class(base_fe_vef_iterator_t), intent(in) :: this
-  integer(ip) :: base_fe_vef_iterator_get_dimension
+  integer(ip) :: base_fe_vef_iterator_get_dim
   assert(allocated(this%vef))
-  base_fe_vef_iterator_get_dimension  = this%vef%get_dimension()
-end function base_fe_vef_iterator_get_dimension
+  base_fe_vef_iterator_get_dim  = this%vef%get_dim()
+end function base_fe_vef_iterator_get_dim
 
 function base_fe_vef_iterator_is_at_boundary (this)
   implicit none
@@ -106,13 +113,96 @@ function base_fe_vef_iterator_is_at_interface (this)
   base_fe_vef_iterator_is_at_interface  = this%vef%is_at_interface()
 end function base_fe_vef_iterator_is_at_interface
 
-function base_fe_vef_iterator_is_face (this)
+function base_fe_vef_iterator_is_facet (this)
   implicit none
   class(base_fe_vef_iterator_t), intent(in) :: this
-  logical :: base_fe_vef_iterator_is_face
+  logical :: base_fe_vef_iterator_is_facet
   assert(allocated(this%vef))
-  base_fe_vef_iterator_is_face  = this%vef%is_face()
-end function base_fe_vef_iterator_is_face
+  base_fe_vef_iterator_is_facet  = this%vef%is_facet()
+end function base_fe_vef_iterator_is_facet
+
+subroutine base_fe_vef_iterator_update_sub_triangulation( this )
+  implicit none
+  class(base_fe_vef_iterator_t), intent(inout) :: this
+  assert(allocated(this%vef))
+  call this%vef%update_sub_triangulation()
+end subroutine base_fe_vef_iterator_update_sub_triangulation
+
+function base_fe_vef_iterator_get_num_subvefs( this ) result ( num_subvefs )
+  implicit none
+  class(base_fe_vef_iterator_t), intent(in)    :: this
+  integer(ip) :: num_subvefs
+  assert(allocated(this%vef))
+  num_subvefs = this%vef%get_num_subvefs()
+end function base_fe_vef_iterator_get_num_subvefs
+
+function base_fe_vef_iterator_get_num_subvef_nodes( this ) result ( num_nodes_subvef )
+  implicit none
+  class(base_fe_vef_iterator_t), intent(in)    :: this
+  integer(ip) :: num_nodes_subvef
+  assert(allocated(this%vef))
+  num_nodes_subvef = this%vef%get_num_subvef_nodes()
+end function base_fe_vef_iterator_get_num_subvef_nodes
+
+subroutine base_fe_vef_iterator_get_phys_coords_of_subvef( this, subvef, points )
+  implicit none
+  class(base_fe_vef_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subvef
+  type(point_t),                   intent(inout) :: points(:)
+  assert(allocated(this%vef))
+  call this%vef%get_phys_coords_of_subvef(subvef,points)
+end subroutine base_fe_vef_iterator_get_phys_coords_of_subvef
+
+subroutine base_fe_vef_iterator_get_ref_coords_of_subvef( this, subvef, points )
+  implicit none
+  class(base_fe_vef_iterator_t), intent(in)    :: this
+  integer(ip),                     intent(in)    :: subvef
+  type(point_t),                   intent(inout) :: points(:)
+  assert(allocated(this%vef))
+  call this%vef%get_ref_coords_of_subvef(subvef,points)
+end subroutine base_fe_vef_iterator_get_ref_coords_of_subvef
+
+function base_fe_vef_iterator_is_cut( this ) result ( is_cut )
+  implicit none
+  class(base_fe_vef_iterator_t), intent(in)    :: this
+  logical :: is_cut
+  assert(allocated(this%vef))
+  is_cut = this%vef%is_cut()
+end function base_fe_vef_iterator_is_cut
+
+function base_fe_vef_iterator_is_interior( this ) result ( is_interior )
+  implicit none
+  class(base_fe_vef_iterator_t), intent(in)  :: this
+  logical :: is_interior
+  assert(allocated(this%vef))
+  is_interior = this%vef%is_interior()
+end function base_fe_vef_iterator_is_interior
+
+function base_fe_vef_iterator_is_exterior( this ) result ( is_exterior )
+  implicit none
+  class(base_fe_vef_iterator_t), intent(in)  :: this
+  logical :: is_exterior
+  assert(allocated(this%vef))
+  is_exterior = this%vef%is_exterior()
+end function base_fe_vef_iterator_is_exterior
+
+function base_fe_vef_iterator_is_interior_subvef( this, subvef ) result ( is_in )
+  implicit none
+  class(base_fe_vef_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subvef
+  logical :: is_in
+  assert(allocated(this%vef))
+  is_in = this%vef%is_interior_subvef(subvef)
+end function base_fe_vef_iterator_is_interior_subvef
+
+function base_fe_vef_iterator_is_exterior_subvef( this, subvef ) result ( is_out )
+  implicit none
+  class(base_fe_vef_iterator_t), intent(in)  :: this
+  integer(ip), intent(in) :: subvef
+  logical :: is_out
+  assert(allocated(this%vef))
+  is_out = this%vef%is_exterior_subvef(subvef)
+end function base_fe_vef_iterator_is_exterior_subvef
 
 function base_fe_vef_iterator_is_ghost (this)
   implicit none

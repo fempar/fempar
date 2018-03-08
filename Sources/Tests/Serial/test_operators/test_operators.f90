@@ -117,7 +117,7 @@ contains
             type is (serial_scalar_array_t)
                 call op_result%create_and_allocate(tam)
             type is (serial_block_array_t)
-                call op_result%create_and_allocate(y%get_number_blocks(), [tam, tam])
+                call op_result%create_and_allocate(y%get_num_blocks(), [tam, tam])
             class default
                 check(.false.)
         end select
@@ -125,70 +125,70 @@ contains
         do i=1, iters
             call Op%assign(Mat)
             call Op%apply(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], y%get_number_blocks()*vector_values)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], y%get_num_blocks()*vector_values)
             enddo
             call check_vector_value(y, op_result)
 
             Op = Mat + Mat
             call Op%apply(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 2.0*y%get_number_blocks()*vector_values)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 2.0*y%get_num_blocks()*vector_values)
             enddo
             call check_vector_value(y, op_result)
 
             Op = Mat - Mat
             y = Op * x
-            do j=1, y%get_number_blocks()
+            do j=1, y%get_num_blocks()
                 call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values)
             enddo
             call check_vector_value(y, op_result)
 
             Op = Mat * Mat 
             call Op%apply(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], y%get_number_blocks()*y%get_number_blocks()*[16._rp, 10._rp, 16._rp])
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp])
             enddo
             call check_vector_value(y, op_result)
 
             Op = .minus. Mat
             call Op%apply(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], -y%get_number_blocks()*vector_values)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], -y%get_num_blocks()*vector_values)
             enddo
             call check_vector_value(y, op_result)
 
             Op = .identity. Mat
             call Op%apply(x,y)
-            do j=1, y%get_number_blocks()
+            do j=1, y%get_num_blocks()
                 call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values+1.0)
             enddo
             call check_vector_value(y, op_result)
 
             Op = 3.0*Mat
             call Op%apply(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_number_blocks()*vector_values)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_num_blocks()*vector_values)
             enddo
             call check_vector_value(y, op_result)
 
             Op = 0.0*Mat
             call Op%apply(x,y)
-            do j=1, y%get_number_blocks()
+            do j=1, y%get_num_blocks()
                 call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values)
             enddo
             call check_vector_value(y, op_result)
 
             Op = Mat*3.0 
             call Op%apply(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_number_blocks()*vector_values)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_num_blocks()*vector_values)
             enddo
             call check_vector_value(y, op_result)
 
             Op =  .minus. Mat + Mat * .identity. Mat * 2.0 - Mat
             call Op%apply(x,y)
-            do j=1, y%get_number_blocks()
+            do j=1, y%get_num_blocks()
                 call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values)
             enddo
             call check_vector_value(y, op_result)
@@ -196,7 +196,7 @@ contains
             Op = Mat * .identity. Mat * 2.0 - Mat
             Op = .minus. Mat + Op
             call Op%apply(x,y)
-            do j=1, y%get_number_blocks()
+            do j=1, y%get_num_blocks()
                 call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values)
             enddo
             call check_vector_value(y, op_result)
@@ -227,7 +227,7 @@ contains
             type is (serial_scalar_array_t)
                 call op_result%create_and_allocate(tam)
             type is (serial_block_array_t)
-                call op_result%create_and_allocate(y%get_number_blocks(), [tam, tam])
+                call op_result%create_and_allocate(y%get_num_blocks(), [tam, tam])
             class default
                 check(.false.)
         end select
@@ -237,79 +237,79 @@ contains
 
             Op = 0.0*Mat
             call Op%apply_add(x,y)
-            do j=1, y%get_number_blocks()
+            do j=1, y%get_num_blocks()
                 call op_result%insert_subvector(j, tam, [1,2,3], 0.0*vector_values)
             enddo
             call check_vector_value(y, op_result)
 
             call Op%assign(Mat)
             call Op%apply_add(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 1.0*y%get_number_blocks()*vector_values)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 1.0*y%get_num_blocks()*vector_values)
             enddo
             call check_vector_value(y, op_result)
 
             Op = Mat + Mat
             call Op%apply_add(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_number_blocks()*vector_values)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_num_blocks()*vector_values)
             enddo
             call check_vector_value(y, op_result)
 
             Op = Mat - Mat
             call Op%apply_add(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_number_blocks()*vector_values)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_num_blocks()*vector_values)
             enddo
             call check_vector_value(y, op_result)
 
             Op = Mat * Mat 
             call Op%apply_add(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_number_blocks()*vector_values+y%get_number_blocks()*y%get_number_blocks()*[16._rp, 10._rp, 16._rp])
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 3.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp])
             enddo
             call check_vector_value(y, op_result)
 
             Op = .minus. Mat
             call Op%apply_add(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 2.0*y%get_number_blocks()*vector_values+y%get_number_blocks()*y%get_number_blocks()*[16._rp, 10._rp, 16._rp])
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 2.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp])
             enddo
             call check_vector_value(y, op_result)
 
             Op = .identity. Mat
             call Op%apply_add(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 2.0*y%get_number_blocks()*vector_values+y%get_number_blocks()*y%get_number_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 2.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
             enddo
             call check_vector_value(y, op_result)
 
             Op = 3.0*Mat
             call Op%apply_add(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 5.0*y%get_number_blocks()*vector_values+y%get_number_blocks()*y%get_number_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 5.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
             enddo
             call check_vector_value(y, op_result)
 
             Op = Mat*3.0 
             call Op%apply_add(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 8.0*y%get_number_blocks()*vector_values+y%get_number_blocks()*y%get_number_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 8.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
             enddo
             call check_vector_value(y, op_result)
 
             Op =  .minus. Mat + Mat * .identity. Mat * 2.0 - Mat
             call Op%apply_add(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 8.0*y%get_number_blocks()*vector_values+y%get_number_blocks()*y%get_number_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 8.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
             enddo
             call check_vector_value(y, op_result)
 
             Op = Mat * .identity. Mat * 2.0 - Mat
             Op = .minus. Mat + Op
             call Op%apply_add(x,y)
-            do j=1, y%get_number_blocks()
-                call op_result%insert_subvector(j, tam, [1,2,3], 8.0*y%get_number_blocks()*vector_values+y%get_number_blocks()*y%get_number_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
+            do j=1, y%get_num_blocks()
+                call op_result%insert_subvector(j, tam, [1,2,3], 8.0*y%get_num_blocks()*vector_values+y%get_num_blocks()*y%get_num_blocks()*[16._rp, 10._rp, 16._rp]+1.0)
             enddo
             call check_vector_value(y, op_result)
         enddo
