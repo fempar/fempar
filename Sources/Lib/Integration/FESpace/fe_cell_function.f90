@@ -56,6 +56,7 @@ module fe_cell_function_names
   contains
      procedure, non_overridable :: create                                => fe_cell_function_scalar_create
      procedure, non_overridable :: update                                => fe_cell_function_scalar_update
+     procedure, non_overridable :: set_duties                            => fe_cell_function_scalar_set_duties
      procedure, non_overridable :: move_alloc_values_in                  => fe_cell_function_scalar_move_alloc_values_in
      procedure, non_overridable :: move_alloc_values_out                 => fe_cell_function_scalar_move_alloc_values_out
      procedure, non_overridable :: move_alloc_gradients_in               => fe_cell_function_scalar_move_alloc_gradients_in
@@ -86,6 +87,7 @@ module fe_cell_function_names
   contains
      procedure, non_overridable :: create                                => fe_cell_function_vector_create
      procedure, non_overridable :: update                                => fe_cell_function_vector_update
+     procedure, non_overridable :: set_duties                            => fe_cell_function_vector_set_duties
      procedure, non_overridable :: move_alloc_values_in                  => fe_cell_function_vector_move_alloc_values_in
      procedure, non_overridable :: move_alloc_values_out                 => fe_cell_function_vector_move_alloc_values_out
      procedure, non_overridable :: move_alloc_gradients_in               => fe_cell_function_vector_move_alloc_gradients_in
@@ -117,6 +119,7 @@ module fe_cell_function_names
   contains
      procedure, non_overridable :: create                               => fe_cell_function_tensor_create
      procedure, non_overridable :: update                               => fe_cell_function_tensor_update
+     procedure, non_overridable :: set_duties                           => fe_cell_function_tensor_set_duties
      procedure, non_overridable :: move_alloc_values_in                 => fe_cell_function_tensor_move_alloc_values_in
      procedure, non_overridable :: move_alloc_values_out                => fe_cell_function_tensor_move_alloc_values_out
      procedure, non_overridable :: get_field_id                         => fe_cell_function_tensor_get_field_id

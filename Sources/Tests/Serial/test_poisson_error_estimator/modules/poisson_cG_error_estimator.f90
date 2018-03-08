@@ -39,8 +39,9 @@ module poisson_cG_error_estimator_names
     type(fe_function_t)               , pointer     :: fe_function          => NULL()
     type(interpolation_duties_t)      , allocatable :: interpolation_duties(:)
     type(cell_map_duties_t)                         :: cell_map_duties
-    type(fe_cell_function_duties_t)                 :: fe_cell_function_duties
     type(fe_cell_function_scalar_t)                 :: fe_cell_function
+    type(fe_cell_function_duties_t)                 :: fe_cell_function_duties
+    type(vector_field_t)              , allocatable :: work_array_gradients(:)
     type(fe_facet_function_scalar_t)                :: fe_facet_function
    contains
     procedure :: create                    => pcGee_create
@@ -65,15 +66,12 @@ contains
    call ee_create(this,fe_space,parameter_list)
    assert (fe_space%get_num_fields()==1)
    allocate(this%interpolation_duties(1),stat=istat); check(istat==0)
-   call this%interpolation_duties(1)%assign_compute_first_derivatives(.true.)
-   call this%interpolation_duties(1)%assign_compute_second_derivatives(.true.)
    call this%cell_map_duties%assign_compute_jacobian_inverse(.true.)
    call this%cell_map_duties%assign_compute_jacobian_derivative(.false.)
-   call this%fe_cell_function_duties%assign_evaluate_values(.false.)
-   call this%fe_cell_function_duties%assign_evaluate_gradients(.false.)
-   call this%fe_cell_function_duties%assign_evaluate_laplacians(.true.)
-   call this%fe_cell_function%create(fe_space,1,this%fe_cell_function_duties)
+   call this%fe_cell_function%create(fe_space,1)
    call this%fe_facet_function%create(fe_space,1)
+   allocate(this%work_array_gradients(fe_space%get_max_num_quadrature_points()),stat=istat)
+   check(istat==0)
  end subroutine pcGee_create
  
  subroutine pcGee_free ( this )
@@ -91,6 +89,10 @@ contains
    end if
    call this%fe_cell_function%free()
    call this%fe_facet_function%free()
+   if ( allocated(this%work_array_gradients) ) then
+     deallocate(this%work_array_gradients, stat=istat)
+     check(istat==0)
+   end if
    call ee_free(this)
  end subroutine pcGee_free
 
@@ -142,7 +144,14 @@ contains
    
    source_term => this%analytical_functions%get_source_term()
    
+   call this%interpolation_duties(1)%assign_compute_first_derivatives(.true.)
+   call this%interpolation_duties(1)%assign_compute_second_derivatives(.true.)
    call fe_space%set_up_cell_integration(this%interpolation_duties,this%cell_map_duties)
+   
+   call this%fe_cell_function_duties%assign_evaluate_values(.false.)
+   call this%fe_cell_function_duties%assign_evaluate_gradients(.false.)
+   call this%fe_cell_function_duties%assign_evaluate_laplacians(.true.)
+   call this%fe_cell_function%set_duties(this%fe_cell_function_duties)
    
    call fe_space%create_fe_cell_iterator(fe)
    do while ( .not. fe%has_finished() )
@@ -208,16 +217,13 @@ contains
    real(rp)                  , pointer     :: sq_local_true_error_entries(:)
    class(scalar_function_t)  , pointer     :: exact_solution
    real(rp)                                :: solution_value
-   type(fe_cell_function_scalar_t)         :: fe_cell_function
    type(vector_field_t)      , pointer     :: fe_function_gradients(:)
    class(fe_cell_iterator_t) , allocatable :: fe
    type(quadrature_t)        , pointer     :: quad
    type(point_t)             , pointer     :: quad_coords(:)
-   type(vector_field_t)      , allocatable :: work_array_gradients(:)
    real(rp)                                :: factor
    integer(ip)                             :: qpoint, num_quad_points
    real(rp)                                :: sq_local_true_error_value
-   integer(ip)                             :: istat
    
    fe_space      => this%get_fe_space()
    triangulation => fe_space%get_triangulation()
@@ -231,37 +237,39 @@ contains
    exact_solution => this%analytical_functions%get_solution_function()
    
    assert (associated(this%fe_function))
-   allocate(work_array_gradients(fe_space%get_max_num_quadrature_points()),stat=istat)
-   check(istat==0)
    
-   call fe_cell_function%create(fe_space,1)
+   call this%interpolation_duties(1)%assign_compute_first_derivatives(.true.)
+   call this%interpolation_duties(1)%assign_compute_second_derivatives(.false.)
+   call fe_space%set_up_cell_integration(this%interpolation_duties,this%cell_map_duties)
+   
+   call this%fe_cell_function_duties%assign_evaluate_values(.false.)
+   call this%fe_cell_function_duties%assign_evaluate_gradients(.true.)
+   call this%fe_cell_function_duties%assign_evaluate_laplacians(.false.)
+   call this%fe_cell_function%set_duties(this%fe_cell_function_duties)
+   
    call fe_space%create_fe_cell_iterator(fe)
    do while(.not. fe%has_finished())
      if ( fe%is_local() ) then
        sq_local_true_error_value = 0.0_rp
        call fe%update_integration()
-       call fe_cell_function%update(fe,this%fe_function)
+       call this%fe_cell_function%update(fe,this%fe_function)
        quad => fe%get_quadrature()
        num_quad_points = quad%get_num_quadrature_points()
        quad_coords => fe%get_quadrature_points_coordinates()
        call exact_solution%get_gradients_set( quad_coords, &
-                                              work_array_gradients(1:num_quad_points) )
-       fe_function_gradients => fe_cell_function%get_quadrature_points_gradients()
+                                              this%work_array_gradients(1:num_quad_points) )
+       fe_function_gradients => this%fe_cell_function%get_quadrature_points_gradients()
        do qpoint = 1, num_quad_points
          factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-         work_array_gradients(qpoint) = work_array_gradients(qpoint) - fe_function_gradients(qpoint)
+         this%work_array_gradients(qpoint) = this%work_array_gradients(qpoint) - fe_function_gradients(qpoint)
          sq_local_true_error_value = sq_local_true_error_value + &
-           work_array_gradients(qpoint) * work_array_gradients(qpoint) * factor
+           this%work_array_gradients(qpoint) * this%work_array_gradients(qpoint) * factor
        end do
        sq_local_true_error_entries(fe%get_gid()) = sq_local_true_error_value
      end if
      call fe%next()
    end do
-   call fe_cell_function%free()
    call fe_space%free_fe_cell_iterator(fe)
-   
-   deallocate(work_array_gradients, stat=istat)
-   check(istat==0)
    
  end subroutine pcGee_compute_local_true_errors
 
