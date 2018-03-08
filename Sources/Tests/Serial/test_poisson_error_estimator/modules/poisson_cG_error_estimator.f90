@@ -49,6 +49,7 @@ module poisson_cG_error_estimator_names
     procedure :: set_fe_function           => pcGee_set_fe_function
     procedure :: compute_local_estimates   => pcGee_compute_local_estimates
     procedure :: compute_local_true_errors => pcGee_compute_local_true_errors
+    procedure :: get_error_norm_exponent   => pcGee_get_error_norm_exponent
   end type poisson_cG_error_estimator_t
   
   public :: poisson_cG_error_estimator_t
@@ -263,5 +264,11 @@ contains
    check(istat==0)
    
  end subroutine pcGee_compute_local_true_errors
+
+ function pcGee_get_error_norm_exponent(this)
+   class(poisson_cG_error_estimator_t), intent(in) :: this
+   real(rp) :: pcGee_get_error_norm_exponent
+   pcGee_get_error_norm_exponent = 0.5_rp
+ end function pcGee_get_error_norm_exponent
 
 end module poisson_cG_error_estimator_names

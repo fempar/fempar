@@ -51,6 +51,7 @@ module error_estimator_names
    contains
     procedure (compute_local_estimates_interface)  , deferred :: compute_local_estimates
     procedure (compute_local_true_errors_interface), deferred :: compute_local_true_errors
+    procedure (get_error_norm_exponent_interface)  , deferred :: get_error_norm_exponent
     procedure                           :: create                           => ee_create
     procedure                           :: free                             => ee_free
     procedure, non_overridable          :: compute_global_estimate          => ee_compute_global_estimate
@@ -84,6 +85,12 @@ module error_estimator_names
       class(error_estimator_t), intent(inout) :: this
     end subroutine compute_local_true_errors_interface
 
+    function get_error_norm_exponent_interface(this)
+      import :: error_estimator_t, rp
+      class(error_estimator_t), intent(in) :: this
+      real(rp) :: get_error_norm_exponent_interface
+    end function get_error_norm_exponent_interface
+
   end interface
   
   public :: error_estimator_t, ee_create, ee_free
@@ -116,13 +123,13 @@ contains
  subroutine ee_compute_global_estimate ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
-   this%global_estimate = sum(this%sq_local_estimates%get_pointer()) ** 0.5_rp
+   this%global_estimate = sum(this%sq_local_estimates%get_pointer()) ** this%get_error_norm_exponent()
  end subroutine ee_compute_global_estimate
  
  subroutine ee_compute_global_true_error ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
-   this%global_true_error = sum(this%sq_local_true_errors%get_pointer()) ** 0.5_rp
+   this%global_true_error = sum(this%sq_local_true_errors%get_pointer()) ** this%get_error_norm_exponent()
  end subroutine ee_compute_global_true_error
  
  subroutine ee_compute_local_effectivities ( this )
@@ -133,6 +140,7 @@ contains
    real(rp)                  , pointer     :: sq_local_true_error_entries(:)
    real(rp)                  , pointer     :: local_effectivity_entries(:)
    integer(ip)                             :: icell, num_local_cells
+   real(rp)                                :: norm_exponent
    triangulation               => this%fe_space%get_triangulation()
    num_local_cells             =  triangulation%get_num_local_cells()
    assert ( this%sq_local_estimates%size()   == num_local_cells )
@@ -142,10 +150,11 @@ contains
    call this%local_effectivities%resize(0)
    call this%local_effectivities%resize(num_local_cells,0.0_rp)
    local_effectivity_entries   => this%local_effectivities%get_pointer()
+   norm_exponent = this%get_error_norm_exponent()
    do icell = 1, num_local_cells
      local_effectivity_entries(icell) =                   &
-       ( sq_local_estimate_entries(icell)   ** 0.5_rp ) / &
-       ( sq_local_true_error_entries(icell) ** 0.5_rp )
+       ( sq_local_estimate_entries(icell)   ** norm_exponent ) / &
+       ( sq_local_true_error_entries(icell) ** norm_exponent )
    end do
  end subroutine ee_compute_local_effectivities
  
