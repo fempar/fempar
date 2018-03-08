@@ -513,8 +513,10 @@ function select_default_interpolator_type(reference_fe)
 		class is (nedelec_reference_fe_t ) 
     select_default_interpolator_type = interpolator_type_Hcurl
 		class is (lagrangian_reference_fe_t)
-    select_default_interpolator_type = interpolator_type_nodal  
-  class is (void_reference_fe_t)
+    select_default_interpolator_type = interpolator_type_nodal
+    class is (hex_pk_disc_reference_fe_t)
+    select_default_interpolator_type = interpolator_type_empty
+    class is (void_reference_fe_t)
     check(.false.)
 		class DEFAULT
 		check(.false.) 
