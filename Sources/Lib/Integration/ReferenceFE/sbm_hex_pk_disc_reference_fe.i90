@@ -50,7 +50,7 @@ subroutine hpdrf_create(this, &
   call this%free()
   call this%set_common_data(num_dims,order,field_type,conformity,continuity)
   call this%set_topology ( topology )
-  call this%set_fe_type( fe_type_serendipity )
+  call this%set_fe_type( fe_type_hex_pk_disc )
   call this%fill()
   !call this%create_nodal_quadrature()
   !call this%change_basis()
@@ -315,6 +315,24 @@ subroutine hpdrf_fill_interpolation_pre_basis ( this, quadrature, interpolation,
   call monomial_1D%free()
   call tet_polynomial_prebase%free()
 end subroutine hpdrf_fill_interpolation_pre_basis
+
+subroutine hpdrf_create_interpolation_restricted_to_facet( this,facet_lid, &
+     & subfacet_lid, local_quadrature,facet_interpolation)
+  implicit none 
+  class(hex_pk_disc_reference_fe_t), intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: facet_lid
+  integer(ip)                     , intent(in)    :: subfacet_lid
+  type(quadrature_t)              , intent(in)    :: local_quadrature
+  type(interpolation_t)           , intent(inout) :: facet_interpolation
+
+  ! Allocate the arrays of the interpolation
+  call facet_interpolation%create(this%num_dims,this%num_dofs_scalar, &
+       & local_quadrature%num_quadrature_points )
+
+  ! Fill the values of the shape functions
+  call this%fill_interp_restricted_to_facet(local_quadrature,facet_lid,subfacet_lid,facet_interpolation)
+
+end subroutine hpdrf_create_interpolation_restricted_to_facet
 
 !subroutine hpdrf_change_basis(this) 
 !  implicit none

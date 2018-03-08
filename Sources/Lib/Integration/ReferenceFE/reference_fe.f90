@@ -1602,6 +1602,8 @@ procedure, private :: fill_interpolation                             &
           & => hpdrf_fill_interpolation
 procedure, private :: fill_interpolation_pre_basis                   &
           & => hpdrf_fill_interpolation_pre_basis
+procedure :: create_interpolation_restricted_to_facet                &
+          & => hpdrf_create_interpolation_restricted_to_facet
 !procedure, private :: change_basis                                   &
 !          & => hpdrf_change_basis
 !procedure, private :: invert_change_basis_matrix                     &
