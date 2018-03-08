@@ -9,6 +9,43 @@
   #include <omp.h>
 #endif
 
+#ifdef __APPLE__
+
+#include <stdint.h>
+
+#ifndef CPU_SETSIZE
+#define CPU_SETSIZE 1024
+#endif
+
+#ifndef SYSCTL_CORE_COUNT 
+#define SYSCTL_CORE_COUNT   "machdep.cpu.core_count"
+#endif
+
+typedef struct cpu_set {
+  uint32_t    count;
+} cpu_set_t;
+
+static inline int CPU_ISSET(int num, cpu_set_t *cs) { return (cs->count & (1 << num)); }
+
+int sched_getaffinity(pid_t pid, size_t cpu_size, cpu_set_t *cpu_set) {
+  int32_t core_count = 0;
+  size_t  len = sizeof(core_count);
+  int ret = sysctlbyname(SYSCTL_CORE_COUNT, &core_count, &len, 0, 0);
+  if (ret) {
+    printf("error while get core count %d\n", ret);
+    return -1;
+  }
+  cpu_set->count = 0;
+  for (int i = 0; i < core_count; i++) {
+    cpu_set->count |= (1 << i);
+  }
+
+  return 0;
+}
+
+#endif
+
+
 /* Borrowed from util-linux-2.13-pre7/schedutils/taskset.c */
 static char *cpuset_to_cstr(cpu_set_t *mask, char *str)
 {
