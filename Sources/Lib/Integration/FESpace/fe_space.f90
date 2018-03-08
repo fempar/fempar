@@ -1181,7 +1181,6 @@ module fe_space_names
   public :: fe_function_t, p_fe_function_t
 
  character(*), parameter :: interpolator_type_nodal = "interpolator_type_nodal"
- character(*), parameter :: interpolator_type_empty = "interpolator_type_empty"
  character(*), parameter :: interpolator_type_Hcurl = "interpolator_type_Hcurl"
  
  ! Abstract interpolator
@@ -1272,17 +1271,6 @@ contains
  procedure :: free                                               => nodal_interpolator_free
 end type nodal_interpolator_t
 
- ! This is a hack since the hex_pk_disc reference FE does not admit interpolation
-type, extends(interpolator_t) :: empty_interpolator_t 
- private 
-contains 
- procedure :: create                                             => empty_interpolator_create
- procedure :: evaluate_scalar_function_moments                   => empty_interpolator_evaluate_scalar_function_moments 
- procedure :: evaluate_vector_function_moments                   => empty_interpolator_evaluate_vector_function_moments  
- procedure :: evaluate_function_scalar_components_moments        => empty_interpolator_evaluate_function_scalar_components_moments
- procedure :: free                                               => empty_interpolator_free
-end type empty_interpolator_t
-
 type, extends(interpolator_t), abstract :: Hcurl_interpolator_t 
 private 
 ! Maps 
@@ -1364,7 +1352,6 @@ contains
 
 #include "sbm_interpolator.i90"
 #include "sbm_nodal_interpolator.i90"
-#include "sbm_empty_interpolator.i90"
 #include "sbm_Hcurl_interpolator.i90"
 #include "sbm_hex_Hcurl_interpolator.i90" 
 #include "sbm_tet_Hcurl_interpolator.i90"
