@@ -391,6 +391,7 @@ module reference_fe_names
   character(*), parameter :: topology_tet = "tet"
   character(*), parameter :: fe_type_lagrangian = "Lagrangian"
   character(*), parameter :: fe_type_serendipity = "Serendipity"
+  character(*), parameter :: fe_type_hex_pk_disc = "Hex_Pk_disc"
   character(*), parameter :: fe_type_raviart_thomas = "Raviart_Thomas"
   character(*), parameter :: fe_type_nedelec = "Nedelec"
   character(*), parameter :: fe_type_void = "Void"
@@ -993,9 +994,20 @@ module reference_fe_names
           
   end interface
 
-  public :: reference_fe_t, p_reference_fe_t
-  public :: field_type_scalar, field_type_vector, field_type_tensor, field_type_symmetric_tensor
-  public :: topology_hex, topology_tet, fe_type_lagrangian, fe_type_serendipity, fe_type_raviart_thomas, fe_type_nedelec, fe_type_void
+  public :: reference_fe_t
+  public :: p_reference_fe_t
+  public :: field_type_scalar
+  public :: field_type_vector
+  public :: field_type_tensor
+  public :: field_type_symmetric_tensor
+  public :: topology_hex
+  public :: topology_tet
+  public :: fe_type_lagrangian
+  public :: fe_type_serendipity
+  public :: fe_type_hex_pk_disc
+  public :: fe_type_raviart_thomas
+  public :: fe_type_nedelec
+  public :: fe_type_void
 
   type p_lagrangian_reference_fe_t
      class(lagrangian_reference_fe_t), pointer :: p => NULL()
@@ -1560,6 +1572,43 @@ end type hex_serendipity_reference_fe_t
 public :: hex_serendipity_reference_fe_t
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+type, extends(hex_lagrangian_reference_fe_t) :: hex_pk_disc_reference_fe_t
+private
+
+  !logical               :: basis_changed = .false.
+  !real(rp), allocatable :: change_basis_matrix(:,:)
+  integer(ip) :: num_dofs_scalar = -1
+
+contains 
+
+procedure :: create                            => hpdrf_create
+procedure :: free                              => hpdrf_free
+procedure :: has_nodal_quadrature              => hpdrf_has_nodal_quadrature
+procedure :: fill_scalar                       => hpdrf_fill_scalar
+!procedure :: create_nodal_quadrature           => hpdrf_create_nodal_quadrature
+!procedure, private :: fill_nodal_quadrature    => hpdrf_fill_nodal_quadrature
+procedure, private :: allocate_and_fill_node_component_array         &
+          & => hpdrf_allocate_and_fill_node_component_array
+procedure, private :: fill_field_components        & 
+          & => hpdrf_fill_field_components
+procedure :: create_interpolation                                    &
+          & => hpdrf_create_interpolation
+procedure, private :: fill_interpolation                             &
+          & => hpdrf_fill_interpolation
+procedure, private :: fill_interpolation_pre_basis                   &
+          & => hpdrf_fill_interpolation_pre_basis
+!procedure, private :: change_basis                                   &
+!          & => hpdrf_change_basis
+!procedure, private :: invert_change_basis_matrix                     &
+!          & => hpdrf_invert_change_basis_matrix
+!procedure, private :: apply_change_basis_matrix_to_interpolation     &
+!          & => hpdrf_apply_change_basis_to_interpolation 
+
+end type hex_pk_disc_reference_fe_t
+
+public :: hex_pk_disc_reference_fe_t
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type, extends(raviart_thomas_reference_fe_t) :: hex_raviart_thomas_reference_fe_t
 private
 contains 
@@ -1970,6 +2019,8 @@ contains
 #include "sbm_tet_lagrangian_reference_fe.i90"
 
 #include "sbm_hex_serendipity_reference_fe.i90"
+
+#include "sbm_hex_pk_disc_reference_fe.i90"
 
 #include "sbm_hex_raviart_thomas_reference_fe.i90"
 
