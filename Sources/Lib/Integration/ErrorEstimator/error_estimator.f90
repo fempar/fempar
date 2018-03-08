@@ -86,7 +86,7 @@ module error_estimator_names
 
   end interface
   
-  public :: error_estimator_t
+  public :: error_estimator_t, ee_create, ee_free
 
 contains
 
