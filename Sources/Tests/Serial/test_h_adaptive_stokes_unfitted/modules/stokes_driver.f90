@@ -43,11 +43,20 @@ module stokes_driver_names
   use IR_Precision ! VTK_IO
   use Lib_VTK_IO ! VTK_IO
   use plot_aggregates_utils_names
+  USE iso_c_binding,  only: c_int, c_null_char
     
 # include "debug.i90"
 
   implicit none
   private
+
+  interface
+      function mkdir_recursive(path) bind(c,name="mkdir_recursive")
+          use iso_c_binding
+          integer(kind=c_int) :: mkdir_recursive
+          character(kind=c_char,len=1), intent(IN) :: path(*)
+      end function mkdir_recursive
+  end interface
 
   integer(ip), parameter :: SET_ID_FULL = 1
   integer(ip), parameter :: SET_ID_VOID = 2
@@ -1038,10 +1047,35 @@ contains
     type(unfitted_vtk_writer_t) :: vtk_writer
     real(rp), pointer :: aggregate_size_ptr(:)
     real(rp), allocatable :: aggregate_size(:)
+    integer(kind=c_int) :: error
 
     if(this%test_params%get_write_solution()) then
         path = this%test_params%get_dir_path_out()
         prefix = this%test_params%get_prefix()
+
+        error = mkdir_recursive(this%test_params%get_dir_path_out()//C_NULL_CHAR)
+        check ( error == 0 ) 
+
+        ! Write the unfitted mesh
+        call vtk_writer%attach_triangulation(this%triangulation)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh.vtu')
+        call vtk_writer%free()
+        
+        ! Write the solution
+        call vtk_writer%attach_fe_function(this%solution,this%fe_space)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh_solution.vtu')
+        call vtk_writer%free()
+
+        ! Write vefs
+        call vtk_writer%attach_vefs(this%triangulation,this%conditions)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_vefs.vtu')
+        call vtk_writer%free()
+
+        ! Write the unfitted mesh
+        call vtk_writer%attach_boundary_faces(this%triangulation)
+        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
+        call vtk_writer%free()
+
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, U_FIELD_ID, 'u')
@@ -1134,26 +1168,6 @@ contains
         call memfree(aggregate_ids_color,__FILE__,__LINE__)
         call memfree(aggregate_size,__FILE__,__LINE__)
 
-        ! Write the unfitted mesh
-        call vtk_writer%attach_triangulation(this%triangulation)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh.vtu')
-        call vtk_writer%free()
-        
-        ! Write the solution
-        call vtk_writer%attach_fe_function(this%solution,this%fe_space)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_mesh_solution.vtu')
-        call vtk_writer%free()
-
-        ! Write vefs
-        call vtk_writer%attach_vefs(this%triangulation,this%conditions)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_vefs.vtu')
-        call vtk_writer%free()
-
-        ! TODO make it work when no cut cells
-        ! Write the unfitted mesh
-        call vtk_writer%attach_boundary_faces(this%triangulation)
-        call vtk_writer%write_to_vtk_file(this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_boundary_faces.vtu')
-        call vtk_writer%free()
 
     endif
   end subroutine write_solution
