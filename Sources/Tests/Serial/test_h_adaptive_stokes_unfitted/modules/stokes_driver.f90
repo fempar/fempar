@@ -481,9 +481,32 @@ contains
     character(:),           allocatable :: field_type
     integer(ip) :: order_u
     integer(ip) :: order_p
+    character(:), allocatable :: fe_type_u
+    character(:), allocatable :: fe_type_p
+    logical :: continuity_u, conformity_u
+    logical :: continuity_p, conformity_p
 
-    order_p = this%test_params%get_reference_fe_order()
-    order_u = order_p + 1
+    if (this%test_params%get_fe_pair() == 'Qk+1/Qk') then
+      order_p = this%test_params%get_reference_fe_order()
+      order_u = order_p + 1
+      fe_type_u =  fe_type_lagrangian
+      fe_type_p =  fe_type_lagrangian
+      continuity_u = .true.
+      conformity_u = .true.
+      continuity_p = .true.
+      conformity_p = .true.
+    else if (this%test_params%get_fe_pair() == 'Qk+1/Pkdisc') then
+      order_p = this%test_params%get_reference_fe_order()
+      order_u = order_p + 1
+      fe_type_u =  fe_type_lagrangian
+      fe_type_p =  fe_type_hex_pk_disc
+      continuity_u = .true.
+      conformity_u = .true.
+      continuity_p = .false.
+      conformity_p = .true.
+    else
+      mcheck(.false.,'FE pair `'//this%test_params%get_fe_pair()//'` not supported.')
+    end if
     
     allocate(this%reference_fes(4), stat=istat)
     check(istat==0)
@@ -491,30 +514,37 @@ contains
     call this%triangulation%create_cell_iterator(cell)
     reference_fe => cell%get_reference_fe()
     this%reference_fes(POS_FULL_U) =  make_reference_fe ( topology = reference_fe%get_topology(), &
-                                                 fe_type = fe_type_lagrangian, &
+                                                 fe_type = fe_type_u, &
                                                  num_dims = this%triangulation%get_num_dims(), &
                                                  order = order_u, &
                                                  field_type = field_type_vector, &
-                                                 conformity = .true. )
+                                                 conformity = conformity_u, &
+                                                 continuity = continuity_u)
     this%reference_fes(POS_VOID_U) =  make_reference_fe ( topology = reference_fe%get_topology(), &
                                                  fe_type = fe_type_void, &
                                                  num_dims = this%triangulation%get_num_dims(), &
                                                  order = order_u, &
                                                  field_type = field_type_vector, &
-                                                 conformity = .true. )
+                                                 conformity = conformity_u, &
+                                                 continuity = continuity_u)
     this%reference_fes(POS_FULL_P) =  make_reference_fe ( topology = reference_fe%get_topology(), &
-                                                 fe_type = fe_type_lagrangian, &
+                                                 fe_type = fe_type_p, &
                                                  num_dims = this%triangulation%get_num_dims(), &
                                                  order = order_p, &
                                                  field_type = field_type_scalar, &
-                                                 conformity = .true. )
+                                                 conformity = conformity_p, &
+                                                 continuity = continuity_p)
     this%reference_fes(POS_VOID_P) =  make_reference_fe ( topology = reference_fe%get_topology(), &
                                                  fe_type = fe_type_void, &
                                                  num_dims = this%triangulation%get_num_dims(), &
                                                  order = order_p, &
                                                  field_type = field_type_scalar, &
-                                                 conformity = .true. )
+                                                 conformity = conformity_p, &
+                                                 continuity = continuity_p)
     call this%triangulation%free_cell_iterator(cell)
+
+    if (allocated(fe_type_u)) deallocate(fe_type_u,stat=istat); check(istat == 0)
+    if (allocated(fe_type_p)) deallocate(fe_type_p,stat=istat); check(istat == 0)
     
   end subroutine setup_reference_fes
 

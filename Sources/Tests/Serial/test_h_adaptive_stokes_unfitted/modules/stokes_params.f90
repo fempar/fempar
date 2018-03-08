@@ -69,6 +69,7 @@ module stokes_params_names
      character(len=:), allocatable :: default_refinement_pattern
      character(len=:), allocatable :: default_lin_solver_type
      character(len=:), allocatable :: default_use_levelset_complement
+     character(len=:), allocatable :: default_fe_pair
 
      type(Command_Line_Interface):: cli 
 
@@ -104,6 +105,7 @@ module stokes_params_names
      character(len=str_cla_len)    :: refinement_pattern
      character(len=str_cla_len)    :: lin_solver_type
      logical :: use_levelset_complement
+     character(len=str_cla_len)    :: fe_pair
 
    contains
      procedure, non_overridable             :: create       => stokes_create
@@ -138,6 +140,7 @@ module stokes_params_names
      procedure, non_overridable             :: get_refinement_pattern
      procedure, non_overridable             :: get_lin_solver_type
      procedure, non_overridable             :: get_use_levelset_complement
+     procedure, non_overridable             :: get_fe_pair
   end type stokes_params_t  
 
   ! Types
@@ -202,6 +205,7 @@ contains
     this%default_refinement_pattern = 'uniform'
     this%default_lin_solver_type = 'pardiso'
     this%default_use_levelset_complement = '.false.'
+    this%default_fe_pair = 'Qk+1/Qk'
     
   end subroutine stokes_set_default
   
@@ -312,6 +316,9 @@ contains
     call this%cli%add(switch='--use_levelset_complement',switch_ab='-ulscomp',help='if true then we use the complement of the levelset',&
          &            required=.false.,act='store',def=trim(this%default_use_levelset_complement),error=error) 
     check(error==0) 
+    call this%cli%add(switch='--fe-pair',switch_ab='-fp',help='Which mixed interpolation to use for velocities and pressures',&
+         &            required=.false.,act='store',def=trim(this%default_fe_pair),error=error) 
+    check(error==0) 
   end subroutine stokes_add_to_cli
   
   subroutine stokes_parse(this,parameter_list)
@@ -356,6 +363,7 @@ contains
     call this%cli%get(switch='-rpattern',val=this%refinement_pattern,error=istat); check(istat==0)
     call this%cli%get(switch='-lsolver',val=this%lin_solver_type,error=istat); check(istat==0)
     call this%cli%get(switch='-ulscomp',val=this%use_levelset_complement,error=istat); check(istat==0)
+    call this%cli%get(switch='-fp',val=this%fe_pair,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -403,6 +411,7 @@ contains
     if(allocated(this%default_refinement_pattern)) deallocate(this%default_refinement_pattern)
     if(allocated(this%default_lin_solver_type)) deallocate(this%default_lin_solver_type)
     if(allocated(this%default_use_levelset_complement)) deallocate(this%default_use_levelset_complement)
+    if(allocated(this%default_fe_pair)) deallocate(this%default_fe_pair)
     call this%cli%free()
   end subroutine stokes_free
 
@@ -621,5 +630,13 @@ contains
     logical :: get_use_levelset_complement
     get_use_levelset_complement = this%use_levelset_complement
   end function get_use_levelset_complement
+
+  !==================================================================================================
+  function get_fe_pair(this)
+    implicit none
+    class(stokes_params_t) , intent(in) :: this
+    character(len=:), allocatable :: get_fe_pair
+    get_fe_pair = trim(this%fe_pair)
+  end function get_fe_pair 
 
 end module stokes_params_names

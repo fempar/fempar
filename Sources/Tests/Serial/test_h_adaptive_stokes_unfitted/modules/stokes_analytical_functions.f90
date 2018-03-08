@@ -271,6 +271,86 @@ contains
 
   !===================================================
 
+  subroutine sol_ex003_2d_u(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1)
+    x2 = point%get(2)
+    call val%init(0.0)
+    call val%set(1, x2 + x1*x2 )
+    call val%set(2, x1 + x1*x2 )
+  end subroutine sol_ex003_2d_u
+
+  subroutine sol_ex003_2d_grad_u(point,val,q)
+    implicit none
+    type(point_t),        intent(in)    :: point
+    type(tensor_field_t), intent(inout) :: val
+    integer(ip),          intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1)
+    x2 = point%get(2)
+    call val%init(0.0)
+    call val%set(1,1, x2)
+    call val%set(1,2, x2 + 1.0)
+    call val%set(2,1, x1 + 1.0)
+    call val%set(2,2, x1)
+  end subroutine sol_ex003_2d_grad_u
+
+  subroutine sol_ex003_2d_lapl_u(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1)
+    x2 = point%get(2)
+    call val%init(0.0)
+    call val%set(1, 0.0 )
+    call val%set(2, 0.0 )
+  end subroutine sol_ex003_2d_lapl_u
+
+  subroutine sol_ex003_2d_div_u(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    real(rp),      intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1)
+    x2 = point%get(2)
+    val = x1 + x2
+  end subroutine sol_ex003_2d_div_u
+
+  !===================================================
+
+  subroutine sol_ex003_2d_p(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    real(rp),      intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1)
+    x2 = point%get(2)
+    val = x1 + x2
+  end subroutine sol_ex003_2d_p
+
+  subroutine sol_ex003_2d_grad_p(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1)
+    x2 = point%get(2)
+    call val%init(0.0)
+    call val%set(1, 1.0 )
+    call val%set(2, 1.0 )
+  end subroutine sol_ex003_2d_grad_p
+
+  !===================================================
+
   subroutine sol_ex001_3d_u(point,val,q)
     implicit none
     type(point_t), intent(in)    :: point
@@ -692,6 +772,11 @@ contains
           result = (-1.0)*val
           call sol_ex002_2d_grad_p(point,val,this%degree)
           result = result + (-1.0)*val
+        case (3)
+          call sol_ex003_2d_lapl_u(point,val,this%degree)
+          result = (-1.0)*val
+          call sol_ex003_2d_grad_p(point,val,this%degree)
+          result = result + (-1.0)*val
         case default
           check(.false.)
       end select
@@ -741,6 +826,8 @@ contains
           call sol_ex001_2d_u(point,result,this%degree)
         case (2)
           call sol_ex002_2d_u(point,result,this%degree)
+        case (3)
+          call sol_ex003_2d_u(point,result,this%degree)
         case default
           check(.false.)
       end select
@@ -775,6 +862,8 @@ contains
           call sol_ex001_2d_grad_u(point,result,this%degree)
         case (2)
           call sol_ex002_2d_grad_u(point,result,this%degree)
+        case (3)
+          call sol_ex003_2d_grad_u(point,result,this%degree)
         case default
           check(.false.)
       end select
@@ -809,6 +898,8 @@ contains
           call sol_ex001_2d_div_u(point,result,this%degree)
         case (2)
           call sol_ex002_2d_div_u(point,result,this%degree)
+        case (3)
+          call sol_ex003_2d_div_u(point,result,this%degree)
         case default
           check(.false.)
       end select
@@ -843,6 +934,8 @@ contains
           call sol_ex001_2d_p(point,result,this%degree)
         case (2)
           call sol_ex002_2d_p(point,result,this%degree)
+        case (3)
+          call sol_ex003_2d_p(point,result,this%degree)
         case default
           check(.false.)
       end select
@@ -877,6 +970,8 @@ contains
           call sol_ex001_2d_grad_p(point,result,this%degree)
         case (2)
           call sol_ex002_2d_grad_p(point,result,this%degree)
+        case (3)
+          call sol_ex003_2d_grad_p(point,result,this%degree)
         case default
           check(.false.)
       end select
