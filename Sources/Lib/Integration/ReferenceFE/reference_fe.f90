@@ -1580,17 +1580,17 @@ public :: hex_serendipity_reference_fe_t
 type, extends(hex_lagrangian_reference_fe_t) :: hex_pk_disc_reference_fe_t
 private
 
-  !logical               :: basis_changed = .false.
-  !real(rp), allocatable :: change_basis_matrix(:,:)
+  logical               :: basis_changed = .false.
+  real(rp), allocatable :: change_basis_matrix(:,:)
   integer(ip) :: num_dofs_scalar = -1
 
 contains 
 
 procedure :: create                            => hpdrf_create
 procedure :: free                              => hpdrf_free
-procedure :: has_nodal_quadrature              => hpdrf_has_nodal_quadrature
+!procedure :: has_nodal_quadrature              => hpdrf_has_nodal_quadrature
 procedure :: fill_scalar                       => hpdrf_fill_scalar
-!procedure :: create_nodal_quadrature           => hpdrf_create_nodal_quadrature
+procedure :: create_nodal_quadrature           => hpdrf_create_nodal_quadrature
 !procedure, private :: fill_nodal_quadrature    => hpdrf_fill_nodal_quadrature
 procedure, private :: allocate_and_fill_node_component_array         &
           & => hpdrf_allocate_and_fill_node_component_array
@@ -1604,12 +1604,12 @@ procedure, private :: fill_interpolation_pre_basis                   &
           & => hpdrf_fill_interpolation_pre_basis
 procedure :: create_interpolation_restricted_to_facet                &
           & => hpdrf_create_interpolation_restricted_to_facet
-!procedure, private :: change_basis                                   &
-!          & => hpdrf_change_basis
-!procedure, private :: invert_change_basis_matrix                     &
-!          & => hpdrf_invert_change_basis_matrix
-!procedure, private :: apply_change_basis_matrix_to_interpolation     &
-!          & => hpdrf_apply_change_basis_to_interpolation 
+procedure, private :: change_basis                                   &
+          & => hpdrf_change_basis
+procedure, private :: invert_change_basis_matrix                     &
+          & => hpdrf_invert_change_basis_matrix
+procedure, private :: apply_change_basis_matrix_to_interpolation     &
+          & => hpdrf_apply_change_basis_to_interpolation 
 
 end type hex_pk_disc_reference_fe_t
 
