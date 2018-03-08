@@ -1795,8 +1795,8 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   implicit none
   class(serial_fe_space_t), target, intent(inout) :: this
 
-  class(fe_facet_iterator_t), allocatable :: fe_face
-  class(fe_cell_iterator_t)     , allocatable :: fe
+  type(fe_facet_iterator_t) :: fe_face
+  type(fe_cell_iterator_t)  :: fe
 
   integer(ip) :: facet_quadrature_position
   integer(ip) :: facet_maps_position
@@ -1821,7 +1821,10 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   type(quadrature_t)      , pointer :: current_facet_quadrature
   type(facet_maps_t)      , pointer :: current_facet_maps
   type(facet_integrator_t), pointer :: current_facet_integrator
-
+  
+  class(vef_iterator_t), allocatable :: vef
+  class(triangulation_t), pointer :: triangulation
+  
   call this%compute_facet_permutation_indices()
   call this%compute_max_order_field_cell_to_ref_fes_face()
   max_order_field_cell_to_ref_fes_face => this%max_order_field_cell_to_ref_fes_face%get_pointer()
@@ -1835,8 +1838,13 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   facet_maps_position = 1
   facet_integrator_position = 1
 
-  call this%create_fe_cell_iterator(fe)
-  call this%create_fe_facet_iterator(fe_face)
+  call fe%create(this)
+  
+  ! Creating fe_facet_iterator_t
+  triangulation => this%get_triangulation()
+  call triangulation%create_vef_iterator(vef)
+  call fe_face%create(this,vef)
+  call triangulation%free_vef_iterator(vef)  
   do while ( .not. fe_face%has_finished() ) 
      reference_fes_geo_id(2) = 0
      nullify(reference_fes_geo(2)%p)
@@ -1851,12 +1859,11 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
                                                          reference_fes_geo_id(1), &
                                                          reference_fes_geo_id(2) )
      
-     
      call this%facet_quadratures_position%put(key  = facet_quadratures_position_key, &
                                                 val  = facet_quadrature_position, &
                                                 stat = istat)  
      if (istat == now_stored) then
-        reference_fe=>this%reference_fes( max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) )%p
+        reference_fe=>this%reference_fes( max_order_field_cell_to_ref_fes_face(fe_face%get_gid()) )%p
         call this%facet_quadratures%resize(facet_quadrature_position)
         current_facet_quadrature => this%facet_quadratures%get_pointer(facet_quadrature_position)
         call reference_fe%create_facet_quadrature(current_facet_quadrature,fe_face%get_quadrature_degree())
@@ -1899,8 +1906,8 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
      end do
      call fe_face%next()
   end do
-  call this%free_fe_cell_iterator(fe)
-  call this%free_fe_facet_iterator(fe_face)
+  call fe%free()
+  call fe_face%free()
   
 end subroutine serial_fe_space_set_up_facet_integration
 
