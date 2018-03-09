@@ -125,15 +125,16 @@ end subroutine pufs_create_fe_cell_iterator
 !end subroutine pufs_create_fe_facet_iterator
 
 !========================================================================================
-subroutine pufs_set_up_cell_integration ( this, interpolation_duties )
+subroutine pufs_set_up_cell_integration ( this, interpolation_duties, cell_map_duties )
   implicit none
   class(par_unfitted_fe_space_t), target, intent(inout) :: this
   type(interpolation_duties_t), optional, intent(in) :: interpolation_duties(:)
+  type(cell_map_duties_t)     , optional, intent(in)    :: cell_map_duties
 
   class(triangulation_t), pointer :: triangulation
   type(environment_t), pointer :: environment
 
-  call this%par_fe_space_t%set_up_cell_integration(interpolation_duties)
+  call this%par_fe_space_t%set_up_cell_integration(interpolation_duties, cell_map_duties)
   triangulation => this%get_triangulation()
   environment => triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then

@@ -119,11 +119,12 @@ subroutine sufs_create_fe_facet_iterator(this, fe_face)
 end subroutine sufs_create_fe_facet_iterator
 
 !========================================================================================
-subroutine sufs_set_up_cell_integration ( this, interpolation_duties )
+subroutine sufs_set_up_cell_integration ( this, interpolation_duties , cell_map_duties)
   implicit none
   class(serial_unfitted_fe_space_t), target, intent(inout) :: this
   type(interpolation_duties_t), optional, intent(in) :: interpolation_duties(:)
-  call this%serial_fe_space_t%set_up_cell_integration(interpolation_duties)
+  type(cell_map_duties_t)     , optional, intent(in)    :: cell_map_duties
+  call this%serial_fe_space_t%set_up_cell_integration(interpolation_duties, cell_map_duties)
   call this%unfitted_integration%init_cut_integration()
   call this%unfitted_integration%init_cut_boundary_integration()
 end subroutine sufs_set_up_cell_integration
