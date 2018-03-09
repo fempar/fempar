@@ -753,8 +753,7 @@ subroutine compute_fitted_boundary_surface( this )
     real(rp) :: dS, surface
 
     write(*,*) "Computing fitted boundary surface..."
-    ! TODO: this is hack. The fe_facet created inside set_up_facet_integration() has to be the standard one (not the unfitted)
-    call this%fe_space%serial_fe_space_t%set_up_facet_integration()
+    call this%fe_space%set_up_facet_integration()
     surface = 0.0_rp
     call this%fe_space%create_fe_facet_iterator(fe_facet)
     do while ( .not. fe_facet%has_finished() )
