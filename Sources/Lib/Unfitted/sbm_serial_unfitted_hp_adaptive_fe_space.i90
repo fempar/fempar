@@ -125,7 +125,6 @@ subroutine suhpafs_free(this)
     call memfree(this%is_in_aggregate_x_cell,__FILE__,__LINE__)
   end if
   call this%debug_info%free()
-  this%use_serendipity_extension = .false.
 end subroutine suhpafs_free
 
 !========================================================================================
