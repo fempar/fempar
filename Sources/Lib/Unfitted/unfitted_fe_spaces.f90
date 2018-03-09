@@ -209,6 +209,7 @@ module unfitted_fe_spaces_names
       logical    , allocatable :: is_in_aggregate_x_cell(:)
       real(rp)   , allocatable :: aggregate_size(:)
       logical :: use_constraints = .true.
+      logical :: use_serendipity_extension = .false.
       type(ParameterList_t), public :: debug_info
       integer(ip) :: num_hanging_dofs_full_cells
       integer(ip) :: num_hanging_dofs_other
@@ -219,6 +220,7 @@ module unfitted_fe_spaces_names
       procedure           :: serial_fe_space_create_different_ref_fes_between_cells => suhpafs_space_create_different_ref_fes_between_cells
       procedure           :: free                                                   => suhpafs_free
       procedure           :: set_use_constraints                                    => suhpafs_set_use_constraints
+      procedure           :: set_use_serendipity_extension                          => suhpafs_set_use_serendipity_extension
       
       ! Creation of the iterator (overrides)
       procedure :: create_fe_cell_iterator       => suhpafs_create_fe_cell_iterator

@@ -70,6 +70,7 @@ module stokes_params_names
      character(len=:), allocatable :: default_lin_solver_type
      character(len=:), allocatable :: default_use_levelset_complement
      character(len=:), allocatable :: default_fe_pair
+     character(len=:), allocatable :: default_use_serendipity_extension
 
      type(Command_Line_Interface):: cli 
 
@@ -106,6 +107,7 @@ module stokes_params_names
      character(len=str_cla_len)    :: lin_solver_type
      logical :: use_levelset_complement
      character(len=str_cla_len)    :: fe_pair
+     logical :: use_serendipity_extension
 
    contains
      procedure, non_overridable             :: create       => stokes_create
@@ -141,6 +143,7 @@ module stokes_params_names
      procedure, non_overridable             :: get_lin_solver_type
      procedure, non_overridable             :: get_use_levelset_complement
      procedure, non_overridable             :: get_fe_pair
+     procedure, non_overridable             :: get_use_serendipity_extension
   end type stokes_params_t  
 
   ! Types
@@ -206,6 +209,7 @@ contains
     this%default_lin_solver_type = 'pardiso'
     this%default_use_levelset_complement = '.false.'
     this%default_fe_pair = 'Qk+1/Qk'
+    this%default_use_serendipity_extension = '.false.'
     
   end subroutine stokes_set_default
   
@@ -319,6 +323,9 @@ contains
     call this%cli%add(switch='--fe-pair',switch_ab='-fp',help='Which mixed interpolation to use for velocities and pressures',&
          &            required=.false.,act='store',def=trim(this%default_fe_pair),error=error) 
     check(error==0) 
+    call this%cli%add(switch='--use-serendipity-extension',switch_ab='-se',help='Whether to use or not to use serendipity extension in velocity field',&
+         &            required=.false.,act='store',def=trim(this%default_use_serendipity_extension),error=error) 
+    check(error==0) 
   end subroutine stokes_add_to_cli
   
   subroutine stokes_parse(this,parameter_list)
@@ -364,6 +371,7 @@ contains
     call this%cli%get(switch='-lsolver',val=this%lin_solver_type,error=istat); check(istat==0)
     call this%cli%get(switch='-ulscomp',val=this%use_levelset_complement,error=istat); check(istat==0)
     call this%cli%get(switch='-fp',val=this%fe_pair,error=istat); check(istat==0)
+    call this%cli%get(switch='-se',val=this%use_serendipity_extension,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -638,5 +646,13 @@ contains
     character(len=:), allocatable :: get_fe_pair
     get_fe_pair = trim(this%fe_pair)
   end function get_fe_pair 
+
+  !==================================================================================================
+  function get_use_serendipity_extension(this)
+    implicit none
+    class(stokes_params_t) , intent(in) :: this
+    logical :: get_use_serendipity_extension
+    get_use_serendipity_extension = this%use_serendipity_extension
+  end function get_use_serendipity_extension
 
 end module stokes_params_names

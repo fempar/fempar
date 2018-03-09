@@ -580,6 +580,7 @@ contains
     call this%conditions%set_boundary_function(fun_u,fun_p)
 
     call this%fe_space%set_use_constraints(this%test_params%get_use_constraints())
+    call this%fe_space%set_use_serendipity_extension(this%test_params%get_use_serendipity_extension())
     call this%fe_space%create( triangulation            = this%triangulation,      &
                                conditions               = this%conditions, &
                                reference_fes            = this%reference_fes,&

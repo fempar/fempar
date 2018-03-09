@@ -125,6 +125,7 @@ subroutine suhpafs_free(this)
     call memfree(this%is_in_aggregate_x_cell,__FILE__,__LINE__)
   end if
   call this%debug_info%free()
+  this%use_serendipity_extension = .false.
 end subroutine suhpafs_free
 
 !========================================================================================
@@ -134,6 +135,14 @@ subroutine suhpafs_set_use_constraints(this,use_constraints)
   logical, intent(in) :: use_constraints
   this%use_constraints = use_constraints
 end subroutine suhpafs_set_use_constraints
+
+!========================================================================================
+subroutine suhpafs_set_use_serendipity_extension(this,use_serendipity_extension)
+  implicit none
+  class(serial_unfitted_hp_adaptive_fe_space_t), intent(inout) :: this
+  logical, intent(in) :: use_serendipity_extension
+  this%use_serendipity_extension = use_serendipity_extension
+end subroutine suhpafs_set_use_serendipity_extension
 
 !========================================================================================
 subroutine suhpafs_create_fe_cell_iterator(this, fe)
@@ -1134,10 +1143,16 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   integer(ip) :: iaux
   type(point_t), pointer :: coordinates_nodes_cut_cell(:)
   type(cell_integrator_t), allocatable :: cell_integrator(:)
+  type(cell_integrator_t), allocatable :: cell_integrator_NS_XC(:)
+  type(cell_integrator_t), allocatable :: cell_integrator_NR_XS(:)
   type(quadrature_t), allocatable :: nodal_quad_in_root_fe(:)
+  type(quadrature_t), pointer :: nodal_quad_serendipity
   class(triangulation_t), pointer :: triangulation
   real(rp), allocatable  :: shape_values_scalar(:,:)
+  real(rp), allocatable  :: shape_values_scalar_NS_XC(:,:)
+  real(rp), allocatable  :: shape_values_scalar_NR_XS(:,:)
   type(vector_field_t), allocatable  :: shape_values_vector(:,:)
+  type(vector_field_t), allocatable  :: shape_values_vector_NR_XS(:,:)
   type(point_t), pointer :: coordinates(:)
   integer(ip) :: istat
   logical, allocatable :: visited_hanging_dof_lids(:)
@@ -1149,6 +1164,8 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   integer(ip) :: idirichlet
   logical(ip), allocatable :: first_ref_fe_visited_x_field(:)
   real(rp) :: coefficient
+  type(hex_serendipity_reference_fe_t), allocatable :: serendipity_ref_fes(:)
+  integer(ip) :: inode_serendipity
 
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_free_dofs
   type(std_vector_integer_ip_t) , pointer :: this_ptr_constraining_dirichlet_dofs
@@ -1181,7 +1198,7 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   triangulation => this%get_triangulation()
 
   call memalloc(this%num_aggregated_dofs,visited_hanging_dof_lids,__FILE__,__LINE__)
-  
+
   !Fill the sizes of each sub-list
 
   ! Init to 0
@@ -1278,6 +1295,26 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
   call memalloc(this%get_num_fields(),first_ref_fe_visited_x_field,__FILE__,__LINE__)
   first_ref_fe_visited_x_field(:) = .true.
 
+  ! Setup Serendipity extension
+  if (this%use_serendipity_extension) then
+
+    allocate(serendipity_ref_fes(this%get_num_fields()),stat=istat); check(istat==0)
+    allocate(cell_integrator_NS_XC(this%get_num_fields()),stat=istat); check(istat==0)
+    allocate(cell_integrator_NR_XS(this%get_num_fields()),stat=istat); check(istat==0)
+
+    do field_id = 1, this%get_num_fields()
+      call fe%first_local_non_void(field_id)
+      call serendipity_ref_fes(field_id)%create(&
+        topology = topology_hex,&
+        num_dims = triangulation%get_num_dims(), &
+        order = fe%get_order(field_id),&
+        field_type = field_type_scalar,&
+        conformity = .true.,&
+        continuity = .true. )
+    end do
+
+  end if
+
   ! Compute dependencies and coefficients for the rest of constraints
   call fe%first()
   allocate(nodal_quad_in_root_fe(this%get_num_fields()),stat=istat); check(istat==0)
@@ -1320,14 +1357,50 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
         end if
         call send_to_reference_space(coordinates_nodes_cut_cell,root_fe_quad,root_cell_map,nodal_quad_in_root_fe(field_id))
 
-        ! Evaluate the root_fe shape functions at these points
         root_reference_fe => root_fe%get_reference_fe(field_id)
+
+        if (this%use_serendipity_extension .and. field_id == 1) then
+          ! Get nodal quadrature of serendipity element
+          ! We assume that this nodal quadrature is already in the reference space of the root element.
+          ! This is true if the root element has hex topology.
+          nodal_quad_serendipity => serendipity_ref_fes(field_id)%get_nodal_quadrature()
+          massert(root_reference_fe%get_topology() == topology_hex,'We only admid root fes with hex-like topology')
+        end if
+
         if (first_ref_fe_visited_x_field(field_id)) then
+
+          ! Evaluate the root_fe shape functions at the nodes of the cut cell
           call cell_integrator(field_id)%create(nodal_quad_in_root_fe(field_id),root_reference_fe)
+
+          if (this%use_serendipity_extension .and. field_id == 1) then
+
+            ! Evaluate the root_fe shape functions at the serendipity points
+            call cell_integrator_NR_XS(field_id)%create(nodal_quad_serendipity,root_reference_fe)
+
+            ! Evaluate the serendipity shape functions at the nodes of the cut cell
+            call cell_integrator_NS_XC(field_id)%create(nodal_quad_in_root_fe(field_id),serendipity_ref_fes(field_id))
+
+          end if
+
           first_ref_fe_visited_x_field(field_id) = .false.
         else
+
+          ! Evaluate the root_fe shape functions at the nodes of the cut cell
           call cell_integrator(field_id)%update_interpolation(nodal_quad_in_root_fe(field_id))
+
+          if (this%use_serendipity_extension .and. field_id == 1) then
+
+            ! Evaluate the root_fe shape functions at the serendipity points
+            call cell_integrator_NR_XS(field_id)%update_interpolation(nodal_quad_serendipity)
+
+            ! Evaluate the serendipity shape functions at the nodes of the cut cell
+            call cell_integrator_NS_XC(field_id)%update_interpolation(nodal_quad_in_root_fe(field_id))
+
+          end if
+
         end if
+
+        ! Get root_fe shape functions at the nodes of the cut cell
         call cell_integrator(field_id)%update(root_cell_map)
         if (root_reference_fe%get_field_type() == field_type_scalar) then
           call cell_integrator(field_id)%get_values(shape_values_scalar)
@@ -1336,6 +1409,25 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
         else
           check(.false.)
         end if
+
+        if (this%use_serendipity_extension .and. field_id == 1) then
+
+          ! Get the root_fe shape functions at the serendipity points
+          call cell_integrator_NR_XS(field_id)%update(root_cell_map)
+          if (root_reference_fe%get_field_type() == field_type_scalar) then
+            call cell_integrator_NR_XS(field_id)%get_values(shape_values_scalar_NR_XS)
+          else if (root_reference_fe%get_field_type() == field_type_vector) then
+            call cell_integrator_NR_XS(field_id)%get_values(shape_values_vector_NR_XS)
+          else
+            check(.false.)
+          end if
+
+          ! Get the serendipity shape functions at the nodes of the cut cell
+          call cell_integrator_NS_XC(field_id)%update(root_cell_map)
+          call cell_integrator_NS_XC(field_id)%get_values(shape_values_scalar_NS_XC)
+
+        end if
+
 
         do idof = 1, size(fe_dofs)
           if ( fe%is_fixed_dof(fe_dofs(idof)) .and. (min_fixed_dof_gid<=abs(fe_dofs(idof))) .and. (abs(fe_dofs(idof))<=max_fixed_dof_gid) ) then
@@ -1348,9 +1440,26 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
                 if ( root_reference_fe%get_component_node(root_idof) == reference_fe%get_component_node(idof) ) then
 
                   if (root_reference_fe%get_field_type() == field_type_scalar) then
-                    coefficient = shape_values_scalar(root_idof,idof)
+                    if (this%use_serendipity_extension .and. field_id == 1) then
+                      coefficient = 0
+                      do inode_serendipity = 1, nodal_quad_serendipity%get_num_quadrature_points()
+                        coefficient = coefficient + &
+                        shape_values_scalar_NR_XS(root_idof,inode_serendipity)*shape_values_scalar_NS_XC(inode_serendipity,idof)
+                      end do
+                    else
+                      coefficient = shape_values_scalar(root_idof,idof)
+                    end if
                   else if (root_reference_fe%get_field_type() == field_type_vector) then
-                    coefficient = shape_values_vector(root_idof,reference_fe%get_scalar_from_vector_node(idof))%get(reference_fe%get_component_node(idof))
+                    if (this%use_serendipity_extension .and. field_id == 1) then
+                      coefficient = 0
+                      do inode_serendipity = 1, nodal_quad_serendipity%get_num_quadrature_points()
+                        coefficient = coefficient + &
+                        shape_values_vector_NR_XS(root_idof,inode_serendipity)%get(root_reference_fe%get_component_node(root_idof))&
+                        * shape_values_scalar_NS_XC(inode_serendipity,reference_fe%get_scalar_from_vector_node(idof))
+                      end do
+                    else
+                      coefficient = shape_values_vector(root_idof,reference_fe%get_scalar_from_vector_node(idof))%get(reference_fe%get_component_node(idof))
+                    end if
                   else
                     check(.false.)
                   end if
@@ -1430,14 +1539,45 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
     call cell_integrator(field_id)%free()
   end do
   deallocate(cell_integrator,stat=istat); check(istat==0)
+
+  if (allocated(cell_integrator_NS_XC)) then
+    do field_id = 1, this%get_num_fields()
+      call cell_integrator_NS_XC(field_id)%free()
+    end do
+    deallocate(cell_integrator_NS_XC,stat=istat); check(istat==0)
+  end if
+
+  if (allocated(cell_integrator_NR_XS)) then
+    do field_id = 1, this%get_num_fields()
+      call cell_integrator_NR_XS(field_id)%free()
+    end do
+    deallocate(cell_integrator_NR_XS,stat=istat); check(istat==0)
+  end if
+
   if (allocated(shape_values_scalar)) then
     call memfree(shape_values_scalar,__FILE__,__LINE__)
+  end if
+  if (allocated(shape_values_scalar_NS_XC)) then
+    call memfree(shape_values_scalar_NS_XC,__FILE__,__LINE__)
+  end if
+  if (allocated(shape_values_scalar_NR_XS)) then
+    call memfree(shape_values_scalar_NR_XS,__FILE__,__LINE__)
   end if
   if (allocated(shape_values_vector)) then
     deallocate(shape_values_vector,stat=istat); check(istat==0)
   end if
+  if (allocated(shape_values_vector_NR_XS)) then
+    deallocate(shape_values_vector_NR_XS,stat=istat); check(istat==0)
+  end if
   call memfree(visited_hanging_dof_lids,__FILE__,__LINE__)
   call memfree(first_ref_fe_visited_x_field,__FILE__,__LINE__)
+
+  if (allocated(serendipity_ref_fes)) then
+    do field_id = 1, this%get_num_fields()
+      call serendipity_ref_fes(field_id)%free()
+    end do
+    deallocate(serendipity_ref_fes,stat=istat); check(istat==0)
+  end if
 
   contains
 
