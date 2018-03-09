@@ -1017,10 +1017,16 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming ( this, f
   real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
   integer(ip) :: ifield, i_lid, i_gid, i_gid_hanging, k_lid, k_gid, pos, spos, epos
   real(rp) :: weight
+  integer(ip) :: offset
   
   strong_dirichlet_values         => fe_function%get_fixed_dof_values()
   strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
   do ifield=1, this%get_num_fields() 
+     if (ifield==1) then
+       offset = 0
+     else
+       offset = offset + this%num_cell_dofs_x_field(ifield-1)
+     end if
      do i_lid=1, this%num_cell_dofs_x_field(ifield)
         i_gid = this%fe_dofs(ifield)%p(i_lid)
         ! i is a hanging DoF?
@@ -1033,11 +1039,11 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming ( this, f
               k_gid = this%fe_space%constraining_dirichlet_dofs%get(pos)
               weight = this%fe_space%constraining_dirichlet_dofs_coefficients%get(pos)
               ! add the hanging dof column * weighting * dirichlet dof value * -1 to the RHS (for extended elvec)
-              this%extended_elvec%a(:) = this%extended_elvec%a(:)-weight*this%extended_elmat%a(:,i_lid)*strong_dirichlet_values_entries(abs(k_gid))
+              this%extended_elvec%a(:) = this%extended_elvec%a(:)-weight*this%extended_elmat%a(:,i_lid+offset)*strong_dirichlet_values_entries(abs(k_gid))
            end do
         ! i is dirichlet dof, proceed as usual
         else if ( this%is_strong_dirichlet_dof(i_gid) ) then
-           this%extended_elvec%a(:) = this%extended_elvec%a(:)-this%extended_elmat%a(:,i_lid)*strong_dirichlet_values_entries(abs(i_gid))
+           this%extended_elvec%a(:) = this%extended_elvec%a(:)-this%extended_elmat%a(:,i_lid+offset)*strong_dirichlet_values_entries(abs(i_gid))
         end if
      end do
   end do
@@ -1422,6 +1428,7 @@ subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
   integer(ip) :: k_lid, k_gid, pos, spos, epos, iblock
   real(rp) :: weight
   integer(ip), pointer :: field_blocks(:)
+  integer(ip) :: offset
   
   field_blocks            => this%get_field_blocks()
   call this%allocate_block_based_scratch_data()
@@ -1501,6 +1508,11 @@ subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
      ! and the outer ones
      do ifield=1, this%get_num_fields() 
         iblock = field_blocks(ifield)
+        if (ifield==1) then
+          offset = 0
+        else
+          offset = offset + this%num_cell_dofs_x_field(ifield-1)
+        end if
         do i_lid=1, this%get_num_dofs_field(ifield)
            i_gid = this%fe_dofs(ifield)%p(i_lid)
            ! i is a hanging DoF?
@@ -1514,8 +1526,8 @@ subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
                  weight = this%fe_space%constraining_free_dofs_coefficients%get(pos)
                  k_lid = this%gid_to_lid_map(iblock)%a(k_gid)
                  ! free dofs, add the hanging dof row * weighting in the free dof row (for extended elmat and elvec)
-                 this%extended_elmat%a(k_lid,:) = this%extended_elmat%a(k_lid,:) + weight*this%extended_elmat%a(i_lid,:)
-                 this%extended_elvec%a(k_lid) = this%extended_elvec%a(k_lid) + weight*this%extended_elvec%a(i_lid)
+                 this%extended_elmat%a(k_lid+offset,:) = this%extended_elmat%a(k_lid+offset,:) + weight*this%extended_elmat%a(i_lid+offset,:)
+                 this%extended_elvec%a(k_lid+offset)   = this%extended_elvec%a(k_lid+offset)   + weight*this%extended_elvec%a(i_lid+offset)
               end do
            end if
         end do
@@ -1524,6 +1536,11 @@ subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
      ! Idem for columns
      do ifield=1, this%get_num_fields() 
         iblock = field_blocks(ifield)
+        if (ifield==1) then
+          offset = 0
+        else
+          offset = offset + this%num_cell_dofs_x_field(ifield-1)
+        end if
         do i_lid=1, this%get_num_dofs_field(ifield)
            i_gid = this%fe_dofs(ifield)%p(i_lid)
            ! i is a hanging DoF?
@@ -1537,7 +1554,7 @@ subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
                  weight = this%fe_space%constraining_free_dofs_coefficients%get(pos)
                  k_lid = this%gid_to_lid_map(iblock)%a(k_gid)
                  ! free dofs, add the hanging dof column * weighting in the free dof column (for extended elmat and elvec)
-                 this%extended_elmat%a(:,k_lid) = this%extended_elmat%a(:,k_lid) + weight*this%extended_elmat%a(:,i_lid)
+                 this%extended_elmat%a(:,k_lid+offset) = this%extended_elmat%a(:,k_lid+offset) + weight*this%extended_elmat%a(:,i_lid+offset)
               end do
            end if
         end do

@@ -617,6 +617,14 @@ function fe_facet_iterator_compute_characteristic_length(this,qpoint)
 end function fe_facet_iterator_compute_characteristic_length
 
 !==================================================================================================
+function fe_facet_iterator_get_fes_around(this)
+  implicit none
+  class(fe_facet_iterator_t), target, intent(in) :: this
+  type(p_fe_cell_iterator_t), pointer :: fe_facet_iterator_get_fes_around(:)
+  fe_facet_iterator_get_fes_around => this%fes_around
+end function fe_facet_iterator_get_fes_around
+
+!==================================================================================================
 subroutine fe_facet_iterator_get_values_scalar (this, ineigh, values, field_id)
   implicit none
   class(fe_facet_iterator_t), intent(in)    :: this
