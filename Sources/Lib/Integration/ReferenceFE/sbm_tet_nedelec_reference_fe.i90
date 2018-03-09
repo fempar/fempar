@@ -286,7 +286,10 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 
   interpolation%shape_functions   = 0.0_rp
   if(interpolation%my_duties%compute_first_derivatives_is_assigned()) interpolation%shape_derivatives = 0.0_rp
-
+  if(interpolation%my_duties%compute_second_derivatives_is_assigned()) then
+     mcheck(.false.,'tet nedelec reference FE cannot provide hessian')
+  end if
+  
   ! The Nedelec tet prebasis ND_k is built as a direct sum of two prebasis, so they are built and added:  
   ! prebasis_1: [P_{k-1}]^d
   ! prebasis_2: S_k = {p in [homog(P_k)]^d | p·x = 0}
@@ -304,35 +307,38 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   call tet_polynomial_prebase_1%fill( quadrature%get_coordinates() )
 
   num_polynomials_prebase_1 = tet_polynomial_prebase_1%get_num_polynomials()
-  call memalloc(num_polynomials_prebase_1,values,__FILE__,__LINE__)
-  call memalloc(SPACE_DIM,num_polynomials_prebase_1,gradients,__FILE__,__LINE__)
-
+  
   ! Fill first set of pre-basis functions (replicated prebase_1 in directions)
+  call memalloc(num_polynomials_prebase_1,values,__FILE__,__LINE__)
   do idime=1, interpolation%num_dims 
      do q_point=1, quadrature%get_num_quadrature_points()
-        call tet_polynomial_prebase_1%evaluate(q_point, values, gradients)
+        call tet_polynomial_prebase_1%evaluate_values( q_point, values )
         c=(idime-1)*num_polynomials_prebase_1
         do ipoly=1,num_polynomials_prebase_1
            c=c+1
            interpolation%shape_functions(idime,c,q_point) = values(ipoly)
         end do
-        if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     end do
+  end do
+  call memfree(values,__FILE__,__LINE__)
+  
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     call memalloc(SPACE_DIM,num_polynomials_prebase_1,gradients,__FILE__,__LINE__)
+     do idime=1, interpolation%num_dims 
+        do q_point=1, quadrature%get_num_quadrature_points()
+           call tet_polynomial_prebase_1%evaluate_gradients( q_point, gradients )
            c=(idime-1)*num_polynomials_prebase_1
            do ipoly=1,num_polynomials_prebase_1
               c=c+1
-              interpolation%shape_functions(idime,c,q_point) = values(ipoly)
               do jdime=1, interpolation%num_dims
                  interpolation%shape_derivatives(idime,jdime,c,q_point) = gradients(jdime,ipoly)
               end do
            end do
-        end if
+        end do
      end do
-  end do
-
-  ! Free auxiliary memory
-  if(allocated(values))    call memfree(values,__FILE__,__LINE__)
-  if(allocated(gradients)) call memfree(gradients,__FILE__,__LINE__)
-
+     call memfree(gradients,__FILE__,__LINE__)
+  end if
+  
   do idime=1,interpolation%num_dims
      call monomial_1D_basis(idime)%free()
   end do
@@ -347,35 +353,44 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   call tet_polynomial_prebase_2%create(interpolation%num_dims,monomial_1D_basis)
   call tet_polynomial_prebase_2%fill( quadrature%get_coordinates() )
 
-  call memalloc(tet_polynomial_prebase_2%get_num_polynomials(),values,__FILE__,__LINE__)
-  call memalloc(SPACE_DIM,tet_polynomial_prebase_2%get_num_polynomials(),gradients,__FILE__,__LINE__)
-
   ! Fill second set of prebasis functions with order k prebase and Sk( homogeneous polynomials basis indices )  
   N_k = tet_polynomial_prebase_2%get_num_polynomials()
   Sk_basis_dim = this%order * (this%order+2)**(this%num_dims-2)
   c   = interpolation%num_dims*num_polynomials_prebase_1 
+  
+  call memalloc(tet_polynomial_prebase_2%get_num_polynomials(),values,__FILE__,__LINE__)
   do q_point=1, quadrature%get_num_quadrature_points()
-     call tet_polynomial_prebase_2%evaluate(q_point, values, gradients)
+     call tet_polynomial_prebase_2%evaluate_values( q_point, values )
      do ipoly=1, Sk_basis_dim 
         do idime=1, interpolation%num_dims	
            offcomponent = (idime-1)*tet_polynomial_prebase_2%get_num_polynomials()
            do ivalu=1, tet_polynomial_prebase_2%get_num_polynomials()
               interpolation%shape_functions(idime,c+ipoly,q_point) =  &	
                    interpolation%shape_functions(idime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*values(ivalu)
-              if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
-                 do jdime=1, interpolation%num_dims
-                    interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) = & 
-                         interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*gradients(jdime,ivalu)
-                 end do
-              end if
            end do
         end do
      end do
   end do
-
-  ! Free auxiliary memory
-  if(allocated(values))    call memfree(values,__FILE__,__LINE__)
-  if(allocated(gradients)) call memfree(gradients,__FILE__,__LINE__)
+  call memfree(values,__FILE__,__LINE__)
+  
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     call memalloc(SPACE_DIM,tet_polynomial_prebase_2%get_num_polynomials(),gradients,__FILE__,__LINE__)
+     do q_point=1, quadrature%get_num_quadrature_points()
+        call tet_polynomial_prebase_2%evaluate_gradients( q_point, gradients )
+        do ipoly=1, Sk_basis_dim 
+           do idime=1, interpolation%num_dims	
+              offcomponent = (idime-1)*tet_polynomial_prebase_2%get_num_polynomials()
+              do ivalu=1, tet_polynomial_prebase_2%get_num_polynomials()
+                 do jdime=1, interpolation%num_dims
+                    interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) = & 
+                         interpolation%shape_derivatives(idime,jdime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*gradients(jdime,ivalu)
+                 end do
+              end do
+           end do
+        end do
+     end do
+     call memfree(gradients,__FILE__,__LINE__)
+  end if
 
   do idime=1,interpolation%num_dims
      call monomial_1D_basis(idime)%free()

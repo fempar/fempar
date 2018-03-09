@@ -657,6 +657,7 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation_pre_basis ( this, quad
 
   real(rp), allocatable :: values(:)
   real(rp), allocatable :: gradients(:,:)
+  real(rp), allocatable :: second_derivatives(:,:)
   integer(ip) :: idime, q_point
 
   do idime=1,interpolation%num_dims
@@ -667,18 +668,31 @@ subroutine tet_lagrangian_reference_fe_fill_interpolation_pre_basis ( this, quad
   call tet_polynomial_prebase%fill( quadrature%get_coordinates() )
 
   call memalloc(tet_polynomial_prebase%get_num_polynomials(),values,__FILE__,__LINE__)
-  call memalloc(SPACE_DIM,tet_polynomial_prebase%get_num_polynomials(),gradients,__FILE__,__LINE__)
-
   do q_point=1, quadrature%get_num_quadrature_points()
-     call tet_polynomial_prebase%evaluate(q_point, values, gradients)
+     call tet_polynomial_prebase%evaluate_values( q_point, values )
      interpolation%shape_functions(1,:,q_point) = values(:)
-     if(interpolation%my_duties%compute_first_derivatives_is_assigned()) &
-          &  interpolation%shape_derivatives(1,:,:,q_point) = gradients(:,:)
   end do
-
-  ! Free auxiliary memory
-  if(allocated(values))    call memfree(values,__FILE__,__LINE__)
-  if(allocated(gradients)) call memfree(gradients,__FILE__,__LINE__)
+  call memfree(values,__FILE__,__LINE__)
+  
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     call memalloc(SPACE_DIM,tet_polynomial_prebase%get_num_polynomials(),gradients,__FILE__,__LINE__)
+     do q_point=1, quadrature%get_num_quadrature_points()
+        call tet_polynomial_prebase%evaluate_gradients( q_point, gradients )
+        interpolation%shape_derivatives(1,:,:,q_point) = gradients(:,:)
+     end do
+     call memfree(gradients,__FILE__,__LINE__)
+  end if
+  
+  if(interpolation%my_duties%compute_second_derivatives_is_assigned()) then
+     call memalloc(interpolation%num_entries_symmetric_tensor,   &
+                   tet_polynomial_prebase%get_num_polynomials(), &
+                   second_derivatives,__FILE__,__LINE__)
+     do q_point=1, quadrature%get_num_quadrature_points()
+        call tet_polynomial_prebase%evaluate_second_derivatives( q_point, second_derivatives )
+        interpolation%hessian(1,:,:,q_point) = second_derivatives(:,:)
+     end do
+     call memfree(second_derivatives,__FILE__,__LINE__)
+  end if
 
   do idime=1,interpolation%num_dims
      call monomial_1D_basis(idime)%free()
@@ -788,7 +802,7 @@ subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, inter
   type(interpolation_t)                   , intent(in)    :: interpolation_pre_basis
   type(interpolation_t)                   , intent(inout) :: interpolation
 
-  integer(ip)           :: i, j, jdime, qpoint, num_shape_functions_x_component
+  integer(ip)           :: i, j, jdime, jtens, qpoint, num_shape_functions_x_component
 
   ! Initialize both shape functions and derivatives to zero.
   interpolation%shape_functions   = 0.0_rp
@@ -813,6 +827,21 @@ subroutine tet_lagrangian_ref_fe_apply_change_basis_to_interpolation(this, inter
               do jdime=1, this%num_dims
                  interpolation%shape_derivatives(1, jdime, i, qpoint) = interpolation%shape_derivatives(1, jdime, i, qpoint) + &
                       this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(1, jdime, j, qpoint)
+              end do
+           end do
+        end do
+     end do
+  end if
+
+  if(interpolation%my_duties%compute_second_derivatives_is_assigned()) then
+     ! Compute shape functions hessian
+     interpolation%hessian = 0.0_rp
+     do qpoint = 1, interpolation%num_quadrature_points
+        do i=1, num_shape_functions_x_component
+           do j=1, num_shape_functions_x_component
+              do jtens=1, interpolation%num_entries_symmetric_tensor
+                 interpolation%hessian(1, jtens, i, qpoint) = interpolation%hessian(1, jtens, i, qpoint) + &
+                      this%change_basis_matrix(j,i) * interpolation_pre_basis%hessian(1, jtens, j, qpoint)
               end do
            end do
         end do

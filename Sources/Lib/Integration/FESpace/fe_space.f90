@@ -259,6 +259,7 @@ module fe_space_names
     procedure                           :: get_quadrature                             => fe_cell_iterator_get_quadrature
     procedure                           :: get_cell_map                               => fe_cell_iterator_get_cell_map
     procedure                           :: get_cell_integrator                        => fe_cell_iterator_get_cell_integrator
+    procedure                           :: get_interpolation_duties                   => fe_cell_iterator_get_interpolation_duties
     
     procedure, non_overridable, private :: fe_cell_iterator_get_fe_vef
     generic                             :: get_vef                                    => fe_cell_iterator_get_fe_vef
@@ -313,6 +314,11 @@ module fe_space_names
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_gradient_fe_function_vector
     generic :: evaluate_gradient_fe_function => fe_cell_iterator_evaluate_gradient_fe_function_scalar, &
     & fe_cell_iterator_evaluate_gradient_fe_function_vector
+
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_scalar
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_vector
+    generic :: evaluate_laplacian_fe_function => fe_cell_iterator_evaluate_laplacian_fe_function_scalar, &
+    & fe_cell_iterator_evaluate_laplacian_fe_function_vector
 
     procedure, non_overridable, private :: apply_constraints                          => fe_cell_iterator_apply_constraints
 
