@@ -845,6 +845,7 @@ module fe_space_names
   
    procedure        , non_overridable, private :: compute_dof_import_non_conforming_mesh_revisited             => pfs_compute_dof_import_non_conforming_mesh_revisited
    procedure        , non_overridable, private :: compute_lst_parts_around_itfc_dofs                           => pfs_compute_lst_parts_around_itfc_dofs
+   procedure        , non_overridable, private :: free_lst_parts_around_itfc_dofs                              => pfs_free_lst_parts_around_itfc_dofs
    procedure        , non_overridable, private :: compute_max_part_id_dofs_ggids_field                         => pfs_compute_max_part_id_and_dofs_ggids_field 
    procedure        , non_overridable, private :: fetch_num_parts_dofs_cell_wise                               => pfs_fetch_num_parts_dofs_cell_wise
    procedure        , non_overridable, private :: compute_near_neigh_ctrl_data_lst_parts                       => pfs_compute_near_neigh_ctrl_data_lst_parts
