@@ -113,6 +113,8 @@ contains
     integer(ip), allocatable :: parts_snd_visited(:)
     logical    , allocatable :: interface_dofs_visited(:)
     integer(ip)              :: col, neighbor_part_id, i
+    
+    call this%free()
 
     this%part_id      = part_id
     this%num_parts = num_parts
