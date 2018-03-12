@@ -132,6 +132,7 @@ contains
    real(rp)                                  :: sq_local_face_estimate_value, jump
    
    fe_space      => this%get_fe_space()
+   assert ( associated(fe_space) )
    triangulation => fe_space%get_triangulation()
    
    sq_local_estimates         => this%get_sq_local_estimates()
@@ -198,8 +199,8 @@ contains
        end do
        do ineigh = 1, fe_facet%get_num_cells_around()
          call fe_facet%get_cell_around(ineigh,fe)
-         sq_local_estimate_entries(fe%get_gid()) = sq_local_estimate_entries(fe%get_gid()) + &
-                                                     0.5_rp * sq_local_face_estimate_value
+         sq_local_estimate_entries(fe%get_gid()) = & 
+           sq_local_estimate_entries(fe%get_gid()) + 0.5_rp * sq_local_face_estimate_value
        end do
      end if
      call fe_facet%next()
@@ -226,6 +227,7 @@ contains
    real(rp)                                :: sq_local_true_error_value
    
    fe_space      => this%get_fe_space()
+   assert ( associated(fe_space) )
    triangulation => fe_space%get_triangulation()
    
    sq_local_true_errors        => this%get_sq_local_true_errors()
