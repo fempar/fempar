@@ -1568,7 +1568,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof = own_dofs_on_vef_iterator%get_current()
            dof_gid = fe_dofs(idof)
-           if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+           if ( dof_gid == 0 .or. this%is_strong_dirichlet_dof(dof_gid) ) then
              call own_dofs_on_vef_iterator%next()
              cycle
            end if
@@ -1622,7 +1622,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof    = own_dofs_on_vef_iterator%get_current()
            dof_gid = fe_dofs(idof)
-           if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+           if ( dof_gid == 0 .or. this%is_strong_dirichlet_dof(dof_gid) ) then
              call own_dofs_on_vef_iterator%next()
              cycle
            end if
@@ -2162,7 +2162,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
             idof =  own_dofs_on_vef_iterator%get_current()
             dof_gid = fe_dofs(idof)
-            if ( dof_gid == 0 .or. fe%is_fixed_dof(dof_gid) ) then
+            if ( dof_gid == 0 .or. this%is_fixed_dof(dof_gid) ) then
                call own_dofs_on_vef_iterator%next()
                cycle
             end if
@@ -2205,8 +2205,8 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
           end if
        
           if ( fe%is_ghost() ) then
-            k = fe%get_gid()
-            base_pos_dofs = this%ptr_dofs_field%get(k)-1
+            cell_gid = fe%get_gid()
+            base_pos_dofs = this%ptr_dofs_field%get(cell_gid)-1
             ivef = fe%get_vef_lid_from_gid(vef%get_gid())
             call fe%get_field_fe_dofs( field_id, fe_dofs )
             reference_fe => fe%get_reference_fe(field_id)
@@ -2214,7 +2214,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
             do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
               idof =  own_dofs_on_vef_iterator%get_current()
               dof_gid = fe_dofs(idof)
-              if ( dof_gid == 0 .or. fe%is_fixed_dof(dof_gid) ) then
+              if ( dof_gid == 0 .or. this%is_fixed_dof(dof_gid) ) then
                  call own_dofs_on_vef_iterator%next()
                  cycle
               end if
@@ -2222,7 +2222,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
               do jdof=1, idof-1
                offset_dofs = offset_dofs + p_num_parts_dofs_cell_wise(base_pos_dofs+jdof)
               end do
-              start_pos = p_ptrs_to_rcv_lst_parts_dofs_cell_wise(k-triangulation%get_num_local_cells())-1
+              start_pos = p_ptrs_to_rcv_lst_parts_dofs_cell_wise(cell_gid-triangulation%get_num_local_cells())-1
               do k=1, p_num_parts_dofs_cell_wise(base_pos_dofs+idof)
                 part_id = p_rcv_lst_parts_dofs_cell_wise(start_pos+offset_dofs+k)
                 assert (part_id > 0)
@@ -2508,7 +2508,7 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
            do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
               idof =  own_dofs_on_vef_iterator%get_current()
               dof_gid = fe_dofs(idof)
-              if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+              if ( dof_gid == 0 .or. this%is_strong_dirichlet_dof(dof_gid) ) then
                  call own_dofs_on_vef_iterator%next()
                  cycle
               end if
@@ -2913,7 +2913,7 @@ contains
           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
              idof =  own_dofs_on_vef_iterator%get_current()
              dof_gid = fe_dofs(idof)
-             if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+             if ( dof_gid == 0 .or. this%is_strong_dirichlet_dof(dof_gid) ) then
                 call own_dofs_on_vef_iterator%next()
                 cycle
              end if
@@ -2973,7 +2973,7 @@ contains
           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
              idof =  own_dofs_on_vef_iterator%get_current()
              dof_gid = fe_dofs(idof)
-             if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+             if ( dof_gid == 0 .or. this%is_strong_dirichlet_dof(dof_gid) ) then
                 call own_dofs_on_vef_iterator%next()
                 cycle
              end if
@@ -3006,7 +3006,7 @@ contains
     integer(ip) :: pos_in_ptr
     do i=1, num_itfc_dofs
       dof_gid=this%itfc_dof_gid_to_dof_gid(i)
-      if (fe%is_hanging_dof(dof_gid)) then
+      if (this%is_hanging_dof(dof_gid)) then
         pos_in_ptr= abs(dof_gid)-this%num_dirichlet_dofs
         do pos=this%ptr_constraining_free_dofs%get(pos_in_ptr), this%ptr_constraining_free_dofs%get(pos_in_ptr+1)-1 
           free_dof_gid = this%constraining_free_dofs%get(pos)
@@ -3053,7 +3053,7 @@ contains
     integer(ip), intent(in) :: dof_gid
     integer(ip) :: get_consecutive_dof_gid
     get_consecutive_dof_gid = abs(dof_gid)
-    if ( fe%is_hanging_dof(dof_gid) ) then
+    if ( this%is_hanging_dof(dof_gid) ) then
        get_consecutive_dof_gid = (get_consecutive_dof_gid-this%num_dirichlet_dofs) + num_blk_proper_dofs  
     end if
   end function get_consecutive_dof_gid
@@ -3159,7 +3159,7 @@ subroutine pfs_compute_max_part_id_and_dofs_ggids_field(this, field_id)
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof = own_dofs_on_vef_iterator%get_current()
            dof_gid = fe_dofs(idof)
-           if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+           if ( dof_gid == 0 .or. this%is_strong_dirichlet_dof(dof_gid) ) then
              call own_dofs_on_vef_iterator%next()
              cycle
            end if
@@ -3204,7 +3204,7 @@ subroutine pfs_compute_max_part_id_and_dofs_ggids_field(this, field_id)
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof    = own_dofs_on_vef_iterator%get_current()
            dof_gid = fe_dofs(idof)
-           if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+           if ( dof_gid == 0 .or. this%is_strong_dirichlet_dof(dof_gid) ) then
              call own_dofs_on_vef_iterator%next()
              cycle
            end if
@@ -3301,11 +3301,11 @@ subroutine pfs_fetch_num_parts_dofs_cell_wise(this, field_id)
           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
              idof =  own_dofs_on_vef_iterator%get_current()
              dof_gid = fe_dofs(idof)
-             if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
+             if ( dof_gid == 0 .or. this%is_strong_dirichlet_dof(dof_gid) ) then
                 call own_dofs_on_vef_iterator%next()
                 cycle
              end if
-             if ( fe%is_free_dof(dof_gid) ) then
+             if ( this%is_free_dof(dof_gid) ) then
                p_num_parts_dofs_cell_wise(base_pos+idof) = this%lst_parts_around_itfc_dofs(1,this%dof_gid_to_itfc_dof_gid(dof_gid))
              end if
              
@@ -3528,28 +3528,18 @@ subroutine pfs_fetch_lst_parts_dofs_cell_wise(this,field_id)
        call fe%set_gid(k)
        reference_fe => fe%get_reference_fe(field_id)
        call fe%get_field_fe_dofs( field_id, fe_dofs )
-       do ivef=1, fe%get_num_vefs()
-         call fe%get_vef(ivef, vef)
-         if ( vef%is_at_interface() ) then 
-           own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
-           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-             idof =  own_dofs_on_vef_iterator%get_current()
-             dof_gid = fe_dofs(idof)
-             if ( dof_gid == 0 .or. fe%is_strong_dirichlet_dof(dof_gid) ) then
-                call own_dofs_on_vef_iterator%next()
-                cycle
-             end if
-             if ( fe%is_free_dof(dof_gid) ) then
-               do k=2,this%lst_parts_around_itfc_dofs(1,this%dof_gid_to_itfc_dof_gid(dof_gid))+1
-                 p_lst_parts_dofs_cell_wise(current) = this%lst_parts_around_itfc_dofs(k,this%dof_gid_to_itfc_dof_gid(dof_gid))
-                 current = current + 1
-               end do 
-             end if
-             call own_dofs_on_vef_iterator%next()
-           end do
+       do idof=1, size(fe_dofs)
+         dof_gid = fe_dofs(idof)
+         if ( this%is_free_dof(dof_gid) ) then
+          if ( this%dof_gid_to_itfc_dof_gid(dof_gid) /= -1  ) then
+            do k=2,this%lst_parts_around_itfc_dofs(1,this%dof_gid_to_itfc_dof_gid(dof_gid))+1
+              p_lst_parts_dofs_cell_wise(current) = this%lst_parts_around_itfc_dofs(k,this%dof_gid_to_itfc_dof_gid(dof_gid))
+              current = current + 1
+            end do 
+          end if  
          end if
-       end do
-     end do  
+       end do 
+    end do  
   end do   
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_vef_iterator(vef)
@@ -3867,7 +3857,7 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
                     ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
                     subset_fe_dofs = 0
                     do idof = 1, size(fe_dofs(field_id)%p)
-                       if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
+                       if ( this%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
                           subset_fe_dofs(idof) = global2subset_dirichlet_dofs( -fe_dofs(field_id)%p(idof) )
                        end if
                     end do
