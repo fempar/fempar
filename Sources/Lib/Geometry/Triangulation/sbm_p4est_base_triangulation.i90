@@ -837,52 +837,53 @@ contains
           vef_at_interface = .false.
         end if 
         
-        if (this%quad_to_quad(iface,icell)<0) cycle       
+        if (this%quad_to_quad(iface,icell)>=0) then
 
-        call work_vector_cells_around%resize(0)
-        call work_vector_cells_around%push_back(icell)
-        call work_vector_improper_cells_around%resize(0)
-        call work_vector_ivef%resize(0)
-        call work_vector_subvef%resize(0)
-
-        jcell_iconn = this%quad_to_face(iface,icell)         
-
-        if (this%get_num_dims() == 2) then
-           call p4est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
-        elseif (this%get_num_dims() == 3) then
-           call p8est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
-        else
-           check(.false.)
-        end if
-
-        assert (flip==1) ! All cells we are working with MUST be aligned with each other
-        if (mortar == -1) then ! Conformal neighbour
-           jcell      = this%quad_to_quad(iface,icell)+1 
-            
-           min_cell = min(min_cell,jcell)
-           if (min_cell == jcell) then
-              min_iface=this%quad_to_face(iface,icell)+1 
+           call work_vector_cells_around%resize(0)
+           call work_vector_cells_around%push_back(icell)
+           call work_vector_improper_cells_around%resize(0)
+           call work_vector_ivef%resize(0)
+           call work_vector_subvef%resize(0)
+           
+           jcell_iconn = this%quad_to_face(iface,icell)         
+           
+           if (this%get_num_dims() == 2) then
+              call p4est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+           elseif (this%get_num_dims() == 3) then
+              call p8est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+           else
+              check(.false.)
            end if
-           if ( jcell /= icell ) then ! Skip myself if at boundary
+           
+           assert (flip==1) ! All cells we are working with MUST be aligned with each other
+           if (mortar == -1) then ! Conformal neighbour
+              jcell      = this%quad_to_quad(iface,icell)+1 
+
+              min_cell = min(min_cell,jcell)
+              if (min_cell == jcell) then
+                 min_iface=this%quad_to_face(iface,icell)+1 
+              end if
+              if ( jcell /= icell ) then ! Skip myself if at boundary
+                 if ( jcell > this%get_num_local_cells() ) then
+                    vef_at_interface = .true.
+                 end if
+                 call work_vector_cells_around%push_back(jcell)
+              else
+                 vef_at_boundary = .true.
+              end if
+           else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
+              improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
+              improper_cell_around_subvef  = mortar
+              jcell      = this%quad_to_quad(iface,icell)+1
+              is_proper = .false. 
+              call work_vector_improper_cells_around%push_back(jcell)
+              call work_vector_ivef%push_back(improper_cell_around_ivef)
+              call work_vector_subvef%push_back(improper_cell_around_subvef)
               if ( jcell > this%get_num_local_cells() ) then
                  vef_at_interface = .true.
               end if
-              call work_vector_cells_around%push_back(jcell)
-           else
-              vef_at_boundary = .true.
            end if
-        else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
-           improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
-           improper_cell_around_subvef  = mortar
-           jcell      = this%quad_to_quad(iface,icell)+1
-           is_proper = .false. 
-           call work_vector_improper_cells_around%push_back(jcell)
-           call work_vector_ivef%push_back(improper_cell_around_ivef)
-           call work_vector_subvef%push_back(improper_cell_around_subvef)
-           if ( jcell > this%get_num_local_cells() ) then
-              vef_at_interface = .true.
-           end if
-        end if
+        end if 
 
         base_pos_icell    = this%get_ptr_vefs_x_cell(icell)-1    + num_corners_x_cell + num_edges_x_cell
         base_pos_min_cell = this%get_ptr_vefs_x_cell(min_cell)-1 + num_corners_x_cell + num_edges_x_cell
