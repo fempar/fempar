@@ -120,8 +120,8 @@ subroutine hex_lagrangian_reference_fe_get_subcells_connectivity(this, num_refin
   ones_dim = 1
   num_subelems = this%get_num_subcells(num_refinements=num_refinements)
   geo_nnodes = this%get_num_vertices()
-  assert(size(connectivity,1) == geo_nnodes)
-  assert(size(connectivity,2) == num_subelems)
+  assert(size(connectivity,1) >= geo_nnodes)
+  assert(size(connectivity,2) >= num_subelems)
   order_vector = num_refinements+1
 
   do subelem = 1, num_subelems
