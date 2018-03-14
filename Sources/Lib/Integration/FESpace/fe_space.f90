@@ -259,6 +259,7 @@ module fe_space_names
     procedure                           :: get_quadrature                             => fe_cell_iterator_get_quadrature
     procedure                           :: get_cell_map                               => fe_cell_iterator_get_cell_map
     procedure                           :: get_cell_integrator                        => fe_cell_iterator_get_cell_integrator
+    procedure                           :: get_interpolation_duties                   => fe_cell_iterator_get_interpolation_duties
     
     procedure, non_overridable, private :: fe_cell_iterator_get_fe_vef
     generic                             :: get_vef                                    => fe_cell_iterator_get_fe_vef
@@ -313,6 +314,11 @@ module fe_space_names
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_gradient_fe_function_vector
     generic :: evaluate_gradient_fe_function => fe_cell_iterator_evaluate_gradient_fe_function_scalar, &
     & fe_cell_iterator_evaluate_gradient_fe_function_vector
+
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_scalar
+    procedure, non_overridable, private :: fe_cell_iterator_evaluate_laplacian_fe_function_vector
+    generic :: evaluate_laplacian_fe_function => fe_cell_iterator_evaluate_laplacian_fe_function_scalar, &
+    & fe_cell_iterator_evaluate_laplacian_fe_function_vector
 
     procedure, non_overridable, private :: apply_constraints                          => fe_cell_iterator_apply_constraints
 
@@ -588,7 +594,7 @@ module fe_space_names
      procedure, non_overridable, private :: free_max_order_reference_fe_id_x_cell        => serial_fe_space_free_max_order_reference_fe_id_x_cell
      procedure, non_overridable, private :: compute_max_order_reference_fe_id_x_cell     => serial_fe_space_compute_max_order_reference_fe_id_x_cell         
      
-     procedure, non_overridable          :: set_up_cell_integration                    => serial_fe_space_set_up_cell_integration
+     procedure                           :: set_up_cell_integration                    => serial_fe_space_set_up_cell_integration
      procedure, non_overridable, private :: free_fe_integration                          => serial_fe_space_free_fe_integration
      procedure, non_overridable, private :: generate_cell_quadratures_position_key         => serial_fe_space_generate_cell_quadratures_position_key
      procedure, non_overridable, private :: generate_cell_integrators_position_key  => serial_fe_space_generate_cell_integrators_position_key
@@ -605,7 +611,7 @@ module fe_space_names
      procedure, non_overridable, private :: compute_facet_permutation_indices             => serial_fe_space_compute_facet_permutation_indices
      procedure, non_overridable, private :: free_facet_permutation_indices                => serial_fe_space_free_facet_permutation_indices
      
-     procedure, non_overridable          :: set_up_facet_integration                 => serial_fe_space_set_up_facet_integration
+     procedure                           :: set_up_facet_integration                 => serial_fe_space_set_up_facet_integration
      procedure, non_overridable, private :: free_facet_integration                   => serial_fe_space_free_facet_integration
      procedure, non_overridable, private :: generate_facet_quadratures_position_key  => serial_fe_space_facet_quadratures_position_key
      procedure, non_overridable, private :: generate_facet_integrators_position_key  => serial_fe_space_facet_integrators_position_key
