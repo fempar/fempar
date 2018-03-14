@@ -2061,7 +2061,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
   integer(ip)  :: idof, jdof, dof_gid
   integer(ip)  :: num_dofs_current_vef
   integer(ip)  :: col, init_col, current_col
-  integer(ip)  :: num_parts_local, num_parts_neighbours_nearest_neighbours, local_part_id, ipart
+  integer(ip)  :: num_parts_nearest_neighbours, num_parts_neighbours_nearest_neighbours, local_part_id, ipart
 
   integer(ip)               :: max_part_id
   integer(ip) , allocatable :: local_idof(:)  
@@ -2146,7 +2146,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
         end if
         
         touched_neighbours = .false.
-        num_parts_local = 0
+        num_parts_nearest_neighbours = 0
         num_parts_neighbours_nearest_neighbours = 0
 
         ! Retrieve max_part_id 
@@ -2181,8 +2181,8 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
                local_part_id = cell_import%get_local_neighbour_id(part_id)
                if ( .not. touched_neighbours(local_part_id) ) then
                   touched_neighbours (local_part_id) = .true.
-                  num_parts_local = num_parts_local + 1
-                  parts_visited (num_parts_local) = part_id
+                  num_parts_nearest_neighbours = num_parts_nearest_neighbours + 1
+                  parts_visited (num_parts_nearest_neighbours) = part_id
                end if
              end if
             end do
@@ -2235,6 +2235,13 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
                           assert ( istat == now_stored )
                           call lst_parts_neighbours_nearest_neighbours%push_back(part_id)
                        end if
+                    else
+                      local_part_id = cell_import%get_local_neighbour_id(part_id)
+                      if ( .not. touched_neighbours(local_part_id) ) then
+                        touched_neighbours (local_part_id) = .true.
+                        num_parts_nearest_neighbours = num_parts_nearest_neighbours + 1
+                        parts_visited (num_parts_nearest_neighbours) = part_id
+                      end if  
                     end if
                 end if
               end do 
@@ -2258,7 +2265,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
               raw_interface_data(owner_flag_row, current_col) = -1
               current_col = current_col + 1
            else
-              do ipart=1, num_parts_local
+              do ipart=1, num_parts_nearest_neighbours
                  dofs_gid ( current_col ) = dof_gid 
                  dofs_max_part_id ( current_col-offset ) = max_part_id 
                  part_id = parts_visited(ipart)
@@ -2267,7 +2274,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
                  if (all_local) then
                     raw_interface_data(owner_flag_row, current_col) = -2 
                  else
-                    raw_interface_data(owner_flag_row, current_col) = num_parts_local + num_parts_neighbours_nearest_neighbours + 1
+                    raw_interface_data(owner_flag_row, current_col) = num_parts_nearest_neighbours + num_parts_neighbours_nearest_neighbours + 1
                  end if
                  current_col = current_col + 1
               end do
@@ -2284,7 +2291,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
                     wassert ( num_parts_neighbours_nearest_neighbours == 0, "all_local == .true. => num_parts_neighbours_nearest_neighbours == 0 not TRUE!!!")
                     raw_interface_data(owner_flag_row, current_col) = -2 
                  else
-                     raw_interface_data(owner_flag_row, current_col) = num_parts_local + num_parts_neighbours_nearest_neighbours + 1
+                     raw_interface_data(owner_flag_row, current_col) = num_parts_nearest_neighbours + num_parts_neighbours_nearest_neighbours + 1
                  end if
                  current_col = current_col + 1
               end do
