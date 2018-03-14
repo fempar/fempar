@@ -158,7 +158,6 @@ subroutine p4est_serial_triangulation_free ( this)
   
   call this%lst_vefs_gids%free()
   call this%cell_ggids%free()
-  call this%lst_vefs_ggids%free()
   call this%ptr_cells_around_proper_vefs%free()
   call this%lst_cells_around_proper_vefs%free()
   call this%ptr_cells_around_improper_vefs%free()
