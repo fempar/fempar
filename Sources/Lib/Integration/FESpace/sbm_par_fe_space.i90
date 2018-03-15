@@ -768,80 +768,35 @@ subroutine pfs_compute_dof_import_non_conforming_mesh_revisited ( this, iblock )
   integer(ip)          , intent(in)    :: iblock
 
   ! Local raw data
-  integer(igp), allocatable    :: raw_interface_data(:,:)
-  integer(ip) , allocatable    :: dofs_gid(:)
-  integer(ip)                  :: total_ubound_num_itfc_couplings
-  integer(ip)                  :: total_num_itfc_couplings
-  integer(ip), allocatable     :: ubound_num_itfc_couplings(:)
-  integer(ip)                  :: num_fe_spaces_in_iblock
-  integer(ip)                  :: i, field_id
-  type(environment_t), pointer :: environment
+  type(allocatable_array_igp2_t) :: raw_interface_data
+  type(std_vector_integer_ip_t)  :: dofs_gid
+  integer(ip)                    :: total_num_itfc_couplings
+  integer(ip)                    :: i, field_id
+  type(environment_t), pointer   :: environment
   
   assert ( iblock >= 1 .and. iblock <= this%block_layout%get_num_blocks() )
 
-  num_fe_spaces_in_iblock = 0
-  do field_id = 1, this%num_fields
-     if ( this%block_layout%get_block_id(field_id) == iblock ) then
-        num_fe_spaces_in_iblock = num_fe_spaces_in_iblock + 1
-     end if
-  end do
+  call raw_interface_data%create(num_rows_raw_interface_data, 0)
+  call dofs_gid%resize(0)
 
-  call memalloc ( num_fe_spaces_in_iblock, ubound_num_itfc_couplings, __FILE__, __LINE__ )
-  total_ubound_num_itfc_couplings = 0 
-  ubound_num_itfc_couplings = 0
-  i = 1
+  total_num_itfc_couplings = 0
   do field_id = 1, this%num_fields
      if ( this%block_layout%get_block_id(field_id) == iblock ) then
         if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
-           mcheck(this%num_fields==1, "compute_dof_import_non_conforming_mesh() NOT implemented for multiple fields")
-           ! Please note that only %compute_lst_parts_around_itfc_dofs() and 
-           ! %fetch_num_parts_dofs_cell_wise() calls are precondition for 
-           ! %compute_ubound_num_itfc_couplings_by_continuity_nc_mesh_revisited().
-           ! The rest of calls are actually precondition for 
-           ! %compute_raw_interface_data_by_continuity_non_conforming_mesh
            call this%compute_lst_parts_around_itfc_dofs(field_id)
            call this%compute_max_part_id_dofs_ggids_field(field_id)
            call this%fetch_num_parts_dofs_cell_wise(field_id)
            call this%compute_near_neigh_ctrl_data_lst_parts(field_id)
            call this%compute_ptrs_to_rcv_lst_parts_dofs_cell_wise(field_id)
            call this%fetch_lst_parts_dofs_cell_wise(field_id)
-           ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
-                                           this%compute_ubound_num_itfc_couplings_by_continuity_nc_mesh_rev(field_id)
-        else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
-           mcheck(.false., "compute_dof_import_non_conforming_mesh() NOT implemented for DG spaces")
-        end if
-        total_ubound_num_itfc_couplings = total_ubound_num_itfc_couplings + ubound_num_itfc_couplings (i)
-        i=i+1                                  
-     end if
-  end do
-
-  call memalloc ( num_rows_raw_interface_data, &
-                  total_ubound_num_itfc_couplings, &
-                  raw_interface_data, __FILE__, __LINE__ )
-
-  call memalloc ( total_ubound_num_itfc_couplings, dofs_gid, __FILE__, __LINE__)
-
-  total_num_itfc_couplings = 0
-  i = 1
-  do field_id = 1, this%num_fields
-     if ( this%block_layout%get_block_id(field_id) == iblock ) then
-        if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
            total_num_itfc_couplings = &
                 this%compute_raw_interface_data_by_continuity_nc_mesh_rev(field_id, &
                                                               total_num_itfc_couplings, &
-                                                              ubound_num_itfc_couplings(i),&
                                                               dofs_gid,&
                                                               raw_interface_data )
         else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
-           total_num_itfc_couplings = &
-                this%compute_raw_interface_data_by_facet_integ(field_id, &
-                                                              total_num_itfc_couplings, &
-                                                              ubound_num_itfc_couplings(i),&
-                                                              dofs_gid,&
-                                                              raw_interface_data )      
+           mcheck(.false., "compute_dof_import_non_conforming_mesh() NOT implemented for DG spaces")
         end if
-
-        i=i+1                                  
      end if
   end do
 
@@ -850,12 +805,11 @@ subroutine pfs_compute_dof_import_non_conforming_mesh_revisited ( this, iblock )
                                              environment%get_l1_size(), &
                                              this%block_layout%get_block_num_dofs(iblock), &
                                              total_num_itfc_couplings, &
-                                             dofs_gid, &
-                                             raw_interface_data )
-
-  call memfree ( ubound_num_itfc_couplings, __FILE__, __LINE__ )                
-  call memfree ( raw_interface_data, __FILE__, __LINE__ )
-  call memfree ( dofs_gid, __FILE__, __LINE__ )
+                                             dofs_gid%get_pointer(), &
+                                             raw_interface_data%a(1,1:total_num_itfc_couplings) )
+           
+  call raw_interface_data%free()
+  call dofs_gid%free()
 end subroutine pfs_compute_dof_import_non_conforming_mesh_revisited
 
 
@@ -993,91 +947,6 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh( this, fiel
   call this%free_fe_vef_iterator(vef)
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
 end function pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh
-
-
-function pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh_rev( this, field_id )
-  implicit none
-  class(par_fe_space_t), intent(inout) :: this
-  integer(ip)          , intent(in)    :: field_id
-  integer(ip)                          :: pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh_rev
-  integer(ip)  :: ivef, ielem
-  integer(ip) :: result
-
-  type(environment_t), pointer :: environment
-  type(fe_vef_iterator_t) :: vef
-  class(fe_cell_iterator_t), allocatable :: fe
-  integer(ip), pointer :: p_num_parts_dofs_cell_wise(:)
-  integer(ip) :: i, j, k, num_dofs
-  integer(ip), pointer :: fe_dofs(:)
-  type(list_iterator_t) :: own_dofs_on_vef_iterator
-  logical :: dofs_found
-  class(reference_fe_t), pointer :: reference_fe
-  integer(ip) :: dof_gid, idof
-  integer(ip), pointer :: rcv_ptrs(:)
-  integer(ip), pointer :: rcv_leids(:)
-  class(triangulation_t), pointer :: triangulation
-  type(cell_import_t), pointer :: cell_import
-  integer(ip) :: base_pos
-  
-  environment   => this%get_environment()
-  assert ( environment%am_i_l1_task() )
-  
-  ! 1. Sum the (partial) number of parts around all proper DoFs on the interface
-  result = 0 
-  do i=1, size(this%itfc_dof_gid_to_dof_gid)
-    if ( this%is_free_dof(this%itfc_dof_gid_to_dof_gid(i)) ) then
-       result = result + this%lst_parts_around_itfc_dofs(1,i)
-    end if 
-  end do
-  
-  call this%create_fe_cell_iterator(fe)
-  call this%create_fe_vef_iterator(vef)
-  
-  ! TODO
-  if ( .not. fe%has_finished() ) then
-    num_dofs = fe%get_num_dofs_field(field_id) 
-  else
-    num_dofs = 0
-  end if
-  
-  ! 2. Complete the above partial numbers with data from my neighbours
-  triangulation => this%get_triangulation()
-  cell_import   => triangulation%get_cell_import()
-  rcv_ptrs  => cell_import%get_rcv_ptrs()
-  rcv_leids => cell_import%get_rcv_leids()
-  p_num_parts_dofs_cell_wise => this%num_parts_dofs_cell_wise%get_pointer()
-  ! Go over all ghost cells
-  do i=1, cell_import%get_num_neighbours()
-   do j=rcv_ptrs(i), rcv_ptrs(i+1)-1
-     k=rcv_leids(j)
-     call fe%set_gid(k)
-     base_pos = (k-1)*num_dofs
-     call fe%get_field_fe_dofs( field_id, fe_dofs )
-     reference_fe => fe%get_reference_fe(field_id)
-     do ivef=1, fe%get_num_vefs()
-       call fe%get_vef(ivef, vef)
-       if ( vef%is_at_interface() ) then
-          own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
-          do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
-             idof =  own_dofs_on_vef_iterator%get_current()
-             dof_gid = fe_dofs(idof)
-             if ( dof_gid == 0 .or. this%is_strong_dirichlet_dof(dof_gid) ) then
-                call own_dofs_on_vef_iterator%next()
-                cycle
-             end if
-             if ( this%is_free_dof(dof_gid) ) then
-                 result = result + p_num_parts_dofs_cell_wise(base_pos+idof)
-             end if
-             call own_dofs_on_vef_iterator%next()
-          end do
-       end if
-     end do 
-   end do
-  end do 
-  call this%free_fe_cell_iterator(fe)
-  call this%free_fe_vef_iterator(vef)
-  pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh_rev = result
-end function pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh_rev
 
 function pfs_compute_ubound_num_itfc_couplings_by_facet_integ( this, field_id )
   implicit none
@@ -2041,17 +1910,15 @@ end function par_fe_space_compute_raw_interface_data_by_continuity
 function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
                                                                 field_id, &
                                                                 offset, &
-                                                                ubound_num_itfc_couplings, &
                                                                 dofs_gid, &
                                                                 raw_interface_data ) result(num_itfc_couplings)
   implicit none
-  class(par_fe_space_t), intent(inout) :: this
-  integer(ip)          , intent(in)    :: field_id
-  integer(ip)          , intent(in)    :: offset
-  integer(ip)          , intent(in)    :: ubound_num_itfc_couplings
-  integer(ip)          , intent(inout) :: dofs_gid(:)
-  integer(igp)         , intent(inout) :: raw_interface_data(:, :)
-  integer(ip)                          :: num_itfc_couplings
+  class(par_fe_space_t)         , intent(inout) :: this
+  integer(ip)                   , intent(in)    :: field_id
+  integer(ip)                   , intent(in)    :: offset
+  type(std_vector_integer_ip_t) , intent(inout) :: dofs_gid
+  type(allocatable_array_igp2_t), intent(inout) :: raw_interface_data
+  integer(ip) :: num_itfc_couplings
 
   ! Locals
   integer(ip)  :: istat
@@ -2066,7 +1933,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
   integer(ip)               :: max_part_id
   integer(ip) , allocatable :: local_idof(:)  
   integer(ip) , allocatable :: lst_dofs_current_vef(:)
-  integer(ip) , allocatable :: dofs_max_part_id(:)
+  type(std_vector_integer_ip_t) :: dofs_max_part_id
   logical     , allocatable :: touched_neighbours(:)
   integer(ip), allocatable  :: parts_visited(:)
 
@@ -2088,7 +1955,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
   type(std_vector_integer_ip_t) :: lst_parts_neighbours_nearest_neighbours
   integer(ip) :: start_col, end_col
   integer(ip) , allocatable :: perm(:)
-  integer(igp), allocatable :: buf(:)
+  integer(ip), allocatable :: buf(:)
   integer(igp), allocatable :: dofs_ggid(:)
   integer(ip), pointer :: p_num_parts_dofs_cell_wise(:)
   integer(ip), pointer :: p_ptrs_to_rcv_lst_parts_dofs_cell_wise(:) 
@@ -2104,8 +1971,6 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
        local_idof, __FILE__, __LINE__ )
   call memalloc ( this%block_layout%get_block_num_dofs(this%block_layout%get_block_id(field_id)), &
        lst_dofs_current_vef, __FILE__, __LINE__ )
-  call memalloc ( ubound_num_itfc_couplings, dofs_max_part_id, & 
-       __FILE__, __LINE__ )
 
   call memalloc ( cell_import%get_num_neighbours(), &
        touched_neighbours, &
@@ -2258,40 +2123,38 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
            ! num_parts_neighbours_nearest_neighbours I will only introduce 
            ! a single non-owner connection in raw_interface_data
            if (all_ghosts) then 
-              dofs_gid ( current_col ) = dof_gid 
-              dofs_max_part_id ( current_col-offset ) = max_part_id 
-              raw_interface_data(neighbor_part_id_row, current_col) = max_part_id
-              raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid) 
-              raw_interface_data(owner_flag_row, current_col) = -1
+              call dofs_gid%push_back(dof_gid)
+              call dofs_max_part_id%push_back(max_part_id)
+              call insert_new_itfc_coupling_in_raw_itfc_data(max_part_id, -1, dofs_ggid(dof_gid) )
               current_col = current_col + 1
            else
               do ipart=1, num_parts_nearest_neighbours
-                 dofs_gid ( current_col ) = dof_gid 
-                 dofs_max_part_id ( current_col-offset ) = max_part_id 
+                 call dofs_gid%push_back(dof_gid)
+                 call dofs_max_part_id%push_back(max_part_id)
                  part_id = parts_visited(ipart)
-                 raw_interface_data(neighbor_part_id_row, current_col) = part_id
-                 raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid)
                  if (all_local) then
-                    raw_interface_data(owner_flag_row, current_col) = -2 
+                    call insert_new_itfc_coupling_in_raw_itfc_data(part_id, -2, dofs_ggid(dof_gid) )
                  else
-                    raw_interface_data(owner_flag_row, current_col) = num_parts_nearest_neighbours + num_parts_neighbours_nearest_neighbours + 1
+                    call insert_new_itfc_coupling_in_raw_itfc_data(part_id, num_parts_nearest_neighbours + &
+                                                                            num_parts_neighbours_nearest_neighbours + 1, &
+                                                                            dofs_ggid(dof_gid) )
                  end if
                  current_col = current_col + 1
               end do
               do ipart=1, num_parts_neighbours_nearest_neighbours
-                 dofs_gid ( current_col ) = dof_gid
-                 dofs_max_part_id ( current_col-offset ) = max_part_id
+                 call dofs_gid%push_back(dof_gid)
+                 call dofs_max_part_id%push_back(max_part_id)
                  part_id = lst_parts_neighbours_nearest_neighbours%get(ipart)
-                 raw_interface_data(neighbor_part_id_row, current_col) = part_id
-                 raw_interface_data(dof_gid_row, current_col) = dofs_ggid(dof_gid)
                  ! We believe that "all_local == .true. => num_parts_neighbours_nearest_neighbours == 0" is true.
                  ! In such a case, the if (all_local) statement is NOT required (only the else). We leave it here 
                  ! as a sanity-check
                  if (all_local) then
                     wassert ( num_parts_neighbours_nearest_neighbours == 0, "all_local == .true. => num_parts_neighbours_nearest_neighbours == 0 not TRUE!!!")
-                    raw_interface_data(owner_flag_row, current_col) = -2 
+                    call insert_new_itfc_coupling_in_raw_itfc_data(part_id, -2, dofs_ggid(dof_gid) ) 
                  else
-                     raw_interface_data(owner_flag_row, current_col) = num_parts_nearest_neighbours + num_parts_neighbours_nearest_neighbours + 1
+                    call insert_new_itfc_coupling_in_raw_itfc_data(part_id, num_parts_nearest_neighbours + &
+                                                                            num_parts_neighbours_nearest_neighbours + 1, &
+                                                                            dofs_ggid(dof_gid) )
                  end if
                  current_col = current_col + 1
               end do
@@ -2316,19 +2179,19 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
 
   call this%raw_interface_data_by_continuity_decide_owner (offset, &
        current_col-1, &
-       raw_interface_data,&
-       dofs_max_part_id,&
-       dofs_gid)
+       raw_interface_data%a,&
+       dofs_max_part_id%get_pointer(),&
+       dofs_gid%get_pointer())
 
-  call memfree ( dofs_max_part_id, __FILE__, __LINE__ )
+  call dofs_max_part_id%free()
   num_itfc_couplings = current_col-1 
 
   call memalloc ( num_itfc_couplings, perm, __FILE__, __LINE__ )
   call memalloc ( num_itfc_couplings, buf , __FILE__, __LINE__ )
   start_col=1
   do i=1,num_itfc_couplings-1
-     if ( raw_interface_data (neighbor_part_id_row,i) /= & 
-          raw_interface_data (neighbor_part_id_row,i+1) ) then
+     if ( raw_interface_data%a (neighbor_part_id_row,i) /= & 
+          raw_interface_data%a (neighbor_part_id_row,i+1) ) then
         end_col   = i
 
         if (start_col < end_col) then
@@ -2341,13 +2204,13 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
            call sort_array_cols_by_row_element( dof_gid_row, &
                 num_rows_raw_interface_data, &
                 end_col-start_col+1, &
-                raw_interface_data(1:,start_col:end_col), &
+                raw_interface_data%a(1:,start_col:end_col), &
                 perm(start_col:end_col))
 
-           buf(start_col:end_col) = dofs_gid(start_col:end_col)
+           buf(start_col:end_col) = dofs_gid%get_pointer(start_col,end_col)
            j=1
            do col=start_col, end_col 
-              dofs_gid(col) = buf(start_col+perm(start_col+j-1)-1)
+              call dofs_gid%set(col, buf(start_col+perm(start_col+j-1)-1))
               j=j+1
            end do
 
@@ -2367,17 +2230,34 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
      call sort_array_cols_by_row_element( dof_gid_row, &
           num_rows_raw_interface_data, &
           end_col-start_col+1, &
-          raw_interface_data(1:,start_col:end_col), &
+          raw_interface_data%a(:,start_col:end_col), &
           perm(start_col:end_col))
-     buf(start_col:end_col) = dofs_gid(start_col:end_col)
+     buf(start_col:end_col) = dofs_gid%get_pointer(start_col,end_col)
      j=1
      do col=start_col, end_col 
-        dofs_gid(col) = buf(start_col+perm(start_col+j-1)-1)
+        call dofs_gid%set(col, buf(start_col+perm(start_col+j-1)-1))
         j=j+1
      end do
   end if
   call memfree ( perm, __FILE__, __LINE__ )
   call memfree ( buf , __FILE__, __LINE__ )
+contains
+
+  subroutine insert_new_itfc_coupling_in_raw_itfc_data ( neighbor_part_id, num_parts, dof_ggid )
+    implicit none                                  
+    integer(ip), intent(in)  :: neighbor_part_id
+    integer(ip), intent(in)  :: num_parts
+    integer(igp), intent(in) :: dof_ggid
+    
+    if ( current_col > raw_interface_data%nd2 ) then
+       call raw_interface_data%resize( raw_interface_data%nd1, (raw_interface_data%nd2*3)/2+1 )
+    end if
+    raw_interface_data%a(neighbor_part_id_row, current_col) = neighbor_part_id
+    raw_interface_data%a(owner_flag_row, current_col) = num_parts
+    raw_interface_data%a(dof_gid_row, current_col) = dof_ggid
+  end subroutine insert_new_itfc_coupling_in_raw_itfc_data                    
+  
+  
 end function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev
 
 

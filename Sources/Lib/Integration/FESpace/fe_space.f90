@@ -862,7 +862,6 @@ module fe_space_names
    procedure        , non_overridable, private :: compute_raw_interface_data_by_facet_integ                    => par_fe_space_compute_raw_interface_data_by_facet_integ
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity              => pfs_compute_ubound_num_itfc_couplings_by_continuity
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity_nc_mesh      => pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh
-   procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_continuity_nc_mesh_rev  => pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh_rev
    
    procedure        , non_overridable, private :: compute_ubound_num_itfc_couplings_by_facet_integ         => pfs_compute_ubound_num_itfc_couplings_by_facet_integ
    procedure, nopass, non_overridable, private :: generate_non_consecutive_dof_ggid                        => par_fe_space_generate_non_consecutive_dof_ggid
