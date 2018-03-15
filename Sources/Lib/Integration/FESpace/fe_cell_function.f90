@@ -36,16 +36,23 @@ module fe_cell_function_names
   implicit none
 # include "debug.i90"
   private
- 
+  
+#define duties fe_cell_function_duties
+#define task_01 evaluate_values
+#define task_02 evaluate_gradients
+#define task_03 evaluate_laplacians
+#include "duties_header.i90"
   
   type fe_cell_function_scalar_t
    private
+   type(fe_cell_function_duties_t)   :: my_duties
    integer(ip)                       :: field_id
    integer(ip)                       :: current_num_nodes             
    integer(ip)                       :: current_num_quadrature_points
    real(rp)            , allocatable :: nodal_values(:)  
    real(rp)            , allocatable :: quadrature_points_values(:)
    type(vector_field_t), allocatable :: quadrature_points_gradients(:)
+   real(rp)            , allocatable :: quadrature_points_laplacians(:)
   contains
      procedure, non_overridable :: create                                => fe_cell_function_scalar_create
      procedure, non_overridable :: update                                => fe_cell_function_scalar_update
@@ -57,8 +64,10 @@ module fe_cell_function_names
      procedure, non_overridable :: get_nodal_values                      => fe_cell_function_scalar_get_nodal_values
      procedure, non_overridable :: get_quadrature_points_values          => fe_cell_function_scalar_get_quadrature_points_values
      procedure, non_overridable :: get_quadrature_points_gradients       => fe_cell_function_scalar_get_quadrature_points_gradients
+     procedure, non_overridable :: get_quadrature_points_laplacians      => fe_cell_function_scalar_get_quadrature_points_laplacians
      procedure, non_overridable :: get_value                             => fe_cell_function_scalar_get_value
      procedure, non_overridable :: get_gradient                          => fe_cell_function_scalar_get_gradient
+     procedure, non_overridable :: get_laplacian                         => fe_cell_function_scalar_get_laplacian
      procedure, non_overridable :: set_current_num_nodes              => fe_cell_function_scalar_set_current_num_nodes
      procedure, non_overridable :: set_current_num_quadrature_points  => fe_cell_function_scalar_set_current_num_quadrature_points
      procedure, non_overridable :: free                                  => fe_cell_function_scalar_free
@@ -66,12 +75,14 @@ module fe_cell_function_names
   
   type fe_cell_function_vector_t
    private
+   type(fe_cell_function_duties_t)   :: my_duties
    integer(ip)                       :: field_id
    integer(ip)                       :: current_num_nodes             
    integer(ip)                       :: current_num_quadrature_points           
    real(rp)            , allocatable :: nodal_values(:)  
    type(vector_field_t), allocatable :: quadrature_points_values(:)
    type(tensor_field_t), allocatable :: quadrature_points_gradients(:)
+   type(vector_field_t), allocatable :: quadrature_points_laplacians(:)
   contains
      procedure, non_overridable :: create                                => fe_cell_function_vector_create
      procedure, non_overridable :: update                                => fe_cell_function_vector_update
@@ -83,9 +94,11 @@ module fe_cell_function_names
      procedure, non_overridable :: get_nodal_values                      => fe_cell_function_vector_get_nodal_values      
      procedure, non_overridable :: get_quadrature_points_values          => fe_cell_function_vector_get_quadrature_points_values
      procedure, non_overridable :: get_quadrature_points_gradients       => fe_cell_function_vector_get_quadrature_points_gradients
+     procedure, non_overridable :: get_quadrature_points_laplacians      => fe_cell_function_vector_get_quadrature_points_laplacians
      procedure, non_overridable :: compute_quadrature_points_curl_values => fe_cell_function_vector_compute_quadrature_points_curl_values
      procedure, non_overridable :: get_value                             => fe_cell_function_vector_get_value
      procedure, non_overridable :: get_gradient                          => fe_cell_function_vector_get_gradient 
+     procedure, non_overridable :: get_laplacian                         => fe_cell_function_vector_get_laplacian
      procedure, non_overridable :: compute_curl                          => fe_cell_function_vector_compute_curl 
      procedure, non_overridable :: compute_divergence                    => fe_cell_function_vector_compute_divergence 
      procedure, non_overridable :: set_current_num_nodes              => fe_cell_function_vector_set_current_num_nodes
@@ -95,6 +108,7 @@ module fe_cell_function_names
   
   type fe_cell_function_tensor_t
    private
+   type(fe_cell_function_duties_t)   :: my_duties
    integer(ip)                       :: field_id
    integer(ip)                       :: current_num_nodes            
    integer(ip)                       :: current_num_quadrature_points     
@@ -114,11 +128,18 @@ module fe_cell_function_names
      procedure, non_overridable :: free                                 => fe_cell_function_tensor_free
   end type fe_cell_function_tensor_t
   
- public :: fe_cell_function_scalar_t, fe_cell_function_vector_t, fe_cell_function_tensor_t  
+ public :: fe_cell_function_scalar_t, fe_cell_function_vector_t, & 
+           fe_cell_function_tensor_t, fe_cell_function_duties_t
  
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
 #include "sbm_fe_cell_function.i90"
+
+#define duties fe_cell_function_duties
+#define task_01 evaluate_values
+#define task_02 evaluate_gradients
+#define task_03 evaluate_laplacians
+#include "duties_body.i90"
 
 end module fe_cell_function_names

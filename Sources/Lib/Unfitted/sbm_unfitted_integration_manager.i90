@@ -42,18 +42,6 @@ subroutine uim_create(this,fe_space)
     call this%check_assumptions()
 #endif
     call this%init_reference_subelem()
-    call this%init_cut_integration()
-    call this%init_cut_boundary_integration()
-    ! This is a temprorary hack since unfitted facet integration is only implemented for a single field
-    ! and for the serial_unfitted_triangulation_t and unfitted_p4est_serial_triangulation_t
-    select type(triangulation)
-      type is (serial_unfitted_triangulation_t)
-        call this%init_cut_fitted_facets_integration()
-       type is (unfitted_p4est_serial_triangulation_t)
-        call this%init_cut_fitted_facets_integration()
-      class default
-      wcheck(.false.,'Your triangulation does not support integration in cut facets. Expect problems!')
-    end select
   end if
 end subroutine uim_create
 

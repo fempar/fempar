@@ -199,6 +199,10 @@ module unfitted_fe_spaces_names
       procedure :: create_fe_cell_iterator           => sufs_create_fe_cell_iterator
       procedure :: create_fe_facet_iterator          => sufs_create_fe_facet_iterator
 
+      ! Setup integration structures (overrides)
+      procedure    :: set_up_cell_integration   => sufs_set_up_cell_integration
+      procedure    :: set_up_facet_integration  => sufs_set_up_facet_integration
+
   end type serial_unfitted_fe_space_t
 
   type, extends(serial_fe_space_t) :: serial_unfitted_hp_adaptive_fe_space_t
@@ -230,6 +234,10 @@ module unfitted_fe_spaces_names
       procedure :: count_dofs => suhpafs_count_dofs
       procedure :: list_dofs  => suhpafs_list_dofs
       procedure :: setup_hanging_node_constraints => suhpafs_setup_hanging_node_constraints
+      
+      ! Setup integration structures (overrides)
+      procedure    :: set_up_cell_integration   => suhpafs_set_up_cell_integration
+      procedure    :: set_up_facet_integration  => suhpafs_set_up_facet_integration
 
       ! Mesh refinement
       procedure :: refine_mesh_for_small_aggregates => suhpafs_refine_mesh_for_small_aggregates
@@ -268,6 +276,10 @@ module unfitted_fe_spaces_names
       ! Creation of the iterator
       procedure :: create_fe_cell_iterator           => pufs_create_fe_cell_iterator
       !procedure :: create_fe_facet_iterator          => pufs_create_fe_facet_iterator
+
+      ! Setup integration structures (overrides)
+      procedure    :: set_up_cell_integration   => pufs_set_up_cell_integration
+      procedure    :: set_up_facet_integration  => pufs_set_up_facet_integration
 
   end type par_unfitted_fe_space_t
 

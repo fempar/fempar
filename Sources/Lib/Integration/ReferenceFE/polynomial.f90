@@ -97,20 +97,23 @@ module polynomial_names
      type(polynomial_basis_t) :: polynomial_1D_basis(SPACE_DIM)
      type(allocatable_array_rp3_t)        :: work_shape_data(SPACE_DIM)
    contains
-     procedure                  :: create   => tensor_product_polynomial_space_create
-     procedure, non_overridable :: fill     => tensor_product_polynomial_space_fill
-     procedure                  :: evaluate => tensor_product_polynomial_space_evaluate
-     procedure, non_overridable :: free     => tensor_product_polynomial_space_free
+     procedure                  :: create              => tensor_product_polynomial_space_create
+     procedure, non_overridable :: fill                => tensor_product_polynomial_space_fill
+     procedure                  :: evaluate_values     => tensor_product_polynomial_space_evaluate_values
+     procedure                  :: evaluate_gradients  => tensor_product_polynomial_space_evaluate_gradients
+     procedure                  :: evaluate_second_derivatives => tensor_product_polynomial_space_evaluate_second_derivatives
+     procedure, non_overridable :: free                => tensor_product_polynomial_space_free
      procedure, non_overridable :: get_num_polynomials => tensor_product_polynomial_space_get_num_polynomials
-     
   end type tensor_product_polynomial_space_t
   ! Note: The vector space built from tensor_product_polynomial_space_t is going to be
   ! at the reference_fe implementation of RT and Nedelec.
   
   type, extends(tensor_product_polynomial_space_t) :: truncated_tensor_product_polynomial_space_t
    contains
-     procedure, non_overridable :: create   => truncated_tensor_product_polynomial_space_create
-     procedure, non_overridable :: evaluate => truncated_tensor_product_polynomial_space_evaluate
+     procedure, non_overridable :: create              => truncated_tensor_product_polynomial_space_create
+     procedure, non_overridable :: evaluate_values     => truncated_tensor_product_polynomial_space_evaluate_values
+     procedure, non_overridable :: evaluate_gradients  => truncated_tensor_product_polynomial_space_evaluate_gradients
+     procedure, non_overridable :: evaluate_second_derivatives => ttpps_evaluate_second_derivatives
   end type truncated_tensor_product_polynomial_space_t
 
   type, extends(tensor_product_polynomial_space_t) :: serendipity_polynomial_space_t

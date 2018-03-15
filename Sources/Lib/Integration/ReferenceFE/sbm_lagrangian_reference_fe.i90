@@ -613,6 +613,44 @@ subroutine lagrangian_reference_fe_get_curls_vector(this, actual_cell_interpolat
 end subroutine lagrangian_reference_fe_get_curls_vector
 
 !==================================================================================================
+subroutine lagrangian_reference_fe_get_laplacian_scalar( this, actual_cell_interpolation, & 
+     & ishape, qpoint, scalar_field )
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  integer(ip)                     , intent(in)    :: ishape
+  integer(ip)                     , intent(in)    :: qpoint
+  real(rp)                        , intent(inout) :: scalar_field
+  character(:), allocatable :: msg
+  assert( this%field_type == field_type_scalar )
+  assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
+  assert( qpoint >= 1 )
+  msg = 'Lagrangian reference FE get laplacian scalar requires cell interpolation to compute the hessian'
+  mcheck(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
+  scalar_field = sum(actual_cell_interpolation%hessian(1,1:this%num_dims,ishape,qpoint))
+end subroutine lagrangian_reference_fe_get_laplacian_scalar
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_get_laplacian_vector( this, actual_cell_interpolation, & 
+     & ishape, qpoint, vector_field )
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  integer(ip)                     , intent(in)    :: ishape
+  integer(ip)                     , intent(in)    :: qpoint
+  type(vector_field_t)            , intent(inout) :: vector_field
+  character(:), allocatable :: msg
+  assert( this%field_type == field_type_vector )
+  assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
+  assert( qpoint >= 1 )
+  msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
+  mcheck(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
+  call vector_field%init(0.0_rp)
+  call vector_field%set(this%node_component_array(ishape,2), &
+       & sum(actual_cell_interpolation%hessian(1,1:this%num_dims,this%node_component_array(ishape,1),qpoint)))
+end subroutine lagrangian_reference_fe_get_laplacian_vector
+
+!==================================================================================================
 subroutine lagrangian_reference_fe_create_nodal_quadrature (this)
   implicit none
   class(lagrangian_reference_fe_t), intent(inout) :: this
@@ -806,6 +844,83 @@ subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector( this,  
 end subroutine lagrangian_reference_fe_evaluate_gradient_fe_function_vector
 
 !==================================================================================================
+subroutine lagrangian_reference_fe_evaluate_laplacian_fe_function_scalar( this,   &
+     &  actual_cell_interpolation, &
+     &  nodal_values,              &
+     &  quadrature_points_values)
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
+  real(rp)                        , intent(in)    :: nodal_values(:)
+  real(rp), allocatable           , intent(inout) :: quadrature_points_values(:)
+  character(:), allocatable :: msg
+  integer(ip)               :: qpoint, ishape
+  real(rp)                  :: shape_laplacian
+
+  msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
+  mcheck(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
+
+  if ( allocated(quadrature_points_values) ) then
+      if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
+         call memrealloc (actual_cell_interpolation%num_quadrature_points, & 
+                          quadrature_points_values, __FILE__, __LINE__)
+      end if
+  else
+    call memalloc (actual_cell_interpolation%num_quadrature_points, & 
+                   quadrature_points_values, __FILE__, __LINE__)
+  end if
+  
+  do qpoint = 1, actual_cell_interpolation%num_quadrature_points
+     quadrature_points_values(qpoint) = 0.0_rp
+     do ishape = 1, actual_cell_interpolation%num_shape_functions
+        shape_laplacian = sum(actual_cell_interpolation%hessian(1,1:this%num_dims,ishape,qpoint))
+        quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + & 
+                                         & shape_laplacian * nodal_values(ishape)
+     end do
+  end do
+
+end subroutine lagrangian_reference_fe_evaluate_laplacian_fe_function_scalar
+
+!==================================================================================================
+subroutine lagrangian_reference_fe_evaluate_laplacian_fe_function_vector( this,   &
+     &  actual_cell_interpolation, &
+     &  nodal_values,              &
+     &  quadrature_points_values)
+  implicit none
+  class(lagrangian_reference_fe_t) , intent(in)    :: this 
+  type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  character(:), allocatable :: msg
+  integer(ip)               :: qpoint, inode, istat
+  type(vector_field_t)      :: shape_laplacian
+
+  msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
+  mcheck(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
+
+  if ( allocated(quadrature_points_values) ) then
+    if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
+      deallocate(quadrature_points_values, stat=istat); check(istat==0);
+      allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
+    end if
+  else
+    allocate(quadrature_points_values(actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);
+  end if
+  
+  do qpoint = 1, actual_cell_interpolation%num_quadrature_points
+     call quadrature_points_values(qpoint)%init(0.0_rp)
+     do inode = 1, this%num_shape_functions
+        call shape_laplacian%init(0.0_rp)
+        call shape_laplacian%set(this%node_component_array(inode,2), &
+          & sum(actual_cell_interpolation%hessian(1,1:this%num_dims,this%node_component_array(inode,1),qpoint)))
+        quadrature_points_values(qpoint) = quadrature_points_values(qpoint) + &
+                                         & shape_laplacian * nodal_values(inode)
+     end do
+  end do
+
+end subroutine lagrangian_reference_fe_evaluate_laplacian_fe_function_vector
+
+!==================================================================================================
 subroutine lagrangian_reference_fe_free ( this )
   implicit none 
   class(lagrangian_reference_fe_t), intent(inout) :: this 
@@ -989,10 +1104,10 @@ end subroutine lagrangian_reference_fe_extend_list_components
 subroutine lagrangian_reference_fe_assign_cell_map_duties (this, interpolation_duties,cell_map_duties)
   class(lagrangian_reference_fe_t)       , intent(in)  :: this 
   type(interpolation_duties_t), intent(in)  :: interpolation_duties
-  type(cell_map_duties_t)     , intent(out) :: cell_map_duties
+  type(cell_map_duties_t)     , intent(inout) :: cell_map_duties
 
-  call cell_map_duties%assign_compute_jacobian_inverse(.false.)
-  call cell_map_duties%assign_compute_jacobian_derivative(.false.)
+  !call cell_map_duties%assign_compute_jacobian_inverse(.false.)
+  !call cell_map_duties%assign_compute_jacobian_derivative(.false.)
   if(interpolation_duties%compute_second_derivatives_is_assigned()) then
      call cell_map_duties%assign_compute_jacobian_inverse(.true.)
      call cell_map_duties%assign_compute_jacobian_derivative(.true.)
@@ -1025,8 +1140,8 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
   !phy%shape_functions = ref%shape_functions 
 
   ! First derivatives do
-  !if(phy%kder==1) then
   if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+     massert(map%my_duties%compute_jacobian_inverse_is_assigned(),'First derivatives mapping to physical space require a map with Jacobian inverse') 
      phy%shape_derivatives=0.0_rp
      do ilocs=1,phy%num_quadrature_points
         do inode=1,size(phy%shape_functions,2)!phy%num_shape_functions
@@ -1047,8 +1162,10 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
   !       + (d N / d s_k) (d^2 s_k / d x_i d x_j) 
   !
   if(phy%my_duties%compute_second_derivatives_is_assigned()) then
-    call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
+     massert(map%my_duties%compute_jacobian_inverse_is_assigned(),'Second derivatives mapping to physical space require a map with Jacobian inverse') 
+     call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
      call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
+     call memalloc(ntens,wvec1,__FILE__,__LINE__)
      do ilocs=1,nlocs
         ! Transforms the array HESSI to a symmetric matrix WMAT1
         do inode=1,nnode
@@ -1062,19 +1179,21 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
            call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
                 &        ndime,ndime)
         end do
-        ! Add second cartesian derivatives of the map times 
-        ! first derivatives of shape functions
-        do inode=1,nnode
-           do idime=1,ndime
-              do jdime=1,ndime
-                 do kdime=1,ndime
-                    wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
-                         & + ref%shape_derivatives(1,kdime,inode,ilocs) &
-                         &   * map%d2sdx(kdime,idime,jdime,ilocs)
+        if(map%my_duties%compute_jacobian_derivative_is_assigned()) then
+           ! Add second cartesian derivatives of the map times 
+           ! first derivatives of shape functions
+           do inode=1,nnode
+              do idime=1,ndime
+                 do jdime=1,ndime
+                    do kdime=1,ndime
+                       wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
+                            & + ref%shape_derivatives(1,kdime,inode,ilocs) &
+                            &   * map%d2sdx(kdime,idime,jdime,ilocs)
+                    end do
                  end do
               end do
            end do
-        end do
+        end if
         ! Writes the Hessian matrix as an array
         do inode=1,nnode
            ! do itens = 1, ntens
@@ -1089,6 +1208,7 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
      end do
      call memfree(wmat1,__FILE__,__LINE__)
      call memfree(wmat2,__FILE__,__LINE__)
+     call memfree(wvec1,__FILE__,__LINE__)
   end if
 end subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation
 
