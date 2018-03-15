@@ -773,6 +773,7 @@ subroutine pfs_compute_dof_import_non_conforming_mesh_revisited ( this, iblock )
   integer(ip)                    :: total_num_itfc_couplings
   integer(ip)                    :: i, field_id
   type(environment_t), pointer   :: environment
+  integer(ip), pointer           :: p_dofs_gid(:)
   
   assert ( iblock >= 1 .and. iblock <= this%block_layout%get_num_blocks() )
 
@@ -801,11 +802,12 @@ subroutine pfs_compute_dof_import_non_conforming_mesh_revisited ( this, iblock )
   end do
 
   environment => this%get_environment()
+  p_dofs_gid  => dofs_gid%get_pointer()
   call this%blocks_dof_import(iblock)%create(environment%get_l1_rank()+1, &
                                              environment%get_l1_size(), &
                                              this%block_layout%get_block_num_dofs(iblock), &
                                              total_num_itfc_couplings, &
-                                             dofs_gid%get_pointer(), &
+                                             p_dofs_gid, &
                                              raw_interface_data%a(:,1:total_num_itfc_couplings) )
            
   call raw_interface_data%free()
@@ -1960,6 +1962,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
   integer(ip), pointer :: p_num_parts_dofs_cell_wise(:)
   integer(ip), pointer :: p_ptrs_to_rcv_lst_parts_dofs_cell_wise(:) 
   integer(ip), pointer :: p_rcv_lst_parts_dofs_cell_wise(:)
+  integer(ip), pointer :: p_dofs_max_part_id(:)
  
   environment   => this%get_environment()
   triangulation => this%get_triangulation()
@@ -2176,11 +2179,11 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
   call memfree ( parts_visited, __FILE__, __LINE__ )
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
   call memfree ( dofs_ggid, __FILE__, __LINE__ )
-
+  p_dofs_max_part_id => dofs_max_part_id%get_pointer()
   call this%raw_interface_data_by_continuity_decide_owner (offset, &
        current_col-1, &
        raw_interface_data%a,&
-       dofs_max_part_id%get_pointer(),&
+       p_dofs_max_part_id,&
        dofs_gid%get_pointer())
 
   call dofs_max_part_id%free()
