@@ -806,7 +806,7 @@ subroutine pfs_compute_dof_import_non_conforming_mesh_revisited ( this, iblock )
                                              this%block_layout%get_block_num_dofs(iblock), &
                                              total_num_itfc_couplings, &
                                              dofs_gid%get_pointer(), &
-                                             raw_interface_data%a(1,1:total_num_itfc_couplings) )
+                                             raw_interface_data%a(:,1:total_num_itfc_couplings) )
            
   call raw_interface_data%free()
   call dofs_gid%free()
