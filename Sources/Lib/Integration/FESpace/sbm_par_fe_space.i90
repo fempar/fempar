@@ -1963,6 +1963,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
   integer(ip), pointer :: p_ptrs_to_rcv_lst_parts_dofs_cell_wise(:) 
   integer(ip), pointer :: p_rcv_lst_parts_dofs_cell_wise(:)
   integer(ip), pointer :: p_dofs_max_part_id(:)
+  integer(ip), pointer :: p_dofs_gid(:)
  
   environment   => this%get_environment()
   triangulation => this%get_triangulation()
@@ -2180,11 +2181,12 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
   call memfree ( touched_neighbours, __FILE__, __LINE__ )
   call memfree ( dofs_ggid, __FILE__, __LINE__ )
   p_dofs_max_part_id => dofs_max_part_id%get_pointer()
+  p_dofs_gid         => dofs_gid%get_pointer()
   call this%raw_interface_data_by_continuity_decide_owner (offset, &
        current_col-1, &
        raw_interface_data%a,&
        p_dofs_max_part_id,&
-       dofs_gid%get_pointer())
+       p_dofs_gid )
 
   call dofs_max_part_id%free()
   num_itfc_couplings = current_col-1 
