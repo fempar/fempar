@@ -280,10 +280,12 @@ subroutine hpdrf_fill_interpolation_pre_basis ( this, quadrature, interpolation,
   call memalloc(SPACE_DIM,tet_polynomial_prebase%get_num_polynomials(),gradients,__FILE__,__LINE__)
 
   do q_point=1, quadrature%get_num_quadrature_points()
-     call tet_polynomial_prebase%evaluate(q_point, values, gradients)
+     call tet_polynomial_prebase%evaluate_values(q_point, values)
      interpolation%shape_functions(1,:,q_point) = values(:)
-     if(interpolation%my_duties%compute_first_derivatives_is_assigned()) &
-          &  interpolation%shape_derivatives(1,:,:,q_point) = gradients(:,:)
+     if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+       call tet_polynomial_prebase%evaluate_gradients(q_point, gradients)
+       interpolation%shape_derivatives(1,:,:,q_point) = gradients(:,:)
+     end if
   end do
 
   ! Free auxiliary memory
