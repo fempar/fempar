@@ -837,52 +837,53 @@ contains
           vef_at_interface = .false.
         end if 
         
-        if (this%quad_to_quad(iface,icell)<0) cycle       
+        if (this%quad_to_quad(iface,icell)>=0) then
 
-        call work_vector_cells_around%resize(0)
-        call work_vector_cells_around%push_back(icell)
-        call work_vector_improper_cells_around%resize(0)
-        call work_vector_ivef%resize(0)
-        call work_vector_subvef%resize(0)
-
-        jcell_iconn = this%quad_to_face(iface,icell)         
-
-        if (this%get_num_dims() == 2) then
-           call p4est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
-        elseif (this%get_num_dims() == 3) then
-           call p8est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
-        else
-           check(.false.)
-        end if
-
-        assert (flip==1) ! All cells we are working with MUST be aligned with each other
-        if (mortar == -1) then ! Conformal neighbour
-           jcell      = this%quad_to_quad(iface,icell)+1 
-            
-           min_cell = min(min_cell,jcell)
-           if (min_cell == jcell) then
-              min_iface=this%quad_to_face(iface,icell)+1 
+           call work_vector_cells_around%resize(0)
+           call work_vector_cells_around%push_back(icell)
+           call work_vector_improper_cells_around%resize(0)
+           call work_vector_ivef%resize(0)
+           call work_vector_subvef%resize(0)
+           
+           jcell_iconn = this%quad_to_face(iface,icell)         
+           
+           if (this%get_num_dims() == 2) then
+              call p4est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+           elseif (this%get_num_dims() == 3) then
+              call p8est_eval_connectivity(jcell_iconn, jcell_iface, flip, mortar)
+           else
+              check(.false.)
            end if
-           if ( jcell /= icell ) then ! Skip myself if at boundary
+           
+           assert (flip==1) ! All cells we are working with MUST be aligned with each other
+           if (mortar == -1) then ! Conformal neighbour
+              jcell      = this%quad_to_quad(iface,icell)+1 
+
+              min_cell = min(min_cell,jcell)
+              if (min_cell == jcell) then
+                 min_iface=this%quad_to_face(iface,icell)+1 
+              end if
+              if ( jcell /= icell ) then ! Skip myself if at boundary
+                 if ( jcell > this%get_num_local_cells() ) then
+                    vef_at_interface = .true.
+                 end if
+                 call work_vector_cells_around%push_back(jcell)
+              else
+                 vef_at_boundary = .true.
+              end if
+           else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
+              improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
+              improper_cell_around_subvef  = mortar
+              jcell      = this%quad_to_quad(iface,icell)+1
+              is_proper = .false. 
+              call work_vector_improper_cells_around%push_back(jcell)
+              call work_vector_ivef%push_back(improper_cell_around_ivef)
+              call work_vector_subvef%push_back(improper_cell_around_subvef)
               if ( jcell > this%get_num_local_cells() ) then
                  vef_at_interface = .true.
               end if
-              call work_vector_cells_around%push_back(jcell)
-           else
-              vef_at_boundary = .true.
            end if
-        else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
-           improper_cell_around_ivef    = num_corners_x_cell+num_edges_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)
-           improper_cell_around_subvef  = mortar
-           jcell      = this%quad_to_quad(iface,icell)+1
-           is_proper = .false. 
-           call work_vector_improper_cells_around%push_back(jcell)
-           call work_vector_ivef%push_back(improper_cell_around_ivef)
-           call work_vector_subvef%push_back(improper_cell_around_subvef)
-           if ( jcell > this%get_num_local_cells() ) then
-              vef_at_interface = .true.
-           end if
-        end if
+        end if 
 
         base_pos_icell    = this%get_ptr_vefs_x_cell(icell)-1    + num_corners_x_cell + num_edges_x_cell
         base_pos_min_cell = this%get_ptr_vefs_x_cell(min_cell)-1 + num_corners_x_cell + num_edges_x_cell
@@ -1018,7 +1019,6 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
     else
       do vef_lid = 1, cell%get_num_vefs()
         call cell%get_vef(vef_lid, vef)
-        if ( vef%get_gid() /=0 ) then
          if ( .not. vef%is_proper() ) then
           do icell=1, vef%get_num_improper_cells_around()
            call vef%get_improper_cell_around(icell, coarse_cell)
@@ -1026,7 +1026,6 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
              call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
            end if
           end do  
-         end if  
         end if
       end do 
     end if   
@@ -1371,9 +1370,7 @@ subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
         do vef_lid=1, num_vefs
           call cell%get_vef(vef_lid,vef)
           old_vef_set_id  = p_old_vef_set_ids(base_pos_old+vef_lid)
-          if ( vef%get_gid() /= 0 ) then
-            call vef%set_set_id(old_vef_set_id)
-          end if
+          call vef%set_set_id(old_vef_set_id)
         end do
       end if
       call cell%next()
@@ -1599,93 +1596,6 @@ subroutine p4est_bt_update_cell_import( this )
 #endif          
 end subroutine p4est_bt_update_cell_import
 
-function p4est_bt_generate_non_consecutive_vef_ggid (cell_ggid, vef_lid) result(vef_gid)
-  implicit none
-  integer(igp), intent(in) :: cell_ggid
-  integer(ip) , intent(in) :: vef_lid 
-  integer(igp)             :: vef_gid
-  assert ( cell_ggid_shift   >= 1 )
-  assert ( vefs_x_cell_shift >= 1 )
-  assert ( cell_ggid < ISHFT(int(1,igp),int(cell_ggid_shift  ,igp)) )
-  assert ( vef_lid   < ISHFT(int(1,igp),int(vefs_x_cell_shift,igp)) )
-  vef_gid = (cell_ggid-1) + &
-            ISHFT(int(vef_lid-1,igp),int(cell_ggid_shift,igp))
-end function p4est_bt_generate_non_consecutive_vef_ggid 
-
-subroutine p4est_bt_exchange_vefs_ggids ( this )
-  implicit none
-  class(p4est_base_triangulation_t), intent(inout) :: this
-  class(environment_t)  , pointer :: environment
-  type(cell_import_t)   , pointer :: cell_import
-  integer(ip) :: icell, ivef
-  integer(ip) :: cell_gid
-  integer(ip) :: num_vefs
-  integer(ip) :: base_pos
-  integer(igp), pointer :: p_lst_vefs_ggids(:)
-  integer(igp) :: cell_ggid
-  integer(igp) :: max_cell_ggid
-  integer(ip)  :: max_cell_gid
-  integer(ip)  :: max_ivef
-
-  type(p4est_cell_iterator_t) :: cell
-  type(p4est_vef_iterator_t) :: vef
-
-  environment   => this%get_environment()
-  cell_import   => this%get_cell_import()
- 
-  call this%lst_vefs_ggids%resize(0)
-  call this%lst_vefs_ggids%resize(this%get_ptr_vefs_x_cell(this%get_num_cells()+1)-1,0_igp)
- 
-  call cell%create(this)
-  if ( .not. cell%has_finished() ) then
-    num_vefs = cell%get_num_vefs()
-  else
-    call cell%free()
-    return
-  end if
-
-  ! Traverse vefs on the interface
-  call vef%create(this)
-  do while(.not. vef%has_finished())
-    if ( vef%is_proper() ) then
-      max_cell_ggid = 0
-      do icell=1, vef%get_num_cells_around()
-        call vef%get_cell_around(icell,cell)
-        cell_ggid = cell%get_ggid()
-        ivef = cell%get_vef_lid_from_gid(vef%get_gid())
-        if ( cell_ggid >= max_cell_ggid ) then
-          max_cell_ggid = cell_ggid
-          max_ivef      = ivef
-        end if
-      end do
-       
-      do icell=1, vef%get_num_cells_around()
-        call vef%get_cell_around(icell,cell)
-        ivef = cell%get_vef_lid_from_gid(vef%get_gid())
-        cell_gid = cell%get_gid()
-        base_pos = this%get_ptr_vefs_x_cell(cell_gid)-1
-        call this%lst_vefs_ggids%set(base_pos+ivef, this%generate_non_consecutive_vef_ggid(max_cell_ggid, &
-                                                                                           max_ivef))
-      end do  
-    end if
-    call vef%next()
-  end do
-  
-  p_lst_vefs_ggids => this%lst_vefs_ggids%get_pointer() 
-  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_rcv_ptrs(),&
-                                            cell_import%get_rcv_leids(),&
-                                            cell_import%get_num_neighbours(), &
-                                            cell_import%get_neighbours_ids(),&
-                                            cell_import%get_snd_ptrs(),&
-                                            cell_import%get_snd_leids(),&
-                                            p_lst_vefs_ggids, & 
-                                            p_lst_vefs_ggids, &
-                                            num_vefs)
-  call cell%free()
-  call vef%free()
-end subroutine p4est_bt_exchange_vefs_ggids 
 
 function p4est_bt_get_previous_num_local_cells ( this )
   implicit none

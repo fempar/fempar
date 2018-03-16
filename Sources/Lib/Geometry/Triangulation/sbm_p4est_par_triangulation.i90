@@ -160,7 +160,6 @@ subroutine p4est_par_triangulation_free ( this)
         call this%per_cell_vertex_coordinates%free()
         call this%lst_vefs_gids%free()
         call this%cell_ggids%free()
-        call this%lst_vefs_ggids%free()
         call this%cell_myparts%free()
         call this%ptr_cells_around_proper_vefs%free()
         call this%lst_cells_around_proper_vefs%free()
@@ -489,11 +488,9 @@ subroutine p4est_par_triangulation_migrate_vef_set_ids(this, old_lst_vefs_gids)
   call this%new_vef_set_ids%resize((this%get_num_local_cells()+this%get_num_ghost_cells())*num_vefs,0)
   p_new_vef_set_ids => this%new_vef_set_ids%get_pointer()
   
-  call cell%create(this)
   ! Transfer vef set IDs of local cells
   do i=1, this%get_num_local_cells()
     if (this%new2old(i) /= 0) then
-       call cell%set_gid(i)
        base_pos_old = this%get_ptr_vefs_x_cell(this%new2old(i))-1
        base_pos_new = this%get_ptr_vefs_x_cell(i)-1
        do vef_lid=1, num_vefs
@@ -519,7 +516,8 @@ subroutine p4est_par_triangulation_migrate_vef_set_ids(this, old_lst_vefs_gids)
                                             cell_import%get_snd_ptrs(),&
                                             cell_import%get_snd_leids(),&
                                             p_new_vef_set_ids, p_new_vef_set_ids, num_vefs )  
-  
+
+  call cell%create(this)
   call vef%create(this)
   call cell%first()
   do while ( .not. cell%has_finished() )
@@ -527,13 +525,10 @@ subroutine p4est_par_triangulation_migrate_vef_set_ids(this, old_lst_vefs_gids)
     do vef_lid=1, num_vefs
       call cell%get_vef(vef_lid,vef)
       new_vef_set_id  = p_new_vef_set_ids(base_pos_new+vef_lid)
-      if ( vef%get_gid() /= 0 ) then
-         call vef%set_set_id(new_vef_set_id)
-      end if   
+      call vef%set_set_id(new_vef_set_id)
     end do
     call cell%next()
   end do
-  
   call cell%free()
   call vef%free()
 #else
