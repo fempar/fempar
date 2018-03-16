@@ -14,11 +14,11 @@ SET(${PROJECT_NAME}_SOVERSION 1)
 # DEFINE PATHS
 #################################################################
 
-SET(ROOT_PATH ${CMAKE_SOURCE_DIR}/..)                                        # Fempar root path 
-SET(SRC_PATH ${ROOT_PATH}/Sources)                                           # Fempar Sources path 
-SET(TESTS_PATH ${SRC_PATH}/Tests)                                            # Fempar Tests path 
-SET(DRIVERS_PATH /Users/ocolomes/Progs/Fempar_GitLab/NSI-fempar/src/Drivers) # Fempar Drivers path 
-SET(THIRDPARTY_PATH ${ROOT_PATH}/ThirdParty)                                 # Fempar ThirdParty path 
+SET(ROOT_PATH ${CMAKE_SOURCE_DIR}/..)        # Fempar root path 
+SET(SRC_PATH ${ROOT_PATH}/Sources)           # Fempar Sources path 
+SET(TESTS_PATH ${SRC_PATH}/Tests)            # Fempar Tests path 
+SET(DRIVERS_PATH ${ROOT_PATH}/Drivers)       # Fempar Drivers path 
+SET(THIRDPARTY_PATH ${ROOT_PATH}/ThirdParty) # Fempar ThirdParty path 
 
 #################################################################
 # CONFIGURATION TYPES & BUILD MODE & TESTING
