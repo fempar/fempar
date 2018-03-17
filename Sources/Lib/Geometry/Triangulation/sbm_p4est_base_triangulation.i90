@@ -1019,7 +1019,6 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
     else
       do vef_lid = 1, cell%get_num_vefs()
         call cell%get_vef(vef_lid, vef)
-        if ( vef%get_gid() /=0 ) then
          if ( .not. vef%is_proper() ) then
           do icell=1, vef%get_num_improper_cells_around()
            call vef%get_improper_cell_around(icell, coarse_cell)
@@ -1027,7 +1026,6 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
              call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
            end if
           end do  
-         end if  
         end if
       end do 
     end if   
@@ -1372,9 +1370,7 @@ subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
         do vef_lid=1, num_vefs
           call cell%get_vef(vef_lid,vef)
           old_vef_set_id  = p_old_vef_set_ids(base_pos_old+vef_lid)
-          if ( vef%get_gid() /= 0 ) then
-            call vef%set_set_id(old_vef_set_id)
-          end if
+          call vef%set_set_id(old_vef_set_id)
         end do
       end if
       call cell%next()

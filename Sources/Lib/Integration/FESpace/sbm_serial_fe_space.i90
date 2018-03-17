@@ -3447,8 +3447,8 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   new_cell_lid = 1
   do while ( old_cell_lid .le. old_num_cells )
     transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
-    call new_fe%set_gid(new_cell_lid)
     do field_id = 1,this%get_num_fields()
+      call new_fe%set_gid(new_cell_lid)
       current_old_cell_lid = old_cell_lid
       current_new_cell_lid = new_cell_lid
       reference_fe => new_fe%get_reference_fe(field_id) ! Only h-adaptivity
@@ -3613,8 +3613,8 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
     new_cell_lid = 1
     do while ( old_cell_lid .le. old_num_cells )
       transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
-      call new_fe%set_gid(new_cell_lid)
       do field_id = 1,this%get_num_fields()
+        call new_fe%set_gid(new_cell_lid)
         current_old_cell_lid = old_cell_lid
         current_new_cell_lid = new_cell_lid
         reference_fe => new_fe%get_reference_fe(field_id) ! Only h-adaptivity
