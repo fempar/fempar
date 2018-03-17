@@ -2791,8 +2791,39 @@ function serial_fe_space_get_constraints_independent_term(this)
      serial_fe_space_get_constraints_independent_term => this%constraints_independent_term
 end function serial_fe_space_get_constraints_independent_term
 
-subroutine serial_fe_space_create_fe_cell_iterator ( this, fe )
+function serial_fe_space_is_free_dof ( this, dof_lid )
+  implicit none
+  class(serial_fe_space_t)   , intent(in) :: this
+  integer(ip)            , intent(in) :: dof_lid
+  logical :: serial_fe_space_is_free_dof
+  serial_fe_space_is_free_dof = dof_lid > 0
+end function serial_fe_space_is_free_dof
 
+function serial_fe_space_is_strong_dirichlet_dof ( this, dof_lid )
+  implicit none
+  class(serial_fe_space_t)   , intent(in) :: this
+  integer(ip)            , intent(in) :: dof_lid
+  logical :: serial_fe_space_is_strong_dirichlet_dof
+  serial_fe_space_is_strong_dirichlet_dof = (dof_lid < 0 .and. dof_lid >= -this%num_dirichlet_dofs )
+end function serial_fe_space_is_strong_dirichlet_dof
+
+function serial_fe_space_is_fixed_dof ( this, dof_lid )
+  implicit none
+  class(serial_fe_space_t)   , intent(in) :: this
+  integer(ip)            , intent(in) :: dof_lid
+  logical :: serial_fe_space_is_fixed_dof
+  serial_fe_space_is_fixed_dof = dof_lid < 0
+end function serial_fe_space_is_fixed_dof
+
+function serial_fe_space_is_hanging_dof ( this, dof_lid )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip)              , intent(in) :: dof_lid
+  logical :: serial_fe_space_is_hanging_dof
+  serial_fe_space_is_hanging_dof = dof_lid < -this%num_dirichlet_dofs
+end function serial_fe_space_is_hanging_dof
+
+subroutine serial_fe_space_create_fe_cell_iterator ( this, fe )
   implicit none
   class(serial_fe_space_t)         , intent(in)  :: this
   class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
@@ -2978,10 +3009,6 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   call this%constraining_dirichlet_dofs_coefficients%resize(0)
   call this%constraints_independent_term%resize(0)
 
-  if ( this%num_hanging_dofs == 0 ) return
-
-  field_blocks => this%get_field_blocks()
-
   call this%ptr_constraining_free_dofs%resize(this%num_hanging_dofs+1,0)
   call this%ptr_constraining_dirichlet_dofs%resize(this%num_hanging_dofs+1,0)
   call this%constraining_free_dofs%resize(this%num_hanging_dofs)
@@ -2990,6 +3017,9 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   call this%constraining_dirichlet_dofs_coefficients%resize(this%num_hanging_dofs)
   call this%constraints_independent_term%resize(this%num_hanging_dofs)
 
+  if ( this%num_hanging_dofs == 0 ) return
+    
+  field_blocks => this%get_field_blocks()
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_cell_iterator(coarser_fe)
   call this%create_fe_vef_iterator(fe_vef)
