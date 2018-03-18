@@ -112,7 +112,6 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%update_vefs_is_ghost()
     call this%fill_x_cell_vertex_coordinates()
     call this%update_cell_set_ids()
     call this%set_up_lst_itfc_vefs() 
@@ -1067,111 +1066,6 @@ contains
   call this%not_enabled_error()
 #endif
 end subroutine p4est_bt_update_lst_vefs_gids_and_cells_around
-
-
-subroutine p4est_bt_update_vefs_is_ghost(this)
-  implicit none
-  class(p4est_base_triangulation_t), intent(inout)    :: this
-  type(p4est_cell_iterator_t) :: cell
-  type(p4est_cell_iterator_t) :: coarse_cell
-  type(p4est_vef_iterator_t) :: vef
-  type(p4est_vef_iterator_t) :: coarse_vef
-  integer(ip) :: vef_lid, icell, coarse_vef_lid
-  integer(ip) :: coarse_vef_gid
-  type(list_t), pointer :: vefs_of_vef, vertices_of_line
-  type(list_iterator_t) :: vefs_of_vef_iterator, vertices_of_line_iterator
-  class(reference_fe_t), pointer :: reference_fe_geo
-  integer(ip) :: vef_of_vef_pos_in_cell
-  integer(ip) :: vertex_pos_in_cell
-
-  type(std_vector_logical_t) :: proper_vefs_is_ghost
-  type(std_vector_logical_t) :: improper_vefs_is_ghost
-
-  logical, pointer :: p_proper_vefs_is_ghost(:)
-  logical, pointer :: p_improper_vefs_is_ghost(:)
-  
-  logical, pointer :: p_this_proper_vefs_is_ghost(:)
-  logical, pointer :: p_this_improper_vefs_is_ghost(:)
-
-  call proper_vefs_is_ghost%resize(0)
-  call proper_vefs_is_ghost%resize(this%num_proper_vefs,.true.)
-  call improper_vefs_is_ghost%resize(0)
-  call improper_vefs_is_ghost%resize(this%num_improper_vefs,.true.)
-   
-  call cell%create(this)
-  call coarse_cell%create(this)
-  call vef%create(this)
-  call coarse_vef%create(this)
-  
-  do while ( .not. cell%has_finished() )
-    if ( cell%is_local() ) then
-      do vef_lid = 1, cell%get_num_vefs()
-       call cell%get_vef(vef_lid, vef)
-       if ( vef%is_proper() ) then
-         call proper_vefs_is_ghost%set(vef%get_gid(),.false.)
-       else
-         call improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
-         do icell=1, vef%get_num_improper_cells_around()
-           call vef%get_improper_cell_around(icell, coarse_cell)
-           reference_fe_geo => coarse_cell%get_reference_fe()
-           coarse_vef_lid=vef%get_improper_cell_around_ivef(icell)
-           call coarse_cell%get_vef(coarse_vef_lid,coarse_vef)
-           call proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)
-            
-           vefs_of_vef => reference_fe_geo%get_facets_n_face()
-           vefs_of_vef_iterator = vefs_of_vef%create_iterator(coarse_vef_lid)
-           do while( .not. vefs_of_vef_iterator%is_upper_bound() )
-             vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
-             call coarse_cell%get_vef(vef_of_vef_pos_in_cell,coarse_vef)
-             call proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)
-               
-             vertices_of_line => reference_fe_geo%get_vertices_n_face()
-             vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
-             do while( .not. vertices_of_line_iterator%is_upper_bound() )
-               vertex_pos_in_cell = vertices_of_line_iterator%get_current()
-               call coarse_cell%get_vef(vertex_pos_in_cell,coarse_vef)  
-               call proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)  
-               call vertices_of_line_iterator%next()
-             end do
-             call vefs_of_vef_iterator%next()
-           end do 
-         end do   
-       end if
-      end do 
-    else
-      do vef_lid = 1, cell%get_num_vefs()
-        call cell%get_vef(vef_lid, vef)
-         if ( .not. vef%is_proper() ) then
-          do icell=1, vef%get_num_improper_cells_around()
-           call vef%get_improper_cell_around(icell, coarse_cell)
-           if ( coarse_cell%is_local() ) then
-             call improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
-           end if
-          end do  
-        end if
-      end do 
-    end if   
-    call cell%next()
-  end do
-
-
-  p_proper_vefs_is_ghost   => proper_vefs_is_ghost%get_pointer()  
-  p_improper_vefs_is_ghost => improper_vefs_is_ghost%get_pointer() 
-
-  p_this_proper_vefs_is_ghost   => this%proper_vefs_is_ghost%get_pointer()
-  p_this_improper_vefs_is_ghost => this%improper_vefs_is_ghost%get_pointer() 
-
-  assert ( all ( (p_improper_vefs_is_ghost .eqv. p_this_improper_vefs_is_ghost) .eqv. .true. ) )
-  assert ( all ( (p_proper_vefs_is_ghost .eqv. p_this_proper_vefs_is_ghost) .eqv. .true. ) )
-
-
-  call cell%free()
-  call vef%free()
-  call coarse_vef%free()
-  call coarse_cell%free()
-end subroutine p4est_bt_update_vefs_is_ghost
-  
-
 
 subroutine p4est_bt_update_local_proper_vefs_actually_on_the_interface(this)
   implicit none
