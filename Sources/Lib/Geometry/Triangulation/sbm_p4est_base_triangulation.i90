@@ -160,7 +160,8 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   integer(ip) :: iface_at_corner, iedge_at_corner, iface_at_edge
   integer(ip) :: edge_corner, face_corner, edge_face, flip, mortar
   integer(P4EST_F90_QLEVEL) :: jcell_iconn 
-  logical :: is_proper, vef_at_boundary, vef_at_interface
+  logical :: is_proper, vef_at_boundary, vef_at_interface, vef_is_ghost
+  logical :: double_or_half_size_neighbour_local
   integer(ip) :: isubface, isubedge
   integer(ip) :: base_pos_icell, base_pos_min_cell, base_pos_ghost_cell
   type(std_vector_integer_ip_t) :: work_vector_cells_around
@@ -178,6 +179,7 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   integer(ip), pointer :: P4EST_CORNER_IN_FACE(:,:)
   integer(ip), pointer :: FEMPAR_SUBCELLS_IN_TOUCH_FACE(:,:)
   integer :: child_id
+  integer(ip) :: vef_gid
 
 #ifdef ENABLE_P4EST  
   if ( this%get_num_dims() == 2 ) then
@@ -232,7 +234,8 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   call this%proper_vefs_at_boundary%resize(0)
   call this%proper_vefs_at_interface%resize(0)
   call this%improper_vefs_at_interface%resize(0)
-
+  call this%proper_vefs_is_ghost%resize(0)
+  call this%improper_vefs_is_ghost%resize(0)
   
   this%num_proper_vefs   = 0
   this%num_improper_vefs = 0
@@ -264,6 +267,7 @@ contains
         else
           vef_at_interface = .false.
         end if 
+        double_or_half_size_neighbour_local = .false.
 
         call work_vector_cells_around%resize(0)
         call work_vector_cells_around%push_back(icell)
@@ -308,6 +312,10 @@ contains
               call work_vector_cells_around%push_back(jcell)
            else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
               jcell      = this%quad_to_quad(icell_iface,icell)+1
+
+              if ( jcell >=1 .and. jcell <= this%get_num_local_cells() ) then
+                 double_or_half_size_neighbour_local = .true.
+              end if
 
               ! Determine whether this corner is improper
               ! 1. Go to coarser neighbour and find across which subface am I neighbour
@@ -399,6 +407,15 @@ contains
               end if
            else ! Half-side neighbour 
               assert (mortar == num_subfacets_facet+1)
+              
+              do isubface=1, size(this%quad_to_half,1)
+                jcell      = this%quad_to_half(isubface,this%quad_to_quad(icell_iface,icell)+1)+1
+                if ( jcell >=1 .and. jcell <= this%get_num_local_cells() ) then
+                   double_or_half_size_neighbour_local = .true.
+                   exit 
+                end if
+              end do
+
               ! Determine which face_corner of my face am I
               do face_corner=1, num_face_corners
                  if (P4EST_FACE_CORNERS(face_corner,icell_iface) == icorner) then
@@ -451,6 +468,11 @@ contains
                  end if
                  call work_vector_cells_around%push_back(jcell)
               else if ( mortar >= 1 .and. mortar <= num_subedgets_edget )  then ! Double-size neighbour
+
+                 if ( jcell >=1 .and. jcell <= this%get_num_local_cells() ) then
+                   double_or_half_size_neighbour_local = .true.
+                 end if
+
                  ! 1. Determine whether this corner is improper 
                  child_id = F90_p8est_quadrant_child_id(this%quad_coords(1,icell), &
                                                         this%quad_coords(2,icell), &
@@ -496,6 +518,13 @@ contains
                  end if
               else ! Half-side neighbour 
                  assert (mortar == num_subedgets_edget+1)
+                 do isubedge=1, size(this%quad_to_half_by_edge,1)
+                   jcell      = this%quad_to_half_by_edge(isubedge,this%quad_to_quad_by_edge(icell_iedge,icell)+1)+1
+                   if ( jcell >=1 .and. jcell <= this%get_num_local_cells() ) then
+                      double_or_half_size_neighbour_local = .true.
+                      exit 
+                   end if
+                 end do
                  ! Determine which edge_corner of my edge am I
                  do edge_corner=1, num_edge_corners
                     if (P4EST_EDGE_CORNERS_3D(edge_corner,icell_iedge) == icorner) then
@@ -503,7 +532,7 @@ contains
                     end if
                  end do
                  assert(edge_corner<=num_edge_corners)
-                 jcell       = this%quad_to_half_by_edge(edge_corner,jcell)+1
+                 jcell       = this%quad_to_half_by_edge(edge_corner,this%quad_to_quad_by_edge(icell_iedge,icell)+1)+1
                  if ( jcell > 0 ) then
                    min_cell   = min(min_cell,jcell)
                    if (min_cell == jcell) then
@@ -565,6 +594,12 @@ contains
               else
                  call this%proper_vefs_at_interface%push_back(.false.)
               end if
+
+              if ( (min_cell >=1 .and. min_cell <= this%get_num_local_cells()) .or. double_or_half_size_neighbour_local) then
+                call this%proper_vefs_is_ghost%push_back(.false.)
+              else
+                call this%proper_vefs_is_ghost%push_back(.true.)
+              end if 
            else 
               this%num_improper_vefs = this%num_improper_vefs+1
               call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), -this%num_improper_vefs)
@@ -593,11 +628,22 @@ contains
               else
                  call this%improper_vefs_at_interface%push_back(.false.)
               end if
-              
+              if ( (min_cell >=1 .and. min_cell <= this%get_num_local_cells()) .or. double_or_half_size_neighbour_local) then
+                call this%improper_vefs_is_ghost%push_back(.false.)
+              else
+                call this%improper_vefs_is_ghost%push_back(.true.)
+              end if 
            end if
         else
-           call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), &
-                this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_CORNER(min_icorner)))
+           vef_gid = this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_CORNER(min_icorner))
+           call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), vef_gid)
+           if ( min_cell > this%get_num_local_cells() .and. double_or_half_size_neighbour_local ) then
+             if ( vef_gid > 0 ) then
+               call this%proper_vefs_is_ghost%set(vef_gid, .false.)
+             else 
+               call this%improper_vefs_is_ghost%set(abs(vef_gid), .false.)
+             end if
+           end if 
         end if
      end do ! icorner
    end subroutine generate_corners
@@ -616,6 +662,7 @@ contains
              vef_at_interface = .false.
            end if 
            min_cell_int_edge = 0
+           double_or_half_size_neighbour_local = .false.
 
            call work_vector_cells_around%resize(0)
            call work_vector_cells_around%push_back(icell)
@@ -665,6 +712,17 @@ contains
                  if ( jcell > this%get_num_local_cells() ) then
                    vef_at_interface = .true.
                  end if
+                 if ( jcell >=1 .and. jcell <= this%get_num_local_cells() ) then
+                   double_or_half_size_neighbour_local = .true.
+                 end if
+              else if (mortar == num_subedgets_edget+1) then ! Half-size neighbour
+                 do isubedge=1, size(this%quad_to_half_by_edge,1)
+                   jcell      = this%quad_to_half_by_edge(isubedge,this%quad_to_quad_by_edge(iedge,icell)+1)+1
+                   if ( jcell >=1 .and. jcell <= this%get_num_local_cells() ) then
+                      double_or_half_size_neighbour_local = .true.
+                      exit 
+                   end if
+                 end do
               end if
            end if           
 
@@ -694,6 +752,9 @@ contains
                  call work_vector_cells_around%push_back(jcell)
               else if ( mortar >= 1 .and. mortar <= num_subfacets_facet )  then ! Double-size neighbour 
                  jcell      = this%quad_to_quad(icell_iface,icell)+1
+                 if ( jcell >=1 .and. jcell <= this%get_num_local_cells() ) then
+                   double_or_half_size_neighbour_local = .true.
+                 end if
                  if ( min_cell_int_edge == 0 ) then
                    min_cell_int_edge = jcell
                  else
@@ -753,6 +814,15 @@ contains
                      vef_at_interface = .true.
                    end if
                  end if
+              else ! Double-size neighbour
+                 assert ( mortar == num_subfacets_facet + 1 )  
+                 do isubface=1, size(this%quad_to_half,1)
+                   jcell      = this%quad_to_half(isubface,this%quad_to_quad(icell_iface,icell)+1)+1
+                   if ( jcell >=1 .and. jcell <= this%get_num_local_cells() ) then
+                     double_or_half_size_neighbour_local = .true.
+                     exit 
+                   end if
+                 end do
             end if  
            end do ! iface_at_edge
 
@@ -787,6 +857,12 @@ contains
                  else
                    call this%proper_vefs_at_interface%push_back(.false.)
                  end if
+
+                 if ( (min_cell >=1 .and. min_cell <= this%get_num_local_cells()) .or. double_or_half_size_neighbour_local) then
+                   call this%proper_vefs_is_ghost%push_back(.false.)
+                 else
+                   call this%proper_vefs_is_ghost%push_back(.true.)
+                 end if 
               else
                  this%num_improper_vefs = this%num_improper_vefs+1
                  call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), -this%num_improper_vefs)
@@ -815,10 +891,23 @@ contains
                  else
                    call this%improper_vefs_at_interface%push_back(.false.)
                  end if
+
+                 if ( (min_cell >=1 .and. min_cell <= this%get_num_local_cells()) .or. double_or_half_size_neighbour_local) then
+                   call this%improper_vefs_is_ghost%push_back(.false.)
+                 else
+                   call this%improper_vefs_is_ghost%push_back(.true.)
+                 end if
               end if
              else
-                call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), &
-                     this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_EDGE_3D(min_iedge)))
+                vef_gid =this%lst_vefs_gids%get(base_pos_min_cell+P4EST_2_FEMPAR_EDGE_3D(min_iedge)) 
+                call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), vef_gid)
+                if ( min_cell > this%get_num_local_cells() .and. double_or_half_size_neighbour_local ) then
+                  if ( vef_gid > 0 ) then
+                    call this%proper_vefs_is_ghost%set(vef_gid, .false.)
+                  else
+                    call this%improper_vefs_is_ghost%set(abs(vef_gid), .false.)
+                  end if
+                end if
              end if
         end do ! iedge
      end if
@@ -836,6 +925,7 @@ contains
         else
           vef_at_interface = .false.
         end if 
+        double_or_half_size_neighbour_local = .false.
         
         if (this%quad_to_quad(iface,icell)>=0) then
 
@@ -882,6 +972,17 @@ contains
               if ( jcell > this%get_num_local_cells() ) then
                  vef_at_interface = .true.
               end if
+              if ( jcell >=1 .and. jcell <= this%get_num_local_cells() ) then
+                 double_or_half_size_neighbour_local = .true.
+              end if
+           else ! Half-size neighbour
+             do isubface=1, size(this%quad_to_half,1)
+                jcell      = this%quad_to_half(isubface,this%quad_to_quad(iface,icell)+1)+1
+                if ( jcell >=1 .and. jcell <= this%get_num_local_cells() ) then
+                   double_or_half_size_neighbour_local = .true.
+                   exit 
+                end if
+             end do
            end if
         end if 
 
@@ -916,6 +1017,12 @@ contains
               else
                  call this%proper_vefs_at_interface%push_back(.false.)
               end if
+
+              if ( (min_cell >=1 .and. min_cell <= this%get_num_local_cells()) .or. double_or_half_size_neighbour_local) then
+                call this%proper_vefs_is_ghost%push_back(.false.)
+              else
+                call this%proper_vefs_is_ghost%push_back(.true.)
+              end if
            else 
               this%num_improper_vefs=this%num_improper_vefs+1
               call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), -this%num_improper_vefs)
@@ -942,6 +1049,12 @@ contains
                  call this%improper_vefs_at_interface%push_back(.true.)
               else
                  call this%improper_vefs_at_interface%push_back(.false.)
+              end if
+
+              if ( (min_cell >=1 .and. min_cell <= this%get_num_local_cells()) .or. double_or_half_size_neighbour_local) then
+                 call this%improper_vefs_is_ghost%push_back(.false.)
+              else
+                 call this%improper_vefs_is_ghost%push_back(.true.)
               end if
            end if
         else ! Borrow vef gid from owner
@@ -971,11 +1084,20 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
   integer(ip) :: vef_of_vef_pos_in_cell
   integer(ip) :: vertex_pos_in_cell
 
-  call this%proper_vefs_is_ghost%resize(0)
-  call this%proper_vefs_is_ghost%resize(this%num_proper_vefs,.true.)
-  call this%improper_vefs_is_ghost%resize(0)
-  call this%improper_vefs_is_ghost%resize(this%num_improper_vefs,.true.)
+  type(std_vector_logical_t) :: proper_vefs_is_ghost
+  type(std_vector_logical_t) :: improper_vefs_is_ghost
+
+  logical, pointer :: p_proper_vefs_is_ghost(:)
+  logical, pointer :: p_improper_vefs_is_ghost(:)
   
+  logical, pointer :: p_this_proper_vefs_is_ghost(:)
+  logical, pointer :: p_this_improper_vefs_is_ghost(:)
+
+  call proper_vefs_is_ghost%resize(0)
+  call proper_vefs_is_ghost%resize(this%num_proper_vefs,.true.)
+  call improper_vefs_is_ghost%resize(0)
+  call improper_vefs_is_ghost%resize(this%num_improper_vefs,.true.)
+   
   call cell%create(this)
   call coarse_cell%create(this)
   call vef%create(this)
@@ -986,29 +1108,29 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
       do vef_lid = 1, cell%get_num_vefs()
        call cell%get_vef(vef_lid, vef)
        if ( vef%is_proper() ) then
-         call this%proper_vefs_is_ghost%set(vef%get_gid(),.false.)
+         call proper_vefs_is_ghost%set(vef%get_gid(),.false.)
        else
-         call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
+         call improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
          do icell=1, vef%get_num_improper_cells_around()
            call vef%get_improper_cell_around(icell, coarse_cell)
            reference_fe_geo => coarse_cell%get_reference_fe()
            coarse_vef_lid=vef%get_improper_cell_around_ivef(icell)
            call coarse_cell%get_vef(coarse_vef_lid,coarse_vef)
-           call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)
+           call proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)
             
            vefs_of_vef => reference_fe_geo%get_facets_n_face()
            vefs_of_vef_iterator = vefs_of_vef%create_iterator(coarse_vef_lid)
            do while( .not. vefs_of_vef_iterator%is_upper_bound() )
              vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
              call coarse_cell%get_vef(vef_of_vef_pos_in_cell,coarse_vef)
-             call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)
+             call proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)
                
              vertices_of_line => reference_fe_geo%get_vertices_n_face()
              vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
              do while( .not. vertices_of_line_iterator%is_upper_bound() )
                vertex_pos_in_cell = vertices_of_line_iterator%get_current()
                call coarse_cell%get_vef(vertex_pos_in_cell,coarse_vef)  
-               call this%proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)  
+               call proper_vefs_is_ghost%set(coarse_vef%get_gid(),.false.)  
                call vertices_of_line_iterator%next()
              end do
              call vefs_of_vef_iterator%next()
@@ -1023,7 +1145,7 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
           do icell=1, vef%get_num_improper_cells_around()
            call vef%get_improper_cell_around(icell, coarse_cell)
            if ( coarse_cell%is_local() ) then
-             call this%improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
+             call improper_vefs_is_ghost%set(abs(vef%get_gid()),.false.)
            end if
           end do  
         end if
@@ -1031,6 +1153,18 @@ subroutine p4est_bt_update_vefs_is_ghost(this)
     end if   
     call cell%next()
   end do
+
+
+  p_proper_vefs_is_ghost   => proper_vefs_is_ghost%get_pointer()  
+  p_improper_vefs_is_ghost => improper_vefs_is_ghost%get_pointer() 
+
+  p_this_proper_vefs_is_ghost   => this%proper_vefs_is_ghost%get_pointer()
+  p_this_improper_vefs_is_ghost => this%improper_vefs_is_ghost%get_pointer() 
+
+  assert ( all ( (p_improper_vefs_is_ghost .eqv. p_this_improper_vefs_is_ghost) .eqv. .true. ) )
+  assert ( all ( (p_proper_vefs_is_ghost .eqv. p_this_proper_vefs_is_ghost) .eqv. .true. ) )
+
+
   call cell%free()
   call vef%free()
   call coarse_vef%free()
