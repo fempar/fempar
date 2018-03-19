@@ -42,7 +42,6 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry, cell_map_du
   call this%free()
   this%num_dims                     = reference_fe_geometry%get_num_dims()
   this%num_nodes                    = reference_fe_geometry%get_num_shape_functions()
-  this%num_entries_symmetric_tensor = this%interpolation%num_entries_symmetric_tensor ! Encapsulation missing here 
   this%num_quadrature_points        = quadrature%num_quadrature_points                ! Encapsulation missing here 
 
   ! QUARANTINE: to remove it when all invocations to create send cell_map_duties
@@ -64,7 +63,12 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry, cell_map_du
   allocate(this%quadrature_points_coordinates(this%num_quadrature_points), stat=istat); check(istat==0)
   allocate(this%nodes_coordinates(this%num_nodes), stat=istat); check(istat==0)
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
+
   call interpolation_duties%assign_compute_first_derivatives(.true.)
+  call interpolation_duties%assign_compute_second_derivatives(this%my_duties%compute_jacobian_derivative_is_assigned())
+
+  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation, interpolation_duties)
+  this%num_entries_symmetric_tensor = this%interpolation%num_entries_symmetric_tensor ! Encapsulation missing here 
 
   if(this%my_duties%compute_jacobian_derivative_is_assigned()) then
      call this%my_duties%assign_compute_jacobian_inverse(.true.)
@@ -85,13 +89,7 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry, cell_map_du
           &        this%wmat2,__FILE__,__LINE__)
 
      call memalloc(this%num_entries_symmetric_tensor,this%wvec1,__FILE__,__LINE__)
-
-     call interpolation_duties%assign_compute_second_derivatives(.true.)
-  else
-     call interpolation_duties%assign_compute_second_derivatives(.false.)
   end if
-
-  call reference_fe_geometry%create_interpolation( quadrature, this%interpolation, interpolation_duties)
 
   if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
      call memalloc(this%num_dims, &
@@ -119,7 +117,6 @@ subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadratu
   call this%free()
   this%num_dims                     = reference_fe_geometry%get_num_dims()
   this%num_nodes                    = reference_fe_geometry%get_num_shape_functions()
-  this%num_entries_symmetric_tensor = this%interpolation%num_entries_symmetric_tensor ! Encapsulation missing here 
   this%num_quadrature_points        = quadrature%num_quadrature_points                ! Encapsulation missing here 
 
   ! QUARANTINE: to remove it when all invocations to create send cell_map_duties
@@ -137,6 +134,8 @@ subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadratu
                                                         subfacet_lid, &
                                                         quadrature,       &
                                                         this%interpolation )
+  this%num_entries_symmetric_tensor = this%interpolation%num_entries_symmetric_tensor ! Encapsulation missing here 
+
   call memalloc(this%num_dims, &
                 this%num_dims, &
                 this%num_quadrature_points, &
@@ -177,6 +176,8 @@ subroutine cell_map_free( this )
      call memfree(this%wvec1,__FILE__,__LINE__)
      call memfree(this%d2sdx,__FILE__,__LINE__)
   end if
+  call this%my_duties%assign_compute_jacobian_inverse(.false.)
+  call this%my_duties%assign_compute_jacobian_derivative(.false.)
 end subroutine cell_map_free
 
 !==================================================================================================

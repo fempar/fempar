@@ -696,7 +696,7 @@ function fe_cell_iterator_is_free_dof ( this, dof_lid )
   class(fe_cell_iterator_t)   , intent(in) :: this
   integer(ip)            , intent(in) :: dof_lid
   logical :: fe_cell_iterator_is_free_dof
-  fe_cell_iterator_is_free_dof = dof_lid > 0
+  fe_cell_iterator_is_free_dof = this%fe_space%is_free_dof(dof_lid)
 end function fe_cell_iterator_is_free_dof
 
 function fe_cell_iterator_is_strong_dirichlet_dof ( this, dof_lid )
@@ -704,7 +704,7 @@ function fe_cell_iterator_is_strong_dirichlet_dof ( this, dof_lid )
   class(fe_cell_iterator_t)   , intent(in) :: this
   integer(ip)            , intent(in) :: dof_lid
   logical :: fe_cell_iterator_is_strong_dirichlet_dof
-  fe_cell_iterator_is_strong_dirichlet_dof = (dof_lid < 0 .and. dof_lid >= -this%fe_space%num_dirichlet_dofs )
+  fe_cell_iterator_is_strong_dirichlet_dof = this%fe_space%is_strong_dirichlet_dof(dof_lid)
 end function fe_cell_iterator_is_strong_dirichlet_dof
 
 function fe_cell_iterator_is_fixed_dof ( this, dof_lid )
@@ -712,7 +712,7 @@ function fe_cell_iterator_is_fixed_dof ( this, dof_lid )
   class(fe_cell_iterator_t)   , intent(in) :: this
   integer(ip)            , intent(in) :: dof_lid
   logical :: fe_cell_iterator_is_fixed_dof
-  fe_cell_iterator_is_fixed_dof = dof_lid < 0
+  fe_cell_iterator_is_fixed_dof = this%fe_space%is_fixed_dof(dof_lid)
 end function fe_cell_iterator_is_fixed_dof
 
 function fe_cell_iterator_is_hanging_dof ( this, dof_lid )
@@ -720,7 +720,7 @@ function fe_cell_iterator_is_hanging_dof ( this, dof_lid )
   class(fe_cell_iterator_t), intent(in) :: this
   integer(ip)              , intent(in) :: dof_lid
   logical :: fe_cell_iterator_is_hanging_dof
-  fe_cell_iterator_is_hanging_dof = dof_lid < -this%fe_space%num_dirichlet_dofs
+  fe_cell_iterator_is_hanging_dof = this%fe_space%is_hanging_dof(dof_lid)
 end function fe_cell_iterator_is_hanging_dof
 
 function fe_cell_iterator_compute_volume ( this )
@@ -882,6 +882,15 @@ function fe_cell_iterator_get_cell_integrator ( this, field_id )
   type(cell_integrator_t), pointer :: fe_cell_iterator_get_cell_integrator
   fe_cell_iterator_get_cell_integrator => this%cell_integrators(field_id)%p
 end function fe_cell_iterator_get_cell_integrator
+
+function fe_cell_iterator_get_interpolation_duties ( this, field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)   :: this
+  integer(ip)              , intent(in)   :: field_id
+  type(interpolation_duties_t), pointer :: fe_cell_iterator_get_interpolation_duties
+  fe_cell_iterator_get_interpolation_duties => & 
+    this%cell_integrators(field_id)%p%get_interpolation_duties_real_cell()
+end function fe_cell_iterator_get_interpolation_duties
 
 subroutine fe_cell_iterator_get_fe_vef(this, ivef, fe_vef)
   implicit none
@@ -1416,6 +1425,36 @@ subroutine fe_cell_iterator_evaluate_gradient_fe_function_vector ( this,        
   field_id_=1; if (present(field_id)) field_id_ = field_id
   call this%cell_integrators(field_id_)%p%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
 end subroutine fe_cell_iterator_evaluate_gradient_fe_function_vector
+!=================================================================================================
+subroutine fe_cell_iterator_evaluate_laplacian_fe_function_scalar ( this,                     &
+                                                                    nodal_values,             &
+                                                                    quadrature_points_values, &
+                                                                    field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp)                , intent(in)    :: nodal_values(:)
+  real(rp), allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%evaluate_laplacian_fe_function(nodal_values,quadrature_points_values)
+end subroutine fe_cell_iterator_evaluate_laplacian_fe_function_scalar
+!=================================================================================================
+subroutine fe_cell_iterator_evaluate_laplacian_fe_function_vector ( this,                     &
+                                                                    nodal_values,             &
+                                                                    quadrature_points_values, &
+                                                                    field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp)                , intent(in)    :: nodal_values(:)
+  type(vector_field_t)    , allocatable   , intent(inout) :: quadrature_points_values(:)
+  integer(ip), optional   , intent(in)    :: field_id
+  integer(ip)                             :: field_id_
+  type(cell_integrator_t), pointer :: cell_integrator
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%evaluate_laplacian_fe_function(nodal_values,quadrature_points_values)
+end subroutine fe_cell_iterator_evaluate_laplacian_fe_function_vector
 
 subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
   implicit none

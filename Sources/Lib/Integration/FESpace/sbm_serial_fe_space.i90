@@ -1529,10 +1529,11 @@ subroutine serial_fe_space_compute_max_order_reference_fe_id_x_cell ( this )
   call this%free_fe_cell_iterator(fe) 
 end subroutine serial_fe_space_compute_max_order_reference_fe_id_x_cell 
 
-subroutine serial_fe_space_set_up_cell_integration ( this, interpolation_duties )
+subroutine serial_fe_space_set_up_cell_integration ( this, interpolation_duties, cell_map_duties )
   implicit none
   class(serial_fe_space_t)      , target  , intent(inout) :: this
   type(interpolation_duties_t), optional, intent(in)    :: interpolation_duties(:)
+  type(cell_map_duties_t)     , optional, intent(in)    :: cell_map_duties
   type(fe_cell_iterator_t) :: fe
 
   integer(ip)         :: cell_quadrature_and_map_position
@@ -1550,26 +1551,27 @@ subroutine serial_fe_space_set_up_cell_integration ( this, interpolation_duties 
   type(quadrature_t)     , pointer :: current_quadrature
   type(cell_map_t)       , pointer :: current_cell_map
   type(cell_integrator_t), pointer :: current_cell_integrator
-  type(cell_map_duties_t)          :: cell_map_duties, current_cell_map_duties
+  type(cell_map_duties_t)          :: current_cell_map_duties
   type(interpolation_duties_t)     :: current_interpolation_duties
   logical :: compute_first_derivatives, compute_second_derivatives
 
-  ! Select higher derivatives of all inerpolations to define the mapping
-  if(present(interpolation_duties)) then
-     assert(size(interpolation_duties)== this%get_num_fields())
-     do field_id=1, this%get_num_fields()
-        call current_interpolation_duties%assign_compute_first_derivatives( &
-             & current_interpolation_duties%compute_first_derivatives_is_assigned() .or.  &
-             & interpolation_duties(field_id)%compute_first_derivatives_is_assigned())
-        call current_interpolation_duties%assign_compute_second_derivatives( &
-             & current_interpolation_duties%compute_second_derivatives_is_assigned() .or.  &
-             & interpolation_duties(field_id)%compute_second_derivatives_is_assigned())
-     end do
-  else ! Assign default duties (those we had before duties control)
-     call current_interpolation_duties%assign_compute_first_derivatives(.true.)
-     call current_interpolation_duties%assign_compute_second_derivatives(.false.)
+  if(.not.present(cell_map_duties)) then
+     ! Select higher derivatives of all inerpolations to define the mapping
+     if(present(interpolation_duties)) then
+        assert(size(interpolation_duties)== this%get_num_fields())
+        do field_id=1, this%get_num_fields()
+           call current_interpolation_duties%assign_compute_first_derivatives( &
+                & current_interpolation_duties%compute_first_derivatives_is_assigned() .or.  &
+                & interpolation_duties(field_id)%compute_first_derivatives_is_assigned())
+           call current_interpolation_duties%assign_compute_second_derivatives( &
+                & current_interpolation_duties%compute_second_derivatives_is_assigned() .or.  &
+                & interpolation_duties(field_id)%compute_second_derivatives_is_assigned())
+        end do
+     else ! Assign default duties (those we had before duties control)
+        call current_interpolation_duties%assign_compute_first_derivatives(.true.)
+        call current_interpolation_duties%assign_compute_second_derivatives(.false.)
+     end if
   end if
-  
   call this%compute_max_order_reference_fe_id_x_cell()
   max_order_reference_fe_id_x_cell => this%max_order_reference_fe_id_x_cell%get_pointer()
   
@@ -1599,19 +1601,17 @@ subroutine serial_fe_space_set_up_cell_integration ( this, interpolation_duties 
         call reference_fe%create_quadrature(current_quadrature)
         call this%cell_maps%resize(cell_quadrature_and_map_position)
         current_cell_map => this%cell_maps%get_pointer(cell_quadrature_and_map_position)
-        ! Checck if any field needs jacobian inverse and/or derivative
-        call cell_map_duties%assign_compute_jacobian_inverse(.false.)
-        call cell_map_duties%assign_compute_jacobian_derivative(.false.)
-        do field_id=1, this%get_num_fields()
-           reference_fe => fe%get_reference_fe(field_id)
-           call reference_fe%assign_cell_map_duties(current_interpolation_duties,current_cell_map_duties)
-           call cell_map_duties%assign_compute_jacobian_inverse( &
-             & cell_map_duties%compute_jacobian_inverse_is_assigned() .or.  &
-             & current_cell_map_duties%compute_jacobian_inverse_is_assigned())
-           call cell_map_duties%assign_compute_jacobian_derivative( &
-             & cell_map_duties%compute_jacobian_derivative_is_assigned() .or.  &
-             & current_cell_map_duties%compute_jacobian_derivative_is_assigned())
-        end do
+        if(present(cell_map_duties)) then
+           current_cell_map_duties = cell_map_duties
+        else
+           ! Checck if any field needs jacobian inverse and/or derivative
+           call current_cell_map_duties%assign_compute_jacobian_inverse(.false.)
+           call current_cell_map_duties%assign_compute_jacobian_derivative(.false.)
+           do field_id=1, this%get_num_fields()
+              reference_fe => fe%get_reference_fe(field_id)
+              call reference_fe%assign_cell_map_duties(current_interpolation_duties,current_cell_map_duties)
+           end do
+        end if
         call current_cell_map%create(current_quadrature,fe%get_reference_fe_geo(),cell_map_duties)
         cell_quadrature_and_map_position = cell_quadrature_and_map_position + 1
      end if
@@ -1799,8 +1799,8 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   implicit none
   class(serial_fe_space_t), target, intent(inout) :: this
 
-  class(fe_facet_iterator_t), allocatable :: fe_face
-  class(fe_cell_iterator_t)     , allocatable :: fe
+  type(fe_facet_iterator_t) :: fe_face
+  type(fe_cell_iterator_t)  :: fe
 
   integer(ip) :: facet_quadrature_position
   integer(ip) :: facet_maps_position
@@ -1825,7 +1825,10 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   type(quadrature_t)      , pointer :: current_facet_quadrature
   type(facet_maps_t)      , pointer :: current_facet_maps
   type(facet_integrator_t), pointer :: current_facet_integrator
-
+  
+  class(vef_iterator_t), allocatable :: vef
+  class(triangulation_t), pointer :: triangulation
+  
   call this%compute_facet_permutation_indices()
   call this%compute_max_order_field_cell_to_ref_fes_face()
   max_order_field_cell_to_ref_fes_face => this%max_order_field_cell_to_ref_fes_face%get_pointer()
@@ -1839,8 +1842,13 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   facet_maps_position = 1
   facet_integrator_position = 1
 
-  call this%create_fe_cell_iterator(fe)
-  call this%create_fe_facet_iterator(fe_face)
+  call fe%create(this)
+  
+  ! Creating fe_facet_iterator_t
+  triangulation => this%get_triangulation()
+  call triangulation%create_vef_iterator(vef)
+  call fe_face%create(this,vef)
+  call triangulation%free_vef_iterator(vef)  
   do while ( .not. fe_face%has_finished() ) 
      reference_fes_geo_id(2) = 0
      nullify(reference_fes_geo(2)%p)
@@ -1855,12 +1863,11 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
                                                          reference_fes_geo_id(1), &
                                                          reference_fes_geo_id(2) )
      
-     
      call this%facet_quadratures_position%put(key  = facet_quadratures_position_key, &
                                                 val  = facet_quadrature_position, &
                                                 stat = istat)  
      if (istat == now_stored) then
-        reference_fe=>this%reference_fes( max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) )%p
+        reference_fe=>this%reference_fes( max_order_field_cell_to_ref_fes_face(fe_face%get_gid()) )%p
         call this%facet_quadratures%resize(facet_quadrature_position)
         current_facet_quadrature => this%facet_quadratures%get_pointer(facet_quadrature_position)
         call reference_fe%create_facet_quadrature(current_facet_quadrature,fe_face%get_quadrature_degree())
@@ -1903,8 +1910,8 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
      end do
      call fe_face%next()
   end do
-  call this%free_fe_cell_iterator(fe)
-  call this%free_fe_facet_iterator(fe_face)
+  call fe%free()
+  call fe_face%free()
   
 end subroutine serial_fe_space_set_up_facet_integration
 
@@ -2795,8 +2802,39 @@ function serial_fe_space_get_constraints_independent_term(this)
      serial_fe_space_get_constraints_independent_term => this%constraints_independent_term
 end function serial_fe_space_get_constraints_independent_term
 
-subroutine serial_fe_space_create_fe_cell_iterator ( this, fe )
+function serial_fe_space_is_free_dof ( this, dof_lid )
+  implicit none
+  class(serial_fe_space_t)   , intent(in) :: this
+  integer(ip)            , intent(in) :: dof_lid
+  logical :: serial_fe_space_is_free_dof
+  serial_fe_space_is_free_dof = dof_lid > 0
+end function serial_fe_space_is_free_dof
 
+function serial_fe_space_is_strong_dirichlet_dof ( this, dof_lid )
+  implicit none
+  class(serial_fe_space_t)   , intent(in) :: this
+  integer(ip)            , intent(in) :: dof_lid
+  logical :: serial_fe_space_is_strong_dirichlet_dof
+  serial_fe_space_is_strong_dirichlet_dof = (dof_lid < 0 .and. dof_lid >= -this%num_dirichlet_dofs )
+end function serial_fe_space_is_strong_dirichlet_dof
+
+function serial_fe_space_is_fixed_dof ( this, dof_lid )
+  implicit none
+  class(serial_fe_space_t)   , intent(in) :: this
+  integer(ip)            , intent(in) :: dof_lid
+  logical :: serial_fe_space_is_fixed_dof
+  serial_fe_space_is_fixed_dof = dof_lid < 0
+end function serial_fe_space_is_fixed_dof
+
+function serial_fe_space_is_hanging_dof ( this, dof_lid )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip)              , intent(in) :: dof_lid
+  logical :: serial_fe_space_is_hanging_dof
+  serial_fe_space_is_hanging_dof = dof_lid < -this%num_dirichlet_dofs
+end function serial_fe_space_is_hanging_dof
+
+subroutine serial_fe_space_create_fe_cell_iterator ( this, fe )
   implicit none
   class(serial_fe_space_t)         , intent(in)  :: this
   class(fe_cell_iterator_t), allocatable, intent(inout) :: fe
@@ -2982,10 +3020,6 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   call this%constraining_dirichlet_dofs_coefficients%resize(0)
   call this%constraints_independent_term%resize(0)
 
-  if ( this%num_hanging_dofs == 0 ) return
-
-  field_blocks => this%get_field_blocks()
-
   call this%ptr_constraining_free_dofs%resize(this%num_hanging_dofs+1,0)
   call this%ptr_constraining_dirichlet_dofs%resize(this%num_hanging_dofs+1,0)
   call this%constraining_free_dofs%resize(this%num_hanging_dofs)
@@ -2994,6 +3028,9 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   call this%constraining_dirichlet_dofs_coefficients%resize(this%num_hanging_dofs)
   call this%constraints_independent_term%resize(this%num_hanging_dofs)
 
+  if ( this%num_hanging_dofs == 0 ) return
+    
+  field_blocks => this%get_field_blocks()
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_cell_iterator(coarser_fe)
   call this%create_fe_vef_iterator(fe_vef)
@@ -3421,8 +3458,8 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   new_cell_lid = 1
   do while ( old_cell_lid .le. old_num_cells )
     transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
-    call new_fe%set_gid(new_cell_lid)
     do field_id = 1,this%get_num_fields()
+      call new_fe%set_gid(new_cell_lid)
       current_old_cell_lid = old_cell_lid
       current_new_cell_lid = new_cell_lid
       reference_fe => new_fe%get_reference_fe(field_id) ! Only h-adaptivity
@@ -3587,8 +3624,8 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
     new_cell_lid = 1
     do while ( old_cell_lid .le. old_num_cells )
       transformation_flag = refinement_and_coarsening_flags%get(old_cell_lid)
-      call new_fe%set_gid(new_cell_lid)
       do field_id = 1,this%get_num_fields()
+        call new_fe%set_gid(new_cell_lid)
         current_old_cell_lid = old_cell_lid
         current_new_cell_lid = new_cell_lid
         reference_fe => new_fe%get_reference_fe(field_id) ! Only h-adaptivity
