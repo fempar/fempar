@@ -324,10 +324,15 @@ module p4est_triangulation_names
   
   type, extends(cell_iterator_t) :: p4est_cell_iterator_t
     private
+    integer(ip) :: num_dims = 0
+    integer(ip) :: base_pos_in_lst_vefs_gids = 0
     type(p4est_base_triangulation_t), pointer :: p4est_triangulation => NULL()
   contains
     procedure                            :: create                  => p4est_cell_iterator_create
     procedure                            :: free                    => p4est_cell_iterator_free
+    procedure                            :: first                   => p4est_cell_iterator_first
+    procedure                            :: next                    => p4est_cell_iterator_next
+    procedure                            :: set_gid                 => p4est_cell_iterator_set_gid
     procedure                            :: get_reference_fe        => p4est_cell_iterator_get_reference_fe
     procedure                            :: get_reference_fe_id     => p4est_cell_iterator_get_reference_fe_id
     procedure                            :: get_set_id              => p4est_cell_iterator_get_set_id
@@ -412,9 +417,6 @@ module p4est_triangulation_names
   integer(ip), parameter :: cell_ggid_shift    = 54
   integer(ip), parameter :: vefs_x_cell_shift  = 10 
 
- 
-  ! TODO: this data type should extend an abstract triangulation,
-  !       and implement its corresponding accessors
   type, extends(triangulation_t) ::  p4est_base_triangulation_t
     private
     integer(ip) :: num_proper_vefs          = -1 

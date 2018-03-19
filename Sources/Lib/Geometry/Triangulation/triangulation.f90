@@ -1063,6 +1063,9 @@ module triangulation_names
   public :: itfc_vef_iterator_t, object_iterator_t
   public :: cell_iterator_create
   public :: cell_iterator_free
+  public :: cell_iterator_next
+  public :: cell_iterator_first
+  public :: cell_iterator_set_gid
   public :: vef_iterator_create
   public :: vef_iterator_free
   
