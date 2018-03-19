@@ -474,7 +474,7 @@ module p4est_triangulation_names
     type(std_vector_logical_t)             :: improper_vefs_is_ghost
     type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
     type(std_vector_integer_ip_t)          :: cell_set_ids
-    type(std_vector_integer_ip_t)          :: disconnected_cell_set_ids
+    type(std_vector_integer_ip_t)          :: disconnected_cells_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: cell_myparts
@@ -575,7 +575,7 @@ module p4est_triangulation_names
     procedure, private                          :: p4est_par_triangulation_create
     generic                                     :: create                                           => p4est_par_triangulation_create
     procedure                                   :: free                                             => p4est_par_triangulation_free 
-    procedure                                   :: clear_disconnected_cell_set_ids                  => p4est_par_triangulation_clear_disconnected_cell_set_ids
+    procedure                                   :: clear_disconnected_cells_set_ids                 => p4est_par_triangulation_clear_disconnected_cells_set_ids
     procedure                                   :: redistribute                                     => p4est_par_triangulation_redistribute
     procedure                                   :: update_migration_control_data                    => p4est_par_triangulation_update_migration_control_data
     procedure                                   :: migrate_cell_set_ids                             => p4est_par_triangulation_migrate_cell_set_ids

@@ -1687,8 +1687,8 @@ end function p4est_bt_compute_max_cells_set_id
 subroutine p4est_bt_resize_disconnected_cells_set (this)
   implicit none
   class(p4est_base_triangulation_t), intent(inout)   :: this
-   call this%disconnected_cell_set_ids%resize(0)
-   call this%disconnected_cell_set_ids%resize(this%get_num_cells(),0)
+   call this%disconnected_cells_set_ids%resize(0)
+   call this%disconnected_cells_set_ids%resize(this%get_num_cells(),0)
 end subroutine p4est_bt_resize_disconnected_cells_set
 
 subroutine p4est_bt_fill_disconnected_cells_set (this, disconnected_cells_set)
@@ -1703,11 +1703,11 @@ subroutine p4est_bt_fill_disconnected_cells_set (this, disconnected_cells_set)
   environment => this%get_environment()
   cell_import => this%get_cell_import() 
   if (environment%am_i_l1_task()) then
-    assert ( size(disconnected_cells_set) <= this%disconnected_cell_set_ids%size())
+    assert ( size(disconnected_cells_set) <= this%disconnected_cells_set_ids%size())
     do i=1, this%get_num_local_cells()
-    call this%disconnected_cell_set_ids%set(i, disconnected_cells_set(i) ) 
+    call this%disconnected_cells_set_ids%set(i, disconnected_cells_set(i) ) 
     end do 
-    p_cell_set_ids => this%disconnected_cell_set_ids%get_pointer() 
+    p_cell_set_ids => this%disconnected_cells_set_ids%get_pointer() 
     if(environment%get_l1_size()>1) &
     call environment%l1_neighbours_exchange (cell_import%get_num_neighbours(),    &
                                              cell_import%get_neighbours_ids(),    &
