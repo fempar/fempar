@@ -91,6 +91,7 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
   ! coarse-grid tasks also associate this (superclass') member variable to a 
   ! target
   this%triangulation     => triangulation
+  this%environment       => triangulation%get_environment()
   environment    => this%get_environment()
   if ( environment%am_i_l1_task() ) then
      call this%serial_fe_space_t%create( triangulation, &
@@ -99,11 +100,6 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
                                          field_blocks, &
                                          field_coupling, &
                                          .false. )
-!     do field_id=1, this%get_num_fields()
-!       call this%set_up_strong_dirichlet_bcs_ghost_fes(field_id)
-!     end do  
- 
-     call this%compute_faces_object()
   else
      ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
      ! tasks also know how many fields there are
@@ -133,8 +129,8 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
                                                                 set_ids_to_reference_fes, &
                                                                 coarse_fe_handlers,       &
                                                                 conditions,               &
-														                                                  field_blocks,             &
-														                                                  field_coupling, &
+                                                                field_blocks,             &
+                                                                field_coupling, &
                                                                 generate_global_dof_numbering )  
   implicit none
   class(par_fe_space_t)                     , intent(inout)  :: this
@@ -156,13 +152,13 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
   ! coarse-grid tasks also associate this (superclass') member variable to a
   ! target
   this%triangulation     => triangulation
+  this%environment       => triangulation%get_environment()
   environment    => this%get_environment()
   if ( environment%am_i_l1_task() ) then
      call this%serial_fe_space_t%create( triangulation,            &
                                          reference_fes,            &
                                          set_ids_to_reference_fes, &
                                          conditions )
-     call this%compute_faces_object()
   else
      ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
      ! tasks also know how many fields there are
@@ -195,7 +191,6 @@ subroutine par_fe_space_free( this )
   if ( associated (this%triangulation) ) then
      environment => this%get_environment()
      if ( environment%am_i_l1_task() ) then
-        call this%serial_fe_space_t%free()
         call this%max_part_id_vefs%free()
         call this%my_part_id_vefs%free()
         call this%rcv_my_part_id_vefs%free()
@@ -221,9 +216,8 @@ subroutine par_fe_space_free( this )
         call this%old_fe_function_nodal_values%free()
         call this%new_fe_function_nodal_values%free()
         call this%free_blocks_dof_import()
-        call this%free_faces_object()
-        call this%free_coarse_dofs()
-        nullify(this%coarse_fe_space)
+        call this%free_coarse_fe_space_l1_data()
+        call this%serial_fe_space_t%free()
      else
         ! This is a little bit DIRTY. mlbddc%create() requires that the number of
         ! fields is also set on coarse-grid tasks
@@ -237,12 +231,7 @@ subroutine par_fe_space_free( this )
         ! other data types to be created on all processes
         call this%block_layout%free()
         
-        if ( associated(this%coarse_fe_space) ) then
-          call this%coarse_fe_space%free()
-          deallocate (this%coarse_fe_space, stat=istat)
-          check (istat==0)
-        end if
-        nullify(this%coarse_fe_space)
+        call this%free_coarse_fe_space_lgt1_data()
         
         if ( allocated( this%blocks_dof_import ) ) then
           deallocate(this%blocks_dof_import, stat=istat)
@@ -250,10 +239,43 @@ subroutine par_fe_space_free( this )
         end if
      end if
      nullify(this%triangulation)
+     nullify(this%environment)
+     nullify(this%parameter_list)
      call this%free_coarse_fe_handlers()
   end if
-
 end subroutine par_fe_space_free
+
+subroutine par_fe_space_free_coarse_fe_space_l1_data(this)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  type(environment_t), pointer :: environment
+  if ( associated (this%triangulation) ) then
+     environment => this%get_environment()
+     if ( environment%am_i_l1_task() ) then
+        call this%free_faces_object()
+        call this%free_coarse_dofs()
+        nullify(this%coarse_fe_space)
+     end if
+  end if
+end subroutine par_fe_space_free_coarse_fe_space_l1_data
+
+recursive subroutine par_fe_space_free_coarse_fe_space_lgt1_data(this)
+  implicit none
+  class(par_fe_space_t), intent(inout) :: this
+  type(environment_t), pointer :: environment
+  integer(ip) :: istat
+  if ( associated (this%triangulation) ) then
+     environment => this%get_environment()
+     if ( environment%am_i_lgt1_task() ) then
+        if ( associated(this%coarse_fe_space) ) then
+          call this%coarse_fe_space%free()
+          deallocate (this%coarse_fe_space, stat=istat)
+          check (istat==0)
+        end if
+        nullify(this%coarse_fe_space)
+     end if
+  end if
+end subroutine par_fe_space_free_coarse_fe_space_lgt1_data
 
 subroutine par_fe_space_compute_faces_object(this)
   implicit none
@@ -3563,11 +3585,11 @@ end subroutine par_fe_space_create_dof_values
 subroutine par_fe_space_interpolate_scalar_function(this, field_id, function, fe_function, interpolator_type, time )
   implicit none
   class(par_fe_space_t)          , intent(in)    :: this
-		integer(ip)                    , intent(in)    :: field_id
-		class(scalar_function_t)       , intent(in)    :: function
-		type(fe_function_t)            , intent(inout) :: fe_function
-		character(*)         , optional, intent(in)    :: interpolator_type
-		real(rp)             , optional, intent(in)    :: time
+  integer(ip)                    , intent(in)    :: field_id
+  class(scalar_function_t)       , intent(in)    :: function
+  type(fe_function_t)            , intent(inout) :: fe_function
+  character(*)         , optional, intent(in)    :: interpolator_type
+  real(rp)             , optional, intent(in)    :: time
   type(environment_t), pointer :: environment
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3578,11 +3600,11 @@ end subroutine par_fe_space_interpolate_scalar_function
 subroutine par_fe_space_interpolate_vector_function(this, field_id, function, fe_function, interpolator_type, time )
   implicit none
   class(par_fe_space_t)          , intent(in)    :: this
-		integer(ip)                    , intent(in)    :: field_id
-		class(vector_function_t)       , intent(in)    :: function  
-		type(fe_function_t)            , intent(inout) :: fe_function
-		character(*)         , optional, intent(in)    :: interpolator_type
-		real(rp)             , optional, intent(in)    :: time
+  integer(ip)                    , intent(in)    :: field_id
+  class(vector_function_t)       , intent(in)    :: function  
+  type(fe_function_t)            , intent(inout) :: fe_function
+  character(*)         , optional, intent(in)    :: interpolator_type
+  real(rp)             , optional, intent(in)    :: time
   type(environment_t), pointer :: environment
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3594,8 +3616,8 @@ subroutine par_fe_space_interpolate_dirichlet_values (this, fe_function, interpo
   implicit none
   class(par_fe_space_t)          , intent(in)    :: this
   type(fe_function_t)            , intent(inout) :: fe_function
-		character(*)         , optional, intent(in)    :: interpolator_type(:)
-		real(rp)             , optional, intent(in)    :: time
+  character(*)         , optional, intent(in)    :: interpolator_type(:)
+  real(rp)             , optional, intent(in)    :: time
   type(environment_t), pointer :: environment
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
@@ -3965,8 +3987,8 @@ end subroutine par_fe_space_free_coarse_dofs
    
 subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
   implicit none
-  class(par_fe_space_t), intent(inout)  :: this
-  type(parameterlist_t) , intent(in)    :: parameter_list
+  class(par_fe_space_t)        , intent(inout)  :: this
+  type(parameterlist_t), target, intent(in)     :: parameter_list
   integer(ip)                           :: istat
   integer(ip)                           :: num_fields
   integer(ip), allocatable              :: fe_space_type_x_field(:)
@@ -3978,12 +4000,18 @@ subroutine par_fe_space_setup_coarse_fe_space(this, parameter_list)
   type(environment_t), pointer      :: environment
   class(triangulation_t), pointer    :: triangulation
   type(coarse_triangulation_t), pointer :: coarse_triangulation
-  
-  
-  environment => this%get_environment()
-  
+ 
+  environment    => this%get_environment()
+  triangulation  => this%get_triangulation()
+  assert ( triangulation%coarse_triangulation_is_set_up() )
+  this%parameter_list => parameter_list 
+ 
+  call this%free_coarse_fe_space_l1_data()
+  call this%free_coarse_fe_space_lgt1_data()
+ 
   if ( environment%am_i_l1_task() ) then
     call this%setup_coarse_dofs(parameter_list)
+    call this%compute_faces_object()
   end if  
   
    ! All MPI tasks (even if they are not involved in the L2 from L1 gather) should also allocate the
@@ -4274,10 +4302,10 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
   
  function par_fe_space_get_coarse_fe_handler ( this, field_id ) 
     implicit none
-	   class(par_fe_space_t), target, intent(in) :: this
-	   integer(ip)                  , intent(in) :: field_id
-	   class(l1_coarse_fe_handler_t), pointer :: par_fe_space_get_coarse_fe_handler
-	   par_fe_space_get_coarse_fe_handler => this%coarse_fe_handlers(field_id)%p
+    class(par_fe_space_t), target, intent(in) :: this
+    integer(ip)                  , intent(in) :: field_id
+    class(l1_coarse_fe_handler_t), pointer :: par_fe_space_get_coarse_fe_handler
+    par_fe_space_get_coarse_fe_handler => this%coarse_fe_handlers(field_id)%p
   end function par_fe_space_get_coarse_fe_handler
   
   subroutine par_fe_space_refine_and_coarsen_single_fe_function( this, fe_function )
@@ -4462,6 +4490,10 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
         call old_lst_dofs_gids%free()  
      end if
   end if
+  ! Re-set up coarse_fe_space()
+  if ( triangulation%coarse_triangulation_is_set_up() ) then
+    call this%setup_coarse_fe_space(this%parameter_list)
+  end if
 
 contains
   
@@ -4524,7 +4556,6 @@ subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old
      call this%allocate_and_init_has_fixed_dofs()
      call this%allocate_and_init_has_hanging_dofs_x_fe()
      call this%set_up_strong_dirichlet_bcs()
-     call this%compute_faces_object()
 
      ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
      call this%generate_global_dof_numbering()
@@ -4617,7 +4648,6 @@ subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_l
      call this%allocate_and_init_has_fixed_dofs()
      call this%allocate_and_init_has_hanging_dofs_x_fe()
      call this%set_up_strong_dirichlet_bcs()
-     call this%compute_faces_object()
 
      ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
      call this%generate_global_dof_numbering()
@@ -4799,6 +4829,11 @@ subroutine par_fe_space_redistribute( this, fe_function )
       call this%free_fe_cell_iterator(fe)
      end if 
   end if
+  ! Re-set up coarse_fe_space()
+  if ( triangulation%coarse_triangulation_is_set_up() ) then
+    call this%setup_coarse_fe_space(this%parameter_list)
+  end if
+
  contains 
 
   function get_field_fe_dofs()

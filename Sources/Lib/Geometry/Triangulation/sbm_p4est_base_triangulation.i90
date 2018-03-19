@@ -124,10 +124,13 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
     call this%set_up_lst_itfc_vefs() 
    end if 
+   ! Re-set up coarse_triangulation()
+   if ( this%coarse_triangulation_is_set_up() ) then
+     call this%setup_coarse_triangulation()
+   end if  
 #else
   call this%not_enabled_error()
 #endif  
-  
 end subroutine p4est_base_triangulation_refine_and_coarsen
 
 function p4est_base_triangulation_get_ptr_vefs_x_cell(this, icell)
@@ -1131,6 +1134,10 @@ subroutine p4est_bt_update_cell_set_ids(this)
   integer(ip) :: old_cell_set_id
   integer(ip) :: transformation_flag
   integer(ip) :: i, j
+  integer(ip)         , pointer :: p_cell_set_ids(:)
+  class(environment_t), pointer :: environment
+  type(cell_import_t) , pointer :: cell_import 
+  
   
 #ifdef ENABLE_P4EST
   call old_cell_set_ids%copy(this%cell_set_ids)
@@ -1166,6 +1173,23 @@ subroutine p4est_bt_update_cell_set_ids(this)
   end do
   call old_cell_set_ids%free()
   call this%cell_set_ids%resize(this%cell_set_ids%size()+this%get_num_ghost_cells(),0)
+  
+  environment => this%get_environment()
+  cell_import => this%get_cell_import() 
+  if (environment%am_i_l1_task()) then
+    p_cell_set_ids => this%cell_set_ids%get_pointer() 
+    if(environment%get_l1_size()>1) &
+    call environment%l1_neighbours_exchange (cell_import%get_num_neighbours(),    &
+                                             cell_import%get_neighbours_ids(),    &
+                                             cell_import%get_rcv_ptrs(),          &
+                                             cell_import%get_rcv_leids(),         &
+                                             cell_import%get_num_neighbours(),    &
+                                             cell_import%get_neighbours_ids(),    &
+                                             cell_import%get_snd_ptrs(),          &
+                                             cell_import%get_snd_leids(),         &
+                                             p_cell_set_ids,                      & 
+                                             p_cell_set_ids)
+  end if
 #else
   call this%not_enabled_error()
 #endif        
@@ -1616,19 +1640,90 @@ subroutine p4est_bt_fill_cells_set (this, cells_set)
   class(p4est_base_triangulation_t), intent(inout) :: this
   integer(ip)                        , intent(in)    :: cells_set(:)
   integer(ip)  :: i 
+  integer(ip), pointer :: p_cell_set_ids(:)
   class(environment_t), pointer :: environment
+  type(cell_import_t), pointer  :: cell_import 
 #ifdef ENABLE_P4EST
   environment => this%get_environment()
+  cell_import => this%get_cell_import() 
   if (environment%am_i_l1_task()) then
-    assert ( size(cells_set) == this%cell_set_ids%size() )
-    do i=1, size(cells_set)
-      call this%cell_set_ids%set(i,cells_set(i))
-    end do
+    assert ( size(cells_set) == this%cell_set_ids%size())
+    do i=1, this%get_num_local_cells()
+    call this%cell_set_ids%set(i, cells_set(i) ) 
+    end do 
+    p_cell_set_ids => this%cell_set_ids%get_pointer() 
+    if(environment%get_l1_size()>1) &
+    call environment%l1_neighbours_exchange (cell_import%get_num_neighbours(),    &
+                                             cell_import%get_neighbours_ids(),    &
+                                             cell_import%get_rcv_ptrs(),          &
+                                             cell_import%get_rcv_leids(),         &
+                                             cell_import%get_num_neighbours(),    &
+                                             cell_import%get_neighbours_ids(),    &
+                                             cell_import%get_snd_ptrs(),          &
+                                             cell_import%get_snd_leids(),         &
+                                             p_cell_set_ids,                      & 
+                                             p_cell_set_ids)
   end if
 #else
   call this%not_enabled_error()
 #endif        
 end subroutine p4est_bt_fill_cells_set 
+
+function p4est_bt_compute_max_cells_set_id (this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)   :: this
+  integer(ip)                                        :: p4est_bt_compute_max_cells_set_id
+  integer(ip)         , pointer :: p_cell_set_ids(:)
+  class(environment_t), pointer :: environment 
+  
+  p_cell_set_ids => this%cell_set_ids%get_pointer()
+  p4est_bt_compute_max_cells_set_id = maxval(p_cell_set_ids)
+  
+  environment => this%get_environment()
+  call environment%l1_max(p4est_bt_compute_max_cells_set_id) 
+      
+end function p4est_bt_compute_max_cells_set_id 
+
+subroutine p4est_bt_resize_disconnected_cells_set (this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)   :: this
+   call this%disconnected_cells_set_ids%resize(0)
+   call this%disconnected_cells_set_ids%resize(this%get_num_cells(),0)
+end subroutine p4est_bt_resize_disconnected_cells_set
+
+subroutine p4est_bt_fill_disconnected_cells_set (this, disconnected_cells_set)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)   :: this
+  integer(ip)                        , intent(in)    :: disconnected_cells_set(:)
+  integer(ip)  :: i 
+  integer(ip), pointer :: p_cell_set_ids(:)
+  class(environment_t), pointer :: environment
+  type(cell_import_t), pointer  :: cell_import 
+#ifdef ENABLE_P4EST
+  environment => this%get_environment()
+  cell_import => this%get_cell_import() 
+  if (environment%am_i_l1_task()) then
+    assert ( size(disconnected_cells_set) <= this%disconnected_cells_set_ids%size())
+    do i=1, this%get_num_local_cells()
+    call this%disconnected_cells_set_ids%set(i, disconnected_cells_set(i) ) 
+    end do 
+    p_cell_set_ids => this%disconnected_cells_set_ids%get_pointer() 
+    if(environment%get_l1_size()>1) &
+    call environment%l1_neighbours_exchange (cell_import%get_num_neighbours(),    &
+                                             cell_import%get_neighbours_ids(),    &
+                                             cell_import%get_rcv_ptrs(),          &
+                                             cell_import%get_rcv_leids(),         &
+                                             cell_import%get_num_neighbours(),    &
+                                             cell_import%get_neighbours_ids(),    &
+                                             cell_import%get_snd_ptrs(),          &
+                                             cell_import%get_snd_leids(),         &
+                                             p_cell_set_ids,                      & 
+                                             p_cell_set_ids)
+  end if
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_bt_fill_disconnected_cells_set
 
 subroutine p4est_base_triangulation_update_p4est_mesh(this)
   implicit none

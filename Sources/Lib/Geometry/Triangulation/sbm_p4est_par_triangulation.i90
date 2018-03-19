@@ -37,6 +37,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
   class(execution_context_t), pointer :: context
   type(mpi_context_t)       , pointer :: mpi_context
   integer(ip) :: num_dims
+  character(len=:), allocatable :: subparts_coupling_criteria 
   
 #ifdef ENABLE_P4EST
   call this%free()
@@ -52,12 +53,20 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
      call p_environment%create(parameters)
   end if
 
+  if( parameters%isPresent(subparts_coupling_criteria_key) ) then
+     massert(parameters%isAssignable(subparts_coupling_criteria_key, subparts_coupling_criteria), 'Subparts coupling criteria not found or un-usable')
+     istat = parameters%GetAsString(key = subparts_coupling_criteria_key, string = subparts_coupling_criteria); assert(istat==0) 
+     call this%set_subparts_coupling_criteria( subparts_coupling_criteria ) 
+  else 
+     call this%set_subparts_coupling_criteria(loose_coupling) 
+  end if
+     
   if ( p_environment%am_i_l1_task() ) then  
      ! Get num_dims from FPL
      massert(parameters%isAssignable(num_dims_key, num_dims), 'num_dims not found or un-usable')
      istat = parameters%get(key = num_dims_key, value = num_dims); assert(istat==0)
      call this%set_num_dims(num_dims)
-
+    
      call this%reference_fe_geo%create( topology_hex, &
                                         this%get_num_dims(), &
                                         1, &
@@ -90,6 +99,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call old_lst_vefs_gids%free()
         call this%clear_refinement_and_coarsening_flags()
         call this%clear_cell_set_ids()
+        call this%clear_disconnected_cells_set_ids() 
         call this%set_up_lst_itfc_vefs()
         !call this%update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%update_local_proper_vefs_actually_on_the_interface()
@@ -115,6 +125,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call old_lst_vefs_gids%free()
         call this%clear_refinement_and_coarsening_flags()
         call this%clear_cell_set_ids()
+        call this%clear_disconnected_cells_set_ids()
         call this%set_up_lst_itfc_vefs()
         !call this%update_lst_vef_gids_and_cells_around_ghost_cells()
         call this%clear_vef_set_ids()
@@ -156,6 +167,7 @@ subroutine p4est_par_triangulation_free ( this)
         this%p4est              = c_null_ptr
         this%p4est_mesh         = c_null_ptr
         this%QHE                = c_null_ptr
+        this%p4est_ghost        = c_null_ptr
         
         call this%per_cell_vertex_coordinates%free()
         call this%lst_vefs_gids%free()
@@ -178,6 +190,7 @@ subroutine p4est_par_triangulation_free ( this)
         call this%improper_vefs_is_ghost%free()
         call this%refinement_and_coarsening_flags%free()
         call this%cell_set_ids%free()
+        call this%disconnected_cells_set_ids%free() 
         call this%proper_vefs_set_ids%free()
         call this%improper_vefs_set_ids%free()
         call this%new_vef_set_ids%free()
@@ -273,6 +286,22 @@ subroutine p4est_par_triangulation_free ( this)
 #endif
 end subroutine p4est_par_triangulation_free
 
+subroutine p4est_par_triangulation_clear_disconnected_cells_set_ids(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(inout) :: this
+  integer(ip) :: istat
+  class(environment_t), pointer :: environment
+#ifdef ENABLE_P4EST
+  environment => this%get_environment()
+  if (environment%am_i_l1_task()) then
+    call this%disconnected_cells_set_ids%resize(0)
+    call this%disconnected_cells_set_ids%resize(this%get_num_cells(), 0)
+  end if  
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_par_triangulation_clear_disconnected_cells_set_ids
+
 subroutine p4est_par_triangulation_redistribute ( this )
   implicit none
   class(p4est_par_triangulation_t), intent(inout) :: this
@@ -318,6 +347,12 @@ subroutine p4est_par_triangulation_redistribute ( this )
       call F90_p8est_destroy(p4est_old)
     end if
   end if
+  
+  ! Re-set up coarse_triangulation()
+  if ( this%coarse_triangulation_is_set_up() ) then
+    call this%setup_coarse_triangulation()
+  end if 
+  
 #else
   call this%not_enabled_error()
 #endif

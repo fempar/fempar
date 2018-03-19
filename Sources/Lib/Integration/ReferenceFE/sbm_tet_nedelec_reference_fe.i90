@@ -362,7 +362,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
   do q_point=1, quadrature%get_num_quadrature_points()
      call tet_polynomial_prebase_2%evaluate_values( q_point, values )
      do ipoly=1, Sk_basis_dim 
-        do idime=1, interpolation%num_dims	
+        do idime=1, interpolation%num_dims 
            offcomponent = (idime-1)*tet_polynomial_prebase_2%get_num_polynomials()
            do ivalu=1, tet_polynomial_prebase_2%get_num_polynomials()
               interpolation%shape_functions(idime,c+ipoly,q_point) =  &	
@@ -419,7 +419,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this
 
   do idime = 0,this%num_dims-1
      if ( (this%polytope%n_face_dir_is_fixed( n_face_index, idime )==1) .and. (this%polytope%n_face_dir_coordinate( n_face_index, idime )==0) ) then
-        aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(1,:)	 
+        aux_quadrature%coordinates(idime+1,:) = local_quadrature%coordinates(1,:)  
      elseif  ( (this%polytope%n_face_dir_is_fixed( n_face_index, idime )==0) .and. (this%polytope%n_face_dir_coordinate( n_face_index, idime )==1) ) then 
         do qpoin = 1, local_quadrature%num_quadrature_points
            aux_quadrature%coordinates(idime+1, qpoin) = 1.0_rp - local_quadrature%coordinates(1,qpoin)
@@ -575,8 +575,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
   type(allocatable_array_ip2_t), allocatable :: own_node_permutations(:)
   integer(ip) :: icomp, orient, offcomponent 
-		
-		type(point_t), pointer              :: quad_points_coordinates(:)
+  
+  type(point_t), pointer              :: quad_points_coordinates(:)
 
   assert ( .not. this%basis_changed )
   assert ( this%conformity .and. this%continuity )
@@ -696,7 +696,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
 
         ! Integrate face boundary moments int_Face(u^n q), q \in P_{k-2,k-2} P_{k-2,k-2}
         do qpoint = 1, facet_quadrature%num_quadrature_points
-           factor = facet_map%get_det_jacobian(qpoint) * facet_quadrature%get_weight(qpoint)		   
+           factor = facet_map%get_det_jacobian(qpoint) * facet_quadrature%get_weight(qpoint)     
            facet_area = 0.5_rp*facet_map%get_det_jacobian(qpoint) 
            ! Each scalar test function is endowed with vector field type  
            ! through v_scalar_shape_test * tangent vectors to the face 
@@ -706,7 +706,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
               do ishape=1, interpolation_2D%num_shape_functions
                  call fe_2D%get_value(interpolation_2D, ishape, qpoint, v_scalar_shape_test)   
                  do jshape=1, facet_interpolation%num_shape_functions
-                    call this%get_value(facet_interpolation, jshape, qpoint, v_shape_trial)   	
+                    call this%get_value(facet_interpolation, jshape, qpoint, v_shape_trial)    
                     this%change_basis_matrix(d+ishape+c,jshape) = this%change_basis_matrix(d+ishape+c,jshape) &
                          + 1/facet_area * v_shape_trial * v_scalar_shape_test * tangent * factor
                  end do
@@ -747,8 +747,8 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      end do
      call cell_map%update(cell_quadrature)
 
-					quad_points_coordinates => cell_map%get_quadrature_points_coordinates() 
-					
+     quad_points_coordinates => cell_map%get_quadrature_points_coordinates() 
+     
      ! Integration of interior moments 
      ! 2D CASE: int_K (u·q), q \in P_{k-2,k-2} x P_{k-2,k-2} 
      ! 3D CASE: int_K (u·q), q \in P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3} x P_{k-3,k-3,k-3}     
