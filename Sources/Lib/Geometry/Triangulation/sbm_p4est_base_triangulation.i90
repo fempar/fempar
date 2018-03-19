@@ -44,10 +44,10 @@ function p4est_base_triangulation_get_max_num_shape_functions(this) result (num)
   implicit none
   class(p4est_base_triangulation_t), intent(in) :: this
   integer(ip) :: num
-  class(cell_iterator_t), allocatable :: cell
-  call this%create_cell_iterator(cell)
+  type(p4est_cell_iterator_t) :: cell
+  call cell%create(this)
   num = cell%get_num_nodes()
-  call this%free_cell_iterator(cell)
+  call cell%free()
 end function p4est_base_triangulation_get_max_num_shape_functions
 
 function p4est_base_triangulation_get_num_proper_vefs(this)
@@ -1151,8 +1151,8 @@ subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
   integer(ip) :: num_corners
   integer(ip) :: ivef, iface, j, iedge
   integer(ip) :: old_vef_gid, old_vef_set_id
-  class(cell_iterator_t), allocatable :: cell
-  class(vef_iterator_t) , allocatable :: vef
+  type(p4est_cell_iterator_t) :: cell
+  type(p4est_vef_iterator_t) :: vef
   !type(std_vector_integer_ip_t) :: old_vef_set_ids
   
   type(list_t), pointer :: vertices_n_face
@@ -1185,8 +1185,8 @@ subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
   
   call this%clear_vef_set_ids()
   
-  call this%create_cell_iterator(cell)
-  call this%create_vef_iterator(vef)
+  call cell%create(this)
+  call vef%create(this)
   
   old_num_cells = this%previous_num_local_cells 
  
@@ -1345,8 +1345,8 @@ subroutine p4est_bt_update_vef_set_ids(this, old_lst_vefs_gids)
     end do
   end if 
 
-  call this%free_cell_iterator(cell)
-  call this%free_vef_iterator(vef)
+  call cell%free()
+  call vef%free()
   call old_vef_set_ids%free()
 #else
   call this%not_enabled_error()
