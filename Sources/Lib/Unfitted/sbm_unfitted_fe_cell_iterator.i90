@@ -42,8 +42,6 @@ subroutine unfitted_fe_cell_iterator_create( this, fe_space )
       unfitted_integration_manager => fe_space%unfitted_integration
     class is (par_unfitted_fe_space_t)
       unfitted_integration_manager => fe_space%unfitted_integration  
-    class is ( serial_unfitted_hp_adaptive_fe_space_t)
-      unfitted_integration_manager => fe_space%unfitted_integration  
     class default
       check(.false.)
   end select

@@ -69,7 +69,7 @@ module test_unfitted_h_adaptive_poisson_driver_names
      class(level_set_function_t), allocatable :: level_set_function
 
      ! Discrete weak problem integration-related data type instances 
-     type(serial_unfitted_hp_adaptive_fe_space_t) :: fe_space 
+     type(serial_unfitted_fe_space_t)             :: fe_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      
      type(poisson_unfitted_cG_discrete_integration_t) :: poisson_cG_integration

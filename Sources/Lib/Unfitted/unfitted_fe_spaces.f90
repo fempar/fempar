@@ -184,79 +184,55 @@ module unfitted_fe_spaces_names
 
   type, extends(serial_fe_space_t) :: serial_unfitted_fe_space_t
     private
-
-      class(serial_unfitted_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
-      type(unfitted_integration_manager_t) :: unfitted_integration
-
-    contains
-
-      ! Creation / deletion methods
-      procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => sufs_create_same_reference_fes_on_all_cells
-      procedure           :: serial_fe_space_create_different_ref_fes_between_cells         => sufs_space_create_different_ref_fes_between_cells
-      procedure           :: free  => sufs_free
-
-      ! Creation of the iterator
-      procedure :: create_fe_cell_iterator           => sufs_create_fe_cell_iterator
-      procedure :: create_fe_facet_iterator          => sufs_create_fe_facet_iterator
-
-      ! Setup integration structures (overrides)
-      procedure    :: set_up_cell_integration   => sufs_set_up_cell_integration
-      procedure    :: set_up_facet_integration  => sufs_set_up_facet_integration
-
-  end type serial_unfitted_fe_space_t
-
-  type, extends(serial_fe_space_t) :: serial_unfitted_hp_adaptive_fe_space_t
-    private
-      class(unfitted_p4est_serial_triangulation_t), pointer :: unfitted_triangulation =>  NULL()
       type(unfitted_integration_manager_t) :: unfitted_integration
       integer(ip), allocatable :: aggregate_ids(:)
       logical    , allocatable :: is_in_aggregate_x_cell(:)
       real(rp)   , allocatable :: aggregate_size(:)
-      logical :: use_constraints = .true.
+      logical :: use_constraints = .false.
       type(ParameterList_t), public :: debug_info
       integer(ip) :: num_hanging_dofs_full_cells
       integer(ip) :: num_hanging_dofs_other
       integer(ip) :: num_aggregated_dofs
     contains
       ! Creation / deletion methods
-      procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => suhpafs_create_same_reference_fes_on_all_cells
-      procedure           :: serial_fe_space_create_different_ref_fes_between_cells => suhpafs_space_create_different_ref_fes_between_cells
-      procedure           :: free                                                   => suhpafs_free
-      procedure           :: set_use_constraints                                    => suhpafs_set_use_constraints
+      procedure           :: serial_fe_space_create_same_reference_fes_on_all_cells => sufs_create_same_reference_fes_on_all_cells
+      procedure           :: serial_fe_space_create_different_ref_fes_between_cells => sufs_space_create_different_ref_fes_between_cells
+      procedure           :: free                                                   => sufs_free
+      procedure           :: set_use_constraints                                    => sufs_set_use_constraints
       
       ! Creation of the iterator (overrides)
-      procedure :: create_fe_cell_iterator       => suhpafs_create_fe_cell_iterator
-      procedure :: create_fe_facet_iterator      => suhpafs_create_fe_facet_iterator
+      procedure :: create_fe_cell_iterator       => sufs_create_fe_cell_iterator
+      procedure :: create_fe_facet_iterator      => sufs_create_fe_facet_iterator
 
       ! Generation of Dofs (overrides)
-      procedure :: count_dofs => suhpafs_count_dofs
-      procedure :: list_dofs  => suhpafs_list_dofs
-      procedure :: setup_hanging_node_constraints => suhpafs_setup_hanging_node_constraints
+      procedure :: count_dofs => sufs_count_dofs
+      procedure :: list_dofs  => sufs_list_dofs
+      procedure :: setup_hanging_node_constraints => sufs_setup_hanging_node_constraints
       
       ! Setup integration structures (overrides)
-      procedure    :: set_up_cell_integration   => suhpafs_set_up_cell_integration
-      procedure    :: set_up_facet_integration  => suhpafs_set_up_facet_integration
+      procedure    :: set_up_cell_integration   => sufs_set_up_cell_integration
+      procedure    :: set_up_facet_integration  => sufs_set_up_facet_integration
 
       ! Mesh refinement
-      procedure :: refine_mesh_for_small_aggregates => suhpafs_refine_mesh_for_small_aggregates
+      procedure :: refine_mesh_for_small_aggregates => sufs_refine_mesh_for_small_aggregates
 
       ! Getters
-      procedure, non_overridable :: get_aggregate_ids          => suhpafs_get_aggregate_ids
-      procedure, non_overridable :: get_aggregate_size         => suhpafs_get_aggregate_size
-      procedure, non_overridable :: get_is_in_aggregate_x_cell => suhpafs_get_is_in_aggregate_x_cell
+      procedure, non_overridable :: get_aggregate_ids          => sufs_get_aggregate_ids
+      procedure, non_overridable :: get_aggregate_size         => sufs_get_aggregate_size
+      procedure, non_overridable :: get_is_in_aggregate_x_cell => sufs_get_is_in_aggregate_x_cell
 
       ! Printers
-      procedure, non_overridable :: print_debug_info => suhpafs_print_debug_info
+      procedure, non_overridable :: print_debug_info => sufs_print_debug_info
 
       ! Private TBPs
-      procedure, private, non_overridable :: allocate_and_fill_aggregate_ids         => suhpafs_allocate_and_fill_aggregate_ids
-      procedure, private, non_overridable :: check_for_full_neighbors                => suhpafs_check_for_full_neighbors
-      procedure, private, non_overridable :: fill_proper_vef_constrains_full_cell    => suhpafs_fill_proper_vef_constrains_full_cell
-      procedure, private, non_overridable :: setup_only_hanging_node_constraints     => suhpafs_setup_only_hanging_node_constraints
-      procedure, private, non_overridable :: setup_only_cell_aggregation_constraints => suhpafs_setup_only_cell_aggregation_constraints
-      procedure, private, non_overridable :: compute_aggregate_sizes                 => suhpafs_compute_aggregate_sizes
+      procedure, private, non_overridable :: allocate_and_fill_aggregate_ids         => sufs_allocate_and_fill_aggregate_ids
+      procedure, private, non_overridable :: check_for_full_neighbors                => sufs_check_for_full_neighbors
+      procedure, private, non_overridable :: fill_proper_vef_constrains_full_cell    => sufs_fill_proper_vef_constrains_full_cell
+      procedure, private, non_overridable :: setup_only_hanging_node_constraints     => sufs_setup_only_hanging_node_constraints
+      procedure, private, non_overridable :: setup_only_cell_aggregation_constraints => sufs_setup_only_cell_aggregation_constraints
+      procedure, private, non_overridable :: compute_aggregate_sizes                 => sufs_compute_aggregate_sizes
 
-  end type serial_unfitted_hp_adaptive_fe_space_t
+  end type serial_unfitted_fe_space_t
 
   type, extends(par_fe_space_t) :: par_unfitted_fe_space_t
     private
@@ -284,7 +260,6 @@ module unfitted_fe_spaces_names
 
   public :: unfitted_fe_cell_iterator_t
   public :: serial_unfitted_fe_space_t
-  public :: serial_unfitted_hp_adaptive_fe_space_t
   public :: par_unfitted_fe_space_t
 
 contains
@@ -293,7 +268,6 @@ contains
 #include "../Unfitted/sbm_unfitted_fe_facet_iterator.i90"
 #include "../Unfitted/sbm_unfitted_integration_manager.i90"
 #include "../Unfitted/sbm_serial_unfitted_fe_space.i90"
-#include "../Unfitted/sbm_serial_unfitted_hp_adaptive_fe_space.i90"
 #include "../Unfitted/sbm_par_unfitted_fe_space.i90"
 
 end module unfitted_fe_spaces_names
