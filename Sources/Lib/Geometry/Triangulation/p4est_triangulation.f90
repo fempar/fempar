@@ -324,8 +324,9 @@ module p4est_triangulation_names
   
   type, extends(cell_iterator_t) :: p4est_cell_iterator_t
     private
-    integer(ip) :: num_dims = 0
+    integer(ip) :: num_dims                  = 0
     integer(ip) :: base_pos_in_lst_vefs_gids = 0
+    integer(ip) :: num_local_cells           = 0
     type(p4est_base_triangulation_t), pointer :: p4est_triangulation => NULL()
   contains
     procedure                            :: create                  => p4est_cell_iterator_create

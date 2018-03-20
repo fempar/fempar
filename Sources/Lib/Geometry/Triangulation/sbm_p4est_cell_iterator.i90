@@ -39,6 +39,7 @@ subroutine p4est_cell_iterator_create ( this, triangulation )
   end select
   this%num_dims = triangulation%get_num_dims()
   this%base_pos_in_lst_vefs_gids = 0
+  this%num_local_cells = this%p4est_triangulation%get_num_local_cells()
 end subroutine p4est_cell_iterator_create
 
 subroutine p4est_cell_iterator_free ( this)
@@ -48,6 +49,7 @@ subroutine p4est_cell_iterator_free ( this)
   nullify ( this%p4est_triangulation )
   this%num_dims=0
   this%base_pos_in_lst_vefs_gids = 0
+  this%num_local_cells = 0
 end subroutine p4est_cell_iterator_free
 
 subroutine p4est_cell_iterator_first ( this)
@@ -247,7 +249,7 @@ function p4est_cell_iterator_is_local (this)
   class(p4est_cell_iterator_t), intent(in) :: this
   logical                            :: p4est_cell_iterator_is_local
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_is_local = (this%get_gid() <= this%p4est_triangulation%get_num_local_cells())
+  p4est_cell_iterator_is_local = (this%get_gid() <= this%num_local_cells)
 end function p4est_cell_iterator_is_local
 
 function p4est_cell_iterator_is_ghost (this)
@@ -255,7 +257,7 @@ function p4est_cell_iterator_is_ghost (this)
   class(p4est_cell_iterator_t), intent(in) :: this
   logical :: p4est_cell_iterator_is_ghost
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  p4est_cell_iterator_is_ghost = (this%get_gid() > this%p4est_triangulation%get_num_local_cells())
+  p4est_cell_iterator_is_ghost = (this%get_gid() > this%num_local_cells)
 end function p4est_cell_iterator_is_ghost
 
 function p4est_cell_iterator_is_equal(this,quad_level,quad_linear_id)
