@@ -183,7 +183,7 @@ subroutine fe_facet_iterator_update_fes_around( this )
   integer(ip) :: icell_around
   do icell_around=1, this%get_num_cells_around()
     call this%get_cell_around(icell_around, this%fes_around(icell_around)%p)
-    call this%fes_around(icell_around)%p%update_scratch_data()
+    call this%fes_around(icell_around)%p%update_assembly_scratch_data()
   end do 
 end subroutine fe_facet_iterator_update_fes_around
 

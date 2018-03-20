@@ -34,7 +34,7 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   call this%free()
   call this%set_fe_space(fe_space)
   call this%create_cell(fe_space%triangulation)
-  call this%allocate_scratch_data()
+  call this%allocate_assembly_scratch_data()
 end subroutine fe_cell_iterator_create
 
 subroutine fe_cell_iterator_create_cell ( this, triangulation )
@@ -60,37 +60,29 @@ subroutine fe_cell_iterator_free (this)
       call this%free_cell(this%fe_space%triangulation)
     end if
   end if
-  call this%free_scratch_data()
+  call this%free_assembly_scratch_data()
   call this%nullify_fe_space()
 end subroutine fe_cell_iterator_free
 
-subroutine fe_cell_iterator_allocate_scratch_data ( this )
+subroutine fe_cell_iterator_allocate_assembly_scratch_data ( this )
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
-  integer(ip) :: istat
+  integer(ip) :: istat, iblock
   assert( associated(this%fe_space) )
   call memalloc ( this%fe_space%num_fields, this%num_cell_dofs_x_field, __FILE__, __LINE__ )
   allocate( this%fe_dofs(this%fe_space%num_fields), stat=istat); check(istat==0);
   allocate ( this%cell_integrators(this%fe_space%num_fields), stat=istat ); check(istat==0);
   allocate( this%extended_fe_dofs(this%fe_space%num_fields), stat=istat); check(istat==0);
   call this%extended_elmat%create(0,0)
-  call this%extended_elvec%create(0)
-end subroutine fe_cell_iterator_allocate_scratch_data
+  call this%extended_elvec%create(0) 
+  allocate ( this%gid_to_lid_map(this%fe_space%get_num_blocks()), stat=istat); check(istat==0);
+  do iblock = 1, this%fe_space%get_num_blocks()
+    call this%gid_to_lid_map(iblock)%create(this%fe_space%get_block_num_dofs(iblock))
+    this%gid_to_lid_map(iblock)%a = 0
+  end do  
+end subroutine fe_cell_iterator_allocate_assembly_scratch_data
 
-subroutine fe_cell_iterator_allocate_block_based_scratch_data ( this )
-  implicit none
-  class(fe_cell_iterator_t), intent(inout) :: this
-  integer(ip) :: istat, iblock
-  if ( .not. allocated(this%gid_to_lid_map) ) then
-    allocate ( this%gid_to_lid_map(this%fe_space%get_num_blocks()), stat=istat); check(istat==0);
-    do iblock = 1, this%fe_space%get_num_blocks()
-      call this%gid_to_lid_map(iblock)%create(this%fe_space%get_block_num_dofs(iblock))
-      this%gid_to_lid_map(iblock)%a = 0
-    end do
-  end if
-end subroutine fe_cell_iterator_allocate_block_based_scratch_data
-
-subroutine fe_cell_iterator_free_scratch_data ( this )
+subroutine fe_cell_iterator_free_assembly_scratch_data ( this )
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: istat, iblock, ifield
@@ -118,7 +110,7 @@ subroutine fe_cell_iterator_free_scratch_data ( this )
   end if
   call this%extended_elmat%free()
   call this%extended_elvec%free()
-end subroutine fe_cell_iterator_free_scratch_data
+end subroutine fe_cell_iterator_free_assembly_scratch_data
 
 subroutine fe_cell_iterator_free_final(this)
   implicit none
@@ -445,7 +437,7 @@ subroutine fe_cell_iterator_renum_dofs_field ( this, field_id, perm_old2new )
   end do
 end subroutine fe_cell_iterator_renum_dofs_field
 
-subroutine fe_cell_iterator_update_scratch_data( this)
+subroutine fe_cell_iterator_update_assembly_scratch_data( this)
   implicit none
   class(fe_cell_iterator_t), intent(inout)    :: this 
   integer(ip) :: field_id
@@ -457,7 +449,7 @@ subroutine fe_cell_iterator_update_scratch_data( this)
                                     this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())
                                     
   call this%get_fe_dofs(this%fe_dofs)
-end subroutine fe_cell_iterator_update_scratch_data
+end subroutine fe_cell_iterator_update_assembly_scratch_data
 
 
 
@@ -1079,7 +1071,7 @@ subroutine fe_cell_iterator_assembly_array ( this,  &
   end do
 #endif  
   
-  call this%update_scratch_data()
+  call this%update_assembly_scratch_data()
   call assembler%assembly_array( this%fe_space%num_fields,           &
                                  this%fe_space%get_field_blocks(),   &
                                  this%fe_space%get_field_coupling(), &
@@ -1109,7 +1101,7 @@ subroutine fe_cell_iterator_assembly_matrix ( this,  &
   end do
 #endif  
   
-  call this%update_scratch_data()
+  call this%update_assembly_scratch_data()
   call assembler%assembly_matrix( this%fe_space%num_fields,                        &
                                                this%fe_space%get_field_blocks(),   &
                                                this%fe_space%get_field_coupling(), &
@@ -1142,7 +1134,7 @@ subroutine fe_cell_iterator_assembly_matrix_array ( this,  &
      end if
   end do
   
-  call this%update_scratch_data()
+  call this%update_assembly_scratch_data()
   if ( no_hanging_node_constraints ) then
     call assembler%assembly_matrix( this%fe_space%num_fields,           &
                                     this%fe_space%get_field_blocks(),   &
@@ -1201,7 +1193,7 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
      end if
   end do
   
-  call this%update_scratch_data()
+  call this%update_assembly_scratch_data()
   if ( no_hanging_node_constraints ) then
     call this%impose_strong_dirichlet_bcs ( fe_function, elmat, elvec )
     call assembler%assembly_matrix( this%fe_space%num_fields,           &
@@ -1470,7 +1462,6 @@ subroutine fe_cell_iterator_apply_constraints(this,elmat,elvec)
   integer(ip) :: offset
   
   field_blocks            => this%get_field_blocks()
-  call this%allocate_block_based_scratch_data()
   
      ! Count number of free dofs involved in the assembly of this cell
      ! i.e., the free dofs of the cell + all other free dofs that constrain

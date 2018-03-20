@@ -199,9 +199,8 @@ module fe_space_names
     final                               :: fe_cell_iterator_free_final
     procedure                           :: set_fe_space                               => fe_cell_iterator_set_fe_space
     procedure                           :: nullify_fe_space                           => fe_cell_iterator_nullify_fe_space
-    procedure, non_overridable          :: allocate_scratch_data                      => fe_cell_iterator_allocate_scratch_data
-    procedure, non_overridable          :: allocate_block_based_scratch_data          => fe_cell_iterator_allocate_block_based_scratch_data
-    procedure, non_overridable          :: free_scratch_data                          => fe_cell_iterator_free_scratch_data
+    procedure, non_overridable          :: allocate_assembly_scratch_data             => fe_cell_iterator_allocate_assembly_scratch_data
+    procedure, non_overridable          :: free_assembly_scratch_data                 => fe_cell_iterator_free_assembly_scratch_data
     procedure, non_overridable          :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
     procedure, non_overridable          :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
     procedure, non_overridable          :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
@@ -211,7 +210,7 @@ module fe_space_names
     procedure, non_overridable          :: generate_dofs_facet_integration_coupling   => fe_cell_iterator_generate_dofs_facet_integration_coupling
     procedure, non_overridable, private :: renum_dofs_block                           => fe_cell_iterator_renum_dofs_block
     procedure, non_overridable, private :: renum_dofs_field                           => fe_cell_iterator_renum_dofs_field
-    procedure, non_overridable, private :: update_scratch_data                        => fe_cell_iterator_update_scratch_data
+    procedure, non_overridable, private :: update_assembly_scratch_data               => fe_cell_iterator_update_assembly_scratch_data
     procedure                           :: update_integration                         => fe_cell_iterator_update_integration
     procedure                           :: update_cell_map                            => fe_cell_iterator_update_cell_map
     procedure                           :: update_cell_integrators                    => fe_cell_iterator_update_cell_integrators
