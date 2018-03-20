@@ -35,6 +35,8 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   call this%set_fe_space(fe_space)
   call this%create_cell(fe_space%triangulation)
   call this%allocate_assembly_scratch_data()
+  call this%allocate_performance_scratch_data()
+  call this%init_performance_scratch_data()
 end subroutine fe_cell_iterator_create
 
 subroutine fe_cell_iterator_create_cell ( this, triangulation )
@@ -61,6 +63,7 @@ subroutine fe_cell_iterator_free (this)
     end if
   end if
   call this%free_assembly_scratch_data()
+  call this%free_performance_scratch_data()
   call this%nullify_fe_space()
 end subroutine fe_cell_iterator_free
 
@@ -112,6 +115,48 @@ subroutine fe_cell_iterator_free_assembly_scratch_data ( this )
   call this%extended_elvec%free()
 end subroutine fe_cell_iterator_free_assembly_scratch_data
 
+subroutine fe_cell_iterator_allocate_performance_scratch_data ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: istat
+  allocate ( this%reference_fes(this%fe_space%num_fields), stat=istat)
+  check(istat == 0)
+end subroutine fe_cell_iterator_allocate_performance_scratch_data
+
+subroutine fe_cell_iterator_init_performance_scratch_data ( this ) 
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: istat, i
+  ! If (same) set of reference FEs on top of all cells ...
+  if ( size(this%fe_space%set_ids_to_reference_fes,2) == 1 ) then 
+    do i=1, this%fe_space%num_fields
+      this%reference_fes(i)%p => this%fe_space%reference_fes(i)%p
+    end do   
+  end if 
+end subroutine fe_cell_iterator_init_performance_scratch_data 
+
+subroutine fe_cell_iterator_update_performance_scratch_data ( this ) 
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: istat, i
+  ! If (potentially) different set of reference FEs on top of all cells ...
+  if ( size(this%fe_space%set_ids_to_reference_fes,2) > 1 ) then 
+    do i=1, this%fe_space%num_fields
+      this%reference_fes(i)%p => this%fe_space%reference_fes(this%fe_space%field_cell_to_ref_fes(i)%get(this%get_gid()))%p
+    end do   
+  end if
+end subroutine fe_cell_iterator_update_performance_scratch_data 
+
+subroutine fe_cell_iterator_free_performance_scratch_data ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: istat
+  if ( allocated(this%reference_fes) ) then
+    deallocate ( this%reference_fes, stat=istat)
+    check(istat == 0)
+  end if
+end subroutine fe_cell_iterator_free_performance_scratch_data
+
 subroutine fe_cell_iterator_free_final(this)
   implicit none
   type(fe_cell_iterator_t), intent(inout) :: this
@@ -119,6 +164,28 @@ subroutine fe_cell_iterator_free_final(this)
   assert ( .not. associated(this%fe_space))
   assert ( .not. associated(this%cell_map))
 end subroutine fe_cell_iterator_free_final
+
+subroutine fe_cell_iterator_next(this)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  call base_fe_cell_iterator_next(this)
+  call this%update_performance_scratch_data()
+end subroutine fe_cell_iterator_next
+
+subroutine fe_cell_iterator_first(this)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  call base_fe_cell_iterator_first(this)
+  call this%update_performance_scratch_data()
+end subroutine fe_cell_iterator_first
+
+subroutine fe_cell_iterator_set_gid(this, lid)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)        , intent(in)    :: lid
+  call base_fe_cell_iterator_set_gid(this,lid)
+  call this%update_performance_scratch_data()
+end subroutine fe_cell_iterator_set_gid
 
 subroutine fe_cell_iterator_set_fe_space(this,fe_space)
   implicit none
@@ -894,10 +961,11 @@ end subroutine fe_cell_iterator_get_fe_vef
 
 function fe_cell_iterator_get_reference_fe(this, field_id)
   implicit none
-  class(fe_cell_iterator_t), target   , intent(in)    :: this
-  integer(ip)                    , intent(in)    :: field_id
+  class(fe_cell_iterator_t), intent(in)    :: this
+  integer(ip)              , intent(in)    :: field_id
   class(reference_fe_t), pointer :: fe_cell_iterator_get_reference_fe
-  fe_cell_iterator_get_reference_fe => this%fe_space%reference_fes(this%fe_space%field_cell_to_ref_fes(field_id)%get(this%get_gid()))%p
+  fe_cell_iterator_get_reference_fe => this%reference_fes(field_id)%p
+  !fe_cell_iterator_get_reference_fe => this%fe_space%reference_fes(this%fe_space%field_cell_to_ref_fes(field_id)%get(this%get_gid()))%p
 end function fe_cell_iterator_get_reference_fe
 
 function fe_cell_iterator_get_max_order_reference_fe(this)
