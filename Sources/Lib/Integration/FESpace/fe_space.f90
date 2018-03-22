@@ -861,6 +861,9 @@ module fe_space_names
    procedure                                   :: generate_global_dof_numbering                   => par_fe_space_generate_global_dof_numbering
    procedure                                   :: renum_dofs_first_interior_then_interface        => par_fe_space_renum_dofs_first_interior_then_interface
    procedure        , non_overridable          :: compute_num_global_dofs_and_their_ggids         => par_fe_space_compute_num_global_dofs_and_their_ggids
+   procedure                                   :: set_up_cell_integration                         => par_fe_space_set_up_cell_integration
+   procedure                                   :: set_up_facet_integration                        => par_fe_space_set_up_facet_integration
+   
    
    procedure        , non_overridable, private :: compute_blocks_dof_import                                    => par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                                           => par_fe_space_compute_dof_import

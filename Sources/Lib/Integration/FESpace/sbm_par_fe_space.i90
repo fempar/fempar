@@ -589,6 +589,29 @@ end subroutine par_fe_space_renum_dofs_first_interior_then_interface
     call memfree ( local_dofs_with_gid, __FILE__, __LINE__ )
     call memfree ( tmp_gids, __FILE__, __LINE__ )
   end subroutine par_fe_space_compute_num_global_dofs_and_their_ggids
+
+  
+ subroutine par_fe_space_set_up_cell_integration ( this, interpolation_duties, cell_map_duties )
+  implicit none
+  class(par_fe_space_t), target, intent(inout) :: this
+  type(interpolation_duties_t), optional, intent(in)    :: interpolation_duties(:)
+  type(cell_map_duties_t)     , optional, intent(in)    :: cell_map_duties
+  type(environment_t), pointer :: environment   
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    call this%serial_fe_space_t%set_up_cell_integration(interpolation_duties, cell_map_duties )
+  end if 
+ end subroutine  par_fe_space_set_up_cell_integration
+ 
+ subroutine par_fe_space_set_up_facet_integration ( this )
+  implicit none
+  class(par_fe_space_t), target, intent(inout) :: this
+  type(environment_t), pointer :: environment 
+  environment => this%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    call this%serial_fe_space_t%set_up_facet_integration()
+  end if 
+ end subroutine  par_fe_space_set_up_facet_integration 
   
 subroutine par_fe_space_compute_blocks_dof_import ( this )
   implicit none

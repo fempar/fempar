@@ -244,7 +244,7 @@ subroutine fe_facet_iterator_assembly_array ( this,    &
   integer(ip) :: ineigh
   
   do ineigh = 1, this%get_num_cells_around()
-    call this%fes_around(ineigh)%p%update_scratch_data()
+    call this%fes_around(ineigh)%p%update_assembly_scratch_data()
   end do
 
   do ineigh = 1, this%get_num_cells_around()
@@ -268,7 +268,7 @@ subroutine fe_facet_iterator_assembly_matrix ( this,    &
   integer(ip) :: ineigh, jneigh
   
   do ineigh = 1, this%get_num_cells_around()
-    call this%fes_around(ineigh)%p%update_scratch_data()
+    call this%fes_around(ineigh)%p%update_assembly_scratch_data()
   end do
   
   do ineigh = 1, this%get_num_cells_around()
@@ -299,7 +299,7 @@ subroutine fe_facet_iterator_assembly_matrix_array ( this,    &
   integer(ip) :: ineigh, jneigh
  
   do ineigh = 1, this%get_num_cells_around()
-    call this%fes_around(ineigh)%p%update_scratch_data()
+    call this%fes_around(ineigh)%p%update_assembly_scratch_data()
   end do
   
   
