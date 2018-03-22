@@ -99,20 +99,22 @@ module dof_import_names
 
 contains
   !=============================================================================
-  subroutine dof_import_create ( this, part_id, num_parts, num_dofs, num_itfc_couplings, dofs_lid, raw_interface_data )
+  subroutine dof_import_create ( this, part_id, num_parts, num_dofs, num_itfc_couplings, dofs_gid, raw_interface_data )
     implicit none
     class(dof_import_t), intent(inout)  :: this
     integer(ip)        , intent(in)     :: part_id
     integer(ip)        , intent(in)     :: num_parts
     integer(ip)        , intent(in)     :: num_dofs
     integer(ip)        , intent(in)     :: num_itfc_couplings
-    integer(ip)        , intent(in)     :: dofs_lid(num_itfc_couplings)
+    integer(ip)        , intent(in)     :: dofs_gid(num_itfc_couplings)
     integer(igp)       , intent(in)     :: raw_interface_data(num_rows_raw_interface_data, num_itfc_couplings)
     
     integer(ip), allocatable :: parts_rcv_visited(:)
     integer(ip), allocatable :: parts_snd_visited(:)
     logical    , allocatable :: interface_dofs_visited(:)
     integer(ip)              :: col, neighbor_part_id, i
+    
+    call this%free()
 
     this%part_id      = part_id
     this%num_parts = num_parts
@@ -176,16 +178,16 @@ contains
     do col=1, num_itfc_couplings
        neighbor_part_id = raw_interface_data( neighbor_part_id_row, col)
        if ( raw_interface_data(owner_flag_row,col) == owner ) then
-         this%unpack_idx(this%rcv_ptrs(parts_rcv_visited(neighbor_part_id))) = dofs_lid(col)
+         this%unpack_idx(this%rcv_ptrs(parts_rcv_visited(neighbor_part_id))) = dofs_gid(col)
          this%rcv_ptrs(parts_rcv_visited(neighbor_part_id)) = this%rcv_ptrs(parts_rcv_visited(neighbor_part_id)) + 1 
        else if ( raw_interface_data(owner_flag_row,col) == non_owner ) then
-         this%pack_idx(this%snd_ptrs(parts_snd_visited(neighbor_part_id))) = dofs_lid(col)
+         this%pack_idx(this%snd_ptrs(parts_snd_visited(neighbor_part_id))) = dofs_gid(col)
          this%snd_ptrs(parts_snd_visited(neighbor_part_id)) = this%snd_ptrs(parts_snd_visited(neighbor_part_id)) + 1 
-         this%weight(dofs_lid(col)) = 0.0_rp
+         this%weight(dofs_gid(col)) = 0.0_rp
        end if
        
-       if ( .not. interface_dofs_visited(dofs_lid(col))) then
-         interface_dofs_visited(dofs_lid(col)) = .true. 
+       if ( .not. interface_dofs_visited(dofs_gid(col))) then
+         interface_dofs_visited(dofs_gid(col)) = .true. 
          this%num_interface_dofs = this%num_interface_dofs + 1
        end if
     end do

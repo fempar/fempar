@@ -53,6 +53,7 @@ subroutine coarse_fe_space_create (this, &
   call this%free()
 
   this%coarse_triangulation => coarse_triangulation
+  this%environment          => coarse_triangulation%get_environment()
   environment => this%get_environment()
   if(environment%am_i_l1_task()) then
      this%num_fields = num_fields
@@ -137,6 +138,7 @@ recursive subroutine coarse_fe_space_free (this)
         check (istat==0)
       end if
       nullify(this%coarse_triangulation)
+      nullify(this%environment)
    end if   
 end subroutine coarse_fe_space_free
 
@@ -527,6 +529,7 @@ subroutine coarse_fe_space_generate_own_dofs_cell_x_fe_field(this, &
        base_pointer = base_pointer + coarse_fe%get_num_vefs() + 1
        call coarse_fe%next()
      end do
+  else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg_conforming ) then
   else
      check ( .false. )
      !! Not completely implemented yet. The code below compiles, but was not tested. It is just
@@ -586,6 +589,7 @@ subroutine coarse_fe_space_generate_own_dofs_cell_x_fe_field(this, &
        call coarse_fe%next()
      end do
      call memfree ( num_assigned_dofs_x_vef, __FILE__, __LINE__  )
+  else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg_conforming ) then
   else
      check ( .false. )
      !! Not completely implemented yet. The code below compiles, but was not tested. It is just
@@ -749,6 +753,7 @@ subroutine coarse_fe_space_count_dofs_and_fill_lst_dof_gids_field ( this, field_
         end if
         call coarse_fe%next()
      end do
+  else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg_conforming ) then
   else 
      ! fe_space_type_dg not implemented yet!
      check (.false.)
@@ -870,7 +875,8 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
      if ( this%field_blocks(field_id) == iblock ) then
         if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
            ubound_num_itfc_couplings (i) = this%compute_ubound_num_itfc_couplings_by_continuity(field_id)
-        else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
+        else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg_conforming ) then
+        else
            ! Not implemented yet
            check(.false.)
            !ubound_num_itfc_couplings (i) = ubound_num_itfc_couplings (i) + &
@@ -899,7 +905,8 @@ subroutine coarse_fe_space_compute_dof_import ( this, iblock, lst_dof_gids )
                                                               ubound_num_itfc_couplings(i),&
                                                               dofs_lid,&
                                                               raw_interface_data )
-        else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg ) then
+        else if ( this%fe_space_type_x_field(field_id) == fe_space_type_dg_conforming ) then
+        else
            ! Not implemented yet
            check(.false.)
            !total_num_itfc_couplings = total_num_itfc_couplings + & 
@@ -1881,7 +1888,7 @@ end subroutine coarse_fe_space_free_coarse_fe_vef_iterator
     implicit none
     class(coarse_fe_space_t), intent(in) :: this
     class(environment_t)  , pointer  :: coarse_fe_space_get_environment
-    coarse_fe_space_get_environment => this%coarse_triangulation%get_environment()
+    coarse_fe_space_get_environment => this%environment
   end function coarse_fe_space_get_environment
   
   function coarse_fe_space_get_num_local_coarse_fes (this)

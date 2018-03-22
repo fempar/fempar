@@ -50,6 +50,7 @@ contains
   STD_VECTOR_ERASE(type(cell_map_t),cell_map)
   STD_VECTOR_COPY(type(cell_map_t),cell_map)
   STD_VECTOR_SET(type(cell_map_t),cell_map)
+  STD_VECTOR_CAT(type(cell_map_t),cell_map)
   STD_VECTOR_SIZE(type(cell_map_t),cell_map)
   STD_VECTOR_CAPACITY(type(cell_map_t),cell_map)
   STD_VECTOR_GET(type(cell_map_t),cell_map)

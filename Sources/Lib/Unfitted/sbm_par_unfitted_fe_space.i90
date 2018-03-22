@@ -70,7 +70,6 @@ subroutine pufs_create_different_ref_fes_between_cells( &
   logical                           , optional, intent(in)    :: field_coupling(:,:)
   logical                           , optional , intent(in)   :: generate_global_dof_numbering
 
-  class(marching_cubes_t), pointer :: marching_cubes
   call this%free()
   call this%par_fe_space_t%create(triangulation, &
                                   reference_fes, &
@@ -83,8 +82,7 @@ subroutine pufs_create_different_ref_fes_between_cells( &
   select type(triangulation)
   class is (par_unfitted_triangulation_t)
     this%unfitted_triangulation => triangulation
-    marching_cubes => triangulation%get_marching_cubes()
-    call this%unfitted_integration%create(this,marching_cubes)
+    call this%unfitted_integration%create(this)
   class default
     check(.false.)
   end select
@@ -109,3 +107,50 @@ subroutine pufs_create_fe_cell_iterator(this, fe)
   allocate(unfitted_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
 end subroutine pufs_create_fe_cell_iterator
+
+!!========================================================================================
+!subroutine pufs_create_fe_facet_iterator(this, fe_face)
+!  implicit none
+!  class(par_unfitted_fe_space_t), target,    intent(in)    :: this
+!  class(fe_facet_iterator_t), allocatable, intent(inout) :: fe_face
+!  class(vef_iterator_t), allocatable :: vef
+!  class(triangulation_t), pointer :: triangulation
+!  integer(ip)          :: istat
+!  call this%free_fe_facet_iterator(fe_face)
+!  triangulation => this%get_triangulation()
+!  call triangulation%create_vef_iterator(vef)
+!  allocate(unfitted_fe_facet_iterator_t :: fe_face, stat=istat); check(istat==0)
+!  call fe_face%create(this,vef)
+!  call triangulation%free_vef_iterator(vef)
+!end subroutine pufs_create_fe_facet_iterator
+
+!========================================================================================
+subroutine pufs_set_up_cell_integration ( this, interpolation_duties, cell_map_duties )
+  implicit none
+  class(par_unfitted_fe_space_t), target, intent(inout) :: this
+  type(interpolation_duties_t), optional, intent(in) :: interpolation_duties(:)
+  type(cell_map_duties_t)     , optional, intent(in)    :: cell_map_duties
+
+  class(triangulation_t), pointer :: triangulation
+  type(environment_t), pointer :: environment
+
+  call this%par_fe_space_t%set_up_cell_integration(interpolation_duties, cell_map_duties)
+  triangulation => this%get_triangulation()
+  environment => triangulation%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    call this%unfitted_integration%init_cut_integration()
+    call this%unfitted_integration%init_cut_boundary_integration()
+  end if
+
+end subroutine pufs_set_up_cell_integration
+
+!========================================================================================
+subroutine pufs_set_up_facet_integration ( this )
+  implicit none
+  class(par_unfitted_fe_space_t), target, intent(inout) :: this
+  call this%serial_fe_space_t%set_up_facet_integration()
+  mcheck(.false.,'Not yer supported for par_unfitted_fe_space_t')
+  !call this%unfitted_integration%init_cut_fitted_facets_integration()
+end subroutine pufs_set_up_facet_integration
+
+

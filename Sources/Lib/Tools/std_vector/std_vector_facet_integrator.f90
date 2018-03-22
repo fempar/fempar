@@ -50,6 +50,7 @@ contains
   STD_VECTOR_ERASE(type(facet_integrator_t),facet_integrator)
   STD_VECTOR_COPY(type(facet_integrator_t),facet_integrator)
   STD_VECTOR_SET(type(facet_integrator_t),facet_integrator)
+  STD_VECTOR_CAT(type(facet_integrator_t),facet_integrator)
   STD_VECTOR_SIZE(type(facet_integrator_t),facet_integrator)
   STD_VECTOR_CAPACITY(type(facet_integrator_t),facet_integrator)
   STD_VECTOR_GET(type(facet_integrator_t),facet_integrator)
