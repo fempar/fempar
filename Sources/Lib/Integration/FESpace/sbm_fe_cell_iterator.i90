@@ -37,6 +37,7 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   call this%allocate_assembly_scratch_data()
   call this%allocate_performance_scratch_data()
   call this%init_performance_scratch_data()
+  call this%first()
 end subroutine fe_cell_iterator_create
 
 subroutine fe_cell_iterator_create_cell ( this, triangulation )
@@ -169,7 +170,9 @@ subroutine fe_cell_iterator_next(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   call base_fe_cell_iterator_next(this)
-  call this%update_performance_scratch_data()
+  if ( .not. this%has_finished() ) then
+    call this%update_performance_scratch_data()
+  end if   
 end subroutine fe_cell_iterator_next
 
 subroutine fe_cell_iterator_first(this)
