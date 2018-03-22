@@ -181,7 +181,11 @@ module fe_space_names
   type, extends(base_fe_cell_iterator_t) :: fe_cell_iterator_t
     private
     class(serial_fe_space_t) , pointer     :: fe_space => NULL()
-    ! Scratch data to support FE integration
+    
+    ! Scratch data to support the most frequently called TBPs (performance improvement)
+    
+    
+    ! Scratch data to support FE assembly
     integer(ip)                        , allocatable :: num_cell_dofs_x_field(:)
     type(i1p_t)                        , allocatable :: fe_dofs(:)
     type(cell_map_t)                   , pointer     :: cell_map => NULL()
@@ -190,6 +194,7 @@ module fe_space_names
     type(allocatable_array_ip1_t)      , allocatable :: gid_to_lid_map(:)
     type(allocatable_array_rp2_t)                    :: extended_elmat
     type(allocatable_array_rp1_t)                    :: extended_elvec
+    type(p_reference_fe_t)             , allocatable :: reference_fes(:)
   contains
   
     procedure                           :: create                                     => fe_cell_iterator_create
@@ -197,11 +202,17 @@ module fe_space_names
     procedure                           :: free_cell                                  => fe_cell_iterator_free_cell
     procedure                           :: free                                       => fe_cell_iterator_free
     final                               :: fe_cell_iterator_free_final
+    procedure                           :: next                                       => fe_cell_iterator_next
+    procedure                           :: first                                      => fe_cell_iterator_first
+    procedure                           :: set_gid                                    => fe_cell_iterator_set_gid
     procedure                           :: set_fe_space                               => fe_cell_iterator_set_fe_space
     procedure                           :: nullify_fe_space                           => fe_cell_iterator_nullify_fe_space
-    procedure, non_overridable          :: allocate_scratch_data                      => fe_cell_iterator_allocate_scratch_data
-    procedure, non_overridable          :: allocate_block_based_scratch_data          => fe_cell_iterator_allocate_block_based_scratch_data
-    procedure, non_overridable          :: free_scratch_data                          => fe_cell_iterator_free_scratch_data
+    procedure, non_overridable          :: allocate_assembly_scratch_data             => fe_cell_iterator_allocate_assembly_scratch_data
+    procedure, non_overridable          :: free_assembly_scratch_data                 => fe_cell_iterator_free_assembly_scratch_data
+    procedure, non_overridable          :: allocate_performance_scratch_data          => fe_cell_iterator_allocate_performance_scratch_data
+    procedure, non_overridable          :: init_performance_scratch_data              => fe_cell_iterator_init_performance_scratch_data
+    procedure, non_overridable          :: update_performance_scratch_data            => fe_cell_iterator_update_performance_scratch_data
+    procedure, non_overridable          :: free_performance_scratch_data              => fe_cell_iterator_free_performance_scratch_data
     procedure, non_overridable          :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
     procedure, non_overridable          :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
     procedure, non_overridable          :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
@@ -211,7 +222,7 @@ module fe_space_names
     procedure, non_overridable          :: generate_dofs_facet_integration_coupling   => fe_cell_iterator_generate_dofs_facet_integration_coupling
     procedure, non_overridable, private :: renum_dofs_block                           => fe_cell_iterator_renum_dofs_block
     procedure, non_overridable, private :: renum_dofs_field                           => fe_cell_iterator_renum_dofs_field
-    procedure, non_overridable, private :: update_scratch_data                        => fe_cell_iterator_update_scratch_data
+    procedure, non_overridable, private :: update_assembly_scratch_data               => fe_cell_iterator_update_assembly_scratch_data
     procedure                           :: update_integration                         => fe_cell_iterator_update_integration
     procedure                           :: update_cell_map                            => fe_cell_iterator_update_cell_map
     procedure                           :: update_cell_integrators                    => fe_cell_iterator_update_cell_integrators
@@ -850,6 +861,9 @@ module fe_space_names
    procedure                                   :: generate_global_dof_numbering                   => par_fe_space_generate_global_dof_numbering
    procedure                                   :: renum_dofs_first_interior_then_interface        => par_fe_space_renum_dofs_first_interior_then_interface
    procedure        , non_overridable          :: compute_num_global_dofs_and_their_ggids         => par_fe_space_compute_num_global_dofs_and_their_ggids
+   procedure                                   :: set_up_cell_integration                         => par_fe_space_set_up_cell_integration
+   procedure                                   :: set_up_facet_integration                        => par_fe_space_set_up_facet_integration
+   
    
    procedure        , non_overridable, private :: compute_blocks_dof_import                                    => par_fe_space_compute_blocks_dof_import
    procedure        , non_overridable, private :: compute_dof_import                                           => par_fe_space_compute_dof_import
