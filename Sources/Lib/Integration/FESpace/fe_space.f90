@@ -658,6 +658,7 @@ module fe_space_names
      procedure                           :: get_environment                              => serial_fe_space_get_environment
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
+     procedure, non_overridable          :: get_ptr_dofs_x_fe                            => serial_fe_space_get_ptr_dofs_per_fe
      procedure                           :: get_num_fixed_dofs                           => serial_fe_space_get_num_fixed_dofs
      procedure, non_overridable          :: set_num_fixed_dofs                           => serial_fe_space_set_num_fixed_dofs
      procedure                           :: get_num_dirichlet_dofs                       => serial_fe_space_get_num_dirichlet_dofs
@@ -704,7 +705,7 @@ module fe_space_names
 
      procedure                           :: setup_hanging_node_constraints               => serial_fe_space_setup_hanging_node_constraints
 
-     procedure, non_overridable, private :: project_field_cell_to_ref_fes                 => serial_fe_space_project_field_cell_to_ref_fes
+     procedure,                  private :: project_field_cell_to_ref_fes                 => serial_fe_space_project_field_cell_to_ref_fes
      procedure, non_overridable, private :: project_fe_integration_arrays                 => serial_fe_space_project_fe_integration_arrays
      procedure, non_overridable, private :: project_facet_integration_arrays              => serial_fe_space_project_facet_integration_arrays
 
@@ -928,9 +929,13 @@ module fe_space_names
    ! Transfer and redistribution of FE functions
    procedure,                          private :: serial_fe_space_refine_and_coarsen_single_fe_function   => par_fe_space_refine_and_coarsen_single_fe_function
    procedure,                          private :: serial_fe_space_refine_and_coarsen_fe_function_array    => par_fe_space_refine_and_coarsen_fe_function_array
-   procedure                                   :: redistribute                                            => par_fe_space_redistribute
+   procedure,                          private :: par_fe_space_redistribute_single_fe_function
+   procedure,                          private :: par_fe_space_redistribute_fe_function_array
+   generic                                     :: redistribute                                            => par_fe_space_redistribute_single_fe_function, &
+                                                                                                             par_fe_space_redistribute_fe_function_array
    procedure                                   :: update_after_redistribute                               => par_fe_space_update_after_redistribute
    procedure,                          private :: update_after_refine_coarsen                             => par_fe_space_update_after_refine_coarsen
+   procedure,                          private :: project_field_cell_to_ref_fes                           => par_fe_space_project_field_cell_to_ref_fes
    procedure,                          private :: migrate_field_cell_to_ref_fes                           => par_fe_space_migrate_field_cell_to_ref_fes
    procedure,                          private :: migrate_fe_integration_arrays                           => par_fe_space_migrate_fe_integration_arrays
    procedure,                          private :: migrate_facet_integration_arrays                        => par_fe_space_migrate_facet_integration_arrays
