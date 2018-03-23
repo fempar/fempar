@@ -96,6 +96,7 @@ subroutine fe_vef_iterator_get_fe_around (this, ife_around, fe)
   assert(allocated(this%vef))
   assert(allocated(fe%cell))
   call this%vef%get_cell_around(ife_around,fe%cell)
+  call fe%set_gid(fe%cell%get_gid())
 end subroutine fe_vef_iterator_get_fe_around
 
 function fe_vef_iterator_get_num_improper_cells_around(this)

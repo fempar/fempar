@@ -106,6 +106,7 @@ module test_poisson_unfitted_driver_names
      procedure        , private :: write_solution
      procedure        , private :: compute_domain_volume
      procedure        , private :: compute_domain_surface
+     procedure        , private :: compute_fitted_boundary_surface
      procedure        , private :: free
   end type test_poisson_unfitted_driver_t
 
@@ -128,6 +129,7 @@ contains
     integer(ip) :: num_dime
     integer(ip) :: istat
     class(level_set_function_t), pointer :: levset
+    real(rp) :: dom3d(6)
 
     ! Get number of dimensions form input
     assert( this%parameter_list%isPresent    (key = num_dims_key) )
@@ -146,6 +148,18 @@ contains
         check(.false.)
     end select
 
+    ! Uncommenting the following lines and calling the driver with these flags,
+    ! generates a case of a single cut hex that leads to a
+    ! broken sub-triangulation computed with marching cubes
+    ! Flags: -tt structured -dim 3 -nx 1 -ny 1 -nz 1 -in_space .true. -order 1 -gorder 1 -wsolution .true. 
+    !
+    !dom3d(1) = 0.25
+    !dom3d(2) = 0.5
+    !dom3d(3) = 0.25
+    !dom3d(4) = 0.5
+    !dom3d(5) = 0.5
+    !dom3d(6) = 0.75
+    !call this%level_set_function%set_domain(dom3d)
 
     ! Set options of the base class
     call this%level_set_function%set_num_dims(num_dime)
@@ -156,6 +170,7 @@ contains
     select type ( levset )
       class is (level_set_sphere_t)
         call levset%set_radius(0.9)!0.625_rp)
+        call levset%set_center([0.0,0.0,0.0])
       class default
         check(.false.)
     end select
@@ -173,7 +188,7 @@ contains
     integer(ip) :: set_id
 
     ! Create a structured mesh with a custom domain
-    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
+    !istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
 
     ! New call for unfitted triangulation
     call this%triangulation%create(this%parameter_list,this%level_set_function)
@@ -562,16 +577,24 @@ contains
       call vtk_writer%write_to_vtk_file('out_mesh.vtu')
       call vtk_writer%free()
 
+      call vtk_writer%attach_fe_function(this%solution,this%fe_space)
+      call vtk_writer%write_to_vtk_file('out_mesh_solution.vtu')
+      call vtk_writer%free()
+      
       call vtk_writer%attach_boundary_faces(this%triangulation)
       call vtk_writer%write_to_vtk_file('out_mesh_boundary.vtu')
       call vtk_writer%free()
-
+      
       call vtk_writer%attach_boundary_quadrature_points(this%fe_space)
       call vtk_writer%write_to_vtk_file('out_mesh_boundary_normals.vtu')
       call vtk_writer%free()
-
-      call vtk_writer%attach_fe_function(this%solution,this%fe_space)
-      call vtk_writer%write_to_vtk_file('out_mesh_solution.vtu')
+      
+      call vtk_writer%attach_fitted_faces(this%triangulation)
+      call vtk_writer%write_to_vtk_file('out_mesh_facets.vtu')
+      call vtk_writer%free()
+      
+      call vtk_writer%attach_facets_quadrature_points(this%fe_space)
+      call vtk_writer%write_to_vtk_file('out_mesh_fitted_facets_boundary_normals.vtu')
       call vtk_writer%free()
 
     end if
@@ -606,6 +629,7 @@ contains
     call this%setup_fe_space()
     call this%compute_domain_volume()
     call this%compute_domain_surface()
+    call this%compute_fitted_boundary_surface()
     call this%setup_system()
     call this%assemble_system()
     call this%setup_solver()
@@ -717,6 +741,48 @@ subroutine compute_domain_surface( this )
     write(*,*) "Domain surface = ", surface
 
 end subroutine compute_domain_surface
+
+subroutine compute_fitted_boundary_surface( this )
+
+    implicit none
+    class(test_poisson_unfitted_driver_t), intent(inout) :: this
+
+    class(fe_facet_iterator_t),allocatable :: fe_facet
+    type(quadrature_t), pointer :: quadrature
+    integer(ip) :: qpoint, num_quad_points
+    real(rp) :: dS, surface
+
+    write(*,*) "Computing fitted boundary surface..."
+    call this%fe_space%set_up_facet_integration()
+    surface = 0.0_rp
+    call this%fe_space%create_fe_facet_iterator(fe_facet)
+    do while ( .not. fe_facet%has_finished() )
+
+       if ( fe_facet%is_ghost() .or. (.not. fe_facet%is_at_boundary()) ) then
+         call fe_facet%next(); cycle
+       end if
+
+       call fe_facet%update_integration()
+
+       quadrature => fe_facet%get_quadrature()
+       num_quad_points = quadrature%get_num_quadrature_points()
+       do qpoint = 1, num_quad_points
+         dS =  fe_facet%get_det_jacobian(qpoint)*quadrature%get_weight(qpoint)
+         surface = surface + dS
+       end do
+
+       call fe_facet%next()
+    end do
+
+    write(*,*) "Computing fitted boundary surface... OK"
+    write(*,*) "Fitted boundary surface = ", surface
+    if (this%triangulation%get_num_dims()==2) then
+      check(abs(surface-1.8_rp)<1.0e-10)
+    end if
+
+    call this%fe_space%free_fe_facet_iterator(fe_facet)
+
+end subroutine compute_fitted_boundary_surface
 
 
   subroutine free(this)

@@ -65,7 +65,6 @@ subroutine sufs_space_create_different_ref_fes_between_cells(&
   integer(ip)                       , optional, intent(in)    :: field_blocks(:)
   logical                           , optional, intent(in)    :: field_coupling(:,:)
   logical                           , optional , intent(in)   :: generate_global_dof_numbering
-  class(marching_cubes_t), pointer :: marching_cubes
   call this%free()
   call this%serial_fe_space_t%create(triangulation, &
                                      reference_fes, &
@@ -77,8 +76,7 @@ subroutine sufs_space_create_different_ref_fes_between_cells(&
   select type(triangulation)
   class is (serial_unfitted_triangulation_t)
     this%unfitted_triangulation => triangulation
-    marching_cubes => triangulation%get_marching_cubes()
-    call this%unfitted_integration%create(this,marching_cubes)
+    call this%unfitted_integration%create(this)
   class default
     check(.false.)
   end select
@@ -103,3 +101,40 @@ subroutine sufs_create_fe_cell_iterator(this, fe)
   allocate(unfitted_fe_cell_iterator_t :: fe, stat=istat); check(istat==0)
   call fe%create(this)
 end subroutine sufs_create_fe_cell_iterator
+
+!========================================================================================
+subroutine sufs_create_fe_facet_iterator(this, fe_face)
+  implicit none
+  class(serial_unfitted_fe_space_t), target, intent(in)    :: this
+  class(fe_facet_iterator_t), allocatable, intent(inout) :: fe_face
+  class(vef_iterator_t), allocatable :: vef
+  class(triangulation_t), pointer :: triangulation
+  integer(ip)          :: istat
+  call this%free_fe_facet_iterator(fe_face)
+  triangulation => this%get_triangulation()
+  call triangulation%create_vef_iterator(vef)
+  allocate(unfitted_fe_facet_iterator_t :: fe_face, stat=istat); check(istat==0)
+  call fe_face%create(this,vef)
+  call triangulation%free_vef_iterator(vef)
+end subroutine sufs_create_fe_facet_iterator
+
+!========================================================================================
+subroutine sufs_set_up_cell_integration ( this, interpolation_duties , cell_map_duties)
+  implicit none
+  class(serial_unfitted_fe_space_t), target, intent(inout) :: this
+  type(interpolation_duties_t), optional, intent(in) :: interpolation_duties(:)
+  type(cell_map_duties_t)     , optional, intent(in)    :: cell_map_duties
+  call this%serial_fe_space_t%set_up_cell_integration(interpolation_duties, cell_map_duties)
+  call this%unfitted_integration%init_cut_integration()
+  call this%unfitted_integration%init_cut_boundary_integration()
+end subroutine sufs_set_up_cell_integration
+
+!========================================================================================
+subroutine sufs_set_up_facet_integration ( this )
+  implicit none
+  class(serial_unfitted_fe_space_t), target, intent(inout) :: this
+  call this%serial_fe_space_t%set_up_facet_integration()
+  call this%unfitted_integration%init_cut_fitted_facets_integration()
+end subroutine sufs_set_up_facet_integration
+
+

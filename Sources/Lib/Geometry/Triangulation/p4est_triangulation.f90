@@ -101,6 +101,7 @@ module p4est_triangulation_names
   integer(ip), target :: P4EST_OPPOSITE_CORNER_2D(NUM_CORNERS_2D) = [ 4, 3, 2, 1 ]
   integer(ip), target :: P4EST_2_FEMPAR_CORNER_2D(NUM_CORNERS_2D) = [ 1, 2, 3, 4 ]
   integer(ip), target :: P4EST_2_FEMPAR_FACE_2D  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
+  integer(ip), target :: FEMPAR_2_P4EST_FACE_2D  (NUM_FACES_2D)   = [ 3, 4, 1, 2 ]
   
   integer(ip), target :: P4EST_FACES_SUBFACE_IMPROPER_VERTEX_LID_2D(NUM_FACES_2D,NUM_SUBFACES_FACE_2D) = & 
                                                   reshape([ 4, 3, 4, 2, &
@@ -289,6 +290,7 @@ module p4est_triangulation_names
   integer(ip), target :: P4EST_OPPOSITE_CORNER_3D(NUM_CORNERS_3D) = [ 8, 7, 6, 5, 4, 3, 2, 1 ]
   integer(ip), target :: P4EST_2_FEMPAR_CORNER_3D(NUM_CORNERS_3D) = [ 1, 2, 3, 4, 5, 6, 7, 8 ]
   integer(ip), target :: P4EST_2_FEMPAR_FACE_3D  (NUM_FACES_3D)   = [ 5, 6, 3, 4, 1, 2 ]
+  integer(ip), target :: FEMPAR_2_P4EST_FACE_3D  (NUM_FACES_3D)   = [ 5, 6, 3, 4, 1, 2 ]
   integer(ip), target :: P4EST_2_FEMPAR_EDGE_3D  (NUM_EDGES_3D)   = [ 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12 ]
   
   integer(ip), target :: P4EST_FACES_SUBFACE_FACE_NEIGHBOUR_3D(NUM_FACES_3D/2, NUM_SUBFACES_FACE_3D, 2) = &
@@ -322,13 +324,20 @@ module p4est_triangulation_names
   
   type, extends(cell_iterator_t) :: p4est_cell_iterator_t
     private
+    integer(ip) :: num_dims                  = 0
+    integer(ip) :: base_pos_in_lst_vefs_gids = 0
+    integer(ip) :: num_local_cells           = 0
     type(p4est_base_triangulation_t), pointer :: p4est_triangulation => NULL()
   contains
     procedure                            :: create                  => p4est_cell_iterator_create
     procedure                            :: free                    => p4est_cell_iterator_free
+    procedure                            :: first                   => p4est_cell_iterator_first
+    procedure                            :: next                    => p4est_cell_iterator_next
+    procedure                            :: set_gid                 => p4est_cell_iterator_set_gid
     procedure                            :: get_reference_fe        => p4est_cell_iterator_get_reference_fe
     procedure                            :: get_reference_fe_id     => p4est_cell_iterator_get_reference_fe_id
     procedure                            :: get_set_id              => p4est_cell_iterator_get_set_id
+    procedure                            :: get_disconnected_set_id => p4est_cell_iterator_get_disconnected_set_id
     procedure                            :: set_set_id              => p4est_cell_iterator_set_set_id
     procedure                            :: get_level               => p4est_cell_iterator_get_level
     procedure                            :: get_num_vefs            => p4est_cell_iterator_get_num_vefs
@@ -353,7 +362,6 @@ module p4est_triangulation_names
     procedure                            :: get_permutation_index   => p4est_cell_iterator_get_permutation_index
     
     procedure                            :: update_sub_triangulation    => p4est_cell_iterator_update_sub_triangulation
-    procedure                            :: get_mc_case                 => p4est_cell_iterator_get_mc_case
     procedure                            :: get_num_subcells            => p4est_cell_iterator_get_num_subcells
     procedure                            :: get_num_subcell_nodes       => p4est_cell_iterator_get_num_subcell_nodes
     procedure                            :: get_phys_coords_of_subcell  => p4est_cell_iterator_get_phys_coords_of_subcell
@@ -400,6 +408,8 @@ module p4est_triangulation_names
      procedure                           :: get_improper_cell_around        => p4est_vef_iterator_get_improper_cell_around
      procedure                           :: get_improper_cell_around_ivef   => p4est_vef_iterator_get_improper_cell_around_ivef
      procedure                           :: get_improper_cell_around_subvef => p4est_vef_iterator_get_improper_cell_around_subvef
+     procedure                           :: get_num_half_cells_around       => p4est_vef_iterator_get_num_half_cells_around
+     procedure                           :: get_half_cell_around            => p4est_vef_iterator_get_half_cell_around
   end type p4est_vef_iterator_t
  
   
@@ -409,9 +419,6 @@ module p4est_triangulation_names
   integer(ip), parameter :: cell_ggid_shift    = 54
   integer(ip), parameter :: vefs_x_cell_shift  = 10 
 
- 
-  ! TODO: this data type should extend an abstract triangulation,
-  !       and implement its corresponding accessors
   type, extends(triangulation_t) ::  p4est_base_triangulation_t
     private
     integer(ip) :: num_proper_vefs          = -1 
@@ -470,11 +477,11 @@ module p4est_triangulation_names
     type(std_vector_logical_t)             :: improper_vefs_is_ghost
     type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
     type(std_vector_integer_ip_t)          :: cell_set_ids
+    type(std_vector_integer_ip_t)          :: disconnected_cells_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: improper_vefs_set_ids
     type(std_vector_integer_ip_t)          :: cell_myparts
     type(std_vector_integer_igp_t)         :: cell_ggids
-    type(std_vector_integer_igp_t)         :: lst_vefs_ggids
   contains
     procedure                                   :: is_conforming                                 =>  p4est_base_triangulation_is_conforming
   
@@ -493,22 +500,22 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: find_missing_corner_neighbours                     => p4est_bt_find_missing_corner_neighbours
     procedure, private        , non_overridable  :: get_ptr_vefs_x_cell                                => p4est_base_triangulation_get_ptr_vefs_x_cell
     procedure, private        , non_overridable  :: update_lst_vefs_gids_and_cells_around              => p4est_bt_update_lst_vefs_gids_and_cells_around
-    procedure, private        , non_overridable  :: update_vefs_is_ghost                               => p4est_bt_update_vefs_is_ghost            
-    procedure, private        , non_overridable  :: update_local_proper_vefs_actually_on_the_interface => p4est_bt_update_local_proper_vefs_actually_on_the_interface
     procedure, private        , non_overridable  :: update_cell_ggids                                  => p4est_base_triangulation_update_cell_ggids
     procedure, private        , non_overridable  :: comm_cell_ggids                                    => p4est_base_triangulation_comm_cell_ggids
     procedure, private        , non_overridable  :: update_cell_myparts                                => p4est_base_triangulation_update_cell_myparts
     procedure, private        , non_overridable  :: comm_cell_myparts                                  => p4est_base_triangulation_comm_cell_myparts
     procedure, private        , non_overridable  :: update_cell_set_ids                                => p4est_bt_update_cell_set_ids
+    procedure, private        , non_overridable  :: comm_cell_set_ids                                  => p4est_bt_comm_cell_set_ids
     procedure, private        , non_overridable  :: update_vef_set_ids                                 => p4est_bt_update_vef_set_ids
     procedure, private        , non_overridable  :: fill_x_cell_vertex_coordinates                     => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
     procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
     procedure                 , non_overridable  :: clear_cell_set_ids                                 => p4est_bt_clear_cell_set_ids
     procedure                                    :: fill_cells_set                                     => p4est_bt_fill_cells_set
+    procedure                                    :: compute_max_cells_set_id                           => p4est_bt_compute_max_cells_set_id
+    procedure                                    :: resize_disconnected_cells_set                      => p4est_bt_resize_disconnected_cells_set
+    procedure                                    :: fill_disconnected_cells_set                        => p4est_bt_fill_disconnected_cells_set
     procedure, private        , non_overridable  :: clear_vef_set_ids                                  => p4est_bt_clear_vef_set_ids
     procedure, private        , non_overridable  :: update_cell_import                                 => p4est_bt_update_cell_import
-    procedure, private, nopass, non_overridable  :: generate_non_consecutive_vef_ggid                  => p4est_bt_generate_non_consecutive_vef_ggid
-    procedure, private        , non_overridable  :: exchange_vefs_ggids                                => p4est_bt_exchange_vefs_ggids 
     procedure                 , non_overridable  :: get_previous_num_local_cells                       => p4est_bt_get_previous_num_local_cells 
     procedure                 , non_overridable  :: get_previous_num_ghost_cells                       => p4est_bt_get_previous_num_ghost_cells
 
@@ -570,6 +577,7 @@ module p4est_triangulation_names
     procedure, private                          :: p4est_par_triangulation_create
     generic                                     :: create                                           => p4est_par_triangulation_create
     procedure                                   :: free                                             => p4est_par_triangulation_free 
+    procedure                                   :: clear_disconnected_cells_set_ids                 => p4est_par_triangulation_clear_disconnected_cells_set_ids
     procedure                                   :: redistribute                                     => p4est_par_triangulation_redistribute
     procedure                                   :: update_migration_control_data                    => p4est_par_triangulation_update_migration_control_data
     procedure                                   :: migrate_cell_set_ids                             => p4est_par_triangulation_migrate_cell_set_ids

@@ -63,60 +63,52 @@ module fe_nonlinear_operator_names
   integer(ip), parameter :: created             = 0
   integer(ip), parameter :: residual_computed   = 1 
   integer(ip), parameter :: tangent_computed    = 2 
-  integer(ip), parameter :: assembler_computed  = 3
+  integer(ip), parameter :: assembler_computed  = 3  
 
-  integer(ip), parameter :: free_setup          = 0
+  ! NOTE: In the state transition diagram below we use the state "start" to refer
+  !       to the instance state in which ".not. associated(this%state)" is .true.
+  !       Let us not however, that "start" is not actually an state to which we 
+  !       assign a parameter constant above.
   
-
   ! State transition diagram for type(fe_nonlinear_operator_t)
   ! -------------------------------------------------
   ! Input State | Action               | Output State 
   ! -------------------------------------------------
-  ! start       | create               | created
-  ! start       | free_setup          | start
-  ! start       | free_setup  | start
-  ! start       | free_clean           | start 
-  ! start       | free                 | start 
-
-  ! created     | setup       | setup
-  ! created     | setup      | setup
-  ! created     | get_tangent+         | setup
-  !               get_translation+               "
-  !               get_domain_vector_space+       "
-  !               get_range_vector_space+        "
-  !               abort_if_not_in_range+         "
-  !               abort_if_not_in_domain         "
-  ! created     | free_setup          | created
-  ! created     | free_setup          | created
-  ! created     | free_clean           | start
-  ! created     | free                 | start
-
-  ! setup    | setup       | setup
-  ! setup    | setup      | setup
-  ! setup    | free_setup          | setup
-  ! setup    | free_setup          | created
-  ! setup    | free_clean           | start
-  ! setup    | free                 | start
-  ! setup    | get_tangent+         | setup
-  !                         get_translation+               "
-  !                         get_domain_vector_space+       "
-  !                         get_range_vector_space+        "
-  !                         abort_if_not_in_range+         "
-  !                         abort_if_not_in_domain         "
-
-  ! setup    | setup       | setup
-  ! setup    | setup      | setup
-  ! setup    | free_setup          | setup
-  ! setup    | free_setup  | created
-  ! setup    | free                 | start
-  ! setup    | free_clean           |  
-  ! setup    | get_tangent+         | setup
-  !                        get_translation+               "
-  !                        get_domain_vector_space+       "
-  !                        get_range_vector_space+        "
-  !                        abort_if_not_in_range+         "
-  !                        abort_if_not_in_domain         "
-
+  ! start               | create               | created
+  ! start               | free                 | start
+  ! start               | is_linear            | start
+ 
+  ! created             | compute_tangent      | tangent_computed
+  ! created             | compute_residual     | residual_computed
+  ! created             | set_evaluation_point | created           ! Re-initializes to zero LA data structures
+  ! created             | reallocate_after_re* | created           ! Re-creates LA data structures
+  ! created             | free                 | start
+  ! created             | is_linear            | created
+  ! created             | get*/abort*          | created
+  
+  ! tangent_computed    | compute_residual     | assembler_computed
+  ! tangent_computed    | compute_tangent      | tangent_computed   ! Does nothing
+  ! tangent_computed    | set_evaluation_point | created            ! Re-initializes to zero LA data structures
+  ! tangent_computed    | reallocate_after_re* | created            ! Re-creates LA data structures
+  ! tangent_computed    | free                 | start 
+  ! tangent_computed    | is_linear            | tangent_computed
+  ! tangent_computed    | get*/abort*          | tangent_computed
+ 
+  ! residual_computed   | compute_residual     | residual_computed
+  ! residual_computed   | compute_tangent      | assembler_computed  ! Does nothing
+  ! residual_computed   | set_evaluation_point | created             ! Re-initializes to zero LA data structures
+  ! residual_computed   | reallocate_after_re* | created             ! Re-creates LA data structures
+  ! residual_computed   | free                 | start 
+  ! residual_computed   | is_linear            | residual_computed
+  ! residual_computed   | get*/abort*          | residual_computed
+  
+  ! assembler_computed  | compute_residual     | assembler_computed   ! Does nothing
+  ! assembler_computed  | compute_tangent      | assembler_computed   ! Does nothing
+  ! assembler_computed  | set_evaluation_point | created              ! Re-initializes to zero LA data structures
+  ! assembler_computed  | reallocate_after_re* | created              ! Re-creates LA data structures
+  ! assembler_computed  | free                 | start 
+  ! assembler_computed  | is_linear            | assembler_computed
+  ! assembler_computed  | get*/abort*          | assembler_computed
 
   type, extends(operator_t):: fe_nonlinear_operator_t
      private

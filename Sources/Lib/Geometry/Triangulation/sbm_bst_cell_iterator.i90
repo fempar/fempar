@@ -187,6 +187,14 @@ function bst_cell_iterator_get_set_id(this)
   bst_cell_iterator_get_set_id = this%base_static_triangulation%cells_set(this%gid)
 end function bst_cell_iterator_get_set_id
 
+function bst_cell_iterator_get_disconnected_set_id(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip) :: bst_cell_iterator_get_disconnected_set_id
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_get_disconnected_set_id = this%base_static_triangulation%disconnected_cells_set_ids(this%gid)
+end function bst_cell_iterator_get_disconnected_set_id
+
 function bst_cell_iterator_get_num_vefs (this)
   implicit none
   class(bst_cell_iterator_t), intent(in) :: this
@@ -349,13 +357,6 @@ subroutine bst_cell_iterator_update_sub_triangulation( this )
   mcheck(.false.,'This subroutine can only be called by some descendent classes')
 end subroutine bst_cell_iterator_update_sub_triangulation
 
-function bst_cell_iterator_get_mc_case( this ) result ( mc_case )
-  implicit none
-  class(bst_cell_iterator_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  mcheck(.false.,'This subroutine can only be called by some descendent classes')
-end function bst_cell_iterator_get_mc_case
-
 function bst_cell_iterator_get_num_subcells( this ) result ( num_subcells )
   implicit none
   class(bst_cell_iterator_t), intent(in) :: this
@@ -511,7 +512,7 @@ subroutine bst_cell_iterator_fill_nodes_on_vef_new (this,ivef,node_count)
     if(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)==0) then
        node_count = node_count + 1
        this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)=node_count
-    end	if
+    end if
   end do
   
 end subroutine bst_cell_iterator_fill_nodes_on_vef_new

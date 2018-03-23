@@ -71,6 +71,7 @@ subroutine lagrange_polynomial_get_values (this,x,p_x)
      end do
      p_x(1) = p_x(1)*(x-this%coefficients(i))
   end do
+  p_x(3) = 2.0_rp*p_x(3)
   p_x = p_x*this%coefficients(this%order+1)
 end subroutine lagrange_polynomial_get_values
 
@@ -122,7 +123,7 @@ subroutine monomial_get_values(this,x,p_x)
     p_x(2) = 0.0_rp
   end if 
   if ( this%order >= 2 ) then
-    p_x(3) = (real(this%order,rp)-1.0_rp)*real(this%order,rp) * x**(real(this%order,rp)-1.0_rp)
+    p_x(3) = (real(this%order,rp)-1.0_rp)*real(this%order,rp) * x**(real(this%order,rp)-2.0_rp)
   else
     p_x(3) = 0.0_rp
   end if  

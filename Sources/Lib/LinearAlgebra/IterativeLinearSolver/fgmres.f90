@@ -202,6 +202,7 @@ contains
     call this%print_convergence_history_header(luout)
 
     num_iterations = 0
+    did_converge = .false.
     outer: do while ( (.not.exit_loop ) .and. &
         &            (num_iterations < max_num_iterations))
         ! Compute residual from scratch (only if num_iterations /= 0)

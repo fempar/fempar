@@ -114,10 +114,12 @@ module execution_context_names
      procedure (execution_context_root_send_master_rcv_ip_1D_array), deferred :: root_send_master_rcv_ip_1D_array
      procedure (execution_context_root_send_master_rcv_rp         ), deferred :: root_send_master_rcv_rp
      procedure (execution_context_root_send_master_rcv_rp_1D_array), deferred :: root_send_master_rcv_rp_1D_array
+     procedure (execution_context_root_send_master_rcv_logical    ), deferred :: root_send_master_rcv_logical 
      generic :: root_send_master_rcv => root_send_master_rcv_ip,          &
           &                             root_send_master_rcv_ip_1D_array, &
           &                             root_send_master_rcv_rp,          &
-          &                             root_send_master_rcv_rp_1D_array
+          &                             root_send_master_rcv_rp_1D_array, &
+          &                             root_send_master_rcv_logical
 
      procedure (execution_context_gather_to_master_ip           ) , deferred :: gather_to_master_ip            
      procedure (execution_context_gather_to_master_igp          ) , deferred :: gather_to_master_igp           
@@ -507,6 +509,15 @@ module execution_context_names
        real(rp)            , intent(in)      :: input_data(:)
        real(rp)            , intent(inout)   :: output_data(:)
      end subroutine execution_context_root_send_master_rcv_rp_1D_array
+     
+     !=============================================================================
+     subroutine execution_context_root_send_master_rcv_logical ( this, input_data, output_data )
+       import :: execution_context_t
+       implicit none
+       class(execution_context_t), intent(in)      :: this
+       logical                   , intent(in)      :: input_data
+       logical                   , intent(inout)   :: output_data
+     end subroutine execution_context_root_send_master_rcv_logical
      
      !=============================================================================
      subroutine execution_context_gather_to_master_ip ( this, input_data, output_data )
