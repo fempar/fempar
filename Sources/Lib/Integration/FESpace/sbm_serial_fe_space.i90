@@ -1812,8 +1812,6 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
 
   integer(ip)            :: reference_fes_id(2)
   type(p_reference_fe_t) :: reference_fes(2)
-  
-  logical                :: local_fe_around_itfc_fe_facet_is_void
 
   integer(ip) :: facet_quadratures_position_key
   integer(ip) :: facet_integrators_position_key
@@ -1886,21 +1884,16 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
      do field_id=1, this%get_num_fields()
         reference_fes_id(2) = 0  
         nullify(reference_fes(2)%p)
-        local_fe_around_itfc_fe_facet_is_void = .false.
         do icell_around = 1, fe_face%get_num_cells_around()
            call fe_face%get_cell_around(icell_around, fe)
-           if ( fe_face%is_at_interface() .and. fe%is_local() .and. fe%is_void(field_id) ) then
-             local_fe_around_itfc_fe_facet_is_void = .true.
-           end if
            reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id)%get(fe%get_gid())
            reference_fes(icell_around)%p => fe%get_reference_fe(field_id)
         end do
 
         facet_integrators_position_key = &
              this%generate_facet_integrators_position_key(fe_face%get_quadrature_degree(), &
-                                                               reference_fes_id(1),        &
-                                                               reference_fes_id(2),        &
-                                                               local_fe_around_itfc_fe_facet_is_void )
+                                                            reference_fes_id(1), &
+                                                            reference_fes_id(2) )
 
         call this%facet_integrators_position%put(key=facet_integrators_position_key, &
                                                    val=facet_integrator_position, &
@@ -1909,10 +1902,9 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
            call this%facet_integrators%resize(facet_integrator_position)
            current_facet_integrator => this%facet_integrators%get_pointer(facet_integrator_position)
            quadrature => fe_face%get_quadrature()
-           call current_facet_integrator%create( quadrature, &
-                                                 reference_fes(1)%p,       &
-                                                 reference_fes(2)%p,       &
-                                                 local_fe_around_itfc_fe_facet_is_void )
+           call current_facet_integrator%create(quadrature, &
+                reference_fes(1)%p, &
+                reference_fes(2)%p )
            facet_integrator_position = facet_integrator_position + 1
         end if
      end do
@@ -1973,25 +1965,16 @@ end function serial_fe_space_facet_quadratures_position_key
 !    * right_reference_fe_id can range from 1 to this%reference_fes_size 
 !      (with 0 for boundary fe_faces)
 !    * left_reference_fe_id can range from 1 to this%reference_fes_size
-function serial_fe_space_facet_integrators_position_key(this, quadrature_degree, & 
-                                                        left_reference_fe_id, right_reference_fe_id, &
-                                                        local_fe_around_itfc_fe_facet_is_void)
+function serial_fe_space_facet_integrators_position_key(this, quadrature_degree, left_reference_fe_id, right_reference_fe_id)
   implicit none
   class(serial_fe_space_t)    , intent(in) :: this
   integer(ip)                 , intent(in) :: quadrature_degree
   integer(ip)                 , intent(in) :: left_reference_fe_id
   integer(ip)                 , intent(in) :: right_reference_fe_id
-  logical                     , intent(in) :: local_fe_around_itfc_fe_facet_is_void
   integer(ip) :: serial_fe_space_facet_integrators_position_key
-  if ( local_fe_around_itfc_fe_facet_is_void ) then
-    serial_fe_space_facet_integrators_position_key = left_reference_fe_id                      + &
-         (this%reference_fes_size)*(right_reference_fe_id)                                     + &
-         (this%reference_fes_size)*(this%reference_fes_size+1)*(2*(quadrature_degree+1)+1)
-  else
-    serial_fe_space_facet_integrators_position_key = left_reference_fe_id                      + &
-         (this%reference_fes_size)*(right_reference_fe_id)                                     + &
-         (this%reference_fes_size)*(this%reference_fes_size+1)*2*(quadrature_degree+1)
-  end if
+  serial_fe_space_facet_integrators_position_key = left_reference_fe_id + &
+       (this%reference_fes_size)*(right_reference_fe_id) + &
+       (this%reference_fes_size)*(this%reference_fes_size+1)*(quadrature_degree+1)
 end function serial_fe_space_facet_integrators_position_key
 
 subroutine serial_fe_space_create_dof_values(this, dof_values)

@@ -67,6 +67,7 @@ contains
 
     ! FE space traversal-related data types
     class(fe_cell_iterator_t), allocatable :: fe
+    class(fe_facet_iterator_t), allocatable :: fe_face
 
     ! FE integration-related data types
     type(quadrature_t)       , pointer :: quad
@@ -82,6 +83,7 @@ contains
     integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
     real(rp)     :: factor
     real(rp)     :: source_term_value
+    type(fe_facet_function_scalar_t)   :: fe_facet_function
     
     class(scalar_function_t), pointer :: source_term
     
@@ -135,6 +137,19 @@ contains
        call fe%next()
     end do
     call fe_space%free_fe_cell_iterator(fe)
+    
+    ! Loop over faces
+    call fe_facet_function%create(fe_space,1)
+    call fe_space%create_fe_facet_iterator(fe_face)
+    do while ( .not. fe_face%has_finished() ) 
+       write (*,*) fe_face%get_gid(), fe_face%is_at_field_boundary(1), fe_face%is_at_field_interior(1), fe_face%is_at_boundary()
+       call fe_face%update_integration()
+       call fe_facet_function%update(fe_face, this%fe_function)
+       call fe_face%next()
+    end do
+    call fe_space%free_fe_facet_iterator(fe_face)
+    call fe_facet_function%free()
+    
     call memfree(shape_values, __FILE__, __LINE__)
     deallocate (shape_gradients, stat=istat); check(istat==0);
     call memfree ( elmat, __FILE__, __LINE__ )

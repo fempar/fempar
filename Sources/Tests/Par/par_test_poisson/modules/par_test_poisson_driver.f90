@@ -385,6 +385,7 @@ end subroutine free_timers
     end if
     
     call this%fe_space%set_up_cell_integration()
+    call this%fe_space%set_up_facet_integration()
     !call this%fe_space%print()
   end subroutine setup_fe_space
   

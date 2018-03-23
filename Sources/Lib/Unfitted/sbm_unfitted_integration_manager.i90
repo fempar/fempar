@@ -548,10 +548,10 @@ subroutine uim_init_cut_fitted_facets_integration( this )
     do field_id = 1,fe%get_num_fields()
       reference_elem => fe%get_reference_fe(field_id)
       call this%cut_fitted_facet_integrators(field_id,pos_map_in_domain,ipos)%create(&
-        this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem, local_cell_around_itfc_facet_is_void=.false., is_identity_perm = .true. )
+        this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem, is_identity_perm = .true. )
       
       call this%cut_fitted_facet_integrators(field_id,pos_map_on_boundary,ipos)%create(&
-        this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem_null, local_cell_around_itfc_facet_is_void=.false., is_identity_perm = .true. )
+        this%cut_fitted_facet_quadratures(ipos), reference_elem, reference_elem_null, is_identity_perm = .true. )
     end do
 
   end do
@@ -563,8 +563,8 @@ subroutine uim_init_cut_fitted_facets_integration( this )
 
   do field_id = 1,fe%get_num_fields()
     reference_elem => fe%get_reference_fe(field_id)
-    call this%empty_facet_integrators(field_id,pos_map_in_domain)%create(this%empty_facet_quadrature,reference_elem, reference_elem, local_cell_around_itfc_facet_is_void =.false.)
-    call this%empty_facet_integrators(field_id,pos_map_on_boundary)%create(this%empty_facet_quadrature,reference_elem, reference_elem_null, local_cell_around_itfc_facet_is_void =.false.)
+    call this%empty_facet_integrators(field_id,pos_map_in_domain)%create(this%empty_facet_quadrature,reference_elem, reference_elem)
+    call this%empty_facet_integrators(field_id,pos_map_on_boundary)%create(this%empty_facet_quadrature,reference_elem, reference_elem_null)
   end do
 
   call this%fe_space%free_fe_cell_iterator(fe)

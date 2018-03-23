@@ -451,13 +451,12 @@ end function cell_integrator_facet_restriction_get_current_cell_integrator
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !facet_integrator_t type procedures
-subroutine facet_integrator_create(this,quadrature,left_reference_fe,right_reference_fe,local_cell_around_itfc_facet_is_void,is_identity_perm)
+subroutine facet_integrator_create(this,quadrature,left_reference_fe,right_reference_fe,is_identity_perm)
   implicit none
   ! Parameters
   class(facet_integrator_t)      , intent(inout) :: this
   type(quadrature_t)             , intent(in)    :: quadrature
   class(reference_fe_t) , pointer, intent(in)    :: left_reference_fe, right_reference_fe
-  logical                        , intent(in)    :: local_cell_around_itfc_facet_is_void
   logical, optional :: is_identity_perm
   
   integer(ip) :: i
@@ -470,7 +469,7 @@ subroutine facet_integrator_create(this,quadrature,left_reference_fe,right_refer
     is_identity_perm_ = is_identity_perm
   end if
   
-  call this%set_is_at_boundary_and_active_cell_id( left_reference_fe, right_reference_fe, local_cell_around_itfc_facet_is_void )
+  call this%set_is_at_boundary_and_active_cell_id( left_reference_fe, right_reference_fe )
   
   this%reference_fe(1)%p => left_reference_fe
   this%reference_fe(2)%p => right_reference_fe
@@ -525,11 +524,10 @@ subroutine facet_integrator_update(this,facet_lid,subfacet_lid,facet_map,permuta
 end subroutine facet_integrator_update
 
 !==================================================================================================
-subroutine facet_integrator_set_is_at_boundary_and_active_cell_id (this,left_reference_fe,right_reference_fe,local_cell_around_itfc_facet_is_void)
+subroutine facet_integrator_set_is_at_boundary_and_active_cell_id (this,left_reference_fe,right_reference_fe)
   implicit none
   class(facet_integrator_t)        , intent(inout) :: this
   class(reference_fe_t)   , pointer, intent(in)    :: left_reference_fe, right_reference_fe
-  logical                          , intent(in)    :: local_cell_around_itfc_facet_is_void
   logical :: left_is_void, right_is_void
   
   this%active_cell_id(1) = 1
@@ -556,6 +554,7 @@ subroutine facet_integrator_set_is_at_boundary_and_active_cell_id (this,left_ref
   
   if ( this%is_at_boundary ) then
     this%is_at_field_interior = .false.
+    this%is_at_field_interior = .false.
     if ( left_is_void ) then
        this%is_at_field_boundary = .false.
     else
@@ -563,11 +562,7 @@ subroutine facet_integrator_set_is_at_boundary_and_active_cell_id (this,left_ref
     end if   
   else
     if ( left_is_void .neqv. right_is_void ) then
-      if ( local_cell_around_itfc_facet_is_void ) then
-        this%is_at_field_boundary = .false.
-      else
-        this%is_at_field_boundary = .true.
-      end if
+      this%is_at_field_boundary = .true.
       this%is_at_field_interior = .false.
     else
       this%is_at_field_interior = .true.
