@@ -158,7 +158,8 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
      call this%serial_fe_space_t%create( triangulation,            &
                                          reference_fes,            &
                                          set_ids_to_reference_fes, &
-                                         conditions )
+                                         conditions,               &
+                                         generate_global_dof_numbering = .false. )
   else
      ! This is a little bit DIRTY. mlbddc_t%create() requires that coarse-grid
      ! tasks also know how many fields there are
