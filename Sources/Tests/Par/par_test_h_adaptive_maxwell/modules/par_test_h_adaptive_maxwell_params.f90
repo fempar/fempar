@@ -312,8 +312,9 @@ contains
     character(len=:), allocatable                            :: get_refinement_pattern_case
     type(ParameterList_t), pointer                           :: list
     integer(ip)                                              :: error
+    character(1) :: dummy_string
     list  => this%get_values()
-    assert(list%isAssignable(refinement_pattern_case_key, get_refinement_pattern_case))
+    assert(list%isAssignable(refinement_pattern_case_key, dummy_string))
     error = list%GetAsString(key = refinement_pattern_case_key, string = get_refinement_pattern_case)
     assert(error==0)
   end function get_refinement_pattern_case
@@ -377,8 +378,9 @@ contains
     character(len=:), allocatable                            :: get_subparts_coupling_criteria
     type(ParameterList_t), pointer                           :: list
     integer(ip)                                              :: error
+    character(1) :: dummy_string
     list  => this%get_values()
-    assert(list%isAssignable(coupling_criteria_key, get_subparts_coupling_criteria))
+    assert(list%isAssignable(coupling_criteria_key, dummy_string))
     error = list%GetAsString(key = coupling_criteria_key, string = get_subparts_coupling_criteria)
     assert(error==0)
   end function get_subparts_coupling_criteria
