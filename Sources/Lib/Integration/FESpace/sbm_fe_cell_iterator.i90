@@ -618,7 +618,7 @@ subroutine fe_cell_iterator_get_field_fe_dofs( this, field_id, fe_dofs )
   implicit none
   class(fe_cell_iterator_t), intent(in) :: this
   integer(ip)         , intent(in)      :: field_id
-  integer(ip), pointer, intent(out)     :: fe_dofs(:)
+  integer(ip), pointer, intent(inout)   :: fe_dofs(:)
   integer(ip) :: spos, epos
   ! Always assign an status of the output fe_dofs(:) dummy argument
   ! (i.e., even when there are NO DoFs on the local subdomain)
