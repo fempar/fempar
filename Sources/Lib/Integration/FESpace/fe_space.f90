@@ -290,6 +290,8 @@ module fe_space_names
                                                                         assembly_matrix,       &
                                                                         assembly_matrix_array, &
                                                                         assembly_matrix_array_with_strong_bcs
+    procedure, non_overridable, private :: clear_scratch_field_fe_dofs                => fe_cell_iterator_clear_scratch_field_fe_dofs
+
     procedure, non_overridable          :: first_local_non_void                       => fe_cell_iterator_first_local_non_void
 
     ! Added by unfitted_fe_cell_iterator
@@ -430,6 +432,9 @@ module fe_space_names
     generic                             :: assembly                      => fe_facet_iterator_assembly_array,  &
                                                                             fe_facet_iterator_assembly_matrix, &
                                                                             fe_facet_iterator_assembly_matrix_array
+ 
+    procedure, non_overridable, private :: clear_fe_dofs_ghost_full_local_void => fe_facet_iterator_clear_fe_dofs_ghost_full_local_void
+
     procedure, non_overridable          :: get_fe_space                  => fe_facet_iterator_get_fe_space
     procedure, non_overridable          :: get_fe_dofs                   => fe_facet_iterator_get_fe_dofs
     procedure, non_overridable          :: get_default_quadrature_degree  => fe_facet_iterator_get_default_quadrature_degree

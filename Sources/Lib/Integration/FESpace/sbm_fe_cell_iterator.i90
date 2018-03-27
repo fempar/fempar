@@ -1310,6 +1310,13 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
   
 end subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs
 
+subroutine fe_cell_iterator_clear_scratch_field_fe_dofs(this,field_id)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: field_id
+  this%fe_dofs(field_id)%p = 0
+end subroutine fe_cell_iterator_clear_scratch_field_fe_dofs
+
 subroutine fe_cell_iterator_first_local_non_void(this,field_id)
  implicit none
  class(fe_cell_iterator_t), intent(inout) :: this
