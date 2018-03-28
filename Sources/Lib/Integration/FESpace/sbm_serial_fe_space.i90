@@ -2760,6 +2760,34 @@ function serial_fe_space_get_ptr_dofs_per_fe(this)
   serial_fe_space_get_ptr_dofs_per_fe => this%ptr_dofs_x_fe
 end function serial_fe_space_get_ptr_dofs_per_fe
 
+function serial_fe_space_get_num_free_dofs(this)
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this 
+  integer(ip) :: serial_fe_space_get_num_free_dofs
+  serial_fe_space_get_num_free_dofs = this%num_free_dofs
+end function serial_fe_space_get_num_free_dofs
+
+subroutine serial_fe_space_set_num_free_dofs(this,num_free_dofs)
+  implicit none
+  class(serial_fe_space_t), intent(inout)    :: this 
+  integer(ip), intent(inout) :: num_free_dofs
+  this%num_free_dofs = num_free_dofs
+end subroutine serial_fe_space_set_num_free_dofs
+
+function serial_fe_space_get_num_ghost_dofs(this)
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this 
+  integer(ip) :: serial_fe_space_get_num_ghost_dofs
+  serial_fe_space_get_num_ghost_dofs = this%num_ghost_dofs
+end function serial_fe_space_get_num_ghost_dofs
+
+subroutine serial_fe_space_set_num_ghost_dofs(this,num_ghost_dofs)
+  implicit none
+  class(serial_fe_space_t), intent(inout)    :: this 
+  integer(ip), intent(inout) :: num_ghost_dofs
+  this%num_ghost_dofs = num_ghost_dofs
+end subroutine serial_fe_space_set_num_ghost_dofs
+
 function serial_fe_space_get_num_fixed_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
@@ -2794,6 +2822,20 @@ subroutine serial_fe_space_set_num_hanging_dofs(this,num_hanging_dofs)
   integer(ip), intent(in) :: num_hanging_dofs
   this%num_hanging_dofs = num_hanging_dofs
 end subroutine serial_fe_space_set_num_hanging_dofs
+
+function serial_fe_space_get_num_hanging_ghost_dofs(this)
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this 
+  integer(ip) :: serial_fe_space_get_num_hanging_ghost_dofs
+  serial_fe_space_get_num_hanging_ghost_dofs = this%num_hanging_ghost_dofs
+end function serial_fe_space_get_num_hanging_ghost_dofs
+
+subroutine serial_fe_space_set_num_hanging_ghost_dofs(this,num_hanging_ghost_dofs)
+  implicit none
+  class(serial_fe_space_t), intent(inout)    :: this 
+  integer(ip), intent(in) :: num_hanging_ghost_dofs
+  this%num_hanging_ghost_dofs = num_hanging_ghost_dofs
+end subroutine serial_fe_space_set_num_hanging_ghost_dofs
 
 function serial_fe_space_get_num_blocks( this)
   implicit none

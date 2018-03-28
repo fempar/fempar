@@ -663,11 +663,17 @@ module fe_space_names
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure, non_overridable          :: get_ptr_dofs_x_fe                            => serial_fe_space_get_ptr_dofs_per_fe
+     procedure                           :: get_num_free_dofs                            => serial_fe_space_get_num_free_dofs
+     procedure, non_overridable          :: set_num_free_dofs                            => serial_fe_space_set_num_free_dofs
+     procedure                           :: get_num_ghost_dofs                           => serial_fe_space_get_num_ghost_dofs
+     procedure, non_overridable          :: set_num_ghost_dofs                           => serial_fe_space_set_num_ghost_dofs
      procedure                           :: get_num_fixed_dofs                           => serial_fe_space_get_num_fixed_dofs
      procedure, non_overridable          :: set_num_fixed_dofs                           => serial_fe_space_set_num_fixed_dofs
      procedure                           :: get_num_dirichlet_dofs                       => serial_fe_space_get_num_dirichlet_dofs
      procedure                           :: get_num_hanging_dofs                         => serial_fe_space_get_num_hanging_dofs
      procedure, non_overridable          :: set_num_hanging_dofs                         => serial_fe_space_set_num_hanging_dofs
+     procedure                           :: get_num_hanging_ghost_dofs                   => serial_fe_space_get_num_hanging_ghost_dofs
+     procedure, non_overridable          :: set_num_hanging_ghost_dofs                   => serial_fe_space_set_num_hanging_ghost_dofs
      procedure                           :: get_num_blocks                            => serial_fe_space_get_num_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling
@@ -1252,6 +1258,7 @@ module fe_space_names
   type fe_function_t
    private
    class(vector_t), allocatable  :: free_dof_values
+   type(serial_scalar_array_t)   :: ghost_dof_values
    type(serial_scalar_array_t)   :: fixed_dof_values
    type(serial_scalar_array_t)   :: constraining_x_fixed_dof_values ! C_D u_D
   contains
