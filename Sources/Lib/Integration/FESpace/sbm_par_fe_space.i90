@@ -224,6 +224,10 @@ subroutine par_fe_space_free( this )
         ! fields is also set on coarse-grid tasks
         this%num_fields = 0
         
+        ! This is a little bit DIRTY, force initialization of variable.
+        this%num_free_dofs  = 0
+        this%num_ghost_dofs = 0
+        
         ! This is a little bit DIRTY. fe_function%create(fe_space)
         ! requires that num_fixed_dofs is initialize
         this%num_fixed_dofs = 0
@@ -401,7 +405,7 @@ subroutine par_fe_space_renum_dofs_first_interior_then_interface( this )
   integer(ip) :: iblock
   integer(ip), allocatable :: perm_old2new_block(:)
   type(environment_t), pointer :: environment
-  integer(ip) :: i 
+  integer(ip) :: i, constraining_free_dof_gid
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
     do iblock=1, this%block_layout%get_num_blocks()
@@ -410,8 +414,11 @@ subroutine par_fe_space_renum_dofs_first_interior_then_interface( this )
       call this%renum_dofs_block(iblock, perm_old2new_block)
       call this%blocks_dof_import(iblock)%renum_dofs(perm_old2new_block)
 
-      do i=1, this%constraining_free_dofs%size() 
-       call this%constraining_free_dofs%set(i, perm_old2new_block(this%constraining_free_dofs%get(i)))
+      do i=1, this%constraining_free_dofs%size()
+       constraining_free_dof_gid = this%constraining_free_dofs%get(i)
+       if ( this%is_free_dof(constraining_free_dof_gid) ) then
+         call this%constraining_free_dofs%set(i, perm_old2new_block(constraining_free_dof_gid))
+       end if
       end do 
 
       call memfree (perm_old2new_block, __FILE__, __LINE__)

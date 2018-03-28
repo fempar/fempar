@@ -142,6 +142,8 @@ subroutine serial_fe_space_free (this)
   call this%free_at_strong_dirichlet_boundary()
   call this%free_has_fixed_dofs()
   nullify(this%conditions)
+  this%num_free_dofs  = 0
+  this%num_ghost_dofs = 0
   this%num_fixed_dofs = 0
   if (allocated(this%num_dofs_x_field)) call memfree( this%num_dofs_x_field, __FILE__, __LINE__ )
   call this%free_fe_integration()
@@ -2029,6 +2031,7 @@ subroutine serial_fe_space_count_dofs ( this )
   integer(ip) :: ielem
   logical :: local_found
   
+  
   ! Count #DoFs per field
   this%num_dofs_x_field = 0
   
@@ -2082,6 +2085,7 @@ subroutine serial_fe_space_count_dofs ( this )
      if ( fe%is_ghost() ) then
          do field_id = 1, this%num_fields
            if ( .not. fe%is_void(field_id)) then
+              this%num_ghost_dofs = this%num_ghost_dofs + fe%count_own_dofs_cell(field_id)
               if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
                  do ivef = 1, fe%get_num_vefs()
                    call fe%get_vef(ivef, vef)
@@ -2114,6 +2118,24 @@ subroutine serial_fe_space_count_dofs ( this )
                                                                 num_own_dofs_on_vef 
                            end if                                     
                         end if
+                     end if
+                   else if ( vef%is_ghost() ) then
+                     if ( .not. vef%has_free_dofs(field_id,coarser_fe) ) cycle
+                     vef_lid = abs(fe%get_vef_gid(ivef))
+                     if ( vef%is_proper() ) then
+                       if ( .not. per_field_proper_vefs_visited (field_id,vef_lid) ) then
+                         num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
+                         if (num_own_dofs_on_vef>0) then
+                           per_field_proper_vefs_visited (field_id,vef_lid) = .true.
+                           this%num_ghost_dofs = this%num_ghost_dofs + num_own_dofs_on_vef
+                         end if
+                       end if
+                     else if ( .not. per_field_improper_vefs_visited (field_id,vef_lid) ) then
+                       num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
+                       if (num_own_dofs_on_vef>0) then
+                         per_field_improper_vefs_visited (field_id,vef_lid) = .true.
+                         this%num_ghost_dofs = this%num_ghost_dofs + num_own_dofs_on_vef
+                       end if
                      end if
                    end if
                  end do
@@ -2419,8 +2441,83 @@ subroutine serial_fe_space_list_dofs ( this )
     call this%block_layout%set_block_num_dofs(block_id,this%num_dofs_x_field(field_id))
   end if
   
+  call fe%first()
+  do while(.not. fe%has_finished())
+     if ( fe%is_ghost() ) then
+         do field_id = 1, this%num_fields
+           if ( .not. fe%is_void(field_id)) then
+              if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
+                 call fe%generate_own_dofs_cell ( field_id, fields_current_dof(field_id) )
+                 do ivef = 1, fe%get_num_vefs()
+                   call fe%get_vef(ivef, vef)
+                   if ( vef%is_ghost() ) then
+                     if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+                       vef_lid = abs(fe%get_vef_gid(ivef))
+                       
+                       is_owner = .false.
+                       if ( vef%is_proper() ) then
+                         is_owner = ( owner_cell_gid_x_field_and_proper_vef( field_id, vef_lid ) == -1 )
+                       else 
+                         is_owner = ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 )
+                       end if
+                       
+                       if ( is_owner ) then
+                         previous_dof_block = fields_current_dof(field_id)
+                         call fe%generate_own_dofs_vef ( ivef, &
+                                                         field_id, &
+                                                         fields_current_dof(field_id), &
+                                                         free_dofs_loop=.true. )
+                         if ( previous_dof_block < fields_current_dof(field_id) ) then
+                           if ( vef%is_proper() ) then
+                             owner_cell_gid_x_field_and_proper_vef ( field_id, vef_lid ) = fe%get_gid() 
+                             per_field_proper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                           else
+                             owner_cell_gid_x_field_and_improper_vef ( field_id, vef_lid ) = fe%get_gid() 
+                             per_field_improper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                           end if
+                         end if
+                       else
+                         if ( vef%is_proper() ) then
+                           source_cell_id = owner_cell_gid_x_field_and_proper_vef(field_id, vef_lid)
+                           source_vef_lid = per_field_proper_vef_lid_in_owner_cell(field_id,vef_lid)
+                         else
+                           source_cell_id = owner_cell_gid_x_field_and_improper_vef(field_id, vef_lid)
+                           source_vef_lid = per_field_improper_vef_lid_in_owner_cell(field_id,vef_lid)
+                         end if
+                         call source_fe%set_gid( source_cell_id )
+                         call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
+                       end if
+                     else
+                       assert ( fe%get_vef_gid(ivef) < 0 )
+                       vef_lid = abs(fe%get_vef_gid(ivef))
+                       if ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 ) then
+                          previous_fixed_dof = current_fixed_dof
+                          call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.)
+                          if (previous_fixed_dof < current_fixed_dof) then
+                            owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) = fe%get_gid()
+                            per_field_improper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                          end if
+                       else 
+                         call source_fe%set_gid(owner_cell_gid_x_field_and_improper_vef(field_id, vef_lid))
+                         call fe%fetch_own_dofs_vef_from_source_fe ( ivef,      &
+                                                                     source_fe, &
+                                                                     per_field_improper_vef_lid_in_owner_cell(field_id,vef_lid), &
+                                                                     field_id ) 
+                       end if
+                     end if
+                   end if
+                 end do
+              end if
+           end if
+         end do
+     end if
+     call fe%next()
+  end do
+  
   this%num_hanging_dofs = current_fixed_dof - this%num_fixed_dofs
   this%num_fixed_dofs   = current_fixed_dof
+  this%num_free_dofs    = sum(this%num_dofs_x_field)
+  if ( this%num_fields == 1 ) this%num_ghost_dofs = fields_current_dof(1) - this%num_free_dofs
   
   call this%free_fe_cell_iterator(coarser_fe)
   call this%free_fe_cell_iterator(source_fe)
@@ -2814,7 +2911,7 @@ function serial_fe_space_is_free_dof ( this, dof_lid )
   class(serial_fe_space_t)   , intent(in) :: this
   integer(ip)            , intent(in) :: dof_lid
   logical :: serial_fe_space_is_free_dof
-  serial_fe_space_is_free_dof = dof_lid > 0
+  serial_fe_space_is_free_dof = dof_lid > 0 .and. dof_lid <= this%num_free_dofs
 end function serial_fe_space_is_free_dof
 
 function serial_fe_space_is_strong_dirichlet_dof ( this, dof_lid )

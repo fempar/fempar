@@ -534,6 +534,8 @@ module fe_space_names
      
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
+     integer(ip)                                 :: num_free_dofs
+     integer(ip)                                 :: num_ghost_dofs
      integer(ip)                                 :: num_fixed_dofs
      integer(ip)                                 :: num_hanging_dofs
      integer(ip)                                 :: num_dirichlet_dofs
