@@ -1257,6 +1257,7 @@ module fe_space_names
  
   type fe_function_t
    private
+   integer(ip)                   :: num_free_dofs
    class(vector_t), allocatable  :: free_dof_values
    type(serial_scalar_array_t)   :: ghost_dof_values
    type(serial_scalar_array_t)   :: fixed_dof_values
