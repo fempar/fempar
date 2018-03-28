@@ -501,7 +501,7 @@ subroutine fe_cell_iterator_renum_dofs_field ( this, field_id, perm_old2new )
   
   assert ( field_id >= 1 .and. field_id <= this%fe_space%get_num_fields() )
   do i = start_pos_lst_dofs_gids, end_pos_lst_dofs_gids
-    if ( this%fe_space%lst_dofs_gids%get(i) > 0 ) then
+    if ( this%fe_space%is_free_dof(this%fe_space%lst_dofs_gids%get(i)) ) then
       call this%fe_space%lst_dofs_gids%set(i,perm_old2new(this%fe_space%lst_dofs_gids%get(i)))
     end if
   end do
@@ -1071,7 +1071,7 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_conforming ( this, fe_fu
       spos = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())
       do idof = 1, reference_fe%get_num_shape_functions()
         elmat_col = elmat_col + 1
-        if ( this%fe_space%lst_dofs_gids%get(spos+idof-1) < 0 ) then
+        if ( this%fe_space%is_strong_dirichlet_dof(this%fe_space%lst_dofs_gids%get(spos+idof-1)) ) then
           elvec = elvec - elmat(:,elmat_col)*strong_dirichlet_values_entries(-this%fe_space%lst_dofs_gids%get(spos+idof-1))
         end if
       end do

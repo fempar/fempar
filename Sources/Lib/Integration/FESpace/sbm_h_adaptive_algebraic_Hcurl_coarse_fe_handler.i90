@@ -206,7 +206,7 @@ subroutine h_adaptive_algebraic_l1_Hcurl_setup_object_dofs(this, field_id, par_f
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof    = own_dofs_on_vef_iterator%get_current()
            dof_lid = fe_dofs(idof)
-           if ( dof_lid > 0 ) then
+           if ( par_fe_space%is_free_dof(dof_lid) ) then
               call visited_dofs%put(key=dof_lid,val=idof,stat=istat)
               if ( istat == now_stored ) then
               num_fine_dofs = num_fine_dofs + 1
@@ -307,7 +307,7 @@ subroutine h_adaptive_algebraic_l1_Hcurl_get_num_coarse_dofs(this, field_id, par
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof    = own_dofs_on_vef_iterator%get_current()
            dof_lid = fe_dofs(idof)
-           if ( dof_lid > 0 ) then
+           if ( par_fe_space%is_free_dof(dof_lid) ) then
               call visited_dofs%put(key=dof_lid,val=idof,stat=istat)
               if ( istat == now_stored ) then
               num_fine_dofs = num_fine_dofs + 1
@@ -382,7 +382,7 @@ subroutine h_adaptive_algebraic_l1_Hcurl_setup_constraint_matrix(this, field_id,
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
                  dof_lid = fe_dofs(idof)
-                 if ( dof_lid > 0 ) then
+                 if ( par_fe_space%is_free_dof(dof_lid) ) then
                     call visited_dofs%put(key=dof_lid,val=idof,stat=istat)
                     if ( istat == now_stored ) then
                        num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + 1
@@ -407,7 +407,7 @@ subroutine h_adaptive_algebraic_l1_Hcurl_setup_constraint_matrix(this, field_id,
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
                  dof_lid = fe_dofs(idof)
-                 if ( dof_lid > 0 ) then
+                 if ( par_fe_space%is_free_dof(dof_lid) ) then
                     call visited_dofs%put(key=dof_lid,val=idof,stat=istat)
                     if ( istat == now_stored ) then
                        coarse_dof_lid = base_coarse_dof_lid + this%dof_gid_to_cdof_id_in_object(dof_lid)

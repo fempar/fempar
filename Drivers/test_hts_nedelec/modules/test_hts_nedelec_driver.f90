@@ -428,7 +428,7 @@ contains
           ! Add element contribution to matrix and vector 
           do i = 1, fe%get_num_dofs_field(1) 
              idof = fe_dofs(1)%p(i) 
-             if ( idof > 0 ) then 
+             if ( this%fe_space%is_free_dof(idof)) ) then 
                  call this%constraint_matrix%insert( idof, 1, elvec(i) )
                  call this%constraint_vector%add(idof, elvec(i))
              end if
@@ -474,7 +474,7 @@ contains
                 ! Add element contribution to vector 
                 do i = 1, fe%get_num_dofs_field(1) 
                    idof = fe_dofs(1)%p(i) 
-                   if ( idof > 0 ) then 
+                   if ( this%fe_space%is_free_dof(idof)) ) then 
                       call this%constraint_matrix%insert( idof, 1, facevec(i) )
                       call this%constraint_vector%add(idof, facevec(i))
                    end if

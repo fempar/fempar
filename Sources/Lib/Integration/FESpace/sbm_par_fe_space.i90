@@ -500,7 +500,7 @@ end subroutine par_fe_space_renum_dofs_first_interior_then_interface
        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof    =  own_dofs_on_vef_iterator%get_current()
            dof_gid = fe_dofs(field_id)%p(idof)
-           if ( dof_gid <= 0 ) then
+           if ( .not. this%is_free_dof(dof_gid) ) then
              call own_dofs_on_vef_iterator%next()
              cycle
            end if
@@ -1293,7 +1293,7 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
            do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
               idof =  own_dofs_on_vef_iterator%get_current()
               dof_gid = fe_dofs(field_id)%p(idof)
-              if ( dof_gid >= 0 ) then
+              if ( dof_gid == 0 .or. this%is_free_dof(dof_gid) ) then
                  call own_dofs_on_vef_iterator%next()
                  cycle
               end if
@@ -1890,7 +1890,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof =  own_dofs_on_vef_iterator%get_current()
            dof_gid = fe_dofs(field_id)%p(idof)
-           if ( dof_gid <= 0 ) then
+           if ( .not. this%is_free_dof(dof_gid) ) then
              call own_dofs_on_vef_iterator%next()
              cycle
            end if
@@ -2077,7 +2077,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
             idof =  own_dofs_on_vef_iterator%get_current()
             dof_gid = fe_dofs(idof)
-            if ( dof_gid == 0 .or. this%is_fixed_dof(dof_gid) ) then
+            if ( .not. this%is_free_dof(dof_gid) ) then
                call own_dofs_on_vef_iterator%next()
                cycle
             end if
@@ -2129,7 +2129,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
             do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
               idof =  own_dofs_on_vef_iterator%get_current()
               dof_gid = fe_dofs(idof)
-              if ( dof_gid == 0 .or. this%is_fixed_dof(dof_gid) ) then
+              if ( .not. this%is_free_dof(dof_gid) ) then
                  call own_dofs_on_vef_iterator%next()
                  cycle
               end if
