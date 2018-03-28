@@ -3923,6 +3923,13 @@ subroutine serial_fe_space_update_hanging_dof_values (this, fe_function )
   end do
 end subroutine serial_fe_space_update_hanging_dof_values 
 
+subroutine serial_fe_space_update_ghost_dof_values (this, fe_function )
+  implicit none
+  class(serial_fe_space_t), intent(in)    :: this
+  class(fe_function_t)    , intent(inout) :: fe_function
+  mcheck(.false.,'This procedure has only been implemented by the par_fe_space')
+end subroutine serial_fe_space_update_ghost_dof_values 
+
 #ifndef ENABLE_P4EST
   subroutine serial_fe_space_not_enabled_error(this)
     class(serial_fe_space_t), intent(in) :: this

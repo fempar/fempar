@@ -5535,3 +5535,93 @@ end subroutine par_fe_space_redistribute_fe_function_array
     type(fe_object_iterator_t), intent(inout) :: fe_object
     call fe_object%free()
  end subroutine par_fe_space_free_fe_object_iterator
+
+ subroutine par_fe_space_update_ghost_dof_values (this, fe_function )
+  implicit none
+  class(par_fe_space_t), intent(in)    :: this
+  class(fe_function_t) , intent(inout) :: fe_function
+  
+  class(triangulation_t)   , pointer     :: triangulation
+  type(environment_t)      , pointer     :: environment
+  class(cell_import_t)     , pointer     :: cell_import
+  real(rp)                 , allocatable :: fe_function_nodal_values(:)
+  class(fe_cell_iterator_t), allocatable :: fe
+  integer(ip)                            :: field_id
+  integer(ip)                            :: spos, epos
+  integer(ip)                            :: num_dofs
+  
+  triangulation => this%get_triangulation()
+  environment => triangulation%get_environment()
+  
+  if ( environment%am_i_l1_task() ) then
+    if ( triangulation%get_num_cells() > 0 ) then
+      
+      call memalloc ( this%ptr_dofs_x_fe(1)%get(triangulation%get_num_cells()+1)-1, & 
+                      fe_function_nodal_values,__FILE__, __LINE__ ) 
+      call this%create_fe_cell_iterator(fe)
+      
+      ! Gather local nodal values
+      do while ( .not. fe%has_finished() )
+        if ( fe%is_local() ) then
+          do field_id = 1, this%get_num_fields()
+            call get_lst_dofs_spos_epos(spos,epos)
+            call fe_function%gather_nodal_values( fe, field_id, &
+                                                  fe_function_nodal_values(spos:epos))
+          end do
+        end if
+        call fe%next()
+      end do
+      
+      ! Assume that all cells have the same num dofs
+      num_dofs = this%ptr_dofs_x_fe(1)%get(2)- &
+                 this%ptr_dofs_x_fe(this%num_fields)%get(1)
+      
+      ! Comm local to ghost
+      cell_import => triangulation%get_cell_import()
+      call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(),    &
+                                                cell_import%get_neighbours_ids(),    &
+                                                cell_import%get_rcv_ptrs(),          &
+                                                cell_import%get_rcv_leids(),         &
+                                                cell_import%get_num_neighbours(),    &
+                                                cell_import%get_neighbours_ids(),    &
+                                                cell_import%get_snd_ptrs(),          &
+                                                cell_import%get_snd_leids(),         &
+                                                fe_function_nodal_values,            &
+                                                fe_function_nodal_values,            &
+                                                num_dofs )
+                                                !this%ptr_dofs_x_fe(1)%get_pointer(), &
+                                                !this%ptr_dofs_x_fe(1)%get_pointer() )
+      
+      ! Insert ghost dof values
+      call fe%first()
+      do while ( .not. fe%has_finished() )
+        if ( fe%is_ghost() ) then
+          do field_id = 1, this%get_num_fields()
+            call get_lst_dofs_spos_epos(spos,epos)
+            call fe_function%insert_nodal_values( fe, field_id, &
+                                                  fe_function_nodal_values(spos:epos))
+          end do
+        end if
+        call fe%next()
+      end do
+      
+      call this%free_fe_cell_iterator(fe)
+      call memfree ( fe_function_nodal_values,__FILE__, __LINE__ ) 
+      
+    end if
+  end if
+  
+  contains
+   
+   subroutine get_lst_dofs_spos_epos(spos,epos)
+     implicit none
+     integer(ip), intent(inout) :: spos, epos
+     spos = this%ptr_dofs_x_fe(field_id)%get(fe%get_gid())
+     if ( field_id == this%get_num_fields() ) then
+       epos = this%ptr_dofs_x_fe(1)%get(fe%get_gid()+1)-1
+     else
+       epos = this%ptr_dofs_x_fe(field_id+1)%get(fe%get_gid())-1
+     end if
+   end subroutine get_lst_dofs_spos_epos
+   
+end subroutine par_fe_space_update_ghost_dof_values 
