@@ -149,6 +149,7 @@ subroutine serial_fe_space_free (this)
   call this%free_fe_integration()
   call this%free_facet_integration()
   this%num_hanging_dofs = 0
+  this%num_hanging_ghost_dofs = 0
   this%num_dirichlet_dofs = 0
   call this%free_has_hanging_dofs_x_fe()
   call this%free_constraining_dofs_arrays()
@@ -2441,6 +2442,8 @@ subroutine serial_fe_space_list_dofs ( this )
     call this%block_layout%set_block_num_dofs(block_id,this%num_dofs_x_field(field_id))
   end if
   
+  this%num_hanging_dofs = current_fixed_dof - this%num_fixed_dofs
+  
   call fe%first()
   do while(.not. fe%has_finished())
      if ( fe%is_ghost() ) then
@@ -2514,9 +2517,10 @@ subroutine serial_fe_space_list_dofs ( this )
      call fe%next()
   end do
   
-  this%num_hanging_dofs = current_fixed_dof - this%num_fixed_dofs
-  this%num_fixed_dofs   = current_fixed_dof
-  this%num_free_dofs    = sum(this%num_dofs_x_field)
+  this%num_hanging_ghost_dofs = current_fixed_dof - this%num_fixed_dofs - this%num_hanging_dofs
+  this%num_hanging_dofs       = this%num_hanging_dofs + this%num_hanging_ghost_dofs
+  this%num_fixed_dofs         = current_fixed_dof
+  this%num_free_dofs          = sum(this%num_dofs_x_field)
   if ( this%num_fields == 1 ) this%num_ghost_dofs = fields_current_dof(1) - this%num_free_dofs
   
   call this%free_fe_cell_iterator(coarser_fe)
@@ -2914,6 +2918,14 @@ function serial_fe_space_is_free_dof ( this, dof_lid )
   serial_fe_space_is_free_dof = dof_lid > 0 .and. dof_lid <= this%num_free_dofs
 end function serial_fe_space_is_free_dof
 
+function serial_fe_space_is_ghost_dof ( this, dof_lid )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  integer(ip)             , intent(in) :: dof_lid
+  logical :: serial_fe_space_is_ghost_dof
+  serial_fe_space_is_ghost_dof = dof_lid > this%num_free_dofs .and. dof_lid <= this%num_free_dofs + this%num_ghost_dofs
+end function serial_fe_space_is_ghost_dof
+
 function serial_fe_space_is_strong_dirichlet_dof ( this, dof_lid )
   implicit none
   class(serial_fe_space_t)   , intent(in) :: this
@@ -3159,8 +3171,6 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   ! Computation of constraints     
   do improper_vef_lid = 1, this%triangulation%get_num_improper_vefs()
      call fe_vef%set_gid(-improper_vef_lid)
-
-     if ( fe_vef%is_ghost() ) cycle 
      
      do field_id=1, this%get_num_fields()
 
@@ -3191,7 +3201,7 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
            improper_dof_lid = fe_dofs(fe_own_dofs_on_vef_iterator%get_current())
            ishape_fe = fe_own_dofs_on_vef_iterator%get_current()
 
-           if ( fe%is_free_dof(improper_dof_lid) ) exit
+           if ( fe%is_free_dof(improper_dof_lid) .or. fe%is_ghost_dof(improper_dof_lid) ) exit
 
            improper_dof_lid = abs(improper_dof_lid)
            hanging_dof_lid  = improper_dof_lid - this%num_dirichlet_dofs
@@ -3235,8 +3245,6 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   do improper_vef_lid = 1, this%triangulation%get_num_improper_vefs()
      call fe_vef%set_gid(-improper_vef_lid)
 
-     if ( fe_vef%is_ghost() ) cycle 
-     
      do field_id=1, this%get_num_fields()
 
         ! Retrieve all data related to the current improper vef 
@@ -3295,12 +3303,13 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
                       coarse_fe_subvef, &
                       fe_dofs_on_vef_iterator%get_distance_to_lower_bound())
               else if ( fe_vef%get_dim()  == 1 .and. this%triangulation%get_num_dims() == 3 .and. coarse_fe_subvef < 0 ) then
-                 assert ( fe_vef%get_num_cells_around() == 2 )
                  ! Go over cells around fe_vef(), and find the one with the minimum global identifier
                  call fe_vef%get_cell_around(1,fe)
                  min_cell_gid=fe%get_gid()
-                 call fe_vef%get_cell_around(2,fe)
-                 min_cell_gid=min(fe%get_gid(),min_cell_gid)
+                 if ( fe_vef%get_num_cells_around() == 2 ) then
+                   call fe_vef%get_cell_around(2,fe)
+                   min_cell_gid=min(fe%get_gid(),min_cell_gid)
+                 end if
                  call fe%set_gid(min_cell_gid)
 
                  call fe%get_field_fe_dofs(field_id,fe_dofs)
@@ -3846,7 +3855,7 @@ subroutine serial_fe_space_update_hanging_dof_values (this, fe_function )
   fixed_dof_values_entries => fixed_dof_values%get_entries()
   fixed_dof_values_entries(this%num_dirichlet_dofs+1:this%num_fixed_dofs) = 0.0_rp
   
-  do i_gid = 1, this%num_hanging_dofs
+  do i_gid = 1, this%num_hanging_dofs-this%num_hanging_ghost_dofs
     spos = this%ptr_constraining_free_dofs%get(i_gid)
     epos = this%ptr_constraining_free_dofs%get(i_gid+1)-1
     do pos=spos, epos 

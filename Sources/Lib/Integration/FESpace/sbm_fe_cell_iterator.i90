@@ -761,6 +761,14 @@ function fe_cell_iterator_is_free_dof ( this, dof_lid )
   fe_cell_iterator_is_free_dof = this%fe_space%is_free_dof(dof_lid)
 end function fe_cell_iterator_is_free_dof
 
+function fe_cell_iterator_is_ghost_dof ( this, dof_lid )
+  implicit none
+  class(fe_cell_iterator_t), intent(in) :: this
+  integer(ip)              , intent(in) :: dof_lid
+  logical :: fe_cell_iterator_is_ghost_dof
+  fe_cell_iterator_is_ghost_dof = this%fe_space%is_ghost_dof(dof_lid)
+end function fe_cell_iterator_is_ghost_dof
+
 function fe_cell_iterator_is_strong_dirichlet_dof ( this, dof_lid )
   implicit none
   class(fe_cell_iterator_t)   , intent(in) :: this

@@ -259,6 +259,7 @@ module fe_space_names
     procedure, non_overridable          :: determine_has_fixed_dofs                   => fe_cell_iterator_set_has_fixed_dofs
     procedure                           :: determine_has_hanging_dofs                 => fe_cell_iterator_set_has_hanging_dofs
     procedure, non_overridable          :: is_free_dof                                => fe_cell_iterator_is_free_dof
+    procedure, non_overridable          :: is_ghost_dof                               => fe_cell_iterator_is_ghost_dof
     procedure                           :: is_strong_dirichlet_dof                    => fe_cell_iterator_is_strong_dirichlet_dof   
     procedure, non_overridable          :: is_fixed_dof                               => fe_cell_iterator_is_fixed_dof
     procedure                           :: is_hanging_dof                             => fe_cell_iterator_is_hanging_dof
@@ -538,6 +539,7 @@ module fe_space_names
      integer(ip)                                 :: num_ghost_dofs
      integer(ip)                                 :: num_fixed_dofs
      integer(ip)                                 :: num_hanging_dofs
+     integer(ip)                                 :: num_hanging_ghost_dofs
      integer(ip)                                 :: num_dirichlet_dofs
      type(std_vector_logical_t)    , allocatable :: at_strong_dirichlet_boundary_x_fe(:)
      type(std_vector_logical_t)    , allocatable :: has_fixed_dofs_x_fe(:)
@@ -680,6 +682,7 @@ module fe_space_names
      procedure, non_overridable          :: get_constraining_dirichlet_dofs_coefficients => serial_fe_space_get_constraining_dirichlet_dofs_coefficients
      procedure, non_overridable          :: get_constraints_independent_term             => serial_fe_space_get_constraints_independent_term
      procedure, non_overridable          :: is_free_dof                                  => serial_fe_space_is_free_dof 
+     procedure, non_overridable          :: is_ghost_dof                                 => serial_fe_space_is_ghost_dof 
      procedure, non_overridable          :: is_strong_dirichlet_dof                      => serial_fe_space_is_strong_dirichlet_dof
      procedure, non_overridable          :: is_fixed_dof                                 => serial_fe_space_is_fixed_dof
      procedure, non_overridable          :: is_hanging_dof                               => serial_fe_space_is_hanging_dof
