@@ -115,7 +115,7 @@ subroutine edge_map_update(this,local_edge_id,reference_fe,quadrature)
       this%tangents (:, evaluation_point_id) = this%tangents (:, evaluation_point_id)/this%det_jacobian(evaluation_point_id)
       this%measure = this%measure + this%det_jacobian(evaluation_point_id) * quadrature%get_weight(evaluation_point_id)
   end do
-		
+  
 end subroutine edge_map_update
 
 !==================================================================================================

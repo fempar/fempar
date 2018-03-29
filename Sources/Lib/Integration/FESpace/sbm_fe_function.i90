@@ -38,7 +38,10 @@
     class(fe_function_t)            , intent(inout) :: this
     class(serial_fe_space_t)        , intent(in)    :: fe_space
     call this%free()
+    this%num_free_dofs = fe_space%get_num_free_dofs()
     call fe_space%create_dof_values(this%free_dof_values)
+    call this%ghost_dof_values%create_and_allocate(fe_space%get_num_ghost_dofs())
+    call this%ghost_dof_values%init(0.0_rp)
     call this%fixed_dof_values%create_and_allocate(fe_space%get_num_fixed_dofs())
     call this%fixed_dof_values%init(0.0_rp)
   end subroutine fe_function_create
@@ -51,7 +54,6 @@
     real(rp)                   , intent(inout) :: nodal_values(:)
     
     class(reference_fe_t)      , pointer :: reference_fe
-    real(rp)                   , pointer :: fixed_dof_values_entries(:)
     integer(ip)                , pointer :: fe_dofs(:)
     integer(ip) :: inode, num_nodes_field
     integer(ip) :: block_id
@@ -63,12 +65,10 @@
 
     if ( fe_cell_iterator%has_fixed_dofs(field_id) ) then
       ! Extract nodal values associated to dirichlet bcs
-      fixed_dof_values_entries => this%fixed_dof_values%get_entries()
-      do inode = 1, num_nodes_field
-        if ( fe_cell_iterator%is_fixed_dof(fe_dofs(inode)) ) then
-           nodal_values(inode) = fixed_dof_values_entries(-fe_dofs(inode))
-        end if
-      end do
+      call this%fixed_dof_values%extract_subvector( 1,               &
+                                                    num_nodes_field, &
+                                                    -fe_dofs,        &
+                                                    nodal_values )
     end if
     
     field_blocks => fe_cell_iterator%get_field_blocks()
@@ -79,6 +79,13 @@
                                              num_nodes_field, &
                                              fe_dofs, &
                                              nodal_values )
+    
+    if ( fe_cell_iterator%is_ghost() ) then
+      call this%ghost_dof_values%extract_subvector ( 1,                            &
+                                                     num_nodes_field,              &
+                                                     fe_dofs - this%num_free_dofs, &
+                                                     nodal_values )
+    end if
     
   end subroutine fe_function_gather_nodal_values_through_iterator
   
@@ -96,17 +103,14 @@
     integer(ip)                , intent(in)    :: field_blocks(:)
     real(rp)                   , intent(inout) :: nodal_values(:)
     
-    real(rp), pointer :: fixed_dof_values_entries(:)
     integer(ip)       :: inode, block_id
     
     ! Extract nodal values associated to dirichlet bcs
     if ( minval(fe_dofs) < 0 ) then
-      fixed_dof_values_entries => this%fixed_dof_values%get_entries()
-      do inode = 1, num_nodes_field
-        if ( fe_dofs(inode) < 0 ) then
-           nodal_values(inode) = fixed_dof_values_entries(-fe_dofs(inode))
-        end if
-      end do
+      call this%fixed_dof_values%extract_subvector( 1,               &
+                                                    num_nodes_field, &
+                                                    -fe_dofs,        &
+                                                    nodal_values )
     end if
     
     block_id = field_blocks(field_id)
@@ -116,6 +120,11 @@
                                              num_nodes_field, &
                                              fe_dofs,           &
                                              nodal_values )
+    
+    call this%ghost_dof_values%extract_subvector ( 1,                            &
+                                                   num_nodes_field,              &
+                                                   fe_dofs - this%num_free_dofs, &
+                                                   nodal_values )
     
   end subroutine fe_function_gather_nodal_values_from_raw_data
   
@@ -127,7 +136,6 @@
     real(rp)                   , intent(in)    :: nodal_values(:)
     
     class(reference_fe_t)      , pointer :: reference_fe
-    real(rp)                   , pointer :: fixed_dof_values_entries(:)
     integer(ip)                , pointer :: fe_dofs(:)
     integer(ip) :: inode, num_nodes_field
     integer(ip) :: block_id
@@ -140,12 +148,10 @@
 
     if ( fe%has_fixed_dofs(field_id) ) then
       ! Insert nodal values associated to dirichlet bcs
-      fixed_dof_values_entries => this%fixed_dof_values%get_entries()
-      do inode = 1, num_nodes_field
-        if ( fe%is_fixed_dof(fe_dofs(inode)) ) then
-           fixed_dof_values_entries(-fe_dofs(inode)) = nodal_values(inode)
-        end if
-      end do
+      call this%fixed_dof_values%insert_subvector( 1,               &
+                                                   num_nodes_field, &
+                                                   -fe_dofs,        &
+                                                   nodal_values )
     end if
     
     field_blocks => fe%get_field_blocks()
@@ -156,6 +162,13 @@
                                              num_nodes_field, &
                                              fe_dofs, &
                                              nodal_values )
+    
+    if ( fe%is_ghost() ) then
+      call this%ghost_dof_values%insert_subvector ( 1,                            &
+                                                    num_nodes_field,              &
+                                                    fe_dofs - this%num_free_dofs, &
+                                                    nodal_values )
+    end if
     
   end subroutine fe_function_insert_nodal_values
     
@@ -189,11 +202,13 @@
     implicit none
     class(fe_function_t), intent(inout) :: this
     integer(ip)                         :: istat
+    this%num_free_dofs = 0_ip
     if( allocated(this%free_dof_values) ) then
       call this%free_dof_values%free()
       deallocate ( this%free_dof_values, stat=istat )
       check (istat == 0)
     end if
+    call this%ghost_dof_values%free()
     call this%fixed_dof_values%free()
   end subroutine fe_function_free
 

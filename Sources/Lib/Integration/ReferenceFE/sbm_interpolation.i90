@@ -118,6 +118,7 @@ subroutine interpolation_clone(this, source_interpolation)
                                         source_interpolation%num_shape_functions,   &
                                         source_interpolation%num_quadrature_points, & 
                                         source_interpolation%my_duties ) ) return
+
  
   call this%free()
   this%my_duties             = source_interpolation%my_duties

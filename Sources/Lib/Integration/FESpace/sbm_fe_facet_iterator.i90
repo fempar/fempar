@@ -183,7 +183,6 @@ subroutine fe_facet_iterator_update_fes_around( this )
   integer(ip) :: icell_around
   do icell_around=1, this%get_num_cells_around()
     call this%get_cell_around(icell_around, this%fes_around(icell_around)%p)
-    call this%fes_around(icell_around)%p%update_scratch_data()
   end do 
 end subroutine fe_facet_iterator_update_fes_around
 
@@ -242,9 +241,12 @@ subroutine fe_facet_iterator_assembly_array ( this,    &
   class(fe_facet_iterator_t)      , intent(inout) :: this
   real(rp)                       , intent(in)    :: facevec(:,:)
   class(assembler_t), intent(inout) :: assembler
-  
   integer(ip) :: ineigh
   
+  do ineigh = 1, this%get_num_cells_around()
+    call this%fes_around(ineigh)%p%update_assembly_scratch_data()
+  end do
+
   do ineigh = 1, this%get_num_cells_around()
     call assembler%assembly_array( this%fe_space%num_fields,                    &
                                                 this%fe_space%get_field_blocks(),               &
@@ -263,8 +265,11 @@ subroutine fe_facet_iterator_assembly_matrix ( this,    &
   class(fe_facet_iterator_t)      , intent(inout) :: this
   real(rp)                       , intent(in)    :: facemat(:,:,:,:)
   class(assembler_t), intent(inout) :: assembler
-  
   integer(ip) :: ineigh, jneigh
+  
+  do ineigh = 1, this%get_num_cells_around()
+    call this%fes_around(ineigh)%p%update_assembly_scratch_data()
+  end do
   
   do ineigh = 1, this%get_num_cells_around()
     do jneigh = 1, this%get_num_cells_around()
@@ -293,6 +298,11 @@ subroutine fe_facet_iterator_assembly_matrix_array ( this,    &
   
   integer(ip) :: ineigh, jneigh
  
+  do ineigh = 1, this%get_num_cells_around()
+    call this%fes_around(ineigh)%p%update_assembly_scratch_data()
+  end do
+  
+  
   do ineigh = 1, this%get_num_cells_around()
     do jneigh = 1, this%get_num_cells_around()
       call assembler%assembly_matrix( this%fe_space%num_fields,                   &

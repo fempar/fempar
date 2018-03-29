@@ -370,7 +370,7 @@ subroutine unfitted_l1_setup_object_gid_to_dof_gids(this)
           do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
             idof    = own_dofs_on_vef_iterator%get_current()
             dof_gid = fe_dofs(idof)
-            if ( dof_gid > 0 ) then
+            if ( this%par_fe_space%is_free_dof(dof_gid) ) then
               if(.not. visited_dofs(dof_gid)) then
 
                 ! Store the minimum (active) neighbor part

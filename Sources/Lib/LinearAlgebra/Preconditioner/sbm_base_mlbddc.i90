@@ -785,7 +785,7 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
   assert ( L2_environment%am_i_l1_task() )
 
   fe_space    => this%get_fe_space()
-  coarse_fe_space => fe_space%get_coarse_fe_space()	
+  coarse_fe_space => fe_space%get_coarse_fe_space() 
 
   allocate ( fe_dofs(coarse_fe_space%get_num_fields()), stat=istat)
   check(istat==0)     
@@ -919,7 +919,7 @@ recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
        coarse_correction_I, &
        coarse_correction_G
   type(environment_t), pointer :: par_environment
-
+  
   par_environment => this%get_par_environment()
   if ( par_environment%get_l1_size() == 1 ) then
      call this%solve_coarse_problem(x, y)
@@ -978,6 +978,7 @@ recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
      call delta_G%axpby(1.0_rp, constrained_neumann_correction_G,1.0_rp)
      call this%apply_weight_operator(delta,delta) 
      call delta%comm()
+     
      ! y_G = delta_G
      call y_G%copy(delta_G)
 
