@@ -1750,7 +1750,10 @@ subroutine serial_fe_space_fill_facet_gids ( this )
   call this%facet_gids%resize(0)
   call this%create_fe_vef_iterator(fe_vef)
   do while ( .not. fe_vef%has_finished() )
-    if ( fe_vef%is_fe_facet() ) then
+    if ( fe_vef%is_facet() .and. .not. fe_vef%is_ghost() .and.   &
+         ( ( .not. fe_vef%is_proper() ) .or.                         &
+         ( fe_vef%is_proper() .and. ( fe_vef%is_at_boundary() .or. &
+           fe_vef%get_num_cells_around() > 1 ) ) ) ) then
       call this%facet_gids%push_back(fe_vef%get_gid())
     end if
     call fe_vef%next()
