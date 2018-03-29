@@ -642,18 +642,10 @@ subroutine fe_cell_iterator_get_fe_dofs( this, fe_dofs )
   implicit none
   class(fe_cell_iterator_t), intent(in)    :: this
   type(i1p_t)         , intent(inout) :: fe_dofs(:)
-  integer(ip) :: field_id, j, spos, epos
-  if ( this%fe_space%lst_dofs_gids%size() > 0 ) then
-    assert ( size(fe_dofs) == this%fe_space%num_fields )
-    do field_id = 1, this%get_num_fields()-1
-      spos = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())
-      epos = this%fe_space%ptr_dofs_x_fe(field_id+1)%get(this%get_gid())-1
-      fe_dofs(field_id)%p => this%fe_space%lst_dofs_gids%get_pointer(spos,epos)
-    end do
-    spos = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())
-    epos = this%fe_space%ptr_dofs_x_fe(1)%get(this%get_gid()+1)-1
-    fe_dofs(field_id)%p => this%fe_space%lst_dofs_gids%get_pointer(spos,epos)
-  end if
+  integer(ip) :: field_id
+  do field_id = 1, this%get_num_fields()
+    call this%get_field_fe_dofs(field_id, fe_dofs(field_id)%p)
+  end do 
 end subroutine fe_cell_iterator_get_fe_dofs
 
 function fe_cell_iterator_get_order( this, field_id )
