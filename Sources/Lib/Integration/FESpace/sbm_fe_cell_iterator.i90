@@ -616,36 +616,36 @@ end function fe_cell_iterator_get_num_dofs_field
 
 subroutine fe_cell_iterator_get_field_fe_dofs( this, field_id, fe_dofs )
   implicit none
-  class(fe_cell_iterator_t), intent(in)    :: this
-  integer(ip)         , intent(in)    :: field_id
-  integer(ip), pointer, intent(inout) :: fe_dofs(:)
+  class(fe_cell_iterator_t), intent(in) :: this
+  integer(ip)         , intent(in)      :: field_id
+  integer(ip), pointer, intent(inout)   :: fe_dofs(:)
   integer(ip) :: spos, epos
- 
-  spos = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())
-  if ( field_id == this%fe_space%get_num_fields() ) then
-     epos = this%fe_space%ptr_dofs_x_fe(1)%get(this%get_gid()+1)-1
-  else
-     epos = this%fe_space%ptr_dofs_x_fe(field_id+1)%get(this%get_gid())-1
+  ! Always assign an status of the output fe_dofs(:) dummy argument
+  ! (i.e., even when there are NO DoFs on the local subdomain)
+  nullify(fe_dofs)
+  
+  ! The code below according to the Fortran2003 handbook returns a zero-sized
+  ! pointer array if spos>epos (i.e., when we have a void FE on top of this for
+  ! field_id)
+  if ( this%fe_space%lst_dofs_gids%size() > 0 ) then
+    spos = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())
+    if ( field_id == this%fe_space%get_num_fields() ) then
+       epos = this%fe_space%ptr_dofs_x_fe(1)%get(this%get_gid()+1)-1
+    else
+       epos = this%fe_space%ptr_dofs_x_fe(field_id+1)%get(this%get_gid())-1
+    end if
+    fe_dofs => this%fe_space%lst_dofs_gids%get_pointer(spos,epos)
   end if
-  fe_dofs => this%fe_space%lst_dofs_gids%get_pointer(spos,epos)
 end subroutine fe_cell_iterator_get_field_fe_dofs
 
 subroutine fe_cell_iterator_get_fe_dofs( this, fe_dofs )
   implicit none
   class(fe_cell_iterator_t), intent(in)    :: this
   type(i1p_t)         , intent(inout) :: fe_dofs(:)
-  integer(ip) :: field_id, j, spos, epos
-  
-  assert ( size(fe_dofs) == this%fe_space%num_fields )
-  do field_id = 1, this%get_num_fields()-1
-    spos = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())
-    epos = this%fe_space%ptr_dofs_x_fe(field_id+1)%get(this%get_gid())-1
-    fe_dofs(field_id)%p => this%fe_space%lst_dofs_gids%get_pointer(spos,epos)
-  end do
-  spos = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())
-  epos = this%fe_space%ptr_dofs_x_fe(1)%get(this%get_gid()+1)-1
-  fe_dofs(field_id)%p => this%fe_space%lst_dofs_gids%get_pointer(spos,epos)
-  
+  integer(ip) :: field_id
+  do field_id = 1, this%get_num_fields()
+    call this%get_field_fe_dofs(field_id, fe_dofs(field_id)%p)
+  end do 
 end subroutine fe_cell_iterator_get_fe_dofs
 
 function fe_cell_iterator_get_order( this, field_id )
@@ -1301,6 +1301,13 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
   end if
   
 end subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs
+
+subroutine fe_cell_iterator_clear_scratch_field_fe_dofs(this,field_id)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: field_id
+  this%fe_dofs(field_id)%p = 0
+end subroutine fe_cell_iterator_clear_scratch_field_fe_dofs
 
 subroutine fe_cell_iterator_first_local_non_void(this,field_id)
  implicit none

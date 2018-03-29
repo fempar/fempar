@@ -455,21 +455,21 @@ subroutine facet_integrator_create(this,quadrature,left_reference_fe,right_refer
   implicit none
   ! Parameters
   class(facet_integrator_t)      , intent(inout) :: this
-  type(quadrature_t)            , intent(in)    :: quadrature
-  class(reference_fe_t), pointer, intent(in)    :: left_reference_fe, right_reference_fe
+  type(quadrature_t)             , intent(in)    :: quadrature
+  class(reference_fe_t) , pointer, intent(in)    :: left_reference_fe, right_reference_fe
   logical, optional :: is_identity_perm
   
   integer(ip) :: i
   logical :: is_identity_perm_
+  
+  call this%free()
   
   is_identity_perm_ = .false.
   if (present(is_identity_perm)) then
     is_identity_perm_ = is_identity_perm
   end if
   
-  call this%free()
-  
-  call this%set_is_at_boundary_and_active_cell_id(left_reference_fe,right_reference_fe)
+  call this%set_is_at_boundary_and_active_cell_id( left_reference_fe, right_reference_fe )
   
   this%reference_fe(1)%p => left_reference_fe
   this%reference_fe(2)%p => right_reference_fe
@@ -524,20 +524,6 @@ subroutine facet_integrator_update(this,facet_lid,subfacet_lid,facet_map,permuta
 end subroutine facet_integrator_update
 
 !==================================================================================================
-subroutine facet_integrator_update_interpolation(this,quadrature)
-  implicit none
-  ! Parameters
-  class(facet_integrator_t)      , intent(inout) :: this
-  type(quadrature_t)            , intent(in)    :: quadrature
-  assert(associated(this%reference_fe(1)%p))
-  call this%cell_integrator_facet_restriction(1)%update_interpolation( quadrature,this%reference_fe(1)%p )  
-  if (.not. this%is_at_boundary) then
-     assert(associated(this%reference_fe(2)%p))
-     call this%cell_integrator_facet_restriction(2)%update_interpolation(quadrature,this%reference_fe(2)%p)
-  end if
-  end subroutine facet_integrator_update_interpolation
-
-!==================================================================================================
 subroutine facet_integrator_set_is_at_boundary_and_active_cell_id (this,left_reference_fe,right_reference_fe)
   implicit none
   class(facet_integrator_t)        , intent(inout) :: this
@@ -587,6 +573,19 @@ subroutine facet_integrator_set_is_at_boundary_and_active_cell_id (this,left_ref
     end if
   end if
 end subroutine facet_integrator_set_is_at_boundary_and_active_cell_id
+
+subroutine facet_integrator_update_interpolation(this,quadrature)
+  implicit none
+  ! Parameters
+  class(facet_integrator_t)      , intent(inout) :: this
+  type(quadrature_t)            , intent(in)    :: quadrature
+  assert(associated(this%reference_fe(1)%p))
+  call this%cell_integrator_facet_restriction(1)%update_interpolation( quadrature,this%reference_fe(1)%p )  
+  if (.not. this%is_at_boundary) then
+     assert(associated(this%reference_fe(2)%p))
+     call this%cell_integrator_facet_restriction(2)%update_interpolation(quadrature,this%reference_fe(2)%p)
+  end if
+  end subroutine facet_integrator_update_interpolation
 
 !==================================================================================================
 function facet_integrator_get_is_at_boundary (this)
