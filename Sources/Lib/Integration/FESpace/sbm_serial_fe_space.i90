@@ -2013,7 +2013,7 @@ subroutine serial_fe_space_generate_global_dof_numbering( this )
   logical :: perform_numbering
   
   call this%allocate_num_dofs_x_field()
-  if ( this%num_fields >= 1 ) then 
+  if ( this%num_fields > 1 ) then 
     call this%count_dofs()
   end if  
   call this%list_dofs()
