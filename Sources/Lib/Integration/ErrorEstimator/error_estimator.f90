@@ -30,6 +30,7 @@ module error_estimator_names
   use fe_space_names
   use triangulation_names
   use std_vector_real_rp_names
+  use environment_names
   use FPL
   
   implicit none
@@ -59,6 +60,7 @@ module error_estimator_names
     procedure, non_overridable          :: compute_local_effectivities      => ee_compute_local_effectivities
     procedure, non_overridable          :: compute_global_effectivity       => ee_compute_global_effectivity
     procedure, non_overridable          :: get_fe_space                     => ee_get_fe_space
+    procedure, non_overridable          :: get_environment                  => ee_get_environment
     procedure, non_overridable          :: get_sq_local_estimates           => ee_get_sq_local_estimates
     procedure, non_overridable          :: get_sq_local_estimate_entries    => ee_get_sq_local_estimate_entries
     procedure, non_overridable          :: get_global_estimate              => ee_get_global_estimate
@@ -135,27 +137,31 @@ contains
  subroutine ee_compute_local_effectivities ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
-   class(triangulation_t)    , pointer     :: triangulation
-   real(rp)                  , pointer     :: sq_local_estimate_entries(:)
-   real(rp)                  , pointer     :: sq_local_true_error_entries(:)
-   real(rp)                  , pointer     :: local_effectivity_entries(:)
-   integer(ip)                             :: icell, num_local_cells
-   real(rp)                                :: norm_exponent
-   triangulation               => this%fe_space%get_triangulation()
-   num_local_cells             =  triangulation%get_num_local_cells()
-   assert ( this%sq_local_estimates%size()   == num_local_cells )
-   assert ( this%sq_local_true_errors%size() == num_local_cells )
-   sq_local_estimate_entries   => this%sq_local_estimates%get_pointer()
-   sq_local_true_error_entries => this%sq_local_true_errors%get_pointer()
-   call this%local_effectivities%resize(0)
-   call this%local_effectivities%resize(num_local_cells,0.0_rp)
-   local_effectivity_entries   => this%local_effectivities%get_pointer()
-   norm_exponent = this%get_error_norm_exponent()
-   do icell = 1, num_local_cells
-     local_effectivity_entries(icell) =                   &
-       ( sq_local_estimate_entries(icell)   ** norm_exponent ) / &
-       ( sq_local_true_error_entries(icell) ** norm_exponent )
-   end do
+   class(environment_t)  , pointer :: environment
+   class(triangulation_t), pointer :: triangulation
+   real(rp)              , pointer :: sq_local_estimate_entries(:)
+   real(rp)              , pointer :: sq_local_true_error_entries(:)
+   real(rp)              , pointer :: local_effectivity_entries(:)
+   integer(ip)                     :: icell, num_local_cells
+   real(rp)                        :: norm_exponent
+   environment => this%get_environment()
+   if ( environment%am_i_l1_task() ) then
+     triangulation               => this%fe_space%get_triangulation()
+     num_local_cells             =  triangulation%get_num_local_cells()
+     assert ( this%sq_local_estimates%size()   == num_local_cells )
+     assert ( this%sq_local_true_errors%size() == num_local_cells )
+     sq_local_estimate_entries   => this%sq_local_estimates%get_pointer()
+     sq_local_true_error_entries => this%sq_local_true_errors%get_pointer()
+     call this%local_effectivities%resize(0)
+     call this%local_effectivities%resize(num_local_cells,0.0_rp)
+     local_effectivity_entries   => this%local_effectivities%get_pointer()
+     norm_exponent = this%get_error_norm_exponent()
+     do icell = 1, num_local_cells
+       local_effectivity_entries(icell) =                   &
+         ( sq_local_estimate_entries(icell)   ** norm_exponent ) / &
+         ( sq_local_true_error_entries(icell) ** norm_exponent )
+     end do
+   end if
  end subroutine ee_compute_local_effectivities
  
  subroutine ee_compute_global_effectivity ( this )
@@ -170,6 +176,13 @@ contains
    class(serial_fe_space_t), pointer :: ee_get_fe_space
    ee_get_fe_space => this%fe_space
  end function ee_get_fe_space
+ 
+ function ee_get_environment ( this )
+   implicit none
+   class(error_estimator_t), target, intent(inout) :: this
+   class(environment_t), pointer :: ee_get_environment
+   ee_get_environment => this%fe_space%get_environment()
+ end function ee_get_environment
  
  function ee_get_sq_local_estimates ( this )
    implicit none
