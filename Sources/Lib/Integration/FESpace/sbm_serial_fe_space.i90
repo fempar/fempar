@@ -1751,7 +1751,10 @@ subroutine serial_fe_space_fill_facet_gids ( this )
   call this%facet_gids%resize(0)
   call this%create_fe_vef_iterator(fe_vef)
   do while ( .not. fe_vef%has_finished() )
-    if ( fe_vef%is_fe_facet() ) then
+    if ( fe_vef%is_facet() .and. .not. fe_vef%is_ghost() .and.   &
+         ( ( .not. fe_vef%is_proper() ) .or.                         &
+         ( fe_vef%is_proper() .and. ( fe_vef%is_at_boundary() .or. &
+           fe_vef%get_num_cells_around() > 1 ) ) ) ) then
       call this%facet_gids%push_back(fe_vef%get_gid())
     end if
     call fe_vef%next()
@@ -2014,7 +2017,7 @@ subroutine serial_fe_space_generate_global_dof_numbering( this )
   logical :: perform_numbering
   
   call this%allocate_num_dofs_x_field()
-  if ( this%num_fields >= 1 ) then 
+  if ( this%num_fields > 1 ) then 
     call this%count_dofs()
   end if  
   call this%list_dofs()
@@ -2112,12 +2115,21 @@ subroutine serial_fe_space_count_dofs ( this )
                            end if
                           end if
                         else if ( .not. per_field_improper_vefs_visited (field_id,vef_lid) ) then
-                           num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
-                           if (num_own_dofs_on_vef>0) then
-                             per_field_improper_vefs_visited (field_id,vef_lid) = .true.
-                             this%num_dofs_x_field(field_id) = this%num_dofs_x_field(field_id) + &
-                                                                num_own_dofs_on_vef 
-                           end if                                     
+                           do ielem=1, vef%get_num_improper_cells_around()
+                             call vef%get_improper_cell_around(ielem, coarser_fe)
+                             if ( coarser_fe%is_local() .and. (.not. coarser_fe%is_void(field_id)) ) then
+                               local_found = .true.
+                               exit
+                             end if
+                           end do
+                           if ( local_found ) then
+                             num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
+                             if (num_own_dofs_on_vef>0) then
+                               per_field_improper_vefs_visited (field_id,vef_lid) = .true.
+                               this%num_dofs_x_field(field_id) = this%num_dofs_x_field(field_id) + &
+                                                                  num_own_dofs_on_vef 
+                             end if
+                           end if
                         end if
                      end if
                    else if ( vef%is_ghost() ) then
@@ -2378,7 +2390,14 @@ subroutine serial_fe_space_list_dofs ( this )
                           add_dofs = per_field_visited_proper_vefs_at_interface(field_id,vef%get_gid()) 
                         else 
                           is_owner = ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 )
-                          add_dofs = .not. vef%has_free_dofs(field_id,coarser_fe)
+                          add_dofs = .false.
+                          do ielem=1, vef%get_num_improper_cells_around()
+                            call vef%get_improper_cell_around(ielem, coarser_fe)
+                            if ( coarser_fe%is_local() .and. (.not. coarser_fe%is_void(field_id)) ) then
+                              add_dofs = .true.
+                              exit
+                            end if
+                          end do
                         end if
                         
                         if ( add_dofs ) then       
@@ -2424,9 +2443,18 @@ subroutine serial_fe_space_list_dofs ( this )
                     end if
                  end do  
               end if
-              call fe%determine_has_fixed_dofs(field_id)
-              call fe%determine_has_hanging_dofs(field_id)
            end if
+           
+           ! has_fixed_dofs_x_fe must also be filled on ghost FEs (as the 
+           ! `at_strong_dirichlet_boundary_x_fe` array), otherwise
+           ! the procedures fe_function_insert/gather_nodal_values skip inserting the
+           ! fixed dof values on ghost FEs (constraining dirichlet DoFs included)
+           call fe%determine_has_fixed_dofs(field_id)
+           
+           ! Although the `hanging_dofs_x_fe` array (seems to be) only (currently) used 
+           ! in the local assembly procedures, we also compute it for ghost FEs for the
+           ! sake of correctness
+           call fe%determine_has_hanging_dofs(field_id)  
          end do
      end if
      call fe%next()    
@@ -3169,6 +3197,8 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
   type(list_iterator_t) :: dofs_n_facet_iterator
   integer(ip) :: facet_dof
 
+  logical :: local_found
+  
   ! Re-size to 0 to force re-initialization during second resize (to the actual/correct size)
   call this%ptr_constraining_free_dofs%resize(0)
   call this%ptr_constraining_dirichlet_dofs%resize(0)
@@ -3218,10 +3248,20 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
 
         ! Retrieve all data related to the current improper vef 
         ! and one of the cells that owns it
+        local_found = .false.
         do icell = 1,fe_vef%get_num_cells_around()
            call fe_vef%get_cell_around(icell,fe)
-           if ( .not. fe%is_void(field_id) ) exit
+           if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then 
+             local_found = .true.
+             exit
+           end if
         end do
+        if ( .not. local_found ) then
+          do icell = 1,fe_vef%get_num_cells_around()
+            call fe_vef%get_cell_around(icell,fe)
+            if ( fe%is_ghost() .and. .not. fe%is_void(field_id) ) exit
+          end do
+        end if
         if ( fe%is_void(field_id) ) cycle
         improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
         call fe%get_field_fe_dofs(field_id,fe_dofs)
@@ -3229,9 +3269,9 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
         ! Retrieve all data related to the first improper cell around current improper vef
         do icell = 1,fe_vef%get_num_improper_cells_around()
            call fe_vef%get_improper_cell_around(icell,coarser_fe)
-           if ( .not. coarser_fe%is_void(field_id) ) exit
+           if ( .not. ( coarser_fe%is_void(field_id) .or. ( fe%is_ghost() .and. coarser_fe%is_ghost() ) ) ) exit
         end do
-        if ( coarser_fe%is_void(field_id) ) cycle
+        if ( coarser_fe%is_void(field_id) .or. ( fe%is_ghost() .and. coarser_fe%is_ghost() ) ) cycle
         coarser_fe_ivef = fe_vef%get_improper_cell_around_ivef(icell)
         call coarser_fe%get_field_fe_dofs(field_id,coarser_fe_fe_dofs)
 
@@ -3291,10 +3331,20 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
 
         ! Retrieve all data related to the current improper vef 
         ! and one of the cells that owns it
+        local_found = .false.
         do icell = 1,fe_vef%get_num_cells_around()
            call fe_vef%get_cell_around(icell,fe)
-           if ( .not. fe%is_void(field_id) ) exit
+           if ( fe%is_local() .and. .not. fe%is_void(field_id) ) then 
+             local_found = .true.
+             exit
+           end if
         end do
+        if ( .not. local_found ) then
+          do icell = 1,fe_vef%get_num_cells_around()
+            call fe_vef%get_cell_around(icell,fe)
+            if ( fe%is_ghost() .and. .not. fe%is_void(field_id) ) exit
+          end do
+        end if
         if ( fe%is_void(field_id) ) cycle
         improper_vef_ivef = fe%get_vef_lid_from_gid(fe_vef%get_gid())
         call fe%get_field_fe_dofs(field_id,fe_dofs)
@@ -3302,9 +3352,9 @@ subroutine serial_fe_space_setup_hanging_node_constraints ( this )
         ! Retrieve all data related to the first improper cell around current improper vef
         do icell = 1,fe_vef%get_num_improper_cells_around()
            call fe_vef%get_improper_cell_around(icell,coarser_fe)
-           if ( .not. coarser_fe%is_void(field_id) ) exit
+           if ( .not. ( coarser_fe%is_void(field_id) .or. ( fe%is_ghost() .and. coarser_fe%is_ghost() ) ) ) exit
         end do
-        if ( coarser_fe%is_void(field_id) ) cycle
+        if ( coarser_fe%is_void(field_id) .or. ( fe%is_ghost() .and. coarser_fe%is_ghost() ) ) cycle
         coarser_fe_ivef  = fe_vef%get_improper_cell_around_ivef(icell)
         coarse_fe_subvef = fe_vef%get_improper_cell_around_subvef(icell)
 

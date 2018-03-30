@@ -181,10 +181,7 @@ module fe_space_names
   type, extends(base_fe_cell_iterator_t) :: fe_cell_iterator_t
     private
     class(serial_fe_space_t) , pointer     :: fe_space => NULL()
-    
-    ! Scratch data to support the most frequently called TBPs (performance improvement)
-    
-    
+       
     ! Scratch data to support FE assembly
     integer(ip)                        , allocatable :: num_cell_dofs_x_field(:)
     type(i1p_t)                        , allocatable :: fe_dofs(:)
@@ -295,6 +292,8 @@ module fe_space_names
                                                                         assembly_matrix,       &
                                                                         assembly_matrix_array, &
                                                                         assembly_matrix_array_with_strong_bcs
+    procedure, non_overridable, private :: clear_scratch_field_fe_dofs                => fe_cell_iterator_clear_scratch_field_fe_dofs
+
     procedure, non_overridable          :: first_local_non_void                       => fe_cell_iterator_first_local_non_void
 
     ! Added by unfitted_fe_cell_iterator
@@ -388,7 +387,6 @@ module fe_space_names
      final                               :: fe_vef_iterator_final
      
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
-     procedure, non_overridable          :: is_fe_facet                       => fe_vef_iterator_is_fe_facet
      procedure, non_overridable          :: has_free_dofs                     => fe_vef_iterator_has_free_dofs
      
      procedure                 , private :: fe_vef_iterator_get_fe_around
@@ -435,6 +433,9 @@ module fe_space_names
     generic                             :: assembly                      => fe_facet_iterator_assembly_array,  &
                                                                             fe_facet_iterator_assembly_matrix, &
                                                                             fe_facet_iterator_assembly_matrix_array
+ 
+    procedure, non_overridable, private :: clear_fe_dofs_ghost_full_local_void => fe_facet_iterator_clear_fe_dofs_ghost_full_local_void
+
     procedure, non_overridable          :: get_fe_space                  => fe_facet_iterator_get_fe_space
     procedure, non_overridable          :: get_fe_dofs                   => fe_facet_iterator_get_fe_dofs
     procedure, non_overridable          :: get_default_quadrature_degree  => fe_facet_iterator_get_default_quadrature_degree

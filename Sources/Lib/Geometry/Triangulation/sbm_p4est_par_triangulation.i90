@@ -41,6 +41,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
   integer(ip), allocatable :: array_size(:)
   real(rp)   , allocatable :: bounding_box_limits(:)
   character(len=:), allocatable :: subparts_coupling_criteria 
+  character(1) :: dummy_string
   
 #ifdef ENABLE_P4EST
   call this%free()
@@ -57,7 +58,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
   end if
 
   if( parameters%isPresent(subparts_coupling_criteria_key) ) then
-     massert(parameters%isAssignable(subparts_coupling_criteria_key, subparts_coupling_criteria), 'Subparts coupling criteria not found or un-usable')
+     massert(parameters%isAssignable(subparts_coupling_criteria_key, dummy_string), 'Subparts coupling criteria not found or un-usable')
      istat = parameters%GetAsString(key = subparts_coupling_criteria_key, string = subparts_coupling_criteria); assert(istat==0) 
      call this%set_subparts_coupling_criteria( subparts_coupling_criteria ) 
   else 
