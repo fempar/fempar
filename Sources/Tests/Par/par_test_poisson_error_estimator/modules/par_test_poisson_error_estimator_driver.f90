@@ -225,7 +225,7 @@ contains
     FPLError = FPLError + parameter_list%set(key = objective_tolerance_key    , value = 0.1_rp)
     max_num_mesh_iterations = 10
     FPLError = FPLError + parameter_list%set(key = max_num_mesh_iterations_key, value = max_num_mesh_iterations)
-    FPLError = FPLError + parameter_list%set(key = num_uniform_refinements_key, value = 3)
+    FPLError = FPLError + parameter_list%set(key = num_uniform_refinements_key, value = 2)
     assert(FPLError == 0)
     
     if ( this%par_test_params%get_refinement_strategy() == 'uniform') then
