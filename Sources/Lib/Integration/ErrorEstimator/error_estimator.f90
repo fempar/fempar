@@ -125,13 +125,25 @@ contains
  subroutine ee_compute_global_estimate ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
-   this%global_estimate = sum(this%sq_local_estimates%get_pointer()) ** this%get_error_norm_exponent()
+   class(environment_t), pointer :: environment
+   this%global_estimate = sum(this%sq_local_estimates%get_pointer())
+   environment => this%get_environment()
+   if ( environment%get_l1_size() > 1 ) then
+     call environment%l1_sum(this%global_estimate)
+   end if
+   this%global_estimate = this%global_estimate ** this%get_error_norm_exponent()
  end subroutine ee_compute_global_estimate
  
  subroutine ee_compute_global_true_error ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
-   this%global_true_error = sum(this%sq_local_true_errors%get_pointer()) ** this%get_error_norm_exponent()
+   class(environment_t), pointer :: environment
+   this%global_true_error = sum(this%sq_local_true_errors%get_pointer())
+   environment => this%get_environment()
+   if ( environment%get_l1_size() > 1 ) then
+     call environment%l1_sum(this%global_true_error)
+   end if
+   this%global_true_error = this%global_true_error ** this%get_error_norm_exponent()
  end subroutine ee_compute_global_true_error
  
  subroutine ee_compute_local_effectivities ( this )
@@ -167,6 +179,7 @@ contains
  subroutine ee_compute_global_effectivity ( this )
    implicit none
    class(error_estimator_t), intent(inout) :: this
+   class(environment_t), pointer :: environment
    this%global_effectivity = this%global_estimate / this%global_true_error
  end subroutine ee_compute_global_effectivity
  

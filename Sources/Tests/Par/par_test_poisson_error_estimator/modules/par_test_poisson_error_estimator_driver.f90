@@ -246,34 +246,37 @@ contains
     do while ( .not. refinement_strategy%has_finished_refinement() )
       
       call poisson_cG_error_estimator%compute_local_estimates()
-      !call poisson_cG_error_estimator%compute_global_estimate()
+      call poisson_cG_error_estimator%compute_global_estimate()
       
       call poisson_cG_error_estimator%compute_local_true_errors()
-      !call poisson_cG_error_estimator%compute_global_true_error()
+      call poisson_cG_error_estimator%compute_global_true_error()
       
       call poisson_cG_error_estimator%compute_local_effectivities()
-      !call poisson_cG_error_estimator%compute_global_effectivity()
+      call poisson_cG_error_estimator%compute_global_effectivity()
       
       global_estimate(2)   = poisson_cG_error_estimator%get_global_estimate()
       global_true_error(2) = poisson_cG_error_estimator%get_global_true_error()
       global_effectivity   = poisson_cG_error_estimator%get_global_effectivity()
       
-      !write(*,'(a20,e32.25)') 'global_estimate:'   , global_estimate(2)
-      !write(*,'(a20,e32.25)') 'slope_estimate:'    , global_estimate(2)/global_estimate(1)
-      !write(*,'(a20,e32.25)') 'global_true_error:' , global_true_error(2)
-      !write(*,'(a20,e32.25)') 'slope_true_error:'  , global_true_error(2)/global_true_error(1)
-      !write(*,'(a20,e32.25)') 'slope_theoretical:' , theoretical_rate
-      !write(*,'(a20,e32.25)') 'global_effectivity:', global_effectivity
+      if ( this%par_environment%am_i_l1_root() ) then
+        write(*,'(a20,e32.25)') 'global_estimate:'   , global_estimate(2)
+        write(*,'(a20,e32.25)') 'slope_estimate:'    , global_estimate(2)/global_estimate(1)
+        write(*,'(a20,e32.25)') 'global_true_error:' , global_true_error(2)
+        write(*,'(a20,e32.25)') 'slope_true_error:'  , global_true_error(2)/global_true_error(1)
+        write(*,'(a20,e32.25)') 'slope_theoretical:' , theoretical_rate
+        write(*,'(a20,e32.25)') 'global_effectivity:', global_effectivity
       
-      !! Some checks for the tests
-      !if ( this%par_test_params%get_refinement_strategy() == 'uniform' .and. &
-      !     refinement_strategy%get_current_mesh_iteration() > 0 ) then
-      !  test = abs((global_estimate(2)/global_estimate(1)-theoretical_rate)/theoretical_rate) < tol_rate
-      !  mcheck( test, 'Uniform refinement: Theoretical rate of convergence is not verified' )
-      !else if ( this%par_test_params%get_refinement_strategy() == 'error_objective' ) then
-      !  test = ( refinement_strategy%get_current_mesh_iteration() < max_num_mesh_iterations )
-      !  mcheck( test, 'Error objective was not reached in the expected num mesh iterations' )
-      !end if
+        ! Some checks for the tests
+        if ( this%par_test_params%get_refinement_strategy() == 'uniform' .and. &
+             refinement_strategy%get_current_mesh_iteration() > 0 ) then
+          test = abs((global_estimate(2)/global_estimate(1)-theoretical_rate)/theoretical_rate) < tol_rate
+          mcheck( test, 'Uniform refinement: Theoretical rate of convergence is not verified' )
+        else if ( this%par_test_params%get_refinement_strategy() == 'error_objective' ) then
+          test = ( refinement_strategy%get_current_mesh_iteration() < max_num_mesh_iterations )
+          mcheck( test, 'Error objective was not reached in the expected num mesh iterations' )
+        end if
+      
+      end if
       
       global_estimate(1)   = global_estimate(2)
       global_true_error(1) = global_true_error(2)
