@@ -28,27 +28,24 @@
 
 module vector_poisson_analytical_functions_names
   use fempar_names
-  use poisson_analytical_functions_names
   implicit none
 # include "debug.i90"
   private
 
   type, extends(vector_function_t) :: base_vector_function_t
     integer(ip) :: num_dims = -1  
+    logical     :: in_fe_space = .false.
+    integer(ip) :: degree      = 1
   contains
-    procedure :: set_num_dims    => base_vector_function_set_num_dims
+    procedure :: set_num_dims          => base_vector_function_set_num_dims
+    procedure :: set_is_in_fe_space    => base_vector_function_set_is_in_fe_space
+    procedure :: set_degree            => base_vector_function_set_degree
   end type base_vector_function_t
-  
   
   type, extends(base_vector_function_t) :: source_term_t
    contains
      procedure :: get_value_space => source_term_get_value_space
   end type source_term_t
-
-  type, extends(base_scalar_function_t) :: boundary_function_t
-   contains
-     procedure :: get_value_space => boundary_function_get_value_space  
-  end type boundary_function_t
 
   type, extends(base_vector_function_t) :: solution_function_t
    contains
@@ -59,18 +56,59 @@ module vector_poisson_analytical_functions_names
   type vector_poisson_analytical_functions_t
      private
      type(source_term_t)         :: source_term
-     type(boundary_function_t)   :: boundary_function
      type(solution_function_t)   :: solution_function
    contains
-     procedure :: set_num_dims    => poisson_analytical_functions_set_num_dims
-     procedure :: get_source_term       => poisson_analytical_functions_get_source_term
-     procedure :: get_boundary_function   => poisson_analytical_functions_get_boundary_function
+     procedure :: set_num_dims            => poisson_analytical_functions_set_num_dims
+     procedure :: set_is_in_fe_space      => poisson_analytical_functions_set_is_in_fe_space
+     procedure :: set_degree              => poisson_analytical_functions_set_degree
+     procedure :: get_source_term         => poisson_analytical_functions_get_source_term
      procedure :: get_solution_function   => poisson_analytical_functions_get_solution_function
   end type vector_poisson_analytical_functions_t
 
-  public :: vector_poisson_analytical_functions_t, boundary_function_t
+  public :: vector_poisson_analytical_functions_t
 
 contains  
+
+  subroutine sol_ex001_2d_u(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1)
+    x2 = point%get(2)
+    call val%init(0.0)
+    call val%set(1, x2 + x1*x2 )
+    call val%set(2, x1 + x1*x2 )
+  end subroutine sol_ex001_2d_u
+
+  subroutine sol_ex001_2d_grad_u(point,val,q)
+    implicit none
+    type(point_t),        intent(in)    :: point
+    type(tensor_field_t), intent(inout) :: val
+    integer(ip),          intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1)
+    x2 = point%get(2)
+    call val%init(0.0)
+    call val%set(1,1, x2)
+    call val%set(1,2, x2 + 1.0)
+    call val%set(2,1, x1 + 1.0)
+    call val%set(2,2, x1)
+  end subroutine sol_ex001_2d_grad_u
+
+  subroutine sol_ex001_2d_lapl_u(point,val,q)
+    implicit none
+    type(point_t), intent(in)    :: point
+    type(vector_field_t), intent(inout) :: val
+    integer(ip),   intent(in)    :: q
+    real(rp) :: x1, x2
+    x1 = point%get(1)
+    x2 = point%get(2)
+    call val%init(0.0)
+    call val%set(1, 0.0 )
+    call val%set(2, 0.0 )
+  end subroutine sol_ex001_2d_lapl_u
 
   subroutine base_vector_function_set_num_dims ( this, num_dims )
     implicit none
@@ -79,6 +117,20 @@ contains
     this%num_dims = num_dims
   end subroutine base_vector_function_set_num_dims
 
+  subroutine base_vector_function_set_is_in_fe_space(this,val)
+    implicit none
+    class(base_vector_function_t), intent(inout)    :: this
+    logical,                       intent(in)       :: val
+    this%in_fe_space = val
+  end subroutine base_vector_function_set_is_in_fe_space
+
+  subroutine base_vector_function_set_degree(this,degree)
+    implicit none
+    class(base_vector_function_t), intent(inout)    :: this
+    integer(ip),                   intent(in)       :: degree
+    this%degree = degree
+  end subroutine base_vector_function_set_degree
+
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
     implicit none
@@ -86,27 +138,22 @@ contains
     type(point_t)       , intent(in)    :: point
     type(vector_field_t), intent(inout) :: result
     if ( this%num_dims == 2 ) then
-      call result%set(1,-4.0_rp)
-      call result%set(2,-4.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
+      if (this%in_fe_space) then
+        call sol_ex001_2d_lapl_u(point,result,this%degree)
+        result = (-1.0)*result
+      else
+        check(.false.)
+      end if
+    else if ( this%num_dims == 3 ) then
+      if (this%in_fe_space) then
+        check(.false.)
+      else
+        check(.false.)
+      end if
     else
-      call result%set(1,0.0_rp)
-      call result%set(2,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
-      call result%set(3,0.0_rp) !2 * ( pi**2 ) * sin ( pi * point%get(1) ) * sin ( pi * point%get(2) )
+        check(.false.)
     end if  
   end subroutine source_term_get_value_space
-
-  !===============================================================================================
-  subroutine boundary_function_get_value_space ( this, point, result )
-    implicit none
-    class(boundary_function_t), intent(in)    :: this
-    type(point_t)           , intent(in)    :: point
-    real(rp)                , intent(inout) :: result
-    if ( this%num_dims == 2 ) then
-      result = point%get(1)**2 + point%get(2)**2 !sin ( pi * point%get(1) ) * sin ( pi * point%get(2) ) + point%get(1)
-    else
-      result = point%get(1)+point%get(2)+point%get(3)
-    end if  
-  end subroutine boundary_function_get_value_space
 
   !===============================================================================================
   subroutine solution_function_get_value_space ( this, point, result )
@@ -115,13 +162,20 @@ contains
     type(point_t)           , intent(in)    :: point
     type(vector_field_t)    , intent(inout) :: result
     if ( this%num_dims == 2 ) then
-      call result%set(1, point%get(1)**2+point%get(2)**2 ) 
-      call result%set(2, point%get(1)**2+point%get(2)**2 ) 
+      if (this%in_fe_space) then
+        call sol_ex001_2d_u(point,result,this%degree)
+      else
+        check(.false.)
+      end if
+    else if ( this%num_dims == 3 ) then
+      if (this%in_fe_space) then
+        check(.false.)
+      else
+        check(.false.)
+      end if
     else
-      call result%set(1, point%get(1)+point%get(2)+point%get(3) ) 
-      call result%set(2, point%get(1)+point%get(2)+point%get(3) ) 
-      call result%set(3, point%get(1)+point%get(2)+point%get(3) )
-    end if
+        check(.false.)
+    end if  
   end subroutine solution_function_get_value_space
   
   !===============================================================================================
@@ -131,29 +185,20 @@ contains
     type(point_t)             , intent(in)    :: point
     type(tensor_field_t)      , intent(inout) :: result
     if ( this%num_dims == 2 ) then
-      call result%set( 1, 1, point%get(1)*2 ) 
-      call result%set( 2, 1, point%get(2)*2 )
-      call result%set( 1, 2, point%get(1)*2 ) 
-      call result%set( 2, 2, point%get(2)*2 )
+      if (this%in_fe_space) then
+        call sol_ex001_2d_grad_u(point,result,this%degree)
+      else
+        check(.false.)
+      end if
+    else if ( this%num_dims == 3 ) then
+      if (this%in_fe_space) then
+        check(.false.)
+      else
+        check(.false.)
+      end if
     else
-      call result%init(1.0_rp)
-    end if
-    !if ( this%num_dims == 2 ) then
-    !  call result%set( 1, 1, 1.0_rp ) 
-    !  call result%set( 2, 1, 0.0_rp )
-    !  call result%set( 1, 2, 1.0_rp ) 
-    !  call result%set( 2, 2, 0.0_rp )
-    !else
-    !  call result%set( 1, 1, 1.0_rp ) 
-    !  call result%set( 2, 1, 0.0_rp )
-    !  call result%set( 3, 1, 0.0_rp )
-    !  call result%set( 1, 2, 1.0_rp ) 
-    !  call result%set( 2, 2, 0.0_rp )
-    !  call result%set( 3, 2, 0.0_rp )
-    !  call result%set( 1, 3, 1.0_rp ) 
-    !  call result%set( 2, 3, 0.0_rp )
-    !  call result%set( 3, 3, 0.0_rp )
-    !end if
+        check(.false.)
+    end if  
   end subroutine solution_function_get_gradient_space
   
   !===============================================================================================
@@ -162,9 +207,26 @@ contains
     class(vector_poisson_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dims
     call this%source_term%set_num_dims(num_dims)
-    call this%boundary_function%set_num_dims(num_dims)
     call this%solution_function%set_num_dims(num_dims)
   end subroutine poisson_analytical_functions_set_num_dims 
+
+  !===============================================================================================
+  subroutine poisson_analytical_functions_set_is_in_fe_space(this,val)
+    implicit none
+    class(vector_poisson_analytical_functions_t), intent(inout)    :: this
+    logical, intent(in) :: val
+    call this%source_term      %set_is_in_fe_space(val)
+    call this%solution_function%set_is_in_fe_space(val)
+  end subroutine poisson_analytical_functions_set_is_in_fe_space
+
+  !===============================================================================================
+  subroutine poisson_analytical_functions_set_degree(this,degree)
+    implicit none
+    class(vector_poisson_analytical_functions_t), intent(inout) :: this
+    integer(ip),                                    intent(in)    :: degree
+    call this%source_term      %set_degree(degree)
+    call this%solution_function%set_degree(degree)
+  end subroutine poisson_analytical_functions_set_degree
   
   !===============================================================================================
   function poisson_analytical_functions_get_source_term ( this )
@@ -173,14 +235,6 @@ contains
     class(vector_function_t), pointer :: poisson_analytical_functions_get_source_term
     poisson_analytical_functions_get_source_term => this%source_term
   end function poisson_analytical_functions_get_source_term
-  
-  !===============================================================================================
-  function poisson_analytical_functions_get_boundary_function ( this )
-    implicit none
-    class(vector_poisson_analytical_functions_t), target, intent(in)    :: this
-    type(boundary_function_t), pointer :: poisson_analytical_functions_get_boundary_function
-    poisson_analytical_functions_get_boundary_function => this%boundary_function
-  end function poisson_analytical_functions_get_boundary_function
   
   !===============================================================================================
   function poisson_analytical_functions_get_solution_function ( this )

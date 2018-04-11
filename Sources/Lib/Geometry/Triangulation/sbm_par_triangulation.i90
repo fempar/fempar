@@ -67,6 +67,7 @@ subroutine par_triangulation_create ( this, parameters, environment)
   character(len=:), allocatable   :: prefix
   character(len=:), allocatable   :: name
   integer(ip)                     :: geometry_interpolation_order
+  character(len=:), allocatable   :: subparts_coupling_criteria 
   integer(ip)                     :: lunio
   integer(ip)                     :: istat
   type(environment_t), pointer    :: env
@@ -98,6 +99,19 @@ subroutine par_triangulation_create ( this, parameters, environment)
      assert(istat==0)
   else
      geometry_interpolation_order = 1
+  end if
+  
+  if(triangulation_generate==triangulation_generate_from_mesh) then
+     if( parameters%isPresent(subparts_coupling_criteria_key) ) then
+        assert(parameters%isAssignable(subparts_coupling_criteria_key, subparts_coupling_criteria))
+        istat = parameters%GetAsString(key = subparts_coupling_criteria_key, string = subparts_coupling_criteria) 
+        assert(istat==0)
+        call this%set_subparts_coupling_criteria(subparts_coupling_criteria)
+     else
+        call this%set_subparts_coupling_criteria(loose_coupling) 
+     end if
+  elseif(triangulation_generate==triangulation_generate_structured) then
+     call this%set_subparts_coupling_criteria(all_coupled)
   end if
 
   call this%free()
@@ -349,7 +363,8 @@ subroutine par_triangulation_allocate_and_fill_lst_vefs_gids ( this, lst_vefs_li
   call this%free_lst_vefs_gids()
 
   call memalloc ( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1)-1, this%lst_vefs_gids, __FILE__, __LINE__ )
-  call next_vef_lid_avail%init ( max(int(real( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1))*0.1_rp),5) )
+  !call next_vef_lid_avail%init ( max(int(real( this%ptr_vefs_x_cell(this%num_local_cells+this%num_ghost_cells+1))*0.1_rp),5) )
+  call next_vef_lid_avail%init ( max(this%num_vefs, 5) )
   do ivef =1,this%num_vefs
      call next_vef_lid_avail%put(key=vefs_gids(ivef), val=ivef, stat=istat)
   end do

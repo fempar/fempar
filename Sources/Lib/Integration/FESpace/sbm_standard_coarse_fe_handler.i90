@@ -164,7 +164,7 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
 
        num_fine_dofs_on_coarse_dof = 0 
        ! Count how many fine DoFs current coarse DoF aggregates
-       do ivef_within_object=1, object%get_num_vefs()
+       do ivef_within_object=1, object%get_num_vefs() 
           call object%get_vef(ivef_within_object,vef)
           do icell_around=1, vef%get_num_cells_around()          
              call vef%get_cell_around(icell_around,fe)

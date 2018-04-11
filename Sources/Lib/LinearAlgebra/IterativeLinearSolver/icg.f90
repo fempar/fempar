@@ -188,6 +188,7 @@ contains
 
     ! 5) Iteration
     num_iterations = 0
+    did_converge = .false.
     loop_icg: do
        num_iterations = num_iterations + 1
 

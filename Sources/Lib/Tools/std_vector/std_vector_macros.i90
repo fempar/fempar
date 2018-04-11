@@ -59,6 +59,7 @@ contains                                                          ;\
  procedure, non_overridable          :: copy                      ;\
  procedure, non_overridable          :: free                      ;\
  procedure, non_overridable          :: set                       ;\
+ procedure, non_overridable          :: cat                       ;\
  procedure, non_overridable          :: size => std_vector_size   ;\
  procedure, non_overridable          :: capacity                  ;\
  procedure, non_overridable          :: get                       ;\
@@ -209,6 +210,19 @@ SUBROUTINE set(T,pos,i)  ;\
   assert ( allocated(T%v) ) ;\
   assert ( pos>=1 .and. pos<= T%size_ ) ;\
   T%v(pos)=i ;\
+END SUBROUTINE  ;\
+
+#define STD_VECTOR_CAT(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME) \
+SUBROUTINE cat(T,V)  ;\
+  IMPLICIT NONE                 ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(inout) :: T    ;\
+  CLASS_DERIVED_DATA_TYPE_NAME(BASE_DATA_TYPE_NAME)  , intent(in)    :: V    ;\
+  integer(ip) :: i, s  ;\
+  s = T%size() ;\
+  call T%resize(s+V%size()) ;\
+  do i = 1, V%size() ;\
+    call T%set(s+i,V%get(i)) ;\
+  end do ;\
 END SUBROUTINE  ;\
 
 #define STD_VECTOR_SIZE(BASE_DATA_TYPE,BASE_DATA_TYPE_NAME) \

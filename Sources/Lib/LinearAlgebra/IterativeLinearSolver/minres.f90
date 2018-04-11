@@ -509,6 +509,7 @@ contains
     !===================================================================
     ! Main iteration loop.
     !===================================================================
+    did_converge = .false.
     do
         num_iterations = num_iterations + 1               ! k = itn = 1 first time through
 

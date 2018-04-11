@@ -31,6 +31,7 @@ source /opt/intel/bin/compilervars.sh intel64
 FORTRAN_COMPILER="-DCMAKE_Fortran_COMPILER=ifort"
 FORTRAN_COMPILER_MPI="-DMPI_Fortran_COMPILER=/opt/OpenMPI/INTEL/16.0.0/bin/mpif90"
 FORTRAN_COMPILER_MPI_INC="-DMPI_Fortran_INCLUDE_PATH='/opt/OpenMPI/INTEL/16.0.0/include;/opt/OpenMPI/INTEL/16.0.0/bin'"
+C_COMPILER="-DCMAKE_C_COMPILER=icc"
 MPIEXEC="-DMPIEXEC='/opt/OpenMPI/INTEL/16.0.0/bin/mpirun'"
 
 ##################################
@@ -46,21 +47,47 @@ mkdir FEMPAR
 ##################################
 
 cd THIRDPARTY
-cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $MPIEXEC $MACROS  ../../ThirdParty
+cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS  ../../ThirdParty
 cmake --build . -- -j8
 cd ..
 
-##################################
-# CONFIGURE, COMPILE AND TEST FEMPAR
-##################################
+###############################################################
+# CONFIGURE, COMPILE AND TEST FEMPAR (versus sequential P4EST)
+###############################################################
 
 cd FEMPAR
-cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $MPIEXEC $MACROS -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=../THIRDPARTY ../../
+export PATH=/usr/local/p4est_gnu_debug/include/:$PATH
+export LD_LIBRARY_PATH=/usr/local/p4est_gnu_debug/lib:$LD_LIBRARY_PATH
+cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=../THIRDPARTY ../../
 
-ctest -j8 -V -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+set +e
+ctest -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+test -f ./Testing/Temporary/LastTestsFailed.log
+serial_test_passed="$?"
+ls -l ./Testing/Temporary/LastTestsFailed.log
+cat ./Testing/Temporary/LastTestsFailed.log
+set -e
+
+rm -Rf *
+
+############################################################
+# CONFIGURE, COMPILE AND TEST FEMPAR (versus parallel P4EST)
+############################################################
+export PATH=/usr/local/p4est_gnu_debug_mpi/include/:$PATH
+export LD_LIBRARY_PATH=/usr/local/p4est_gnu_debug_mpi/lib:$LD_LIBRARY_PATH
+cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $FORTRAN_COMPILER_MPI_INC $C_COMPILER $MPIEXEC $MACROS -DFEMPAR_ENABLE_TESTS=ON -DFEMPAR_THIRDPARTY_DIR=../THIRDPARTY ../../
+
+set +e
+ctest -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
+test -f ./Testing/Temporary/LastTestsFailed.log
+par_test_passed="$?"
+ls -l ./Testing/Temporary/LastTestsFailed.log
+cat ./Testing/Temporary/LastTestsFailed.log
+set -e
 
 cd ../
-
 cd ../
 rm -rf build
+test $serial_test_passed -eq 0
+test $par_test_passed -eq 0
 

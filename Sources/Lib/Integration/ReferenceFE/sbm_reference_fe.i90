@@ -65,6 +65,14 @@ subroutine reference_fe_free( this )
   this%num_shape_functions = 0
   this%ptr_n_faces_x_dim  = 0
   this%conformity = .true.
+  
+  call this%h_refinement_interpolation%free()
+  if ( allocated(this%h_refinement_subfacet_permutation) ) then
+     call memfree(this%h_refinement_subfacet_permutation,__FILE__,__LINE__)
+  end if
+  if ( allocated(this%h_refinement_subedge_permutation) ) then
+     call memfree(this%h_refinement_subedge_permutation,__FILE__,__LINE__)
+  end if
 
 end subroutine reference_fe_free
 
@@ -160,6 +168,13 @@ function reference_fe_get_topology( this )
   character(:), pointer :: reference_fe_get_topology
   reference_fe_get_topology => this%topology
 end function reference_fe_get_topology
+
+function reference_fe_get_fe_type( this )
+  implicit none
+  class(reference_fe_t), target, intent(in) :: this
+  character(:), pointer :: reference_fe_get_fe_type
+  reference_fe_get_fe_type => this%fe_type
+end function reference_fe_get_fe_type
 
 function reference_fe_get_field_type( this )
   implicit none
@@ -502,3 +517,27 @@ function reference_fe_get_num_subfacets(this)
   integer(ip) :: reference_fe_get_num_subfacets
   reference_fe_get_num_subfacets = 2**(this%num_dims-1)
 end function reference_fe_get_num_subfacets
+
+!==================================================================================================
+function reference_fe_get_h_refinement_interpolation ( this )
+  implicit none 
+  class(reference_fe_t), target, intent(in) :: this
+  type(interpolation_t), pointer :: reference_fe_get_h_refinement_interpolation
+  reference_fe_get_h_refinement_interpolation => this%h_refinement_interpolation
+end function reference_fe_get_h_refinement_interpolation
+
+!==================================================================================================
+function reference_fe_get_h_refinement_subedge_permutation ( this )
+  implicit none 
+  class(reference_fe_t), target, intent(in) :: this
+  integer(ip), pointer :: reference_fe_get_h_refinement_subedge_permutation(:,:,:)
+  reference_fe_get_h_refinement_subedge_permutation => this%h_refinement_subedge_permutation
+end function reference_fe_get_h_refinement_subedge_permutation
+
+!==================================================================================================
+function reference_fe_get_h_refinement_subfacet_permutation ( this )
+  implicit none 
+  class(reference_fe_t), target, intent(in) :: this
+  integer(ip), pointer :: reference_fe_get_h_refinement_subfacet_permutation(:,:,:)
+  reference_fe_get_h_refinement_subfacet_permutation => this%h_refinement_subfacet_permutation
+end function reference_fe_get_h_refinement_subfacet_permutation

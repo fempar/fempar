@@ -37,7 +37,7 @@ module unfitted_l1_coarse_fe_handler_names
   use environment_names
   use dof_import_names
   use serial_scalar_array_names
-  use fe_affine_operator_names
+  use fe_nonlinear_operator_names
   use list_types_names
   use triangulation_names
   use unfitted_triangulations_names
@@ -84,11 +84,11 @@ module unfitted_l1_coarse_fe_handler_names
 contains
 
 !========================================================================================
-subroutine unfitted_l1_create(this, fe_affine_operator, parameter_list)
+subroutine unfitted_l1_create(this, fe_nonlinear_operator, parameter_list)
 
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
-  class(fe_affine_operator_t), target,    intent(in)    :: fe_affine_operator
+  class(fe_nonlinear_operator_t), target,    intent(in)    :: fe_nonlinear_operator
   class(parameterlist_t),      target,    intent(in)    :: parameter_list
 
   class(matrix_t),            pointer :: matrix
@@ -97,9 +97,9 @@ subroutine unfitted_l1_create(this, fe_affine_operator, parameter_list)
 
   call this%free()
 
-  call this%stiffness_weighting_l1_coarse_fe_handler_t%create(fe_affine_operator)
+  call this%stiffness_weighting_l1_coarse_fe_handler_t%create(fe_nonlinear_operator)
 
-  fe_space => fe_affine_operator%get_fe_space()
+  fe_space => fe_nonlinear_operator%get_fe_space()
   select type (fe_space)
     class is (par_fe_space_t)
       this%par_fe_space => fe_space
@@ -120,10 +120,10 @@ subroutine unfitted_l1_create(this, fe_affine_operator, parameter_list)
 end subroutine unfitted_l1_create
 
 !========================================================================================
-subroutine unfitted_l1_stiffness_l1_create(this, fe_affine_operator)
+subroutine unfitted_l1_stiffness_l1_create(this, fe_nonlinear_operator)
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
-  class(fe_affine_operator_t), target,    intent(in)    :: fe_affine_operator
+  class(fe_nonlinear_operator_t), target,    intent(in)    :: fe_nonlinear_operator
   mcheck(.false.,'This method does not make sense for this class')
 end subroutine unfitted_l1_stiffness_l1_create
 

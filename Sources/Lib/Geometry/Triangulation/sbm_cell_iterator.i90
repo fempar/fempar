@@ -87,7 +87,9 @@ function cell_iterator_get_mysubpart ( this )
   class(cell_iterator_t), intent(in) :: this
   integer(ip) :: cell_iterator_get_mysubpart
   assert ( this%get_set_id() >= 0 )
-  cell_iterator_get_mysubpart = (this%get_set_id())*this%triangulation%cell_import%get_num_parts() + this%get_my_part()
+  ! my_subpart = my_part + (set_id + disconnected_set_id*upper_bound_set_ids)*num_parts
+  cell_iterator_get_mysubpart = this%get_my_part() + this%get_set_id()*this%triangulation%cell_import%get_num_parts()  & 
+     +  this%get_disconnected_set_id()*(this%triangulation%get_max_cell_set_id()+1)*this%triangulation%cell_import%get_num_parts()                                 
 end function cell_iterator_get_mysubpart
 
 function cell_iterator_get_mysubpart_lid ( this )
@@ -148,13 +150,6 @@ end function cell_iterator_get_mysubpart_lid
 !  class(cell_iterator_t), intent(inout) :: this
 !  mcheck(.false.,'This subroutine can only be called by some descendent classes')
 !end subroutine cell_iterator_update_sub_triangulation
-
-!function cell_iterator_get_mc_case( this ) result ( mc_case )
-!  implicit none
-!  class(cell_iterator_t), intent(in)    :: this
-!  integer(ip) :: mc_case
-!  mcheck(.false.,'This subroutine can only be called by some descendent classes')
-!end function cell_iterator_get_mc_case
 
 !function cell_iterator_get_num_subcells( this ) result ( num_subcells )
 !  implicit none

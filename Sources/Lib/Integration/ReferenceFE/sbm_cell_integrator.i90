@@ -27,21 +27,24 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! cell_integrator_t type procedures
-subroutine cell_integrator_create( this, quadrature, reference_fe )
+subroutine cell_integrator_create( this, quadrature, reference_fe, interpolation_duties)
   implicit none
   ! Parameters
-  class(cell_integrator_t), intent(inout) :: this 
-  type(quadrature_t)        ,  intent(in)   :: quadrature
-  class(reference_fe_t), target,  intent(in)   :: reference_fe  
+  class(cell_integrator_t)                , intent(inout) :: this 
+  type(quadrature_t)                      ,  intent(in)   :: quadrature
+  class(reference_fe_t)         , target  ,  intent(in)   :: reference_fe  
+  type(interpolation_duties_t)  , optional, intent(in)    :: interpolation_duties
 
   call this%free()
-  
+
   this%num_quadrature_points = quadrature%num_quadrature_points
   this%num_shape_functions   = reference_fe%num_shape_functions
-  this%reference_fe             => reference_fe
+  this%reference_fe          => reference_fe
 
-  call reference_fe%create_interpolation( quadrature, this%interpolation_reference_cell )
+  call reference_fe%create_interpolation( quadrature, this%interpolation_reference_cell, interpolation_duties)
+
   call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
+
 end subroutine cell_integrator_create
 
 subroutine cell_integrator_restricted_to_facet( this, quadrature, reference_fe, facet_lid, subfacet_lid )
@@ -101,6 +104,19 @@ subroutine cell_integrator_update_interpolation( this, quadrature )
 end subroutine cell_integrator_update_interpolation
 
 !==================================================================================================
+subroutine cell_integrator_update_interpolation_restricted_to_facet( this, quadrature, reference_fe, facet_lid, subfacet_lid )
+  implicit none
+  ! Parameters
+  class(cell_integrator_t)      , intent(inout) :: this 
+  type(quadrature_t)            , intent(in)    :: quadrature
+  class(reference_fe_t), target , intent(in)    :: reference_fe  
+  integer(ip)                   , intent(in)    :: facet_lid
+  integer(ip)                   , intent(in)    :: subfacet_lid
+  call reference_fe%create_interpolation_restricted_to_facet( facet_lid, subfacet_lid, quadrature, this%interpolation_reference_cell )
+  call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
+end subroutine cell_integrator_update_interpolation_restricted_to_facet
+
+!==================================================================================================
 function cell_integrator_get_interpolation_reference_cell(this)
   implicit none
   class(cell_integrator_t), target, intent(in):: this
@@ -117,6 +133,14 @@ function cell_integrator_get_interpolation_real_cell(this)
 
   cell_integrator_get_interpolation_real_cell => this%interpolation_real_cell
 end function cell_integrator_get_interpolation_real_cell
+
+!==================================================================================================
+function cell_integrator_get_interpolation_duties_real_cell(this)
+  implicit none
+  class(cell_integrator_t), target, intent(in) :: this
+  type(interpolation_duties_t), pointer :: cell_integrator_get_interpolation_duties_real_cell
+  cell_integrator_get_interpolation_duties_real_cell => this%interpolation_real_cell%my_duties
+end function cell_integrator_get_interpolation_duties_real_cell
 
 !==================================================================================================
 subroutine cell_integrator_get_value_scalar (this, ishape, qpoint, scalar_field)
@@ -316,6 +340,22 @@ subroutine cell_integrator_evaluate_gradient_fe_function_vector ( this, nodal_va
   type(tensor_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
   call this%reference_fe%evaluate_gradient_fe_function ( this%interpolation_real_cell, nodal_values, quadrature_points_values )
 end subroutine cell_integrator_evaluate_gradient_fe_function_vector
+
+subroutine cell_integrator_evaluate_laplacian_fe_function_scalar ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  real(rp)                , intent(in)    :: nodal_values(:)
+  real(rp), allocatable   , intent(inout) :: quadrature_points_values(:)
+  call this%reference_fe%evaluate_laplacian_fe_function ( this%interpolation_real_cell, nodal_values, quadrature_points_values )
+end subroutine cell_integrator_evaluate_laplacian_fe_function_scalar
+
+subroutine cell_integrator_evaluate_laplacian_fe_function_vector ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(cell_integrator_t)         , intent(in)    :: this
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  call this%reference_fe%evaluate_laplacian_fe_function ( this%interpolation_real_cell, nodal_values, quadrature_points_values )
+end subroutine cell_integrator_evaluate_laplacian_fe_function_vector
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !Auxiliar routines

@@ -62,6 +62,7 @@ module execution_context_names
      procedure, non_overridable  :: set_num_tasks => execution_context_set_num_tasks
      procedure, non_overridable  :: get_current_task => execution_context_get_current_task
      procedure, non_overridable  :: set_current_task => execution_context_set_current_task
+     procedure  :: report_times => execution_context_report_times
 
      procedure (execution_context_create)             , deferred :: create
      procedure (execution_context_assign)             , deferred :: assign
@@ -113,10 +114,12 @@ module execution_context_names
      procedure (execution_context_root_send_master_rcv_ip_1D_array), deferred :: root_send_master_rcv_ip_1D_array
      procedure (execution_context_root_send_master_rcv_rp         ), deferred :: root_send_master_rcv_rp
      procedure (execution_context_root_send_master_rcv_rp_1D_array), deferred :: root_send_master_rcv_rp_1D_array
+     procedure (execution_context_root_send_master_rcv_logical    ), deferred :: root_send_master_rcv_logical 
      generic :: root_send_master_rcv => root_send_master_rcv_ip,          &
           &                             root_send_master_rcv_ip_1D_array, &
           &                             root_send_master_rcv_rp,          &
-          &                             root_send_master_rcv_rp_1D_array
+          &                             root_send_master_rcv_rp_1D_array, &
+          &                             root_send_master_rcv_logical
 
      procedure (execution_context_gather_to_master_ip           ) , deferred :: gather_to_master_ip            
      procedure (execution_context_gather_to_master_igp          ) , deferred :: gather_to_master_igp           
@@ -294,7 +297,7 @@ module execution_context_names
           &                                          alpha, beta, x, y)
        import :: execution_context_t, ip, rp
        implicit none
-       class(execution_context_t), intent(in) :: this
+       class(execution_context_t), intent(inout) :: this
        integer(ip)             , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
        integer(ip)             , intent(in) :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
        integer(ip)             , intent(in) :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
@@ -508,6 +511,15 @@ module execution_context_names
      end subroutine execution_context_root_send_master_rcv_rp_1D_array
      
      !=============================================================================
+     subroutine execution_context_root_send_master_rcv_logical ( this, input_data, output_data )
+       import :: execution_context_t
+       implicit none
+       class(execution_context_t), intent(in)      :: this
+       logical                   , intent(in)      :: input_data
+       logical                   , intent(inout)   :: output_data
+     end subroutine execution_context_root_send_master_rcv_logical
+     
+     !=============================================================================
      subroutine execution_context_gather_to_master_ip ( this, input_data, output_data )
        import :: execution_context_t, ip
        implicit none
@@ -599,6 +611,14 @@ module execution_context_names
 
 contains
 
+  subroutine execution_context_report_times ( this, show_header, luout )
+    implicit none 
+    class(execution_context_t), intent(inout) :: this
+    logical, intent(in), optional      :: show_header 
+    integer(ip), intent(in), optional  :: luout
+    mcheck(.false.,'Timers not implemented for execution context')
+  end subroutine execution_context_report_times
+  
   pure function execution_context_get_num_tasks (this)
     implicit none
     class(execution_context_t), intent(in) :: this

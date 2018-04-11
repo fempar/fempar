@@ -294,19 +294,16 @@ end subroutine free_timers
 	class is ( Hcurl_l1_coarse_fe_handler_t ) 
 	call this%coarse_fe_handler%setup_tools( this%fe_space )
 	end select 
-	
-	   call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-		
-!#ifdef ENABLE_MKL  
+			
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
-    iparm(1)   = 1 ! no solver default
-    iparm(2)   = 2 ! fill-in reordering from METIS
-    iparm(8)   = 2 ! numbers of iterative refinement steps
-    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-    iparm(11)  = 1 ! use scaling 
-    iparm(13)  = 1 ! use maximum weighted matching algorithm 
-    iparm(21)  = 1 ! 1x1 + 2x2 pivots
+    !iparm(1)   = 1 ! no solver default
+    !iparm(2)   = 2 ! fill-in reordering from METIS
+    !iparm(8)   = 2 ! numbers of iterative refinement steps
+    !iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+    !iparm(11)  = 1 ! use scaling 
+    !iparm(13)  = 1 ! use maximum weighted matching algorithm 
+    !iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
     plist => this%parameter_list 
     if ( this%par_environment%get_l1_size() == 1 ) then
@@ -339,28 +336,17 @@ end subroutine free_timers
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
-!#ifdef ENABLE_MKL   
     ! Set-up MLBDDC preconditioner
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
-    call this%mlbddc%numerical_setup()
-!#endif    
+    call this%mlbddc%numerical_setup()  
    
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
-!#ifdef ENABLE_MKL
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
-!#else
-!    call parameter_list%init()
-!    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
-!    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
-!    assert(FPLError == 0)
-!    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-!    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
-!    call parameter_list%free()
-!#endif   
-    
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
+    call parameter_list%free()
   end subroutine setup_solver
   
   
@@ -369,7 +355,7 @@ end subroutine free_timers
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%numerical_setup()
+    call this%fe_affine_operator%compute()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
     
@@ -399,7 +385,7 @@ end subroutine free_timers
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
+    call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), dof_values)
     
     !select type (dof_values)
     !class is (par_scalar_array_t)  
@@ -414,32 +400,36 @@ end subroutine free_timers
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
     type(error_norms_vector_t) :: error_norm 
-    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, hcurl_s, w1p_s, w1p, w1infty_s, w1infty
+    real(rp) :: tol
     
     call error_norm%create(this%fe_space,1)    
     mean = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, mean_norm)   
-    !l1 = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, l1_norm)   
-    !l2 = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, l2_norm)   
-    !lp = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, lp_norm)   
-    !linfty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
-    !h1_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
-    !h1 = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, h1_norm) 
-    !w1p_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
-    !w1p = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
-    !w1infty_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
-    !w1infty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
+    l1 = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, l1_norm)   
+    l2 = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, l2_norm)   
+    lp = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, lp_norm)   
+    linfty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, linfty_norm)   
+    hcurl_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, hcurl_seminorm)
+    h1_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, h1_seminorm) 
+    h1 = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, h1_norm) 
+    w1p_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1p_seminorm)   
+    w1p = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1p_norm)   
+    w1infty_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
+    w1infty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
-      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < 1.0e-04 )
-      !write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < 1.0e-03 )
-      !write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < 1.0e-03 )
+      tol=1.0e-4_rp 
+      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < tol )
+      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < tol )
+      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < tol )
+      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < tol )
+      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < tol )
+      write(*,'(a20,e32.25)') 'hcurl_seminorm:', hcurl_s; check ( linfty < tol)
+      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < tol )
+      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < tol )
+      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < tol )
+      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < tol )
+      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < tol )
+      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < tol )
     end if  
     call error_norm%free()
   end subroutine check_solution
@@ -448,8 +438,8 @@ end subroutine free_timers
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(in)    :: this
     type(output_handler_t)                             :: oh	
-	real(rp), allocatable                              :: set_id_cell_vector(:)
-	integer(ip)                                        :: i, istat
+	   real(rp), allocatable                              :: set_id_cell_vector(:)
+	   integer(ip)                                        :: i, istat
 	
 	 if ( this%par_environment%am_i_l1_task() ) then
     if(this%test_params%get_write_solution()) then
@@ -457,7 +447,7 @@ end subroutine free_timers
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
-		call oh%add_cell_vector(set_id_cell_vector, 'set_id')
+		      call oh%add_cell_vector(set_id_cell_vector, 'set_id')
         call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
         call oh%write()
         call oh%close()
@@ -490,7 +480,7 @@ end subroutine free_timers
 
     call this%timer_fe_space%start()
     call this%setup_reference_fes()
-	call this%setup_coarse_fe_handlers()
+	   call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
     call this%timer_fe_space%stop()
 
@@ -519,22 +509,20 @@ end subroutine free_timers
     integer(ip) :: i, istat
     
     call this%solution%free()
-!#ifdef ENABLE_MKL    
-    call this%mlbddc%free()
-!#endif    
+    call this%mlbddc%free()  
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
 	
-	if ( this%par_environment%am_i_l1_task() ) then 
-	if (allocated(this%coarse_fe_handlers) ) then 
-	select type ( ch => this%fe_space%get_coarse_fe_handler(field_id=1) )
-	class is ( Hcurl_l1_coarse_fe_handler_t )
-	call this%coarse_fe_handler%free() 
-	deallocate( this%coarse_fe_handler ) 
-	end select 
-	deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
-	end if 
-	end if 
+	   if ( this%par_environment%am_i_l1_task() ) then 
+	    if (allocated(this%coarse_fe_handlers) ) then 
+	   select type ( ch => this%fe_space%get_coarse_fe_handler(field_id=1) )
+	   class is ( Hcurl_l1_coarse_fe_handler_t )
+	   call this%coarse_fe_handler%free() 
+   	deallocate( this%coarse_fe_handler ) 
+	   end select 
+	   deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
+	    end if 
+	   end if 
 	
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then

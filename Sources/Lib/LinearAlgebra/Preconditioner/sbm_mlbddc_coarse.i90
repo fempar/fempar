@@ -31,11 +31,17 @@ subroutine mlbddc_coarse_create ( this, fe_space, par_sparse_matrix, mlbddc_para
   type(coarse_fe_space_t)  , target, intent(in)    :: fe_space
   type(par_sparse_matrix_t), target, intent(in)    :: par_sparse_matrix
   type(parameterlist_t)    , target, intent(in)    :: mlbddc_params 
+  class(triangulation_t), pointer :: triangulation
+  
   call this%free()
+  assert ( this%state_is_start() )
   this%fe_space => fe_space
+  triangulation => fe_space%get_triangulation()
+  call this%set_par_environment(triangulation%get_environment())
   this%par_sparse_matrix => par_sparse_matrix
   this%mlbddc_params => mlbddc_params
   call this%create_vector_spaces()
+  call this%set_state_created()
 end subroutine mlbddc_coarse_create
 
 subroutine mlbddc_coarse_create_vector_spaces (this)
@@ -133,15 +139,6 @@ function mlbddc_coarse_get_coarse_fe_space(this)
   type(coarse_fe_space_t)  , pointer    :: mlbddc_coarse_get_coarse_fe_space
   mlbddc_coarse_get_coarse_fe_space => this%fe_space
 end function mlbddc_coarse_get_coarse_fe_space
-
-function mlbddc_coarse_get_par_environment(this)
-  implicit none
-  class(mlbddc_coarse_t)   , intent(in) :: this
-  type(environment_t)  , pointer    :: mlbddc_coarse_get_par_environment
-  type(coarse_fe_space_t)  , pointer    :: fe_space
-  fe_space => this%get_coarse_fe_space()
-  mlbddc_coarse_get_par_environment => fe_space%get_environment()
-end function mlbddc_coarse_get_par_environment
 
 function mlbddc_coarse_am_i_l1_task(this)
   implicit none

@@ -35,8 +35,10 @@ module poisson_analytical_functions_names
   type, extends(scalar_function_t) :: base_scalar_function_t
     private
     integer(ip) :: num_dims = -1  
+    integer(ip) :: order 
   contains
-    procedure :: set_num_dims    => base_scalar_function_set_num_dims
+    procedure :: set_num_dims          => base_scalar_function_set_num_dims
+    procedure :: set_polynomial_order  => base_scalar_function_set_polynomial_order
   end type base_scalar_function_t
   
   type, extends(base_scalar_function_t) :: source_term_t
@@ -64,10 +66,11 @@ module poisson_analytical_functions_names
      type(boundary_function_t) :: boundary_function
      type(solution_function_t) :: solution_function
    contains
-     procedure :: set_num_dims      => poisson_analytical_functions_set_num_dims
-     procedure :: get_source_term         => poisson_analytical_functions_get_source_term
-     procedure :: get_boundary_function   => poisson_analytical_functions_get_boundary_function
-     procedure :: get_solution_function   => poisson_analytical_functions_get_solution_function
+     procedure :: set_num_dims                     => poisson_analytical_functions_set_num_dims
+     procedure :: set_solution_polynomial_order    => poisson_analytical_functions_set_solution_polynomial_order
+     procedure :: get_source_term                  => poisson_analytical_functions_get_source_term
+     procedure :: get_boundary_function            => poisson_analytical_functions_get_boundary_function
+     procedure :: get_solution_function            => poisson_analytical_functions_get_solution_function
   end type poisson_analytical_functions_t
 
   public :: poisson_analytical_functions_t
@@ -80,15 +83,29 @@ contains
     integer(ip), intent(in) ::  num_dims
     this%num_dims = num_dims
   end subroutine base_scalar_function_set_num_dims
-
+  
+    subroutine base_scalar_function_set_polynomial_order ( this, order )
+    implicit none
+    class(base_scalar_function_t), intent(inout)    :: this
+    integer(ip), intent(in) ::  order
+    this%order = order
+  end subroutine base_scalar_function_set_polynomial_order
+  
   !===============================================================================================
   subroutine source_term_get_value_space ( this, point, result )
     implicit none
     class(source_term_t), intent(in)    :: this
     type(point_t)       , intent(in)    :: point
     real(rp)            , intent(inout) :: result
+    real(rp) :: n
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    result = 0.0_rp 
+    n = real(this%order, rp)
+    if ( this%num_dims == 2 ) then
+      result =  -n*(n-1.0_rp)*(point%get(1)**(n-2.0_rp) + point%get(2)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2})
+    else if ( this%num_dims == 3 ) then
+      result =  -n*(n-1.0_rp)*(point%get(1)**(n-2.0_rp) + & 
+                point%get(2)**(n-2.0_rp) + point%get(3)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2}+z^{n-2})
+    end if 
   end subroutine source_term_get_value_space
 
   !===============================================================================================
@@ -99,9 +116,9 @@ contains
     real(rp)                , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
-      result = point%get(1) + point%get(2) ! x+y
+      result = point%get(1)**this%order + point%get(2)**this%order ! x^n+y^n
     else if ( this%num_dims == 3 ) then
-      result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
+      result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n
     end if  
   end subroutine boundary_function_get_value_space 
 
@@ -113,9 +130,9 @@ contains
     real(rp)                  , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
-      result = point%get(1) + point%get(2) ! x+y 
+      result = point%get(1)**this%order + point%get(2)**this%order ! x^n+y^n 
     else if ( this%num_dims == 3 ) then
-      result = point%get(1) + point%get(2) + point%get(3) ! x+y+z
+      result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n 
     end if  
       
   end subroutine solution_function_get_value_space
@@ -126,14 +143,16 @@ contains
     class(solution_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     type(vector_field_t)      , intent(inout) :: result
+    real(rp) :: n 
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    n = real(this%order, rp) 
     if ( this%num_dims == 2 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
+      call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
+      call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
     else if ( this%num_dims == 3 ) then
-      call result%set( 1, 1.0_rp ) 
-      call result%set( 2, 1.0_rp )
-      call result%set( 3, 1.0_rp ) 
+      call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
+      call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
+      call result%set( 3, n*point%get(3)**(n-1.0_rp) ) ! nz^{n-1}
     end if
   end subroutine solution_function_get_gradient_space
   
@@ -146,6 +165,16 @@ contains
     call this%boundary_function%set_num_dims(num_dims)
     call this%solution_function%set_num_dims(num_dims)
   end subroutine poisson_analytical_functions_set_num_dims 
+  
+  !===============================================================================================
+  subroutine poisson_analytical_functions_set_solution_polynomial_order ( this, order )
+    implicit none
+    class(poisson_analytical_functions_t), intent(inout)    :: this
+    integer(ip), intent(in) ::  order
+    call this%source_term%set_polynomial_order(order)
+    call this%boundary_function%set_polynomial_order(order)
+    call this%solution_function%set_polynomial_order(order)
+  end subroutine poisson_analytical_functions_set_solution_polynomial_order 
   
   !===============================================================================================
   function poisson_analytical_functions_get_source_term ( this )

@@ -412,7 +412,7 @@ end subroutine free_timers
     implicit none
     class(par_test_poisson_fe_driver_t), target, intent(inout) :: this
     type(parameterlist_t) :: parameter_list
-    type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
+    type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse, coarse_matrix_params
 
     integer(ip) :: ilev
     integer(ip) :: FPLError
@@ -440,23 +440,37 @@ end subroutine free_timers
        ! Set current level Dirichlet solver parameters
        dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
        FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-       FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       if ( ilev > 1 ) then
+         FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
+       else
+         FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       end if 
        FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
        
        ! Set current level Neumann solver parameters
        neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
        FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-       FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+       if ( ilev > 1 ) then
+         FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
+       else
+         FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+       end if
        FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-     
+       
+       ! Set current level Coarse-grid matrix parameters
+       coarse_matrix_params => plist%NewSubList(key=mlbddc_coarse_matrix_params)
+       FPLError = coarse_matrix_params%set(key=mlbddc_coarse_matrix_symmetric_storage, value=.false.); assert(FPLError == 0)
+       FPLError = coarse_matrix_params%set(key=mlbddc_coarse_matrix_is_symmetric     , value=.false.); assert(FPLError == 0)
+       FPLError = coarse_matrix_params%set(key=mlbddc_coarse_matrix_sign             , value=SPARSE_MATRIX_SIGN_UNKNOWN); assert(FPLError == 0)
+      
        coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
        plist  => coarse 
     end do
     ! Set coarsest-grid solver parameters
     FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_uns); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
@@ -471,7 +485,7 @@ end subroutine free_timers
     call this%iterative_linear_solver%set_type_from_string(cg_name)
 
 #ifdef ENABLE_MKL
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
 #else
     call parameter_list%init()
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
@@ -479,7 +493,7 @@ end subroutine free_timers
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, .identity. this%fe_affine_operator) 
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
     call parameter_list%free()
 #endif   
     
@@ -491,7 +505,7 @@ end subroutine free_timers
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
-    call this%fe_affine_operator%numerical_setup()
+    call this%fe_affine_operator%compute()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
     
@@ -521,7 +535,7 @@ end subroutine free_timers
     matrix     => this%fe_affine_operator%get_matrix()
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
+    call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), &
                                             dof_values)
     
     !select type (dof_values)
@@ -648,12 +662,12 @@ end subroutine free_timers
     class(par_test_poisson_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
     
-    call this%solution%free()
-#ifdef ENABLE_MKL    
-    call this%mlbddc%free()
-#endif    
+    call this%solution%free() 
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
+#ifdef ENABLE_MKL    
+    call this%mlbddc%free()
+#endif       
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)

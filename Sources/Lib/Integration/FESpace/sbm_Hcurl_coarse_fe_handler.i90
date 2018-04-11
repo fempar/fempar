@@ -1601,15 +1601,17 @@ subroutine Hcurl_l1_apply_global_change_basis(this, x_new, x_old)
   ! further consideration and obtain the fully assembled local parts of the global
   ! change of basis 
   implicit none 
-  class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
-  type(par_scalar_array_t)                 , intent(in)     :: x_new
-  type(par_scalar_array_t)                 , intent(inout)  :: x_old
+  class(Hcurl_l1_coarse_fe_handler_t), target, intent(in)     :: this
+  type(par_scalar_array_t)                   , intent(in)     :: x_new
+  type(par_scalar_array_t)                   , intent(inout)  :: x_old
 
   type(serial_scalar_array_t)  , pointer   :: x_new_local
   type(serial_scalar_array_t)  , pointer   :: x_old_local
   type(serial_scalar_array_t)              :: x_new_local_G
   type(serial_scalar_array_t)              :: x_old_local_G
   type(serial_scalar_array_t)              :: change_basis_times_x
+  
+  type(sparse_matrix_t), pointer           :: change_basis_matrix
 
   x_old_local         => x_old%get_serial_scalar_array()
   x_new_local         => x_new%get_serial_scalar_array()
@@ -1624,8 +1626,9 @@ subroutine Hcurl_l1_apply_global_change_basis(this, x_new, x_old)
 
   ! Apply local change basis operator 
   call change_basis_times_x%create_and_allocate(this%num_total_dofs - this%num_interior_dofs) 
-
-  call this%change_basis_matrix%apply(x_new_local_G, change_basis_times_x)
+  
+  change_basis_matrix => this%change_basis_matrix 
+  call change_basis_matrix%apply(x_new_local_G, change_basis_times_x)
   call x_old_local_G%copy( change_basis_times_x ) 
 
   call change_basis_times_x%free() 

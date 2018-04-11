@@ -26,6 +26,50 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+subroutine base_mlbddc_set_state_start(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_START
+end subroutine base_mlbddc_set_state_start
+
+subroutine base_mlbddc_set_state_created(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_CREATED
+end subroutine base_mlbddc_set_state_created
+
+subroutine base_mlbddc_set_state_symbolic(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_SYMBOLIC
+end subroutine base_mlbddc_set_state_symbolic
+
+subroutine base_mlbddc_set_state_numeric(this)
+  class(base_mlbddc_t), intent(inout) :: this
+  this%state = BASE_MLBDDC_STATE_NUMERIC
+end subroutine base_mlbddc_set_state_numeric
+
+function base_mlbddc_state_is_start(this) result(is_start)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_start
+  is_start = this%state == BASE_MLBDDC_STATE_START
+end function base_mlbddc_state_is_start
+
+function base_mlbddc_state_is_created(this) result(is_start)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_start
+  is_start = this%state == BASE_MLBDDC_STATE_CREATED
+end function base_mlbddc_state_is_created
+
+function base_mlbddc_state_is_symbolic(this) result(is_symbolic_setup)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_symbolic_setup
+  is_symbolic_setup = this%state == BASE_MLBDDC_STATE_SYMBOLIC
+end function base_mlbddc_state_is_symbolic
+
+function base_mlbddc_state_is_numeric(this) result(is_numerical_setup)
+  class(base_mlbddc_t), intent(in) :: this
+  logical                                 :: is_numerical_setup
+  is_numerical_setup= this%state == BASE_MLBDDC_STATE_NUMERIC
+end function base_mlbddc_state_is_numeric
+
 subroutine base_mlbddc_assert_dirichlet_solver_params ( this )
   implicit none
   class(base_mlbddc_t), intent(in) :: this
@@ -42,6 +86,75 @@ subroutine base_mlbddc_assert_neumann_solver_params ( this )
   assert ( this%mlbddc_params%isSubList(Key=mlbddc_neumann_solver_params) ) 
 end subroutine base_mlbddc_assert_neumann_solver_params 
 
+subroutine base_mlbddc_parse_or_transfer_coarse_matrix_params ( this, &
+                                                                coarse_matrix_symmetric_storage, &
+                                                                coarse_matrix_is_symmetric, &
+                                                                coarse_matrix_sign  )
+  implicit none
+  class(base_mlbddc_t), intent(in)    :: this
+  logical             , intent(inout) :: coarse_matrix_symmetric_storage
+  logical             , intent(inout) :: coarse_matrix_is_symmetric
+  integer(ip)         , intent(inout) :: coarse_matrix_sign
+  
+  integer(ip) :: ierr
+  type(ParameterList_t), pointer :: coarse_matrix_params
+  type(par_sparse_matrix_t), pointer :: par_sparse_matrix
+  
+  assert ( associated(this%mlbddc_params) )
+  assert ( associated(this%environment) )
+  if ( this%mlbddc_params%isPresent(Key=mlbddc_coarse_matrix_params) ) then
+    assert ( this%mlbddc_params%isSubList(Key=mlbddc_coarse_matrix_params) )
+    ierr = this%mlbddc_params%getSubList(Key     = mlbddc_coarse_matrix_params, & 
+                                         SubList = coarse_matrix_params) 
+    assert(ierr==0)
+#ifdef DEBUG
+    assert(coarse_matrix_params%isPresent(mlbddc_coarse_matrix_symmetric_storage))
+    assert(coarse_matrix_params%isAssignable(mlbddc_coarse_matrix_symmetric_storage, coarse_matrix_symmetric_storage))
+    assert(coarse_matrix_params%isPresent(mlbddc_coarse_matrix_is_symmetric))
+    assert(coarse_matrix_params%isAssignable(mlbddc_coarse_matrix_is_symmetric, coarse_matrix_is_symmetric))
+    assert(coarse_matrix_params%isPresent(mlbddc_coarse_matrix_sign))
+    assert(coarse_matrix_params%isAssignable(mlbddc_coarse_matrix_sign, coarse_matrix_sign))
+#endif 
+    ierr = coarse_matrix_params%Get(Key=mlbddc_coarse_matrix_symmetric_storage, Value=coarse_matrix_symmetric_storage)
+    assert(ierr == 0)
+    ierr = coarse_matrix_params%Get(Key=mlbddc_coarse_matrix_is_symmetric, Value=coarse_matrix_is_symmetric)
+    assert(ierr == 0)
+    ierr = coarse_matrix_params%Get(Key=mlbddc_coarse_matrix_sign, Value=coarse_matrix_sign)
+    assert(ierr == 0)
+  else
+     if ( this%environment%am_i_l1_to_l2_task() ) then
+        if ( this%environment%am_i_l1_task() ) then
+           par_sparse_matrix => this%get_par_sparse_matrix()
+           coarse_matrix_symmetric_storage = par_sparse_matrix%get_symmetric_storage()
+           coarse_matrix_is_symmetric      = par_sparse_matrix%is_symmetric()
+           coarse_matrix_sign              = par_sparse_matrix%get_sign()
+        end if
+
+        if ( this%environment%am_i_l1_to_l2_root() ) then
+           ! Recv side
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_symmetric_storage, &
+                output_data=coarse_matrix_symmetric_storage)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_is_symmetric, &
+                output_data=coarse_matrix_is_symmetric)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_sign, &
+                output_data=coarse_matrix_sign)
+        else
+           ! Send. side
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_symmetric_storage, &
+                output_data=coarse_matrix_symmetric_storage)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_is_symmetric, &
+                output_data=coarse_matrix_is_symmetric)
+           call this%environment%l1_to_l2_transfer(input_data=coarse_matrix_sign, &
+                output_data=coarse_matrix_sign)
+        end if
+     end if
+  end if
+end subroutine base_mlbddc_parse_or_transfer_coarse_matrix_params
+
+
+
+
+
 subroutine base_mlbddc_assert_coarse_solver_params ( this )
   implicit none
   class(base_mlbddc_t), intent(in) :: this
@@ -55,26 +168,31 @@ recursive subroutine base_mlbddc_symbolic_setup ( this )
   class(base_mlbddc_t), intent(inout) :: this
   type(environment_t), pointer :: par_environment  
   par_environment => this%get_par_environment()
-
-  if( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then
+  
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if ( this%state_is_created() ) then
+    if( par_environment%am_i_l1_task() ) then
+      if ( par_environment%get_l1_size() > 1 ) then
         call this%setup_constraint_matrix()
         call this%setup_weighting_operator()
-     end if
-  end if
+      end if
+    end if
 
-  call this%symbolic_setup_coarse_grid_matrix()
-  call this%symbolic_setup_mlbddc_coarse()
+    call this%symbolic_setup_coarse_grid_matrix()
+    call this%symbolic_setup_mlbddc_coarse()
 
-  if ( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then      
+    if ( par_environment%am_i_l1_task() ) then
+      if ( par_environment%get_l1_size() > 1 ) then      
         call this%symbolic_setup_dirichlet_problem()
         call this%symbolic_setup_dirichlet_solver()
         call this%symbolic_setup_constrained_neumann_problem()
         call this%symbolic_setup_constrained_neumann_solver()
-     else
+      else
         call this%symbolic_setup_coarse_solver()
-     end if
+      end if
+    end if
+    call this%set_state_symbolic()
   end if
 end subroutine base_mlbddc_symbolic_setup
 
@@ -182,7 +300,13 @@ subroutine base_mlbddc_symbolic_setup_coarse_grid_matrix ( this )
   integer(ip)                               :: istat
   class(base_fe_space_t), pointer :: fe_space
   type(coarse_fe_space_t), pointer :: coarse_fe_space
+  logical     :: cm_symmetric_storage, cm_is_symmetric
+  integer(ip) :: cm_sign
 
+  call this%parse_or_transfer_coarse_matrix_params(cm_symmetric_storage, &
+                                                   cm_is_symmetric, &
+                                                   cm_sign)
+  
   L1_environment => this%get_par_environment()
   if ( L1_environment%am_i_lgt1_task() ) then
      ! lgt1 MPI tasks symbolically set-up this%coarse_grid_matrix
@@ -194,10 +318,9 @@ subroutine base_mlbddc_symbolic_setup_coarse_grid_matrix ( this )
      L2_environment  => L1_environment%get_next_level()
      call this%coarse_grid_matrix%create( p_env             = L2_environment, &
           dof_import        = coarse_fe_space%get_block_dof_import(1), &
-          symmetric_storage = .true., &
-          is_symmetric      = .true., &
-          sign              = SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE )
-
+          symmetric_storage = cm_symmetric_storage, &
+          is_symmetric      = cm_is_symmetric, &
+          sign              = cm_sign )
      if ( L2_environment%am_i_l1_task() ) then
         call this%coarse_grid_matrix_symbolic_assembly()
      end if
@@ -312,26 +435,38 @@ recursive subroutine base_mlbddc_numerical_setup ( this )
   class(base_mlbddc_t)        , intent(inout)   :: this
   type(environment_t), pointer         :: par_environment
 
-  par_environment => this%get_par_environment()
-  if ( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then  
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if ( this%state_is_created() ) then
+    call this%symbolic_setup()
+  end if 
+  
+  assert ( this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if ( this%state_is_symbolic() ) then
+    par_environment => this%get_par_environment()
+    if ( par_environment%am_i_l1_task() ) then
+      if ( par_environment%get_l1_size() > 1 ) then  
         call this%numerical_setup_constrained_neumann_problem()
         call this%numerical_setup_constrained_neumann_solver()
         call this%setup_coarse_grid_basis()
-     end if
-  end if
+      end if
+    end if
 
-  call this%numerical_setup_coarse_grid_matrix()
-  call this%numerical_setup_mlbddc_coarse()
+    call this%numerical_setup_coarse_grid_matrix()
+    call this%numerical_setup_mlbddc_coarse()
 
-  if ( par_environment%am_i_l1_task() ) then
-     if ( par_environment%get_l1_size() > 1 ) then  
+    if ( par_environment%am_i_l1_task() ) then
+       if ( par_environment%get_l1_size() > 1 ) then  
         call this%numerical_setup_dirichlet_problem()
         call this%numerical_setup_dirichlet_solver()
-     else if ( par_environment%get_l1_size() == 1 ) then
+       else if ( par_environment%get_l1_size() == 1 ) then
         call this%numerical_setup_coarse_solver()
-     end if
+       end if
+    end if
+    call this%set_state_numeric()
   end if
+  
 end subroutine base_mlbddc_numerical_setup
 
 
@@ -650,7 +785,7 @@ subroutine base_mlbddc_coarse_grid_matrix_numerical_assembly ( this, subdomain_e
   assert ( L2_environment%am_i_l1_task() )
 
   fe_space    => this%get_fe_space()
-  coarse_fe_space => fe_space%get_coarse_fe_space()	
+  coarse_fe_space => fe_space%get_coarse_fe_space() 
 
   allocate ( fe_dofs(coarse_fe_space%get_num_fields()), stat=istat)
   check(istat==0)     
@@ -715,9 +850,24 @@ end subroutine base_mlbddc_numerical_setup_coarse_solver
 recursive subroutine base_mlbddc_apply (this, x, y)
   implicit none
   ! Parameters
-  class(base_mlbddc_t)   , intent(in)    :: this
+  class(base_mlbddc_t)   , intent(inout)    :: this
   class(vector_t)   , intent(in)    :: x
   class(vector_t)   , intent(inout) :: y
+  
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+
+  if (this%state_is_created() ) then
+    call this%symbolic_setup()
+  end if 
+  
+  assert ( this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if (this%state_is_symbolic() ) then
+    call this%numerical_setup()
+  end if 
+  
+  assert ( this%state_is_numeric() )
+  
   call this%abort_if_not_in_domain(x)
   call this%abort_if_not_in_range(y)
   call x%GuardTemp()
@@ -735,7 +885,7 @@ end subroutine base_mlbddc_apply
 recursive subroutine base_mlbddc_apply_add(this, x, y)
   implicit none
   ! Parameters
-  class(base_mlbddc_t)   , intent(in)    :: this
+  class(base_mlbddc_t)   , intent(inout)    :: this
   class(vector_t)   , intent(in)    :: x
   class(vector_t)   , intent(inout) :: y
   class(vector_t), allocatable      :: w
@@ -755,7 +905,7 @@ end subroutine base_mlbddc_apply_add
 
 recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
   implicit none
-  class(base_mlbddc_t)         , intent(in)    :: this
+  class(base_mlbddc_t)         , intent(inout)    :: this
   type(par_scalar_array_t), intent(in)    :: x
   type(par_scalar_array_t), intent(inout) :: y
 
@@ -769,10 +919,6 @@ recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
        coarse_correction_I, &
        coarse_correction_G
   type(environment_t), pointer :: par_environment
-  
-    type(serial_scalar_array_t), pointer :: x_local
-  real(rp), pointer :: x_local_entries(:)
-
   
   par_environment => this%get_par_environment()
   
@@ -832,7 +978,6 @@ recursive subroutine base_mlbddc_apply_par_scalar_array ( this, x, y )
      call delta_G%copy (coarse_correction_G)
      call delta_G%axpby(1.0_rp, constrained_neumann_correction_G,1.0_rp)
      call this%apply_weighting_operator_and_comm(delta,delta) 
-
      ! y_G = delta_G
      call y_G%copy(delta_G)
 
@@ -1290,7 +1435,7 @@ end subroutine base_mlbddc_solve_dirichlet_problem
 
 subroutine base_mlbddc_apply_A_GI(this, x_I, y_G)
   implicit none
-  class(base_mlbddc_t)           , intent(in)    :: this
+  class(base_mlbddc_t)           , intent(inout)    :: this
   type(par_scalar_array_t)  , intent(in)    :: x_I
   type(par_scalar_array_t)  , intent(inout) :: y_G
   type(par_sparse_matrix_t), pointer :: par_sparse_matrix
@@ -1314,7 +1459,7 @@ end subroutine base_mlbddc_apply_A_GI
 
 subroutine base_mlbddc_apply_A_IG(this, x_G, y_I)
   implicit none
-  class(base_mlbddc_t)           , intent(in)    :: this
+  class(base_mlbddc_t)           , intent(inout)    :: this
   type(par_scalar_array_t)  , intent(in)    :: x_G
   type(par_scalar_array_t)  , intent(inout) :: y_I
   type(par_sparse_matrix_t), pointer :: par_sparse_matrix
@@ -1420,9 +1565,23 @@ end subroutine base_mlbddc_free
 subroutine base_mlbddc_free_clean(this)
   implicit none
   class(base_mlbddc_t)           , intent(inout) :: this
+  
+  assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+
+  if ( this%state_is_numeric() ) then
+    call this%free_numerical_setup() 
+  end if
+  
+  if ( this%state_is_symbolic() ) then
+    call this%free_symbolic_setup() 
+  end if
+  
   call this%nullify_operator()
   call this%free_vector_spaces()
   nullify(this%mlbddc_params)
+  nullify(this%environment)
+  
+  call this%set_state_start()
 end subroutine base_mlbddc_free_clean
 
 recursive subroutine base_mlbddc_free_symbolic_setup(this)
@@ -1431,8 +1590,13 @@ recursive subroutine base_mlbddc_free_symbolic_setup(this)
   type(environment_t)   , pointer       :: par_environment
   integer(ip)                               :: istat
 
-  ! This will be replaced by an apropriate check on the state diagram
-  if ( this%is_operator_associated() ) then 
+  assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+
+  if ( this%state_is_numeric() ) then
+    call this%free_numerical_setup() 
+  end if
+  
+  if ( this%state_is_symbolic() ) then 
      par_environment => this%get_par_environment()
      if ( par_environment%am_i_l1_task() ) then
         if ( par_environment%get_l1_size() > 1 ) then
@@ -1443,21 +1607,29 @@ recursive subroutine base_mlbddc_free_symbolic_setup(this)
            nullify (this%mlbddc_coarse)
            nullify (this%coarse_grid_matrix)
            call this%constraint_matrix%free()
-           call memfree(this%W, __FILE__, __LINE__)
+           if ( allocated(this%W) ) then 
+             call memfree(this%W, __FILE__, __LINE__)
+           end if
         else
            call this%free_symbolic_setup_coarse_solver()
         end if
      else
-        ! mlbddc_coarse should be freed before coarse_fe_space
-        ! (as the former was created from the latter)
-        call this%mlbddc_coarse%free_symbolic_setup()
-        call this%mlbddc_coarse%free_clean()
-        deallocate (this%mlbddc_coarse, stat=istat)
-        check (istat==0)
-        call this%coarse_grid_matrix%free()
-        deallocate  ( this%coarse_grid_matrix, stat = istat )
-        check( istat == 0 )
+        if ( associated(this%mlbddc_coarse) ) then
+          ! mlbddc_coarse should be freed before coarse_fe_space
+          ! (as the former was created from the latter)
+          call this%mlbddc_coarse%free_symbolic_setup()
+          call this%mlbddc_coarse%free_clean()
+          deallocate (this%mlbddc_coarse, stat=istat)
+          check (istat==0)
+        end if  
+        
+        if ( associated(this%coarse_grid_matrix) ) then
+          call this%coarse_grid_matrix%free()
+          deallocate  ( this%coarse_grid_matrix, stat = istat )
+          check( istat == 0 )
+        end if  
      end if
+     call this%set_state_created()
   end if
 end subroutine base_mlbddc_free_symbolic_setup
 
@@ -1503,8 +1675,10 @@ recursive subroutine base_mlbddc_free_numerical_setup(this)
   implicit none
   class(base_mlbddc_t)           , intent(inout) :: this
   type(environment_t)   , pointer       :: par_environment
-  ! This will be replaced by an apropriate check on the state diagram
-  if ( this%is_operator_associated() ) then 
+ 
+  assert ( this%state_is_start() .or. this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+  
+  if ( this%state_is_numeric() ) then 
      par_environment => this%get_par_environment()
      if ( par_environment%am_i_l1_task() ) then
         if ( par_environment%get_l1_size() > 1 ) then
@@ -1517,9 +1691,14 @@ recursive subroutine base_mlbddc_free_numerical_setup(this)
            call this%free_numerical_setup_coarse_solver()
         end if
      else
-        call this%mlbddc_coarse%free_numerical_setup()
-        call this%coarse_grid_matrix%free_in_stages(free_numerical_setup)
+        if (associated(this%mlbddc_coarse)) then
+           call this%mlbddc_coarse%free_numerical_setup()
+        end if 
+        if (associated(this%coarse_grid_matrix)) then
+           call this%coarse_grid_matrix%free_in_stages(free_numerical_setup)
+        end if   
      end if
+     call this%set_state_symbolic()
   end if
 end subroutine base_mlbddc_free_numerical_setup
 
@@ -1589,6 +1768,20 @@ function base_mlbddc_is_linear( this )
   base_mlbddc_is_linear = .true.
 end function base_mlbddc_is_linear
 
+function base_mlbddc_get_par_environment(this)
+  implicit none
+  class(base_mlbddc_t), target, intent(in) :: this
+  class(environment_t), pointer :: base_mlbddc_get_par_environment
+  base_mlbddc_get_par_environment => this%environment
+end function base_mlbddc_get_par_environment
+
+subroutine base_mlbddc_set_par_environment(this, environment)
+  implicit none
+  class(base_mlbddc_t)       , intent(inout) :: this
+  class(environment_t), target, intent(in)    :: environment
+  this%environment => environment
+end subroutine base_mlbddc_set_par_environment
+
 function base_mlbddc_is_operator_associated( this )
   implicit none
   class(base_mlbddc_t)          , intent(in) :: this
@@ -1616,9 +1809,4 @@ function base_mlbddc_get_fe_space(this)
   assert(.false.)
 end function base_mlbddc_get_fe_space
 
-function base_mlbddc_get_par_environment(this)
-  implicit none
-  class(base_mlbddc_t), intent(in) :: this
-  type(environment_t), pointer :: base_mlbddc_get_par_environment
-  assert(.false.)
-end function base_mlbddc_get_par_environment
+

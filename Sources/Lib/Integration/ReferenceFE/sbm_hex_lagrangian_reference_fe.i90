@@ -120,8 +120,8 @@ subroutine hex_lagrangian_reference_fe_get_subcells_connectivity(this, num_refin
   ones_dim = 1
   num_subelems = this%get_num_subcells(num_refinements=num_refinements)
   geo_nnodes = this%get_num_vertices()
-  assert(size(connectivity,1) == geo_nnodes)
-  assert(size(connectivity,2) == num_subelems)
+  assert(size(connectivity,1) >= geo_nnodes)
+  assert(size(connectivity,2) >= num_subelems)
   order_vector = num_refinements+1
 
   do subelem = 1, num_subelems
@@ -185,9 +185,9 @@ subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature( this, quadrature )
   do i=1,this%num_dims
      if (this%order_vector(i) > 0 ) then 
      quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)*(2.0_rp/this%order_vector(i))-1.0_rp
-	 else 
-	 quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)
-	 end if 
+  else 
+  quadrature%coordinates(i,:) = this%node_array%coordinates(i,:)
+  end if 
   end do
   quadrature%weight = 1.0_rp
 end subroutine hex_lagrangian_reference_fe_fill_nodal_quadrature
@@ -206,6 +206,7 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
 
   real(rp), allocatable :: tensor_product_values(:)
   real(rp), allocatable :: tensor_product_gradients(:,:)
+  real(rp), allocatable :: tensor_product_second_derivatives(:,:)
 
   integer(ip) :: idime, q_point
 
@@ -219,21 +220,32 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
   !assert ( interpolation%num_shape_functions == tensor_product_polynomial_space%get_num_polynomials() )
 
   call memalloc(tensor_product_polynomial_space%get_num_polynomials(),tensor_product_values,__FILE__,__LINE__)
-  call memalloc(SPACE_DIM,tensor_product_polynomial_space%get_num_polynomials(),tensor_product_gradients,__FILE__,__LINE__)
-
   do q_point=1, quadrature%get_num_quadrature_points()
-     do idime = 1, interpolation%num_dims
-        call tensor_product_polynomial_space%evaluate(q_point, &
-             tensor_product_values, &
-             tensor_product_gradients)
-        interpolation%shape_functions(1,:,q_point) = tensor_product_values(:)
-        interpolation%shape_derivatives(1,:,:,q_point) = tensor_product_gradients(:,:)
-     end do
+    call tensor_product_polynomial_space%evaluate_values( q_point, tensor_product_values )
+    interpolation%shape_functions(1,:,q_point) = tensor_product_values(:)
   end do
+  call memfree(tensor_product_values,__FILE__,__LINE__)
+  
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     call memalloc(SPACE_DIM,tensor_product_polynomial_space%get_num_polynomials(),tensor_product_gradients,__FILE__,__LINE__)
+     do q_point=1, quadrature%get_num_quadrature_points()
+       call tensor_product_polynomial_space%evaluate_gradients( q_point, tensor_product_gradients )
+       interpolation%shape_derivatives(1,:,:,q_point) = tensor_product_gradients(:,:)
+     end do
+     call memfree(tensor_product_gradients,__FILE__,__LINE__)
+  end if
+  
+  if(interpolation%my_duties%compute_second_derivatives_is_assigned()) then
+     call memalloc(interpolation%num_entries_symmetric_tensor,            &
+                   tensor_product_polynomial_space%get_num_polynomials(), &
+                   tensor_product_second_derivatives,__FILE__,__LINE__)
+     do q_point=1, quadrature%get_num_quadrature_points()
+       call tensor_product_polynomial_space%evaluate_second_derivatives( q_point, tensor_product_second_derivatives )
+       interpolation%hessian(1,:,:,q_point) = tensor_product_second_derivatives(:,:)
+     end do
+     call memfree(tensor_product_second_derivatives,__FILE__,__LINE__)
+  end if
 
-  ! Free auxiliary memory
-  if(allocated(tensor_product_values))    call memfree(tensor_product_values,__FILE__,__LINE__)
-  if(allocated(tensor_product_gradients)) call memfree(tensor_product_gradients,__FILE__,__LINE__)
   do idime=1,interpolation%num_dims
      call polynomial_1D_basis(idime)%free()
   end do
@@ -331,13 +343,6 @@ end subroutine hex_lagrangian_reference_fe_fill_qpoints_permutations
 subroutine hex_lagrangian_reference_fe_free ( this )
   implicit none 
   class(hex_lagrangian_reference_fe_t), intent(inout) :: this 
-  call this%h_refinement_interpolation%free()
-  if ( allocated(this%h_refinement_subfacet_permutation) ) then
-     call memfree(this%h_refinement_subfacet_permutation,__FILE__,__LINE__)
-  end if
-  if ( allocated(this%h_refinement_subedge_permutation) ) then
-     call memfree(this%h_refinement_subedge_permutation,__FILE__,__LINE__)
-  end if
   call lagrangian_reference_fe_free ( this )
 end subroutine hex_lagrangian_reference_fe_free
 
@@ -565,30 +570,6 @@ subroutine hex_lagrangian_reference_fe_get_h_refinement_coefficient ( this, isha
      coefficient = 0.0_rp
   end if
 end subroutine hex_lagrangian_reference_fe_get_h_refinement_coefficient
-
-!==================================================================================================
-function hex_lagrangian_reference_fe_get_h_refinement_interpolation ( this )
-  implicit none 
-  class(hex_lagrangian_reference_fe_t), target, intent(in) :: this
-  type(interpolation_t), pointer :: hex_lagrangian_reference_fe_get_h_refinement_interpolation
-  hex_lagrangian_reference_fe_get_h_refinement_interpolation => this%h_refinement_interpolation
-end function hex_lagrangian_reference_fe_get_h_refinement_interpolation
-
-!==================================================================================================
-function hex_lagrangian_reference_fe_get_h_refinement_subedge_perm ( this )
-  implicit none 
-  class(hex_lagrangian_reference_fe_t), target, intent(in) :: this
-  integer(ip), pointer :: hex_lagrangian_reference_fe_get_h_refinement_subedge_perm(:,:,:)
-  hex_lagrangian_reference_fe_get_h_refinement_subedge_perm => this%h_refinement_subedge_permutation
-end function hex_lagrangian_reference_fe_get_h_refinement_subedge_perm
-
-!==================================================================================================
-function hex_lagrangian_reference_fe_get_h_refinement_subface_perm ( this )
-  implicit none 
-  class(hex_lagrangian_reference_fe_t), target, intent(in) :: this
-  integer(ip), pointer :: hex_lagrangian_reference_fe_get_h_refinement_subface_perm(:,:,:)
-  hex_lagrangian_reference_fe_get_h_refinement_subface_perm => this%h_refinement_subfacet_permutation
-end function hex_lagrangian_reference_fe_get_h_refinement_subface_perm
 
 !**************************************************************************************************
 ! Support functions
