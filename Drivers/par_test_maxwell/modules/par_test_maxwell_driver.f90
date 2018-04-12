@@ -45,6 +45,7 @@ module par_test_maxwell_driver_names
      
      ! Cells and lower dimension objects container
      type(par_triangulation_t)             :: triangulation
+     integer(ip), allocatable              :: cells_set_id(:)
      
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                          :: fe_space 
@@ -87,6 +88,7 @@ module par_test_maxwell_driver_names
      procedure                  :: free_timers
      procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
+     procedure        , private :: set_cells_set_id 
      procedure        , private :: setup_reference_fes
 	    procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
@@ -185,8 +187,28 @@ end subroutine free_timers
        call this%triangulation%free_vef_iterator(vef)
     end if  
 	
+    call this%set_cells_set_id() 
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
+  
+  subroutine set_cells_set_id( this ) 
+  implicit none 
+  class(par_test_maxwell_fe_driver_t), intent(inout) :: this
+  class(cell_iterator_t), allocatable :: cell 
+  
+       call this%triangulation%create_cell_iterator(cell)
+       call memalloc( this%triangulation%get_num_local_cells(), this%cells_set_id, __FILE__, __LINE__ )
+       this%cells_set_id = 0
+       do while ( .not. cell%has_finished() )
+          if ( cell%is_local() ) then 
+          this%cells_set_id(cell%get_gid()) = cell%get_gid() 
+          end if 
+          call cell%next()
+       end do
+       call this%triangulation%free_cell_iterator(cell)
+       
+	      call this%triangulation%fill_cells_set(this%cells_set_id) 
+  end subroutine set_cells_set_id
   
   subroutine setup_reference_fes(this)
     implicit none
@@ -386,13 +408,6 @@ end subroutine free_timers
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
     call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), dof_values)
-    
-    !select type (dof_values)
-    !class is (par_scalar_array_t)  
-    !   call dof_values%print(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
    
   end subroutine solve_system
    
@@ -533,6 +548,7 @@ end subroutine free_timers
       check(istat==0)
     end if
     call this%triangulation%free()
+    call memfree( this%cells_set_id, __FILE__ ,__LINE__ )
 		
   end subroutine free  
 
