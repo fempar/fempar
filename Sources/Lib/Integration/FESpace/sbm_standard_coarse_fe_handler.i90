@@ -25,10 +25,11 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine standard_l1_setup_tools( this, par_fe_space)
+subroutine standard_l1_setup_tools( this, par_fe_space, matrix)
 implicit none 
   class(standard_l1_coarse_fe_handler_t), intent(inout) :: this
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
+  class(par_sparse_matrix_t) , target   , intent(in)    :: matrix 
   assert(.false.) 
 end subroutine standard_l1_setup_tools
 

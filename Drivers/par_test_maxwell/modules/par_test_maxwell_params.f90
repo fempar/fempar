@@ -5,11 +5,13 @@ module par_test_maxwell_params_names
 #include "debug.i90" 
   private
 
-  character(len=*), parameter :: reference_fe_geo_order_key      = 'reference_fe_geo_order'
-  character(len=*), parameter :: reference_fe_order_key          = 'reference_fe_order'    
-  character(len=*), parameter :: write_solution_key              = 'write_solution'        
-  character(len=*), parameter :: triangulation_type_key          = 'triangulation_type'    
+  character(len=*), parameter :: reference_fe_geo_order_key           = 'reference_fe_geo_order'
+  character(len=*), parameter :: reference_fe_order_key               = 'reference_fe_order'    
+  character(len=*), parameter :: write_solution_key                   = 'write_solution'        
+  character(len=*), parameter :: triangulation_type_key               = 'triangulation_type'    
   character(len=*), parameter :: bddc_edge_continuity_algorithm_key   = 'bddc_edge_continuity_algorithm'
+  character(len=*), parameter :: permeability_key                     = 'permeability'
+  character(len=*), parameter :: resistivity_key                      = 'resistivity'
   
   type, extends(parameter_handler_t) :: par_test_maxwell_params_t
      private
@@ -21,6 +23,8 @@ module par_test_maxwell_params_names
        procedure, non_overridable             :: get_reference_fe_order
        procedure, non_overridable             :: get_write_solution
        procedure, non_overridable             :: get_triangulation_type
+       procedure, non_overridable             :: get_permeability 
+       procedure, non_overridable             :: get_resistivity 
        !procedure, non_overridable             :: get_num_dimensions
   end type par_test_maxwell_params_t
 
@@ -61,6 +65,8 @@ contains
     error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                                    ; check(error==0)
     error = list%set(key = coarse_space_use_faces_key        , value =  .false.)                                   ; check(error==0)
 	   error = list%set(key = bddc_edge_continuity_algorithm_key, value =  tangential_average_and_first_order_moment) ; check(error==0)
+    error = list%set(key = permeability_key   , value =  1.0 ); check(error==0)
+    error = list%set(key = resistivity_key    , value =  1.0 ); check(error==0)
  
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -79,13 +85,15 @@ contains
     error = switches%set(key = coarse_space_use_vertices_key , value = '--coarse-space-use-vertices'); check(error==0)
     error = switches%set(key = coarse_space_use_edges_key    , value = '--coarse-space-use-edges' )  ; check(error==0)
     error = switches%set(key = coarse_space_use_faces_key    , value = '--coarse-space-use-faces' )  ; check(error==0)
-	error = switches%set(key = bddc_edge_continuity_algorithm_key , value = '--BDDC_edge_continuity_algorithm' ) ; check(error==0)
+	   error = switches%set(key = bddc_edge_continuity_algorithm_key , value = '--BDDC_edge_continuity_algorithm' ) ; check(error==0)
+    error = switches%set(key = permeability_key  , value = '--permeability' )  ; check(error==0)
+    error = switches%set(key = resistivity_key   , value = '--resistivity' )  ; check(error==0)
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
     error = switches_ab%set(key = dir_path_out_key           , value = '-o')        ; check(error==0) 
     error = switches_ab%set(key = num_dims_key               , value = '-dm')       ; check(error==0)
-	!error = switches_ab%set(key = hex_mesh_domain_limits_key , value = '-dl')       ; check(error==0)
+	   !error = switches_ab%set(key = hex_mesh_domain_limits_key , value = '-dl')       ; check(error==0)
     error = switches_ab%set(key = num_cells_x_dir_key        , value = '-n')        ; check(error==0) 
     error = switches_ab%set(key = num_levels_key             , value = '-l')        ; check(error==0)
     error = switches_ab%set(key = num_parts_x_dir_key, value = '-np')       ; check(error==0)
@@ -97,13 +105,15 @@ contains
     error = switches_ab%set(key = coarse_space_use_vertices_key , value = '-use-vertices'); check(error==0)
     error = switches_ab%set(key = coarse_space_use_edges_key    , value = '-use-edges' )  ; check(error==0)
     error = switches_ab%set(key = coarse_space_use_faces_key    , value = '-use-faces' )  ; check(error==0)
-	error = switches_ab%set(key = bddc_edge_continuity_algorithm_key , value = '-edge_cont' )  ; check(error==0)
+	   error = switches_ab%set(key = bddc_edge_continuity_algorithm_key , value = '-edge_cont' )  ; check(error==0)
+    error = switches_ab%set(key = permeability_key   , value = '-permeability' )  ; check(error==0)
+    error = switches_ab%set(key = resistivity_key    , value = '-resistivity' )  ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
     error = helpers%set(key = dir_path_out_key               , value = 'Output Directory')                         ; check(error==0)
     error = helpers%set(key = num_dims_key                   , value = 'Number of space dimensions')               ; check(error==0)
-	!error = helpers%set(key = hex_mesh_domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
+	   !error = helpers%set(key = hex_mesh_domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
     error = helpers%set(key = num_cells_x_dir_key            , value = 'Number of cells per dir')                  ; check(error==0)
     error = helpers%set(key = num_levels_key                 , value = 'Number of levels')                         ; check(error==0)
     error = helpers%set(key = num_parts_x_dir_key            , value = 'Number of parts per dir and per level')    ; check(error==0)
@@ -129,12 +139,14 @@ contains
     write(msg(111:111),'(i1)') tangential_average_and_first_order_moment 
 	write(msg(149:149), '(i1)') all_dofs_in_coarse_edges  
     error = helpers%set(key = bddc_edge_continuity_algorithm_key  , value = msg)  ; check(error==0)
+    error = helpers%set(key = permeability_key   , value  = 'Permeability value' ) ; check(error==0)
+    error = helpers%set(key = resistivity_key    , value  = 'Resistivity value' )  ; check(error==0)
 
     error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
     error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
     error = required%set(key = dir_path_out_key              , value = .false.) ; check(error==0)
     error = required%set(key = num_dims_key                  , value = .false.) ; check(error==0)
-	!error = required%set(key = hex_mesh_domain_limits_key    , value = .false.) ; check(error==0)
+	   !error = required%set(key = hex_mesh_domain_limits_key    , value = .false.) ; check(error==0)
     error = required%set(key = num_cells_x_dir_key           , value = .false.) ; check(error==0)
     error = required%set(key = num_levels_key                , value = .false.) ; check(error==0)
     error = required%set(key = num_parts_x_dir_key   , value = .false.) ; check(error==0)
@@ -146,7 +158,9 @@ contains
     error = required%set(key = coarse_space_use_vertices_key , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_edges_key    , value = .false.) ; check(error==0)
     error = required%set(key = coarse_space_use_faces_key    , value = .false.) ; check(error==0)
-	error = required%set(key = bddc_edge_continuity_algorithm_key , value = .false.) ; check(error==0)
+	   error = required%set(key = bddc_edge_continuity_algorithm_key , value = .false.) ; check(error==0)
+    error = required%set(key = permeability_key   , value = .false.) ; check(error==0)
+    error = required%set(key = resistivity_key    , value = .false.) ; check(error==0)
 
   end subroutine par_test_maxwell_params_define_parameters
 
@@ -230,5 +244,32 @@ contains
     error = list%Get(key = triangulation_generate_key, Value = get_triangulation_type)
     assert(error==0)
   end function get_triangulation_type 
+  
+    !==================================================================================================
+  function get_permeability(this)
+    implicit none
+    class(par_test_maxwell_params_t) , intent(in) :: this
+    real(rp)                                      :: get_permeability
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(permeability_key, get_permeability))
+    error = list%Get(key = permeability_key, Value = get_permeability)
+    assert(error==0)
+  end function get_permeability
+  
+     !==================================================================================================
+  function get_resistivity(this)
+    implicit none
+    class(par_test_maxwell_params_t) , intent(in) :: this
+    real(rp)                                      :: get_resistivity
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(resistivity_key, get_resistivity))
+    error = list%Get(key = resistivity_key, Value = get_resistivity)
+    assert(error==0)
+  end function get_resistivity
+
 
 end module par_test_maxwell_params_names

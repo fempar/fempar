@@ -80,7 +80,7 @@ module fe_space_names
   
 		use timer_names 
 		use execution_context_names
-		
+		  
   implicit none
 # include "debug.i90"
   private
@@ -971,10 +971,11 @@ module fe_space_names
 	class(l1_coarse_fe_handler_t), intent(inout) :: this
 	end subroutine l1_free
 	
-    subroutine l1_setup_tools( this, par_fe_space ) 
-	import :: l1_coarse_fe_handler_t, par_fe_space_t
-	class(l1_coarse_fe_handler_t), intent(inout) :: this
+    subroutine l1_setup_tools( this, par_fe_space, matrix ) 
+	import :: l1_coarse_fe_handler_t, par_fe_space_t, par_sparse_matrix_t
+	   class(l1_coarse_fe_handler_t), intent(inout) :: this
     type(par_fe_space_t)         , intent(inout) :: par_fe_space 
+    class(par_sparse_matrix_t)   ,target, intent(in)    :: matrix 
 	end subroutine l1_setup_tools 
 	
     ! Returns the number of coarse DoFs that the object customizing
@@ -1069,6 +1070,7 @@ module fe_space_names
      
     type, abstract, extends(standard_l1_coarse_fe_handler_t) :: Hcurl_l1_coarse_fe_handler_t
     private 
+    type(par_sparse_matrix_t), pointer      :: matrix
 	   integer(ip)                             :: order
 				integer(ip)                             :: num_interior_dofs
 				integer(ip)                             :: num_total_dofs 
@@ -1084,6 +1086,7 @@ module fe_space_names
 				procedure                           :: setup_tools                                   => Hcurl_l1_setup_tools 
 	   procedure                           :: get_num_coarse_dofs                           => Hcurl_l1_get_num_coarse_dofs 
 	   procedure                           :: setup_constraint_matrix                       => Hcurl_l1_setup_constraint_matrix
+    procedure                           :: setup_weighting_operator                      => Hcurl_l1_setup_weighting_operator
 	   procedure, private, nopass          :: get_BDDC_edge_continuity_algorithm_case       => Hcurl_l1_get_BDDC_edge_continuity_algorithm_case
 	   procedure, non_overridable, private :: compute_first_order_moment_in_edges           => Hcurl_l1_compute_first_order_moment_in_edges
 	   procedure                           :: apply_weighting_operator_and_comm             => Hcurl_l1_apply_weighting_operator_and_comm   

@@ -33,11 +33,14 @@ module maxwell_discrete_integration_names
 # include "debug.i90"
   private
   type, extends(discrete_integration_t) :: maxwell_cG_discrete_integration_t
-     type(maxwell_analytical_functions_t), pointer :: analytical_functions => NULL()
-	 type(fe_function_t)                 , pointer :: fe_function          => NULL()
+   type(maxwell_analytical_functions_t), pointer :: analytical_functions => NULL()
+	  type(fe_function_t)                 , pointer :: fe_function          => NULL()
+   real(rp)                                      :: permeability 
+   real(rp)                                      :: resistivity 
    contains
      procedure :: set_analytical_functions
-	 procedure :: set_fe_function 
+	    procedure :: set_fe_function 
+     procedure :: set_params 
      procedure :: integrate_galerkin 
   end type maxwell_cG_discrete_integration_t
   
@@ -58,6 +61,15 @@ contains
     type(fe_function_t)                     , target, intent(in)  :: fe_function
     this%fe_function => fe_function
   end subroutine set_fe_function
+  
+  subroutine set_params (this, permeability, resistivity )
+    implicit none
+    class(maxwell_cG_discrete_integration_t), intent(inout)  :: this
+    real(rp)                                , intent(in)     :: permeability
+    real(rp)                                , intent(in)     :: resistivity 
+    this%permeability = permeability
+    this%resistivity  = resistivity 
+  end subroutine set_params
 
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
@@ -129,18 +141,19 @@ contains
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
                    ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( shape_curls(jdof,qpoint)*shape_curls(idof,qpoint) + shape_values(jdof,qpoint)*shape_values(idof,qpoint) )
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( this%resistivity* shape_curls(jdof,qpoint)* shape_curls(idof,qpoint) & 
+                                                                  + this%permeability*shape_values(jdof,qpoint)*shape_values(idof,qpoint) )
                 end do
              end do
              
              do idof = 1, num_dofs
-			       ! F_K(i) = (f(i),phi_i)
+			               ! F_K(i) = (f(i),phi_i)
                 elvec(idof) = elvec(idof) + factor * source_term_values(qpoint)*shape_values(idof,qpoint)
              end do
           end do
           
           ! Apply boundary conditions
-		  call fe%assembly( this%fe_function, elmat, elvec, assembler )
+		        call fe%assembly( this%fe_function, elmat, elvec, assembler )
        end if
        call fe%next()
     end do

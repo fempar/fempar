@@ -36,6 +36,9 @@ module par_test_maxwell_driver_names
   implicit none
   private
 
+  integer(ip) , parameter :: black = -1 
+  integer(ip) , parameter :: white =  1
+  
   type par_test_maxwell_fe_driver_t 
      private 
      
@@ -46,6 +49,9 @@ module par_test_maxwell_driver_names
      ! Cells and lower dimension objects container
      type(par_triangulation_t)             :: triangulation
      integer(ip), allocatable              :: cells_set_id(:)
+     integer(ip)                           :: colour 
+     real(rp)                              :: permeability
+     real(rp)                              :: resistivity 
      
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                          :: fe_space 
@@ -201,7 +207,7 @@ end subroutine free_timers
        this%cells_set_id = 0
        do while ( .not. cell%has_finished() )
           if ( cell%is_local() ) then 
-          this%cells_set_id(cell%get_gid()) = cell%get_gid() 
+          this%cells_set_id(cell%get_gid()) = 0
           end if 
           call cell%next()
        end do
@@ -278,8 +284,44 @@ end subroutine free_timers
   subroutine setup_system (this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
-    	
+    
+    integer(ip) :: nparts_x_dir 
+    real(rp)    :: nparts  
+    integer(ip) :: i, ndime
+    integer(ip) :: ijk(3), aux 
+    integer(ip) :: colour
+    
+    this%colour = 1.0_rp 
+    ijk = 0
+    if ( this%par_environment%am_i_l1_task() ) then 
+    nparts = (real(this%par_environment%get_num_tasks()-1,rp))**(1.0_rp/(real(this%triangulation%get_num_dims(),rp)))   
+    nparts_x_dir = nint(nparts,ip)
+    aux = this%par_environment%get_l1_rank()
+    do i = 1,this%triangulation%get_num_dims()-1
+     ijk(i) = mod(aux, nparts_x_dir)
+     aux = aux/nparts_x_dir
+    end do
+    ijk(this%triangulation%get_num_dims()) = aux
+    ijk = ijk+1
+    
+     ! Checkerboard distribution 
+     do i=1, this%triangulation%get_num_dims() 
+     this%colour =  this%colour* ((-1)**ijk(i)) * ((-1)**i) 
+     end do 
+    end if 
+    
+    if ( this%colour == black ) then 
+    this%permeability = this%test_params%get_permeability() 
+    this%resistivity  = 1.0_rp  
+    elseif ( this%colour == white ) then 
+    this%permeability = 1.0_rp
+    this%resistivity  = this%test_params%get_resistivity()  
+    else 
+    assert(.false.) 
+    end if 
+    
     call this%maxwell_integration%set_analytical_functions(this%maxwell_analytical_functions)
+    call this%maxwell_integration%set_params(this%permeability, this%resistivity)
     
     ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
@@ -291,6 +333,7 @@ end subroutine free_timers
 	
 	! Set-up solution with Dirichlet boundary conditions  
  call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+ call this%maxwell_analytical_functions%set_parameter_values(this%permeability, this%resistivity)
 	call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
 	call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
 	if ( this%triangulation%get_num_dims() == 3) then 
@@ -311,10 +354,15 @@ end subroutine free_timers
     integer(ip) :: FPLError
     integer(ip) :: ilev
     integer(ip) :: iparm(64)
+    class(matrix_t), pointer :: matrix 
 
+  matrix => this%fe_affine_operator%get_matrix() 
 	select type ( ch=> this%coarse_fe_handler ) 
 	class is ( Hcurl_l1_coarse_fe_handler_t ) 
-	call this%coarse_fe_handler%setup_tools( this%fe_space )
+    select type ( matrix ) 
+    class is (par_sparse_matrix_t) 
+   	call this%coarse_fe_handler%setup_tools( this%fe_space, matrix )
+    end select 
 	end select 
 			
     ! See https://software.intel.com/en-us/node/470298 for details
@@ -454,35 +502,53 @@ end subroutine free_timers
     class(par_test_maxwell_fe_driver_t), intent(in)    :: this
     type(output_handler_t)                             :: oh	
 	   real(rp), allocatable                              :: set_id_cell_vector(:)
+    real(rp), allocatable                              :: set_id_checkboard(:)
+    real(rp), allocatable                              :: set_id_permeability(:) 
+    real(rp), allocatable                              :: set_id_resistivity(:) 
 	   integer(ip)                                        :: i, istat
 	
 	 if ( this%par_environment%am_i_l1_task() ) then
     if(this%test_params%get_write_solution()) then
-	    call build_set_id_cell_vector()
+	    call build_set_ids()
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
 		      call oh%add_cell_vector(set_id_cell_vector, 'set_id')
+        call oh%add_cell_vector(set_id_checkboard , 'checkboard')
+        call oh%add_cell_vector(set_id_permeability, 'permeability')
+        call oh%add_cell_vector(set_id_resistivity, 'resistivity')
         call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
         call oh%write()
         call oh%close()
         call oh%free()
-		call free_set_id_cell_vector()
+		call free_set_ids()
     end if
 	end if 
 	
   contains 
-      subroutine build_set_id_cell_vector()
+      subroutine build_set_ids()
+      ! Allocate set ids 
       call memalloc(this%triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
+      call memalloc(this%triangulation%get_num_local_cells(), set_id_checkboard, __FILE__, __LINE__)
+      call memalloc(this%triangulation%get_num_local_cells(), set_id_permeability, __FILE__, __LINE__)
+      call memalloc(this%triangulation%get_num_local_cells(), set_id_resistivity, __FILE__, __LINE__)
+      
+      ! Fill Set ids 
       do i=1, this%triangulation%get_num_local_cells()
             set_id_cell_vector(i) = this%par_environment%get_l1_rank() + 1
       enddo
-    end subroutine build_set_id_cell_vector
-
-    subroutine free_set_id_cell_vector()
+      set_id_checkboard = this%colour 
+      set_id_permeability = this%permeability
+      set_id_resistivity = this%resistivity
+    end subroutine build_set_ids
+       
+    subroutine free_set_ids()
       call memfree(set_id_cell_vector, __FILE__, __LINE__)
-    end subroutine free_set_id_cell_vector
-	
+      call memfree(set_id_checkboard, __FILE__, __LINE__)
+      call memfree(set_id_permeability, __FILE__, __LINE__)
+      call memfree(set_id_resistivity, __FILE__, __LINE__)
+    end subroutine free_set_ids
+    
 	end subroutine write_solution
   
   subroutine run_simulation(this) 
@@ -511,10 +577,9 @@ end subroutine free_timers
     call this%timer_solver_run%start()
     call this%solve_system()
     call this%timer_solver_run%stop()
-
-    call this%check_solution()
-    call this%write_solution()
     
+    call this%write_solution()
+   ! call this%check_solution()    
     call this%free()
   end subroutine run_simulation
   
