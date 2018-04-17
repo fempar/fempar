@@ -121,7 +121,7 @@ subroutine p4est_cell_iterator_set_set_id(this,set_id)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
   integer(ip)                 ,  intent(in)   :: set_id
-  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  assert ( this%is_local() )
   call this%p4est_triangulation%cell_set_ids%set(this%get_gid(),set_id)
 end subroutine p4est_cell_iterator_set_set_id
 
@@ -339,6 +339,17 @@ subroutine p4est_cell_iterator_set_for_do_nothing(this)
   assert ( .not. this%is_ghost() )
   call this%p4est_triangulation%refinement_and_coarsening_flags%set(this%get_gid(), do_nothing)
 end subroutine p4est_cell_iterator_set_for_do_nothing
+
+subroutine p4est_cell_iterator_set_weight(this, weight)
+  implicit none
+  class(p4est_cell_iterator_t), intent(inout) :: this
+  integer(ip)                 , intent(in)    :: weight
+  assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
+  assert ( .not. this%is_ghost() )
+  assert ( weight >= 0 )
+  call this%p4est_triangulation%cell_weights%set(this%get_gid(), weight)
+end subroutine p4est_cell_iterator_set_weight
+
 
 function p4est_cell_iterator_get_transformation_flag(this)
   implicit none

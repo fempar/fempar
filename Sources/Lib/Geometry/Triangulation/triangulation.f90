@@ -125,6 +125,7 @@ module triangulation_names
     procedure(set_for_refinement_interface)         , deferred :: set_for_refinement
     procedure(set_for_coarsening_interface)         , deferred :: set_for_coarsening
     procedure(set_for_do_nothing_interface)         , deferred :: set_for_do_nothing
+    procedure(set_weight_interface)                 , deferred :: set_weight
     ! set_for_do_nothing ?
     ! get_transformation_flag
     ! ??? What else required
@@ -465,6 +466,13 @@ module triangulation_names
        import :: cell_iterator_t
        class(cell_iterator_t), intent(inout)  :: this
      end subroutine set_for_do_nothing_interface
+     
+     subroutine set_weight_interface(this, weight)
+       import :: cell_iterator_t, ip
+       class(cell_iterator_t), intent(inout) :: this
+       integer(ip)           , intent(in)    :: weight
+     end subroutine set_weight_interface
+     
   end interface
   
    abstract interface
@@ -936,10 +944,11 @@ module triangulation_names
     procedure :: is_interior_subcell         => bst_cell_iterator_is_interior_subcell
     procedure :: is_exterior_subcell         => bst_cell_iterator_is_exterior_subcell
     
-    procedure :: get_level                   => bst_cell_iterator_get_level_interface
-    procedure :: set_for_refinement          => bst_cell_iterator_set_for_refinement_interface
-    procedure :: set_for_coarsening          => bst_cell_iterator_set_for_coarsening_interface
-    procedure :: set_for_do_nothing          => bst_cell_iterator_set_for_do_nothing_interface
+    procedure :: get_level                   => bst_cell_iterator_get_level
+    procedure :: set_for_refinement          => bst_cell_iterator_set_for_refinement
+    procedure :: set_for_coarsening          => bst_cell_iterator_set_for_coarsening
+    procedure :: set_for_do_nothing          => bst_cell_iterator_set_for_do_nothing
+    procedure :: set_weight                  => bst_cell_iterator_set_weight
     
     procedure, non_overridable, private  :: fill_nodes_on_vertices        => bst_cell_iterator_fill_nodes_on_vertices
     procedure, non_overridable, private  :: fill_nodes_on_vef_new         => bst_cell_iterator_fill_nodes_on_vef_new
