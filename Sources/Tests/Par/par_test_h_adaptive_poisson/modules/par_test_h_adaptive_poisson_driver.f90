@@ -107,7 +107,7 @@ module par_test_h_adaptive_poisson_driver_names
      procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_poisson_driver_popcorn_fun
      procedure                  :: set_cells_for_refinement
      procedure                  :: set_cells_weights
-  end type par_test_h_adaptive_poisson_fe_driver_t
+  end type par_test_h_adaptive_poisson_fe_driver_t 
 
   ! Types
   public :: par_test_h_adaptive_poisson_fe_driver_t
