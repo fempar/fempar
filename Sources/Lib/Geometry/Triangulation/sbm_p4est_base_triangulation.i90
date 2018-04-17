@@ -115,6 +115,7 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
     call this%fill_x_cell_vertex_coordinates()
     call this%update_cell_set_ids()
     call this%comm_cell_set_ids()
+    call this%update_cell_weights()
     call this%set_up_lst_itfc_vefs() 
     call this%update_vef_set_ids(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
@@ -1142,28 +1143,65 @@ subroutine p4est_bt_update_cell_set_ids(this)
   end do
   call old_cell_set_ids%free()
   call this%cell_set_ids%resize(this%cell_set_ids%size()+this%get_num_ghost_cells(),0)
-  
-  environment => this%get_environment()
-  cell_import => this%get_cell_import() 
-  if (environment%am_i_l1_task()) then
-    p_cell_set_ids => this%cell_set_ids%get_pointer() 
-    if(environment%get_l1_size()>1) &
-    call environment%l1_neighbours_exchange (cell_import%get_num_neighbours(),    &
-                                             cell_import%get_neighbours_ids(),    &
-                                             cell_import%get_rcv_ptrs(),          &
-                                             cell_import%get_rcv_leids(),         &
-                                             cell_import%get_num_neighbours(),    &
-                                             cell_import%get_neighbours_ids(),    &
-                                             cell_import%get_snd_ptrs(),          &
-                                             cell_import%get_snd_leids(),         &
-                                             p_cell_set_ids,                      & 
-                                             p_cell_set_ids)
-  end if
 #else
   call this%not_enabled_error()
 #endif        
   
 end subroutine p4est_bt_update_cell_set_ids
+
+subroutine p4est_bt_update_cell_weights(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)    :: this
+  type(std_vector_integer_ip_t) :: old_cell_weights
+  integer(ip) :: num_children_x_cell
+  integer(ip) :: old_cell_weight
+  integer(ip) :: transformation_flag
+  integer(ip) :: i, j
+  integer(ip)         , pointer :: p_cell_weights(:)
+  class(environment_t), pointer :: environment
+  type(cell_import_t) , pointer :: cell_import 
+  
+  
+#ifdef ENABLE_P4EST
+  call old_cell_weights%copy(this%cell_weights)
+  call this%cell_weights%resize(0)
+  if ( this%get_num_dims() == 2 ) then
+    num_children_x_cell = NUM_CORNERS_2D
+  else if ( this%get_num_dims() == 3 ) then
+    num_children_x_cell = NUM_CORNERS_3D
+  end if
+  
+  assert ( old_cell_weights%size() == this%refinement_and_coarsening_flags%size() )
+  
+  i=1
+  do while ( i <= this%previous_num_local_cells )
+    transformation_flag = this%refinement_and_coarsening_flags%get(i)
+    old_cell_weight     = old_cell_weights%get(i)
+    if ( transformation_flag == do_nothing ) then
+      call this%cell_weights%push_back(old_cell_weight)
+    else if ( transformation_flag == refinement ) then
+      do j=1, num_children_x_cell
+        call this%cell_weights%push_back(old_cell_weight)
+      end do
+    else if ( transformation_flag == coarsening ) then
+      call this%cell_weights%push_back(old_cell_weight)
+      do j=1, num_children_x_cell
+        i=i+1
+      end do
+      cycle
+    else 
+      assert(.false.)
+    end if
+    i=i+1
+  end do
+  call old_cell_weights%free()
+  call this%cell_weights%resize(this%cell_weights%size()+this%get_num_ghost_cells(),0)
+#else
+  call this%not_enabled_error()
+#endif        
+  
+end subroutine p4est_bt_update_cell_weights
+
 
 subroutine p4est_bt_comm_cell_set_ids(this)
   implicit none
@@ -1518,6 +1556,23 @@ subroutine p4est_bt_clear_refinement_and_coarsening_flags(this)
 #endif        
 end subroutine p4est_bt_clear_refinement_and_coarsening_flags
 
+subroutine p4est_bt_clear_cell_weights(this)
+  implicit none
+  class(p4est_base_triangulation_t), intent(inout)    :: this
+  integer(ip) :: istat
+  class(environment_t), pointer :: environment
+#ifdef ENABLE_P4EST
+  environment => this%get_environment()
+  if (environment%am_i_l1_task()) then
+    call this%cell_weights%resize(0)
+    call this%cell_weights%resize(this%get_num_cells(), 1)
+  end if  
+#else
+  call this%not_enabled_error()
+#endif        
+end subroutine p4est_bt_clear_cell_weights
+
+
 subroutine p4est_bt_clear_cell_set_ids(this)
   implicit none
   class(p4est_base_triangulation_t), intent(inout)    :: this
@@ -1527,7 +1582,7 @@ subroutine p4est_bt_clear_cell_set_ids(this)
   environment => this%get_environment()
   if (environment%am_i_l1_task()) then
     call this%cell_set_ids%resize(0)
-    call this%cell_set_ids%resize(this%get_num_cells(), 0)
+    call this%cell_set_ids%resize(this%get_num_cells(), 1)
   end if  
 #else
   call this%not_enabled_error()

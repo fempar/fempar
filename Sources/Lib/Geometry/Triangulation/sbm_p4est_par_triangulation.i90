@@ -117,6 +117,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%fill_x_cell_vertex_coordinates()
         call old_lst_vefs_gids%free()
         call this%clear_refinement_and_coarsening_flags()
+        call this%clear_cell_weights()
         call this%clear_cell_set_ids()
         call this%clear_disconnected_cells_set_ids() 
         call this%set_up_lst_itfc_vefs()
@@ -137,6 +138,7 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
         call this%fill_x_cell_vertex_coordinates()
         call old_lst_vefs_gids%free()
         call this%clear_refinement_and_coarsening_flags()
+        call this%clear_cell_weights()
         call this%clear_cell_set_ids()
         call this%clear_disconnected_cells_set_ids()
         call this%set_up_lst_itfc_vefs()
@@ -203,6 +205,7 @@ subroutine p4est_par_triangulation_free ( this)
         call this%improper_vefs_is_ghost%free()
         call this%refinement_and_coarsening_flags%free()
         call this%cell_set_ids%free()
+        call this%cell_weights%free()
         call this%disconnected_cells_set_ids%free() 
         call this%proper_vefs_set_ids%free()
         call this%improper_vefs_set_ids%free()
@@ -323,17 +326,23 @@ subroutine p4est_par_triangulation_redistribute ( this )
   class(environment_t), pointer :: p_environment
   type(std_vector_integer_ip_t) :: old_lst_vefs_gids
   type(c_ptr) :: p4est_old
+  integer(ip), pointer :: user_pointer(:)
 
 #ifdef ENABLE_P4EST  
   p_environment => this%get_environment()
   if ( p_environment%am_i_l1_task() ) then
     if ( this%get_num_dims() == 2 ) then
+      user_pointer => this%cell_weights%get_pointer()
+      call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
       p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old) 
       call F90_p4est_partition(this%p4est)
     else if ( this%get_num_dims() == 3 ) then
+      user_pointer => this%cell_weights%get_pointer()
+      call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
       p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old) 
       call F90_p8est_partition(this%p4est)
     end if
+    
     call this%update_p4est_mesh()
     call this%update_topology_from_p4est_mesh()
     call this%update_cell_import()
@@ -348,6 +357,7 @@ subroutine p4est_par_triangulation_redistribute ( this )
     call this%update_migration_control_data(p4est_old)
     call this%set_up_lst_itfc_vefs()
     call this%migrate_cell_set_ids()
+    call this%migrate_cell_weights()
     call this%migrate_vef_set_ids(old_lst_vefs_gids)
     call old_lst_vefs_gids%free()
     if ( this%get_num_dims() == 2 ) then
@@ -484,6 +494,51 @@ subroutine p4est_par_triangulation_migrate_cell_set_ids(this)
   call this%not_enabled_error()
 #endif
 end subroutine p4est_par_triangulation_migrate_cell_set_ids
+
+subroutine p4est_par_triangulation_migrate_cell_weights(this)
+  implicit none
+  class(p4est_par_triangulation_t), intent(inout) :: this
+  type(std_vector_integer_ip_t) :: old_cell_weights
+  integer(ip), pointer :: p_old_cell_weights(:)
+  integer(ip), pointer :: p_cell_weights(:)
+  class(environment_t), pointer :: environment
+  class(cell_import_t), pointer :: cell_import
+  integer(ip) :: i 
+#ifdef ENABLE_P4EST
+  
+  environment => this%get_environment()
+  
+  call old_cell_weights%copy(this%cell_weights)
+  call this%cell_weights%resize(0)
+  call this%cell_weights%resize(this%get_num_local_cells()+this%get_num_ghost_cells(),-1)
+  
+  p_old_cell_weights => old_cell_weights%get_pointer()
+  p_cell_weights     => this%cell_weights%get_pointer()
+  do i=1, this%get_num_local_cells()
+    if (this%new2old(i) /= 0) then
+      p_cell_weights (i) = p_old_cell_weights(this%new2old(i))
+    end if  
+  end do
+  call environment%l1_neighbours_exchange (this%num_rcv, this%lst_rcv, this%rcv_ptrs , this%unpack_idx, &
+                                           this%num_snd, this%lst_snd, this%snd_ptrs, this%pack_idx, &
+                                           p_old_cell_weights, p_cell_weights )
+ 
+  ! Retrieve set IDs from ghost cells
+  cell_import => this%get_cell_import()
+  call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_rcv_ptrs(),&
+                                            cell_import%get_rcv_leids(),&
+                                            cell_import%get_num_neighbours(), &
+                                            cell_import%get_neighbours_ids(),&
+                                            cell_import%get_snd_ptrs(),&
+                                            cell_import%get_snd_leids(),&
+                                            p_cell_weights, p_cell_weights )  
+  call old_cell_weights%free()
+#else
+  call this%not_enabled_error()
+#endif
+end subroutine p4est_par_triangulation_migrate_cell_weights
 
 subroutine p4est_par_triangulation_migrate_vef_set_ids(this, old_lst_vefs_gids)
   implicit none

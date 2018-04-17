@@ -106,7 +106,7 @@ module par_test_h_adaptive_poisson_driver_names
      procedure                  :: free_environment
      procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_poisson_driver_popcorn_fun
      procedure                  :: set_cells_for_refinement
-     procedure                  :: set_cells_set_ids
+     procedure                  :: set_cells_weights
   end type par_test_h_adaptive_poisson_fe_driver_t
 
   ! Types
@@ -321,6 +321,7 @@ end subroutine free_timers
     do i = 1, this%test_params%get_num_refinements() 
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
+      call this%set_cells_weights()
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
@@ -662,7 +663,7 @@ end subroutine free_timers
     
     call this%check_solution()
     
-    call this%set_cells_for_refinement()
+    call this%set_cells_weights()
     call this%triangulation%redistribute()
     call this%fe_space%redistribute(this%solution)
     call this%fe_space%set_up_cell_integration()
@@ -829,7 +830,8 @@ end subroutine free_timers
     if (allocated(is_node_coord_within_inner_region)) call memfree(is_node_coord_within_inner_region)
   end subroutine set_cells_for_refinement
   
-  subroutine set_cells_set_ids(this)
+  
+  subroutine set_cells_weights(this)
     implicit none
     class(par_test_h_adaptive_poisson_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
@@ -838,12 +840,14 @@ end subroutine free_timers
     if ( environment%am_i_l1_task() ) then
       call this%triangulation%create_cell_iterator(cell)
       do while ( .not. cell%has_finished() )
-        call cell%set_set_id(int(cell%get_ggid(),ip))
+        if ( cell%is_local() ) then
+          call cell%set_weight(int(mod(cell%get_ggid(),2)+1,ip))
+        end if   
         call cell%next()
       end do
       call this%triangulation%free_cell_iterator(cell)
     end if
-  end subroutine set_cells_set_ids
+  end subroutine set_cells_weights
   
   subroutine set_cells_for_coarsening(this)
     implicit none

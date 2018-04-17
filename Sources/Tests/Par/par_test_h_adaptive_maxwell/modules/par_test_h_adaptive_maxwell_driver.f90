@@ -47,7 +47,6 @@ module par_test_h_adaptive_maxwell_driver_names
      
      ! Cells and lower dimension objects container
      type(p4est_par_triangulation_t)       :: triangulation
-     integer(ip), allocatable              :: cell_set_ids(:)
      
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
@@ -565,7 +564,6 @@ end subroutine free_timers
       check(istat==0)
     end if
     call this%triangulation%free()
-    if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
   end subroutine free  
 
   !========================================================================================
@@ -661,15 +659,21 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
-    class(environment_t), pointer :: environment
+    class(environment_t)  , pointer     :: environment
+    integer(ip)           , allocatable :: cell_set_ids(:)        
     environment => this%triangulation%get_environment()
     if ( environment%am_i_l1_task() ) then
+      call memalloc ( this%triangulation%get_num_local_cells(), cell_set_ids, __FILE__, __LINE__ )
       call this%triangulation%create_cell_iterator(cell)
       do while ( .not. cell%has_finished() )
-        call cell%set_set_id(0)
+        if ( cell%is_local() ) then
+          cell_set_ids(cell%get_gid()) = 0
+        end if   
         call cell%next()
       end do
       call this%triangulation%free_cell_iterator(cell)
+      call this%triangulation%fill_cells_set(cell_set_ids)
+      call memfree ( cell_set_ids, __FILE__, __LINE__ )
     end if
   end subroutine set_cells_set_ids
     
