@@ -371,22 +371,38 @@ contains
        call this%fill_contexts()
        call uniform_hex_mesh%free()
     else if(environment_type==p4est) then
+        ! Optional
+        if( parameters%isPresent(num_levels_key) ) then
+          assert(parameters%isAssignable(num_levels_key, num_levels))
+          istat = parameters%get(key = num_levels_key , value = num_levels)
+          assert(istat==0)
+        else
+          num_levels = 1
+        end if
+        
         ! This part is absolutely temporary. To re-think for num_levels > 2
-        num_levels = 2
+        massert ( num_levels == 1 .or. num_levels == 2, "p4est triangulation CANNOT be used with num_levels > 2")
+    
         call memalloc( num_levels, num_parts_x_level, __FILE__, __LINE__ )
         num_parts_x_level(1) = this%world_context%get_num_tasks()-1
-        num_parts_x_level(2) = 1
+        if ( num_levels == 1 ) then
+          num_parts_x_level(1) = this%world_context%get_num_tasks()
+        else if ( num_levels == 2 ) then
+          num_parts_x_level(1) = this%world_context%get_num_tasks()-1
+          num_parts_x_level(2) = 1
+        end if   
         
         call memalloc( num_levels, parts_mapping, __FILE__, __LINE__ )
         parts_mapping(1) = this%world_context%get_current_task()+1
-        parts_mapping(2) = 1
+        if ( num_levels == 2 ) then
+          parts_mapping(2) = 1
+        end if   
         call this%assign_parts_to_tasks(num_levels, num_parts_x_level, parts_mapping)
         call this%fill_contexts()
         
         call memfree(num_parts_x_level,__FILE__,__LINE__)
         call memfree(parts_mapping,__FILE__,__LINE__)
-        check(this%get_num_tasks() <= this%world_context%get_num_tasks()) 
-        
+        check(this%get_num_tasks() <= this%world_context%get_num_tasks())
     end if
     
     this%state = created_from_scratch

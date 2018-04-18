@@ -220,7 +220,9 @@ end subroutine free_timers
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
     call this%set_cells_set_ids()
+#ifdef ENABLE_MKL    
     call this%triangulation%setup_coarse_triangulation()
+#endif    
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)

@@ -325,7 +325,9 @@ end subroutine free_timers
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
+#ifdef ENABLE_MKL    
     call this%triangulation%setup_coarse_triangulation()
+#endif    
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -398,7 +400,9 @@ end subroutine free_timers
     end if
     
     call this%fe_space%set_up_cell_integration()
+#ifdef ENABLE_MKL    
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+#endif    
     !call this%fe_space%print()
   end subroutine setup_fe_space
   
@@ -905,11 +909,13 @@ end subroutine free_timers
       write(*,'(a35,i22)') 'num_interface_dofs (sub-assembled):', nint(num_interface_dofs  , kind=ip )
     end if
  
-      if (environment%am_i_lgt1_task()) then
+#ifdef ENABLE_MKL    
+    if (environment%am_i_lgt1_task()) then
         coarse_fe_space => this%fe_space%get_coarse_fe_space()
         num_coarse_dofs = coarse_fe_space%get_field_num_dofs(1)
         write(*,'(a35,i22)') 'num_coarse_dofs:', num_coarse_dofs
-      end if
+    end if
+#endif    
 
   end subroutine print_info
   
