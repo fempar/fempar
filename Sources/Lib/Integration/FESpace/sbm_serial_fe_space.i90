@@ -1598,7 +1598,7 @@ subroutine serial_fe_space_set_up_cell_integration ( this, interpolation_duties,
         reference_fe => this%reference_fes(max_order_reference_fe_id_within_fe)%p
         call this%cell_quadratures%resize(cell_quadrature_and_map_position)
         current_quadrature => this%cell_quadratures%get_pointer(cell_quadrature_and_map_position)
-        call reference_fe%create_quadrature(current_quadrature)
+        call reference_fe%create_quadrature(current_quadrature,fe%get_quadrature_degree())
         call this%cell_maps%resize(cell_quadrature_and_map_position)
         current_cell_map => this%cell_maps%get_pointer(cell_quadrature_and_map_position)
         if(present(cell_map_duties)) then
