@@ -56,7 +56,7 @@ module par_test_maxwell_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                          :: fe_space 
      type(p_reference_fe_t), allocatable           :: reference_fes(:) 
-     class(l1_coarse_fe_handler_t), pointer        :: coarse_fe_handler 
+     class(Hcurl_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handler 
 	    type(p_l1_coarse_fe_handler_t), allocatable   :: coarse_fe_handlers(:)
 	    type(maxwell_CG_discrete_integration_t)       :: maxwell_integration
      type(maxwell_conditions_t)                    :: maxwell_conditions
@@ -177,7 +177,12 @@ end subroutine free_timers
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
     class(vef_iterator_t), allocatable :: vef
-
+    real(rp)                           :: domain(6)
+				integer(ip)                        :: istat 
+				
+				! Create a structured mesh with a custom domain 
+				!domain   = (/ 0.0_rp, 0.1_rp, 0.0_rp, 0.1_rp, 0.0_rp, 0.1_rp /)
+    !istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
     call this%triangulation%create(this%parameter_list, this%par_environment)
 	
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
@@ -242,15 +247,15 @@ end subroutine free_timers
   
   subroutine setup_coarse_fe_handlers(this)
     implicit none
-    class(par_test_maxwell_fe_driver_t), intent(inout) :: this
-   	class(cell_iterator_t), allocatable        :: cell
-    class(reference_fe_t), pointer             :: reference_fe_geo
+    class(par_test_maxwell_fe_driver_t), intent(inout), target :: this
+   	class(cell_iterator_t), allocatable                        :: cell
+    class(reference_fe_t), pointer                             :: reference_fe_geo
 	integer(ip) :: istat 
 	
 	if ( this%par_environment%am_i_l1_task() ) then
-	call this%triangulation%create_cell_iterator(cell)
+	   call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe()
-	call this%triangulation%free_cell_iterator(cell)
+	   call this%triangulation%free_cell_iterator(cell)
 	
 	 if (this%triangulation%get_num_dims() == 3 ) then 
 	   if ( reference_fe_geo%get_topology() == topology_tet ) then
@@ -259,7 +264,7 @@ end subroutine free_timers
 	   allocate ( hex_Hcurl_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
 	   end if 
 	 else 
-	  allocate ( standard_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
+	  ! allocate ( standard_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
 	 end if 
 	 end if 
 	 
@@ -311,10 +316,10 @@ end subroutine free_timers
     end if 
     
     if ( this%colour == black ) then 
-    this%permeability = this%test_params%get_permeability() 
-    this%resistivity  = 1.0_rp  
+    this%permeability = 1.0
+    this%resistivity  = 1.0   
     elseif ( this%colour == white ) then 
-    this%permeability = 1.0_rp
+    this%permeability = this%test_params%get_permeability()
     this%resistivity  = this%test_params%get_resistivity()  
     else 
     assert(.false.) 
@@ -349,31 +354,31 @@ end subroutine free_timers
   subroutine setup_solver (this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
-	type(parameterlist_t) :: parameter_list
+	   type(parameterlist_t) :: parameter_list
     type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
     integer(ip) :: FPLError
     integer(ip) :: ilev
     integer(ip) :: iparm(64)
     class(matrix_t), pointer :: matrix 
 
-  matrix => this%fe_affine_operator%get_matrix() 
-	select type ( ch=> this%coarse_fe_handler ) 
-	class is ( Hcurl_l1_coarse_fe_handler_t ) 
-    select type ( matrix ) 
-    class is (par_sparse_matrix_t) 
-   	call this%coarse_fe_handler%setup_tools( this%fe_space, matrix )
-    end select 
-	end select 
-			
+      if ( this%par_environment%am_i_l1_task() ) then 
+      matrix => this%fe_affine_operator%get_matrix() 
+      select type ( matrix ) 
+      class is (par_sparse_matrix_t) 
+    	 call this%coarse_fe_handler%setup_tools( 1, this%fe_space, matrix )
+      end select 
+      call this%coarse_fe_handler%get_parameter_values(this%permeability, this%resistivity ) 
+      end if 
+      
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
-    !iparm(1)   = 1 ! no solver default
-    !iparm(2)   = 2 ! fill-in reordering from METIS
-    !iparm(8)   = 2 ! numbers of iterative refinement steps
-    !iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-    !iparm(11)  = 1 ! use scaling 
-    !iparm(13)  = 1 ! use maximum weighted matching algorithm 
-    !iparm(21)  = 1 ! 1x1 + 2x2 pivots
+    iparm(1)   = 1 ! no solver default
+    iparm(2)   = 2 ! fill-in reordering from METIS
+    iparm(8)   = 2 ! numbers of iterative refinement steps
+    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+    iparm(11)  = 1 ! use scaling 
+    iparm(13)  = 1 ! use maximum weighted matching algorithm 
+    iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
     plist => this%parameter_list 
     if ( this%par_environment%get_l1_size() == 1 ) then
@@ -595,12 +600,9 @@ end subroutine free_timers
 	
 	   if ( this%par_environment%am_i_l1_task() ) then 
 	    if (allocated(this%coarse_fe_handlers) ) then 
-	   select type ( ch => this%fe_space%get_coarse_fe_handler(field_id=1) )
-	   class is ( Hcurl_l1_coarse_fe_handler_t )
-	   call this%coarse_fe_handler%free() 
-   	deallocate( this%coarse_fe_handler ) 
-	   end select 
-	   deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
+	    call this%coarse_fe_handler%free() 
+   	 deallocate( this%coarse_fe_handler ) 
+	    deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
 	    end if 
 	   end if 
 	

@@ -971,11 +971,12 @@ module fe_space_names
 	class(l1_coarse_fe_handler_t), intent(inout) :: this
 	end subroutine l1_free
 	
-    subroutine l1_setup_tools( this, par_fe_space, matrix ) 
-	import :: l1_coarse_fe_handler_t, par_fe_space_t, par_sparse_matrix_t
-	   class(l1_coarse_fe_handler_t), intent(inout) :: this
-    type(par_fe_space_t)         , intent(inout) :: par_fe_space 
-    class(par_sparse_matrix_t)   ,target, intent(in)    :: matrix 
+    subroutine l1_setup_tools( this, field_id, par_fe_space, matrix ) 
+	import :: l1_coarse_fe_handler_t, ip, par_fe_space_t, par_sparse_matrix_t
+	   class(l1_coarse_fe_handler_t), intent(inout)     :: this
+    integer(ip)                  , intent(in)        :: field_id 
+    type(par_fe_space_t)         , intent(inout)     :: par_fe_space 
+    class(par_sparse_matrix_t)   ,target, intent(in) :: matrix 
 	end subroutine l1_setup_tools 
 	
     ! Returns the number of coarse DoFs that the object customizing
@@ -1070,6 +1071,9 @@ module fe_space_names
      
     type, abstract, extends(standard_l1_coarse_fe_handler_t) :: Hcurl_l1_coarse_fe_handler_t
     private 
+    integer(ip)                             :: field_id 
+    real(rp)                                :: permeability 
+    real(rp)                                :: resistivity 
     type(par_sparse_matrix_t), pointer      :: matrix
 	   integer(ip)                             :: order
 				integer(ip)                             :: num_interior_dofs
@@ -1084,6 +1088,7 @@ module fe_space_names
        ! Overriding procedures 
     procedure                           :: free                                          => Hcurl_l1_free
 				procedure                           :: setup_tools                                   => Hcurl_l1_setup_tools 
+    procedure                           :: get_parameter_values                          => Hcurl_l1_get_parameter_values 
 	   procedure                           :: get_num_coarse_dofs                           => Hcurl_l1_get_num_coarse_dofs 
 	   procedure                           :: setup_constraint_matrix                       => Hcurl_l1_setup_constraint_matrix
     procedure                           :: setup_weighting_operator                      => Hcurl_l1_setup_weighting_operator
