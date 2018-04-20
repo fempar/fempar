@@ -130,6 +130,38 @@ subroutine lrfe_create_interpolation_restricted_to_facet( this,facet_lid, &
 end subroutine lrfe_create_interpolation_restricted_to_facet
 
 !==================================================================================================
+! This routine creates the interpolation corresponding to the evaluation of the shape functions on
+! integration points given by local_quadrature on the edge 'local_edge_id' of the element
+subroutine lrfe_create_interpolation_restricted_to_edget( this, edget_lid, local_quadrature, edget_interpolation)
+  implicit none 
+  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: edget_lid
+  type(quadrature_t)              , intent(in)    :: local_quadrature
+  type(interpolation_t)           , intent(inout) :: edget_interpolation
+  
+  ! Allocate the arrays of the interpolation
+  call edget_interpolation%create(this%num_dims, &
+                                  this%num_shape_functions, &
+                                  local_quadrature%num_quadrature_points)
+
+  ! Fill the values of the shape functions, gradients, etc.
+  call this%fill_interpolation_restricted_to_edget(edget_lid, &
+                                                   local_quadrature, &
+                                                   edget_interpolation)
+
+end subroutine lrfe_create_interpolation_restricted_to_edget
+
+!==================================================================================================
+subroutine lrfe_fill_interpolation_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation )
+  implicit none
+  class(lagrangian_reference_fe_t)        , intent(in)    :: this
+  integer(ip)                             , intent(in)    :: local_edge_id
+  type(quadrature_t)                      , intent(in)    :: local_quadrature
+  type(interpolation_t)                   , intent(inout) :: edget_interpolation
+  massert(.false., 'TBP not implemented in this class') 
+end subroutine lrfe_fill_interpolation_restricted_to_edget
+
+!==================================================================================================
 ! This subroutine constructs a interpolation of an element of one dimension less.
 ! This is used to construct the geometrical interpolation of the face
 subroutine lagrangian_reference_fe_create_facet_interpolation (this, quadrature, facet_interpolation)
