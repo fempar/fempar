@@ -89,6 +89,26 @@ subroutine rt_create_interpolation_restricted_to_facet( this, facet_lid, &
 end subroutine rt_create_interpolation_restricted_to_facet
 
 !==================================================================================================
+subroutine rt_create_interpolation_restricted_to_edget( this, edget_lid, local_quadrature, edget_interpolation)
+  implicit none 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  integer(ip)                         , intent(in)    :: edget_lid
+  type(quadrature_t)                  , intent(in)    :: local_quadrature
+  type(interpolation_t)               , intent(inout) :: edget_interpolation
+  massert(.false., 'Interpolations restricted to edges not implemented for RT fe type')
+end subroutine rt_create_interpolation_restricted_to_edget
+
+!==================================================================================================
+subroutine rt_fill_interp_restricted_to_edget( this, local_edge_id, local_quadrature,  edget_interpolation)
+  implicit none 
+  class(raviart_thomas_reference_fe_t), intent(in)    :: this 
+  integer(ip)                         , intent(in)    :: local_edge_id 
+  type(quadrature_t)                  , intent(in)    :: local_quadrature
+  type(interpolation_t)               , intent(inout) :: edget_interpolation
+  massert(.false., 'Interpolations restricted to edges not implemented for RT fe type')
+end subroutine rt_fill_interp_restricted_to_edget
+
+!==================================================================================================
 subroutine raviart_thomas_fill_nodal_quadrature ( this, quadrature ) 
   implicit none
   class(raviart_thomas_reference_fe_t), intent(in)    :: this 

@@ -1101,7 +1101,8 @@ module fe_space_names
 				procedure, non_overridable, private :: count_coarse_edges_and_owned_fine_edges    => Hcurl_l1_count_coarse_edges_and_owned_fine_edges
 	   procedure, non_overridable, private :: fill_coarse_subedges_and_owned_fine_edges  => Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges
 				procedure, non_overridable, private :: fill_edges_lists                           => Hcurl_l1_fill_edges_lists
-	   ! Computation of elemental data     
+	   ! Computation of elemental data    
+    procedure, non_overridable, private :: compute_interface_discrete_gradient           => Hcurl_l1_compute_interface_discrete_gradient
 	   procedure, non_overridable, private :: compute_edge_discrete_gradient_elmat          => Hcurl_l1_compute_edge_discrete_gradient_elmat
 	    ! Fill change of basis operator  
 	   procedure, non_overridable, private :: compute_change_basis_matrix                      => Hcurl_l1_compute_change_basis_matrix

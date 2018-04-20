@@ -385,7 +385,7 @@ subroutine hex_nedelec_reference_fe_fill_interp_restricted_to_facet( this, local
 end subroutine hex_nedelec_reference_fe_fill_interp_restricted_to_facet
 
 !==================================================================================================
-subroutine hex_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation )
+subroutine hex_nedelec_reference_fe_fill_interp_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation )
   implicit none
   class(hex_nedelec_reference_fe_t)       , intent(in)    :: this
   integer(ip)                             , intent(in)    :: local_edge_id
@@ -412,7 +412,7 @@ subroutine hex_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this
   end do
   call this%fill_interpolation( aux_quadrature, edget_interpolation ) 
   call aux_quadrature%free()
-end subroutine hex_nedelec_reference_fe_fill_interpolation_restricted_to_edget
+end subroutine hex_nedelec_reference_fe_fill_interp_restricted_to_edget
 
 !==================================================================================================
 subroutine hex_nedelec_reference_fe_change_basis(this) 

@@ -401,7 +401,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
 end subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis
 
 !==================================================================================================
-subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation )
+subroutine tet_nedelec_reference_fe_fill_interp_restricted_to_edget( this, local_edge_id, local_quadrature, edget_interpolation )
   implicit none
   class(tet_nedelec_reference_fe_t)       , intent(in)    :: this
   integer(ip)                             , intent(in)    :: local_edge_id
@@ -432,10 +432,9 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget( this
   call this%fill_interpolation( aux_quadrature, edget_interpolation ) 
   call aux_quadrature%free()
 
-end subroutine tet_nedelec_reference_fe_fill_interpolation_restricted_to_edget
+end subroutine tet_nedelec_reference_fe_fill_interp_restricted_to_edget
 
 !==================================================================================================
-
 subroutine tet_nedelec_reference_fe_fill_interp_restricted_to_facet( this, local_quadrature, & 
      & facet_lid, subfacet_lid, facet_interpolation )
   implicit none

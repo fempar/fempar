@@ -125,35 +125,11 @@ subroutine nedelec_create_interpolation_restricted_to_edget( this, edget_lid, lo
                                  local_quadrature%num_quadrature_points)
 
   ! Fill the values of the shape functions, gradients, etc.
-  call this%fill_interpolation_restricted_to_edget(edget_lid, &
-                                    local_quadrature, &
-                                    edget_interpolation)
+  call this%fill_interp_restricted_to_edget(edget_lid, &
+                                            local_quadrature, &
+                                            edget_interpolation)
 
 end subroutine nedelec_create_interpolation_restricted_to_edget
-
-!==================================================================================================
-subroutine nedelec_create_edge_quadrature ( this, quadrature, degree )
-  implicit none
-  class(nedelec_reference_fe_t)   , intent(in)    :: this
-  type(quadrature_t)              , intent(inout) :: quadrature
-  integer(ip)           , optional, intent(in)    :: degree
-
-  integer(ip) :: ngaus, degree_, edge_dims, idime
-  
-  ! @sbadia: to be improved to anisotropic quadratures
-  if ( present(degree) ) then
-     degree_ = degree
-  else
-     degree_ = 0
-     do idime = 1,this%num_dims
-        degree_ = max(degree_,2*this%order_vector(idime))
-     end do
-  end if
-  edge_dims = 1
-  ngaus = this%compute_num_quadrature_points(degree_, edge_dims)
-  call quadrature%create( edge_dims, ngaus )
-  call this%fill_quadrature( quadrature )
-end subroutine nedelec_create_edge_quadrature
 
 !==================================================================================================
 subroutine nedelec_fill_nodal_quadrature ( this, quadrature ) 

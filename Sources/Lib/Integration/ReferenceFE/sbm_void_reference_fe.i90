@@ -74,6 +74,17 @@ subroutine void_reference_fe_create_facet_quadrature ( this, quadrature, degree 
 end subroutine void_reference_fe_create_facet_quadrature
 
 !==================================================================================================
+subroutine void_reference_fe_create_edge_quadrature ( this, quadrature, degree )
+  implicit none
+  class(void_reference_fe_t)      , intent(in)    :: this
+  type(quadrature_t)              , intent(inout) :: quadrature
+  integer(ip)           , optional, intent(in)    :: degree
+  integer(ip) :: edge_dims
+  edge_dims = 1
+  call quadrature%create( edge_dims, 0 )
+end subroutine void_reference_fe_create_edge_quadrature
+
+!==================================================================================================
 subroutine void_reference_fe_create_interpolation ( this, quadrature, interpolation, & 
      &                                              interpolation_duties)
   implicit none 
