@@ -184,7 +184,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
        reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
 
-     call this%update_map_coordinates( reference_fe, cell_coordinates, edge_id, this%edge_maps(reference_fe_id) )
+     call this%edge_maps(reference_fe_id)%update_coordinates( edge_id, reference_fe, cell_coordinates )
 
      call this%edge_maps(reference_fe_id)%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
           reference_fe  = reference_fe,                                           &
@@ -214,7 +214,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
      do facet_id = reference_fe%get_first_facet_id(), & 
           reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
 
-        call this%update_map_coordinates( reference_fe, cell_coordinates, facet_id, this%facet_maps(reference_fe_id) ) 
+        call this%facet_maps(reference_fe_id)%update_coordinates( facet_id, reference_fe, cell_coordinates ) 
 
         facet_lid = facet_id - reference_fe_geo%get_first_facet_id()+1
         call this%facet_maps(reference_fe_id)%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &
@@ -325,7 +325,7 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
         num_quad_points = this%edge_quadratures(reference_fe_id)%get_num_quadrature_points()
         call this%reallocate_if_needed(num_quad_points , this%edge_function_values)
         call this%reallocate_if_needed(num_quad_points , this%scalar_function_values_on_edge)
-        call this%update_map_coordinates( reference_fe, cell_coordinates, edge_id, this%edge_maps(reference_fe_id) )
+        call this%edge_maps(reference_fe_id)%update_coordinates( edge_id, reference_fe, cell_coordinates )
 
         call this%edge_maps(reference_fe_id)%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
              reference_fe  = reference_fe,                                           &
@@ -368,7 +368,7 @@ subroutine tet_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
            num_quad_points =  this%facet_quadratures(reference_fe_id)%get_num_quadrature_points()
            call this%reallocate_if_needed(num_quad_points , this%facet_function_values)
            call this%reallocate_if_needed(num_quad_points , this%scalar_function_values_on_facet)
-           call this%update_map_coordinates( reference_fe, cell_coordinates, facet_id, this%facet_maps(reference_fe_id) ) 
+           call this%facet_maps(reference_fe_id)%update_coordinates( facet_id, reference_fe, cell_coordinates ) 
 
            facet_lid = facet_id - reference_fe_geo%get_first_facet_id()+1
            call this%facet_maps(reference_fe_id)%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &

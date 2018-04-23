@@ -309,11 +309,10 @@ end subroutine free_timers
     ijk(this%triangulation%get_num_dims()) = aux
     ijk = ijk+1
     
-     ! Checkerboard distribution 
-     do i=1, this%triangulation%get_num_dims() 
-     this%colour =  this%colour* ((-1)**ijk(i)) * ((-1)**i) 
-     end do 
+    ! Checkboard distribution     
+    this%colour = (-1)**(ijk(1)+ijk(2)+ijk(3))
     end if 
+
     
     if ( this%colour == black ) then 
     this%permeability = 1.0

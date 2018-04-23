@@ -138,3 +138,28 @@ subroutine edge_map_get_tangent(this, qpoint, tangent)
    call tangent%set(idime,this%tangents(idime,qpoint))
  end do
 end subroutine edge_map_get_tangent
+
+!==================================================================================================
+subroutine edge_map_update_coordinates( this, edge_lid, reference_fe, cell_coordinates ) 
+  implicit none 
+  class(edge_map_t)                     , intent(inout) :: this 
+  integer(ip)                           , intent(in)    :: edge_lid 
+  class(reference_fe_t)                 , intent(in)    :: reference_fe
+  type(point_t)                         , intent(in)    :: cell_coordinates(:)
+  type(point_t), pointer    :: edge_map_coordinates(:)
+  type(list_iterator_t)     :: vertex_iterator
+  integer(ip)               :: vertex_within_edge_id
+  integer(ip)               :: vertex_within_cell_id 
+
+  edge_map_coordinates => this%get_coordinates()   
+
+  vertex_within_edge_id = 1
+  vertex_iterator = reference_fe%create_vertices_n_face_iterator(edge_lid)
+  do while ( .not. vertex_iterator%is_upper_bound () )
+     vertex_within_cell_id = vertex_iterator%get_current()
+     call edge_map_coordinates(vertex_within_edge_id)%init( cell_coordinates(vertex_within_cell_id)%get_value() )
+     call vertex_iterator%next()
+     vertex_within_edge_id = vertex_within_edge_id + 1
+  end do
+
+end subroutine edge_map_update_coordinates

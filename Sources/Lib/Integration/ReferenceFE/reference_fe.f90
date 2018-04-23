@@ -235,6 +235,7 @@ module reference_fe_names
      procedure                  :: free              => facet_map_free
      procedure, non_overridable :: get_normal        => facet_map_get_normal
      procedure, non_overridable :: get_raw_normals   => facet_map_get_raw_normals
+     procedure, non_overridable :: update_coordinates => facet_map_update_coordinates 
   end type facet_map_t
   
   interface assignment(=)
@@ -252,6 +253,7 @@ module reference_fe_names
      procedure, non_overridable :: update       => edge_map_update
      procedure                  :: free         => edge_map_free
      procedure, non_overridable :: get_tangent  => edge_map_get_tangent
+     procedure, non_overridable :: update_coordinates => edge_map_update_coordinates 
   end type edge_map_t
   
   type p_cell_map_t

@@ -1079,13 +1079,19 @@ module fe_space_names
 				integer(ip)                             :: num_interior_dofs
 				integer(ip)                             :: num_total_dofs 
 				
+    integer(ip), allocatable                :: edge_to_new_basis_dof(:,:) 
+    integer(ip), allocatable                :: edge_average_dof_id(:) 
 	   type(hash_table_ip_ip_t)                :: fine_edge_direction
 	   type(list_t)                            :: subedges_x_coarse_edge 
 	   type(list_t)                            :: sorted_fine_edges_in_coarse_subedge 
 				type(sparse_matrix_t)                   :: change_basis_matrix  
+    type(sparse_matrix_t)                   :: transition_change_basis_matrix 
 	   
   contains
-       ! Overriding procedures 
+    ! New tools 
+    procedure, non_overridable, private :: compute_interface_discrete_gradient           => Hcurl_l1_compute_interface_discrete_gradient
+    procedure                           :: build_basis_dof_correspondence                => Hcurl_l1_build_basis_dof_correspondence
+    ! Overriding procedures 
     procedure                           :: free                                          => Hcurl_l1_free
 				procedure                           :: setup_tools                                   => Hcurl_l1_setup_tools 
     procedure                           :: get_parameter_values                          => Hcurl_l1_get_parameter_values 
@@ -1102,7 +1108,6 @@ module fe_space_names
 	   procedure, non_overridable, private :: fill_coarse_subedges_and_owned_fine_edges  => Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges
 				procedure, non_overridable, private :: fill_edges_lists                           => Hcurl_l1_fill_edges_lists
 	   ! Computation of elemental data    
-    procedure, non_overridable, private :: compute_interface_discrete_gradient           => Hcurl_l1_compute_interface_discrete_gradient
 	   procedure, non_overridable, private :: compute_edge_discrete_gradient_elmat          => Hcurl_l1_compute_edge_discrete_gradient_elmat
 	    ! Fill change of basis operator  
 	   procedure, non_overridable, private :: compute_change_basis_matrix                      => Hcurl_l1_compute_change_basis_matrix
@@ -1540,9 +1545,6 @@ real(rp), allocatable             :: scalar_function_values_on_edge(:,:)
 real(rp), allocatable             :: scalar_function_values_on_facet(:,:)
 contains   
 procedure :: evaluate_scalar_function_moments    => Hcurl_interpolator_evaluate_scalar_function_moments 
-procedure, private :: update_edge_map_coordinates    => Hcurl_interpolator_update_edge_map_coordinates
-procedure, private :: update_facet_map_coordinates   => Hcurl_interpolator_update_facet_map_coordinates
-generic            :: update_map_coordinates         => update_edge_map_coordinates, update_facet_map_coordinates
 end type Hcurl_interpolator_t 
 
 type, extends(Hcurl_interpolator_t) :: hex_Hcurl_interpolator_t 
