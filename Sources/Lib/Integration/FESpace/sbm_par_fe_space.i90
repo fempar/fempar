@@ -285,6 +285,27 @@ subroutine par_fe_space_compute_faces_object(this)
   integer(ip)                :: ivef_within_fe_object
   type(list_iterator_t)      :: faces_object_iterator
   integer(ip)                :: facet_gid
+  integer(ip)                :: vef_gid
+  integer(ip), allocatable   :: proper_fe_vef_facet_gid(:)
+  integer(ip), allocatable   :: improper_fe_vef_facet_gid(:)
+
+  integer(ip) :: i
+  
+  call memalloc ( this%triangulation%get_num_proper_vefs(), &
+                  proper_fe_vef_facet_gid, __FILE__, __LINE__ )
+  
+  call memalloc ( this%triangulation%get_num_improper_vefs(), &
+                  improper_fe_vef_facet_gid, __FILE__, __LINE__ )
+  
+  proper_fe_vef_facet_gid = -1
+  do i=1, this%facet_gids%size()
+    vef_gid = this%facet_gids%get(i)
+    if ( vef_gid > 0 ) then
+      proper_fe_vef_facet_gid(vef_gid) = i
+    else
+      improper_fe_vef_facet_gid(abs(vef_gid)) = i
+    end if
+  end do
   
   call this%faces_object%create(n=this%triangulation%get_num_objects())
   
@@ -294,9 +315,15 @@ subroutine par_fe_space_compute_faces_object(this)
   do while ( .not. fe_object%has_finished() )
     do ivef_within_fe_object = 1,fe_object%get_num_vefs()
       call fe_object%get_vef(ivef_within_fe_object,fe_vef)
-      if ( fe_vef%is_facet() ) then 
-        call this%faces_object%sum_to_pointer_index(fe_object%get_gid(), 1)
-      end if
+      if ( fe_vef%is_proper()) then
+         if ( proper_fe_vef_facet_gid(fe_vef%get_gid()) /= -1 ) then 
+            call this%faces_object%sum_to_pointer_index(fe_object%get_gid(), 1)
+         end if
+      else
+         if ( improper_fe_vef_facet_gid(abs(fe_vef%get_gid())) /= -1 ) then 
+            call this%faces_object%sum_to_pointer_index(fe_object%get_gid(), 1)
+         end if
+      end if 
     end do
     call fe_object%next()
   end do
@@ -309,9 +336,12 @@ subroutine par_fe_space_compute_faces_object(this)
     faces_object_iterator = fe_object%create_faces_object_iterator()
     do ivef_within_fe_object = 1,fe_object%get_num_vefs()
       call fe_object%get_vef(ivef_within_fe_object,fe_vef)
-      if ( fe_vef%is_facet() ) then
-        facet_gid = fe_vef%get_gid() - this%triangulation%get_num_vefs() & 
-                                    + this%facet_gids%size()
+      if ( fe_vef%is_proper() ) then
+        facet_gid = proper_fe_vef_facet_gid(fe_vef%get_gid())
+      else
+        facet_gid = improper_fe_vef_facet_gid(abs(fe_vef%get_gid())) 
+      end if 
+      if ( facet_gid /= -1  ) then
         call faces_object_iterator%set_current(facet_gid)
         call faces_object_iterator%next() 
       end if
@@ -322,7 +352,8 @@ subroutine par_fe_space_compute_faces_object(this)
   call faces_object_iterator%free()
   call this%free_fe_vef_iterator(fe_vef)
   call this%free_fe_object_iterator(fe_object)
-  
+  call memfree ( proper_fe_vef_facet_gid, __FILE__, __LINE__ )
+  call memfree ( improper_fe_vef_facet_gid, __FILE__, __LINE__ )
 end subroutine par_fe_space_compute_faces_object
 
 subroutine par_fe_space_free_faces_object(this)

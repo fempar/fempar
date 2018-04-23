@@ -358,6 +358,7 @@ module p4est_triangulation_names
     procedure                            :: set_for_coarsening      => p4est_cell_iterator_set_for_coarsening
     procedure                            :: set_for_refinement      => p4est_cell_iterator_set_for_refinement
     procedure                            :: set_for_do_nothing      => p4est_cell_iterator_set_for_do_nothing
+    procedure                            :: set_weight              => p4est_cell_iterator_set_weight
     procedure                            :: get_transformation_flag => p4est_cell_iterator_get_transformation_flag
     procedure                            :: get_permutation_index   => p4est_cell_iterator_get_permutation_index
     
@@ -476,6 +477,7 @@ module p4est_triangulation_names
     type(std_vector_logical_t)             :: proper_vefs_is_ghost
     type(std_vector_logical_t)             :: improper_vefs_is_ghost
     type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
+    type(std_vector_integer_ip_t)          :: cell_weights
     type(std_vector_integer_ip_t)          :: cell_set_ids
     type(std_vector_integer_ip_t)          :: disconnected_cells_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
@@ -505,10 +507,12 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: update_cell_myparts                                => p4est_base_triangulation_update_cell_myparts
     procedure, private        , non_overridable  :: comm_cell_myparts                                  => p4est_base_triangulation_comm_cell_myparts
     procedure, private        , non_overridable  :: update_cell_set_ids                                => p4est_bt_update_cell_set_ids
+    procedure, private        , non_overridable  :: update_cell_weights                                => p4est_bt_update_cell_weights
     procedure, private        , non_overridable  :: comm_cell_set_ids                                  => p4est_bt_comm_cell_set_ids
     procedure, private        , non_overridable  :: update_vef_set_ids                                 => p4est_bt_update_vef_set_ids
     procedure, private        , non_overridable  :: fill_x_cell_vertex_coordinates                     => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
     procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
+    procedure                 , non_overridable  :: clear_cell_weights                                 => p4est_bt_clear_cell_weights
     procedure                 , non_overridable  :: clear_cell_set_ids                                 => p4est_bt_clear_cell_set_ids
     procedure                                    :: fill_cells_set                                     => p4est_bt_fill_cells_set
     procedure                                    :: compute_max_cells_set_id                           => p4est_bt_compute_max_cells_set_id
@@ -581,6 +585,7 @@ module p4est_triangulation_names
     procedure                                   :: redistribute                                     => p4est_par_triangulation_redistribute
     procedure                                   :: update_migration_control_data                    => p4est_par_triangulation_update_migration_control_data
     procedure                                   :: migrate_cell_set_ids                             => p4est_par_triangulation_migrate_cell_set_ids
+    procedure                                   :: migrate_cell_weights                             => p4est_par_triangulation_migrate_cell_weights
     procedure                                   :: migrate_vef_set_ids                              => p4est_par_triangulation_migrate_vef_set_ids
     procedure                                   :: get_migration_num_snd                            => p4est_par_triangulation_get_migration_num_snd
     procedure                                   :: get_migration_lst_snd                            => p4est_par_triangulation_get_migration_lst_snd
