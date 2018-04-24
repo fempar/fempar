@@ -1079,8 +1079,11 @@ module fe_space_names
 				integer(ip)                             :: num_interior_dofs
 				integer(ip)                             :: num_total_dofs 
 				
+    ! DoF correspondence new basis 
+    type(hash_table_ip_ip_t)                :: g2l_fine_edge 
     integer(ip), allocatable                :: edge_to_new_basis_dof(:,:) 
     integer(ip), allocatable                :: edge_average_dof_id(:) 
+    
 	   type(hash_table_ip_ip_t)                :: fine_edge_direction
 	   type(list_t)                            :: subedges_x_coarse_edge 
 	   type(list_t)                            :: sorted_fine_edges_in_coarse_subedge 
