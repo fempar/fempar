@@ -35,6 +35,7 @@ module par_pb_bddc_poisson_params_names
        procedure, non_overridable             :: get_nchannel_x_direction
        procedure, non_overridable             :: get_nparts_with_channels
        procedure, non_overridable             :: get_nparts
+       procedure, non_overridable             :: get_num_cells_x_dir
        !procedure, non_overridable             :: get_num_dims
   end type par_pb_bddc_poisson_params_t
 
@@ -375,5 +376,27 @@ contains
     call memfree(num_parts_x_dir)
 
   end function get_nparts
+  !==================================================================================================
+  function get_num_cells_x_dir(this)
+    implicit none
+    class(par_pb_bddc_poisson_params_t) , intent(in) :: this
+    integer(ip)                                   :: num_levels
+    integer(ip)                                   :: get_num_cells_x_dir(3)
+    integer(ip), allocatable :: num_cells_x_dir(:) ! 0:SPACE_DIM-1)
+    integer(ip), allocatable :: array_size(:)
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    error = list%GetShape(key = num_cells_x_dir_key   , shape = array_size); 
+    check(error==0)
+    assert(array_size(1) >= SPACE_DIM)
+    call memalloc(array_size(1), num_cells_x_dir)
+    error = list%get(key = num_cells_x_dir_key , value = num_cells_x_dir) 
+    check(error==0)
+    get_num_cells_x_dir=num_cells_x_dir
+    if (allocated(array_size)) deallocate(array_size) 
+    call memfree(num_cells_x_dir)
+  end function get_num_cells_x_dir
+  !==================================================================================================
 
 end module par_pb_bddc_poisson_params_names

@@ -169,7 +169,8 @@ contains
                   this%test_params%get_jump(), this%test_params%get_inclusion(), &
                   this%test_params%get_nchannel_x_direction(), &
                   this%test_params%get_nparts_with_channels(), &
-                  this%test_params%get_nparts())
+                  this%test_params%get_nparts(), &
+                  this%test_params%get_num_cells_x_dir())
           end if
           call cell%next()
        end do
@@ -187,7 +188,7 @@ contains
     
   contains
     
-    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,nparts)
+    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,nparts,num_cells_x_dir)
       implicit none
       type(point_t), intent(in)  :: coord
       integer(ip)  , intent(in)  :: num_dims
@@ -196,19 +197,20 @@ contains
       integer(ip)  , intent(in)  :: nchannel_x_direction(3)
       integer(ip)  , intent(in)  :: nparts_with_channels(3)
       integer(ip)  , intent(in)  :: nparts(3)
+      integer(ip)  , intent(in)  :: num_cells_x_dir(3)
       type(point_t) :: origin, opposite
       integer(ip) :: cell_set_id
       integer(ip) :: i,j,k, nchannel, nchannel_in_each_direction
       real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
-      real(rp)    :: box_width, half_channel_width, center, eps
+      real(rp)    :: box_width, half_channel_width, center, eps, mesh_size
       real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
       real(rp) :: p1_c(256), p2_c(256)
 
 
       cell_set_id = 1
-      assert(nparts_with_channels(1)<=nparts(1))
-      assert(nparts_with_channels(2)<=nparts(2))
-      assert(nparts_with_channels(3)<=nparts(3))
+      do i=1,num_dims
+        assert(nparts_with_channels(i)<=nparts(i))
+      enddo
 
       ! Consider one channel : [0,1], [0.25,0.5], [0.25,0.5]
       if ( inclusion == 1 ) then
@@ -445,7 +447,80 @@ contains
          else 
             cell_set_id=1
          end if  
+      else if ( inclusion == 9 ) then
+         ! Number of channels can be choosen from the command line using option -nc
+         ! Channels are positioned so that some will touch but not cross the interface
+         ! if the nchannel_x_direction is a multiple of the number partitions per direction 
 
+         ! defining positions of the channels
+         assert(mod(nparts(1),nchannel_x_direction(1))==0)
+         if (.not.(allocated(px1))) then
+            call memalloc(nchannel_x_direction(1), px1, __FILE__, __LINE__ )
+            call memalloc(nchannel_x_direction(1), px2, __FILE__, __LINE__ )
+            box_width = 1.0_rp/nchannel_x_direction(1)
+            mesh_size = 1.0_rp/num_cells_x_dir(1)
+            half_channel_width = 5*mesh_size/2.0_rp
+            write(*,*)'box_width', box_width
+            write(*,*)'half_channel_width', half_channel_width
+            center = box_width/2.0_rp
+            do j=1, nchannel_x_direction(1)
+               px1(j)=center - half_channel_width 
+               px2(j)=center + half_channel_width  
+               center = center + box_width
+            enddo
+            write(*,*)'px1', px1
+            write(*,*)'px2', px2
+            call memalloc(nchannel_x_direction(2), py1, __FILE__, __LINE__ )
+            call memalloc(nchannel_x_direction(2), py2, __FILE__, __LINE__ )
+            center = box_width/2.0_rp
+            do j=1, nchannel_x_direction(2)
+               py1(j)=center - half_channel_width 
+               py2(j)=center + half_channel_width  
+               center = center + box_width
+            enddo
+            write(*,*)'py1', py1
+            write(*,*)'py2', py2
+            call memalloc(nchannel_x_direction(3), pz1, __FILE__, __LINE__ )
+            call memalloc(nchannel_x_direction(3), pz2, __FILE__, __LINE__ )
+            center = box_width/2.0_rp
+            do j=1, nchannel_x_direction(3)
+               pz1(j)=center - half_channel_width 
+               pz2(j)=center + half_channel_width  
+               center = center + box_width
+            enddo
+            write(*,*)'pz1', pz1
+            write(*,*)'pz2', pz2
+         end if
+
+         nchannel = 1
+         ! x edges
+         do j = 1, nchannel_x_direction(2)
+            do k = 1,nchannel_x_direction(3)
+               call origin%set(1,0.0_rp)  ; call origin%set(2, py1(j)) ; call origin%set(3,pz1(k));
+               call opposite%set(1,1.0_rp); call opposite%set(2,py2(j)); call opposite%set(3,pz2(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
+            end do
+         end do
+         ! y edges
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(3)
+               call origin%set(2,0.0_rp)  ; call origin%set(1, px1(j)) ; call origin%set(3,pz1(k));
+               call opposite%set(2,1.0_rp); call opposite%set(1,px2(j)); call opposite%set(3,pz2(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
+            end do
+         end do
+         ! z edges
+         do j = 1, nchannel_x_direction(1)
+            do k = 1,nchannel_x_direction(2)
+               call origin%set(3,0.0_rp)  ; call origin%set(1, px1(j)) ; call origin%set(2,py1(k));
+               call opposite%set(3,1.0_rp); call opposite%set(1,px2(j)); call opposite%set(2,py2(k));
+               nchannel = nchannel + 1
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
+            end do
+         end do
+         if ( cell_set_id /= 1 ) cell_set_id = 2
       end if
 
     end function cell_set_id
