@@ -451,28 +451,22 @@ contains
             cell_set_id=1
          end if  
       else if ( inclusion == 9 ) then
-         ! Number of channels can be choosen from the command line using option -nc
-         ! Channels are positioned so that some will touch but not cross the interface
-         ! if the nchannel_x_direction is a multiple of the number partitions per direction 
+         ! This case is designed to test BDDC with subobjects. 
+         ! The size of subobjects as a multiple of mesh size is given via -sso L
+         ! The number of channels is given as -nc n1 n2 n3
 
-         ! defining positions of the channels
-         assert(mod(nparts(1),nchannel_x_direction(1))==0)
          if (.not.(allocated(px1))) then
             call memalloc(nchannel_x_direction(1), px1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(1), px2, __FILE__, __LINE__ )
             box_width = 1.0_rp/nchannel_x_direction(1)
             mesh_size = 1.0_rp/num_cells_x_dir(1)
             half_channel_width = size_sub_object*mesh_size/2.0_rp
-            write(*,*)'box_width', box_width
-            write(*,*)'half_channel_width', half_channel_width
             center = int(box_width/(2*mesh_size))*mesh_size
             do j=1, nchannel_x_direction(1)
                px1(j)=center - half_channel_width-eps 
                px2(j)=center + half_channel_width+eps  
                center = center + box_width
             enddo
-            write(*,*)'px1', px1
-            write(*,*)'px2', px2
             call memalloc(nchannel_x_direction(2), py1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(2), py2, __FILE__, __LINE__ )
             center = int(box_width/(2*mesh_size))*mesh_size
@@ -481,8 +475,6 @@ contains
                py2(j)=center + half_channel_width + eps  
                center = center + box_width
             enddo
-            write(*,*)'py1', py1
-            write(*,*)'py2', py2
             call memalloc(nchannel_x_direction(3), pz1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(3), pz2, __FILE__, __LINE__ )
             center = int(box_width/(2*mesh_size))*mesh_size
@@ -491,8 +483,6 @@ contains
                pz2(j)=center + half_channel_width + eps 
                center = center + box_width
             enddo
-            write(*,*)'pz1', pz1
-            write(*,*)'pz2', pz2
          end if
 
          nchannel = 1
