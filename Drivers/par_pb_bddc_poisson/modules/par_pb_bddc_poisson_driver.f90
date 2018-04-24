@@ -171,7 +171,7 @@ contains
                   this%test_params%get_nparts_with_channels(), &
                   this%test_params%get_nparts(), &
                   this%test_params%get_num_cells_x_dir(), &
-                  this%test_params%get_size_coarse_object())
+                  this%test_params%get_size_sub_object())
           end if
           call cell%next()
        end do
@@ -189,7 +189,7 @@ contains
     
   contains
     
-    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,nparts,num_cells_x_dir)
+    function cell_set_id( coord, num_dims, jump, inclusion, nchannel_x_direction, nparts_with_channels,nparts,num_cells_x_dir,size_sub_object)
       implicit none
       type(point_t), intent(in)  :: coord
       integer(ip)  , intent(in)  :: num_dims
@@ -460,7 +460,6 @@ contains
          if (.not.(allocated(px1))) then
             call memalloc(nchannel_x_direction(1), px1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(1), px2, __FILE__, __LINE__ )
-            size_sub_object = 2
             box_width = 1.0_rp/nchannel_x_direction(1)
             mesh_size = 1.0_rp/num_cells_x_dir(1)
             half_channel_width = size_sub_object*mesh_size/2.0_rp
