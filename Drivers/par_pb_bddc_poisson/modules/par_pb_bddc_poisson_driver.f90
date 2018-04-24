@@ -465,7 +465,7 @@ contains
             half_channel_width = size_sub_object*mesh_size/2.0_rp
             write(*,*)'box_width', box_width
             write(*,*)'half_channel_width', half_channel_width
-            center = box_width/2.0_rp
+            center = int(box_width/(2*mesh_size))*mesh_size
             do j=1, nchannel_x_direction(1)
                px1(j)=center - half_channel_width-eps 
                px2(j)=center + half_channel_width+eps  
@@ -475,7 +475,7 @@ contains
             write(*,*)'px2', px2
             call memalloc(nchannel_x_direction(2), py1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(2), py2, __FILE__, __LINE__ )
-            center = box_width/2.0_rp
+            center = int(box_width/(2*mesh_size))*mesh_size
             do j=1, nchannel_x_direction(2)
                py1(j)=center - half_channel_width - eps 
                py2(j)=center + half_channel_width + eps  
@@ -485,7 +485,7 @@ contains
             write(*,*)'py2', py2
             call memalloc(nchannel_x_direction(3), pz1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(3), pz2, __FILE__, __LINE__ )
-            center = box_width/2.0_rp
+            center = int(box_width/(2*mesh_size))*mesh_size
             do j=1, nchannel_x_direction(3)
                pz1(j)=center - half_channel_width - eps
                pz2(j)=center + half_channel_width + eps 
