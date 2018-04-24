@@ -170,7 +170,8 @@ contains
                   this%test_params%get_nchannel_x_direction(), &
                   this%test_params%get_nparts_with_channels(), &
                   this%test_params%get_nparts(), &
-                  this%test_params%get_num_cells_x_dir())
+                  this%test_params%get_num_cells_x_dir(), &
+                  this%test_params%get_size_coarse_object())
           end if
           call cell%next()
        end do
@@ -201,7 +202,7 @@ contains
       type(point_t) :: origin, opposite
       integer(ip) :: cell_set_id
       integer(ip) :: i,j,k, nchannel, nchannel_in_each_direction
-      integer(ip) :: sub_object_size 
+      integer(ip) :: size_sub_object 
       real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
       real(rp)    :: box_width, half_channel_width, center, mesh_size
       real(rp)    :: eps=1e-15_rp 
@@ -459,10 +460,10 @@ contains
          if (.not.(allocated(px1))) then
             call memalloc(nchannel_x_direction(1), px1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(1), px2, __FILE__, __LINE__ )
-            sub_object_size = 2
+            size_sub_object = 2
             box_width = 1.0_rp/nchannel_x_direction(1)
             mesh_size = 1.0_rp/num_cells_x_dir(1)
-            half_channel_width = sub_object_size*mesh_size/2.0_rp
+            half_channel_width = size_sub_object*mesh_size/2.0_rp
             write(*,*)'box_width', box_width
             write(*,*)'half_channel_width', half_channel_width
             center = box_width/2.0_rp
