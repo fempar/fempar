@@ -51,7 +51,7 @@ subroutine p4est_serial_triangulation_create (this, parameters)
   istat = parameters%get(key = num_dims_key, value = num_dims); assert(istat==0)
   call this%set_num_dims(num_dims)
   
-		if( parameters%isPresent(key = hex_mesh_domain_limits_key) ) then
+  if( parameters%isPresent(key = hex_mesh_domain_limits_key) ) then
     istat = parameters%GetShape(key = hex_mesh_domain_limits_key, shape = array_size); check(istat==0)
     assert(array_size(1) >= 2*this%get_num_dims())
     call memalloc(array_size(1), bounding_box_limits,__FILE__,__LINE__)
@@ -87,18 +87,13 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%comm_cell_myparts()
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%update_vefs_is_ghost()
     call this%fill_x_cell_vertex_coordinates()
     call old_lst_vefs_gids%free()
     call this%clear_refinement_and_coarsening_flags()
+    call this%clear_cell_weights()
     call this%clear_cell_set_ids()
     call this%set_up_lst_itfc_vefs()
-    !call this%update_lst_vef_gids_and_cells_around_ghost_cells()
-    call this%update_local_proper_vefs_actually_on_the_interface()
     call this%clear_vef_set_ids()
-    ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
-    ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
-    call this%set_up_lst_itfc_vefs()
   else if ( this%get_num_dims() == 3 ) then
     call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
     call F90_p8est_new(dummy_comm,this%p4est_connectivity, this%p4est)
@@ -112,14 +107,12 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%update_vefs_is_ghost()
     call this%fill_x_cell_vertex_coordinates()
     call old_lst_vefs_gids%free()
     call this%clear_refinement_and_coarsening_flags()
+    call this%clear_cell_weights()
     call this%clear_cell_set_ids()
     call this%set_up_lst_itfc_vefs()
-    !call this%update_lst_vef_gids_and_cells_around_ghost_cells()
-    call this%update_local_proper_vefs_actually_on_the_interface()
     call this%clear_vef_set_ids()
     ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
     ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
@@ -153,6 +146,7 @@ subroutine p4est_serial_triangulation_free ( this)
   this%p4est              = c_null_ptr
   this%p4est_mesh         = c_null_ptr
   this%QHE                = c_null_ptr
+  this%p4est_ghost        = c_null_ptr
   
   call this%per_cell_vertex_coordinates%free()
   
@@ -173,6 +167,7 @@ subroutine p4est_serial_triangulation_free ( this)
   call this%improper_vefs_at_interface%free()
   call this%refinement_and_coarsening_flags%free()
   call this%cell_set_ids%free()
+  call this%cell_weights%free()
   call this%proper_vefs_set_ids%free()
   call this%improper_vefs_set_ids%free()
   call this%free_lst_itfc_vefs()

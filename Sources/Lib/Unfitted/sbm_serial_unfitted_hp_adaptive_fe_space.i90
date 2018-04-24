@@ -1723,6 +1723,7 @@ subroutine suhpafs_refine_mesh_for_small_aggregates(this,triangulation,target_si
 
 end subroutine suhpafs_refine_mesh_for_small_aggregates
 
+
 !========================================================================================
 function suhpafs_get_aggregate_ids(this)
   implicit none
@@ -2079,7 +2080,7 @@ subroutine suhpafs_fill_proper_vef_constrains_full_cell(this,proper_vef_constrai
 
   ! Mark the vefs owning DOFs that constraint hanging DOFs in full cells
   ! TODO: This is only needed for adaptive runs
-  ! TODO: We only need to do the loop for full cells that are rood
+  ! TODO: We only need to do the loop for full cells that are root
   call memalloc ( this%get_max_num_shape_functions(), touched_cell_dofs,__FILE__,__LINE__ )
   proper_vef_constrains_full_cell(:,:) = .false.
   call fe%first()

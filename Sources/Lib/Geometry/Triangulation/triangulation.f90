@@ -99,8 +99,10 @@ module triangulation_names
     procedure(cell_get_nodes_coordinates_interface), deferred :: get_nodes_coordinates
     
     ! Set IDs-related TBPs
-    procedure(cell_get_set_id_interface)            , deferred :: get_set_id
-    procedure(cell_set_set_id_interface)            , deferred :: set_set_id
+    procedure(cell_get_set_id_interface)             , deferred :: get_set_id
+    procedure(cell_set_set_id_interface)             , deferred :: set_set_id
+    ! Disconnected part cell set id 
+    procedure(cell_get_disconnected_set_id_interface), deferred :: get_disconnected_set_id
  
     ! XFEM-related TBPs
     procedure(update_sub_triangulation_interface)   , deferred :: update_sub_triangulation
@@ -123,6 +125,7 @@ module triangulation_names
     procedure(set_for_refinement_interface)         , deferred :: set_for_refinement
     procedure(set_for_coarsening_interface)         , deferred :: set_for_coarsening
     procedure(set_for_do_nothing_interface)         , deferred :: set_for_do_nothing
+    procedure(set_weight_interface)                 , deferred :: set_weight
     ! set_for_do_nothing ?
     ! get_transformation_flag
     ! ??? What else required
@@ -347,6 +350,12 @@ module triangulation_names
        class(cell_iterator_t), intent(inout)  :: this
        integer(ip)           , intent(in)     :: set_id
      end subroutine cell_set_set_id_interface
+     
+     function cell_get_disconnected_set_id_interface ( this )
+       import :: ip, cell_iterator_t
+       class(cell_iterator_t), intent(in)    :: this
+       integer(ip) :: cell_get_disconnected_set_id_interface
+     end function cell_get_disconnected_set_id_interface
 
      subroutine update_sub_triangulation_interface( this )
        import :: cell_iterator_t
@@ -457,6 +466,13 @@ module triangulation_names
        import :: cell_iterator_t
        class(cell_iterator_t), intent(inout)  :: this
      end subroutine set_for_do_nothing_interface
+     
+     subroutine set_weight_interface(this, weight)
+       import :: cell_iterator_t, ip
+       class(cell_iterator_t), intent(inout) :: this
+       integer(ip)           , intent(in)    :: weight
+     end subroutine set_weight_interface
+     
   end interface
   
    abstract interface
@@ -635,6 +651,7 @@ module triangulation_names
      type(cell_import_t)                   :: cell_import   
      
      ! Data structures to create objects (coarse cell info)
+     logical                               :: coarse_triangulation_set_up = .false.
      integer(ip)                           :: num_global_objects = 0
      integer(ip)                           :: num_objects = 0
      integer(igp), allocatable             :: objects_ggids(:)
@@ -642,10 +659,23 @@ module triangulation_names
      type(list_t)                          :: vefs_object
      type(list_t)                          :: faces_object
      type(list_t)                          :: parts_object
-     integer(ip)                           :: num_subparts = 0    ! num of subparts around part (including those subparts which are local)
-     type(list_t)                          :: subparts_object        ! num and list of subparts GIDs around each coarse n_face
-     type(hash_table_ip_ip_t)              :: g2l_subparts           ! Translator among the GIDs of subparts and LIDs
+     integer(ip)                           :: max_cell_set_id = 0        ! Max cell_set_id among parts   
+     integer(ip)                           :: num_subparts = 0           ! num of subparts around part (including those subparts which are local)
+     character(len=:), allocatable         :: subparts_coupling_criteria 
+     type(list_t)                          :: subparts_object            ! num and list of subparts GIDs around each coarse n_face
+     type(hash_table_ip_ip_t)              :: g2l_subparts               ! Translator among the GIDs of subparts and LIDs
      type(coarse_triangulation_t), pointer :: coarse_triangulation => NULL()
+     
+     ! Scratch data required for non-conforming triangulations, assuming that 
+     ! there might be more than one subpart per local subdomain
+     type(std_vector_integer_ip_t), allocatable :: lst_subparts_vefwise(:)     
+     type(std_vector_integer_ip_t)              :: num_subparts_vefs_cell_wise
+     type(std_vector_integer_ip_t)              :: snd_ptrs_lst_subparts_cell_wise
+     type(std_vector_integer_ip_t)              :: lst_subparts_pack_idx_cell_wise
+     type(std_vector_integer_ip_t)              :: rcv_ptrs_lst_subparts_cell_wise
+     type(std_vector_integer_ip_t)              :: lst_subparts_vefs_cell_wise
+     type(std_vector_integer_ip_t)              :: rcv_lst_subparts_vefs_cell_wise
+     type(std_vector_integer_ip_t)              :: ptrs_to_rcv_lst_subparts_vefs_cell_wise
  contains  
      ! Will the triangulation_t be ALWAYS conforming? (e.g., no matter 
      ! whether it is transformed, refined, coarsened, etc.)
@@ -667,11 +697,12 @@ module triangulation_names
      procedure, non_overridable :: set_num_vefs             => triangulation_set_num_vefs
      
      
-     procedure, non_overridable :: get_environment          => triangulation_get_environment
-     procedure, non_overridable :: get_cell_import          => triangulation_get_cell_import
-     procedure, non_overridable :: get_num_objects          => triangulation_get_num_objects
-     procedure, non_overridable :: get_coarse_triangulation => triangulation_get_coarse_triangulation
-     procedure, non_overridable :: get_num_itfc_vefs        => triangulation_get_num_itfc_vefs
+     procedure, non_overridable :: get_environment                => triangulation_get_environment
+     procedure, non_overridable :: get_cell_import                => triangulation_get_cell_import
+     procedure, non_overridable :: get_num_objects                => triangulation_get_num_objects
+     procedure, non_overridable :: get_coarse_triangulation       => triangulation_get_coarse_triangulation
+     procedure, non_overridable :: get_num_itfc_vefs              => triangulation_get_num_itfc_vefs
+     procedure, non_overridable :: coarse_triangulation_is_set_up => triangulation_coarse_triangulation_is_set_up
      
      procedure, non_overridable :: set_environment          => triangulation_set_environment
      procedure, non_overridable :: allocate_environment     => triangulation_allocate_environment
@@ -701,22 +732,25 @@ module triangulation_names
      procedure, non_overridable :: free_lst_itfc_vefs      => triangulation_free_lst_itfc_vefs
 
      ! Private methods to compute objects
-     procedure, non_overridable          :: get_num_subparts                           => triangulation_get_num_subparts
-     procedure, non_overridable          :: get_subpart_lid                            => triangulation_get_subpart_lid
-     procedure, non_overridable, private :: compute_vefs_and_parts_object              => triangulation_compute_vefs_and_parts_object
-     procedure, non_overridable, private :: compute_vefs_and_parts_object_body         => triangulation_compute_vefs_and_parts_object_body
-     procedure, non_overridable, private :: compute_parts_itfc_vefs                    => triangulation_compute_parts_itfc_vefs
-     procedure, non_overridable, private :: compute_subparts_itfc_vefs                 => triangulation_compute_subparts_itfc_vefs
-     procedure, non_overridable, private :: compute_parts_object_from_subparts_object  => triangulation_compute_parts_object_from_subparts_object
-     procedure, non_overridable, private :: compute_part_id_from_subpart_gid           => triangulation_compute_part_id_from_subpart_gid
-     procedure, non_overridable, private :: compute_objects_dim                        => triangulation_compute_objects_dim
-     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data   => triangulation_compute_objects_neighbours_exchange_data
-     procedure, non_overridable, private :: compute_num_global_objects_and_their_gids  => triangulation_compute_num_global_objs_and_their_gids
-     procedure, non_overridable, private :: free_objects_ggids_and_dim                  => triangulation_free_objects_ggids_and_dim
+     procedure, non_overridable          :: get_num_subparts                                   => triangulation_get_num_subparts
+     procedure, non_overridable          :: get_subpart_lid                                    => triangulation_get_subpart_lid
+     procedure, non_overridable, private :: compute_vefs_and_parts_object                      => triangulation_compute_vefs_and_parts_object
+     procedure, non_overridable, private :: compute_vefs_and_parts_object_body                 => triangulation_compute_vefs_and_parts_object_body
+     procedure, non_overridable, private :: compute_parts_itfc_vefs                            => triangulation_compute_parts_itfc_vefs
+     procedure, non_overridable, private :: compute_subparts_itfc_vefs_conforming_mesh         => triangulation_compute_subparts_itfc_vefs_conforming_mesh
+     procedure, non_overridable, private :: compute_subparts_itfc_vefs_non_conforming_mesh     => triangulation_compute_subparts_itfc_vefs_non_conforming_mesh
+     procedure, non_overridable, private :: compute_parts_object_from_subparts_object          => triangulation_compute_parts_object_from_subparts_object
+     procedure, non_overridable, private :: compute_part_id_from_subpart_gid                   => triangulation_compute_part_id_from_subpart_gid
+     procedure, non_overridable, private :: compute_objects_dim                                => triangulation_compute_objects_dim
+     procedure, non_overridable, private :: compute_objects_neighbours_exchange_data           => triangulation_compute_objects_neighbours_exchange_data
+     procedure, non_overridable, private :: compute_num_global_objects_and_their_gids          => triangulation_compute_num_global_objs_and_their_gids
+     procedure, non_overridable, private :: free_objects_ggids_and_dim                         => triangulation_free_objects_ggids_and_dim
      
-    
      ! Private methods for coarser triangulation set-up
      procedure, non_overridable          :: setup_coarse_triangulation                 => triangulation_setup_coarse_triangulation
+     procedure, non_overridable          :: free_coarse_triangulation_l1_data          => triangulation_free_coarse_triangulation_l1_data
+     procedure, non_overridable          :: free_coarse_triangulation_lgt1_data        => triangulation_free_coarse_triangulation_lgt1_data
+        
      procedure, non_overridable, private :: gather_coarse_cell_gids                    => triangulation_gather_coarse_cell_gids
      procedure, non_overridable, private :: gather_coarse_vefs_rcv_counts_and_displs   => triangulation_gather_coarse_vefs_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_vefs_gids                    => triangulation_gather_coarse_vefs_gids
@@ -725,6 +759,27 @@ module triangulation_names
      procedure, non_overridable, private :: gather_coarse_dgraph_rcv_counts_and_displs => triangulation_gather_coarse_dgraph_rcv_counts_and_displs
      procedure, non_overridable, private :: gather_coarse_dgraph_lextn_and_lextp       => triangulation_gather_coarse_dgraph_lextn_and_lextp
      procedure, non_overridable, private :: adapt_coarse_raw_arrays                    => triangulation_adapt_coarse_raw_arrays
+     
+     ! Private methods for set up of scratch data related to non-conforming triangulations
+     procedure, non_overridable, private :: compute_local_lst_subparts_vefwise              => t_compute_local_lst_subparts_vefwise
+     procedure, non_overridable, private :: exchange_lst_subparts_round                     => t_exchange_lst_subparts_round
+     procedure, non_overridable, private :: fetch_num_subparts_vefs_cell_wise               => t_fetch_num_subparts_vefs_cell_wise
+     procedure, non_overridable, private :: compute_near_neigh_ctrl_data_lst_subparts       => t_compute_near_neigh_ctrl_data_lst_subparts
+     procedure, non_overridable, private :: fetch_lst_subparts_vefs_cell_wise               => t_fetch_lst_subparts_vefs_cell_wise
+     procedure, non_overridable, private :: compute_ptrs_to_rcv_lst_subparts_vefs_cell_wise => t_compute_ptrs_to_rcv_lst_subparts_vefs_cell_wise
+     procedure, non_overridable, private :: update_lst_subparts_vefwise_after_exchange      => t_update_lst_subparts_vefwise_after_exchange
+     procedure, non_overridable, private :: free_non_conforming_scratch_data                => triangulation_free_non_conforming_scratch_data
+     
+     ! Methods for disconnected parts identification 
+     procedure                           :: get_max_cell_set_id                         => triangulation_get_max_cell_set_id
+     procedure, non_overridable          :: set_subparts_coupling_criteria              => triangulation_set_subparts_coupling_criteria 
+     procedure, non_overridable, private :: allocate_and_fill_disconnected_cells_set_id => triangulation_allocate_and_fill_disconnected_cells_set_id 
+     procedure, non_overridable, private :: compute_disconnected_cells_set_id           => triangulation_compute_disconnected_cells_set_id
+     procedure, non_overridable, private :: generate_dual_graph                         => triangulation_generate_dual_graph  
+     procedure(compute_max_cells_set_id_interface)     , deferred :: compute_max_cells_set_id 
+     procedure(resize_disconnected_cells_set_interface), deferred :: resize_disconnected_cells_set
+     procedure(fill_disconnected_cells_set_interface)  , deferred :: fill_disconnected_cells_set
+
   end type triangulation_t
   
   abstract interface
@@ -775,7 +830,24 @@ module triangulation_names
        class(triangulation_t), intent(in) :: this
        integer(ip) :: get_num_reference_fes_interface
      end function get_num_reference_fes_interface
+
+     function compute_max_cells_set_id_interface ( this ) 
+       import :: triangulation_t, ip
+       class(triangulation_t), intent(inout)   :: this
+       integer(ip) :: compute_max_cells_set_id_interface
+     end function compute_max_cells_set_id_interface
      
+     subroutine resize_disconnected_cells_set_interface ( this ) 
+       import :: triangulation_t
+       class(triangulation_t), intent(inout)   :: this
+     end subroutine resize_disconnected_cells_set_interface 
+     
+     subroutine fill_disconnected_cells_set_interface ( this, disconnected_cells_set ) 
+       import :: triangulation_t, ip 
+       class(triangulation_t), intent(inout)   :: this
+       integer(ip)           , intent(in)      :: disconnected_cells_set(:)
+     end subroutine fill_disconnected_cells_set_interface 
+
      function get_max_num_shape_functions_interface ( this )
        import :: triangulation_t, ip
        class(triangulation_t), intent(in) :: this
@@ -816,6 +888,14 @@ module triangulation_names
   public :: geometry_interpolation_order_key
   public :: triangulation_generate_key
   
+  character(len=*), parameter :: subparts_coupling_criteria_key = 'subparts_coupling_criteria'
+  character(len=*), parameter :: all_coupled                    = 'all_coupled'
+  character(len=*), parameter :: loose_coupling                 = 'loose_coupling' 
+  character(len=*), parameter :: strong_coupling                = 'strong_coupling' 
+  public :: subparts_coupling_criteria_key 
+  public :: loose_coupling
+  public :: strong_coupling 
+  
   type, extends(cell_iterator_t) :: bst_cell_iterator_t
     private
     class(base_static_triangulation_t), pointer :: base_static_triangulation => NULL()
@@ -834,6 +914,7 @@ module triangulation_names
     procedure                            :: get_my_part             => bst_cell_iterator_get_mypart
     procedure                            :: set_set_id              => bst_cell_iterator_set_set_id
     procedure                            :: get_set_id              => bst_cell_iterator_get_set_id
+    procedure                            :: get_disconnected_set_id => bst_cell_iterator_get_disconnected_set_id
     procedure                            :: get_num_vefs            => bst_cell_iterator_get_num_vefs
     procedure                            :: get_num_nodes           => bst_cell_iterator_get_num_nodes
     procedure                            :: get_node_gid            => bst_cell_iterator_get_node_gid
@@ -863,15 +944,17 @@ module triangulation_names
     procedure :: is_interior_subcell         => bst_cell_iterator_is_interior_subcell
     procedure :: is_exterior_subcell         => bst_cell_iterator_is_exterior_subcell
     
-    procedure :: get_level                   => bst_cell_iterator_get_level_interface
-    procedure :: set_for_refinement          => bst_cell_iterator_set_for_refinement_interface
-    procedure :: set_for_coarsening          => bst_cell_iterator_set_for_coarsening_interface
-    procedure :: set_for_do_nothing          => bst_cell_iterator_set_for_do_nothing_interface
+    procedure :: get_level                   => bst_cell_iterator_get_level
+    procedure :: set_for_refinement          => bst_cell_iterator_set_for_refinement
+    procedure :: set_for_coarsening          => bst_cell_iterator_set_for_coarsening
+    procedure :: set_for_do_nothing          => bst_cell_iterator_set_for_do_nothing
+    procedure :: set_weight                  => bst_cell_iterator_set_weight
     
     procedure, non_overridable, private  :: fill_nodes_on_vertices        => bst_cell_iterator_fill_nodes_on_vertices
     procedure, non_overridable, private  :: fill_nodes_on_vef_new         => bst_cell_iterator_fill_nodes_on_vef_new
     procedure, non_overridable, private  :: fill_nodes_on_vef_from_source => bst_cell_iterator_fill_nodes_on_vef_from_source
     procedure, non_overridable, private  :: fill_internal_nodes_new       => bst_cell_iterator_fill_internal_nodes_new
+    
   end type bst_cell_iterator_t
   
   type, extends(vef_iterator_t) :: bst_vef_iterator_t
@@ -922,10 +1005,11 @@ module triangulation_names
     
      integer(ip)                           :: num_vertices
      
-     integer(igp), allocatable             :: cells_ggid(:)       ! Num local cells + num ghost cells
-     integer(ip) , allocatable             :: cells_mypart(:)     ! Num local cells + num ghost cells
-     integer(ip) , allocatable             :: cells_set(:)        ! Num local cells + num ghost cells
-     integer(ip) , allocatable             :: ptr_vefs_x_cell(:)  ! Num local cells + num ghost cells + 1
+     integer(igp), allocatable             :: cells_ggid(:)                 ! Num local cells + num ghost cells
+     integer(ip) , allocatable             :: cells_mypart(:)               ! Num local cells + num ghost cells
+     integer(ip) , allocatable             :: cells_set(:)                  ! Num local cells + num ghost cells
+     integer(ip) , allocatable             :: disconnected_cells_set_ids(:) ! Num local cells + num ghost cells 
+     integer(ip) , allocatable             :: ptr_vefs_x_cell(:)            ! Num local cells + num ghost cells + 1
      integer(ip) , allocatable             :: lst_vefs_gids(:)
  
      
@@ -979,12 +1063,17 @@ module triangulation_names
      procedure, non_overridable, private :: allocate_cells_mypart               => bst_allocate_cells_mypart
      procedure, non_overridable, private :: fill_local_cells_mypart             => bst_fill_local_cells_mypart
      procedure, non_overridable, private :: allocate_cells_set                  => bst_allocate_cells_set
+     procedure, non_overridable, private :: allocate_disconnected_cells_set     => bst_allocate_disconnected_cells_set
      procedure, non_overridable          :: fill_cells_set                      => bst_fill_cells_set
+     procedure                           :: compute_max_cells_set_id            => bst_compute_max_cells_set_id
+     procedure                           :: resize_disconnected_cells_set       => bst_resize_disconnected_cells_set
+     procedure                           :: fill_disconnected_cells_set         => bst_fill_disconnected_cells_set
      procedure, non_overridable, private :: free_ptr_vefs_x_cell                => bst_free_ptr_vefs_x_cell
      procedure, non_overridable, private :: free_lst_vefs_gids                  => bst_free_lst_vefs_gids 
      procedure, non_overridable, private :: free_cells_ggid                     => bst_free_cells_ggid
      procedure, non_overridable, private :: free_cells_mypart                   => bst_free_cells_mypart
-     procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set
+     procedure, non_overridable, private :: free_cells_set                      => bst_free_cells_set 
+     procedure, non_overridable, private :: free_disconnected_cells_set         => bst_free_disconnected_cells_set
      procedure, non_overridable, private :: orient_tet_mesh                     => bst_orient_tet_mesh
 
      ! Private methods to perform nearest neighbor exchange
@@ -1063,6 +1152,9 @@ module triangulation_names
   public :: itfc_vef_iterator_t, object_iterator_t
   public :: cell_iterator_create
   public :: cell_iterator_free
+  public :: cell_iterator_next
+  public :: cell_iterator_first
+  public :: cell_iterator_set_gid
   public :: vef_iterator_create
   public :: vef_iterator_free
   

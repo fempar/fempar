@@ -37,7 +37,8 @@
                                            lst_itfc_cells, &
                                            ptr_ext_neighs_x_itfc_cell, &
                                            lst_ext_neighs_gids, &
-                                           lst_ext_neighs_part_ids)
+                                           lst_ext_neighs_part_ids, &
+                                           subparts_coupling_criteria )
     implicit none
     class(coarse_triangulation_t)      , intent(inout) :: this
     type(environment_t)     ,target    , intent(in)    :: environment
@@ -52,6 +53,7 @@
     integer(ip)                        , intent(in)    :: ptr_ext_neighs_x_itfc_cell(*)
     integer(ip)                        , intent(in)    :: lst_ext_neighs_gids(*)
     integer(ip)                        , intent(in)    :: lst_ext_neighs_part_ids(*)
+    character(*)                       , intent(in)    :: subparts_coupling_criteria 
   
     integer(igp), allocatable :: lst_vefs_gids_ghost_extended(:)
     integer(ip) , allocatable :: lst_vefs_dim_ghost_extended(:)
@@ -113,6 +115,8 @@
       cells_set = 0
       call this%fill_cells_set(cells_set)
       call memfree (cells_set, __FILE__, __LINE__)      
+      
+      this%subparts_coupling_criteria = subparts_coupling_criteria 
     end if
     call this%setup_coarse_triangulation()
     !call this%print()

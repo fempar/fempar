@@ -135,7 +135,7 @@ subroutine facet_map_update(this,reorientation_factor,quadrature)
      ! and make it point in the correct direction
      this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *                &
           &                                                             real(reorientation_factor) 
-										
+          
      this%measure = this%measure + this%det_jacobian(evaluation_point_id) * quadrature%get_weight(evaluation_point_id)
   end do
 end subroutine facet_map_update

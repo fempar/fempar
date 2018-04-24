@@ -187,6 +187,14 @@ function bst_cell_iterator_get_set_id(this)
   bst_cell_iterator_get_set_id = this%base_static_triangulation%cells_set(this%gid)
 end function bst_cell_iterator_get_set_id
 
+function bst_cell_iterator_get_disconnected_set_id(this)
+  implicit none
+  class(bst_cell_iterator_t), intent(in) :: this
+  integer(ip) :: bst_cell_iterator_get_disconnected_set_id
+  assert ( this%gid >= 1 .and. .not. this%has_finished() )
+  bst_cell_iterator_get_disconnected_set_id = this%base_static_triangulation%disconnected_cells_set_ids(this%gid)
+end function bst_cell_iterator_get_disconnected_set_id
+
 function bst_cell_iterator_get_num_vefs (this)
   implicit none
   class(bst_cell_iterator_t), intent(in) :: this
@@ -446,30 +454,33 @@ function bst_cell_iterator_is_exterior_subcell( this, subcell ) result ( is_out 
   mcheck(.false.,'This subroutine can only be called by some descendent classes')
 end function bst_cell_iterator_is_exterior_subcell
 
-function bst_cell_iterator_get_level_interface(this)
+function bst_cell_iterator_get_level(this)
   implicit none
   class(bst_cell_iterator_t), intent(in)  :: this
-  integer(ip) :: bst_cell_iterator_get_level_interface
-  bst_cell_iterator_get_level_interface = 0
-end function bst_cell_iterator_get_level_interface
+  integer(ip) :: bst_cell_iterator_get_level
+  bst_cell_iterator_get_level = 0
+end function bst_cell_iterator_get_level
 
-subroutine bst_cell_iterator_set_for_refinement_interface(this)
+subroutine bst_cell_iterator_set_for_refinement(this)
   implicit none
   class(bst_cell_iterator_t), intent(inout)  :: this
-end subroutine bst_cell_iterator_set_for_refinement_interface
+end subroutine bst_cell_iterator_set_for_refinement
 
-subroutine bst_cell_iterator_set_for_coarsening_interface(this)
+subroutine bst_cell_iterator_set_for_coarsening(this)
   implicit none
   class(bst_cell_iterator_t), intent(inout)  :: this
-end subroutine bst_cell_iterator_set_for_coarsening_interface
+end subroutine bst_cell_iterator_set_for_coarsening
 
-subroutine bst_cell_iterator_set_for_do_nothing_interface(this)
+subroutine bst_cell_iterator_set_for_do_nothing(this)
   implicit none
   class(bst_cell_iterator_t), intent(inout)  :: this
-end subroutine bst_cell_iterator_set_for_do_nothing_interface
+end subroutine bst_cell_iterator_set_for_do_nothing
 
-
-
+subroutine bst_cell_iterator_set_weight(this, weight)
+  implicit none
+  class(bst_cell_iterator_t), intent(inout)  :: this
+  integer(ip)               , intent(in)    :: weight
+end subroutine bst_cell_iterator_set_weight
 
 subroutine bst_cell_iterator_fill_nodes_on_vertices (this)
   implicit none
@@ -504,7 +515,7 @@ subroutine bst_cell_iterator_fill_nodes_on_vef_new (this,ivef,node_count)
     if(this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)==0) then
        node_count = node_count + 1
        this%base_static_triangulation%lst_nodes(this%base_static_triangulation%ptr_nodes_x_cell(this%gid)+l_node-1)=node_count
-    end	if
+    end if
   end do
   
 end subroutine bst_cell_iterator_fill_nodes_on_vef_new
