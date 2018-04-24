@@ -201,8 +201,10 @@ contains
       type(point_t) :: origin, opposite
       integer(ip) :: cell_set_id
       integer(ip) :: i,j,k, nchannel, nchannel_in_each_direction
+      integer(ip) :: sub_object_size 
       real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
-      real(rp)    :: box_width, half_channel_width, center, eps, mesh_size
+      real(rp)    :: box_width, half_channel_width, center, mesh_size
+      real(rp)    :: eps=1e-15_rp 
       real(rp) :: p1(6), p2(6), p1_b(4), p2_b(4)
       real(rp) :: p1_c(256), p2_c(256)
 
@@ -457,15 +459,16 @@ contains
          if (.not.(allocated(px1))) then
             call memalloc(nchannel_x_direction(1), px1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(1), px2, __FILE__, __LINE__ )
+            sub_object_size = 2
             box_width = 1.0_rp/nchannel_x_direction(1)
             mesh_size = 1.0_rp/num_cells_x_dir(1)
-            half_channel_width = 5*mesh_size/2.0_rp
+            half_channel_width = sub_object_size*mesh_size/2.0_rp
             write(*,*)'box_width', box_width
             write(*,*)'half_channel_width', half_channel_width
             center = box_width/2.0_rp
             do j=1, nchannel_x_direction(1)
-               px1(j)=center - half_channel_width 
-               px2(j)=center + half_channel_width  
+               px1(j)=center - half_channel_width-eps 
+               px2(j)=center + half_channel_width+eps  
                center = center + box_width
             enddo
             write(*,*)'px1', px1
@@ -474,8 +477,8 @@ contains
             call memalloc(nchannel_x_direction(2), py2, __FILE__, __LINE__ )
             center = box_width/2.0_rp
             do j=1, nchannel_x_direction(2)
-               py1(j)=center - half_channel_width 
-               py2(j)=center + half_channel_width  
+               py1(j)=center - half_channel_width - eps 
+               py2(j)=center + half_channel_width + eps  
                center = center + box_width
             enddo
             write(*,*)'py1', py1
@@ -484,8 +487,8 @@ contains
             call memalloc(nchannel_x_direction(3), pz2, __FILE__, __LINE__ )
             center = box_width/2.0_rp
             do j=1, nchannel_x_direction(3)
-               pz1(j)=center - half_channel_width 
-               pz2(j)=center + half_channel_width  
+               pz1(j)=center - half_channel_width - eps
+               pz2(j)=center + half_channel_width + eps 
                center = center + box_width
             enddo
             write(*,*)'pz1', pz1
