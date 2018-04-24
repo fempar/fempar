@@ -331,6 +331,8 @@ module fe_space_names
     & fe_cell_iterator_evaluate_laplacian_fe_function_vector
 
     procedure, non_overridable, private :: apply_constraints                          => fe_cell_iterator_apply_constraints
+    procedure, non_overridable, private :: update_extended_dof_info  => fe_cell_iterator_update_extended_dof_info
+    procedure, non_overridable, private :: clear_extended_dof_info   => fe_cell_iterator_clear_extended_dof_info
 
   end type fe_cell_iterator_t
    
@@ -407,7 +409,9 @@ module fe_space_names
     class(fe_cell_iterator_t) , allocatable  :: fe2
     type(p_fe_cell_iterator_t)               :: fes_around(2)
     type(facet_maps_t), pointer              :: facet_maps => NULL()
-    type(p_facet_integrator_t), allocatable :: facet_integrators(:)
+    type(p_facet_integrator_t), allocatable  :: facet_integrators(:)
+    type(allocatable_array_rp4_t)            :: extended_facemat
+    type(allocatable_array_rp2_t)            :: extended_facevec
    contains
     procedure                           :: create                         => fe_facet_iterator_create
     procedure                           :: free                           => fe_facet_iterator_free
@@ -433,6 +437,9 @@ module fe_space_names
                                                                             fe_facet_iterator_assembly_matrix_array
  
     procedure, non_overridable, private :: clear_fe_dofs_ghost_full_local_void => fe_facet_iterator_clear_fe_dofs_ghost_full_local_void
+    procedure, non_overridable, private :: allocate_assembly_scratch_data      => fe_facet_iterator_allocate_assembly_scratch_data
+    procedure, non_overridable, private :: free_assembly_scratch_data          => fe_facet_iterator_free_assembly_scratch_data
+    procedure, non_overridable, private :: apply_constraints                   => fe_facet_iterator_apply_constraints
 
     procedure, non_overridable          :: get_fe_space                  => fe_facet_iterator_get_fe_space
     procedure, non_overridable          :: get_fe_dofs                   => fe_facet_iterator_get_fe_dofs

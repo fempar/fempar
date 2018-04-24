@@ -487,6 +487,76 @@ contains
 end module allocatable_array_rp3_names
 
 !=============================================================================
+! module allocatable_array_rp4_names
+!=============================================================================
+
+module allocatable_array_rp4_names
+  use types_names
+  use memor_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+# include "debug.i90"
+  private
+
+  type allocatable_array_rp4_t
+     integer(ip)               :: nd1, nd2, nd3, nd4
+     real(rp)    , allocatable :: a(:,:,:,:)
+   contains
+     procedure :: create => allocatable_array_rp4_create
+     procedure :: resize => allocatable_array_rp4_resize
+     procedure :: free   => allocatable_array_rp4_free
+  end type allocatable_array_rp4_t
+  public :: allocatable_array_rp4_t
+# define var_type type(allocatable_array_rp4_t)
+# define var_size 52
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+
+contains
+
+  subroutine allocatable_array_rp4_create(this, nd1, nd2, nd3, nd4) 
+    implicit none
+    class(allocatable_array_rp4_t), intent(inout) :: this
+    integer(ip)    , intent(in)  :: nd1, nd2, nd3, nd4
+    call this%free()
+    this%nd1 = nd1
+    this%nd2 = nd2
+    this%nd3 = nd3
+    this%nd4 = nd4
+    call memalloc(nd1,nd2,nd3,nd4,this%a,__FILE__,__LINE__)
+  end subroutine allocatable_array_rp4_create
+
+  subroutine allocatable_array_rp4_resize(this, nd1, nd2, nd3, nd4) 
+    implicit none
+    integer(ip)    , intent(in)  :: nd1, nd2, nd3, nd4
+    class(allocatable_array_rp4_t), intent(inout) :: this
+    if ( this%nd1 < nd1 .or. this%nd2 < nd2 .or. this%nd3 < nd3 .or. this%nd4 < nd4 ) then
+       this%nd1 = nd1
+       this%nd2 = nd2
+       this%nd3 = nd3
+       this%nd4 = nd4
+       call memrealloc(nd1,nd2,nd3,nd4,this%a,__FILE__,__LINE__)
+    end if
+  end subroutine allocatable_array_rp4_resize
+
+  subroutine allocatable_array_rp4_free(this) 
+    implicit none
+    class(allocatable_array_rp4_t), intent(inout) :: this
+    this%nd1 = 0
+    this%nd2 = 0
+    this%nd3 = 0
+    this%nd4 = 0
+    if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
+  end subroutine allocatable_array_rp4_free
+
+# include "mem_body.i90"
+
+end module allocatable_array_rp4_names
+
+!=============================================================================
 ! module allocatable_array_names
 !=============================================================================
 
@@ -500,6 +570,7 @@ module allocatable_array_names
   use allocatable_array_rp1_names
   use allocatable_array_rp2_names
   use allocatable_array_rp3_names
+  use allocatable_array_rp4_names
 #ifdef memcheck
   use iso_c_binding
 #endif
@@ -510,7 +581,8 @@ module allocatable_array_names
   ! Types
   public :: allocatable_array_ip1_t, allocatable_array_ip2_t, &
        &    allocatable_array_igp1_t, allocatable_array_igp2_t, & 
-       &    allocatable_array_rp1_t, allocatable_array_rp2_t, allocatable_array_rp3_t
+       &    allocatable_array_rp1_t, allocatable_array_rp2_t,&
+       &    allocatable_array_rp3_t, allocatable_array_rp4_t
 
   ! Functions
   public :: memalloc, memrealloc, memfree, memmovealloc

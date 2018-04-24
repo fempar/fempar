@@ -34,6 +34,7 @@ subroutine fe_facet_iterator_create ( this, fe_space, vef )
   call this%free()
   call this%fe_vef_iterator_t%create(fe_space,vef)
   call this%allocate_scratch_data()
+  call this%allocate_assembly_scratch_data()
   call this%first()
 end subroutine fe_facet_iterator_create
 
@@ -41,6 +42,7 @@ subroutine fe_facet_iterator_free ( this )
   implicit none
   class(fe_facet_iterator_t) , intent(inout)      :: this
   integer(ip) :: istat
+  call this%free_assembly_scratch_data()
   call this%fe_vef_iterator_t%free()
   this%facet_gid = -1
   call this%free_scratch_data()
@@ -299,31 +301,69 @@ subroutine fe_facet_iterator_assembly_matrix_array ( this,    &
   class(assembler_t), intent(inout) :: assembler
   
   integer(ip) :: ineigh, jneigh
+  logical     :: no_hanging_node_constraints
+  integer(ip) :: ifield
+
+  no_hanging_node_constraints = .true.
+  do ifield=1, this%fe_space%num_fields
+    do ineigh = 1, this%get_num_cells_around()
+      if ( this%fes_around(ineigh)%p%has_hanging_dofs(ifield) ) then
+         no_hanging_node_constraints = .false.
+         exit
+      end if
+    end do
+  end do
  
   do ineigh = 1, this%get_num_cells_around()
     call this%fes_around(ineigh)%p%update_assembly_scratch_data()
   end do
   call this%clear_fe_dofs_ghost_full_local_void()
   
-  
-  do ineigh = 1, this%get_num_cells_around()
-    do jneigh = 1, this%get_num_cells_around()
-      call assembler%assembly_matrix( this%fe_space%num_fields,                   &
-                                                   this%fe_space%get_field_blocks(),              &
-                                                   this%fe_space%get_field_coupling(),            &
-                                                   this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
-                                                   this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
-                                                   this%fes_around(ineigh)%p%fe_dofs,              &
-                                                   this%fes_around(jneigh)%p%fe_dofs,              &
-                                                   facemat(:,:,ineigh,jneigh) )
+  if (no_hanging_node_constraints) then
+    do ineigh = 1, this%get_num_cells_around()
+      do jneigh = 1, this%get_num_cells_around()
+        call assembler%assembly_matrix( this%fe_space%num_fields,                   &
+                                                     this%fe_space%get_field_blocks(),              &
+                                                     this%fe_space%get_field_coupling(),            &
+                                                     this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                                     this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
+                                                     this%fes_around(ineigh)%p%fe_dofs,              &
+                                                     this%fes_around(jneigh)%p%fe_dofs,              &
+                                                     facemat(:,:,ineigh,jneigh) )
+      end do
+      call assembler%assembly_array( this%fe_space%num_fields,                    &
+                                                    this%fe_space%get_field_blocks(),               &
+                                                    this%fe_space%get_field_coupling(),             &
+                                                    this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
+                                                    this%fes_around(ineigh)%p%fe_dofs,               &
+                                                    facevec(:,ineigh) )
     end do
-    call assembler%assembly_array( this%fe_space%num_fields,                    &
-                                                  this%fe_space%get_field_blocks(),               &
-                                                  this%fe_space%get_field_coupling(),             &
-                                                  this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
-                                                  this%fes_around(ineigh)%p%fe_dofs,               &
-                                                  facevec(:,ineigh) )
-  end do
+  else
+
+    call this%apply_constraints(facemat,facevec)
+
+    do ineigh = 1, this%get_num_cells_around()
+      do jneigh = 1, this%get_num_cells_around()
+        call assembler%assembly_matrix(&
+          this%fe_space%num_fields,                        &
+          this%fe_space%get_field_blocks(),                &
+          this%fe_space%get_field_coupling(),              &
+          this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+          this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
+          this%fes_around(ineigh)%p%fe_dofs,               &
+          this%fes_around(jneigh)%p%fe_dofs,               &
+          this%extended_facemat%a(:,:,ineigh,jneigh) )
+      end do
+      call assembler%assembly_array(&
+        this%fe_space%num_fields,                       &
+        this%fe_space%get_field_blocks(),               &
+        this%fe_space%get_field_coupling(),             &
+        this%fes_around(ineigh)%p%num_cell_dofs_x_field,&
+        this%fes_around(ineigh)%p%fe_dofs,              &
+        this%extended_facevec%a(:,ineigh) )
+    end do
+
+  end if
   
 end subroutine fe_facet_iterator_assembly_matrix_array
 
@@ -349,6 +389,159 @@ subroutine fe_facet_iterator_clear_fe_dofs_ghost_full_local_void(this)
   end do 
 end subroutine fe_facet_iterator_clear_fe_dofs_ghost_full_local_void
 
+subroutine fe_facet_iterator_allocate_assembly_scratch_data(this)
+  implicit none 
+  class(fe_facet_iterator_t), intent(inout) :: this
+  call this%extended_facemat%create(0,0,0,0)
+  call this%extended_facevec%create(0,0) 
+end subroutine fe_facet_iterator_allocate_assembly_scratch_data
+
+subroutine fe_facet_iterator_free_assembly_scratch_data(this)
+  implicit none 
+  class(fe_facet_iterator_t), intent(inout) :: this
+  call this%extended_facemat%free()
+  call this%extended_facevec%free()
+end subroutine fe_facet_iterator_free_assembly_scratch_data
+
+subroutine fe_facet_iterator_apply_constraints(this,facemat,facevec)
+  implicit none
+  class(fe_facet_iterator_t)     , intent(inout) :: this
+  real(rp)                       , intent(in)    :: facemat(:,:,:,:)
+  real(rp)                       , intent(in)    :: facevec(:,:)
+
+  integer(ip) :: ineigh, jneigh
+  integer(ip) :: ifield, jfield, i_lid, j_lid, i_gid, i_gid_hanging, j_gid, total_num_dofs
+  integer(ip) :: current_i, current_extended_i, current_j, current_extended_j
+  integer(ip) :: k_lid, k_gid, pos, spos, epos, iblock
+  real(rp) :: weight
+  integer(ip), pointer :: field_blocks_i(:)
+  integer(ip), pointer :: field_blocks_j(:)
+  integer(ip) :: offset
+
+  do ineigh = 1, this%get_num_cells_around()
+    call this%fes_around(ineigh)%p%update_extended_dof_info()
+  end do
+
+  total_num_dofs = 0_rp
+  do ineigh = 1, this%get_num_cells_around()
+    total_num_dofs = max(total_num_dofs,sum(this%fes_around(ineigh)%p%num_cell_dofs_x_field))
+  end do
+  call this%extended_facemat%resize(total_num_dofs, total_num_dofs,2,2)
+  call this%extended_facevec%resize(total_num_dofs,2)
+
+  this%extended_facemat%a(:,:,:,:) = 0.0_rp
+  this%extended_facevec%a(:,:) = 0.0_rp
+
+  do ineigh = 1, this%get_num_cells_around()
+    do jneigh = 1, this%get_num_cells_around()
+      current_i          = 1
+      current_extended_i = 1
+      do ifield=1, this%fes_around(ineigh)%p%get_num_fields()
+        current_j          = 1
+        current_extended_j = 1
+        do jfield=1, this%fes_around(jneigh)%p%get_num_fields()
+          ! For every field, insert the cell dofs entries
+          this%extended_facemat%a(&
+            & current_extended_i:current_extended_i &
+            & + this%fes_around(ineigh)%p%get_num_dofs_field(ifield)-1, &
+            & current_extended_j:current_extended_j &
+            & + this%fes_around(jneigh)%p%get_num_dofs_field(jfield)-1, &
+            & ineigh,jneigh) = facemat(&
+            & current_i:current_i + this%fes_around(ineigh)%p%get_num_dofs_field(ifield)-1, &
+            & current_j:current_j + this%fes_around(jneigh)%p%get_num_dofs_field(jfield)-1, &
+            & ineigh,jneigh)
+          current_j = current_j &
+            & + this%fes_around(jneigh)%p%get_num_dofs_field(jfield)
+          current_extended_j = current_extended_j &
+            & + this%fes_around(jneigh)%p%num_cell_dofs_x_field(jfield)  
+        end do
+          this%extended_facevec%a(&
+            & current_extended_i:current_extended_i&
+            & + this%fes_around(ineigh)%p%get_num_dofs_field(ifield)-1,ineigh) &
+            & = facevec(&
+            & current_i:current_i&
+            & + this%fes_around(ineigh)%p%get_num_dofs_field(ifield)-1,ineigh)
+          current_i = current_i &
+            & + this%fes_around(ineigh)%p%get_num_dofs_field(ifield)
+          current_extended_i = current_extended_i &
+            & + this%fes_around(ineigh)%p%num_cell_dofs_x_field(ifield)
+      end do
+    end do
+  end do
+
+  do ineigh = 1, this%get_num_cells_around()
+    field_blocks_i => this%fes_around(ineigh)%p%get_field_blocks()
+    do jneigh = 1, this%get_num_cells_around()
+      field_blocks_j => this%fes_around(jneigh)%p%get_field_blocks()
+
+      do ifield=1, this%fes_around(ineigh)%p%get_num_fields() 
+        iblock = field_blocks_i(ifield)
+        if (ifield==1) then
+          offset = 0
+        else
+          offset = offset + this%fes_around(ineigh)%p%num_cell_dofs_x_field(ifield-1)
+        end if
+        do i_lid=1, this%fes_around(ineigh)%p%get_num_dofs_field(ifield)
+          i_gid = this%fes_around(ineigh)%p%fe_dofs(ifield)%p(i_lid)
+          ! i is a hanging DoF?
+          if ( this%fes_around(ineigh)%p%is_hanging_dof(i_gid) ) then
+            ! Traverse constraining free DoFs of i
+            i_gid_hanging = abs(i_gid) - this%fes_around(ineigh)%p%fe_space%num_dirichlet_dofs
+            spos = this%fes_around(ineigh)%p%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging)
+            epos = this%fes_around(ineigh)%p%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging+1)-1
+            do pos=spos, epos 
+            k_gid = this%fes_around(ineigh)%p%fe_space%constraining_free_dofs%get(pos)
+            weight= this%fes_around(ineigh)%p%fe_space%constraining_free_dofs_coefficients%get(pos)
+            k_lid = this%fes_around(ineigh)%p%gid_to_lid_map(iblock)%a(k_gid)
+            ! free dofs, add the hanging dof row * weighting in the free dof row (for extended elmat and elvec)
+            this%extended_facemat%a(k_lid+offset,:,ineigh,jneigh) = &
+              & this%extended_facemat%a(k_lid+offset,:,ineigh,jneigh) &
+              & + weight*this%extended_facemat%a(i_lid+offset,:,ineigh,jneigh)
+            this%extended_facevec%a(k_lid+offset,ineigh) = &
+              & this%extended_facevec%a(k_lid+offset,ineigh) &
+              & + weight*this%extended_facevec%a(i_lid+offset,ineigh)
+            end do
+          end if
+        end do
+      end do
+
+      ! Idem for columns
+      do ifield=1, this%fes_around(jneigh)%p%get_num_fields() 
+        iblock = field_blocks_j(ifield)
+        if (ifield==1) then
+          offset = 0
+        else
+          offset = offset + this%fes_around(jneigh)%p%num_cell_dofs_x_field(ifield-1)
+        end if
+        do i_lid=1, this%fes_around(jneigh)%p%get_num_dofs_field(ifield)
+          i_gid = this%fes_around(jneigh)%p%fe_dofs(ifield)%p(i_lid)
+          ! i is a hanging DoF?
+          if ( this%fes_around(jneigh)%p%is_hanging_dof(i_gid) ) then
+            ! Traverse constraining free DoFs of i
+            i_gid_hanging = abs(i_gid) - this%fes_around(jneigh)%p%fe_space%num_dirichlet_dofs
+            spos = this%fes_around(jneigh)%p%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging)
+            epos = this%fes_around(jneigh)%p%fe_space%ptr_constraining_free_dofs%get(i_gid_hanging+1)-1
+            do pos=spos, epos 
+            k_gid = this%fes_around(jneigh)%p%fe_space%constraining_free_dofs%get(pos)
+            weight= this%fes_around(jneigh)%p%fe_space%constraining_free_dofs_coefficients%get(pos)
+            k_lid = this%fes_around(jneigh)%p%gid_to_lid_map(iblock)%a(k_gid)
+            ! free dofs, add the hanging dof column * weighting in the free dof column (for extended elmat and elvec)
+            this%extended_facemat%a(:,k_lid+offset,ineigh,jneigh) = &
+              & this%extended_facemat%a(:,k_lid+offset,ineigh,jneigh) &
+              & + weight*this%extended_facemat%a(:,i_lid+offset,ineigh,jneigh)
+            end do
+          end if
+        end do
+      end do
+
+    end do
+  end do
+
+  do ineigh = 1, this%get_num_cells_around()
+    call this%fes_around(ineigh)%p%clear_extended_dof_info()
+  end do
+
+end subroutine fe_facet_iterator_apply_constraints
 
 function fe_facet_iterator_get_fe_space(this)
   implicit none
