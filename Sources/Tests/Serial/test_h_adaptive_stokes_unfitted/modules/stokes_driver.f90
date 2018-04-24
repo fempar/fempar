@@ -598,6 +598,7 @@ contains
     call this%cG_integration%set_analytical_functions(this%analytical_functions)
     call this%cG_integration%set_unfitted_boundary_is_dirichlet(this%test_params%get_unfitted_boundary_is_dirichlet())
     call this%cG_integration%set_is_constant_nitches_beta(this%test_params%get_is_constant_nitches_beta())
+    call this%cG_integration%set_use_face_stabilization(this%test_params%get_use_face_stabilization())
 
     call this%fe_affine_operator%create (   sparse_matrix_storage_format      = csr_format,                                  &
                                             diagonal_blocks_symmetric_storage = [ .true. ],                               &

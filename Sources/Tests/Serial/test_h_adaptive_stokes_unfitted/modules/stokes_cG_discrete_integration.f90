@@ -47,11 +47,13 @@ module stokes_cG_discrete_integration_names
      type(fe_function_t)                          , pointer :: fe_function => NULL()    
      logical :: unfitted_boundary_is_dirichlet = .true.
      logical :: is_constant_nitches_beta       = .false.
+     logical :: use_face_stabilization = .false.
    contains
      procedure :: set_analytical_functions
      procedure :: set_fe_function
      procedure :: set_unfitted_boundary_is_dirichlet
      procedure :: set_is_constant_nitches_beta
+     procedure :: set_use_face_stabilization
      procedure :: integrate_galerkin
   end type stokes_cG_discrete_integration_t
 
@@ -82,6 +84,14 @@ contains
      logical, intent(in) :: is_constant
      this%is_constant_nitches_beta = is_constant
   end subroutine set_is_constant_nitches_beta
+
+!========================================================================================
+  subroutine set_use_face_stabilization ( this, use_face_stabilization )
+     implicit none
+     class(stokes_cG_discrete_integration_t)    , intent(inout) :: this
+     logical, intent(in) :: use_face_stabilization
+     this%use_face_stabilization = use_face_stabilization
+  end subroutine set_use_face_stabilization
 
 !========================================================================================
   subroutine set_fe_function (this, fe_function)
@@ -149,6 +159,13 @@ contains
     integer(ip), parameter :: Npo = 20
     integer(ip) :: print_points(Npo)
 
+    real(rp), allocatable :: facemat(:,:,:,:), facevec(:,:)
+    real(rp), allocatable, target :: shape_values_first(:,:), shape_values_second(:,:)
+    real(rp), pointer :: shape_values_ineigh(:,:),shape_values_jneigh(:,:)
+    real(rp) :: h_length
+    integer(ip) :: ineigh
+    integer(ip) :: jneigh
+
     !class(scalar_function_t) , pointer      :: exact_sol
     !type(piecewise_cell_map_t) , pointer :: pw_cell_map
     !real(rp)            , allocatable  :: boundary_shape_values(:,:)
@@ -180,6 +197,10 @@ contains
     num_dofs = fe_space%get_max_num_dofs_on_a_cell()
     call memalloc ( num_dofs, num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( num_dofs, elvec, __FILE__, __LINE__ )
+
+    call memalloc ( num_dofs, num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
+    call memalloc ( num_dofs,              2, facevec, __FILE__, __LINE__ )
+
 
     triangulation => fe_space%get_triangulation()
     ncells = triangulation%get_num_cells()
@@ -326,10 +347,73 @@ contains
 
     end do
 
-    ! Integrate Neumann boundary conditions
     call fe_space%create_fe_facet_iterator(fe_facet)
 
+    if (this%use_face_stabilization) then
+      ! Integrate face stabilization terms
+      write(*,*) 'Computing face stabilization ...'
+      do while ( .not. fe_facet%has_finished() ) 
+
+        quad            => fe_facet%get_quadrature()
+        num_quad_points = quad%get_num_quadrature_points()
+
+        if ( fe_facet%is_at_field_interior(1) ) then
+
+          call fe_facet%update_integration()    
+          call fe_facet%get_values(1,shape_values_first , P_FIELD_ID)
+          call fe_facet%get_values(2,shape_values_second, P_FIELD_ID)
+
+          facemat(:,:,:,:) = 0.0_rp
+          facevec(:,:) = 0.0_rp
+          do qpoint = 1, num_quad_points
+
+            call fe_facet%get_normals(qpoint,normals)
+            h_length = fe_facet%compute_characteristic_length(qpoint)
+            dS = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+
+            do ineigh = 1, fe_facet%get_num_cells_around()
+              if (ineigh==1) then
+                shape_values_ineigh    => shape_values_first
+              else if (ineigh==2) then
+                shape_values_ineigh    => shape_values_second
+              end if
+
+              do jneigh = 1, fe_facet%get_num_cells_around()
+
+                if (jneigh==1) then
+                  shape_values_jneigh    => shape_values_first
+                else if (jneigh==2) then
+                  shape_values_jneigh    => shape_values_second
+                end if
+
+                do idof_p = 1, fe_facet%get_num_dofs_field(ineigh,P_FIELD_ID)
+                  idof = idof_p + fe_facet%get_num_dofs_field(ineigh,U_FIELD_ID)
+                  do jdof_p = 1, fe_facet%get_num_dofs_field(jneigh,P_FIELD_ID)
+                    jdof = jdof_p + fe_facet%get_num_dofs_field(jneigh,U_FIELD_ID) 
+                    facemat(idof,jdof,ineigh,jneigh) = facemat(idof,jdof,ineigh,jneigh) +     &
+                      & dS * h_length &
+                      & * shape_values_jneigh(jdof_p,qpoint) &
+                      & * shape_values_ineigh(idof_p,qpoint) &
+                      & * normals(ineigh)*normals(jneigh) 
+                  end do
+                end do
+
+              end do
+            end do
+
+          end do
+
+          call fe_facet%assembly( facemat, facevec, assembler )
+        end if
+
+        call fe_facet%next()
+      end do
+      write(*,*) 'Computing face stabilization ... OK'
+    end if
+
+    ! Integrate Neumann boundary conditions
     ! Loop in faces
+    call fe_facet%first()
     do while ( .not. fe_facet%has_finished() )
 
       ! Skip faces that are not in the Neumann boundary
@@ -350,8 +434,8 @@ contains
       call fe_facet%get_values(1,shape_values_u,U_FIELD_ID)
 
       ! Compute element vector
-      elmat = 0.0_rp
-      elvec = 0.0_rp
+      facemat(:,:,:,:) = 0.0_rp
+      facevec(:,:) = 0.0_rp
       do qpoint = 1, num_quad_points
 
         dS = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
@@ -361,15 +445,13 @@ contains
 
         do idof_u = 1, fe_facet%get_num_dofs_field(1,U_FIELD_ID)
            idof = idof_u
-           elvec(idof) = elvec(idof) + dS * ( viscosity * exact_sol_gradient_u * shape_values_u(idof_u,qpoint) )*normals(1)
-           elvec(idof) = elvec(idof) + dS * ( exact_sol_value_p * shape_values_u(idof_u,qpoint) )*normals(1)
+           facevec(idof,1) = facevec(idof,1) + dS * ( viscosity * exact_sol_gradient_u * shape_values_u(idof_u,qpoint) )*normals(1)
+           facevec(idof,1) = facevec(idof,1) + dS * ( exact_sol_value_p * shape_values_u(idof_u,qpoint) )*normals(1)
         end do
 
       end do
 
-      ! We need to use the fe for assembly in order to apply the constraints
-      call fe_facet%get_cell_around(1,fe)
-      call fe%assembly(elmat, elvec, assembler )
+      call fe_facet%assembly( facemat, facevec, assembler )
 
       call fe_facet%next()
     end do
@@ -395,6 +477,16 @@ contains
 
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
+    call memfree ( facemat, __FILE__, __LINE__ )
+    call memfree ( facevec, __FILE__, __LINE__ )
+
+    if (allocated(shape_values_first)) then
+      call memfree(shape_values_first, __FILE__, __LINE__) 
+    end if
+
+    if (allocated(shape_values_second)) then
+      call memfree(shape_values_second, __FILE__, __LINE__) 
+    end if
 
     call fe_space%free_fe_cell_iterator(fe)
 
