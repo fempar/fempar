@@ -571,9 +571,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   ! Set nodes on vertices (with id = id of the vertex)
   call cell%first()
   do while ( .not. cell%has_finished() )
-     if ( cell%is_local() ) then
-       call cell%fill_nodes_on_vertices()
-     end if  
+     call cell%fill_nodes_on_vertices()
      call cell%next()
   end do
   this%num_nodes=this%num_vertices
