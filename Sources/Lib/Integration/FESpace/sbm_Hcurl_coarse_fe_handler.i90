@@ -466,7 +466,7 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
 
      ! Initialize with identity for interface DoFs not found in coarse edges 
      call fill_identity_part() 
-     call this%build_basis_dof_correspondence(par_fe_space) 
+     call this%fill_fe_dofs_new_basis(par_fe_space) 
      
      ! Build change of basis with Discrete Gradient terms 
      call this%compute_interface_discrete_gradient(par_fe_space) 
@@ -637,7 +637,7 @@ subroutine Hcurl_l1_compute_edge_discrete_gradient_elmat(this, par_fe_space, elm
 
 end subroutine Hcurl_l1_compute_edge_discrete_gradient_elmat
 
-subroutine Hcurl_l1_build_basis_dof_correspondence( this, par_fe_space ) 
+subroutine Hcurl_l1_fill_fe_dofs_new_basis( this, par_fe_space ) 
   ! Build FE dofs info for DoFs in the New basis over the vefs that 
   ! belong to coarse subedges. Further, each coarse subedge has one DoF 
   ! in the new basis playing the role of average function along the coarse 
@@ -647,41 +647,39 @@ subroutine Hcurl_l1_build_basis_dof_correspondence( this, par_fe_space )
   class(Hcurl_l1_coarse_fe_handler_t) , intent(inout)    :: this 
   type(par_fe_space_t)                , intent(inout)    :: par_fe_space
 
-  integer(ip)               :: iedge, shared_dof 
-  integer(ip)               :: coarse_subedge_id 
-  type(list_iterator_t)     :: coarse_subedge_iterator
-  type(list_iterator_t)     :: fine_edge_iterator
-  type(fe_vef_iterator_t)   :: edge
-
-  ! Derived types to count involved FEs 
-  integer(ip) , allocatable               :: dofs_old_basis(:)
-  class(reference_fe_t), pointer          :: ref_fe_geo 
-  type(hex_lagrangian_reference_fe_t)     :: lagrangian_fe 
+  ! Iterators 
+  type(list_iterator_t)                   :: coarse_subedge_iterator
+  type(list_iterator_t)                   :: fine_edge_iterator
+  class(fe_cell_iterator_t), allocatable  :: fe
+  type(fe_vef_iterator_t)                 :: vef
+  type(fe_vef_iterator_t)                 :: vertex 
+  type(fe_object_iterator_t)              :: object
+  type(list_t), pointer                   :: nodes_n_face
+  type(list_iterator_t)                   :: nodes_in_vef_iterator
+  type(list_t), pointer                   :: vertices_of_line
+  type(list_iterator_t)                   :: vertices_of_line_iterator
+  ! Auxiliar variables to run 
+  integer(ip)                             :: ivef_within_object 
   integer(ip)                             :: num_fes 
   integer(ip)                             :: ielem, idof 
   integer(ip)                             :: fe_lid, vef_lid 
-  type(fe_object_iterator_t)              :: object 
-  type(fe_vef_iterator_t)                 :: vef
-  class(fe_cell_iterator_t), allocatable  :: fe 
-  integer(ip)                             :: ivef_within_object 
-  type(list_t), pointer                   :: nodes_n_face
-  type(list_iterator_t)                   :: nodes_in_vef_iterator 
-  type(hash_table_ip_ip_t)                :: visited_fes
-
-  type(list_t), pointer                  :: vertices_of_edge
-  type(list_iterator_t)                  :: vertices_of_edge_iterator
-  integer(ip)                            :: orientation 
-
+  integer(ip)                             :: vertex_lid 
+  integer(ip) , allocatable               :: dofs_old_basis(:)
+  integer(ip)                             :: dof_id
+  integer(ip)                             :: orientation
+  ! Reference_fes 
+  class(reference_fe_t), pointer          :: ref_fe_geo
+  type(hex_lagrangian_reference_fe_t)     :: lagrangian_fe    
+  
   integer(ip) :: istat 
 
-
-  call par_fe_space%create_fe_vef_iterator(edge)
   call memalloc( this%order, dofs_old_basis, __FILE__, __LINE__ ) 
   call memalloc( this%subedges_x_coarse_edge%get_size(), this%edge_average_dof_id, __FILE__, __LINE__ )
   call this%g2l_fes%init( 3*this%sorted_fine_edges_in_coarse_subedge%get_size() )
 
   call par_fe_space%create_fe_object_iterator(object)
   call par_fe_space%create_fe_vef_iterator(vef) 
+  call par_fe_space%create_fe_vef_iterator(vertex)
   call par_fe_space%create_fe_cell_iterator(fe)
 
   call lagrangian_fe%create(topology    = topology_hex,         &
@@ -719,9 +717,7 @@ subroutine Hcurl_l1_build_basis_dof_correspondence( this, par_fe_space )
   coarse_subedge_iterator =  this%subedges_x_coarse_edge%create_iterator() 
   do while ( .not. coarse_subedge_iterator%is_upper_bound() )
      fine_edge_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator(coarse_subedge_iterator%get_current())
-     call visited_fes%init( fine_edge_iterator%get_size() ) 
 
-     shared_dof=0
      do while ( .not. fine_edge_iterator%is_upper_bound() ) 
         call vef%set_gid( fine_edge_iterator%get_current() )
 
@@ -729,83 +725,98 @@ subroutine Hcurl_l1_build_basis_dof_correspondence( this, par_fe_space )
         do ielem=1, vef%get_num_cells_around() 
            call vef%get_cell_around(ielem, fe) 
            if ( fe%is_local() ) then 
-              call visited_fes%put( key=fe%get_gid(), val=1, stat=istat); 
-              if (istat==now_stored) then 
-                 call this%g2l_fes%get( key=fe%get_gid(), val=fe_lid, stat=istat); check(istat==key_found) 
-                 vef_lid = fe%get_vef_lid_from_gid( vef%get_gid() )
-                 call this%get_dofs_from_vef(par_fe_space, vef, dofs_old_basis)
-                 nodes_in_vef_iterator = nodes_n_face%create_iterator(vef_lid)
+              call this%g2l_fes%get( key=fe%get_gid(), val=fe_lid, stat=istat); check(istat==key_found) 
+              vef_lid = fe%get_vef_lid_from_gid( vef%get_gid() )
+              call this%get_dofs_from_vef(par_fe_space, vef, dofs_old_basis)
+              nodes_in_vef_iterator = nodes_n_face%create_iterator(vef_lid)
 
-                 call this%fine_edge_direction%get( key=vef%get_gid(), val=orientation, stat=istat); check(istat==key_found)
-                 select case  (orientation) 
-                 case ( same_as_coarse_edge ) 
-                    this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = shared_dof 
+              call this%fine_edge_direction%get( key=vef%get_gid(), val=orientation, stat=istat); check(istat==key_found)
+              select case  (orientation) 
+              case ( same_as_coarse_edge ) 
+                 call nodes_in_vef_iterator%next() 
+
+                 idof=0 
+                 do while ( .not. nodes_in_vef_iterator%is_upper_bound() ) 
+                    idof=idof+1
+                    this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = dofs_old_basis(idof) 
                     call nodes_in_vef_iterator%next() 
-                    shared_dof = dofs_old_basis(this%order) 
+                 end do
 
-                    idof=0 
-                    do while ( .not. nodes_in_vef_iterator%is_upper_bound() ) 
-                       idof=idof+1
-                       this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = dofs_old_basis(idof) 
-                       call nodes_in_vef_iterator%next() 
-                    end do
-
-                    if ( fine_edge_iterator%get_distance_to_upper_bound()==1 ) then 
-                       call nodes_in_vef_iterator%previous() 
-                       this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = 0 
-                       this%edge_average_dof_id(coarse_subedge_iterator%get_current()) = dofs_old_basis(this%order)
-                    end if
-
-                 case ( opposite_to_coarse_edge ) 
-
-                    call nodes_in_vef_iterator%end() 
-                    this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = shared_dof 
+                 if ( fine_edge_iterator%get_distance_to_upper_bound()==1 ) then 
                     call nodes_in_vef_iterator%previous() 
-                    shared_dof = dofs_old_basis(this%order) 
+                    this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = 0 
+                    this%edge_average_dof_id(coarse_subedge_iterator%get_current()) = dofs_old_basis(this%order)
+                 end if
 
-                    idof=0 
-                    do while ( .not. nodes_in_vef_iterator%is_lower_bound() ) 
-                       idof=idof+1
-                       this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = dofs_old_basis(idof) 
-                       call nodes_in_vef_iterator%previous() 
-                    end do
+              case ( opposite_to_coarse_edge ) 
+                 ! Backwards run over DoFs 
+                 call nodes_in_vef_iterator%end() 
+                 call nodes_in_vef_iterator%previous() 
 
-                    if ( fine_edge_iterator%get_distance_to_upper_bound()==1 ) then 
-                       call nodes_in_vef_iterator%next() 
-                       this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = 0 
-                       this%edge_average_dof_id(coarse_subedge_iterator%get_current()) = dofs_old_basis(this%order)
-                    end if
+                 idof=0 
+                 do while ( .not. nodes_in_vef_iterator%is_lower_bound() ) 
+                    idof=idof+1
+                    this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = dofs_old_basis(idof) 
+                    call nodes_in_vef_iterator%previous() 
+                 end do
 
-                 case default 
-                    massert(.false., 'Fine edge orientation not defined w.r.t coarse edge') 
-                 end select
+                 if ( fine_edge_iterator%get_distance_to_upper_bound()==1 ) then 
+                    call nodes_in_vef_iterator%next() 
+                    this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = 0 
+                    this%edge_average_dof_id(coarse_subedge_iterator%get_current()) = dofs_old_basis(this%order)
+                 end if
 
+              case default 
+                 massert(.false., 'Fine edge orientation not defined w.r.t coarse edge') 
+              end select
 
-              end if
            end if
         end do
 
-        ! Extend FE DoF generated info to cells that only share a (already numbered) vertex with current Coarse Edge 
+        ! Extend downstream vertex ( in the sense of Coarse Edge flow ) DoF info to all neighbour FEs 
+        ref_fe_geo                => fe%get_reference_fe_geo()
+        vertices_of_line          => ref_fe_geo%get_vertices_n_face() 
+        vertices_of_line_iterator = vertices_of_line%create_iterator(vef_lid)
 
+        if (orientation==same_as_coarse_edge) then  
+           call vertices_of_line_iterator%next() 
+        end if
+
+        ! Recover already assigned DoF id 
+        nodes_in_vef_iterator = nodes_n_face%create_iterator(vertices_of_line_iterator%get_current())
+        massert(nodes_in_vef_iterator%get_size()==1, 'H(curl) BDDC: number of nodes on top of a vertex must be 1')
+        dof_id = this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() )
+
+        ielem=0
+        do while ( .not. fe%is_local() ) 
+           ielem=ielem+1 
+           call vef%get_cell_around(ielem, fe) 
+        end do
+
+        ! Assign to neighbour cells 
+        call fe%get_vef(vertices_of_line_iterator%get_current(), vertex )
+        do ielem=1, vertex%get_num_cells_around() 
+           call vertex%get_cell_around(ielem, fe) 
+           if ( fe%is_local() ) then 
+              vertex_lid = fe%get_vef_lid_from_gid(vertex%get_gid())
+              nodes_in_vef_iterator = nodes_n_face%create_iterator(vertex_lid)
+              call this%g2l_fes%get( key=fe%get_gid(), val=fe_lid, stat=istat); check(istat==key_found) 
+              this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = dof_id 
+           end if
+        end do
 
         call fine_edge_iterator%next() 
      end do
      call coarse_subedge_iterator%next() 
   end do
 
-  do ielem = 1, size(this%fe_dofs_new_basis,1) 
-     WRITE(*,*) this%fe_dofs_new_basis(ielem,:)
-     WRITE(*,*) '*****************************'
-  end do
-
-  call par_fe_space%free_fe_vef_iterator(edge) 
   call memfree(dofs_old_basis, __FILE__, __LINE__ )
-
   call par_fe_space%free_fe_object_iterator(object)   
   call par_fe_space%free_fe_vef_iterator(vef) 
+  call par_fe_space%free_fe_vef_iterator(vertex)
   call par_fe_space%free_fe_cell_iterator(fe)
   call lagrangian_fe%free()
-end subroutine Hcurl_l1_build_basis_dof_correspondence
+end subroutine Hcurl_l1_fill_fe_dofs_new_basis
 
 !===============================================================================================
 subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
@@ -928,7 +939,7 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
               reference_fe     => fe%get_reference_fe(this%field_id) 
               nodes_in_edge_iterator = nodes_n_face%create_iterator(edge_lid)
               
-              ! Edges related stuff 
+              ! Edges related Nedelec DoFs 
               do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
                    reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
 
@@ -991,7 +1002,7 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
               end do
               
               
-              ! Facets related stuff 
+              ! Facets related Nedelec DoFs  
               if ( this%order > 1 ) then 
                  do face_id = reference_fe%get_first_facet_id(), reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
 

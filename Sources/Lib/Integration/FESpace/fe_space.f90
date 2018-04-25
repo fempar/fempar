@@ -1079,7 +1079,7 @@ module fe_space_names
 				integer(ip)                             :: num_interior_dofs
 				integer(ip)                             :: num_total_dofs 
 				
-    ! DoF correspondence new basis 
+    ! DoF old-new basis correspondence 
     type(hash_table_ip_ip_t)                :: g2l_fes
     integer(ip), allocatable                :: fe_dofs_new_basis(:,:) 
     integer(ip), allocatable                :: edge_average_dof_id(:) 
@@ -1092,8 +1092,8 @@ module fe_space_names
 	   
   contains
     ! New tools 
+    procedure                           :: fill_fe_dofs_new_basis                        => Hcurl_l1_fill_fe_dofs_new_basis
     procedure, non_overridable, private :: compute_interface_discrete_gradient           => Hcurl_l1_compute_interface_discrete_gradient
-    procedure                           :: build_basis_dof_correspondence                => Hcurl_l1_build_basis_dof_correspondence
     ! Overriding procedures 
     procedure                           :: free                                          => Hcurl_l1_free
 				procedure                           :: setup_tools                                   => Hcurl_l1_setup_tools 
