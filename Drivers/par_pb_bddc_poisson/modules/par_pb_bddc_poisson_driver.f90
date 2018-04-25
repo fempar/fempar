@@ -461,7 +461,8 @@ contains
             box_width = 1.0_rp/nchannel_x_direction(1)
             mesh_size = 1.0_rp/num_cells_x_dir(1)
             half_channel_width = size_sub_object*mesh_size/2.0_rp
-            center = int(box_width/(2*mesh_size))*mesh_size
+            !center = int(box_width/(2*mesh_size))*mesh_size
+            center = half_channel_width
             do j=1, nchannel_x_direction(1)
                px1(j)=center - half_channel_width-eps 
                px2(j)=center + half_channel_width+eps  
@@ -469,7 +470,8 @@ contains
             enddo
             call memalloc(nchannel_x_direction(2), py1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(2), py2, __FILE__, __LINE__ )
-            center = int(box_width/(2*mesh_size))*mesh_size
+            !center = int(box_width/(2*mesh_size))*mesh_size
+            center = half_channel_width
             do j=1, nchannel_x_direction(2)
                py1(j)=center - half_channel_width - eps 
                py2(j)=center + half_channel_width + eps  
@@ -477,7 +479,8 @@ contains
             enddo
             call memalloc(nchannel_x_direction(3), pz1, __FILE__, __LINE__ )
             call memalloc(nchannel_x_direction(3), pz2, __FILE__, __LINE__ )
-            center = int(box_width/(2*mesh_size))*mesh_size
+            !center = int(box_width/(2*mesh_size))*mesh_size
+            center = half_channel_width
             do j=1, nchannel_x_direction(3)
                pz1(j)=center - half_channel_width - eps
                pz2(j)=center + half_channel_width + eps 
@@ -513,7 +516,7 @@ contains
                if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
-         if ( cell_set_id /= 1 ) cell_set_id = 2
+         !if ( cell_set_id /= 1 ) cell_set_id = 2
       end if
 
     end function cell_set_id
