@@ -1080,8 +1080,8 @@ module fe_space_names
 				integer(ip)                             :: num_total_dofs 
 				
     ! DoF correspondence new basis 
-    type(hash_table_ip_ip_t)                :: g2l_fine_edge 
-    integer(ip), allocatable                :: edge_to_new_basis_dof(:,:) 
+    type(hash_table_ip_ip_t)                :: g2l_fes
+    integer(ip), allocatable                :: fe_dofs_new_basis(:,:) 
     integer(ip), allocatable                :: edge_average_dof_id(:) 
     
 	   type(hash_table_ip_ip_t)                :: fine_edge_direction
