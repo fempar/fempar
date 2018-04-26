@@ -1094,6 +1094,7 @@ module fe_space_names
     ! New tools 
     procedure                           :: fill_fe_dofs_new_basis                        => Hcurl_l1_fill_fe_dofs_new_basis
     procedure, non_overridable, private :: compute_interface_discrete_gradient           => Hcurl_l1_compute_interface_discrete_gradient
+    procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis => Hcurl_l1_fill_average_tangent_function_change_of_basis
     ! Overriding procedures 
     procedure                           :: free                                          => Hcurl_l1_free
 				procedure                           :: setup_tools                                   => Hcurl_l1_setup_tools 

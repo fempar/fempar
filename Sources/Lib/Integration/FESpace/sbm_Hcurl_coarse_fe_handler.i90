@@ -430,11 +430,17 @@ subroutine Hcurl_l1_compute_subedges_info(this, par_fe_space)
   integer(ip)             , allocatable     :: num_fine_edges_x_coarse_edge(:)
   type(hash_table_ip_ip_t), allocatable     :: edge_interior_vertices(:)
 
-  ! Count and sort fine edges within every coarse edge, split them if necessary 
-  call this%count_coarse_edges_and_owned_fine_edges( par_fe_space, num_coarse_edges, num_fine_edges_x_coarse_edge, edge_interior_vertices  )	
+  ! Count fine edges within every coarse edge 
+  call this%count_coarse_edges_and_owned_fine_edges( par_fe_space,                 &
+                                                     num_coarse_edges,             & 
+                                                     num_fine_edges_x_coarse_edge, & 
+                                                     edge_interior_vertices  )	
 
-  ! Fill sorted edges list 
-  call this%fill_coarse_subedges_and_owned_fine_edges( par_fe_space, num_coarse_edges, num_fine_edges_x_coarse_edge, edge_interior_vertices  )
+  ! Fill sorted edges list, split them into subedges if necessary
+  call this%fill_coarse_subedges_and_owned_fine_edges( par_fe_space,               & 
+                                                      num_coarse_edges,            & 
+                                                      num_fine_edges_x_coarse_edge,& 
+                                                      edge_interior_vertices  )
 
 end subroutine Hcurl_l1_compute_subedges_info
 
@@ -464,12 +470,15 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
                                                      is_symmetric     =.false.,                                       &
                                                      sign             = SPARSE_MATRIX_SIGN_UNKNOWN )
 
-     ! Initialize with identity for interface DoFs not found in coarse edges 
-     call fill_identity_part() 
+     ! Build DoF correspondence among old-new basis
      call this%fill_fe_dofs_new_basis(par_fe_space) 
+
+     ! Build change of basis 
+     call fill_identity_part()
+     call this%compute_interface_discrete_gradient(par_fe_space)
+     call this%fill_average_tangent_function_change_of_basis(par_fe_space)
      
-     ! Build change of basis with Discrete Gradient terms 
-     call this%compute_interface_discrete_gradient(par_fe_space) 
+     ! Old routines 
      call this%compute_edge_discrete_gradient_elmat(par_fe_space, edge_elmat)  
      call this%fill_edge_local_change_of_basis(par_fe_space, edge_elmat)
      call this%fill_edge_coupled_to_edges_local_change_of_basis(par_fe_space, edge_elmat)
@@ -825,44 +834,19 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
   type(par_fe_space_t)                  , intent(inout)    :: par_fe_space 
 
   class(reference_fe_t), pointer          :: reference_fe 
-  type(fe_vef_iterator_t)                 :: edge, edge_in_cell 
+
+  type(fe_vef_iterator_t)                 :: edge_in_cell 
   class(fe_cell_iterator_t), allocatable  :: fe
-  class(fe_facet_iterator_t), allocatable :: fe_face 
-  integer(ip)             , pointer       :: fe_dofs(:)
-  type(list_t), pointer                  :: nodes_in_edge
-  type(list_iterator_t)                  :: nodes_in_edge_iterator
-  type(hex_nedelec_reference_fe_t)       :: Nedelec_fe_2D
-  type(hex_lagrangian_reference_fe_t)    :: lagrangian_fe
+  type(hex_lagrangian_reference_fe_t)     :: lagrangian_fe
+  integer(ip)                             :: ielem
+  integer(ip)                             :: facet_gid, iface  
+  integer(ip)                             :: edge_id, face_id 
+  integer(ip)                             :: fe_lid 
+  ! Common integration 
+  integer(ip)                            :: dof_new_basis 
+  integer(ip), allocatable               :: dofs_old_basis(:)
   type(interpolation_t)                  :: Lagrangian_interpolation_ref
   type(interpolation_t)                  :: Lagrangian_interpolation_phy 
-  type(interpolation_t)                  :: Nedelec_interpolation
-  real(rp), allocatable                  :: elmat(:,:), facet_elmat(:,:) 
-  integer(ip)                            :: ielem, iface_around_edge
-  integer(ip)                            :: fine_edge, vef_lid, inode
-  integer(ip)                            :: edge_lid 
-
-  type(list_iterator_t)     :: coarse_subedge_iterator
-  type(list_iterator_t)     :: fine_edge_iterator
-  integer(ip)               :: num_fine_edges_in_subedge 
-  integer(ip)               :: orientation
-  integer(ip)               :: isubedge_coarse
-  integer(ip)               :: num_nedelec_dofs_x_face 
-
-  type(list_t), pointer :: nodes_n_face
-  integer(ip)           :: facet_gid, face_id, iface  
-  integer(ip)           :: edge_id 
-  real(rp)              :: sign_factor 
-
-  type(quadrature_t)                     :: edge_quadrature
-  type(hex_lagrangian_reference_fe_t)    :: fe_1D_reduced_order
-  type(interpolation_t)                  :: interpolation_1D_reduced_order 
-  integer(ip)                            :: reference_fe_id, fe_lid 
-
-  type(hash_table_ip_ip_t)               :: visited_vefs 
-  integer(ip)                            :: dof_new_basis 
-  integer(ip), allocatable               :: dofs_old_basis(:), dofs_new_basis(:) 
-  integer(ip)                            :: istat 
-  ! Common integration 
   integer(ip)                            :: qpoint, ishape, jshape
   integer(ip)                            :: idof, jdof 
   type(cell_map_t), pointer              :: cell_map 
@@ -871,18 +855,35 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
   real(rp)                               :: shape_test 
   type(vector_field_t)                   :: grad_shape_trial 
   ! Edge Discrete Gradient integration 
-  type(edge_map_t)                       :: edge_map 
-  type(point_t), pointer                 :: edge_map_coordinates(:)
-  type(vector_field_t)                   :: tangent
+  type(quadrature_t)                      :: edge_quadrature
+  type(hex_lagrangian_reference_fe_t)     :: fe_1D_reduced_order
+  type(interpolation_t)                   :: interpolation_1D_reduced_order 
+  type(edge_map_t)                        :: edge_map 
+  type(point_t), pointer                  :: edge_map_coordinates(:)
+  type(vector_field_t)                    :: tangent
+  real(rp), allocatable                   :: elmat(:,:)
   ! Faces Discrete Gradient integration 
+  type(hex_nedelec_reference_fe_t)        :: Nedelec_fe_2D
+  type(interpolation_t)                   :: Nedelec_interpolation
+  class(fe_facet_iterator_t), allocatable :: fe_face
+  integer(ip)                             :: num_nedelec_dofs_x_face 
+  real(rp), allocatable                   :: facet_elmat(:,:) 
+  ! Runs by object 
+  type(fe_object_iterator_t)             :: object
+  integer(ip)                            :: ivef_within_object  
+  type(fe_vef_iterator_t)                :: vef_within_object
+  integer(ip)                            :: vef_lid 
+  type(list_iterator_t)                  :: own_dofs_iterator 
+  integer(ip)                            :: istat 
+  type(hash_table_ip_ip_t)               :: visited_vefs
 
   call par_fe_space%set_up_facet_integration()
+  call par_fe_space%create_fe_object_iterator(object)
   call par_fe_space%create_fe_facet_iterator(fe_face)
   call par_fe_space%create_fe_cell_iterator(fe) 
-  call par_fe_space%create_fe_vef_iterator(edge)
+  call par_fe_space%create_fe_vef_iterator(vef_within_object)
   call par_fe_space%create_fe_vef_iterator(edge_in_cell)
   num_nedelec_dofs_x_face = 2*this%order*(this%order-1)
-
   reference_fe => par_fe_space%get_reference_fe(this%field_id)
 
   ! Create a 1D scalar lagrangian reference FE of order k-1
@@ -908,195 +909,223 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
   call lagrangian_fe%create_edge_quadrature( edge_quadrature )
   call fe_1D_reduced_order%create_interpolation( edge_quadrature, interpolation_1D_reduced_order )
   call edge_map%create( edge_quadrature, fe%get_reference_fe_geo() )
-
   ! Face related moments 
   call Nedelec_fe_2D%create_interpolation( fe_face%get_quadrature(), Nedelec_interpolation )
 
-  nodes_n_face           => lagrangian_fe%get_dofs_n_face() 	
   call memalloc( this%order,              this%order+1, elmat,       __FILE__, __LINE__ )
   call memalloc( num_nedelec_dofs_x_face, this%order+1, facet_elmat, __FILE__, __LINE__ )
-  call memalloc( this%order,   dofs_old_basis, __FILE__, __LINE__ ) 
-  call memalloc( this%order+1, dofs_new_basis, __FILE__, __LINE__ )
+
+  do while ( .not. object%has_finished() )
+     if ( object%get_dim() /= 1 ) then 
+        call object%next(); cycle 
+     end if
+
+     do ivef_within_object=1, object%get_num_vefs()
+        call object%get_vef(ivef_within_object, vef_within_object)
+        call visited_vefs%init( fe%get_num_vefs() )
+        
+        do ielem = 1, vef_within_object%get_num_cells_around()
+           call vef_within_object%get_cell_around(ielem, fe)                   
+           if ( .not. fe%is_local() ) cycle 
+           vef_lid = fe%get_vef_lid_from_gid( vef_within_object%get_gid() )	
+           own_dofs_iterator      =  lagrangian_fe%create_own_dofs_on_n_face_iterator(vef_lid)
+           if ( own_dofs_iterator%is_upper_bound() ) exit 
+           
+           call fe%update_integration() 
+           cell_map               => fe%get_cell_map()
+           cell_coordinates       => cell_map%get_coordinates()  
+           reference_fe           => fe%get_reference_fe(this%field_id) 
+           call fe%get_nodes_coordinates( cell_coordinates )
+           
+           ! Edges related Nedelec DoFs 
+           do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
+                reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
+
+              call edge_in_cell%set_gid( fe%get_vef_gid(edge_id) )
+              call visited_vefs%put( key=edge_in_cell%get_gid(), val=1, stat=istat )
+             if ( istat==now_stored) then 
+              if ( .not. edge_in_cell%is_at_interface() ) cycle              
+                 call edge_map%update_coordinates(edge_id, fe%get_reference_fe_geo(), cell_coordinates )
+
+                 ! Update edge_map on current edge
+                 call edge_map%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
+                      reference_fe  = fe%get_reference_fe_geo(), &
+                      quadrature    = edge_quadrature ) 
+
+                 call lagrangian_fe%create_interpolation_restricted_to_edget( edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1,   & 
+                      edge_quadrature,                                          & 
+                      lagrangian_interpolation_ref )
+
+                 ! Map of the Lagrangian shape functions on the cell 
+                 call lagrangian_interpolation_phy%copy(lagrangian_interpolation_ref)
+                 call lagrangian_fe%apply_cell_map( fe%get_cell_map (),           &
+                      lagrangian_interpolation_ref, &
+                      lagrangian_interpolation_phy  )
+
+                 elmat = 0.0_rp 
+                 do qpoint = 1, edge_quadrature%num_quadrature_points
+                    factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint) 
+                    call edge_map%get_tangent(qpoint, tangent)
+                    do ishape = 1, fe_1D_reduced_order%get_num_shape_functions() 
+                       call fe_1D_reduced_order%get_value(interpolation_1D_reduced_order, ishape, qpoint, shape_test)
+                       call own_dofs_iterator%begin() 
+                       do jshape = 1, own_dofs_iterator%get_size()
+                          call lagrangian_fe%get_gradient(lagrangian_interpolation_phy, own_dofs_iterator%get_current(), qpoint, grad_shape_trial)
+                          elmat(ishape, jshape) = elmat(ishape, jshape) + grad_shape_trial * tangent * shape_test * factor
+                          call own_dofs_iterator%next()
+                       end do
+                    end do
+                 end do
+                  
+                 ! Assemble into Change of basis Matrix  
+                 call this%get_dofs_from_vef(par_fe_space, edge_in_cell, dofs_old_basis)
+                 call this%g2l_fes%get(key=fe%get_gid(), val=fe_lid, stat=istat); check(istat==key_found)
+                 call own_dofs_iterator%begin() 
+                 do jdof=1, own_dofs_iterator%get_size() 
+                    dof_new_basis =  this%fe_dofs_new_basis(fe_lid, own_dofs_iterator%get_current() ) 
+                    do idof = 1, this%order 
+                       if ( dofs_old_basis(idof)>0 .and. dof_new_basis>0 ) then 
+                          call this%transition_change_basis_matrix%insert(ia  = dofs_old_basis(idof) - this%num_interior_dofs,  &
+                               ja  = dof_new_basis - this%num_interior_dofs,  &
+                               val = elmat(idof, jdof) )
+
+                       end if
+                    end do
+                    call own_dofs_iterator%next() 
+                 end do
+              end if 
+           end do
+
+           ! Facets related Nedelec DoFs  
+           if ( this%order > 1 ) then 
+              do face_id = reference_fe%get_first_facet_id(), reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
+
+                 ! Chapuza, need for an inverse facet_gids(fe_face_lid) to assign fe_face id ! 
+                 do iface=1, fe_face%fe_space%facet_gids%size()
+                    if (fe%get_vef_gid(face_id) == fe_face%fe_space%facet_gids%get(iface) ) then 
+                       facet_gid = iface; exit 
+                    end if
+                 end do
+
+                 call fe_face%set_gid( facet_gid )	
+                 call visited_vefs%put( key=fe_face%get_gid(), val=1, stat=istat )
+                 if ( istat==now_stored ) then 
+    
+                 if ( .not. fe_face%is_at_interface() ) cycle 
+                 call lagrangian_fe%create_interpolation_restricted_to_facet(  face_id-reference_fe%get_first_facet_id()+1,  &
+                      -1,                                           &
+                      fe_face%get_quadrature(),                     &
+                      lagrangian_interpolation_ref                 )
+
+                 call this%compute_face_discrete_gradient_elmat(fe,                            &
+                      fe_face,                       &
+                      Nedelec_fe_2D,                 &
+                      lagrangian_fe,                 &
+                      Nedelec_interpolation,         &
+                      lagrangian_interpolation_ref,  &
+                      own_dofs_iterator,             &
+                      facet_elmat)
+
+                 call this%get_dofs_from_vef(par_fe_space, fe_face, dofs_old_basis)       
+                 call this%g2l_fes%get(key=fe%get_gid(), val=fe_lid, stat=istat); check(istat==key_found)
+                 call own_dofs_iterator%begin() 
+                 do jdof = 1, own_dofs_iterator%get_size() 
+                    dof_new_basis = this%fe_dofs_new_basis(fe_lid, own_dofs_iterator%get_current() ) 
+                    do idof = 1, num_nedelec_dofs_x_face 
+                       if ( dofs_old_basis(idof)>0 .and. dof_new_basis>0 ) then
+                          call this%transition_change_basis_matrix%insert(ia       = dofs_old_basis(idof) - this%num_interior_dofs,  &
+                               ja       = dof_new_basis        - this%num_interior_dofs,  &
+                               val      = facet_elmat(idof, jdof) )
+                       end if
+                    end do
+                    call own_dofs_iterator%next() 
+                 end do
+                end if 
+              end do
+           end if
+        end do
+
+     end do
+     call object%next() 
+  end do
+
+  ! Free 
+  call visited_vefs%free()
+  call lagrangian_fe%free() 
+  call fe_1D_reduced_order%free() 
+  call Nedelec_fe_2D%free() 	  
+  
+  call Nedelec_interpolation%free() 
+  call interpolation_1D_reduced_order%free()
+  call lagrangian_interpolation_ref%free() 
+  call lagrangian_interpolation_phy%free()
+  call own_dofs_iterator%free() 
+  
+  call edge_quadrature%free() 
+  call edge_map%free()
+
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_facet_iterator(fe_face)
+  call par_fe_space%free_fe_cell_iterator(fe) 
+  call par_fe_space%free_fe_vef_iterator(vef_within_object)
+  call par_fe_space%free_fe_vef_iterator(edge_in_cell)
+  
+  call memfree(elmat, __FILE__, __LINE__ )
+  call memfree(facet_elmat, __FILE__, __LINE__ )
+  call memfree(dofs_old_basis, __FILE__, __LINE__ )
+end subroutine Hcurl_l1_compute_interface_discrete_gradient
+
+!===============================================================================================
+subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis(this, par_fe_space) 
+  ! Fill DoF playing the role of average tangent function in the new basis 
+  ! change of basis entries   
+  implicit none 
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
+  type(par_fe_space_t)                  , intent(inout)    :: par_fe_space 
+
+  type(list_iterator_t)         :: coarse_subedge_iterator
+  type(list_iterator_t)         :: fine_edge_iterator
+  type(fe_vef_iterator_t)       :: edge
+  integer(ip)                   :: idof, jdof 
+  integer(ip), allocatable      :: dofs_old_basis(:)
+  integer(ip)                   :: orientation 
+  real(rp)                      :: sign_factor 
+  integer(ip)  :: istat 
+
+  call par_fe_space%create_fe_vef_iterator(edge)
 
   coarse_subedge_iterator = this%subedges_x_coarse_edge%create_iterator() 
   do while ( .not. coarse_subedge_iterator%is_upper_bound() )
      fine_edge_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator(coarse_subedge_iterator%get_current())
-     call visited_vefs%init( 3*fine_edge_iterator%get_size() ) 
-
      do while ( .not. fine_edge_iterator%is_upper_bound() ) 
         call edge%set_gid( fine_edge_iterator%get_current() )
-                      
-        do ielem = 1, edge%get_num_cells_around()
-           call edge%get_cell_around(ielem, fe)                   
-           if ( fe%is_local() ) then 	
-              edge_lid = fe%get_vef_lid_from_gid( edge%get_gid() )	
-              reference_fe_id  =  fe%get_reference_fe_id(this%field_id)
-              call fe%update_integration() 
 
-              cell_map         => fe%get_cell_map()
-              cell_coordinates => cell_map%get_coordinates() 
-              call fe%get_nodes_coordinates( cell_coordinates ) 
-              reference_fe     => fe%get_reference_fe(this%field_id) 
-              nodes_in_edge_iterator = nodes_n_face%create_iterator(edge_lid)
-              
-              ! Edges related Nedelec DoFs 
-              do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
-                   reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
-
-                 call edge_in_cell%set_gid( fe%get_vef_gid(edge_id) )
-
-                 if ( edge_in_cell%is_at_interface() ) then 
-                    call visited_vefs%put( key=fe%get_vef_gid(edge_id), val=1, stat=istat)
-                    if ( istat==now_stored ) then                  
-                       call edge_map%update_coordinates(edge_id, fe%get_reference_fe_geo(), cell_coordinates )
-
-                       ! Update edge_map on current edge
-                       call edge_map%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
-                                            reference_fe  = fe%get_reference_fe_geo(), &
-                                            quadrature    = edge_quadrature ) 
-
-                       call lagrangian_fe%create_interpolation_restricted_to_edget( edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1,   & 
-                                                                                    edge_quadrature,                                          & 
-                                                                                    lagrangian_interpolation_ref ) 
-
-                       ! Map of the Lagrangian shape functions on the cell 
-                       call lagrangian_interpolation_phy%copy(lagrangian_interpolation_ref)
-                       call lagrangian_fe%apply_cell_map( fe%get_cell_map (),           &
-                                                          lagrangian_interpolation_ref, &
-                                                          lagrangian_interpolation_phy  )
-
-                       elmat = 0.0_rp 
-                       do qpoint = 1, edge_quadrature%num_quadrature_points
-                          factor = edge_map%get_det_jacobian(qpoint) * edge_quadrature%get_weight(qpoint) 
-                          call edge_map%get_tangent(qpoint, tangent)
-                          do ishape = 1, fe_1D_reduced_order%get_num_shape_functions() 
-                             call fe_1D_reduced_order%get_value(interpolation_1D_reduced_order, ishape, qpoint, shape_test)
-                             call nodes_in_edge_iterator%begin() 
-                             do jshape = 1, nodes_in_edge_iterator%get_size()
-                                call lagrangian_fe%get_gradient(lagrangian_interpolation_phy, nodes_in_edge_iterator%get_current(), qpoint, grad_shape_trial)
-                                elmat(ishape, jshape) = elmat(ishape, jshape) + grad_shape_trial * tangent * shape_test * factor
-                                call nodes_in_edge_iterator%next()
-                             end do
-                          end do
-                       end do
-
-                      ! Assemble into Change of basis Matrix  
-                      call this%get_dofs_from_vef(par_fe_space, edge_in_cell, dofs_old_basis)
-                      call this%g2l_fes%get(key=fe%get_gid(), val=fe_lid, stat=istat); check(istat==key_found)
-                      call nodes_in_edge_iterator%begin() 
-                      do jdof=1, nodes_in_edge_iterator%get_size() 
-                         dof_new_basis =  this%fe_dofs_new_basis(fe_lid, nodes_in_edge_iterator%get_current() ) 
-                       do idof = 1, this%order 
-                             if ( dofs_old_basis(idof)>0 .and. dof_new_basis>0 ) then 
-                                call this%transition_change_basis_matrix%insert(ia  = dofs_old_basis(idof) - this%num_interior_dofs,  &
-                                                                                ja  = dof_new_basis - this%num_interior_dofs,  &
-                                                                                val = elmat(idof, jdof) )
-                                
-                             end if
-                          end do
-                          call nodes_in_edge_iterator%next() 
-                       end do
-
-                    end if
-                 end if
-              end do
-              
-              
-              ! Facets related Nedelec DoFs  
-              if ( this%order > 1 ) then 
-                 do face_id = reference_fe%get_first_facet_id(), reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
-
-                    ! Chapuza, need for an inverse facet_gids(fe_face_lid) to assign fe_face id ! 
-                    do iface=1, fe_face%fe_space%facet_gids%size()
-                       if (fe%get_vef_gid(face_id) == fe_face%fe_space%facet_gids%get(iface) ) then 
-                          facet_gid = iface; exit 
-                       end if
-                    end do
-
-                    call fe_face%set_gid( facet_gid )	
-                    if ( fe_face%is_at_interface() ) then 
-                       call visited_vefs%put( key=fe%get_vef_gid(face_id), val=1, stat=istat); check(istat==now_stored)
-
-                       call lagrangian_fe%create_interpolation_restricted_to_facet(  face_id-reference_fe%get_first_facet_id()+1,  &
-                                                                                     -1,                                           &
-                                                                                     fe_face%get_quadrature(),                     &
-                                                                                     lagrangian_interpolation_ref                 )
-
-                       call this%compute_face_discrete_gradient_elmat(fe,                            &
-                                                                      fe_face,                       &
-                                                                      Nedelec_fe_2D,                 &
-                                                                      lagrangian_fe,                 &
-                                                                      Nedelec_interpolation,         &
-                                                                      lagrangian_interpolation_ref,  &
-                                                                      nodes_in_edge_iterator,        &
-                                                                      facet_elmat)
-                       
-                       call this%get_dofs_from_vef(par_fe_space, fe_face, dofs_old_basis)       
-                       call this%g2l_fes%get(key=fe%get_gid(), val=fe_lid, stat=istat); check(istat==key_found)
-                       call nodes_in_edge_iterator%begin() 
-                       do jdof = 1, nodes_in_edge_iterator%get_size() 
-                       dof_new_basis = this%fe_dofs_new_basis(fe_lid, nodes_in_edge_iterator%get_current() ) 
-                         do idof = 1, num_nedelec_dofs_x_face 
-                             if ( dofs_old_basis(idof)>0 .and. dof_new_basis>0 ) then
-                                call this%transition_change_basis_matrix%insert(ia       = dofs_old_basis(idof) - this%num_interior_dofs,  &
-                                                                                ja       = dof_new_basis        - this%num_interior_dofs,  &
-                                                                                val      = facet_elmat(idof, jdof) )
-                             end if
-                          end do
-                       call nodes_in_edge_iterator%next() 
-                       end do
-  
-                    end if
-                 end do
-              end if
-           end if
-        end do
-
-        ! Fill DoF playing the role of average tangent function 
-        jdof = this%edge_average_dof_id(coarse_subedge_iterator%get_current()) 
-        call this%get_dofs_from_vef(par_fe_space, edge, dofs_old_basis) 
+        call this%get_dofs_from_vef(par_fe_space, edge, dofs_old_basis)  
         call this%fine_edge_direction%get(key=edge%get_gid(), val=orientation, stat=istat); check(istat==key_found) 
-        sign_factor=1.0_rp 
-        if ( orientation == opposite_to_coarse_edge ) sign_factor = -1.0_rp 
+
+        select case ( orientation ) 
+        case ( same_as_coarse_edge ) 
+           sign_factor = 1.0_rp 
+        case ( opposite_to_coarse_edge ) 
+           sign_factor = -1.0_rp
+        case DEFAULT 
+           massert(.false., 'H(curl)BDDC: fine edge does not have an assigned direction w.r.t owner coarse edge') 
+        end select
+
+        jdof = this%edge_average_dof_id(coarse_subedge_iterator%get_current())
         do idof = 1, this%order 
-         call this%transition_change_basis_matrix%insert(ia  = dofs_old_basis(idof) - this%num_interior_dofs,  &
-                                                         ja  = jdof - this%num_interior_dofs,                  & 
-                                                         val = sign_factor )
-        end do 
-        
+           call this%transition_change_basis_matrix%insert(ia  = dofs_old_basis(idof) - this%num_interior_dofs,  &
+                ja  = jdof - this%num_interior_dofs,                  & 
+                val = sign_factor )
+        end do
         call fine_edge_iterator%next() 
      end do
-
      call coarse_subedge_iterator%next()
   end do
 
-  ! Free 
-  call lagrangian_fe%free() 
-  call fe_1D_reduced_order%free() 
-  call Nedelec_fe_2D%free() 	  
-  call Nedelec_interpolation%free() 
-
-  call interpolation_1D_reduced_order%free()
-  call lagrangian_interpolation_ref%free() 
-  call lagrangian_interpolation_phy%free()
-
-  call edge_quadrature%free() 
-  call edge_map%free()
-  call nodes_in_edge_iterator%free()
-
-  call par_fe_space%free_fe_cell_iterator(fe)
-  call par_fe_space%free_fe_vef_iterator(fe_face)	  
-  call par_fe_space%free_fe_vef_iterator(edge) 
-  call par_fe_space%free_fe_vef_iterator(edge_in_cell)
-
-  call memfree(elmat, __FILE__, __LINE__ )
-  call memfree(facet_elmat, __FILE__, __LINE__ )
-  call memfree(dofs_old_basis, __FILE__, __LINE__ )
-  call memfree(dofs_new_basis, __FILE__, __LINE__ )
-
-  call visited_vefs%free() 
-end subroutine Hcurl_l1_compute_interface_discrete_gradient
-
+  call par_fe_space%free_fe_vef_iterator(edge)
+end subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis
+  
 !===============================================================================================
 subroutine Hcurl_l1_fill_edge_local_change_of_basis(this, par_fe_space, elmat)
   implicit none 
@@ -2960,7 +2989,6 @@ subroutine choose_path_direction( par_fe_space, start_node_gid, num_fine_edges, 
      end do
 
   else
-
      ! Choose first edge from all potential first edges 
      call nodes_counter%get( key=start_node_gid, val=counter, stat=istat ); check(istat==key_found) 
      perm = (/ 2,1 /)
