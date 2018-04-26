@@ -560,6 +560,10 @@ contains
   subroutine setup_fe_space(this)
     implicit none
     class(stokes_driver_t), intent(inout) :: this
+    
+    type(interpolation_duties_t), allocatable :: interpolation_duties(:)
+    type(cell_map_duties_t) :: map_duties
+    integer(ip) :: istat
 
     integer(ip) :: set_ids_to_reference_fes(2,2) ! num_fields x void/non_void
     class(vector_function_t) , pointer :: fun_u
@@ -585,7 +589,22 @@ contains
                                conditions               = this%conditions, &
                                reference_fes            = this%reference_fes,&
                                set_ids_to_reference_fes = set_ids_to_reference_fes)
+    
+    ! Set up interpolation duties
+    allocate( interpolation_duties(this%fe_space%get_num_fields()), stat=istat); check(istat==0)
+    call interpolation_duties(U_FIELD_ID)%assign_compute_first_derivatives(.true.)
+    call interpolation_duties(U_FIELD_ID)%assign_compute_second_derivatives(.true.)
+    call interpolation_duties(P_FIELD_ID)%assign_compute_first_derivatives(.true.)
+    call interpolation_duties(P_FIELD_ID)%assign_compute_second_derivatives(.false.)
+    
+    ! Set up map duties (to support 2nd derivatives)
+    call map_duties%assign_compute_jacobian_derivative(.true.)
+    call map_duties%assign_compute_jacobian_inverse(.true.)
+    
+    call this%fe_space%set_up_cell_integration(interpolation_duties, map_duties)
     call this%fe_space%set_up_facet_integration()
+    
+    deallocate( interpolation_duties, stat=istat); check(istat==0)
     
   end subroutine setup_fe_space
   
