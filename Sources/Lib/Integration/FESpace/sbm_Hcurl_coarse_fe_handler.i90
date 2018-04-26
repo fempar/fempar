@@ -508,9 +508,7 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
      call this%change_basis_matrix%apply(x0,x) 
      call this%transition_change_basis_matrix%apply(x0,y)
      call x%axpby(1.0_rp, y, -1.0_rp)
-     if ( x%nrm2() > 1e-15_rp ) then 
      WRITE(*,*) 'NORM (Q1 - Q2)x', x%nrm2(), '(prev_alone), normQ2x', y%nrm2()
-     end if  
      call x%free()
      call y%free()
      call x0%free()
@@ -677,8 +675,8 @@ subroutine Hcurl_l1_fill_fe_dofs_new_basis( this, par_fe_space )
   integer(ip)                             :: dof_id
   integer(ip)                             :: orientation
   ! Reference_fes 
-  class(reference_fe_t), pointer          :: ref_fe_geo
-  type(hex_lagrangian_reference_fe_t)     :: lagrangian_fe    
+  class(reference_fe_t), pointer                   :: ref_fe_geo
+  class(lagrangian_reference_fe_t), allocatable    :: lagrangian_fe    
   
   integer(ip) :: istat 
 
@@ -691,11 +689,19 @@ subroutine Hcurl_l1_fill_fe_dofs_new_basis( this, par_fe_space )
   call par_fe_space%create_fe_vef_iterator(vertex)
   call par_fe_space%create_fe_cell_iterator(fe)
 
-  call lagrangian_fe%create(topology    = topology_hex,         &
-       num_dims    = 3,                    &
-       order       = this%order,           &
-       field_type  = field_type_scalar,    &
-       conformity  = .true. )
+  ref_fe_geo => fe%get_reference_fe_geo() 
+  select case ( ref_fe_geo%get_topology() )
+  case ( topology_hex ) 
+  allocate ( hex_lagrangian_reference_fe_t :: lagrangian_fe )
+  case ( topology_tet ) 
+  allocate ( tet_lagrangian_reference_fe_t :: lagrangian_fe )
+  end select 
+  
+  call lagrangian_fe%create(topology    = ref_fe_geo%get_topology(),         &
+                            num_dims    = 3,                    &
+                            order       = this%order,           &
+                            field_type  = field_type_scalar,    &
+                            conformity  = .true. )
 
   ! Count and fill g2l FEs involved in change of basis 
   fe_lid = 1 
@@ -703,7 +709,6 @@ subroutine Hcurl_l1_fill_fe_dofs_new_basis( this, par_fe_space )
      if ( object%get_dim() == 1 ) then
         do ivef_within_object=1, object%get_num_vefs()
            call object%get_vef(ivef_within_object, vef)    
-           if ( vef%get_dim() == 0) then 
               do ielem=1, vef%get_num_cells_around() 
                  call vef%get_cell_around(ielem, fe) 
                  if ( fe%is_local() ) then 
@@ -711,7 +716,6 @@ subroutine Hcurl_l1_fill_fe_dofs_new_basis( this, par_fe_space )
                     if (istat==now_stored) fe_lid = fe_lid + 1
                  end if
               end do
-           end if
         end do
      end if
      call object%next() 
@@ -726,9 +730,9 @@ subroutine Hcurl_l1_fill_fe_dofs_new_basis( this, par_fe_space )
   coarse_subedge_iterator =  this%subedges_x_coarse_edge%create_iterator() 
   do while ( .not. coarse_subedge_iterator%is_upper_bound() )
      fine_edge_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator(coarse_subedge_iterator%get_current())
-
      do while ( .not. fine_edge_iterator%is_upper_bound() ) 
         call vef%set_gid( fine_edge_iterator%get_current() )
+        call this%get_dofs_from_vef(par_fe_space, vef, dofs_old_basis)
 
         ! Fill FE_dofs info for all cells around fine edge
         do ielem=1, vef%get_num_cells_around() 
@@ -736,12 +740,12 @@ subroutine Hcurl_l1_fill_fe_dofs_new_basis( this, par_fe_space )
            if ( fe%is_local() ) then 
               call this%g2l_fes%get( key=fe%get_gid(), val=fe_lid, stat=istat); check(istat==key_found) 
               vef_lid = fe%get_vef_lid_from_gid( vef%get_gid() )
-              call this%get_dofs_from_vef(par_fe_space, vef, dofs_old_basis)
               nodes_in_vef_iterator = nodes_n_face%create_iterator(vef_lid)
 
               call this%fine_edge_direction%get( key=vef%get_gid(), val=orientation, stat=istat); check(istat==key_found)
               select case  (orientation) 
               case ( same_as_coarse_edge ) 
+                 ! Forward run over DoFs 
                  call nodes_in_vef_iterator%next() 
 
                  idof=0 
@@ -782,7 +786,16 @@ subroutine Hcurl_l1_fill_fe_dofs_new_basis( this, par_fe_space )
            end if
         end do
 
-        ! Extend downstream vertex ( in the sense of Coarse Edge flow ) DoF info to all neighbour FEs 
+        ! Extend inner downstream vertices ( in the sense of Coarse Edge flow ) DoF info to all neighbour FEs 
+        if ( fine_edge_iterator%get_distance_to_upper_bound() > 1) then 
+
+        ! Recover already assigned DoF id 
+        ielem=0
+        do while ( .not. fe%is_local() ) 
+           ielem=ielem+1 
+           call vef%get_cell_around(ielem, fe) 
+        end do
+        vef_lid                   = fe%get_vef_lid_from_gid( vef%get_gid() )
         ref_fe_geo                => fe%get_reference_fe_geo()
         vertices_of_line          => ref_fe_geo%get_vertices_n_face() 
         vertices_of_line_iterator = vertices_of_line%create_iterator(vef_lid)
@@ -791,20 +804,14 @@ subroutine Hcurl_l1_fill_fe_dofs_new_basis( this, par_fe_space )
            call vertices_of_line_iterator%next() 
         end if
 
-        ! Recover already assigned DoF id 
         nodes_in_vef_iterator = nodes_n_face%create_iterator(vertices_of_line_iterator%get_current())
         massert(nodes_in_vef_iterator%get_size()==1, 'H(curl) BDDC: number of nodes on top of a vertex must be 1')
+        call this%g2l_fes%get( key=fe%get_gid(), val=fe_lid, stat=istat); check(istat==key_found)
         dof_id = this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() )
 
-        ielem=0
-        do while ( .not. fe%is_local() ) 
-           ielem=ielem+1 
-           call vef%get_cell_around(ielem, fe) 
-        end do
-
-        ! Assign to neighbour cells 
+        ! Assign to all neighbour cells 
         call fe%get_vef(vertices_of_line_iterator%get_current(), vertex )
-        do ielem=1, vertex%get_num_cells_around() 
+         do ielem=1, vertex%get_num_cells_around() 
            call vertex%get_cell_around(ielem, fe) 
            if ( fe%is_local() ) then 
               vertex_lid = fe%get_vef_lid_from_gid(vertex%get_gid())
@@ -812,8 +819,8 @@ subroutine Hcurl_l1_fill_fe_dofs_new_basis( this, par_fe_space )
               call this%g2l_fes%get( key=fe%get_gid(), val=fe_lid, stat=istat); check(istat==key_found) 
               this%fe_dofs_new_basis( fe_lid, nodes_in_vef_iterator%get_current() ) = dof_id 
            end if
-        end do
-
+         end do
+        end if 
         call fine_edge_iterator%next() 
      end do
      call coarse_subedge_iterator%next() 
@@ -837,23 +844,23 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
 
   type(fe_vef_iterator_t)                 :: edge_in_cell 
   class(fe_cell_iterator_t), allocatable  :: fe
-  type(hex_lagrangian_reference_fe_t)     :: lagrangian_fe
   integer(ip)                             :: ielem
   integer(ip)                             :: facet_gid, iface  
   integer(ip)                             :: edge_id, face_id 
   integer(ip)                             :: fe_lid 
   ! Common integration 
-  integer(ip)                            :: dof_new_basis 
-  integer(ip), allocatable               :: dofs_old_basis(:)
-  type(interpolation_t)                  :: Lagrangian_interpolation_ref
-  type(interpolation_t)                  :: Lagrangian_interpolation_phy 
-  integer(ip)                            :: qpoint, ishape, jshape
-  integer(ip)                            :: idof, jdof 
-  type(cell_map_t), pointer              :: cell_map 
-  type(point_t)        , pointer         :: cell_coordinates(:)
-  real(rp)                               :: factor 
-  real(rp)                               :: shape_test 
-  type(vector_field_t)                   :: grad_shape_trial 
+  class(lagrangian_reference_fe_t), allocatable :: lagrangian_fe
+  integer(ip)                                   :: dof_new_basis 
+  integer(ip)                     , allocatable :: dofs_old_basis(:)
+  type(interpolation_t)                         :: Lagrangian_interpolation_ref
+  type(interpolation_t)                         :: Lagrangian_interpolation_phy 
+  integer(ip)                                   :: qpoint, ishape, jshape
+  integer(ip)                                   :: idof, jdof 
+  type(cell_map_t)                , pointer     :: cell_map 
+  type(point_t)                   , pointer     :: cell_coordinates(:)
+  real(rp)                                      :: factor 
+  real(rp)                                      :: shape_test 
+  type(vector_field_t)                          :: grad_shape_trial 
   ! Edge Discrete Gradient integration 
   type(quadrature_t)                      :: edge_quadrature
   type(hex_lagrangian_reference_fe_t)     :: fe_1D_reduced_order
@@ -886,6 +893,13 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
   num_nedelec_dofs_x_face = 2*this%order*(this%order-1)
   reference_fe => par_fe_space%get_reference_fe(this%field_id)
 
+    select case ( reference_fe%get_topology() )
+    case ( topology_hex ) 
+    allocate ( hex_lagrangian_reference_fe_t :: lagrangian_fe )
+    case ( topology_tet ) 
+    allocate ( tet_lagrangian_reference_fe_t :: lagrangian_fe )
+    end select 
+  
   ! Create a 1D scalar lagrangian reference FE of order k-1
   call fe_1D_reduced_order%create(topology    = topology_hex,           &
        num_dims    = 1,                            &
@@ -893,13 +907,13 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
        field_type  = field_type_scalar,            &
        conformity  = .true. )
 
-  call lagrangian_fe%create(topology    = topology_hex,         &
+  call lagrangian_fe%create(topology    = reference_fe%get_topology(),         &
        num_dims    = 3,                    &
        order       = this%order,           &
        field_type  = field_type_scalar,    &
        conformity  = .true. )
 
-  call Nedelec_fe_2D%create(topology   = topology_hex,          &
+  call Nedelec_fe_2D%create(topology   = reference_fe%get_topology(),          &
        num_dims   = 2,                     &
        order      = this%order-1,          &
        field_type = field_type_vector,     &
@@ -1072,7 +1086,7 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
   
   call memfree(elmat, __FILE__, __LINE__ )
   call memfree(facet_elmat, __FILE__, __LINE__ )
-  call memfree(dofs_old_basis, __FILE__, __LINE__ )
+  if (allocated(dofs_old_basis)) call memfree(dofs_old_basis, __FILE__, __LINE__ )
 end subroutine Hcurl_l1_compute_interface_discrete_gradient
 
 !===============================================================================================
@@ -1124,6 +1138,7 @@ subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis(this, par_fe_s
   end do
 
   call par_fe_space%free_fe_vef_iterator(edge)
+  if (allocated(dofs_old_basis)) call memfree(dofs_old_basis) 
 end subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis
   
 !===============================================================================================

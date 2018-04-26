@@ -510,7 +510,7 @@ end subroutine free_timers
     real(rp), allocatable                              :: set_id_permeability(:) 
     real(rp), allocatable                              :: set_id_resistivity(:) 
 	   integer(ip)                                        :: i, istat
-	
+	 
 	 if ( this%par_environment%am_i_l1_task() ) then
     if(this%test_params%get_write_solution()) then
 	    call build_set_ids()
@@ -573,7 +573,7 @@ end subroutine free_timers
     call this%setup_system()
     call this%assemble_system()
     call this%timer_assemply%stop()
-
+    
     call this%timer_solver_setup%start()
     call this%setup_solver()
     call this%timer_solver_setup%stop()
