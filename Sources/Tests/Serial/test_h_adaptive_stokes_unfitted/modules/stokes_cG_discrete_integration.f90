@@ -49,12 +49,14 @@ module stokes_cG_discrete_integration_names
      logical :: is_constant_nitches_beta       = .false.
      logical :: use_face_stabilization = .false.
      logical, pointer :: is_in_aggregate(:) => null()
+     integer(ip), pointer :: aggregate_root_ids(:) => null()
    contains
      procedure :: set_analytical_functions
      procedure :: set_fe_function
      procedure :: set_unfitted_boundary_is_dirichlet
      procedure :: set_is_constant_nitches_beta
      procedure :: set_is_in_aggregate
+     procedure :: set_aggregate_root_ids
      procedure :: set_use_face_stabilization
      procedure :: integrate_galerkin
   end type stokes_cG_discrete_integration_t
@@ -94,6 +96,14 @@ contains
      logical, target, intent(in) :: is_in_aggregate(:)
      this%is_in_aggregate => is_in_aggregate
   end subroutine set_is_in_aggregate
+
+!========================================================================================
+  subroutine set_aggregate_root_ids ( this, aggregate_root_ids )
+     implicit none
+     class(stokes_cG_discrete_integration_t)    , intent(inout) :: this
+     integer(ip), target, intent(in) :: aggregate_root_ids(:)
+     this%aggregate_root_ids => aggregate_root_ids
+  end subroutine set_aggregate_root_ids
 
 !========================================================================================
   subroutine set_use_face_stabilization ( this, use_face_stabilization )
@@ -175,10 +185,14 @@ contains
     real(rp) :: h_length
     integer(ip) :: ineigh
     integer(ip) :: jneigh
-    logical :: is_first_in_aggr
-    logical :: is_second_in_aggr
     integer(ip) :: n_interior_facets
     integer(ip) :: n_stabilized_facets
+    logical :: stabilize_facet
+    class(vef_iterator_t), allocatable :: vef
+    class(cell_iterator_t), allocatable :: cell_root
+    class(cell_iterator_t), allocatable :: cell
+    integer(ip) :: ivef
+    integer(ip) :: root2_id
 
     !class(scalar_function_t) , pointer      :: exact_sol
     !type(piecewise_cell_map_t) , pointer :: pw_cell_map
@@ -367,6 +381,11 @@ contains
       ! Integrate face stabilization terms
       write(*,*) 'Computing face stabilization ...'
       assert (associated(this%is_in_aggregate))
+      assert (associated(this%aggregate_root_ids))
+
+      call triangulation%create_vef_iterator(vef)
+      call triangulation%create_cell_iterator(cell_root)
+      call triangulation%create_cell_iterator(cell)
 
       n_interior_facets = 0_ip
       n_stabilized_facets = 0_ip
@@ -378,12 +397,43 @@ contains
           n_interior_facets = n_interior_facets + 1
 
           assert( fe_facet%get_num_cells_around() == 2 )
-          call fe_facet%get_cell_around(1,fe)
-          is_first_in_aggr = this%is_in_aggregate(fe%get_gid())
-          call fe_facet%get_cell_around(2,fe)
-          is_second_in_aggr = this%is_in_aggregate(fe%get_gid())
 
-          if (is_first_in_aggr .or. is_second_in_aggr) then
+          stabilize_facet = .false.
+
+          call fe_facet%get_cell_around(1,cell)
+          call cell_root%set_gid( this%aggregate_root_ids(cell%get_gid()) )
+          stabilize_facet = stabilize_facet .or. this%is_in_aggregate(cell%get_gid())
+
+          call fe_facet%get_cell_around(2,cell)
+          root2_id = this%aggregate_root_ids(cell%get_gid())
+          stabilize_facet = stabilize_facet .or. this%is_in_aggregate(cell%get_gid())
+
+          if (cell_root%get_gid() == root2_id) then
+            stabilize_facet = .false.
+          end if
+
+          if (triangulation%get_num_dims() == 3) then
+            if (stabilize_facet) then
+              loop1: do ivef = 1,cell_root%get_num_vefs()
+                call cell_root%get_vef(ivef,vef)
+                if ( vef%is_facet() ) then
+                  if ( vef%get_num_cells_around() == 2 ) then
+                    do jneigh =1,vef%get_num_cells_around()
+                      call vef%get_cell_around(jneigh,cell)
+                      if ( cell_root%get_gid() /= cell%get_gid() ) then
+                        if (cell%get_gid() == root2_id) then
+                          stabilize_facet = .false.
+                          exit loop1
+                        end if
+                      end if
+                    end do
+                  end if
+                end if
+              end do loop1
+            end if
+          end if
+
+          if (stabilize_facet) then
 
             n_stabilized_facets = n_stabilized_facets + 1
 
@@ -444,6 +494,9 @@ contains
       write(*,*) 'Computing face stabilization ... OK'
       write(*,*) 'n_interior_facets: ', n_interior_facets
       write(*,*) 'n_stabilized_facets: ', n_stabilized_facets
+      call triangulation%free_vef_iterator(vef)
+      call triangulation%free_cell_iterator(cell_root)
+      call triangulation%free_cell_iterator(cell)
     end if
 
     ! Integrate Neumann boundary conditions

@@ -592,6 +592,7 @@ contains
                                set_ids_to_reference_fes = set_ids_to_reference_fes)
 
     call this%cG_integration%set_is_in_aggregate(this%fe_space%get_is_in_aggregate_x_cell() )
+    call this%cG_integration%set_aggregate_root_ids(this%fe_space%get_aggregate_ids() )
     
     ! Set up interpolation duties
     allocate( interpolation_duties(this%fe_space%get_num_fields()), stat=istat); check(istat==0)
