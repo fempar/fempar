@@ -103,6 +103,7 @@ module stokes_driver_names
      procedure        , private :: fix_pressure
      procedure        , private :: check_solution
      procedure        , private :: write_solution
+     procedure        , private :: compute_smallest_vol_fraction
      procedure        , private :: free
   end type stokes_driver_t
 
@@ -589,6 +590,8 @@ contains
                                conditions               = this%conditions, &
                                reference_fes            = this%reference_fes,&
                                set_ids_to_reference_fes = set_ids_to_reference_fes)
+
+    call this%cG_integration%set_is_in_aggregate(this%fe_space%get_is_in_aggregate_x_cell() )
     
     ! Set up interpolation duties
     allocate( interpolation_duties(this%fe_space%get_num_fields()), stat=istat); check(istat==0)
@@ -1191,6 +1194,53 @@ contains
 
     endif
   end subroutine write_solution
+
+subroutine compute_smallest_vol_fraction(this)
+    implicit none
+    class(stokes_driver_t), intent(in) :: this
+
+    class(fe_cell_iterator_t), allocatable :: fe
+    type(quadrature_t), pointer :: quad
+    integer(ip)  :: qpoint, num_quad_points
+    type(cell_map_t), pointer :: cell_map
+    real(rp) :: dV, V, Vmin
+    integer(ip) :: iounit
+
+    Vmin = 1.0e10
+
+    call this%fe_space%create_fe_cell_iterator(fe)
+    do while (.not. fe%has_finished())
+
+       call fe%update_integration()
+
+       quad            => fe%get_quadrature()
+       cell_map        => fe%get_cell_map()
+       num_quad_points = quad%get_num_quadrature_points()
+
+       if (fe%is_cut()) then
+
+         V = 0.0
+         do qpoint = 1, num_quad_points
+            dV = cell_map%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+            V = V + dV
+         end do
+         Vmin = min(V,Vmin)
+
+       end if
+
+      call fe%next()
+    end do
+    call this%fe_space%free_fe_cell_iterator(fe)
+
+    if (this%test_params%get_write_aggr_info()) then
+      iounit = io_open(file=this%test_params%get_dir_path_out()//this%test_params%get_prefix()//'_min_vol.csv',action='write')
+      check(iounit>0)
+      write(iounit,'(a,e32.25)') 'volume_min ;', Vmin
+      call io_close(iounit)
+    end if
+
+  end subroutine compute_smallest_vol_fraction
+
   
   subroutine run_simulation(this) 
     implicit none
@@ -1257,6 +1307,10 @@ contains
     write(*,*) 'write_solution ...'; flush(stdout)
     call this%write_solution()
     write(*,*) 'write_solution ... OK'; flush(stdout)
+
+    write(*,*) 'Compute smallest volume fraction ...'; flush(stdout)
+    call this%compute_smallest_vol_fraction()
+    write(*,*) 'Compute smallest volume fraction ... OK'; flush(stdout)
 
     call this%free()
   end subroutine run_simulation

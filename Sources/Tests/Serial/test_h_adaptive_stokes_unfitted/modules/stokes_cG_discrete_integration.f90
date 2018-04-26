@@ -48,11 +48,13 @@ module stokes_cG_discrete_integration_names
      logical :: unfitted_boundary_is_dirichlet = .true.
      logical :: is_constant_nitches_beta       = .false.
      logical :: use_face_stabilization = .false.
+     logical, pointer :: is_in_aggregate(:) => null()
    contains
      procedure :: set_analytical_functions
      procedure :: set_fe_function
      procedure :: set_unfitted_boundary_is_dirichlet
      procedure :: set_is_constant_nitches_beta
+     procedure :: set_is_in_aggregate
      procedure :: set_use_face_stabilization
      procedure :: integrate_galerkin
   end type stokes_cG_discrete_integration_t
@@ -84,6 +86,14 @@ contains
      logical, intent(in) :: is_constant
      this%is_constant_nitches_beta = is_constant
   end subroutine set_is_constant_nitches_beta
+
+!========================================================================================
+  subroutine set_is_in_aggregate ( this, is_in_aggregate )
+     implicit none
+     class(stokes_cG_discrete_integration_t)    , intent(inout) :: this
+     logical, target, intent(in) :: is_in_aggregate(:)
+     this%is_in_aggregate => is_in_aggregate
+  end subroutine set_is_in_aggregate
 
 !========================================================================================
   subroutine set_use_face_stabilization ( this, use_face_stabilization )
@@ -165,6 +175,10 @@ contains
     real(rp) :: h_length
     integer(ip) :: ineigh
     integer(ip) :: jneigh
+    logical :: is_first_in_aggr
+    logical :: is_second_in_aggr
+    integer(ip) :: n_interior_facets
+    integer(ip) :: n_stabilized_facets
 
     !class(scalar_function_t) , pointer      :: exact_sol
     !type(piecewise_cell_map_t) , pointer :: pw_cell_map
@@ -352,63 +366,84 @@ contains
     if (this%use_face_stabilization) then
       ! Integrate face stabilization terms
       write(*,*) 'Computing face stabilization ...'
-      do while ( .not. fe_facet%has_finished() ) 
+      assert (associated(this%is_in_aggregate))
 
-        quad            => fe_facet%get_quadrature()
-        num_quad_points = quad%get_num_quadrature_points()
+      n_interior_facets = 0_ip
+      n_stabilized_facets = 0_ip
+      call fe_facet%first()
+      do while ( .not. fe_facet%has_finished() ) 
 
         if ( fe_facet%is_at_field_interior(1) ) then
 
-          call fe_facet%update_integration()    
-          call fe_facet%get_values(1,shape_values_first , P_FIELD_ID)
-          call fe_facet%get_values(2,shape_values_second, P_FIELD_ID)
+          n_interior_facets = n_interior_facets + 1
 
-          facemat(:,:,:,:) = 0.0_rp
-          facevec(:,:) = 0.0_rp
-          do qpoint = 1, num_quad_points
+          assert( fe_facet%get_num_cells_around() == 2 )
+          call fe_facet%get_cell_around(1,fe)
+          is_first_in_aggr = this%is_in_aggregate(fe%get_gid())
+          call fe_facet%get_cell_around(2,fe)
+          is_second_in_aggr = this%is_in_aggregate(fe%get_gid())
 
-            call fe_facet%get_normals(qpoint,normals)
-            h_length = fe_facet%compute_characteristic_length(qpoint)
-            dS = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          if (is_first_in_aggr .or. is_second_in_aggr) then
 
-            do ineigh = 1, fe_facet%get_num_cells_around()
-              if (ineigh==1) then
-                shape_values_ineigh    => shape_values_first
-              else if (ineigh==2) then
-                shape_values_ineigh    => shape_values_second
-              end if
+            n_stabilized_facets = n_stabilized_facets + 1
 
-              do jneigh = 1, fe_facet%get_num_cells_around()
+            call fe_facet%update_integration()    
+            quad            => fe_facet%get_quadrature()
+            num_quad_points = quad%get_num_quadrature_points()
 
-                if (jneigh==1) then
-                  shape_values_jneigh    => shape_values_first
-                else if (jneigh==2) then
-                  shape_values_jneigh    => shape_values_second
+            call fe_facet%get_values(1,shape_values_first , P_FIELD_ID)
+            call fe_facet%get_values(2,shape_values_second, P_FIELD_ID)
+
+            facemat(:,:,:,:) = 0.0_rp
+            facevec(:,:) = 0.0_rp
+            do qpoint = 1, num_quad_points
+
+              call fe_facet%get_normals(qpoint,normals)
+              h_length = fe_facet%compute_characteristic_length(qpoint)
+              dS = fe_facet%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+
+              do ineigh = 1, fe_facet%get_num_cells_around()
+                if (ineigh==1) then
+                  shape_values_ineigh    => shape_values_first
+                else if (ineigh==2) then
+                  shape_values_ineigh    => shape_values_second
                 end if
 
-                do idof_p = 1, fe_facet%get_num_dofs_field(ineigh,P_FIELD_ID)
-                  idof = idof_p + fe_facet%get_num_dofs_field(ineigh,U_FIELD_ID)
-                  do jdof_p = 1, fe_facet%get_num_dofs_field(jneigh,P_FIELD_ID)
-                    jdof = jdof_p + fe_facet%get_num_dofs_field(jneigh,U_FIELD_ID) 
-                    facemat(idof,jdof,ineigh,jneigh) = facemat(idof,jdof,ineigh,jneigh) +     &
-                      & dS * h_length &
-                      & * shape_values_jneigh(jdof_p,qpoint) &
-                      & * shape_values_ineigh(idof_p,qpoint) &
-                      & * normals(ineigh)*normals(jneigh) 
-                  end do
-                end do
+                do jneigh = 1, fe_facet%get_num_cells_around()
 
+                  if (jneigh==1) then
+                    shape_values_jneigh    => shape_values_first
+                  else if (jneigh==2) then
+                    shape_values_jneigh    => shape_values_second
+                  end if
+
+                  do idof_p = 1, fe_facet%get_num_dofs_field(ineigh,P_FIELD_ID)
+                    idof = idof_p + fe_facet%get_num_dofs_field(ineigh,U_FIELD_ID)
+                    do jdof_p = 1, fe_facet%get_num_dofs_field(jneigh,P_FIELD_ID)
+                      jdof = jdof_p + fe_facet%get_num_dofs_field(jneigh,U_FIELD_ID) 
+                      facemat(idof,jdof,ineigh,jneigh) = facemat(idof,jdof,ineigh,jneigh) +     &
+                        & dS * h_length &
+                        & * shape_values_jneigh(jdof_p,qpoint) &
+                        & * shape_values_ineigh(idof_p,qpoint) &
+                        & * normals(ineigh)*normals(jneigh) 
+                    end do
+                  end do
+
+                end do
               end do
+
             end do
 
-          end do
+            call fe_facet%assembly( facemat, facevec, assembler )
 
-          call fe_facet%assembly( facemat, facevec, assembler )
+          end if
         end if
 
         call fe_facet%next()
       end do
       write(*,*) 'Computing face stabilization ... OK'
+      write(*,*) 'n_interior_facets: ', n_interior_facets
+      write(*,*) 'n_stabilized_facets: ', n_stabilized_facets
     end if
 
     ! Integrate Neumann boundary conditions
