@@ -525,6 +525,14 @@ contains
          nchannel = (i_x * nchannel_x_direction(2)*nchannel_x_direction(3))+(i_y * nchannel_x_direction(2))+i_x+2
          cell_set_id = nchannel
          !if ( cell_set_id /= 1 ) cell_set_id = 2
+      else if ( inclusion == 10 ) then
+         !here we assume the unit cube (square) domain
+         mesh_size = 1.0_rp/num_cells_x_dir(1)
+         i_x = int(coord%get(1)/(size_sub_object*mesh_size))
+         i_y = int(coord%get(2)/(size_sub_object*mesh_size))
+         i_z = int(coord%get(3)/(size_sub_object*mesh_size))
+         cell_set_id = (i_z*(num_cells_x_dir(1)/size_sub_object)+ i_y)*(num_cells_x_dir(2)/size_sub_object)+i_x+1 
+
       end if
 
     end function cell_set_id
