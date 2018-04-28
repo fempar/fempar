@@ -202,6 +202,7 @@ contains
       type(point_t) :: origin, opposite
       integer(ip) :: cell_set_id
       integer(ip) :: i,j,k, nchannel, nchannel_in_each_direction
+      integer(ip) :: i_x, i_y, i_z
       integer(ip) :: size_sub_object 
       real(rp)    :: y_pos_0, y_pos_1, z_pos_0, z_pos_1
       real(rp)    :: box_width, half_channel_width, center, mesh_size
@@ -488,34 +489,41 @@ contains
             enddo
          end if
 
-         nchannel = 1
-         ! x edges
+         ! x faces
+         nchannel = 0
+         i_x = 0
          do j = 1, nchannel_x_direction(2)
             do k = 1,nchannel_x_direction(3)
                call origin%set(1,0.0_rp)  ; call origin%set(2, py1(j)) ; call origin%set(3,pz1(k));
                call opposite%set(1,1.0_rp); call opposite%set(2,py2(j)); call opposite%set(3,pz2(k));
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) i_x = nchannel
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
-         ! y edges
+         ! y faces
+         nchannel = 0
+         i_y = 0
          do j = 1, nchannel_x_direction(1)
             do k = 1,nchannel_x_direction(3)
                call origin%set(2,0.0_rp)  ; call origin%set(1, px1(j)) ; call origin%set(3,pz1(k));
                call opposite%set(2,1.0_rp); call opposite%set(1,px2(j)); call opposite%set(3,pz2(k));
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) i_y= nchannel
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
-         ! z edges
+         ! z faces
+         nchannel = 0
+         i_z = 0
          do j = 1, nchannel_x_direction(1)
             do k = 1,nchannel_x_direction(2)
                call origin%set(3,0.0_rp)  ; call origin%set(1, px1(j)) ; call origin%set(2,py1(k));
                call opposite%set(3,1.0_rp); call opposite%set(1,px2(j)); call opposite%set(2,py2(k));
+               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) i_z = nchannel
                nchannel = nchannel + 1
-               if ( is_point_in_rectangle( origin, opposite, coord, num_dims ) ) cell_set_id = nchannel
             end do
          end do
+         nchannel = (i_x * nchannel_x_direction(2)*nchannel_x_direction(3))+(i_y * nchannel_x_direction(2))+i_x+2
+         cell_set_id = nchannel
          !if ( cell_set_id /= 1 ) cell_set_id = 2
       end if
 
