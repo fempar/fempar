@@ -98,10 +98,6 @@ contains
     assert(.false.) 
     end if 
     
-    if ( this%integration_type == preconditioner ) then 
-    compute_permeability = max(1.0e-2_rp, this%permeability) 
-    end if 
-
   end function compute_permeability
   
   function compute_resistivity (this, colour)
@@ -217,7 +213,36 @@ contains
           
           ! Apply boundary conditions
 		        call fe%assembly( this%fe_function, elmat, elvec, assembler )
+       elseif ( this%integration_type == preconditioner ) then 
+       
+          ! Update FE-integration related data structures
+          call fe%update_integration()
+       
+          ! Get parameter values 
+          permeability = this%compute_permeability( fe%get_set_id() )
           
+          ! Very important: this has to be inside the loop, as different FEs can be present! Study the multifield case, what happens with source term? 
+          quad            => fe%get_quadrature()
+          num_quad_points =  quad%get_num_quadrature_points()
+          num_dofs        =  fe%get_num_dofs()
+                    
+          ! Compute element matrix and vector
+          elmat = 0.0_rp
+          call fe%get_curls(shape_curls)
+          call fe%get_values(shape_values)
+          do qpoint = 1, num_quad_points
+             factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+             do idof = 1, num_dofs
+                do jdof = 1, num_dofs
+                   ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * permeability*shape_values(jdof,qpoint)*shape_values(idof,qpoint)
+                end do
+             end do
+          end do
+          
+          ! Assemble elmat to active DoFs on ghost cells 
+		        call fe%assembly( elmat, assembler )
+
        end if 
        call fe%next()
     end do
