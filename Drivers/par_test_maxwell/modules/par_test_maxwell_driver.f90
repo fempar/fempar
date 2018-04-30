@@ -35,9 +35,6 @@ module par_test_maxwell_driver_names
 
   implicit none
   private
-
-  integer(ip) , parameter :: black = -1 
-  integer(ip) , parameter :: white =  1
   
   type par_test_maxwell_fe_driver_t 
      private 
@@ -57,14 +54,15 @@ module par_test_maxwell_driver_names
      type(par_fe_space_t)                          :: fe_space 
      type(p_reference_fe_t), allocatable           :: reference_fes(:) 
      class(Hcurl_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handler 
-	    type(p_l1_coarse_fe_handler_t), allocatable   :: coarse_fe_handlers(:)
-	    type(maxwell_CG_discrete_integration_t)       :: maxwell_integration
+     type(p_l1_coarse_fe_handler_t), allocatable   :: coarse_fe_handlers(:)
+     type(maxwell_CG_discrete_integration_t)       :: maxwell_integration
      type(maxwell_conditions_t)                    :: maxwell_conditions
      type(maxwell_analytical_functions_t)          :: maxwell_analytical_functions
 
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
+     type(fe_affine_operator_t)            :: fe_affine_prec_operator 
      
 !#ifdef ENABLE_MKL     
      ! MLBDDC preconditioner
@@ -179,9 +177,9 @@ end subroutine free_timers
     class(vef_iterator_t), allocatable :: vef
     real(rp)                           :: domain(6)
 				integer(ip)                        :: istat 
-				
-				! Create a structured mesh with a custom domain 
-				!domain   = (/ 0.0_rp, 0.1_rp, 0.0_rp, 0.1_rp, 0.0_rp, 0.1_rp /)
+    
+    ! Create a structured mesh with a custom domain 
+    !domain   = (/ 0.0_rp, 0.1_rp, 0.0_rp, 0.1_rp, 0.0_rp, 0.1_rp /)
     !istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
     call this%triangulation%create(this%parameter_list, this%par_environment)
 	
@@ -203,22 +201,47 @@ end subroutine free_timers
   end subroutine setup_triangulation
   
   subroutine set_cells_set_id( this ) 
-  implicit none 
-  class(par_test_maxwell_fe_driver_t), intent(inout) :: this
-  class(cell_iterator_t), allocatable :: cell 
-  
-       call this%triangulation%create_cell_iterator(cell)
-       call memalloc( this%triangulation%get_num_local_cells(), this%cells_set_id, __FILE__, __LINE__ )
-       this%cells_set_id = 0
-       do while ( .not. cell%has_finished() )
-          if ( cell%is_local() ) then 
-          this%cells_set_id(cell%get_gid()) = 0
-          end if 
-          call cell%next()
+    implicit none 
+    class(par_test_maxwell_fe_driver_t), intent(inout) :: this
+    class(cell_iterator_t), allocatable :: cell 
+
+    integer(ip) :: nparts_x_dir 
+    real(rp)    :: nparts  
+    integer(ip) :: i, ndime
+    integer(ip) :: ijk(3), aux 
+
+    ijk = 0
+    if ( this%par_environment%am_i_l1_task() ) then 
+       nparts = (real(this%par_environment%get_num_tasks()-1,rp))**(1.0_rp/(real(this%triangulation%get_num_dims(),rp)))   
+       nparts_x_dir = nint(nparts,ip)
+       aux = this%par_environment%get_l1_rank()
+       do i = 1,this%triangulation%get_num_dims()-1
+          ijk(i) = mod(aux, nparts_x_dir)
+          aux = aux/nparts_x_dir
        end do
-       call this%triangulation%free_cell_iterator(cell)
-       
-	      call this%triangulation%fill_cells_set(this%cells_set_id) 
+       ijk(this%triangulation%get_num_dims()) = aux
+       ijk = ijk+1
+
+       ! Checkboard distribution    
+       if ( mod( sum(ijk),2 ) == 0 ) then 
+       this%colour = white 
+       else 
+       this%colour = black 
+       end if 
+    end if
+
+    call this%triangulation%create_cell_iterator(cell)
+    call memalloc( this%triangulation%get_num_local_cells(), this%cells_set_id, __FILE__, __LINE__ )
+    this%cells_set_id = 0
+    do while ( .not. cell%has_finished() )
+       if ( cell%is_local() ) then 
+          this%cells_set_id(cell%get_gid()) = this%colour 
+       end if
+       call cell%next()
+    end do
+    call this%triangulation%free_cell_iterator(cell)
+
+    call this%triangulation%fill_cells_set(this%cells_set_id) 
   end subroutine set_cells_set_id
   
   subroutine setup_reference_fes(this)
@@ -290,36 +313,12 @@ end subroutine free_timers
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
     
-    integer(ip) :: nparts_x_dir 
-    real(rp)    :: nparts  
-    integer(ip) :: i, ndime
-    integer(ip) :: ijk(3), aux 
-    integer(ip) :: colour
-    
-    this%colour = 1.0_rp 
-    ijk = 0
-    if ( this%par_environment%am_i_l1_task() ) then 
-    nparts = (real(this%par_environment%get_num_tasks()-1,rp))**(1.0_rp/(real(this%triangulation%get_num_dims(),rp)))   
-    nparts_x_dir = nint(nparts,ip)
-    aux = this%par_environment%get_l1_rank()
-    do i = 1,this%triangulation%get_num_dims()-1
-     ijk(i) = mod(aux, nparts_x_dir)
-     aux = aux/nparts_x_dir
-    end do
-    ijk(this%triangulation%get_num_dims()) = aux
-    ijk = ijk+1
-    
-    ! Checkboard distribution     
-    this%colour = (-1)**(ijk(1)+ijk(2)+ijk(3))
-    end if 
-
-    
-    if ( this%colour == black ) then 
-    this%permeability = 1.0
-    this%resistivity  = 1.0   
-    elseif ( this%colour == white ) then 
-    this%permeability = this%test_params%get_permeability()
-    this%resistivity  = this%test_params%get_resistivity()  
+    if ( this%colour == white ) then 
+    this%permeability = 1.0_rp 
+    this%resistivity  = 1.0_rp 
+    elseif ( this%colour == black ) then 
+    this%permeability = this%test_params%get_permeability() 
+    this%resistivity = this%test_params%get_resistivity()
     else 
     assert(.false.) 
     end if 
@@ -334,6 +333,14 @@ end subroutine free_timers
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%maxwell_integration )
+    
+    ! if (test_single_scalar_valued_reference_fe) then
+    call this%fe_affine_prec_operator%create ( sparse_matrix_storage_format      = csr_format, &
+                                               diagonal_blocks_symmetric_storage = [ .true. ], &
+                                               diagonal_blocks_symmetric         = [ .true. ], &
+                                               diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                                               fe_space                          = this%fe_space, &
+                                               discrete_integration              = this%maxwell_integration )
 	
 	! Set-up solution with Dirichlet boundary conditions  
  call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
@@ -412,7 +419,7 @@ end subroutine free_timers
 
     ! Set-up MLBDDC preconditioner
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
+    call this%mlbddc%create(this%fe_affine_prec_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()  
    
@@ -429,7 +436,12 @@ end subroutine free_timers
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
+    
+    call this%maxwell_integration%set_integration_type( problem ) 
     call this%fe_affine_operator%compute()
+    call this%maxwell_integration%set_integration_type( preconditioner ) 
+    call this%fe_affine_prec_operator%compute() 
+
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
     
@@ -596,6 +608,7 @@ end subroutine free_timers
     call this%mlbddc%free()  
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
+    call this%fe_affine_prec_operator%free()
 	
 	   if ( this%par_environment%am_i_l1_task() ) then 
 	    if (allocated(this%coarse_fe_handlers) ) then 

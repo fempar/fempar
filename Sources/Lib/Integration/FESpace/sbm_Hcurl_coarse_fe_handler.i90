@@ -329,7 +329,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   num_dofs = par_fe_space%get_block_num_dofs(block_id)
   call memalloc(num_dofs,weighting_operator,__FILE__,__LINE__)
 
-  parameter_scaling = .true. 
+  parameter_scaling = .false. 
   if ( parameter_scaling )  then 
   xi = 0.5_rp
   allocate( sub_assembled_diag(num_dofs), stat=istat); check(istat==0)
@@ -492,8 +492,8 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
      call this%transition_change_basis_matrix%convert(csr_format)
     
      ! DEBUG: Print matrices, debugging purposes 
-      call this%change_basis_matrix%print_matrix_market(6)
-      call this%transition_change_basis_matrix%print_matrix_market(6)
+      !call this%change_basis_matrix%print_matrix_market(6)
+      !call this%transition_change_basis_matrix%print_matrix_market(6)
      
      call x%create_and_allocate(this%num_total_dofs - this%num_interior_dofs)
      call x%init(0.0_rp)

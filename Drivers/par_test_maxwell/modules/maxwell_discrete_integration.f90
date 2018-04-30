@@ -32,15 +32,28 @@ module maxwell_discrete_integration_names
   implicit none
 # include "debug.i90"
   private
+  
+  integer(ip), parameter :: preconditioner = 0 
+  integer(ip), parameter :: problem = 1  
+  public :: preconditioner, problem 
+  
+  integer(ip), parameter :: black =  0 
+  integer(ip), parameter :: white =  1
+  public :: black, white 
+  
   type, extends(discrete_integration_t) :: maxwell_cG_discrete_integration_t
    type(maxwell_analytical_functions_t), pointer :: analytical_functions => NULL()
 	  type(fe_function_t)                 , pointer :: fe_function          => NULL()
    real(rp)                                      :: permeability 
    real(rp)                                      :: resistivity 
+   integer(ip)                                   :: integration_type
    contains
      procedure :: set_analytical_functions
 	    procedure :: set_fe_function 
      procedure :: set_params 
+     procedure :: compute_permeability
+     procedure :: compute_resistivity 
+     procedure :: set_integration_type 
      procedure :: integrate_galerkin 
   end type maxwell_cG_discrete_integration_t
   
@@ -70,6 +83,50 @@ contains
     this%permeability = permeability
     this%resistivity  = resistivity 
   end subroutine set_params
+  
+  function compute_permeability (this, colour)
+    implicit none
+    class(maxwell_cG_discrete_integration_t), intent(in)  :: this
+    integer(ip)                             , intent(in)  :: colour 
+    real(rp) :: compute_permeability
+    
+    if ( colour == white ) then 
+    compute_permeability = 1.0e-2_rp 
+    elseif ( colour == black ) then 
+    compute_permeability = this%permeability 
+    else 
+    assert(.false.) 
+    end if 
+    
+    if ( this%integration_type == preconditioner ) then 
+    compute_permeability = max(1.0e-2_rp, this%permeability) 
+    end if 
+
+  end function compute_permeability
+  
+  function compute_resistivity (this, colour)
+    implicit none
+    class(maxwell_cG_discrete_integration_t), intent(in)  :: this
+    integer(ip)                             , intent(in)  :: colour
+    real(rp) :: compute_resistivity
+     
+    if ( colour == white ) then 
+    compute_resistivity = 1.0e4_rp 
+    elseif ( colour == black ) then 
+    compute_resistivity = this%resistivity  
+    else 
+    assert(.false.) 
+    end if 
+
+  end function compute_resistivity
+  
+  subroutine set_integration_type (this, integration_type )
+    implicit none
+    class(maxwell_cG_discrete_integration_t), intent(inout)  :: this
+    integer(ip)                             , intent(in)     :: integration_type
+    
+    this%integration_type = integration_type
+  end subroutine set_integration_type
 
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
@@ -97,29 +154,35 @@ contains
 
     integer(ip)  :: number_fields
     class(vector_function_t), pointer :: source_term
+    real(rp)     :: permeability, resistivity 
     
     assert (associated(this%analytical_functions)) 
 	   assert (associated(this%fe_function))
 
     source_term => this%analytical_functions%get_source_term()
 	
-	call fe_space%set_up_cell_integration()
+	   call fe_space%set_up_cell_integration()
     call fe_space%create_fe_cell_iterator(fe)
     
     max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
-	call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
+	   call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
 	
-	quad            => fe%get_quadrature()
-	num_quad_points = quad%get_num_quadrature_points()
-	allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
+   	quad            => fe%get_quadrature()
+	   num_quad_points = quad%get_num_quadrature_points()
+	   allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
 
     do while ( .not. fe%has_finished())
-       if ( fe%is_local() ) then
+    
+       if ( fe%is_local() ) then  
 	   
           ! Update FE-integration related data structures
           call fe%update_integration()
        
+          ! Get parameter values 
+          permeability = this%compute_permeability( fe%get_set_id() )
+          resistivity  = this%compute_resistivity( fe%get_set_id() )
+          
           ! Very important: this has to be inside the loop, as different FEs can be present! Study the multifield case, what happens with source term? 
           quad            => fe%get_quadrature()
           num_quad_points =  quad%get_num_quadrature_points()
@@ -141,8 +204,8 @@ contains
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
                    ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( this%resistivity* shape_curls(jdof,qpoint)* shape_curls(idof,qpoint) & 
-                                                                  + this%permeability*shape_values(jdof,qpoint)*shape_values(idof,qpoint) )
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( resistivity* shape_curls(jdof,qpoint)* shape_curls(idof,qpoint) & 
+                                                                  + permeability*shape_values(jdof,qpoint)*shape_values(idof,qpoint) )
                 end do
              end do
              
@@ -154,14 +217,15 @@ contains
           
           ! Apply boundary conditions
 		        call fe%assembly( this%fe_function, elmat, elvec, assembler )
-       end if
+          
+       end if 
        call fe%next()
     end do
 	call fe_space%free_fe_cell_iterator(fe)
 
     deallocate (shape_values, stat=istat);       check(istat==0)
     deallocate (shape_curls, stat=istat);        check(istat==0)
-	deallocate (source_term_values, stat=istat); check(istat==0)
+    deallocate (source_term_values, stat=istat); check(istat==0)
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
