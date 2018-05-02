@@ -44,8 +44,10 @@ module maxwell_discrete_integration_names
   type, extends(discrete_integration_t) :: maxwell_cG_discrete_integration_t
    type(maxwell_analytical_functions_t), pointer :: analytical_functions => NULL()
 	  type(fe_function_t)                 , pointer :: fe_function          => NULL()
-   real(rp)                                      :: permeability 
-   real(rp)                                      :: resistivity 
+   real(rp)                                      :: permeability_white 
+   real(rp)                                      :: resistivity_white
+   real(rp)                                      :: permeability_black
+   real(rp)                                      :: resistivity_black
    integer(ip)                                   :: integration_type
    contains
      procedure :: set_analytical_functions
@@ -75,13 +77,17 @@ contains
     this%fe_function => fe_function
   end subroutine set_fe_function
   
-  subroutine set_params (this, permeability, resistivity )
+  subroutine set_params (this, permeability_white, resistivity_white, permeability_black, resistivity_black  )
     implicit none
     class(maxwell_cG_discrete_integration_t), intent(inout)  :: this
-    real(rp)                                , intent(in)     :: permeability
-    real(rp)                                , intent(in)     :: resistivity 
-    this%permeability = permeability
-    this%resistivity  = resistivity 
+    real(rp)                                , intent(in)     :: permeability_white
+    real(rp)                                , intent(in)     :: resistivity_white 
+    real(rp)                                , intent(in)     :: permeability_black
+    real(rp)                                , intent(in)     :: resistivity_black 
+    this%permeability_white = permeability_white
+    this%resistivity_white  = resistivity_white 
+    this%permeability_black = permeability_black
+    this%resistivity_black  = resistivity_black 
   end subroutine set_params
   
   function compute_permeability (this, colour)
@@ -91,13 +97,13 @@ contains
     real(rp) :: compute_permeability
     
     if ( colour == white ) then 
-    compute_permeability = 1.0e-2_rp 
+    compute_permeability = this%permeability_white 
     elseif ( colour == black ) then 
-    compute_permeability = this%permeability 
+    compute_permeability = this%permeability_black 
     else 
     assert(.false.) 
-    end if 
-    
+    end if
+
   end function compute_permeability
   
   function compute_resistivity (this, colour)
@@ -107,9 +113,9 @@ contains
     real(rp) :: compute_resistivity
      
     if ( colour == white ) then 
-    compute_resistivity = 1.0e4_rp 
+    compute_resistivity = this%resistivity_white  
     elseif ( colour == black ) then 
-    compute_resistivity = this%resistivity  
+    compute_resistivity = this%resistivity_black 
     else 
     assert(.false.) 
     end if 
@@ -130,8 +136,8 @@ contains
     class(serial_fe_space_t)                , intent(inout) :: fe_space
     class(assembler_t)                      , intent(inout) :: assembler
 
-	! FE space traversal-related data types
-    class(fe_cell_iterator_t), allocatable :: fe
+	   ! FE space traversal-related data types
+    class(fe_cell_iterator_t) , allocatable :: fe
 
     ! FE integration-related data types
     type(quadrature_t)       , pointer :: quad
@@ -148,9 +154,9 @@ contains
     real(rp)     :: factor
     type(vector_field_t), allocatable  :: source_term_values(:)
 
-    integer(ip)  :: number_fields
-    class(vector_function_t), pointer :: source_term
-    real(rp)     :: permeability, resistivity 
+    integer(ip)                            :: number_fields
+    class(vector_function_t) , pointer     :: source_term
+    real(rp)                               :: permeability, resistivity 
     
     assert (associated(this%analytical_functions)) 
 	   assert (associated(this%fe_function))
@@ -178,7 +184,7 @@ contains
           ! Get parameter values 
           permeability = this%compute_permeability( fe%get_set_id() )
           resistivity  = this%compute_resistivity( fe%get_set_id() )
-          
+
           ! Very important: this has to be inside the loop, as different FEs can be present! Study the multifield case, what happens with source term? 
           quad            => fe%get_quadrature()
           num_quad_points =  quad%get_num_quadrature_points()
@@ -210,7 +216,7 @@ contains
                 elvec(idof) = elvec(idof) + factor * source_term_values(qpoint)*shape_values(idof,qpoint)
              end do
           end do
-          
+           
           ! Apply boundary conditions
 		        call fe%assembly( this%fe_function, elmat, elvec, assembler )
        elseif ( this%integration_type == preconditioner ) then 
@@ -241,11 +247,11 @@ contains
           end do
           
           ! Assemble elmat to active DoFs on ghost cells 
-		        call fe%assembly( elmat, assembler )
-
+		         call fe%assembly( elmat, assembler )
        end if 
        call fe%next()
     end do
+    
 	call fe_space%free_fe_cell_iterator(fe)
 
     deallocate (shape_values, stat=istat);       check(istat==0)

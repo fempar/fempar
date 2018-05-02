@@ -303,7 +303,7 @@ end subroutine free_timers
     call this%fe_space%create( triangulation       = this%triangulation,      &
                                reference_fes       = this%reference_fes,      &
                                coarse_fe_handlers  = this%coarse_fe_handlers, & 
-							   conditions          = this%maxwell_conditions  )
+							                        conditions          = this%maxwell_conditions  )
     
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()   
@@ -314,17 +314,18 @@ end subroutine free_timers
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
     
     if ( this%colour == white ) then 
-    this%permeability = 1.0_rp 
-    this%resistivity  = 1.0_rp 
+    this%permeability = this%test_params%get_permeability_white()
+    this%resistivity  = this%test_params%get_resistivity_white()
     elseif ( this%colour == black ) then 
-    this%permeability = this%test_params%get_permeability() 
-    this%resistivity = this%test_params%get_resistivity()
+    this%permeability = this%test_params%get_permeability_black() 
+    this%resistivity = this%test_params%get_resistivity_black()
     else 
     assert(.false.) 
     end if 
     
     call this%maxwell_integration%set_analytical_functions(this%maxwell_analytical_functions)
-    call this%maxwell_integration%set_params(this%permeability, this%resistivity)
+    call this%maxwell_integration%set_params(this%test_params%get_permeability_white(), this%test_params%get_resistivity_white(), & 
+                                             this%test_params%get_permeability_black(), this%test_params%get_resistivity_black() )
     
     ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &

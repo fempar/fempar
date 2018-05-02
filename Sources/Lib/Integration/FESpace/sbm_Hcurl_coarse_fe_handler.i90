@@ -311,7 +311,6 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   real(rp), pointer                    :: assembled_diag(:)
   real(rp), allocatable                :: sub_assembled_diag(:)
   integer(ip)                          :: istat
-  real(rp) :: xi 
   logical :: parameter_scaling
 
   ! We assume a single field for the moment
@@ -329,11 +328,10 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   num_dofs = par_fe_space%get_block_num_dofs(block_id)
   call memalloc(num_dofs,weighting_operator,__FILE__,__LINE__)
 
-  parameter_scaling = .false. 
+  parameter_scaling = .true.
   if ( parameter_scaling )  then 
-  xi = 0.5_rp
   allocate( sub_assembled_diag(num_dofs), stat=istat); check(istat==0)
-  sub_assembled_diag = this%permeability 
+  sub_assembled_diag = this%resisitivity
   else 
   ! Get the sub-assembled diagonal
   massert(associated(this%matrix),'The matrix is not associated. Have you called `stiffness_weighting_l1_coarse_fe_handler_t%create` ? ')
@@ -883,6 +881,9 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
   type(list_iterator_t)                  :: own_dofs_iterator 
   integer(ip)                            :: istat 
   type(hash_table_ip_ip_t)               :: visited_vefs
+  ! Tets 
+  type(tet_lagrangian_reference_fe_t)    :: ref_fe_2D
+  type(interpolation_t)                  :: interpolation_ref_fe_2D
 
   call par_fe_space%set_up_facet_integration()
   call par_fe_space%create_fe_object_iterator(object)
@@ -890,13 +891,14 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
   call par_fe_space%create_fe_cell_iterator(fe) 
   call par_fe_space%create_fe_vef_iterator(vef_within_object)
   call par_fe_space%create_fe_vef_iterator(edge_in_cell)
-  num_nedelec_dofs_x_face = 2*this%order*(this%order-1)
   reference_fe => par_fe_space%get_reference_fe(this%field_id)
 
     select case ( reference_fe%get_topology() )
     case ( topology_hex ) 
+    num_nedelec_dofs_x_face = 2*this%order*(this%order-1)
     allocate ( hex_lagrangian_reference_fe_t :: lagrangian_fe )
     case ( topology_tet ) 
+    num_nedelec_dofs_x_face = this%order*(this%order-1)
     allocate ( tet_lagrangian_reference_fe_t :: lagrangian_fe )
     end select 
   
@@ -913,19 +915,30 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
        field_type  = field_type_scalar,    &
        conformity  = .true. )
 
-  call Nedelec_fe_2D%create(topology   = reference_fe%get_topology(),          &
-       num_dims   = 2,                     &
-       order      = this%order-1,          &
-       field_type = field_type_vector,     &
-       conformity = .false. )
-
   ! Edge related moments 
   call lagrangian_fe%create_edge_quadrature( edge_quadrature )
   call fe_1D_reduced_order%create_interpolation( edge_quadrature, interpolation_1D_reduced_order )
   call edge_map%create( edge_quadrature, fe%get_reference_fe_geo() )
+
+  if ( this%order > 1 ) then 
+  call Nedelec_fe_2D%create(topology   = topology_hex,        &
+       num_dims   = 2,                     &
+       order      = this%order-1,          &
+       field_type = field_type_vector,     &
+       conformity = .false. )
+  
+  call ref_fe_2D%create(topology    =  topology_tet,          &
+       num_dims    = 2,                     &
+       order       = this%order-2,          &
+       field_type  = field_type_scalar,     &
+       conformity  = .true. )
+  
+  
   ! Face related moments 
   call Nedelec_fe_2D%create_interpolation( fe_face%get_quadrature(), Nedelec_interpolation )
-
+  call ref_fe_2D%create_interpolation( fe_face%get_quadrature(), interpolation_ref_fe_2D )
+  end if 
+  
   call memalloc( this%order,              this%order+1, elmat,       __FILE__, __LINE__ )
   call memalloc( num_nedelec_dofs_x_face, this%order+1, facet_elmat, __FILE__, __LINE__ )
 
@@ -1000,8 +1013,8 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
                     do idof = 1, this%order 
                        if ( dofs_old_basis(idof)>0 .and. dof_new_basis>0 ) then 
                           call this%transition_change_basis_matrix%insert(ia  = dofs_old_basis(idof) - this%num_interior_dofs,  &
-                               ja  = dof_new_basis - this%num_interior_dofs,  &
-                               val = elmat(idof, jdof) )
+                                                                          ja  = dof_new_basis - this%num_interior_dofs,  &
+                                                                          val = elmat(idof, jdof) )
 
                        end if
                     end do
@@ -1027,18 +1040,31 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
     
                  if ( .not. fe_face%is_at_interface() ) cycle 
                  call lagrangian_fe%create_interpolation_restricted_to_facet(  face_id-reference_fe%get_first_facet_id()+1,  &
-                      -1,                                           &
-                      fe_face%get_quadrature(),                     &
-                      lagrangian_interpolation_ref                 )
-
+                                                                               -1,                                           &
+                                                                               fe_face%get_quadrature(),                     &
+                                                                               lagrangian_interpolation_ref                  )
+                 
+                 
+                 select case ( reference_fe%get_topology() )
+                 case ( topology_hex ) 
                  call this%compute_face_discrete_gradient_elmat(fe,                            &
-                      fe_face,                       &
-                      Nedelec_fe_2D,                 &
-                      lagrangian_fe,                 &
-                      Nedelec_interpolation,         &
-                      lagrangian_interpolation_ref,  &
-                      own_dofs_iterator,             &
-                      facet_elmat)
+                                                                fe_face,                       &
+                                                                Nedelec_fe_2D,                 &
+                                                                lagrangian_fe,                 &
+                                                                Nedelec_interpolation,         &
+                                                                lagrangian_interpolation_ref,  &
+                                                                own_dofs_iterator,             &
+                                                                facet_elmat)
+                 case ( topology_tet ) 
+                 call this%compute_face_discrete_gradient_elmat(fe,                            &
+                                                                fe_face,                       &
+                                                                ref_fe_2D,                     &     ! Change from hex case  
+                                                                lagrangian_fe,                 &
+                                                                interpolation_ref_fe_2D,       &     ! Change from hex case
+                                                                lagrangian_interpolation_ref,  &
+                                                                own_dofs_iterator,             &
+                                                                facet_elmat)
+                 end select 
 
                  call this%get_dofs_from_vef(par_fe_space, fe_face, dofs_old_basis)       
                  call this%g2l_fes%get(key=fe%get_gid(), val=fe_lid, stat=istat); check(istat==key_found)
@@ -1048,8 +1074,8 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
                     do idof = 1, num_nedelec_dofs_x_face 
                        if ( dofs_old_basis(idof)>0 .and. dof_new_basis>0 ) then
                           call this%transition_change_basis_matrix%insert(ia       = dofs_old_basis(idof) - this%num_interior_dofs,  &
-                               ja       = dof_new_basis        - this%num_interior_dofs,  &
-                               val      = facet_elmat(idof, jdof) )
+                                                                          ja       = dof_new_basis        - this%num_interior_dofs,  &
+                                                                          val      = facet_elmat(idof, jdof) )
                        end if
                     end do
                     call own_dofs_iterator%next() 
@@ -1068,8 +1094,10 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
   call lagrangian_fe%free() 
   call fe_1D_reduced_order%free() 
   call Nedelec_fe_2D%free() 	  
+  call ref_fe_2D%free()
   
   call Nedelec_interpolation%free() 
+  call interpolation_ref_fe_2D%free()
   call interpolation_1D_reduced_order%free()
   call lagrangian_interpolation_ref%free() 
   call lagrangian_interpolation_phy%free()
@@ -1129,8 +1157,8 @@ subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis(this, par_fe_s
         jdof = this%edge_average_dof_id(coarse_subedge_iterator%get_current())
         do idof = 1, this%order 
            call this%transition_change_basis_matrix%insert(ia  = dofs_old_basis(idof) - this%num_interior_dofs,  &
-                ja  = jdof - this%num_interior_dofs,                  & 
-                val = sign_factor )
+                                                           ja  = jdof - this%num_interior_dofs,                  & 
+                                                           val = sign_factor )
         end do
         call fine_edge_iterator%next() 
      end do
@@ -1516,7 +1544,7 @@ subroutine hex_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
                             Lagrangian_interpolation,  &
                             nodes_n_face_iterator,     &
                             elmat)
-
+                                                                 
                        call this%assemble_face_coupled_to_edges_B_elmat( par_fe_space,                           &
                             elmat,                                  & 
                             fe_face,                                & 
@@ -1667,7 +1695,7 @@ subroutine tet_Hcurl_l1_fill_face_coupled_to_edges_local_change_of_basis( this, 
                             Lagrangian_interpolation,  &
                             nodes_iterator,            &
                             elmat)
-
+                       
                        call this%assemble_face_coupled_to_edges_B_elmat( par_fe_space,                           &
                             elmat,                                  & 
                             fe_face,                                & 
@@ -2071,9 +2099,9 @@ subroutine tet_Hcurl_l1_assemble_face_coupled_to_vertex_B_elmat( this, par_fe_sp
   call this%get_dofs_from_vef(par_fe_space, fe_face, dofs_face_old_basis)
   ! Assemble all face DoFs with the vertex DoF 
   call this%change_basis_matrix%insert(nz       = num_nedelec_dofs_x_face,                        & 
-       ia       = dofs_face_old_basis - this%num_interior_dofs,   &
-       ja       = dof_new_basis - this%num_interior_dofs,         &
-       val      = elmat(:, 1) )
+                                       ia       = dofs_face_old_basis - this%num_interior_dofs,   &
+                                       ja       = dof_new_basis - this%num_interior_dofs,         &
+                                       val      = elmat(:, 1) )
   call memfree( dofs_face_old_basis, __FILE__, __LINE__ )
 end subroutine tet_Hcurl_l1_assemble_face_coupled_to_vertex_B_elmat
 
@@ -2090,6 +2118,7 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
   real(rp),    allocatable    :: elvec(:) 
   real(rp)                    :: factor 
 
+  integer(ip)                 :: dof_new_basis 
   integer(ip), allocatable    :: dofs_old_basis(:) 
   integer(ip), allocatable    :: dofs_new_basis(:) 
   integer(ip)                 :: shared_nodal_dof 
@@ -2172,19 +2201,8 @@ subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, cons
         call vef%get_cell_around(1, cell)
         call cell%get_nodes_coordinates (cell_coordinates)
         vef_lid = cell%get_vef_lid_from_gid( vef%get_gid() )
-
-        edge_map_coordinates => edge_map%get_coordinates()
-
-        ! Extract coordinates of the vertices within the face
-        vertices_of_line          => ref_fe%get_vertices_n_face() 
-        vertices_of_line_iterator = vertices_of_line%create_iterator(vef_lid)
-        vertex_within_edge_id = 1
-        do while ( .not. vertices_of_line_iterator%is_upper_bound () )
-           vertex_within_cell_id = vertices_of_line_iterator%get_current()
-           call edge_map_coordinates(vertex_within_edge_id)%init(cell_coordinates(vertex_within_cell_id)%get_value() )
-           call vertices_of_line_iterator%next()
-           vertex_within_edge_id = vertex_within_edge_id + 1
-        end do
+        
+        call edge_map%update_coordinates(vef_lid, cell%get_reference_fe(), cell_coordinates )
 
         ! Update edge_map on current edge
         call edge_map%update(local_edge_id = vef_lid - ref_fe%get_first_n_face_id_of_dim(1)+1, &
