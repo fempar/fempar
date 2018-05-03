@@ -331,7 +331,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   parameter_scaling = .true.
   if ( parameter_scaling )  then 
   allocate( sub_assembled_diag(num_dofs), stat=istat); check(istat==0)
-  sub_assembled_diag = this%resisitivity
+  sub_assembled_diag = this%resistivity
   else 
   ! Get the sub-assembled diagonal
   massert(associated(this%matrix),'The matrix is not associated. Have you called `stiffness_weighting_l1_coarse_fe_handler_t%create` ? ')
@@ -483,15 +483,15 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
 
      ! Faces integration 
      if ( this%order > 1 ) then 
-        call this%fill_face_coupled_to_edges_local_change_of_basis(par_fe_space) 
+       call this%fill_face_coupled_to_edges_local_change_of_basis(par_fe_space) 
      end if
      
      call this%change_basis_matrix%convert(csr_format)
      call this%transition_change_basis_matrix%convert(csr_format)
     
      ! DEBUG: Print matrices, debugging purposes 
-      !call this%change_basis_matrix%print_matrix_market(6)
-      !call this%transition_change_basis_matrix%print_matrix_market(6)
+      call this%change_basis_matrix%print_matrix_market(6)
+      call this%transition_change_basis_matrix%print_matrix_market(6)
      
      call x%create_and_allocate(this%num_total_dofs - this%num_interior_dofs)
      call x%init(0.0_rp)
@@ -861,7 +861,7 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
   type(vector_field_t)                          :: grad_shape_trial 
   ! Edge Discrete Gradient integration 
   type(quadrature_t)                      :: edge_quadrature
-  type(hex_lagrangian_reference_fe_t)     :: fe_1D_reduced_order
+  class(lagrangian_reference_fe_t) , allocatable  :: fe_1D_reduced_order
   type(interpolation_t)                   :: interpolation_1D_reduced_order 
   type(edge_map_t)                        :: edge_map 
   type(point_t), pointer                  :: edge_map_coordinates(:)
@@ -897,13 +897,15 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
     case ( topology_hex ) 
     num_nedelec_dofs_x_face = 2*this%order*(this%order-1)
     allocate ( hex_lagrangian_reference_fe_t :: lagrangian_fe )
+    allocate ( hex_lagrangian_reference_fe_t :: fe_1D_reduced_order ) 
     case ( topology_tet ) 
     num_nedelec_dofs_x_face = this%order*(this%order-1)
     allocate ( tet_lagrangian_reference_fe_t :: lagrangian_fe )
+    allocate ( tet_lagrangian_reference_fe_t :: fe_1D_reduced_order )
     end select 
   
   ! Create a 1D scalar lagrangian reference FE of order k-1
-  call fe_1D_reduced_order%create(topology    = topology_hex,           &
+  call fe_1D_reduced_order%create(topology    = reference_fe%get_topology(),   &
        num_dims    = 1,                            &
        order       = reference_fe%get_order()-1,   &
        field_type  = field_type_scalar,            &

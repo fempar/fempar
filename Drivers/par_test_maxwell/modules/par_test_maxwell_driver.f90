@@ -525,7 +525,7 @@ end subroutine free_timers
 	   integer(ip)                                        :: i, istat
 	 
 	 if ( this%par_environment%am_i_l1_task() ) then
-    if(this%test_params%get_write_solution()) then
+    if(this%test_params%get_write_solution() .and. (this%test_params%get_reference_fe_order()==1) ) then
 	    call build_set_ids()
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
