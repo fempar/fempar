@@ -711,7 +711,10 @@ subroutine fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field ( this
   integer(ip)            , intent(in)    :: field_id
   integer(ip), pointer :: fe_dofs(:)
   call this%get_field_fe_dofs(field_id, fe_dofs)
-  if ( any( (fe_dofs(:) < 0) .and. (fe_dofs(:) >= -this%fe_space%num_dirichlet_dofs) ) ) call this%fe_space%at_strong_dirichlet_boundary_x_fe(field_id)%set(this%get_gid(),.true.)
+  if ( associated(fe_dofs) ) then 
+    if ( any( (fe_dofs(:) < 0) .and. (fe_dofs(:) >= -this%fe_space%num_dirichlet_dofs) ) ) & 
+        call this%fe_space%at_strong_dirichlet_boundary_x_fe(field_id)%set(this%get_gid(),.true.)
+  end if       
 end subroutine fe_cell_iterator_set_at_strong_dirichlet_boundary_single_field
 
 subroutine fe_cell_iterator_set_has_fixed_dofs ( this, field_id )
@@ -721,12 +724,14 @@ subroutine fe_cell_iterator_set_has_fixed_dofs ( this, field_id )
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: i 
   call this%get_field_fe_dofs(field_id, fe_dofs)
-  do i=1, size(fe_dofs)
-    if ( this%is_fixed_dof(fe_dofs(i)) ) then
-      call this%fe_space%has_fixed_dofs_x_fe(field_id)%set(this%get_gid(),.true.)
-      exit
-    end if  
-  end do  
+  if ( associated(fe_dofs) ) then
+    do i=1, size(fe_dofs)
+      if ( this%is_fixed_dof(fe_dofs(i)) ) then
+        call this%fe_space%has_fixed_dofs_x_fe(field_id)%set(this%get_gid(),.true.)
+        exit
+      end if  
+    end do  
+  end if   
 end subroutine fe_cell_iterator_set_has_fixed_dofs
 
 subroutine fe_cell_iterator_set_has_hanging_dofs ( this, field_id )
@@ -736,12 +741,14 @@ subroutine fe_cell_iterator_set_has_hanging_dofs ( this, field_id )
   integer(ip), pointer :: fe_dofs(:)
   integer(ip) :: i 
   call this%get_field_fe_dofs(field_id, fe_dofs)
-  do i=1, size(fe_dofs)
-    if ( this%is_hanging_dof(fe_dofs(i)) ) then
-      call this%fe_space%has_hanging_dofs_x_fe(field_id)%set(this%get_gid(),.true.)
-      exit
-    end if
-  end do
+  if ( associated(fe_dofs) ) then
+    do i=1, size(fe_dofs)
+      if ( this%is_hanging_dof(fe_dofs(i)) ) then
+        call this%fe_space%has_hanging_dofs_x_fe(field_id)%set(this%get_gid(),.true.)
+        exit
+      end if
+    end do
+  end if 
 end subroutine fe_cell_iterator_set_has_hanging_dofs
 
 subroutine fe_cell_iterator_set_at_strong_dirichlet_boundary_all_fields ( this )
