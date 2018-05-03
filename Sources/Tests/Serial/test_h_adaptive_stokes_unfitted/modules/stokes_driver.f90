@@ -593,6 +593,7 @@ contains
 
     call this%cG_integration%set_is_in_aggregate(this%fe_space%get_is_in_aggregate_x_cell() )
     call this%cG_integration%set_aggregate_root_ids(this%fe_space%get_aggregate_ids() )
+    call this%cG_integration%set_stabilization_constants(this%test_params%get_face_stab_constant())
     
     ! Set up interpolation duties
     allocate( interpolation_duties(this%fe_space%get_num_fields()), stat=istat); check(istat==0)

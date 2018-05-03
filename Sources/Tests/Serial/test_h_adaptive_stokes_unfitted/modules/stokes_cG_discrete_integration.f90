@@ -50,8 +50,11 @@ module stokes_cG_discrete_integration_names
      logical :: use_face_stabilization = .false.
      logical, pointer :: is_in_aggregate(:) => null()
      integer(ip), pointer :: aggregate_root_ids(:) => null()
+     real(rp) :: face_stab_constant = 1.0_rp
+     real(rp) :: cell_stab_constant = 1.0_rp
    contains
      procedure :: set_analytical_functions
+     procedure :: set_stabilization_constants
      procedure :: set_fe_function
      procedure :: set_unfitted_boundary_is_dirichlet
      procedure :: set_is_constant_nitches_beta
@@ -72,6 +75,14 @@ contains
      type(stokes_analytical_functions_t), target, intent(in)    :: analytical_functions
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
+
+!========================================================================================
+  subroutine set_stabilization_constants( this, face_stab_constant)
+     implicit none
+     class(stokes_cG_discrete_integration_t)    , intent(inout) :: this
+     real(rp), intent(in) :: face_stab_constant
+     this%face_stab_constant = face_stab_constant
+  end subroutine set_stabilization_constants
 
 !========================================================================================
   subroutine set_unfitted_boundary_is_dirichlet ( this, is_dirichlet )
@@ -472,7 +483,7 @@ contains
                     do jdof_p = 1, fe_facet%get_num_dofs_field(jneigh,P_FIELD_ID)
                       jdof = jdof_p + fe_facet%get_num_dofs_field(jneigh,U_FIELD_ID) 
                       facemat(idof,jdof,ineigh,jneigh) = facemat(idof,jdof,ineigh,jneigh) +     &
-                        & dS * h_length &
+                        & dS * this%face_stab_constant * h_length &
                         & * shape_values_jneigh(jdof_p,qpoint) &
                         & * shape_values_ineigh(idof_p,qpoint) &
                         & * normals(ineigh)*normals(jneigh) 
