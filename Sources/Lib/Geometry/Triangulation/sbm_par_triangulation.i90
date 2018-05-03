@@ -98,7 +98,7 @@ subroutine par_triangulation_create ( this, parameters, environment)
      istat = parameters%Get(key = geometry_interpolation_order_key, Value = geometry_interpolation_order)
      assert(istat==0)
   else
-     geometry_interpolation_order = 1
+     geometry_interpolation_order = 2
   end if
   
   if(triangulation_generate==triangulation_generate_from_mesh) then
