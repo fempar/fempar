@@ -453,6 +453,8 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
 
   integer(ip)                 :: idof 
   type(serial_scalar_array_t) :: x, y, x0
+  integer(ip) :: luout
+  character(:), allocatable :: matrix_filename
   
   p_env => par_fe_space%get_environment() 
 
@@ -489,10 +491,18 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
      call this%change_basis_matrix%convert(csr_format)
      call this%transition_change_basis_matrix%convert(csr_format)
     
-     ! DEBUG: Print matrices, debugging purposes 
-      call this%change_basis_matrix%print_matrix_market(6)
-      call this%transition_change_basis_matrix%print_matrix_market(6)
+     ! DEBUG: Print matrices, debugging purposes **********************************
      
+      matrix_filename = 'change_basis'//p_env%get_l1_rank()
+      luout = io_open ( matrix_filename, 'write')
+      call this%change_basis_matrix%print_matrix_market(luout)
+      call io_close(luout)
+      
+      matrix_filename = 'transition_change_basis'//p_env%get_l1_rank()
+      luout = io_open ( matrix_filename, 'write')
+      call this%transition_change_basis_matrix%print_matrix_market(luout)
+      call io_close(luout)
+      
      call x%create_and_allocate(this%num_total_dofs - this%num_interior_dofs)
      call x%init(0.0_rp)
      call y%clone(x)
@@ -510,6 +520,7 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
      call x%free()
      call y%free()
      call x0%free()
+     ! ******************************************************************************
      
       call memfree(edge_elmat, __FILE__, __LINE__ ) 
   end if
@@ -1037,7 +1048,7 @@ subroutine Hcurl_l1_compute_interface_discrete_gradient( this, par_fe_space )
                  end do
 
                  call fe_face%set_gid( facet_gid )	
-                 call visited_vefs%put( key=fe_face%get_gid(), val=1, stat=istat )
+                 call visited_vefs%put( key=fe%get_vef_gid(face_id), val=1, stat=istat )
                  if ( istat==now_stored ) then 
     
                  if ( .not. fe_face%is_at_interface() ) cycle 
