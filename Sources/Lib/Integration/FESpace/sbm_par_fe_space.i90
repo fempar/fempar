@@ -2888,6 +2888,7 @@ contains
     implicit none
     num_itfc_dofs   = 0
     this%dof_gid_to_itfc_dof_gid=-1
+    call vef%first()
     do while(.not. vef%has_finished())
        dofs_found = .false.
        do ielem=1, vef%get_num_cells_around()
@@ -4382,7 +4383,6 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
   real(rp), pointer :: p_new_fe_function_nodal_values(:)
   type(environment_t), pointer :: environment
   class(cell_import_t), pointer :: cell_import
-  integer(ip) :: num_dofs
   
   
 #ifdef ENABLE_P4EST  
@@ -4482,10 +4482,6 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
            old_cell_lid = old_cell_lid + 1
         end do
 
-        num_dofs = this%ptr_dofs_x_fe(1)%get(2)- &
-                   this%ptr_dofs_x_fe(this%num_fields)%get(1)
-
-
         ! Retrieve set IDs from ghost cells
         cell_import => triangulation%get_cell_import()
         call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
@@ -4498,7 +4494,8 @@ end subroutine par_fe_space_gather_ptr_dofs_x_fe
                                                   cell_import%get_snd_leids(),&
                                                   p_new_fe_function_nodal_values, &
                                                   p_new_fe_function_nodal_values, &
-                                                  num_dofs )
+                                                  this%ptr_dofs_x_fe(1)%get_pointer(), &
+                                                  this%ptr_dofs_x_fe(1)%get_pointer() )
         
         !  massert ( new_cell_lid - 1 == this%triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
         !  
@@ -4888,7 +4885,6 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
   real(rp), pointer :: p_new_fe_function_nodal_values(:)
   type(environment_t), pointer :: environment
   class(cell_import_t), pointer :: cell_import
-  integer(ip) :: num_dofs
   integer(ip) :: ifunc
   
   
@@ -4990,11 +4986,7 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
              new_cell_lid = current_new_cell_lid
              old_cell_lid = old_cell_lid + 1
           end do
-
-          num_dofs = this%ptr_dofs_x_fe(1)%get(2)- &
-                     this%ptr_dofs_x_fe(this%num_fields)%get(1)
-
-
+          
           ! Retrieve set IDs from ghost cells
           cell_import => triangulation%get_cell_import()
           call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(), &
@@ -5007,7 +4999,8 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
                                                     cell_import%get_snd_leids(),&
                                                     p_new_fe_function_nodal_values, &
                                                     p_new_fe_function_nodal_values, &
-                                                    num_dofs )
+                                                    this%ptr_dofs_x_fe(1)%get_pointer(), &
+                                                    this%ptr_dofs_x_fe(1)%get_pointer() )
           
           !  massert ( new_cell_lid - 1 == this%triangulation%get_num_cells(), 'Loop in old cells failed to visit all new cells' )
           !  
@@ -5199,7 +5192,8 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
                                                num_snd, lst_snd, snd_ptrs, pack_idx, &
                                                p_old_fe_function_nodal_values, &
                                                p_new_fe_function_nodal_values, &
-                                               num_dofs )
+                                               old_ptr_dofs_x_fe(1)%get_pointer(), &
+                                               this%ptr_dofs_x_fe(1)%get_pointer() )
   
       ! Retrieve set IDs from ghost cells
       cell_import => p4est_par_triangulation%get_cell_import()
@@ -5213,7 +5207,8 @@ subroutine par_fe_space_redistribute_single_fe_function( this, fe_function )
                                                 cell_import%get_snd_leids(),&
                                                 p_new_fe_function_nodal_values, &
                                                 p_new_fe_function_nodal_values, &
-                                                num_dofs )  
+                                                this%ptr_dofs_x_fe(1)%get_pointer(), &
+                                                this%ptr_dofs_x_fe(1)%get_pointer() )  
       
         
         
@@ -5431,7 +5426,8 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
                                                  num_snd, lst_snd, snd_ptrs, pack_idx, &
                                                  p_old_fe_function_nodal_values, &
                                                  p_new_fe_function_nodal_values, &
-                                                 num_dofs )
+                                                 old_ptr_dofs_x_fe(1)%get_pointer(), &
+                                                 this%ptr_dofs_x_fe(1)%get_pointer() )
     
         ! Retrieve set IDs from ghost cells
         cell_import => p4est_par_triangulation%get_cell_import()
@@ -5445,7 +5441,8 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
                                                   cell_import%get_snd_leids(),&
                                                   p_new_fe_function_nodal_values, &
                                                   p_new_fe_function_nodal_values, &
-                                                  num_dofs )  
+                                                  this%ptr_dofs_x_fe(1)%get_pointer(), &
+                                                  this%ptr_dofs_x_fe(1)%get_pointer() )  
         
           
           
@@ -5474,6 +5471,11 @@ subroutine par_fe_space_redistribute_fe_function_array( this, fe_functions )
       call this%free_fe_cell_iterator(fe)
     end if 
   end if
+  ! Re-set up coarse_fe_space()
+  if ( triangulation%coarse_triangulation_is_set_up() ) then
+    call this%setup_coarse_fe_space(this%parameter_list)
+  end if
+  
  contains 
 
   function get_field_fe_dofs()
