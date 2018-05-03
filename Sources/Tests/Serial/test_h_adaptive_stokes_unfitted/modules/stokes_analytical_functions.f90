@@ -425,7 +425,7 @@ contains
     x1 = point%get(1)
     x2 = point%get(2)
     x3 = point%get(3)
-    val = x1*x2
+    val = x1
   end subroutine sol_ex001_3d_p
 
   subroutine sol_ex001_3d_grad_p(point,val,q)
@@ -438,8 +438,8 @@ contains
     x2 = point%get(2)
     x3 = point%get(3)
     call val%init(0.0)
-    call val%set(1, x2 )
-    call val%set(2, x1 )
+    call val%set(1, 1.0 )
+    call val%set(2, 0.0 )
     call val%set(3, 0.0)
   end subroutine sol_ex001_3d_grad_p
 
