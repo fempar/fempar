@@ -179,7 +179,9 @@ subroutine fe_cell_iterator_first(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   call base_fe_cell_iterator_first(this)
-  call this%update_performance_scratch_data()
+  if ( .not. this%has_finished() ) then
+    call this%update_performance_scratch_data()
+  end if
 end subroutine fe_cell_iterator_first
 
 subroutine fe_cell_iterator_set_gid(this, lid)
