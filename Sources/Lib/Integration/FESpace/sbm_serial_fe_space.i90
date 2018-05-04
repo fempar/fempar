@@ -350,10 +350,12 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   integer(ip), allocatable :: offset_component_x_field(:)
   integer(ip)             :: istat
   class(fe_cell_iterator_t), allocatable :: fe, source_fe
+  class(fe_cell_iterator_t), allocatable :: coarser_fe
   type(fe_vef_iterator_t)    :: vef
   class(reference_fe_t), pointer :: reference_fe
   logical              , allocatable :: components_code(:)
-  integer(ip), allocatable           :: visited_vef_to_cell_map(:,:)
+  integer(ip), allocatable           :: visited_proper_vef_to_cell_map(:,:)
+  integer(ip), allocatable           :: visited_improper_vef_to_cell_map(:,:)
   integer(ip)                        :: previous_num_dirichlet_dofs
   class(triangulation_t), pointer :: triangulation
   
@@ -375,9 +377,11 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   call memalloc ( this%conditions%get_num_components(), components_code, __FILE__, __LINE__ )
 
   call memalloc (this%get_num_fields()+1,offset_component_x_field,__FILE__,__LINE__)
-  call memalloc ( 2, this%triangulation%get_num_vefs(), visited_vef_to_cell_map,  __FILE__, __LINE__ )
+  call memalloc ( 2, this%triangulation%get_num_proper_vefs(), visited_proper_vef_to_cell_map,  __FILE__, __LINE__ )
+  call memalloc ( 2, this%triangulation%get_num_improper_vefs(), visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
 
   call this%create_fe_cell_iterator(fe)
+  call this%create_fe_cell_iterator(coarser_fe)
   call this%create_fe_cell_iterator(source_fe)
   call this%create_fe_vef_iterator(vef)
 
@@ -390,7 +394,8 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
 
   do field_id = 1, this%get_num_fields()
     ! Initialize
-    visited_vef_to_cell_map = -1
+    visited_proper_vef_to_cell_map = -1
+    visited_improper_vef_to_cell_map = -1
 
     call fe%first()
     do while (.not. fe%has_finished() )
@@ -400,9 +405,8 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
             if ( .not. vef%is_ghost() ) then
 
              ! Check whether a set_id different from 0 has been set for current vef. 
-             ! TO-DO: Should we also ask whether current vef is at the boundary?
              !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
-             if ( vef%get_set_id() /= 0 .and. vef%get_gid() > 0 ) then ! .and. vef%at_boundary()??? )
+             if ( vef%get_set_id() /= 0 .and. vef%has_free_dofs(field_id, coarser_fe) ) then
 
                ! Get components code corresponding to set_id assigned to current vef
                ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
@@ -411,20 +415,38 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
 
                ! Auxiliary function containing the work done at each innermost iteration
                previous_num_dirichlet_dofs = this%num_dirichlet_dofs
-               call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
-                                                                      vef,&
-                                                                      ivef,&
-                                                                      field_id,&
-                                                                      components_code(offset_component_x_field(field_id):&
-                                                                                      offset_component_x_field(field_id+1)-1),&
-                                                                      visited_vef_to_cell_map,&
-                                                                      source_fe)
+               
+               if ( vef%is_proper() ) then
+                 call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
+                                                                        vef,&
+                                                                        ivef,&
+                                                                        field_id,&
+                                                                        components_code(offset_component_x_field(field_id):&
+                                                                                        offset_component_x_field(field_id+1)-1),&
+                                                                        visited_proper_vef_to_cell_map,&
+                                                                        source_fe)
 
-               if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 .and. &
-                    previous_num_dirichlet_dofs < this%num_dirichlet_dofs ) then
-                  visited_vef_to_cell_map ( 1, vef%get_gid() ) = fe%get_gid()
-                  visited_vef_to_cell_map ( 2, vef%get_gid() ) = ivef
-               end if
+                 if ( visited_proper_vef_to_cell_map(1, vef%get_gid()) == -1 .and. &
+                      previous_num_dirichlet_dofs < this%num_dirichlet_dofs ) then
+                    visited_proper_vef_to_cell_map ( 1, vef%get_gid() ) = fe%get_gid()
+                    visited_proper_vef_to_cell_map ( 2, vef%get_gid() ) = ivef
+                 end if
+               else
+                 call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
+                                                                        vef,&
+                                                                        ivef,&
+                                                                        field_id,&
+                                                                        components_code(offset_component_x_field(field_id):&
+                                                                                        offset_component_x_field(field_id+1)-1),&
+                                                                        visited_improper_vef_to_cell_map,&
+                                                                        source_fe)
+
+                 if ( visited_improper_vef_to_cell_map(1, abs(vef%get_gid())) == -1 .and. &
+                      previous_num_dirichlet_dofs < this%num_dirichlet_dofs ) then
+                    visited_improper_vef_to_cell_map ( 1, abs(vef%get_gid()) ) = fe%get_gid()
+                    visited_improper_vef_to_cell_map ( 2, abs(vef%get_gid()) ) = ivef
+                 end if               
+               end if 
              end if
             end if
          end do
@@ -444,12 +466,14 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   
   this%num_fixed_dofs = this%num_dirichlet_dofs
 
-  call memfree ( visited_vef_to_cell_map,  __FILE__, __LINE__ )
+  call memfree ( visited_proper_vef_to_cell_map,  __FILE__, __LINE__ )
+  call memfree ( visited_improper_vef_to_cell_map,  __FILE__, __LINE__ )
   call memfree ( components_code, __FILE__, __LINE__ )
   call memfree (offset_component_x_field,__FILE__,__LINE__)
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_cell_iterator(source_fe)
   call this%free_fe_vef_iterator(vef)
+  call this%free_fe_cell_iterator(coarser_fe)
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs
 
 subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
@@ -482,7 +506,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
   select type ( reference_fe )
      class is ( nedelec_reference_fe_t )
      if ( components_code(1) ) then
-       if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 ) then
+       if ( visited_vef_to_cell_map(1, abs(vef%get_gid())) == -1 ) then
            call fe%generate_own_dofs_vef ( ivef, &
                                           field_id, &
                                           this%num_dirichlet_dofs, &
@@ -490,7 +514,7 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
        end if
      end if
      class is ( lagrangian_reference_fe_t )
-     if ( visited_vef_to_cell_map(1, vef%get_gid()) == -1 ) then
+     if ( visited_vef_to_cell_map(1, abs(vef%get_gid())) == -1 ) then
        call fe%generate_own_dofs_vef_component_wise ( ivef, &
                                                      field_id, &
                                                      this%num_dirichlet_dofs, &
@@ -499,12 +523,12 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field(this,&
      end if
   end select
   
-  if ( visited_vef_to_cell_map(1, vef%get_gid()) /= -1 ) then
-    call source_fe%set_gid(visited_vef_to_cell_map(1,vef%get_gid()))
+  if ( visited_vef_to_cell_map(1, abs(vef%get_gid())) /= -1 ) then
+    call source_fe%set_gid(visited_vef_to_cell_map(1,abs(vef%get_gid())))
     call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
-                                                  source_fe, &
-                                                  visited_vef_to_cell_map(2,vef%get_gid()), &
-                                                  field_id) 
+                                                source_fe, &
+                                                visited_vef_to_cell_map(2,abs(vef%get_gid())), &
+                                                field_id) 
   end if
 end subroutine serial_fe_space_set_up_strong_dirichlet_bcs_on_vef_and_field
 
@@ -709,6 +733,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
 
   class(reference_fe_t)    , pointer        :: reference_fe 
   class(fe_cell_iterator_t), allocatable    :: fe 
+  class(fe_cell_iterator_t), allocatable    :: coarser_fe 
   class(fe_cell_iterator_t), allocatable    :: aux_fe 
   type(fe_vef_iterator_t)                   :: vef 
   type(list_iterator_t)                     :: own_dofs_on_vef_iterator  
@@ -736,6 +761,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   if ( triangulation%get_num_cells() == 0 ) return
   
   call this%create_fe_cell_iterator(fe) 
+  call this%create_fe_cell_iterator(coarser_fe) 
   call this%create_fe_cell_iterator(aux_fe)
   call memalloc( this%get_num_fields(), is_void_field, __FILE__, __LINE__ ) 
 
@@ -747,7 +773,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
      is_void_field(field_id) = .true. 
      do while (  (.not. fe%has_finished() )) 
         if ( .not. fe%is_void(field_id) ) then 
-           is_void_field(field_id) = .false.; exit 
+           is_void_field(field_id) = .false.
+           exit 
         end if
         call fe%next() 
      end do
@@ -803,7 +830,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
               do vef_lid = 1, fe%get_num_vefs() 
                  call fe%get_vef(vef_lid, vef)
                  if ( .not. vef%is_ghost() ) then
-                    if ( vef%get_set_id() /= 0 .and. vef%is_proper() ) then
+                    if ( vef%get_set_id() /= 0 .and. vef%has_free_dofs(field_id,coarser_fe) ) then
                        local_found = .false.
                        do ielem=1, vef%get_num_cells_around()
                           call vef%get_cell_around(ielem, aux_fe)
@@ -860,6 +887,7 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
 
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_cell_iterator(aux_fe)
+  call this%free_fe_cell_iterator(coarser_fe)
   call this%free_fe_vef_iterator(vef) 
 
   do field_id = 1, this%get_num_fields() 
