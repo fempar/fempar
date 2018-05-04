@@ -431,10 +431,13 @@ module fe_space_names
     procedure, non_overridable, private :: fe_facet_iterator_assembly_array
     procedure, non_overridable, private :: fe_facet_iterator_assembly_matrix
     procedure, non_overridable, private :: fe_facet_iterator_assembly_matrix_array
+    procedure, non_overridable, private :: fe_facet_iterator_assembly_matrix_array_with_strong_bcs
     generic                             :: assembly                      => fe_facet_iterator_assembly_array,  &
                                                                             fe_facet_iterator_assembly_matrix, &
-                                                                            fe_facet_iterator_assembly_matrix_array
+                                                                            fe_facet_iterator_assembly_matrix_array, &
+                                                                            fe_facet_iterator_assembly_matrix_array_with_strong_bcs
  
+    procedure                 , private :: impose_strong_dirichlet_bcs =>  fe_facet_iterator_impose_strong_dirichlet_bcs_conforming
     procedure, non_overridable, private :: clear_fe_dofs_ghost_full_local_void => fe_facet_iterator_clear_fe_dofs_ghost_full_local_void
 
     procedure, non_overridable          :: get_fe_space                  => fe_facet_iterator_get_fe_space
