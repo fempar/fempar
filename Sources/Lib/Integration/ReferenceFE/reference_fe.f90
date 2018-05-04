@@ -507,6 +507,10 @@ module reference_fe_names
      procedure(get_laplacian_vector_interface)       , deferred :: get_laplacian_vector
      generic :: get_laplacian => get_laplacian_scalar, get_laplacian_vector
 
+     procedure(get_laplacians_scalar_interface)       , deferred :: get_laplacians_scalar
+     procedure(get_laplacians_vector_interface)       , deferred :: get_laplacians_vector
+     generic :: get_laplacians => get_laplacians_scalar, get_laplacians_vector
+
      procedure(evaluate_fe_function_scalar_interface), deferred :: evaluate_fe_function_scalar
      procedure(evaluate_fe_function_vector_interface), deferred :: evaluate_fe_function_vector
      procedure(evaluate_fe_function_tensor_interface), deferred :: evaluate_fe_function_tensor
@@ -841,6 +845,24 @@ module reference_fe_names
        type(vector_field_t) , intent(inout) :: vector_field
      end subroutine get_laplacian_vector_interface
 
+     subroutine get_laplacians_scalar_interface( this, actual_cell_interpolation, laplacians, qpoints_perm )
+       import :: reference_fe_t, interpolation_t, rp, ip
+       implicit none
+       class(reference_fe_t), intent(in)    :: this
+       type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+       real(rp), allocatable, intent(inout) :: laplacians(:,:)
+       integer(ip), optional, intent(in)    :: qpoints_perm(:)
+     end subroutine get_laplacians_scalar_interface
+
+     subroutine get_laplacians_vector_interface( this, actual_cell_interpolation, laplacians, qpoints_perm )
+       import :: reference_fe_t, interpolation_t, vector_field_t, ip
+       implicit none
+       class(reference_fe_t)            , intent(in)    :: this 
+       type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+       type(vector_field_t), allocatable, intent(inout) :: laplacians(:,:)
+       integer(ip), optional, intent(in)    :: qpoints_perm(:)
+     end subroutine get_laplacians_vector_interface
+
      subroutine evaluate_fe_function_scalar_interface( this,                      &
                                                        actual_cell_interpolation, &
                                                        nodal_values,              &
@@ -1106,6 +1128,8 @@ contains
   procedure :: get_curls_vector          => lagrangian_reference_fe_get_curls_vector
   procedure :: get_laplacian_scalar      => lagrangian_reference_fe_get_laplacian_scalar
   procedure :: get_laplacian_vector      => lagrangian_reference_fe_get_laplacian_vector
+  procedure :: get_laplacians_scalar     => lagrangian_reference_fe_get_laplacians_scalar
+  procedure :: get_laplacians_vector     => lagrangian_reference_fe_get_laplacians_vector
   procedure :: create_nodal_quadrature   => lagrangian_reference_fe_create_nodal_quadrature
   procedure :: has_nodal_quadrature      => lagrangian_reference_fe_has_nodal_quadrature
   procedure :: get_nodal_quadrature      => lagrangian_reference_fe_get_nodal_quadrature
@@ -1689,6 +1713,8 @@ contains
   procedure :: get_curls_vector            => void_reference_fe_get_curls_vector
   procedure :: get_laplacian_scalar        => void_reference_fe_get_laplacian_scalar
   procedure :: get_laplacian_vector        => void_reference_fe_get_laplacian_vector
+  procedure :: get_laplacians_scalar       => void_reference_fe_get_laplacians_scalar
+  procedure :: get_laplacians_vector       => void_reference_fe_get_laplacians_vector
   procedure :: evaluate_fe_function_scalar => void_reference_fe_evaluate_fe_function_scalar
   procedure :: evaluate_fe_function_vector => void_reference_fe_evaluate_fe_function_vector
   procedure :: evaluate_fe_function_tensor => void_reference_fe_evaluate_fe_function_tensor
@@ -1787,6 +1813,14 @@ generic                             :: get_curl => get_curl_vector
 
 procedure, non_overridable, private :: get_curls_vector => cell_integrator_get_curls_vector
 generic                             :: get_curls => get_curls_vector
+
+procedure, non_overridable, private :: get_laplacian_scalar => cell_integrator_get_laplacian_scalar
+procedure, non_overridable, private :: get_laplacian_vector => cell_integrator_get_laplacian_vector
+generic                             :: get_laplacian => get_laplacian_scalar, get_laplacian_vector
+
+procedure, non_overridable, private :: get_laplacians_scalar => cell_integrator_get_laplacians_scalar
+procedure, non_overridable, private :: get_laplacians_vector => cell_integrator_get_laplacians_vector
+generic                             :: get_laplacians => get_laplacians_scalar, get_laplacians_vector
 
 ! We might want to have the following in the future:
 !  (x) get_hessian (scalar,vector)
