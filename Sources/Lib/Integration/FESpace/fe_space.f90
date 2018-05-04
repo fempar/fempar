@@ -1096,7 +1096,7 @@ module fe_space_names
   contains
     ! New tools 
     procedure                           :: fill_fe_dofs_new_basis                        => Hcurl_l1_fill_fe_dofs_new_basis
-    procedure, non_overridable, private :: compute_interface_discrete_gradient           => Hcurl_l1_compute_interface_discrete_gradient
+    procedure, non_overridable, private :: fill_interface_discrete_gradient_part         => Hcurl_l1_fill_interface_discrete_gradient_part
     procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis => Hcurl_l1_fill_average_tangent_function_change_of_basis
     ! Overriding procedures 
     procedure                           :: free                                          => Hcurl_l1_free
@@ -1552,7 +1552,21 @@ real(rp), allocatable             :: scalar_function_values_on_edge(:,:)
 real(rp), allocatable             :: scalar_function_values_on_facet(:,:)
 contains   
 procedure :: evaluate_scalar_function_moments    => Hcurl_interpolator_evaluate_scalar_function_moments 
+procedure(interpolator_evaluate_discrete_gradient_interface) , deferred :: evaluate_discrete_gradient 
 end type Hcurl_interpolator_t 
+
+abstract interface 
+
+    subroutine interpolator_evaluate_discrete_gradient_interface( this, n_face_mask, fe, lagrangian_fe, elmat )
+      import :: Hcurl_interpolator_t, fe_cell_iterator_t, lagrangian_reference_fe_t, rp
+      implicit none 
+      class(Hcurl_interpolator_t)     , intent(inout) :: this
+      logical                         , intent(in)    :: n_face_mask(:,:) 
+      class(fe_cell_iterator_t)       , intent(in)    :: fe
+      class(lagrangian_reference_fe_t), intent(in)    :: lagrangian_fe 
+      real(rp) , allocatable          , intent(inout) :: elmat(:,:)
+    end subroutine interpolator_evaluate_discrete_gradient_interface
+end interface 
 
 type, extends(Hcurl_interpolator_t) :: hex_Hcurl_interpolator_t 
 private       
@@ -1564,6 +1578,7 @@ contains
 procedure :: create                                             => hex_Hcurl_interpolator_create
 procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments  
 procedure :: evaluate_function_scalar_components_moments        => hex_Hcurl_interpolator_evaluate_function_components_moments
+procedure :: evaluate_discrete_gradient                         => hex_Hcurl_interpolator_evaluate_discrete_gradient 
 procedure :: free                                               => hex_Hcurl_interpolator_free
 end type hex_Hcurl_interpolator_t
 
@@ -1576,6 +1591,7 @@ contains
 procedure :: create                                             => tet_Hcurl_interpolator_create
 procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments  
 procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_interpolator_evaluate_function_components_moments
+procedure :: evaluate_discrete_gradient                         => tet_Hcurl_interpolator_evaluate_discrete_gradient
 procedure :: free                                               => tet_Hcurl_interpolator_free
 end type tet_Hcurl_interpolator_t
 
