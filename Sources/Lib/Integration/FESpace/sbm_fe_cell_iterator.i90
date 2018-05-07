@@ -920,6 +920,21 @@ subroutine fe_cell_iterator_set_cell_integrator ( this, field_id, cell_integrato
 end subroutine fe_cell_iterator_set_cell_integrator
 
 !==================================================================================================
+subroutine fe_cell_iterator_nullify_cell_map ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  nullify(this%cell_map)
+end subroutine fe_cell_iterator_nullify_cell_map
+
+!==================================================================================================
+subroutine fe_cell_iterator_nullify_cell_integrator ( this, field_id )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: field_id
+  nullify(this%cell_integrators(field_id)%p)
+end subroutine fe_cell_iterator_nullify_cell_integrator
+
+!==================================================================================================
 function fe_cell_iterator_get_quadrature_points_coordinates(this)
   implicit none
   class(fe_cell_iterator_t)   , target, intent(in) :: this
