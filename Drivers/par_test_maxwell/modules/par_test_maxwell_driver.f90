@@ -53,7 +53,7 @@ module par_test_maxwell_driver_names
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                          :: fe_space 
      type(p_reference_fe_t), allocatable           :: reference_fes(:) 
-     class(Hcurl_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handler 
+     type(Hcurl_l1_coarse_fe_handler_t)            :: coarse_fe_handler 
      type(p_l1_coarse_fe_handler_t), allocatable   :: coarse_fe_handlers(:)
      type(maxwell_CG_discrete_integration_t)       :: maxwell_integration
      type(maxwell_conditions_t)                    :: maxwell_conditions
@@ -271,26 +271,8 @@ end subroutine free_timers
   subroutine setup_coarse_fe_handlers(this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout), target :: this
-   	class(cell_iterator_t), allocatable                        :: cell
-    class(reference_fe_t), pointer                             :: reference_fe_geo
-	integer(ip) :: istat 
-	
-	if ( this%par_environment%am_i_l1_task() ) then
-	   call this%triangulation%create_cell_iterator(cell)
-    reference_fe_geo => cell%get_reference_fe()
-	   call this%triangulation%free_cell_iterator(cell)
-	
-	 if (this%triangulation%get_num_dims() == 3 ) then 
-	   if ( reference_fe_geo%get_topology() == topology_tet ) then
-	   allocate ( tet_Hcurl_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
-	   elseif ( reference_fe_geo%get_topology() == topology_hex ) then 
-	   allocate ( hex_Hcurl_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
-	   end if 
-	 else 
-	  ! allocate ( standard_l1_coarse_fe_handler_t :: this%coarse_fe_handler )
-	 end if 
-	 end if 
-	 
+   	integer(ip) :: istat 
+
     allocate(this%coarse_fe_handlers(1), stat=istat); check(istat==0)
     this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
   end subroutine setup_coarse_fe_handlers
@@ -369,12 +351,17 @@ end subroutine free_timers
     class(matrix_t), pointer :: matrix 
 
       if ( this%par_environment%am_i_l1_task() ) then 
+      
+      call this%coarse_fe_handler%get_parameter_values(permeability    = this%permeability,       & 
+                                                       resistivity           = this%resistivity,  & 
+                                                       use_alternative_basis = .true.,            & 
+                                                       arithmetic_average    = .true.            ) 
+            
       matrix => this%fe_affine_operator%get_matrix() 
       select type ( matrix ) 
       class is (par_sparse_matrix_t) 
     	 call this%coarse_fe_handler%setup_tools( 1, this%fe_space, matrix )
       end select 
-      call this%coarse_fe_handler%get_parameter_values(this%permeability, this%resistivity ) 
       end if 
       
     ! See https://software.intel.com/en-us/node/470298 for details
@@ -614,7 +601,6 @@ end subroutine free_timers
 	   if ( this%par_environment%am_i_l1_task() ) then 
 	    if (allocated(this%coarse_fe_handlers) ) then 
 	    call this%coarse_fe_handler%free() 
-   	 deallocate( this%coarse_fe_handler ) 
 	    deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
 	    end if 
 	   end if 
