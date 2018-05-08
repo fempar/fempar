@@ -479,7 +479,11 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
      ! Build change of basis 
      call fill_identity_part()
      call this%fill_interface_discrete_gradient_part(par_fe_space)
+     if ( this%arithmetic_average ) then 
      call this%fill_average_tangent_function_change_of_basis(par_fe_space)
+     else 
+     call this%fill_average_tangent_function_change_of_basis_int(par_fe_space)
+     end if 
          
      call this%change_basis_matrix%convert(csr_format)
 
@@ -904,6 +908,72 @@ subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis(this, par_fe_s
   call par_fe_space%free_fe_vef_iterator(edge)
   call par_fe_space%free_fe_cell_iterator(fe)
 end subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis
+
+!===============================================================================================
+subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis_int(this, par_fe_space) 
+  ! Fill DoF playing the role of average tangent function in the new basis 
+  ! change of basis entries by means of interpolating the unit vector function 
+  implicit none 
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
+  type(par_fe_space_t)                  , intent(inout)    :: par_fe_space 
+
+  class(reference_fe_t)    , pointer       :: reference_fe 
+  type(list_iterator_t)                    :: coarse_subedge_iterator
+  type(list_iterator_t)                    :: fine_edge_iterator
+  type(fe_vef_iterator_t)                  :: edge
+  integer(ip)                              :: dof_new_basis 
+  integer(ip), pointer                     :: fe_dofs(:)
+  class(fe_cell_iterator_t) , allocatable  :: fe
+  type(list_iterator_t)                    :: own_dofs 
+  type(constant_vector_function_t)         :: unit_vector_function 
+  type(vector_field_t)                     :: unit_field 
+  class(Hcurl_interpolator_t), allocatable :: interpolator
+  real(rp)                   , allocatable :: elvec(:) 
+
+  call unit_field%init(1.0_rp)
+  call unit_vector_function%create(unit_field) 
+
+  call par_fe_space%create_fe_vef_iterator(edge)
+  call par_fe_space%create_fe_cell_iterator(fe)
+  reference_fe => fe%get_reference_fe(this%field_id)
+  call memalloc( reference_fe%get_num_shape_functions(), elvec, __FILE__, __LINE__ )
+
+  select case ( reference_fe%get_topology() ) 
+  case ( topology_hex ) 
+     allocate ( hex_Hcurl_interpolator_t :: interpolator )
+  case ( topology_tet ) 
+     allocate ( tet_Hcurl_interpolator_t :: interpolator )
+  end select
+  call interpolator%create(par_fe_space, this%field_id)
+
+  coarse_subedge_iterator = this%subedges_x_coarse_edge%create_iterator() 
+  do while ( .not. coarse_subedge_iterator%is_upper_bound() )
+     fine_edge_iterator = this%sorted_fine_edges_in_coarse_subedge%create_iterator(coarse_subedge_iterator%get_current())
+     dof_new_basis = this%edge_average_dof_id(coarse_subedge_iterator%get_current())
+     do while ( .not. fine_edge_iterator%is_upper_bound() ) 
+        call edge%set_gid( fine_edge_iterator%get_current() )
+
+        call edge%get_cell_around(1, fe)
+        call interpolator%evaluate_vector_function_moments( fe, unit_vector_function, elvec )
+
+        call fe%get_field_fe_dofs(this%field_id, fe_dofs)
+        own_dofs = fe%create_own_dofs_on_vef_iterator(fe%get_vef_lid_from_gid(edge%get_gid()), this%field_id)
+        do while ( .not. own_dofs%is_upper_bound() )  
+           call this%change_basis_matrix%insert(ia  = fe_dofs(own_dofs%get_current())-this%num_interior_dofs,  &
+                                                ja  = dof_new_basis - this%num_interior_dofs,                  & 
+                                                val = elvec(own_dofs%get_current()) )
+           call own_dofs%next() 
+        end do
+        call fine_edge_iterator%next() 
+     end do
+     call coarse_subedge_iterator%next()
+  end do
+
+  call par_fe_space%free_fe_vef_iterator(edge)
+  call par_fe_space%free_fe_cell_iterator(fe)
+  call memfree(elvec, __FILE__, __LINE__ )
+  call interpolator%free()
+end subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis_int
   
 !===============================================================================================
 subroutine Hcurl_l1_compute_first_order_moment_in_edges(this, par_fe_space, constraint_in_edges)

@@ -1103,6 +1103,7 @@ module fe_space_names
     procedure, non_overridable, private :: fill_fe_dofs_new_basis                            => Hcurl_l1_fill_fe_dofs_new_basis
     procedure, non_overridable, private :: fill_interface_discrete_gradient_part             => Hcurl_l1_fill_interface_discrete_gradient_part
     procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis     => Hcurl_l1_fill_average_tangent_function_change_of_basis
+    procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis_int => Hcurl_l1_fill_average_tangent_function_change_of_basis_int
     ! Overriding procedures 
     procedure                           :: free                                          => Hcurl_l1_free
 				procedure                           :: setup_tools                                   => Hcurl_l1_setup_tools 
