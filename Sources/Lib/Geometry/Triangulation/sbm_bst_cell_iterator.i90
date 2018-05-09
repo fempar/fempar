@@ -421,21 +421,21 @@ function bst_cell_iterator_is_cut(this)
   implicit none
   class(bst_cell_iterator_t), intent(in) :: this
   logical :: bst_cell_iterator_is_cut
-  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+  bst_cell_iterator_is_cut = .false.
 end function bst_cell_iterator_is_cut
 
 function bst_cell_iterator_is_interior(this)
   implicit none
   class(bst_cell_iterator_t), intent(in) :: this
   logical :: bst_cell_iterator_is_interior
-  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+  bst_cell_iterator_is_interior = .true.
 end function bst_cell_iterator_is_interior
 
 function bst_cell_iterator_is_exterior(this)
   implicit none
   class(bst_cell_iterator_t), intent(in) :: this
   logical :: bst_cell_iterator_is_exterior
-  mcheck(.false.,'This subroutine can only be called by some descendent classes')
+  bst_cell_iterator_is_exterior = .false.
 end function bst_cell_iterator_is_exterior
 
 function bst_cell_iterator_is_interior_subcell( this, subcell ) result ( is_in )
