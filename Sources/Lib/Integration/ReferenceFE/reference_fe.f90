@@ -186,6 +186,14 @@ module reference_fe_names
 #define task_01 compute_jacobian_inverse
 #define task_02 compute_jacobian_derivative
 #include "duties_header.i90"
+  
+  ! The type of (exploitable) ressemblance of the current visited cell 
+  ! compared to the previous visited one in a loop over all cells
+  ! The sort of ressemblance does not allow us to exploit anything
+  integer(ip), parameter :: no_ressemblance          = 0
+  integer(ip), parameter :: is_only_translated       = 1
+  integer(ip), parameter :: is_scaled_and_translated = 2
+  ! Anything else we would like to exploit?
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  cell_map_t

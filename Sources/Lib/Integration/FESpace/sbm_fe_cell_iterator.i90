@@ -32,13 +32,24 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   class(serial_fe_space_t), target, intent(in)    :: fe_space
   integer(ip) :: istat
   call this%free()
+  call aux_create(this, fe_space)
+  allocate ( this%previous_cell, mold=this, stat=istat ); check(istat==0)
+  call aux_create(this%previous_cell,fe_space)
+  ! Initialize previous_cell to point to one cell past the end
+  call aux_set_gid(this%previous_cell,fe_space%triangulation%get_num_cells()+1)
+end subroutine fe_cell_iterator_create
+
+subroutine aux_create(this, fe_space) 
+  implicit none
+  class(fe_cell_iterator_t), intent(inout)      :: this
+  class(serial_fe_space_t) , target, intent(in) :: fe_space
   call this%set_fe_space(fe_space)
   call this%create_cell(fe_space%triangulation)
   call this%allocate_assembly_scratch_data()
   call this%allocate_performance_scratch_data()
   call this%init_performance_scratch_data()
-  call this%first()
-end subroutine fe_cell_iterator_create
+  call aux_first(this) 
+end subroutine aux_create
 
 subroutine fe_cell_iterator_create_cell ( this, triangulation )
   implicit none
@@ -57,7 +68,19 @@ end subroutine fe_cell_iterator_free_cell
 subroutine fe_cell_iterator_free (this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
-  integer(ip) :: istat, iblock, ifield
+  integer(ip) :: istat
+  call aux_free(this)
+  if (associated(this%previous_cell)) then
+    call aux_free(this%previous_cell)
+    deallocate ( this%previous_cell, stat=istat ); check(istat==0)
+    nullify(this%previous_cell)
+  end if   
+end subroutine fe_cell_iterator_free
+
+subroutine aux_free (this) 
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: istat 
   if ( associated(this%fe_space) ) then
     if ( associated(this%fe_space%triangulation) ) then
       call this%free_cell(this%fe_space%triangulation)
@@ -66,7 +89,9 @@ subroutine fe_cell_iterator_free (this)
   call this%free_assembly_scratch_data()
   call this%free_performance_scratch_data()
   call this%nullify_fe_space()
-end subroutine fe_cell_iterator_free
+end subroutine aux_free   
+  
+  
 
 subroutine fe_cell_iterator_allocate_assembly_scratch_data ( this )
   implicit none
@@ -169,26 +194,45 @@ end subroutine fe_cell_iterator_free_final
 subroutine fe_cell_iterator_next(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
+  call aux_set_gid(this%previous_cell,this%get_gid())
   call base_fe_cell_iterator_next(this)
   if ( .not. this%has_finished() ) then
     call this%update_performance_scratch_data()
-  end if   
+  end if 
 end subroutine fe_cell_iterator_next
 
 subroutine fe_cell_iterator_first(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
+  call aux_set_gid(this%previous_cell,this%get_gid())
+  call aux_first(this)
+end subroutine fe_cell_iterator_first
+
+subroutine aux_first(this) 
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
   call base_fe_cell_iterator_first(this)
   call this%update_performance_scratch_data()
-end subroutine fe_cell_iterator_first
+end subroutine aux_first 
 
 subroutine fe_cell_iterator_set_gid(this, lid)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
-  call base_fe_cell_iterator_set_gid(this,lid)
-  call this%update_performance_scratch_data()
+  call aux_set_gid(this%previous_cell,this%get_gid())
+  call aux_set_gid(this,lid)
 end subroutine fe_cell_iterator_set_gid
+
+subroutine aux_set_gid(this, gid)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: gid
+  call base_fe_cell_iterator_set_gid(this,gid)
+  if ( .not. this%has_finished() ) then
+    call this%update_performance_scratch_data()
+  end if
+end subroutine aux_set_gid
+
 
 subroutine fe_cell_iterator_set_fe_space(this,fe_space)
   implicit none
@@ -530,6 +574,20 @@ subroutine fe_cell_iterator_update_integration( this )
   type(point_t)            , pointer :: coordinates(:)
   type(quadrature_t)       , pointer :: quadrature
 
+  ! Update integration data structures of previous cell
+  ! This is required to drive comparisons required to
+  ! decide whether the current cell is either a translation 
+  ! or translation + scaling of the previous cell
+  ! If the previous cell is not a valid cell or it is cut, there is nothing
+  ! that can be re-used
+  if ( this%previous_cell%has_finished() .or. this%previous_cell%is_cut() ) then
+    call this%previous_cell%nullify_cell_map()
+    call this%previous_cell%nullify_cell_integrators()
+  else
+    call this%previous_cell%update_cell_map()
+    call this%previous_cell%update_cell_integrators()
+  end if 
+  
   call this%update_cell_map()
   coordinates => this%cell_map%get_coordinates()
   call this%get_nodes_coordinates(coordinates)
@@ -927,12 +985,14 @@ subroutine fe_cell_iterator_nullify_cell_map ( this )
 end subroutine fe_cell_iterator_nullify_cell_map
 
 !==================================================================================================
-subroutine fe_cell_iterator_nullify_cell_integrator ( this, field_id )
+subroutine fe_cell_iterator_nullify_cell_integrators ( this )
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
-  integer(ip)              , intent(in)    :: field_id
-  nullify(this%cell_integrators(field_id)%p)
-end subroutine fe_cell_iterator_nullify_cell_integrator
+  integer(ip) :: field_id
+  do field_id=1, this%get_num_fields()
+    nullify(this%cell_integrators(field_id)%p)
+  end do   
+end subroutine fe_cell_iterator_nullify_cell_integrators
 
 !==================================================================================================
 function fe_cell_iterator_get_quadrature_points_coordinates(this)

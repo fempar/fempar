@@ -192,6 +192,11 @@ module fe_space_names
     type(allocatable_array_rp2_t)                    :: extended_elmat
     type(allocatable_array_rp1_t)                    :: extended_elvec
     type(p_reference_fe_t)             , allocatable :: reference_fes(:)
+    
+    ! Scratch member variables required to determine the type of cell 
+    ! ressemblance among a current visited cell and the previous visited one
+    class(fe_cell_iterator_t)          , pointer     :: previous_cell => NULL()    
+   
   contains
   
     procedure                           :: create                                     => fe_cell_iterator_create
@@ -226,7 +231,7 @@ module fe_space_names
     procedure                           :: set_cell_map                               => fe_cell_iterator_set_cell_map
     procedure                           :: set_cell_integrator                        => fe_cell_iterator_set_cell_integrator
     procedure                           :: nullify_cell_map                           => fe_cell_iterator_nullify_cell_map
-    procedure                           :: nullify_cell_integrator                    => fe_cell_iterator_nullify_cell_integrator
+    procedure                           :: nullify_cell_integrators                   => fe_cell_iterator_nullify_cell_integrators
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_cell_iterator_get_quadrature_points_coordinates
     procedure, non_overridable :: get_det_jacobian                  => fe_cell_iterator_get_det_jacobian
@@ -503,6 +508,7 @@ module fe_space_names
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
 
      ! Finite Element-related integration containers
+     logical                                     :: cell_integration_is_set_up = .false.
      type(std_vector_quadrature_t)               :: cell_quadratures
      type(std_vector_cell_map_t)                 :: cell_maps
      type(std_vector_cell_integrator_t)          :: cell_integrators
@@ -616,7 +622,9 @@ module fe_space_names
      procedure, non_overridable, private :: free_max_order_reference_fe_id_x_cell        => serial_fe_space_free_max_order_reference_fe_id_x_cell
      procedure, non_overridable, private :: compute_max_order_reference_fe_id_x_cell     => serial_fe_space_compute_max_order_reference_fe_id_x_cell         
      
-     procedure                           :: set_up_cell_integration                    => serial_fe_space_set_up_cell_integration
+     procedure                           :: set_up_cell_integration                      => serial_fe_space_set_up_cell_integration
+     procedure                           :: cell_integration_was_set_up                  => serial_fe_space_cell_integration_was_set_up
+     procedure                           :: set_cell_integration_was_set_up              => serial_fe_space_set_cell_integration_was_set_up
      procedure, non_overridable, private :: free_fe_integration                          => serial_fe_space_free_fe_integration
      procedure, non_overridable, private :: generate_cell_quadratures_position_key         => serial_fe_space_generate_cell_quadratures_position_key
      procedure, non_overridable, private :: generate_cell_integrators_position_key  => serial_fe_space_generate_cell_integrators_position_key
