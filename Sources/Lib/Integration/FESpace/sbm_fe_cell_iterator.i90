@@ -189,7 +189,9 @@ subroutine fe_cell_iterator_set_gid(this, lid)
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
   call base_fe_cell_iterator_set_gid(this,lid)
-  call this%update_performance_scratch_data()
+  if ( .not. this%has_finished() ) then
+    call this%update_performance_scratch_data()
+  end if 	
 end subroutine fe_cell_iterator_set_gid
 
 subroutine fe_cell_iterator_set_fe_space(this,fe_space)
@@ -1428,6 +1430,26 @@ subroutine fe_cell_iterator_get_curls_vector (this, curls, field_id)
   field_id_=1; if (present(field_id)) field_id_ = field_id
   call this%cell_integrators(field_id_)%p%get_curls(curls)
 end subroutine fe_cell_iterator_get_curls_vector
+
+subroutine fe_cell_iterator_get_laplacians_scalar (this, laplacians, field_id)
+  implicit none
+  class(fe_cell_iterator_t)   , intent(in)    :: this
+  real(rp), allocatable        , intent(inout) :: laplacians(:,:)
+  integer(ip)     , optional   , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_laplacians(laplacians)
+end subroutine fe_cell_iterator_get_laplacians_scalar
+
+subroutine fe_cell_iterator_get_laplacians_vector (this, laplacians, field_id)
+  implicit none
+  class(fe_cell_iterator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: laplacians(:,:)
+  integer(ip)     , optional       , intent(in)    :: field_id
+  integer(ip) :: field_id_
+  field_id_=1; if (present(field_id)) field_id_ = field_id
+  call this%cell_integrators(field_id_)%p%get_laplacians(laplacians)
+end subroutine fe_cell_iterator_get_laplacians_vector
 
 !=================================================================================================
 subroutine fe_cell_iterator_evaluate_fe_function_scalar ( this,                     &
