@@ -355,7 +355,7 @@ end subroutine free_timers
       call this%coarse_fe_handler%get_parameter_values(permeability    = this%permeability,       & 
                                                        resistivity           = this%resistivity,  & 
                                                        use_alternative_basis = .true.,            & 
-                                                       arithmetic_average    = .true.            ) 
+                                                       arithmetic_average    = .false.            ) 
             
       matrix => this%fe_affine_operator%get_matrix() 
       select type ( matrix ) 

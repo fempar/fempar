@@ -215,8 +215,6 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
      zero_moment_constraint_in_edges_entries => zero_moment_constraint_in_edges%get_entries()
      call this%compute_first_order_moment_in_edges(par_fe_space, first_moment_constraint_in_edges)
      first_moment_constraint_in_edges_entries => first_moment_constraint_in_edges%get_entries()
-  case DEFAULT 
-  massert(.false., 'Enforced continuity criteria not valid in H(curl)BDDC')  
   end select 
 
   ! Free any dynamic memory that constraint_matrix may have inside
@@ -267,10 +265,17 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
                  if ( dof_lid > 0 ) then
                     select case ( edge_continuity_algorithm ) 
                     case (tangential_average) 
+                       if ( this%arithmetic_average ) then 
                        call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor )	
+                       else 
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, zero_moment_constraint_in_edges_entries(dof_lid) )	
+                       end if 
                     case (tangential_average_and_first_order_moment) 					 
-                       WRITE(*,*) 'A', sign_factor, 'B', zero_moment_constraint_in_edges_entries(dof_lid)
+                       if ( this%arithmetic_average ) then 
                        call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor )	
+                       else 
+                       call constraint_matrix%insert(dof_lid, coarse_dof_lid, sign_factor )	
+                       end if 
                        if ( (num_fine_edges_in_subedge .gt. 1) .or. (this%order .gt. 1) ) then 
                           call constraint_matrix%insert(dof_lid, coarse_dof_lid+1, -first_moment_constraint_in_edges_entries(dof_lid) )	
                        end if
@@ -346,7 +351,7 @@ subroutine Hcurl_l1_compute_zero_order_moment_in_edges(this, par_fe_space, const
   type(point_t), pointer                 :: edge_map_coordinates(:)
   integer(ip)                            :: fe_lid, istat 
   type(list_iterator_t)                  :: own_dofs_iterator 
-  type(vector_field_t)                   :: tangent 
+  type(vector_field_t)                   :: tangent, mapped_tangent 
   integer(ip)            , pointer       :: fe_dofs(:)
 
   call constraint_in_edges%create_and_allocate( par_fe_space%get_block_num_dofs(this%field_id) )
@@ -385,7 +390,7 @@ subroutine Hcurl_l1_compute_zero_order_moment_in_edges(this, par_fe_space, const
 
         call vef%get_cell_around(1, cell)
         call vef%get_cell_around(1, fe_cell)
-        call fe_cell%update_cell_map()
+        call fe_cell%update_integration()
         call cell%get_nodes_coordinates (cell_coordinates)
         vef_lid           = cell%get_vef_lid_from_gid( vef%get_gid() )
         own_dofs_iterator = nedelec_fe%create_own_dofs_on_n_face_iterator(vef_lid)
@@ -735,12 +740,7 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
 
   type(environment_t), pointer   :: p_env
-  real(rp) , allocatable         :: edge_elmat(:,:)
-
-  integer(ip)                 :: idof 
-  type(serial_scalar_array_t) :: x, y, x0
   integer(ip) :: luout
-  character(:), allocatable :: matrix_filename
   
   p_env => par_fe_space%get_environment() 
 
@@ -765,6 +765,11 @@ subroutine Hcurl_l1_compute_change_basis_matrix(this, par_fe_space)
          
      call this%change_basis_matrix%convert(csr_format)
 
+        luout = io_open (  'change_basis' // p_env%get_l1_rank(), 'write')
+        call this%change_basis_matrix%print_matrix_market(luout) 
+        call io_close(luout)
+        
+        
   end if
 
 contains 
@@ -1207,7 +1212,9 @@ subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis_int(this, par_
   type(vector_field_t)                     :: unit_field 
   class(Hcurl_interpolator_t), allocatable :: interpolator
   real(rp)                   , allocatable :: elvec(:) 
-
+  integer(ip) :: direction 
+  integer(ip) :: istat 
+  
   call unit_field%init(1.0_rp)
   call unit_vector_function%create(unit_field) 
 
@@ -1230,11 +1237,16 @@ subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis_int(this, par_
      dof_new_basis = this%edge_average_dof_id(coarse_subedge_iterator%get_current())
      do while ( .not. fine_edge_iterator%is_upper_bound() ) 
         call edge%set_gid( fine_edge_iterator%get_current() )
-
         call edge%get_cell_around(1, fe)
         call interpolator%evaluate_vector_function_moments( fe, unit_vector_function, elvec )
 
         call fe%get_field_fe_dofs(this%field_id, fe_dofs)
+        
+        call this%fine_edge_direction%get( key=edge%get_gid(), val=direction, stat=istat); check(istat==key_found) 
+        if ( direction == opposite_to_coarse_edge ) then 
+        elvec = -elvec 
+        end if 
+        
         own_dofs = fe%create_own_dofs_on_vef_iterator(fe%get_vef_lid_from_gid(edge%get_gid()), this%field_id)
         do while ( .not. own_dofs%is_upper_bound() )  
            call this%change_basis_matrix%insert(ia  = fe_dofs(own_dofs%get_current())-this%num_interior_dofs,  &
