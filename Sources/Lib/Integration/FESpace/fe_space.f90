@@ -315,6 +315,9 @@ module fe_space_names
     generic                             :: get_divergences        => get_divergences_vector
     procedure, non_overridable, private :: get_curls_vector => fe_cell_iterator_get_curls_vector
     generic                             :: get_curls        => get_curls_vector
+    procedure, non_overridable, private :: get_laplacians_scalar   => fe_cell_iterator_get_laplacians_scalar
+    procedure, non_overridable, private :: get_laplacians_vector   => fe_cell_iterator_get_laplacians_vector
+    generic                             :: get_laplacians          => get_laplacians_scalar, get_laplacians_vector 
     
         
     procedure, non_overridable, private :: fe_cell_iterator_evaluate_fe_function_scalar

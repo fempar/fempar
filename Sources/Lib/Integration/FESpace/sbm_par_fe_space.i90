@@ -2941,14 +2941,16 @@ contains
        ! Retrieve parts around current vef
        do ielem=1, vef%get_num_cells_around()
           call vef%get_cell_around(ielem,fe)
-          part_id = fe%get_my_part()
-          if ( part_id /= mypart_id ) then
-             local_part_id = cell_import%get_local_neighbour_id(part_id)
-             if ( .not. touched_neighbours(local_part_id) ) then
-                touched_neighbours (local_part_id) = .true.
-                num_parts = num_parts + 1
-                parts_visited (num_parts) = part_id
-             end if
+          if ( .not. fe%is_void(field_id) ) then
+            part_id = fe%get_my_part()
+            if ( part_id /= mypart_id ) then
+               local_part_id = cell_import%get_local_neighbour_id(part_id)
+               if ( .not. touched_neighbours(local_part_id) ) then
+                  touched_neighbours (local_part_id) = .true.
+                  num_parts = num_parts + 1
+                  parts_visited (num_parts) = part_id
+               end if
+            end if
           end if
        end do
 
@@ -5057,6 +5059,10 @@ subroutine par_fe_space_refine_and_coarsen_fe_function_array (this, fe_functions
         deallocate( old_ptr_dofs_x_fe, stat = error ); check( error == 0 )
         call old_lst_dofs_gids%free()  
      end if
+  end if
+  ! Re-set up coarse_fe_space()
+  if ( triangulation%coarse_triangulation_is_set_up() ) then
+    call this%setup_coarse_fe_space(this%parameter_list)
   end if
 
 contains
