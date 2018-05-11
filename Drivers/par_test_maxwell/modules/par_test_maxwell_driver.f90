@@ -352,10 +352,10 @@ end subroutine free_timers
 
       if ( this%par_environment%am_i_l1_task() ) then 
       
-      call this%coarse_fe_handler%get_parameter_values(permeability    = this%permeability,       & 
-                                                       resistivity           = this%resistivity,  & 
-                                                       use_alternative_basis = .true.,            & 
-                                                       arithmetic_average    = .false.            ) 
+      call this%coarse_fe_handler%get_parameter_values(permeability          = this%permeability,   & 
+                                                       resistivity           = this%resistivity,    & 
+                                                       use_alternative_basis = .true.,              &
+                                                       arithmetic_average    = .false.              ) 
             
       matrix => this%fe_affine_operator%get_matrix() 
       select type ( matrix ) 
