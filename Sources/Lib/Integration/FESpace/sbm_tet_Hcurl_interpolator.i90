@@ -551,6 +551,60 @@ subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
 end subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient
 
 ! ================================================================================
+subroutine tet_Hcurl_interpolator_evaluate_edge_unit_tangent_moments( this, fe, dof_values ) 
+  implicit none
+  class(tet_Hcurl_interpolator_t) , intent(inout) :: this
+  class(fe_cell_iterator_t)       , intent(in)    :: fe
+  real(rp) , allocatable          , intent(inout) :: dof_values(:) 
+
+  ! Edge moments evaluation 
+  type(vector_field_t)                :: tangent 
+  integer(ip)                         :: edge_id  
+  ! Common integration 
+  class(reference_fe_t), pointer      :: reference_fe 
+  class(reference_fe_t), pointer      :: reference_fe_geo 
+  type(point_t)        , pointer      :: cell_coordinates(:)
+  real(rp)                            :: shape_test, factor 
+  integer(ip)                         :: idime, ishape
+  integer(ip)                         :: qpoint, num_quad_points 
+  integer(ip)                         :: reference_fe_id 
+  integer(ip)                         :: d 
+
+  reference_fe     => fe%get_reference_fe(this%field_id)
+  reference_fe_id  =  fe%get_reference_fe_id(this%field_id)
+  reference_fe_geo => fe%get_reference_fe_geo()
+  cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates() 
+  call fe%get_nodes_coordinates( cell_coordinates ) 
+
+  d = 0
+  call this%reallocate_if_needed( reference_fe%get_num_shape_functions(), dof_values )
+  dof_values = 0.0_rp 
+  do edge_id = reference_fe%get_first_n_face_id_of_dim(1), & 
+       reference_fe%get_first_n_face_id_of_dim(1) + reference_fe%get_num_n_faces_of_dim(1)-1
+
+     call this%edge_maps(reference_fe_id)%update_coordinates( edge_id, reference_fe, cell_coordinates )
+
+     call this%edge_maps(reference_fe_id)%update(local_edge_id = edge_id - reference_fe%get_first_n_face_id_of_dim(1)+1, &
+          reference_fe  = reference_fe,                                           &
+          quadrature    = this%edge_quadratures(reference_fe_id) )
+
+     num_quad_points = this%edge_quadratures(reference_fe_id)%get_num_quadrature_points()
+     ! Integrate edge boundary moments int_edge(f.tau q), q \in P_k-1
+     do qpoint = 1, num_quad_points 
+        factor = this%edge_maps(reference_fe_id)%get_det_jacobian(qpoint) * this%edge_quadratures(reference_fe_id)%get_weight(qpoint)
+        call this%edge_maps(reference_fe_id)%get_tangent(qpoint, tangent)
+        do ishape=1, this%fes_1D(reference_fe_id)%get_num_shape_functions()
+           call this%fes_1D(reference_fe_id)%get_value(this%edge_interpolations(reference_fe_id), ishape, qpoint, shape_test)
+           dof_values(d+ishape) = dof_values(d+ishape) + tangent * tangent * shape_test * factor
+        end do
+     end do
+
+     d = d + this%fes_1D(reference_fe_id)%get_num_shape_functions()
+  end do
+
+end subroutine tet_Hcurl_interpolator_evaluate_edge_unit_tangent_moments
+
+! ================================================================================
 subroutine tet_Hcurl_interpolator_free( this ) 
   implicit none
   class(tet_Hcurl_interpolator_t)   , intent(inout) :: this

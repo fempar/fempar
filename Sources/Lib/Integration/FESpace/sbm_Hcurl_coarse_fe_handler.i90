@@ -1196,6 +1196,7 @@ end subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis
 subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis_int(this, par_fe_space) 
   ! Fill DoF playing the role of average tangent function in the new basis 
   ! change of basis entries by means of interpolating the unit vector function 
+  ! tangent to the Coarse Edge 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout)    :: this
   type(par_fe_space_t)                  , intent(inout)    :: par_fe_space 
@@ -1214,7 +1215,7 @@ subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis_int(this, par_
   real(rp)                   , allocatable :: elvec(:) 
   integer(ip) :: direction 
   integer(ip) :: istat 
-  
+   
   call unit_field%init(1.0_rp)
   call unit_vector_function%create(unit_field) 
 
@@ -1238,15 +1239,15 @@ subroutine Hcurl_l1_fill_average_tangent_function_change_of_basis_int(this, par_
      do while ( .not. fine_edge_iterator%is_upper_bound() ) 
         call edge%set_gid( fine_edge_iterator%get_current() )
         call edge%get_cell_around(1, fe)
-        call interpolator%evaluate_vector_function_moments( fe, unit_vector_function, elvec )
 
-        call fe%get_field_fe_dofs(this%field_id, fe_dofs)
-        
+  
+        call interpolator%evaluate_edge_unit_tangent_moments( fe, elvec )
         call this%fine_edge_direction%get( key=edge%get_gid(), val=direction, stat=istat); check(istat==key_found) 
         if ( direction == opposite_to_coarse_edge ) then 
         elvec = -elvec 
         end if 
         
+        call fe%get_field_fe_dofs(this%field_id, fe_dofs)
         own_dofs = fe%create_own_dofs_on_vef_iterator(fe%get_vef_lid_from_gid(edge%get_gid()), this%field_id)
         do while ( .not. own_dofs%is_upper_bound() )  
            call this%change_basis_matrix%insert(ia  = fe_dofs(own_dofs%get_current())-this%num_interior_dofs,  &

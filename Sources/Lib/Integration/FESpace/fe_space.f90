@@ -1508,6 +1508,7 @@ real(rp), allocatable             :: scalar_function_values_on_facet(:,:)
 contains   
 procedure :: evaluate_scalar_function_moments    => Hcurl_interpolator_evaluate_scalar_function_moments 
 procedure(interpolator_evaluate_discrete_gradient_interface) , deferred :: evaluate_discrete_gradient 
+procedure(interpolator_evaluate_edge_unit_tangent_moments_interface), deferred :: evaluate_edge_unit_tangent_moments
 end type Hcurl_interpolator_t 
 
 abstract interface 
@@ -1521,6 +1522,14 @@ abstract interface
     class(lagrangian_reference_fe_t), intent(in)    :: lagrangian_fe 
     real(rp) , allocatable          , intent(inout) :: elmat(:,:)
   end subroutine interpolator_evaluate_discrete_gradient_interface
+  
+  subroutine interpolator_evaluate_edge_unit_tangent_moments_interface( this, fe, dof_values )
+    import :: Hcurl_interpolator_t, fe_cell_iterator_t, rp
+    implicit none 
+    class(Hcurl_interpolator_t)     , intent(inout) :: this
+    class(fe_cell_iterator_t)       , intent(in)    :: fe
+    real(rp) , allocatable          , intent(inout) :: dof_values(:)
+  end subroutine interpolator_evaluate_edge_unit_tangent_moments_interface
     
 end interface 
 
@@ -1535,6 +1544,7 @@ procedure :: create                                             => hex_Hcurl_int
 procedure :: evaluate_vector_function_moments                   => hex_Hcurl_interpolator_evaluate_vector_function_moments  
 procedure :: evaluate_function_scalar_components_moments        => hex_Hcurl_interpolator_evaluate_function_components_moments
 procedure :: evaluate_discrete_gradient                         => hex_Hcurl_interpolator_evaluate_discrete_gradient 
+procedure :: evaluate_edge_unit_tangent_moments                 => hex_Hcurl_interpolator_evaluate_edge_unit_tangent_moments
 procedure :: free                                               => hex_Hcurl_interpolator_free
 end type hex_Hcurl_interpolator_t
 
@@ -1548,6 +1558,7 @@ procedure :: create                                             => tet_Hcurl_int
 procedure :: evaluate_vector_function_moments                   => tet_Hcurl_interpolator_evaluate_vector_function_moments  
 procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_interpolator_evaluate_function_components_moments
 procedure :: evaluate_discrete_gradient                         => tet_Hcurl_interpolator_evaluate_discrete_gradient
+procedure :: evaluate_edge_unit_tangent_moments                 => tet_Hcurl_interpolator_evaluate_edge_unit_tangent_moments
 procedure :: free                                               => tet_Hcurl_interpolator_free
 end type tet_Hcurl_interpolator_t
 
