@@ -1115,7 +1115,6 @@ module fe_space_names
 	   procedure                           :: setup_constraint_matrix                       => Hcurl_l1_setup_constraint_matrix
     procedure                           :: setup_weighting_operator                      => Hcurl_l1_setup_weighting_operator
 	   procedure, private, nopass          :: get_BDDC_edge_continuity_algorithm_case       => Hcurl_l1_get_BDDC_edge_continuity_algorithm_case
-    procedure, non_overridable, private :: compute_zero_order_moment_in_edges            => Hcurl_l1_compute_zero_order_moment_in_edges
 	   procedure, non_overridable, private :: compute_first_order_moment_in_edges           => Hcurl_l1_compute_first_order_moment_in_edges
 	   procedure                           :: apply_weighting_operator_and_comm             => Hcurl_l1_apply_weighting_operator_and_comm   
 	   procedure                           :: apply_transpose_weighting_operator            => Hcurl_l1_apply_transpose_weighting_operator  
