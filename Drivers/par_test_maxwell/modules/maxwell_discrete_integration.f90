@@ -247,7 +247,7 @@ contains
           end do
           
           ! Assemble elmat to active DoFs on ghost cells 
-		         call fe%assembly( elmat, assembler )
+		        ! call fe%assembly( elmat, assembler )
        end if 
        call fe%next()
     end do

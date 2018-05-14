@@ -1098,15 +1098,9 @@ module fe_space_names
 	   type(hash_table_ip_ip_t)                :: fine_edge_direction
 	   type(list_t)                            :: subedges_x_coarse_edge 
 	   type(list_t)                            :: sorted_fine_edges_in_coarse_subedge 
-				type(sparse_matrix_t)                   :: change_basis_matrix  
+				type(sparse_matrix_t)                   :: change_basis_matrix
 	   
   contains
-  	 ! Fill change of basis operator  
-	   procedure, non_overridable, private :: compute_change_basis_matrix                       => Hcurl_l1_compute_change_basis_matrix
-    procedure, non_overridable, private :: fill_fe_dofs_new_basis                            => Hcurl_l1_fill_fe_dofs_new_basis
-    procedure, non_overridable, private :: fill_interface_discrete_gradient_part             => Hcurl_l1_fill_interface_discrete_gradient_part
-    procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis     => Hcurl_l1_fill_average_tangent_function_change_of_basis
-    procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis_int => Hcurl_l1_fill_average_tangent_function_change_of_basis_int
     ! Overriding procedures 
     procedure                           :: free                                          => Hcurl_l1_free
 				procedure                           :: setup_tools                                   => Hcurl_l1_setup_tools 
@@ -1119,17 +1113,21 @@ module fe_space_names
 	   procedure                           :: apply_weighting_operator_and_comm             => Hcurl_l1_apply_weighting_operator_and_comm   
 	   procedure                           :: apply_transpose_weighting_operator            => Hcurl_l1_apply_transpose_weighting_operator  
 	   ! Counting & Splitting coarse edges procedures
-				procedure, non_overridable, private :: compute_subedges_info                      => Hcurl_l1_compute_subedges_info
-				procedure, non_overridable, private :: count_coarse_edges_and_owned_fine_edges    => Hcurl_l1_count_coarse_edges_and_owned_fine_edges
-	   procedure, non_overridable, private :: fill_coarse_subedges_and_owned_fine_edges  => Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges
-				procedure, non_overridable, private :: fill_edges_lists                           => Hcurl_l1_fill_edges_lists
+				procedure, non_overridable, private :: compute_subedges_info                         => Hcurl_l1_compute_subedges_info
+				procedure, non_overridable, private :: count_coarse_edges_and_owned_fine_edges       => Hcurl_l1_count_coarse_edges_and_owned_fine_edges
+	   procedure, non_overridable, private :: fill_coarse_subedges_and_owned_fine_edges     => Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges
+				procedure, non_overridable, private :: fill_edges_lists                              => Hcurl_l1_fill_edges_lists
+    ! Fill change of basis operator  
+	   procedure, non_overridable, private :: compute_change_basis_matrix                   => Hcurl_l1_compute_change_basis_matrix
+    procedure, non_overridable, private :: fill_fe_dofs_new_basis                        => Hcurl_l1_fill_fe_dofs_new_basis
+    procedure, non_overridable, private :: fill_interface_discrete_gradient_part         => Hcurl_l1_fill_interface_discrete_gradient_part
+    procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis => Hcurl_l1_fill_average_tangent_function_change_of_basis
+    procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis_int => Hcurl_l1_fill_average_tangent_function_change_of_basis_int
 	   ! Change of basis application 
 	   procedure, non_overridable, private :: apply_global_change_basis                     => Hcurl_l1_apply_global_change_basis
 	   procedure, non_overridable, private :: apply_global_change_basis_transpose           => Hcurl_l1_apply_global_change_basis_transpose
 	   procedure, non_overridable, private :: apply_inverse_local_change_basis              => Hcurl_l1_apply_inverse_local_change_basis 
 	   procedure, non_overridable, private :: apply_inverse_local_change_basis_transpose    => Hcurl_l1_apply_inverse_local_change_basis_transpose
-	   ! DoF numbering getters 
-	   procedure, non_overridable, private :: get_dofs_from_vef                => Hcurl_l1_get_dofs_from_vef  
   end type  Hcurl_l1_coarse_fe_handler_t
     
   ! Node type 
@@ -1492,6 +1490,8 @@ private
 type(edge_map_t)  , allocatable  :: edge_maps(:) 
 type(facet_map_t) , allocatable  :: facet_maps(:) 
 type(cell_map_t)  , allocatable  :: cell_maps(:) 
+type(cell_map_t)  , allocatable  :: cell_maps_restricted_to_edge(:)
+type(cell_map_t)  , allocatable  :: cell_maps_restricted_to_facet(:)
 ! Quadratures 
 type(quadrature_t)  , allocatable  :: edge_quadratures(:) 
 type(quadrature_t)  , allocatable  :: facet_quadratures(:) 

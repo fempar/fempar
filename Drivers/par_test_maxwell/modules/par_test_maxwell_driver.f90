@@ -183,7 +183,6 @@ end subroutine free_timers
     !istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
     call this%triangulation%create(this%parameter_list, this%par_environment)
 	
-    if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then 
@@ -194,7 +193,6 @@ end subroutine free_timers
           call vef%next()
        end do
        call this%triangulation%free_vef_iterator(vef)
-    end if  
 	
     call this%set_cells_set_id() 
     call this%triangulation%setup_coarse_triangulation()
@@ -355,7 +353,7 @@ end subroutine free_timers
       call this%coarse_fe_handler%get_parameter_values(permeability          = this%permeability,   & 
                                                        resistivity           = this%resistivity,    & 
                                                        use_alternative_basis = .true.,              &
-                                                       arithmetic_average    = .false.              ) 
+                                                       arithmetic_average    = .true.              ) 
             
       matrix => this%fe_affine_operator%get_matrix() 
       select type ( matrix ) 
@@ -583,7 +581,7 @@ end subroutine free_timers
     call this%timer_solver_run%stop()
     
     call this%write_solution()
-   ! call this%check_solution()    
+    ! call this%check_solution()    
     call this%free()
   end subroutine run_simulation
   
