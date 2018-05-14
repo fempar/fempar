@@ -95,7 +95,6 @@ module par_scalar_array_names
      procedure :: get_num_blocks      => par_scalar_array_get_num_blocks
      procedure :: extract_subvector      => par_scalar_array_extract_subvector
      procedure :: insert_subvector       => par_scalar_array_insert_subvector
-	 procedure :: nullify_non_owned_dofs => par_scalar_array_nullify_non_owned_dofs
   end type par_scalar_array_t
 
 
@@ -628,25 +627,5 @@ contains
                                                     & values )
    end if
    end subroutine par_scalar_array_insert_subvector
-   
-   !=============================================================================
-   subroutine par_scalar_array_nullify_non_owned_dofs( op ) 
-   implicit none 
-   class(par_scalar_array_t), intent(inout) :: op
-   integer(ip) , pointer             :: non_owned_dofs(:)
-   real(rp)    , pointer             :: dof_values(:) 
-   integer(ip)                       :: number_non_owned_dofs, idof
-   
-     if(.not. op%p_env%am_i_l1_task()) return
-     non_owned_dofs        => op%dof_import%get_pack_idx()	 
-	 number_non_owned_dofs = size(non_owned_dofs)
-     dof_values            => op%serial_scalar_array%get_entries()
-	 
-	 do idof=1, number_non_owned_dofs
-	 dof_values(non_owned_dofs(idof)) = 0
-	 end do 
-	 
-   end subroutine par_scalar_array_nullify_non_owned_dofs
-  
 
 end module par_scalar_array_names

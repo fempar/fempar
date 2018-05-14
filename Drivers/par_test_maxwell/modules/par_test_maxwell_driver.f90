@@ -581,7 +581,7 @@ end subroutine free_timers
     call this%timer_solver_run%stop()
     
     call this%write_solution()
-    ! call this%check_solution()    
+    call this%check_solution()    
     call this%free()
   end subroutine run_simulation
   

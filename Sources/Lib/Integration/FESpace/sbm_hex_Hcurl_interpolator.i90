@@ -245,7 +245,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
 
         facet_lid = facet_id - reference_fe_geo%get_first_facet_id()+1
         call this%facet_maps(reference_fe_id)%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &
-             quadrature             = this%facet_quadratures(reference_fe_id) ) 
+                                                     quadrature             = this%facet_quadratures(reference_fe_id) ) 
 
         num_quad_points = this%facet_quadratures(reference_fe_id)%get_num_quadrature_points()
         quad_points_coordinates => this%facet_maps(reference_fe_id)%get_quadrature_points_coordinates()
@@ -470,7 +470,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
 
            facet_lid = facet_id - reference_fe_geo%get_first_facet_id()+1
            call this%facet_maps(reference_fe_id)%update(reorientation_factor   = reference_fe_geo%get_normal_orientation_factor(facet_lid), &
-                quadrature             = this%facet_quadratures(reference_fe_id) ) 
+                                                        quadrature             = this%facet_quadratures(reference_fe_id) ) 
 
            quad_points_coordinates => this%facet_maps(reference_fe_id)%get_quadrature_points_coordinates()
 
@@ -510,6 +510,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
                     call this%cell_maps(reference_fe_id)%get_jacobian_column(idime,qpoint,col_jacobian)
                     call mapped_shape_test%set(idime, 1.0_rp/col_jacobian%get(idime)*mapped_shape_test%get(idime) ) 
                  end do
+                 
                   dof_values(idof) = dof_values(idof) + cross_product_function_normal * mapped_shape_test * factor
                  call own_dofs%next() 
               end do

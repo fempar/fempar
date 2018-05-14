@@ -39,11 +39,10 @@ subroutine Hcurl_l1_setup_tools(this, field_id, par_fe_space, matrix)
   type(environment_t), pointer        :: environment  
 
   massert( par_fe_space%get_num_dims()==3, 'Wrong coarse FE handler type, you might choose Hcurl_2D instead' )  
-          
+
   environment => par_fe_space%get_environment() 
   if ( .not. environment%am_i_l1_task() ) return 
-  
-  
+
   this%use_alternative_basis=.true. 
   this%field_id = field_id 
   this%matrix => matrix 
@@ -60,9 +59,58 @@ subroutine Hcurl_l1_setup_tools(this, field_id, par_fe_space, matrix)
   call this%compute_subedges_info( par_fe_space ) 
   if ( this%use_alternative_basis ) then 
      call this%compute_change_basis_matrix( par_fe_space ) 
+     call this%setup_direct_solvers() 
   end if
 
 end subroutine Hcurl_l1_setup_tools
+
+subroutine Hcurl_l1_setup_direct_solvers( this ) 
+  implicit none 
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
+  integer                      :: FPLError
+  type(parameterlist_t)        :: parameter_list
+  integer                      :: iparm(64)
+  
+    ! Set-up Change of Basis application 
+     iparm      = 0 ! Init all entries to zero	
+     iparm(1)   = 1 ! no solver default
+     iparm(2)   = 2 ! fill-in reordering from METIS
+     iparm(8)   = 2 ! nums of iterative refinement steps
+     iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+     iparm(11)  = 1 ! use scaling 
+     iparm(13)  = 1 ! use maximum weighted matching algorithm 
+     iparm(21)  = 1 ! 1x1 + 2x2 pivots
+
+     call parameter_list%init()
+     FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
+     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
+     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
+     call this%direct_solver%set_type_from_pl(parameter_list)
+     call this%direct_solver%set_parameters_from_pl(parameter_list)
+     call this%direct_solver%set_matrix(this%change_basis_matrix)
+     
+    ! Set-up Transpose Change of Basis application 
+     iparm      = 0 ! Init all entries to zero	
+     iparm(1)   = 1 ! no solver default
+     iparm(2)   = 2 ! fill-in reordering from METIS
+     iparm(8)   = 2 ! nums of iterative refinement steps
+     iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+     iparm(11)  = 1 ! use scaling 
+     iparm(12)  = 2 ! Solve transposed system 
+     iparm(13)  = 1 ! use maximum weighted matching algorithm 
+     iparm(21)  = 1 ! 1x1 + 2x2 pivots
+
+     call parameter_list%init()
+     FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
+     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
+     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
+     call this%transpose_direct_solver%set_type_from_pl(parameter_list)
+     call this%transpose_direct_solver%set_parameters_from_pl(parameter_list)
+     call this%transpose_direct_solver%set_matrix(this%change_basis_matrix)
+     
+end subroutine 
 
 !===============================================================================================
 subroutine Hcurl_l1_get_parameter_values(this, permeability, resistivity, use_alternative_basis, arithmetic_average )
@@ -103,10 +151,13 @@ subroutine Hcurl_l1_free( this )
   this%matrix  => null()
 
   if ( this%use_alternative_basis ) then 
-     call this%change_basis_matrix%free()
      call memfree( this%edge_average_dof_id, __FILE__, __LINE__ )
      call this%g2l_fes%free()
      call memfree(this%fe_dofs_new_basis,__FILE__, __LINE__) 
+     
+     call this%direct_solver%free() 
+     call this%transpose_direct_solver%free() 
+     call this%change_basis_matrix%free()
   end if
 
 end subroutine Hcurl_l1_free
@@ -461,8 +512,8 @@ end subroutine Hcurl_l1_compute_first_order_moment_in_edges
 !===============================================================================================
 subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
   implicit none
-  class(Hcurl_l1_coarse_fe_handler_t), intent(in)    :: this
-  integer(ip)                         , intent(in)    :: field_id
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
   type(par_fe_space_t)                  , intent(in)    :: par_fe_space
   type(parameterlist_t)                 , intent(in)    :: parameter_list
   real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
@@ -525,7 +576,7 @@ end subroutine Hcurl_l1_setup_weighting_operator
 !===============================================================================================
 subroutine Hcurl_l1_apply_weighting_operator_and_comm(this, W, x, y) 
   implicit none
-  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   real(rp),            allocatable,       intent(in)    :: W(:) 
   type(par_scalar_array_t)  , intent(inout) :: x
   type(par_scalar_array_t)  , intent(inout) :: y
@@ -548,14 +599,18 @@ subroutine Hcurl_l1_apply_weighting_operator_and_comm(this, W, x, y)
   if ( this%use_alternative_basis ) call this%apply_inverse_local_change_basis( x_local, x_local )
   y_local_entries = x_local_entries*W 
   call y%comm()
-  if ( this%use_alternative_basis)  call this%apply_global_change_basis( y, y )
+  if ( this%use_alternative_basis) then 
+  ! Local applications of Qi*xi give complete information for my part 
+  ! due to Qi, xi fully assembled and its structure 
+  call this%apply_global_change_basis( y, y )
+  end if 
 
 end subroutine Hcurl_l1_apply_weighting_operator_and_comm
 
 !===============================================================================================
 subroutine Hcurl_l1_apply_transpose_weighting_operator(this, W, x, y) 
   implicit none
-  class(Hcurl_l1_coarse_fe_handler_t)   , intent(in)    :: this
+  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   real(rp),            allocatable,       intent(in)    :: W(:) 
   type(par_scalar_array_t)  , intent(inout) :: x
   type(par_scalar_array_t)  , intent(inout) :: y
@@ -575,7 +630,11 @@ subroutine Hcurl_l1_apply_transpose_weighting_operator(this, W, x, y)
   y_local         => y%get_serial_scalar_array()
   y_local_entries => y_local%get_entries()
 
-  if (this%use_alternative_basis) call this%apply_global_change_basis_transpose( x, x ) 
+  if (this%use_alternative_basis) then 
+  ! Q'x product is applied locally, x must be weight and comm afterwards to 
+  ! reproduce global product with the fully assembled Q
+  call this%apply_global_change_basis_transpose( x, x, W ) 
+  end if 
   y_local_entries = x_local_entries*W 
   if (this%use_alternative_basis) call this%apply_inverse_local_change_basis_transpose( y_local, y_local )  
 
@@ -1185,12 +1244,12 @@ subroutine Hcurl_l1_apply_global_change_basis(this, x_new, x_old)
   x_new_local         => x_new%get_serial_scalar_array()
 
   call x_new_local%create_view( this%num_interior_dofs + 1,  & 
-       this%num_total_dofs,         &
-       x_new_local_G )
+                                this%num_total_dofs,         &
+                                x_new_local_G )
 
   call x_old_local%create_view( this%num_interior_dofs + 1,  & 
-       this%num_total_dofs,         &
-       x_old_local_G )
+                                this%num_total_dofs,         &
+                                x_old_local_G )
 
   ! Apply local change basis operator  
   call change_basis_times_x%create_and_allocate(this%num_total_dofs - this%num_interior_dofs)
@@ -1204,36 +1263,39 @@ subroutine Hcurl_l1_apply_global_change_basis(this, x_new, x_old)
 end subroutine Hcurl_l1_apply_global_change_basis
 
 !===============================================================================================
-subroutine Hcurl_l1_apply_global_change_basis_transpose(this, x_old, x_new)
+subroutine Hcurl_l1_apply_global_change_basis_transpose(this, x_old, x_new, W)
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)      , intent(in)     :: this
   type(par_scalar_array_t)                 , intent(in)     :: x_old
   type(par_scalar_array_t)                 , intent(inout)  :: x_new
+  real(rp),            allocatable,       intent(in)    :: W(:)
 
   type(serial_scalar_array_t), pointer  :: x_old_local 
+  real(rp)                   , pointer  :: x_old_local_entries(:)
   type(serial_scalar_array_t), pointer  :: x_new_local
+  real(rp)                   , pointer  :: x_new_local_entries(:)
   type(serial_scalar_array_t)           :: x_new_local_G
   type(serial_scalar_array_t)           :: x_old_local_G
   type(serial_scalar_array_t)           :: change_basis_trans_times_x
 
-  integer(ip) , pointer             :: non_owned_dofs(:)
-  real(rp)    , pointer             :: dof_values(:) 
-  integer(ip)                       :: idof
+
 
   x_old_local         => x_old%get_serial_scalar_array()
+  x_old_local_entries => x_old_local%get_entries()
   x_new_local         => x_new%get_serial_scalar_array()
+  x_new_local_entries => x_new_local%get_entries()
 
+  ! Weight dofs to perform the global Q'*x computation locally 
+  x_old_local_entries = x_new_local_entries*W 
+  
   call x_new_local%create_view( this%num_interior_dofs + 1,  & 
-       this%num_total_dofs,         &
-       x_new_local_G )
+                                this%num_total_dofs,         &
+                                x_new_local_G )
 
   call x_old_local%create_view( this%num_interior_dofs + 1,  & 
-       this%num_total_dofs,         &
-       x_old_local_G )
-
-  ! Nullify non-owned dofs to perform the global Q'*x computation locally 
-  call x_new%nullify_non_owned_dofs() 
-
+                                this%num_total_dofs,         &
+                                x_old_local_G )
+  
   call change_basis_trans_times_x%create_and_allocate(this%num_total_dofs-this%num_interior_dofs) 
 
   ! Apply local change basis to built DoF 
@@ -1258,30 +1320,6 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_lo
   type(serial_scalar_array_t)              :: x_old_local_G
   type(serial_scalar_array_t)              :: inv_change_basis_times_x
 
-  ! Direct solver data
-  type(direct_solver_t)        :: direct_solver 
-  integer                      :: FPLError
-  type(parameterlist_t)        :: parameter_list
-  integer                      :: iparm(64)
-
-  iparm      = 0 ! Init all entries to zero	
-  iparm(1)   = 1 ! no solver default
-  iparm(2)   = 2 ! fill-in reordering from METIS
-  iparm(8)   = 2 ! nums of iterative refinement steps
-  iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-  iparm(11)  = 1 ! use scaling 
-  iparm(13)  = 1 ! use maximum weighted matching algorithm 
-  iparm(21)  = 1 ! 1x1 + 2x2 pivots
-
-  call parameter_list%init()
-  FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
-  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
-  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
-  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
-  call direct_solver%set_type_from_pl(parameter_list)
-  call direct_solver%set_parameters_from_pl(parameter_list)
-  call direct_solver%set_matrix(this%change_basis_matrix)
-
   call x_new_local%create_view( this%num_interior_dofs + 1,   & 
        this%num_total_dofs,          &
        x_new_local_G )
@@ -1294,10 +1332,9 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis(this, x_old_local, x_new_lo
   call inv_change_basis_times_x%create_and_allocate( this%num_total_dofs - this%num_interior_dofs) 
   call inv_change_basis_times_x%init(0.0_rp) 
 
-  call direct_solver%solve( x_old_local_G , inv_change_basis_times_x )
+  call this%direct_solver%solve( x_old_local_G , inv_change_basis_times_x )
   call x_new_local_G%copy(inv_change_basis_times_x) 
 
-  call direct_solver%free() 
   call inv_change_basis_times_x%free() 
 
 end subroutine Hcurl_l1_apply_inverse_local_change_basis
@@ -1313,32 +1350,6 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, x_new_local
   type(serial_scalar_array_t)              :: x_old_local_G
   type(serial_scalar_array_t)              :: inv_change_basis_trans_times_x
 
-  ! Direct solver data
-  type(direct_solver_t)        :: direct_solver 
-  integer                      :: FPLError
-  type(parameterlist_t)        :: parameter_list
-  integer                      :: iparm(64)
-
-  iparm      = 0 ! Init all entries to zero
-  iparm(1)   = 1 ! no solver default
-  iparm(2)   = 2 ! fill-in reordering from METIS
-  iparm(8)   = 2 ! nums of iterative refinement steps
-  iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-  iparm(11)  = 1 ! use scaling 
-  iparm(12)  = 2 ! Solve transposed system 
-  iparm(13)  = 1 ! use maximum weighted matching algorithm 
-  iparm(21)  = 1 ! 1x1 + 2x2 pivots
-
-  ! Create direct solver to update iterates 
-  call parameter_list%init()
-  FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
-  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
-  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
-  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
-  call direct_solver%set_type_from_pl(parameter_list)
-  call direct_solver%set_parameters_from_pl(parameter_list)
-  call direct_solver%set_matrix(this%change_basis_matrix)
-
   call x_new_local%create_view( this%num_interior_dofs + 1,  & 
        this%num_total_dofs,         &
        x_new_local_G )
@@ -1351,12 +1362,11 @@ subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose(this, x_new_local
   call inv_change_basis_trans_times_x%create_and_allocate( this%num_total_dofs - this%num_interior_dofs)
   call inv_change_basis_trans_times_x%init(0.0_rp) 
 
-  call direct_solver%solve( x_new_local_G, inv_change_basis_trans_times_x )
+  call this%transpose_direct_solver%solve( x_new_local_G, inv_change_basis_trans_times_x )
 
   call x_old_local_G%copy( inv_change_basis_trans_times_x ) 
 
   call inv_change_basis_trans_times_x%free() 
-  call direct_solver%free() 
 
 end subroutine Hcurl_l1_apply_inverse_local_change_basis_transpose
 ! -------------------------------------------------------------------------------------------------
@@ -1612,11 +1622,11 @@ subroutine Hcurl_l1_fill_coarse_subedges_and_owned_fine_edges( this, par_fe_spac
            call identify_following_starting_node( par_fe_space, num_nodes, num_nodes_each_type, node_list, nodes_type, start_node_gid )
 
            call choose_path_direction( par_fe_space, start_node_gid, num_fine_edges_x_coarse_edge(iedge_coarse), vertices_in_edge, & 
-                node_list, nodes_counter, nodes_type, first_fine_edge )   
+                                       node_list, nodes_counter, nodes_type, first_fine_edge )   
 
            call build_path_from_starting_node_and_direction_till_end_node(this, iedge_coarse, num_fine_edges_x_coarse_edge(iedge_coarse), fine_edges_list,    &
-                vertices_in_edge, nodes_counter, nodes_type, start_node_gid, first_fine_edge,       &
-                num_nodes_each_type, num_fine_edges_found, offcomponent_fine_edges )
+                                                                          vertices_in_edge, nodes_counter, nodes_type, start_node_gid, first_fine_edge,       &
+                                                                          num_nodes_each_type, num_fine_edges_found, offcomponent_fine_edges )
 
            offcomponent_fine_edges = offcomponent_fine_edges + num_fine_edges_found 
            call num_fine_edges_x_subedge%put( key=total_num_subedges, val=num_fine_edges_found, stat=istat ); check(istat==now_stored) 

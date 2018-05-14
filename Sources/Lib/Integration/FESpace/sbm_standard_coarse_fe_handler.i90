@@ -308,7 +308,7 @@ end subroutine standard_l1_setup_weighting_operator
 
 subroutine standard_l1_apply_weighting_operator_and_comm(this, W, x, y) 
   implicit none
-  class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
+  class(standard_l1_coarse_fe_handler_t), intent(inout) :: this
   real(rp),            allocatable,       intent(in)    :: W(:) 
   type(par_scalar_array_t)  , intent(inout) :: x
   type(par_scalar_array_t)  , intent(inout) :: y
@@ -329,7 +329,7 @@ end subroutine standard_l1_apply_weighting_operator_and_comm
 
 subroutine standard_l1_apply_transpose_weighting_operator(this, W, x, y) 
   implicit none
-  class(standard_l1_coarse_fe_handler_t), intent(in)    :: this
+  class(standard_l1_coarse_fe_handler_t), intent(inout) :: this
   real(rp),            allocatable,       intent(in)    :: W(:) 
   type(par_scalar_array_t)  , intent(inout) :: x
   type(par_scalar_array_t)  , intent(inout) :: y

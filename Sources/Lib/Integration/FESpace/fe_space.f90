@@ -1018,15 +1018,15 @@ module fe_space_names
 	
 	 subroutine l1_apply_weighting_operator_and_comm(this, W, x, y) 
 	     import :: l1_coarse_fe_handler_t, par_scalar_array_t, rp
-      class(l1_coarse_fe_handler_t) , intent(in)    :: this
-	  real(rp)         , allocatable, intent(in)    :: W(:)
-	  type(par_scalar_array_t)      , intent(inout) :: x
+      class(l1_coarse_fe_handler_t) , intent(inout) :: this
+	  real(rp)         , allocatable, intent(in)       :: W(:)
+	  type(par_scalar_array_t)      , intent(inout)    :: x
       type(par_scalar_array_t)      , intent(inout) :: y
     end subroutine l1_apply_weighting_operator_and_comm
 	
 	 subroutine l1_apply_transpose_weighting_operator(this, W, x, y) 
 	     import :: l1_coarse_fe_handler_t, par_scalar_array_t, rp
-      class(l1_coarse_fe_handler_t) , intent(in)    :: this
+   class(l1_coarse_fe_handler_t) , intent(inout) :: this
 	  real(rp)         , allocatable, intent(in)    :: W(:)
 	  type(par_scalar_array_t)      , intent(inout) :: x
    type(par_scalar_array_t)      , intent(inout) :: y
@@ -1075,30 +1075,31 @@ module fe_space_names
     procedure :: setup_constraint_matrix  => H1_l1_setup_constraint_matrix_multiple
     procedure :: setup_weighting_operator => H1_l1_setup_weighting_operator
   end type H1_l1_coarse_fe_handler_t
-     
+       
     type, extends(standard_l1_coarse_fe_handler_t) :: Hcurl_l1_coarse_fe_handler_t
     private 
     ! Customization 
     logical                                 :: use_alternative_basis 
     logical                                 :: arithmetic_average
-     
     integer(ip)                             :: field_id 
     real(rp)                                :: permeability 
     real(rp)                                :: resistivity
     type(par_sparse_matrix_t), pointer      :: matrix
 	   integer(ip)                             :: order
 				integer(ip)                             :: num_interior_dofs
-				integer(ip)                             :: num_total_dofs 
-				
+				integer(ip)                             :: num_total_dofs 				
     ! DoF old-new basis correspondence 
     type(hash_table_ip_ip_t)                :: g2l_fes
     integer(ip), allocatable                :: fe_dofs_new_basis(:,:) 
     integer(ip), allocatable                :: edge_average_dof_id(:) 
-    
+    ! Subedge partitions 
 	   type(hash_table_ip_ip_t)                :: fine_edge_direction
 	   type(list_t)                            :: subedges_x_coarse_edge 
 	   type(list_t)                            :: sorted_fine_edges_in_coarse_subedge 
+    ! Change of basis 
 				type(sparse_matrix_t)                   :: change_basis_matrix
+    type(direct_solver_t)                   :: direct_solver 
+    type(direct_solver_t)                   :: transpose_direct_solver
 	   
   contains
     ! Overriding procedures 
@@ -1119,6 +1120,7 @@ module fe_space_names
 				procedure, non_overridable, private :: fill_edges_lists                              => Hcurl_l1_fill_edges_lists
     ! Fill change of basis operator  
 	   procedure, non_overridable, private :: compute_change_basis_matrix                   => Hcurl_l1_compute_change_basis_matrix
+    procedure, non_overridable, private :: setup_direct_solvers                          => Hcurl_l1_setup_direct_solvers
     procedure, non_overridable, private :: fill_fe_dofs_new_basis                        => Hcurl_l1_fill_fe_dofs_new_basis
     procedure, non_overridable, private :: fill_interface_discrete_gradient_part         => Hcurl_l1_fill_interface_discrete_gradient_part
     procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis => Hcurl_l1_fill_average_tangent_function_change_of_basis
