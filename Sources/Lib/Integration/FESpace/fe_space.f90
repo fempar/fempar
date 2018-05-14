@@ -161,6 +161,7 @@ module fe_space_names
     generic                              :: get_vef                 => base_fe_cell_iterator_get_vef
     procedure, non_overridable           :: get_triangulation       => base_fe_cell_iterator_get_triangulation
     procedure, non_overridable           :: get_permutation_index   => base_fe_cell_iterator_get_permutation_index
+	procedure, non_overridable           :: get_level               => base_fe_cell_iterator_get_level
     
     procedure                            :: update_sub_triangulation    => base_fe_cell_iterator_update_sub_triangulation
     procedure                            :: get_num_subcells            => base_fe_cell_iterator_get_num_subcells
@@ -195,8 +196,8 @@ module fe_space_names
     
     ! Scratch member variables required to determine the type of cell 
     ! ressemblance among a current visited cell and the previous visited one
-    class(fe_cell_iterator_t)          , pointer     :: previous_cell => NULL()    
-   
+    class(fe_cell_iterator_t)          , pointer     :: previous_cell => NULL()   
+	logical                                          :: integration_updated = .false.
   contains
   
     procedure                           :: create                                     => fe_cell_iterator_create
@@ -232,6 +233,8 @@ module fe_space_names
     procedure                           :: set_cell_integrator                        => fe_cell_iterator_set_cell_integrator
     procedure                           :: nullify_cell_map                           => fe_cell_iterator_nullify_cell_map
     procedure                           :: nullify_cell_integrators                   => fe_cell_iterator_nullify_cell_integrators
+	procedure, non_overridable          :: is_integration_updated                     => fe_cell_iterator_is_integration_updated
+	procedure, non_overridable          :: set_integration_updated                    => fe_cell_iterator_set_integration_updated
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_cell_iterator_get_quadrature_points_coordinates
     procedure, non_overridable :: get_det_jacobian                  => fe_cell_iterator_get_det_jacobian

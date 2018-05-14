@@ -33,8 +33,10 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   integer(ip) :: istat
   call this%free()
   call aux_create(this, fe_space)
+  call this%set_integration_updated(.false.)
   allocate ( this%previous_cell, mold=this, stat=istat ); check(istat==0)
   call aux_create(this%previous_cell,fe_space)
+  call this%previous_cell%set_integration_updated(.false.)
   ! Initialize previous_cell to point to one cell past the end
   call aux_set_gid(this%previous_cell,fe_space%triangulation%get_num_cells()+1)
 end subroutine fe_cell_iterator_create
@@ -75,6 +77,7 @@ subroutine fe_cell_iterator_free (this)
     deallocate ( this%previous_cell, stat=istat ); check(istat==0)
     nullify(this%previous_cell)
   end if   
+  call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_free
 
 subroutine aux_free (this) 
@@ -91,8 +94,7 @@ subroutine aux_free (this)
   call this%nullify_fe_space()
 end subroutine aux_free   
   
-  
-
+ 
 subroutine fe_cell_iterator_allocate_assembly_scratch_data ( this )
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
@@ -195,17 +197,21 @@ subroutine fe_cell_iterator_next(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   call aux_set_gid(this%previous_cell,this%get_gid())
+  call this%previous_cell%set_integration_updated(this%is_integration_updated())
   call base_fe_cell_iterator_next(this)
   if ( .not. this%has_finished() ) then
     call this%update_performance_scratch_data()
   end if 
+  call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_next
 
 subroutine fe_cell_iterator_first(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   call aux_set_gid(this%previous_cell,this%get_gid())
+  call this%previous_cell%set_integration_updated(this%is_integration_updated())
   call aux_first(this)
+  call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_first
 
 subroutine aux_first(this) 
@@ -220,7 +226,9 @@ subroutine fe_cell_iterator_set_gid(this, lid)
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
   call aux_set_gid(this%previous_cell,this%get_gid())
+  call this%previous_cell%set_integration_updated(this%is_integration_updated())
   call aux_set_gid(this,lid)
+  call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_set_gid
 
 subroutine aux_set_gid(this, gid)
@@ -573,32 +581,71 @@ subroutine fe_cell_iterator_update_integration( this )
   integer(ip) :: field_id
   type(point_t)            , pointer :: coordinates(:)
   type(quadrature_t)       , pointer :: quadrature
+  integer(ip) :: cell_ressemblance
+  integer(ip) :: prev_get_lev, this_get_lev
+  real(rp) :: scaling_factor
 
+  call this%update_cell_map()
+  call this%update_cell_integrators()
+  
   ! Update integration data structures of previous cell
   ! This is required to drive comparisons required to
   ! decide whether the current cell is either a translation 
   ! or translation + scaling of the previous cell
   ! If the previous cell is not a valid cell or it is cut, there is nothing
   ! that can be re-used
+  cell_ressemblance = no_ressemblance
   if ( this%previous_cell%has_finished() .or. this%previous_cell%is_cut() ) then
     call this%previous_cell%nullify_cell_map()
     call this%previous_cell%nullify_cell_integrators()
   else
-    call this%previous_cell%update_cell_map()
-    call this%previous_cell%update_cell_integrators()
+    ! TO-DO: The logical statement within the if should be an .AND. followed
+    ! by a missing condition whenever the mesh is ... ¿uniform? (better name?)
+    ! Possibilities are:
+    !  * Uniform mesh 
+    !  * Uniform mesh without rotations?
+    !  * Any other ?
+    if ( this%previous_cell%is_integration_updated() ) then 
+      call this%previous_cell%update_cell_map()
+      call this%previous_cell%update_cell_integrators()
+	  this_get_lev = this%get_level()
+	  prev_get_lev = this%previous_cell%get_level()
+	  if ( this_get_lev == prev_get_lev ) then
+	    cell_ressemblance = is_only_translated
+	  else
+	    cell_ressemblance = is_scaled_and_translated
+		scaling_factor = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
+		! write(*,*) 'XXX', this%get_gid(), this_get_lev, prev_get_lev, scaling_factor
+	  end if 
+	end if   
   end if 
   
-  call this%update_cell_map()
+  ! Cell map update
   coordinates => this%cell_map%get_coordinates()
   call this%get_nodes_coordinates(coordinates)
-
   quadrature => this%get_quadrature()
-  call this%cell_map%update(quadrature)
-  call this%update_cell_integrators()
-  do field_id = 1, this%get_num_fields()
-     call this%cell_integrators(field_id)%p%update(this%cell_map)
-  end do
+  ! If cell_ressemblance is either translation or translation + scaling .AND.
+  ! the cell map of previous cell and that of the current cell are strictly 
+  ! the same instance, then ... (Note: it might happen that the cell map of
+  ! the previous cell is set up with a difference quadrature of the current
+  ! cell)
+  if ( cell_ressemblance /= no_ressemblance .and. &
+	   associated(this%cell_map,this%previous_cell%cell_map) ) then
+    call this%cell_map%update(quadrature) !, TO-DO: cell_ressemblance ACTUAL argument missing
+  else
+    call this%cell_map%update(quadrature) !, TO-DO: no_ressemblance ACTUAL argument missing
+  end if 	
   
+  ! Cell integrators update
+  do field_id = 1, this%get_num_fields()
+     if ( cell_ressemblance /= no_ressemblance .and. &
+		  associated(this%cell_integrators(field_id)%p,this%previous_cell%cell_integrators(field_id)%p) ) then
+       call this%cell_integrators(field_id)%p%update(this%cell_map) !, TO-DO: cell_ressemblance ACTUAL argument missing
+	 else
+	   call this%cell_integrators(field_id)%p%update(this%cell_map) !, TO-DO: no_ressemblance ACTUAL argument missing
+	 end if 
+  end do
+  call this%set_integration_updated(.true.)
 end subroutine fe_cell_iterator_update_integration
 
 function fe_cell_iterator_get_fe_space(this)
@@ -993,6 +1040,22 @@ subroutine fe_cell_iterator_nullify_cell_integrators ( this )
     nullify(this%cell_integrators(field_id)%p)
   end do   
 end subroutine fe_cell_iterator_nullify_cell_integrators
+
+!==================================================================================================
+function fe_cell_iterator_is_integration_updated ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  logical :: fe_cell_iterator_is_integration_updated
+  fe_cell_iterator_is_integration_updated = this%integration_updated
+end function fe_cell_iterator_is_integration_updated
+
+!==================================================================================================
+subroutine fe_cell_iterator_set_integration_updated ( this, integration_updated )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  logical                  , intent(in)    :: integration_updated
+  this%integration_updated = integration_updated
+end subroutine fe_cell_iterator_set_integration_updated
 
 !==================================================================================================
 function fe_cell_iterator_get_quadrature_points_coordinates(this)

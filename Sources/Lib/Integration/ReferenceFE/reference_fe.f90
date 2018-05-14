@@ -271,6 +271,7 @@ module reference_fe_names
 
   public :: cell_map_t, facet_map_t, edge_map_t, p_cell_map_t
   public :: cell_map_duties_t
+  public :: no_ressemblance, is_only_translated, is_scaled_and_translated
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
