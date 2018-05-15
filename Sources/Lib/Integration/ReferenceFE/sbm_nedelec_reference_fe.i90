@@ -777,25 +777,16 @@ subroutine nedelec_assign_cell_map_duties (this, interpolation_duties,cell_map_d
   massert(.not.interpolation_duties%compute_second_derivatives_is_assigned(),'Hessian not implemented for Nedelec')
 
 end subroutine nedelec_assign_cell_map_duties
-!==================================================================================================
-subroutine nedelec_reference_fe_apply_cell_map( this, cell_map,                 &
-     & interpolation_reference_cell, &
-     & interpolation_real_cell )
-  implicit none 
-  class(nedelec_reference_fe_t)   , intent(in)    :: this 
-  type(cell_map_t)                , intent(in)    :: cell_map
-  type(interpolation_t)           , intent(in)    :: interpolation_reference_cell
-  type(interpolation_t)           , intent(inout) :: interpolation_real_cell
-  call this%apply_cell_map_to_interpolation(cell_map,interpolation_reference_cell,interpolation_real_cell)
-end subroutine nedelec_reference_fe_apply_cell_map
 
 !==================================================================================================
-subroutine nedelec_apply_cell_map_to_interpolation(this,map,ref,phy)
+subroutine nedelec_apply_cell_map_to_interpolation(this,cell_ressemblance,map,ref,phy,scaling_factor)
   implicit none
-  class(nedelec_reference_fe_t), intent(in)    :: this 
-  type(cell_map_t)                  , intent(in)    :: map
+  class(nedelec_reference_fe_t)   , intent(in)    :: this 
+  integer(ip)                     , intent(in)    :: cell_ressemblance
+  type(cell_map_t)                , intent(in)    :: map
   type(interpolation_t)           , intent(in)    :: ref
   type(interpolation_t)           , intent(inout) :: phy
+  real(rp), optional              , intent(in)    :: scaling_factor
   real(rp), allocatable :: wmat1(:,:,:)
   real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
   integer(ip) :: ndime,nlocs,ntens

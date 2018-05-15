@@ -293,9 +293,10 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
      call this%get_function_values( vector_function, quad_points_coordinates, this%cell_function_values, time)
 
      ! Update interpolation on the physical space 
-     call this%fes_rt(reference_fe_id)%apply_cell_map( this%cell_maps(reference_fe_id),            & 
-          this%cell_interpolations(reference_fe_id),  & 
-          this%real_cell_interpolations(reference_fe_id)) 
+     call this%fes_rt(reference_fe_id)%apply_cell_map( no_ressemblance,                            &
+                                                       this%cell_maps(reference_fe_id),            &
+                                                       this%cell_interpolations(reference_fe_id),  & 
+                                                       this%real_cell_interpolations(reference_fe_id)) 
 
      cell_measure = this%cell_maps(reference_fe_id)%get_measure()
      ! Integration of interior moments  int_K (u.q), q \in Q_{k-1,k-2,k-2} x Q_{k-2,k-1,k-2} x Q_{k-2,k-2,k-1}

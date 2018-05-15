@@ -172,15 +172,24 @@ subroutine lagrangian_reference_fe_create_edget_interpolation (this, quadrature,
   call aux_reference_fe%free()
 end subroutine lagrangian_reference_fe_create_edget_interpolation
 !==================================================================================================
-subroutine lagrangian_reference_fe_apply_cell_map( this, cell_map,                 &
-     & interpolation_reference_cell, &
-     & interpolation_real_cell )
+subroutine lagrangian_reference_fe_apply_cell_map( this, &
+                                                   cell_ressemblance, &
+                                                   cell_map, &
+                                                   interpolation_reference_cell, &
+                                                   interpolation_real_cell, &
+                                                   scaling_factor )
   implicit none 
   class(lagrangian_reference_fe_t), intent(in)    :: this 
-  type(cell_map_t)                  , intent(in)    :: cell_map
+  integer(ip)                     , intent(in)    :: cell_ressemblance
+  type(cell_map_t)                , intent(in)    :: cell_map
   type(interpolation_t)           , intent(in)    :: interpolation_reference_cell
   type(interpolation_t)           , intent(inout) :: interpolation_real_cell
-  call this%apply_cell_map_to_interpolation(cell_map,interpolation_reference_cell,interpolation_real_cell)
+  real(rp), optional              , intent(in)    :: scaling_factor
+  call this%apply_cell_map_to_interpolation(cell_ressemblance, &
+                                            cell_map, &
+                                            interpolation_reference_cell, &
+                                            interpolation_real_cell, &
+                                            scaling_factor)
 end subroutine lagrangian_reference_fe_apply_cell_map
 
 !==================================================================================================
@@ -1108,12 +1117,19 @@ subroutine lagrangian_reference_fe_assign_cell_map_duties (this, interpolation_d
 
 end subroutine lagrangian_reference_fe_assign_cell_map_duties
 !==================================================================================================
-subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,phy)
+subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
+                                                                   cell_ressemblance, &
+                                                                   map, &
+                                                                   ref, &
+                                                                   phy, &
+                                                                   scaling_factor)
   implicit none
-  class(lagrangian_reference_fe_t), intent(in)    :: this 
+  class(lagrangian_reference_fe_t), intent(in)    :: this
+  integer(ip)                     , intent(in)    :: cell_ressemblance
   type(cell_map_t)                , intent(in)    :: map
   type(interpolation_t)           , intent(in)    :: ref
   type(interpolation_t)           , intent(inout) :: phy
+  real(rp), optional              , intent(in)    :: scaling_factor
   real(rp), allocatable :: wmat1(:,:,:)
   real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
   integer(ip) :: ndime,nnode,nlocs,ntens
@@ -1130,10 +1146,11 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
 
   ! First derivatives do
   if(phy%my_duties%compute_first_derivatives_is_assigned()) then
-     massert(map%my_duties%compute_jacobian_inverse_is_assigned(),'First derivatives mapping to physical space require a map with Jacobian inverse') 
-     phy%shape_derivatives=0.0_rp
-     do ilocs=1,phy%num_quadrature_points
-        do inode=1,size(phy%shape_functions,2)!phy%num_shape_functions
+     if ( cell_ressemblance == no_ressemblance ) then
+       massert(map%my_duties%compute_jacobian_inverse_is_assigned(),'First derivatives mapping to physical space require a map with Jacobian inverse') 
+       phy%shape_derivatives=0.0_rp
+       do ilocs=1,phy%num_quadrature_points
+        do inode=1,size(phy%shape_functions,2)
            do idime=1,ndime
               do jdime=1,ndime
                  phy%shape_derivatives(1,idime,inode,ilocs) = phy%shape_derivatives(1,idime,inode,ilocs) &
@@ -1141,7 +1158,13 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this,map,ref,
               end do
            end do
         end do
-     end do
+       end do
+     else
+       if ( cell_ressemblance == is_scaled_and_translated ) then
+         massert ( present(scaling_factor), 'Optional "scaling_factor" dummy argument MUST BE provided if cell_ressemblance == is_scaled_and_translated') 
+         phy%shape_derivatives(1,:,:,:) = (1.0_rp/scaling_factor)*phy%shape_derivatives(1,:,:,:)
+       end if
+     end if 
   end if
 
   ! Second derivatives are

@@ -156,23 +156,23 @@ end subroutine void_reference_fe_create_edget_interpolation
 subroutine void_reference_fe_assign_cell_map_duties (this, interpolation_duties,cell_map_duties)
   class(void_reference_fe_t)       , intent(in)  :: this 
   type(interpolation_duties_t), intent(in)  :: interpolation_duties
-  type(cell_map_duties_t)     , intent(inout) :: cell_map_duties
-  
-  !call cell_map_duties%assign_compute_jacobian_inverse(.false.)
-  !call cell_map_duties%assign_compute_jacobian_derivative(.false.)
-  
+  type(cell_map_duties_t)     , intent(inout) :: cell_map_duties  
 end subroutine void_reference_fe_assign_cell_map_duties
 
 !==================================================================================================
-subroutine void_reference_fe_apply_cell_map( this, cell_map,                 &
-     & interpolation_reference_cell, &
-     & interpolation_real_cell )
+subroutine void_reference_fe_apply_cell_map( this, &
+                                             cell_ressemblance, &
+                                             cell_map, &
+                                             interpolation_reference_cell, &
+                                             interpolation_real_cell, &
+                                             scaling_factor )
   implicit none 
   class(void_reference_fe_t), intent(in)    :: this 
-  type(cell_map_t)                  , intent(in)    :: cell_map
-  type(interpolation_t)           , intent(in)    :: interpolation_reference_cell
-  type(interpolation_t)           , intent(inout) :: interpolation_real_cell
-  !call this%apply_cell_map_to_interpolation(cell_map,interpolation_reference_cell,interpolation_real_cell)
+  integer(ip)               , intent(in)    :: cell_ressemblance
+  type(cell_map_t)          , intent(in)    :: cell_map
+  type(interpolation_t)     , intent(in)    :: interpolation_reference_cell
+  type(interpolation_t)     , intent(inout) :: interpolation_real_cell
+  real(rp), optional        , intent(in)    :: scaling_factor
 end subroutine void_reference_fe_apply_cell_map
 
 !==================================================================================================

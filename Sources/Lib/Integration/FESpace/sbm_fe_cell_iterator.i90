@@ -635,9 +635,9 @@ subroutine fe_cell_iterator_update_integration( this )
   do field_id = 1, this%get_num_fields()
      if ( cell_ressemblance /= no_ressemblance .and. &
             associated(this%cell_integrators(field_id)%p,this%previous_cell%cell_integrators(field_id)%p) ) then
-       call this%cell_integrators(field_id)%p%update(this%cell_map) !, TO-DO: cell_ressemblance ACTUAL argument missing
+       call this%cell_integrators(field_id)%p%update(cell_ressemblance,this%cell_map,scaling_factor) 
      else
-       call this%cell_integrators(field_id)%p%update(this%cell_map) !, TO-DO: no_ressemblance ACTUAL argument missing
+       call this%cell_integrators(field_id)%p%update(no_ressemblance,this%cell_map)
      end if 
   end do
   call this%set_integration_updated(.true.)

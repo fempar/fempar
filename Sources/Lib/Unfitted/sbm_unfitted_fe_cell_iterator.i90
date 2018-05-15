@@ -242,7 +242,7 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
     call cell_map%update(quadrature,no_ressemblance)
     do field_id = 1, this%get_num_fields()
        cell_integrator => this%get_cell_integrator(field_id)
-       call cell_integrator%update(cell_map)
+       call cell_integrator%update(no_ressemblance,cell_map)
     end do
   end if
 end subroutine unfitted_fe_cell_iterator_update_integration
@@ -483,7 +483,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators( this 
   ! Compute shape function derivatives 
   do field_id = 1, this%get_num_fields()
     cell_int => this%get_boundary_cell_integrator(field_id)
-     call cell_int%update(cell_map)
+     call cell_int%update(no_ressemblance,cell_map)
   end do
 
   ! At this point we can extract info about shape function from the cell integrator

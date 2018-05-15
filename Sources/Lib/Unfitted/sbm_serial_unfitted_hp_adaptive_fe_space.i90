@@ -1347,7 +1347,7 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
         else
           call cell_integrator(field_id)%update_interpolation(nodal_quad_in_root_fe(field_id))
         end if
-        call cell_integrator(field_id)%update(root_cell_map)
+        call cell_integrator(field_id)%update(no_ressemblance,root_cell_map)
         if (root_reference_fe%get_field_type() == field_type_scalar) then
           call cell_integrator(field_id)%get_values(shape_values_scalar)
         else if (root_reference_fe%get_field_type() == field_type_vector) then
