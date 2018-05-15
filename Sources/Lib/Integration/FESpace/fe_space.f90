@@ -962,7 +962,6 @@ module fe_space_names
   contains
     ! Deferred methods
     procedure (l1_free)                                  , deferred :: free 
-    procedure (l1_setup_tools)                           , deferred :: setup_tools  
     procedure (l1_get_num_coarse_dofs_interface)         , deferred :: get_num_coarse_dofs
 	   procedure (l1_setup_constraint_matrix)               , deferred :: setup_constraint_matrix
 	   procedure (l1_setup_weighting_operator)              , deferred :: setup_weighting_operator
@@ -977,15 +976,7 @@ module fe_space_names
 	import :: l1_coarse_fe_handler_t
 	class(l1_coarse_fe_handler_t), intent(inout) :: this
 	end subroutine l1_free
-	
-    subroutine l1_setup_tools( this, field_id, par_fe_space, matrix ) 
-	import :: l1_coarse_fe_handler_t, ip, par_fe_space_t, par_sparse_matrix_t
-	   class(l1_coarse_fe_handler_t), intent(inout)     :: this
-    integer(ip)                  , intent(in)        :: field_id 
-    type(par_fe_space_t)         , intent(inout)     :: par_fe_space 
-    class(par_sparse_matrix_t)   ,target, intent(in) :: matrix 
-	end subroutine l1_setup_tools 
-	
+
     ! Returns the number of coarse DoFs that the object customizing
     ! l1_coarse_fe_handler_t requires to introduce on the subdomain 
     ! interface
@@ -1036,8 +1027,7 @@ module fe_space_names
 
   type, extends(l1_coarse_fe_handler_t) :: standard_l1_coarse_fe_handler_t
      private
-   contains
-     procedure             :: setup_tools                               => standard_l1_setup_tools     
+   contains   
      procedure             :: get_num_coarse_dofs                       => standard_l1_get_num_coarse_dofs
      procedure             :: setup_constraint_matrix                   => standard_l1_setup_constraint_matrix
      procedure             :: setup_weighting_operator                  => standard_l1_setup_weighting_operator
@@ -1104,12 +1094,10 @@ module fe_space_names
   contains
     ! Overriding procedures 
     procedure                           :: free                                          => Hcurl_l1_free
-				procedure                           :: setup_tools                                   => Hcurl_l1_setup_tools 
-    procedure                           :: get_parameter_values                          => Hcurl_l1_get_parameter_values 
+				procedure                           :: create                                        => Hcurl_l1_create 
 	   procedure                           :: get_num_coarse_dofs                           => Hcurl_l1_get_num_coarse_dofs 
 	   procedure                           :: setup_constraint_matrix                       => Hcurl_l1_setup_constraint_matrix
     procedure                           :: setup_weighting_operator                      => Hcurl_l1_setup_weighting_operator
-	   procedure, private, nopass          :: get_BDDC_edge_continuity_algorithm_case       => Hcurl_l1_get_BDDC_edge_continuity_algorithm_case
 	   procedure, non_overridable, private :: compute_first_order_moment_in_edges           => Hcurl_l1_compute_first_order_moment_in_edges
 	   procedure                           :: apply_weighting_operator_and_comm             => Hcurl_l1_apply_weighting_operator_and_comm   
 	   procedure                           :: apply_transpose_weighting_operator            => Hcurl_l1_apply_transpose_weighting_operator  
@@ -1139,9 +1127,9 @@ module fe_space_names
   integer(ip), parameter :: not_owned_node     = 3
   integer(ip), parameter :: n_furcation_node   = 4 
   ! Fine edge direction related to coarse edge direction 
-  integer(ip), parameter :: opposite_to_coarse_edge                   = 0
-  integer(ip), parameter :: same_as_coarse_edge                       = 1  
-  ! Continuity algorithm 
+  integer(ip), parameter :: opposite_to_coarse_edge = 0
+  integer(ip), parameter :: same_as_coarse_edge     = 1  
+  ! Coarse Edges enforced Continuity algorithm 
   integer(ip), parameter :: tangential_average                        = 1
   integer(ip), parameter :: tangential_average_and_first_order_moment = 2
   integer(ip), parameter :: all_dofs_in_coarse_edges                  = 3 

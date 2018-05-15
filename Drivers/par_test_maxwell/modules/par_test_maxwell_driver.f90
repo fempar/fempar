@@ -350,17 +350,12 @@ end subroutine free_timers
 
       if ( this%par_environment%am_i_l1_task() ) then 
       
-      call this%coarse_fe_handler%get_parameter_values(permeability          = this%permeability,   & 
-                                                       resistivity           = this%resistivity,    & 
-                                                       use_alternative_basis = .true.,              &
-                                                       arithmetic_average    = .true.              ) 
-            
       matrix => this%fe_affine_operator%get_matrix() 
       select type ( matrix ) 
       class is (par_sparse_matrix_t) 
-    	 call this%coarse_fe_handler%setup_tools( 1, this%fe_space, matrix )
+    	 call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%permeability, this%resistivity )
       end select 
-      end if 
+      end if
       
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
@@ -409,9 +404,15 @@ end subroutine free_timers
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()  
    
+    call parameter_list%init()
+    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-8_rp)
+    FPLError = parameter_list%set(key = ils_max_num_iterations, value = 1000)
+    assert(FPLError == 0)
+    
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
-
+    call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+    
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
     call parameter_list%free()
   end subroutine setup_solver

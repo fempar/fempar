@@ -25,25 +25,48 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-subroutine Hcurl_l1_setup_tools(this, field_id, par_fe_space, matrix)
+subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list, permeability, resistivity )
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   integer(ip)                           , intent(in)    :: field_id 
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
   class(par_sparse_matrix_t) , target   , intent(in)    :: matrix  
-
-  integer(ip)                               :: num_coarse_edges
-  class(fe_cell_iterator_t), allocatable    :: fe 
-  class(reference_fe_t)    , pointer        :: reference_fe 
+  type(parameterlist_t)                 , intent(in)    :: parameter_list 
+  real(rp)                              , intent(in)    :: permeability
+  real(rp)                              , intent(in)    :: resistivity 
+  ! Initialize parameters 
+  character(len=*), parameter :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
+  integer(ip)    :: continuity_algorithm
+  integer(ip)    :: FPLError
 
   type(environment_t), pointer        :: environment  
 
-  massert( par_fe_space%get_num_dims()==3, 'Wrong coarse FE handler type, you might choose Hcurl_2D instead' )  
+  ! To clean 
+  class(fe_cell_iterator_t), allocatable    :: fe 
+  class(reference_fe_t)    , pointer        :: reference_fe 
 
   environment => par_fe_space%get_environment() 
   if ( .not. environment%am_i_l1_task() ) return 
 
-  this%use_alternative_basis=.true. 
+  ! Mandatory 
+  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, continuity_algorithm))
+  FPLError = parameter_list%Get(bddc_edge_continuity_algorithm_key, continuity_algorithm)
+  assert(FPLError == 0)
+  if ( par_fe_space%get_num_dims()==2 ) then  
+     massert( continuity_algorithm .ne. tangential_average_and_first_order_moment, 'Enforced continuity criteria not allowed for 2D problems' ) 
+     this%use_alternative_basis=.false.
+  elseif ( par_fe_space%get_num_dims()==3 ) then 
+     this%use_alternative_basis = .true. 
+     this%arithmetic_average    = .true. 
+     if ( continuity_algorithm == all_dofs_in_coarse_edges) then 
+        this%use_alternative_basis = .false. 
+     end if
+  end if
+
+  ! Init parameters 
+  this%permeability = permeability 
+  this%resistivity  = resistivity 
+
   this%field_id = field_id 
   this%matrix => matrix 
 
@@ -57,88 +80,62 @@ subroutine Hcurl_l1_setup_tools(this, field_id, par_fe_space, matrix)
 
   ! Count and partition coarse edges 
   call this%compute_subedges_info( par_fe_space ) 
-  if ( this%use_alternative_basis ) then 
+  ! Prepare alternative change of basis 
+  if ( this%use_alternative_basis ) then
      call this%compute_change_basis_matrix( par_fe_space ) 
      call this%setup_direct_solvers() 
   end if
 
-end subroutine Hcurl_l1_setup_tools
+end subroutine Hcurl_l1_create
 
+!===============================================================================================
 subroutine Hcurl_l1_setup_direct_solvers( this ) 
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   integer                      :: FPLError
   type(parameterlist_t)        :: parameter_list
   integer                      :: iparm(64)
-  
-    ! Set-up Change of Basis application 
-     iparm      = 0 ! Init all entries to zero	
-     iparm(1)   = 1 ! no solver default
-     iparm(2)   = 2 ! fill-in reordering from METIS
-     iparm(8)   = 2 ! nums of iterative refinement steps
-     iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-     iparm(11)  = 1 ! use scaling 
-     iparm(13)  = 1 ! use maximum weighted matching algorithm 
-     iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
-     call parameter_list%init()
-     FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
-     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
-     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
-     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
-     call this%direct_solver%set_type_from_pl(parameter_list)
-     call this%direct_solver%set_parameters_from_pl(parameter_list)
-     call this%direct_solver%set_matrix(this%change_basis_matrix)
-     
-    ! Set-up Transpose Change of Basis application 
-     iparm      = 0 ! Init all entries to zero	
-     iparm(1)   = 1 ! no solver default
-     iparm(2)   = 2 ! fill-in reordering from METIS
-     iparm(8)   = 2 ! nums of iterative refinement steps
-     iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-     iparm(11)  = 1 ! use scaling 
-     iparm(12)  = 2 ! Solve transposed system 
-     iparm(13)  = 1 ! use maximum weighted matching algorithm 
-     iparm(21)  = 1 ! 1x1 + 2x2 pivots
+  ! Set-up Change of Basis application 
+  iparm      = 0 ! Init all entries to zero	
+  iparm(1)   = 1 ! no solver default
+  iparm(2)   = 2 ! fill-in reordering from METIS
+  iparm(8)   = 2 ! nums of iterative refinement steps
+  iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+  iparm(11)  = 1 ! use scaling 
+  iparm(13)  = 1 ! use maximum weighted matching algorithm 
+  iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
-     call parameter_list%init()
-     FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
-     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
-     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
-     FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
-     call this%transpose_direct_solver%set_type_from_pl(parameter_list)
-     call this%transpose_direct_solver%set_parameters_from_pl(parameter_list)
-     call this%transpose_direct_solver%set_matrix(this%change_basis_matrix)
-     
-end subroutine 
+  call parameter_list%init()
+  FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
+  call this%direct_solver%set_type_from_pl(parameter_list)
+  call this%direct_solver%set_parameters_from_pl(parameter_list)
+  call this%direct_solver%set_matrix(this%change_basis_matrix)
 
-!===============================================================================================
-subroutine Hcurl_l1_get_parameter_values(this, permeability, resistivity, use_alternative_basis, arithmetic_average )
-  implicit none 
-  class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
-  real(rp)    , intent(in)     :: permeability 
-  real(rp)    , intent(in)     :: resistivity 
-  logical     , intent(in)     :: use_alternative_basis
-  logical     , intent(in)     :: arithmetic_average 
+  ! Set-up Transpose Change of Basis application 
+  iparm      = 0 ! Init all entries to zero	
+  iparm(1)   = 1 ! no solver default
+  iparm(2)   = 2 ! fill-in reordering from METIS
+  iparm(8)   = 2 ! nums of iterative refinement steps
+  iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+  iparm(11)  = 1 ! use scaling 
+  iparm(12)  = 2 ! Solve transposed system 
+  iparm(13)  = 1 ! use maximum weighted matching algorithm 
+  iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
-  this%permeability = permeability
-  this%resistivity  = resistivity 
+  call parameter_list%init()
+  FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_matrix_type,   value = pardiso_mkl_uns)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_message_level, value = 0)
+  FPLError = FPLError + parameter_list%set(key = pardiso_mkl_iparm,         value = iparm); assert(FPLError == 0)  
+  call this%transpose_direct_solver%set_type_from_pl(parameter_list)
+  call this%transpose_direct_solver%set_parameters_from_pl(parameter_list)
+  call this%transpose_direct_solver%set_matrix(this%change_basis_matrix)
 
-  ! Preconditioner customization 
-  this%use_alternative_basis = use_alternative_basis
-  this%arithmetic_average    = arithmetic_average 
-
-end subroutine Hcurl_l1_get_parameter_values
-
-!===============================================================================================
-subroutine Hcurl_l1_create(this, matrix )
-  implicit none 
-  class(Hcurl_l1_coarse_fe_handler_t)    , intent(inout) :: this
-  class(par_sparse_matrix_t), target     , intent(in)    :: matrix
-  call this%free()
-
-  this%matrix => matrix
-end subroutine Hcurl_l1_create
+end subroutine Hcurl_l1_setup_direct_solvers
 
 !===============================================================================================
 subroutine Hcurl_l1_free( this ) 
@@ -154,7 +151,7 @@ subroutine Hcurl_l1_free( this )
      call memfree( this%edge_average_dof_id, __FILE__, __LINE__ )
      call this%g2l_fes%free()
      call memfree(this%fe_dofs_new_basis,__FILE__, __LINE__) 
-     
+
      call this%direct_solver%free() 
      call this%transpose_direct_solver%free() 
      call this%change_basis_matrix%free()
@@ -177,11 +174,13 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_
   type(fe_object_iterator_t)             :: object
   integer(ip)                            :: coarse_edge 
 
-  type(list_iterator_t)     :: coarse_subedge_iterator
-  type(list_iterator_t)     :: fine_edges_iterator 
-  type(list_iterator_t)     :: own_dofs 
-  integer(ip)               :: edge_continuity_algorithm 
-  integer(ip)               :: num_fine_edges_in_subedge 
+  type(list_iterator_t)       :: coarse_subedge_iterator
+  type(list_iterator_t)       :: fine_edges_iterator 
+  type(list_iterator_t)       :: own_dofs 
+  integer(ip)                 :: edge_continuity_algorithm 
+  integer(ip)                 :: num_fine_edges_in_subedge 
+  character(len=*), parameter :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
+  integer(ip)                 :: FPLError
 
   environment=> par_fe_space%get_environment()
   assert ( associated ( environment) )
@@ -193,7 +192,11 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_
   call par_fe_space%create_fe_vef_iterator(edge)
   call par_fe_space%create_fe_object_iterator(object)
 
-  call this%get_BDDC_edge_continuity_algorithm_case( parameter_list, edge_continuity_algorithm ) 
+  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, edge_continuity_algorithm))
+  FPLError = parameter_list%Get(bddc_edge_continuity_algorithm_key, edge_continuity_algorithm);   assert(FPLError == 0)
+  if ( edge_continuity_algorithm == tangential_average_and_first_order_moment ) then  
+     massert( par_fe_space%get_num_dims() /= 2,  'BDDC continuity algorithm not valid for 2D problems') 
+  end if
 
   coarse_edge = 0
   do while ( .not. object%has_finished() )
@@ -266,6 +269,8 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
   integer(ip), pointer    :: fe_dofs(:)
 
   integer(ip)                    :: edge_continuity_algorithm 
+  character(len=*), parameter    :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
+  integer(ip)                    :: FPLError
   type(serial_scalar_array_t)    :: first_moment_constraint_in_edges 
   real(rp), pointer              :: first_moment_constraint_in_edges_entries(:)
   integer(ip)                    :: coarse_edge
@@ -281,12 +286,13 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
   assert (associated(environment))
   assert (environment%am_i_l1_task())
 
-  call this%get_BDDC_edge_continuity_algorithm_case( parameter_list, edge_continuity_algorithm ) 
-  select case ( edge_continuity_algorithm )  
-  case ( tangential_average_and_first_order_moment ) 
+  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, edge_continuity_algorithm))
+  FPLError = parameter_list%Get(bddc_edge_continuity_algorithm_key, edge_continuity_algorithm);   assert(FPLError == 0)
+  if ( edge_continuity_algorithm == tangential_average_and_first_order_moment ) then  
+     massert( par_fe_space%get_num_dims() /= 2,  'BDDC continuity algorithm not valid for 2D problems') 
      call this%compute_first_order_moment_in_edges(par_fe_space, first_moment_constraint_in_edges)
      first_moment_constraint_in_edges_entries => first_moment_constraint_in_edges%get_entries()
-  end select
+  end if
 
   ! Free any dynamic memory that constraint_matrix may have inside
   call constraint_matrix%free()
@@ -2113,21 +2119,3 @@ subroutine find_node_w_minimum_nonconsecutive_gid( par_fe_space, nodes_array, lo
 
   call memfree( node_ggids, __FILE__, __LINE__ )
 end subroutine find_node_w_minimum_nonconsecutive_gid
-! -------------------------------------------------------------------------------------------
-! 
-!             Auxiliar subroutines for BDDC algorithm selection 
-!
-! -------------------------------------------------------------------------------------------
-subroutine Hcurl_l1_get_BDDC_edge_continuity_algorithm_case( parameter_list, algorithm )
-  implicit none
-  type(parameterlist_t)                 , intent(in)    :: parameter_list
-  integer(ip)                           , intent(out)   :: algorithm
-
-  character(len=*), parameter :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
-  integer(ip) :: FPLError
-
-  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, algorithm))
-  FPLError = parameter_list%Get(bddc_edge_continuity_algorithm_key, algorithm)
-  assert(FPLError == 0)
-
-end subroutine Hcurl_l1_get_BDDC_edge_continuity_algorithm_case
