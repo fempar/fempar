@@ -45,12 +45,15 @@ subroutine aux_create(this, fe_space)
   implicit none
   class(fe_cell_iterator_t), intent(inout)      :: this
   class(serial_fe_space_t) , target, intent(in) :: fe_space
+  class(triangulation_t), pointer :: triangulation
   call this%set_fe_space(fe_space)
   call this%create_cell(fe_space%triangulation)
   call this%allocate_assembly_scratch_data()
   call this%allocate_performance_scratch_data()
   call this%init_performance_scratch_data()
   call aux_first(this) 
+  triangulation => fe_space%get_triangulation()
+  call this%set_single_octree_mesh(triangulation%is_single_octree_mesh())
 end subroutine aux_create
 
 subroutine fe_cell_iterator_create_cell ( this, triangulation )
@@ -78,6 +81,7 @@ subroutine fe_cell_iterator_free (this)
     nullify(this%previous_cell)
   end if   
   call this%set_integration_updated(.false.)
+  call this%set_single_octree_mesh(.false.)
 end subroutine fe_cell_iterator_free
 
 subroutine aux_free (this) 
@@ -573,8 +577,6 @@ subroutine fe_cell_iterator_update_assembly_scratch_data( this)
   call this%get_fe_dofs(this%fe_dofs)
 end subroutine fe_cell_iterator_update_assembly_scratch_data
 
-
-
 subroutine fe_cell_iterator_update_integration( this )
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this 
@@ -599,25 +601,18 @@ subroutine fe_cell_iterator_update_integration( this )
     call this%previous_cell%nullify_cell_map()
     call this%previous_cell%nullify_cell_integrators()
   else
-    ! TO-DO: The logical statement within the if should be an .AND. followed
-    ! by a missing condition whenever the mesh is ... ¿uniform? (better name?)
-    ! Possibilities are:
-    !  * Uniform mesh 
-    !  * Uniform mesh without rotations?
-    !  * Any other ?
-    if ( this%previous_cell%is_integration_updated() ) then 
+    if ( this%previous_cell%is_integration_updated() .and. this%is_single_octree_mesh() ) then 
       call this%previous_cell%update_cell_map()
       call this%previous_cell%update_cell_integrators()
-	  this_get_lev = this%get_level()
-	  prev_get_lev = this%previous_cell%get_level()
-	  if ( this_get_lev == prev_get_lev ) then
-	    cell_ressemblance = is_only_translated
-	  else
-	    cell_ressemblance = is_scaled_and_translated
-		scaling_factor = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
-		! write(*,*) 'XXX', this%get_gid(), this_get_lev, prev_get_lev, scaling_factor
-	  end if 
-	end if   
+   this_get_lev = this%get_level()
+   prev_get_lev = this%previous_cell%get_level()
+   if ( this_get_lev == prev_get_lev ) then
+     cell_ressemblance = is_only_translated
+   else
+     cell_ressemblance = is_scaled_and_translated
+  scaling_factor = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
+   end if 
+ end if   
   end if 
   
   ! Cell map update
@@ -630,20 +625,20 @@ subroutine fe_cell_iterator_update_integration( this )
   ! the previous cell is set up with a difference quadrature of the current
   ! cell)
   if ( cell_ressemblance /= no_ressemblance .and. &
-	   associated(this%cell_map,this%previous_cell%cell_map) ) then
-    call this%cell_map%update(quadrature) !, TO-DO: cell_ressemblance ACTUAL argument missing
+           associated(this%cell_map,this%previous_cell%cell_map) ) then
+    call this%cell_map%update(quadrature, cell_ressemblance, scaling_factor)
   else
-    call this%cell_map%update(quadrature) !, TO-DO: no_ressemblance ACTUAL argument missing
-  end if 	
+    call this%cell_map%update(quadrature, no_ressemblance)
+  end if  
   
   ! Cell integrators update
   do field_id = 1, this%get_num_fields()
      if ( cell_ressemblance /= no_ressemblance .and. &
-		  associated(this%cell_integrators(field_id)%p,this%previous_cell%cell_integrators(field_id)%p) ) then
+            associated(this%cell_integrators(field_id)%p,this%previous_cell%cell_integrators(field_id)%p) ) then
        call this%cell_integrators(field_id)%p%update(this%cell_map) !, TO-DO: cell_ressemblance ACTUAL argument missing
-	 else
-	   call this%cell_integrators(field_id)%p%update(this%cell_map) !, TO-DO: no_ressemblance ACTUAL argument missing
-	 end if 
+     else
+       call this%cell_integrators(field_id)%p%update(this%cell_map) !, TO-DO: no_ressemblance ACTUAL argument missing
+     end if 
   end do
   call this%set_integration_updated(.true.)
 end subroutine fe_cell_iterator_update_integration
@@ -1056,6 +1051,22 @@ subroutine fe_cell_iterator_set_integration_updated ( this, integration_updated 
   logical                  , intent(in)    :: integration_updated
   this%integration_updated = integration_updated
 end subroutine fe_cell_iterator_set_integration_updated
+
+!==================================================================================================
+function fe_cell_iterator_is_single_octree_mesh ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  logical :: fe_cell_iterator_is_single_octree_mesh
+  fe_cell_iterator_is_single_octree_mesh = this%single_octree_mesh
+end function fe_cell_iterator_is_single_octree_mesh
+
+!==================================================================================================
+subroutine fe_cell_iterator_set_single_octree_mesh ( this, single_octree_mesh )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  logical                  , intent(in)    :: single_octree_mesh
+  this%single_octree_mesh = single_octree_mesh
+end subroutine fe_cell_iterator_set_single_octree_mesh
 
 !==================================================================================================
 function fe_cell_iterator_get_quadrature_points_coordinates(this)

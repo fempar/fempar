@@ -1152,7 +1152,7 @@ contains
             call fe_cell_iterator%get_nodes_coordinates(coordinates)
 
             quadrature => this%ohcff%get_quadrature()
-            call cell_map%update(quadrature)
+            call cell_map%update(quadrature,no_ressemblance)
             
             do field_id=1, fe_cell_iterator%get_num_fields()
               cell_integrator => this%ohcff%get_cell_integrator(field_id)

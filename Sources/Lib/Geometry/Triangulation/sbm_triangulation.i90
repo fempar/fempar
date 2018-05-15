@@ -30,6 +30,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+function triangulation_is_single_octree_mesh(this)
+  implicit none
+  class(triangulation_t), intent(in) :: this
+  logical :: triangulation_is_single_octree_mesh
+  triangulation_is_single_octree_mesh = this%single_octree_mesh
+end function triangulation_is_single_octree_mesh
+
 function triangulation_get_num_dims(this)
   implicit none
   class(triangulation_t), intent(in) :: this
@@ -64,6 +71,13 @@ function triangulation_get_num_vefs(this)
   integer(ip) :: triangulation_get_num_vefs
   triangulation_get_num_vefs = this%num_vefs
 end function triangulation_get_num_vefs
+
+subroutine triangulation_set_single_octree_mesh(this, is_single_octree_mesh)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  logical               , intent(in)    :: is_single_octree_mesh
+  this%single_octree_mesh = is_single_octree_mesh
+end subroutine triangulation_set_single_octree_mesh
 
 subroutine triangulation_set_num_vefs(this,num_vefs)
   implicit none
@@ -2230,7 +2244,6 @@ end subroutine triangulation_free_object_iterator
 recursive subroutine triangulation_free ( this )
   implicit none
   class(triangulation_t), target, intent(inout) :: this
-  
   if ( associated(this%environment) ) then
      if ( this%environment%am_i_l1_task() ) then
         this%num_dims = -1         
@@ -2245,6 +2258,7 @@ recursive subroutine triangulation_free ( this )
      call this%free_environment()  
      this%coarse_triangulation_set_up = .false.
   end if
+  call this%set_single_octree_mesh(.false.)
 end subroutine triangulation_free
 
 subroutine triangulation_free_coarse_triangulation_l1_data(this)

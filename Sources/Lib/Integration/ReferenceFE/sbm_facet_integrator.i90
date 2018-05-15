@@ -62,7 +62,7 @@ subroutine cell_map_facet_restriction_update( this, facet_lid, subfacet_lid, qua
 
   this%current_facet_lid = facet_lid
   this%current_subfacet_lid = subfacet_lid
-  call this%cell_map(facet_lid+subfacet_lid*this%num_facets)%update(quadrature)
+  call this%cell_map(facet_lid+subfacet_lid*this%num_facets)%update(quadrature,no_ressemblance)
 
 end subroutine cell_map_facet_restriction_update
 

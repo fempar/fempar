@@ -239,7 +239,7 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
     call this%get_nodes_coordinates(coordinates)
 
     quadrature => this%get_quadrature()
-    call cell_map%update(quadrature)
+    call cell_map%update(quadrature,no_ressemblance)
     do field_id = 1, this%get_num_fields()
        cell_integrator => this%get_cell_integrator(field_id)
        call cell_integrator%update(cell_map)
@@ -310,7 +310,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_quadratures( this )
     call this%get_ref_coords_of_subcell( subcell, nodal_coords_subelem )
 
     ! Compute the Jacobian of the mapping between the ref sub-element and ref element
-    call cell_map_subelem%update( quadrature_subelem )
+    call cell_map_subelem%update( quadrature_subelem, no_ressemblance )
 
     ! Determine if the current sub-cell is interior or exterior
     ! TODO this way of discarding the exterior sub-cells can be improved
@@ -478,7 +478,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators( this 
   call this%get_nodes_coordinates(coordinates)
 
   ! Compute the jacobian and co
-  call cell_map%update( quad )
+  call cell_map%update( quad, no_ressemblance )
 
   ! Compute shape function derivatives 
   do field_id = 1, this%get_num_fields()

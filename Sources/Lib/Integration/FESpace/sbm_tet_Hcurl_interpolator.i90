@@ -253,7 +253,7 @@ subroutine tet_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   if ( num_interior_moments > 0 ) then 
 
      ! Update cell map 
-     call this%cell_maps(reference_fe_id)%update(this%cell_quadratures(reference_fe_id))
+     call this%cell_maps(reference_fe_id)%update(this%cell_quadratures(reference_fe_id),no_ressemblance)
 
      ! Extract quadrature points coordinates 
      num_quad_points = this%cell_quadratures(reference_fe_id)%num_quadrature_points
