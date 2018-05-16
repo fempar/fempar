@@ -303,6 +303,45 @@ subroutine cell_integrator_get_curls_vector (this, curls, qpoints_perm)
   call this%reference_fe%get_curls(this%interpolation_real_cell,curls,qpoints_perm)
 end subroutine cell_integrator_get_curls_vector
 
+subroutine cell_integrator_get_laplacian_scalar (this, ishape, qpoint, scalar_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  real(rp)                     , intent(out)   :: scalar_field
+  assert( this%reference_fe%field_type == field_type_scalar ) 
+  call this%reference_fe%get_laplacian(this%interpolation_real_cell,ishape,qpoint,scalar_field)
+end subroutine cell_integrator_get_laplacian_scalar
+
+subroutine cell_integrator_get_laplacian_vector (this, ishape, qpoint, vector_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: vector_field
+  assert( this%reference_fe%field_type == field_type_scalar ) 
+  call this%reference_fe%get_laplacian(this%interpolation_real_cell,ishape,qpoint,vector_field)
+end subroutine cell_integrator_get_laplacian_vector
+
+subroutine cell_integrator_get_laplacians_scalar (this, laplacians, qpoints_perm)
+  implicit none
+  class(cell_integrator_t)   , intent(in)    :: this
+  real(rp), allocatable        , intent(inout) :: laplacians(:,:)
+  integer(ip)     , optional   , intent(in)    :: qpoints_perm(:)
+
+  assert( this%reference_fe%field_type == field_type_scalar )
+  call this%reference_fe%get_laplacians(this%interpolation_real_cell,laplacians,qpoints_perm)
+end subroutine cell_integrator_get_laplacians_scalar
+
+subroutine cell_integrator_get_laplacians_vector (this, laplacians, qpoints_perm)
+  implicit none
+  class(cell_integrator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: laplacians(:,:)
+  integer(ip)     , optional       , intent(in)    :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_laplacians(this%interpolation_real_cell,laplacians,qpoints_perm)
+end subroutine cell_integrator_get_laplacians_vector
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! procedures to evaluate the fe_function at the quadrature points
 

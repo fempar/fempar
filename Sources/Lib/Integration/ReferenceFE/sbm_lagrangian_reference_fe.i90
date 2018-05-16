@@ -630,11 +630,10 @@ subroutine lagrangian_reference_fe_get_laplacian_scalar( this, actual_cell_inter
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
   real(rp)                        , intent(inout) :: scalar_field
-  character(:), allocatable :: msg
+  character(*), parameter :: msg = 'Lagrangian reference FE get laplacian scalar requires cell interpolation to compute the hessian'
   assert( this%field_type == field_type_scalar )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
-  msg = 'Lagrangian reference FE get laplacian scalar requires cell interpolation to compute the hessian'
   mcheck(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
   scalar_field = sum(actual_cell_interpolation%hessian(1,1:this%num_dims,ishape,qpoint))
 end subroutine lagrangian_reference_fe_get_laplacian_scalar
@@ -648,16 +647,95 @@ subroutine lagrangian_reference_fe_get_laplacian_vector( this, actual_cell_inter
   integer(ip)                     , intent(in)    :: ishape
   integer(ip)                     , intent(in)    :: qpoint
   type(vector_field_t)            , intent(inout) :: vector_field
-  character(:), allocatable :: msg
+  character(*), parameter :: msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
-  msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
   mcheck(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
   call vector_field%init(0.0_rp)
   call vector_field%set(this%node_component_array(ishape,2), &
        & sum(actual_cell_interpolation%hessian(1,1:this%num_dims,this%node_component_array(ishape,1),qpoint)))
 end subroutine lagrangian_reference_fe_get_laplacian_vector
+
+subroutine lagrangian_reference_fe_get_laplacians_scalar( this, actual_cell_interpolation, laplacians, qpoints_perm )
+  implicit none
+  class(lagrangian_reference_fe_t), intent(in)    :: this
+  type(interpolation_t), intent(in)    :: actual_cell_interpolation 
+  real(rp), allocatable, intent(inout) :: laplacians(:,:)
+  integer(ip), optional, intent(in)    :: qpoints_perm(:)
+
+  integer(ip) :: ishape, qpoint, actual_qpoint
+  logical     :: reallocate
+
+  assert( this%field_type == field_type_scalar )
+  
+  reallocate = .false.
+  if (allocated(laplacians)) reallocate = (size(laplacians,1) < this%num_shape_functions) .or. &
+                                      (size(laplacians,2) < actual_cell_interpolation%num_quadrature_points)                                          
+  if ((.not. allocated(laplacians)) .or. reallocate) then
+     if (allocated(laplacians)) then 
+        call memfree(laplacians, __FILE__,__LINE__); 
+     end if
+     call memalloc(this%num_shape_functions, &
+                   actual_cell_interpolation%num_quadrature_points, &
+                   laplacians, __FILE__,__LINE__);
+  end if
+  do qpoint=1, actual_cell_interpolation%num_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%num_shape_functions
+        call this%get_laplacian(actual_cell_interpolation,ishape,actual_qpoint,laplacians(ishape,qpoint))
+     end do
+  end do
+
+end subroutine lagrangian_reference_fe_get_laplacians_scalar
+
+subroutine lagrangian_reference_fe_get_laplacians_vector( this, actual_cell_interpolation, laplacians, qpoints_perm )
+  implicit none
+  class(lagrangian_reference_fe_t) , intent(in)    :: this 
+  type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
+  type(vector_field_t), allocatable, intent(inout) :: laplacians(:,:)
+  integer(ip), optional, intent(in)    :: qpoints_perm(:)
+
+  integer(ip) :: idime, ishape, qpoint, istat, actual_qpoint
+  logical     :: reallocate
+  type(vector_field_t) :: laplacian
+  assert( this%field_type == field_type_vector )
+  
+  reallocate = .false.
+  if (allocated(laplacians)) reallocate = (size(laplacians,1) < this%num_shape_functions) .or. &
+                                      (size(laplacians,2) < actual_cell_interpolation%num_quadrature_points)                                  
+  if ((.not. allocated(laplacians)) .or. reallocate) then
+     if (allocated(laplacians)) then 
+        deallocate(laplacians, stat=istat); 
+        check(istat==0);
+     end if
+     ! This allocate inherently invokes default initialization of member variables of type(vector_field_t)
+     ! (i.e., no need to explicitly initialize)
+     allocate(laplacians(this%num_shape_functions, &
+              actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);      
+  else
+     do qpoint=1, actual_cell_interpolation%num_quadrature_points
+        do ishape=1, this%num_shape_functions
+           call laplacians(ishape,qpoint)%init(0.0_rp)
+        end do
+     end do
+  end if
+  do qpoint=1, actual_cell_interpolation%num_quadrature_points
+     if (present(qpoints_perm)) then
+       actual_qpoint = qpoints_perm(qpoint)
+     else
+       actual_qpoint = qpoint
+     end if
+     do ishape=1, this%num_shape_functions
+        call this%get_laplacian(actual_cell_interpolation,ishape,actual_qpoint,laplacians(ishape,qpoint))
+     end do
+  end do
+
+end subroutine lagrangian_reference_fe_get_laplacians_vector
 
 !==================================================================================================
 subroutine lagrangian_reference_fe_create_nodal_quadrature (this)

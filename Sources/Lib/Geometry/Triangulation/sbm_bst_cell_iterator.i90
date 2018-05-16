@@ -104,15 +104,9 @@ subroutine bst_cell_iterator_get_nodes_coordinates (this, nodes_coordinates)
   assert ( this%gid >= 1 .and. .not. this%has_finished() )
   assert ( allocated ( this%base_static_triangulation%coordinates ) )
   reference_fe_geo => this%get_reference_fe()
-  if ( this%is_local() ) then
-    do inode=1, reference_fe_geo%get_num_shape_functions()
-      nodes_coordinates(inode) = this%base_static_triangulation%coordinates(this%get_node_gid(inode))
-    end do
- else
-    do inode=1, reference_fe_geo%get_num_shape_functions()
-      nodes_coordinates(inode) = 0.0_rp
-    end do
- end if
+  do inode=1, reference_fe_geo%get_num_shape_functions()
+    nodes_coordinates(inode) = this%base_static_triangulation%coordinates(this%get_node_gid(inode))
+  end do
 end subroutine bst_cell_iterator_get_nodes_coordinates
 
 subroutine bst_cell_iterator_set_nodes_coordinates (this, cell_coordinates)
