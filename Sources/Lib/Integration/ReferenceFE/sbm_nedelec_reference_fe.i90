@@ -796,42 +796,51 @@ subroutine nedelec_apply_cell_map_to_interpolation(this,cell_ressemblance,map,re
   ntens = ref%num_entries_symmetric_tensor
   nlocs = ref%num_quadrature_points
 
-  ! Contra-Piola map for shape functions
-  ! \phi(x_g) = \phi(F(X_g))= inv(J^t)* \phi(X_g)
-  phy%shape_functions=0.0_rp
-  do ilocs=1,phy%num_quadrature_points
-     do inode=1,this%num_shape_functions
-        do idime=1,this%num_dims
-           do jdime=1,this%num_dims
-               phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) &
-                    + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_functions(jdime,inode,ilocs)
-           end do
-        end do
-     end do
-  end do
-    
-  ! Contra-Piola map for shape derivatives
-  ! \phi(x_g) = \phi(F(X_g))=  inv(J)^t (phi(X_g)) inv(J)
-  if(phy%my_duties%compute_first_derivatives_is_assigned()) then
-     phy%shape_derivatives=0.0_rp
+  if ( cell_ressemblance == no_ressemblance ) then
+     ! Contra-Piola map for shape functions
+     ! \phi(x_g) = \phi(F(X_g))= inv(J^t)* \phi(X_g)
+     phy%shape_functions=0.0_rp
      do ilocs=1,phy%num_quadrature_points
         do inode=1,this%num_shape_functions
            do idime=1,this%num_dims
               do jdime=1,this%num_dims
-                 do kdime=1,this%num_dims
-                    do ldime=1,this%num_dims
-                       phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
-                            + map%inv_jacobian(ldime,jdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(kdime,idime,ilocs)
+                 phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) &
+                      + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_functions(jdime,inode,ilocs)
+              end do
+           end do
+        end do
+     end do
+    
+     ! Contra-Piola map for shape derivatives
+     ! \phi(x_g) = \phi(F(X_g))=  inv(J)^t (phi(X_g)) inv(J)
+     if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+        phy%shape_derivatives=0.0_rp
+        do ilocs=1,phy%num_quadrature_points
+           do inode=1,this%num_shape_functions
+              do idime=1,this%num_dims
+                 do jdime=1,this%num_dims
+                    do kdime=1,this%num_dims
+                       do ldime=1,this%num_dims
+                          phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
+                               + map%inv_jacobian(ldime,jdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(kdime,idime,ilocs)
+                       end do
                     end do
                  end do
               end do
            end do
         end do
-     end do
+     end if
+  else if ( cell_ressemblance == is_scaled_and_translated ) then
+     massert ( present(scaling_factor), 'Optional "scaling_factor" dummy argument MUST BE provided if cell_ressemblance == is_scaled_and_translated')
+     phy%shape_functions(:,:,:) =  (1.0_rp/scaling_factor)*phy%shape_functions(:,:,:)
+     
+     ! Contra-Piola map for shape derivatives
+     ! \phi(x_g) = \phi(F(X_g))=  inv(J)^t (phi(X_g)) inv(J)
+     if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+        phy%shape_derivatives(:,:,:,:) = (1.0_rp/scaling_factor)*phy%shape_derivatives(:,:,:,:)*(1.0_rp/scaling_factor)
+     end if
   end if
-
   massert(.not.phy%my_duties%compute_second_derivatives_is_assigned(),'Hessian not implemented for Nedelec')
-
 end subroutine nedelec_apply_cell_map_to_interpolation
 
 subroutine nedelec_invert_change_basis_matrix(this)

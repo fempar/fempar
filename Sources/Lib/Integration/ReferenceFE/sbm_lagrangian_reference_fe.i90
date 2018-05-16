@@ -1138,11 +1138,9 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
   ndime = ref%num_dims
   ntens = ref%num_entries_symmetric_tensor
   nlocs = ref%num_quadrature_points
-  !nnode = ref%num_shape_functions
   nnode = size(ref%shape_functions,2)
 
-  ! Shape functions do not change
-  !phy%shape_functions = ref%shape_functions 
+  ! Shape functions do not change (DO NOTHING) 
 
   ! First derivatives do
   if(phy%my_duties%compute_first_derivatives_is_assigned()) then
@@ -1175,52 +1173,56 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
   !
   if(phy%my_duties%compute_second_derivatives_is_assigned()) then
      massert(map%my_duties%compute_jacobian_inverse_is_assigned(),'Second derivatives mapping to physical space require a map with Jacobian inverse') 
-     call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
-     call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
-     call memalloc(ntens,wvec1,__FILE__,__LINE__)
-     do ilocs=1,nlocs
-        ! Transforms the array HESSI to a symmetric matrix WMAT1
-        do inode=1,nnode
-           do itens = 1, ntens
-              wvec1(itens) = ref%hessian(1,itens,inode,ilocs)
-           end do
-           call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
-        end do
-        ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
-        do inode=1,nnode
-           call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
-                &        ndime,ndime)
-        end do
-        if(map%my_duties%compute_jacobian_derivative_is_assigned()) then
-           ! Add second cartesian derivatives of the map times 
-           ! first derivatives of shape functions
+     if ( cell_ressemblance == no_ressemblance ) then
+        call memalloc(ndime,ndime,nnode,wmat1,__FILE__,__LINE__)
+        call memalloc(ndime,ndime,nnode,wmat2,__FILE__,__LINE__)
+        call memalloc(ntens,wvec1,__FILE__,__LINE__)
+        do ilocs=1,nlocs
+           ! Transforms the array HESSI to a symmetric matrix WMAT1
            do inode=1,nnode
-              do idime=1,ndime
-                 do jdime=1,ndime
-                    do kdime=1,ndime
-                       wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
-                            & + ref%shape_derivatives(1,kdime,inode,ilocs) &
-                            &   * map%d2sdx(kdime,idime,jdime,ilocs)
+              do itens = 1, ntens
+                 wvec1(itens) = ref%hessian(1,itens,inode,ilocs)
+              end do
+              call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
+           end do
+           ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
+           do inode=1,nnode
+              call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
+                   &        ndime,ndime)
+           end do
+           if(map%my_duties%compute_jacobian_derivative_is_assigned()) then
+              ! Add second cartesian derivatives of the map times 
+              ! first derivatives of shape functions
+              do inode=1,nnode
+                 do idime=1,ndime
+                    do jdime=1,ndime
+                       do kdime=1,ndime
+                          wmat2(idime,jdime,inode)=wmat2(idime,jdime,inode) &
+                               & + ref%shape_derivatives(1,kdime,inode,ilocs) &
+                               &   * map%d2sdx(kdime,idime,jdime,ilocs)
+                       end do
                     end do
                  end do
               end do
-           end do
-        end if
-        ! Writes the Hessian matrix as an array
-        do inode=1,nnode
-           ! do itens = 1, ntens
-           !    wvec1(itens) = phy%hessian(1,itens,inode,ilocs)
-           ! end do
-           ! call store_symmetric_matrix_as_vector(wmat2(1,1,inode),wvec1,ndime,ntens)
-           call store_symmetric_matrix_as_vector(wmat2(1,1,inode),wvec1,ndime,ntens)
-           do itens = 1, ntens
-              phy%hessian(1,itens,inode,ilocs) = wvec1(itens)
+           end if
+           ! Writes the Hessian matrix as an array
+           do inode=1,nnode
+              ! do itens = 1, ntens
+              !    wvec1(itens) = phy%hessian(1,itens,inode,ilocs)
+              ! end do
+              ! call store_symmetric_matrix_as_vector(wmat2(1,1,inode),wvec1,ndime,ntens)
+              call store_symmetric_matrix_as_vector(wmat2(1,1,inode),wvec1,ndime,ntens)
+              do itens = 1, ntens
+                 phy%hessian(1,itens,inode,ilocs) = wvec1(itens)
+              end do
            end do
         end do
-     end do
-     call memfree(wmat1,__FILE__,__LINE__)
-     call memfree(wmat2,__FILE__,__LINE__)
-     call memfree(wvec1,__FILE__,__LINE__)
+        call memfree(wmat1,__FILE__,__LINE__)
+        call memfree(wmat2,__FILE__,__LINE__)
+        call memfree(wvec1,__FILE__,__LINE__)
+     else if ( cell_ressemblance == is_scaled_and_translated ) then
+        massert (.false., "lagrangian_reference_fe_apply_cell_map_to_interpolation :: 2nd derivatives optimized computation for cell_ressemblance == is_scaled_and_translated NOT implemented yet" )
+     end if
   end if
 end subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation
 

@@ -259,10 +259,9 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
   ! Evaluation (Gauss) point coordinates
   call this%compute_quadrature_points_coordinates()
 
-  if (cell_ressemblance == no_ressemblance ) then
-    ! Second derivatives of the map
-    if(this%my_duties%compute_jacobian_derivative_is_assigned()) then
-
+  ! Second derivatives of the map
+  if(this%my_duties%compute_jacobian_derivative_is_assigned()) then
+     if (cell_ressemblance == no_ressemblance ) then
        do ilocs=1,this%num_quadrature_points
           ! Transforms the array HESSI to a symmetric matrix WMAT1
           do inode=1,this%num_nodes
@@ -299,8 +298,10 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
              end do
           end do
        end do
+    else if ( cell_ressemblance == is_scaled_and_translated ) then
+       massert (.false., "cell_map_update :: jacobian_derivative optimized computation for cell_ressemblance == is_scaled_and_translated NOT implemented yet" )
     end if
-  end if 
+ end if
 end subroutine cell_map_update
 
 !==================================================================================================
