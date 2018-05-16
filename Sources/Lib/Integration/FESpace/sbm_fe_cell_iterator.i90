@@ -39,6 +39,7 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   call this%previous_cell%set_integration_updated(.false.)
   ! Initialize previous_cell to point to one cell past the end
   call aux_set_gid(this%previous_cell,fe_space%triangulation%get_num_cells()+1)
+  this%cell_integration_is_set_up = fe_space%cell_integration_was_set_up()
 end subroutine fe_cell_iterator_create
 
 subroutine aux_create(this, fe_space) 
@@ -82,6 +83,7 @@ subroutine fe_cell_iterator_free (this)
   end if   
   call this%set_integration_updated(.false.)
   call this%set_single_octree_mesh(.false.)
+  this%cell_integration_is_set_up = .false. 
 end subroutine fe_cell_iterator_free
 
 subroutine aux_free (this) 
@@ -200,8 +202,16 @@ end subroutine fe_cell_iterator_free_final
 subroutine fe_cell_iterator_next(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
-  call aux_set_gid(this%previous_cell,this%get_gid())
-  call this%previous_cell%set_integration_updated(this%is_integration_updated())
+  if ( this%cell_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( this%is_local() ) then
+        if ( .not. this%is_cut() ) then
+          call aux_set_gid(this%previous_cell,this%get_gid())
+         call this%previous_cell%set_integration_updated(this%is_integration_updated())
+        end if
+      end if   
+    end if
+  end if  
   call base_fe_cell_iterator_next(this)
   if ( .not. this%has_finished() ) then
     call this%update_performance_scratch_data()
@@ -212,8 +222,16 @@ end subroutine fe_cell_iterator_next
 subroutine fe_cell_iterator_first(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
-  call aux_set_gid(this%previous_cell,this%get_gid())
-  call this%previous_cell%set_integration_updated(this%is_integration_updated())
+  if ( this%cell_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( this%is_local() ) then
+        if ( .not. this%is_cut() ) then
+          call aux_set_gid(this%previous_cell,this%get_gid())
+          call this%previous_cell%set_integration_updated(this%is_integration_updated())
+        end if
+      end if
+    end if
+  end if   
   call aux_first(this)
   call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_first
@@ -231,8 +249,16 @@ subroutine fe_cell_iterator_set_gid(this, lid)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
-  call aux_set_gid(this%previous_cell,this%get_gid())
-  call this%previous_cell%set_integration_updated(this%is_integration_updated())
+  if ( this%cell_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( this%is_local() ) then
+        if ( .not. this%is_cut() ) then
+          call aux_set_gid(this%previous_cell,this%get_gid())
+          call this%previous_cell%set_integration_updated(this%is_integration_updated())
+        end if
+      end if    
+    end if   
+  end if
   call aux_set_gid(this,lid)
   call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_set_gid
@@ -598,9 +624,7 @@ subroutine fe_cell_iterator_update_integration( this )
   ! If the previous cell is not a valid cell or it is cut, there is nothing
   ! that can be re-used
   cell_ressemblance = no_ressemblance
-  if ( this%previous_cell%has_finished() .or. this%previous_cell%is_cut() ) then
-    ! Do Nothing
-  else
+  if ( .not. this%previous_cell%has_finished() ) then
     if ( this%previous_cell%is_integration_updated() .and. this%is_single_octree_mesh() ) then 
       call this%previous_cell%update_cell_map()
       call this%previous_cell%update_cell_integrators()

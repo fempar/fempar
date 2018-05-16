@@ -17,7 +17,7 @@
 !
 ! Additional permission under GNU GPL version 3 section 7
 !
-! If you modify this Program, or any covered work, by linking or combining it 
+! If you modify this Program, or any covered work, by linking or combining it  
 ! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
 ! and/or the HSL Mathematical Software Library (or a modified version of them), 
 ! containing parts covered by the terms of their respective licenses, the
@@ -197,8 +197,9 @@ module fe_space_names
     ! Scratch member variables required to determine the type of cell 
     ! ressemblance among a current visited cell and the previous visited one
     class(fe_cell_iterator_t)          , pointer     :: previous_cell => NULL()   
-    logical                                          :: integration_updated = .false.
-    logical                                          :: single_octree_mesh = .false.
+    logical                                          :: integration_updated        = .false.
+    logical                                          :: single_octree_mesh         = .false.
+    logical                                          :: cell_integration_is_set_up = .false.
   contains
   
     procedure                           :: create                                     => fe_cell_iterator_create
