@@ -952,15 +952,18 @@ function fe_cell_iterator_get_quadrature ( this )
   type(quadrature_t), pointer      :: fe_cell_iterator_get_quadrature
   integer(ip) :: cell_quadratures_key, cell_quadratures_position
   integer(ip) :: istat
+  if (this%fe_space%cell_quadratures%size() == 1 ) then
+    fe_cell_iterator_get_quadrature => this%fe_space%cell_quadratures%get_pointer(1)
+  else
+    cell_quadratures_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
+                                                                               this%get_quadrature_degree())
   
-  cell_quadratures_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
-                                                                          this%get_quadrature_degree())
-  
-  call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_quadratures_key, &
-                                                          val=cell_quadratures_position, &
-                                                          stat=istat)
-  assert ( .not. istat == key_not_found )
-  fe_cell_iterator_get_quadrature => this%fe_space%cell_quadratures%get_pointer(cell_quadratures_position)
+    call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_quadratures_key, &
+                                                              val=cell_quadratures_position, &
+                                                              stat=istat)
+    assert ( .not. istat == key_not_found )
+    fe_cell_iterator_get_quadrature => this%fe_space%cell_quadratures%get_pointer(cell_quadratures_position)
+   end if  
 end function fe_cell_iterator_get_quadrature
 
 function fe_cell_iterator_get_cell_map ( this )
@@ -976,17 +979,19 @@ subroutine fe_cell_iterator_update_cell_map ( this )
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: cell_maps_position, cell_maps_key
   integer(ip) :: istat
+  if ( this%fe_space%cell_maps%size() == 1 ) then
+    this%cell_map => this%fe_space%cell_maps%get_pointer(1)
+  else
+    cell_maps_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
+                                                                         this%get_quadrature_degree())
   
-  cell_maps_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
-                                                                   this%get_quadrature_degree())
+    call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_maps_key, &
+                                                             val=cell_maps_position, &
+                                                             stat=istat)
   
-  call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_maps_key, &
-                                                          val=cell_maps_position, &
-                                                          stat=istat)
-  
-  assert ( .not. istat == key_not_found )
-  this%cell_map => this%fe_space%cell_maps%get_pointer(cell_maps_position)
-  
+    assert ( .not. istat == key_not_found )
+    this%cell_map => this%fe_space%cell_maps%get_pointer(cell_maps_position)
+  end if
 end subroutine fe_cell_iterator_update_cell_map
 
 !==================================================================================================
@@ -995,18 +1000,28 @@ subroutine fe_cell_iterator_update_cell_integrators ( this )
   class(fe_cell_iterator_t), intent(inout)   :: this
   integer(ip) :: cell_integrators_position_key
   integer(ip) :: cell_integrators_position
-  integer(ip) :: istat, field_id
-  do field_id = 1, this%get_num_fields()
-     cell_integrators_position_key = &
-           this%fe_space%generate_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
+  integer(ip) :: istat, field_id, num_fields
+  type(cell_integrator_t), pointer :: cell_integrators(:)
+  
+  num_fields = this%get_num_fields()
+  cell_integrators => this%fe_space%cell_integrators%get_pointer()
+  if ( this%fe_space%cell_integrators%size() == num_fields ) then
+    do field_id = 1, num_fields
+      this%cell_integrators(field_id)%p => cell_integrators(field_id)
+    end do
+  else
+    do field_id = 1, num_fields
+       cell_integrators_position_key = &
+             this%fe_space%generate_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
                                                                   this%get_quadrature_degree(), &
                                                                   this%fe_space%field_cell_to_ref_fes(field_id)%get(this%get_gid()))  
-     call this%fe_space%cell_integrators_position%get(key=cell_integrators_position_key, &
-                                                           val=cell_integrators_position, &
-                                                           stat=istat)
-     assert ( .not. istat == key_not_found )
-     this%cell_integrators(field_id)%p => this%fe_space%cell_integrators%get_pointer(cell_integrators_position) 
-  end do  
+       call this%fe_space%cell_integrators_position%get(key=cell_integrators_position_key, &
+                                                        val=cell_integrators_position, &
+                                                        stat=istat)
+       assert ( .not. istat == key_not_found )
+       this%cell_integrators(field_id)%p => cell_integrators(cell_integrators_position) 
+    end do
+  end if 
 end subroutine fe_cell_iterator_update_cell_integrators
 
 
