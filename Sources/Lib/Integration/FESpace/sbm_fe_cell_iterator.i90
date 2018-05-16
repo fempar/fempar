@@ -605,15 +605,15 @@ subroutine fe_cell_iterator_update_integration( this )
     if ( this%previous_cell%is_integration_updated() .and. this%is_single_octree_mesh() ) then 
       call this%previous_cell%update_cell_map()
       call this%previous_cell%update_cell_integrators()
-   this_get_lev = this%get_level()
-   prev_get_lev = this%previous_cell%get_level()
-   if ( this_get_lev == prev_get_lev ) then
-     cell_ressemblance = is_only_translated
-   else
-     cell_ressemblance = is_scaled_and_translated
-  scaling_factor = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
-   end if 
- end if   
+      this_get_lev = this%get_level()
+      prev_get_lev = this%previous_cell%get_level()
+      if ( this_get_lev == prev_get_lev ) then
+        cell_ressemblance = is_only_translated
+      else
+        cell_ressemblance = is_scaled_and_translated
+        scaling_factor = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
+      end if 
+    end if   
   end if 
   
   ! Cell map update
@@ -626,7 +626,7 @@ subroutine fe_cell_iterator_update_integration( this )
   ! the previous cell is set up with a difference quadrature of the current
   ! cell)
   if ( cell_ressemblance /= no_ressemblance .and. &
-           associated(this%cell_map,this%previous_cell%cell_map) ) then
+    associated(this%cell_map,this%previous_cell%cell_map) ) then
     call this%cell_map%update(quadrature, cell_ressemblance, scaling_factor)
   else
     call this%cell_map%update(quadrature, no_ressemblance)
