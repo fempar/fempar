@@ -599,8 +599,7 @@ subroutine fe_cell_iterator_update_integration( this )
   ! that can be re-used
   cell_ressemblance = no_ressemblance
   if ( this%previous_cell%has_finished() .or. this%previous_cell%is_cut() ) then
-    call this%previous_cell%nullify_cell_map()
-    call this%previous_cell%nullify_cell_integrators()
+    ! Do Nothing
   else
     if ( this%previous_cell%is_integration_updated() .and. this%is_single_octree_mesh() ) then 
       call this%previous_cell%update_cell_map()

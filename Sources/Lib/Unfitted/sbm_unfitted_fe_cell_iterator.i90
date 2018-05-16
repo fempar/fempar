@@ -244,6 +244,7 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
        cell_integrator => this%get_cell_integrator(field_id)
        call cell_integrator%update(no_ressemblance,cell_map)
     end do
+    call this%set_integration_updated(.true.)
   end if
 end subroutine unfitted_fe_cell_iterator_update_integration
 
