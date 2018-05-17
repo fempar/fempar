@@ -38,7 +38,10 @@ subroutine p4est_cell_iterator_create ( this, triangulation )
     assert(.false.)
   end select
   this%num_dims = triangulation%get_num_dims()
+  this%num_vefs = this%get_num_vefs()
   this%base_pos_in_lst_vefs_gids = 0
+  this%num_vertices = this%get_num_vertices()
+  this%base_pos_in_vertex_coords = 0
   this%num_local_cells = this%p4est_triangulation%get_num_local_cells()
 end subroutine p4est_cell_iterator_create
 
@@ -48,7 +51,10 @@ subroutine p4est_cell_iterator_free ( this)
   call cell_iterator_free(this)
   nullify ( this%p4est_triangulation )
   this%num_dims=0
+  this%num_vefs = 0
   this%base_pos_in_lst_vefs_gids = 0
+  this%num_vertices = 0
+  this%base_pos_in_vertex_coords = 0
   this%num_local_cells = 0
 end subroutine p4est_cell_iterator_free
 
@@ -57,13 +63,15 @@ subroutine p4est_cell_iterator_first ( this)
   class(p4est_cell_iterator_t), intent(inout) :: this
   call cell_iterator_first(this)
   this%base_pos_in_lst_vefs_gids = 0
+  this%base_pos_in_vertex_coords = 0
 end subroutine p4est_cell_iterator_first 
 
 subroutine p4est_cell_iterator_next ( this)
   implicit none
   class(p4est_cell_iterator_t), intent(inout) :: this
   call cell_iterator_next(this)
-  this%base_pos_in_lst_vefs_gids = this%base_pos_in_lst_vefs_gids + this%get_num_vefs()
+  this%base_pos_in_lst_vefs_gids = this%base_pos_in_lst_vefs_gids + this%num_vefs
+  this%base_pos_in_vertex_coords = this%base_pos_in_vertex_coords + this%num_vertices
 end subroutine p4est_cell_iterator_next
 
 subroutine p4est_cell_iterator_set_gid(this, gid)
@@ -71,7 +79,8 @@ subroutine p4est_cell_iterator_set_gid(this, gid)
   class(p4est_cell_iterator_t), intent(inout) :: this
   integer(ip)           , intent(in)    :: gid
   call cell_iterator_set_gid(this, gid)
-  this%base_pos_in_lst_vefs_gids = (gid-1)*this%get_num_vefs()
+  this%base_pos_in_lst_vefs_gids = (gid-1)*this%num_vefs
+  this%base_pos_in_vertex_coords = (gid-1)*this%num_vertices
 end subroutine p4est_cell_iterator_set_gid
 
 subroutine p4est_cell_iterator_free_final(this)
@@ -98,16 +107,12 @@ subroutine p4est_cell_iterator_get_nodes_coordinates (this, nodes_coordinates)
   implicit none
   class(p4est_cell_iterator_t), intent(in)    :: this
   type(point_t)        ,  intent(inout) :: nodes_coordinates(:)
-  integer(ip)                    :: inode, num_vertices
-  class(reference_fe_t), pointer :: reference_fe_geo
+  integer(ip) :: spos
+  integer(ip) :: epos
   assert ( this%get_gid() >= 1 .and. .not. this%has_finished() )
-  
-  reference_fe_geo => this%get_reference_fe()
-  num_vertices  = reference_fe_geo%get_num_vertices()
-  do inode=1, num_vertices
-    nodes_coordinates(inode) = &
-        this%p4est_triangulation%per_cell_vertex_coordinates%get((this%get_gid()-1)*num_vertices+inode)
-  end do
+  spos = this%base_pos_in_vertex_coords+1
+  epos = this%base_pos_in_vertex_coords+this%num_vertices
+  nodes_coordinates(1:this%num_vertices) = this%p4est_triangulation%per_cell_vertex_coordinates%get_pointer(spos,epos)
 end subroutine p4est_cell_iterator_get_nodes_coordinates
 
 function p4est_cell_iterator_get_mypart (this)
@@ -160,6 +165,18 @@ function p4est_cell_iterator_get_num_vefs (this)
   end if
 end function p4est_cell_iterator_get_num_vefs
 
+function p4est_cell_iterator_get_num_vertices (this)
+  implicit none
+  class(p4est_cell_iterator_t), intent(in) :: this
+  integer(ip) :: p4est_cell_iterator_get_num_vertices
+  if ( this%num_dims == 2 ) then
+    p4est_cell_iterator_get_num_vertices = NUM_CORNERS_2D
+  else if ( this%num_dims == 3 ) then
+    p4est_cell_iterator_get_num_vertices = NUM_CORNERS_3D
+  end if
+end function p4est_cell_iterator_get_num_vertices
+
+
 function p4est_cell_iterator_get_num_nodes (this)
   implicit none
   class(p4est_cell_iterator_t), intent(in) :: this
@@ -194,7 +211,7 @@ function p4est_cell_iterator_get_vefs_gid (this)
   integer(ip) :: spos, epos
   assert ( this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())-1 == this%base_pos_in_lst_vefs_gids ) 
   spos = this%base_pos_in_lst_vefs_gids+1
-  epos = this%base_pos_in_lst_vefs_gids+this%get_num_vefs()
+  epos = this%base_pos_in_lst_vefs_gids+this%num_vefs
   p4est_cell_iterator_get_vefs_gid => this%p4est_triangulation%lst_vefs_gids%get_pointer(spos,epos)
 end function p4est_cell_iterator_get_vefs_gid
 
@@ -217,7 +234,7 @@ function p4est_cell_iterator_get_vef_lid_from_gid (this, vef_gid)
   assert ( this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())-1 == this%base_pos_in_lst_vefs_gids ) 
   p4est_cell_iterator_get_vef_lid_from_gid = -1
   ! Find position of vef_lid in local element
-  do ivef = 1, this%get_num_vefs()
+  do ivef = 1, this%num_vefs
    if ( this%p4est_triangulation%lst_vefs_gids%get(this%base_pos_in_lst_vefs_gids+ivef) == vef_gid ) then
       p4est_cell_iterator_get_vef_lid_from_gid = ivef
       return 
@@ -234,7 +251,7 @@ function p4est_cell_iterator_get_vef_lid_from_ggid (this, vef_ggid)
   assert ( this%p4est_triangulation%get_ptr_vefs_x_cell(this%get_gid())-1 == this%base_pos_in_lst_vefs_gids ) 
   p4est_cell_iterator_get_vef_lid_from_ggid = -1
   !Find position of vef_lid in local element
-  do ivef = 1, this%get_num_vefs()
+  do ivef = 1, this%num_vefs
     if ( this%p4est_triangulation%lst_vefs_gids%get(this%base_pos_in_lst_vefs_gids+ivef) == vef_ggid ) then
       p4est_cell_iterator_get_vef_lid_from_ggid = ivef
       return 
