@@ -101,6 +101,66 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry, cell_map_du
 end subroutine cell_map_create 
 
 !==================================================================================================
+subroutine cell_map_restricted_to_edget( this, edget_lid, quadrature, reference_fe_geometry, cell_map_duties )
+  implicit none
+  ! Parameters
+  class(cell_map_t)    , intent(inout) :: this
+  integer(ip)          , intent(in)    :: edget_lid
+  type(quadrature_t)   , intent(in)    :: quadrature
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
+  type(cell_map_duties_t), optional, intent(in)  :: cell_map_duties
+
+  integer(ip) :: num_nodes
+  integer(ip) :: istat
+
+  call this%free()
+  this%num_dims                     = reference_fe_geometry%get_num_dims()
+  this%num_nodes                    = reference_fe_geometry%get_num_shape_functions()
+  this%num_quadrature_points        = quadrature%num_quadrature_points                ! Encapsulation missing here 
+
+  ! QUARANTINE: to remove it when all invocations to create send cell_map_duties
+  if(present(cell_map_duties)) then
+     this%my_duties = cell_map_duties
+  else
+     call this%my_duties%assign_compute_jacobian_inverse(.true.)
+     call this%my_duties%assign_compute_jacobian_derivative(.false.)
+  end if
+
+  ! QUARANTINE: No second derivatives on the face so far. The default interpolation (wo hessians) will be created.
+  mcheck(.not.this%my_duties%compute_jacobian_derivative_is_assigned(),'Jacobian derivative on the face not ready.')
+
+  call reference_fe_geometry%create_interpolation_restricted_to_edget( edget_lid,        &
+                                                                       quadrature,       &
+                                                                       this%interpolation )
+  this%num_entries_symmetric_tensor = this%interpolation%num_entries_symmetric_tensor ! Encapsulation missing here 
+
+  call memalloc(this%num_dims, &
+                this%num_dims, &
+                this%num_quadrature_points, &
+                this%jacobian,__FILE__,__LINE__)
+
+  call memalloc(this%num_quadrature_points, &
+                this%det_jacobian,__FILE__,__LINE__)
+
+  allocate(this%quadrature_points_coordinates(this%num_quadrature_points), stat=istat)
+  check(istat==0)
+
+  num_nodes = reference_fe_geometry%get_num_shape_functions()
+  allocate(this%nodes_coordinates(num_nodes), stat=istat)
+  check(istat==0)
+
+  this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
+
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+     call memalloc(this%num_dims, &
+          &        this%num_dims, &
+          &        this%num_quadrature_points, &
+          &        this%inv_jacobian,__FILE__,__LINE__)
+  end if
+
+end subroutine cell_map_restricted_to_edget
+
+!==================================================================================================
 subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadrature, reference_fe_geometry, cell_map_duties )
   implicit none
   ! Parameters
@@ -522,6 +582,31 @@ function cell_map_apply_inv_jacobian ( this, qpoin, v_in ) result ( v_out )
   end if
 
 end function cell_map_apply_inv_jacobian
+
+!==================================================================================================
+function cell_map_apply_transposed_inv_jacobian ( this, qpoin, v_in ) result ( v_out )
+  implicit none
+  class(cell_map_t)     , intent(in) :: this
+  integer(ip)         , intent(in) :: qpoin
+  type(vector_field_t), intent(in) :: v_in
+  type(vector_field_t) :: v_out
+  integer(ip)          :: idime,jdime
+  real(rp)             :: vector_value
+
+  assert( qpoin>=1 .and. qpoin <= this%num_quadrature_points)
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+     call v_out%init(0.0_rp)
+     do jdime = 1, this%num_dims
+        vector_value = v_in%get(jdime)
+        do idime = 1,  this%num_dims
+           call v_out%add(idime, this%inv_jacobian(jdime,idime,qpoin)*vector_value)
+        end do
+     end do
+  else
+     mcheck(.false.,'Calling cell_map_get_inv_jacobian_tensor requires compute_jacobian_inverse_is_assigned to be true')
+  end if
+
+end function cell_map_apply_transposed_inv_jacobian
 
 !==================================================================================================
 function cell_map_get_reference_h ( this )

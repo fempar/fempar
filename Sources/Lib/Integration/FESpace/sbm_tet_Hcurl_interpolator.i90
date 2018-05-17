@@ -49,7 +49,7 @@ subroutine tet_Hcurl_interpolator_create( this, fe_space, field_id )
   allocate ( this%facet_maps(num_reference_fes), stat=istat); check(istat==0)
   allocate ( this%cell_maps(num_reference_fes), stat=istat); check(istat==0)
   allocate ( this%cell_maps_restricted_to_edge(num_reference_fes), stat=istat); check(istat==0)
-  allocate ( this%cell_maps_restricted_to_facet(num_reference_fes), stat=istat); check(istat==0)
+  allocate ( this%cell_maps_facet_restriction(num_reference_fes), stat=istat); check(istat==0)
   ! Quadratures with possible variable degree
   allocate ( this%edge_quadratures(num_reference_fes), stat=istat); check(istat==0)
   allocate ( this%facet_quadratures(num_reference_fes), stat=istat); check(istat==0)
@@ -99,7 +99,7 @@ subroutine tet_Hcurl_interpolator_create( this, fe_space, field_id )
            call reference_fe%create_facet_quadrature( this%facet_quadratures(reference_fe_id) )
            call this%fes_2D(reference_fe_id)%create_interpolation( this%facet_quadratures(reference_fe_id), this%facet_interpolations(reference_fe_id) )
            call this%facet_maps(reference_fe_id)%create( this%facet_quadratures(reference_fe_id), fe%get_reference_fe_geo() )
-           call this%cell_maps_restricted_to_facet(reference_fe_id)%create( this%facet_quadratures(reference_fe_id), fe%get_reference_fe_geo() )
+           call this%cell_maps_facet_restriction(reference_fe_id)%create( this%facet_quadratures(reference_fe_id), fe%get_reference_fe_geo() ) 
            if (.not. allocated(this%facet_function_values) ) then 
               allocate (this%facet_function_values(this%facet_quadratures(reference_fe_id)%get_num_quadrature_points(),1), stat=istat); check(istat==0)
            end if
@@ -432,6 +432,7 @@ subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
   type(vector_field_t)                :: col_jacobian
   real(rp)                            :: facet_measure  
   integer(ip)                         :: direction
+  type(cell_map_t),          pointer  :: cell_map_restricted_to_facet
   ! Common integration 
   class(reference_fe_t), pointer      :: reference_fe 
   class(reference_fe_t), pointer      :: reference_fe_geo
@@ -522,14 +523,15 @@ subroutine tet_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
                    this%facet_quadratures(reference_fe_id),      &
                    lagrangian_interpolation_ref                  )
               
-              ! Map of the Lagrangian gradients shape functions on the cell
-              aux_coordinates => this%cell_maps_restricted_to_facet(reference_fe_id)%get_coordinates()
-              call fe%get_nodes_coordinates(aux_coordinates)
-              call this%cell_maps_restricted_to_facet(reference_fe_id)%update(this%facet_quadratures(reference_fe_id)) 
+            ! Cell map facet restriction 
+            aux_coordinates => this%cell_maps_facet_restriction(reference_fe_id)%get_coordinates(facet_lid, 0)
+            call fe%get_nodes_coordinates(aux_coordinates)
+            call this%cell_maps_facet_restriction(reference_fe_id)%update( facet_lid, 0, this%facet_quadratures(reference_fe_id) )
+            cell_map_restricted_to_facet => this%cell_maps_facet_restriction(reference_fe_id)%get_current_cell_map()
            
               call Lagrangian_interpolation_phy%copy(Lagrangian_interpolation_ref) 
-              call lagrangian_fe%apply_cell_map( this%cell_maps_restricted_to_facet(reference_fe_id), &
-                                                 lagrangian_interpolation_ref,                        &
+              call lagrangian_fe%apply_cell_map( cell_map_restricted_to_facet, &
+                                                 lagrangian_interpolation_ref, &
                                                  lagrangian_interpolation_phy  )
 
               facet_measure = this%facet_maps(reference_fe_id)%get_measure()  
@@ -639,7 +641,7 @@ subroutine tet_Hcurl_interpolator_free( this )
      call this%fes_2D(i)%free()
      call this%facet_quadratures(i)%free() 
      call this%facet_maps(i)%free() 
-     call this%cell_maps_restricted_to_facet(i)%free() 
+     call this%cell_maps_facet_restriction(i)%free() 
      call this%facet_interpolations(i)%free() 
 
      ! Element related data  
@@ -654,7 +656,7 @@ subroutine tet_Hcurl_interpolator_free( this )
   deallocate ( this%facet_maps, stat=istat); check(istat==0)
   deallocate ( this%cell_maps, stat=istat); check(istat==0)
   deallocate ( this%cell_maps_restricted_to_edge, stat=istat); check(istat==0)
-  deallocate ( this%cell_maps_restricted_to_facet, stat=istat); check(istat==0)
+  deallocate ( this%cell_maps_facet_restriction, stat=istat); check(istat==0)
   ! Quadratures with possible variable degree
   deallocate ( this%edge_quadratures, stat=istat); check(istat==0)
   deallocate ( this%facet_quadratures, stat=istat); check(istat==0)

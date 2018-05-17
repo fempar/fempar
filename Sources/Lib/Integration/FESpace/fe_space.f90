@@ -1075,7 +1075,6 @@ module fe_space_names
     real(rp)                                :: permeability 
     real(rp)                                :: resistivity
     type(par_sparse_matrix_t), pointer      :: matrix
-	   integer(ip)                             :: order
 				integer(ip)                             :: num_interior_dofs
 				integer(ip)                             :: num_total_dofs 				
     ! DoF old-new basis correspondence 
@@ -1112,7 +1111,6 @@ module fe_space_names
     procedure, non_overridable, private :: fill_fe_dofs_new_basis                        => Hcurl_l1_fill_fe_dofs_new_basis
     procedure, non_overridable, private :: fill_interface_discrete_gradient_part         => Hcurl_l1_fill_interface_discrete_gradient_part
     procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis => Hcurl_l1_fill_average_tangent_function_change_of_basis
-    procedure, non_overridable, private :: fill_average_tangent_function_change_of_basis_int => Hcurl_l1_fill_average_tangent_function_change_of_basis_int
 	   ! Change of basis application 
 	   procedure, non_overridable, private :: apply_global_change_basis                     => Hcurl_l1_apply_global_change_basis
 	   procedure, non_overridable, private :: apply_global_change_basis_transpose           => Hcurl_l1_apply_global_change_basis_transpose
@@ -1481,7 +1479,7 @@ type(edge_map_t)  , allocatable  :: edge_maps(:)
 type(facet_map_t) , allocatable  :: facet_maps(:) 
 type(cell_map_t)  , allocatable  :: cell_maps(:) 
 type(cell_map_t)  , allocatable  :: cell_maps_restricted_to_edge(:)
-type(cell_map_t)  , allocatable  :: cell_maps_restricted_to_facet(:)
+class(cell_map_facet_restriction_t), allocatable :: cell_maps_facet_restriction(:)
 ! Quadratures 
 type(quadrature_t)  , allocatable  :: edge_quadratures(:) 
 type(quadrature_t)  , allocatable  :: facet_quadratures(:) 

@@ -205,6 +205,7 @@ module reference_fe_names
      logical                  :: det_jacobian_positiveness
    contains
      procedure, non_overridable :: create                            => cell_map_create
+     procedure, non_overridable :: restricted_to_edget               => cell_map_restricted_to_edget
      procedure, non_overridable :: restricted_to_facet               => cell_map_restricted_to_facet
      procedure                  :: free                              => cell_map_free
      procedure, non_overridable :: update                            => cell_map_update
@@ -216,6 +217,7 @@ module reference_fe_names
      procedure, non_overridable :: get_inv_jacobian_tensor           => cell_map_get_inv_jacobian_tensor
      procedure, non_overridable :: apply_jacobian                    => cell_map_apply_jacobian
      procedure, non_overridable :: apply_inv_jacobian                => cell_map_apply_inv_jacobian
+     procedure, non_overridable :: apply_transposed_inv_jacobian     => cell_map_apply_transposed_inv_jacobian
      procedure, non_overridable :: is_det_jacobian_positive          => cell_map_is_det_jacobian_positive
   end type cell_map_t
   
