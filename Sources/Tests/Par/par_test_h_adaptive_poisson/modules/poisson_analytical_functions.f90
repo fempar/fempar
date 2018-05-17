@@ -44,7 +44,8 @@ module poisson_analytical_functions_names
   type, extends(base_scalar_function_t) :: source_term_t
     private 
    contains
-     procedure :: get_value_space    => source_term_get_value_space
+     procedure :: get_value_space      => source_term_get_value_space
+     procedure :: get_values_set_space => source_term_get_values_set_space
   end type source_term_t
 
   type, extends(base_scalar_function_t) :: boundary_function_t
@@ -107,7 +108,28 @@ contains
                 point%get(2)**(n-2.0_rp) + point%get(3)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2}+z^{n-2})
     end if 
   end subroutine source_term_get_value_space
-
+  
+  !===============================================================================================
+  subroutine source_term_get_values_set_space( this, point, result )
+    implicit none
+    class(source_term_t)    , intent(in)    :: this
+    type(point_t)           , intent(in)    :: point(:)
+    real(rp)                , intent(inout) :: result(:)
+    integer(ip) :: i, num_points
+    real(rp) :: n
+    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    num_points = size(point)
+    n = real(this%order, rp)
+    do i = 1, num_points
+      if ( this%num_dims == 2 ) then
+        result =  -n*(n-1.0_rp)*(point(i)%get(1)**(n-2.0_rp) + point(i)%get(2)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2})
+      else if ( this%num_dims == 3 ) then
+        result =  -n*(n-1.0_rp)*(point(i)%get(1)**(n-2.0_rp) + & 
+                  point(i)%get(2)**(n-2.0_rp) + point(i)%get(3)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2}+z^{n-2})
+      end if 
+    end do
+  end subroutine source_term_get_values_set_space
+  
   !===============================================================================================
   subroutine boundary_function_get_value_space ( this, point, result )
     implicit none

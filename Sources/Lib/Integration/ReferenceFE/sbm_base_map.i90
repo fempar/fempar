@@ -112,12 +112,21 @@ function base_map_get_det_jacobian ( this, i )
 end function base_map_get_det_jacobian
 
 !==================================================================================================
-function base_map_get_det_jacobians ( this )
+subroutine  base_map_get_det_jacobians ( this, det_jacobians )
+  implicit none
+  class(base_map_t), intent(in)    :: this
+  real(rp)         , intent(inout) :: det_jacobians(:)
+  assert ( size(det_jacobians) >= this%num_quadrature_points )
+  det_jacobians(1:this%num_quadrature_points) = this%det_jacobian(1:this%num_quadrature_points)
+end subroutine  base_map_get_det_jacobians
+
+!==================================================================================================
+function base_map_get_pointer_det_jacobians ( this )
   implicit none
   class(base_map_t), target, intent(in) :: this
-  real(rp), pointer :: base_map_get_det_jacobians(:)
-  base_map_get_det_jacobians => this%det_jacobian
-end function base_map_get_det_jacobians
+  real(rp), pointer :: base_map_get_pointer_det_jacobians(:)
+  base_map_get_pointer_det_jacobians => this%det_jacobian
+end function base_map_get_pointer_det_jacobians
 
 !==================================================================================================
 subroutine base_map_get_jacobian_column ( this, column_id, qpoint, column )

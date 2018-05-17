@@ -613,58 +613,59 @@ subroutine fe_cell_iterator_update_integration( this )
   integer(ip) :: cell_ressemblance
   integer(ip) :: prev_get_lev, this_get_lev
   real(rp) :: scaling_factor
-
-  call this%update_cell_map()
-  call this%update_cell_integrators()
+  if ( .not. this%is_integration_updated() ) then
+    call this%update_cell_map()
+    call this%update_cell_integrators()
   
-  ! Update integration data structures of previous cell
-  ! This is required to drive comparisons required to
-  ! decide whether the current cell is either a translation 
-  ! or translation + scaling of the previous cell
-  ! If the previous cell is not a valid cell or it is cut, there is nothing
-  ! that can be re-used
-  cell_ressemblance = no_ressemblance
-  if ( .not. this%previous_cell%has_finished() ) then
-    if ( this%previous_cell%is_integration_updated() .and. this%is_single_octree_mesh() ) then 
-      call this%previous_cell%update_cell_map()
-      call this%previous_cell%update_cell_integrators()
-      this_get_lev = this%get_level()
-      prev_get_lev = this%previous_cell%get_level()
-      if ( this_get_lev == prev_get_lev ) then
-        cell_ressemblance = is_only_translated
-      else
-        cell_ressemblance = is_scaled_and_translated
-        scaling_factor = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
-      end if 
-    end if   
-  end if 
-  
-  ! Cell map update
-  coordinates => this%cell_map%get_coordinates()
-  call this%get_nodes_coordinates(coordinates)
-  quadrature => this%get_quadrature()
-  ! If cell_ressemblance is either translation or translation + scaling .AND.
-  ! the cell map of previous cell and that of the current cell are strictly 
-  ! the same instance, then ... (Note: it might happen that the cell map of
-  ! the previous cell is set up with a difference quadrature of the current
-  ! cell)
-  if ( cell_ressemblance /= no_ressemblance .and. &
-    associated(this%cell_map,this%previous_cell%cell_map) ) then
-    call this%cell_map%update(quadrature, cell_ressemblance, scaling_factor)
-  else
-    call this%cell_map%update(quadrature, no_ressemblance)
-  end if  
-  
-  ! Cell integrators update
-  do field_id = 1, this%get_num_fields()
-     if ( cell_ressemblance /= no_ressemblance .and. &
+    ! Update integration data structures of previous cell
+    ! This is required to drive comparisons required to
+    ! decide whether the current cell is either a translation 
+    ! or translation + scaling of the previous cell
+    ! If the previous cell is not a valid cell or it is cut, there is nothing
+    ! that can be re-used
+    cell_ressemblance = no_ressemblance
+    if ( .not. this%previous_cell%has_finished() ) then
+       if ( this%previous_cell%is_integration_updated() .and. this%is_single_octree_mesh() ) then 
+          call this%previous_cell%update_cell_map()
+          call this%previous_cell%update_cell_integrators()
+          this_get_lev = this%get_level()
+          prev_get_lev = this%previous_cell%get_level()
+          if ( this_get_lev == prev_get_lev ) then
+             cell_ressemblance = is_only_translated
+          else
+             cell_ressemblance = is_scaled_and_translated
+             scaling_factor = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
+          end if
+       end if
+    end if
+    
+    ! Cell map update
+    coordinates => this%cell_map%get_coordinates()
+    call this%get_nodes_coordinates(coordinates)
+    quadrature => this%get_quadrature()
+    ! If cell_ressemblance is either translation or translation + scaling .AND.
+    ! the cell map of previous cell and that of the current cell are strictly 
+    ! the same instance, then ... (Note: it might happen that the cell map of
+    ! the previous cell is set up with a difference quadrature of the current
+    ! cell)
+    if ( cell_ressemblance /= no_ressemblance .and. &
+         associated(this%cell_map,this%previous_cell%cell_map) ) then
+       call this%cell_map%update(quadrature, cell_ressemblance, scaling_factor)
+    else
+       call this%cell_map%update(quadrature, no_ressemblance)
+    end if
+    
+    ! Cell integrators update
+    do field_id = 1, this%get_num_fields()
+       if ( cell_ressemblance /= no_ressemblance .and. &
             associated(this%cell_integrators(field_id)%p,this%previous_cell%cell_integrators(field_id)%p) ) then
-       call this%cell_integrators(field_id)%p%update(cell_ressemblance,this%cell_map,scaling_factor) 
-     else
-       call this%cell_integrators(field_id)%p%update(no_ressemblance,this%cell_map)
-     end if 
-  end do
-  call this%set_integration_updated(.true.)
+          call this%cell_integrators(field_id)%p%update(cell_ressemblance,this%cell_map,scaling_factor) 
+       else
+          call this%cell_integrators(field_id)%p%update(no_ressemblance,this%cell_map)
+       end if
+    end do
+    call this%set_integration_updated(.true.)
+ end if
 end subroutine fe_cell_iterator_update_integration
 
 function fe_cell_iterator_get_fe_space(this)
@@ -1130,6 +1131,16 @@ function fe_cell_iterator_get_det_jacobian ( this, i )
   real(rp) :: fe_cell_iterator_get_det_jacobian
   fe_cell_iterator_get_det_jacobian = this%cell_map%get_det_jacobian(i)
 end function fe_cell_iterator_get_det_jacobian
+
+!==================================================================================================
+subroutine  fe_cell_iterator_get_det_jacobians ( this, det_jacobians )
+  implicit none
+  class(fe_cell_iterator_t), intent(in)    :: this
+  real(rp)                 , intent(inout) :: det_jacobians(:)
+  call this%cell_map%get_det_jacobians(det_jacobians)
+end subroutine  fe_cell_iterator_get_det_jacobians
+
+
 
 !==================================================================================================
 function fe_cell_iterator_get_cell_integrator ( this, field_id )

@@ -73,12 +73,16 @@ contains
     type(point_t)            , pointer :: quad_coords(:)
     type(vector_field_t), allocatable  :: shape_gradients(:,:)
     real(rp)            , allocatable  :: shape_values(:,:)
-
+    real(rp)            , allocatable  :: source_term_values(:)
+    real(rp)            , allocatable  :: det_jacobians(:)
+    real(rp)            , allocatable  :: weights(:)
+    
     ! FE matrix and vector i.e., A_K + f_K
-    real(rp), allocatable              :: elmat(:,:), elvec(:)
+    real(rp), allocatable :: elmat(:,:), elvec(:)
+    
 
     integer(ip)  :: istat
-    integer(ip)  :: qpoint, num_quad_points
+    integer(ip)  :: qpoint, num_quad_points, max_num_quad_points
     integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
     real(rp)     :: factor
     real(rp)     :: source_term_value
@@ -94,47 +98,56 @@ contains
     if ( triangulation%get_num_cells() == 0 ) return
    
     source_term => this%analytical_functions%get_source_term()
-
     call fe_space%create_fe_cell_iterator(fe)
+    call fe%first_local_non_void(field_id=1)
+    if ( fe%has_finished() ) then
+      call fe_space%free_fe_cell_iterator(fe)  
+      return
+    end if
+    
     max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
+    max_num_quad_points = fe_space%get_max_num_quadrature_points()
     call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )
     call memalloc ( max_num_dofs, elvec, __FILE__, __LINE__ )
+    call memalloc ( max_num_quad_points, source_term_values, __FILE__, __LINE__ )
+    call memalloc ( max_num_quad_points, det_jacobians, __FILE__, __LINE__ )
+    call memalloc ( max_num_quad_points, weights, __FILE__, __LINE__ )
+    
+    quad            => fe%get_quadrature()
+    num_quad_points = quad%get_num_quadrature_points()
+    num_dofs        = fe%get_num_dofs()
 
+    ! Note: By NOT updating quad_coords/weights on each cell within the
+    !       next loop, we are implicitly assuming that the same quadrature/cell 
+    !       map combination is being used for all (non-void) cells
+    call quad%get_weights(weights)
+    call fe%update_integration()
+    quad_coords => fe%get_quadrature_points_coordinates()
     do while ( .not. fe%has_finished() )
-
-       if ( fe%is_local() ) then
+       if ( fe%is_local() .and. .not. fe%is_void(field_id=1) ) then
           ! Update FE-integration related data structures
           call fe%update_integration()
-
-          ! Very important: this has to be inside the loop, as different FEs can be present!
-          quad            => fe%get_quadrature()
-          num_quad_points = quad%get_num_quadrature_points()
-          num_dofs = fe%get_num_dofs()
           
-          ! Get quadrature coordinates to evaluate source_term
-          quad_coords => fe%get_quadrature_points_coordinates()
-                    
           ! Compute element matrix and vector
           elmat = 0.0_rp
           elvec = 0.0_rp
           call fe%get_gradients(shape_gradients)
           call fe%get_values(shape_values)
+          call source_term%get_values_set(quad_coords,source_term_values)
+          call fe%get_det_jacobians(det_jacobians)
           do qpoint = 1, num_quad_points
-             factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+             factor = det_jacobians(qpoint) * weights(qpoint)
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
                    ! A_K(i,j) = (grad(phi_i),grad(phi_j))
                    elmat(idof,jdof) = elmat(idof,jdof) + factor * shape_gradients(jdof,qpoint) * shape_gradients(idof,qpoint)
                 end do
              end do
-             
-             ! Source term
-             call source_term%get_value(quad_coords(qpoint),source_term_value)
+            
              do idof = 1, num_dofs
-                elvec(idof) = elvec(idof) + factor * source_term_value * shape_values(idof,qpoint) 
+                elvec(idof) = elvec(idof) + factor * source_term_values(qpoint) * shape_values(idof,qpoint) 
              end do
           end do
-          
           call fe%assembly( this%fe_function, elmat, elvec, assembler )
        end if
        call fe%next()
@@ -142,6 +155,9 @@ contains
     call fe_space%free_fe_cell_iterator(fe)
     call memfree(shape_values, __FILE__, __LINE__)
     deallocate (shape_gradients, stat=istat); check(istat==0);
+    call memfree ( source_term_values, __FILE__, __LINE__ )
+    call memfree ( det_jacobians, __FILE__, __LINE__ )
+    call memfree ( weights, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin

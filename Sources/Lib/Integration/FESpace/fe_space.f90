@@ -242,6 +242,7 @@ module fe_space_names
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_cell_iterator_get_quadrature_points_coordinates
     procedure, non_overridable :: get_det_jacobian                  => fe_cell_iterator_get_det_jacobian
+    procedure, non_overridable :: get_det_jacobians                 => fe_cell_iterator_get_det_jacobians
 
     procedure, non_overridable          :: get_fe_space                               => fe_cell_iterator_get_fe_space
     procedure, non_overridable          :: get_num_fields                             => fe_cell_iterator_get_num_fields

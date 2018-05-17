@@ -284,13 +284,13 @@ subroutine unfitted_fe_cell_iterator_update_cut_quadratures( this )
   ! Recover info about the quadrature of the current element
   quadrature => this%get_quadrature()
   quadrature_points_coordinates => quadrature%get_coordinates()
-  quadrature_weights     => quadrature%get_weights()
+  quadrature_weights     => quadrature%get_pointer_weights()
   num_gp                 =  quadrature%get_num_quadrature_points()
   num_dim                =  quadrature%get_num_dims()
 
   ! Recover info about the quadrature of the sub-element
   quadrature_subelem => this%unfitted_integration_manager%quadrature_subelem
-  quadrature_weights_subelem     => quadrature_subelem%get_weights()
+  quadrature_weights_subelem     => quadrature_subelem%get_pointer_weights()
   num_gp_subelem                 =  quadrature_subelem%get_num_quadrature_points()
   num_dim_subelem                =  quadrature_subelem%get_num_dims()
 
