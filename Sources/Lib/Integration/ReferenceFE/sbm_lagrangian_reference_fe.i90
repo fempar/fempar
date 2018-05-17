@@ -933,7 +933,7 @@ subroutine lagrangian_reference_fe_evaluate_laplacian_fe_function_scalar( this, 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   real(rp)                        , intent(in)    :: nodal_values(:)
   real(rp), allocatable           , intent(inout) :: quadrature_points_values(:)
-  character(:), parameter :: msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
+  character(*), parameter :: msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
   integer(ip)               :: qpoint, ishape
   real(rp)                  :: shape_laplacian
 
@@ -969,7 +969,7 @@ subroutine lagrangian_reference_fe_evaluate_laplacian_fe_function_vector( this, 
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  character(:), parameter   :: msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
+  character(*), parameter   :: msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
   integer(ip)               :: qpoint, inode, istat
   type(vector_field_t)      :: shape_laplacian
 
