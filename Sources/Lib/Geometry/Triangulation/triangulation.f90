@@ -631,6 +631,9 @@ module triangulation_names
        
   type, abstract :: triangulation_t 
      private
+  
+     logical                               :: single_octree_mesh = .false.
+  
      ! num of space dimensions
      integer(ip)                           :: num_dims = 0
 
@@ -680,8 +683,14 @@ module triangulation_names
      ! Will the triangulation_t be ALWAYS conforming? (e.g., no matter 
      ! whether it is transformed, refined, coarsened, etc.)
      procedure(is_conforming_interface)         , deferred :: is_conforming
- 
+  
      ! Getters
+     ! Returns .true. if the triangulation is octree-like, and  it is composed of a 
+     ! single octree. Single octree-meshes are such that, for all cells, the mapping 
+     ! that transforms among the reference coordinate system and the real cell
+     ! coordinate system is composed of translation and/or scalings. Therefore, e.g., 
+     ! no rotations are permitted.
+     procedure, non_overridable :: is_single_octree_mesh    => triangulation_is_single_octree_mesh
      procedure, non_overridable :: get_num_dims             => triangulation_get_num_dims
      procedure, non_overridable :: get_num_cells            => triangulation_get_num_cells
      procedure, non_overridable :: get_num_local_cells      => triangulation_get_num_local_cells
@@ -691,6 +700,7 @@ module triangulation_names
      procedure(get_num_proper_vefs_interface)   , deferred :: get_num_proper_vefs
      procedure(get_num_improper_vefs_interface) , deferred :: get_num_improper_vefs
      
+     procedure, non_overridable :: set_single_octree_mesh   => triangulation_set_single_octree_mesh
      procedure, non_overridable :: set_num_dims             => triangulation_set_num_dims
      procedure, non_overridable :: set_num_local_cells      => triangulation_set_num_local_cells
      procedure, non_overridable :: set_num_ghost_cells      => triangulation_set_num_ghost_cells
@@ -788,6 +798,8 @@ module triangulation_names
        class(triangulation_t) , intent(in) :: this
        logical :: is_conforming_interface 
      end function is_conforming_interface 
+  
+  
   
      function get_num_proper_vefs_interface ( this )
        import :: triangulation_t, ip

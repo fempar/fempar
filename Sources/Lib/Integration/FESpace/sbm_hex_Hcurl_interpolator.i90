@@ -292,7 +292,7 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
   end if
 
   if ( reference_fe%get_order() > 1 ) then 
-     call this%cell_maps(reference_fe_id)%update( this%cell_quadratures(reference_fe_id) ) 
+     call this%cell_maps(reference_fe_id)%update( this%cell_quadratures(reference_fe_id), no_ressemblance )
 
      num_quad_points  = this%cell_quadratures(reference_fe_id)%num_quadrature_points
      quad_points_coordinates => this%cell_maps(reference_fe_id)%get_quadrature_points_coordinates()
@@ -301,7 +301,8 @@ subroutine hex_Hcurl_interpolator_evaluate_vector_function_moments( this, fe, ve
      call this%get_function_values( vector_function, quad_points_coordinates, this%cell_function_values, time)
 
      ! Update interpolation on the physical space 
-     call this%fes_rt(reference_fe_id)%apply_cell_map( this%cell_maps(reference_fe_id),            & 
+     call this%fes_rt(reference_fe_id)%apply_cell_map( no_ressemblance,                            &
+                                                       this%cell_maps(reference_fe_id),            &
                                                        this%cell_interpolations(reference_fe_id),  & 
                                                        this%real_cell_interpolations(reference_fe_id)) 
 
@@ -463,7 +464,7 @@ subroutine hex_Hcurl_interpolator_evaluate_function_components_moments(this, n_f
   if ( reference_fe%get_num_dims() == 3 .and. reference_fe%get_order() > 1 ) then     
 
      ! To apply mapping to test functions 
-     call this%cell_maps(reference_fe_id)%update( this%cell_quadratures(reference_fe_id) )
+     call this%cell_maps(reference_fe_id)%update( this%cell_quadratures(reference_fe_id), no_ressemblance )
 
      do facet_id = reference_fe%get_first_facet_id(), & 
           reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
@@ -591,10 +592,11 @@ subroutine hex_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
            ! Map of the cell Lagrangian shape functions evaluated on the edge quadrature  
            aux_coordinates => this%cell_maps_restricted_to_edge(reference_fe_id)%get_coordinates()
            call fe%get_nodes_coordinates(aux_coordinates)
-           call this%cell_maps_restricted_to_edge(reference_fe_id)%update(this%edge_quadratures(reference_fe_id)) 
+           call this%cell_maps_restricted_to_edge(reference_fe_id)%update(this%edge_quadratures(reference_fe_id), no_ressemblance ) 
            
            call lagrangian_interpolation_phy%copy(lagrangian_interpolation_ref)
-           call lagrangian_fe%apply_cell_map( this%cell_maps_restricted_to_edge(reference_fe_id), &
+           call lagrangian_fe%apply_cell_map( no_ressemblance,                                    &  
+                                              this%cell_maps_restricted_to_edge(reference_fe_id), &
                                               lagrangian_interpolation_ref,                       &
                                               lagrangian_interpolation_phy  )
 
@@ -624,7 +626,7 @@ subroutine hex_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
      if ( reference_fe%get_num_dims() == 3 .and. reference_fe%get_order() > 1 ) then     
 
         ! To apply mapping to test functions 
-        call this%cell_maps(reference_fe_id)%update( this%cell_quadratures(reference_fe_id) )
+        call this%cell_maps(reference_fe_id)%update( this%cell_quadratures(reference_fe_id), no_ressemblance )
 
         do facet_id = reference_fe%get_first_facet_id(), & 
              reference_fe%get_first_facet_id() + reference_fe%get_num_facets()-1
@@ -649,7 +651,8 @@ subroutine hex_Hcurl_interpolator_evaluate_discrete_gradient(this, n_face_mask, 
             cell_map_restricted_to_facet => this%cell_maps_facet_restriction(reference_fe_id)%get_current_cell_map()
            
               call Lagrangian_interpolation_phy%copy(Lagrangian_interpolation_ref) 
-              call lagrangian_fe%apply_cell_map( cell_map_restricted_to_facet, &
+              call lagrangian_fe%apply_cell_map( no_ressemblance,              & 
+                                                 cell_map_restricted_to_facet, &
                                                  lagrangian_interpolation_ref, &
                                                  lagrangian_interpolation_phy  )
 

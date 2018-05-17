@@ -808,7 +808,7 @@ contains
 
        cell_coords => cell_map_cell%get_coordinates()
        call fe%get_nodes_coordinates( cell_coords )
-       call cell_map_cell%update(nodal_quadrature_cell)
+       call cell_map_cell%update(nodal_quadrature_cell,no_ressemblance)
        mapped_cell_subelem_coords => cell_map_cell%get_quadrature_points_coordinates()
 
        do isubelem = 1, num_subelems_x_cell
@@ -850,7 +850,7 @@ contains
 
          subcell_coords => cell_map_subcell%get_coordinates()
          call fe%get_phys_coords_of_subcell(subcell,subcell_coords)
-         call cell_map_subcell%update(nodal_quadrature_subcell)
+         call cell_map_subcell%update(nodal_quadrature_subcell,no_ressemblance)
          mapped_subcell_subelem_coords => cell_map_subcell%get_quadrature_points_coordinates()
 
          sol_at_subcell_eval_points(:) = 0.0
@@ -861,7 +861,7 @@ contains
          if (fe%is_interior_subcell(subcell)) then
            subcell_coords => cell_map_subcell_ref%get_coordinates()
            call fe%get_ref_coords_of_subcell(subcell,subcell_coords)
-           call cell_map_subcell_ref%update(nodal_quadrature_subcell)
+           call cell_map_subcell_ref%update(nodal_quadrature_subcell,no_ressemblance)
            mapped_subcell_subelem_coords_ref => cell_map_subcell_ref%get_quadrature_points_coordinates()
            subcell_quad_coords => subcell_nodal_quad%get_coordinates()
            do ino = 1, num_subcell_eval_points

@@ -794,59 +794,71 @@ end subroutine raviart_thomas_create_data_out_quadrature
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
 !==================================================================================================
-subroutine raviart_thomas_apply_cell_map_to_interpolation(this,map,ref,phy)
+subroutine raviart_thomas_apply_cell_map_to_interpolation(this,cell_ressemblance,map,ref,phy,scaling_factor)
   implicit none
   class(raviart_thomas_reference_fe_t), intent(in)    :: this 
-  type(cell_map_t)                  , intent(in)    :: map
-  type(interpolation_t)           , intent(in)    :: ref
-  type(interpolation_t)           , intent(inout) :: phy
+  integer(ip)                         , intent(in)    :: cell_ressemblance
+  type(cell_map_t)                    , intent(in)    :: map
+  type(interpolation_t)               , intent(in)    :: ref
+  type(interpolation_t)               , intent(inout) :: phy
+  real(rp), optional                  , intent(in)    :: scaling_factor
   real(rp), allocatable :: wmat1(:,:,:)
   real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
   integer(ip) :: ndime,nnode,nlocs,ntens
   integer(ip) :: ilocs,inode,idime,jdime,kdime,ldime
+  real(rp) :: inv_scaling_factor_to_the_num_dims
 
   ndime = ref%num_dims
   ntens = ref%num_entries_symmetric_tensor
   nlocs = ref%num_quadrature_points
   !nnode = ref%num_shape_functions
   nnode = size(ref%shape_functions,2)
-  
-  ! Piola map for shape functions
-  ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J \phi(X_g)
-  phy%shape_functions=0.0_rp
-  do ilocs=1,phy%num_quadrature_points
-     do inode=1,this%num_shape_functions
-        do idime=1,this%num_dims
-           do jdime=1,this%num_dims
-               phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) &
-                    + map%jacobian(idime,jdime,ilocs)*ref%shape_functions(jdime,inode,ilocs)
-           end do
-           phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) / map%det_jacobian(ilocs)
-        end do
-     end do
-  end do
-  
-  ! Piola map for shape derivatives
-  ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J grad(phi(X_g)) J^{-1}
-  if(phy%my_duties%compute_first_derivatives_is_assigned()) then
-     phy%shape_derivatives=0.0_rp
+
+  if ( cell_ressemblance == no_ressemblance ) then
+     ! Piola map for shape functions
+     ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J \phi(X_g)
+     phy%shape_functions=0.0_rp
      do ilocs=1,phy%num_quadrature_points
         do inode=1,this%num_shape_functions
            do idime=1,this%num_dims
               do jdime=1,this%num_dims
-                 do kdime=1,this%num_dims
-                    do ldime=1,this%num_dims
-                       phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
-                            + map%jacobian(idime,kdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(jdime,ldime,ilocs)
-                    end do
-                 end do
-                 phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) / map%det_jacobian(ilocs)
+                 phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) &
+                      + map%jacobian(idime,jdime,ilocs)*ref%shape_functions(jdime,inode,ilocs)
               end do
+              phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) / map%det_jacobian(ilocs)
            end do
         end do
      end do
+  
+     ! Piola map for shape derivatives
+     ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J grad(phi(X_g)) J^{-1}
+     if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+        phy%shape_derivatives=0.0_rp
+        do ilocs=1,phy%num_quadrature_points
+           do inode=1,this%num_shape_functions
+              do idime=1,this%num_dims
+                 do jdime=1,this%num_dims
+                    do kdime=1,this%num_dims
+                       do ldime=1,this%num_dims
+                          phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
+                               + map%jacobian(idime,kdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(jdime,ldime,ilocs)
+                       end do
+                    end do
+                    phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) / map%det_jacobian(ilocs)
+                 end do
+              end do
+           end do
+        end do
+     end if
+  else if ( cell_ressemblance == is_scaled_and_translated ) then
+     massert ( present(scaling_factor), 'Optional "scaling_factor" dummy argument MUST BE provided if cell_ressemblance == is_scaled_and_translated')
+     inv_scaling_factor_to_the_num_dims = scaling_factor**(-real(this%num_dims,rp))
+     phy%shape_functions(:,:,:) =  scaling_factor * inv_scaling_factor_to_the_num_dims * phy%shape_functions(:,:,:)
+     if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+        phy%shape_derivatives(:,:,:,:) = inv_scaling_factor_to_the_num_dims*phy%shape_derivatives(:,:,:,:)
+     end if
   end if
-
+ 
   massert(.not.phy%my_duties%compute_second_derivatives_is_assigned(),'Hessian not implemented for RT')
   
   !! @sbadia: put Piola here

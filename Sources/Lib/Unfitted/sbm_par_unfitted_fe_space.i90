@@ -135,12 +135,17 @@ subroutine pufs_set_up_cell_integration ( this, interpolation_duties, cell_map_d
   type(environment_t), pointer :: environment
 
   call this%par_fe_space_t%set_up_cell_integration(interpolation_duties, cell_map_duties)
+  
+  call this%set_cell_integration_was_set_up(.false.)
+  
   triangulation => this%get_triangulation()
   environment => triangulation%get_environment()
   if ( environment%am_i_l1_task() ) then
     call this%unfitted_integration%init_cut_integration()
     call this%unfitted_integration%init_cut_boundary_integration()
   end if
+  
+  call this%set_cell_integration_was_set_up(.true.)
 
 end subroutine pufs_set_up_cell_integration
 

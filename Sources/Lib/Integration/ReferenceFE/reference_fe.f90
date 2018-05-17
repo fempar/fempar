@@ -186,6 +186,14 @@ module reference_fe_names
 #define task_01 compute_jacobian_inverse
 #define task_02 compute_jacobian_derivative
 #include "duties_header.i90"
+  
+  ! The type of (exploitable) ressemblance of the current visited cell 
+  ! compared to the previous visited one in a loop over all cells
+  ! The sort of ressemblance does not allow us to exploit anything
+  integer(ip), parameter :: no_ressemblance          = 0
+  integer(ip), parameter :: is_only_translated       = 1
+  integer(ip), parameter :: is_scaled_and_translated = 2
+  ! Anything else we would like to exploit?
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
   type, extends(base_map_t) ::  cell_map_t
@@ -267,6 +275,7 @@ module reference_fe_names
 
   public :: cell_map_t, facet_map_t, edge_map_t, p_cell_map_t
   public :: cell_map_duties_t
+  public :: no_ressemblance, is_only_translated, is_scaled_and_translated
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -994,14 +1003,20 @@ module reference_fe_names
         type(cell_map_duties_t)     , intent(inout) :: cell_map_duties
       end subroutine assign_cell_map_duties_interface
 
-     subroutine apply_cell_map_interface ( this, cell_map, interpolation_reference_cell,        &
-          &                            interpolation_real_cell )
-       import :: reference_fe_t, cell_map_t, interpolation_t
+     subroutine apply_cell_map_interface ( this, &
+                                           cell_ressemblance, &
+                                           cell_map, &
+                                           interpolation_reference_cell, &
+                                           interpolation_real_cell, &
+                                           scaling_factor )
+       import :: rp,  ip, reference_fe_t, cell_map_t, interpolation_t
        implicit none 
        class(reference_fe_t), intent(in)    :: this 
+       integer(ip)          , intent(in)    :: cell_ressemblance
        type(cell_map_t)     , intent(in)    :: cell_map
        type(interpolation_t), intent(in)    :: interpolation_reference_cell
        type(interpolation_t), intent(inout) :: interpolation_real_cell
+       real(rp), optional   , intent(in)    :: scaling_factor
      end subroutine apply_cell_map_interface
 
      subroutine create_nodal_quadrature_interface ( this )
@@ -1386,8 +1401,6 @@ procedure :: evaluate_fe_function_vector          &
     & => nedelec_evaluate_fe_function_vector
 procedure :: evaluate_fe_function_tensor          & 
     & => nedelec_evaluate_fe_function_tensor
-procedure :: apply_cell_map                       & 
-    & => nedelec_reference_fe_apply_cell_map 
 procedure, private :: apply_cell_map_to_interpolation & 
     & => nedelec_apply_cell_map_to_interpolation
 procedure, private :: fill_vector                         & 

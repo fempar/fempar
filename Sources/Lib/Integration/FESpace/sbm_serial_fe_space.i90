@@ -1584,6 +1584,12 @@ subroutine serial_fe_space_set_up_cell_integration ( this, interpolation_duties,
   type(interpolation_duties_t)     :: current_interpolation_duties
   logical :: compute_first_derivatives, compute_second_derivatives
 
+  ! We need to set to .false. this member variable as the traversal over all
+  ! cells below would fail if the value of this variable is .true. This can
+  ! happen, e.g. if we call this%set_up_cell_integration(...) twice in a FE
+  ! program
+  this%cell_integration_is_set_up = .false.
+
   if(.not.present(cell_map_duties)) then
      ! Select higher derivatives of all inerpolations to define the mapping
      if(present(interpolation_duties)) then
@@ -1666,26 +1672,34 @@ subroutine serial_fe_space_set_up_cell_integration ( this, interpolation_duties,
      call fe%next()
   end do
   call fe%free()
+  this%cell_integration_is_set_up = .true.
 end subroutine serial_fe_space_set_up_cell_integration
+
+function serial_fe_space_cell_integration_was_set_up(this)
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  logical :: serial_fe_space_cell_integration_was_set_up
+  serial_fe_space_cell_integration_was_set_up = this%cell_integration_is_set_up
+end function serial_fe_space_cell_integration_was_set_up
+
+subroutine serial_fe_space_set_cell_integration_was_set_up (this, was_set_up)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  logical                 , intent(in)    :: was_set_up
+  this%cell_integration_is_set_up = was_set_up
+end subroutine serial_fe_space_set_cell_integration_was_set_up
 
 subroutine serial_fe_space_free_fe_integration ( this )
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
-  type(cell_integrator_t) :: cell_integrator
-  integer(ip)         :: i
-
-  class(reference_fe_t), pointer :: reference_fe
-
   call this%cell_quadratures_and_maps_position%free()
   call this%cell_integrators_position%free()
-
   call this%cell_quadratures%free()
   call this%cell_maps%free()
   call this%cell_integrators%free()
-
   call this%free_cell_quadratures_degree()
   call this%free_max_order_reference_fe_id_x_cell()
-
+  this%cell_integration_is_set_up = .false.
 end subroutine serial_fe_space_free_fe_integration
 
 

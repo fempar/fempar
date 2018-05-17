@@ -365,7 +365,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
         do idime=1, interpolation%num_dims 
            offcomponent = (idime-1)*tet_polynomial_prebase_2%get_num_polynomials()
            do ivalu=1, tet_polynomial_prebase_2%get_num_polynomials()
-              interpolation%shape_functions(idime,c+ipoly,q_point) =  &	
+              interpolation%shape_functions(idime,c+ipoly,q_point) =  & 
                    interpolation%shape_functions(idime,c+ipoly,q_point) + this%basis_Sk_indices(ipoly, offcomponent + ivalu)*values(ivalu)
            end do
         end do
@@ -378,7 +378,7 @@ subroutine tet_nedelec_reference_fe_fill_interpolation_pre_basis ( this, quadrat
      do q_point=1, quadrature%get_num_quadrature_points()
         call tet_polynomial_prebase_2%evaluate_gradients( q_point, gradients )
         do ipoly=1, Sk_basis_dim 
-           do idime=1, interpolation%num_dims	
+           do idime=1, interpolation%num_dims 
               offcomponent = (idime-1)*tet_polynomial_prebase_2%get_num_polynomials()
               do ivalu=1, tet_polynomial_prebase_2%get_num_polynomials()
                  do jdime=1, interpolation%num_dims
@@ -745,7 +745,7 @@ subroutine tet_nedelec_reference_fe_change_basis(this)
      do vertex_within_cell_id=1,d_fe_geo%get_num_vertices()
         call cell_map_coordinates(vertex_within_cell_id)%init(d_fe_geo%nodal_quadrature%coordinates(:, vertex_within_cell_id))
      end do
-     call cell_map%update(cell_quadrature)
+     call cell_map%update(cell_quadrature,no_ressemblance)
 
      quad_points_coordinates => cell_map%get_quadrature_points_coordinates() 
      

@@ -32,13 +32,30 @@ subroutine fe_cell_iterator_create ( this, fe_space )
   class(serial_fe_space_t), target, intent(in)    :: fe_space
   integer(ip) :: istat
   call this%free()
+  call aux_create(this, fe_space)
+  call this%set_integration_updated(.false.)
+  allocate ( this%previous_cell, mold=this, stat=istat ); check(istat==0)
+  call aux_create(this%previous_cell,fe_space)
+  call this%previous_cell%set_integration_updated(.false.)
+  ! Initialize previous_cell to point to one cell past the end
+  call aux_set_gid(this%previous_cell,fe_space%triangulation%get_num_cells()+1)
+  this%cell_integration_is_set_up = fe_space%cell_integration_was_set_up()
+end subroutine fe_cell_iterator_create
+
+subroutine aux_create(this, fe_space) 
+  implicit none
+  class(fe_cell_iterator_t), intent(inout)      :: this
+  class(serial_fe_space_t) , target, intent(in) :: fe_space
+  class(triangulation_t), pointer :: triangulation
   call this%set_fe_space(fe_space)
   call this%create_cell(fe_space%triangulation)
   call this%allocate_assembly_scratch_data()
   call this%allocate_performance_scratch_data()
   call this%init_performance_scratch_data()
-  call this%first()
-end subroutine fe_cell_iterator_create
+  call aux_first(this) 
+  triangulation => fe_space%get_triangulation()
+  call this%set_single_octree_mesh(triangulation%is_single_octree_mesh())
+end subroutine aux_create
 
 subroutine fe_cell_iterator_create_cell ( this, triangulation )
   implicit none
@@ -57,7 +74,22 @@ end subroutine fe_cell_iterator_free_cell
 subroutine fe_cell_iterator_free (this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
-  integer(ip) :: istat, iblock, ifield
+  integer(ip) :: istat
+  call aux_free(this)
+  if (associated(this%previous_cell)) then
+    call aux_free(this%previous_cell)
+    deallocate ( this%previous_cell, stat=istat ); check(istat==0)
+    nullify(this%previous_cell)
+  end if   
+  call this%set_integration_updated(.false.)
+  call this%set_single_octree_mesh(.false.)
+  this%cell_integration_is_set_up = .false. 
+end subroutine fe_cell_iterator_free
+
+subroutine aux_free (this) 
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: istat 
   if ( associated(this%fe_space) ) then
     if ( associated(this%fe_space%triangulation) ) then
       call this%free_cell(this%fe_space%triangulation)
@@ -66,8 +98,9 @@ subroutine fe_cell_iterator_free (this)
   call this%free_assembly_scratch_data()
   call this%free_performance_scratch_data()
   call this%nullify_fe_space()
-end subroutine fe_cell_iterator_free
-
+end subroutine aux_free   
+  
+ 
 subroutine fe_cell_iterator_allocate_assembly_scratch_data ( this )
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
@@ -169,30 +202,76 @@ end subroutine fe_cell_iterator_free_final
 subroutine fe_cell_iterator_next(this)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
+  if ( this%cell_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( this%is_local() ) then
+        if ( .not. this%is_cut() ) then
+          call aux_set_gid(this%previous_cell,this%get_gid())
+         call this%previous_cell%set_integration_updated(this%is_integration_updated())
+        end if
+      end if   
+    end if
+  end if  
   call base_fe_cell_iterator_next(this)
   if ( .not. this%has_finished() ) then
     call this%update_performance_scratch_data()
-  end if   
+  end if 
+  call this%set_integration_updated(.false.)
 end subroutine fe_cell_iterator_next
 
 subroutine fe_cell_iterator_first(this)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  if ( this%cell_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( this%is_local() ) then
+        if ( .not. this%is_cut() ) then
+          call aux_set_gid(this%previous_cell,this%get_gid())
+          call this%previous_cell%set_integration_updated(this%is_integration_updated())
+        end if
+      end if
+    end if
+  end if   
+  call aux_first(this)
+  call this%set_integration_updated(.false.)
+end subroutine fe_cell_iterator_first
+
+subroutine aux_first(this) 
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   call base_fe_cell_iterator_first(this)
   if ( .not. this%has_finished() ) then
     call this%update_performance_scratch_data()
   end if
-end subroutine fe_cell_iterator_first
+end subroutine aux_first
 
 subroutine fe_cell_iterator_set_gid(this, lid)
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip)        , intent(in)    :: lid
-  call base_fe_cell_iterator_set_gid(this,lid)
+  if ( this%cell_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( this%is_local() ) then
+        if ( .not. this%is_cut() ) then
+          call aux_set_gid(this%previous_cell,this%get_gid())
+          call this%previous_cell%set_integration_updated(this%is_integration_updated())
+        end if
+      end if    
+    end if   
+  end if
+  call aux_set_gid(this,lid)
+  call this%set_integration_updated(.false.)
+end subroutine fe_cell_iterator_set_gid
+
+subroutine aux_set_gid(this, gid)
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip)              , intent(in)    :: gid
+  call base_fe_cell_iterator_set_gid(this,gid)
   if ( .not. this%has_finished() ) then
     call this%update_performance_scratch_data()
-  end if 	
-end subroutine fe_cell_iterator_set_gid
+  end if
+end subroutine aux_set_gid
 
 subroutine fe_cell_iterator_set_fe_space(this,fe_space)
   implicit none
@@ -525,26 +604,67 @@ subroutine fe_cell_iterator_update_assembly_scratch_data( this)
   call this%get_fe_dofs(this%fe_dofs)
 end subroutine fe_cell_iterator_update_assembly_scratch_data
 
-
-
 subroutine fe_cell_iterator_update_integration( this )
   implicit none
   class(fe_cell_iterator_t), intent(inout) :: this 
   integer(ip) :: field_id
   type(point_t)            , pointer :: coordinates(:)
   type(quadrature_t)       , pointer :: quadrature
+  integer(ip) :: cell_ressemblance
+  integer(ip) :: prev_get_lev, this_get_lev
+  real(rp) :: scaling_factor
 
   call this%update_cell_map()
+  call this%update_cell_integrators()
+  
+  ! Update integration data structures of previous cell
+  ! This is required to drive comparisons required to
+  ! decide whether the current cell is either a translation 
+  ! or translation + scaling of the previous cell
+  ! If the previous cell is not a valid cell or it is cut, there is nothing
+  ! that can be re-used
+  cell_ressemblance = no_ressemblance
+  if ( .not. this%previous_cell%has_finished() ) then
+    if ( this%previous_cell%is_integration_updated() .and. this%is_single_octree_mesh() ) then 
+      call this%previous_cell%update_cell_map()
+      call this%previous_cell%update_cell_integrators()
+      this_get_lev = this%get_level()
+      prev_get_lev = this%previous_cell%get_level()
+      if ( this_get_lev == prev_get_lev ) then
+        cell_ressemblance = is_only_translated
+      else
+        cell_ressemblance = is_scaled_and_translated
+        scaling_factor = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
+      end if 
+    end if   
+  end if 
+  
+  ! Cell map update
   coordinates => this%cell_map%get_coordinates()
   call this%get_nodes_coordinates(coordinates)
-
   quadrature => this%get_quadrature()
-  call this%cell_map%update(quadrature)
-  call this%update_cell_integrators()
-  do field_id = 1, this%get_num_fields()
-     call this%cell_integrators(field_id)%p%update(this%cell_map)
-  end do
+  ! If cell_ressemblance is either translation or translation + scaling .AND.
+  ! the cell map of previous cell and that of the current cell are strictly 
+  ! the same instance, then ... (Note: it might happen that the cell map of
+  ! the previous cell is set up with a difference quadrature of the current
+  ! cell)
+  if ( cell_ressemblance /= no_ressemblance .and. &
+    associated(this%cell_map,this%previous_cell%cell_map) ) then
+    call this%cell_map%update(quadrature, cell_ressemblance, scaling_factor)
+  else
+    call this%cell_map%update(quadrature, no_ressemblance)
+  end if  
   
+  ! Cell integrators update
+  do field_id = 1, this%get_num_fields()
+     if ( cell_ressemblance /= no_ressemblance .and. &
+            associated(this%cell_integrators(field_id)%p,this%previous_cell%cell_integrators(field_id)%p) ) then
+       call this%cell_integrators(field_id)%p%update(cell_ressemblance,this%cell_map,scaling_factor) 
+     else
+       call this%cell_integrators(field_id)%p%update(no_ressemblance,this%cell_map)
+     end if 
+  end do
+  call this%set_integration_updated(.true.)
 end subroutine fe_cell_iterator_update_integration
 
 function fe_cell_iterator_get_fe_space(this)
@@ -855,15 +975,18 @@ function fe_cell_iterator_get_quadrature ( this )
   type(quadrature_t), pointer      :: fe_cell_iterator_get_quadrature
   integer(ip) :: cell_quadratures_key, cell_quadratures_position
   integer(ip) :: istat
+  if (this%fe_space%cell_quadratures%size() == 1 ) then
+    fe_cell_iterator_get_quadrature => this%fe_space%cell_quadratures%get_pointer(1)
+  else
+    cell_quadratures_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
+                                                                               this%get_quadrature_degree())
   
-  cell_quadratures_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
-                                                                          this%get_quadrature_degree())
-  
-  call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_quadratures_key, &
-                                                          val=cell_quadratures_position, &
-                                                          stat=istat)
-  assert ( .not. istat == key_not_found )
-  fe_cell_iterator_get_quadrature => this%fe_space%cell_quadratures%get_pointer(cell_quadratures_position)
+    call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_quadratures_key, &
+                                                              val=cell_quadratures_position, &
+                                                              stat=istat)
+    assert ( .not. istat == key_not_found )
+    fe_cell_iterator_get_quadrature => this%fe_space%cell_quadratures%get_pointer(cell_quadratures_position)
+   end if  
 end function fe_cell_iterator_get_quadrature
 
 function fe_cell_iterator_get_cell_map ( this )
@@ -879,17 +1002,19 @@ subroutine fe_cell_iterator_update_cell_map ( this )
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: cell_maps_position, cell_maps_key
   integer(ip) :: istat
+  if ( this%fe_space%cell_maps%size() == 1 ) then
+    this%cell_map => this%fe_space%cell_maps%get_pointer(1)
+  else
+    cell_maps_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
+                                                                         this%get_quadrature_degree())
   
-  cell_maps_key = this%fe_space%generate_cell_quadratures_position_key(this%get_reference_fe_geo_id(),&
-                                                                   this%get_quadrature_degree())
+    call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_maps_key, &
+                                                             val=cell_maps_position, &
+                                                             stat=istat)
   
-  call this%fe_space%cell_quadratures_and_maps_position%get(key=cell_maps_key, &
-                                                          val=cell_maps_position, &
-                                                          stat=istat)
-  
-  assert ( .not. istat == key_not_found )
-  this%cell_map => this%fe_space%cell_maps%get_pointer(cell_maps_position)
-  
+    assert ( .not. istat == key_not_found )
+    this%cell_map => this%fe_space%cell_maps%get_pointer(cell_maps_position)
+  end if
 end subroutine fe_cell_iterator_update_cell_map
 
 !==================================================================================================
@@ -898,18 +1023,28 @@ subroutine fe_cell_iterator_update_cell_integrators ( this )
   class(fe_cell_iterator_t), intent(inout)   :: this
   integer(ip) :: cell_integrators_position_key
   integer(ip) :: cell_integrators_position
-  integer(ip) :: istat, field_id
-  do field_id = 1, this%get_num_fields()
-     cell_integrators_position_key = &
-           this%fe_space%generate_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
+  integer(ip) :: istat, field_id, num_fields
+  type(cell_integrator_t), pointer :: cell_integrators(:)
+  
+  num_fields = this%get_num_fields()
+  cell_integrators => this%fe_space%cell_integrators%get_pointer()
+  if ( this%fe_space%cell_integrators%size() == num_fields ) then
+    do field_id = 1, num_fields
+      this%cell_integrators(field_id)%p => cell_integrators(field_id)
+    end do
+  else
+    do field_id = 1, num_fields
+       cell_integrators_position_key = &
+             this%fe_space%generate_cell_integrators_position_key(this%get_reference_fe_geo_id(), &
                                                                   this%get_quadrature_degree(), &
                                                                   this%fe_space%field_cell_to_ref_fes(field_id)%get(this%get_gid()))  
-     call this%fe_space%cell_integrators_position%get(key=cell_integrators_position_key, &
-                                                           val=cell_integrators_position, &
-                                                           stat=istat)
-     assert ( .not. istat == key_not_found )
-     this%cell_integrators(field_id)%p => this%fe_space%cell_integrators%get_pointer(cell_integrators_position) 
-  end do  
+       call this%fe_space%cell_integrators_position%get(key=cell_integrators_position_key, &
+                                                        val=cell_integrators_position, &
+                                                        stat=istat)
+       assert ( .not. istat == key_not_found )
+       this%cell_integrators(field_id)%p => cell_integrators(cell_integrators_position) 
+    end do
+  end if 
 end subroutine fe_cell_iterator_update_cell_integrators
 
 
@@ -929,6 +1064,55 @@ subroutine fe_cell_iterator_set_cell_integrator ( this, field_id, cell_integrato
   type(cell_integrator_t), target, intent(in) :: cell_integrator
   this%cell_integrators(field_id)%p => cell_integrator
 end subroutine fe_cell_iterator_set_cell_integrator
+
+!==================================================================================================
+subroutine fe_cell_iterator_nullify_cell_map ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  nullify(this%cell_map)
+end subroutine fe_cell_iterator_nullify_cell_map
+
+!==================================================================================================
+subroutine fe_cell_iterator_nullify_cell_integrators ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  integer(ip) :: field_id
+  do field_id=1, this%get_num_fields()
+    nullify(this%cell_integrators(field_id)%p)
+  end do   
+end subroutine fe_cell_iterator_nullify_cell_integrators
+
+!==================================================================================================
+function fe_cell_iterator_is_integration_updated ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  logical :: fe_cell_iterator_is_integration_updated
+  fe_cell_iterator_is_integration_updated = this%integration_updated
+end function fe_cell_iterator_is_integration_updated
+
+!==================================================================================================
+subroutine fe_cell_iterator_set_integration_updated ( this, integration_updated )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  logical                  , intent(in)    :: integration_updated
+  this%integration_updated = integration_updated
+end subroutine fe_cell_iterator_set_integration_updated
+
+!==================================================================================================
+function fe_cell_iterator_is_single_octree_mesh ( this )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  logical :: fe_cell_iterator_is_single_octree_mesh
+  fe_cell_iterator_is_single_octree_mesh = this%single_octree_mesh
+end function fe_cell_iterator_is_single_octree_mesh
+
+!==================================================================================================
+subroutine fe_cell_iterator_set_single_octree_mesh ( this, single_octree_mesh )
+  implicit none
+  class(fe_cell_iterator_t), intent(inout) :: this
+  logical                  , intent(in)    :: single_octree_mesh
+  this%single_octree_mesh = single_octree_mesh
+end subroutine fe_cell_iterator_set_single_octree_mesh
 
 !==================================================================================================
 function fe_cell_iterator_get_quadrature_points_coordinates(this)
