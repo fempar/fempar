@@ -181,19 +181,31 @@ subroutine cell_map_free( this )
 end subroutine cell_map_free
 
 !==================================================================================================
-subroutine cell_map_update( this, quadrature)
+subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
   !-----------------------------------------------------------------------
   ! A map obtained from the (usually isoparametric) interpolation of the geometry
   !-----------------------------------------------------------------------
   implicit none    
   class(cell_map_t)      , intent(inout) :: this
-  type(quadrature_t), intent(in)    :: quadrature
-
+  type(quadrature_t)     , intent(in)    :: quadrature
+  integer(ip)            , intent(in)    :: cell_ressemblance
+  real(rp) , optional,   intent(in)      :: scaling_factor 
+  
   ! Locals
   integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
   type(vector_field_t) :: aux_vector
-
-  do ilocs=1,this%num_quadrature_points
+  logical  :: supported_cell_ressemblance
+  real(rp) :: scaling_factor_to_the_num_dims
+  
+#ifdef DEBUG
+  supported_cell_ressemblance = (cell_ressemblance == no_ressemblance .or. &
+                                 cell_ressemblance == is_only_translated .or. &
+                                 cell_ressemblance == is_scaled_and_translated )
+  massert (supported_cell_ressemblance , "Unknown cell_ressemblance dummy argument value on input to cell_map_update(...)")
+#endif   
+      
+  if (cell_ressemblance == no_ressemblance ) then
+    do ilocs=1,this%num_quadrature_points
      ! Matmul is not thread safe
      ! map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
      do jdime=1,this%num_dims
@@ -206,78 +218,90 @@ subroutine cell_map_update( this, quadrature)
            this%jacobian(idime,jdime,ilocs) = aux_vector%get(idime)
         end do
      end do
-  end do
+    end do
 
-  this%measure = 0.0_rp 
-  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
-     do ilocs=1,this%num_quadrature_points
-        call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),this%num_dims)
-        this%measure = this%measure + abs(this%det_jacobian(ilocs)) * quadrature%get_weight(ilocs)
-     end do
-  else
-     do ilocs=1,this%num_quadrature_points
-        call determinant(this%jacobian(:,:,ilocs),this%det_jacobian(ilocs),this%num_dims)
-        this%measure = this%measure + abs(this%det_jacobian(ilocs)) * quadrature%get_weight(ilocs)
-     end do
-  end if
+    this%measure = 0.0_rp 
+    if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+       do ilocs=1,this%num_quadrature_points
+          call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),this%num_dims)
+          this%measure = this%measure + abs(this%det_jacobian(ilocs)) * quadrature%get_weight(ilocs)
+       end do
+    else
+       do ilocs=1,this%num_quadrature_points
+          call determinant(this%jacobian(:,:,ilocs),this%det_jacobian(ilocs),this%num_dims)
+          this%measure = this%measure + abs(this%det_jacobian(ilocs)) * quadrature%get_weight(ilocs)
+       end do
+    end if
 
-  ! When using oriented tetrahedral meshes |J| may become negative, absolute value should be used
-  ! to ensure positiveness
-  if (this%num_quadrature_points > 0) then
-     if (this%det_jacobian(1)<0.0_rp) then
-        this%det_jacobian_positiveness = .false.
-        this%det_jacobian = abs(this%det_jacobian)
-     else
+    ! When using oriented tetrahedral meshes |J| may become negative, absolute value should be used
+    ! to ensure positiveness
+    if (this%num_quadrature_points > 0) then
+       if (this%det_jacobian(1)<0.0_rp) then
+          this%det_jacobian_positiveness = .false.
+          this%det_jacobian = abs(this%det_jacobian)
+       else
         this%det_jacobian_positiveness = .true.
-     end if
-  else 
-     this%det_jacobian_positiveness = .true.  
-  end if
+       end if
+    else 
+       this%det_jacobian_positiveness = .true.  
+    end if
+  else if ( cell_ressemblance == is_scaled_and_translated ) then
+    massert ( present(scaling_factor), 'Optional "scaling_factor" dummy argument MUST BE provided if cell_ressemblance == is_scaled_and_translated') 
+    this%jacobian(:,:,:) = scaling_factor*this%jacobian(:,:,:)
+    if ( this%my_duties%compute_jacobian_inverse_is_assigned() ) then
+      this%inv_jacobian(:,:,:) = 1.0_rp/scaling_factor * this%inv_jacobian(:,:,:)
+    end if 
+    scaling_factor_to_the_num_dims = scaling_factor**(real(this%num_dims,rp))
+    this%measure = scaling_factor_to_the_num_dims * this%measure
+    this%det_jacobian(:) = scaling_factor_to_the_num_dims * this%det_jacobian(:)
+  end if 
   
   ! Evaluation (Gauss) point coordinates
   call this%compute_quadrature_points_coordinates()
 
   ! Second derivatives of the map
   if(this%my_duties%compute_jacobian_derivative_is_assigned()) then
+     if (cell_ressemblance == no_ressemblance ) then
+       do ilocs=1,this%num_quadrature_points
+          ! Transforms the array HESSI to a symmetric matrix WMAT1
+          do inode=1,this%num_nodes
+             do itens = 1, this%num_entries_symmetric_tensor
+                this%wvec1(itens) = this%interpolation%hessian(1,itens,inode,ilocs)
+             end do
+             call vetoma(this%wvec1,this%wmat1(1,1,inode),this%num_dims,this%num_entries_symmetric_tensor)
+          end do
 
-     do ilocs=1,this%num_quadrature_points
-        ! Transforms the array HESSI to a symmetric matrix WMAT1
-        do inode=1,this%num_nodes
-           do itens = 1, this%num_entries_symmetric_tensor
-              this%wvec1(itens) = this%interpolation%hessian(1,itens,inode,ilocs)
-           end do
-           call vetoma(this%wvec1,this%wmat1(1,1,inode),this%num_dims,this%num_entries_symmetric_tensor)
-        end do
-
-        ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for
-        ! each node
-        do inode=1,this%num_nodes
+          ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for
+          ! each node
+          do inode=1,this%num_nodes
            call btdbma(this%wmat2(1,1,inode),this%wmat1(1,1,inode), &
                 &        this%inv_jacobian(:,:,ilocs),this%num_dims,this%num_dims)
-        end do
+          end do
 
-        ! Obtains (d^2 s_k / d x_i d x_j) as the solution of the system
-        ! (d x_l / d s_k) (d^2 s_k / d x_i d x_j) 
-        !     = - (d^2 x_l / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j), 
-        ! for l,i,j = 1,...,NDIME
-        do kdime=1,this%num_dims
-           do idime=1,this%num_dims
-              do jdime=1,this%num_dims
-                 this%d2sdx(kdime,idime,jdime,ilocs)=0.0_rp
-                 do ldime=1,this%num_dims
-                    do inode=1,this%num_nodes
-                       this%d2sdx(kdime,idime,jdime,ilocs) =    &
-                            & this%d2sdx(kdime,idime,jdime,ilocs) &
-                            & - this%inv_jacobian(kdime,ldime,ilocs)     &
-                            &   * this%wmat2(idime,jdime,inode) * quadrature%coordinates(ldime,inode)
-                    end do
-                 end do
-              end do
-           end do
-        end do
-     end do
-  end if
-
+          ! Obtains (d^2 s_k / d x_i d x_j) as the solution of the system
+          ! (d x_l / d s_k) (d^2 s_k / d x_i d x_j) 
+          !     = - (d^2 x_l / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j), 
+          ! for l,i,j = 1,...,NDIME
+          do kdime=1,this%num_dims
+             do idime=1,this%num_dims
+                do jdime=1,this%num_dims
+                   this%d2sdx(kdime,idime,jdime,ilocs)=0.0_rp
+                   do ldime=1,this%num_dims
+                      do inode=1,this%num_nodes
+                         this%d2sdx(kdime,idime,jdime,ilocs) =    &
+                              & this%d2sdx(kdime,idime,jdime,ilocs) &
+                              & - this%inv_jacobian(kdime,ldime,ilocs)     &
+                              &   * this%wmat2(idime,jdime,inode) * quadrature%coordinates(ldime,inode)
+                      end do
+                   end do
+                end do
+             end do
+          end do
+       end do
+    else if ( cell_ressemblance == is_scaled_and_translated ) then
+       massert (.false., "cell_map_update :: jacobian_derivative optimized computation for cell_ressemblance == is_scaled_and_translated NOT implemented yet" )
+    end if
+ end if
 end subroutine cell_map_update
 
 !==================================================================================================

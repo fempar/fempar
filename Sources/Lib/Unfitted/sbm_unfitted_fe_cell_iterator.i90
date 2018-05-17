@@ -100,13 +100,17 @@ subroutine unfitted_fe_cell_iterator_update_cell_map ( this )
   implicit none
   class(unfitted_fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: ipos, num_subcells, istat
-  assert(this%is_local())
-  assert(this%is_cut())
-  num_subcells = this%get_num_subcells()
-  call this%unfitted_integration_manager%num_sub_cells_to_pos%get(key=num_subcells,val=ipos,stat=istat)
-  assert(istat==key_found)
-  assert(ipos>0)
-  call this%set_cell_map(this%unfitted_integration_manager%cut_cell_maps(ipos))
+  if ( .not. this%is_cut() ) then
+    call this%fe_cell_iterator_t%update_cell_map()
+  else  
+    assert(this%is_local())
+    assert(this%is_cut())
+    num_subcells = this%get_num_subcells()
+    call this%unfitted_integration_manager%num_sub_cells_to_pos%get(key=num_subcells,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
+    call this%set_cell_map(this%unfitted_integration_manager%cut_cell_maps(ipos))   
+  end if
 end subroutine unfitted_fe_cell_iterator_update_cell_map
 
 !==================================================================================================
@@ -115,15 +119,19 @@ subroutine unfitted_fe_cell_iterator_update_cell_integrators ( this )
   class(unfitted_fe_cell_iterator_t), intent(inout)   :: this
   integer(ip) :: field_id
   integer(ip) :: ipos, num_subcells, istat
-  assert(this%is_local())
-  assert(this%is_cut())
-  num_subcells = this%get_num_subcells()
-  call this%unfitted_integration_manager%num_sub_cells_to_pos%get(key=num_subcells,val=ipos,stat=istat)
-  assert(istat==key_found)
-  assert(ipos>0)
-  do field_id=1, this%get_num_fields()  
-    call this%set_cell_integrator(field_id,this%unfitted_integration_manager%cut_cell_integrators(ipos,field_id))
-  end do  
+  if ( .not. this%is_cut() ) then
+    call this%fe_cell_iterator_t%update_cell_integrators()
+  else  
+    assert(this%is_local())
+    assert(this%is_cut())
+    num_subcells = this%get_num_subcells()
+    call this%unfitted_integration_manager%num_sub_cells_to_pos%get(key=num_subcells,val=ipos,stat=istat)
+    assert(istat==key_found)
+    assert(ipos>0)
+    do field_id=1, this%get_num_fields()  
+      call this%set_cell_integrator(field_id,this%unfitted_integration_manager%cut_cell_integrators(ipos,field_id))
+    end do
+  end if
 end subroutine unfitted_fe_cell_iterator_update_cell_integrators
 
 !=============================================================================================
@@ -231,11 +239,12 @@ subroutine unfitted_fe_cell_iterator_update_integration( this )
     call this%get_nodes_coordinates(coordinates)
 
     quadrature => this%get_quadrature()
-    call cell_map%update(quadrature)
+    call cell_map%update(quadrature,no_ressemblance)
     do field_id = 1, this%get_num_fields()
        cell_integrator => this%get_cell_integrator(field_id)
-       call cell_integrator%update(cell_map)
+       call cell_integrator%update(no_ressemblance,cell_map)
     end do
+    call this%set_integration_updated(.true.)
   end if
 end subroutine unfitted_fe_cell_iterator_update_integration
 
@@ -302,7 +311,7 @@ subroutine unfitted_fe_cell_iterator_update_cut_quadratures( this )
     call this%get_ref_coords_of_subcell( subcell, nodal_coords_subelem )
 
     ! Compute the Jacobian of the mapping between the ref sub-element and ref element
-    call cell_map_subelem%update( quadrature_subelem )
+    call cell_map_subelem%update( quadrature_subelem, no_ressemblance )
 
     ! Determine if the current sub-cell is interior or exterior
     ! TODO this way of discarding the exterior sub-cells can be improved
@@ -470,12 +479,12 @@ subroutine unfitted_fe_cell_iterator_update_cut_boundary_cell_integrators( this 
   call this%get_nodes_coordinates(coordinates)
 
   ! Compute the jacobian and co
-  call cell_map%update( quad )
+  call cell_map%update( quad, no_ressemblance )
 
   ! Compute shape function derivatives 
   do field_id = 1, this%get_num_fields()
     cell_int => this%get_boundary_cell_integrator(field_id)
-     call cell_int%update(cell_map)
+     call cell_int%update(no_ressemblance,cell_map)
   end do
 
   ! At this point we can extract info about shape function from the cell integrator
