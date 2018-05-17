@@ -394,24 +394,17 @@ subroutine lagrangian_reference_fe_get_gradients_scalar( this, actual_cell_inter
      allocate(gradients(this%num_shape_functions, &
                         actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);      
   else
-     do qpoint=1, actual_cell_interpolation%num_quadrature_points
-        do ishape=1, this%num_shape_functions
-           call gradients(ishape,qpoint)%init(0.0_rp)
-        end do
-     end do
+     call init_vector_field_2D_array (this%num_shape_functions, &
+                                      actual_cell_interpolation%num_quadrature_points, &
+                                      0.0_rp, gradients )
   end if
-  do qpoint=1, actual_cell_interpolation%num_quadrature_points
-     if (present(qpoints_perm)) then
-       actual_qpoint = qpoints_perm(qpoint)
-     else
-       actual_qpoint = qpoint
-     end if
-     do ishape=1, this%num_shape_functions
-        do idime=1,this%num_dims
-           call gradients(ishape,qpoint)%set(idime,actual_cell_interpolation%shape_derivatives(1,idime,ishape,actual_qpoint))
-        end do
-     end do
-  end do
+  if ( present(qpoints_perm) )  then
+    call fill_vector_field_2D_array_with_4D_plain_array_perm( actual_cell_interpolation%shape_derivatives, &
+                                                              qpoints_perm, gradients )
+  else
+    call fill_vector_field_2D_array_with_4D_plain_array ( actual_cell_interpolation%shape_derivatives, & 
+                                                          gradients )
+  end if 
 end subroutine lagrangian_reference_fe_get_gradients_scalar
 
 !==================================================================================================
