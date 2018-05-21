@@ -1258,12 +1258,11 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_conforming ( this, fe_fu
   type(fe_function_t)      , intent(in)    :: fe_function
   real(rp)                 , intent(in)    :: elmat(:,:)
   real(rp)                 , intent(inout) :: elvec(:)
-  
-  integer(ip) :: idof, elmat_col, field_id, spos
-  
-  class(reference_fe_t)      , pointer :: reference_fe
+  integer(ip) :: idof, elmat_col, field_id, spos, dof_gid
   type(serial_scalar_array_t), pointer :: strong_dirichlet_values
   real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
+  
+  assert ( this%is_integration_updated() )
   
   strong_dirichlet_values         => fe_function%get_fixed_dof_values()
   strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
@@ -1271,17 +1270,15 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_conforming ( this, fe_fu
   elmat_col = 0
   do field_id = 1, this%fe_space%get_num_fields()
     if ( this%at_strong_dirichlet_boundary(field_id) ) then
-      reference_fe => this%get_reference_fe(field_id)
-      spos = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())
-      do idof = 1, reference_fe%get_num_shape_functions()
+      do idof = 1, size(this%fe_dofs(field_id)%p)
         elmat_col = elmat_col + 1
-        if ( this%fe_space%lst_dofs_gids%get(spos+idof-1) < 0 ) then
-          elvec = elvec - elmat(:,elmat_col)*strong_dirichlet_values_entries(-this%fe_space%lst_dofs_gids%get(spos+idof-1))
+        dof_gid = this%fe_dofs(field_id)%p(idof)
+        if ( dof_gid < 0 ) then
+          elvec = elvec - elmat(:,elmat_col)*strong_dirichlet_values_entries(abs(dof_gid))
         end if
       end do
     end if
   end do
-  
 end subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_conforming
 
 subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming ( this, fe_function )
@@ -1294,6 +1291,8 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_non_conforming ( this, f
   integer(ip) :: ifield, i_lid, i_gid, i_gid_hanging, k_lid, k_gid, pos, spos, epos
   real(rp) :: weight
   integer(ip) :: offset
+  
+  assert ( this%is_integration_updated() )
   
   strong_dirichlet_values         => fe_function%get_fixed_dof_values()
   strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
