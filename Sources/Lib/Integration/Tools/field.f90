@@ -137,6 +137,7 @@ module field_names
   public :: init_vector_field_2D_array
   public :: fill_vector_field_2D_array_with_4D_plain_array
   public :: fill_vector_field_2D_array_with_4D_plain_array_perm
+  public :: compute_point_1D_array_lin_comb_with_3D_plain_array
   
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -686,6 +687,26 @@ contains
     end do
   end subroutine fill_vector_field_2D_array_with_4D_plain_array_perm 
   
+  subroutine compute_point_1D_array_lin_comb_with_3D_plain_array ( plain_array, point_1D_array_in, point_1D_array_out )
+    implicit none
+    real(rp)     , intent(in)    :: plain_array(:,:,:)
+    type(point_t), intent(in)    :: point_1D_array_in(:)
+    type(point_t), intent(inout) :: point_1D_array_out(:)
+    integer(ip) :: i, j, k
+    real(rp) :: alpha
+    assert ( size(plain_array,1) >= 1 )
+    assert ( size(point_1D_array_out) == size(plain_array,3) )
+    assert ( size(point_1D_array_in)  == size(plain_array,2) )
+    do i=1, size(point_1D_array_out) 
+      point_1D_array_out(i)%value(:) = 0.0_rp 
+      do j=1, size(point_1D_array_in)
+        alpha = plain_array(1,j,i)
+        do k=1, SPACE_DIM
+          point_1D_array_out(i)%value(k) = point_1D_array_out(i)%value(k) + alpha * point_1D_array_in(j)%value(k)
+        end do
+      end do 
+    end do
+  end subroutine compute_point_1D_array_lin_comb_with_3D_plain_array
   
 end module field_names
 
