@@ -1455,6 +1455,8 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
   real(rp)                 , intent(in)    :: elmat(:,:)
   real(rp)                 , intent(inout) :: elvec(:)
   class(assembler_t)       , intent(inout) :: assembler
+  integer(ip), pointer :: field_blocks(:)
+  logical, pointer :: field_coupling(:,:)
   
   logical :: no_hanging_node_constraints
   integer(ip) :: ifield
@@ -1468,19 +1470,21 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
   end do
   
   call this%update_assembly_scratch_data()
+  field_blocks   => this%fe_space%get_field_blocks()
+  field_coupling => this%fe_space%get_field_coupling()
   if ( no_hanging_node_constraints ) then
     call this%impose_strong_dirichlet_bcs ( fe_function, elmat, elvec )
     call assembler%assembly_matrix( this%fe_space%num_fields,           &
-                                    this%fe_space%get_field_blocks(),   &
-                                    this%fe_space%get_field_coupling(), &
+                                    field_blocks,   &
+                                    field_coupling, &
                                     this%num_cell_dofs_x_field,         &
                                     this%num_cell_dofs_x_field,         &
                                     this%fe_dofs,                       &
                                     this%fe_dofs,                       &
                                     elmat )
     call assembler%assembly_array( this%fe_space%num_fields,            &
-                                   this%fe_space%get_field_blocks(),    &
-                                   this%fe_space%get_field_coupling(),  &
+                                   field_blocks,    &
+                                   field_coupling,  &
                                    this%num_cell_dofs_x_field,          &
                                    this%fe_dofs,                        &
                                    elvec )
@@ -1488,16 +1492,16 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
      call this%apply_constraints ( elmat, elvec )
      call this%impose_strong_dirichlet_bcs ( fe_function )
      call assembler%assembly_matrix( this%fe_space%num_fields,           &
-                                     this%fe_space%get_field_blocks(),   &
-                                     this%fe_space%get_field_coupling(), &
+                                     field_blocks,   &
+                                     field_coupling, &
                                      this%num_cell_dofs_x_field,         &
                                      this%num_cell_dofs_x_field,         &
                                      this%fe_dofs,                       &
                                      this%fe_dofs,                       &
                                      this%extended_elmat%a )
      call assembler%assembly_array( this%fe_space%num_fields,           &
-                                    this%fe_space%get_field_blocks(),   &
-                                    this%fe_space%get_field_coupling(), &
+                                    field_blocks,   &
+                                    field_coupling, &
                                     this%num_cell_dofs_x_field,         &
                                     this%fe_dofs,                       &
                                     this%extended_elvec%a )
