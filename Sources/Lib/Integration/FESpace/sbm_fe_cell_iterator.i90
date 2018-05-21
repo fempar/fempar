@@ -1086,7 +1086,7 @@ end subroutine fe_cell_iterator_nullify_cell_integrators
 !==================================================================================================
 function fe_cell_iterator_is_integration_updated ( this )
   implicit none
-  class(fe_cell_iterator_t), intent(inout) :: this
+  class(fe_cell_iterator_t), intent(in) :: this
   logical :: fe_cell_iterator_is_integration_updated
   fe_cell_iterator_is_integration_updated = this%integration_updated
 end function fe_cell_iterator_is_integration_updated
