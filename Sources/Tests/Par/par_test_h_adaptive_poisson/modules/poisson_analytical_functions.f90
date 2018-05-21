@@ -100,13 +100,13 @@ contains
     real(rp)            , intent(inout) :: result
     real(rp) :: n
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    n = real(this%order, rp)
-    if ( this%num_dims == 2 ) then
-      result =  -n*(n-1.0_rp)*(point%get(1)**(n-2.0_rp) + point%get(2)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2})
-    else if ( this%num_dims == 3 ) then
-      result =  -n*(n-1.0_rp)*(point%get(1)**(n-2.0_rp) + & 
-                point%get(2)**(n-2.0_rp) + point%get(3)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2}+z^{n-2})
-    end if 
+    !n = real(this%order, rp)
+    !if ( this%num_dims == 2 ) then
+    !  result =  -n*(n-1.0_rp)*(point%get(1)**(n-2.0_rp) + point%get(2)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2})
+    !else if ( this%num_dims == 3 ) then
+    !  result =  -n*(n-1.0_rp)*(point%get(1)**(n-2.0_rp) + & 
+    !            point%get(2)**(n-2.0_rp) + point%get(3)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2}+z^{n-2})
+    !end if
   end subroutine source_term_get_value_space
   
   !===============================================================================================
@@ -115,19 +115,26 @@ contains
     class(source_term_t)    , intent(in)    :: this
     type(point_t)           , intent(in)    :: point(:)
     real(rp)                , intent(inout) :: result(:)
-    integer(ip) :: i, num_points
-    real(rp) :: n
+    integer(ip) :: n, i, num_points
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     num_points = size(point)
-    n = real(this%order, rp)
     do i = 1, num_points
       if ( this%num_dims == 2 ) then
-        result =  -n*(n-1.0_rp)*(point(i)%get(1)**(n-2.0_rp) + point(i)%get(2)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2})
+       result(i) = 0.0_rp !point(i)%get(1) + point(i)%get(2) ! x+y
       else if ( this%num_dims == 3 ) then
-        result =  -n*(n-1.0_rp)*(point(i)%get(1)**(n-2.0_rp) + & 
-                  point(i)%get(2)**(n-2.0_rp) + point(i)%get(3)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2}+z^{n-2})
-      end if 
+       result(i) = 0.0_rp !point(i)%get(1) + point(i)%get(2) + point(i)%get(3) ! x+y+z
+      end if  
     end do
+    !num_points = size(point)
+    !n = real(this%order, rp)
+    !do i = 1, num_points
+    !  if ( this%num_dims == 2 ) then
+    !    result =  -n*(n-1.0_rp)*(point(i)%get(1)**(n-2.0_rp) + point(i)%get(2)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2})
+    !  else if ( this%num_dims == 3 ) then
+    !    result =  -n*(n-1.0_rp)*(point(i)%get(1)**(n-2.0_rp) + & 
+    !              point(i)%get(2)**(n-2.0_rp) + point(i)%get(3)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2}+z^{n-2})
+    !  end if 
+    !end do
   end subroutine source_term_get_values_set_space
   
   !===============================================================================================
