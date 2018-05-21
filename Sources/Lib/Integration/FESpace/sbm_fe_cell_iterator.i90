@@ -1233,10 +1233,8 @@ function fe_cell_iterator_is_void(this, field_id)
   class(fe_cell_iterator_t), intent(in)    :: this
   integer(ip),          intent(in)    :: field_id
   logical                             :: fe_cell_iterator_is_void
-  class(reference_fe_t), pointer :: reference_fe
-  reference_fe => this%get_reference_fe(field_id)
   fe_cell_iterator_is_void =  .false.
-  select type (reference_fe)
+  select type (ref_fe => this%reference_fes(field_id)%p)
     class is (void_reference_fe_t)
       fe_cell_iterator_is_void =  .true.
   end select
