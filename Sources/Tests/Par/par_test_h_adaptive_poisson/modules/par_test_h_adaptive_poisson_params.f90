@@ -6,20 +6,23 @@ module par_test_h_adaptive_poisson_params_names
   private
   
   character(len=*), parameter :: even_cells     = 'even_cells'       
-  character(len=*), parameter :: inner_region   = 'inner_region'          
+  character(len=*), parameter :: inner_region   = 'inner_region'         
   
-  character(len=*), parameter :: reference_fe_geo_order_key = 'reference_fe_geo_order'
-  character(len=*), parameter :: reference_fe_order_key     = 'reference_fe_order'    
-  character(len=*), parameter :: write_solution_key         = 'write_solution'        
-  character(len=*), parameter :: triangulation_type_key     = 'triangulation_type'
-  character(len=*), parameter :: use_void_fes_key           = 'use_void_fes'
-  character(len=*), parameter :: use_void_fes_case_key      = 'use_void_fes_case'
+  character(len=*), parameter :: reference_fe_geo_order_key     = 'reference_fe_geo_order'
+  character(len=*), parameter :: reference_fe_order_key         = 'reference_fe_order'    
+  character(len=*), parameter :: write_solution_key             = 'write_solution'        
+  character(len=*), parameter :: triangulation_type_key         = 'triangulation_type'
+  character(len=*), parameter :: use_void_fes_key               = 'use_void_fes'
+  character(len=*), parameter :: use_void_fes_case_key          = 'use_void_fes_case'
+  character(len=*), parameter :: coupling_criteria_key          = 'coupling_criteria'
+  
   ! Meshing parameters 
   character(len=*), parameter :: refinement_pattern_case_key   = 'refinement_pattern_case'
   character(len=*), parameter :: domain_limits_key             = 'domain_limits'
   character(len=*), parameter :: inner_region_size_key         = 'inner_region_size '
   character(len=*), parameter :: num_refinements_key           = 'num_refinements'
   character(len=*), parameter :: min_num_refinements_key       = 'min_num_refinements'
+  
 
   type, extends(parameter_handler_t) :: par_test_h_adaptive_poisson_params_t
      private
@@ -38,6 +41,7 @@ module par_test_h_adaptive_poisson_params_names
        procedure, non_overridable             :: get_inner_region_size 
        procedure, non_overridable             :: get_num_refinements 
        procedure, non_overridable             :: get_min_num_refinements
+       procedure, non_overridable             :: get_subparts_coupling_criteria 
        !procedure, non_overridable             :: get_num_dims
   end type par_test_h_adaptive_poisson_params_t
 
@@ -86,6 +90,7 @@ contains
     error = list%set(key = inner_region_size_key , value = [0.1,0.1,0.1]) ; check(error==0)
     error = list%set(key = num_refinements_key               , value = 3) ; check(error==0)
     error = list%set(key = min_num_refinements_key           , value = 1) ; check(error==0)
+    error = list%set(key = coupling_criteria_key    , value = loose_coupling) ; check(error==0) 
 
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -110,6 +115,7 @@ contains
     error = switches%set(key = inner_region_size_key   , value = '--inner_region_size') ; check(error==0)
     error = switches%set(key = num_refinements_key    , value = '--num_refinements') ; check(error==0)
     error = switches%set(key = min_num_refinements_key, value = '--min_num_refinements') ; check(error==0)
+    error = switches%set(key = coupling_criteria_key, value = '--subparts_coupling_criteria') ; check(error==0)
 
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -133,6 +139,7 @@ contains
     error = switches_ab%set(key = inner_region_size_key       , value = '-ir_size')    ; check(error==0)
     error = switches_ab%set(key = num_refinements_key        , value = '-num_refs')    ; check(error==0)
     error = switches_ab%set(key = min_num_refinements_key    , value = '-min_num_refs')    ; check(error==0)
+    error = switches_ab%set(key = coupling_criteria_key    , value = '-subparts_coupling')    ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -152,8 +159,9 @@ contains
     error = helpers%set(key = refinement_pattern_case_key   , value  = 'Select refinement pattern. Possible values: even_cells, centered_refinement' ); check(error==0)
     error = helpers%set(key = domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
     error = helpers%set(key = inner_region_size_key  , value = 'Concentric with the domain refined area length) ') ; check(error==0)
-    error = helpers%set(key = num_refinements_key     , value = 'Number of adaptive mesh refinements from a plain cell')                ; check(error==0)
-    error = helpers%set(key = min_num_refinements_key     , value = 'Minimum level of refinement for any cell')                ; check(error==0)
+    error = helpers%set(key = num_refinements_key     , value = 'Number of adaptive mesh refinements from a plain cell') ; check(error==0)
+    error = helpers%set(key = min_num_refinements_key , value = 'Minimum number of adaptive mesh refinements for any cell') ; check(error==0)
+    error = helpers%set(key = coupling_criteria_key, value = 'Criteria to decide whether two subparts are connected or not and identify disconnected parts accordingly') ; check(error==0)
  
     msg = 'structured (*) or unstructured (*) triangulation?'
     write(msg(13:13),'(i1)') triangulation_generate_structured
@@ -188,6 +196,7 @@ contains
     error = required%set(key = inner_region_size_key  , value = .false.)  ; check(error==0)
     error = required%set(key = num_refinements_key,                 value = .false.)  ; check(error==0)
     error = required%set(key = min_num_refinements_key,             value = .false.)  ; check(error==0)
+    error = required%set(key = coupling_criteria_key,               value = .false.)  ; check(error==0)
 
   end subroutine par_test_h_adaptive_poisson_params_define_parameters
 
@@ -305,8 +314,9 @@ contains
     character(len=:), allocatable                            :: get_refinement_pattern_case
     type(ParameterList_t), pointer                           :: list
     integer(ip)                                              :: error
+    character(1) :: dummy_string
     list  => this%get_values()
-    assert(list%isAssignable(refinement_pattern_case_key, get_refinement_pattern_case))
+    assert(list%isAssignable(refinement_pattern_case_key, dummy_string))
     error = list%GetAsString(key = refinement_pattern_case_key, string = get_refinement_pattern_case)
     assert(error==0)
   end function get_refinement_pattern_case
@@ -362,5 +372,19 @@ contains
     error = list%Get(key = min_num_refinements_key, Value = get_min_num_refinements)
     assert(error==0)
   end function get_min_num_refinements
+  
+  !==================================================================================================
+  function get_subparts_coupling_criteria(this)
+    implicit none
+    class(par_test_h_adaptive_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable                            :: get_subparts_coupling_criteria
+    type(ParameterList_t), pointer                           :: list
+    integer(ip)                                              :: error
+    character(1) :: dummy_string
+    list  => this%get_values()
+    assert(list%isAssignable(coupling_criteria_key, dummy_string))
+    error = list%GetAsString(key = coupling_criteria_key, string = get_subparts_coupling_criteria)
+    assert(error==0)
+  end function get_subparts_coupling_criteria
 
 end module par_test_h_adaptive_poisson_params_names

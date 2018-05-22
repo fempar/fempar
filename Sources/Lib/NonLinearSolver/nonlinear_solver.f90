@@ -665,7 +665,7 @@ subroutine L2_iterative_secant_line_search_determine_step_length(this, increment
 
      ! Update step length 
      step_length_update = -curr_grad_res_norm*(this%step_length-previous_step_length)/(curr_grad_res_norm-prev_grad_res_norm)
-     if ( abs(step_length_update) > 1e-5_rp .and. step_length_update>0) then 
+     if ( abs(step_length_update) > 1e-5_rp ) then 
         this%step_length  = this%step_length  + step_length_update 
      else 
         call nonlinear_operator%set_evaluation_point(this%initial_dof_values)
@@ -673,7 +673,6 @@ subroutine L2_iterative_secant_line_search_determine_step_length(this, increment
      end if
 
      ! Return nonlinear operator to the starting point  
-
      previous_step_length = this%step_length 
      previous_res_norm    = current_residual%nrm2()
   end do

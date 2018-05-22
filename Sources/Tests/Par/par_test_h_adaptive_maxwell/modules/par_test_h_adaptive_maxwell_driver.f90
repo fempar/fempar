@@ -36,23 +36,22 @@ module par_test_h_adaptive_maxwell_driver_names
   implicit none
   private
 
-  integer(ip), parameter :: PAR_TEST_MAXWELL_FULL = 1 ! Has to be == 1
+  integer(ip), parameter :: PAR_TEST_MAXWELL_FULL = 1
 
   type par_test_h_adaptive_maxwell_fe_driver_t 
      private 
      
      ! Place-holder for parameter-value set provided through command-line interface
      type(par_test_h_adaptive_maxwell_params_t) :: test_params
-     type(ParameterList_t), pointer       :: parameter_list
+     type(ParameterList_t), pointer             :: parameter_list
      
      ! Cells and lower dimension objects container
      type(p4est_par_triangulation_t)       :: triangulation
-     integer(ip), allocatable              :: cell_set_ids(:)
      
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable       :: reference_fes(:) 
-     type(standard_l1_coarse_fe_handler_t)       :: coarse_fe_handler
+     type(h_adaptive_algebraic_l1_Hcurl_coarse_fe_handler_t)  :: coarse_fe_handler
      type(p_l1_coarse_fe_handler_t), allocatable :: coarse_fe_handlers(:)
      type(maxwell_CG_discrete_integration_t)   :: maxwell_integration
      type(maxwell_conditions_t)                :: maxwell_conditions
@@ -62,10 +61,10 @@ module par_test_h_adaptive_maxwell_driver_names
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
      
-!#ifdef ENABLE_MKL     
-!     ! MLBDDC preconditioner
-!     type(mlbddc_t)                            :: mlbddc
-!#endif  
+#ifdef ENABLE_MKL     
+     ! MLBDDC preconditioner
+     type(mlbddc_t)                            :: mlbddc
+#endif  
     
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
@@ -103,7 +102,6 @@ module par_test_h_adaptive_maxwell_driver_names
      procedure        , private :: free
      procedure                  :: free_command_line_parameters
      procedure                  :: free_environment
-     procedure, nopass, private :: popcorn_fun => par_test_h_adaptive_maxwell_driver_popcorn_fun
      procedure                  :: set_cells_for_refinement
      procedure                  :: set_cells_set_ids
   end type par_test_h_adaptive_maxwell_fe_driver_t
@@ -190,12 +188,17 @@ end subroutine free_timers
     integer(ip) :: ivef_pos_in_cell, vef_of_vef_pos_in_cell
     integer(ip) :: vertex_pos_in_cell, icell_arround
     integer(ip) :: inode, num
-    class(environment_t), pointer :: environment
+    class(environment_t), pointer :: environment  
+    real(rp)    :: domain(6)
+    character(len=:), allocatable :: subparts_coupling_criteria
 
-
+    ! Create a structured mesh with a custom domain 
+    domain = this%test_params%get_domain_limits() 
+    subparts_coupling_criteria = this%test_params%get_subparts_coupling_criteria() 
+    istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
+    istat = this%parameter_list%set(key = subparts_coupling_criteria_key, value = subparts_coupling_criteria); check(istat==0) 
     call this%triangulation%create(this%parameter_list, this%par_environment)
 
-  !  if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
        environment => this%triangulation%get_environment()
        if (environment%am_i_l1_task()) then
          call this%triangulation%create_vef_iterator(vef)
@@ -209,17 +212,17 @@ end subroutine free_timers
          end do
          call this%triangulation%free_vef_iterator(vef)
        end if  
-   ! end if  
  
-    do i = 1,3
+    do i = 1,this%test_params%get_num_refinements()
       call this%set_cells_for_refinement()
       call this%triangulation%refine_and_coarsen()
-      call this%set_cells_set_ids()
       call this%triangulation%redistribute()
       call this%triangulation%clear_refinement_and_coarsening_flags()
     end do
-    
-    !call this%triangulation%setup_coarse_triangulation()
+    call this%set_cells_set_ids()
+#ifdef ENABLE_MKL    
+    call this%triangulation%setup_coarse_triangulation()
+#endif    
   end subroutine setup_triangulation
   
   subroutine setup_reference_fes(this)
@@ -290,7 +293,9 @@ end subroutine free_timers
                                           discrete_integration              = this%maxwell_integration )
     
     call this%solution%create(this%fe_space) 
+    ! Check interpolators 
     call this%fe_space%interpolate(1, this%maxwell_analytical_functions%get_solution_function(), this%solution)
+    call this%check_solution()
     call this%fe_space%interpolate_dirichlet_values(this%solution)
     call this%maxwell_integration%set_fe_function(this%solution)
   end subroutine setup_system
@@ -300,76 +305,87 @@ end subroutine free_timers
     class(par_test_h_adaptive_maxwell_fe_driver_t), target, intent(inout) :: this
     type(parameterlist_t) :: parameter_list
     type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
-
+    class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
+    
     integer(ip) :: ilev
     integer(ip) :: FPLError
     integer(ip) :: iparm(64)
 
-!#ifdef ENABLE_MKL  
-!    ! See https://software.intel.com/en-us/node/470298 for details
-!    iparm      = 0 ! Init all entries to zero
-!    iparm(1)   = 1 ! no solver default
-!    iparm(2)   = 2 ! fill-in reordering from METIS
-!    iparm(8)   = 2 ! numbers of iterative refinement steps
-!    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-!    iparm(11)  = 1 ! use scaling 
-!    iparm(13)  = 1 ! use maximum weighted matching algorithm 
-!    iparm(21)  = 1 ! 1x1 + 2x2 pivots
+#ifdef ENABLE_MKL  
+    
+    ! BDDC preconditioner
+    coarse_fe_handler => this%coarse_fe_handler 
+    select type (coarse_fe_handler) 
+       class is (h_adaptive_algebraic_l1_Hcurl_coarse_fe_handler_t) 
+       call coarse_fe_handler%set_num_dims(this%triangulation%get_num_dims())
+       call coarse_fe_handler%setup_object_dofs(1, this%fe_space, this%parameter_list)
+       class DEFAULT 
+    end select
+    
+    ! See https://software.intel.com/en-us/node/470298 for details
+    iparm      = 0 ! Init all entries to zero
+    iparm(1)   = 1 ! no solver default
+    iparm(2)   = 2 ! fill-in reordering from METIS
+    iparm(8)   = 2 ! numbers of iterative refinement steps
+    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+    iparm(11)  = 1 ! use scaling 
+    iparm(13)  = 1 ! use maximum weighted matching algorithm 
+    iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
-!    plist => this%parameter_list 
-!    if ( this%par_environment%get_l1_size() == 1 ) then
-!       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-!       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-!       FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-!       FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-!    end if
-!    do ilev=1, this%par_environment%get_num_levels()-1
-!       ! Set current level Dirichlet solver parameters
-!       dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
-!       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-!       FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-!       FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-!       FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-!       
-!       ! Set current level Neumann solver parameters
-!       neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
-!       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-!       FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
-!       FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-!       FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-!     
-!       coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
-!       plist  => coarse 
-!    end do
-!    ! Set coarsest-grid solver parameters
-!    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
-!    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
-!    FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
-!    FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+    plist => this%parameter_list 
+    if ( this%par_environment%get_l1_size() == 1 ) then
+       FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = plist%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+    end if
+    do ilev=1, this%par_environment%get_num_levels()-1
+       ! Set current level Dirichlet solver parameters
+       dirichlet => plist%NewSubList(key=mlbddc_dirichlet_solver_params)
+       FPLError = dirichlet%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+       
+       ! Set current level Neumann solver parameters
+       neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
+       FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+       FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
+       FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+       FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
+     
+       coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
+       plist  => coarse 
+    end do
+    ! Set coarsest-grid solver parameters
+    FPLError = coarse%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
+    FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
-!    ! Set-up MLBDDC preconditioner
-!    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-!    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
-!    call this%mlbddc%symbolic_setup()
-!    call this%mlbddc%numerical_setup()
-!#endif    
+    ! Set-up MLBDDC preconditioner
+    call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
+    call this%mlbddc%symbolic_setup()
+    call this%mlbddc%numerical_setup()
+#endif    
    
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
-
-!#ifdef ENABLE_MKL
-!    call this%iterative_linear_solver%set_operators(this%fe_affine_operator, this%mlbddc) 
-!#else
+    
     call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
+    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-8_rp)
     assert(FPLError == 0)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
+
+#ifdef ENABLE_MKL
+    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
+#else
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
+#endif   
     call parameter_list%free()
-!#endif   
-    
   end subroutine setup_solver
   
   
@@ -434,6 +450,7 @@ end subroutine free_timers
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     type(error_norms_vector_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
+    real(rp) :: tol 
     
     call error_norm%create(this%fe_space,1)    
     mean = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, mean_norm)   
@@ -448,17 +465,18 @@ end subroutine free_timers
     w1infty_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     w1infty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
-      write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'l1_norm:', l1; !check ( l1 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'l2_norm:', l2; !check ( l2 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'lp_norm:', lp; !check ( lp < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; !check ( linfty < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; !check ( h1_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'h1_norm:', h1; !check ( h1 < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; !check ( w1p_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; !check ( w1p < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; !check ( w1infty_s < 1.0e-04 )
-      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; !check ( w1infty < 1.0e-04 )
+      tol=1.0e-4_rp 
+      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < tol )
+      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < tol )
+      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < tol )
+      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < tol )
+      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < tol )
+      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < tol )
+      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < tol )
+      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < tol )
+      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < tol )
+      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < tol )
+      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < tol )
     end if  
     call error_norm%free()
   end subroutine check_solution
@@ -467,16 +485,10 @@ end subroutine free_timers
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(in) :: this
     type(output_handler_t)                          :: oh
-    real(rp),allocatable :: cell_vector(:)
     real(rp),allocatable :: mypart_vector(:)
 
     if(this%test_params%get_write_solution()) then
       if (this%par_environment%am_i_l1_task()) then
-
-        if (this%test_params%get_use_void_fes()) then
-          call memalloc(this%triangulation%get_num_local_cells(),cell_vector,__FILE__,__LINE__)
-          cell_vector(:) = this%cell_set_ids(:)
-        end if
 
         call memalloc(this%triangulation%get_num_local_cells(),mypart_vector,__FILE__,__LINE__)
         mypart_vector(:) = this%par_environment%get_l1_rank()
@@ -484,18 +496,13 @@ end subroutine free_timers
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
         call oh%add_fe_function(this%solution, 1, 'solution')
-        if (this%test_params%get_use_void_fes()) then
-          call oh%add_cell_vector(cell_vector,'cell_set_ids')
-        end if
         call oh%add_cell_vector(mypart_vector,'l1_rank')
         call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
         call oh%write()
         call oh%close()
         call oh%free()
 
-        if (allocated(cell_vector)) call memfree(cell_vector,__FILE__,__LINE__)
         call memfree(mypart_vector,__FILE__,__LINE__)
-
       end if
     endif
   end subroutine write_solution
@@ -534,13 +541,20 @@ end subroutine free_timers
   
   subroutine free(this)
     implicit none
-    class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
+    class(par_test_h_adaptive_maxwell_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: i, istat
+    class(l1_coarse_fe_handler_t), pointer :: coarse_fe_handler
     
     call this%solution%free()
-!#ifdef ENABLE_MKL    
-!    call this%mlbddc%free()
-!#endif    
+#ifdef ENABLE_MKL    
+    call this%mlbddc%free()
+    coarse_fe_handler => this%coarse_fe_handler 
+    select type (coarse_fe_handler) 
+       class is (h_adaptive_algebraic_l1_Hcurl_coarse_fe_handler_t) 
+       call coarse_fe_handler%free()
+       class DEFAULT 
+    end select
+#endif    
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
     call this%fe_space%free()
@@ -552,7 +566,6 @@ end subroutine free_timers
       check(istat==0)
     end if
     call this%triangulation%free()
-    !if (allocated(this%cell_set_ids)) call memfree(this%cell_set_ids,__FILE__,__LINE__)
   end subroutine free  
 
   !========================================================================================
@@ -569,80 +582,100 @@ end subroutine free_timers
     call this%test_params%free()
   end subroutine free_command_line_parameters
 
-  function par_test_h_adaptive_maxwell_driver_popcorn_fun(point,num_dim) result (val)
-    implicit none
-    type(point_t), intent(in) :: point
-    integer(ip),   intent(in) :: num_dim
-    real(rp) :: val
-    type(point_t) :: p
-    real(rp) :: x, y, z
-    real(rp) :: xk, yk, zk
-    real(rp) :: r0, sg, A
-    integer(ip) :: k
-    p = point
-    if (num_dim < 3) call p%set(3,0.62)
-    x = ( 2.0*p%get(1) - 1.0 )
-    y = ( 2.0*p%get(2) - 1.0 )
-    z = ( 2.0*p%get(3) - 1.0 )
-    r0 = 0.6
-    sg = 0.2
-    A  = 2.0
-    val = sqrt(x**2 + y**2 + z**2) - r0
-    do k = 0,11
-        if (0 <= k .and. k <= 4) then
-            xk = (r0/sqrt(5.0))*2.0*cos(2.0*k*pi/5.0)
-            yk = (r0/sqrt(5.0))*2.0*sin(2.0*k*pi/5.0)
-            zk = (r0/sqrt(5.0))
-        else if (5 <= k .and. k <= 9) then
-            xk = (r0/sqrt(5.0))*2.0*cos((2.0*(k-5)-1.0)*pi/5.0)
-            yk = (r0/sqrt(5.0))*2.0*sin((2.0*(k-5)-1.0)*pi/5.0)
-            zk =-(r0/sqrt(5.0))
-        else if (k == 10) then
-            xk = 0
-            yk = 0
-            zk = r0
-        else
-            xk = 0
-            yk = 0
-            zk = -r0
-        end if
-        val = val - A*exp( -( (x - xk)**2  + (y - yk)**2 + (z - zk)**2 )/(sg**2) )
-    end do
-  end function par_test_h_adaptive_maxwell_driver_popcorn_fun
-  
+  !========================================================================================
   subroutine set_cells_for_refinement(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
     class(environment_t), pointer :: environment
+    type(point_t), allocatable    :: cell_coordinates(:)
+    real(rp) :: cx, cy, cz
+    integer(ip) :: inode, istat
+    character(len=:), allocatable :: refinement_pattern_case
+    ! Centered refined pattern 
+    real(rp)               :: inner_region_size(0:SPACE_DIM-1)  
+    real(rp)               :: domain(6)
+    real(rp)               :: domain_length(0:SPACE_DIM-1) 
+    logical, allocatable   :: is_node_coord_within_inner_region(:)  
+    integer(ip)            :: idime 
+
     environment => this%triangulation%get_environment()
+
     if ( environment%am_i_l1_task() ) then
-      call this%triangulation%create_cell_iterator(cell) 
-      do while ( .not. cell%has_finished() )
-        if ( cell%is_local() ) then
-         if ( mod(cell%get_ggid(),2) == 0 .or. (cell%get_level() == 0) )then
-            call cell%set_for_refinement()
+       call this%triangulation%create_cell_iterator(cell)
+       allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
+
+       if ( this%test_params%get_refinement_pattern_case() == inner_region ) then 
+          call memalloc(this%triangulation%get_num_dims(), is_node_coord_within_inner_region, __FILE__, __LINE__ ) 
+          inner_region_size = this%test_params%get_inner_region_size() 
+          domain = this%test_params%get_domain_limits()
+          domain_length(0) = domain(2)-domain(1) 
+          domain_length(1) = domain(4)-domain(3) 
+          domain_length(2) = domain(6)-domain(5) 
+       end if
+
+       do while ( .not. cell%has_finished() )
+          if ( cell%is_local() ) then       
+             if ( cell%get_level() < this%test_params%get_min_num_refinements() ) then
+                call cell%set_for_refinement() 
+                call cell%next(); cycle 
+             end if
+             call cell%get_nodes_coordinates(cell_coordinates)
+             cx = 0.0_rp
+             cy = 0.0_rp 
+             cz = 0.0_rp 
+             select case ( this%test_params%get_refinement_pattern_case() ) 
+             case ( even_cells ) 
+                if ( (mod(cell%get_gid(),2)==0) )then
+                   call cell%set_for_refinement()
+                end if
+             case ( inner_region ) 
+                node_loop: do inode=1, cell%get_num_nodes()      
+                   is_node_coord_within_inner_region=.false. 
+                   do idime=0, this%triangulation%get_num_dims()-1
+                      if ( (domain_length(idime)-inner_region_size(idime))/2.0_rp <= cell_coordinates(inode)%get(idime+1) .and. &
+                           (domain_length(idime)+inner_region_size(idime))/2.0_rp >= cell_coordinates(inode)%get(idime+1) ) then 
+                         is_node_coord_within_inner_region(idime+1)=.true. 
+                      else 
+                         cycle node_loop   
+                      end if
+                   end do
+                   if ( all(is_node_coord_within_inner_region) ) then 
+                   call cell%set_for_refinement(); exit 
+                   end if 
+                end do node_loop
+             case DEFAULT 
+                massert(.false., 'Refinement pattern case selected is not among the options provided: even_cells, inner_region') 
+             end select
           end if
-        end if  
-        call cell%next()
-      end do
-      call this%triangulation%free_cell_iterator(cell)
+          call cell%next()
+       end do
+       call this%triangulation%free_cell_iterator(cell)
+       deallocate(cell_coordinates, stat=istat); check(istat==0)
     end if
+    
+    if (allocated(is_node_coord_within_inner_region)) call memfree(is_node_coord_within_inner_region)
   end subroutine set_cells_for_refinement
   
   subroutine set_cells_set_ids(this)
     implicit none
     class(par_test_h_adaptive_maxwell_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell
-    class(environment_t), pointer :: environment
+    class(environment_t)  , pointer     :: environment
+    integer(ip)           , allocatable :: cell_set_ids(:)        
     environment => this%triangulation%get_environment()
     if ( environment%am_i_l1_task() ) then
+      call memalloc ( this%triangulation%get_num_local_cells(), cell_set_ids, __FILE__, __LINE__ )
       call this%triangulation%create_cell_iterator(cell)
       do while ( .not. cell%has_finished() )
-        call cell%set_set_id(int(cell%get_ggid(),ip))
+        if ( cell%is_local() ) then
+          cell_set_ids(cell%get_gid()) = 0
+        end if   
         call cell%next()
       end do
       call this%triangulation%free_cell_iterator(cell)
+      call this%triangulation%fill_cells_set(cell_set_ids)
+      call memfree ( cell_set_ids, __FILE__, __LINE__ )
     end if
   end subroutine set_cells_set_ids
     

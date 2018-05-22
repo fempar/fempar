@@ -53,6 +53,7 @@ subroutine coarse_fe_space_create (this, &
   call this%free()
 
   this%coarse_triangulation => coarse_triangulation
+  this%environment          => coarse_triangulation%get_environment()
   environment => this%get_environment()
   if(environment%am_i_l1_task()) then
      this%num_fields = num_fields
@@ -137,6 +138,7 @@ recursive subroutine coarse_fe_space_free (this)
         check (istat==0)
       end if
       nullify(this%coarse_triangulation)
+      nullify(this%environment)
    end if   
 end subroutine coarse_fe_space_free
 
@@ -1886,7 +1888,7 @@ end subroutine coarse_fe_space_free_coarse_fe_vef_iterator
     implicit none
     class(coarse_fe_space_t), intent(in) :: this
     class(environment_t)  , pointer  :: coarse_fe_space_get_environment
-    coarse_fe_space_get_environment => this%coarse_triangulation%get_environment()
+    coarse_fe_space_get_environment => this%environment
   end function coarse_fe_space_get_environment
   
   function coarse_fe_space_get_num_local_coarse_fes (this)

@@ -118,6 +118,7 @@ subroutine interpolation_clone(this, source_interpolation)
                                         source_interpolation%num_shape_functions,   &
                                         source_interpolation%num_quadrature_points, & 
                                         source_interpolation%my_duties ) ) return
+
  
   call this%free()
   this%my_duties             = source_interpolation%my_duties
@@ -132,7 +133,7 @@ subroutine interpolation_clone(this, source_interpolation)
           &        this%num_quadrature_points,this%shape_derivatives,   __FILE__,__LINE__)
   end if
   if(this%my_duties%compute_second_derivatives_is_assigned()) then
-    call memalloc(this%num_dims,this%num_entries_symmetric_tensor,this%num_shape_functions, &
+    call memalloc(SPACE_DIM,this%num_entries_symmetric_tensor,this%num_shape_functions, &
          &        this%num_quadrature_points,this%hessian,   __FILE__,__LINE__) 
  end if
 end subroutine interpolation_clone

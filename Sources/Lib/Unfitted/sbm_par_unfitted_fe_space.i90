@@ -123,3 +123,39 @@ end subroutine pufs_create_fe_cell_iterator
 !  call fe_face%create(this,vef)
 !  call triangulation%free_vef_iterator(vef)
 !end subroutine pufs_create_fe_facet_iterator
+
+!========================================================================================
+subroutine pufs_set_up_cell_integration ( this, interpolation_duties, cell_map_duties )
+  implicit none
+  class(par_unfitted_fe_space_t), target, intent(inout) :: this
+  type(interpolation_duties_t), optional, intent(in) :: interpolation_duties(:)
+  type(cell_map_duties_t)     , optional, intent(in)    :: cell_map_duties
+
+  class(triangulation_t), pointer :: triangulation
+  type(environment_t), pointer :: environment
+
+  call this%par_fe_space_t%set_up_cell_integration(interpolation_duties, cell_map_duties)
+  
+  call this%set_cell_integration_was_set_up(.false.)
+  
+  triangulation => this%get_triangulation()
+  environment => triangulation%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    call this%unfitted_integration%init_cut_integration()
+    call this%unfitted_integration%init_cut_boundary_integration()
+  end if
+  
+  call this%set_cell_integration_was_set_up(.true.)
+
+end subroutine pufs_set_up_cell_integration
+
+!========================================================================================
+subroutine pufs_set_up_facet_integration ( this )
+  implicit none
+  class(par_unfitted_fe_space_t), target, intent(inout) :: this
+  call this%serial_fe_space_t%set_up_facet_integration()
+  mcheck(.false.,'Not yer supported for par_unfitted_fe_space_t')
+  !call this%unfitted_integration%init_cut_fitted_facets_integration()
+end subroutine pufs_set_up_facet_integration
+
+

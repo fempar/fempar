@@ -183,7 +183,6 @@ subroutine fe_facet_iterator_update_fes_around( this )
   integer(ip) :: icell_around
   do icell_around=1, this%get_num_cells_around()
     call this%get_cell_around(icell_around, this%fes_around(icell_around)%p)
-    call this%fes_around(icell_around)%p%update_scratch_data()
   end do 
 end subroutine fe_facet_iterator_update_fes_around
 
@@ -242,9 +241,13 @@ subroutine fe_facet_iterator_assembly_array ( this,    &
   class(fe_facet_iterator_t)      , intent(inout) :: this
   real(rp)                       , intent(in)    :: facevec(:,:)
   class(assembler_t), intent(inout) :: assembler
-  
   integer(ip) :: ineigh
   
+  do ineigh = 1, this%get_num_cells_around()
+    call this%fes_around(ineigh)%p%update_assembly_scratch_data()
+  end do
+  call this%clear_fe_dofs_ghost_full_local_void()
+
   do ineigh = 1, this%get_num_cells_around()
     call assembler%assembly_array( this%fe_space%num_fields,                    &
                                                 this%fe_space%get_field_blocks(),               &
@@ -263,8 +266,12 @@ subroutine fe_facet_iterator_assembly_matrix ( this,    &
   class(fe_facet_iterator_t)      , intent(inout) :: this
   real(rp)                       , intent(in)    :: facemat(:,:,:,:)
   class(assembler_t), intent(inout) :: assembler
-  
   integer(ip) :: ineigh, jneigh
+  
+  do ineigh = 1, this%get_num_cells_around()
+    call this%fes_around(ineigh)%p%update_assembly_scratch_data()
+  end do
+  call this%clear_fe_dofs_ghost_full_local_void()
   
   do ineigh = 1, this%get_num_cells_around()
     do jneigh = 1, this%get_num_cells_around()
@@ -294,6 +301,12 @@ subroutine fe_facet_iterator_assembly_matrix_array ( this,    &
   integer(ip) :: ineigh, jneigh
  
   do ineigh = 1, this%get_num_cells_around()
+    call this%fes_around(ineigh)%p%update_assembly_scratch_data()
+  end do
+  call this%clear_fe_dofs_ghost_full_local_void()
+  
+  
+  do ineigh = 1, this%get_num_cells_around()
     do jneigh = 1, this%get_num_cells_around()
       call assembler%assembly_matrix( this%fe_space%num_fields,                   &
                                                    this%fe_space%get_field_blocks(),              &
@@ -313,6 +326,116 @@ subroutine fe_facet_iterator_assembly_matrix_array ( this,    &
   end do
   
 end subroutine fe_facet_iterator_assembly_matrix_array
+
+subroutine fe_facet_iterator_assembly_matrix_array_with_strong_bcs (&
+    this,    &
+    fe_function, &
+    facemat, &
+    facevec, &
+    assembler )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  type(fe_function_t), intent(in) :: fe_function
+  real(rp), intent(in)    :: facemat(:,:,:,:)
+  real(rp), intent(inout)    :: facevec(:,:)
+  class(assembler_t), intent(inout) :: assembler
+  
+  integer(ip) :: ineigh, jneigh
+ 
+  do ineigh = 1, this%get_num_cells_around()
+    call this%fes_around(ineigh)%p%update_assembly_scratch_data()
+  end do
+  call this%clear_fe_dofs_ghost_full_local_void()
+  
+  call this%impose_strong_dirichlet_bcs(fe_function,facemat,facevec)
+  
+  do ineigh = 1, this%get_num_cells_around()
+    do jneigh = 1, this%get_num_cells_around()
+      call assembler%assembly_matrix( this%fe_space%num_fields,                   &
+                                                   this%fe_space%get_field_blocks(),              &
+                                                   this%fe_space%get_field_coupling(),            &
+                                                   this%fes_around(ineigh)%p%num_cell_dofs_x_field, &
+                                                   this%fes_around(jneigh)%p%num_cell_dofs_x_field, &
+                                                   this%fes_around(ineigh)%p%fe_dofs,              &
+                                                   this%fes_around(jneigh)%p%fe_dofs,              &
+                                                   facemat(:,:,ineigh,jneigh) )
+    end do
+    call assembler%assembly_array( this%fe_space%num_fields,                    &
+                                                  this%fe_space%get_field_blocks(),               &
+                                                  this%fe_space%get_field_coupling(),             &
+                                                  this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
+                                                  this%fes_around(ineigh)%p%fe_dofs,               &
+                                                  facevec(:,ineigh) )
+  end do
+  
+end subroutine fe_facet_iterator_assembly_matrix_array_with_strong_bcs
+
+subroutine fe_facet_iterator_impose_strong_dirichlet_bcs_conforming (&
+    this, fe_function, facemat, facevec )
+
+  implicit none
+  class(fe_facet_iterator_t), intent(in) :: this
+  type(fe_function_t), intent(in) :: fe_function
+  real(rp), intent(in) :: facemat(:,:,:,:)
+  real(rp), intent(inout) :: facevec(:,:)
+  
+  integer(ip) :: idof, elmat_col, field_id, spos
+  
+  class(reference_fe_t)      , pointer :: reference_fe
+  type(serial_scalar_array_t), pointer :: strong_dirichlet_values
+  real(rp)                   , pointer :: strong_dirichlet_values_entries(:)
+
+  integer(ip) :: ineigh, jneigh
+  
+  strong_dirichlet_values         => fe_function%get_fixed_dof_values()
+  strong_dirichlet_values_entries => strong_dirichlet_values%get_entries()
+
+  do ineigh = 1, this%get_num_cells_around()
+    do jneigh = 1, this%get_num_cells_around()
+  
+      elmat_col = 0
+      do field_id = 1, this%fes_around(jneigh)%p%fe_space%get_num_fields()
+        if ( this%fes_around(jneigh)%p%at_strong_dirichlet_boundary(field_id) ) then
+          reference_fe => this%fes_around(jneigh)%p%get_reference_fe(field_id)
+          spos = this%fes_around(jneigh)%p%fe_space%ptr_dofs_x_fe(field_id)%get(this%fes_around(jneigh)%p%get_gid())
+          do idof = 1, reference_fe%get_num_shape_functions()
+            elmat_col = elmat_col + 1
+            if ( this%fes_around(jneigh)%p%fe_space%lst_dofs_gids%get(spos+idof-1) < 0 ) then
+              facevec(:,ineigh) = facevec(:,ineigh) &
+                & - facemat(:,elmat_col,ineigh,jneigh)*strong_dirichlet_values_entries(&
+                & -this%fes_around(jneigh)%p%fe_space%lst_dofs_gids%get(spos+idof-1))
+            end if
+          end do
+        end if
+      end do
+
+    end do
+  end do
+  
+end subroutine fe_facet_iterator_impose_strong_dirichlet_bcs_conforming
+
+!==================================================================================================
+! This subroutine is in charge of dealing with the particular case in which an interface facet (i.e.,
+! a facet shared among two neighbouring subdomains) is such that a void ref FE has been mapped to 
+! its surrounding local cell, and a full ref FE has been mapped to its surrounding ghost one. In particular,
+! on the processor where this scenario is revealed, we DO NOT want integrals evaluated on this facet to 
+! contribute to the global linear algebra data structures (We note that we DO for the other side 
+! processor). With this goal in mind, this subroutine zeros out the global DoFs identifier of the full ref
+! FE right before calling to assembler%assembly(...) TBPs
+subroutine fe_facet_iterator_clear_fe_dofs_ghost_full_local_void(this)
+  implicit none 
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip) :: field_id,active_cell_id 
+  do field_id =1, this%fe_space%get_num_fields()
+    if ( this%is_at_field_boundary(field_id) ) then
+      active_cell_id = this%get_active_cell_id(1,field_id)
+      if ( this%fes_around(active_cell_id)%p%is_ghost() ) then
+        call this%fes_around(active_cell_id)%p%clear_scratch_field_fe_dofs(field_id)
+      end if 
+    end if 
+  end do 
+end subroutine fe_facet_iterator_clear_fe_dofs_ghost_full_local_void
+
 
 function fe_facet_iterator_get_fe_space(this)
   implicit none

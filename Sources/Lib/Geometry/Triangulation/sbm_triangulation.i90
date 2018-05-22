@@ -30,6 +30,13 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+function triangulation_is_single_octree_mesh(this)
+  implicit none
+  class(triangulation_t), intent(in) :: this
+  logical :: triangulation_is_single_octree_mesh
+  triangulation_is_single_octree_mesh = this%single_octree_mesh
+end function triangulation_is_single_octree_mesh
+
 function triangulation_get_num_dims(this)
   implicit none
   class(triangulation_t), intent(in) :: this
@@ -64,6 +71,13 @@ function triangulation_get_num_vefs(this)
   integer(ip) :: triangulation_get_num_vefs
   triangulation_get_num_vefs = this%num_vefs
 end function triangulation_get_num_vefs
+
+subroutine triangulation_set_single_octree_mesh(this, is_single_octree_mesh)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  logical               , intent(in)    :: is_single_octree_mesh
+  this%single_octree_mesh = is_single_octree_mesh
+end subroutine triangulation_set_single_octree_mesh
 
 subroutine triangulation_set_num_vefs(this,num_vefs)
   implicit none
@@ -128,6 +142,13 @@ function triangulation_get_num_itfc_vefs ( this )
   integer(ip) :: triangulation_get_num_itfc_vefs 
   triangulation_get_num_itfc_vefs = this%lst_itfc_vefs%size()
 end function triangulation_get_num_itfc_vefs
+
+function triangulation_coarse_triangulation_is_set_up(this)
+  implicit none
+  class(triangulation_t), intent(in) :: this
+  logical :: triangulation_coarse_triangulation_is_set_up
+  triangulation_coarse_triangulation_is_set_up = this%coarse_triangulation_set_up
+end function triangulation_coarse_triangulation_is_set_up
 
 subroutine triangulation_set_environment ( this, environment )
   implicit none
@@ -276,7 +297,7 @@ subroutine triangulation_compute_parts_itfc_vefs ( this, parts_itfc_vefs, perm_i
   call cell%free()
 end subroutine triangulation_compute_parts_itfc_vefs
 
-subroutine triangulation_compute_subparts_itfc_vefs ( this, subparts_itfc_vefs, perm_itfc_vefs )
+subroutine triangulation_compute_subparts_itfc_vefs_conforming_mesh ( this, subparts_itfc_vefs, perm_itfc_vefs )
   implicit none
   class(triangulation_t), intent(inout) :: this
   integer(ip), allocatable          , intent(inout) :: subparts_itfc_vefs(:,:)
@@ -369,79 +390,213 @@ subroutine triangulation_compute_subparts_itfc_vefs ( this, subparts_itfc_vefs, 
   call memfree ( touched_subparts, __FILE__, __LINE__ )
   call itfc_vef%free()
   call this%free_cell_iterator(cell)
-end subroutine triangulation_compute_subparts_itfc_vefs
+end subroutine triangulation_compute_subparts_itfc_vefs_conforming_mesh
 
+
+subroutine triangulation_compute_subparts_itfc_vefs_non_conforming_mesh ( this, subparts_itfc_vefs, perm_itfc_vefs )
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  integer(ip), allocatable          , intent(inout) :: subparts_itfc_vefs(:,:)
+  integer(ip), allocatable          , intent(inout) :: perm_itfc_vefs(:)
+
+  integer(ip)                               :: num_neighbours
+  integer(ip)                               :: nsubparts_around
+  integer(ip)                               :: ivef_itfc, icell, vef_lid
+  class(cell_iterator_t), allocatable       :: cell 
+  integer(ip)                               :: num_rows_subparts_itfc_vefs
+  integer(ip), allocatable                  :: work1(:), work2(:)
+  type(itfc_vef_iterator_t)                 :: itfc_vef
+
+  integer(ip)                               :: num_subparts
+  integer(ip)                               :: cur_subpart_lid
+  integer(ip)                               :: subpart_lid, subpart_gid
+  integer(ip)                               :: istat, set_id 
+  integer(ip)                               :: base_pos, start_pos, i, k, j
+  integer(ip)                               :: offset 
+  integer(ip)                               :: ivef, jvef, ielem, num_vefs, aux
+  integer(ip)                               :: num_itfc_vefs
+  integer(ip), pointer  :: p_ptr_ghosts_per_local_cell(:)
+  integer(ip), pointer  :: p_lst_ghosts_per_local_cell(:)
+  integer(ip), pointer  :: p_ptr_ghosts_per_ghost_cell(:)
+  integer(ip), pointer  :: p_lst_ghosts_per_ghost_cell(:)
+  integer(ip), pointer  :: p_rcv_num_subparts_vefs(:)
+  integer(ip), pointer  :: p_rcv_lst_subparts_vefs(:)
+  integer(ip), pointer  :: p_ptrs_to_rcv_lst_subparts_vefs(:)
+  integer(ip), pointer  :: p_rcv_num_subparts_vefs_owner_to_ghost(:)
+  integer(ip), pointer  :: p_rcv_lst_subparts_vefs_owner_to_ghost(:)
+  integer(ip), pointer  :: p_ptrs_to_rcv_lst_subparts_vefs_owner_to_ghost(:)
+ 
+  assert ( this%environment%am_i_l1_task() )
+
+  if (allocated(subparts_itfc_vefs)) call memfree(subparts_itfc_vefs,__FILE__,__LINE__)
+  if (allocated(perm_itfc_vefs)) call memfree(perm_itfc_vefs,__FILE__,__LINE__)
+  
+  call this%compute_local_lst_subparts_vefwise()
+  call this%exchange_lst_subparts_round()
+  call this%exchange_lst_subparts_round()
+
+  cur_subpart_lid = 1
+  call this%g2l_subparts%init()
+
+  call this%create_cell_iterator(cell)
+  do while(.not. cell%has_finished() )
+     subpart_gid = cell%get_my_subpart()
+     call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
+     if (istat == now_stored) then
+        cur_subpart_lid = cur_subpart_lid + 1
+     end if
+     call cell%next()
+  end do
+
+  ! Traverse vefs on the interface
+  call itfc_vef%create(this)
+  call cell%first()
+  if ( .not. cell%has_finished() ) then
+    num_vefs = cell%get_num_vefs()
+  else
+    num_vefs = 0
+  end if
+  
+  ! ** IMPORTANT NOTE: the following loop is assuming that type(itfc_vef_iterator_t)
+  !                    traverses first proper vefs, followed by improper ones.
+  !                    This is currently true given the way type(p4est_vef_iterator_t)
+  !                    traverses vefs on the triangulation, but this may change in the future.
+  !                    Thus, in order to have a more robust subroutine, it MUST NOT be based
+  !                    on this assumption. In particular, it should track the global IDs of
+  !                    those vefs which are proper in an explicit array.
+  call itfc_vef%first()
+  ivef_itfc = 1
+  num_rows_subparts_itfc_vefs = 0
+  do while(.not. itfc_vef%has_finished() )
+     if ( itfc_vef%is_proper() ) then
+       num_rows_subparts_itfc_vefs = & 
+               max(num_rows_subparts_itfc_vefs,this%lst_subparts_vefwise(itfc_vef%get_gid())%size())
+       do i=1, this%lst_subparts_vefwise(itfc_vef%get_gid())%size()
+         subpart_gid = this%lst_subparts_vefwise(itfc_vef%get_gid())%get(i)
+         assert (subpart_gid > 0)
+         call this%g2l_subparts%put(key=subpart_gid, val=cur_subpart_lid, stat=istat)
+         if (istat == now_stored) then
+           cur_subpart_lid = cur_subpart_lid + 1
+         end if
+       end do
+       ivef_itfc = ivef_itfc + 1
+     end if
+     call itfc_vef%next()
+  end do
+  
+  num_subparts = cur_subpart_lid-1
+  this%num_subparts = num_subparts
+  num_itfc_vefs = ivef_itfc-1
+ 
+  num_rows_subparts_itfc_vefs = num_rows_subparts_itfc_vefs + 1
+  call memalloc ( num_rows_subparts_itfc_vefs, num_itfc_vefs, subparts_itfc_vefs, __FILE__, __LINE__ )
+  subparts_itfc_vefs = 0
+
+  call itfc_vef%first()
+  ivef_itfc = 1
+  do while(.not. itfc_vef%has_finished() )
+     if ( itfc_vef%is_proper() ) then
+       subparts_itfc_vefs(1,ivef_itfc) = this%lst_subparts_vefwise(itfc_vef%get_gid())%size()
+       do i=1, this%lst_subparts_vefwise(itfc_vef%get_gid())%size()
+         subpart_gid = this%lst_subparts_vefwise(itfc_vef%get_gid())%get(i)
+         subparts_itfc_vefs(i+1,ivef_itfc) = subpart_gid
+       end do
+       
+       ! Sort list of parts in increasing order by part identifiers
+       ! This is required by the call to icomp subroutine below 
+       call sort ( subparts_itfc_vefs(1,ivef_itfc), &
+                   subparts_itfc_vefs(2:subparts_itfc_vefs(1,ivef_itfc)+1, ivef_itfc) )
+       ivef_itfc = ivef_itfc + 1
+     end if
+     call itfc_vef%next()
+  end do
+  call memalloc ( num_itfc_vefs, perm_itfc_vefs, __FILE__, __LINE__ )
+  do ivef_itfc = 1, num_itfc_vefs
+     perm_itfc_vefs(ivef_itfc) = ivef_itfc 
+  end do
+
+  ! Re-number vefs in increasing order by the number of parts that share them, 
+  ! and among vefs sharing the same list of parts, in increasing order by the list 
+  ! of parts shared by the vef 
+  call memalloc ( num_rows_subparts_itfc_vefs, work1, __FILE__,__LINE__ )
+  call memalloc ( num_rows_subparts_itfc_vefs, work2, __FILE__,__LINE__ )
+  call sort_array_cols_by_row_section( num_rows_subparts_itfc_vefs, & 
+       &                               num_rows_subparts_itfc_vefs, & 
+       &                               num_itfc_vefs, & 
+       &                               subparts_itfc_vefs, & 
+       &                               perm_itfc_vefs, &
+       &                               work1, &
+       &                               work2 ) 
+  call memfree ( work2, __FILE__,__LINE__ )
+  call memfree ( work1, __FILE__,__LINE__ )
+  call itfc_vef%free()
+  call this%free_cell_iterator(cell)
+end subroutine triangulation_compute_subparts_itfc_vefs_non_conforming_mesh
 
 subroutine triangulation_compute_parts_object_from_subparts_object ( this ) 
   implicit none
   class(triangulation_t), intent(inout) :: this
-  integer(ip)           :: num_neighbours
-  logical, allocatable  :: touched_neighbours(:)
-  integer(ip), allocatable :: parts_around(:)
-  type(list_iterator_t) :: parts_iterator, subparts_iterator
-  integer(ip) :: ipart, iobj, num_parts
-  integer(ip) :: subpart_gid, part_lid, part_gid, mypart_id
+  type(list_iterator_t)         :: parts_iterator, subparts_iterator
+  integer(ip)                   :: ipart, iobj, num_parts
+  integer(ip)                   :: subpart_gid, part_gid, mypart_id
+  type(hash_table_ip_ip_t)      :: touched_neighbours
+  type(std_vector_integer_ip_t) :: parts_around
+  integer(ip), pointer          :: p_parts_around(:)
+  integer(ip) :: aux, istat
 
   mypart_id = this%environment%get_l1_rank() + 1
-
   call this%parts_object%create(this%num_objects)
-
-  num_neighbours = this%cell_import%get_num_neighbours()    
-  call memalloc ( num_neighbours, touched_neighbours, __FILE__, __LINE__ )
-
   ! Count how many parts are around each object
   do iobj =1, this%num_objects
-     touched_neighbours = .false.
-     num_parts = 1 
+     call touched_neighbours%init()
+     num_parts = 1
      subparts_iterator = this%subparts_object%create_iterator(iobj)
      do while ( .not. subparts_iterator%is_upper_bound() )
-        subpart_gid = subparts_iterator%get_current()
-        part_gid    = this%compute_part_id_from_subpart_gid(subpart_gid)
-        if ( part_gid /= mypart_id ) then         
-           part_lid    = this%cell_import%get_local_neighbour_id(part_gid)
-           if ( .not. touched_neighbours(part_lid) ) then
-              touched_neighbours(part_lid) = .true.
-              num_parts = num_parts + 1
-           end if
-        end if
-        call subparts_iterator%next() 
+       subpart_gid = subparts_iterator%get_current()
+       part_gid    = this%compute_part_id_from_subpart_gid(subpart_gid)
+       if ( part_gid /= mypart_id ) then         
+         call touched_neighbours%get(key=part_gid, val=aux, stat=istat)
+         if ( istat == key_not_found ) then
+          call touched_neighbours%put(key=part_gid, val=1, stat=istat)
+          num_parts = num_parts + 1
+         end if
+       end if
+       call subparts_iterator%next() 
      end do
      call this%parts_object%sum_to_pointer_index(iobj,num_parts)
   end do
+  
   call this%parts_object%calculate_header()
   call this%parts_object%allocate_list_from_pointer()
 
-  call memalloc ( num_neighbours+1, parts_around, __FILE__, __LINE__ )
-
   ! List parts which are around each object
   do iobj =1, this%num_objects
-     touched_neighbours = .false.
-     num_parts = 1
-     parts_around(1) = mypart_id
+     call touched_neighbours%init()
+     call parts_around%resize(0)
+     call parts_around%push_back(mypart_id)
      subparts_iterator = this%subparts_object%create_iterator(iobj)
      do while ( .not. subparts_iterator%is_upper_bound() )
         subpart_gid = subparts_iterator%get_current()
         part_gid    = this%compute_part_id_from_subpart_gid(subpart_gid)
         if ( part_gid /= mypart_id ) then         
-           part_lid    = this%cell_import%get_local_neighbour_id(part_gid)
-           if ( .not. touched_neighbours(part_lid) ) then
-              touched_neighbours(part_lid) = .true.
-              num_parts = num_parts + 1
-              parts_around(num_parts) = part_gid
+           call touched_neighbours%get(key=part_gid, val=aux, stat=istat)
+           if ( istat == key_not_found ) then
+              call touched_neighbours%put(key=part_gid, val=1, stat=istat)
+              call parts_around%push_back(part_gid)
            end if
         end if
         call subparts_iterator%next() 
      end do
-     call sort ( num_parts, parts_around )
+     p_parts_around => parts_around%get_pointer()
+     call sort ( size(p_parts_around), p_parts_around )
      parts_iterator = this%parts_object%create_iterator(iobj)
-     do ipart=1, num_parts
-        call parts_iterator%set_current(parts_around(ipart))
+     do ipart=1, size(p_parts_around)
+        call parts_iterator%set_current(p_parts_around(ipart))
         call parts_iterator%next()
      end do
   end do
-  call memfree ( parts_around, __FILE__, __LINE__ )
-  call memfree ( touched_neighbours, __FILE__, __LINE__ )
-
+  call parts_around%free()
+  call touched_neighbours%free()
 end subroutine triangulation_compute_parts_object_from_subparts_object
 
 function triangulation_compute_part_id_from_subpart_gid ( this, subpart_gid )
@@ -480,12 +635,17 @@ subroutine triangulation_compute_vefs_and_parts_object(this)
   integer(ip), allocatable :: perm_itfc_vefs(:)
 
   assert ( this%environment%am_i_l1_task() )
-
+  
+  call this%allocate_and_fill_disconnected_cells_set_id() 
   ! Subparts itinerary
-  call this%compute_subparts_itfc_vefs(parts_itfc_vefs,perm_itfc_vefs)
+  if ( this%is_conforming() ) then
+    call this%compute_subparts_itfc_vefs_conforming_mesh(parts_itfc_vefs,perm_itfc_vefs)
+  else
+    call this%compute_subparts_itfc_vefs_non_conforming_mesh(parts_itfc_vefs,perm_itfc_vefs)
+  end if
   call this%compute_vefs_and_parts_object_body(parts_itfc_vefs,perm_itfc_vefs,this%subparts_object,this%vefs_object)
   call this%compute_parts_object_from_subparts_object()
-
+  
   ! Parts itinerary (standard one)
   !call this%compute_parts_itfc_vefs(parts_itfc_vefs,perm_itfc_vefs)
   !call this%compute_vefs_and_parts_object_body(parts_itfc_vefs,perm_itfc_vefs,this%parts_object,this%vefs_object)
@@ -494,6 +654,253 @@ subroutine triangulation_compute_vefs_and_parts_object(this)
   call memfree ( perm_itfc_vefs, __FILE__, __LINE__ )
 end subroutine triangulation_compute_vefs_and_parts_object
 
+subroutine triangulation_set_subparts_coupling_criteria( this, coupling_criteria ) 
+  implicit none 
+  class(triangulation_t), intent(inout) :: this
+  character(*)          , intent(in)    :: coupling_criteria 
+  this%subparts_coupling_criteria = coupling_criteria  
+end subroutine triangulation_set_subparts_coupling_criteria 
+
+function triangulation_get_max_cell_set_id( this ) 
+  implicit none 
+  class(triangulation_t), intent(inout) :: this
+  integer(ip) :: triangulation_get_max_cell_set_id
+  triangulation_get_max_cell_set_id = this%max_cell_set_id
+end function triangulation_get_max_cell_set_id
+
+subroutine triangulation_allocate_and_fill_disconnected_cells_set_id( this ) 
+  implicit none 
+  class(triangulation_t), intent(inout) :: this
+  type(list_t)                          :: dual_graph
+  integer(ip)                           :: icell 
+  integer(ip)                           :: disconnected_part_id 
+  integer(ip), allocatable              :: disconnected_cells_set_id(:) 
+  class(environment_t), pointer         :: environment
+
+  call memalloc(this%get_num_local_cells(), disconnected_cells_set_id, __FILE__, __LINE__)
+  
+  if ( this%subparts_coupling_criteria == all_coupled .or. this%environment%get_l1_size() <= 1 ) then 
+     disconnected_cells_set_id = 0 
+  else 
+     call this%generate_dual_graph(dual_graph)
+     call this%compute_disconnected_cells_set_id(dual_graph, disconnected_cells_set_id )
+
+     ! Get max cell_set_ids among same level tasks 
+     this%max_cell_set_id = this%compute_max_cells_set_id() 
+ end if
+      
+  call this%resize_disconnected_cells_set() 
+  call this%fill_disconnected_cells_set( disconnected_cells_set_id ) 
+
+  ! Free data
+  call dual_graph%free() 
+  call memfree(disconnected_cells_set_id, __FILE__, __LINE__ )
+end subroutine triangulation_allocate_and_fill_disconnected_cells_set_id
+
+subroutine triangulation_generate_dual_graph(this, dual_graph) 
+  implicit none 
+  class(triangulation_t), intent(inout) :: this
+  type(list_t)          , intent(inout) :: dual_graph  
+
+  integer(ip)                           :: dim_connecting_vefs
+  class(cell_iterator_t), allocatable   :: cell
+  class(vef_iterator_t) , allocatable   :: vef 
+  class(cell_iterator_t), allocatable   :: cell_around_vef 
+  integer(ip)                           :: icell
+  integer(ip)                           :: icell_around 
+  integer(ip)                           :: ivef_within_cell 
+  type(list_iterator_t)                 :: adjacent_cells
+  type(list_iterator_t)                 :: inverse_adjacent_cells 
+  class(environment_t), pointer         :: environment
+  integer(ip)                           :: istat 
+  integer(ip), allocatable              :: num_connected_cells(:) 
+  type(hash_table_ip_ip_t), allocatable :: connected_cells(:)   
+  integer(ip)                           :: curr_connected_cell
+
+  environment => this%get_environment()
+  assert ( environment%am_i_l1_task() )
+
+  select case ( this%subparts_coupling_criteria ) 
+  case ( loose_coupling ) 
+     dim_connecting_vefs = 0 
+  case ( strong_coupling ) 
+     dim_connecting_vefs = this%get_num_dims()-1 
+  case DEFAULT 
+     massert(.false., 'Coupling criteria to detect disconnected parts is not valid') 
+  end select
+
+  ! Build dual graph (V,E): cells become vertices (V) and links (E) between two cells appear 
+  ! if both cells share a requested vef  
+  call this%create_cell_iterator(cell) 
+  call this%create_cell_iterator(cell_around_vef)
+  call this%create_vef_iterator(vef)
+  call dual_graph%create( this%get_num_local_cells() )
+
+  allocate ( connected_cells(this%get_num_local_cells()), stat=istat ); check(istat==0)
+  call memalloc( this%get_num_local_cells(), num_connected_cells, __FILE__, __LINE__ ) 
+  do icell=1, this%get_num_local_cells() 
+     call connected_cells(icell)%init(6)
+  end do
+
+  num_connected_cells=0
+  ! Count num connected cells   
+  do while ( .not. cell%has_finished() ) 
+     if ( cell%is_local() ) then 
+        do ivef_within_cell = 1, cell%get_num_vefs()
+           call cell%get_vef(ivef_within_cell, vef)
+           if (vef%get_dim() /= dim_connecting_vefs ) cycle 
+           do icell_around = 1, vef%get_num_cells_around() 
+              call vef%get_cell_around(icell_around, cell_around_vef) 
+              if ( cell%get_gid() /= cell_around_vef%get_gid() .and. cell_around_vef%is_local() ) then 
+                 call connected_cells(cell%get_gid())%put( key=cell_around_vef%get_gid(), val=num_connected_cells(cell%get_gid()), stat=istat) 
+                 if ( istat==now_stored ) then 
+                    num_connected_cells(cell%get_gid()) = num_connected_cells(cell%get_gid()) + 1 
+                    call dual_graph%sum_to_pointer_index(cell%get_gid(), 1)
+                 end if                   
+              end if
+           end do
+
+           ! Add improper-proper and proper-improper coupling (coarse cell does not see improper vertex)  
+           if (.not. vef%is_proper()) then     
+              do icell_around = 1, vef%get_num_improper_cells_around() 
+                 call vef%get_improper_cell_around(icell_around, cell_around_vef) 
+                 if ( cell%get_gid() /= cell_around_vef%get_gid() .and. cell_around_vef%is_local() ) then 
+                    ! Improper to proper coupling            
+                    call connected_cells(cell%get_gid())%put( key=cell_around_vef%get_gid(), val=num_connected_cells(cell%get_gid()), stat=istat);
+                    if ( istat==now_stored) then 
+                       num_connected_cells(cell%get_gid()) = num_connected_cells(cell%get_gid()) + 1
+                       call dual_graph%sum_to_pointer_index(cell%get_gid(), 1)
+                    end if
+                    ! Proper to improper coupling 
+                    call connected_cells(cell_around_vef%get_gid())%put( key=cell%get_gid(), val=num_connected_cells(cell_around_vef%get_gid()), stat=istat); 
+                    if ( istat==now_stored) then 
+                       num_connected_cells(cell_around_vef%get_gid()) = num_connected_cells(cell_around_vef%get_gid()) + 1
+                       call dual_graph%sum_to_pointer_index(cell_around_vef%get_gid(), 1)            
+                    end if
+                 end if
+              end do
+           end if
+        end do
+     end if
+     call cell%next() 
+  end do
+  call memfree(num_connected_cells, __FILE__, __LINE__ )
+  
+  call dual_graph%calculate_header()
+  call dual_graph%allocate_list_from_pointer()
+
+  ! List connected cells 
+    call cell%first() 
+    do while ( .not. cell%has_finished() ) 
+     if ( cell%is_local() ) then 
+        adjacent_cells = dual_graph%create_iterator(cell%get_gid())
+        do ivef_within_cell = 1, cell%get_num_vefs()
+           call cell%get_vef(ivef_within_cell, vef)
+           if (vef%get_dim() /= dim_connecting_vefs ) cycle 
+           do icell_around = 1, vef%get_num_cells_around() 
+              call vef%get_cell_around(icell_around, cell_around_vef) 
+              if ( cell%get_gid() /= cell_around_vef%get_gid() .and. cell_around_vef%is_local() ) then 
+                 call connected_cells(cell%get_gid())%get( key=cell_around_vef%get_gid(), val=curr_connected_cell, stat=istat); assert(istat==key_found) 
+                 call adjacent_cells%set_from_current(curr_connected_cell, cell_around_vef%get_gid())               
+              end if
+           end do
+
+           ! Add improper-proper and proper-improper coupling (coarse cell does not see improper vertex)  
+           if (.not. vef%is_proper()) then     
+              do icell_around = 1, vef%get_num_improper_cells_around() 
+                 call vef%get_improper_cell_around(icell_around, cell_around_vef) 
+                 if ( cell%get_gid() /= cell_around_vef%get_gid() .and. cell_around_vef%is_local() ) then 
+                    ! Improper to proper coupling            
+                    call connected_cells(cell%get_gid())%get( key=cell_around_vef%get_gid(), val=curr_connected_cell, stat=istat); assert(istat==key_found) 
+                    call adjacent_cells%set_from_current(curr_connected_cell, cell_around_vef%get_gid())
+                    ! Proper to improper coupling 
+                    call connected_cells(cell_around_vef%get_gid())%get( key=cell%get_gid(), val=curr_connected_cell, stat=istat); assert(istat==key_found)  
+                    inverse_adjacent_cells = dual_graph%create_iterator(cell_around_vef%get_gid())    
+                    call inverse_adjacent_cells%set_from_current(curr_connected_cell, cell%get_gid())
+                 end if
+              end do
+           end if
+        end do
+     end if
+     call cell%next() 
+  end do
+  
+  do icell=1, this%get_num_local_cells() 
+     call connected_cells(icell)%free() 
+  end do
+  deallocate(connected_cells, stat=istat); check(istat==0)
+
+  call this%free_cell_iterator(cell)
+  call this%free_cell_iterator(cell_around_vef)
+  call this%free_vef_iterator(vef)
+end subroutine triangulation_generate_dual_graph
+
+! Connected components of the graph are computed with the Breadth First Search algorithm. 
+subroutine triangulation_compute_disconnected_cells_set_id(this, dual_graph, disconnected_cells_set_id)
+  implicit none 
+  class(triangulation_t)  , intent(inout)  :: this
+  type(list_t)            , intent(in)     :: dual_graph
+  integer(ip)             , intent(inout)  :: disconnected_cells_set_id(:)
+
+  ! BFS algorithm 
+  integer(ip)              :: head, tail 
+  integer(ip), allocatable :: queue(:) 
+  logical    , allocatable :: enqueued_cell(:) 
+  type(list_iterator_t)    :: adjacent_cells
+  integer(ip)              :: cell_lid 
+  integer(ip)              :: disconnected_set_id
+  integer(ip)              :: initial_cell  
+
+  ! Initialize disconnected_cells_set_id to an unassigned state 
+  disconnected_cells_set_id=-1 
+
+  call memalloc(dual_graph%get_num_pointers(), queue        , __FILE__, __LINE__ ) 
+  call memalloc(dual_graph%get_num_pointers(), enqueued_cell, __FILE__, __LINE__ )
+  enqueued_cell=.false. 
+  initial_cell = 1
+
+  disconnected_set_id= 0 
+  ! While any cell is unassigned 
+  do while ( minval(disconnected_cells_set_id) == -1 ) 
+
+     do while ( disconnected_cells_set_id(initial_cell) /= -1 ) 
+        initial_cell=initial_cell+1
+     end do
+
+     ! Initialize queue  
+     head=1
+     tail=1 
+     queue=0
+     ! Enqueue initial cell
+     queue(1)=initial_cell
+     tail=tail+1 
+     enqueued_cell(initial_cell)=.true.  
+     ! While Q is not empty 
+     do while ( head /= tail ) 
+        ! Dequeue next cell 
+        cell_lid = queue(head)
+        head=head+1 
+        if ( disconnected_cells_set_id(cell_lid) == -1 ) then 
+           disconnected_cells_set_id(cell_lid)=disconnected_set_id
+           adjacent_cells=dual_graph%create_iterator(cell_lid)
+           do while ( .not. adjacent_cells%is_upper_bound() ) 
+              cell_lid = adjacent_cells%get_current() 
+              if ( disconnected_cells_set_id(cell_lid)==-1 .and. .not. enqueued_cell(cell_lid) ) then 
+                 ! Enqueue neighbour cell 
+                 enqueued_cell(cell_lid)=.true. 
+                 queue(tail) = cell_lid
+                 tail=tail+1
+              end if
+              call adjacent_cells%next() 
+           end do
+        end if
+     end do
+     
+     disconnected_set_id = disconnected_set_id + 1
+  end do
+  call memfree(queue, __FILE__, __LINE__ )
+  call memfree(enqueued_cell, __FILE__, __LINE__)
+end subroutine triangulation_compute_disconnected_cells_set_id
 
 subroutine triangulation_compute_vefs_and_parts_object_body(this, parts_itfc_vefs, perm_itfc_vefs, parts_object, vefs_object)
   implicit none
@@ -506,24 +913,27 @@ subroutine triangulation_compute_vefs_and_parts_object_body(this, parts_itfc_vef
   integer(ip) :: ivef_itfc, init_vef, end_vef
   integer(ip) :: iobj, ipart
   integer(ip) :: num_rows_parts_itfc_vefs
+  integer(ip) :: num_itfc_vefs
 
   type(list_iterator_t) :: vefs_object_iterator, parts_object_iterator
 
   assert ( this%environment%am_i_l1_task() )
-
+  assert ( size(parts_itfc_vefs,2) == size(perm_itfc_vefs) )
+  
   call parts_object%free()
   call vefs_object%free()
 
   num_rows_parts_itfc_vefs = size(parts_itfc_vefs,1)
-
+  num_itfc_vefs            = size(parts_itfc_vefs,2)
+  
   ! Count num_objects
   ivef_itfc = 1
   this%num_objects = 0
-  do while ( ivef_itfc <= this%get_num_itfc_vefs() ) 
-     if ( ivef_itfc < this%get_num_itfc_vefs() ) then
+  do while ( ivef_itfc <= num_itfc_vefs ) 
+     if ( ivef_itfc < num_itfc_vefs ) then
         do while (all(parts_itfc_vefs(:,ivef_itfc)==parts_itfc_vefs(:,ivef_itfc+1)))
            ivef_itfc = ivef_itfc + 1
-           if ( ivef_itfc == this%get_num_itfc_vefs()  ) exit
+           if ( ivef_itfc == num_itfc_vefs  ) exit
         end do
      end if
      this%num_objects = this%num_objects + 1
@@ -535,12 +945,12 @@ subroutine triangulation_compute_vefs_and_parts_object_body(this, parts_itfc_vef
   call parts_object%create(n=this%num_objects)
   ivef_itfc = 1
   this%num_objects = 0
-  do while ( ivef_itfc <= this%get_num_itfc_vefs() ) 
+  do while ( ivef_itfc <= num_itfc_vefs ) 
      init_vef = ivef_itfc
-     if ( ivef_itfc < this%get_num_itfc_vefs() ) then
+     if ( ivef_itfc < num_itfc_vefs ) then
         do while (all(parts_itfc_vefs(:,ivef_itfc)==parts_itfc_vefs(:,ivef_itfc+1)))
            ivef_itfc = ivef_itfc + 1
-           if ( ivef_itfc == this%get_num_itfc_vefs()  ) exit
+           if ( ivef_itfc == num_itfc_vefs ) exit
         end do
      end if
      end_vef = ivef_itfc
@@ -573,7 +983,7 @@ subroutine triangulation_compute_vefs_and_parts_object_body(this, parts_itfc_vef
         call vefs_object_iterator%next()
         ivef_itfc = ivef_itfc + 1
      end do
-  end do
+  end do  
 end subroutine triangulation_compute_vefs_and_parts_object_body
 
 subroutine triangulation_compute_objects_dim(this)
@@ -620,13 +1030,19 @@ subroutine triangulation_compute_objects_neighbours_exchange_data ( this, &
   integer(ip), allocatable  , intent(inout) :: pack_idx(:)
 
   ! Locals
-  integer(ip)                 :: part_id, my_part_id, num_neighbours
-  integer(ip)                 :: i, iobj, istat
-  type(list_iterator_t)       :: parts_object_iterator
-  type(position_hash_table_t) :: position_parts_rcv
-  integer(ip)                 :: current_position_parts_rcv
-  type(position_hash_table_t) :: position_parts_snd
-  integer(ip)                 :: current_position_parts_snd
+  integer(ip)                   :: part_id, my_part_id, num_neighbours
+  integer(ip)                   :: i, iobj, istat
+  type(list_iterator_t)         :: parts_object_iterator
+  type(position_hash_table_t)   :: position_parts_rcv
+  integer(ip)                   :: current_position_parts_rcv
+  type(position_hash_table_t)   :: position_parts_snd
+  integer(ip)                   :: current_position_parts_snd
+  type(std_vector_integer_ip_t) :: v_snd_ptrs
+  integer(ip), pointer          :: p_snd_ptrs(:)
+  type(std_vector_integer_ip_t) :: v_list_snd
+  type(std_vector_integer_ip_t) :: v_rcv_ptrs
+  integer(ip), pointer          :: p_rcv_ptrs(:)
+  type(std_vector_integer_ip_t) :: v_list_rcv
 
   assert ( this%environment%am_i_l1_task() )
 
@@ -642,16 +1058,18 @@ subroutine triangulation_compute_objects_neighbours_exchange_data ( this, &
 
   call position_parts_rcv%init(num_neighbours)
   call position_parts_snd%init(num_neighbours)
-  call memalloc ( num_neighbours  , list_rcv, __FILE__, __LINE__ )
-  call memalloc ( num_neighbours+1, rcv_ptrs, __FILE__, __LINE__ )
-  rcv_ptrs = 0 
+  !call memalloc ( num_neighbours  , list_rcv, __FILE__, __LINE__ )
+  !call memalloc ( num_neighbours+1, rcv_ptrs, __FILE__, __LINE__ )
+  !rcv_ptrs = 0 
 
-  call memalloc ( num_neighbours  , list_snd, __FILE__, __LINE__ )
-  call memalloc ( num_neighbours+1, snd_ptrs, __FILE__, __LINE__ )
-  snd_ptrs = 0
+  !call memalloc ( num_neighbours  , list_snd, __FILE__, __LINE__ )
+  !call memalloc ( num_neighbours+1, snd_ptrs, __FILE__, __LINE__ )
+  !snd_ptrs = 0
 
-  num_rcv = 0
-  num_snd = 0
+  call v_list_snd%resize(0)
+  call v_list_rcv%resize(0)
+  call v_snd_ptrs%resize(1)
+  call v_rcv_ptrs%resize(1)
   do iobj=1, this%num_objects
      parts_object_iterator = this%parts_object%create_iterator(iobj)
      part_id = parts_object_iterator%get_current()
@@ -664,37 +1082,46 @@ subroutine triangulation_compute_objects_neighbours_exchange_data ( this, &
            ! Increment by +1 the amount of data I have to send to part_id
            call position_parts_snd%get(key=part_id, val=current_position_parts_snd, stat=istat)
            if ( istat == new_index ) then
-              list_snd ( current_position_parts_snd ) = part_id
+              call v_list_snd%push_back(part_id)
+              call v_snd_ptrs%push_back(0)   
            end if
-           snd_ptrs(current_position_parts_snd+1) = snd_ptrs(current_position_parts_snd+1)+1
+           call v_snd_ptrs%set( (current_position_parts_snd+1), v_snd_ptrs%get(current_position_parts_snd+1)+1 )
            call parts_object_iterator%next()
         end do
      else
         ! I am non-owner of the present object
         call position_parts_rcv%get(key=part_id, val=current_position_parts_rcv, stat=istat)
         if ( istat == new_index ) then
-           list_rcv ( current_position_parts_rcv ) = part_id
+           call v_list_rcv%push_back(part_id)
+           call v_rcv_ptrs%push_back(0)   
         end if
-        rcv_ptrs(current_position_parts_rcv+1) = rcv_ptrs(current_position_parts_rcv+1)+1 
+        call v_rcv_ptrs%set((current_position_parts_rcv+1), v_rcv_ptrs%get(current_position_parts_rcv+1)+1 )
      end if
   end do
 
   num_rcv = position_parts_rcv%last()
   num_snd = position_parts_snd%last() 
-  rcv_ptrs(1) = 1 
+  
+  p_rcv_ptrs => v_rcv_ptrs%get_pointer()
+  p_rcv_ptrs(1) = 1 
   do i=1, num_rcv
-     rcv_ptrs(i+1) = rcv_ptrs(i+1) + rcv_ptrs(i)
+     p_rcv_ptrs(i+1) = p_rcv_ptrs(i+1) + p_rcv_ptrs(i)
   end do
 
-  snd_ptrs(1) = 1 
+  p_snd_ptrs => v_snd_ptrs%get_pointer()
+  p_snd_ptrs(1) = 1 
   do i=1, num_snd
-     snd_ptrs(i+1) = snd_ptrs(i+1) + snd_ptrs(i)
+     p_snd_ptrs(i+1) = p_snd_ptrs(i+1) + p_snd_ptrs(i)
   end do
 
-  call memrealloc ( num_snd+1, snd_ptrs, __FILE__, __LINE__ )
-  call memrealloc ( num_rcv+1, rcv_ptrs, __FILE__, __LINE__ )
-  call memrealloc ( num_snd, list_snd, __FILE__, __LINE__ )
-  call memrealloc ( num_rcv, list_rcv, __FILE__, __LINE__ )
+  call memalloc ( num_snd+1, snd_ptrs, __FILE__, __LINE__ )
+  snd_ptrs = p_snd_ptrs
+  call memalloc ( num_rcv+1, rcv_ptrs, __FILE__, __LINE__ )
+  rcv_ptrs = p_rcv_ptrs
+  call memalloc ( num_snd, list_snd, __FILE__, __LINE__ )
+  list_snd = v_list_snd%get_pointer()
+  call memalloc ( num_rcv, list_rcv, __FILE__, __LINE__ )
+  list_rcv = v_list_rcv%get_pointer()
   call memalloc ( snd_ptrs(num_snd+1)-1, pack_idx, __FILE__, __LINE__ )
   call memalloc ( rcv_ptrs(num_rcv+1)-1, unpack_idx, __FILE__, __LINE__ )
 
@@ -731,6 +1158,10 @@ subroutine triangulation_compute_objects_neighbours_exchange_data ( this, &
 
   call position_parts_rcv%free()
   call position_parts_snd%free()
+  call v_list_snd%free()
+  call v_list_rcv%free()
+  call v_snd_ptrs%free()
+  call v_rcv_ptrs%free()
 end subroutine triangulation_compute_objects_neighbours_exchange_data
 
 subroutine triangulation_compute_num_global_objs_and_their_gids ( this )
@@ -843,7 +1274,6 @@ subroutine triangulation_free_objects_ggids_and_dim ( this )
   class(triangulation_t), intent(inout) :: this
   if(allocated(this%objects_ggids))      call memfree(this%objects_ggids, __FILE__, __LINE__ )
   if(allocated(this%objects_dim)) call memfree(this%objects_dim, __FILE__, __LINE__ )
-
 end subroutine triangulation_free_objects_ggids_and_dim
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -871,6 +1301,8 @@ subroutine triangulation_setup_coarse_triangulation ( this )
   integer(ip)                      :: num_local_coarse_cells
   integer(ip)                      :: num_itfc_coarse_cells
 
+  call this%free_coarse_triangulation_l1_data()
+  call this%free_coarse_triangulation_lgt1_data()
 
   if ( this%environment%am_i_l1_task() ) then
      call this%compute_vefs_and_parts_object()
@@ -928,18 +1360,19 @@ subroutine triangulation_setup_coarse_triangulation ( this )
      ! lgt1 MPI tasks (recursively) build coarse triangulation
      allocate  ( this%coarse_triangulation, stat = istat )
      check( istat == 0 )
-     call this%coarse_triangulation%create ( environment              = this%environment%get_next_level(), &
-          num_dims               = num_dims, &
-          num_local_cells              = num_local_coarse_cells, &
-          cells_gid                    = coarse_cells_gid, &
-          ptr_vefs_x_cell            = coarse_vefs_displs, &
-          lst_vefs_gids                = lst_coarse_vef_gids, &
-          lst_vefs_dim           = lst_coarse_vef_dim, &
-          num_itfc_cells               = num_itfc_coarse_cells, &
-          lst_itfc_cells               = coarse_dgraph_recv_counts, &
-          ptr_ext_neighs_x_itfc_cell = coarse_dgraph_displs, &
-          lst_ext_neighs_gids          = lextn, &
-          lst_ext_neighs_part_ids      = lextp )
+     call this%coarse_triangulation%create ( environment                = this%environment%get_next_level(), &
+                                             num_dims                   = num_dims, &
+                                             num_local_cells            = num_local_coarse_cells, &
+                                             cells_gid                  = coarse_cells_gid, &
+                                             ptr_vefs_x_cell            = coarse_vefs_displs, &
+                                             lst_vefs_gids              = lst_coarse_vef_gids, &
+                                             lst_vefs_dim               = lst_coarse_vef_dim, &
+                                             num_itfc_cells             = num_itfc_coarse_cells, &
+                                             lst_itfc_cells             = coarse_dgraph_recv_counts, &
+                                             ptr_ext_neighs_x_itfc_cell = coarse_dgraph_displs, &
+                                             lst_ext_neighs_gids        = lextn, &
+                                             lst_ext_neighs_part_ids    = lextp, &
+                                             subparts_coupling_criteria = this%subparts_coupling_criteria )
   else
      ! L1 tasks do not hold any piece of the coarse triangulation
      nullify(this%coarse_triangulation)
@@ -956,6 +1389,8 @@ subroutine triangulation_setup_coarse_triangulation ( this )
   call memfree (coarse_dgraph_displs, __FILE__, __LINE__)
   call memfree (lextn, __FILE__, __LINE__)
   call memfree (lextp, __FILE__, __LINE__)
+  
+  this%coarse_triangulation_set_up = .true.
 end subroutine triangulation_setup_coarse_triangulation
 
 subroutine triangulation_gather_coarse_cell_gids( this, coarse_cell_gids)
@@ -1255,6 +1690,522 @@ function triangulation_adapt_coarse_raw_arrays( this, &
   end if
 end function triangulation_adapt_coarse_raw_arrays
 
+subroutine t_compute_local_lst_subparts_vefwise(this)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  class(environment_t)  , pointer :: environment
+  class(vef_iterator_t), allocatable :: vef
+  class(vef_iterator_t), allocatable :: vef_of_vef
+  class(cell_iterator_t), allocatable :: cell
+
+  integer(ip) :: ielem, ivef
+  integer(ip) :: mypart_id
+  integer(ip) :: mysubpart_id 
+  integer(ip) :: cell_gid
+  integer(ip) :: ghost_cell_gid
+  integer(ip) :: num_vefs
+  integer(ip) :: start_pos, end_pos, base_pos
+  integer(ip) :: i,j,k,l,m
+  integer(ip) :: icell_around
+  integer(ip) :: num_subparts
+    
+  class(reference_fe_t) , pointer     :: reference_fe_geo 
+  class(cell_iterator_t), allocatable :: coarser_cell 
+  integer(ip)                         :: vef_of_vef_pos_in_cell
+  type(list_t)          , pointer     :: vefs_of_vef  
+  type(list_iterator_t)               :: vefs_of_vef_iterator
+  integer(ip)                         :: vertex_pos_in_cell
+  type(list_t)          , pointer     :: vertices_of_line
+  type(list_iterator_t)               :: vertices_of_line_iterator
+  
+  
+  type(std_vector_integer_ip_t) :: subparts_around_improper_vef
+  integer(ip) :: istat
+  
+  allocate(this%lst_subparts_vefwise(this%get_num_vefs()), stat=istat); check(istat==0);
+  
+  call this%create_cell_iterator(cell)
+  call this%create_vef_iterator(vef_of_vef)
+  ! Traverse proper vefs on the interface
+  call this%create_itfc_vef_iterator(vef)
+  do while(.not. vef%has_finished())
+     if ( vef%is_proper() ) then
+       ! List subparts around current proper vef
+       call lst_subparts_around_vef(vef, cell, this%lst_subparts_vefwise(vef%get_gid()))
+     else
+        ! List subparts around current improper facet
+        call subparts_around_improper_vef%resize(0)
+        call lst_subparts_around_vef(vef, cell, subparts_around_improper_vef)
+        
+        ! Move subparts around current improper vef to 
+        ! associated vefs on ghost coarse cells
+        call lst_subparts_around_vefs_on_ghost_coarse_cells()     
+     end if
+     call vef%next()
+  end do
+  call subparts_around_improper_vef%free()
+  
+  call this%free_cell_iterator(cell)
+  call this%free_vef_iterator(vef)
+  call this%free_vef_iterator(vef_of_vef)
+contains 
+   subroutine lst_subparts_around_vef(vef, cell, vector)
+     implicit none
+     class(vef_iterator_t)        , intent(in)    :: vef
+     class(cell_iterator_t)       , intent(inout) :: cell
+     type(std_vector_integer_ip_t), intent(inout) :: vector
+     integer(ip) :: ielem
+     do ielem=1, vef%get_num_cells_around()
+       call vef%get_cell_around(ielem, cell)
+       call insert(cell%get_my_subpart(), vector)
+     end do 
+   end subroutine lst_subparts_around_vef
+
+   subroutine lst_subparts_around_vefs_on_ghost_coarse_cells()
+     implicit none
+     do icell_around = 1, vef%get_num_improper_cells_around()
+       call vef%get_improper_cell_around(icell_around, cell)
+         assert ( .not. vef%is_proper() )
+         ivef     = vef%get_improper_cell_around_ivef(icell_around) 
+         call cell%get_vef(ivef, vef_of_vef)
+         assert ( vef_of_vef%is_proper() )
+         call insert_vector_into_vector(subparts_around_improper_vef, this%lst_subparts_vefwise(vef_of_vef%get_gid()))
+         
+         reference_fe_geo => cell%get_reference_fe()
+         vefs_of_vef      => reference_fe_geo%get_facets_n_face() 
+
+         ! Traverse vertices lines of current face
+         vefs_of_vef_iterator = vefs_of_vef%create_iterator(ivef)
+         do while( .not. vefs_of_vef_iterator%is_upper_bound() )
+            vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
+            call cell%get_vef(vef_of_vef_pos_in_cell, vef_of_vef)
+            assert ( vef_of_vef%is_proper() )
+            call insert_vector_into_vector(subparts_around_improper_vef, this%lst_subparts_vefwise(vef_of_vef%get_gid()))
+
+            ! Traverse vertices of current line
+            if ( reference_fe_geo %get_num_dims() == 3 ) then
+              vertices_of_line          => reference_fe_geo%get_vertices_n_face() 
+              vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
+              do while( .not. vertices_of_line_iterator%is_upper_bound() )
+                 vertex_pos_in_cell = vertices_of_line_iterator%get_current()
+                 call cell%get_vef(vertex_pos_in_cell, vef_of_vef)
+                 assert ( vef_of_vef%is_proper() )
+                 call insert_vector_into_vector(subparts_around_improper_vef, this%lst_subparts_vefwise(vef_of_vef%get_gid()))
+                 call vertices_of_line_iterator%next()
+              end do
+            end if
+            call vefs_of_vef_iterator%next()
+         end do
+     end do 
+   end subroutine lst_subparts_around_vefs_on_ghost_coarse_cells
+   
+   function is_present ( entry, vector ) 
+     implicit none
+     integer(ip)                  , intent(in) :: entry
+     type(std_vector_integer_ip_t), intent(in) :: vector
+     logical :: is_present 
+     integer(ip) :: i
+     is_present = .false.
+     do i=1, vector%size()
+      if ( vector%get(i) == entry ) then
+        is_present = .true.
+        return
+      end if
+     end do
+   end function is_present
+   
+   subroutine insert (entry, vector)
+     implicit none
+     integer(ip)                  , intent(in)    :: entry
+     type(std_vector_integer_ip_t), intent(inout) :: vector
+     if ( .not. is_present(entry, vector) ) then
+       call vector%push_back(entry)
+     end if
+   end subroutine 
+   
+   subroutine insert_vector_into_vector ( vector_in, vector_out )
+     implicit none
+     type(std_vector_integer_ip_t), intent(in)    :: vector_in
+     type(std_vector_integer_ip_t), intent(inout) :: vector_out
+     integer(ip) :: i 
+     do i=1, vector_in%size()
+       call insert(vector_in%get(i), vector_out)
+     end do 
+   end subroutine insert_vector_into_vector
+   
+end subroutine t_compute_local_lst_subparts_vefwise
+
+subroutine t_exchange_lst_subparts_round(this)
+  implicit none
+  class(triangulation_t), intent(inout)    :: this
+  call this%fetch_num_subparts_vefs_cell_wise()
+  call this%compute_near_neigh_ctrl_data_lst_subparts()
+  call this%fetch_lst_subparts_vefs_cell_wise()
+  call this%compute_ptrs_to_rcv_lst_subparts_vefs_cell_wise()
+  call this%update_lst_subparts_vefwise_after_exchange()
+end subroutine t_exchange_lst_subparts_round
+
+subroutine t_fetch_num_subparts_vefs_cell_wise(this)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  class(cell_iterator_t), allocatable :: cell
+  class(vef_iterator_t), allocatable :: vef
+  class(environment_t), pointer :: environment
+  integer(ip) :: ielem, base_pos, cell_gid, ivef
+  integer(ip), pointer :: p_num_subparts_vefs_cell_wise(:)
+  integer(ip) :: num_vefs
+
+  call this%create_cell_iterator(cell)
+  if ( .not. cell%has_finished() ) then
+    num_vefs = cell%get_num_vefs() 
+  else
+    num_vefs = 0
+  end if
+  
+  call this%num_subparts_vefs_cell_wise%resize(0)
+  call this%num_subparts_vefs_cell_wise%resize(this%get_num_cells()*num_vefs,0) 
+  
+  ! For each proper vef on the interface, go over its local cells, and
+  ! assign the number of subparts it is around on a cell-wise manner
+  call this%create_itfc_vef_iterator(vef)
+  do while(.not. vef%has_finished())
+    if ( vef%is_proper() ) then
+      do ielem=1, vef%get_num_cells_around()
+        call vef%get_cell_around(ielem,cell)
+        if ( cell%is_local() ) then
+          ivef = cell%get_vef_lid_from_gid(vef%get_gid())
+          cell_gid = cell%get_gid()
+          base_pos = (cell_gid-1)*num_vefs
+          call this%num_subparts_vefs_cell_wise%set(base_pos+ivef, this%lst_subparts_vefwise(vef%get_gid())%size() )
+        end if
+      end do
+    end if
+    call vef%next()
+  end do 
+  call this%free_vef_iterator(vef)
+  call this%free_cell_iterator(cell)
+
+  environment                   => this%get_environment()
+  p_num_subparts_vefs_cell_wise => this%num_subparts_vefs_cell_wise%get_pointer() 
+  call environment%l1_neighbours_exchange ( num_rcv    = this%cell_import%get_num_neighbours(), &
+                                            list_rcv   = this%cell_import%get_neighbours_ids(),&
+                                            rcv_ptrs   = this%cell_import%get_rcv_ptrs(),&
+                                            unpack_idx = this%cell_import%get_rcv_leids(), &
+                                            num_snd    = this%cell_import%get_num_neighbours(), &
+                                            list_snd   = this%cell_import%get_neighbours_ids(),&
+                                            snd_ptrs   = this%cell_import%get_snd_ptrs(),&
+                                            pack_idx   = this%cell_import%get_snd_leids(),&
+                                            x          = p_num_subparts_vefs_cell_wise, &
+                                            y          = p_num_subparts_vefs_cell_wise, &
+                                            chunk_size = num_vefs)
+end subroutine t_fetch_num_subparts_vefs_cell_wise
+
+subroutine t_compute_near_neigh_ctrl_data_lst_subparts(this)
+  implicit none
+  class(triangulation_t), intent(inout)    :: this
+  
+  integer(ip), pointer :: snd_ptrs(:)
+  integer(ip), pointer :: snd_leids(:)
+  integer(ip), pointer :: rcv_ptrs(:)
+  integer(ip), pointer :: rcv_leids(:)
+  
+  ! Second ghost to owner comm.
+  integer(ip), pointer :: p_snd_ptrs_lst_subparts_cell_wise(:)
+  integer(ip), pointer :: p_rcv_ptrs_lst_subparts_cell_wise(:)
+  integer(ip), pointer :: p_num_subparts_vefs_cell_wise(:)
+  
+  integer(ip) :: i, j, k, l, m, n, icell, current
+  integer(ip) :: cell_gid, ghost_cell_gid
+  integer(ip) :: start_pos, end_pos, num_subparts, num_vefs
+  class(cell_iterator_t), allocatable :: cell
+
+  call this%create_cell_iterator(cell)
+  if ( .not. cell%has_finished() ) then
+    num_vefs = cell%get_num_vefs() 
+  else
+    num_vefs = 0
+  end if
+  call this%free_cell_iterator(cell)
+  
+  ! Init send data structures
+  call this%snd_ptrs_lst_subparts_cell_wise%resize(0)
+  call this%snd_ptrs_lst_subparts_cell_wise%resize(this%cell_import%get_num_neighbours()+1,0)
+  p_snd_ptrs_lst_subparts_cell_wise => this%snd_ptrs_lst_subparts_cell_wise%get_pointer()
+  call this%lst_subparts_pack_idx_cell_wise%resize(0)
+  
+  p_num_subparts_vefs_cell_wise => this%num_subparts_vefs_cell_wise%get_pointer()
+  snd_ptrs  => this%cell_import%get_snd_ptrs()
+  snd_leids => this%cell_import%get_snd_leids()
+  current = 1 
+  ! Compute send data structures 
+  do i=1, this%cell_import%get_num_neighbours()
+     do j=snd_ptrs(i), snd_ptrs(i+1)-1
+        k=snd_leids(j)
+        
+        start_pos = (k-1)*num_vefs+1
+        end_pos   = (k  )*num_vefs
+        num_subparts = 0
+        do m=start_pos, end_pos
+          num_subparts=num_subparts+p_num_subparts_vefs_cell_wise(m)
+        end do
+             
+        do m=1, num_subparts
+         call this%lst_subparts_pack_idx_cell_wise%push_back(current)
+         current = current + 1
+        end do  
+             
+        p_snd_ptrs_lst_subparts_cell_wise(i+1) = &
+            p_snd_ptrs_lst_subparts_cell_wise(i+1) + num_subparts
+     end do 
+  end do
+  
+  p_snd_ptrs_lst_subparts_cell_wise(1)=1
+  do i=1, this%cell_import%get_num_neighbours()
+    p_snd_ptrs_lst_subparts_cell_wise(i+1) = p_snd_ptrs_lst_subparts_cell_wise(i+1) + &
+                                              p_snd_ptrs_lst_subparts_cell_wise(i)
+  end do 
+  
+  !! 2. "Recv side"
+  rcv_ptrs  => this%cell_import%get_rcv_ptrs()
+  rcv_leids => this%cell_import%get_rcv_leids()
+  call this%rcv_ptrs_lst_subparts_cell_wise%resize(this%cell_import%get_num_neighbours()+1,0)
+  p_rcv_ptrs_lst_subparts_cell_wise => this%rcv_ptrs_lst_subparts_cell_wise%get_pointer()
+  p_rcv_ptrs_lst_subparts_cell_wise = 0
+  do i=1, this%cell_import%get_num_neighbours()
+   do j=rcv_ptrs(i), rcv_ptrs(i+1)-1
+     k=rcv_leids(j)
+     start_pos = (k-1)*num_vefs+1
+     end_pos   = (k  )*num_vefs
+     num_subparts=0
+     do m=start_pos, end_pos 
+       num_subparts=num_subparts+p_num_subparts_vefs_cell_wise(m)
+     end do
+     p_rcv_ptrs_lst_subparts_cell_wise(i+1) = & 
+        p_rcv_ptrs_lst_subparts_cell_wise(i+1) + num_subparts
+   end do
+  end do 
+  ! Length to header
+  p_rcv_ptrs_lst_subparts_cell_wise(1)=1
+  do i=1,this%cell_import%get_num_neighbours()
+    p_rcv_ptrs_lst_subparts_cell_wise(i+1) = & 
+      p_rcv_ptrs_lst_subparts_cell_wise(i+1)+p_rcv_ptrs_lst_subparts_cell_wise(i) 
+  end do
+end subroutine t_compute_near_neigh_ctrl_data_lst_subparts
+
+subroutine t_compute_ptrs_to_rcv_lst_subparts_vefs_cell_wise(this)
+  implicit none
+  class(triangulation_t), intent(inout)    :: this
+  integer(ip), pointer :: p_num_subparts_vefs_cell_wise(:)
+  integer(ip), pointer :: p_ptrs_to_rcv_lst_subparts_vefs_cell_wise(:)
+  integer(ip), pointer :: rcv_leids(:)
+  integer(ip) :: i, j, k, num_subparts 
+  integer(ip) :: start_pos, end_pos 
+  integer(ip) :: num_vefs
+  class(cell_iterator_t), allocatable :: cell
+  
+  call this%create_cell_iterator(cell)
+  if ( .not. cell%has_finished() ) then
+    num_vefs = cell%get_num_vefs() 
+  else
+    num_vefs = 0
+  end if
+  call this%free_cell_iterator(cell)
+
+  rcv_leids => this%cell_import%get_rcv_leids()
+  call this%ptrs_to_rcv_lst_subparts_vefs_cell_wise%resize(size(rcv_leids)+1)
+  p_ptrs_to_rcv_lst_subparts_vefs_cell_wise => this%ptrs_to_rcv_lst_subparts_vefs_cell_wise%get_pointer()
+  p_ptrs_to_rcv_lst_subparts_vefs_cell_wise = 0
+  p_num_subparts_vefs_cell_wise => this%num_subparts_vefs_cell_wise%get_pointer()
+
+  do i=1, size(rcv_leids) 
+   k = rcv_leids(i)
+   start_pos = (k-1)*num_vefs+1
+   end_pos   = (k  )*num_vefs
+   num_subparts = 0
+   do j=start_pos, end_pos
+     num_subparts=num_subparts+p_num_subparts_vefs_cell_wise(j)
+   end do
+   p_ptrs_to_rcv_lst_subparts_vefs_cell_wise(i+1) = & 
+      p_ptrs_to_rcv_lst_subparts_vefs_cell_wise(i+1) + num_subparts
+  end do
+  ! Length to header
+  p_ptrs_to_rcv_lst_subparts_vefs_cell_wise(1)=1
+  do i=1,size(rcv_leids)
+     p_ptrs_to_rcv_lst_subparts_vefs_cell_wise(i+1) = & 
+       p_ptrs_to_rcv_lst_subparts_vefs_cell_wise(i+1)+p_ptrs_to_rcv_lst_subparts_vefs_cell_wise(i) 
+  end do 
+end subroutine t_compute_ptrs_to_rcv_lst_subparts_vefs_cell_wise
+
+subroutine t_fetch_lst_subparts_vefs_cell_wise(this)
+  implicit none
+  class(triangulation_t), intent(inout)    :: this
+  integer(ip), pointer :: p_lst_subparts_vefs_cell_wise(:)
+  integer(ip), pointer :: p_rcv_lst_subparts_vefs_cell_wise(:)
+  integer(ip), pointer :: p_rcv_ptrs_lst_subparts_vefs_cell_wise(:)
+  integer(ip), pointer :: p_snd_ptrs_lst_subparts_vefs_cell_wise(:)
+  class(environment_t), pointer :: environment
+  integer(ip) :: i, j, k, l, ivef
+  integer(ip) :: num_subparts, num_vefs
+  integer(ip), pointer :: snd_leids(:)
+  integer(ip), pointer :: snd_ptrs(:)
+  integer(ip) :: current
+  class(cell_iterator_t), allocatable :: cell
+  class(vef_iterator_t), allocatable :: vef
+  
+  p_snd_ptrs_lst_subparts_vefs_cell_wise => this%snd_ptrs_lst_subparts_cell_wise%get_pointer()
+  call this%lst_subparts_vefs_cell_wise%resize(p_snd_ptrs_lst_subparts_vefs_cell_wise(this%cell_import%get_num_neighbours()+1)-1)
+  p_lst_subparts_vefs_cell_wise => this%lst_subparts_vefs_cell_wise%get_pointer()
+  
+  p_rcv_ptrs_lst_subparts_vefs_cell_wise => this%rcv_ptrs_lst_subparts_cell_wise%get_pointer()
+  call this%rcv_lst_subparts_vefs_cell_wise%resize(p_rcv_ptrs_lst_subparts_vefs_cell_wise(this%cell_import%get_num_neighbours()+1)-1)
+  p_rcv_lst_subparts_vefs_cell_wise => this%rcv_lst_subparts_vefs_cell_wise%get_pointer()
+
+  call this%create_cell_iterator(cell)
+  if ( .not. cell%has_finished() ) then
+    num_vefs = cell%get_num_vefs() 
+  else
+    num_vefs = 0
+  end if
+  
+  call this%create_vef_iterator(vef)
+  snd_ptrs  => this%cell_import%get_snd_ptrs()
+  snd_leids => this%cell_import%get_snd_leids()
+  current = 1 
+  do i=1, this%cell_import%get_num_neighbours()
+    do j=snd_ptrs(i), snd_ptrs(i+1)-1
+       k=snd_leids(j)
+       call cell%set_gid(k)
+       do ivef=1, cell%get_num_vefs()
+         call cell%get_vef(ivef, vef)
+         if ( vef%is_proper() ) then    
+           do l=1, this%lst_subparts_vefwise(vef%get_gid())%size()
+             p_lst_subparts_vefs_cell_wise(current) = this%lst_subparts_vefwise(vef%get_gid())%get(l)
+             current = current + 1
+           end do 
+         end if
+       end do
+    end do
+  end do  
+  call this%free_cell_iterator(cell)
+  call this%free_vef_iterator(vef)
+  
+  environment             => this%get_environment()
+  call environment%l1_neighbours_exchange ( num_rcv    = this%cell_import%get_num_neighbours(), &
+                                            list_rcv   = this%cell_import%get_neighbours_ids(), &
+                                            rcv_ptrs   = p_rcv_ptrs_lst_subparts_vefs_cell_wise, &
+                                            rcv_buf    = p_rcv_lst_subparts_vefs_cell_wise, &
+                                            num_snd    = this%cell_import%get_num_neighbours(), &
+                                            list_snd   = this%cell_import%get_neighbours_ids(), &
+                                            snd_ptrs   = p_snd_ptrs_lst_subparts_vefs_cell_wise, &
+                                            pack_idx   = this%lst_subparts_pack_idx_cell_wise%get_pointer(), &
+                                            x          = p_lst_subparts_vefs_cell_wise)
+  
+end subroutine t_fetch_lst_subparts_vefs_cell_wise
+
+subroutine t_update_lst_subparts_vefwise_after_exchange(this)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  class(cell_iterator_t), allocatable   :: cell
+  class(vef_iterator_t) , allocatable   :: itfc_vef
+  integer(ip) :: k, ivef, jvef, num_vefs, icell, base_pos
+  integer(ip), pointer :: p_num_subparts_vefs_cell_wise(:)
+  integer(ip), pointer :: p_ptrs_to_rcv_lst_subparts_vefs_cell_wise(:)
+  integer(ip), pointer :: p_rcv_lst_subparts_vefs_cell_wise(:)
+  integer(ip) :: subpart_gid
+  integer(ip) :: offset, start_pos
+  
+  call this%create_itfc_vef_iterator(itfc_vef)
+  call this%create_cell_iterator(cell)
+  
+  if ( .not. cell%has_finished() ) then
+    num_vefs = cell%get_num_vefs() 
+  else
+    num_vefs = 0
+  end if
+  
+  p_num_subparts_vefs_cell_wise             => this%num_subparts_vefs_cell_wise%get_pointer()
+  p_ptrs_to_rcv_lst_subparts_vefs_cell_wise => this%ptrs_to_rcv_lst_subparts_vefs_cell_wise%get_pointer()
+  p_rcv_lst_subparts_vefs_cell_wise         => this%rcv_lst_subparts_vefs_cell_wise%get_pointer()
+  
+  call itfc_vef%first()
+  do while(.not. itfc_vef%has_finished() )
+     if ( itfc_vef%is_proper() ) then
+       do icell=1, itfc_vef%get_num_cells_around()
+          call itfc_vef%get_cell_around(icell,cell)
+          ivef = cell%get_vef_lid_from_gid(itfc_vef%get_gid())   
+          if ( cell%is_ghost() ) then
+             k = cell%get_gid()
+             base_pos = (k-1)*num_vefs
+             offset = 0  
+             do jvef=1, ivef-1
+               offset = offset + p_num_subparts_vefs_cell_wise(base_pos+jvef)
+             end do
+             start_pos = p_ptrs_to_rcv_lst_subparts_vefs_cell_wise(k-this%get_num_local_cells())-1
+             do k=1, p_num_subparts_vefs_cell_wise(base_pos+ivef)
+               subpart_gid = p_rcv_lst_subparts_vefs_cell_wise(start_pos+offset+k)
+               assert (subpart_gid > 0)
+               call insert(subpart_gid,this%lst_subparts_vefwise(itfc_vef%get_gid()))
+             end do 
+          end if   
+       end do
+     end if
+     call itfc_vef%next()
+  end do
+  
+  call this%free_vef_iterator(itfc_vef)
+  call this%free_cell_iterator(cell)
+  
+contains 
+
+   function is_present ( entry, vector ) 
+     implicit none
+     integer(ip)                  , intent(in) :: entry
+     type(std_vector_integer_ip_t), intent(in) :: vector
+     logical :: is_present 
+     integer(ip) :: i
+     is_present = .false.
+     do i=1, vector%size()
+      if ( vector%get(i) == entry ) then
+        is_present = .true.
+        return
+      end if
+     end do
+   end function is_present
+   
+   subroutine insert (entry, vector)
+     implicit none
+     integer(ip)                  , intent(in)    :: entry
+     type(std_vector_integer_ip_t), intent(inout) :: vector
+     if ( .not. is_present(entry, vector) ) then
+       call vector%push_back(entry)
+     end if
+   end subroutine 
+  
+end subroutine t_update_lst_subparts_vefwise_after_exchange
+
+subroutine triangulation_free_non_conforming_scratch_data(this)
+  implicit none
+  class(triangulation_t), intent(inout)    :: this
+  integer(ip) :: i, istat
+  
+  ! Scratch data required for non-conforming triangulations, assuming that 
+  ! there might be more than one subpart per local subdomain
+  if ( allocated(this%lst_subparts_vefwise) ) then
+    do i=1, size(this%lst_subparts_vefwise)
+      call this%lst_subparts_vefwise(i)%free()
+    end do 
+    deallocate(this%lst_subparts_vefwise, stat=istat); check(istat==0);
+  end if 
+  
+  call this%num_subparts_vefs_cell_wise%free()
+  call this%snd_ptrs_lst_subparts_cell_wise%free()
+  call this%lst_subparts_pack_idx_cell_wise%free()
+  call this%rcv_ptrs_lst_subparts_cell_wise%free()
+  call this%lst_subparts_vefs_cell_wise%free()
+  call this%rcv_lst_subparts_vefs_cell_wise%free()
+  call this%ptrs_to_rcv_lst_subparts_vefs_cell_wise%free()
+end subroutine triangulation_free_non_conforming_scratch_data
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! Traversals
@@ -1293,35 +2244,54 @@ end subroutine triangulation_free_object_iterator
 recursive subroutine triangulation_free ( this )
   implicit none
   class(triangulation_t), target, intent(inout) :: this
-  integer(ip) :: icell, ivef, istat
-  
   if ( associated(this%environment) ) then
      if ( this%environment%am_i_l1_task() ) then
-        this%num_dims = -1 
-        
+        this%num_dims = -1         
         call this%cell_import%free()
         this%num_local_cells = -1
         this%num_ghost_cells = -1
-        
         call this%free_lst_itfc_vefs()
-
-        ! Free coarse objects-related data
-        call this%free_objects_ggids_and_dim()
-        call this%vefs_object%free()
-        call this%parts_object%free()
-        call this%subparts_object%free()
-        call this%g2l_subparts%free()
-        this%num_objects = -1
-        this%num_global_objects = -1
+        call this%free_coarse_triangulation_l1_data()
      else ! I am lgt1_task
-        if (associated(this%coarse_triangulation)) then
-          call this%coarse_triangulation%free()
-          deallocate ( this%coarse_triangulation, stat=istat)
-          check(istat == 0)
-        end if
+        call this%free_coarse_triangulation_lgt1_data()
      end if
      call this%free_environment()  
+     this%coarse_triangulation_set_up = .false.
   end if
+  call this%set_single_octree_mesh(.false.)
 end subroutine triangulation_free
 
+subroutine triangulation_free_coarse_triangulation_l1_data(this)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  if ( associated(this%environment) ) then
+    if ( this%environment%am_i_l1_task() ) then
+      ! Free coarse objects-related data
+      call this%free_objects_ggids_and_dim()
+      call this%vefs_object%free()
+      call this%parts_object%free()
+      call this%subparts_object%free()
+      call this%g2l_subparts%free()
+      this%num_objects = -1
+      this%num_global_objects = -1
+      if ( .not. this%is_conforming() ) then
+        call this%free_non_conforming_scratch_data()
+      end if  
+    end if
+  end if
+end subroutine triangulation_free_coarse_triangulation_l1_data
 
+recursive subroutine triangulation_free_coarse_triangulation_lgt1_data(this)
+  implicit none
+  class(triangulation_t), intent(inout) :: this
+  integer(ip) :: istat
+  if ( associated(this%environment) ) then
+    if ( this%environment%am_i_lgt1_task() ) then
+      if (associated(this%coarse_triangulation)) then
+        call this%coarse_triangulation%free()
+        deallocate ( this%coarse_triangulation, stat=istat)
+        check(istat == 0)
+      end if
+    end if
+  end if
+end subroutine triangulation_free_coarse_triangulation_lgt1_data
