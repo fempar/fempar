@@ -257,8 +257,7 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
     call this%minus_current_residual%scal(-1.0_rp, this%current_residual)
     
     call this%linear_solver%apply( this%minus_current_residual, this%increment_dof_values )
-    call this%line_search%determine_step_length(this%increment_dof_values, this%current_dof_values, nonlinear_operator)  
-    WRITE(*,*) 'Updating w/ Lambda:', this%line_search%get_step_length()
+    call this%line_search%determine_step_length(this%increment_dof_values, this%current_dof_values, nonlinear_operator) 
     call this%update_solution(this%line_search%get_step_length()) ! x + lambda*dx
     call nonlinear_operator%set_evaluation_point(this%current_dof_values)
     call nonlinear_operator%compute_residual()
