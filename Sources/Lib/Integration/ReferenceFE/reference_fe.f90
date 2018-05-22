@@ -278,7 +278,22 @@ module reference_fe_names
   public :: no_ressemblance, is_only_translated, is_scaled_and_translated
 
   !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+   type cell_map_edget_restriction_t
+     private
+     integer(ip)                 :: num_edgets = 0
+     integer(ip)                 :: current_edget_lid
+     type(cell_map_t), allocatable :: cell_map(:)
+   contains
+     procedure, non_overridable :: create               => cell_map_edget_restriction_create
+     procedure, non_overridable :: update               => cell_map_edget_restriction_update
+     procedure, non_overridable :: free                 => cell_map_edget_restriction_free
+     procedure, non_overridable :: copy                 => cell_map_edget_restriction_copy
+     procedure, non_overridable :: get_coordinates      => cell_map_edget_restriction_get_coordinates
+     procedure, non_overridable :: get_current_cell_map => cell_map_edget_restriction_get_current_cell_map 
+  end type cell_map_edget_restriction_t
+  
+  public :: cell_map_edget_restriction_t
+  
   type cell_map_facet_restriction_t
      private
      integer(ip)                 :: num_facets = 0
@@ -581,7 +596,7 @@ module reference_fe_names
      !procedure :: get_first_vertex_id => reference_fe_get_first_vertex_id
      !procedure :: get_num_vertices_x_edge => reference_fe_get_num_vertices_x_edge
      !procedure :: get_num_vertices_x_face => reference_fe_get_num_vertices_x_face
-     !procedure :: get_num_edgets => reference_fe_get_num_edgets
+     procedure :: get_num_edgets => reference_fe_get_num_edgets
      !procedure :: get_first_edge_id => reference_fe_get_first_edge_id
      procedure :: get_num_facets => reference_fe_get_num_facets
      procedure :: get_first_facet_id => reference_fe_get_first_facet_id

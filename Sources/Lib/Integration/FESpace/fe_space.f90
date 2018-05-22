@@ -1495,7 +1495,7 @@ private
 type(edge_map_t)  , allocatable  :: edge_maps(:) 
 type(facet_map_t) , allocatable  :: facet_maps(:) 
 type(cell_map_t)  , allocatable  :: cell_maps(:) 
-type(cell_map_t)  , allocatable  :: cell_maps_restricted_to_edge(:)
+class(cell_map_edget_restriction_t), allocatable :: cell_maps_edget_restriction(:)
 class(cell_map_facet_restriction_t), allocatable :: cell_maps_facet_restriction(:)
 ! Quadratures 
 type(quadrature_t)  , allocatable  :: edge_quadratures(:) 

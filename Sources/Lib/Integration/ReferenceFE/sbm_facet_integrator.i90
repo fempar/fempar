@@ -25,6 +25,93 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine cell_map_edget_restriction_create( this, quadrature, reference_fe_geometry )
+  implicit none
+  ! Parameters
+  class(cell_map_edget_restriction_t) , intent(inout) :: this
+  type(quadrature_t)                  , intent(in)    :: quadrature
+  class(reference_fe_t)               , intent(in)    :: reference_fe_geometry
+
+  integer(ip)           :: edget_lid, istat
+
+  call this%free()
+  this%num_edgets = reference_fe_geometry%get_num_edgets()
+  allocate(this%cell_map(this%num_edgets),stat = istat); check(istat == 0);
+  do edget_lid = 1,this%num_edgets
+      call this%cell_map(edget_lid)%restricted_to_edget( edget_lid,            &
+                                                         quadrature,           &
+                                                         reference_fe_geometry )
+  end do
+end subroutine cell_map_edget_restriction_create
+
+!==================================================================================================
+subroutine cell_map_edget_restriction_update( this, edget_lid, quadrature)
+  implicit none
+  ! Parameters
+  class(cell_map_edget_restriction_t), intent(inout) :: this
+  integer(ip)                        , intent(in)    :: edget_lid
+  type(quadrature_t)                 , intent(in)    :: quadrature
+
+  this%current_edget_lid = edget_lid
+  call this%cell_map(edget_lid)%update(quadrature,no_ressemblance)
+
+end subroutine cell_map_edget_restriction_update
+
+!==================================================================================================
+subroutine cell_map_edget_restriction_free(this)
+  implicit none
+  ! Parameters
+  class(cell_map_edget_restriction_t), intent(inout) :: this
+  integer(ip) :: edget_lid , istat
+  do edget_lid = 1,this%num_edgets
+     call this%cell_map(edget_lid)%free()
+  end do
+  if (allocated(this%cell_map)) then
+     deallocate(this%cell_map, stat = istat)
+     check(istat == 0)
+  end if
+  this%num_edgets = 0
+  this%current_edget_lid = 0
+end subroutine cell_map_edget_restriction_free
+
+!==================================================================================================
+subroutine cell_map_edget_restriction_copy( this, other )
+  implicit none
+  ! Parameters
+  class(cell_map_edget_restriction_t), intent(inout) :: this
+  type (cell_map_edget_restriction_t), intent(in)    :: other
+  integer(ip) :: i, istat
+  call this%free()
+  this%num_edgets = other%num_edgets
+  this%current_edget_lid = other%current_edget_lid
+  if (allocated(other%cell_map)) then
+    allocate( this%cell_map(size(other%cell_map)), stat = istat ); check(istat==0);
+    do i = 1, size(this%cell_map)
+      call assign_cell_map(this%cell_map(i),other%cell_map(i))
+    end do
+  end if
+end subroutine cell_map_edget_restriction_copy
+
+!==================================================================================================
+function cell_map_edget_restriction_get_coordinates(this,edget_lid)
+  implicit none
+  ! Parameters
+  class(cell_map_edget_restriction_t), intent(in) :: this
+  integer(ip)                        , intent(in) :: edget_lid
+  type(point_t), pointer :: cell_map_edget_restriction_get_coordinates(:)
+  cell_map_edget_restriction_get_coordinates => this%cell_map(edget_lid)%get_coordinates()
+end function cell_map_edget_restriction_get_coordinates
+
+!==================================================================================================
+function cell_map_edget_restriction_get_current_cell_map(this)
+  implicit none
+  ! Parameters
+  class(cell_map_edget_restriction_t), target, intent(in) :: this
+  type(cell_map_t), pointer :: cell_map_edget_restriction_get_current_cell_map
+  assert ( this%current_edget_lid >= 1 .and. this%current_edget_lid <= this%num_edgets )
+  cell_map_edget_restriction_get_current_cell_map => this%cell_map( this%current_edget_lid )
+end function cell_map_edget_restriction_get_current_cell_map
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! cell_map_facet_restriction_t type procedures
 subroutine cell_map_facet_restriction_create( this, quadrature, reference_fe_geometry )
