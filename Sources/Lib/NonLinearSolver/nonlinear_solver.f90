@@ -112,7 +112,7 @@ module nonlinear_solver_names
      procedure, private :: determine_step_length => L2_iterative_secant_line_search_determine_step_length
   end type L2_iterative_secant_line_search_t
 
-public :: static, cubic_backtracking 
+public :: static, cubic_backtracking, L2_iterative_secant 
   
   type :: nonlinear_solver_t
     private 

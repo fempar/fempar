@@ -124,11 +124,11 @@ contains
     integer(ip)  , optional , intent(in)    :: ideal_num_iterations 
     
     ! Update time step with nonlinear convergence history 
-				if ( present(num_iterations) .and. present(ideal_num_iterations) ) then 
+	if ( present(num_iterations) .and. present(ideal_num_iterations) ) then 
     this%time_step = min( real(ideal_num_iterations,rp)/real(num_iterations,rp), 5.0_rp )*this%time_step
     this%time_step = max(this%time_step, this%min_time_step) 
     this%time_step = min(this%time_step, this%max_time_step) 
-				end if 
+	end if 
     
     ! Update theta-method scheme 
     this%current_time = this%current_time + this%time_step

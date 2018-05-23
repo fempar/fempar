@@ -12,8 +12,12 @@ module par_test_hts_params_names
   character(len=*), parameter :: bddc_edge_continuity_algorithm_key   = 'bddc_edge_continuity_algorithm'
 
   ! MESHING parameters 
-		character(len=*), parameter :: domain_limits_key             = 'domain_limits'
+  character(len=*), parameter :: domain_limits_key             = 'domain_limits'
   character(len=*), parameter :: hts_domain_length_key         = 'hts_domain_length'
+  character(len=*), parameter :: num_refinements_key           = 'num_refinements'
+  character(len=*), parameter :: min_num_refinements_key       = 'min_num_refinements'
+  character(len=*), parameter :: num_extra_refinements_key     = 'num_extra_refinements'
+  character(len=*), parameter :: epsilon_refinement_key        = 'epsilon_refinement' 
 
   ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
   character(len=*), parameter :: external_magnetic_field_amplitude_key      = 'external_magnetic_field_amplitude' 
@@ -23,7 +27,7 @@ module par_test_hts_params_names
   character(len=*), parameter :: apply_current_density_constraint_key       = 'apply_current_density_constraint' 
 
   ! PHYSICAL PROPERTIES parameters
-		character(len=*), parameter :: is_analytical_solution_key     = 'is_analytical_solution'
+  character(len=*), parameter :: is_analytical_solution_key     = 'is_analytical_solution'
   character(len=*), parameter :: air_permeability_key           = 'air_permeability'
   character(len=*), parameter :: air_resistivity_key            = 'air_resistivity' 
   character(len=*), parameter :: hts_permeability_key           = 'hts_permeability' 
@@ -31,6 +35,10 @@ module par_test_hts_params_names
   character(len=*), parameter :: critical_current_key           = 'critical_current' 
   character(len=*), parameter :: critical_electric_field_key    = 'critical_electric_field' 
   character(len=*), parameter :: nonlinear_exponent_key         = 'nonlinear_exponent' 
+  character(len=*), parameter :: hts_device_type_key            = 'hts_device_type'
+  
+  character(len=*), parameter :: stack = 'stack'
+  character(len=*), parameter :: bulk  = 'bulk' 
 
   ! TIME INTEGRATION parameters 
   character(len=*), parameter :: theta_value_key                = 'theta_value' 
@@ -44,24 +52,30 @@ module par_test_hts_params_names
   character(len=*), parameter :: save_solution_n_steps_key      = 'save_solution_n_steps' 
 
   ! NONLINEAR SOLVER parameters 
+  character(len=*), parameter :: relative_linear_tolerance_key       = 'relative_linear_tolerance' 
   character(len=*), parameter :: nonlinear_convergence_criteria_key  = 'nonlinear_convergence_criteria' 
   character(len=*), parameter :: absolute_nonlinear_tolerance_key    = 'absolute_nonlinear_tolerance' 
   character(len=*), parameter :: relative_nonlinear_tolerance_key    = 'relative_nonlinear_tolerance' 
   character(len=*), parameter :: max_nonlinear_iterations_key        = 'max_nonlinear_iterations' 
+  character(len=*), parameter :: line_search_type_key                = 'line_search_type' 
 
   type, extends(parameter_handler_t) :: par_test_hts_params_t
   private
 contains
-  procedure :: define_parameters  => par_test_maxwell_params_define_parameters
+  procedure :: define_parameters  => par_test_hts_params_define_parameters
   procedure, non_overridable             :: get_dir_path
   procedure, non_overridable             :: get_prefix
   procedure, non_overridable             :: get_reference_fe_geo_order
   procedure, non_overridable             :: get_reference_fe_order
   procedure, non_overridable             :: get_write_solution
   procedure, non_overridable             :: get_triangulation_type
-		procedure, non_overridable             :: get_domain_limits
+  procedure, non_overridable             :: get_domain_limits
   procedure, non_overridable             :: get_hts_domain_length
-		procedure, non_overridable             :: get_is_analytical_solution 
+  procedure, non_overridable             :: get_num_refinements 
+  procedure, non_overridable             :: get_min_num_refinements
+  procedure, non_overridable             :: get_num_extra_refinements
+  procedure, non_overridable             :: get_epsilon_refinement
+  procedure, non_overridable             :: get_is_analytical_solution 
   procedure, non_overridable             :: get_external_magnetic_field_amplitude
   procedure, non_overridable             :: get_external_magnetic_field_frequency
   procedure, non_overridable             :: get_external_current_amplitude
@@ -74,6 +88,7 @@ contains
   procedure, non_overridable 	           :: get_critical_current           
   procedure, non_overridable             :: get_critical_electric_field   
   procedure, non_overridable             :: get_nonlinear_exponent
+  procedure, non_overridable             :: get_hts_device_type 
   procedure, non_overridable             :: get_theta_value 
   procedure, non_overridable             :: get_initial_time 
   procedure, non_overridable             :: get_final_time 
@@ -83,19 +98,23 @@ contains
   procedure, non_overridable             :: get_max_time_step 
   procedure, non_overridable             :: get_min_time_step 
   procedure, non_overridable             :: get_save_solution_n_steps 
+  procedure, non_overridable             :: get_relative_linear_tolerance 
   procedure, non_overridable             :: get_nonlinear_convergence_criteria 
   procedure, non_overridable             :: get_absolute_nonlinear_tolerance
   procedure, non_overridable             :: get_relative_nonlinear_tolerance 
   procedure, non_overridable             :: get_max_nonlinear_iterations 
+  procedure, non_overridable             :: get_line_search_type 
 end type par_test_hts_params_t
 
 ! Types
 public :: par_test_hts_params_t
+! Parameters 
+public :: stack, bulk 
 
 contains
 
   !==================================================================================================
-subroutine par_test_maxwell_params_define_parameters(this)
+subroutine par_test_hts_params_define_parameters(this)
  implicit none
  class(par_test_hts_params_t), intent(inout) :: this
  type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
@@ -122,7 +141,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = list%set(key = write_solution_key                , value =  .false.)             ; check(error==0)
  error = list%set(key = triangulation_generate_key        , value =  triangulation_generate_from_mesh) ; check(error==0)
  error = list%set(key = execution_context_key             , value =  mpi_context)                      ; check(error==0)
- error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                                    ; check(error==0)
+ error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                                   ; check(error==0)
  error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                                    ; check(error==0)
  error = list%set(key = coarse_space_use_faces_key        , value =  .false.)                                   ; check(error==0)
  error = list%set(key = bddc_edge_continuity_algorithm_key, value =  tangential_average_and_first_order_moment) ; check(error==0)
@@ -130,6 +149,10 @@ subroutine par_test_maxwell_params_define_parameters(this)
  ! Domain length 
  error = list%set(key = domain_limits_key     , value = [0.0,1.0,0.0,1.0,0.0,1.0]) ; check(error==0)
  error = list%set(key = hts_domain_length_key , value = [0.5,0.5,0.5]) ; check(error==0)
+ error = list%set(key = num_refinements_key , value = 3) ; check(error==0)
+ error = list%set(key = min_num_refinements_key , value = 1) ; check(error==0)
+ error = list%set(key = num_extra_refinements_key , value = 0) ; check(error==0)
+ error = list%set(key = epsilon_refinement_key , value = [0.0,0.0,0.0]) ; check(error==0)
 
  ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
  error = list%set(key = external_magnetic_field_amplitude_key , value = [0.0,0.0,0.0]) ; check(error==0) 
@@ -139,7 +162,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = list%set(key = apply_current_density_constraint_key  , value = .false.)       ; check(error==0)
 
  ! PHYSICAL PROPERTIES parameters
-	error = list%set(key = is_analytical_solution_key, value = .false.)    ; check(error==0)
+ error = list%set(key = is_analytical_solution_key, value = .false.)    ; check(error==0)
  error = list%set(key = air_permeability_key        , value = 1.0)      ; check(error==0)
  error = list%set(key = air_resistivity_key         , value = 1.0)      ; check(error==0)
  error = list%set(key = hts_permeability_key        , value = 1.0)      ; check(error==0)
@@ -147,6 +170,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = list%set(key = critical_current_key        , value = 1.0)      ; check(error==0)
  error = list%set(key = critical_electric_field_key , value = 1.0)      ; check(error==0)
  error = list%set(key = nonlinear_exponent_key      , value = 1.0)      ; check(error==0)
+ error = list%set(key = hts_device_type_key         , value = bulk)     ; check(error==0)
 
  ! TIME INTEGRATION parameters 
  error = list%set(key = theta_value_key              , value = 1.0)      ; check(error==0)
@@ -160,10 +184,12 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = list%set(key = save_solution_n_steps_key    , value = 10)       ; check(error==0)
 
  ! NONLINEAR SOLVER parameters 
+ error = list%set(key = relative_linear_tolerance_key      , value = 1.0e-10_rp)           ; check(error==0)
  error = list%set(key = nonlinear_convergence_criteria_key , value = 'rel_rhs_res_norm')   ; check(error==0)
  error = list%set(key = absolute_nonlinear_tolerance_key   , value = 1.0e-2)               ; check(error==0)
  error = list%set(key = relative_nonlinear_tolerance_key   , value = 1.0e-12)              ; check(error==0)
  error = list%set(key = max_nonlinear_iterations_key       , value = 50)                   ; check(error==0)
+ error = list%set(key = line_search_type_key               , value = static)               ; check(error==0)
 
 
  ! CLI declarations ===============================================================================================
@@ -185,8 +211,13 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches%set(key = bddc_edge_continuity_algorithm_key , value = '--BDDC_edge_continuity_algorithm' ) ; check(error==0)
 
  ! Domain length 
- error = switches%set(key = domain_limits_key    , value = '--domain_limits')     ; check(error==0)
- error = switches%set(key = hts_domain_length_key         , value = '--hts_domain_length') ; check(error==0)
+ error = switches%set(key = domain_limits_key      , value = '--domain_limits')     ; check(error==0)
+ error = switches%set(key = hts_domain_length_key  , value = '--hts_domain_length') ; check(error==0)
+ error = switches%set(key = num_refinements_key    , value = '--num_refinements') ; check(error==0)
+ error = switches%set(key = min_num_refinements_key, value = '--min_num_refinements') ; check(error==0)
+ error = switches%set(key = num_extra_refinements_key    , value = '--num_extra_refinements') ; check(error==0)
+ error = switches%set(key = epsilon_refinement_key , value = '--eps_refinement') ; check(error==0)
+
 
  ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
  error = switches%set(key = external_magnetic_field_amplitude_key , value = '--external_magnetic_field_amplitude') ; check(error==0) 
@@ -196,7 +227,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches%set(key = apply_current_density_constraint_key , value = '--apply_current_density_constraint')  ; check(error==0)
 
  ! PHYSICAL PROPERTIES parameters
-	error = switches%set(key = is_analytical_solution_key, value ='--is_analytical_solution') ; check(error==0)
+ error = switches%set(key = is_analytical_solution_key  , value ='--is_analytical_solution')     ; check(error==0)
  error = switches%set(key = air_permeability_key        , value = '--air_permeability')        ; check(error==0)
  error = switches%set(key = air_resistivity_key         , value = '--air_resistivity')         ; check(error==0)
  error = switches%set(key = hts_permeability_key        , value = '--hts_permeability')        ; check(error==0)
@@ -204,12 +235,13 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches%set(key = critical_current_key        , value = '--critical_current')        ; check(error==0)
  error = switches%set(key = critical_electric_field_key , value = '--critical_electric_field') ; check(error==0)
  error = switches%set(key = nonlinear_exponent_key      , value = '--nonlinear_exponent')      ; check(error==0)
+ error = switches%set(key = hts_device_type_key         , value = '--device_type')             ; check(error==0)
 
  ! TIME INTEGRATION parameters
  error = switches%set(key = theta_value_key              , value = '--theta_value')              ; check(error==0)
  error = switches%set(key = initial_time_key             , value = '--initial_time')             ; check(error==0)
  error = switches%set(key = final_time_key               , value = '--final_time')               ; check(error==0)
- error = switches%set(key = num_time_steps_key        , value = '--num_time_steps')        ; check(error==0)
+ error = switches%set(key = num_time_steps_key           , value = '--num_time_steps')           ; check(error==0)
  error = switches%set(key = is_adaptive_time_stepping_key, value ='--is_adaptive_time_stepping') ; check(error==0)
  error = switches%set(key = stepping_parameter_key       , value = '--stepping_parameter')       ; check(error==0)
  error = switches%set(key = max_time_step_key            , value = '--max_time_step')            ; check(error==0)
@@ -217,10 +249,12 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches%set(key = save_solution_n_steps_key    , value = '--save_solution_interval')   ; check(error==0)
 
  ! NONLINEAR SOLVER parameters
+ error = switches%set(key = relative_linear_tolerance_key      , value = '--relative_linear_tolerance') ;check(error==0)
  error = switches%set(key = nonlinear_convergence_criteria_key , value = '--convergence_criteria')    ;check(error==0)
  error = switches%set(key = absolute_nonlinear_tolerance_key   , value = '--absolute_residual')       ;check(error==0)
- error = switches%set(key = relative_nonlinear_tolerance_key   , value = '--relative_residual')       ; check(error==0)
+ error = switches%set(key = relative_nonlinear_tolerance_key   , value = '--relative_residual')       ;check(error==0)
  error = switches%set(key = max_nonlinear_iterations_key       , value = '--max_nonlinear_iterations');check(error==0)
+ error = switches%set(key = line_search_type_key               , value = '--line_search_type')        ;check(error==0)
 
  ! CLI SWITCHER ==================================================================================                                                            
  error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
@@ -241,8 +275,13 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches_ab%set(key = bddc_edge_continuity_algorithm_key , value = '-edge_cont' )  ; check(error==0)
 
  ! Domain length 
-	error = switches_ab%set(key = domain_limits_key          , value = '-dl')       ; check(error==0)
+ error = switches_ab%set(key = domain_limits_key          , value = '-dl')       ; check(error==0)
  error = switches_ab%set(key = hts_domain_length_key      , value = '-hts_dl')    ; check(error==0)
+ error = switches_ab%set(key = num_refinements_key        , value = '-num_refs')    ; check(error==0)
+ error = switches_ab%set(key = min_num_refinements_key    , value = '-min_num_refs')    ; check(error==0)
+ error = switches_ab%set(key = num_extra_refinements_key  , value = '-num_extra_refs')    ; check(error==0)
+ error = switches_ab%set(key = epsilon_refinement_key     , value = '-eps_ref')    ; check(error==0)
+
 
  ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
  error = switches_ab%set(key = external_magnetic_field_amplitude_key , value = '-H')    ; check(error==0) 
@@ -252,7 +291,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches_ab%set(key = apply_current_density_constraint_key  , value = '-cdc')  ; check(error==0)
 
  ! PHYSICAL PROPERTIES parameters
-	error = switches_ab%set(key = is_analytical_solution_key, value = '-analytical_solution')   ; check(error==0)
+ error = switches_ab%set(key = is_analytical_solution_key, value = '-analytical_solution')   ; check(error==0)
  error = switches_ab%set(key = air_permeability_key        , value = '-mu_air')     ; check(error==0)
  error = switches_ab%set(key = air_resistivity_key         , value = '-rho_air')    ; check(error==0)
  error = switches_ab%set(key = hts_permeability_key        , value = '-mu_hts')     ; check(error==0)
@@ -260,12 +299,13 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches_ab%set(key = critical_current_key        , value = '-Jc    ')     ; check(error==0)
  error = switches_ab%set(key = critical_electric_field_key , value = '-Ec')         ; check(error==0)
  error = switches_ab%set(key = nonlinear_exponent_key      , value = '-nl_exp')     ; check(error==0)
+ error = switches_ab%set(key = hts_device_type_key         , value = '-hts_type')   ; check(error==0)
 
  ! TIME INTEGRATION parameters
  error = switches_ab%set(key = theta_value_key              , value = '-theta')  ; check(error==0)
  error = switches_ab%set(key = initial_time_key             , value = '-t0')     ; check(error==0)
  error = switches_ab%set(key = final_time_key               , value = '-tf')     ; check(error==0)
- error = switches_ab%set(key = num_time_steps_key        , value = '-nsteps') ; check(error==0)
+ error = switches_ab%set(key = num_time_steps_key           , value = '-nsteps') ; check(error==0)
  error = switches_ab%set(key = is_adaptive_time_stepping_key, value = '-iats')   ; check(error==0)
  error = switches_ab%set(key = stepping_parameter_key       , value = '-sp')     ; check(error==0)
  error = switches_ab%set(key = max_time_step_key            , value = '-max_ts') ; check(error==0)
@@ -273,11 +313,12 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = switches_ab%set(key = save_solution_n_steps_key    , value = '-ssi')    ; check(error==0)
 
  ! NONLINEAR SOLVER parameters
+ error = switches_ab%set(key = relative_linear_tolerance_key      , value = '-linear_rel_tol')  ; check(error==0)
  error = switches_ab%set(key = nonlinear_convergence_criteria_key , value = '-conv_crit')  ; check(error==0)
  error = switches_ab%set(key = absolute_nonlinear_tolerance_key   , value = '-abs_tol')    ; check(error==0)
  error = switches_ab%set(key = relative_nonlinear_tolerance_key   , value = '-rel_tol')    ; check(error==0)
  error = switches_ab%set(key = max_nonlinear_iterations_key       , value = '-max_nl_its') ; check(error==0)
-
+ error = switches_ab%set(key = line_search_type_key               , value = '-ls_type')    ; check(error==0)
 
  ! HELPERS =====================================================================================================================
  error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
@@ -306,16 +347,20 @@ subroutine par_test_maxwell_params_define_parameters(this)
 
  msg = 'Specify BDDC space continuity: Tangent component on coarse edges (*), tangent component + first order moment (*) or one-to-one over all fine edges (*) '
  write(msg(67:67),'(i1)') tangential_average 
- write(msg(111:111),'(i1)') tangential_average_and_first_order_moment 
- write(msg(149:149), '(i1)') all_dofs_in_coarse_edges  
+ write(msg(111:111),'(i1)') tangential_average_and_first_order_moment
+ write(msg(149:149), '(i1)') all_dofs_in_coarse_edges
  error = helpers%set(key = bddc_edge_continuity_algorithm_key  , value = msg)  ; check(error==0)
 
  ! Domain length parameters 
-	error = helpers%set(key = domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
+ error = helpers%set(key = domain_limits_key     , value = 'Domain limits of the mesh')                ; check(error==0)
  error = helpers%set(key = hts_domain_length_key , value = 'High Temperature Superconductor Device length ( concentric with the domain) ') ; check(error==0)
+ error = helpers%set(key = num_refinements_key     , value = 'Number of adaptive mesh refinements from a plain cell')                ; check(error==0)
+ error = helpers%set(key = min_num_refinements_key     , value = 'Minimum level of refinement for any cell')                ; check(error==0)
+ error = helpers%set(key = num_extra_refinements_key   , value = 'Number of extra uniform mesh refinements from a plain cell') ; check(error==0)
+ error = helpers%set(key = epsilon_refinement_key , value = 'Epsilon refinemed area otwards hts device') ; check(error==0)
 
  ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
-	error = helpers%set(key = is_analytical_solution_key, value ='Solve with analytical solution?'); check(error==0)
+ error = helpers%set(key = is_analytical_solution_key, value ='Solve with analytical solution?'); check(error==0)
  error = helpers%set(key = external_magnetic_field_amplitude_key , value = 'External magnetic field amplitude per direction') ; check(error==0) 
  error = helpers%set(key = external_magnetic_field_frequency_key , value = 'External magnetic field frequency' ) ; check(error==0)
  error = helpers%set(key = external_current_amplitude_key , value = 'External current amplitude') ; check(error==0) 
@@ -323,19 +368,20 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = helpers%set(key = apply_current_density_constraint_key , value = 'Apply current constraint?')  ; check(error==0)
 
  ! PHYSICAL PROPERTIES parameters
- error = helpers%set(key = air_permeability_key , value = 'Air permeability')     ; check(error==0)
- error = helpers%set(key = air_resistivity_key  , value = 'Air resistivity')    ; check(error==0)
- error = helpers%set(key = hts_permeability_key , value = 'High Temperature Superconductor permeability')     ; check(error==0)
- error = helpers%set(key = hts_resistivity_key  , value = 'High Temperature Superconductor resistivity')    ; check(error==0)
- error = helpers%set(key = critical_current_key , value = 'Critical Current [Jc] ')     ; check(error==0)
- error = helpers%set(key = critical_electric_field_key , value = 'Critical Electric Field [Ec]'); check(error==0)
- error = helpers%set(key = nonlinear_exponent_key , value = 'Nonlinear exponent (E-J law)')  ; check(error==0)
+ error = helpers%set(key = air_permeability_key        , value = 'Air permeability')   ; check(error==0)
+ error = helpers%set(key = air_resistivity_key         , value = 'Air resistivity')    ; check(error==0)
+ error = helpers%set(key = hts_permeability_key        , value = 'High Temperature Superconductor permeability')   ; check(error==0)
+ error = helpers%set(key = hts_resistivity_key         , value = 'High Temperature Superconductor resistivity')    ; check(error==0)
+ error = helpers%set(key = critical_current_key        , value = 'Critical Current [Jc] ')        ; check(error==0)
+ error = helpers%set(key = critical_electric_field_key , value = 'Critical Electric Field [Ec]')  ; check(error==0)
+ error = helpers%set(key = nonlinear_exponent_key      , value = 'Nonlinear exponent (E-J law)')  ; check(error==0)
+ error = helpers%set(key = hts_device_type_key         , value = 'Device type: bulk or stack')    ; check(error==0)
 
  ! TIME INTEGRATION parameters
- error = helpers%set(key = theta_value_key        , value = 'Theta value')        ; check(error==0)
- error = helpers%set(key = initial_time_key       , value = 'Initial time')       ; check(error==0)
- error = helpers%set(key = final_time_key         , value = 'Final time')         ; check(error==0)
- error = helpers%set(key = num_time_steps_key  , value = 'Number of steps')  ; check(error==0)
+ error = helpers%set(key = theta_value_key              , value = 'Theta value')        ; check(error==0)
+ error = helpers%set(key = initial_time_key             , value = 'Initial time')       ; check(error==0)
+ error = helpers%set(key = final_time_key               , value = 'Final time')         ; check(error==0)
+ error = helpers%set(key = num_time_steps_key           , value = 'Number of steps')  ; check(error==0)
  error = helpers%set(key = is_adaptive_time_stepping_key, value ='Is adaptive time stepping?'); check(error==0)
  error = helpers%set(key = stepping_parameter_key       , value = 'Ideal number of Newton-Raphson nonlinear iterations to converge') ; check(error==0)
  error = helpers%set(key = max_time_step_key            , value = 'Maximum time step size')  ; check(error==0)
@@ -343,10 +389,12 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = helpers%set(key = save_solution_n_steps_key    , value = 'Save solution in N steps ( time interval is divided into N steps to store solution) ');check(error==0)
 
  ! NONLINEAR SOLVER parameters
+ error = helpers%set(key = relative_linear_tolerance_key      , value = 'Relative tolerance of the iterative linear solver' );check(error==0)
  error = helpers%set(key = nonlinear_convergence_criteria_key , value = 'Choose one of the convergence criteria: [abs_res_norm,rel_r0_res_norm,rel_rhs_res_norm]' );check(error==0)
  error = helpers%set(key = absolute_nonlinear_tolerance_key   , value = 'Absolute residual ');check(error==0)
  error = helpers%set(key = relative_nonlinear_tolerance_key   , value = 'Relative residual '); check(error==0)
  error = helpers%set(key = max_nonlinear_iterations_key       , value = 'Maximum number of nonlinear iterations allowed');check(error==0)
+ error = helpers%set(key = line_search_type_key               , value = 'Line search type');check(error==0)
 
  ! IS REQUIRED? ================================================================================
  error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
@@ -369,9 +417,13 @@ subroutine par_test_maxwell_params_define_parameters(this)
  ! Domain length 
  error = required%set(key = domain_limits_key     , value = .false.) ; check(error==0)
  error = required%set(key = hts_domain_length_key , value = .false.)  ; check(error==0)
+ error = required%set(key = num_refinements_key , value = .false.)  ; check(error==0)
+ error = required%set(key = min_num_refinements_key , value = .false.)  ; check(error==0)
+ error = required%set(key = num_extra_refinements_key , value = .false.)  ; check(error==0)
+ error = required%set(key = epsilon_refinement_key , value = .false.)  ; check(error==0)
 
  ! PARAMETRIZED ANALYTICAL FUNCTIONS parameters
-	error = required%set(key = is_analytical_solution_key, value =.false.)    ; check(error==0)
+ error = required%set(key = is_analytical_solution_key, value =.false.)    ; check(error==0)
  error = required%set(key = external_magnetic_field_amplitude_key , value = .false.)  ; check(error==0) 
  error = required%set(key = external_magnetic_field_frequency_key , value = .false.)  ; check(error==0)
  error = required%set(key = external_current_amplitude_key        , value = .false.)  ; check(error==0) 
@@ -386,6 +438,7 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = required%set(key = critical_current_key        , value = .false.)    ; check(error==0)
  error = required%set(key = critical_electric_field_key , value = .false.)    ; check(error==0)
  error = required%set(key = nonlinear_exponent_key      , value = .false.)    ; check(error==0)
+ error = required%set(key = hts_device_type_key         , value = .false.)    ; check(error==0)
 
  ! TIME INTEGRATION parameters
  error = required%set(key = theta_value_key              , value = .false.)   ; check(error==0)
@@ -399,12 +452,14 @@ subroutine par_test_maxwell_params_define_parameters(this)
  error = required%set(key = save_solution_n_steps_key    , value = .false.)   ;check(error==0)
 
  ! NONLINEAR SOLVER parameters
+ error = required%set(key = relative_linear_tolerance_key      , value = .false.)  ;check(error==0)
  error = required%set(key = nonlinear_convergence_criteria_key , value = .false.)  ;check(error==0)
  error = required%set(key = absolute_nonlinear_tolerance_key   , value = .false.)  ;check(error==0)
  error = required%set(key = relative_nonlinear_tolerance_key   , value = .false.)  ;check(error==0)
  error = required%set(key = max_nonlinear_iterations_key       , value = .false.)  ;check(error==0)
+ error = required%set(key = line_search_type_key               , value = .false.)  ;check(error==0)
 
-end subroutine par_test_maxwell_params_define_parameters
+end subroutine par_test_hts_params_define_parameters
 
 ! GETTERS *****************************************************************************************
 function get_dir_path(this)
@@ -512,6 +567,58 @@ function get_hts_domain_length(this)
  error = list%Get(key = hts_domain_length_key, Value = get_hts_domain_length)
  assert(error==0)
 end function get_hts_domain_length
+
+!==================================================================================================
+function get_num_refinements(this)
+ implicit none
+ class(par_test_hts_params_t) , intent(in) :: this
+ integer(ip)                                   :: get_num_refinements
+ type(ParameterList_t), pointer                :: list
+ integer(ip)                                   :: error
+ list  => this%get_values()
+ assert(list%isAssignable(num_refinements_key, get_num_refinements))
+ error = list%Get(key = num_refinements_key, Value = get_num_refinements)
+ assert(error==0)
+end function get_num_refinements
+
+!==================================================================================================
+function get_min_num_refinements(this)
+ implicit none
+ class(par_test_hts_params_t) , intent(in) :: this
+ integer(ip)                                   :: get_min_num_refinements
+ type(ParameterList_t), pointer                :: list
+ integer(ip)                                   :: error
+ list  => this%get_values()
+ assert(list%isAssignable(min_num_refinements_key, get_min_num_refinements))
+ error = list%Get(key = min_num_refinements_key, Value = get_min_num_refinements)
+ assert(error==0)
+end function get_min_num_refinements
+
+!==================================================================================================
+function get_num_extra_refinements(this)
+ implicit none
+ class(par_test_hts_params_t) , intent(in) :: this
+ integer(ip)                                   :: get_num_extra_refinements
+ type(ParameterList_t), pointer                :: list
+ integer(ip)                                   :: error
+ list  => this%get_values()
+ assert(list%isAssignable(num_extra_refinements_key, get_num_extra_refinements))
+ error = list%Get(key = num_extra_refinements_key, Value = get_num_extra_refinements)
+ assert(error==0)
+end function get_num_extra_refinements
+
+!==================================================================================================
+function get_epsilon_refinement(this)
+ implicit none
+ class(par_test_hts_params_t) , intent(in) :: this
+ real(rp)                                  :: get_epsilon_refinement(0:SPACE_DIM-1)
+ type(ParameterList_t), pointer            :: list
+ integer(ip)                               :: error
+ list  => this%get_values()
+ assert(list%isAssignable(epsilon_refinement_key, get_epsilon_refinement))
+ error = list%Get(key = epsilon_refinement_key, Value = get_epsilon_refinement)
+ assert(error==0)
+end function get_epsilon_refinement
 
 !==================================================================================================
 function get_is_analytical_solution(this)
@@ -684,6 +791,19 @@ function get_nonlinear_exponent  (this)
 end function get_nonlinear_exponent
 
 !==================================================================================================
+function get_hts_device_type(this)
+ implicit none
+ class(par_test_hts_params_t) , intent(in) :: this
+ character(len=:),      allocatable            :: get_hts_device_type
+ type(ParameterList_t), pointer                :: list
+ integer(ip)                                   :: error
+ list  => this%get_values()
+ assert(list%isAssignable(hts_device_type_key, 'string'))
+ error = list%GetAsString(key = hts_device_type_key, string = get_hts_device_type)
+ assert(error==0)
+end function get_hts_device_type
+
+!==================================================================================================
 function get_theta_value  (this)
  implicit none
  class(par_test_hts_params_t) , intent(in) :: this
@@ -801,6 +921,19 @@ function get_save_solution_n_steps (this)
 end function get_save_solution_n_steps
 
 !==================================================================================================
+function get_relative_linear_tolerance (this)
+ implicit none
+ class(par_test_hts_params_t) , intent(in) :: this
+ real(rp)                                  :: get_relative_linear_tolerance  
+ type(ParameterList_t), pointer            :: list
+ integer(ip)                               :: error
+ list  => this%get_values()
+ assert(list%isAssignable(relative_linear_tolerance_key, get_relative_linear_tolerance ))
+ error = list%Get(key=relative_linear_tolerance_key, Value = get_relative_linear_tolerance )
+ assert(error==0)
+end function get_relative_linear_tolerance
+
+!==================================================================================================
 function get_nonlinear_convergence_criteria (this)
  implicit none
  class(par_test_hts_params_t) , intent(in) :: this
@@ -808,7 +941,7 @@ function get_nonlinear_convergence_criteria (this)
  type(ParameterList_t), pointer           :: list
  integer(ip)                              :: error
  list  => this%get_values()
- assert(list%isAssignable(nonlinear_convergence_criteria_key, get_nonlinear_convergence_criteria ))
+ assert(list%isAssignable(nonlinear_convergence_criteria_key, 'string'))
  error = list%GetAsString(key=nonlinear_convergence_criteria_key, string = get_nonlinear_convergence_criteria )
  assert(error==0)
 end function get_nonlinear_convergence_criteria
@@ -851,5 +984,18 @@ function get_max_nonlinear_iterations (this)
  error = list%Get(key=max_nonlinear_iterations_key, Value = get_max_nonlinear_iterations )
  assert(error==0)
 end function get_max_nonlinear_iterations
+
+!==================================================================================================
+function get_line_search_type(this)
+ implicit none
+ class(par_test_hts_params_t) , intent(in) :: this
+ character(len=:),      allocatable        :: get_line_search_type
+ type(ParameterList_t), pointer            :: list
+ integer(ip)                               :: error
+ list  => this%get_values()
+ assert(list%isAssignable(line_search_type_key, 'string'))
+ error = list%GetAsString(key = line_search_type_key, string = get_line_search_type)
+ assert(error==0)
+end function get_line_search_type
 
 end module par_test_hts_params_names
