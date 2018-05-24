@@ -100,6 +100,11 @@ contains
     real(rp)            , intent(inout) :: result
     real(rp) :: n
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+    if ( this%num_dims == 2 ) then
+      result =  point%get(1) + point%get(2)
+    else if ( this%num_dims == 3 ) then
+      result =  point%get(1) + point%get(2) + point%get(3) 
+    end if
     !n = real(this%order, rp)
     !if ( this%num_dims == 2 ) then
     !  result =  -n*(n-1.0_rp)*(point%get(1)**(n-2.0_rp) + point%get(2)**(n-2.0_rp)) ! -n(n-1)(x^{n-2}+y^{n-2})
@@ -120,9 +125,9 @@ contains
     num_points = size(point)
     do i = 1, num_points
       if ( this%num_dims == 2 ) then
-       result(i) = 0.0_rp !point(i)%get(1) + point(i)%get(2) ! x+y
+       result(i) = 0.0_rp ! x+y
       else if ( this%num_dims == 3 ) then
-       result(i) = 0.0_rp !point(i)%get(1) + point(i)%get(2) + point(i)%get(3) ! x+y+z
+       result(i) = 0.0_rp ! x+y+z
       end if  
     end do
     !num_points = size(point)
@@ -145,9 +150,11 @@ contains
     real(rp)                , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
-      result = point%get(1)**this%order + point%get(2)**this%order ! x^n+y^n
+      result = point%get(1) + point%get(2)
+      !result = point%get(1)**this%order + point%get(2)**this%order ! x^n+y^n
     else if ( this%num_dims == 3 ) then
-      result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n
+      result = point%get(1) + point%get(2) + point%get(3) 
+      !result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n
     end if  
   end subroutine boundary_function_get_value_space 
 
@@ -159,9 +166,11 @@ contains
     real(rp)                  , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
-      result = point%get(1)**this%order + point%get(2)**this%order ! x^n+y^n 
+      result = point%get(1) + point%get(2) 
+      ! result = point%get(1)**this%order + point%get(2)**this%order ! x^n+y^n 
     else if ( this%num_dims == 3 ) then
-      result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n 
+      result = point%get(1) + point%get(2) + point%get(3)
+      ! result = point%get(1)**this%order + point%get(2)**this%order + point%get(3)**this%order ! x^n+y^n+z^n 
     end if  
       
   end subroutine solution_function_get_value_space
@@ -176,12 +185,17 @@ contains
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     n = real(this%order, rp) 
     if ( this%num_dims == 2 ) then
-      call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
-      call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
+      call result%set( 1, 1.0_rp ) ! nx^{n-1}
+      call result%set( 2, 1.0_rp ) ! ny^{n-1}
+      ! call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
+      ! call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
     else if ( this%num_dims == 3 ) then
-      call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
-      call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
-      call result%set( 3, n*point%get(3)**(n-1.0_rp) ) ! nz^{n-1}
+      call result%set( 1, 1.0_rp ) ! nx^{n-1}
+      call result%set( 2, 1.0_rp ) ! ny^{n-1}
+      call result%set( 3, 1.0_rp ) ! nz^{n-1}
+      ! call result%set( 1, n*point%get(1)**(n-1.0_rp) ) ! nx^{n-1}
+      ! call result%set( 2, n*point%get(2)**(n-1.0_rp) ) ! ny^{n-1}
+      ! call result%set( 3, n*point%get(3)**(n-1.0_rp) ) ! nz^{n-1}
     end if
   end subroutine solution_function_get_gradient_space
   

@@ -84,6 +84,7 @@ contains
     integer(ip)  :: istat
     integer(ip)  :: qpoint, num_quad_points, max_num_quad_points
     integer(ip)  :: idof, jdof, num_dofs, max_num_dofs
+    integer(ip)  :: idime, num_dims
     real(rp)     :: factor
     real(rp)     :: source_term_value
     
@@ -116,6 +117,7 @@ contains
     quad            => fe%get_quadrature()
     num_quad_points = quad%get_num_quadrature_points()
     num_dofs        = fe%get_num_dofs()
+    num_dims        = fe_space%get_num_dims()
 
     ! Note: By NOT updating quad_coords/weights on each cell within the
     !       next loop, we are implicitly assuming that the same quadrature/cell 
@@ -133,7 +135,9 @@ contains
           elvec = 0.0_rp
           call fe%get_gradients(shape_gradients)
           call fe%get_values(shape_values)
+         
           call source_term%get_values_set(quad_coords,source_term_values)
+         
           call fe%get_det_jacobians(det_jacobians)
           do qpoint = 1, num_quad_points
              factor = det_jacobians(qpoint) * weights(qpoint)
