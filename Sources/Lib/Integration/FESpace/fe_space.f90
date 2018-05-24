@@ -186,13 +186,18 @@ module fe_space_names
     ! Scratch data to support FE assembly
     integer(ip)                        , allocatable :: num_cell_dofs_x_field(:)
     type(i1p_t)                        , allocatable :: fe_dofs(:)
+    type(quadrature_t)                 , pointer     :: quadrature => NULL()
     type(cell_map_t)                   , pointer     :: cell_map => NULL()
     type(p_cell_integrator_t)          , allocatable :: cell_integrators(:)
     type(std_vector_integer_ip_t)      , allocatable :: extended_fe_dofs(:)
     type(allocatable_array_ip1_t)      , allocatable :: gid_to_lid_map(:)
     type(allocatable_array_rp2_t)                    :: extended_elmat
     type(allocatable_array_rp1_t)                    :: extended_elvec
+    
+    ! Scratch data required to improve performance of some TBPs of this data type
     type(p_reference_fe_t)             , allocatable :: reference_fes(:)
+    logical                                          :: single_quad_cell_map_cell_integs = .false.
+    
     
     ! Scratch member variables required to determine the type of cell 
     ! ressemblance among a current visited cell and the previous visited one
