@@ -2244,6 +2244,7 @@ end subroutine triangulation_free_object_iterator
 recursive subroutine triangulation_free ( this )
   implicit none
   class(triangulation_t), target, intent(inout) :: this
+  integer(ip) :: istat
   if ( associated(this%environment) ) then
      if ( this%environment%am_i_l1_task() ) then
         this%num_dims = -1         
@@ -2257,6 +2258,9 @@ recursive subroutine triangulation_free ( this )
      end if
      call this%free_environment()  
      this%coarse_triangulation_set_up = .false.
+     if (allocated(this%subparts_coupling_criteria)) then
+       deallocate(this%subparts_coupling_criteria, stat=istat); check(istat==0);
+     end if 
   end if
   call this%set_single_octree_mesh(.false.)
 end subroutine triangulation_free
