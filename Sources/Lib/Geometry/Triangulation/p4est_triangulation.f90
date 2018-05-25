@@ -324,9 +324,12 @@ module p4est_triangulation_names
   
   type, extends(cell_iterator_t) :: p4est_cell_iterator_t
     private
-    integer(ip) :: num_dims                  = 0
-    integer(ip) :: base_pos_in_lst_vefs_gids = 0
-    integer(ip) :: num_local_cells           = 0
+    integer(ip) :: num_dims                   = 0
+    integer(ip) :: num_vefs                   = 0
+    integer(ip) :: base_pos_in_lst_vefs_gids  = 0
+    integer(ip) :: num_vertices               = 0
+    integer(ip) :: base_pos_in_vertex_coords  = 0
+    integer(ip) :: num_local_cells            = 0
     type(p4est_base_triangulation_t), pointer :: p4est_triangulation => NULL()
   contains
     procedure                            :: create                  => p4est_cell_iterator_create
@@ -341,6 +344,7 @@ module p4est_triangulation_names
     procedure                            :: set_set_id              => p4est_cell_iterator_set_set_id
     procedure                            :: get_level               => p4est_cell_iterator_get_level
     procedure                            :: get_num_vefs            => p4est_cell_iterator_get_num_vefs
+    procedure                            :: get_num_vertices        => p4est_cell_iterator_get_num_vertices
     procedure                            :: get_num_nodes           => p4est_cell_iterator_get_num_nodes
     procedure                            :: get_nodes_coordinates   => p4est_cell_iterator_get_nodes_coordinates
     procedure                            :: get_ggid                => p4est_cell_iterator_get_ggid

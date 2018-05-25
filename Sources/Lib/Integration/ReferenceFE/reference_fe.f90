@@ -83,15 +83,16 @@ module reference_fe_names
           coordinates(:,:),   &   
           weight(:)                         
    contains
-     procedure, non_overridable :: create => quadrature_create
-     procedure, non_overridable :: free   => quadrature_free
-     procedure, non_overridable :: print  => quadrature_print
-     procedure, non_overridable :: get_num_dims => quadrature_get_num_dims
-     procedure, non_overridable :: get_num_quadrature_points => quadrature_get_num_quadrature_points
-     procedure, non_overridable :: get_coordinates => quadrature_get_coordinates
-     procedure, non_overridable :: get_coordinates_as_points => quadrature_get_coordinates_as_points
-     procedure, non_overridable :: get_weight => quadrature_get_weight
-     procedure, non_overridable :: get_weights => quadrature_get_weights
+     procedure, non_overridable :: create                         => quadrature_create
+     procedure, non_overridable :: free                           => quadrature_free
+     procedure, non_overridable :: print                          => quadrature_print
+     procedure, non_overridable :: get_num_dims                   => quadrature_get_num_dims
+     procedure, non_overridable :: get_num_quadrature_points      => quadrature_get_num_quadrature_points
+     procedure, non_overridable :: get_coordinates                => quadrature_get_coordinates
+     procedure, non_overridable :: get_coordinates_as_points      => quadrature_get_coordinates_as_points
+     procedure, non_overridable :: get_weight                     => quadrature_get_weight
+     procedure, non_overridable :: get_weights                    => quadrature_get_weights
+     procedure, non_overridable :: get_pointer_weights            => quadrature_get_pointer_weights
 
      procedure, non_overridable          :: fill_tet_gauss_legendre            => quadrature_fill_tet_gauss_legendre
      procedure, non_overridable, private :: fill_tet_gauss_legendre_hard_coded => quadrature_fill_tet_gauss_legendre_symmetric_hard_coded
@@ -169,17 +170,18 @@ module reference_fe_names
     ! Measure of the map of the real element 
     real(rp)                    :: measure 
   contains
-    procedure                  :: free                              => base_map_free
-    procedure, non_overridable :: copy                              => base_map_copy
-    procedure                  :: update_interpolation              => base_map_update_interpolation
-    procedure, non_overridable :: get_coordinates                   => base_map_get_coordinates
-    procedure, non_overridable :: get_quadrature_points_coordinates => base_map_get_quadrature_points_coordinates
-    procedure, non_overridable :: compute_quadrature_points_coordinates    => base_map_compute_quadrature_points_coordinates
-    procedure, non_overridable :: get_det_jacobian                  => base_map_get_det_jacobian
-    procedure, non_overridable :: get_det_jacobians                 => base_map_get_det_jacobians
-    procedure, non_overridable :: get_jacobian_column               => base_map_get_jacobian_column
-    procedure, non_overridable :: get_reference_h                   => base_map_get_reference_h
-    procedure, non_overridable :: get_measure                       => base_map_get_measure 
+    procedure                  :: free                                  => base_map_free
+    procedure, non_overridable :: copy                                  => base_map_copy
+    procedure                  :: update_interpolation                  => base_map_update_interpolation
+    procedure, non_overridable :: get_coordinates                       => base_map_get_coordinates
+    procedure, non_overridable :: get_quadrature_points_coordinates     => base_map_get_quadrature_points_coordinates
+    procedure, non_overridable :: compute_quadrature_points_coordinates => base_map_compute_quadrature_points_coordinates
+    procedure, non_overridable :: get_det_jacobian                      => base_map_get_det_jacobian
+    procedure, non_overridable :: get_det_jacobians                     => base_map_get_det_jacobians
+    procedure, non_overridable :: get_pointer_det_jacobians             => base_map_get_pointer_det_jacobians
+    procedure, non_overridable :: get_jacobian_column                   => base_map_get_jacobian_column
+    procedure, non_overridable :: get_reference_h                       => base_map_get_reference_h
+    procedure, non_overridable :: get_measure                           => base_map_get_measure 
   end type base_map_t
 
 #define duties cell_map_duties

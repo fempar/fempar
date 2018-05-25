@@ -1482,7 +1482,7 @@ subroutine suhpafs_setup_only_cell_aggregation_constraints ( this )
     
       ! Check that we have an affine fe map
 #ifdef DEBUG
-      det_jacobians => cell_map%get_det_jacobians()
+      det_jacobians => cell_map%get_pointer_det_jacobians()
       do qpoint = 1, size(det_jacobians)
         massert( abs(det_jacobians(1) - det_jacobians(qpoint)) < 1.0e-13, 'We assume that the FE map is afine')
       end do
