@@ -122,7 +122,11 @@ module error_norms_names
   ! Data types
   public :: error_norms_scalar_t, error_norms_vector_t !, error_norms_tensor_t
 
+#include "../../Integration/Tools/field_operators.i90"  
+
 contains
+
+#include "../../Integration/Tools/field_operators_overloads.i90"  
 
   subroutine update_norm (norm_type, cell_contribution, norm)
     implicit none

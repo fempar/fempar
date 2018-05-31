@@ -42,8 +42,12 @@ module poisson_discrete_integration_names
   end type poisson_cG_discrete_integration_t
   
   public :: poisson_cG_discrete_integration_t
+
+#include "../../../../Lib/Integration/Tools/field_operators.i90"
   
 contains
+
+#include "../../../../Lib/Integration/Tools/field_operators_overloads.i90"
    
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none

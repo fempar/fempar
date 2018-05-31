@@ -92,7 +92,7 @@ subroutine facet_map_update(this,reorientation_factor,quadrature)
 
      ! Update the Jacobian Matrix
      do jdime=1, num_facet_dims
-        aux_vector = 0.0_rp
+        call aux_vector%init(0.0_rp)
         do node_id = 1, this%interpolation%num_shape_functions
            aux_vector = aux_vector + this%nodes_coordinates(node_id) * &
                 & this%interpolation%shape_derivatives(1,jdime,node_id,evaluation_point_id)

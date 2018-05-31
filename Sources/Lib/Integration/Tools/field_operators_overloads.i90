@@ -1,0 +1,243 @@
+  function single_contract_vector_vector(v1,v2) result(res)
+    implicit none
+    type(vector_field_t), intent(in) :: v1
+    type(vector_field_t), intent(in) :: v2
+    real(rp)                         :: res
+    integer(ip) :: k
+    res=0.0_rp
+    do k=1,SPACE_DIM
+       res = res + v1%value(k)*v2%value(k)
+    end do
+  end function single_contract_vector_vector
+
+  function single_contract_tensor_vector(t,v) result(res)
+    implicit none
+    type(tensor_field_t), intent(in) :: t
+    type(vector_field_t), intent(in) :: v
+    type(vector_field_t)             :: res
+    integer(ip) :: i, k
+    res%value=0.0_rp
+    do k=1,SPACE_DIM
+       do i=1,SPACE_DIM
+          res%value(i) = res%value(i) + t%value(i,k) * v%value(k)
+       end do
+    end do
+  end function single_contract_tensor_vector
+
+  function single_contract_vector_tensor(v,t) result(res)
+    implicit none
+    type(vector_field_t), intent(in) :: v
+    type(tensor_field_t), intent(in) :: t
+    type(vector_field_t)             :: res
+    integer(ip) :: i, k
+    res%value=0.0_rp
+    do i=1,SPACE_DIM
+       do k=1,SPACE_DIM
+          res%value(i) = res%value(i) + v%value(k) * t%value(k,i)
+       end do
+    end do
+  end function single_contract_vector_tensor
+
+  function single_contract_tensor_tensor(t1,t2) result(res)
+    implicit none
+    type(tensor_field_t), intent(in) :: t1
+    type(tensor_field_t), intent(in) :: t2
+    type(tensor_field_t)             :: res
+    integer(ip) :: i, j, k
+    res%value=0.0_rp
+    do i=1,SPACE_DIM
+       do k=1,SPACE_DIM
+          do j=1,SPACE_DIM
+             res%value(i,k) = res%value(i,k) + t1%value(i,j) * t2%value(j,k)
+          end do
+       end do
+    end do
+  end function single_contract_tensor_tensor
+
+  function scal_left_vector(alpha,v) result(res)
+    implicit none
+    real(rp)            , intent(in) :: alpha
+    type(vector_field_t), intent(in) :: v
+    type(vector_field_t)             :: res
+    res%value = alpha * v%value
+  end function scal_left_vector
+
+  function scal_right_vector(v,alpha) result(res)
+    implicit none
+    type(vector_field_t), intent(in) :: v
+    real(rp)            , intent(in) :: alpha
+    type(vector_field_t)             :: res
+    res%value = alpha * v%value
+  end function scal_right_vector
+
+  function scal_left_tensor(alpha,t) result(res)
+    implicit none
+    real(rp)            , intent(in) :: alpha
+    type(tensor_field_t), intent(in) :: t
+    type(tensor_field_t)             :: res
+    res%value = alpha * t%value
+  end function scal_left_tensor
+
+  function scal_right_tensor(t,alpha) result(res)
+    implicit none
+    type(tensor_field_t), intent(in) :: t
+    real(rp)            , intent(in) :: alpha
+    type(tensor_field_t)             :: res
+    res%value = alpha * t%value
+  end function scal_right_tensor
+
+  function double_contract_tensor_tensor(t1,t2) result(res)
+    implicit none
+    type(tensor_field_t), intent(in) :: t1
+    type(tensor_field_t), intent(in) :: t2
+    real(rp)                         :: res
+    integer(ip) :: i, j
+    res = 0.0_rp
+    do j=1, SPACE_DIM
+       do i=1,SPACE_DIM
+          res = res + t1%value(i,j)*t2%value(i,j)
+       end do
+    end do
+  end function double_contract_tensor_tensor
+
+  function scal_left_point(alpha,v) result(res)
+    implicit none
+    real(rp)            , intent(in) :: alpha
+    type(point_t), intent(in) :: v
+    type(vector_field_t)             :: res
+    res%value = alpha * v%value
+  end function scal_left_point
+
+  function scal_right_point(v,alpha) result(res)
+    implicit none
+    type(point_t), intent(in) :: v
+    real(rp)     , intent(in) :: alpha
+    type(vector_field_t)             :: res
+    res%value = alpha * v%value
+  end function scal_right_point
+
+  function sum_vector_vector ( vector1, vector2) result(vector_sum)
+    implicit none
+    type(vector_field_t), intent(in) :: vector1, vector2
+    type(vector_field_t) :: vector_sum
+    vector_sum%value = vector1%value + vector2%value
+  end function sum_vector_vector
+
+  function sum_point_point ( point1, point2) result(point_sum)
+    implicit none
+    type(point_t), intent(in) :: point1, point2
+    type(point_t) :: point_sum
+    point_sum%value = point1%value + point2%value
+  end function sum_point_point
+
+  function sum_point_vector ( point, vector) result(vector_sum)
+    implicit none
+    type(point_t), intent(in) :: point
+    type(vector_field_t), intent(in) :: vector
+    type(vector_field_t) :: vector_sum
+    vector_sum%value = point%value + vector%value
+  end function sum_point_vector
+
+  function sum_tensor_tensor ( tensor1, tensor2) result(tensor_sum)
+    implicit none
+    type(tensor_field_t), intent(in) :: tensor1, tensor2
+    type(tensor_field_t) :: tensor_sum
+    tensor_sum%value = tensor1%value + tensor2%value
+  end function sum_tensor_tensor
+
+  function sub_point_point (point1,point2) result(vector_sub)
+    implicit none
+    type(point_t), intent(in) :: point1, point2
+    type(vector_field_t) :: vector_sub
+    vector_sub%value = point1%value - point2%value
+  end function sub_point_point
+
+  function sub_point_vector ( point, vector) result(vector_sub)
+    implicit none
+    type(point_t)       , intent(in) :: point
+    type(vector_field_t), intent(in) :: vector
+    type(vector_field_t) :: vector_sub
+    vector_sub%value = point%value - vector%value
+  end function sub_point_vector
+
+  function sub_vector_vector ( vector1, vector2) result(vector_sub)
+    implicit none
+    type(vector_field_t), intent(in) :: vector1, vector2
+    type(vector_field_t):: vector_sub
+    vector_sub%value = vector1%value - vector2%value
+  end function sub_vector_vector
+  
+  function sub_tensor_tensor ( tensor1, tensor2) result(tensor_sub)
+    implicit none
+    type(tensor_field_t), intent(in) :: tensor1, tensor2
+    type(tensor_field_t):: tensor_sub
+    tensor_sub%value = tensor1%value - tensor2%value
+  end function sub_tensor_tensor
+  
+  subroutine assign_scalar_to_point ( point, scalar )
+    implicit none
+    type(point_t), intent(out) :: point
+    real(rp)     , intent(in)  :: scalar
+    point%value = scalar
+  end subroutine assign_scalar_to_point
+
+  subroutine assign_scalar_to_vector ( vector, scalar )
+    implicit none
+    type(vector_field_t), intent(out) :: vector
+    real(rp)     , intent(in)  :: scalar
+    vector%value = scalar
+  end subroutine assign_scalar_to_vector
+
+  subroutine assign_vector_to_vector( vector1, vector2 )
+    implicit none
+    type(vector_field_t), intent(out) :: vector1
+    type(vector_field_t), intent(in)  :: vector2
+    vector1%value = vector2%value
+  end subroutine assign_vector_to_vector
+
+  subroutine assign_vector_to_point( point, vector )
+    implicit none
+    type(point_t), intent(out) :: point
+    type(vector_field_t), intent(in) :: vector
+    point%value = vector%value
+  end subroutine assign_vector_to_point
+
+  subroutine assign_tensor_to_tensor( tensor1, tensor2 )
+    implicit none
+    type(tensor_field_t), intent(out) :: tensor1
+    type(tensor_field_t), intent(in)  :: tensor2
+    tensor1%value = tensor2%value
+  end subroutine assign_tensor_to_tensor
+  
+  function cross_product(v1,v2) result(res)
+    implicit none
+    type(vector_field_t), intent(in) :: v1
+    type(vector_field_t), intent(in) :: v2
+    type(vector_field_t) :: res
+    call res%set(1,v1%value(2)*v2%value(3)-v1%value(3)*v2%value(2))
+    call res%set(2,v1%value(3)*v2%value(1)-v1%value(1)*v2%value(3))
+    call res%set(3,v1%value(1)*v2%value(2)-v1%value(2)*v2%value(1))
+  end function cross_product
+
+  function symmetric_part(v1) result(v2)
+    implicit none
+    type(tensor_field_t), intent(in) :: v1
+    type(tensor_field_t)             :: v2
+    integer(ip) :: i, k
+    do k=1,SPACE_DIM
+       do i=1,SPACE_DIM
+          v2%value(i,k) = 0.5*( v1%value(i,k) + v1%value(k,i) )
+       end do
+    end do
+  end function symmetric_part
+
+  function trace(v1) result(s)
+    implicit none
+    type(tensor_field_t), intent(in) :: v1
+    real(rp)                         :: s
+    integer(ip) :: i
+    s = 0.0_rp
+    do i=1,SPACE_DIM
+      s = s + v1%value(i,i)
+    end do
+  end function trace
