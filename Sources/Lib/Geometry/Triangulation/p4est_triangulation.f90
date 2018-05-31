@@ -58,7 +58,7 @@ module p4est_triangulation_names
 #endif
 # include "debug.i90"
   private
-  
+ 
   ! For 2D
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_FACE_2D = 2
   integer(ip), parameter :: NUM_CORNERS_2D                = 4
@@ -66,7 +66,9 @@ module p4est_triangulation_names
   integer(ip), parameter :: NUM_SUBFACES_FACE_2D          = 2
   integer(ip), parameter :: NUM_FACE_CORNERS_2D           = 2
   integer(ip), parameter :: NUM_FACES_AT_CORNER_2D        = 2
-  integer(ip), parameter :: NUM_VEFS_2D              = NUM_CORNERS_2D+NUM_FACES_2D
+  integer(ip), parameter :: NUM_VEFS_2D                   = NUM_CORNERS_2D+NUM_FACES_2D
+  integer(ip), parameter :: MAX_NUM_CELLS_AROUND_2D       = 4 
+
   integer(ip), target :: P4EST_FACE_CORNERS_2D(NUM_FACE_CORNERS_2D,NUM_FACES_2D) = & 
                                                   reshape([1, 3,&
                                                            2, 4,&  
@@ -130,7 +132,9 @@ module p4est_triangulation_names
   integer(ip), parameter :: NUM_FACES_AT_CORNER_3D        = 3
   integer(ip), parameter :: NUM_FACES_AT_EDGE_3D          = 2
   integer(ip), parameter :: NUM_EDGES_AT_CORNER_3D        = 3
-  integer(ip), parameter :: NUM_VEFS_3D              = NUM_CORNERS_3D+NUM_FACES_3D+NUM_EDGES_3D
+  integer(ip), parameter :: NUM_VEFS_3D                   = NUM_CORNERS_3D+NUM_FACES_3D+NUM_EDGES_3D
+  integer(ip), parameter :: MAX_NUM_CELLS_AROUND_3D       = 8 
+
 
   integer(ip), target :: P4EST_OPPOSITE_FACE_3D(NUM_FACES_3D) = [ 2, 1, 4, 3, 6, 5 ]
 
@@ -605,6 +609,13 @@ module p4est_triangulation_names
   
   public :: p4est_par_triangulation_t
 contains
+
+! The definition of this CPP macro should be commented out
+! whenever the code below is extended to support forests of
+! octrees with more than a single octree. By now, it just
+! supports a single octree, and thus the sort of optimizations
+! that are enabled through the CPP macro can be activated.
+#define ENABLE_SINGLE_OCTREE_OPTS 1 
 
 #include "sbm_p4est_base_triangulation.i90"
 #include "sbm_p4est_cell_iterator.i90"
