@@ -1984,9 +1984,6 @@ public :: facet_integrator_t, p_facet_integrator_t
 public :: make_reference_fe
 public :: assignment(=)
 
-#define DISABLE_ASSIGNMENT
-#include "../Tools/field_operators.i90"
-
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 contains
 
@@ -1994,8 +1991,6 @@ contains
   ! In a future, we would like to use the submodule features of FORTRAN 2008.
 
 #undef duties
-#include "../Tools/field_operators_overloads.i90"
-
 #include "sbm_quadrature.i90"
 
 #include "sbm_interpolation.i90"

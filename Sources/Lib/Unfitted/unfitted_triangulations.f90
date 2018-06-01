@@ -448,11 +448,8 @@ module unfitted_triangulations_names
   public :: unfitted_p4est_serial_triangulation_t
   public :: par_unfitted_triangulation_t
 
-#include "../Integration/Tools/field_operators.i90"  
-
 contains
 
-#include "../Integration/Tools/field_operators_overloads.i90"  
 #include "sbm_unfitted_cell_iterator.i90"
 #include "sbm_unfitted_vef_iterator.i90"
 #include "sbm_unfitted_p4est_cell_iterator.i90"

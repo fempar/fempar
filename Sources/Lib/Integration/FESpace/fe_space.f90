@@ -1446,15 +1446,9 @@ procedure :: evaluate_function_scalar_components_moments        => tet_Hcurl_int
 procedure :: free                                               => tet_Hcurl_interpolator_free
 end type tet_Hcurl_interpolator_t
 
-
-#include "../../Integration/Tools/field_operators.i90"  
-
-
 contains
 !  ! Includes with all the TBP and supporting subroutines for the types above.
 !  ! In a future, we would like to use the submodule features of FORTRAN 2008.
-
-#include "../../Integration/Tools/field_operators_overloads.i90"  
 
 #include "sbm_base_fe_space.i90"
 #include "sbm_base_fe_cell_iterator.i90"

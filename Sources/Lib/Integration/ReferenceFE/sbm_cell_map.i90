@@ -209,7 +209,7 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
      ! Matmul is not thread safe
      ! map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
      do jdime=1,this%num_dims
-        call aux_vector%init(0.0_rp)
+        aux_vector = 0.0_rp
         do inode=1,this%num_nodes
            aux_vector = aux_vector + this%nodes_coordinates(inode) * &
                 & this%interpolation%shape_derivatives(1,jdime,inode,ilocs)
@@ -564,10 +564,8 @@ subroutine cell_map_compute_quadrature_points_coordinates(this)
   do qpoin = 1,this%num_quadrature_points
      call this%quadrature_points_coordinates(qpoin)%init(0.0_rp)
      do inode=1,this%num_nodes
-        call assign_vector_to_point ( this%quadrature_points_coordinates(qpoin), this%quadrature_points_coordinates(qpoin) + &
-                                      this%nodes_coordinates(inode) * this%interpolation%shape_functions(1,inode,qpoin) )
-        !this%quadrature_points_coordinates(qpoin) = this%quadrature_points_coordinates(qpoin) + &
-        !     &    this%nodes_coordinates(inode) * this%interpolation%shape_functions(1,inode,qpoin)
+        this%quadrature_points_coordinates(qpoin) = this%quadrature_points_coordinates(qpoin) + &
+             &    this%nodes_coordinates(inode) * this%interpolation%shape_functions(1,inode,qpoin)
      end do
   end do
 

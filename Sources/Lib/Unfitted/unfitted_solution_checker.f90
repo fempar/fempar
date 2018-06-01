@@ -58,11 +58,7 @@ module unfitted_solution_checker_names
 
   public :: unfitted_solution_checker_t
 
-#include "../Integration/Tools/field_operators.i90"  
-
 contains
-
-#include "../Integration/Tools/field_operators_overloads.i90"  
 
   !=================================================================================================
   subroutine unfitted_solution_checker_create(this,fe_space,fe_function,exact_solution,field_id)

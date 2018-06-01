@@ -592,13 +592,13 @@ subroutine blend_2D(r,s,x1,x2,x3,x4,x5,x6,x7,x8,x)
   !     |   .         |
   !     1---5---------2
 
-  call assign_vector_to_point ( x,  ( - 0.25_rp * (1-r) * (1-s)) *x1 &
+  x =   ( - 0.25_rp * (1-r) * (1-s)) *x1 &
        & + ( - 0.25_rp * (1+r) * (1-s)) *x2 &
        & + ( - 0.25_rp * (1-r) * (1+s)) *x3 &
        & + ( - 0.25_rp * (1+r) * (1+s)) *x4 &
        & + ( 0.5_rp * (1-s)) * x5 &
        & + ( 0.5_rp * (1+s)) * x6 &
        & + ( 0.5_rp * (1-r)) * x7 &
-       & + ( 0.5_rp * (1+r)) * x8 )
+       & + ( 0.5_rp * (1+r)) * x8
 
 end subroutine blend_2D

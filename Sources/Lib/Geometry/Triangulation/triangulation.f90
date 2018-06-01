@@ -41,6 +41,7 @@ module triangulation_names
   ! Modules required by triangulation_t implementors
   ! Serial modules
   use sort_names
+  use reference_fe_names
   use mesh_names
   use mesh_distribution_names
   use par_io_names
@@ -1171,12 +1172,9 @@ module triangulation_names
   
   public :: base_static_triangulation_t
   public :: bst_cell_iterator_t, bst_vef_iterator_t
-
-#include "../../Integration/Tools/field_operators.i90"  
+  
   
 contains
-
-#include "../../Integration/Tools/field_operators_overloads.i90"  
 
 #include "sbm_cell_iterator.i90"
 #include "sbm_vef_iterator.i90"

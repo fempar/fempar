@@ -291,10 +291,7 @@ module unfitted_fe_spaces_names
   public :: serial_unfitted_hp_adaptive_fe_space_t
   public :: par_unfitted_fe_space_t
 
-#include "../Integration/Tools/field_operators.i90"  
-
 contains
-#include "../Integration/Tools/field_operators_overloads.i90"  
 
 #include "../Unfitted/sbm_unfitted_fe_cell_iterator.i90"
 #include "../Unfitted/sbm_unfitted_fe_facet_iterator.i90"
