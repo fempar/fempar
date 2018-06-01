@@ -157,7 +157,7 @@ contains
    
     ! Solve the problem
     free_dofs_values => this%solution%get_free_dof_values()
-    call this%nonlinear_solver%solve(this%nonlinear_operator, free_dofs_values)
+    call this%nonlinear_solver%solve(free_dofs_values)
     
     ! Postprocess
     call this%write_solution()
@@ -380,7 +380,8 @@ end subroutine free_timers
          &                                         rel_tol = 1.0e-9, &
          &                                       max_iters = 10   ,  &
          &                                   linear_solver = this%linear_solver, &
-         &                                     environment = this%par_environment)  
+         &                                     environment = this%par_environment, &
+                                        nonlinear_operator = this%nonlinear_operator)  
     
 
   end subroutine setup_operators

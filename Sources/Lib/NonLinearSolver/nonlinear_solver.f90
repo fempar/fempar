@@ -49,14 +49,16 @@ module nonlinear_solver_names
       integer(ip)                              :: max_number_iterations
       real(rp)                                 :: absolute_tolerance
       real(rp)                                 :: relative_tolerance
-      character(len=:),           allocatable  :: convergence_criteria
-      class(vector_t),            pointer      :: current_dof_values => null()
-      class(vector_t),            pointer      :: current_residual   => null()
-      class(vector_t),            allocatable  :: minus_current_residual
-      class(vector_t),            allocatable  :: initial_residual
-      class(vector_t),            allocatable  :: increment_dof_values
-      class(linear_solver_t),     pointer      :: linear_solver
-      class(environment_t),       pointer      :: environment
+      character(len=:),               allocatable  :: convergence_criteria
+      class(vector_t),                pointer      :: current_dof_values => null()
+      class(vector_t),                pointer      :: current_residual   => null()
+      class(vector_t),                allocatable  :: minus_current_residual
+      class(vector_t),                allocatable  :: initial_residual
+      class(vector_t),                allocatable  :: increment_dof_values
+      class(linear_solver_t),         pointer      :: linear_solver
+      class(environment_t),           pointer      :: environment
+      class(fe_nonlinear_operator_t), pointer      :: nonlinear_operator
+
     contains
 
       ! Public TBPs. They MUST be called in this order.
@@ -93,15 +95,17 @@ subroutine nonlinear_solver_create(this, &
                                    rel_tol, &
                                    max_iters, &
                                    linear_solver, &
-                                   environment)
+                                   environment, &
+                                   nonlinear_operator)
   implicit none
-  class(nonlinear_solver_t)        , intent(inout) :: this
-  character(len=*)                 , intent(in)    :: convergence_criteria
-  real(rp)                         , intent(in)    :: abs_tol
-  real(rp)                         , intent(in)    :: rel_tol
-  integer(ip)                      , intent(in)    :: max_iters
-  class(linear_solver_t)   , target, intent(in)    :: linear_solver
-  class(environment_t)     , target, intent(in)    :: environment
+  class(nonlinear_solver_t)             , intent(inout) :: this
+  character(len=*)                      , intent(in)    :: convergence_criteria
+  real(rp)                              , intent(in)    :: abs_tol
+  real(rp)                              , intent(in)    :: rel_tol
+  integer(ip)                           , intent(in)    :: max_iters
+  class(linear_solver_t)        , target, intent(in)    :: linear_solver
+  class(environment_t)          , target, intent(in)    :: environment
+  class(fe_nonlinear_operator_t), target, intent(in)    :: nonlinear_operator
   
   call this%free()
   
@@ -113,14 +117,14 @@ subroutine nonlinear_solver_create(this, &
   this%max_number_iterations = max_iters
   this%linear_solver  => linear_solver
   this%environment    => environment
+  this%nonlinear_operator => nonlinear_operator
 end subroutine nonlinear_solver_create
 
 !==============================================================================
-subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
+subroutine nonlinear_solver_solve(this,unknown)
 
   implicit none
   class(nonlinear_solver_t)     , intent(inout) :: this
-  class(fe_nonlinear_operator_t), intent(inout) :: nonlinear_operator
   class(vector_t), target       , intent(inout) :: unknown
   
   integer(ip) :: istat
@@ -130,7 +134,7 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
     call this%increment_dof_values%free()
     deallocate(this%increment_dof_values,stat=istat); check(istat==0)
   end if
-  call nonlinear_operator%create_domain_vector(this%increment_dof_values)
+  call this%nonlinear_operator%create_domain_vector(this%increment_dof_values)
   
   ! Initialize nonlinear operator
   this%current_dof_values => unknown
@@ -138,16 +142,16 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
   call this%increment_dof_values%init(0.0) 
   
   ! Compute initial residual
-  call nonlinear_operator%set_evaluation_point(unknown)
-  call nonlinear_operator%compute_residual()
-  this%current_residual => nonlinear_operator%get_translation()
+  call this%nonlinear_operator%set_evaluation_point(unknown)
+  call this%nonlinear_operator%compute_residual()
+  this%current_residual =>this%nonlinear_operator%get_translation()
   
   ! Store initial residual for the stopping criterium that needs it
   if (this%convergence_criteria == rel_r0_res_norm) then
-    call nonlinear_operator%create_range_vector(this%initial_residual)
+    call this%nonlinear_operator%create_range_vector(this%initial_residual)
     this%initial_residual = this%current_residual
   end if
-  call nonlinear_operator%create_range_vector(this%minus_current_residual)
+  call this%nonlinear_operator%create_range_vector(this%minus_current_residual)
 
   ! Print initial residual
   call this%print_iteration_output_header()
@@ -155,7 +159,7 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
   
   do while (.not. this%has_finished())
     this%current_iteration = this%current_iteration + 1
-    call nonlinear_operator%compute_tangent()    
+    call this%nonlinear_operator%compute_tangent()    
 
     ! Force numerical set-up
     call this%linear_solver%update_matrix(same_nonzero_pattern=.true.)
@@ -170,8 +174,8 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
     
     call this%linear_solver%apply( this%minus_current_residual, this%increment_dof_values )
     call this%update_solution() ! x + dx
-    call nonlinear_operator%set_evaluation_point(this%current_dof_values)
-    call nonlinear_operator%compute_residual()
+    call this%nonlinear_operator%set_evaluation_point(this%current_dof_values)
+    call this%nonlinear_operator%compute_residual()
     call this%print_iteration_output_header()
     call this%print_current_iteration_output()
   end do
