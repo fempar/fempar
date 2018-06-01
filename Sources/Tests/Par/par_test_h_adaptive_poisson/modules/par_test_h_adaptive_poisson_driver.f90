@@ -827,6 +827,8 @@ end subroutine free_timers
              cy = 0.0_rp 
              cz = 0.0_rp 
              select case ( this%test_params%get_refinement_pattern_case() ) 
+             case ( uniform )
+                call cell%set_for_refinement()
              case ( even_cells ) 
                 if ( (mod(cell%get_gid(),2)==0) )then
                    call cell%set_for_refinement()
