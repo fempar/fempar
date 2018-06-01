@@ -165,7 +165,7 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   integer(ip) :: isubface, isubedge
   integer(ip) :: base_pos_icell, base_pos_min_cell, base_pos_ghost_cell
 
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
   integer(ip) :: work_vector_cells_around(MAX_NUM_CELLS_AROUND_3D)
   integer(ip) :: work_vector_improper_cells_around(MAX_NUM_CELLS_AROUND_3D)
   integer(ip) :: work_vector_ivef(MAX_NUM_CELLS_AROUND_3D)
@@ -264,7 +264,8 @@ subroutine p4est_bt_update_lst_vefs_gids_and_cells_around(this, old_lst_vefs_gid
   call this%ptr_cells_around_proper_vefs%transform_length_to_header()
   call this%ptr_cells_around_improper_vefs%transform_length_to_header()
   call this%ptr_improper_cells_around%transform_length_to_header()
-#ifndef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
+#else
   call work_vector_cells_around%free()
   call work_vector_improper_cells_around%free()
   call work_vector_ivef%free()
@@ -287,7 +288,7 @@ contains
         double_or_half_size_neighbour_local = .false.
         double_or_half_size_neighbour_ghost = .false.
 
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
         work_vector_cells_around(1)=icell
         current_cell_around = 2
         current_improper_cell_around = 1
@@ -333,7 +334,7 @@ contains
                 vef_at_interface = .true.
               end if                                           
 
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
               work_vector_cells_around(current_cell_around) = jcell
               current_cell_around = current_cell_around + 1 
 #else
@@ -419,7 +420,7 @@ contains
                    end if
                  is_proper = .false.
                  if ( improper_cell_around_ivef /= -2 ) then
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                    work_vector_improper_cells_around(current_improper_cell_around) = jcell
                    work_vector_ivef(current_improper_cell_around) = improper_cell_around_ivef
                    work_vector_subvef(current_improper_cell_around) = improper_cell_around_subvef
@@ -441,7 +442,7 @@ contains
                 if ( jcell > num_local_cells ) then
                   vef_at_interface = .true.
                 end if
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                 work_vector_cells_around(current_cell_around) = jcell
                 current_cell_around = current_cell_around + 1 
 #else
@@ -476,7 +477,7 @@ contains
                 if ( jcell > num_local_cells ) then
                   vef_at_interface = .true.
                 end if
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                 work_vector_cells_around(current_cell_around) = jcell
                 current_cell_around = current_cell_around + 1 
 #else
@@ -515,7 +516,7 @@ contains
                  if ( jcell > num_local_cells ) then 
                    vef_at_interface = .true.
                  end if
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                  work_vector_cells_around(current_cell_around) = jcell
                  current_cell_around = current_cell_around + 1 
 #else
@@ -555,7 +556,7 @@ contains
                     improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
                     improper_cell_around_subvef  = -1
                     is_proper = .false.
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                     work_vector_improper_cells_around(current_improper_cell_around) = jcell
                     work_vector_ivef(current_improper_cell_around) = improper_cell_around_ivef
                     work_vector_subvef(current_improper_cell_around) = improper_cell_around_subvef
@@ -577,7 +578,7 @@ contains
                     if ( jcell > num_local_cells ) then
                        vef_at_interface = .true.
                     end if
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                     work_vector_cells_around(current_cell_around) = jcell
                     current_cell_around = current_cell_around + 1 
 #else
@@ -610,7 +611,7 @@ contains
                    if ( jcell > num_local_cells ) then 
                      vef_at_interface = .true.
                    end if 
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                    work_vector_cells_around(current_cell_around) = jcell
                    current_cell_around = current_cell_around + 1 
 #else
@@ -633,7 +634,7 @@ contains
            if ( jcell > num_local_cells ) then
               vef_at_interface = .true.
            end if
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
            work_vector_cells_around(current_cell_around) = jcell
            current_cell_around = current_cell_around + 1 
 #else
@@ -650,7 +651,7 @@ contains
               this%num_proper_vefs = this%num_proper_vefs+1
               call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), this%num_proper_vefs)
               
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
               call this%ptr_cells_around_proper_vefs%push_back(current_cell_around-1)
               do i=1, current_cell_around-1
                 call this%lst_cells_around_proper_vefs%push_back(work_vector_cells_around(i))
@@ -689,7 +690,7 @@ contains
               this%num_improper_vefs = this%num_improper_vefs+1
               call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_CORNER(icorner), -this%num_improper_vefs)
 
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
               ! Fill cells_around improper vefs
               call this%ptr_cells_around_improper_vefs%push_back(current_cell_around-1)
               do i=1, current_cell_around-1
@@ -768,7 +769,7 @@ contains
            min_cell_int_edge = 0
            double_or_half_size_neighbour_local = .false.
            double_or_half_size_neighbour_ghost = .false.
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
            work_vector_cells_around(1)=icell
            current_cell_around = 2
            current_improper_cell_around = 1
@@ -796,7 +797,7 @@ contains
                  if ( jcell > num_local_cells ) then ! If neighbour cell is ghost
                     vef_at_interface = .true.
                  end if
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                  work_vector_cells_around(current_cell_around) = jcell
                  current_cell_around = current_cell_around + 1 
 #else
@@ -821,7 +822,7 @@ contains
                  improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
                  improper_cell_around_subvef  = isubedge
                  is_proper = .false.
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                  work_vector_improper_cells_around(current_improper_cell_around) = jcell
                  work_vector_ivef(current_improper_cell_around) = improper_cell_around_ivef
                  work_vector_subvef(current_improper_cell_around) = improper_cell_around_subvef
@@ -874,7 +875,7 @@ contains
                  if ( jcell > num_local_cells ) then ! If neighbour cell is ghost
                     vef_at_interface = .true.
                  end if
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                  work_vector_cells_around(current_cell_around) = jcell
                  current_cell_around = current_cell_around + 1 
 #else
@@ -939,7 +940,7 @@ contains
                  end if 
                  is_proper = .false.
                  if (improper_cell_around_subvef /= -5) then 
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                    work_vector_improper_cells_around(current_improper_cell_around) = jcell
                    work_vector_ivef(current_improper_cell_around) = improper_cell_around_ivef
                    work_vector_subvef(current_improper_cell_around) = improper_cell_around_subvef
@@ -975,7 +976,7 @@ contains
                  this%num_proper_vefs = this%num_proper_vefs+1
                  call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), this%num_proper_vefs)
 
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                  call this%ptr_cells_around_proper_vefs%push_back(current_cell_around-1)
                  do i=1, current_cell_around-1
                    call this%lst_cells_around_proper_vefs%push_back(work_vector_cells_around(i))
@@ -1013,7 +1014,7 @@ contains
                  this%num_improper_vefs = this%num_improper_vefs+1
                  call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_EDGE_3D(iedge), -this%num_improper_vefs)
 
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                  ! Fill cells_around improper vefs
                  call this%ptr_cells_around_improper_vefs%push_back(current_cell_around-1)
                  do i=1, current_cell_around-1
@@ -1094,7 +1095,7 @@ contains
         double_or_half_size_neighbour_ghost = .false.
 
         if (this%quad_to_quad(iface,icell)>=0) then
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
            work_vector_cells_around(1)=icell
            current_cell_around = 2
            current_improper_cell_around = 1
@@ -1128,7 +1129,7 @@ contains
                  if ( jcell > num_local_cells ) then
                     vef_at_interface = .true.
                  end if
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
                  work_vector_cells_around(current_cell_around) = jcell
                  current_cell_around = current_cell_around + 1 
 #else
@@ -1142,7 +1143,7 @@ contains
               improper_cell_around_subvef  = mortar
               jcell      = this%quad_to_quad(iface,icell)+1
               is_proper = .false. 
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
               work_vector_improper_cells_around(current_improper_cell_around) = jcell
               work_vector_ivef(current_improper_cell_around) = improper_cell_around_ivef
               work_vector_subvef(current_improper_cell_around) = improper_cell_around_subvef
@@ -1181,7 +1182,7 @@ contains
               this%num_proper_vefs=this%num_proper_vefs+1
               call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), this%num_proper_vefs)
 
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
               call this%ptr_cells_around_proper_vefs%push_back(current_cell_around-1)
               do i=1, current_cell_around-1
                 call this%lst_cells_around_proper_vefs%push_back(work_vector_cells_around(i))
@@ -1220,7 +1221,7 @@ contains
               this%num_improper_vefs=this%num_improper_vefs+1
               call this%lst_vefs_gids%set(base_pos_icell+P4EST_2_FEMPAR_FACE(iface), -this%num_improper_vefs)
 
-#ifdef ENABLE_SINGLE_OCTREE_OPTS
+#if ENABLE_SINGLE_OCTREE_OPTS
               ! Fill cells_around improper vefs
               call this%ptr_cells_around_improper_vefs%push_back(current_cell_around-1)
               do i=1, current_cell_around-1

@@ -610,12 +610,12 @@ module p4est_triangulation_names
   public :: p4est_par_triangulation_t
 contains
 
-! The definition of this CPP macro should be commented out
+! The value of this CPP macro should be zero 
 ! whenever the code below is extended to support forests of
 ! octrees with more than a single octree. By now, it just
 ! supports a single octree, and thus the sort of optimizations
 ! that are enabled through the CPP macro can be activated.
-#define ENABLE_SINGLE_OCTREE_OPTS 1 
+#define ENABLE_SINGLE_OCTREE_OPTS 1
 
 #include "sbm_p4est_base_triangulation.i90"
 #include "sbm_p4est_cell_iterator.i90"
