@@ -2365,7 +2365,7 @@ subroutine serial_fe_space_list_dofs ( this )
                  do ivef = 1, fe%get_num_vefs()
                    call fe%get_vef(ivef, vef)
                    if ( .not. vef%is_ghost() ) then
-                    if ( vef%is_at_interface() ) then
+                    assert ( vef%is_at_interface() )
 
                       local_found = .false.
                       !Find local element around vef_lid in elem_id
@@ -2436,7 +2436,6 @@ subroutine serial_fe_space_list_dofs ( this )
                          end if
                         end if
                      end if
-                    end if
                    end if
                  end do
               else
