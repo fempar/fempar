@@ -1404,6 +1404,7 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
   type(facet_iterator_t) :: facet_iterator
   type(list_iterator_t) :: list_iterator
   integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM)
+  logical, allocatable :: visited(:)
   ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
   if ( this%topology == topology_hex) then
      topology = 2**this%num_dims-1
@@ -1513,6 +1514,22 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         call list_iterator%next()
      end do
   end do
+  
+  call memalloc ( num_n_faces, visited, __FILE__, __LINE__ )
+  call this%n_faces_n_face%create(num_n_faces)
+  do i = 1,num_n_faces
+    visited(:) = .false.
+    call this%n_faces_n_face%sum_to_pointer_index(i,count_n_faces_in_n_face(i,visited))
+  end do
+  call this%n_faces_n_face%calculate_header()
+  call this%n_faces_n_face%allocate_list_from_pointer()
+  do i = 1,num_n_faces
+    visited(:) = .false.
+    list_iterator = this%n_faces_n_face%create_iterator(i)
+    call list_n_faces_in_n_face(i,list_iterator,visited)
+  end do
+  call memfree ( visited, __FILE__, __LINE__ )
+  
   ! orientation
   call this%orientation%create(num_n_faces)
   do i = 1,num_n_faces
@@ -1535,6 +1552,48 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         i = i + 1 
      enddo
   end if
+  
+contains
+  recursive function count_n_faces_in_n_face(i, visited) result (num_n_faces)
+    implicit none
+    integer(ip), intent(in)    :: i
+    logical    , intent(inout) :: visited(:)
+    integer(ip) :: num_n_faces
+    integer(ip) :: n_face_id
+    type(list_iterator_t) :: facets_n_face_iter
+    num_n_faces = 0
+    facets_n_face_iter = this%facets_n_face%create_iterator(i)
+    do while ( .not. facets_n_face_iter%is_upper_bound() )
+      n_face_id = facets_n_face_iter%get_current()
+      if ( .not. visited(n_face_id) ) then
+        num_n_faces = num_n_faces + 1 
+        visited(n_face_id) = .true.
+        num_n_faces =  num_n_faces + count_n_faces_in_n_face(n_face_id,visited)
+      end if
+      call facets_n_face_iter%next()
+    end do
+  end function count_n_faces_in_n_face
+  
+  recursive subroutine list_n_faces_in_n_face(i,n_faces_n_face_iterator,visited)
+    implicit none
+    integer(ip)          , intent(in)    :: i
+    type(list_iterator_t), intent(inout) :: n_faces_n_face_iterator
+    logical              , intent(inout) :: visited(:)
+    type(list_iterator_t) :: facets_n_face_iter
+    integer(ip) :: n_face_id
+    facets_n_face_iter = this%facets_n_face%create_iterator(i)
+    do while ( .not. facets_n_face_iter%is_upper_bound() )
+      n_face_id = facets_n_face_iter%get_current()
+      if ( .not. visited(n_face_id) ) then
+        call n_faces_n_face_iterator%set_current(n_face_id)
+        call n_faces_n_face_iterator%next()
+        visited(n_face_id) = .true.
+        call list_n_faces_in_n_face(n_face_id,n_faces_n_face_iterator,visited)
+      end if
+      call facets_n_face_iter%next()
+    end do
+  end subroutine list_n_faces_in_n_face
+  
 end subroutine lagrangian_reference_fe_fill_scalar
 
 !=================================================================================================
