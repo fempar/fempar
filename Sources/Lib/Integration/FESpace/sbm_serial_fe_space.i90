@@ -2270,214 +2270,214 @@ subroutine serial_fe_space_list_dofs ( this )
   call this%create_fe_vef_iterator(vef)
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
-       do field_id=1, this%get_num_fields()
-         if ( .not. fe%is_void(field_id)) then
-           call fe%generate_own_dofs_cell ( field_id, fields_current_dof(field_id) )
-           do ivef= 1, fe%get_num_vefs()
-             call fe%get_vef(ivef,vef)
-             if ( vef%has_free_dofs(field_id,coarser_fe) ) then
-               vef_lid = abs(fe%get_vef_gid(ivef))
-               
-               is_owner = .false.
-               if ( vef%is_proper() ) then
-                 is_owner = ( owner_cell_gid_x_field_and_proper_vef( field_id, vef_lid ) == -1 )
-               else 
-                 is_owner = ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 )
-               end if
-               
-               if ( is_owner ) then
-                 previous_dof_block = fields_current_dof(field_id)
-                 call fe%generate_own_dofs_vef ( ivef, &
-                                                 field_id, &
-                                                 fields_current_dof(field_id), &
-                                                 free_dofs_loop=.true. )
-                 if ( previous_dof_block < fields_current_dof(field_id) ) then
-                   if ( vef%is_proper() ) then
-                     owner_cell_gid_x_field_and_proper_vef ( field_id, vef_lid ) = fe%get_gid() 
-                     per_field_proper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
-                   else
-                     owner_cell_gid_x_field_and_improper_vef ( field_id, vef_lid ) = fe%get_gid() 
-                     per_field_improper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
-                   end if
-                 end if
-               else
-                 if ( vef%is_proper() ) then
-                   source_cell_id = owner_cell_gid_x_field_and_proper_vef(field_id, vef_lid)
-                   source_vef_lid = per_field_proper_vef_lid_in_owner_cell(field_id,vef_lid)
+        do field_id=1, this%get_num_fields()
+           if ( .not. fe%is_void(field_id)) then
+              call fe%generate_own_dofs_cell ( field_id, fields_current_dof(field_id) )
+              do ivef= 1, fe%get_num_vefs()
+                 call fe%get_vef(ivef,vef)
+                 if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+                    vef_lid = abs(fe%get_vef_gid(ivef))
+
+                    is_owner = .false.
+                    if ( vef%is_proper() ) then
+                       is_owner = ( owner_cell_gid_x_field_and_proper_vef( field_id, vef_lid ) == -1 )
+                    else 
+                       is_owner = ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 )
+                    end if
+
+                    if ( is_owner ) then
+                       previous_dof_block = fields_current_dof(field_id)
+                       call fe%generate_own_dofs_vef ( ivef, &
+                            field_id, &
+                            fields_current_dof(field_id), &
+                            free_dofs_loop=.true. )
+                       if ( previous_dof_block < fields_current_dof(field_id) ) then
+                          if ( vef%is_proper() ) then
+                             owner_cell_gid_x_field_and_proper_vef ( field_id, vef_lid ) = fe%get_gid() 
+                             per_field_proper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                          else
+                             owner_cell_gid_x_field_and_improper_vef ( field_id, vef_lid ) = fe%get_gid() 
+                             per_field_improper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                          end if
+                       end if
+                    else
+                       if ( vef%is_proper() ) then
+                          source_cell_id = owner_cell_gid_x_field_and_proper_vef(field_id, vef_lid)
+                          source_vef_lid = per_field_proper_vef_lid_in_owner_cell(field_id,vef_lid)
+                       else
+                          source_cell_id = owner_cell_gid_x_field_and_improper_vef(field_id, vef_lid)
+                          source_vef_lid = per_field_improper_vef_lid_in_owner_cell(field_id,vef_lid)
+                       end if
+                       call source_fe%set_gid( source_cell_id )
+                       call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
+                    end if
                  else
-                   source_cell_id = owner_cell_gid_x_field_and_improper_vef(field_id, vef_lid)
-                   source_vef_lid = per_field_improper_vef_lid_in_owner_cell(field_id,vef_lid)
+                    do ielem=1, vef%get_num_improper_cells_around()
+                       call vef%get_improper_cell_around(ielem,coarser_fe)
+                       if (.not. coarser_fe%is_void(field_id)) then
+                          reference_fe_geo => coarser_fe%get_reference_fe_geo()
+                          coarse_vef_lid=vef%get_improper_cell_around_ivef(ielem)
+                          coarse_vef_gid=coarser_fe%get_vef_gid(coarse_vef_lid)
+                          per_field_visited_proper_vefs_at_interface(field_id,coarse_vef_gid) = .true. 
+
+                          n_faces_n_face_iterator = reference_fe_geo%create_n_faces_n_face_iterator(coarse_vef_lid)
+                          do while( .not. n_faces_n_face_iterator%is_upper_bound() )
+                             coarse_vef_lid=n_faces_n_face_iterator%get_current()
+                             coarse_vef_gid=coarser_fe%get_vef_gid(coarse_vef_lid)
+                             per_field_visited_proper_vefs_at_interface(field_id,coarse_vef_gid) = .true. 
+                             call n_faces_n_face_iterator%next()
+                          end do
+                       end if
+                    end do
+
+                    assert ( fe%get_vef_gid(ivef) < 0 )
+                    vef_lid = abs(fe%get_vef_gid(ivef))
+                    if ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 ) then
+                       previous_fixed_dof = current_fixed_dof
+                       call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.)
+                       if (previous_fixed_dof < current_fixed_dof) then
+                          owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) = fe%get_gid()
+                          per_field_improper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                       end if
+                    else 
+                       call source_fe%set_gid(owner_cell_gid_x_field_and_improper_vef(field_id, vef_lid))
+                       call fe%fetch_own_dofs_vef_from_source_fe ( ivef,      &
+                            source_fe, &
+                            per_field_improper_vef_lid_in_owner_cell(field_id,vef_lid), &
+                            field_id ) 
+                    end if
                  end if
-                 call source_fe%set_gid( source_cell_id )
-                 call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
-               end if
-             else
-               do ielem=1, vef%get_num_improper_cells_around()
-                 call vef%get_improper_cell_around(ielem,coarser_fe)
-                 if (.not. coarser_fe%is_void(field_id)) then
-                   reference_fe_geo => coarser_fe%get_reference_fe_geo()
-                   coarse_vef_lid=vef%get_improper_cell_around_ivef(ielem)
-                   coarse_vef_gid=coarser_fe%get_vef_gid(coarse_vef_lid)
-                   per_field_visited_proper_vefs_at_interface(field_id,coarse_vef_gid) = .true. 
-            
-                   n_faces_n_face_iterator = reference_fe_geo%create_n_faces_n_face_iterator(coarse_vef_lid)
-                   do while( .not. n_faces_n_face_iterator%is_upper_bound() )
-                     coarse_vef_lid=n_faces_n_face_iterator%get_current()
-                     coarse_vef_gid=coarser_fe%get_vef_gid(coarse_vef_lid)
-                     per_field_visited_proper_vefs_at_interface(field_id,coarse_vef_gid) = .true. 
-                     call n_faces_n_face_iterator%next()
-                   end do 
-                 end if
-               end do               
-                
-               assert ( fe%get_vef_gid(ivef) < 0 )
-               vef_lid = abs(fe%get_vef_gid(ivef))
-               if ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 ) then
-                  previous_fixed_dof = current_fixed_dof
-                  call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.)
-                  if (previous_fixed_dof < current_fixed_dof) then
-                    owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) = fe%get_gid()
-                    per_field_improper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
-                  end if
-               else 
-                 call source_fe%set_gid(owner_cell_gid_x_field_and_improper_vef(field_id, vef_lid))
-                 call fe%fetch_own_dofs_vef_from_source_fe ( ivef,      &
-                                                             source_fe, &
-                                                             per_field_improper_vef_lid_in_owner_cell(field_id,vef_lid), &
-                                                             field_id ) 
-               end if
-             end if
-           end do
-         end if
-         call fe%determine_has_fixed_dofs(field_id)
-         call fe%determine_has_hanging_dofs(field_id)
-       end do
+              end do
+           end if
+           call fe%determine_has_fixed_dofs(field_id)
+           call fe%determine_has_hanging_dofs(field_id)
+        end do
      end if
      call fe%next()
-  end do  
+  end do
   
   call fe%first()
   do while(.not. fe%has_finished())
      if ( fe%is_ghost() ) then
-         do field_id = 1, this%num_fields
+        do field_id = 1, this%num_fields
            if ( .not. fe%is_void(field_id)) then
               if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
                  do ivef = 1, fe%get_num_vefs()
-                   call fe%get_vef(ivef, vef)
-                   if ( .not. vef%is_ghost() ) then
-                    assert ( vef%is_at_interface() )
+                    call fe%get_vef(ivef, vef)
+                    if ( .not. vef%is_ghost() ) then
+                       assert ( vef%is_at_interface() )
 
-                      local_found = .false.
-                      !Find local element around vef_lid in elem_id
-                      do ielem=1, vef%get_num_cells_around()
-                       call vef%get_cell_around(ielem, source_fe)
-                       if ( source_fe%is_local() .and. (.not. source_fe%is_void(field_id)) ) then
-                         local_found = .true.
-                         exit
+                       local_found = .false.
+                       !Find local element around vef_lid in elem_id
+                       do ielem=1, vef%get_num_cells_around()
+                          call vef%get_cell_around(ielem, source_fe)
+                          if ( source_fe%is_local() .and. (.not. source_fe%is_void(field_id)) ) then
+                             local_found = .true.
+                             exit
+                          end if
+                       end do
+
+                       if ( local_found ) then
+                          ivef_in_source_fe = source_fe%get_vef_lid_from_gid(vef%get_gid())
+                          ! Check that the source fe has at least one dof on this vef
+                          reference_fe => source_fe%get_reference_fe(field_id)
+                          own_dofs_on_vef_iterator = &
+                               reference_fe%create_own_dofs_on_n_face_iterator(ivef_in_source_fe)
+                          if (own_dofs_on_vef_iterator%get_size() > 0) then
+                             call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
+                                  source_fe, & 
+                                  ivef_in_source_fe, &
+                                  field_id )
+                          end if
+                       else 
+                          vef_lid = abs(fe%get_vef_gid(ivef))
+                          if ( vef%is_proper() ) then
+                             is_owner = ( owner_cell_gid_x_field_and_proper_vef( field_id, vef_lid ) == -1 )
+                             add_dofs = per_field_visited_proper_vefs_at_interface(field_id,vef%get_gid()) 
+                          else 
+                             is_owner = ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 )
+                             add_dofs = .false.
+                             do ielem=1, vef%get_num_improper_cells_around()
+                                call vef%get_improper_cell_around(ielem, coarser_fe)
+                                if ( coarser_fe%is_local() .and. (.not. coarser_fe%is_void(field_id)) ) then
+                                   add_dofs = .true.
+                                   exit
+                                end if
+                             end do
+                          end if
+
+                          if ( add_dofs ) then       
+                             if ( is_owner ) then
+                                if ( vef%is_proper() ) then
+                                   previous_dof_block = fields_current_dof(field_id)  
+                                   call fe%generate_own_dofs_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true. ) 
+                                   if ( previous_dof_block < fields_current_dof(field_id) ) then
+                                      owner_cell_gid_x_field_and_proper_vef ( field_id, vef_lid ) = fe%get_gid() 
+                                      per_field_proper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                                   end if
+                                else
+                                   previous_dof_block = current_fixed_dof  
+                                   call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.)
+                                   if ( previous_dof_block < current_fixed_dof ) then
+                                      owner_cell_gid_x_field_and_improper_vef ( field_id, vef_lid ) = fe%get_gid() 
+                                      per_field_improper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
+                                   end if
+                                end if
+                             else
+                                if ( vef%is_proper() ) then
+                                   source_cell_id = owner_cell_gid_x_field_and_proper_vef(field_id, vef_lid)
+                                   source_vef_lid = per_field_proper_vef_lid_in_owner_cell(field_id,vef_lid)
+                                else
+                                   source_cell_id = owner_cell_gid_x_field_and_improper_vef(field_id, vef_lid)
+                                   source_vef_lid = per_field_improper_vef_lid_in_owner_cell(field_id,vef_lid)
+                                end if
+                                call source_fe%set_gid( source_cell_id )
+                                call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
+                             end if
+                          end if
                        end if
-                      end do
-                    
-                     if ( local_found ) then
-                       ivef_in_source_fe = source_fe%get_vef_lid_from_gid(vef%get_gid())
-                       ! Check that the source fe has at least one dof on this vef
-                       reference_fe => source_fe%get_reference_fe(field_id)
-                       own_dofs_on_vef_iterator = &
-                          reference_fe%create_own_dofs_on_n_face_iterator(ivef_in_source_fe)
-                       if (own_dofs_on_vef_iterator%get_size() > 0) then
-                         call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
-                                                                     source_fe, & 
-                                                                     ivef_in_source_fe, &
-                                                                     field_id )
-                       end if
-                     else 
-                        vef_lid = abs(fe%get_vef_gid(ivef))
-                        if ( vef%is_proper() ) then
-                          is_owner = ( owner_cell_gid_x_field_and_proper_vef( field_id, vef_lid ) == -1 )
-                          add_dofs = per_field_visited_proper_vefs_at_interface(field_id,vef%get_gid()) 
-                        else 
-                          is_owner = ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_lid ) == -1 )
-                          add_dofs = .false.
-                          do ielem=1, vef%get_num_improper_cells_around()
-                            call vef%get_improper_cell_around(ielem, coarser_fe)
-                            if ( coarser_fe%is_local() .and. (.not. coarser_fe%is_void(field_id)) ) then
-                              add_dofs = .true.
-                              exit
-                            end if
-                          end do
-                        end if
-                        
-                        if ( add_dofs ) then       
-                         if ( is_owner ) then
-                           if ( vef%is_proper() ) then
-                               previous_dof_block = fields_current_dof(field_id)  
-                               call fe%generate_own_dofs_vef ( ivef, field_id, fields_current_dof(field_id), free_dofs_loop=.true. ) 
-                               if ( previous_dof_block < fields_current_dof(field_id) ) then
-                                 owner_cell_gid_x_field_and_proper_vef ( field_id, vef_lid ) = fe%get_gid() 
-                                 per_field_proper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
-                               end if  
-                           else
-                               previous_dof_block = current_fixed_dof  
-                               call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.)
-                               if ( previous_dof_block < current_fixed_dof ) then
-                                 owner_cell_gid_x_field_and_improper_vef ( field_id, vef_lid ) = fe%get_gid() 
-                                 per_field_improper_vef_lid_in_owner_cell ( field_id, vef_lid ) = ivef 
-                               end if  
-                           end if
-                         else
-                           if ( vef%is_proper() ) then
-                              source_cell_id = owner_cell_gid_x_field_and_proper_vef(field_id, vef_lid)
-                              source_vef_lid = per_field_proper_vef_lid_in_owner_cell(field_id,vef_lid)
-                           else
-                              source_cell_id = owner_cell_gid_x_field_and_improper_vef(field_id, vef_lid)
-                              source_vef_lid = per_field_improper_vef_lid_in_owner_cell(field_id,vef_lid)
-                           end if
-                           call source_fe%set_gid( source_cell_id )
-                           call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
-                         end if
-                        end if
-                     end if
-                   end if
+                    end if
                  end do
               else
                  do ivef = 1, fe%get_num_vefs()
                     call fe%get_vef(ivef, vef)
                     if ( vef%is_facet() .and. vef%is_at_interface() ) then
-                      call fe%generate_dofs_facet_integration_coupling ( ivef, &
-                                                                         field_id, &
-                                                                         this%num_dofs_x_field(field_id) )
+                       call fe%generate_dofs_facet_integration_coupling ( ivef, &
+                            field_id, &
+                            this%num_dofs_x_field(field_id) )
                     end if
-                 end do  
+                 end do
               end if
            end if
-           
+
            ! has_fixed_dofs_x_fe must also be filled on ghost FEs (as the 
            ! `at_strong_dirichlet_boundary_x_fe` array), otherwise
            ! the procedures fe_function_insert/gather_nodal_values skip inserting the
            ! fixed dof values on ghost FEs (constraining dirichlet DoFs included)
            call fe%determine_has_fixed_dofs(field_id)
-           
+
            ! Although the `hanging_dofs_x_fe` array (seems to be) only (currently) used 
            ! in the local assembly procedures, we also compute it for ghost FEs for the
            ! sake of correctness
            call fe%determine_has_hanging_dofs(field_id)  
-         end do
+        end do
      end if
      call fe%next()    
   end do
-  
-  
+
+
   ! Set #DoFs per field and block in case of single-field, single-block problem
   ! (as we did not call fe_space%count_dofs() in this case)
   if ( this%num_fields == 1 ) then
-    field_id = 1
-    block_id = 1
-    this%num_dofs_x_field(field_id) = fields_current_dof(field_id)
-    call this%block_layout%set_block_num_dofs(block_id,this%num_dofs_x_field(field_id))
+     field_id = 1
+     block_id = 1
+     this%num_dofs_x_field(field_id) = fields_current_dof(field_id)
+     call this%block_layout%set_block_num_dofs(block_id,this%num_dofs_x_field(field_id))
   end if
-  
+
   this%num_hanging_dofs = current_fixed_dof - this%num_fixed_dofs
   this%num_fixed_dofs   = current_fixed_dof
-  
+
   call this%free_fe_cell_iterator(coarser_fe)
   call this%free_fe_cell_iterator(source_fe)
   call this%free_fe_cell_iterator(fe)
