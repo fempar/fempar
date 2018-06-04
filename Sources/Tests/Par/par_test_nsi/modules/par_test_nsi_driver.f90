@@ -113,7 +113,9 @@ contains
   subroutine run_simulation(this) 
     implicit none
     class(par_test_nsi_fe_driver_t), intent(inout) :: this
-    class(vector_t) , pointer :: free_dofs_values
+    class(vector_t) , pointer :: free_dofs_values 
+    class(vector_t) , pointer :: rhs_dof_values
+    type(fe_function_t)       :: rhs
     type(vector_field_t) :: zero_vector_field
     integer(ip) :: field_id
 
@@ -157,8 +159,11 @@ contains
    
     ! Solve the problem
     free_dofs_values => this%solution%get_free_dof_values()
-    call this%nonlinear_solver%solve(free_dofs_values)
-    
+    call rhs%copy(this%solution)
+    rhs_dof_values => rhs%get_free_dof_values()
+    call rhs_dof_values%init(0.0_rp)
+    call this%nonlinear_solver%apply(rhs_dof_values,free_dofs_values)
+    call rhs%free()
     ! Postprocess
     call this%write_solution()
     call this%check_solution()

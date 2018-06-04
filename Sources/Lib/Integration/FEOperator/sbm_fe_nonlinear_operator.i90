@@ -296,7 +296,8 @@ subroutine fe_nonlinear_operator_apply(this,x,y)
   call this%compute_residual()
   !array => this%assembler%get_array()
   !call y%scal(-1.0_rp, array)
-  y = this%assembler%get_array()
+  !y = this%assembler%get_array()
+  y = this%get_translation()
   call x%CleanTemp()
 end subroutine fe_nonlinear_operator_apply
 

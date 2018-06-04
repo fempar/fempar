@@ -63,7 +63,9 @@ module nonlinear_solver_names
 
       ! Public TBPs. They MUST be called in this order.
       procedure :: create                           => nonlinear_solver_create
-      procedure :: solve                            => nonlinear_solver_solve
+      procedure :: apply                            => nonlinear_solver_apply
+      procedure :: compute_residual                 => nonlinear_solver_compute_residual
+      procedure :: compute_tangent                  => nonlinear_solver_compute_tangent
       procedure :: free                             => nonlinear_solver_free
 
       ! Getters and checkers
@@ -121,11 +123,12 @@ subroutine nonlinear_solver_create(this, &
 end subroutine nonlinear_solver_create
 
 !==============================================================================
-subroutine nonlinear_solver_solve(this,unknown)
+subroutine nonlinear_solver_apply(this,rhs,unknown)
 
   implicit none
   class(nonlinear_solver_t)     , intent(inout) :: this
   class(vector_t), target       , intent(inout) :: unknown
+  class(vector_t)               , intent(in)    :: rhs
   
   integer(ip) :: istat
   
@@ -142,9 +145,7 @@ subroutine nonlinear_solver_solve(this,unknown)
   call this%increment_dof_values%init(0.0) 
   
   ! Compute initial residual
-  call this%nonlinear_operator%set_evaluation_point(unknown)
-  call this%nonlinear_operator%compute_residual()
-  this%current_residual =>this%nonlinear_operator%get_translation()
+  call this%compute_residual(rhs)
   
   ! Store initial residual for the stopping criterium that needs it
   if (this%convergence_criteria == rel_r0_res_norm) then
@@ -159,7 +160,7 @@ subroutine nonlinear_solver_solve(this,unknown)
   
   do while (.not. this%has_finished())
     this%current_iteration = this%current_iteration + 1
-    call this%nonlinear_operator%compute_tangent()    
+    call this%compute_tangent()    
 
     ! Force numerical set-up
     call this%linear_solver%update_matrix(same_nonzero_pattern=.true.)
@@ -174,13 +175,31 @@ subroutine nonlinear_solver_solve(this,unknown)
     
     call this%linear_solver%apply( this%minus_current_residual, this%increment_dof_values )
     call this%update_solution() ! x + dx
-    call this%nonlinear_operator%set_evaluation_point(this%current_dof_values)
-    call this%nonlinear_operator%compute_residual()
+    call this%compute_residual(rhs)
     call this%print_iteration_output_header()
     call this%print_current_iteration_output()
   end do
   call this%print_final_output()
-end subroutine nonlinear_solver_solve
+end subroutine nonlinear_solver_apply
+
+!==============================================================================
+subroutine nonlinear_solver_compute_residual(this,rhs)
+  implicit none
+  class(nonlinear_solver_t), intent(inout)  :: this
+  class(vector_t)          , intent(in)     :: rhs
+  call this%nonlinear_operator%set_evaluation_point(this%current_dof_values)
+  call this%nonlinear_operator%compute_residual()
+  this%current_residual =>this%nonlinear_operator%get_translation()
+  !call this%nonlinear_operator%apply(this%current_dof_values,this%current_residual)
+  call this%current_residual%axpby(-1.0_rp, rhs,1.0_rp)
+end subroutine nonlinear_solver_compute_residual
+
+!==============================================================================
+subroutine nonlinear_solver_compute_tangent(this)
+  implicit none
+  class(nonlinear_solver_t), intent(inout)  :: this
+  call this%nonlinear_operator%compute_tangent() 
+end subroutine nonlinear_solver_compute_tangent
 
 !==============================================================================
 subroutine nonlinear_solver_free(this)
