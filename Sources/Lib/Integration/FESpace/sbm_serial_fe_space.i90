@@ -2215,7 +2215,7 @@ subroutine serial_fe_space_list_dofs ( this )
   integer(ip), allocatable :: blocks_current_num_dofs(:)
   integer(ip), allocatable :: fields_current_dof(:)
   class(fe_cell_iterator_t), allocatable :: fe, source_fe, coarser_fe
-  type(fe_vef_iterator_t)  :: vef, coarser_vef
+  type(fe_vef_iterator_t)  :: vef
   integer(ip) :: block_id, field_id
   integer(ip) :: ivef, jvef, vef_lid
   integer(ip) :: previous_dof_block
@@ -2226,16 +2226,12 @@ subroutine serial_fe_space_list_dofs ( this )
   integer(ip) :: ivef_in_source_fe
   class(reference_fe_t), pointer :: reference_fe
   type(list_iterator_t) :: own_dofs_on_vef_iterator
-  logical, allocatable :: per_field_visited_proper_vefs_at_interface(:,:) 
-  
-  type(list_t), pointer :: vefs_of_vef, vertices_of_line
-  type(list_iterator_t) :: vefs_of_vef_iterator, vertices_of_line_iterator
+  logical, allocatable :: per_field_visited_proper_vefs_at_interface(:,:)
+  type(list_iterator_t) :: n_faces_n_face_iterator
   class(reference_fe_t), pointer :: reference_fe_geo
-  integer(ip) :: vef_of_vef_pos_in_cell
-  integer(ip) :: vertex_pos_in_cell
   integer(ip) :: coarse_vef_lid
+  integer(ip) :: coarse_vef_gid
  
-  
   current_fixed_dof = this%num_fixed_dofs
   
   call memalloc ( this%get_num_fields(), this%triangulation%get_num_vefs(), owner_cell_gid_x_field_and_proper_vef,  __FILE__, __LINE__ )
@@ -2272,7 +2268,6 @@ subroutine serial_fe_space_list_dofs ( this )
   call this%create_fe_cell_iterator(source_fe)
   call this%create_fe_cell_iterator(fe)
   call this%create_fe_vef_iterator(vef)
-  call this%create_fe_vef_iterator(coarser_vef)
   do while ( .not. fe%has_finished())
      if ( fe%is_local() ) then
        do field_id=1, this%get_num_fields()
@@ -2322,25 +2317,15 @@ subroutine serial_fe_space_list_dofs ( this )
                  if (.not. coarser_fe%is_void(field_id)) then
                    reference_fe_geo => coarser_fe%get_reference_fe_geo()
                    coarse_vef_lid=vef%get_improper_cell_around_ivef(ielem)
-                   call coarser_fe%get_vef(coarse_vef_lid,coarser_vef)
-                   per_field_visited_proper_vefs_at_interface(field_id,coarser_vef%get_gid()) = .true. 
+                   coarse_vef_gid=coarser_fe%get_vef_gid(coarse_vef_lid)
+                   per_field_visited_proper_vefs_at_interface(field_id,coarse_vef_gid) = .true. 
             
-                   vefs_of_vef => reference_fe_geo%get_facets_n_face()
-                   vefs_of_vef_iterator = vefs_of_vef%create_iterator(coarse_vef_lid)
-                   do while( .not. vefs_of_vef_iterator%is_upper_bound() )
-                     vef_of_vef_pos_in_cell = vefs_of_vef_iterator%get_current()
-                     call coarser_fe%get_vef(vef_of_vef_pos_in_cell,coarser_vef)
-                     per_field_visited_proper_vefs_at_interface(field_id,coarser_vef%get_gid()) = .true. 
-               
-                     vertices_of_line => reference_fe_geo%get_vertices_n_face()
-                     vertices_of_line_iterator = vertices_of_line%create_iterator(vef_of_vef_pos_in_cell)
-                     do while( .not. vertices_of_line_iterator%is_upper_bound() )
-                       vertex_pos_in_cell = vertices_of_line_iterator%get_current()
-                       call coarser_fe%get_vef(vertex_pos_in_cell,coarser_vef)  
-                       per_field_visited_proper_vefs_at_interface(field_id,coarser_vef%get_gid()) = .true. 
-                       call vertices_of_line_iterator%next()
-                     end do
-                     call vefs_of_vef_iterator%next()
+                   n_faces_n_face_iterator = reference_fe_geo%create_n_faces_n_face_iterator(coarse_vef_lid)
+                   do while( .not. n_faces_n_face_iterator%is_upper_bound() )
+                     coarse_vef_lid=n_faces_n_face_iterator%get_current()
+                     coarse_vef_gid=coarser_fe%get_vef_gid(coarse_vef_lid)
+                     per_field_visited_proper_vefs_at_interface(field_id,coarse_vef_gid) = .true. 
+                     call n_faces_n_face_iterator%next()
                    end do 
                  end if
                end do               
@@ -2498,7 +2483,6 @@ subroutine serial_fe_space_list_dofs ( this )
   call this%free_fe_cell_iterator(source_fe)
   call this%free_fe_cell_iterator(fe)
   call this%free_fe_vef_iterator(vef)
-  call this%free_fe_vef_iterator(coarser_vef)
   call memfree( blocks_current_num_dofs, __FILE__, __LINE__ )
   call memfree( fields_current_dof     , __FILE__, __LINE__ )
   call memfree ( owner_cell_gid_x_field_and_proper_vef,  __FILE__, __LINE__ )
