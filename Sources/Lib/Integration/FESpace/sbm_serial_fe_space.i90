@@ -2310,38 +2310,18 @@ subroutine serial_fe_space_list_dofs ( this )
                     do ielem=1, vef%get_num_improper_cells_around()
                        call vef%get_improper_cell_around(ielem,coarser_fe)
                        if (.not. coarser_fe%is_void(field_id)) then
-                          reference_fe_geo => coarser_fe%get_reference_fe_geo()
+                          ! Generate free DoFs on top of proper coarse vef
                           coarse_vef_lid=vef%get_improper_cell_around_ivef(ielem)
                           coarse_vef_gid=coarser_fe%get_vef_gid(coarse_vef_lid)
-                          
-                          ! Let us check whether coarser_fe is owner of coarse_vef_gid, 
-                          ! and generate own DoFs identifiers on top of it if this is the case
-                          is_owner = ( owner_cell_gid_x_field_and_proper_vef( field_id, coarse_vef_gid ) == -1 )
-                          if ( is_owner ) then
-                             owner_cell_gid_x_field_and_proper_vef ( field_id, coarse_vef_gid ) = coarser_fe%get_gid() 
-                             per_field_proper_vef_lid_in_owner_cell( field_id, coarse_vef_gid ) = coarse_vef_lid
-                             call coarser_fe%generate_own_dofs_vef ( coarse_vef_lid, &
-                                                                     field_id, &
-                                                                     fields_current_dof(field_id), &
-                                                                     free_dofs_loop=.true. )
-                          end if 
-
+                          call generate_dofs_on_proper_vefs_of_coarser_cell()
+      
+                          ! Generate free DoFs on top of proper coarse vefs at boundary of coarse vef
+                          reference_fe_geo => coarser_fe%get_reference_fe_geo() 
                           n_faces_n_face_iterator = reference_fe_geo%create_n_faces_n_face_iterator(coarse_vef_lid)
                           do while( .not. n_faces_n_face_iterator%is_upper_bound() )
                              coarse_vef_lid=n_faces_n_face_iterator%get_current()
                              coarse_vef_gid=coarser_fe%get_vef_gid(coarse_vef_lid)
-
-                             ! Let us check whether coarser_fe is owner of coarse_vef_gid, 
-                             ! and generate own DoFs identifiers on top of it if this is the case
-                             is_owner = ( owner_cell_gid_x_field_and_proper_vef( field_id, coarse_vef_gid ) == -1 )
-                             if ( is_owner ) then
-                               owner_cell_gid_x_field_and_proper_vef ( field_id, coarse_vef_gid ) = coarser_fe%get_gid() 
-                               per_field_proper_vef_lid_in_owner_cell( field_id, coarse_vef_gid ) = coarse_vef_lid
-                               call coarser_fe%generate_own_dofs_vef ( coarse_vef_lid, &
-                                                                       field_id, &
-                                                                       fields_current_dof(field_id), &
-                                                                       free_dofs_loop=.true. )
-                             end if
+                             call generate_dofs_on_proper_vefs_of_coarser_cell()
                              call n_faces_n_face_iterator%next()
                           end do
                           
@@ -2500,6 +2480,27 @@ subroutine serial_fe_space_list_dofs ( this )
   call memfree ( owner_cell_gid_x_field_and_improper_vef,  __FILE__, __LINE__ )
   call memfree ( per_field_proper_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
   call memfree ( per_field_improper_vef_lid_in_owner_cell,  __FILE__, __LINE__ )
+  
+contains 
+
+  subroutine generate_dofs_on_proper_vefs_of_coarser_cell()
+    implicit none
+    ! Let us check whether coarser_fe is owner of coarse_vef_gid, 
+    ! and generate own DoFs identifiers on top of it if this is the case
+    is_owner = ( owner_cell_gid_x_field_and_proper_vef( field_id, coarse_vef_gid ) == -1 )
+    if ( is_owner ) then
+      previous_dof_block = fields_current_dof(field_id)
+      call coarser_fe%generate_own_dofs_vef ( coarse_vef_lid, &
+                                              field_id, &
+                                              fields_current_dof(field_id), &
+                                              free_dofs_loop=.true. )
+      if ( previous_dof_block < fields_current_dof(field_id) ) then
+        owner_cell_gid_x_field_and_proper_vef ( field_id, coarse_vef_gid ) = coarser_fe%get_gid() 
+        per_field_proper_vef_lid_in_owner_cell( field_id, coarse_vef_gid ) = coarse_vef_lid
+      end if   
+    end if 
+  end subroutine generate_dofs_on_proper_vefs_of_coarser_cell
+  
 end subroutine serial_fe_space_list_dofs 
 
 subroutine serial_fe_space_allocate_num_dofs_x_field( this )
