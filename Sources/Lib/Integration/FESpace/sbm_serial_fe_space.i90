@@ -2344,6 +2344,11 @@ subroutine serial_fe_space_list_dofs ( this )
                              end if
                              call n_faces_n_face_iterator%next()
                           end do
+                          
+                          ! Once all n-faces on the boundary of coarser_n_face (and coarser_n_face itself)
+                          ! have been visited at least on a non-void FE, its not required to re-visit them
+                          ! afterwards again
+                          exit
                        end if
                     end do
 
