@@ -2369,40 +2369,30 @@ subroutine serial_fe_space_list_dofs ( this )
                     if ( .not. vef%is_ghost() ) then
                        assert ( vef%is_at_interface() )
 
-                       local_found = .false.
-                       !Find local element around vef_lid in elem_id
-                       do ielem=1, vef%get_num_cells_around()
-                          call vef%get_cell_around(ielem, source_fe)
-                          if ( source_fe%is_local() .and. (.not. source_fe%is_void(field_id)) ) then
-                             local_found = .true.
-                             exit
-                          end if
-                       end do
-
-                       if ( local_found ) then
-                          ivef_in_source_fe = source_fe%get_vef_lid_from_gid(vef%get_gid())
-                          ! Check that the source fe has at least one dof on this vef
-                          reference_fe => source_fe%get_reference_fe(field_id)
-                          own_dofs_on_vef_iterator = &
-                               reference_fe%create_own_dofs_on_n_face_iterator(ivef_in_source_fe)
-                          if (own_dofs_on_vef_iterator%get_size() > 0) then
-                             call fe%fetch_own_dofs_vef_from_source_fe ( ivef, &
-                                                                         source_fe, & 
-                                                                         ivef_in_source_fe, &
-                                                                         field_id )
-                          end if
-                       else 
-                          vef_gid = abs(fe%get_vef_gid(ivef))
+                       vef_gid = abs(fe%get_vef_gid(ivef))
+                       if ( vef%is_proper() ) then
+                          is_owner = ( owner_cell_gid_x_field_and_proper_vef( field_id, vef_gid ) == -1 )
+                       else
+                          is_owner = ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_gid ) == -1 )
+                       end if
+                       if ( .not. is_owner ) then
                           if ( vef%is_proper() ) then
-                             is_owner = ( owner_cell_gid_x_field_and_proper_vef( field_id, vef_gid ) == -1 )
-                             if ( .not. is_owner ) then
-                               source_cell_id = owner_cell_gid_x_field_and_proper_vef(field_id, vef_gid)
-                               source_vef_lid = per_field_proper_vef_lid_in_owner_cell(field_id,vef_gid)
-                               call source_fe%set_gid( source_cell_id )
-                               call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id )
-                             end if 
-                          else 
-                             is_owner = ( owner_cell_gid_x_field_and_improper_vef( field_id, vef_gid ) == -1 )
+                             source_cell_id = owner_cell_gid_x_field_and_proper_vef(field_id, vef_gid)
+                             source_vef_lid = per_field_proper_vef_lid_in_owner_cell(field_id,vef_gid)
+                          else
+                             source_cell_id = owner_cell_gid_x_field_and_improper_vef(field_id, vef_gid)
+                             source_vef_lid = per_field_improper_vef_lid_in_owner_cell(field_id,vef_gid)
+                          end if
+                          call source_fe%set_gid( source_cell_id )
+                          call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
+                       else 
+                          ! We arrive here on the following scenarios:
+                          ! 1. A proper vef on a ghost cell that does not have DoFs on top of it (i.e., .not. is_owner)
+                          ! 2. An improper vef solely on ghost cells that may or may not have hanging DoFs on top of it
+                          ! In case 1., we have to do nothing.
+                          ! In case 2., we have to add hanging DoFs on top of it if there is at least one local coarse cell
+                          !             which is non-void 
+                          if ( .not. vef%is_proper() ) then
                              add_dofs = .false.
                              do ielem=1, vef%get_num_improper_cells_around()
                                 call vef%get_improper_cell_around(ielem, coarser_fe)
@@ -2412,19 +2402,12 @@ subroutine serial_fe_space_list_dofs ( this )
                                 end if
                              end do
                              if ( add_dofs ) then       
-                               if ( is_owner ) then
-                                  previous_dof_block = current_fixed_dof  
-                                  call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.)
-                                  if ( previous_dof_block < current_fixed_dof ) then
-                                     owner_cell_gid_x_field_and_improper_vef ( field_id, vef_gid ) = fe%get_gid() 
-                                     per_field_improper_vef_lid_in_owner_cell ( field_id, vef_gid ) = ivef 
-                                  end if
-                               else
-                                  source_cell_id = owner_cell_gid_x_field_and_improper_vef(field_id, vef_gid)
-                                  source_vef_lid = per_field_improper_vef_lid_in_owner_cell(field_id,vef_gid)
-                                  call source_fe%set_gid( source_cell_id )
-                                  call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
-                               end if
+                                previous_dof_block = current_fixed_dof  
+                                call fe%generate_own_dofs_vef ( ivef, field_id, current_fixed_dof, free_dofs_loop=.false.)
+                                if ( previous_dof_block < current_fixed_dof ) then
+                                   owner_cell_gid_x_field_and_improper_vef ( field_id, vef_gid ) = fe%get_gid() 
+                                   per_field_improper_vef_lid_in_owner_cell ( field_id, vef_gid ) = ivef 
+                                end if
                              end if
                           end if
                        end if
