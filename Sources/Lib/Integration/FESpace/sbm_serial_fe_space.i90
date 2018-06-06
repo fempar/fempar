@@ -54,6 +54,8 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   call this%allocate_field_cell_to_ref_fes()
   call this%fill_field_cell_to_ref_fes_same_on_all_cells()
   this%same_reference_fes_on_all_cells = .true. 
+  call this%allocate_same_reference_fe_or_void_x_field()
+  this%same_reference_fe_or_void_x_field(:) = .true.
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
   call this%fill_facet_gids()
@@ -107,6 +109,8 @@ subroutine serial_fe_space_create_different_ref_fes_between_cells( this,        
   call this%allocate_field_cell_to_ref_fes()
   call this%fill_field_cell_to_ref_fes_different_ref_fes_between_cells(set_ids_to_reference_fes)
   this%same_reference_fes_on_all_cells = .false.
+  call this%allocate_same_reference_fe_or_void_x_field()
+  call this%fill_same_reference_fe_or_void_x_field()
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
   call this%fill_facet_gids()
@@ -139,6 +143,7 @@ subroutine serial_fe_space_free (this)
   call this%free_set_ids_to_reference_fes()
   this%same_reference_fes_on_all_cells = .false. 
   call this%free_field_cell_to_ref_fes()
+  call this%free_same_reference_fe_or_void_x_field()
   call this%free_fe_space_type_x_field()
   call this%free_facet_gids()
   call this%free_ptr_lst_dofs()
@@ -1329,6 +1334,7 @@ subroutine serial_fe_space_evaluate_vector_function_scalar_components(this, &
   end select
 end subroutine serial_fe_space_evaluate_vector_function_scalar_components
 
+!========================================================================================
 subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
                                                                          fe_face, & 
                                                                          fe, &
@@ -1385,6 +1391,7 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
   end select
 end subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec
 
+!========================================================================================
 subroutine serial_fe_space_allocate_and_fill_reference_fes ( this, reference_fes )
   implicit none
   class(serial_fe_space_t)          , intent(inout) :: this
@@ -1400,6 +1407,7 @@ subroutine serial_fe_space_allocate_and_fill_reference_fes ( this, reference_fes
   end do
 end subroutine serial_fe_space_allocate_and_fill_reference_fes
 
+!========================================================================================
 subroutine serial_fe_space_free_reference_fes ( this )
   implicit none
   class(serial_fe_space_t)          , intent(inout) :: this
@@ -1410,6 +1418,51 @@ subroutine serial_fe_space_free_reference_fes ( this )
      check ( istat == 0 )
   end if
 end subroutine serial_fe_space_free_reference_fes
+
+!========================================================================================
+subroutine sfs_allocate_same_reference_fe_or_void_x_field ( this ) 
+  implicit none
+  class(serial_fe_space_t)          , intent(inout) :: this
+  call this%free_same_reference_fe_or_void_x_field()
+  call memalloc ( this%num_fields, this%same_reference_fe_or_void_x_field, __FILE__, __LINE__ )
+end subroutine sfs_allocate_same_reference_fe_or_void_x_field 
+
+!========================================================================================
+subroutine serial_fe_space_free_same_reference_fe_or_void_x_field ( this ) 
+  implicit none
+  class(serial_fe_space_t)          , intent(inout) :: this
+  if ( allocated(this%same_reference_fe_or_void_x_field) ) then
+    call memfree ( this%same_reference_fe_or_void_x_field, __FILE__, __LINE__ )
+  end if
+end subroutine serial_fe_space_free_same_reference_fe_or_void_x_field
+
+!========================================================================================
+subroutine serial_fe_space_fill_same_reference_fe_or_void_x_field ( this )
+  implicit none
+  class(serial_fe_space_t)          , intent(inout) :: this
+  integer(ip)            , pointer     :: current_field_cell_to_ref_fes(:)
+  integer(ip)                          :: ifield
+  integer(ip) :: non_void_ref_fe_id, icell
+  do ifield=1, this%num_fields
+    current_field_cell_to_ref_fes => this%field_cell_to_ref_fes(ifield)%get_pointer()
+    this%same_reference_fe_or_void_x_field (ifield) = .true.
+    non_void_ref_fe_id = -1
+    do icell=1, this%triangulation%get_num_cells()
+       select type( ref_fe => this%reference_fes(current_field_cell_to_ref_fes(icell))%p ) 
+         class is ( void_reference_fe_t ) 
+         class default
+          if ( non_void_ref_fe_id == -1 ) then
+             non_void_ref_fe_id = current_field_cell_to_ref_fes(icell)
+          else 
+            if ( non_void_ref_fe_id /= current_field_cell_to_ref_fes(icell) ) then
+              this%same_reference_fe_or_void_x_field (ifield) = .false.
+              exit
+            end if 
+          end if 
+       end select
+    end do
+  end do
+end subroutine serial_fe_space_fill_same_reference_fe_or_void_x_field 
 
 !========================================================================================
 subroutine sfs_allocate_and_fill_set_ids_to_reference_fes(this, set_ids_to_reference_fes)

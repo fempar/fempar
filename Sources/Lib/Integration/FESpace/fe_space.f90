@@ -522,7 +522,8 @@ module fe_space_names
      ! Reference FE container
      integer(ip)                                 :: reference_fes_size
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
-     logical                                     :: same_reference_fes_on_all_cells = .false. 
+     logical                                     :: same_reference_fes_on_all_cells = .false.
+     logical                       , allocatable :: same_reference_fe_or_void_x_field(:)
 
      ! Finite Element-related integration containers
      logical                                     :: cell_integration_is_set_up = .false.
@@ -604,6 +605,9 @@ module fe_space_names
      procedure                           :: print                                        => serial_fe_space_print
      procedure, non_overridable          :: allocate_and_fill_reference_fes              => serial_fe_space_allocate_and_fill_reference_fes
      procedure, non_overridable, private :: free_reference_fes                           => serial_fe_space_free_reference_fes
+     procedure, non_overridable, private :: allocate_same_reference_fe_or_void_x_field   => sfs_allocate_same_reference_fe_or_void_x_field
+     procedure, non_overridable, private :: free_same_reference_fe_or_void_x_field       => serial_fe_space_free_same_reference_fe_or_void_x_field
+     procedure, non_overridable, private :: fill_same_reference_fe_or_void_x_field       => serial_fe_space_fill_same_reference_fe_or_void_x_field
      
      procedure                           :: allocate_and_fill_set_ids_to_reference_fes   => sfs_allocate_and_fill_set_ids_to_reference_fes
      procedure                           :: free_set_ids_to_reference_fes                => sfs_free_set_ids_to_reference_fes
