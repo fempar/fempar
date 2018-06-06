@@ -522,6 +522,7 @@ module fe_space_names
      ! Reference FE container
      integer(ip)                                 :: reference_fes_size
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
+     logical                                     :: same_reference_fes_on_all_cells = .false. 
 
      ! Finite Element-related integration containers
      logical                                     :: cell_integration_is_set_up = .false.

@@ -191,7 +191,7 @@ subroutine fe_cell_iterator_init_performance_scratch_data ( this )
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: istat, i
   ! If (same) set of reference FEs on top of all cells ...
-  if ( size(this%fe_space%set_ids_to_reference_fes,2) == 1 ) then 
+  if ( this%fe_space%same_reference_fes_on_all_cells ) then 
     do i=1, this%fe_space%num_fields
       this%reference_fes(i)%p => this%fe_space%reference_fes(i)%p
     end do   
@@ -203,7 +203,7 @@ subroutine fe_cell_iterator_update_performance_scratch_data ( this )
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: istat, i
   ! If (potentially) different set of reference FEs on top of all cells ...
-  if ( size(this%fe_space%set_ids_to_reference_fes,2) > 1 ) then 
+  if ( .not. this%fe_space%same_reference_fes_on_all_cells ) then 
     do i=1, this%fe_space%num_fields
       this%reference_fes(i)%p => this%fe_space%reference_fes(this%fe_space%field_cell_to_ref_fes(i)%get(this%get_gid()))%p
     end do   

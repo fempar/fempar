@@ -53,6 +53,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   call this%allocate_and_fill_set_ids_to_reference_fes(  RESHAPE([(i, i=1,size(reference_fes))], [size(reference_fes),1]) )
   call this%allocate_field_cell_to_ref_fes()
   call this%fill_field_cell_to_ref_fes_same_on_all_cells()
+  this%same_reference_fes_on_all_cells = .true. 
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
   call this%fill_facet_gids()
@@ -105,6 +106,7 @@ subroutine serial_fe_space_create_different_ref_fes_between_cells( this,        
   call this%allocate_and_fill_set_ids_to_reference_fes(set_ids_to_reference_fes)
   call this%allocate_field_cell_to_ref_fes()
   call this%fill_field_cell_to_ref_fes_different_ref_fes_between_cells(set_ids_to_reference_fes)
+  this%same_reference_fes_on_all_cells = .false.
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
   call this%fill_facet_gids()
@@ -135,6 +137,7 @@ subroutine serial_fe_space_free (this)
   class(serial_fe_space_t)    , intent(inout) :: this
   call this%free_reference_fes()
   call this%free_set_ids_to_reference_fes()
+  this%same_reference_fes_on_all_cells = .false. 
   call this%free_field_cell_to_ref_fes()
   call this%free_fe_space_type_x_field()
   call this%free_facet_gids()
@@ -2920,7 +2923,7 @@ function serial_fe_space_get_max_num_dofs_on_a_cell( this ) result (max_dofs)
   class(fe_cell_iterator_t), allocatable :: fe
   
   ! If (same) set of reference FEs on top of all cells ...
-  if ( size(this%set_ids_to_reference_fes,2) == 1 ) then
+  if ( this%same_reference_fes_on_all_cells ) then
     max_dofs = 0
     do i=1, size(this%reference_fes) 
       max_dofs = max_dofs + this%reference_fes(i)%p%get_num_shape_functions()
