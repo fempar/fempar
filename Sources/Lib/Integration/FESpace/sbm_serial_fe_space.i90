@@ -2611,7 +2611,12 @@ subroutine serial_fe_space_list_dofs ( this )
                           call fe%fetch_own_dofs_vef_from_source_fe ( ivef, source_fe, source_vef_lid, field_id ) 
                        end if
                     else
-                       do ielem=1, vef%get_num_improper_cells_around()
+                      ! If we are sitting on an improver VEF which is on a ghost cell
+                      ! we avoid entering here. It may happen that all coarser local cells are
+                      ! void. In such a case we may end adding free DoFs to a ghost cell which is non-void
+                      ! (in case there is any), which is obviously wrong.
+                      if ( fe_is_local ) then
+                         do ielem=1, vef%get_num_improper_cells_around()
                           call vef%get_improper_cell_around(ielem,coarser_fe)
                           if (.not. coarser_fe%is_void(field_id)) then
                              call generate_dofs_on_proper_vefs_of_coarse_cell ( this, &
@@ -2624,10 +2629,11 @@ subroutine serial_fe_space_list_dofs ( this )
                              ! have been visited at least on a non-void FE, its not required to re-visit them
                              ! afterwards again
                              exit
-                          end if
-                       end do
-                       assert ( .not. vef%is_proper() )
-                       if ( owner_cell_gid_x_field_and_vef( field_id, vef_gid ) == -1 ) then
+                           end if
+                         end do
+                      end if  
+                      assert ( .not. vef%is_proper() )
+                      if ( owner_cell_gid_x_field_and_vef( field_id, vef_gid ) == -1 ) then
                           if ( fe_is_local ) then
                              add_dofs = .true.
                           else
