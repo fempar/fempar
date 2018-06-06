@@ -2840,12 +2840,16 @@ subroutine serial_fe_space_allocate_and_fill_gen_dof_num_scratch_data ( this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
   class(reference_fe_t), pointer :: ref_fe_geo
+  class(reference_fe_t), pointer :: ref_fe
   class(fe_cell_iterator_t), allocatable :: fe
   type(list_t), pointer :: n_faces_n_face
   type(list_iterator_t) :: n_faces_n_face_iterator
+  type(list_t), pointer :: own_dofs_n_face
+  type(list_iterator_t) :: own_dofs_n_face_iterator
   integer(ip) :: num_n_faces
   integer(ip) :: current
-  integer(ip) :: i 
+  integer(ip) :: field_id, i 
+  integer(ip) :: istat 
   
   call this%free_gen_dof_num_scratch_data()
   
@@ -2886,19 +2890,70 @@ subroutine serial_fe_space_allocate_and_fill_gen_dof_num_scratch_data ( this)
          call n_faces_n_face_iterator%next()
        end do 
     end do
-  end if 
+  end if
+
+  allocate(this%ptr_own_dofs_n_face(this%get_num_fields()), stat=istat); check(istat==0);
+  allocate(this%lst_own_dofs_n_face(this%get_num_fields()), stat=istat); check(istat==0);
+  do field_id=1, this%get_num_fields()
+    if ( this%same_reference_fe_or_void_x_field(field_id) ) then 
+      call fe%first()
+      call fe%first_local_non_void(field_id)
+      ref_fe => fe%get_reference_fe(field_id)
+      select type (ref_fe)
+      class is (void_reference_fe_t)
+         own_dofs_n_face => ref_fe%get_own_dofs_n_face()
+         num_n_faces = own_dofs_n_face%get_num_pointers()
+         call this%ptr_own_dofs_n_face(field_id)%create(num_n_faces+1)
+         this%ptr_own_dofs_n_face(field_id)%a(1) = 1
+         do i=1, num_n_faces
+           this%ptr_own_dofs_n_face(field_id)%a(i+1) = this%ptr_own_dofs_n_face(field_id)%a(i) + &
+                                                       own_dofs_n_face%get_sublist_size(i)+1
+         end do
+
+         call this%lst_own_dofs_n_face(field_id)%create(& 
+              this%ptr_own_dofs_n_face(field_id)%a(num_n_faces+1)-1)
+   
+         current=1
+         do i=1, num_n_faces 
+           current = current + 1 
+           own_dofs_n_face_iterator = own_dofs_n_face%create_iterator(i)
+           do while( .not. own_dofs_n_face_iterator%is_upper_bound() )
+             this%lst_own_dofs_n_face(field_id)%a(current) = own_dofs_n_face_iterator%get_current()
+             current = current + 1
+             call own_dofs_n_face_iterator%next()
+           end do 
+         end do
+      end select 
+    end if
+  end do 
+ 
   call this%free_fe_cell_iterator(fe)
 end subroutine serial_fe_space_allocate_and_fill_gen_dof_num_scratch_data
 
 subroutine serial_fe_space_free_gen_dof_num_scratch_data(this)
   implicit none
   class(serial_fe_space_t), intent(inout) :: this
+  integer(ip) :: i, istat
   if ( allocated(this%ptr_n_faces_n_face) ) then
     call memfree(this%ptr_n_faces_n_face, __FILE__, __LINE__ )
   end if
   if ( allocated(this%lst_n_faces_n_face) ) then
     call memfree(this%lst_n_faces_n_face, __FILE__, __LINE__ )
-  end if 
+  end if
+
+  if ( allocated(this%ptr_own_dofs_n_face) ) then
+    do i=1,size(this%ptr_own_dofs_n_face)
+      call this%ptr_own_dofs_n_face(i)%free()
+    end do
+    deallocate(this%ptr_own_dofs_n_face, stat=istat); check(istat==0);
+  end if
+  
+  if ( allocated(this%lst_own_dofs_n_face) ) then
+    do i=1,size(this%lst_own_dofs_n_face)
+      call this%lst_own_dofs_n_face(i)%free()
+    end do
+    deallocate(this%lst_own_dofs_n_face, stat=istat); check(istat==0);
+  end if
 end subroutine serial_fe_space_free_gen_dof_num_scratch_data
 
 function serial_fe_space_get_num_dims ( this )

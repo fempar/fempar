@@ -296,6 +296,13 @@ function reference_fe_get_dofs_n_face ( this )
   reference_fe_get_dofs_n_face => this%dofs_n_face
 end function reference_fe_get_dofs_n_face
 
+function reference_fe_get_own_dofs_n_face ( this )
+  implicit none
+  class(reference_fe_t), target, intent(in) :: this
+  type(list_t), pointer :: reference_fe_get_own_dofs_n_face
+  reference_fe_get_own_dofs_n_face => this%own_dofs_n_face
+end function reference_fe_get_own_dofs_n_face
+
 function reference_fe_create_dofs_n_face_iterator ( this, n_face_id) result(list_iterator)
   implicit none
   class(reference_fe_t), intent(in) :: this

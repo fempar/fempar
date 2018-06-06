@@ -591,7 +591,8 @@ module reference_fe_names
      procedure :: create_vertices_n_face_iterator => reference_fe_create_vertices_n_face_iterator
      procedure :: create_n_faces_n_face_iterator  => reference_fe_create_n_faces_n_face_iterator
      procedure :: create_dofs_n_face_iterator => reference_fe_create_dofs_n_face_iterator
-     procedure :: get_dofs_n_face   =>   reference_fe_get_dofs_n_face
+     procedure :: get_dofs_n_face => reference_fe_get_dofs_n_face
+     procedure :: get_own_dofs_n_face =>  reference_fe_get_own_dofs_n_face
                     
      procedure :: get_facets_n_face   =>   reference_fe_get_facets_n_face
      procedure :: get_num_vertices_n_face => reference_fe_get_num_vertices_n_face

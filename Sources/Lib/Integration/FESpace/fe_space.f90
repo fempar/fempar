@@ -595,7 +595,9 @@ module fe_space_names
      integer(ip), allocatable                    :: ptr_n_faces_n_face(:)
      integer(ip), allocatable                    :: lst_n_faces_n_face(:)
      
-     
+     type(allocatable_array_ip1_t), allocatable  :: ptr_own_dofs_n_face(:)    
+     type(allocatable_array_ip1_t), allocatable  :: lst_own_dofs_n_face(:)    
+ 
    contains
      procedure                           :: serial_fe_space_create_same_reference_fes_on_all_cells
      procedure                           :: serial_fe_space_create_different_ref_fes_between_cells
