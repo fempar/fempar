@@ -589,6 +589,11 @@ module fe_space_names
      type(std_vector_real_rp_t)                  :: constraining_dirichlet_dofs_coefficients
      type(std_vector_real_rp_t)                  :: constraints_independent_term
      
+     ! Scratch data required to optimize general_global_dof_numbering_below()
+     integer(ip), allocatable                    :: ptr_n_faces_n_face(:)
+     integer(ip), allocatable                    :: lst_n_faces_n_face(:)
+     
+     
    contains
      procedure                           :: serial_fe_space_create_same_reference_fes_on_all_cells
      procedure                           :: serial_fe_space_create_different_ref_fes_between_cells
@@ -662,12 +667,14 @@ module fe_space_names
      procedure, non_overridable, private :: generate_facet_quadratures_position_key  => serial_fe_space_facet_quadratures_position_key
      procedure, non_overridable, private :: generate_facet_integrators_position_key  => serial_fe_space_facet_integrators_position_key
 
-     procedure                           :: create_dof_values                        => serial_fe_space_create_dof_values
-     procedure                           :: generate_global_dof_numbering            => serial_fe_space_generate_global_dof_numbering
-     procedure                           :: allocate_num_dofs_x_field                => serial_fe_space_allocate_num_dofs_x_field
-     procedure                           :: count_dofs                               => serial_fe_space_count_dofs
-     procedure                           :: list_dofs                                => serial_fe_space_list_dofs
-     procedure                 , private :: renum_dofs_block                         => serial_fe_space_renum_dofs_block
+     procedure                           :: create_dof_values                          => serial_fe_space_create_dof_values
+     procedure                           :: generate_global_dof_numbering              => serial_fe_space_generate_global_dof_numbering
+     procedure                           :: allocate_num_dofs_x_field                  => serial_fe_space_allocate_num_dofs_x_field
+     procedure                           :: count_dofs                                 => serial_fe_space_count_dofs
+     procedure                           :: list_dofs                                  => serial_fe_space_list_dofs
+     procedure                 , private :: renum_dofs_block                           => serial_fe_space_renum_dofs_block
+     procedure                           :: allocate_and_fill_gen_dof_num_scratch_data => serial_fe_space_allocate_and_fill_gen_dof_num_scratch_data
+     procedure                           :: free_gen_dof_num_scratch_data              => serial_fe_space_free_gen_dof_num_scratch_data
  
      ! Getters
      procedure                           :: get_num_dims                              => serial_fe_space_get_num_dims
@@ -711,6 +718,7 @@ module fe_space_names
      procedure, non_overridable          :: is_strong_dirichlet_dof                      => serial_fe_space_is_strong_dirichlet_dof
      procedure, non_overridable          :: is_fixed_dof                                 => serial_fe_space_is_fixed_dof
      procedure, non_overridable          :: is_hanging_dof                               => serial_fe_space_is_hanging_dof
+     procedure, non_overridable          :: single_reference_fe_geo                      => serial_fe_space_single_reference_fe_geo 
      
      ! fes, fe_vefs and fe_faces traversals-related TBPs
      procedure                           :: create_fe_cell_iterator                           => serial_fe_space_create_fe_cell_iterator
@@ -745,6 +753,7 @@ module fe_space_names
                                                                                              serial_fe_space_refine_and_coarsen_fe_function_array
 
      procedure, non_overridable          :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
+     
      
 #ifndef ENABLE_P4EST
     procedure, non_overridable           :: not_enabled_error                             => serial_fe_space_not_enabled_error

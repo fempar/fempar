@@ -587,7 +587,7 @@ module reference_fe_names
      procedure :: get_num_shape_functions => reference_fe_get_num_shape_functions
      procedure :: get_n_face_dim  => reference_fe_get_n_face_dim
      procedure :: get_vertices_n_face  =>   reference_fe_get_vertices_n_face
-
+     procedure :: get_n_faces_n_face  => reference_fe_get_n_faces_n_face
      procedure :: create_vertices_n_face_iterator => reference_fe_create_vertices_n_face_iterator
      procedure :: create_n_faces_n_face_iterator  => reference_fe_create_n_faces_n_face_iterator
      procedure :: create_dofs_n_face_iterator => reference_fe_create_dofs_n_face_iterator

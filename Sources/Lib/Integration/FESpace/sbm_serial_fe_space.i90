@@ -144,6 +144,7 @@ subroutine serial_fe_space_free (this)
   nullify(this%conditions)
   this%num_fixed_dofs = 0
   if (allocated(this%num_dofs_x_field)) call memfree( this%num_dofs_x_field, __FILE__, __LINE__ )
+  call this%free_gen_dof_num_scratch_data()
   call this%free_fe_integration()
   call this%free_facet_integration()
   this%num_hanging_dofs = 0
@@ -2057,6 +2058,7 @@ subroutine serial_fe_space_generate_global_dof_numbering( this )
   class(serial_fe_space_t)    , intent(inout) :: this
   logical :: perform_numbering
   
+  call this%allocate_and_fill_gen_dof_num_scratch_data()
   call this%allocate_num_dofs_x_field()
   if ( this%num_fields > 1 ) then 
     call this%count_dofs()
@@ -2609,20 +2611,11 @@ subroutine serial_fe_space_list_dofs ( this )
                        do ielem=1, vef%get_num_improper_cells_around()
                           call vef%get_improper_cell_around(ielem,coarser_fe)
                           if (.not. coarser_fe%is_void(field_id)) then
-                             ! Generate free DoFs on top of proper coarse vef
-                             coarse_vef_lid=vef%get_improper_cell_around_ivef(ielem)
-                             coarse_vef_gid=coarser_fe%get_vef_gid(coarse_vef_lid)
-                             call generate_dofs_on_proper_vefs_of_coarser_cell()
-
-                             ! Generate free DoFs on top of proper coarse vefs at boundary of coarse vef
-                             reference_fe_geo => coarser_fe%get_reference_fe_geo() 
-                             n_faces_n_face_iterator = reference_fe_geo%create_n_faces_n_face_iterator(coarse_vef_lid)
-                             do while( .not. n_faces_n_face_iterator%is_upper_bound() )
-                                coarse_vef_lid=n_faces_n_face_iterator%get_current()
-                                coarse_vef_gid=coarser_fe%get_vef_gid(coarse_vef_lid)
-                                call generate_dofs_on_proper_vefs_of_coarser_cell()
-                                call n_faces_n_face_iterator%next()
-                             end do
+                             call generate_dofs_on_proper_vefs_of_coarse_cell ( this, &
+                                                         field_id, &
+                                                         vef%get_improper_cell_around_ivef(ielem), &
+                                                         coarser_fe, &
+                                                         fields_current_dof ) 
 
                              ! Once all n-faces on the boundary of coarser_n_face (and coarser_n_face itself)
                              ! have been visited at least on a non-void FE, its not required to re-visit them
@@ -2633,7 +2626,7 @@ subroutine serial_fe_space_list_dofs ( this )
                        assert ( .not. vef%is_proper() )
                        if ( owner_cell_gid_x_field_and_vef( field_id, vef_gid ) == -1 ) then
                           if ( fe_is_local ) then
-                             add_dofs = .true. 
+                             add_dofs = .true.
                           else
                              add_dofs = .false.
                              do ielem=1, vef%get_num_improper_cells_around()
@@ -2707,27 +2700,57 @@ subroutine serial_fe_space_list_dofs ( this )
   call memfree( fields_current_dof     , __FILE__, __LINE__ )
   deallocate ( owner_cell_gid_x_field_and_vef, stat=istat); check(istat==0);
   deallocate ( per_field_vef_lid_in_owner_cell, stat=istat ); check(istat==0);
-contains 
+ 
+contains
 
-  subroutine generate_dofs_on_proper_vefs_of_coarser_cell()
-    implicit none
-    ! Let us check whether coarser_fe is owner of coarse_vef_gid, 
+! ** IMPORTANT NOTE: I could NOT pass owner_cell_gid_x_field_and_vef(:,:)
+!                    and per_field_vef_lid_in_owner_cell(:,:) as assumed-shape
+!                    dummy arguments. The dummy argument within the subroutine
+!                    did not have the second dimension in the range -a:b, but 
+!                    1:a+b+1. How can it be solved in Fortran200X?
+subroutine generate_dofs_on_proper_vefs_of_coarse_cell ( this, &
+                                                         field_id, &
+                                                         coarser_vef_lid, &
+                                                         coarser_fe, &
+                                                         fields_current_dof )
+  class(serial_fe_space_t) , intent(inout) :: this
+  integer(ip)              , intent(in)    :: field_id 
+  integer(ip)              , intent(in)    :: coarser_vef_lid
+  class(fe_cell_iterator_t), intent(inout) :: coarser_fe
+  integer(ip)              , intent(inout) :: fields_current_dof(:)
+  logical :: is_owner
+  integer(ip) :: previous_dof_block
+  integer(ip) :: coarser_vef_gid
+  integer(ip) :: i, spos, epos
+  class(reference_fe_t), pointer :: reference_fe_geo
+  type(list_iterator_t) :: n_faces_n_face_iterator
+    
+  ! Generate free DoFs on top of proper coarse vef
+  spos = this%ptr_n_faces_n_face(coarser_vef_lid)
+  epos = this%ptr_n_faces_n_face(coarser_vef_lid+1)-1
+  do i=spos, epos
+    coarser_vef_gid=coarser_fe%get_vef_gid(this%lst_n_faces_n_face(i))
+    ! Let us check whether coarser_fe is owner of coarser_vef_gid, 
     ! and generate own DoFs identifiers on top of it if this is the case
-    is_owner = ( owner_cell_gid_x_field_and_vef( field_id, coarse_vef_gid ) == -1 )
+    is_owner = ( owner_cell_gid_x_field_and_vef( field_id, coarser_vef_gid ) == -1 )
     if ( is_owner ) then
        previous_dof_block = fields_current_dof(field_id)
-       call coarser_fe%generate_own_dofs_vef ( coarse_vef_lid, &
-            field_id, &
-            fields_current_dof(field_id), &
-            free_dofs_loop=.true. )
+       call coarser_fe%generate_own_dofs_vef ( this%lst_n_faces_n_face(i), &
+                                               field_id, &
+                                               fields_current_dof(field_id), &
+                                               free_dofs_loop=.true. )
        if ( previous_dof_block < fields_current_dof(field_id) ) then
-          owner_cell_gid_x_field_and_vef ( field_id, coarse_vef_gid ) = coarser_fe%get_gid() 
-          per_field_vef_lid_in_owner_cell( field_id, coarse_vef_gid ) = coarse_vef_lid
+          owner_cell_gid_x_field_and_vef ( field_id, coarser_vef_gid ) = coarser_fe%get_gid() 
+          per_field_vef_lid_in_owner_cell( field_id, coarser_vef_gid ) = this%lst_n_faces_n_face(i)
        end if
     end if
-  end subroutine generate_dofs_on_proper_vefs_of_coarser_cell
-
+  end do 
+  
+end subroutine generate_dofs_on_proper_vefs_of_coarse_cell
+  
 end subroutine serial_fe_space_list_dofs 
+
+
 
 subroutine serial_fe_space_allocate_num_dofs_x_field( this )
   implicit none
@@ -2743,15 +2766,78 @@ subroutine serial_fe_space_renum_dofs_block (this, block_id, perm_old2new)
   integer(ip)             , intent(in)    :: block_id
   integer(ip)             , intent(in)    :: perm_old2new(this%block_layout%get_block_num_dofs(block_id))
   class(fe_cell_iterator_t), allocatable :: fe
-
   call this%create_fe_cell_iterator(fe)
   do while ( .not. fe%has_finished())
      call fe%renum_dofs_block ( block_id, perm_old2new )
      call fe%next()
   end do
   call this%free_fe_cell_iterator(fe)
-
 end subroutine serial_fe_space_renum_dofs_block
+
+subroutine serial_fe_space_allocate_and_fill_gen_dof_num_scratch_data ( this) 
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  class(reference_fe_t), pointer :: ref_fe_geo
+  class(fe_cell_iterator_t), allocatable :: fe
+  type(list_t), pointer :: n_faces_n_face
+  type(list_iterator_t) :: n_faces_n_face_iterator
+  integer(ip) :: num_n_faces
+  integer(ip) :: current
+  integer(ip) :: i 
+  
+  call this%free_gen_dof_num_scratch_data()
+  
+  massert ( this%single_reference_fe_geo(), "FESpace does NOT support mixed cells topology. All triangulation cells MUST have the same topology." )
+  call this%create_fe_cell_iterator(fe)
+  
+  ! If there are no cells in the current triangulation, then
+  ! the scratch data required to optimize the generation of the
+  ! global DoF numbering cannot be allocated/set up
+  if ( .not. fe%has_finished() ) then
+    ref_fe_geo     => fe%get_reference_fe_geo()
+    n_faces_n_face => ref_fe_geo%get_n_faces_n_face()
+    num_n_faces    = n_faces_n_face%get_num_pointers()
+   
+    call memalloc ( num_n_faces+1, & 
+                    this%ptr_n_faces_n_face, __FILE__, __LINE__ ) 
+   
+    ! We will set up ptr_n_faces_n_face/lst_n_faces_n_face s.t. 
+    ! each n-face will include its interior, apart from the set
+    ! of n-faces on its boundary
+    this%ptr_n_faces_n_face(1) = 1
+    do i=1, num_n_faces
+      this%ptr_n_faces_n_face(i+1) = this%ptr_n_faces_n_face(i) + &
+                                     n_faces_n_face%get_sublist_size(i)+1
+    end do 
+   
+    call memalloc ( this%ptr_n_faces_n_face(num_n_faces+1)-1, & 
+                    this%lst_n_faces_n_face, __FILE__, __LINE__ ) 
+   
+    current=1
+    do i=1, n_faces_n_face%get_num_pointers()
+       this%lst_n_faces_n_face(current) = i
+       current = current + 1 
+       n_faces_n_face_iterator = ref_fe_geo%create_n_faces_n_face_iterator(i)
+       do while( .not. n_faces_n_face_iterator%is_upper_bound() )
+         this%lst_n_faces_n_face(current) = n_faces_n_face_iterator%get_current()
+         current = current + 1
+         call n_faces_n_face_iterator%next()
+       end do 
+    end do
+  end if 
+  call this%free_fe_cell_iterator(fe)
+end subroutine serial_fe_space_allocate_and_fill_gen_dof_num_scratch_data
+
+subroutine serial_fe_space_free_gen_dof_num_scratch_data(this)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  if ( allocated(this%ptr_n_faces_n_face) ) then
+    call memfree(this%ptr_n_faces_n_face, __FILE__, __LINE__ )
+  end if
+  if ( allocated(this%lst_n_faces_n_face) ) then
+    call memfree(this%lst_n_faces_n_face, __FILE__, __LINE__ )
+  end if 
+end subroutine serial_fe_space_free_gen_dof_num_scratch_data
 
 function serial_fe_space_get_num_dims ( this )
   implicit none
@@ -3142,6 +3228,32 @@ function serial_fe_space_is_hanging_dof ( this, dof_lid )
   logical :: serial_fe_space_is_hanging_dof
   serial_fe_space_is_hanging_dof = dof_lid < -this%num_dirichlet_dofs
 end function serial_fe_space_is_hanging_dof
+
+function serial_fe_space_single_reference_fe_geo ( this )
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  logical :: serial_fe_space_single_reference_fe_geo
+  class(reference_fe_t), pointer :: first_ref_fe_geo
+  class(reference_fe_t), pointer :: current_ref_fe_geo
+  class(fe_cell_iterator_t), allocatable :: fe
+  serial_fe_space_single_reference_fe_geo = .true. 
+  call this%create_fe_cell_iterator(fe)
+  if ( fe%has_finished() ) then
+    call this%free_fe_cell_iterator(fe)
+    return
+  else
+    first_ref_fe_geo => fe%get_reference_fe_geo()
+  end if
+  do while ( .not. fe%has_finished() ) 
+    current_ref_fe_geo => fe%get_reference_fe_geo()
+    if ( .not. associated(current_ref_fe_geo, first_ref_fe_geo) ) then
+       serial_fe_space_single_reference_fe_geo = .false.
+       exit
+    end if 
+    call fe%next()
+  end do
+  call this%free_fe_cell_iterator(fe)
+end function serial_fe_space_single_reference_fe_geo
 
 subroutine serial_fe_space_create_fe_cell_iterator ( this, fe )
   implicit none
