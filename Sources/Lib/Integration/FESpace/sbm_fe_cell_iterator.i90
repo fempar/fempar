@@ -675,6 +675,7 @@ subroutine fci_generate_own_dofs_vef_component_wise_general ( this, ivef, field_
   
   assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
   assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
+  assert ( reference_fe%has_nodal_quadrature() )
   
   ! Determine position in lst_dofs_gids of the first dof associated to the
   ! field "field_id" within the current fe
@@ -723,6 +724,7 @@ subroutine fci_generate_own_dofs_vef_component_wise_w_scratch_data ( this, ivef,
 #ifdef DEBUG   
   reference_fe => this%get_reference_fe(field_id)
   assert ( size(components_code) == reference_fe%get_num_field_components() )
+  assert ( reference_fe%has_nodal_quadrature() )
 #endif
     
   ! Determine position in lst_dofs_gids of the first dof associated to the
