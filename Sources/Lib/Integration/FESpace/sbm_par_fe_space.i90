@@ -4601,6 +4601,8 @@ subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old
      call this%allocate_and_init_at_strong_dirichlet_bound()
      call this%allocate_and_init_has_fixed_dofs()
      call this%allocate_and_init_has_hanging_dofs_x_fe()
+     call this%fill_same_reference_fe_or_void_x_field()
+     call this%allocate_and_fill_gen_dof_num_scratch_data()
      call this%set_up_strong_dirichlet_bcs()
 
      ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
@@ -4848,9 +4850,11 @@ subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_l
      call this%allocate_and_init_at_strong_dirichlet_bound()
      call this%allocate_and_init_has_fixed_dofs()
      call this%allocate_and_init_has_hanging_dofs_x_fe()
+     call this%fill_same_reference_fe_or_void_x_field()
+     call this%allocate_and_fill_gen_dof_num_scratch_data()
      call this%set_up_strong_dirichlet_bcs()
 
-     ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
+     ! Force that a new DoF numbering is generated for the redistributed triangulation
      call this%generate_global_dof_numbering()
   end if
 #else  

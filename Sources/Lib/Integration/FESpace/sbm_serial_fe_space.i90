@@ -56,6 +56,7 @@ subroutine serial_fe_space_create_same_reference_fes_on_all_cells( this,        
   this%same_reference_fes_on_all_cells = .true. 
   call this%allocate_same_reference_fe_or_void_x_field()
   this%same_reference_fe_or_void_x_field(:) = .true.
+  call this%allocate_and_fill_gen_dof_num_scratch_data()
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
   call this%fill_facet_gids()
@@ -111,6 +112,7 @@ subroutine serial_fe_space_create_different_ref_fes_between_cells( this,        
   this%same_reference_fes_on_all_cells = .false.
   call this%allocate_same_reference_fe_or_void_x_field()
   call this%fill_same_reference_fe_or_void_x_field()
+  call this%allocate_and_fill_gen_dof_num_scratch_data()
   call this%check_cell_vs_fe_topology_consistency()
   call this%allocate_and_fill_fe_space_type_x_field()
   call this%fill_facet_gids()
@@ -2116,7 +2118,6 @@ subroutine serial_fe_space_generate_global_dof_numbering( this )
   class(serial_fe_space_t)    , intent(inout) :: this
   logical :: perform_numbering
   
-  call this%allocate_and_fill_gen_dof_num_scratch_data()
   call this%allocate_num_dofs_x_field()
   if ( this%num_fields > 1 ) then 
     call this%count_dofs()
@@ -2786,8 +2787,6 @@ subroutine generate_dofs_on_proper_vefs_of_coarse_cell ( this, &
   integer(ip) :: previous_dof_block
   integer(ip) :: coarser_vef_gid
   integer(ip) :: i, spos, epos
-  class(reference_fe_t), pointer :: reference_fe_geo
-  type(list_iterator_t) :: n_faces_n_face_iterator
     
   ! Generate free DoFs on top of proper coarse vef
   spos = this%ptr_n_faces_n_face(coarser_vef_lid)
@@ -2843,7 +2842,6 @@ subroutine serial_fe_space_allocate_and_fill_gen_dof_num_scratch_data ( this)
   class(serial_fe_space_t), intent(inout) :: this
   class(reference_fe_t), pointer :: ref_fe_geo
   class(reference_fe_t), pointer :: ref_fe
-  class(fe_cell_iterator_t), allocatable :: fe
   type(list_t), pointer :: n_faces_n_face
   type(list_iterator_t) :: n_faces_n_face_iterator
   type(list_t), pointer :: own_dofs_n_face
@@ -2851,85 +2849,99 @@ subroutine serial_fe_space_allocate_and_fill_gen_dof_num_scratch_data ( this)
   integer(ip) :: num_n_faces
   integer(ip) :: current
   integer(ip) :: field_id, i 
-  integer(ip) :: istat 
+  integer(ip) :: istat, icell
+  integer(ip), pointer :: current_field_cell_to_ref_fes(:)
   
   call this%free_gen_dof_num_scratch_data()
   
-  massert ( this%single_reference_fe_geo(), "FESpace does NOT support mixed cells topology. All triangulation cells MUST have the same topology." )
-  call this%create_fe_cell_iterator(fe)
+  massert ( (this%triangulation%get_num_reference_fes() == 1), "FESpace does NOT support mixed cells topology. All triangulation cells MUST have the same topology." )
   
-  ! If there are no cells in the current triangulation, then
-  ! the scratch data required to optimize the generation of the
-  ! global DoF numbering cannot be allocated/set up
-  if ( .not. fe%has_finished() ) then
-    ref_fe_geo     => fe%get_reference_fe_geo()
-    n_faces_n_face => ref_fe_geo%get_n_faces_n_face()
-    num_n_faces    = n_faces_n_face%get_num_pointers()
+  ref_fe_geo     => this%triangulation%get_reference_fe(1)
+  n_faces_n_face => ref_fe_geo%get_n_faces_n_face()
+  num_n_faces    = n_faces_n_face%get_num_pointers()
+  
+  call memalloc ( num_n_faces+1, & 
+                  this%ptr_n_faces_n_face, __FILE__, __LINE__ ) 
    
-    call memalloc ( num_n_faces+1, & 
-                    this%ptr_n_faces_n_face, __FILE__, __LINE__ ) 
+  ! We will set up ptr_n_faces_n_face/lst_n_faces_n_face s.t. 
+  ! each n-face will include its interior, apart from the set
+  ! of n-faces on its boundary
+  this%ptr_n_faces_n_face(1) = 1
+  do i=1, num_n_faces
+     this%ptr_n_faces_n_face(i+1) = this%ptr_n_faces_n_face(i) + &
+                                    n_faces_n_face%get_sublist_size(i)+1
+  end do
    
-    ! We will set up ptr_n_faces_n_face/lst_n_faces_n_face s.t. 
-    ! each n-face will include its interior, apart from the set
-    ! of n-faces on its boundary
-    this%ptr_n_faces_n_face(1) = 1
-    do i=1, num_n_faces
-      this%ptr_n_faces_n_face(i+1) = this%ptr_n_faces_n_face(i) + &
-                                     n_faces_n_face%get_sublist_size(i)+1
-    end do 
+  call memalloc ( this%ptr_n_faces_n_face(num_n_faces+1)-1, & 
+                  this%lst_n_faces_n_face, __FILE__, __LINE__ ) 
    
-    call memalloc ( this%ptr_n_faces_n_face(num_n_faces+1)-1, & 
-                    this%lst_n_faces_n_face, __FILE__, __LINE__ ) 
-   
-    current=1
-    do i=1, n_faces_n_face%get_num_pointers()
-       this%lst_n_faces_n_face(current) = i
-       current = current + 1 
-       n_faces_n_face_iterator = ref_fe_geo%create_n_faces_n_face_iterator(i)
-       do while( .not. n_faces_n_face_iterator%is_upper_bound() )
-         this%lst_n_faces_n_face(current) = n_faces_n_face_iterator%get_current()
-         current = current + 1
-         call n_faces_n_face_iterator%next()
-       end do 
-    end do
-  end if
+  current=1
+  do i=1, n_faces_n_face%get_num_pointers()
+     this%lst_n_faces_n_face(current) = i
+     current = current + 1 
+     n_faces_n_face_iterator = ref_fe_geo%create_n_faces_n_face_iterator(i)
+     do while( .not. n_faces_n_face_iterator%is_upper_bound() )
+        this%lst_n_faces_n_face(current) = n_faces_n_face_iterator%get_current()
+        current = current + 1
+        call n_faces_n_face_iterator%next()
+     end do
+  end do
+  
 
   allocate(this%ptr_own_dofs_n_face(this%get_num_fields()), stat=istat); check(istat==0);
   allocate(this%lst_own_dofs_n_face(this%get_num_fields()), stat=istat); check(istat==0);
+  allocate(this%dofs_component(this%get_num_fields()), stat=istat); check(istat==0);
   do field_id=1, this%get_num_fields()
-    if ( this%same_reference_fe_or_void_x_field(field_id) ) then 
-      call fe%first()
-      call fe%first_local_non_void(field_id)
-      ref_fe => fe%get_reference_fe(field_id)
-      select type (ref_fe)
-      class is (void_reference_fe_t)
-         own_dofs_n_face => ref_fe%get_own_dofs_n_face()
-         num_n_faces = own_dofs_n_face%get_num_pointers()
-         call this%ptr_own_dofs_n_face(field_id)%create(num_n_faces+1)
-         this%ptr_own_dofs_n_face(field_id)%a(1) = 1
-         do i=1, num_n_faces
-           this%ptr_own_dofs_n_face(field_id)%a(i+1) = this%ptr_own_dofs_n_face(field_id)%a(i) + &
-                                                       own_dofs_n_face%get_sublist_size(i)+1
-         end do
+    if ( this%same_reference_fe_or_void_x_field(field_id) ) then
+      current_field_cell_to_ref_fes => this%field_cell_to_ref_fes(field_id)%get_pointer()
+      nullify(ref_fe)
+      ! Find first non-void ref_fe 
+      do icell=1, this%triangulation%get_num_cells()
+         ref_fe => this%reference_fes(current_field_cell_to_ref_fes(icell))%p 
+         select type( ref_fe ) 
+           class is ( void_reference_fe_t ) 
+           class default
+              exit
+         end select
+      end do
+    
+      if ( associated(ref_fe) ) then
+        select type (ref_fe)
+        class is (void_reference_fe_t)
+        class default
+          own_dofs_n_face => ref_fe%get_own_dofs_n_face()
+          num_n_faces = own_dofs_n_face%get_num_pointers()
+          call this%ptr_own_dofs_n_face(field_id)%create(num_n_faces+1)
+          this%ptr_own_dofs_n_face(field_id)%a(1) = 1
+          do i=1, num_n_faces
+            this%ptr_own_dofs_n_face(field_id)%a(i+1) = this%ptr_own_dofs_n_face(field_id)%a(i) + &
+                                                        own_dofs_n_face%get_sublist_size(i)
+          end do
 
-         call this%lst_own_dofs_n_face(field_id)%create(& 
-              this%ptr_own_dofs_n_face(field_id)%a(num_n_faces+1)-1)
+          call this%lst_own_dofs_n_face(field_id)%create(& 
+               this%ptr_own_dofs_n_face(field_id)%a(num_n_faces+1)-1)
    
-         current=1
-         do i=1, num_n_faces 
-           current = current + 1 
-           own_dofs_n_face_iterator = own_dofs_n_face%create_iterator(i)
-           do while( .not. own_dofs_n_face_iterator%is_upper_bound() )
-             this%lst_own_dofs_n_face(field_id)%a(current) = own_dofs_n_face_iterator%get_current()
-             current = current + 1
-             call own_dofs_n_face_iterator%next()
-           end do 
-         end do
-      end select 
+          current=1
+          do i=1, num_n_faces 
+            own_dofs_n_face_iterator = own_dofs_n_face%create_iterator(i)
+            do while( .not. own_dofs_n_face_iterator%is_upper_bound() )
+              this%lst_own_dofs_n_face(field_id)%a(current) = own_dofs_n_face_iterator%get_current()
+              current = current + 1
+              call own_dofs_n_face_iterator%next()
+            end do 
+          end do
+          
+          if ( ref_fe%has_nodal_quadrature() ) then
+            call this%dofs_component(field_id)%create(ref_fe%get_num_shape_functions())
+            do i=1, ref_fe%get_num_shape_functions()
+              this%dofs_component(field_id)%a(i) = ref_fe%get_component_node(i)
+            end do
+          end if  
+          
+        end select 
+      end if
     end if
-  end do 
- 
-  call this%free_fe_cell_iterator(fe)
+  end do
 end subroutine serial_fe_space_allocate_and_fill_gen_dof_num_scratch_data
 
 subroutine serial_fe_space_free_gen_dof_num_scratch_data(this)
@@ -2956,6 +2968,14 @@ subroutine serial_fe_space_free_gen_dof_num_scratch_data(this)
     end do
     deallocate(this%lst_own_dofs_n_face, stat=istat); check(istat==0);
   end if
+  
+  if ( allocated(this%dofs_component) ) then
+    do i=1,size(this%dofs_component)
+      call this%dofs_component(i)%free()
+    end do
+    deallocate(this%dofs_component, stat=istat); check(istat==0);
+  end if
+  
 end subroutine serial_fe_space_free_gen_dof_num_scratch_data
 
 function serial_fe_space_get_num_dims ( this )
@@ -3347,32 +3367,6 @@ function serial_fe_space_is_hanging_dof ( this, dof_lid )
   logical :: serial_fe_space_is_hanging_dof
   serial_fe_space_is_hanging_dof = dof_lid < -this%num_dirichlet_dofs
 end function serial_fe_space_is_hanging_dof
-
-function serial_fe_space_single_reference_fe_geo ( this )
-  implicit none
-  class(serial_fe_space_t), intent(in) :: this
-  logical :: serial_fe_space_single_reference_fe_geo
-  class(reference_fe_t), pointer :: first_ref_fe_geo
-  class(reference_fe_t), pointer :: current_ref_fe_geo
-  class(fe_cell_iterator_t), allocatable :: fe
-  serial_fe_space_single_reference_fe_geo = .true. 
-  call this%create_fe_cell_iterator(fe)
-  if ( fe%has_finished() ) then
-    call this%free_fe_cell_iterator(fe)
-    return
-  else
-    first_ref_fe_geo => fe%get_reference_fe_geo()
-  end if
-  do while ( .not. fe%has_finished() ) 
-    current_ref_fe_geo => fe%get_reference_fe_geo()
-    if ( .not. associated(current_ref_fe_geo, first_ref_fe_geo) ) then
-       serial_fe_space_single_reference_fe_geo = .false.
-       exit
-    end if 
-    call fe%next()
-  end do
-  call this%free_fe_cell_iterator(fe)
-end function serial_fe_space_single_reference_fe_geo
 
 subroutine serial_fe_space_create_fe_cell_iterator ( this, fe )
   implicit none
@@ -4002,6 +3996,8 @@ subroutine serial_fe_space_refine_and_coarsen_single_fe_function( this, fe_funct
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
   call this%allocate_and_init_has_hanging_dofs_x_fe()
+  call this%fill_same_reference_fe_or_void_x_field()
+  call this%allocate_and_fill_gen_dof_num_scratch_data()
   call this%set_up_strong_dirichlet_bcs()
   
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
@@ -4167,6 +4163,8 @@ subroutine serial_fe_space_refine_and_coarsen_fe_function_array( this, fe_functi
   call this%allocate_and_init_at_strong_dirichlet_bound()
   call this%allocate_and_init_has_fixed_dofs()
   call this%allocate_and_init_has_hanging_dofs_x_fe()
+  call this%fill_same_reference_fe_or_void_x_field()
+  call this%allocate_and_fill_gen_dof_num_scratch_data()
   call this%set_up_strong_dirichlet_bcs()
   
   ! Force that a new DoF numbering is generated for the refined/coarsened triangulation

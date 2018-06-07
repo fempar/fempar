@@ -224,11 +224,24 @@ module fe_space_names
     procedure, non_overridable          :: update_performance_scratch_data            => fe_cell_iterator_update_performance_scratch_data
     procedure, non_overridable          :: free_performance_scratch_data              => fe_cell_iterator_free_performance_scratch_data
     procedure, non_overridable          :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
+    procedure, non_overridable          :: count_own_dofs_cell_general                => fe_cell_iterator_count_own_dofs_cell_general
+    procedure, non_overridable          :: count_own_dofs_cell_w_scratch_data         => fe_cell_iterator_count_own_dofs_cell_w_scratch_data
     procedure, non_overridable          :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
+    procedure, non_overridable          :: count_own_dofs_vef_general                 => fe_cell_iterator_count_own_dofs_vef_general
+    procedure, non_overridable          :: count_own_dofs_vef_w_scratch_data          => fe_cell_iterator_count_own_dofs_vef_w_scratch_data
     procedure, non_overridable          :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
+    procedure, non_overridable          :: generate_own_dofs_cell_general             => fe_cell_iterator_generate_own_dofs_cell_general
+    procedure, non_overridable          :: generate_own_dofs_cell_w_scratch_data      => fe_cell_iterator_generate_own_dofs_cell_w_scratch_data
     procedure, non_overridable          :: generate_own_dofs_vef                      => fe_cell_iterator_generate_own_dofs_vef
+    procedure, non_overridable          :: generate_own_dofs_vef_general              => fe_cell_iterator_generate_own_dofs_vef_general
+    procedure, non_overridable          :: generate_own_dofs_vef_w_scratch_data       => fe_cell_iterator_generate_own_dofs_vef_w_scratch_data
     procedure, non_overridable          :: generate_own_dofs_vef_component_wise       => fe_cell_iterator_generate_own_dofs_vef_component_wise
+    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_general         => fci_generate_own_dofs_vef_component_wise_general
+    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_w_scratch_data  => fci_generate_own_dofs_vef_component_wise_w_scratch_data  
+
     procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe          => fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
+    procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe_general  => fci_fetch_own_dofs_vef_from_source_fe_general
+    procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe_w_scratch_data => fci_fetch_own_dofs_vef_from_source_fe_w_scratch_data
     procedure, non_overridable          :: generate_dofs_facet_integration_coupling   => fe_cell_iterator_generate_dofs_facet_integration_coupling
     procedure, non_overridable, private :: renum_dofs_block                           => fe_cell_iterator_renum_dofs_block
     procedure, non_overridable, private :: renum_dofs_field                           => fe_cell_iterator_renum_dofs_field
@@ -597,6 +610,7 @@ module fe_space_names
      
      type(allocatable_array_ip1_t), allocatable  :: ptr_own_dofs_n_face(:)    
      type(allocatable_array_ip1_t), allocatable  :: lst_own_dofs_n_face(:)    
+     type(allocatable_array_ip1_t), allocatable  :: dofs_component(:)    
  
    contains
      procedure                           :: serial_fe_space_create_same_reference_fes_on_all_cells
@@ -725,7 +739,6 @@ module fe_space_names
      procedure, non_overridable          :: is_strong_dirichlet_dof                      => serial_fe_space_is_strong_dirichlet_dof
      procedure, non_overridable          :: is_fixed_dof                                 => serial_fe_space_is_fixed_dof
      procedure, non_overridable          :: is_hanging_dof                               => serial_fe_space_is_hanging_dof
-     procedure, non_overridable          :: single_reference_fe_geo                      => serial_fe_space_single_reference_fe_geo 
      
      ! fes, fe_vefs and fe_faces traversals-related TBPs
      procedure                           :: create_fe_cell_iterator                           => serial_fe_space_create_fe_cell_iterator
