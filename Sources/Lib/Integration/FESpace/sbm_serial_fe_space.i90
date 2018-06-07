@@ -367,17 +367,17 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   integer(ip), allocatable           :: visited_improper_vef_to_cell_map(:,:)
   integer(ip)                        :: previous_num_dirichlet_dofs
   class(triangulation_t), pointer :: triangulation
-  
-  
+
+
   ! Count num_dirichlet_dofs
   this%num_dirichlet_dofs = 0
-  
+
   triangulation => this%get_triangulation()
-  
+
   if ( .not. associated(this%conditions) .or. triangulation%get_num_cells() == 0 ) then
-    return
+     return
   end if
-  
+
   ! For every component of every field, we go through all FEs and look for DoFs 
   ! subject to strong Dirichlet BCs. It would be desirable (for efficiency) to 
   ! know a priori which FEs have DoFs which are subject to strong Dirichlet BCs, 
@@ -397,84 +397,84 @@ subroutine serial_fe_space_set_up_strong_dirichlet_bcs( this )
   ! Precompute the offsets
   offset_component_x_field(1) = 1
   do field_id = 1, this%get_num_fields()
-    reference_fe => fe%get_reference_fe(field_id)
-    offset_component_x_field(field_id+1) = offset_component_x_field(field_id) + reference_fe%get_num_field_components()
+     reference_fe => fe%get_reference_fe(field_id)
+     offset_component_x_field(field_id+1) = offset_component_x_field(field_id) + reference_fe%get_num_field_components()
   end do
 
   do field_id = 1, this%get_num_fields()
-    ! Initialize
-    visited_proper_vef_to_cell_map = -1
-    visited_improper_vef_to_cell_map = -1
+     ! Initialize
+     visited_proper_vef_to_cell_map = -1
+     visited_improper_vef_to_cell_map = -1
 
-    call fe%first()
-    do while (.not. fe%has_finished() )
-         if ( .not. fe%is_void(field_id) ) then
-         do ivef = 1, fe%get_num_vefs()
-            call fe%get_vef(ivef, vef)
-            
-            if ( .not. vef%is_ghost() ) then
+     call fe%first()
+     do while (.not. fe%has_finished() )
+        if ( .not. fe%is_void(field_id) ) then
+           do ivef = 1, fe%get_num_vefs()
+              call fe%get_vef(ivef, vef)
 
-             ! Check whether a set_id different from 0 has been set for current vef. 
-             !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
-             if ( vef%get_set_id() /= 0 .and. vef%all_coarser_cells_are_void(field_id, coarser_fe) ) then
+              if ( .not. vef%is_ghost() ) then
 
-               ! Get components code corresponding to set_id assigned to current vef
-               ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
-               ! a more clever strategy. Does pay off to look carefully at this?
-               call this%conditions%get_components_code( vef%get_set_id(), components_code )
+                 ! Check whether a set_id different from 0 has been set for current vef. 
+                 !        "0" is a magic number. MUCH BETTER REPLACE by parameter constant.
+                 if ( vef%get_set_id() /= 0 .and. vef%all_coarser_cells_are_void(field_id, coarser_fe) ) then
 
-               ! Auxiliary function containing the work done at each innermost iteration
-               previous_num_dirichlet_dofs = this%num_dirichlet_dofs
-               
-               if ( vef%is_proper() ) then
-                 call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
-                                                                        vef,&
-                                                                        ivef,&
-                                                                        field_id,&
-                                                                        components_code(offset_component_x_field(field_id):&
-                                                                                        offset_component_x_field(field_id+1)-1),&
-                                                                        visited_proper_vef_to_cell_map,&
-                                                                        source_fe)
+                    ! Get components code corresponding to set_id assigned to current vef
+                    ! TO-DO: The number of calls to this TBP (virtual) could be reduced by using
+                    ! a more clever strategy. Does pay off to look carefully at this?
+                    call this%conditions%get_components_code( vef%get_set_id(), components_code )
 
-                 if ( visited_proper_vef_to_cell_map(1, vef%get_gid()) == -1 .and. &
-                      previous_num_dirichlet_dofs < this%num_dirichlet_dofs ) then
-                    visited_proper_vef_to_cell_map ( 1, vef%get_gid() ) = fe%get_gid()
-                    visited_proper_vef_to_cell_map ( 2, vef%get_gid() ) = ivef
+                    ! Auxiliary function containing the work done at each innermost iteration
+                    previous_num_dirichlet_dofs = this%num_dirichlet_dofs
+
+                    if ( vef%is_proper() ) then
+                       call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
+                            vef,&
+                            ivef,&
+                            field_id,&
+                            components_code(offset_component_x_field(field_id):&
+                            offset_component_x_field(field_id+1)-1),&
+                            visited_proper_vef_to_cell_map,&
+                            source_fe)
+
+                       if ( visited_proper_vef_to_cell_map(1, vef%get_gid()) == -1 .and. &
+                            previous_num_dirichlet_dofs < this%num_dirichlet_dofs ) then
+                          visited_proper_vef_to_cell_map ( 1, vef%get_gid() ) = fe%get_gid()
+                          visited_proper_vef_to_cell_map ( 2, vef%get_gid() ) = ivef
+                       end if
+                    else
+                       call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
+                            vef,&
+                            ivef,&
+                            field_id,&
+                            components_code(offset_component_x_field(field_id):&
+                            offset_component_x_field(field_id+1)-1),&
+                            visited_improper_vef_to_cell_map,&
+                            source_fe)
+
+                       if ( visited_improper_vef_to_cell_map(1, abs(vef%get_gid())) == -1 .and. &
+                            previous_num_dirichlet_dofs < this%num_dirichlet_dofs ) then
+                          visited_improper_vef_to_cell_map ( 1, abs(vef%get_gid()) ) = fe%get_gid()
+                          visited_improper_vef_to_cell_map ( 2, abs(vef%get_gid()) ) = ivef
+                       end if
+                    end if
                  end if
-               else
-                 call this%set_up_strong_dirichlet_bcs_on_vef_and_field(fe,&
-                                                                        vef,&
-                                                                        ivef,&
-                                                                        field_id,&
-                                                                        components_code(offset_component_x_field(field_id):&
-                                                                                        offset_component_x_field(field_id+1)-1),&
-                                                                        visited_improper_vef_to_cell_map,&
-                                                                        source_fe)
-
-                 if ( visited_improper_vef_to_cell_map(1, abs(vef%get_gid())) == -1 .and. &
-                      previous_num_dirichlet_dofs < this%num_dirichlet_dofs ) then
-                    visited_improper_vef_to_cell_map ( 1, abs(vef%get_gid()) ) = fe%get_gid()
-                    visited_improper_vef_to_cell_map ( 2, abs(vef%get_gid()) ) = ivef
-                 end if               
-               end if 
-             end if
-            end if
-         end do
-        end if  
-      call fe%next()
-    end do ! Loop in FEs
+              end if
+           end do
+        end if
+        call fe%next()
+     end do ! Loop in FEs
   end do ! Loop in fields
   ! This second sweep over all cells cannot be integrated as part of the first one
   ! as the fe%determine_* TBPs have as a pre-condition that this%strong_dirichlet_values
   ! has at least been created (i.e., that it has at least size already set)
   call fe%first()
   do while (.not. fe%has_finished() )
-    do field_id = 1, this%get_num_fields()
-      call fe%determine_at_strong_dirichlet_boundary(field_id)
-    end do
-    call fe%next()
+     do field_id = 1, this%get_num_fields()
+        call fe%determine_at_strong_dirichlet_boundary(field_id)
+     end do
+     call fe%next()
   end do
-  
+
   this%num_fixed_dofs = this%num_dirichlet_dofs
 
   call memfree ( visited_proper_vef_to_cell_map,  __FILE__, __LINE__ )
