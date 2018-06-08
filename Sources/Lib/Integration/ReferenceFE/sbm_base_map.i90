@@ -96,6 +96,16 @@ subroutine base_map_compute_quadrature_points_coordinates(this)
 end subroutine base_map_compute_quadrature_points_coordinates
 
 !==================================================================================================
+subroutine base_map_compute_jacobian(this)
+  implicit none
+  class(base_map_t), intent(inout) :: this
+  call fill_plane_array_with_vector_field_1D_array ( this%interpolation%shape_derivatives, &
+                                                     this%nodes_coordinates, &
+                                                     this%jacobian, &
+                                                     this%num_dims)
+end subroutine base_map_compute_jacobian
+
+!==================================================================================================
 function base_map_get_det_jacobian ( this, i )
   implicit none
   class(base_map_t), intent(in) :: this

@@ -219,7 +219,10 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
         end do
      end do
     end do
-
+  
+    ! Compute jacobian matrix
+    !call this%compute_jacobian()
+    
     this%measure = 0.0_rp 
     if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
        do ilocs=1,this%num_quadrature_points

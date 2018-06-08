@@ -138,6 +138,7 @@ module field_names
   public :: fill_vector_field_2D_array_with_4D_plain_array
   public :: fill_vector_field_2D_array_with_4D_plain_array_perm
   public :: compute_point_1D_array_lin_comb_with_3D_plain_array
+  public :: fill_plane_array_with_vector_field_1D_array
   
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -707,10 +708,35 @@ contains
       end do 
     end do
   end subroutine compute_point_1D_array_lin_comb_with_3D_plain_array
-  
+
+  subroutine fill_plane_array_with_vector_field_1D_array( plain_array, point_1D_array_in, plain_array_out, num_dims)
+    implicit none
+    real(rp)            , intent(in)    :: plain_array(:,:,:,:)
+    real(rp)            , intent(inout) :: plain_array_out(:,:,:)
+    type(point_t)       , intent(in)    :: point_1D_array_in(:)
+    type(vector_field_t)                :: vector_field_1D_array
+    
+    integer(ip) :: i, j, k, l, num_dims
+    real(rp)    :: alpha
+    assert (size(point_1D_array_in) == size(plain_array,3))
+    assert (size(plain_array,1) >= 1)
+    
+    do i=1, size(plain_array,4) !quadrature points
+      !do j=1, size(plain_array,2) !num dimensions
+      do j=1, num_dims !num dimensions
+         vector_field_1D_array = 0.0_rp
+         do k=1, size(plain_array,3) !num nodes
+            alpha = plain_array(1,j,k,i)
+            do l = 1, num_dims
+              vector_field_1D_array%value(l) = vector_field_1D_array%value(l) + alpha * point_1D_array_in(k)%value(l)
+            end do
+         end do 
+         do l=1, num_dims
+            plain_array_out(l,j,i) = vector_field_1D_array%get(l) 
+         end do
+      end do
+    end do
+    
+  end subroutine fill_plane_array_with_vector_field_1D_array
+
 end module field_names
-
-
-
-
-

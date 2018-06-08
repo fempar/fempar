@@ -176,6 +176,7 @@ module reference_fe_names
     procedure, non_overridable :: get_coordinates                       => base_map_get_coordinates
     procedure, non_overridable :: get_quadrature_points_coordinates     => base_map_get_quadrature_points_coordinates
     procedure, non_overridable :: compute_quadrature_points_coordinates => base_map_compute_quadrature_points_coordinates
+    procedure, non_overridable :: compute_jacobian                      => base_map_compute_jacobian
     procedure, non_overridable :: get_det_jacobian                      => base_map_get_det_jacobian
     procedure, non_overridable :: get_det_jacobians                     => base_map_get_det_jacobians
     procedure, non_overridable :: get_pointer_det_jacobians             => base_map_get_pointer_det_jacobians
