@@ -223,7 +223,7 @@ subroutine suhpafs_count_dofs ( this )
           if ( fe_space_type_x_field(field_id) == fe_space_type_cg ) then
             do ivef = 1, fe%get_num_vefs()
               call fe%get_vef(ivef,vef)
-              if ( .not. vef%has_free_dofs(field_id,coarser_fe) ) cycle
+              if ( .not. vef%all_coarser_cells_are_void(field_id,coarser_fe) ) cycle
               vef_lid = abs(fe%get_vef_gid(ivef))
               if ( vef%is_proper() ) then
                 if ( .not. per_field_proper_vefs_visited (field_id,vef_lid) ) then
@@ -401,7 +401,7 @@ subroutine suhpafs_list_dofs ( this )
          call fe%generate_own_dofs_cell ( field_id, fields_current_dof(field_id) )
          do ivef= 1, fe%get_num_vefs()
            call fe%get_vef(ivef,vef)
-           if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+           if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
              vef_lid = abs(fe%get_vef_gid(ivef))
              is_owner = .false.
              if ( vef%is_proper() ) then
@@ -498,7 +498,7 @@ subroutine suhpafs_list_dofs ( this )
           call fe%generate_own_dofs_cell ( field_id, current_fixed_dof, are_free_dofs=.false. )
           do ivef= 1, fe%get_num_vefs()
             call fe%get_vef(ivef,vef)
-            if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+            if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
               vef_lid = abs(fe%get_vef_gid(ivef))
               is_owner = .false.
               if ( vef%is_proper() ) then
@@ -539,7 +539,7 @@ subroutine suhpafs_list_dofs ( this )
         if ( .not. fe%is_void(field_id)) then
           do ivef= 1, fe%get_num_vefs()
             call fe%get_vef(ivef,vef)
-            if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+            if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
               vef_lid = abs(fe%get_vef_gid(ivef))
               is_owner = .false.
               if ( vef%is_proper() ) then
@@ -1952,7 +1952,7 @@ subroutine suhpafs_fill_proper_vef_constrains_full_cell(this,proper_vef_constrai
           if ( .not. fe%is_void(field_id)) then
             do ivef = 1, fe%get_num_vefs()
               call fe%get_vef(ivef,vef)
-              if ( vef%has_free_dofs(field_id,coarser_fe) ) cycle
+              if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) cycle
               if ( .not. vef%is_proper() ) then
                 do icell = 1,vef%get_num_improper_cells_around()
                   call vef%get_improper_cell_around(icell,coarser_fe)

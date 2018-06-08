@@ -40,6 +40,15 @@ function p4est_base_triangulation_get_num_reference_fes(this)
   p4est_base_triangulation_get_num_reference_fes = 1
 end function p4est_base_triangulation_get_num_reference_fes
 
+function p4est_base_triangulation_get_reference_fe(this, ref_fe_geo_id) 
+  implicit none
+  class(p4est_base_triangulation_t), target, intent(in) :: this
+  integer(ip)                              , intent(in) :: ref_fe_geo_id
+  class(reference_fe_t), pointer :: p4est_base_triangulation_get_reference_fe
+  assert ( ref_fe_geo_id == 1 )
+  p4est_base_triangulation_get_reference_fe =>  this%reference_fe_geo
+end function p4est_base_triangulation_get_reference_fe
+
 function p4est_base_triangulation_get_max_num_shape_functions(this) result (num)
   implicit none
   class(p4est_base_triangulation_t), intent(in) :: this
