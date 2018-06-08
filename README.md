@@ -22,6 +22,9 @@ Finite Element Multiphysics PARallel solvers
 commit 2b44a887b4bd78fe847ea844a90d29d9f141123e due to what it seems to be a compiler BUG. Please also note that we do not actually know since 
 which commit in `experimental` this is happening, but only that it happens at this one. Thus, avoid using this GNU Fortran compiler version.
 
+**NOTE**: there is also an open issue with gfortran 6.4.1 and gfortran 7.3.1 (https://gitlab.com/fempar/XH5For/issues/7). An internal
+compiler error raises when compiling FoX, a third party library of XH5For. 
+
 **FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
 
 The easiest way to compile **FEMPAR** under Linux is (with compilation of tests included):
