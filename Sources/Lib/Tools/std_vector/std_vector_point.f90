@@ -48,6 +48,7 @@ contains
   STD_VECTOR_ERASE(type(point_t),point)
   STD_VECTOR_COPY(type(point_t),point)
   STD_VECTOR_SET(type(point_t),point)
+  STD_VECTOR_INIT(type(point_t),point)
   STD_VECTOR_CAT(type(point_t),point)
   STD_VECTOR_SIZE(type(point_t),point)
   STD_VECTOR_CAPACITY(type(point_t),point)
