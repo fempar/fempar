@@ -191,7 +191,7 @@ subroutine fe_cell_iterator_init_performance_scratch_data ( this )
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: istat, i
   ! If (same) set of reference FEs on top of all cells ...
-  if ( size(this%fe_space%set_ids_to_reference_fes,2) == 1 ) then 
+  if ( this%fe_space%same_reference_fes_on_all_cells ) then 
     do i=1, this%fe_space%num_fields
       this%reference_fes(i)%p => this%fe_space%reference_fes(i)%p
     end do   
@@ -203,7 +203,7 @@ subroutine fe_cell_iterator_update_performance_scratch_data ( this )
   class(fe_cell_iterator_t), intent(inout) :: this
   integer(ip) :: istat, i
   ! If (potentially) different set of reference FEs on top of all cells ...
-  if ( size(this%fe_space%set_ids_to_reference_fes,2) > 1 ) then 
+  if ( .not. this%fe_space%same_reference_fes_on_all_cells ) then 
     do i=1, this%fe_space%num_fields
       this%reference_fes(i)%p => this%fe_space%reference_fes(this%fe_space%field_cell_to_ref_fes(i)%get(this%get_gid()))%p
     end do   
@@ -319,8 +319,24 @@ function fe_cell_iterator_count_own_dofs_cell ( this, field_id )
   implicit none
   ! Parameters
   class(fe_cell_iterator_t), intent(in)   :: this
+  integer(ip)              , intent(in)   :: field_id
+  integer(ip) :: fe_cell_iterator_count_own_dofs_cell
+  
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+    fe_cell_iterator_count_own_dofs_cell  = this%count_own_dofs_cell_w_scratch_data(field_id)
+  else
+    fe_cell_iterator_count_own_dofs_cell =  this%count_own_dofs_cell_general(field_id)
+  end if 
+  
+end function fe_cell_iterator_count_own_dofs_cell
+
+
+function fe_cell_iterator_count_own_dofs_cell_general ( this, field_id )
+  implicit none
+  ! Parameters
+  class(fe_cell_iterator_t), intent(in)   :: this
   integer(ip)         , intent(in)   :: field_id
-  integer(ip) :: fe_cell_iterator_count_own_dofs_cell 
+  integer(ip) :: fe_cell_iterator_count_own_dofs_cell_general
   
   ! Local variables
   integer(ip) :: ivef
@@ -332,10 +348,44 @@ function fe_cell_iterator_count_own_dofs_cell ( this, field_id )
   reference_fe => this%get_reference_fe(field_id)
   ivef = this%get_num_vefs()+1
   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
-  fe_cell_iterator_count_own_dofs_cell = own_dofs_on_vef_iterator%get_size() 
-end function fe_cell_iterator_count_own_dofs_cell
+  fe_cell_iterator_count_own_dofs_cell_general = own_dofs_on_vef_iterator%get_size() 
+end function fe_cell_iterator_count_own_dofs_cell_general
+
+function fe_cell_iterator_count_own_dofs_cell_w_scratch_data ( this, field_id )
+  implicit none
+  ! Parameters
+  class(fe_cell_iterator_t), intent(in)   :: this
+  integer(ip)         , intent(in)   :: field_id
+  integer(ip) :: fe_cell_iterator_count_own_dofs_cell_w_scratch_data 
+  
+  ! Local variables
+  integer(ip) :: ivef, spos, epos
+  
+  assert ( field_id>= 1 .and. field_id <= this%fe_space%num_fields )
+  assert ( .not. this%is_void(field_id) ) 
+  ivef = size(this%fe_space%ptr_own_dofs_n_face(field_id)%a)-1
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef+1)
+  fe_cell_iterator_count_own_dofs_cell_w_scratch_data = epos-spos
+end function fe_cell_iterator_count_own_dofs_cell_w_scratch_data
+
+
 
 subroutine fe_cell_iterator_generate_own_dofs_cell ( this, field_id, current_dof, are_free_dofs )
+  implicit none
+  ! Parameters
+  class(fe_cell_iterator_t), intent(inout)   :: this
+  integer(ip)         , intent(in)      :: field_id
+  integer(ip)         , intent(inout)   :: current_dof
+  logical, optional   , intent(in)      :: are_free_dofs
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+     call this%generate_own_dofs_cell_w_scratch_data(field_id, current_dof, are_free_dofs)
+  else
+     call this%generate_own_dofs_cell_general(field_id, current_dof, are_free_dofs)
+  end if 
+end subroutine fe_cell_iterator_generate_own_dofs_cell
+
+subroutine fe_cell_iterator_generate_own_dofs_cell_general ( this, field_id, current_dof, are_free_dofs )
   implicit none
   ! Parameters
   class(fe_cell_iterator_t), intent(inout)   :: this
@@ -377,9 +427,69 @@ subroutine fe_cell_iterator_generate_own_dofs_cell ( this, field_id, current_dof
     end if
     call own_dofs_on_vef_iterator%next()
   end do
-end subroutine fe_cell_iterator_generate_own_dofs_cell
+end subroutine fe_cell_iterator_generate_own_dofs_cell_general
+
+subroutine fe_cell_iterator_generate_own_dofs_cell_w_scratch_data ( this, field_id, current_dof, are_free_dofs )
+  implicit none
+  ! Parameters
+  class(fe_cell_iterator_t), intent(inout)   :: this
+  integer(ip)         , intent(in)      :: field_id
+  integer(ip)         , intent(inout)   :: current_dof
+  logical, optional   , intent(in)      :: are_free_dofs
+
+  ! Local variables
+  integer(ip) :: spos, epos, ivef, i 
+  integer(ip) :: base_pos_lst_dofs_gids
+  logical     :: are_free
+  integer(ip) :: dof_lid
+  integer(ip), pointer :: p_lst_dofs_gids(:)
+
+  assert ( .not. this%is_void(field_id) ) 
+
+  if (present(are_free_dofs)) then
+    are_free = are_free_dofs
+  else
+    are_free = .true.
+  end if
+  
+  assert ( field_id>= 1 .and. field_id <= this%fe_space%num_fields )
+  ivef = size(this%fe_space%ptr_own_dofs_n_face(field_id)%a)-1
+  
+  ! Determine position in lst_dofs_gids of the first dof associated to the
+  ! field "field_id" within the current fe
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())-1
+
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef+1)-1
+  p_lst_dofs_gids => this%fe_space%lst_dofs_gids%get_pointer()
+  ! Iterate over all DoFs associated to field "field_id" on top of the vef
+  ! with local identifier ivef within current fe
+  do i=spos,epos 
+    current_dof = current_dof + 1
+    dof_lid     = this%fe_space%lst_own_dofs_n_face(field_id)%a(i)
+    if (are_free) then
+      p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) = current_dof
+    else
+      p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) = -current_dof
+    end if
+  end do
+end subroutine fe_cell_iterator_generate_own_dofs_cell_w_scratch_data
 
 subroutine fe_cell_iterator_generate_own_dofs_vef ( this, ivef, field_id, current_dof, free_dofs_loop )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)               , intent(in)    :: ivef
+  integer(ip)               , intent(in)    :: field_id
+  integer(ip)               , intent(inout) :: current_dof
+  logical              , intent(in)    :: free_dofs_loop
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+   call this%generate_own_dofs_vef_w_scratch_data(ivef,field_id, current_dof, free_dofs_loop)
+  else
+   call this%generate_own_dofs_vef_general(ivef,field_id, current_dof, free_dofs_loop)
+  end if 
+end subroutine fe_cell_iterator_generate_own_dofs_vef
+
+subroutine fe_cell_iterator_generate_own_dofs_vef_general ( this, ivef, field_id, current_dof, free_dofs_loop )
   implicit none
   class(fe_cell_iterator_t) , intent(inout) :: this
   integer(ip)          , intent(in)    :: ivef
@@ -414,7 +524,46 @@ subroutine fe_cell_iterator_generate_own_dofs_vef ( this, ivef, field_id, curren
     end if
     call own_dofs_on_vef_iterator%next()
   end do
-end subroutine fe_cell_iterator_generate_own_dofs_vef
+end subroutine fe_cell_iterator_generate_own_dofs_vef_general
+
+subroutine fe_cell_iterator_generate_own_dofs_vef_w_scratch_data ( this, ivef, field_id, current_dof, free_dofs_loop )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)          , intent(in)    :: ivef
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)          , intent(inout) :: current_dof
+  logical              , intent(in)    :: free_dofs_loop
+
+  integer(ip) :: base_pos_lst_dofs_gids
+  integer(ip), pointer :: p_lst_dofs_gids(:)
+  integer(ip) :: dof_lid, i, spos, epos 
+ 
+  assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
+  assert ( field_id >= 1 .and. field_id <= this%fe_space%num_fields )
+  assert ( .not. this%is_void(field_id) ) 
+  
+  ! Determine position in lst_dofs_gids of the first dof associated to the
+  ! field "field_id" within the current fe
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())-1
+  
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef+1)-1
+  p_lst_dofs_gids => this%fe_space%lst_dofs_gids%get_pointer()
+ 
+  ! Iterate over all DoFs associated to field "field_id" on top of the vef
+  ! with local identifier ivef within current fe
+  do i=spos,epos 
+    dof_lid = this%fe_space%lst_own_dofs_n_face(field_id)%a(i)
+    if ( p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) >= 0 ) then
+      current_dof = current_dof + 1
+      if ( free_dofs_loop ) then ! A free dofs loop is surrounding this call 
+        p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) = current_dof
+      else                       ! A fixed dofs loop is surrounding this call 
+        p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) = -current_dof
+      end if
+    end if
+  end do
+end subroutine fe_cell_iterator_generate_own_dofs_vef_w_scratch_data
 
 function fe_cell_iterator_count_own_dofs_vef ( this, ivef, field_id )
   implicit none
@@ -422,6 +571,19 @@ function fe_cell_iterator_count_own_dofs_vef ( this, ivef, field_id )
   integer(ip)          , intent(in) :: ivef
   integer(ip)          , intent(in) :: field_id
   integer(ip) :: fe_cell_iterator_count_own_dofs_vef
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+    fe_cell_iterator_count_own_dofs_vef = this%count_own_dofs_vef_w_scratch_data(ivef,field_id)
+  else
+    fe_cell_iterator_count_own_dofs_vef = this%count_own_dofs_vef_general(ivef,field_id)
+  end if 
+end function fe_cell_iterator_count_own_dofs_vef
+
+function fe_cell_iterator_count_own_dofs_vef_general ( this, ivef, field_id )
+  implicit none
+  class(fe_cell_iterator_t) , intent(in) :: this
+  integer(ip)          , intent(in) :: ivef
+  integer(ip)          , intent(in) :: field_id
+  integer(ip) :: fe_cell_iterator_count_own_dofs_vef_general
 
   integer(ip) :: base_pos_lst_dofs_gids
   class(reference_fe_t), pointer :: reference_fe
@@ -436,17 +598,70 @@ function fe_cell_iterator_count_own_dofs_vef ( this, ivef, field_id )
   
   reference_fe => this%get_reference_fe(field_id)
   
-  fe_cell_iterator_count_own_dofs_vef = 0
+  fe_cell_iterator_count_own_dofs_vef_general = 0
   own_dofs_on_vef_iterator = reference_fe%create_own_dofs_on_n_face_iterator(ivef)
   do while (.not. own_dofs_on_vef_iterator%is_upper_bound())
     if ( this%fe_space%lst_dofs_gids%get(base_pos_lst_dofs_gids+own_dofs_on_vef_iterator%get_current()) >= 0 ) then
-      fe_cell_iterator_count_own_dofs_vef = fe_cell_iterator_count_own_dofs_vef + 1
+      fe_cell_iterator_count_own_dofs_vef_general = fe_cell_iterator_count_own_dofs_vef_general + 1
     end if
     call own_dofs_on_vef_iterator%next()
   end do
-end function fe_cell_iterator_count_own_dofs_vef
+end function fe_cell_iterator_count_own_dofs_vef_general
 
-subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise ( this, ivef, field_id, current_dof, components_code, free_dofs_loop )
+function fe_cell_iterator_count_own_dofs_vef_w_scratch_data ( this, ivef, field_id )
+  implicit none
+  class(fe_cell_iterator_t) , intent(in) :: this
+  integer(ip)          , intent(in) :: ivef
+  integer(ip)          , intent(in) :: field_id
+  integer(ip) :: fe_cell_iterator_count_own_dofs_vef_w_scratch_data
+  integer(ip) :: base_pos_lst_dofs_gids
+  integer(ip) :: i, spos, epos, dof_lid
+  integer(ip), pointer  :: p_lst_dofs_gids(:)
+  
+  assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
+  assert ( field_id >= 1 .and. field_id <= this%fe_space%num_fields )
+  assert ( .not. this%is_void(field_id) ) 
+  
+  ! Determine position in lst_dofs_gids of the first dof associated to the
+  ! field "field_id" within the current fe
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())-1
+ 
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef+1)-1
+  p_lst_dofs_gids => this%fe_space%lst_dofs_gids%get_pointer()
+  
+  fe_cell_iterator_count_own_dofs_vef_w_scratch_data = 0
+  do i=spos, epos
+    dof_lid = this%fe_space%lst_own_dofs_n_face(field_id)%a(i)
+    if ( p_lst_dofs_gids(base_pos_lst_dofs_gids+dof_lid) >= 0 ) then
+      fe_cell_iterator_count_own_dofs_vef_w_scratch_data = & 
+           fe_cell_iterator_count_own_dofs_vef_w_scratch_data + 1
+    end if
+  end do
+end function fe_cell_iterator_count_own_dofs_vef_w_scratch_data
+
+subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise ( this, &
+                                                      ivef, &
+                                                      field_id, &
+                                                      current_dof, &
+                                                      components_code, &
+                                                      free_dofs_loop )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)          , intent(in)    :: ivef
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)          , intent(inout) :: current_dof
+  logical              , intent(in)    :: components_code(:)
+  logical              , intent(in)    :: free_dofs_loop
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+    call this%generate_own_dofs_vef_component_wise_w_scratch_data(ivef,field_id,current_dof,components_code,free_dofs_loop)
+  else
+    call this%generate_own_dofs_vef_component_wise_general(ivef,field_id,current_dof,components_code,free_dofs_loop)
+  end if 
+end subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise
+
+
+subroutine fci_generate_own_dofs_vef_component_wise_general ( this, ivef, field_id, current_dof, components_code, free_dofs_loop )
   implicit none
   class(fe_cell_iterator_t) , intent(inout) :: this
   integer(ip)          , intent(in)    :: ivef
@@ -460,6 +675,7 @@ subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise ( this, ivef, f
   
   assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
   assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
+  assert ( reference_fe%has_nodal_quadrature() )
   
   ! Determine position in lst_dofs_gids of the first dof associated to the
   ! field "field_id" within the current fe
@@ -487,9 +703,73 @@ subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise ( this, ivef, f
     end if
     call own_dofs_on_vef_iterator%next()
   end do
-end subroutine fe_cell_iterator_generate_own_dofs_vef_component_wise
+end subroutine fci_generate_own_dofs_vef_component_wise_general
+
+subroutine fci_generate_own_dofs_vef_component_wise_w_scratch_data ( this, ivef, field_id, current_dof, components_code, free_dofs_loop )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)          , intent(in)    :: ivef
+  integer(ip)          , intent(in)    :: field_id
+  integer(ip)          , intent(inout) :: current_dof
+  logical              , intent(in)    :: components_code(:)
+  logical              , intent(in)    :: free_dofs_loop
+  integer(ip) :: base_pos_lst_dofs_gids, component_id, local_within_ref_fe_dof_id
+  integer(ip) :: i, spos, epos
+  class(reference_fe_t), pointer :: reference_fe
+  integer(ip), pointer :: p_lst_dofs_gids(:)
+  
+  assert ( ivef >=1 .and. ivef <= this%get_num_vefs() )
+  assert ( field_id >= 1 .and. field_id <= this%get_num_fields() )
+  
+#ifdef DEBUG   
+  reference_fe => this%get_reference_fe(field_id)
+  assert ( size(components_code) == reference_fe%get_num_field_components() )
+  assert ( reference_fe%has_nodal_quadrature() )
+#endif
+    
+  ! Determine position in lst_dofs_gids of the first dof associated to the
+  ! field "field_id" within the current fe
+  base_pos_lst_dofs_gids = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())-1
+  
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(ivef+1)-1
+  p_lst_dofs_gids => this%fe_space%lst_dofs_gids%get_pointer()
+  
+  ! Iterate over all DoFs associated to field "field_id" on top of the vef
+  ! with local identifier ivef within current fe
+  do i=spos,epos
+    local_within_ref_fe_dof_id = this%fe_space%lst_own_dofs_n_face(field_id)%a(i)
+    if ( p_lst_dofs_gids(base_pos_lst_dofs_gids+local_within_ref_fe_dof_id) >= 0 ) then
+      component_id = this%fe_space%dofs_component(field_id)%a(local_within_ref_fe_dof_id)
+      if ( components_code(component_id) ) then 
+       current_dof = current_dof +1 
+       if ( free_dofs_loop ) then ! A free dofs loop is surrounding this call 
+         p_lst_dofs_gids(base_pos_lst_dofs_gids+local_within_ref_fe_dof_id) = current_dof
+       else
+         p_lst_dofs_gids(base_pos_lst_dofs_gids+local_within_ref_fe_dof_id) = -current_dof
+       end if
+      end if  
+    end if
+  end do
+end subroutine fci_generate_own_dofs_vef_component_wise_w_scratch_data
+
+
 
 subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe ( this, target_ivef, source_fe, source_ivef, field_id )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)               , intent(in)    :: target_ivef
+  class(fe_cell_iterator_t) , intent(in)    :: source_fe
+  integer(ip)               , intent(in)    :: source_ivef
+  integer(ip)               , intent(in)    :: field_id
+  if ( this%fe_space%same_reference_fe_or_void_x_field(field_id) ) then
+     call this%fetch_own_dofs_vef_from_source_fe_w_scratch_data(target_ivef, source_fe, source_ivef, field_id)
+  else
+     call this%fetch_own_dofs_vef_from_source_fe_general(target_ivef, source_fe, source_ivef, field_id)
+  end if 
+end subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
+
+subroutine fci_fetch_own_dofs_vef_from_source_fe_general ( this, target_ivef, source_fe, source_ivef, field_id )
   implicit none
   class(fe_cell_iterator_t) , intent(inout) :: this
   integer(ip)          , intent(in)    :: target_ivef
@@ -540,7 +820,62 @@ subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe ( this, target_ive
         call own_dofs_on_vef_iterator_target%next()
       end do
   end if
-end subroutine fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
+end subroutine fci_fetch_own_dofs_vef_from_source_fe_general
+
+subroutine fci_fetch_own_dofs_vef_from_source_fe_w_scratch_data ( this, target_ivef, source_fe, source_ivef, field_id )
+  implicit none
+  class(fe_cell_iterator_t) , intent(inout) :: this
+  integer(ip)          , intent(in)    :: target_ivef
+  class(fe_cell_iterator_t) , intent(in)    :: source_fe
+  integer(ip)          , intent(in)    :: source_ivef
+  integer(ip)          , intent(in)    :: field_id
+
+  integer(ip)                    :: base_pos_lst_dofs_gids_source
+  type(list_iterator_t)          :: own_dofs_on_vef_iterator_target
+  integer(ip)                    :: base_pos_lst_dofs_gids_target
+  
+  integer(ip)                    :: source_dof_LID_cell, target_dof_LID_cell
+  integer(ip)                    :: target_dof_LID_vef
+  integer(ip)                    :: source_dof_LID_vef
+  integer(ip)                    :: permutation_index
+  integer(ip)                    :: source_ivef_dim
+  integer(ip), pointer           :: p_lst_dofs_gids(:)
+  integer(ip)                    :: i, spos, epos
+  class(reference_fe_t), pointer :: reference_fe_source 
+
+  assert ( target_ivef <= this%get_num_vefs() )
+  assert ( source_ivef <= source_fe%get_num_vefs() )
+  assert ( field_id <= this%get_num_fields() )
+  assert ( .not. this%is_void(field_id) ) 
+  
+  base_pos_lst_dofs_gids_target = this%fe_space%ptr_dofs_x_fe(field_id)%get(this%get_gid())-1
+  
+  base_pos_lst_dofs_gids_source = this%fe_space%ptr_dofs_x_fe(field_id)%get(source_fe%get_gid())-1
+  reference_fe_source => source_fe%reference_fes(field_id)%p
+  source_ivef_dim = reference_fe_source%get_n_face_dim(source_ivef)
+
+  spos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(target_ivef)
+  epos = this%fe_space%ptr_own_dofs_n_face(field_id)%a(target_ivef+1)-1
+  p_lst_dofs_gids => this%fe_space%lst_dofs_gids%get_pointer()
+
+  ! Iterate over all DoFs associated to field "field_id" on top of the vef
+  ! with local identifier ivef within target fe
+  if ( epos >= spos ) then 
+      permutation_index = this%get_permutation_index( source_fe, &
+                                                      target_ivef, &
+                                                      source_ivef )
+      do i=spos,epos 
+        target_dof_LID_vef = i-spos+1 
+        source_dof_LID_vef = reference_fe_source%permute_dof_LID_n_face(target_dof_LID_vef, &
+                                                                    source_ivef_dim, & 
+                                                                    permutation_index)
+        target_dof_LID_cell = this%fe_space%lst_own_dofs_n_face(field_id)%a(i)
+        source_dof_LID_cell = reference_fe_source%translate_dof_lid_n_face_to_dof_lid_cell(source_dof_LID_vef, source_ivef)
+        p_lst_dofs_gids(base_pos_lst_dofs_gids_target+target_dof_LID_cell) = &                                                      
+            p_lst_dofs_gids(base_pos_lst_dofs_gids_source+source_dof_LID_cell)
+      end do
+  end if 
+end subroutine fci_fetch_own_dofs_vef_from_source_fe_w_scratch_data
 
 subroutine fe_cell_iterator_generate_dofs_facet_integration_coupling ( this, ivef, field_id, dof_count )
   implicit none

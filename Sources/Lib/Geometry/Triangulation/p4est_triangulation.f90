@@ -497,6 +497,7 @@ module p4est_triangulation_names
   
     ! Getters
     procedure                                   :: get_num_reference_fes                         => p4est_base_triangulation_get_num_reference_fes
+    procedure                                   :: get_reference_fe                              => p4est_base_triangulation_get_reference_fe
     procedure                                   :: get_max_num_shape_functions                   => p4est_base_triangulation_get_max_num_shape_functions
     procedure                                   :: get_num_proper_vefs                           => p4est_base_triangulation_get_num_proper_vefs
     procedure                                   :: get_num_improper_vefs                         => p4est_base_triangulation_get_num_improper_vefs

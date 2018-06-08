@@ -997,7 +997,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh( this, fiel
   call this%create_fe_cell_iterator(coarser_fe)
   result = 0 
   do while(.not. vef%has_finished())
-     if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+     if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
        touched_neighbours = .false.
        do ielem=1, vef%get_num_cells_around()
           reference_fe => fe%get_reference_fe(field_id)
@@ -1506,7 +1506,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   do while(.not. vef%has_finished())
-    if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+    if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
       touched_neighbours = .false.
       all_ghosts = .true.
       free_dofs = .false. 
@@ -2459,7 +2459,7 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
     num_vefs = 0
   end if  
   do while(.not. vef%has_finished())
-     if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+     if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
         touched_neighbours = .false.
         num_parts_nearest_neighbour = 0
         num_parts_neighbours_nearest_neighbours = 0
@@ -3127,7 +3127,7 @@ subroutine pfs_compute_max_part_id_and_dofs_ggids_field(this, field_id)
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   do while(.not. vef%has_finished())
-    if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+    if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
       no_local_cell_around_free_dof = .true.
       free_dofs = .false. 
       max_part_id = mypart_id 
@@ -4601,6 +4601,8 @@ subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old
      call this%allocate_and_init_at_strong_dirichlet_bound()
      call this%allocate_and_init_has_fixed_dofs()
      call this%allocate_and_init_has_hanging_dofs_x_fe()
+     call this%fill_same_reference_fe_or_void_x_field()
+     call this%allocate_and_fill_gen_dof_num_scratch_data()
      call this%set_up_strong_dirichlet_bcs()
 
      ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
@@ -4848,9 +4850,11 @@ subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_l
      call this%allocate_and_init_at_strong_dirichlet_bound()
      call this%allocate_and_init_has_fixed_dofs()
      call this%allocate_and_init_has_hanging_dofs_x_fe()
+     call this%fill_same_reference_fe_or_void_x_field()
+     call this%allocate_and_fill_gen_dof_num_scratch_data()
      call this%set_up_strong_dirichlet_bcs()
 
-     ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
+     ! Force that a new DoF numbering is generated for the redistributed triangulation
      call this%generate_global_dof_numbering()
   end if
 #else  

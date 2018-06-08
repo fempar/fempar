@@ -439,7 +439,8 @@ module reference_fe_names
      type(node_array_t)            :: vertex_array
      type(allocatable_array_ip1_t)  :: orientation      ! orientation of the n-faces 
      type(list_t)                   :: vertices_n_face  ! vertices per n-face
-     type(list_t)                   :: facets_n_face   ! all facets per n-face
+     type(list_t)                   :: facets_n_face    ! all facets per n-face
+     type(list_t)                   :: n_faces_n_face   ! all n-faces per n-face
      type(list_t)                   :: dofs_n_face      ! all DoFs per n-face
      type(list_t)                   :: own_dofs_n_face  ! owned DoFs per n-face
 
@@ -587,10 +588,12 @@ module reference_fe_names
      procedure :: get_num_shape_functions => reference_fe_get_num_shape_functions
      procedure :: get_n_face_dim  => reference_fe_get_n_face_dim
      procedure :: get_vertices_n_face  =>   reference_fe_get_vertices_n_face
-
+     procedure :: get_n_faces_n_face  => reference_fe_get_n_faces_n_face
      procedure :: create_vertices_n_face_iterator => reference_fe_create_vertices_n_face_iterator
+     procedure :: create_n_faces_n_face_iterator  => reference_fe_create_n_faces_n_face_iterator
      procedure :: create_dofs_n_face_iterator => reference_fe_create_dofs_n_face_iterator
-     procedure :: get_dofs_n_face   =>   reference_fe_get_dofs_n_face
+     procedure :: get_dofs_n_face => reference_fe_get_dofs_n_face
+     procedure :: get_own_dofs_n_face =>  reference_fe_get_own_dofs_n_face
                     
      procedure :: get_facets_n_face   =>   reference_fe_get_facets_n_face
      procedure :: get_num_vertices_n_face => reference_fe_get_num_vertices_n_face

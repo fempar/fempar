@@ -938,8 +938,23 @@ subroutine bst_print ( this )
      implicit none
      class(base_static_triangulation_t), intent(in) :: this
      integer(ip) :: bst_get_num_reference_fes
-     bst_get_num_reference_fes = max_num_reference_fes_geo
+     integer(ip) :: i
+     bst_get_num_reference_fes = 0
+     do i=1, max_num_reference_fes_geo
+       if ( associated(this%reference_fe_geo_list(i)%p) ) then
+         bst_get_num_reference_fes = bst_get_num_reference_fes + 1 
+       end if
+     end do 
    end function bst_get_num_reference_fes
+   
+   function bst_get_reference_fe ( this, ref_fe_geo_id )
+     implicit none
+     class(base_static_triangulation_t), target, intent(in) :: this 
+     integer(ip)                               , intent(in) :: ref_fe_geo_id
+     class(reference_fe_t), pointer :: bst_get_reference_fe
+     assert ( ref_fe_geo_id >= 1 .and. ref_fe_geo_id <= this%get_num_reference_fes() ) 
+     bst_get_reference_fe => this%reference_fe_geo_list(ref_fe_geo_id)%p
+   end function bst_get_reference_fe 
    
    function bst_get_max_num_shape_functions ( this ) 
      implicit none
