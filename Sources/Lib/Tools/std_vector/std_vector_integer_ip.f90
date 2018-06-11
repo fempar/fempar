@@ -67,7 +67,7 @@ contains
     class(std_vector_integer_ip_t)      , intent(inout) :: this
     integer(ip) :: i
     call this%set(1,1)
-    do i=1, this%size()-1
+    do i=1, this%SIZE_MEMBER_VARIABLE_NAME-1
       call this%set(i+1,this%get(i)+this%get(i+1))
     end do
   end subroutine std_vector_integer_ip_transform_length_to_header
@@ -77,10 +77,10 @@ contains
     class(std_vector_integer_ip_t)      , intent(inout) :: this
     class(std_vector_integer_ip_t)      , intent(in)    :: v
     integer(ip) :: i, s
-    s = this%size()
+    s = this%SIZE_MEMBER_VARIABLE_NAME
     assert(s>0)
-    call this%resize(s+v%size()-1)
-    do i = 1, (v%size()-1)
+    call this%resize(s+v%SIZE_MEMBER_VARIABLE_NAME-1)
+    do i = 1, (v%SIZE_MEMBER_VARIABLE_NAME-1)
       call this%set(s+i,v%get(i+1)+this%get(s)-1)
     end do
   end subroutine std_vector_integer_ip_cat_ptr
