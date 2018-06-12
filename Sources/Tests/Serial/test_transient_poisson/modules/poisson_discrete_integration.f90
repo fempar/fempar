@@ -41,6 +41,7 @@ module poisson_cG_discrete_integration_names
      procedure :: set_analytical_functions
      procedure :: set_fe_function
      procedure :: set_current_time
+     procedure :: set_evaluation_point
      procedure :: integrate_galerkin
      procedure :: integrate_tangent
      procedure :: integrate_residual 
@@ -71,6 +72,13 @@ contains
      real(rp)                                , intent(in)    :: current_time
      this%current_time = current_time
   end subroutine set_current_time
+  
+  subroutine set_evaluation_point ( this, evaluation_point )
+    implicit none
+    class(poisson_cG_discrete_integration_t), intent(inout)  :: this
+    class(vector_t)                   , intent(in)     :: evaluation_point
+    call this%fe_function%set_free_dof_values(evaluation_point)
+  end subroutine set_evaluation_point
 
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none

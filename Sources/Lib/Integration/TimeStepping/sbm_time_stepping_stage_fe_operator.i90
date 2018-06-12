@@ -150,7 +150,7 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
   call this%fe_nl_op%set_evaluation_point(this%aux)
   call this%mass_nl_op%set_evaluation_point(x)
   
-  call this%fe_nonlinear_operator_t%set_evaluation_point(x)
+  call this%fe_nonlinear_operator_t%set_evaluation_point(this%aux) !pmartorell: Evaluation point set to x_i
     
   call x%CleanTemp()
 end subroutine time_stepping_stage_fe_operator_set_evaluation_point
@@ -178,8 +178,7 @@ subroutine time_stepping_stage_fe_operator_compute_residual(this)
   class(serial_fe_space_t)     , pointer :: trial_fe_sp
   integer(ip)                  , pointer :: state
   class(vector_t)              , pointer :: residual
-
-
+ 
   state => this%get_state() 
   assert (associated(state))
 
@@ -195,12 +194,12 @@ subroutine time_stepping_stage_fe_operator_compute_residual(this)
       residual => this_assembler%get_array()
       if ( associated(trial_fe_sp) ) then
          call di_fe_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, this_assembler )
-         call residual%scal(this%ts_op%dt, residual)
+        ! call residual%scal(this%ts_op%dt, residual) ! BUG?
          ! sbadia: here we should consider as Dirichlet data the time derivative of the fixed value, to be done
          if ( this%i == this%j ) call di_mass_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, this_assembler )
       else
            call di_fe_op%integrate_residual( fe_sp, this_assembler )
-           call residual%scal(this%ts_op%dt, residual)
+          ! call residual%scal(this%ts_op%dt, residual) ! BUG?
            ! sbadia: here we should consider as Dirichlet data the time derivative of the fixed value, to be done
            if ( this%i == this%j ) call di_mass_op%integrate_residual( fe_sp, this_assembler ) 
       end if
@@ -213,6 +212,7 @@ subroutine time_stepping_stage_fe_operator_compute_residual(this)
        call this%set_state(residual_computed)
     end if
   end if
+
 end subroutine time_stepping_stage_fe_operator_compute_residual
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -228,6 +228,7 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
   integer(ip)                  , pointer :: state
   class(matrix_t)              , pointer :: tangent
   class(array_t)               , pointer :: array 
+  
 
   ! DEBUG variables
   class(matrix_t), pointer :: A
@@ -256,15 +257,6 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
           call di_mass_op%integrate_tangent( fe_sp, assembler )
           ! amartin: Can we avoid calling compress storage? 
           call assembler%compress_storage(csr_format)        
-          
-          A => assembler%get_matrix()
-          select type(A)
-          class is (sparse_matrix_t)
-            call A%print_matrix_market(6)
-          end select
-          
-          
-          
        end if
     end if
     call assembler%compress_storage(this%get_sparse_matrix_storage_format())

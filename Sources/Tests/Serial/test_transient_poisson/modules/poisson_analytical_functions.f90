@@ -103,9 +103,11 @@ contains
     real(rp)            , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
+      ! f = 0
+      result = 0 !(point%get(1)+point%get(2))
       ! (x**2-x)*(y**2-y) - 2*t*((x**2-x)+(y**2-y))
-      result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2)) - & 
-               2.0_rp * time * ((point%get(1)**2-point%get(1)) +  (point%get(2)**2-point%get(2)))
+      !result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2)) - & 
+      !         2.0_rp * time * ((point%get(1)**2-point%get(1)) +  (point%get(2)**2-point%get(2)))
     else if ( this%num_dims == 3 ) then
       mcheck(.false., "Implementation pending")
     end if
@@ -129,8 +131,10 @@ contains
     real(rp)                  , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
+      ! u = x + y
+      result = (point%get(1)+point%get(2))
       ! (x**2-x)*(y**2-y)*t
-      result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2))*time
+      !result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2))*time
     else if ( this%num_dims == 3 ) then
       mcheck(.false., "Implementation pending")
     end if
@@ -165,8 +169,10 @@ contains
     real(rp)                  , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
+       ! u = x + y
+      result = (point%get(1)+point%get(2))
       ! (x**2-x)*(y**2-y)*t 
-      result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2))*time
+      !result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2))*time
     else if ( this%num_dims == 3 ) then
       mcheck(.false., "Implementation pending")
     end if
