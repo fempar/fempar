@@ -94,8 +94,8 @@ module fe_nonlinear_operator_names
   ! tangent_computed    | is_linear            | tangent_computed
   ! tangent_computed    | get*/abort*          | tangent_computed
  
-  ! residual_computed   | compute_residual     | residual_computed
-  ! residual_computed   | compute_tangent      | assembler_computed  ! Does nothing
+  ! residual_computed   | compute_residual     | residual_computed   ! Does nothing
+  ! residual_computed   | compute_tangent      | assembler_computed  
   ! residual_computed   | set_evaluation_point | created             ! Re-initializes to zero LA data structures
   ! residual_computed   | reallocate_after_re* | created             ! Re-creates LA data structures
   ! residual_computed   | free                 | start 
@@ -112,12 +112,14 @@ module fe_nonlinear_operator_names
 
   type, extends(operator_t):: fe_nonlinear_operator_t
      private
-     integer(ip)                       , pointer     :: state => NULL()
+     integer(ip)                       , pointer     :: state                    => NULL()
      character(:)                      , allocatable :: sparse_matrix_storage_format
-     class(serial_fe_space_t)          , pointer     :: test_fe_space          => NULL() ! test_fe_space
-     class(serial_fe_space_t)          , pointer     :: trial_fe_space         => NULL() ! To be used in the future
-     class(discrete_integration_t)     , pointer     :: discrete_integration   => NULL()
-     class(assembler_t)                , pointer     :: assembler => NULL()
+     class(serial_fe_space_t)          , pointer     :: test_fe_space            => NULL() ! test_fe_space
+     class(serial_fe_space_t)          , pointer     :: trial_fe_space           => NULL() ! To be used in the future
+     class(discrete_integration_t)     , pointer     :: discrete_integration     => NULL()
+     class(assembler_t)                , pointer     :: assembler                => NULL()
+     class(vector_t)                   , pointer     :: current_evaluation_point => NULL()
+
      logical                           , allocatable :: diagonal_blocks_symmetric_storage(:)
      logical                           , allocatable :: diagonal_blocks_symmetric(:)
      integer(ip)                       , allocatable :: diagonal_blocks_sign(:)
@@ -128,8 +130,10 @@ module fe_nonlinear_operator_names
      procedure          :: reallocate_after_remesh     => fe_nonlinear_operator_reallocate_after_remesh
 
      procedure          :: compute_tangent             => fe_nonlinear_operator_compute_tangent
-     procedure          :: compute_residual            => fe_nonlinear_operator_compute_residual  
-
+     procedure          :: compute_residual            => fe_nonlinear_operator_compute_residual
+     procedure, private :: compute_internal_residual   => fe_nonlinear_operator_compute_internal_residual
+     procedure          :: force_compute               => fe_nonlinear_operator_force_compute
+     
      procedure          :: apply                       => fe_nonlinear_operator_apply
      procedure          :: apply_add                   => fe_nonlinear_operator_apply_add
      procedure          :: is_linear                   => fe_nonlinear_operator_is_linear
@@ -152,14 +156,13 @@ module fe_nonlinear_operator_names
   
 type, extends(fe_nonlinear_operator_t):: fe_affine_operator_t
   private
+ 
 contains
   procedure          :: compute                     => fe_affine_operator_compute
-  procedure          :: apply                       => fe_affine_operator_apply
-  procedure          :: apply_add                   => fe_affine_operator_apply_add
+  procedure          :: compute_residual            => fe_affine_operator_compute_residual
+  procedure          :: force_compute               => fe_affine_operator_force_compute
+  procedure          :: set_evaluation_point        => fe_affine_operator_set_evaluation_point  
   procedure          :: is_linear                   => fe_affine_operator_is_linear
-  procedure          :: get_tangent                 => fe_affine_operator_get_tangent
-  procedure          :: get_translation             => fe_affine_operator_get_translation
-  procedure          :: get_matrix                  => fe_affine_operator_get_matrix
 end type fe_affine_operator_t
 
   ! Types

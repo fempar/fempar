@@ -84,6 +84,7 @@ subroutine fe_nonlinear_operator_free(this)
      call this%free_vector_spaces()
      deallocate(this%state, stat=istat ); check(istat==0);
      nullify(this%state)
+     nullify(this%current_evaluation_point)
   end if
 end subroutine fe_nonlinear_operator_free
 
@@ -287,17 +288,11 @@ subroutine fe_nonlinear_operator_apply(this,x,y)
   class(fe_nonlinear_operator_t), intent(inout)    :: this
   class(vector_t) , intent(in)    :: x
   class(vector_t) , intent(inout) :: y 
-  class(matrix_t) , pointer       :: matrix
-  !class(array_t)  , pointer       :: array
   call x%GuardTemp()
   call this%abort_if_not_in_domain(x)
   call this%abort_if_not_in_range(y)
   call this%set_evaluation_point(x)
-  call this%compute_residual()
-  !array => this%assembler%get_array()
-  !call y%scal(-1.0_rp, array)
-  !y = this%assembler%get_array()
-  y = this%get_translation()
+  call this%compute_residual(y)
   call x%CleanTemp()
 end subroutine fe_nonlinear_operator_apply
 
@@ -307,25 +302,28 @@ subroutine fe_nonlinear_operator_apply_add(this,x,y)
   implicit none
   class(fe_nonlinear_operator_t), intent(inout)    :: this
   class(vector_t) , intent(in)    :: x
-  class(vector_t) , intent(inout) :: y 
-  class(matrix_t) , pointer       :: matrix
-  class(array_t)  , pointer       :: array
+  class(vector_t) , intent(inout) :: y
+  class(vector_t), allocatable :: ws
+  integer(ip) :: istat
+  call this%create_range_vector(ws)
   call x%GuardTemp()
   call this%abort_if_not_in_domain(x)
   call this%abort_if_not_in_range(y)
   call this%set_evaluation_point(x)
-  call this%compute_residual()
-  array => this%assembler%get_array()
-  call y%axpby( 1.0_rp, array, 1.0_rp )
+  call this%compute_residual(ws)
+  call y%axpby( 1.0_rp, ws, 1.0_rp )
   call x%CleanTemp()
+  call ws%free()
+  deallocate(ws,stat=istat); check(istat == 0);
 end subroutine fe_nonlinear_operator_apply_add
 
 subroutine fe_nonlinear_operator_set_evaluation_point(this,x) 
   implicit none
-  class(fe_nonlinear_operator_t), intent(in)    :: this
-  class(vector_t) , intent(in)    :: x
+  class(fe_nonlinear_operator_t), intent(inout)    :: this
+  class(vector_t) , target, intent(in)    :: x
   assert ( associated(this%state) )
   call x%GuardTemp()
+  this%current_evaluation_point => x
   call this%discrete_integration%set_evaluation_point(x)
   this%state = created
   call this%assembler%init_array(0.0_rp)  
@@ -409,16 +407,41 @@ function fe_nonlinear_operator_apply_fun(op,x) result(y)
   call op%apply(x,y)
 end function fe_nonlinear_operator_apply_fun
 
-subroutine fe_nonlinear_operator_compute_residual(this)
+! Triggers the computation of the residual and tangent
+! for the currently associated evaluation point, independently
+! of the current state of this. This is though to be called
+! whenever something external to this, but that affects to the
+! entries of the residual and tangent has changed, e.g., the level
+! set functio in a topology optimization simulation.
+subroutine fe_nonlinear_operator_force_compute(this)
+  implicit none
+  class(fe_nonlinear_operator_t), intent(inout)    :: this  
+  assert ( associated(this%state) )
+  this%state = created
+  call this%assembler%init_array(0.0_rp)  
+  call this%assembler%init_matrix(0.0_rp)
+  call this%compute_internal_residual()
+  call this%compute_tangent() 
+end subroutine fe_nonlinear_operator_force_compute
+
+subroutine fe_nonlinear_operator_compute_residual(this,y)
+  implicit none
+  class(fe_nonlinear_operator_t), intent(in) :: this
+  class(vector_t) ,        intent(inout) :: y 
+  class(environment_t), pointer :: environment
+  call this%compute_internal_residual()
+  y = this%get_translation()
+end subroutine fe_nonlinear_operator_compute_residual
+
+subroutine fe_nonlinear_operator_compute_internal_residual(this)
   implicit none
   class(fe_nonlinear_operator_t), intent(in) :: this
   class(environment_t), pointer :: environment
-  environment => this%test_fe_space%get_environment()
-
   assert ( associated(this%state)  )
-
+  assert ( associated(this%current_evaluation_point) )
 
   if ( .not. ( this%state == residual_computed .or. this%state == assembler_computed ) ) then
+     environment => this%test_fe_space%get_environment()
      if ( environment%am_i_l1_task() ) then
         if ( associated(this%trial_fe_space) ) then
            call this%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
@@ -434,18 +457,18 @@ subroutine fe_nonlinear_operator_compute_residual(this)
         this%state = residual_computed
      end if
   end if
-
-end subroutine fe_nonlinear_operator_compute_residual
+end subroutine fe_nonlinear_operator_compute_internal_residual
 
 subroutine fe_nonlinear_operator_compute_tangent(this)
   implicit none
   class(fe_nonlinear_operator_t), intent(inout) :: this
   class(environment_t), pointer :: environment
-  environment => this%test_fe_space%get_environment()
 
   assert ( associated(this%state)  )
+  assert ( associated(this%current_evaluation_point) )
 
   if ( .not. ( this%state == tangent_computed .or. this%state == assembler_computed ) ) then
+     environment => this%test_fe_space%get_environment()
      if ( environment%am_i_l1_task() ) then
         if ( associated(this%trial_fe_space) ) then
            call this%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
@@ -462,4 +485,3 @@ subroutine fe_nonlinear_operator_compute_tangent(this)
      end if
   end if
 end subroutine fe_nonlinear_operator_compute_tangent
-

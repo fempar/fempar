@@ -51,7 +51,7 @@ module nonlinear_solver_names
       real(rp)                                 :: relative_tolerance
       character(len=:),               allocatable  :: convergence_criteria
       class(vector_t),                pointer      :: current_dof_values => null()
-      class(vector_t),                pointer      :: current_residual   => null()
+      class(vector_t),                allocatable  :: current_residual   
       class(vector_t),                allocatable  :: minus_current_residual
       class(vector_t),                allocatable  :: initial_residual
       class(vector_t),                allocatable  :: increment_dof_values
@@ -145,6 +145,7 @@ subroutine nonlinear_solver_apply(this,rhs,unknown)
   call this%increment_dof_values%init(0.0) 
   
   ! Compute initial residual
+  call this%nonlinear_operator%create_range_vector(this%current_residual)
   call this%compute_residual(rhs)
   
   ! Store initial residual for the stopping criterium that needs it
@@ -187,10 +188,7 @@ subroutine nonlinear_solver_compute_residual(this,rhs)
   implicit none
   class(nonlinear_solver_t), intent(inout)  :: this
   class(vector_t)          , intent(in)     :: rhs
-  call this%nonlinear_operator%set_evaluation_point(this%current_dof_values)
-  call this%nonlinear_operator%compute_residual()
-  this%current_residual =>this%nonlinear_operator%get_translation()
-  !call this%nonlinear_operator%apply(this%current_dof_values,this%current_residual)
+  call this%nonlinear_operator%apply(this%current_dof_values,this%current_residual)
   call this%current_residual%axpby(-1.0_rp, rhs,1.0_rp)
 end subroutine nonlinear_solver_compute_residual
 
@@ -206,6 +204,10 @@ subroutine nonlinear_solver_free(this)
   implicit none
   class(nonlinear_solver_t), intent(inout)  :: this
   integer(ip) :: istat
+  if(allocated(this%current_residual)) then
+    call this%current_residual%free()
+    deallocate(this%current_residual,stat=istat); check(istat==0)
+  end if  
   if(allocated(this%initial_residual)) then
     call this%initial_residual%free()
     deallocate(this%initial_residual,stat=istat); check(istat==0)
@@ -218,7 +220,6 @@ subroutine nonlinear_solver_free(this)
     call this%minus_current_residual%free()
     deallocate(this%minus_current_residual,stat=istat); check(istat==0)
   end if
-  this%current_residual   => null()
   this%current_dof_values => null()
   this%linear_solver      => null()
   this%environment        => null()
