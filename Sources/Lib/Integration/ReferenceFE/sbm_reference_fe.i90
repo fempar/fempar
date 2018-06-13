@@ -237,7 +237,6 @@ function reference_fe_get_num_edgets ( this )
   implicit none
   class(reference_fe_t), intent(in) :: this
   integer(ip) :: reference_fe_get_num_edgets
-  massert(this%get_num_dims()==3, 'Invalid get_num_edgets in a 2D reference_fe') 
   reference_fe_get_num_edgets = this%ptr_n_faces_x_dim(this%num_dims) -          &
        &                        this%ptr_n_faces_x_dim(this%num_dims-1)
 end function reference_fe_get_num_edgets

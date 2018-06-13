@@ -75,6 +75,7 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list,
 
   ! Count and partition coarse edges 
   call this%compute_subedges_info( par_fe_space ) 
+  
   ! Prepare alternative change of basis 
   if ( this%use_alternative_basis ) then
      call this%compute_change_basis_matrix( par_fe_space ) 
@@ -111,15 +112,7 @@ subroutine Hcurl_l1_setup_direct_solvers( this )
   call this%direct_solver%set_matrix(this%change_basis_matrix)
 
   ! Set-up Transpose Change of Basis application 
-  iparm      = 0 ! Init all entries to zero	
-  iparm(1)   = 1 ! no solver default
-  iparm(2)   = 2 ! fill-in reordering from METIS
-  iparm(8)   = 2 ! nums of iterative refinement steps
-  iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-  iparm(11)  = 1 ! use scaling 
   iparm(12)  = 2 ! Solve transposed system 
-  iparm(13)  = 1 ! use maximum weighted matching algorithm 
-  iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
   call parameter_list%init()
   FPLError =            parameter_list%set(key = direct_solver_type     ,   value = pardiso_mkl)
@@ -546,7 +539,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   num_dofs = par_fe_space%get_block_num_dofs(block_id)
   call memalloc(num_dofs,weighting_operator,__FILE__,__LINE__)
 
-  parameter_scaling = .true.
+  parameter_scaling = .false.
   if ( parameter_scaling )  then 
      allocate( sub_assembled_diag(num_dofs), stat=istat); check(istat==0)
      sub_assembled_diag = this%resistivity
