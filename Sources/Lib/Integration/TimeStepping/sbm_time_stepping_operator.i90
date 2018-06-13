@@ -57,6 +57,15 @@ subroutine time_stepping_operator_set_initial_data( this, x0 )
   call this%allocate_dofs_stages()
 end subroutine time_stepping_operator_set_initial_data
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_set_initial_time( this, t0 )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  real(rp)                       , intent(in)    :: t0
+  this%time = t0 !pmartorell: May be neecessary to store initial time
+end subroutine time_stepping_operator_set_initial_time
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 subroutine time_stepping_operator_set_time_step_size( this, dt )
   implicit none
@@ -64,6 +73,31 @@ subroutine time_stepping_operator_set_time_step_size( this, dt )
   real(rp)                       , intent(in)    :: dt
   this%dt = dt
 end subroutine time_stepping_operator_set_time_step_size
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_update_current_time( this, current_time )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  real(rp)                       , intent(inout) :: current_time
+  this%time = this%time + this%dt
+  current_time = this%time
+end subroutine time_stepping_operator_update_current_time
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function time_stepping_operator_get_time_step_size( this )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  real(rp) :: time_stepping_operator_get_time_step_size
+  time_stepping_operator_get_time_step_size = this%dt
+end function time_stepping_operator_get_time_step_size
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function time_stepping_operator_get_current_time( this )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  real(rp) :: time_stepping_operator_get_current_time
+  time_stepping_operator_get_current_time = this%time 
+end function time_stepping_operator_get_current_time
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 function time_stepping_operator_get_matrix( this )
@@ -112,6 +146,24 @@ function time_stepping_operator_get_stage_operator( this, i, j ) result(fe_op)
   call this%fe_op%set_row(i,j)
   fe_op => this%fe_op
 end function time_stepping_operator_get_stage_operator
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_set_fe_functions( this, solution , mass_fe_fun )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  type(fe_function_t) , target   , intent(in)    :: solution , mass_fe_fun
+  this%solution_fe_fun => solution
+  this%mass_fe_fun     => mass_fe_fun
+end subroutine time_stepping_operator_set_fe_functions
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+subroutine time_stepping_operator_get_fe_functions( this, solution , mass_fe_fun )
+  implicit none
+  class(time_stepping_operator_t), intent(inout) :: this
+  type(fe_function_t)    ,pointer , intent(inout) :: solution , mass_fe_fun
+  solution    => this%solution_fe_fun  
+  mass_fe_fun => this%mass_fe_fun     
+end subroutine time_stepping_operator_get_fe_functions
 !!$
 !!$!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 !!$!subroutine time_stepping_operator_apply_row( this, i, x, y )

@@ -108,6 +108,7 @@ module time_stepping_names
      procedure :: free                  => time_stepping_stage_fe_operator_free
      procedure :: set_row               => time_stepping_stage_fe_operator_set_row     
      procedure :: set_evaluation_point  => time_stepping_stage_fe_operator_set_evaluation_point
+     procedure :: set_evaluation_time   => time_stepping_stage_fe_operator_set_evaluation_time
      procedure :: is_linear             => time_stepping_stage_fe_operator_is_linear
      procedure :: compute_residual      => time_stepping_stage_fe_operator_compute_residual
      procedure :: compute_tangent       => time_stepping_stage_fe_operator_compute_tangent
@@ -147,8 +148,11 @@ module time_stepping_names
      type(time_stepping_stage_fe_operator_t)            :: fe_op
      class(vector_t)                          , pointer :: initial_value => NULL()
      class(vector_t)                      , allocatable :: dofs_stages(:)
-     real(rp)                                           :: dt = 0.0_rp
-
+     real(rp)                                           :: dt
+     real(rp)                                           :: time
+     
+     type(fe_function_t)                      , pointer :: solution_fe_fun
+     type(fe_function_t)                      , pointer :: mass_fe_fun
      ! sbadia: For the moment, we are not interested in full RK implementations,
      ! even though it would be an easy paper about preconditioning these schemes
      ! So, we don't really need to use the block assembler for the
@@ -160,7 +164,14 @@ module time_stepping_names
      procedure :: create                          => time_stepping_operator_create
      procedure :: free                            => time_stepping_operator_free
      procedure :: set_initial_data                => time_stepping_operator_set_initial_data
-     procedure :: set_time_step_size              => time_stepping_operator_set_time_step_size
+     procedure :: set_initial_time                => time_stepping_operator_set_initial_time ! pmartorell: to be called inside create
+     !procedure, private :: set_final_time         => time_stepping_operator_set_final_time ! pmartorell: to be called inside create
+     procedure :: set_time_step_size              => time_stepping_operator_set_time_step_size !pmartorell: to be called inside create, but public
+     procedure :: update_current_time             => time_stepping_operator_update_current_time
+     procedure :: set_fe_functions                => time_stepping_operator_set_fe_functions
+     procedure :: get_time_step                   => time_stepping_operator_get_time_step_size
+     procedure :: get_current_time                => time_stepping_operator_get_current_time
+     procedure :: get_fe_functions                => time_stepping_operator_get_fe_functions
      procedure :: get_matrix                      => time_stepping_operator_get_matrix
      procedure, private :: allocate_dofs_stages   => time_stepping_operator_allocate_dofs_stages
      procedure, private :: deallocate_dofs_stages => time_stepping_operator_deallocate_dofs_stages

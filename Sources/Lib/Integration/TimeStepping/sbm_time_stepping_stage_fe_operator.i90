@@ -156,6 +156,27 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
 end subroutine time_stepping_stage_fe_operator_set_evaluation_point
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_set_evaluation_time(this,time) !pmartorell: Set evaluation time in boundary
+  implicit none
+  class(time_stepping_stage_fe_operator_t), target, intent(inout) :: this
+  real(rp)                                           , intent(in) :: time
+  class(serial_fe_space_t)                , pointer               :: fe_space
+  class(serial_fe_space_t)                , pointer               :: fe_space_mass
+  class(fe_function_t)                    , pointer               :: fe_fun
+  class(fe_function_t)                    , pointer               :: fe_fun_mass
+  
+ 
+  fe_space         => this%fe_nl_op%get_fe_space()
+  fe_space_mass    => this%mass_nl_op%get_fe_space()
+  
+  call this%ts_op%get_fe_functions( fe_fun , fe_fun_mass )
+  call fe_space%interpolate_dirichlet_values(fe_fun, time=time)
+  call fe_space_mass%interpolate_dirichlet_values(fe_fun_mass, time=time)
+  
+  !discrete_integration%set_current_time
+end subroutine time_stepping_stage_fe_operator_set_evaluation_time
+  
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function time_stepping_stage_fe_operator_is_linear(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(in) :: this

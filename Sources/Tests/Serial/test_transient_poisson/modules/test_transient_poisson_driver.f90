@@ -54,10 +54,12 @@ module test_transient_poisson_driver_names
      
      ! Discrete weak problem integration-related data type instances 
      type(serial_fe_space_t)                      :: fe_space 
+     type(serial_fe_space_t)                      :: fe_mass_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      type(poisson_cG_discrete_integration_t)      :: poisson_cG_integration
      type(mass_discrete_integration_t)            :: mass_integration
      type(poisson_conditions_t)                   :: poisson_conditions
+     type(poisson_conditions_t)                   :: poisson_mass_conditions
      type(poisson_analytical_functions_t)         :: poisson_analytical_functions
           
      ! Place-holder for the coefficient matrix and RHS of the linear system
@@ -191,10 +193,15 @@ contains
 
     call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
+    call this%poisson_mass_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_derivative_function())
     call this%fe_space%create( triangulation       = this%triangulation, &
                                  reference_fes     = this%reference_fes, &
                                  conditions        = this%poisson_conditions )
     call this%fe_space%set_up_cell_integration()
+    call this%fe_mass_space%create( triangulation       = this%triangulation, &
+                                 reference_fes     = this%reference_fes, &
+                                 conditions        = this%poisson_mass_conditions )
+    call this%fe_mass_space%set_up_cell_integration()
     call this%setup_cell_quadratures_degree()
   end subroutine setup_fe_space
   
@@ -202,7 +209,7 @@ contains
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
     class(fe_cell_iterator_t), allocatable :: fe
-    call this%fe_space%create_fe_cell_iterator(fe)
+    call this%fe_space%create_fe_cell_iterator(fe) 
     ! Set first FE is enough for testing. Leaving loop as snippet for user-customization
     do while ( .not. fe%has_finished() )
        call fe%set_quadrature_degree(fe%get_default_quadrature_degree())
@@ -229,16 +236,16 @@ contains
                                           diagonal_blocks_symmetric_storage = [ .true. ], &
                                           diagonal_blocks_symmetric         = [ .true. ], &
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          fe_space                          = this%fe_space, &
+                                          fe_space                          = this%fe_mass_space, &
                                           discrete_integration              = this%mass_integration )
    
     call this%time_operator%create( fe_nl_op = this%fe_nl_op, &
                                     mass_op = this%mass_nl_op, &
-                                    time_integration_scheme = 'backward_euler' )  
-    
+                                    time_integration_scheme = 'trapezoidal_rule' )  !trapezoidal_rule, backward_euler
+    call this%time_operator%set_fe_functions( this%solution , this%mass_fe_fun )
   
     call this%solution%create(this%fe_space) 
-    call this%mass_fe_fun%create(this%fe_space) 
+    call this%mass_fe_fun%create(this%fe_mass_space) 
     call this%poisson_cG_integration%set_fe_function(this%solution) 
     call this%mass_integration%set_fe_function(this%mass_fe_fun)
     call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
@@ -370,14 +377,16 @@ contains
     class(test_transient_poisson_driver_t), intent(inout)   :: this
     class(vector_t)                         , pointer       :: dof_values_current
     class(vector_t)                         , allocatable   :: dof_values_previous
-    real(rp) :: current_time, final_time, time_step
-    
+    real(rp) :: final_time, time_step
+    real(rp)                                                :: current_time
     ! Time integration machinery
     current_time= 0.0_rp
-    final_time  = 1.0_rp
-    time_step   = 1.0_rp
+    final_time  = 2.0_rp
+    time_step   = 0.5_rp
     ! sbadia: for transient body force/bc's we will need the time t0 too
     call this%time_operator%set_time_step_size(time_step)
+    call this%time_operator%set_initial_time(current_time)
+    current_time = this%time_operator%get_current_time()
     ! initialize dof_values_current
 
     ! set a right initial value
@@ -387,6 +396,7 @@ contains
                                    function = this%poisson_analytical_functions%get_solution_function(), &
                                    fe_function=this%solution, &
                                    time=current_time)
+  
     dof_values_current => this%solution%get_free_dof_values()
 
     call dof_values_current%mold(dof_values_previous)  ! select dynamic type of dof_values_previous
@@ -396,19 +406,25 @@ contains
 
     
     do while ( current_time < final_time )
-       current_time = current_time + time_step
+
        call dof_values_previous%copy(dof_values_current) ! copy entries
-       call this%poisson_cG_integration%set_current_time(current_time) 
+       call this%poisson_cG_integration%set_current_time(current_time)
+       !call this%poisson_cG_integration%set_current_time(this%time_operator%get_current_time())
        call this%fe_space%interpolate(field_id=1, &
                                    function = this%poisson_analytical_functions%get_solution_function(), &
                                    fe_function=this%solution, &
                                    time=current_time)
        call this%fe_space%interpolate_dirichlet_values(this%solution, time=current_time)
+       call this%fe_mass_space%interpolate_dirichlet_values(this%mass_fe_fun, time=current_time)
+       !pmartorell: interpolate dirichlet values with the boundary derivative at current_time
        
 
        call this%time_operator%set_initial_data(dof_values_previous) 
        call this%time_solver%apply( dof_values_previous, dof_values_current )
        ! sbadia: it is not nice to have to pass the initial data at two different levels 
+       
+       call this%time_operator%update_current_time(current_time) ! pmartorall: updated current_time after solve, time_operator solves at t=t^(n-1) + c_i * dt
+       write(*,*) current_time
        call this%write_time_step(current_time)
        call this%check_solution(current_time)
     end do
