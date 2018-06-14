@@ -34,6 +34,7 @@ module par_test_hts_driver_names
   use hts_analytical_functions_names
   use maxwell_analytical_functions_names 
   use hts_theta_method_names
+  use hts_output_handler_field_generator_names 
 # include "debug.i90"
 
   implicit none
@@ -80,6 +81,7 @@ module par_test_hts_driver_names
      type(theta_method_t)                   :: theta_method 
 
      ! Output handler 
+     type(resistivity_field_generator_t)    :: resistivity_field_generator 
      real(rp), allocatable                  :: set_id_cell_vector(:)
      type(output_handler_t)                 :: oh	
 
@@ -754,16 +756,25 @@ contains
     if ( this%environment%am_i_l1_task() ) then
        if(this%test_params%get_write_solution()) then
           call  build_set_id_cell_vector()
+          call  initialize_field_generator() 
           call  this%oh%create(VTK) 
           call  this%oh%attach_fe_space(this%fe_space)
           call  this%oh%add_fe_function(this%H_current, 1, 'H')
           call  this%oh%add_fe_function(this%H_current, 1, 'J', curl_diff_operator)
+          call  this%oh%add_field_generator('Resistivity', this%resistivity_field_generator)
           call  this%oh%add_cell_vector(this%set_id_cell_vector, 'set_id')
           call  this%oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
        endif
     end if
 
-  contains 
+  contains  
+    subroutine initialize_field_generator() 
+    call this%resistivity_field_generator%set_parameter_values( this%test_params%get_nonlinear_exponent(),     & 
+                                                                this%test_params%get_critical_current(),       & 
+                                                                this%test_params%get_critical_electric_field() )                                                         
+    call this%resistivity_field_generator%set_magnetic_field( this%H_current ) 
+    end subroutine initialize_field_generator
+    
     subroutine build_set_id_cell_vector()
       call memalloc(this%triangulation%get_num_local_cells(), this%set_id_cell_vector, __FILE__, __LINE__)
       call this%triangulation%create_cell_iterator(cell) 

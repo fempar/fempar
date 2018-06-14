@@ -65,7 +65,7 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list,
   ! Init parameters 
   this%permeability = permeability 
   this%resistivity  = resistivity 
-
+ 
   this%field_id = field_id 
   this%matrix => matrix 
 
