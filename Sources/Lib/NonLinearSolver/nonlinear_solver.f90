@@ -28,6 +28,7 @@
 module nonlinear_solver_names
   use types_names
   use memor_names
+  use solver_names
   use vector_space_names
   use vector_names
   use environment_names
@@ -44,7 +45,7 @@ module nonlinear_solver_names
   character(len=*), parameter :: rel_r0_res_norm               = 'rel_r0_res_norm'               ! |r(x_i)| <= rel_tol*|r(x_0)|
   character(len=*), parameter :: abs_res_norm_and_rel_inc_norm = 'abs_res_norm_and_rel_inc_norm' ! |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
 
-  type :: nonlinear_solver_t
+  type, extends(solver_t) :: nonlinear_solver_t
     private
       integer(ip)                              :: current_iteration
       integer(ip)                              :: max_number_iterations
@@ -66,6 +67,8 @@ module nonlinear_solver_names
       ! Public TBPs. They MUST be called in this order.
       procedure :: create                           => nonlinear_solver_create
       procedure :: apply                            => nonlinear_solver_apply
+      procedure :: apply_add                        => nonlinear_solver_apply_add
+      procedure :: is_linear                        => nonlinear_solver_is_linear
       procedure :: compute_residual                 => nonlinear_solver_compute_residual
       procedure :: compute_tangent                  => nonlinear_solver_compute_tangent
       procedure :: free                             => nonlinear_solver_free
@@ -76,8 +79,9 @@ module nonlinear_solver_names
       procedure :: get_current_iteration             => nonlinear_solver_get_current_iteration
       
       ! Setters
-      procedure :: set_initial_solution               => nonlinear_solver_set_initial_solution
-
+      procedure :: set_initial_solution              => nonlinear_solver_set_initial_solution
+      procedure :: set_current_dof_values            => nonlinear_solver_set_current_dof_values
+      
       ! Private TBPs
       !procedure, private :: initialize                       => nonlinear_solver_initialize
       procedure, private :: update_solution                  => nonlinear_solver_update_solution
@@ -130,13 +134,16 @@ subroutine nonlinear_solver_create(this, &
 end subroutine nonlinear_solver_create
 
 !==============================================================================
-subroutine nonlinear_solver_apply(this,rhs,unknown)
-
+subroutine nonlinear_solver_apply(this,x,y)
+ !-----------------------------------------------------------------
+ ! Find y such that A(y) = x
+ !-----------------------------------------------------------------
   implicit none
   class(nonlinear_solver_t)     , intent(inout) :: this
-  class(vector_t), target       , intent(inout) :: unknown
-  class(vector_t)               , intent(in)    :: rhs
-  
+  class(vector_t)               , intent(inout) :: y
+  class(vector_t)               , intent(in)    :: x
+  !x is in this context is the rhs of the nonlinear_operator_t not the evaluation_point, 
+  !e.g. A(y) = x
   integer(ip) :: istat
   
   ! Initialize work data
@@ -147,14 +154,14 @@ subroutine nonlinear_solver_apply(this,rhs,unknown)
   call this%nonlinear_operator%create_domain_vector(this%increment_dof_values)
   
   ! Initialize nonlinear operator
-  this%current_dof_values => unknown
+  call this%set_current_dof_values(y)
   call this%current_dof_values%copy(this%initial_solution)
   this%current_iteration = 0  
   call this%increment_dof_values%init(0.0) 
   
   ! Compute initial residual
   call this%nonlinear_operator%create_range_vector(this%current_residual)
-  call this%compute_residual(rhs)
+  call this%compute_residual(x)
   
   ! Store initial residual for the stopping criterium that needs it
   if (this%convergence_criteria == rel_r0_res_norm) then
@@ -183,12 +190,39 @@ subroutine nonlinear_solver_apply(this,rhs,unknown)
     
     call this%linear_solver%apply( this%minus_current_residual, this%increment_dof_values )
     call this%update_solution() ! x + dx
-    call this%compute_residual(rhs)
+    call this%compute_residual(x)
     call this%print_iteration_output_header()
     call this%print_current_iteration_output()
   end do
   call this%print_final_output()
 end subroutine nonlinear_solver_apply
+
+!==============================================================================
+ subroutine nonlinear_solver_apply_add(this, x, y)
+ !-----------------------------------------------------------------
+ ! Find y such that y = y + w with A(w) = x
+ !-----------------------------------------------------------------
+   class(nonlinear_solver_t), intent(inout)    :: this
+   class(vector_t),        intent(in)    :: x
+   class(vector_t),        intent(inout) :: y
+   class(vector_t), allocatable          :: w
+   type(vector_space_t), pointer         :: range_vector_space
+   integer(ip)                           :: istat
+!-----------------------------------------------------------------
+   range_vector_space => this%get_range_vector_space()
+   call range_vector_space%create_vector(w)
+   call this%apply(x,w)
+   call y%axpby(1.0, w, 1.0)
+   call w%free()
+   deallocate(w, stat=istat); check(istat==0)
+end subroutine nonlinear_solver_apply_add
+
+!==============================================================================
+function nonlinear_solver_is_linear(this) result(is_linear)
+ class(nonlinear_solver_t), intent(in) :: this
+ logical                            :: is_linear
+ is_linear = .false.
+end function nonlinear_solver_is_linear
 
 !==============================================================================
 subroutine nonlinear_solver_compute_residual(this,rhs)
@@ -290,7 +324,15 @@ end function nonlinear_solver_get_current_iteration
      end if  
      call initial_solution%CleanTemp()
    end subroutine nonlinear_solver_set_initial_solution
-
+   
+ !==============================================================================
+   subroutine nonlinear_solver_set_current_dof_values( this, current_dof_values )
+     implicit none
+     class(nonlinear_solver_t),        intent(inout) :: this
+     class(vector_t),         target,  intent(in)    :: current_dof_values
+     this%current_dof_values => current_dof_values
+   end subroutine nonlinear_solver_set_current_dof_values
+   
 !==============================================================================
 subroutine nonlinear_solver_update_solution(this)
   implicit none
