@@ -522,14 +522,14 @@ contains
     
     select type(matrix)
     class is (sparse_matrix_t)  
-       call matrix%print_matrix_market(6) 
+       !call matrix%print_matrix_market(6) 
     class DEFAULT
        assert(.false.) 
     end select
     
     select type(rhs)
     class is (serial_scalar_array_t)  
-    call rhs%print(6)
+    !call rhs%print(6)
     alpha = rhs%nrm2()
     
     class DEFAULT
