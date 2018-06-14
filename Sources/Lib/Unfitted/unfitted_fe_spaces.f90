@@ -61,7 +61,9 @@ module unfitted_fe_spaces_names
  ! Types from unfitted branch that are *** UNDER QUARANTINE ***
  type, extends(fe_cell_iterator_t) :: unfitted_fe_cell_iterator_t
     private
-    class(unfitted_integration_manager_t), pointer :: unfitted_integration_manager => NULL()
+    class(unfitted_integration_manager_t), pointer     :: unfitted_integration_manager => NULL()
+    type(cell_map_t)                     , pointer     :: cut_cell_map => NULL()
+    type(p_cell_integrator_t)            , allocatable :: cut_cell_integrators(:)
   contains
 
     ! Creation / deletion methods
@@ -70,6 +72,8 @@ module unfitted_fe_spaces_names
 
     ! Getters that override
     procedure          :: get_quadrature        => unfitted_fe_cell_iterator_get_quadrature
+    procedure          :: get_cell_map          => unfitted_fe_cell_iterator_get_cell_map
+    procedure          :: get_cell_integrator   => unfitted_fe_cell_iterator_get_cell_integrator
     
     ! Getters that extend
     procedure          :: get_boundary_quadrature          => unfitted_fe_cell_iterator_get_boundary_quadrature

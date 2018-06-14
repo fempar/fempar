@@ -97,18 +97,24 @@ module execution_context_names
      
      procedure (execution_context_neighbours_exchange_rp                 ), deferred :: neighbours_exchange_rp
      procedure (execution_context_neighbours_exchange_wo_alpha_beta_rp   ), deferred :: neighbours_exchange_wo_alpha_beta_rp
+     procedure (execution_context_neighbours_exchange_wo_alpha_beta_rp_v ), deferred :: neighbours_exchange_wo_alpha_beta_rp_v
      procedure (execution_context_neighbours_exchange_ip                 ), deferred :: neighbours_exchange_ip                 
      procedure (execution_context_neighbours_exchange_igp                ), deferred :: neighbours_exchange_igp                
      procedure (execution_context_neighbours_exchange_single_ip          ), deferred :: neighbours_exchange_single_ip          
      procedure (execution_context_neighbours_exchange_wo_pack_unpack_ieep), deferred :: neighbours_exchange_wo_pack_unpack_ieep
-     procedure (execution_context_neighbours_exchange_wo_unpack_ip)       , deferred :: neighbours_exchange_wo_unpack_ip
+     procedure (execution_context_neighbours_exchange_wo_unpack_ip       ), deferred :: neighbours_exchange_wo_unpack_ip
+     procedure (execution_context_neighbours_exchange_variable_igp       ), deferred :: neighbours_exchange_variable_igp
+     procedure (execution_context_neighbours_exchange_variable_ip        ), deferred :: neighbours_exchange_variable_ip
      generic :: neighbours_exchange  => neighbours_exchange_rp, &
           &                             neighbours_exchange_wo_alpha_beta_rp, &
+          &                             neighbours_exchange_wo_alpha_beta_rp_v, &
           &                             neighbours_exchange_ip, &
           &                             neighbours_exchange_igp, &
           &                             neighbours_exchange_single_ip, &
           &                             neighbours_exchange_wo_pack_unpack_ieep, &
-          &                             neighbours_exchange_wo_unpack_ip
+          &                             neighbours_exchange_wo_unpack_ip, &
+          &                             neighbours_exchange_variable_igp, &
+          &                             neighbours_exchange_variable_ip
 
      procedure (execution_context_root_send_master_rcv_ip         ), deferred :: root_send_master_rcv_ip
      procedure (execution_context_root_send_master_rcv_ip_1D_array), deferred :: root_send_master_rcv_ip_1D_array
@@ -326,6 +332,27 @@ module execution_context_names
        real(rp)                , intent(inout) :: y(:)
        integer(ip)   , optional, intent(in)    :: chunk_size
      end subroutine execution_context_neighbours_exchange_wo_alpha_beta_rp
+     
+     !=============================================================================
+     subroutine execution_context_neighbours_exchange_wo_alpha_beta_rp_v ( this, & 
+       &                                                                 num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                                                 num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                                                 x, y, ptr_chunk_size_snd, ptr_chunk_size_rcv)
+       import :: execution_context_t, rp, ip
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       ! Control info to receive
+       integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+       integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+       ! Control info to send
+       integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+       integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+       ! Raw data to be exchanged
+       real(rp)                , intent(in)    :: x(:)
+       real(rp)                , intent(inout) :: y(:)
+       integer(ip)             , intent(in)    :: ptr_chunk_size_snd(:)
+       integer(ip)             , intent(in)    :: ptr_chunk_size_rcv(:)
+     end subroutine execution_context_neighbours_exchange_wo_alpha_beta_rp_v
 
      !=============================================================================
      ! When packing   (gathering) ,    buffer <- alpha * x
@@ -422,6 +449,48 @@ module execution_context_names
         integer(ip)   , optional, intent(in)    :: chunk_size
      end subroutine execution_context_neighbours_exchange_wo_unpack_ip
 
+     !=============================================================================
+     subroutine execution_context_neighbours_exchange_variable_igp ( this, & 
+          &                                              num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+          &                                              num_snd, list_snd, snd_ptrs, pack_idx,   &
+          &                                              x, y, ptr_chunk_size, mask)
+       import :: execution_context_t, ip, igp
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       ! Control info to receive
+       integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+       integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+       ! Control info to send
+       integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+       integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+       ! Raw data to be exchanged
+       integer(igp)            , intent(in)    :: x(:)
+       integer(igp)            , intent(inout) :: y(:)
+       integer(ip)             , intent(in)    :: ptr_chunk_size(:)
+       integer(igp)  , optional, intent(in)    :: mask
+     end subroutine execution_context_neighbours_exchange_variable_igp
+     
+     !=============================================================================
+     subroutine execution_context_neighbours_exchange_variable_ip ( this, & 
+          &                                              num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+          &                                              num_snd, list_snd, snd_ptrs, pack_idx,   &
+          &                                              x, y, ptr_chunk_size, mask)
+       import :: execution_context_t, ip
+       implicit none
+       class(execution_context_t), intent(in)    :: this
+       ! Control info to receive
+       integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+       integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+       ! Control info to send
+       integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+       integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+       ! Raw data to be exchanged
+       integer(ip)             , intent(in)    :: x(:)
+       integer(ip)             , intent(inout) :: y(:)
+       integer(ip)             , intent(in)    :: ptr_chunk_size(:)
+       integer(ip)  , optional , intent(in)    :: mask
+     end subroutine execution_context_neighbours_exchange_variable_ip
+     
      !=============================================================================
      subroutine execution_context_gather_scalar_ip ( this, input_data, output_data )
        import :: execution_context_t, ip

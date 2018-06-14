@@ -116,6 +116,7 @@ module assembler_names
     
   ! Data types
   public :: assembler_t
+  public :: assembler_set_matrix, assembler_set_array
   
 contains
   subroutine assembler_compress_storage_array(this)
@@ -196,7 +197,6 @@ contains
     call this%free_in_stages(free_numerical_setup)
     call this%free_in_stages(free_symbolic_setup)
     call this%free_in_stages(free_clean)
-
   end subroutine assembler_free
   
     function assembler_get_matrix(this)

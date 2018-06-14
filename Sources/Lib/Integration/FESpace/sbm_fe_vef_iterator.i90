@@ -61,32 +61,22 @@ function fe_vef_iterator_is_proper ( this )
   fe_vef_iterator_is_proper = this%vef%is_proper()
 end function fe_vef_iterator_is_proper 
 
-function fe_vef_iterator_is_fe_facet ( this ) 
-  implicit none
-  class(fe_vef_iterator_t), intent(in) :: this
-  logical :: fe_vef_iterator_is_fe_facet 
-  fe_vef_iterator_is_fe_facet = this%vef%is_facet() .and.            &
-     ( ( .not. this%vef%is_proper() ) .or.                           &
-       ( this%vef%is_proper() .and. ( this%vef%is_at_boundary() .or. &
-         this%vef%get_num_cells_around() > 1 ) ) )
-end function fe_vef_iterator_is_fe_facet 
-
-function fe_vef_iterator_has_free_dofs ( this, field_id, coarser_fe ) 
+function fe_vef_iterator_all_coarser_cells_are_void ( this, field_id, coarser_fe ) 
   implicit none
   class(fe_vef_iterator_t) , intent(in)    :: this
   integer(ip)              , intent(in)    :: field_id
   class(fe_cell_iterator_t), intent(inout) :: coarser_fe
-  logical                                  :: fe_vef_iterator_has_free_dofs
+  logical                                  :: fe_vef_iterator_all_coarser_cells_are_void
   integer(ip) :: icell_improper_around
-  fe_vef_iterator_has_free_dofs = .true.
+  fe_vef_iterator_all_coarser_cells_are_void = .true.
   do icell_improper_around=1, this%get_num_improper_cells_around()
     call this%get_improper_cell_around(icell_improper_around,coarser_fe)
     if (.not. coarser_fe%is_void(field_id)) then 
-       fe_vef_iterator_has_free_dofs = .false.
+       fe_vef_iterator_all_coarser_cells_are_void = .false.
        return
     end if
   end do
-end function fe_vef_iterator_has_free_dofs
+end function fe_vef_iterator_all_coarser_cells_are_void
 
 subroutine fe_vef_iterator_get_fe_around (this, ife_around, fe)
   implicit none
@@ -96,7 +86,7 @@ subroutine fe_vef_iterator_get_fe_around (this, ife_around, fe)
   assert(allocated(this%vef))
   assert(allocated(fe%cell))
   call this%vef%get_cell_around(ife_around,fe%cell)
-  call fe%set_gid(fe%cell%get_gid())
+  call fe%update_performance_scratch_data()
 end subroutine fe_vef_iterator_get_fe_around
 
 function fe_vef_iterator_get_num_improper_cells_around(this)
@@ -123,6 +113,7 @@ subroutine fe_vef_iterator_get_improper_fe_around (this, ife_around, fe)
   assert(allocated(this%vef))
   assert(allocated(fe%cell))
   call this%vef%get_improper_cell_around(ife_around,fe%cell)
+  call fe%update_performance_scratch_data()
 end subroutine fe_vef_iterator_get_improper_fe_around
 
 function fe_vef_iterator_get_improper_cell_around_ivef(this, ife_around)
