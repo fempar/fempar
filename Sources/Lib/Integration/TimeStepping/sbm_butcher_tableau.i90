@@ -41,6 +41,13 @@ subroutine butcher_tableau_create( this, time_integration_scheme )
     this%a(1,1) = 1.0_rp
     this%b(1)   = 1.0_rp 
     this%c(1)   = 1.0_rp
+  case ( forward_euler )
+    this%order = 1
+    this%num_stages = 1
+    call this%allocate_arrays()
+    this%a(1,1) = 0.0_rp
+    this%b(1)   = 1.0_rp 
+    this%c(1)   = 0.0_rp  
   case ( trapezoidal_rule )
     this%order = 2
     this%num_stages = 2
@@ -50,6 +57,17 @@ subroutine butcher_tableau_create( this, time_integration_scheme )
     this%b(1:2)   = [ 0.5_rp,  0.5_rp ] 
     ! this%bs = [ 1.0_rp 0.0_rp] for adaptive RK methods
     this%c(1:2)   = [ 0.0_rp,  1.0_rp ]
+  case ( runge_kutta_4 )
+    this%order = 4
+    this%num_stages = 4
+    call this%allocate_arrays()
+    this%a(1,1:4) = [ 0.0_rp,  0.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(2,1:4) = [ 0.5_rp,  0.0_rp,  0.0_rp,  0.0_rp ]
+    this%a(3,1:4) = [ 0.0_rp,  0.5_rp,  0.0_rp,  0.0_rp ]
+    this%a(4,1:4) = [ 0.0_rp,  0.0_rp,  1.0_rp,  0.0_rp ]
+    this%b(1:4)   = [ 1.0_rp,  2.0_rp,  2.0_rp,  1.0_rp ]
+    this%b        = this%b / 6
+    this%c(1:4)   = [ 0.0_rp,  0.5_rp,  0.5_rp,  1.0_rp ]
  case default
     check(.false.)
  end select

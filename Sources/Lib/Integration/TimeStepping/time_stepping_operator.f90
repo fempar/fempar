@@ -67,6 +67,7 @@ module time_stepping_names
   character(*), parameter :: forward_euler     = "forward_euler"
   character(*), parameter :: backward_euler    = "backward_euler"
   character(*), parameter :: trapezoidal_rule  = "trapezoidal_rule"
+  character(*), parameter :: runge_kutta_4     = "runge_kutta_4"
 
   ! states to be defined
   integer(ip), parameter :: created             = 0
@@ -148,8 +149,7 @@ module time_stepping_names
      type(time_stepping_stage_fe_operator_t)            :: fe_op
      class(vector_t)                          , pointer :: initial_value => NULL()
      class(vector_t)                      , allocatable :: dofs_stages(:)
-     real(rp)                                           :: dt
-     real(rp)                                           :: time
+     real(rp)                                           :: dt, time, final_time
      
      type(fe_function_t)                      , pointer :: solution_fe_fun
      type(fe_function_t)                      , pointer :: mass_fe_fun
@@ -165,12 +165,13 @@ module time_stepping_names
      procedure :: free                            => time_stepping_operator_free
      procedure :: set_initial_data                => time_stepping_operator_set_initial_data
      procedure :: set_initial_time                => time_stepping_operator_set_initial_time ! pmartorell: to be called inside create
-     !procedure, private :: set_final_time         => time_stepping_operator_set_final_time ! pmartorell: to be called inside create
+     procedure, private :: set_final_time         => time_stepping_operator_set_final_time ! pmartorell: to be called inside create
      procedure :: set_time_step_size              => time_stepping_operator_set_time_step_size !pmartorell: to be called inside create, but public
      procedure :: update_current_time             => time_stepping_operator_update_current_time
      procedure :: set_fe_functions                => time_stepping_operator_set_fe_functions
      procedure :: get_time_step                   => time_stepping_operator_get_time_step_size
      procedure :: get_current_time                => time_stepping_operator_get_current_time
+     procedure :: get_final_time                  => time_stepping_operator_get_final_time 
      procedure :: get_fe_functions                => time_stepping_operator_get_fe_functions
      procedure :: get_matrix                      => time_stepping_operator_get_matrix
      procedure, private :: allocate_dofs_stages   => time_stepping_operator_allocate_dofs_stages

@@ -239,10 +239,13 @@ contains
                                           fe_space                          = this%fe_mass_space, &
                                           discrete_integration              = this%mass_integration )
    
-    call this%time_operator%create( fe_nl_op = this%fe_nl_op, &
-                                    mass_op = this%mass_nl_op, &
-                                    time_integration_scheme = 'trapezoidal_rule' )  !trapezoidal_rule, backward_euler
-    call this%time_operator%set_fe_functions( this%solution , this%mass_fe_fun )
+    call this%time_operator%create( fe_nl_op                = this%fe_nl_op, &
+                                    mass_op                 = this%mass_nl_op, &
+                                    initial_time            = this%test_params%get_initial_time() , &
+                                    final_time              = this%test_params%get_final_time() , &
+                                    time_step               = this%test_params%get_time_step() , &
+                                    time_integration_scheme = this%test_params%get_time_integration_scheme() )  !trapezoidal_rule, backward_euler
+    call this%time_operator%set_fe_functions( this%solution , this%mass_fe_fun ) !pmartorell: Should it be inside create? Not nice, provisional...
   
     call this%solution%create(this%fe_space) 
     call this%mass_fe_fun%create(this%fe_mass_space) 
@@ -379,14 +382,14 @@ contains
     class(vector_t)                         , allocatable   :: dof_values_previous
     real(rp) :: final_time, time_step
     real(rp)                                                :: current_time
-    ! Time integration machinery
-    current_time= 0.0_rp
-    final_time  = 2.0_rp
-    time_step   = 0.5_rp
-    ! sbadia: for transient body force/bc's we will need the time t0 too
-    call this%time_operator%set_time_step_size(time_step)
-    call this%time_operator%set_initial_time(current_time)
+    !! Time integration machinery
+    !final_time  = 2.0_rp
+    !time_step   = 0.5_rp
+    !! sbadia: for transient body force/bc's we will need the time t0 too
+    !call this%time_operator%set_time_step_size(time_step)
+    !call this%time_operator%set_initial_time(current_time)
     current_time = this%time_operator%get_current_time()
+    final_time = this%time_operator%get_final_time()
     ! initialize dof_values_current
 
     ! set a right initial value
@@ -424,7 +427,7 @@ contains
        ! sbadia: it is not nice to have to pass the initial data at two different levels 
        
        call this%time_operator%update_current_time(current_time) ! pmartorall: updated current_time after solve, time_operator solves at t=t^(n-1) + c_i * dt
-       write(*,*) current_time
+       call this%fe_space%interpolate_dirichlet_values(this%solution, time=current_time) ! pmartorell: updated boundary values when not evaluated in the solver, e.g. forward_euler
        call this%write_time_step(current_time)
        call this%check_solution(current_time)
     end do

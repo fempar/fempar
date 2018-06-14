@@ -114,7 +114,8 @@ contains
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
       !result = 0 ! f = 0
-      result = (point%get(1)+point%get(2)) !f = x + y 
+      !result = (point%get(1)+point%get(2)) !f = x + y 
+      result = (point%get(1)+point%get(2)) * 2.0_rp * time !f = ( x + y ) * t
       ! (x**2-x)*(y**2-y) - 2*t*((x**2-x)+(y**2-y))
       !result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2)) - & 
       !         2.0_rp * time * ((point%get(1)**2-point%get(1)) +  (point%get(2)**2-point%get(2)))
@@ -151,7 +152,8 @@ contains
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
       !result = (point%get(1)+point%get(2)) ! uD = x + y
-      result = ( point%get(1) + point%get(2) ) * time ! uD = ( x + y ) * t
+      !result = ( point%get(1) + point%get(2) ) * time ! uD = ( x + y ) * t
+      result = ( point%get(1) + point%get(2) ) * time ** 2 ! uD = ( x + y ) * t ^ 2
       ! (x**2-x)*(y**2-y)*t
       !result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2))*time
     else if ( this%num_dims == 3 ) then
@@ -169,7 +171,8 @@ contains
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
       !result = 0 ! du/dt = 0
-      result = point%get(1) + point%get(2) !du/dt = x + y 
+      !result = point%get(1) + point%get(2) !du/dt = x + y 
+      result = ( point%get(1) + point%get(2) ) * 2.0_rp * time !du/dt = ( x + y ) * 2 t
     else if ( this%num_dims == 3 ) then
       mcheck(.false., "Implementation pending")
     end if
@@ -204,9 +207,9 @@ contains
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
       !result = (point%get(1)+point%get(2)) ! u = x + y
-      result = ( point%get(1) + point%get(2) ) * time ! u = ( x + y ) * t
-      ! (x**2-x)*(y**2-y)*t 
-      !result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2))*time
+      !result = ( point%get(1) + point%get(2) ) * time ! u = ( x + y ) * t
+      result = ( point%get(1) + point%get(2) ) * time ** 2 ! u = ( x + y ) * t ^ 2
+      !result = (point%get(1)**2-point%get(1))*(point%get(2)**2-point%get(2))*time   ! (x**2-x)*(y**2-y)*t
     else if ( this%num_dims == 3 ) then
       mcheck(.false., "Implementation pending")
     end if

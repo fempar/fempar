@@ -51,8 +51,8 @@ subroutine dirk_solver_apply( this, x, y )
   do i = 1, this%ts_op%scheme%num_stages
     stage_op => this%ts_op%get_stage_operator(i,i)
     call stage_op%set_evaluation_time( this%ts_op%get_current_time() + this%ts_op%get_time_step() * this%ts_op%scheme%c(i) )
-    write (*,*) this%ts_op%get_current_time() + this%ts_op%get_time_step() * this%ts_op%scheme%c(i)
     call this%nl_solver%solve ( stage_op, this%ts_op%dofs_stages(i) )
+    
   end do
   
   !pmartorell: u1_h = u0_h + \sum^s_{i=1} b_i y_i , is placed out of the main loop because y => solution%free_dofs_values, thus, updated at each stage 

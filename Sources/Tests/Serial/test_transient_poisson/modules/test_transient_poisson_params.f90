@@ -53,7 +53,12 @@ module test_transient_poisson_params_names
      character(len=:), allocatable :: default_is_periodic_in_z
      character(len=:), allocatable :: default_use_void_fes
      character(len=:), allocatable :: default_use_void_fes_case
-
+     character(len=:), allocatable :: default_initial_time
+     character(len=:), allocatable :: default_final_time
+     character(len=:), allocatable :: default_time_step
+     character(len=:), allocatable :: default_time_integration_scheme
+     
+     
      type(Command_Line_Interface):: cli 
 
      ! IO parameters
@@ -73,6 +78,11 @@ module test_transient_poisson_params_names
      
      logical                       :: use_void_fes
      character(len=str_cla_len)    :: use_void_fes_case
+     
+     real(rp)                      :: initial_time
+     real(rp)                      :: final_time
+     real(rp)                      :: time_step
+     character(len=str_cla_len)    :: time_integration_scheme
 
    contains
      procedure, non_overridable             :: create       => test_transient_poisson_create
@@ -92,6 +102,10 @@ module test_transient_poisson_params_names
      procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: get_use_void_fes
      procedure, non_overridable             :: get_use_void_fes_case
+     procedure, non_overridable             :: get_initial_time
+     procedure, non_overridable             :: get_final_time
+     procedure, non_overridable             :: get_time_step
+     procedure, non_overridable             :: get_time_integration_scheme
   end type test_transient_poisson_params_t  
 
   ! Types
@@ -142,6 +156,11 @@ contains
     
     this%default_use_void_fes = '.false.'
     this%default_use_void_fes_case = 'popcorn'
+    
+    this%default_initial_time            = '0'
+    this%default_final_time              = '1'
+    this%default_time_step               = '1'
+    this%default_time_integration_scheme = 'backward_euler'
   end subroutine test_transient_poisson_set_default
   
   !==================================================================================================
@@ -212,7 +231,18 @@ contains
     call this%cli%add(switch='--use-void-fes-case',switch_ab='-use-voids-case',help='Select where to put void fes using one of the predefined patterns. Possible values: `popcorn`, `half`, `quarter`',&
          &            required=.false.,act='store',def=trim(this%default_use_void_fes_case),error=error) 
     check(error==0) 
-
+    call this%cli%add(switch='--initial-time',switch_ab='-t0',help='Initial time: t0',&
+         &            required=.false.,act='store',def=trim(this%default_initial_time),error=error) 
+    check(error==0) 
+    call this%cli%add(switch='--final-time',switch_ab='-tf',help='Final time: tf',&
+         &            required=.false.,act='store',def=trim(this%default_final_time),error=error) 
+    check(error==0) 
+    call this%cli%add(switch='--time-step',switch_ab='-dt',help='Time step size: dt',&
+         &            required=.false.,act='store',def=trim(this%default_time_step),error=error) 
+    check(error==0)
+    call this%cli%add(switch='--time-integration-scheme',switch_ab='-rk-scheme',help='Time disctetization scheme of the DIRK solver. Possible values `forward_euler`, `backward_euler`, `trapezoidal_rule` , `runge_kutta_4` ',&
+         &            required=.false.,act='store',def=trim(this%default_time_integration_scheme),error=error) 
+    check(error==0) 
   end subroutine test_transient_poisson_add_to_cli
   
   subroutine test_transient_poisson_parse(this,parameter_list)
@@ -243,6 +273,11 @@ contains
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
     call this%cli%get(switch='-use-voids',val=this%use_void_fes,error=istat); check(istat==0)
     call this%cli%get(switch='-use-voids-case',val=this%use_void_fes_case,error=istat); check(istat==0)
+    
+    call this%cli%get(switch='-t0',val=this%initial_time,error=istat); check(istat==0)
+    call this%cli%get(switch='-tf',val=this%final_time,error=istat); check(istat==0)
+    call this%cli%get(switch='-dt',val=this%time_step,error=istat); check(istat==0)
+    call this%cli%get(switch='-rk-scheme',val=this%time_integration_scheme,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -275,6 +310,10 @@ contains
     if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
     if(allocated(this%default_use_void_fes)) deallocate(this%default_use_void_fes) 
     if(allocated(this%default_use_void_fes_case)) deallocate(this%default_use_void_fes_case) 
+    if(allocated(this%default_initial_time)) deallocate(this%default_initial_time) 
+    if(allocated(this%default_final_time)) deallocate(this%default_final_time) 
+    if(allocated(this%default_time_step)) deallocate(this%default_time_step) 
+    if(allocated(this%default_time_integration_scheme)) deallocate(this%default_time_integration_scheme) 
     call this%cli%free()
   end subroutine test_transient_poisson_free
 
@@ -374,4 +413,35 @@ contains
     get_use_void_fes_case = trim(this%use_void_fes_case)
   end function get_use_void_fes_case
 
+  !==================================================================================================
+  function get_initial_time(this)
+    implicit none
+    class(test_transient_poisson_params_t) , intent(in) :: this
+    real(rp)                                  :: get_initial_time
+    get_initial_time = this%initial_time
+  end function get_initial_time
+ 
+   !==================================================================================================
+  function get_final_time(this)
+    implicit none
+    class(test_transient_poisson_params_t) , intent(in) :: this
+    real(rp)                                  :: get_final_time
+    get_final_time = this%final_time
+  end function get_final_time
+  
+   !==================================================================================================
+  function get_time_step(this)
+    implicit none
+    class(test_transient_poisson_params_t) , intent(in) :: this
+    real(rp)                                  :: get_time_step
+    get_time_step = this%time_step
+  end function get_time_step
+ 
+   !==================================================================================================
+  function get_time_integration_scheme(this)
+    implicit none
+    class(test_transient_poisson_params_t) , intent(in) :: this
+    character(len=:), allocatable             :: get_time_integration_scheme
+    get_time_integration_scheme = trim(this%time_integration_scheme)
+  end function get_time_integration_scheme
 end module test_transient_poisson_params_names

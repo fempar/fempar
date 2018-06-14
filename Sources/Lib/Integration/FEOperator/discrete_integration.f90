@@ -51,6 +51,7 @@ module discrete_integration_names
      procedure                                          :: integrate_petrov_galerkin_tangent
      procedure                                          :: set_evaluation_point
      procedure                                          :: set_boundary_data
+     procedure                                          :: set_current_time
      generic   :: integrate => integrate_galerkin, integrate_petrov_galerkin
   end type discrete_integration_t
   
@@ -139,5 +140,12 @@ module discrete_integration_names
        class(linear_discrete_integration_t)  ,    intent(inout)    :: this    
        class(vector_t)                ,    intent(in)       :: evaluation_point 
      end subroutine  linear_di_set_evaluation_point 
+     
+     subroutine set_current_time ( this, current_time )
+       implicit none
+       class(discrete_integration_t)  ,    intent(inout)    :: this
+       real(rp)                       ,    intent(in)       :: current_time     
+       mcheck(.false.,"You must implement set_current_time if you want to use it")
+     end subroutine  set_current_time
   
 end module discrete_integration_names
