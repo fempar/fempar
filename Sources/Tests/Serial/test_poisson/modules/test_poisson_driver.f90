@@ -72,6 +72,8 @@ module test_poisson_driver_names
      type(fe_affine_operator_t)                   :: fe_affine_operator
      
      ! Direct and Iterative linear solvers data type
+     type(environment_t)                       :: serial_environment
+     type(nonlinear_solver_t)                  :: nl_solver
 #ifdef ENABLE_MKL     
      type(direct_solver_t)                     :: direct_solver
 #else     
@@ -83,6 +85,7 @@ module test_poisson_driver_names
    contains
      procedure                  :: run_simulation
      procedure        , private :: parse_command_line_parameters
+     procedure        , private :: setup_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_fe_space
@@ -110,6 +113,14 @@ contains
     call this%test_params%create()
     call this%test_params%parse(this%parameter_list)
   end subroutine parse_command_line_parameters
+  
+  subroutine setup_environment(this)
+    implicit none
+    class(test_poisson_driver_t), intent(inout) :: this
+    integer(ip) :: ierr
+    ierr=this%parameter_list%set(key=execution_context_key,value=serial_context)
+    call this%serial_environment%create(this%parameter_list)
+  end subroutine setup_environment
   
   subroutine setup_triangulation(this)
     implicit none
@@ -471,6 +482,13 @@ contains
     class DEFAULT
        assert(.false.) 
     end select
+    call this%nl_solver%create(convergence_criteria = abs_res_norm, & 
+         &                     abs_tol = 1.0e-12_rp,  &
+         &                     rel_tol = 1.0e-12_rp, &
+         &                     max_iters = 10   ,  &
+         &                     linear_solver = this%direct_solver, &
+         &                     environment = this%serial_environment, &
+                               nonlinear_operator = this%fe_affine_operator)
 #else    
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
     !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
@@ -480,6 +498,13 @@ contains
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
+    call this%nl_solver%create(convergence_criteria = abs_res_norm, & 
+         &                     abs_tol = 1.0e-12_rp,  &
+         &                     rel_tol = 1.0e-12_rp, &
+         &                     max_iters = 10   ,  &
+         &                     linear_solver = this%iterative_linear_solver, &
+         &                     environment = this%serial_environment, &
+                               nonlinear_operator = this%fe_affine_operator)
 #endif
     call parameter_list%free()
   end subroutine setup_solver
@@ -490,20 +515,23 @@ contains
     class(test_poisson_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
+    real(rp) :: alpha
     call this%fe_affine_operator%compute()
     rhs                => this%fe_affine_operator%get_translation()
     matrix             => this%fe_affine_operator%get_matrix()
     
     select type(matrix)
     class is (sparse_matrix_t)  
-       !call matrix%print_matrix_market(6) 
+       call matrix%print_matrix_market(6) 
     class DEFAULT
        assert(.false.) 
     end select
     
     select type(rhs)
     class is (serial_scalar_array_t)  
-    !call rhs%print(6) 
+    call rhs%print(6)
+    alpha = rhs%nrm2()
+    
     class DEFAULT
        assert(.false.) 
     end select
@@ -513,34 +541,19 @@ contains
   subroutine solve_system(this)
     implicit none
     class(test_poisson_driver_t), intent(inout) :: this
-    class(matrix_t)                         , pointer       :: matrix
-    class(vector_t)                         , pointer       :: rhs
-    class(vector_t)                         , pointer       :: dof_values
-
-    matrix     => this%fe_affine_operator%get_matrix()
-    rhs        => this%fe_affine_operator%get_translation()
+    class(vector_t), pointer       :: dof_values
+    class(vector_t), allocatable :: rhs
+    integer(ip) :: istat
+    
+    call this%fe_affine_operator%create_range_vector(rhs)
+    
     dof_values => this%solution%get_free_dof_values()
-    
-#ifdef ENABLE_MKL    
-    call this%direct_solver%solve(this%fe_affine_operator%get_translation(), dof_values)
-#else
-    call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
-                                            dof_values)
-#endif    
-    !select type (dof_values)
-    !class is (serial_scalar_array_t)  
-    !   call dof_values%print(6)
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    
-    !select type (matrix)
-    !class is (sparse_matrix_t)  
-    !   call this%direct_solver%update_matrix(matrix, same_nonzero_pattern=.true.)
-    !   call this%direct_solver%solve(rhs , dof_values )
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
+    !call dof_values%init(0.0_rp)
+    call rhs%init(0.0_rp)
+    call this%nl_solver%apply(rhs, dof_values ) 
+    call rhs%free()
+    deallocate(rhs, stat=istat); check(istat==0);
+
   end subroutine solve_system
     
   subroutine check_solution(this)
@@ -656,6 +669,7 @@ contains
     class(test_poisson_driver_t), intent(inout) :: this    
     call this%free()
     call this%parse_command_line_parameters()
+    call this%setup_environment()
     call this%setup_triangulation()
     call this%setup_reference_fes()
     call this%setup_fe_space()
@@ -684,6 +698,7 @@ contains
 #else
     call this%iterative_linear_solver%free()
 #endif
+    call this%nl_solver%free() 
     
     call this%fe_affine_operator%free()
     call this%fe_space%free()
