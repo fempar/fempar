@@ -28,6 +28,7 @@
 module nonlinear_solver_names
   use types_names
   use memor_names
+  use vector_space_names
   use vector_names
   use environment_names
   
@@ -49,11 +50,12 @@ module nonlinear_solver_names
       integer(ip)                              :: max_number_iterations
       real(rp)                                 :: absolute_tolerance
       real(rp)                                 :: relative_tolerance
+      real(rp)                                 :: initial_residual_norm
       character(len=:),               allocatable  :: convergence_criteria
       class(vector_t),                pointer      :: current_dof_values => null()
+      class(vector_t),                allocatable  :: initial_solution 
       class(vector_t),                allocatable  :: current_residual   
       class(vector_t),                allocatable  :: minus_current_residual
-      class(vector_t),                allocatable  :: initial_residual
       class(vector_t),                allocatable  :: increment_dof_values
       class(linear_solver_t),         pointer      :: linear_solver
       class(environment_t),           pointer      :: environment
@@ -72,6 +74,9 @@ module nonlinear_solver_names
       procedure :: has_converged                     => nonlinear_solver_has_converged
       procedure :: has_finished                      => nonlinear_solver_has_finished
       procedure :: get_current_iteration             => nonlinear_solver_get_current_iteration
+      
+      ! Setters
+      procedure :: set_initial_solution               => nonlinear_solver_set_initial_solution
 
       ! Private TBPs
       !procedure, private :: initialize                       => nonlinear_solver_initialize
@@ -120,6 +125,8 @@ subroutine nonlinear_solver_create(this, &
   this%linear_solver  => linear_solver
   this%environment    => environment
   this%nonlinear_operator => nonlinear_operator
+  call this%nonlinear_operator%create_range_vector(this%initial_solution)
+  call this%initial_solution%init(0.0_rp)
 end subroutine nonlinear_solver_create
 
 !==============================================================================
@@ -141,6 +148,7 @@ subroutine nonlinear_solver_apply(this,rhs,unknown)
   
   ! Initialize nonlinear operator
   this%current_dof_values => unknown
+  call this%current_dof_values%copy(this%initial_solution)
   this%current_iteration = 0  
   call this%increment_dof_values%init(0.0) 
   
@@ -150,8 +158,7 @@ subroutine nonlinear_solver_apply(this,rhs,unknown)
   
   ! Store initial residual for the stopping criterium that needs it
   if (this%convergence_criteria == rel_r0_res_norm) then
-    call this%nonlinear_operator%create_range_vector(this%initial_residual)
-    this%initial_residual = this%current_residual
+    this%initial_residual_norm = this%current_residual%nrm2()
   end if
   call this%nonlinear_operator%create_range_vector(this%minus_current_residual)
 
@@ -208,10 +215,6 @@ subroutine nonlinear_solver_free(this)
     call this%current_residual%free()
     deallocate(this%current_residual,stat=istat); check(istat==0)
   end if  
-  if(allocated(this%initial_residual)) then
-    call this%initial_residual%free()
-    deallocate(this%initial_residual,stat=istat); check(istat==0)
-  end if
   if(allocated(this%increment_dof_values)) then
     call this%increment_dof_values%free()
     deallocate(this%increment_dof_values,stat=istat); check(istat==0)
@@ -219,6 +222,10 @@ subroutine nonlinear_solver_free(this)
   if(allocated(this%minus_current_residual)) then
     call this%minus_current_residual%free()
     deallocate(this%minus_current_residual,stat=istat); check(istat==0)
+  end if
+  if(allocated(this%initial_solution)) then
+    call this%initial_solution%free()
+    deallocate(this%initial_solution,stat=istat); check(istat==0)
   end if
   this%current_dof_values => null()
   this%linear_solver      => null()
@@ -238,7 +245,7 @@ function nonlinear_solver_has_converged(this)
   case (rel_inc_norm) ! |dx_i| <= rel_norm*|x_i|
     nonlinear_solver_has_converged = ( this%increment_dof_values%nrm2() <= this%relative_tolerance*this%current_dof_values%nrm2() )
   case (rel_r0_res_norm) ! |r(x_i)| <= rel_tol*|r(x_0)|
-    nonlinear_solver_has_converged = ( this%current_residual%nrm2() <= this%relative_tolerance*this%initial_residual%nrm2() )
+    nonlinear_solver_has_converged = ( this%current_residual%nrm2() <= this%relative_tolerance*this%initial_residual_norm )
   case (abs_res_norm_and_rel_inc_norm) !  |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
     nonlinear_solver_has_converged = ( this%current_residual%nrm2() <= this%absolute_tolerance ) .and. &
                                         ( this%increment_dof_values%nrm2() <= this%relative_tolerance*this%current_dof_values%nrm2() )
@@ -267,6 +274,22 @@ function nonlinear_solver_get_current_iteration(this)
   integer(ip)                               :: nonlinear_solver_get_current_iteration
   nonlinear_solver_get_current_iteration = this%current_iteration
 end function nonlinear_solver_get_current_iteration
+
+!==============================================================================
+   subroutine nonlinear_solver_set_initial_solution( this, initial_solution )
+     implicit none
+     class(nonlinear_solver_t), intent(inout) :: this
+     class(vector_t)                 , intent(in)    :: initial_solution
+     type(vector_space_t)            , pointer       :: nonlinear_operator_range 
+     call initial_solution%GuardTemp()
+     nonlinear_operator_range  => this%nonlinear_operator%get_range_vector_space()
+     if (.not. nonlinear_operator_range%belongs_to(initial_solution)) then
+       write(0,'(a)') 'Warning: nonlinear_solver_t%set_initial_solution :: Ignoring initial solution; it does not belong to range(A)'
+     else
+       call this%initial_solution%copy(initial_solution)
+     end if  
+     call initial_solution%CleanTemp()
+   end subroutine nonlinear_solver_set_initial_solution
 
 !==============================================================================
 subroutine nonlinear_solver_update_solution(this)
@@ -303,7 +326,7 @@ subroutine nonlinear_solver_print_current_iteration_output(this)
 
   implicit none
   class(nonlinear_solver_t), intent(inout)  :: this
-  real(rp) :: current_residual_nrm2, initial_residual_nrm2
+  real(rp) :: current_residual_nrm2
   real(rp) :: current_dof_values_nrm2, increment_dof_values_nrm2
     
   select case (this%convergence_criteria)
@@ -319,9 +342,8 @@ subroutine nonlinear_solver_print_current_iteration_output(this)
 
   case (rel_r0_res_norm) ! |r(x_i)| <= rel_tol*|r(x_0)|
     current_residual_nrm2 = this%current_residual%nrm2()
-    initial_residual_nrm2 = this%initial_residual%nrm2()
     if ( this%environment%am_i_l1_root()) write(*,'(i10,3es21.10)') this%current_iteration, current_residual_nrm2, &
-                                          this%relative_tolerance*initial_residual_nrm2, this%relative_tolerance
+                                          this%relative_tolerance*this%initial_residual_norm, this%relative_tolerance
 
   case (abs_res_norm_and_rel_inc_norm) !  |r(x_i)| <= abs_tol & |dx_i| <= rel_norm*|x_i|
     current_residual_nrm2 = this%current_residual%nrm2()
@@ -345,5 +367,6 @@ subroutine nonlinear_solver_print_final_output(this)
    if ( this%environment%am_i_l1_root() ) write(*,*) ' ---- Newton NL failed to converge after', this%current_iteration, 'iterations --- '
   end if
 end subroutine nonlinear_solver_print_final_output
+
 
 end module nonlinear_solver_names
