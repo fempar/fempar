@@ -2584,7 +2584,7 @@ subroutine serial_fe_space_list_dofs ( this )
   integer(ip) :: previous_dof_block
   integer(ip) :: current_fixed_dof, previous_fixed_dof
   integer(ip) :: source_cell_id, source_vef_lid
-  logical     :: is_owner, fe_is_local, add_dofs
+  logical     :: no_dofs_assigned_yet, fe_is_local, add_dofs
   integer(ip) :: ielem
   integer(ip) :: ivef_in_source_fe
   class(reference_fe_t), pointer :: reference_fe
@@ -2649,17 +2649,22 @@ subroutine serial_fe_space_list_dofs ( this )
                     !  2. vef is improper, it is on a local cell, and all coarse cells are void
                     if ( vef%is_proper() .or. (fe_is_local .and. &
                          vef%all_coarser_cells_are_void(field_id,coarser_fe)) ) then
-                       is_owner = ( owner_cell_gid_x_field_and_vef( field_id, vef_gid ) == -1 )
-                       if ( is_owner ) then
-                          previous_dof_block = fields_current_dof(field_id)
-                          call fe%generate_own_dofs_vef ( ivef, &
+                       no_dofs_assigned_yet = ( owner_cell_gid_x_field_and_vef( field_id, vef_gid ) == -1 )
+                       if ( no_dofs_assigned_yet ) then
+                          ! If a given vef that does not have DoFs assigned yet on top of it,
+                          ! we MUST not add DoFs on top of it if we first visit it from a ghost
+                          ! cell
+                          if ( fe_is_local ) then
+                            previous_dof_block = fields_current_dof(field_id)
+                            call fe%generate_own_dofs_vef ( ivef, &
                                                           field_id, &
                                                           fields_current_dof(field_id), &
                                                           free_dofs_loop=.true. )
-                          if ( previous_dof_block < fields_current_dof(field_id) ) then 
-                            owner_cell_gid_x_field_and_vef ( field_id, vef_gid ) = fe%get_gid() 
-                            per_field_vef_lid_in_owner_cell ( field_id, vef_gid ) = ivef 
-                          end if
+                            if ( previous_dof_block < fields_current_dof(field_id) ) then 
+                              owner_cell_gid_x_field_and_vef ( field_id, vef_gid ) = fe%get_gid() 
+                              per_field_vef_lid_in_owner_cell ( field_id, vef_gid ) = ivef 
+                            end if
+                          end if 
                        else
                           source_cell_id = owner_cell_gid_x_field_and_vef(field_id, vef_gid)
                           source_vef_lid = per_field_vef_lid_in_owner_cell(field_id,vef_gid)
