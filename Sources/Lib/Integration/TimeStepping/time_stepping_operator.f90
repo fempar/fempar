@@ -67,7 +67,10 @@ module time_stepping_names
   character(*), parameter :: forward_euler     = "forward_euler"
   character(*), parameter :: backward_euler    = "backward_euler"
   character(*), parameter :: trapezoidal_rule  = "trapezoidal_rule"
+  character(*), parameter :: mid_point         = "mid_point"
+  character(*), parameter :: runge_kutta_3     = "runge_kutta_3"
   character(*), parameter :: runge_kutta_4     = "runge_kutta_4"
+  character(*), parameter :: runge_kutta_4_3_8 = "runge_kutta_4_3_8"
 
   ! states to be defined
   integer(ip), parameter :: created             = 0

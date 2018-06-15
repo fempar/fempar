@@ -553,6 +553,7 @@ contains
     call this%fe_nl_op%free()
     call this%mass_nl_op%free()
     call this%fe_space%free()
+    call this%fe_mass_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)
         call this%reference_fes(i)%p%free()

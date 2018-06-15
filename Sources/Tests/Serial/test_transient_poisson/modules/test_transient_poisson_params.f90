@@ -240,7 +240,8 @@ contains
     call this%cli%add(switch='--time-step',switch_ab='-dt',help='Time step size: dt',&
          &            required=.false.,act='store',def=trim(this%default_time_step),error=error) 
     check(error==0)
-    call this%cli%add(switch='--time-integration-scheme',switch_ab='-rk-scheme',help='Time disctetization scheme of the DIRK solver. Possible values `forward_euler`, `backward_euler`, `trapezoidal_rule` , `runge_kutta_4` ',&
+    call this%cli%add(switch='--time-integration-scheme',switch_ab='-rk-scheme', & 
+    help='Time disctetization scheme of the DIRK solver. Possible values `forward_euler`, `backward_euler`, `trapezoidal_rule`, `mid_point`, `runge_kutta_3`, `runge_kutta_4`, `runge_kutta_4_3_8`',&
          &            required=.false.,act='store',def=trim(this%default_time_integration_scheme),error=error) 
     check(error==0) 
   end subroutine test_transient_poisson_add_to_cli
