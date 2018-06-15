@@ -152,8 +152,8 @@ subroutine serial_fe_space_free (this)
   call this%free_at_strong_dirichlet_boundary()
   call this%free_has_fixed_dofs()
   nullify(this%conditions)
-  this%num_free_dofs  = 0
-  this%num_ghost_dofs = 0
+  this%num_total_free_dofs  = 0
+  this%num_total_free_ghost_dofs = 0
   this%num_fixed_dofs = 0
   if (allocated(this%num_dofs_x_field)) call memfree( this%num_dofs_x_field, __FILE__, __LINE__ )
   call this%free_gen_dof_num_scratch_data()
@@ -2191,7 +2191,7 @@ subroutine serial_fe_space_count_dofs ( this )
      if ( fe%is_ghost() ) then
          do field_id = 1, this%num_fields
            if ( .not. fe%is_void(field_id)) then
-              this%num_ghost_dofs = this%num_ghost_dofs + fe%count_own_dofs_cell(field_id)
+              this%num_total_free_ghost_dofs = this%num_total_free_ghost_dofs + fe%count_own_dofs_cell(field_id)
               if ( this%fe_space_type_x_field(field_id) == fe_space_type_cg ) then
                  do ivef = 1, fe%get_num_vefs()
                    call fe%get_vef(ivef, vef)
@@ -2242,14 +2242,14 @@ subroutine serial_fe_space_count_dofs ( this )
                          num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
                          if (num_own_dofs_on_vef>0) then
                            per_field_proper_vefs_visited (field_id,vef_lid) = .true.
-                           this%num_ghost_dofs = this%num_ghost_dofs + num_own_dofs_on_vef
+                           this%num_total_free_ghost_dofs = this%num_total_free_ghost_dofs + num_own_dofs_on_vef
                          end if
                        end if
                      else if ( .not. per_field_improper_vefs_visited (field_id,vef_lid) ) then
                        num_own_dofs_on_vef = fe%count_own_dofs_vef(ivef,field_id)
                        if (num_own_dofs_on_vef>0) then
                          per_field_improper_vefs_visited (field_id,vef_lid) = .true.
-                         this%num_ghost_dofs = this%num_ghost_dofs + num_own_dofs_on_vef
+                         this%num_total_free_ghost_dofs = this%num_total_free_ghost_dofs + num_own_dofs_on_vef
                        end if
                      end if
                    end if
@@ -2536,8 +2536,8 @@ subroutine serial_fe_space_list_dofs ( this )
    this%num_hanging_ghost_dofs = current_fixed_dof - this%num_fixed_dofs - this%num_hanging_dofs
    this%num_hanging_dofs       = this%num_hanging_dofs + this%num_hanging_ghost_dofs
    this%num_fixed_dofs         = current_fixed_dof
-   this%num_free_dofs          = sum(this%num_dofs_x_field)
-   if ( this%num_fields == 1 ) this%num_ghost_dofs = fields_current_dof(1) - this%num_free_dofs
+   this%num_total_free_dofs          = sum(this%num_dofs_x_field)
+   if ( this%num_fields == 1 ) this%num_total_free_ghost_dofs = fields_current_dof(1) - this%num_total_free_dofs
   
 
   call this%free_fe_cell_iterator(coarser_fe)
@@ -2969,33 +2969,33 @@ function serial_fe_space_get_ptr_dofs_per_fe(this)
   serial_fe_space_get_ptr_dofs_per_fe => this%ptr_dofs_x_fe
 end function serial_fe_space_get_ptr_dofs_per_fe
 
-function serial_fe_space_get_num_free_dofs(this)
+function serial_fe_space_get_num_total_free_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
-  integer(ip) :: serial_fe_space_get_num_free_dofs
-  serial_fe_space_get_num_free_dofs = this%num_free_dofs
-end function serial_fe_space_get_num_free_dofs
+  integer(ip) :: serial_fe_space_get_num_total_free_dofs
+  serial_fe_space_get_num_total_free_dofs = this%num_total_free_dofs
+end function serial_fe_space_get_num_total_free_dofs
 
-subroutine serial_fe_space_set_num_free_dofs(this,num_free_dofs)
+subroutine serial_fe_space_set_num_total_free_dofs(this,num_total_free_dofs)
   implicit none
   class(serial_fe_space_t), intent(inout)    :: this 
-  integer(ip), intent(inout) :: num_free_dofs
-  this%num_free_dofs = num_free_dofs
-end subroutine serial_fe_space_set_num_free_dofs
+  integer(ip), intent(inout) :: num_total_free_dofs
+  this%num_total_free_dofs = num_total_free_dofs
+end subroutine serial_fe_space_set_num_total_free_dofs
 
-function serial_fe_space_get_num_ghost_dofs(this)
+function serial_fe_space_get_num_total_free_ghost_dofs(this)
   implicit none
   class(serial_fe_space_t), intent(in)    :: this 
-  integer(ip) :: serial_fe_space_get_num_ghost_dofs
-  serial_fe_space_get_num_ghost_dofs = this%num_ghost_dofs
-end function serial_fe_space_get_num_ghost_dofs
+  integer(ip) :: serial_fe_space_get_num_total_free_ghost_dofs
+  serial_fe_space_get_num_total_free_ghost_dofs = this%num_total_free_ghost_dofs
+end function serial_fe_space_get_num_total_free_ghost_dofs
 
-subroutine serial_fe_space_set_num_ghost_dofs(this,num_ghost_dofs)
+subroutine serial_fe_space_set_num_total_free_ghost_dofs(this,num_ghost_dofs)
   implicit none
   class(serial_fe_space_t), intent(inout)    :: this 
   integer(ip), intent(inout) :: num_ghost_dofs
-  this%num_ghost_dofs = num_ghost_dofs
-end subroutine serial_fe_space_set_num_ghost_dofs
+  this%num_total_free_ghost_dofs = num_ghost_dofs
+end subroutine serial_fe_space_set_num_total_free_ghost_dofs
 
 function serial_fe_space_get_num_fixed_dofs(this)
   implicit none
@@ -3166,7 +3166,7 @@ function serial_fe_space_is_free_dof ( this, dof_lid )
   class(serial_fe_space_t)   , intent(in) :: this
   integer(ip)            , intent(in) :: dof_lid
   logical :: serial_fe_space_is_free_dof
-  serial_fe_space_is_free_dof = (dof_lid > 0 .and. dof_lid <= this%num_free_dofs)
+  serial_fe_space_is_free_dof = (dof_lid > 0 .and. dof_lid <= this%num_total_free_dofs)
 end function serial_fe_space_is_free_dof
 
 function serial_fe_space_is_ghost_dof ( this, dof_lid )
@@ -3174,7 +3174,7 @@ function serial_fe_space_is_ghost_dof ( this, dof_lid )
   class(serial_fe_space_t), intent(in) :: this
   integer(ip)             , intent(in) :: dof_lid
   logical :: serial_fe_space_is_ghost_dof
-  serial_fe_space_is_ghost_dof = (dof_lid > this%num_free_dofs .and. (dof_lid <= (this%num_free_dofs + this%num_ghost_dofs)))
+  serial_fe_space_is_ghost_dof = (dof_lid > this%num_total_free_dofs .and. (dof_lid <= (this%num_total_free_dofs + this%num_total_free_ghost_dofs)))
 end function serial_fe_space_is_ghost_dof
 
 function serial_fe_space_is_strong_dirichlet_dof ( this, dof_lid )

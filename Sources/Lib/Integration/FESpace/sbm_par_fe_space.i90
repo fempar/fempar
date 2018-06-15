@@ -227,8 +227,8 @@ subroutine par_fe_space_free( this )
         this%num_fields = 0
         
         ! This is a little bit DIRTY, force initialization of variable.
-        this%num_free_dofs  = 0
-        this%num_ghost_dofs = 0
+        this%num_total_free_dofs  = 0
+        this%num_total_free_ghost_dofs = 0
         
         ! This is a little bit DIRTY. fe_function%create(fe_space)
         ! requires that num_fixed_dofs is initialize

@@ -578,11 +578,17 @@ module fe_space_names
      
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
-     integer(ip)                                 :: num_free_dofs
-     integer(ip)                                 :: num_ghost_dofs
+     ! Total number (among all fields) of free DoFs EXCLUDING free ghost DoFs
+     integer(ip)                                 :: num_total_free_dofs
+     ! Total number (among all fields) of free ghost DoFs
+     integer(ip)                                 :: num_total_free_ghost_dofs
+     ! Total number (among all fields) of fixed DoFs INCLUDING fixed ghost DoFs
      integer(ip)                                 :: num_fixed_dofs
+     ! Total number (among all fields) of hanging DoFs INCLUDING hanging ghost DoFs
      integer(ip)                                 :: num_hanging_dofs
+     ! Total number (among all fields) of hanging ghost DoFs
      integer(ip)                                 :: num_hanging_ghost_dofs
+     ! Total number (among all fields) of DoFs s.t. Dirichlet BCs, INCLUDING ghost DoFs
      integer(ip)                                 :: num_dirichlet_dofs
      type(std_vector_logical_t)    , allocatable :: at_strong_dirichlet_boundary_x_fe(:)
      type(std_vector_logical_t)    , allocatable :: has_fixed_dofs_x_fe(:)
@@ -721,10 +727,10 @@ module fe_space_names
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure, non_overridable          :: get_ptr_dofs_x_fe                            => serial_fe_space_get_ptr_dofs_per_fe
-     procedure                           :: get_num_free_dofs                            => serial_fe_space_get_num_free_dofs
-     procedure, non_overridable          :: set_num_free_dofs                            => serial_fe_space_set_num_free_dofs
-     procedure                           :: get_num_ghost_dofs                           => serial_fe_space_get_num_ghost_dofs
-     procedure, non_overridable          :: set_num_ghost_dofs                           => serial_fe_space_set_num_ghost_dofs
+     procedure                           :: get_num_total_free_dofs                      => serial_fe_space_get_num_total_free_dofs
+     procedure, non_overridable          :: set_num_total_free_dofs                      => serial_fe_space_set_num_total_free_dofs
+     procedure                           :: get_num_total_free_ghost_dofs                => serial_fe_space_get_num_total_free_ghost_dofs
+     procedure, non_overridable          :: set_num_total_free_ghost_dofs                => serial_fe_space_set_num_total_free_ghost_dofs
      procedure                           :: get_num_fixed_dofs                           => serial_fe_space_get_num_fixed_dofs
      procedure, non_overridable          :: set_num_fixed_dofs                           => serial_fe_space_set_num_fixed_dofs
      procedure                           :: get_num_dirichlet_dofs                       => serial_fe_space_get_num_dirichlet_dofs
@@ -1320,9 +1326,10 @@ module fe_space_names
  
   type fe_function_t
    private
-   integer(ip)                   :: num_free_dofs
+   ! Total number (among all fields) of free DoFs EXCLUDING free ghost DoFs
+   integer(ip)                   :: num_total_free_dofs
    class(vector_t), allocatable  :: free_dof_values
-   type(serial_scalar_array_t)   :: ghost_dof_values
+   type(serial_scalar_array_t)   :: free_ghost_dof_values
    type(serial_scalar_array_t)   :: fixed_dof_values
    type(serial_scalar_array_t)   :: constraining_x_fixed_dof_values ! C_D u_D
   contains

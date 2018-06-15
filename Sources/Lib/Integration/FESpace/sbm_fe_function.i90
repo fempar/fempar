@@ -38,10 +38,10 @@
     class(fe_function_t)            , intent(inout) :: this
     class(serial_fe_space_t)        , intent(in)    :: fe_space
     call this%free()
-    this%num_free_dofs = fe_space%get_num_free_dofs()
+    this%num_total_free_dofs = fe_space%get_num_total_free_dofs()
     call fe_space%create_dof_values(this%free_dof_values)
-    call this%ghost_dof_values%create_and_allocate(fe_space%get_num_ghost_dofs())
-    call this%ghost_dof_values%init(0.0_rp)
+    call this%free_ghost_dof_values%create_and_allocate(fe_space%get_num_total_free_ghost_dofs())
+    call this%free_ghost_dof_values%init(0.0_rp)
     call this%fixed_dof_values%create_and_allocate(fe_space%get_num_fixed_dofs())
     call this%fixed_dof_values%init(0.0_rp)
   end subroutine fe_function_create
@@ -81,9 +81,9 @@
                                              nodal_values )
     
     if ( fe_cell_iterator%is_ghost() ) then
-      call this%ghost_dof_values%extract_subvector ( 1,                            &
+      call this%free_ghost_dof_values%extract_subvector ( 1,                            &
                                                      num_nodes_field,              &
-                                                     fe_dofs - this%num_free_dofs, &
+                                                     fe_dofs - this%num_total_free_dofs, &
                                                      nodal_values )
     end if
     
@@ -121,9 +121,9 @@
                                              fe_dofs,           &
                                              nodal_values )
     
-    call this%ghost_dof_values%extract_subvector ( 1,                            &
+    call this%free_ghost_dof_values%extract_subvector ( 1,                            &
                                                    num_nodes_field,              &
-                                                   fe_dofs - this%num_free_dofs, &
+                                                   fe_dofs - this%num_total_free_dofs, &
                                                    nodal_values )
     
   end subroutine fe_function_gather_nodal_values_from_raw_data
@@ -164,9 +164,9 @@
                                              nodal_values )
     
     if ( fe%is_ghost() ) then
-      call this%ghost_dof_values%insert_subvector ( 1,                            &
+      call this%free_ghost_dof_values%insert_subvector ( 1,                            &
                                                     num_nodes_field,              &
-                                                    fe_dofs - this%num_free_dofs, &
+                                                    fe_dofs - this%num_total_free_dofs, &
                                                     nodal_values )
     end if
     
@@ -202,13 +202,13 @@
     implicit none
     class(fe_function_t), intent(inout) :: this
     integer(ip)                         :: istat
-    this%num_free_dofs = 0_ip
+    this%num_total_free_dofs = 0_ip
     if( allocated(this%free_dof_values) ) then
       call this%free_dof_values%free()
       deallocate ( this%free_dof_values, stat=istat )
       check (istat == 0)
     end if
-    call this%ghost_dof_values%free()
+    call this%free_ghost_dof_values%free()
     call this%fixed_dof_values%free()
   end subroutine fe_function_free
 
