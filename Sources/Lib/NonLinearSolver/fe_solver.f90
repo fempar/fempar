@@ -40,7 +40,7 @@ module fe_solver_names
 
   type, extends(operator_t) :: fe_solver_t       
   private
-  class(fe_nonlinear_operator_t),  pointer :: fe_nonlinear_operator => null()
+  class(fe_operator_t),  pointer :: fe_nonlinear_operator => null()
   class(solver_t),                 pointer :: solver => null()
 
 contains
@@ -93,7 +93,7 @@ end function fe_solver_is_linear
 function fe_solver_get_fe_nonlinear_operator(this)
  implicit none
  class(fe_solver_t),        intent(inout) :: this
- class(fe_nonlinear_operator_t), pointer  :: fe_solver_get_fe_nonlinear_operator
+ class(fe_operator_t), pointer  :: fe_solver_get_fe_nonlinear_operator
  fe_solver_get_fe_nonlinear_operator => this%fe_nonlinear_operator
 end function fe_solver_get_fe_nonlinear_operator
 
@@ -108,7 +108,7 @@ end function fe_solver_get_solver
 subroutine fe_solver_set_fe_nonlinear_operator( this, fe_nonlinear_operator )
  implicit none
  class(fe_solver_t),                    intent(inout)    :: this
- class(fe_nonlinear_operator_t),  target,  intent(in)    :: fe_nonlinear_operator  
+ class(fe_operator_t),  target,  intent(in)    :: fe_nonlinear_operator  
  this%fe_nonlinear_operator => fe_nonlinear_operator
 end subroutine  fe_solver_set_fe_nonlinear_operator
 

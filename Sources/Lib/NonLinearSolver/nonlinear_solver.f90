@@ -35,7 +35,7 @@ module nonlinear_solver_names
 
   !use base_sparse_matrix_names
   use linear_solver_names
-  use fe_nonlinear_operator_names
+  use fe_operator_names
   implicit none
 # include "debug.i90"
   private
@@ -60,7 +60,7 @@ module nonlinear_solver_names
   class(vector_t),                allocatable  :: increment_dof_values
   class(linear_solver_t),         pointer      :: linear_solver
   class(environment_t),           pointer      :: environment
-  class(fe_nonlinear_operator_t), pointer      :: nonlinear_operator
+  class(fe_operator_t),           pointer      :: fe_operator
 
 contains
 
@@ -114,7 +114,7 @@ subroutine nonlinear_solver_create(this, &
     max_iters, &
     linear_solver, &
     environment, &
-    nonlinear_operator)
+    fe_operator)
  implicit none
  class(nonlinear_solver_t)             , intent(inout) :: this
  character(len=*)                      , intent(in)    :: convergence_criteria
@@ -123,7 +123,7 @@ subroutine nonlinear_solver_create(this, &
  integer(ip)                           , intent(in)    :: max_iters
  class(linear_solver_t)        , target, intent(in)    :: linear_solver
  class(environment_t)          , target, intent(in)    :: environment
- class(fe_nonlinear_operator_t), target, intent(in)    :: nonlinear_operator
+ class(fe_operator_t)          , target, intent(in)    :: fe_operator
 
  call this%free()
 
@@ -135,8 +135,8 @@ subroutine nonlinear_solver_create(this, &
  this%max_number_iterations = max_iters
  this%linear_solver  => linear_solver
  this%environment    => environment
- this%nonlinear_operator => nonlinear_operator
- call this%nonlinear_operator%create_range_vector(this%initial_solution)
+ this%fe_operator => fe_operator
+ call this%fe_operator%create_range_vector(this%initial_solution)
  call this%initial_solution%init(0.0_rp)
 end subroutine nonlinear_solver_create
 
@@ -154,7 +154,7 @@ subroutine nonlinear_solver_apply(this,x,y)
  integer(ip) :: istat
 
  ! Initialize work data
- call this%nonlinear_operator%create_domain_vector(this%increment_dof_values)
+ call this%fe_operator%create_domain_vector(this%increment_dof_values)
 
  ! Initialize nonlinear operator
  call this%set_current_dof_values(y)
@@ -163,14 +163,14 @@ subroutine nonlinear_solver_apply(this,x,y)
  call this%increment_dof_values%init(0.0) 
 
  ! Compute initial residual
- call this%nonlinear_operator%create_range_vector(this%current_residual)
+ call this%fe_operator%create_range_vector(this%current_residual)
  call this%compute_residual(x)
 
- ! Store initial residual for the stopping criterium that needs it
+ ! Store initial residual norm for the stopping criterium that needs it
  if (this%convergence_criteria == rel_r0_res_norm) then
     this%initial_residual_norm = this%current_residual%nrm2()
  end if
- call this%nonlinear_operator%create_range_vector(this%minus_current_residual)
+ call this%fe_operator%create_range_vector(this%minus_current_residual)
 
  ! Print initial residual
  call this%print_iteration_output_header()
@@ -232,7 +232,7 @@ subroutine nonlinear_solver_compute_residual(this,rhs)
  implicit none
  class(nonlinear_solver_t), intent(inout)  :: this
  class(vector_t)          , intent(in)     :: rhs
- call this%nonlinear_operator%apply(this%current_dof_values,this%current_residual)
+ call this%fe_operator%apply(this%current_dof_values,this%current_residual)
  call this%current_residual%axpby(-1.0_rp, rhs,1.0_rp)
 end subroutine nonlinear_solver_compute_residual
 
@@ -240,7 +240,7 @@ end subroutine nonlinear_solver_compute_residual
 subroutine nonlinear_solver_compute_tangent(this)
  implicit none
  class(nonlinear_solver_t), intent(inout)  :: this
- call this%nonlinear_operator%compute_tangent() 
+ call this%fe_operator%compute_tangent() 
 end subroutine nonlinear_solver_compute_tangent
 
 !==============================================================================
@@ -328,7 +328,7 @@ subroutine nonlinear_solver_set_initial_solution( this, initial_solution )
  class(vector_t)                 , intent(in)    :: initial_solution
  type(vector_space_t)            , pointer       :: nonlinear_operator_range 
  call initial_solution%GuardTemp()
- nonlinear_operator_range  => this%nonlinear_operator%get_range_vector_space()
+ nonlinear_operator_range  => this%fe_operator%get_range_vector_space()
  if (.not. nonlinear_operator_range%belongs_to(initial_solution)) then
     write(0,'(a)') 'Warning: nonlinear_solver_t%set_initial_solution :: Ignoring initial solution; it does not belong to range(A)'
  else

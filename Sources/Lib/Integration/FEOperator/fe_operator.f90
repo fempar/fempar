@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module fe_nonlinear_operator_names
+module fe_operator_names
   use types_names
   use memor_names
 
@@ -70,7 +70,7 @@ module fe_nonlinear_operator_names
   !       Let us not however, that "start" is not actually an state to which we 
   !       assign a parameter constant above.
   
-  ! State transition diagram for type(fe_nonlinear_operator_t)
+  ! State transition diagram for type(fe_operator_t)
   ! -------------------------------------------------
   ! Input State | Action               | Output State 
   ! -------------------------------------------------
@@ -110,7 +110,7 @@ module fe_nonlinear_operator_names
   ! assembler_computed  | is_linear            | assembler_computed
   ! assembler_computed  | get*/abort*          | assembler_computed
 
-  type, extends(operator_t):: fe_nonlinear_operator_t
+  type, extends(operator_t):: fe_operator_t
      private
      integer(ip)                       , pointer     :: state                    => NULL()
      character(:)                      , allocatable :: sparse_matrix_storage_format
@@ -124,37 +124,37 @@ module fe_nonlinear_operator_names
      logical                           , allocatable :: diagonal_blocks_symmetric(:)
      integer(ip)                       , allocatable :: diagonal_blocks_sign(:)
    contains
-     procedure          :: create                      => fe_nonlinear_operator_create
-     procedure          :: free                        => fe_nonlinear_operator_free
-     procedure          :: set_evaluation_point        => fe_nonlinear_operator_set_evaluation_point  
-     procedure          :: reallocate_after_remesh     => fe_nonlinear_operator_reallocate_after_remesh
+     procedure          :: create                      => fe_operator_create
+     procedure          :: free                        => fe_operator_free
+     procedure          :: set_evaluation_point        => fe_operator_set_evaluation_point  
+     procedure          :: reallocate_after_remesh     => fe_operator_reallocate_after_remesh
 
-     procedure          :: compute_tangent             => fe_nonlinear_operator_compute_tangent
-     procedure          :: compute_residual            => fe_nonlinear_operator_compute_residual
-     procedure, private :: compute_internal_residual   => fe_nonlinear_operator_compute_internal_residual
-     procedure          :: force_compute               => fe_nonlinear_operator_force_compute
+     procedure          :: compute_tangent             => fe_operator_compute_tangent
+     procedure          :: compute_residual            => fe_operator_compute_residual
+     procedure, private :: compute_internal_residual   => fe_operator_compute_internal_residual
+     procedure          :: force_compute               => fe_operator_force_compute
      
-     procedure          :: apply                       => fe_nonlinear_operator_apply
-     procedure          :: apply_add                   => fe_nonlinear_operator_apply_add
-     procedure          :: is_linear                   => fe_nonlinear_operator_is_linear
+     procedure          :: apply                       => fe_operator_apply
+     procedure          :: apply_add                   => fe_operator_apply_add
+     procedure          :: is_linear                   => fe_operator_is_linear
 
-     procedure          :: get_tangent                 => fe_nonlinear_operator_get_tangent 
-     procedure          :: get_matrix                  => fe_nonlinear_operator_get_matrix
-     procedure          :: get_translation             => fe_nonlinear_operator_get_translation
-     procedure          :: get_fe_space                => fe_nonlinear_operator_get_fe_space
-     procedure          :: get_discrete_integration    => fe_nonlinear_operator_get_discrete_integration
-     procedure          :: get_domain_vector_space     => fe_nonlinear_operator_get_domain_vector_space
-     procedure          :: get_range_vector_space      => fe_nonlinear_operator_get_range_vector_space
+     procedure          :: get_tangent                 => fe_operator_get_tangent 
+     procedure          :: get_matrix                  => fe_operator_get_matrix
+     procedure          :: get_translation             => fe_operator_get_translation
+     procedure          :: get_fe_space                => fe_operator_get_fe_space
+     procedure          :: get_discrete_integration    => fe_operator_get_discrete_integration
+     procedure          :: get_domain_vector_space     => fe_operator_get_domain_vector_space
+     procedure          :: get_range_vector_space      => fe_operator_get_range_vector_space
 
-     procedure          :: abort_if_not_in_range       => fe_nonlinear_operator_abort_if_not_in_range
-     procedure          :: abort_if_not_in_domain      => fe_nonlinear_operator_abort_if_not_in_domain
+     procedure          :: abort_if_not_in_range       => fe_operator_abort_if_not_in_range
+     procedure          :: abort_if_not_in_domain      => fe_operator_abort_if_not_in_domain
 
-     procedure, private :: create_serial_assembler     => fe_nonlinear_operator_create_serial_assembler
-     procedure, private :: create_par_assembler        => fe_nonlinear_operator_create_par_assembler
-     procedure, private :: create_vector_spaces        => fe_nonlinear_operator_create_vector_spaces
-  end type fe_nonlinear_operator_t
+     procedure, private :: create_serial_assembler     => fe_operator_create_serial_assembler
+     procedure, private :: create_par_assembler        => fe_operator_create_par_assembler
+     procedure, private :: create_vector_spaces        => fe_operator_create_vector_spaces
+  end type fe_operator_t
   
-type, extends(fe_nonlinear_operator_t):: fe_affine_operator_t
+type, extends(fe_operator_t):: fe_affine_operator_t
   private
  
 contains
@@ -166,12 +166,12 @@ contains
 end type fe_affine_operator_t
 
   ! Types
-  public :: fe_nonlinear_operator_t, fe_affine_operator_t
+  public :: fe_operator_t, fe_affine_operator_t
 
 contains
 
   
-#include "sbm_fe_nonlinear_operator.i90"
+#include "sbm_fe_operator.i90"
 #include "sbm_fe_affine_operator.i90"
   
 end module

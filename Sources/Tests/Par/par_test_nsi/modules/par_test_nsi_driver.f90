@@ -64,7 +64,7 @@ module par_test_nsi_driver_names
      ! Operators to define and solve the problem
      type(mlbddc_t)                              :: mlbddc
      type(iterative_linear_solver_t)             :: linear_solver
-     type(fe_nonlinear_operator_t)               :: nonlinear_operator
+     type(fe_operator_t)                         :: fe_operator
      type(nonlinear_solver_t)                    :: nonlinear_solver 
      !class(time_integration_t), allocatable     :: time_integration
      !type(theta_time_integration_t)              :: time_integration
@@ -158,7 +158,7 @@ contains
     !call this%timer_solver_setup%stop()
    
     ! Solve the problem
-    call this%nonlinear_operator%create_range_vector(rhs_dof_values) 
+    call this%fe_operator%create_range_vector(rhs_dof_values) 
     call rhs_dof_values%init(0.0_rp)
     free_dofs_values => this%solution%get_free_dof_values()
     
@@ -347,7 +347,7 @@ end subroutine free_timers
     class(vector_t), pointer  :: dof_values
     
     ! FE operator
-       call this%nonlinear_operator%create ( sparse_matrix_storage_format      = csr_format, &
+       call this%fe_operator%create ( sparse_matrix_storage_format      = csr_format, &
             &                                diagonal_blocks_symmetric_storage = [ .false. ], &
             &                                diagonal_blocks_symmetric         = [ .false. ], &
             &                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_INDEFINITE ], &
@@ -367,7 +367,7 @@ end subroutine free_timers
     end do
     FPLError = plist%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
     
-    call this%mlbddc%create(this%nonlinear_operator, this%parameter_list)    
+    call this%mlbddc%create(this%fe_operator, this%parameter_list)    
     
     ! Linear solver
     call this%linear_solver%create(this%fe_space%get_environment())
@@ -378,7 +378,7 @@ end subroutine free_timers
     FPLError = linear_pl%set(key = ils_atol, value = 1.0e-9); assert(FPLError == 0)
     call this%linear_solver%set_parameters_from_pl(linear_pl)
     ! sbadia : For the moment identity preconditioner
-    call this%linear_solver%set_operators( this%nonlinear_operator%get_tangent(), this%mlbddc )
+    call this%linear_solver%set_operators( this%fe_operator%get_tangent(), this%mlbddc )
 
     ! Nonlinear solver ! abs_res_norm_and_rel_inc_norm
     call this%nonlinear_solver%create(convergence_criteria = rel_r0_res_norm, & 
@@ -387,7 +387,7 @@ end subroutine free_timers
          &                                       max_iters = 10   ,  &
          &                                   linear_solver = this%linear_solver, &
          &                                     environment = this%par_environment, &
-                                        nonlinear_operator = this%nonlinear_operator)  
+                                        fe_operator = this%fe_operator)  
     
 
   end subroutine setup_operators
@@ -500,7 +500,7 @@ end subroutine free_timers
     call this%solution%free()
     call this%linear_solver%free()
     call this%nonlinear_solver%free()
-    call this%nonlinear_operator%free()
+    call this%fe_operator%free()
     call this%mlbddc%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then

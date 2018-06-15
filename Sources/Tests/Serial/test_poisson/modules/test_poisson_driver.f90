@@ -488,7 +488,7 @@ contains
          &                     max_iters = 10   ,  &
          &                     linear_solver = this%direct_solver, &
          &                     environment = this%serial_environment, &
-                               nonlinear_operator = this%fe_affine_operator)
+                               fe_operator = this%fe_affine_operator)
 #else    
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-12_rp)
     !FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
@@ -504,7 +504,7 @@ contains
          &                     max_iters = 10   ,  &
          &                     linear_solver = this%iterative_linear_solver, &
          &                     environment = this%serial_environment, &
-                               nonlinear_operator = this%fe_affine_operator)
+                               fe_operator = this%fe_affine_operator)
 #endif
     call parameter_list%free()
   end subroutine setup_solver

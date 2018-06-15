@@ -37,7 +37,7 @@ module unfitted_l1_coarse_fe_handler_names
   use environment_names
   use dof_import_names
   use serial_scalar_array_names
-  use fe_nonlinear_operator_names
+  use fe_operator_names
   use list_types_names
   use triangulation_names
   use unfitted_triangulations_names
@@ -88,7 +88,7 @@ subroutine unfitted_l1_create(this, fe_nonlinear_operator, parameter_list)
 
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
-  class(fe_nonlinear_operator_t), target,    intent(in)    :: fe_nonlinear_operator
+  class(fe_operator_t), target,    intent(in)    :: fe_nonlinear_operator
   class(parameterlist_t),      target,    intent(in)    :: parameter_list
 
   class(matrix_t),            pointer :: matrix
@@ -123,7 +123,7 @@ end subroutine unfitted_l1_create
 subroutine unfitted_l1_stiffness_l1_create(this, fe_nonlinear_operator)
   implicit none
   class(unfitted_l1_coarse_fe_handler_t), intent(inout) :: this
-  class(fe_nonlinear_operator_t), target,    intent(in)    :: fe_nonlinear_operator
+  class(fe_operator_t), target,    intent(in)    :: fe_nonlinear_operator
   mcheck(.false.,'This method does not make sense for this class')
 end subroutine unfitted_l1_stiffness_l1_create
 
