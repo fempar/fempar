@@ -2979,7 +2979,7 @@ end function serial_fe_space_get_num_total_free_dofs
 subroutine serial_fe_space_set_num_total_free_dofs(this,num_total_free_dofs)
   implicit none
   class(serial_fe_space_t), intent(inout)    :: this 
-  integer(ip), intent(inout) :: num_total_free_dofs
+  integer(ip), intent(in) :: num_total_free_dofs
   this%num_total_free_dofs = num_total_free_dofs
 end subroutine serial_fe_space_set_num_total_free_dofs
 
@@ -2993,7 +2993,7 @@ end function serial_fe_space_get_num_total_free_ghost_dofs
 subroutine serial_fe_space_set_num_total_free_ghost_dofs(this,num_ghost_dofs)
   implicit none
   class(serial_fe_space_t), intent(inout)    :: this 
-  integer(ip), intent(inout) :: num_ghost_dofs
+  integer(ip), intent(in) :: num_ghost_dofs
   this%num_total_free_ghost_dofs = num_ghost_dofs
 end subroutine serial_fe_space_set_num_total_free_ghost_dofs
 
@@ -3007,7 +3007,7 @@ end function serial_fe_space_get_num_fixed_dofs
 subroutine serial_fe_space_set_num_fixed_dofs(this,num_fixed_dofs)
   implicit none
   class(serial_fe_space_t), intent(inout)    :: this 
-  integer(ip), intent(inout) :: num_fixed_dofs
+  integer(ip), intent(in) :: num_fixed_dofs
   this%num_fixed_dofs = num_fixed_dofs
 end subroutine serial_fe_space_set_num_fixed_dofs
 
