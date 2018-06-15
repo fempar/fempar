@@ -244,7 +244,8 @@ contains
                                     initial_time            = this%test_params%get_initial_time() , &
                                     final_time              = this%test_params%get_final_time() , &
                                     time_step               = this%test_params%get_time_step() , &
-                                    time_integration_scheme = this%test_params%get_time_integration_scheme() )  !trapezoidal_rule, backward_euler
+                                    num_time_steps          = this%test_params%get_num_time_steps() , &
+                                    time_integration_scheme = this%test_params%get_time_integration_scheme() )  
     call this%time_operator%set_fe_functions( this%solution , this%mass_fe_fun ) !pmartorell: Should it be inside create? Not nice, provisional...
   
     call this%solution%create(this%fe_space) 
@@ -408,7 +409,7 @@ contains
     
 
     
-    do while ( current_time < final_time )
+    do while ( .not. this%time_operator%has_finished() )
 
        call dof_values_previous%copy(dof_values_current) ! copy entries
        call this%poisson_cG_integration%set_current_time(current_time)
@@ -426,7 +427,7 @@ contains
        call this%time_solver%apply( dof_values_previous, dof_values_current )
        ! sbadia: it is not nice to have to pass the initial data at two different levels 
        
-       call this%time_operator%update_current_time(current_time) ! pmartorall: updated current_time after solve, time_operator solves at t=t^(n-1) + c_i * dt
+       call this%time_operator%update_current_time(current_time) ! pmartorell: updated current_time after solve, time_operator solves at t=t^(n-1) + c_i * dt
        call this%fe_space%interpolate_dirichlet_values(this%solution, time=current_time) ! pmartorell: updated boundary values when not evaluated in the solver, e.g. forward_euler
        call this%write_time_step(current_time)
        call this%check_solution(current_time)

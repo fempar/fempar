@@ -56,6 +56,7 @@ module test_transient_poisson_params_names
      character(len=:), allocatable :: default_initial_time
      character(len=:), allocatable :: default_final_time
      character(len=:), allocatable :: default_time_step
+     character(len=:), allocatable :: default_num_time_steps
      character(len=:), allocatable :: default_time_integration_scheme
      
      
@@ -82,6 +83,7 @@ module test_transient_poisson_params_names
      real(rp)                      :: initial_time
      real(rp)                      :: final_time
      real(rp)                      :: time_step
+     integer(ip)                   :: num_time_steps
      character(len=str_cla_len)    :: time_integration_scheme
 
    contains
@@ -105,6 +107,7 @@ module test_transient_poisson_params_names
      procedure, non_overridable             :: get_initial_time
      procedure, non_overridable             :: get_final_time
      procedure, non_overridable             :: get_time_step
+     procedure, non_overridable             :: get_num_time_steps
      procedure, non_overridable             :: get_time_integration_scheme
   end type test_transient_poisson_params_t  
 
@@ -160,6 +163,7 @@ contains
     this%default_initial_time            = '0'
     this%default_final_time              = '1'
     this%default_time_step               = '1'
+    this%default_num_time_steps          = '1'
     this%default_time_integration_scheme = 'backward_euler'
   end subroutine test_transient_poisson_set_default
   
@@ -240,6 +244,9 @@ contains
     call this%cli%add(switch='--time-step',switch_ab='-dt',help='Time step size: dt',&
          &            required=.false.,act='store',def=trim(this%default_time_step),error=error) 
     check(error==0)
+    call this%cli%add(switch='--num-time-steps',switch_ab='-nt',help='Maximum number of time steps: nt',&
+         &            required=.false.,act='store',def=trim(this%default_time_step),error=error) 
+    check(error==0)
     call this%cli%add(switch='--time-integration-scheme',switch_ab='-rk-scheme', & 
     help='Time disctetization scheme of the DIRK solver. Possible values `forward_euler`, `backward_euler`, `trapezoidal_rule`, `mid_point`, `runge_kutta_3`, `runge_kutta_4`, `runge_kutta_4_3_8`',&
          &            required=.false.,act='store',def=trim(this%default_time_integration_scheme),error=error) 
@@ -278,6 +285,7 @@ contains
     call this%cli%get(switch='-t0',val=this%initial_time,error=istat); check(istat==0)
     call this%cli%get(switch='-tf',val=this%final_time,error=istat); check(istat==0)
     call this%cli%get(switch='-dt',val=this%time_step,error=istat); check(istat==0)
+    call this%cli%get(switch='-nt',val=this%num_time_steps,error=istat); check(istat==0)
     call this%cli%get(switch='-rk-scheme',val=this%time_integration_scheme,error=istat); check(istat==0)
 
     call parameter_list%init()
@@ -314,6 +322,7 @@ contains
     if(allocated(this%default_initial_time)) deallocate(this%default_initial_time) 
     if(allocated(this%default_final_time)) deallocate(this%default_final_time) 
     if(allocated(this%default_time_step)) deallocate(this%default_time_step) 
+    if(allocated(this%default_num_time_steps)) deallocate(this%default_num_time_steps) 
     if(allocated(this%default_time_integration_scheme)) deallocate(this%default_time_integration_scheme) 
     call this%cli%free()
   end subroutine test_transient_poisson_free
@@ -437,6 +446,14 @@ contains
     real(rp)                                  :: get_time_step
     get_time_step = this%time_step
   end function get_time_step
+  
+   !==================================================================================================
+  function get_num_time_steps(this)
+    implicit none
+    class(test_transient_poisson_params_t) , intent(in) :: this
+    integer(ip)                               :: get_num_time_steps
+    get_num_time_steps = this%num_time_steps
+  end function get_num_time_steps
  
    !==================================================================================================
   function get_time_integration_scheme(this)

@@ -153,6 +153,7 @@ module time_stepping_names
      class(vector_t)                          , pointer :: initial_value => NULL()
      class(vector_t)                      , allocatable :: dofs_stages(:)
      real(rp)                                           :: dt, time, final_time
+     integer(ip)                                        :: num_time_steps, current_time_step
      
      type(fe_function_t)                      , pointer :: solution_fe_fun
      type(fe_function_t)                      , pointer :: mass_fe_fun
@@ -167,9 +168,10 @@ module time_stepping_names
      procedure :: create                          => time_stepping_operator_create
      procedure :: free                            => time_stepping_operator_free
      procedure :: set_initial_data                => time_stepping_operator_set_initial_data
-     procedure :: set_initial_time                => time_stepping_operator_set_initial_time ! pmartorell: to be called inside create
-     procedure, private :: set_final_time         => time_stepping_operator_set_final_time ! pmartorell: to be called inside create
-     procedure :: set_time_step_size              => time_stepping_operator_set_time_step_size !pmartorell: to be called inside create, but public
+     procedure :: set_initial_time                => time_stepping_operator_set_initial_time 
+     procedure, private :: set_final_time         => time_stepping_operator_set_final_time 
+     procedure, private :: set_num_time_steps     => time_stepping_operator_set_num_time_steps
+     procedure :: set_time_step_size              => time_stepping_operator_set_time_step_size 
      procedure :: update_current_time             => time_stepping_operator_update_current_time
      procedure :: set_fe_functions                => time_stepping_operator_set_fe_functions
      procedure :: get_time_step                   => time_stepping_operator_get_time_step_size
@@ -177,6 +179,7 @@ module time_stepping_names
      procedure :: get_final_time                  => time_stepping_operator_get_final_time 
      procedure :: get_fe_functions                => time_stepping_operator_get_fe_functions
      procedure :: get_matrix                      => time_stepping_operator_get_matrix
+     procedure :: has_finished                    => time_stepping_operator_has_finished
      procedure, private :: allocate_dofs_stages   => time_stepping_operator_allocate_dofs_stages
      procedure, private :: deallocate_dofs_stages => time_stepping_operator_deallocate_dofs_stages
      procedure, private :: get_stage_operator     => time_stepping_operator_get_stage_operator
