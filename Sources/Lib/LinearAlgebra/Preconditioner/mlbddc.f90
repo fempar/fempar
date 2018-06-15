@@ -36,7 +36,7 @@ module mlbddc_names
  ! Integration related modules
  use triangulation_names
  use fe_space_names
- use fe_nonlinear_operator_names
+ use fe_operator_names
  
  ! Linear Algebra related modules
  use operator_names
@@ -281,7 +281,7 @@ end type base_mlbddc_t
    type(parameterlist_t)            , pointer :: parameter_list
    
    ! Pointer to the fe_nonlinear_operator_t this mlbddc_t instance has been created from
-   type(fe_nonlinear_operator_t)    , pointer :: fe_nonlinear_operator => NULL()
+   type(fe_operator_t)    , pointer :: fe_nonlinear_operator => NULL()
  contains
     procedure, non_overridable          :: create                                          => mlbddc_create
     procedure, non_overridable, private :: create_vector_spaces                            => mlbddc_create_vector_spaces
