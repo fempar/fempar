@@ -289,6 +289,7 @@ module fe_space_names
     procedure, non_overridable          :: determine_has_fixed_dofs                   => fe_cell_iterator_set_has_fixed_dofs
     procedure                           :: determine_has_hanging_dofs                 => fe_cell_iterator_set_has_hanging_dofs
     procedure, non_overridable          :: is_free_dof                                => fe_cell_iterator_is_free_dof
+    procedure, non_overridable          :: is_ghost_dof                               => fe_cell_iterator_is_ghost_dof
     procedure                           :: is_strong_dirichlet_dof                    => fe_cell_iterator_is_strong_dirichlet_dof   
     procedure, non_overridable          :: is_fixed_dof                               => fe_cell_iterator_is_fixed_dof
     procedure                           :: is_hanging_dof                             => fe_cell_iterator_is_hanging_dof
@@ -577,8 +578,17 @@ module fe_space_names
      
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
+     ! Total number (among all fields) of free DoFs EXCLUDING free ghost DoFs
+     integer(ip)                                 :: num_total_free_dofs
+     ! Total number (among all fields) of free ghost DoFs
+     integer(ip)                                 :: num_total_free_ghost_dofs
+     ! Total number (among all fields) of fixed DoFs INCLUDING fixed ghost DoFs
      integer(ip)                                 :: num_fixed_dofs
+     ! Total number (among all fields) of hanging DoFs INCLUDING hanging ghost DoFs
      integer(ip)                                 :: num_hanging_dofs
+     ! Total number (among all fields) of hanging ghost DoFs
+     integer(ip)                                 :: num_hanging_ghost_dofs
+     ! Total number (among all fields) of DoFs s.t. Dirichlet BCs, INCLUDING ghost DoFs
      integer(ip)                                 :: num_dirichlet_dofs
      type(std_vector_logical_t)    , allocatable :: at_strong_dirichlet_boundary_x_fe(:)
      type(std_vector_logical_t)    , allocatable :: has_fixed_dofs_x_fe(:)
@@ -717,11 +727,17 @@ module fe_space_names
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure, non_overridable          :: get_ptr_dofs_x_fe                            => serial_fe_space_get_ptr_dofs_per_fe
+     procedure                           :: get_num_total_free_dofs                      => serial_fe_space_get_num_total_free_dofs
+     procedure, non_overridable          :: set_num_total_free_dofs                      => serial_fe_space_set_num_total_free_dofs
+     procedure                           :: get_num_total_free_ghost_dofs                => serial_fe_space_get_num_total_free_ghost_dofs
+     procedure, non_overridable          :: set_num_total_free_ghost_dofs                => serial_fe_space_set_num_total_free_ghost_dofs
      procedure                           :: get_num_fixed_dofs                           => serial_fe_space_get_num_fixed_dofs
      procedure, non_overridable          :: set_num_fixed_dofs                           => serial_fe_space_set_num_fixed_dofs
      procedure                           :: get_num_dirichlet_dofs                       => serial_fe_space_get_num_dirichlet_dofs
      procedure                           :: get_num_hanging_dofs                         => serial_fe_space_get_num_hanging_dofs
      procedure, non_overridable          :: set_num_hanging_dofs                         => serial_fe_space_set_num_hanging_dofs
+     procedure                           :: get_num_hanging_ghost_dofs                   => serial_fe_space_get_num_hanging_ghost_dofs
+     procedure, non_overridable          :: set_num_hanging_ghost_dofs                   => serial_fe_space_set_num_hanging_ghost_dofs
      procedure                           :: get_num_blocks                            => serial_fe_space_get_num_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling
@@ -736,6 +752,7 @@ module fe_space_names
      procedure, non_overridable          :: get_constraining_dirichlet_dofs_coefficients => serial_fe_space_get_constraining_dirichlet_dofs_coefficients
      procedure, non_overridable          :: get_constraints_independent_term             => serial_fe_space_get_constraints_independent_term
      procedure, non_overridable          :: is_free_dof                                  => serial_fe_space_is_free_dof 
+     procedure, non_overridable          :: is_ghost_dof                                 => serial_fe_space_is_ghost_dof 
      procedure, non_overridable          :: is_strong_dirichlet_dof                      => serial_fe_space_is_strong_dirichlet_dof
      procedure, non_overridable          :: is_fixed_dof                                 => serial_fe_space_is_fixed_dof
      procedure, non_overridable          :: is_hanging_dof                               => serial_fe_space_is_hanging_dof
@@ -773,6 +790,7 @@ module fe_space_names
                                                                                              serial_fe_space_refine_and_coarsen_fe_function_array
 
      procedure, non_overridable          :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
+     procedure                           :: update_ghost_dof_values                       => serial_fe_space_update_ghost_dof_values
      
      
 #ifndef ENABLE_P4EST
@@ -1002,6 +1020,9 @@ module fe_space_names
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator
+   
+   procedure, non_overridable                  :: update_ghost_dof_values                         => par_fe_space_update_ghost_dof_values
+   
    end type par_fe_space_t
  
  public :: par_fe_space_t
@@ -1305,7 +1326,10 @@ module fe_space_names
  
   type fe_function_t
    private
+   ! Total number (among all fields) of free DoFs EXCLUDING free ghost DoFs
+   integer(ip)                   :: num_total_free_dofs
    class(vector_t), allocatable  :: free_dof_values
+   type(serial_scalar_array_t)   :: free_ghost_dof_values
    type(serial_scalar_array_t)   :: fixed_dof_values
    type(serial_scalar_array_t)   :: constraining_x_fixed_dof_values ! C_D u_D
   contains

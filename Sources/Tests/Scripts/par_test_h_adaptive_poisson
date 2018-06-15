@@ -26,13 +26,23 @@ then
 			for num_parts in 8 9 10 11 12 17 18 19   
 			do 
 			    num_tasks=`expr "$num_parts" + 1` 
-			    echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
-			    $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern 
+
+			    #echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
+			    #$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern 
+			    #if [ $? -ne 0 ] 
+			    #then
+				#final_exit_code=1
+			    #fi
+
+        		echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern"
+			    $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 3 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern
 			    if [ $? -ne 0 ] 
 			    then
 				final_exit_code=1
 			    fi
+
 			    
+
 
 			    echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn"
 			    $MPIEXEC_PATH $MPIEXEC_NP_FLAG $num_tasks $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -l 2 -dm 2 -num_refs $num_refinements -order $order -refinement-pattern-case $refinement_pattern  -use-voids T -use-voids-case popcorn

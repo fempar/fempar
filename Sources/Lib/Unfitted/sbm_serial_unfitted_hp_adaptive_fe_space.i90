@@ -608,7 +608,10 @@ subroutine suhpafs_list_dofs ( this )
   
   call this%set_num_hanging_dofs( current_fixed_dof - this%get_num_fixed_dofs() )
   call this%set_num_fixed_dofs(current_fixed_dof)
-
+  call this%set_num_hanging_ghost_dofs(0)
+  call this%set_num_total_free_dofs(sum(num_dofs_x_field))
+  call this%set_num_total_free_ghost_dofs(0)
+  
   assert(this%get_num_hanging_dofs() == this%num_hanging_dofs_full_cells + this%num_aggregated_dofs + this%num_hanging_dofs_other )
   assert(this%get_num_fixed_dofs() == this%get_num_dirichlet_dofs() + this%num_hanging_dofs_full_cells + this%num_aggregated_dofs + this%num_hanging_dofs_other )
   
