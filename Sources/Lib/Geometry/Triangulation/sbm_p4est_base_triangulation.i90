@@ -409,39 +409,37 @@ contains
                            if (iface_at_edge > num_faces_at_edge_3d) then 
                                cycle
                            else 
-                           !   If edge at boundary or has edge neighbour we found it
-                             if ( this%quad_to_quad_by_edge(icell_iedge,icell)+1 > 0 ) then
+                           !   If edge at boundary, or has edge neighbour in the local portion, or the edge neighbour exists in the global mesh
+                           !   but not in the local portion (local+ghost cells) of this processor ...
+                             if ( this%quad_to_quad_by_edge(icell_iedge,icell)+1 > 0 .or. &
+                                    this%quad_to_quad_by_edge(icell_iedge,icell) == -2  ) then
                                    exit       
                              end if
                            end if
                         end do
-                        if ( iedge_at_corner <= NUM_EDGES_AT_CORNER_3D ) then
-                            jcell_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,icell_iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
-                            ! The non_proper vef is within an edge
-                            improper_cell_around_ivef = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
-                        else
-                            improper_cell_around_ivef = -2
-                        end if     
-                    end if
-                   else
+                        assert ( iedge_at_corner <= NUM_EDGES_AT_CORNER_3D )
+                        jcell_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,icell_iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
+                        ! The non_proper vef is within an edge
+                        improper_cell_around_ivef = num_corners_x_cell+P4EST_2_FEMPAR_EDGE_3D(jcell_iedge)
+                     end if
+                     improper_cell_around_subvef  = -1
+                   else ! this%get_num_dims() == 2
                      improper_cell_around_ivef    = num_corners_x_cell+P4EST_2_FEMPAR_FACE(jcell_iface)                     
                      improper_cell_around_subvef  = -1
                    end if
                  is_proper = .false.
-                 if ( improper_cell_around_ivef /= -2 ) then
 #if ENABLE_SINGLE_OCTREE_OPTS
-                   work_vector_improper_cells_around(current_improper_cell_around) = jcell
-                   work_vector_ivef(current_improper_cell_around) = improper_cell_around_ivef
-                   work_vector_subvef(current_improper_cell_around) = improper_cell_around_subvef
-                   current_improper_cell_around = current_improper_cell_around + 1 
+                 work_vector_improper_cells_around(current_improper_cell_around) = jcell
+                 work_vector_ivef(current_improper_cell_around) = improper_cell_around_ivef
+                 work_vector_subvef(current_improper_cell_around) = improper_cell_around_subvef
+                 current_improper_cell_around = current_improper_cell_around + 1 
 #else
-                   call work_vector_improper_cells_around%push_back(jcell)
-                   call work_vector_ivef%push_back(improper_cell_around_ivef)
-                   call work_vector_subvef%push_back(improper_cell_around_subvef)
+                 call work_vector_improper_cells_around%push_back(jcell)
+                 call work_vector_ivef%push_back(improper_cell_around_ivef)
+                 call work_vector_subvef%push_back(improper_cell_around_subvef)
 #endif
-                   if ( jcell > num_local_cells ) then
-                     vef_at_interface = .true.
-                   end if
+                 if ( jcell > num_local_cells ) then
+                   vef_at_interface = .true.
                  end if
               else
                 min_cell   = min(min_cell,jcell)
@@ -915,8 +913,10 @@ contains
                  end do
                  assert(isubface<=num_subfacets_facet)
 
-                 ! If there is edge neighbour
-                 if (this%quad_to_quad_by_edge(iedge,icell)+1 > 0) then
+                 ! If there is edge neighbour in the local portion, 
+                 ! or not in the local portion but in the global octree ...
+                 if (this%quad_to_quad_by_edge(iedge,icell)+1 > 0 .or. & 
+                      this%quad_to_quad_by_edge(iedge,icell) == -2) then
                     ! The current edge is for sure improper
                     ! 1. Determine jcell_iedge
                     jcell_iedge= p4est_get_jcell_icorner(icell_iface,jcell_iface,iedge,P4EST_EDGE_IN_FACE_3D,P4EST_FACE_EDGES_3D)
@@ -943,27 +943,22 @@ contains
                     if ( min_cell_int_edge == jcell ) then
                       improper_cell_around_subvef  = -isubface
                     end if  
-                 ! If the neighbour across edge is ghost ...
-                 else if (this%quad_to_quad_by_edge(iedge,icell) == -2) then    
-                    improper_cell_around_subvef  = -5
                  end if 
                  is_proper = .false.
-                 if (improper_cell_around_subvef /= -5) then 
 #if ENABLE_SINGLE_OCTREE_OPTS
-                   work_vector_improper_cells_around(current_improper_cell_around) = jcell
-                   work_vector_ivef(current_improper_cell_around) = improper_cell_around_ivef
-                   work_vector_subvef(current_improper_cell_around) = improper_cell_around_subvef
-                   current_improper_cell_around = current_improper_cell_around + 1 
+                 work_vector_improper_cells_around(current_improper_cell_around) = jcell
+                 work_vector_ivef(current_improper_cell_around) = improper_cell_around_ivef
+                 work_vector_subvef(current_improper_cell_around) = improper_cell_around_subvef
+                 current_improper_cell_around = current_improper_cell_around + 1 
 #else
-                   call work_vector_improper_cells_around%push_back(jcell)
-                   call work_vector_ivef%push_back(improper_cell_around_ivef)
-                   call work_vector_subvef%push_back(improper_cell_around_subvef)
+                 call work_vector_improper_cells_around%push_back(jcell)
+                 call work_vector_ivef%push_back(improper_cell_around_ivef)
+                 call work_vector_subvef%push_back(improper_cell_around_subvef)
 #endif
-                   if ( jcell > num_local_cells ) then
-                     vef_at_interface = .true.
-                   end if
+                 if ( jcell > num_local_cells ) then
+                   vef_at_interface = .true.
                  end if
-              else ! Double-size neighbour
+              else ! half-size neighbour
                  assert ( mortar == num_subfacets_facet + 1 )  
                  do isubface=1, size(this%quad_to_half,1)
                    jcell      = this%quad_to_half(isubface,this%quad_to_quad(icell_iface,icell)+1)+1
@@ -2547,14 +2542,24 @@ subroutine p4est_bt_extend_p4est_topology_arrays_to_ghost_cells(this)
          if (mortar == -1) then ! Conformal neighbour  
            call g2l_map%get(key=quad_to_quad_by_edge_buffer(m), val=jcell, stat=istat)
            if ( istat == key_found ) then
-            quad_to_quad_by_edge(iedge,icell+this%get_num_local_cells()) = jcell-1 
-            quad_to_edge        (iedge,icell+this%get_num_local_cells()) = quad_to_edge_buffer(m)
+             quad_to_quad_by_edge(iedge,icell+this%get_num_local_cells()) = jcell-1 
+             quad_to_edge        (iedge,icell+this%get_num_local_cells()) = quad_to_edge_buffer(m)
+           else
+             ! A conformal edge neighbour exists in the global octree, however not in the local
+             ! portion of this processor. We signal this scenario differently as p4est_bt_update_lst_vefs_gids_and_cells_around
+             ! requires in 3D to determine whether a hanging edge is either hanging on an coarser edge or face
+             quad_to_quad_by_edge(iedge,icell+this%get_num_local_cells()) = -2
            end if
          else if ( mortar >= 1 .and. mortar <= num_subedgets_edget )  then ! Double-size neighbour 
            call g2l_map%get(key=quad_to_quad_by_edge_buffer(m), val=jcell, stat=istat)
            if ( istat == key_found ) then
              quad_to_quad_by_edge(iedge,icell+this%get_num_local_cells()) = jcell-1 
              quad_to_edge        (iedge,icell+this%get_num_local_cells()) = quad_to_edge_buffer(m)
+           else 
+             ! A double-size edge neighbour exists in the global octree, however not in the local
+             ! portion of this processor. We signal this scenario differently as p4est_bt_update_lst_vefs_gids_and_cells_around
+             ! requires in 3D to determine whether a hanging edge is either hanging on an coarser edge or face
+             quad_to_quad_by_edge(iedge,icell+this%get_num_local_cells()) = -2
            end if
          else ! Half_size neighbour
            part_id      = this%cell_myparts%get(icell+this%get_num_local_cells())
