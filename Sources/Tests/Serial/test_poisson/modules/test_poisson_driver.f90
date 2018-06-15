@@ -546,10 +546,10 @@ contains
     integer(ip) :: istat
     
     call this%fe_affine_operator%create_range_vector(rhs)
+    call rhs%init(0.0_rp)
     
     dof_values => this%solution%get_free_dof_values()
-    !call dof_values%init(0.0_rp)
-    call rhs%init(0.0_rp)
+
     call this%nl_solver%apply(rhs, dof_values ) 
     call rhs%free()
     deallocate(rhs, stat=istat); check(istat==0);

@@ -412,7 +412,7 @@ end function fe_nonlinear_operator_apply_fun
 ! of the current state of this. This is though to be called
 ! whenever something external to this, but that affects to the
 ! entries of the residual and tangent has changed, e.g., the level
-! set functio in a topology optimization simulation.
+! set function in a topology optimization simulation.
 subroutine fe_nonlinear_operator_force_compute(this)
   implicit none
   class(fe_nonlinear_operator_t), intent(inout)    :: this  

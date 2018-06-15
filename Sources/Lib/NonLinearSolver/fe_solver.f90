@@ -29,101 +29,101 @@
 ! the following problem: given $b_h \in V_h'$, compute the solution
 ! $u_h \in V_h$ of the problem $A_h(u_h) = b_h$ (if it does exists).
 module fe_solver_names
-use fempar_names
-use solver_names
-use operator_names
+  use fempar_names
+  use solver_names
+  use operator_names
 
 
 # include "debug.i90"
-implicit none
-private
+  implicit none
+  private
 
-type, extends(operator_t) :: fe_solver_t       
-      private
-        class(fe_nonlinear_operator_t),  pointer :: fe_nonlinear_operator => null()
-        class(solver_t),                 pointer :: solver => null()
+  type, extends(operator_t) :: fe_solver_t       
+  private
+  class(fe_nonlinear_operator_t),  pointer :: fe_nonlinear_operator => null()
+  class(solver_t),                 pointer :: solver => null()
 
-      contains
-      ! Deferred operator_t TBP
-        procedure :: apply                          => fe_solver_apply
-        procedure :: apply_add                      => fe_solver_apply_add
-        procedure :: is_linear                      => fe_solver_is_linear
-        procedure :: free                           => fe_solver_free
+contains
+  ! Deferred operator_t TBP
+  procedure :: apply                          => fe_solver_apply
+  procedure :: apply_add                      => fe_solver_apply_add
+  procedure :: is_linear                      => fe_solver_is_linear
+  procedure :: free                           => fe_solver_free
 
-      ! Getters
-        procedure :: get_fe_nonlinear_operator      => fe_solver_get_fe_nonlinear_operator
-        procedure :: get_solver                     => fe_solver_get_solver
+  ! Getters
+  procedure :: get_fe_nonlinear_operator      => fe_solver_get_fe_nonlinear_operator
+  procedure :: get_solver                     => fe_solver_get_solver
 
-      ! Setters 
-        procedure :: set_fe_nonlinear_operator      => fe_solver_set_fe_nonlinear_operator
-        procedure :: set_solver                     => fe_solver_set_solver
-        
+  ! Setters 
+  procedure :: set_fe_nonlinear_operator      => fe_solver_set_fe_nonlinear_operator
+  procedure :: set_solver                     => fe_solver_set_solver
 
- end type fe_solver_t 
- 
- public :: fe_solver_t
+
+end type fe_solver_t 
+
+public :: fe_solver_t
 
 contains
 
 
 subroutine fe_solver_apply(this,x,y)
-implicit none
-  class(fe_solver_t),       intent(inout) :: this
-  class(vector_t),             intent(in) :: x
-  class(vector_t),          intent(inout) :: y 
-  call this%solver%apply(x,y)         
+ implicit none
+ class(fe_solver_t),       intent(inout) :: this
+ class(vector_t),             intent(in) :: x
+ class(vector_t),          intent(inout) :: y 
+ call this%solver%apply(x,y)         
 end subroutine fe_solver_apply
 
 
 subroutine fe_solver_apply_add(this,x,y)
-  implicit none
-  class(fe_solver_t),       intent(inout) :: this
-  class(vector_t),             intent(in) :: x
-  class(vector_t),          intent(inout) :: y 
-  call this%solver%apply_add(x,y)   
+ implicit none
+ class(fe_solver_t),       intent(inout) :: this
+ class(vector_t),             intent(in) :: x
+ class(vector_t),          intent(inout) :: y 
+ call this%solver%apply_add(x,y)   
 end subroutine fe_solver_apply_add
 
 function fe_solver_is_linear(this) 
-  implicit none
-  class(fe_solver_t), intent(in)   :: this
-  logical                          :: fe_solver_is_linear
-  fe_solver_is_linear = .false.
+ implicit none
+ class(fe_solver_t), intent(in)   :: this
+ logical                          :: fe_solver_is_linear
+ fe_solver_is_linear = .false.
 end function fe_solver_is_linear
 
 function fe_solver_get_fe_nonlinear_operator(this)
-  implicit none
-  class(fe_solver_t),        intent(inout) :: this
-  class(fe_nonlinear_operator_t), pointer  :: fe_solver_get_fe_nonlinear_operator
-  fe_solver_get_fe_nonlinear_operator => this%fe_nonlinear_operator
+ implicit none
+ class(fe_solver_t),        intent(inout) :: this
+ class(fe_nonlinear_operator_t), pointer  :: fe_solver_get_fe_nonlinear_operator
+ fe_solver_get_fe_nonlinear_operator => this%fe_nonlinear_operator
 end function fe_solver_get_fe_nonlinear_operator
 
 function fe_solver_get_solver(this)
-  implicit none
-  class(fe_solver_t),        intent(inout) :: this
-  class(solver_t),            pointer      :: fe_solver_get_solver
-  fe_solver_get_solver => this%solver
+ implicit none
+ class(fe_solver_t),        intent(inout) :: this
+ class(solver_t),            pointer      :: fe_solver_get_solver
+ fe_solver_get_solver => this%solver
 end function fe_solver_get_solver
 
 
- subroutine fe_solver_set_fe_nonlinear_operator( this, fe_nonlinear_operator )
-  implicit none
-  class(fe_solver_t),                    intent(inout)    :: this
-  class(fe_nonlinear_operator_t),  target,  intent(in)    :: fe_nonlinear_operator  
-  this%fe_nonlinear_operator => fe_nonlinear_operator
- end subroutine  fe_solver_set_fe_nonlinear_operator 
- 
-  subroutine fe_solver_set_solver ( this, solver )
-  implicit none
-  class(fe_solver_t),   intent(inout)    :: this
-  class(solver_t),  target,  intent(in)  :: solver   
-  this%solver => solver
- end subroutine  fe_solver_set_solver 
+subroutine fe_solver_set_fe_nonlinear_operator( this, fe_nonlinear_operator )
+ implicit none
+ class(fe_solver_t),                    intent(inout)    :: this
+ class(fe_nonlinear_operator_t),  target,  intent(in)    :: fe_nonlinear_operator  
+ this%fe_nonlinear_operator => fe_nonlinear_operator
+end subroutine  fe_solver_set_fe_nonlinear_operator
+
+subroutine fe_solver_set_solver ( this, solver )
+ implicit none
+ class(fe_solver_t),   intent(inout)    :: this
+ class(solver_t),  target,  intent(in)  :: solver   
+ this%solver => solver
+end subroutine  fe_solver_set_solver
 
 subroutine fe_solver_free(this)
-  implicit none
-  class(fe_solver_t), intent(inout)    :: this
-  nullify(this%fe_nonlinear_operator)
-  nullify(this%solver)
+ implicit none
+ class(fe_solver_t), intent(inout)    :: this
+ nullify(this%fe_nonlinear_operator)
+ nullify(this%solver)
 end subroutine fe_solver_free
 
 

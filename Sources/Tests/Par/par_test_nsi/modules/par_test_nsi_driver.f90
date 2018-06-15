@@ -114,10 +114,10 @@ contains
     implicit none
     class(par_test_nsi_fe_driver_t), intent(inout) :: this
     class(vector_t) , pointer :: free_dofs_values 
-    class(vector_t) , pointer :: rhs_dof_values
-    type(fe_function_t)       :: rhs
+    class(vector_t) , allocatable :: rhs_dof_values
     type(vector_field_t) :: zero_vector_field
     integer(ip) :: field_id
+    integer(ip) :: istat
 
     ! Geometry
     !call this%timer_triangulation%start()
@@ -158,12 +158,13 @@ contains
     !call this%timer_solver_setup%stop()
    
     ! Solve the problem
-    free_dofs_values => this%solution%get_free_dof_values()
-    call rhs%copy(this%solution)
-    rhs_dof_values => rhs%get_free_dof_values()
+    call this%nonlinear_operator%create_range_vector(rhs_dof_values) 
     call rhs_dof_values%init(0.0_rp)
+    free_dofs_values => this%solution%get_free_dof_values()
+    
     call this%nonlinear_solver%apply(rhs_dof_values,free_dofs_values)
-    call rhs%free()
+    call rhs_dof_values%free()
+    deallocate(rhs_dof_values, stat=istat); check(istat==0);    
     ! Postprocess
     call this%write_solution()
     call this%check_solution()
@@ -380,7 +381,7 @@ end subroutine free_timers
     call this%linear_solver%set_operators( this%nonlinear_operator%get_tangent(), this%mlbddc )
 
     ! Nonlinear solver ! abs_res_norm_and_rel_inc_norm
-    call this%nonlinear_solver%create(convergence_criteria = abs_res_norm, & 
+    call this%nonlinear_solver%create(convergence_criteria = rel_r0_res_norm, & 
          &                                         abs_tol = 1.0e-6,  &
          &                                         rel_tol = 1.0e-9, &
          &                                       max_iters = 10   ,  &

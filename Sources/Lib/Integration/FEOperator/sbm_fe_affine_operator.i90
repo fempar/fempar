@@ -54,7 +54,7 @@ end subroutine fe_affine_operator_set_evaluation_point
 ! right hand side independently of the current state of this. 
 ! This is though to be called whenever something external to this, 
 ! but that affects to the entries of the coefficient matrix AND/OR
-! right hand side, e.g., the level set functio in a topology optimization 
+! right hand side, e.g., the level set function in a topology optimization 
 ! simulation.
 subroutine fe_affine_operator_force_compute(this)
   implicit none

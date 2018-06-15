@@ -30,14 +30,14 @@ module solver_names
   implicit none
 # include "debug.i90"
   private
-
+  
   type, abstract, extends(operator_t) :: solver_t
-  private
-contains
-end type solver_t
-
-public :: solver_t
-
+     private
+   contains
+  end type solver_t
+  
+  public :: solver_t
+  
 contains 
-
+  
 end module solver_names
