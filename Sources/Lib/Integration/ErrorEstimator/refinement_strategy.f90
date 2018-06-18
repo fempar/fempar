@@ -27,6 +27,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module refinement_strategy_names
   use types_names
+  use environment_names
+  use triangulation_names
   use fe_space_names
   use p4est_triangulation_names
   use std_vector_integer_ip_names
@@ -37,11 +39,14 @@ module refinement_strategy_names
 # include "debug.i90"
   private
   
-  character(len=*), parameter :: num_uniform_refinements_key = 'num_uniform_refinements'
+  character(len=*), parameter :: num_uniform_refinements_key        = 'num_uniform_refinements'
   
-  character(len=*), parameter :: error_objective_key         = 'error_objective'
-  character(len=*), parameter :: objective_tolerance_key     = 'objective_tolerance'
-  character(len=*), parameter :: max_num_mesh_iterations_key = 'max_num_mesh_iterations'
+  character(len=*), parameter :: error_objective_key                = 'error_objective'
+  character(len=*), parameter :: objective_tolerance_key            = 'objective_tolerance'
+  character(len=*), parameter :: max_num_mesh_iterations_key        = 'max_num_mesh_iterations'
+  
+  character(len=*), parameter :: refinement_fraction_key            = 'refinement_fraction'
+  character(len=*), parameter :: refinement_threshold_tolerance_key = 'refinement_threshold_tolerance_key'
   
   type, abstract :: refinement_strategy_t
     private
@@ -99,11 +104,25 @@ module refinement_strategy_names
     procedure :: has_finished_refinement    => eors_has_finished_refinement
   end type error_objective_refinement_strategy_t
   
+  type, extends(refinement_strategy_t) :: fixed_fraction_refinement_strategy_t
+    private
+    ! Refine all cells s.t. #{e_i > \theta_r} \approx this%refinement_fraction * N_cells 
+    real(rp)                          :: refinement_fraction
+    real(rp)                          :: refinement_threshold_tolerance
+    integer(ip)                       :: max_num_mesh_iterations
+   contains
+    procedure :: set_parameters             => ffrs_set_parameters
+    procedure :: update_refinement_flags    => ffrs_update_refinement_flags
+    procedure :: has_finished_refinement    => ffrs_has_finished_refinement
+  end type fixed_fraction_refinement_strategy_t
+  
+  
   public :: num_uniform_refinements_key
   public :: error_objective_key, objective_tolerance_key, max_num_mesh_iterations_key
+  public :: refinement_fraction_key
   
   public :: refinement_strategy_t
-  public :: uniform_refinement_strategy_t, error_objective_refinement_strategy_t
+  public :: uniform_refinement_strategy_t, error_objective_refinement_strategy_t, fixed_fraction_refinement_strategy_t
   
 contains
   
@@ -226,5 +245,128 @@ contains
     if ( this%current_mesh_iteration > this%max_num_mesh_iterations ) &
       write(*,*) 'Error objective mesh refinement strategy exceeded the maximum number of iterations'
   end function eors_has_finished_refinement
+  
+  subroutine ffrs_set_parameters(this,parameter_list)
+    implicit none
+    class(fixed_fraction_refinement_strategy_t), intent(inout) :: this
+    type(parameterlist_t)                       , intent(in)    :: parameter_list
+    integer(ip) :: FPLerror
+    ! Parse refinement_fraction
+    assert(parameter_list%isPresent(refinement_fraction_key))
+    assert(parameter_list%isAssignable(refinement_fraction_key,this%refinement_fraction))
+    FPLerror = parameter_list%get(key = refinement_fraction_key, value = this%refinement_fraction)
+    assert(FPLerror==0)
+    assert ( this%refinement_fraction >= 0.0_rp .and. this%refinement_fraction <= 1.0_rp )
+    
+    ! Parse refinement_threshold
+    if ( parameter_list%isPresent(refinement_threshold_tolerance_key) ) then
+      FPLerror = parameter_list%get(key = refinement_threshold_tolerance_key, value = this%refinement_threshold_tolerance)
+      assert(FPLerror==0)
+    else
+      this%refinement_threshold_tolerance = 3.0_rp*1.0e-08_rp ! \approx 1/(2**25), with 25 being the 
+                                                              ! number of recursive bisection steps
+    end if
+    
+    if ( parameter_list%isPresent(max_num_mesh_iterations_key) ) then
+      FPLerror = parameter_list%get(key = max_num_mesh_iterations_key, value = this%max_num_mesh_iterations)
+      assert(FPLerror==0)
+    else
+      this%max_num_mesh_iterations = 10
+    end if
+    
+  end subroutine ffrs_set_parameters
+  
+  subroutine ffrs_update_refinement_flags(this,refinement_and_coarsening_flags)
+    implicit none
+    class(fixed_fraction_refinement_strategy_t), intent(inout) :: this
+    type(std_vector_integer_ip_t)               , intent(inout) :: refinement_and_coarsening_flags
+    integer(ip), pointer :: refinement_and_coarsening_flags_entries(:)
+    integer(ip)          :: i, num_local_cells
+    integer(igp)         :: num_global_cells
+    integer(igp)         :: target_num_cells_to_be_refined
+    integer(igp)         :: current_num_cells_to_be_refined
+    real(rp)   , pointer :: sq_local_estimate_entries(:)
+    class(serial_fe_space_t), pointer :: fe_space
+    class(triangulation_t), pointer :: triangulation
+    class(environment_t), pointer :: environment
+    real(rp) :: sq_min_estimate, min_estimate
+    real(rp) :: sq_max_estimate, max_estimate
+    real(rp) :: sq_avg_estimate, avg_estimate
+    integer(ip) :: num_iterations
+    real(rp) :: aux(2)
+    
+    assert ( associated(this%error_estimator) )
+    
+    fe_space      => this%error_estimator%get_fe_space()
+    triangulation => fe_space%get_triangulation()
+    environment   => triangulation%get_environment()
+    
+    if ( environment%am_i_l1_task() ) then
+      refinement_and_coarsening_flags_entries => refinement_and_coarsening_flags%get_pointer()
+      sq_local_estimate_entries => this%error_estimator%get_sq_local_estimate_entries()
+    
+      num_local_cells  = triangulation%get_num_local_cells()
+      num_global_cells = num_local_cells
+      call environment%l1_sum(num_global_cells)
+    
+      target_num_cells_to_be_refined = int(real(num_global_cells,rp)*this%refinement_fraction)
+    
+      sq_min_estimate = minval(sq_local_estimate_entries(1:num_local_cells))
+      sq_max_estimate = maxval(sq_local_estimate_entries(1:num_local_cells))
+    
+      aux(1) = -sqrt(sq_min_estimate)
+      aux(2) = sqrt(sq_max_estimate)
+      call environment%l1_max(aux)
+      min_estimate = -aux(1)
+      max_estimate = aux(2)
+      num_iterations=0
+      do while ( abs(max_estimate-min_estimate) > this%refinement_threshold_tolerance) 
+        ! Compute interval split point
+        avg_estimate    = (1.0_rp/2.0_rp) * (min_estimate+max_estimate)
+        sq_avg_estimate = avg_estimate*avg_estimate
+       
+        ! Count how many cells have local error estimate larger or equal to avg_estimate
+        ! count = #{ i: e_i >= avg_estimate }
+        current_num_cells_to_be_refined = 0 
+        do i=1, num_local_cells
+          if ( sq_local_estimate_entries(i) >= sq_avg_estimate ) then
+            current_num_cells_to_be_refined = current_num_cells_to_be_refined + 1 
+          end if 
+        end do 
+        call environment%l1_sum(current_num_cells_to_be_refined)
+       
+        if ( current_num_cells_to_be_refined > &
+             target_num_cells_to_be_refined ) then
+           min_estimate = avg_estimate
+        else
+           max_estimate = avg_estimate
+        end if
+        num_iterations = num_iterations + 1 
+      end do 
+      if ( environment%am_i_l1_root() ) then
+        write(*,*) "Converged to ", this%refinement_threshold_tolerance, " in ", num_iterations
+        write(*,*) "Refinement threshold = ", avg_estimate, sq_avg_estimate
+      end if
+    end if
+    
+    do i = 1, num_local_cells
+      if ( sq_local_estimate_entries(i) > sq_avg_estimate ) then
+        refinement_and_coarsening_flags_entries(i) = refinement
+      else
+        refinement_and_coarsening_flags_entries(i) = do_nothing
+      end if
+    end do
+    
+    this%current_mesh_iteration = this%current_mesh_iteration + 1
+  end subroutine ffrs_update_refinement_flags
+  
+  function ffrs_has_finished_refinement(this)
+    class(fixed_fraction_refinement_strategy_t), intent(inout) :: this
+    logical :: ffrs_has_finished_refinement
+    real(rp), pointer :: sq_local_estimate_entries(:)
+    real(rp)          :: max_local_estimate
+    real(rp)          :: sq_error_upper_bound
+    ffrs_has_finished_refinement = (this%current_mesh_iteration > this%max_num_mesh_iterations)
+  end function ffrs_has_finished_refinement
   
 end module refinement_strategy_names

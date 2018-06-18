@@ -227,6 +227,9 @@ contains
     FPLError = FPLError + parameter_list%set(key = max_num_mesh_iterations_key, value = max_num_mesh_iterations)
     FPLError = FPLError + parameter_list%set(key = num_uniform_refinements_key, value = 2)
     assert(FPLError == 0)
+    FPLError = FPLError + parameter_list%set(key = refinement_fraction_key, value = 0.30_rp)
+    FPLError = FPLError + parameter_list%set(key = num_uniform_refinements_key, value = 2)
+    assert(FPLError == 0)
     
     if ( this%par_test_params%get_refinement_strategy() == 'uniform') then
       if ( this%par_environment%am_i_l1_task() ) then
@@ -235,6 +238,8 @@ contains
       allocate ( uniform_refinement_strategy_t :: refinement_strategy , stat = istat ); check( istat == 0 )
     else if ( this%par_test_params%get_refinement_strategy() == 'error_objective' ) then
       allocate ( error_objective_refinement_strategy_t :: refinement_strategy , stat = istat ); check( istat == 0 )
+    else if ( this%par_test_params%get_refinement_strategy() == 'fixed_fraction' ) then
+      allocate ( fixed_fraction_refinement_strategy_t :: refinement_strategy , stat = istat ); check( istat == 0 )
     else
       mcheck(.false.,'par_test_poisson_error_estimator: Refinement strategy not supported.')
     end if
