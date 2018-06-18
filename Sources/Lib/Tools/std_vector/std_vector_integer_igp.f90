@@ -48,6 +48,7 @@ contains
   STD_VECTOR_FREE(integer(igp),integer_igp)
   STD_VECTOR_GET(integer(igp),integer_igp)
   STD_VECTOR_SET(integer(igp),integer_igp)
+  STD_VECTOR_INIT(integer(igp),integer_igp)
   STD_VECTOR_CAT(integer(igp),integer_igp)
   STD_VECTOR_SIZE(integer(igp),integer_igp)
   STD_VECTOR_CAPACITY(integer(igp),integer_igp)

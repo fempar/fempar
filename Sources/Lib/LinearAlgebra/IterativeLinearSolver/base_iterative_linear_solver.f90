@@ -319,8 +319,8 @@ contains
     subroutine set_initial_solution(this,initial_solution)
      implicit none
      class(base_iterative_linear_solver_t) , intent(inout) :: this
-     class(vector_t)             , intent(in)    :: initial_solution     
-     type(vector_space_t)        , pointer       :: A_range     
+     class(vector_t)                       , intent(in)    :: initial_solution     
+     type(vector_space_t)                  , pointer       :: A_range     
      
      assert(this%state == operators_set .or. this%state == workspace_allocated)
      call initial_solution%GuardTemp()

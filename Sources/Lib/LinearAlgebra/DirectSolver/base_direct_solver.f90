@@ -84,7 +84,6 @@ module base_direct_solver_names
     private
         character(len=:), allocatable          :: name
         integer(ip)                            :: state  = BASE_DIRECT_SOLVER_STATE_START
-        logical                                :: numerical_setup_pending
         type(sparse_matrix_t), public, pointer :: matrix => NULL()
         ! Direct solvers info
         integer(ip)                            :: mem_peak_symb
@@ -113,7 +112,7 @@ module base_direct_solver_names
         procedure, non_overridable, public :: set_name                     => base_direct_solver_set_name
         procedure, non_overridable, public :: set_matrix                   => base_direct_solver_set_matrix
         procedure, non_overridable, public :: get_matrix                   => base_direct_solver_get_matrix
-        procedure, non_overridable, public :: replace_matrix            => base_direct_solver_replace_matrix
+        procedure, non_overridable, public :: replace_matrix               => base_direct_solver_replace_matrix
         procedure, non_overridable, public :: update_matrix                => base_direct_solver_update_matrix
         procedure, non_overridable, public :: matrix_is_set                => base_direct_solver_matrix_is_set
         procedure, non_overridable, public :: set_state_start              => base_direct_solver_set_state_start
@@ -122,13 +121,11 @@ module base_direct_solver_names
         procedure, non_overridable, public :: state_is_start               => base_direct_solver_state_is_start
         procedure, non_overridable, public :: state_is_symbolic            => base_direct_solver_state_is_symbolic
         procedure, non_overridable, public :: state_is_numeric             => base_direct_solver_state_is_numeric
-        procedure, non_overridable, public :: set_numerical_setup_pending  => base_direct_solver_set_numerical_setup_pending
         procedure, non_overridable, public :: set_mem_peak_symb            => base_direct_solver_set_mem_peak_symb
         procedure, non_overridable, public :: set_mem_perm_symb            => base_direct_solver_set_mem_perm_symb
         procedure, non_overridable, public :: set_mem_peak_num             => base_direct_solver_set_mem_peak_num
         procedure, non_overridable, public :: set_nz_factors               => base_direct_solver_set_nz_factors
         procedure, non_overridable, public :: set_Mflops                   => base_direct_solver_set_Mflops
-        procedure, non_overridable, public :: get_numerical_setup_pending  => base_direct_solver_get_numerical_setup_pending
         procedure, non_overridable, public :: get_mem_peak_symb            => base_direct_solver_get_mem_peak_symb
         procedure, non_overridable, public :: get_mem_perm_symb            => base_direct_solver_get_mem_perm_symb
         procedure, non_overridable, public :: get_mem_peak_num             => base_direct_solver_get_mem_peak_num
@@ -219,11 +216,11 @@ contains
         class(base_direct_solver_t), intent(inout) :: this
         ! Check pre-conditions
         if(this%state_is_start()) call this%symbolic_setup()
-        if(this%state_is_numeric() .and. .not. this%get_numerical_setup_pending()) return
-        call this%numerical_setup_body()
-        ! post-conditions
-        call this%set_numerical_setup_pending(.false.)
-        call this%set_state_numeric()
+        if(this%state_is_symbolic()) then
+          call this%numerical_setup_body()
+          ! post-conditions
+          call this%set_state_numeric()
+        end if   
     end subroutine base_direct_solver_numerical_setup
 
     subroutine base_direct_solver_solve_single_rhs(op, x, y)
@@ -231,7 +228,7 @@ contains
         type(serial_scalar_array_t), intent(in)    :: x
         type(serial_scalar_array_t), intent(inout) :: y
         ! Check pre-conditions
-        if(.not. op%state_is_numeric() .or. op%get_numerical_setup_pending()) call op%numerical_setup()
+        if(.not. op%state_is_numeric()) call op%numerical_setup()
         call x%GuardTemp()
         call op%solve_single_rhs_body(x, y)
         call x%CleanTemp()
@@ -243,7 +240,7 @@ contains
         real(rp),                     intent(inout) :: x(:, :)
         real(rp),                     intent(inout) :: y(:, :)
         ! Check pre-conditions
-        if(.not. op%state_is_numeric() .or. op%get_numerical_setup_pending()) call op%numerical_setup()
+        if(.not. op%state_is_numeric()) call op%numerical_setup()
         call op%solve_several_rhs_body(x, y)
         ! post-conditions
     end subroutine base_direct_solver_solve_several_rhs
@@ -291,7 +288,6 @@ contains
         this%nz_factors    = 0
         this%mem_peak_num  = 0
         this%Mflops        = 0._rp
-        this%numerical_setup_pending = .false.
     end subroutine base_direct_solver_reset
 
     subroutine base_direct_solver_set_name(this, name)
@@ -319,39 +315,41 @@ contains
     subroutine base_direct_solver_replace_matrix(this, matrix, same_nonzero_pattern)
     !-----------------------------------------------------------------
     !< Update matrix pointer 
-    !< If same_nonzero_pattern performs returns to SYMBOLIC state
-    !< If not same_nonzero_pattern returns to START state
+    !< If same_nonzero_pattern (re-)performs numerical factorization
+    !< If not same_nonzero_pattern frees its contents and forces numerical factorization
     !-----------------------------------------------------------------
         class(base_direct_solver_t),   intent(inout) :: this
         type(sparse_matrix_t), target, intent(in)    :: matrix
         logical,                       intent(in)    :: same_nonzero_pattern
     !-----------------------------------------------------------------
         this%matrix => matrix
-        if(same_nonzero_pattern .and. this%state == BASE_DIRECT_SOLVER_STATE_NUMERIC) then
-            this%numerical_setup_pending = .true.
-        elseif(.not. same_nonzero_pattern .and. &
-               (this%state == BASE_DIRECT_SOLVER_STATE_SYMBOLIC .or. &
-                this%state == BASE_DIRECT_SOLVER_STATE_NUMERIC)) then
-                call this%free_symbolic()
+        if(same_nonzero_pattern .and. (this%state == BASE_DIRECT_SOLVER_STATE_NUMERIC .or. &
+                                       this%state == BASE_DIRECT_SOLVER_STATE_SYMBOLIC)) then
+            call this%numerical_setup_body()
+            call this%set_state_numeric()
+        else
+            call this%free_symbolic()
+            call this%numerical_setup()
         endif
     end subroutine base_direct_solver_replace_matrix
     
     
-        subroutine base_direct_solver_update_matrix(this, same_nonzero_pattern)
+    subroutine base_direct_solver_update_matrix(this, same_nonzero_pattern)
     !-----------------------------------------------------------------
-    !< Update matrix pointer 
-    !< If same_nonzero_pattern performs returns to SYMBOLIC state
-    !< If not same_nonzero_pattern returns to START state
+    !< Signals that the matrix it was associated to has changed
+    !< If same_nonzero_pattern (re-)performs numerical factorization
+    !< If not same_nonzero_pattern frees its contents and forces numerical factorization
     !-----------------------------------------------------------------
         class(base_direct_solver_t),   intent(inout) :: this
         logical,                       intent(in)    :: same_nonzero_pattern
     !-----------------------------------------------------------------
-        if(same_nonzero_pattern .and. this%state == BASE_DIRECT_SOLVER_STATE_NUMERIC) then
-            this%numerical_setup_pending = .true.
-        elseif(.not. same_nonzero_pattern .and. &
-               (this%state == BASE_DIRECT_SOLVER_STATE_SYMBOLIC .or. &
-                this%state == BASE_DIRECT_SOLVER_STATE_NUMERIC)) then
-                call this%free_symbolic()
+        if(same_nonzero_pattern .and. (this%state == BASE_DIRECT_SOLVER_STATE_NUMERIC .or. &
+                                       this%state == BASE_DIRECT_SOLVER_STATE_SYMBOLIC)) then
+            call this%numerical_setup_body()
+            call this%set_state_numeric()
+        else
+            call this%free_symbolic()
+            call this%numerical_setup()
         endif
     end subroutine base_direct_solver_update_matrix
 
@@ -360,12 +358,6 @@ contains
         logical                                 :: matrix_is_set
         matrix_is_set = associated(this%matrix)
     end function base_direct_solver_matrix_is_set
-
-    subroutine base_direct_solver_set_numerical_setup_pending(this, pending)
-        class(base_direct_solver_t), intent(inout) :: this
-        logical,                     intent(in)    :: pending
-        this%numerical_setup_pending = pending
-    end subroutine base_direct_solver_set_numerical_setup_pending
 
     subroutine base_direct_solver_set_state_start(this)
         class(base_direct_solver_t), intent(inout) :: this
@@ -429,12 +421,6 @@ contains
         real(rp),                    intent(in)    :: Mflops
         this%Mflops = Mflops
     end subroutine base_direct_solver_set_Mflops
-
-    function base_direct_solver_get_numerical_setup_pending(this) result(pending)
-        class(base_direct_solver_t), intent(in) :: this
-        logical                                 :: pending
-        pending = this%numerical_setup_pending
-    end function base_direct_solver_get_numerical_setup_pending
 
     function base_direct_solver_get_mem_peak_symb(this) result(mem_peak_symb)
         class(base_direct_solver_t), intent(in) :: this

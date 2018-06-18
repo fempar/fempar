@@ -948,7 +948,7 @@ subroutine fe_cell_iterator_renum_dofs_field ( this, field_id, perm_old2new )
   
   assert ( field_id >= 1 .and. field_id <= this%fe_space%get_num_fields() )
   do i = start_pos_lst_dofs_gids, end_pos_lst_dofs_gids
-    if ( this%fe_space%lst_dofs_gids%get(i) > 0 ) then
+    if ( this%fe_space%is_free_dof(this%fe_space%lst_dofs_gids%get(i)) ) then
       call this%fe_space%lst_dofs_gids%set(i,perm_old2new(this%fe_space%lst_dofs_gids%get(i)))
     end if
   end do
@@ -1260,6 +1260,14 @@ function fe_cell_iterator_is_free_dof ( this, dof_lid )
   logical :: fe_cell_iterator_is_free_dof
   fe_cell_iterator_is_free_dof = this%fe_space%is_free_dof(dof_lid)
 end function fe_cell_iterator_is_free_dof
+
+function fe_cell_iterator_is_ghost_dof ( this, dof_lid )
+  implicit none
+  class(fe_cell_iterator_t), intent(in) :: this
+  integer(ip)              , intent(in) :: dof_lid
+  logical :: fe_cell_iterator_is_ghost_dof
+  fe_cell_iterator_is_ghost_dof = this%fe_space%is_ghost_dof(dof_lid)
+end function fe_cell_iterator_is_ghost_dof
 
 function fe_cell_iterator_is_strong_dirichlet_dof ( this, dof_lid )
   implicit none
@@ -1640,7 +1648,7 @@ subroutine fe_cell_iterator_impose_strong_dirichlet_bcs_conforming ( this, fe_fu
       do idof = 1, size(this%fe_dofs(field_id)%p)
         elmat_col = elmat_col + 1
         dof_gid = this%fe_dofs(field_id)%p(idof)
-        if ( dof_gid < 0 ) then
+        if ( this%fe_space%is_strong_dirichlet_dof(dof_gid) ) then 
           elvec = elvec - elmat(:,elmat_col)*strong_dirichlet_values_entries(abs(dof_gid))
         end if
       end do
