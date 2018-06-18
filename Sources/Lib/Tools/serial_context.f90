@@ -54,6 +54,7 @@ module serial_context_names
      procedure :: max_vector_rp      => serial_context_max_vector_rp
      procedure :: min_scalar_rp      => serial_context_min_scalar_rp
      procedure :: max_scalar_ip      => serial_context_max_scalar_ip
+     procedure :: sum_scalar_igp     => serial_context_sum_scalar_igp
      procedure :: scatter_ip         => serial_context_scatter_scalar_ip
      procedure :: gather_ip          => serial_context_gather_scalar_ip
      procedure :: bcast_ip           => serial_context_bcast_scalar_ip
@@ -217,6 +218,13 @@ contains
     class(serial_context_t) , intent(in)    :: this
     integer(ip)             , intent(inout) :: n
   end subroutine serial_context_max_scalar_ip
+  
+  !=============================================================================
+  subroutine serial_context_sum_scalar_igp (this,n)
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    integer(igp)            , intent(inout) :: n
+  end subroutine serial_context_sum_scalar_igp
 
   !=============================================================================
   subroutine serial_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)
