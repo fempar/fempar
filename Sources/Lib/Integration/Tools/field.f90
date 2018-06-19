@@ -709,26 +709,25 @@ contains
     end do
   end subroutine compute_point_1D_array_lin_comb_with_3D_plain_array
 
-  subroutine compute_3D_plain_array_lin_comb_with_point_1D_array( plain_array, point_1D_array_in, plain_array_out, num_dims)
+  subroutine compute_3D_plain_array_lin_comb_with_point_1D_array( plain_array, point_1D_array_in, plain_array_out)
     implicit none
     real(rp)            , intent(in)    :: plain_array(:,:,:,:)
     type(point_t)       , intent(in)    :: point_1D_array_in(:)
     real(rp)            , intent(inout) :: plain_array_out(:,:,:)
-    
     type(vector_field_t)                :: vector_field_1D_array
     
-    integer(ip) :: i, j, k, l, num_dims
+    integer(ip) :: i, j, k, l
     real(rp)    :: alpha
+
     assert (size(point_1D_array_in) == size(plain_array,3))
     assert (size(plain_array,1) >= 1)
     
     do i=1, size(plain_array,4) !quadrature points
-      !do j=1, size(plain_array,2) !num dimensions
-      do j=1, num_dims !num dimensions
+       do j=1, SPACE_DIM !num dimensions
          plain_array_out(:,j,i) = 0.0_rp
          do k=1, size(plain_array,3) !num nodes
             alpha = plain_array(1,j,k,i)
-            do l = 1, num_dims
+            do l = 1, SPACE_DIM
               plain_array_out(l,j,i) = plain_array_out(l,j,i) + alpha * point_1D_array_in(k)%value(l)
             end do
          end do 

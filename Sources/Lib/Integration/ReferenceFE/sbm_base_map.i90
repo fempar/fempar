@@ -101,8 +101,7 @@ subroutine base_map_compute_jacobian(this)
   class(base_map_t), intent(inout) :: this
   call compute_3D_plain_array_lin_comb_with_point_1D_array ( this%interpolation%shape_derivatives, &
                                                      this%nodes_coordinates, &
-                                                     this%jacobian, &
-                                                     this%num_dims)
+                                                     this%jacobian)
 end subroutine base_map_compute_jacobian
 
 !==================================================================================================

@@ -149,7 +149,7 @@ module reference_fe_names
     integer(ip)                 :: num_nodes
     integer(ip)                 :: num_quadrature_points
     
-    ! Map's Jacobian (num_dims,num_dims,num_quadrature_points)
+    ! Map's Jacobian (SPACE_DIM,SPACE_DIM,num_quadrature_points)
     real(rp), allocatable       :: jacobian(:,:,:)
 
     ! Map's Jacobian det (num_quadrature_points)  
