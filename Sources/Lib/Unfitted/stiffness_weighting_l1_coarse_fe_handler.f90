@@ -38,7 +38,7 @@ module stiffness_weighting_l1_coarse_fe_handler_names
   use dof_import_names
   use serial_scalar_array_names
   use operator_names
-  use fe_nonlinear_operator_names
+  use fe_operator_names
   use triangulation_names
   use cell_import_names
 
@@ -73,7 +73,7 @@ subroutine stiffness_l1_create(this, fe_nonlinear_operator)
 
   implicit none
   class(stiffness_weighting_l1_coarse_fe_handler_t), intent(inout) :: this
-  class(fe_nonlinear_operator_t), target,    intent(in)    :: fe_nonlinear_operator
+  class(fe_operator_t), target,    intent(in)    :: fe_nonlinear_operator
   class(matrix_t), pointer              :: matrix
   call this%free()
 

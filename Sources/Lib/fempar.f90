@@ -103,7 +103,7 @@ module fempar_names
   use conditions_names
   use discrete_integration_names
   use assembler_names
-  use fe_nonlinear_operator_names
+  use fe_operator_names
   use function_names
   use function_library_names
   use error_norms_names

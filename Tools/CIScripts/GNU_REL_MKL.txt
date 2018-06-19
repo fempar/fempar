@@ -62,10 +62,11 @@ cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $
 
 set +e
 ctest -V -E par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
-test -f ./Testing/Temporary/LastTestsFailed.log
-serial_test_passed="$?"
-ls -l ./Testing/Temporary/LastTestsFailed.log
-cat ./Testing/Temporary/LastTestsFailed.log
+
+serial_test_passed=0
+test -f ./Testing/Temporary/LastTestsFailed*.log && serial_test_passed=1
+ls -l ./Testing/Temporary/LastTestsFailed*.log
+cat ./Testing/Temporary/LastTestsFailed*.log
 set -e
 
 
@@ -80,10 +81,10 @@ cmake -DCMAKE_BUILD_TYPE="$BUILD_TYPE" $FORTRAN_COMPILER $FORTRAN_COMPILER_MPI $
 
 set +e
 ctest -V -R par_test -D ExperimentalUpdate -D ExperimentalStart -D ExperimentalConfigure -D ExperimentalBuild -D ExperimentalTest -D ExperimentalCoverage -D ExperimentalMemCheck -D ExperimentalSubmit
-test -f ./Testing/Temporary/LastTestsFailed.log
-par_test_passed="$?"
-ls -l ./Testing/Temporary/LastTestsFailed.log
-cat ./Testing/Temporary/LastTestsFailed.log
+par_test_passed=0
+test -f ./Testing/Temporary/LastTestsFailed*.log && par_test_passed=1
+ls -l ./Testing/Temporary/LastTestsFailed*.log
+cat ./Testing/Temporary/LastTestsFailed*.log
 set -e
 
 
@@ -91,5 +92,9 @@ cd ../
 cd ../
 rm -rf build
 
+echo $serial_test_passed
+echo $par_test_passed
+
 test $serial_test_passed -eq 0
 test $par_test_passed -eq 0
+

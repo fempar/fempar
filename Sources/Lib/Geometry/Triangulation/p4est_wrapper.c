@@ -836,6 +836,22 @@ void F90_p8est_balance( p8est_t * p8est )
   p8est_balance(p8est, P8EST_CONNECT_FULL, NULL);
 }
 
+int weight_callback_2d(p4est_t * p4est,
+                       p4est_topidx_t which_tree,
+                       p4est_quadrant_t * quadrant)
+{
+    P4EST_ASSERT(which_tree == 0);
+    return (*((int *)quadrant->p.user_data));
+}
+
+int weight_callback_3d(p8est_t * p8est,
+                       p4est_topidx_t which_tree,
+                       p8est_quadrant_t * quadrant)
+{
+    P4EST_ASSERT(which_tree == 0);
+    return (*((int *)quadrant->p.user_data));
+}
+
 void F90_p4est_partition ( p4est_t * p4est )
 {
     /*
@@ -845,7 +861,7 @@ void F90_p4est_partition ( p4est_t * p4est )
     * \param [in]     weight_fn  A weighting function or NULL
     *                            for uniform partitioning.
     */
-    p4est_partition(p4est, 1, NULL);
+    p4est_partition(p4est, 1, weight_callback_2d);
 }
 
 void F90_p8est_partition ( p8est_t * p8est )
@@ -857,7 +873,7 @@ void F90_p8est_partition ( p8est_t * p8est )
     * \param [in]     weight_fn  A weighting function or NULL
     *                            for uniform partitioning.
     */
-    p8est_partition(p8est, 1, NULL);
+    p8est_partition(p8est, 1, weight_callback_3d);
 }
 
 

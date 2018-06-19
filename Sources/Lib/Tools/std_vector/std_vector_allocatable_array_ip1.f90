@@ -29,34 +29,35 @@
 #include "debug.i90"
 #define HAS_DYNAMIC_MEMORY
 #include "std_vector_macros.i90"
-module std_vector_cell_integrator_names
+module std_vector_allocatable_array_ip1_names
   use types_names
   use memor_names
-  use reference_fe_names
+  use allocatable_array_names
+
   implicit none
   private
   
-  STD_VECTOR_TYPE(type(cell_integrator_t),cell_integrator)
+  STD_VECTOR_TYPE(type(allocatable_array_ip1_t),allocatable_array_ip1)
     
-  public :: std_vector_cell_integrator_t
+  public :: std_vector_allocatable_array_ip1_t
   
 contains
   
 #define HAS_DYNAMIC_MEMORY
-  STD_VECTOR_PUSH_BACK(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_RESIZE(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_SHRINK_TO_FIT(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_FREE(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_ERASE(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_COPY(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_SET(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_INIT(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_CAT(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_SIZE(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_CAPACITY(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_GET(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_GET_POINTER_TO_RANGE(type(cell_integrator_t),cell_integrator)
-  STD_VECTOR_GET_RAW_POINTER(type(cell_integrator_t),cell_integrator)
+  STD_VECTOR_PUSH_BACK(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_RESIZE(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_SHRINK_TO_FIT(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_FREE(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_ERASE(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_COPY(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_SET(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_INIT(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_CAT(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_SIZE(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_CAPACITY(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_GET(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_GET_POINTER_SINGLE_ENTRY(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_GET_POINTER_TO_RANGE(type(allocatable_array_ip1_t),allocatable_array_ip1)
+  STD_VECTOR_GET_RAW_POINTER(type(allocatable_array_ip1_t),allocatable_array_ip1)
   
-end module std_vector_cell_integrator_names
+end module std_vector_allocatable_array_ip1_names

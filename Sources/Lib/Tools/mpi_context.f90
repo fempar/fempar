@@ -93,11 +93,14 @@ module mpi_context_names
      procedure :: bcast_subcontext   => mpi_context_bcast_subcontext
      procedure :: neighbours_exchange_rp                   => mpi_context_neighbours_exchange_rp    
      procedure :: neighbours_exchange_wo_alpha_beta_rp     => mpi_context_neighbours_exchange_wo_alpha_beta_rp
+     procedure :: neighbours_exchange_wo_alpha_beta_rp_v   => mpi_context_neighbours_exchange_wo_alpha_beta_rp_v
      procedure :: neighbours_exchange_ip                   => mpi_context_neighbours_exchange_ip                 
      procedure :: neighbours_exchange_igp                  => mpi_context_neighbours_exchange_igp                
      procedure :: neighbours_exchange_single_ip            => mpi_context_neighbours_exchange_single_ip          
      procedure :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_context_neighbours_exchange_wo_pack_unpack_ieep
      procedure :: neighbours_exchange_wo_unpack_ip         => mpi_context_neighbours_exchange_wo_unpack_ip
+     procedure :: neighbours_exchange_variable_igp         => mpi_context_neighbours_exchange_variable_igp
+     procedure :: neighbours_exchange_variable_ip          => mpi_context_neighbours_exchange_variable_ip       
      procedure :: root_send_master_rcv_ip          => mpi_context_root_send_master_rcv_ip
      procedure :: root_send_master_rcv_ip_1D_array => mpi_context_root_send_master_rcv_ip_1D_array
      procedure :: root_send_master_rcv_rp          => mpi_context_root_send_master_rcv_rp
@@ -717,6 +720,136 @@ contains
   end subroutine mpi_context_neighbours_exchange_wo_alpha_beta_rp
   
   !=============================================================================
+  subroutine mpi_context_neighbours_exchange_wo_alpha_beta_rp_v ( this, & 
+       &                                                          num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                                          x, y, ptr_chunk_size_snd, ptr_chunk_size_rcv )
+    implicit none
+    class(mpi_context_t), intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    real(rp)                , intent(in)    :: x(:)
+    real(rp)                , intent(inout) :: y(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size_snd(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size_rcv(:)
+    
+    ! Communication related locals 
+    integer :: i, proc_to_comm, sizmsg, istat
+    integer :: p2pstat(mpi_status_size)
+
+    ! Request handlers for non-blocking receives
+    integer, allocatable :: rcvhd(:)
+
+    ! Request handlers for non-blocking receives
+    integer, allocatable :: sndhd(:)
+
+    real(rp), allocatable :: sndbuf(:) 
+    real(rp), allocatable :: rcvbuf(:)
+
+    integer(ip) , allocatable :: ptr_snd_size(:)
+    integer(ip) , allocatable :: ptr_rcv_size(:)
+    
+    call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
+    call memalloc (num_snd, sndhd, __FILE__,__LINE__)
+    
+    call memalloc ( num_snd+1, ptr_snd_size, __FILE__, __LINE__ )
+    call memalloc ( num_rcv+1, ptr_rcv_size, __FILE__, __LINE__ )
+    
+    call fill_ptr_snd_rcv_size( num_rcv,rcv_ptrs,unpack_idx,           &
+                                      num_snd,snd_ptrs,pack_idx,             &
+                                      ptr_rcv_size,ptr_snd_size,             &
+                                      ptr_chunk_size_rcv,ptr_chunk_size_snd )
+    
+    call memalloc (ptr_snd_size(num_snd+1)-ptr_snd_size(1),sndbuf,__FILE__,__LINE__)
+    call memalloc (ptr_rcv_size(num_rcv+1)-ptr_rcv_size(1),rcvbuf,__FILE__,__LINE__)
+
+    ! Pack send buffers
+    call pack_variable_rp ( snd_ptrs(num_snd+1)-snd_ptrs(1), ptr_chunk_size_snd, pack_idx, x, sndbuf )
+    
+    ! First post all the non blocking receives   
+    do i=1, num_rcv
+       proc_to_comm = list_rcv(i) - 1
+
+       ! Message size to be received
+       sizmsg = ptr_rcv_size(i+1)-ptr_rcv_size(i)
+
+       if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
+          call mpi_irecv(  rcvbuf(ptr_rcv_size(i)), sizmsg,        &
+               &  mpi_context_rp, proc_to_comm,                          &
+               &  mpi_context_tag, this%icontxt, rcvhd(i), istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+
+    ! Secondly post all non-blocking sends
+    do i=1, num_snd
+       proc_to_comm = list_snd(i) - 1
+
+       ! Message size to be sent
+       sizmsg = ptr_snd_size(i+1)-ptr_snd_size(i)
+
+       if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then 
+          call mpi_isend(sndbuf(ptr_snd_size(i)), sizmsg,         &
+               & mpi_context_rp, proc_to_comm,                          &
+               & mpi_context_tag, this%icontxt, sndhd(i), istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+
+    ! Wait on all non-blocking receives
+    do i=1, num_rcv
+       proc_to_comm = list_rcv(i) - 1
+
+       ! Message size to be received
+       sizmsg = ptr_rcv_size(i+1)-ptr_rcv_size(i)
+
+       if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
+          call mpi_wait(rcvhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
+       else if ( list_rcv(i)-1 == this%get_current_task() ) then
+          if ( sizmsg /= (ptr_snd_size(i+1)-ptr_snd_size(i)) ) then 
+             write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
+                  & sizmsg, ptr_snd_size(i+1)-ptr_snd_size(i) 
+             check(.false.)     
+          end if
+          rcvbuf(   (ptr_rcv_size(i)+1):(ptr_rcv_size(i)+sizmsg) ) = &
+            sndbuf( (ptr_snd_size(i)+1):(ptr_snd_size(i)+sizmsg) )
+       end if
+    end do
+
+    ! Finally wait on all non-blocking sends
+    do i=1, num_snd
+       proc_to_comm = list_snd(i) - 1
+
+       ! Message size to be received
+       sizmsg = ptr_snd_size(i+1)-ptr_snd_size(i)
+
+       if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then
+          call mpi_wait(sndhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+    
+    ! Unpack recv buffers
+    call unpack_variable_rp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size_rcv, unpack_idx, rcvbuf, y )
+
+    call memfree (rcvhd,__FILE__,__LINE__) 
+    call memfree (sndhd,__FILE__,__LINE__)
+
+    call memfree (sndbuf,__FILE__,__LINE__)
+    call memfree (rcvbuf,__FILE__,__LINE__)
+    
+    call memfree ( ptr_snd_size, __FILE__, __LINE__ )
+    call memfree ( ptr_rcv_size, __FILE__, __LINE__ )
+    
+  end subroutine mpi_context_neighbours_exchange_wo_alpha_beta_rp_v
+  
+  !=============================================================================
   ! When packing   (gathering) ,    buffer <- alpha * x
   ! When unpacking (scattering),    x <- beta*x + buffer
   subroutine mpi_context_neighbours_exchange_ip ( this, & 
@@ -1239,6 +1372,267 @@ contains
   end subroutine mpi_context_neighbours_exchange_wo_unpack_ip
 
   !=============================================================================
+  subroutine mpi_context_neighbours_exchange_variable_igp ( this, & 
+       &                                                    num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                                    num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                                    x, y, ptr_chunk_size, mask)
+    implicit none
+    class(mpi_context_t), intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    integer(igp)            , intent(in)    :: x(:)
+    integer(igp)            , intent(inout) :: y(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size(:)
+    integer(igp)  , optional, intent(in)    :: mask
+
+    ! Communication related locals 
+    integer :: i, proc_to_comm, sizmsg, istat
+    integer :: p2pstat(mpi_status_size)
+
+    ! Request handlers for non-blocking receives
+    integer, allocatable :: rcvhd(:)
+
+    ! Request handlers for non-blocking receives
+    integer, allocatable :: sndhd(:)
+
+    integer(igp), allocatable :: sndbuf(:)
+    integer(igp), allocatable :: rcvbuf(:)
+    
+    integer(ip) , allocatable :: ptr_chunk_size_snd(:)
+    integer(ip) , allocatable :: ptr_chunk_size_rcv(:)
+    
+    call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
+    call memalloc (num_snd, sndhd, __FILE__,__LINE__)
+    
+    call memalloc ( num_snd+1, ptr_chunk_size_snd, __FILE__, __LINE__ )
+    call memalloc ( num_rcv+1, ptr_chunk_size_rcv, __FILE__, __LINE__ )
+    
+    call fill_ptr_snd_rcv_size( num_rcv,rcv_ptrs,unpack_idx,           &
+                                      num_snd,snd_ptrs,pack_idx,             &
+                                      ptr_chunk_size_rcv,ptr_chunk_size_snd, &
+                                      ptr_chunk_size, ptr_chunk_size )
+    
+    call memalloc (ptr_chunk_size_snd(num_snd+1)-ptr_chunk_size_snd(1),sndbuf,__FILE__,__LINE__)
+    call memalloc (ptr_chunk_size_rcv(num_rcv+1)-ptr_chunk_size_rcv(1),rcvbuf,__FILE__,__LINE__)
+
+    ! Pack send buffers
+    call pack_variable_igp ( snd_ptrs(num_snd+1)-snd_ptrs(1), ptr_chunk_size, pack_idx, x, sndbuf )
+    
+    ! First post all the non blocking receives   
+    do i=1, num_rcv
+       proc_to_comm = list_rcv(i) - 1
+
+       ! Message size to be received
+       sizmsg = ptr_chunk_size_rcv(i+1)-ptr_chunk_size_rcv(i)
+
+       if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
+          call mpi_irecv(  rcvbuf(ptr_chunk_size_rcv(i)), sizmsg,        &
+               &  mpi_context_igp, proc_to_comm,                         &
+               &  mpi_context_tag, this%icontxt, rcvhd(i), istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+
+    ! Secondly post all non-blocking sends
+    do i=1, num_snd
+       proc_to_comm = list_snd(i) - 1
+
+       ! Message size to be sent
+       sizmsg = ptr_chunk_size_snd(i+1)-ptr_chunk_size_snd(i)
+
+       if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then 
+          call mpi_isend(sndbuf(ptr_chunk_size_snd(i)), sizmsg,         &
+               & mpi_context_igp, proc_to_comm,                          &
+               & mpi_context_tag, this%icontxt, sndhd(i), istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+
+    ! Wait on all non-blocking receives
+    do i=1, num_rcv
+       proc_to_comm = list_rcv(i) - 1
+
+       ! Message size to be received
+       sizmsg = ptr_chunk_size_rcv(i+1)-ptr_chunk_size_rcv(i)
+
+       if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
+          call mpi_wait(rcvhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
+       else if ( list_rcv(i)-1 == this%get_current_task() ) then
+          if ( sizmsg /= (ptr_chunk_size_snd(i+1)-ptr_chunk_size_snd(i)) ) then 
+             write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
+                  & sizmsg, ptr_chunk_size_snd(i+1)-ptr_chunk_size_snd(i) 
+             check(.false.)     
+          end if
+          rcvbuf(   (ptr_chunk_size_rcv(i)+1):(ptr_chunk_size_rcv(i)+sizmsg) ) = &
+            sndbuf( (ptr_chunk_size_snd(i)+1):(ptr_chunk_size_snd(i)+sizmsg) )
+       end if
+    end do
+
+    ! Finally wait on all non-blocking sends
+    do i=1, num_snd
+       proc_to_comm = list_snd(i) - 1
+
+       ! Message size to be received
+       sizmsg = ptr_chunk_size_snd(i+1)-ptr_chunk_size_snd(i)
+
+       if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then
+          call mpi_wait(sndhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+    
+    ! Unpack recv buffers
+    call unpack_variable_igp (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size, unpack_idx, rcvbuf, y, mask )
+
+    call memfree (rcvhd,__FILE__,__LINE__) 
+    call memfree (sndhd,__FILE__,__LINE__)
+
+    call memfree (sndbuf,__FILE__,__LINE__)
+    call memfree (rcvbuf,__FILE__,__LINE__)
+    
+    call memfree ( ptr_chunk_size_snd, __FILE__, __LINE__ )
+    call memfree ( ptr_chunk_size_rcv, __FILE__, __LINE__ )
+    
+  end subroutine mpi_context_neighbours_exchange_variable_igp
+  
+  !=============================================================================
+  subroutine mpi_context_neighbours_exchange_variable_ip ( this, & 
+       &                                                   num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                                   num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                                   x, y, ptr_chunk_size, mask)
+    implicit none
+    class(mpi_context_t), intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    integer(ip)             , intent(in)    :: x(:)
+    integer(ip)             , intent(inout) :: y(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size(:)
+    integer(ip)   , optional, intent(in)    :: mask
+
+    ! Communication related locals 
+    integer :: i, proc_to_comm, sizmsg, istat
+    integer :: p2pstat(mpi_status_size)
+
+    ! Request handlers for non-blocking receives
+    integer, allocatable :: rcvhd(:)
+
+    ! Request handlers for non-blocking receives
+    integer, allocatable :: sndhd(:)
+
+    integer(ip), allocatable :: sndbuf(:)
+    integer(ip), allocatable :: rcvbuf(:)
+    
+    integer(ip) , allocatable :: ptr_chunk_size_snd(:)
+    integer(ip) , allocatable :: ptr_chunk_size_rcv(:)
+    
+    call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
+    call memalloc (num_snd, sndhd, __FILE__,__LINE__)
+    
+    call memalloc ( num_snd+1, ptr_chunk_size_snd, __FILE__, __LINE__ )
+    call memalloc ( num_rcv+1, ptr_chunk_size_rcv, __FILE__, __LINE__ )
+    
+    call fill_ptr_snd_rcv_size( num_rcv,rcv_ptrs,unpack_idx,           &
+                                num_snd,snd_ptrs,pack_idx,             &
+                                ptr_chunk_size_rcv,ptr_chunk_size_snd, &
+                                ptr_chunk_size, ptr_chunk_size )
+    
+    call memalloc (ptr_chunk_size_snd(num_snd+1)-ptr_chunk_size_snd(1),sndbuf,__FILE__,__LINE__)
+    call memalloc (ptr_chunk_size_rcv(num_rcv+1)-ptr_chunk_size_rcv(1),rcvbuf,__FILE__,__LINE__)
+
+    ! Pack send buffers
+    call pack_variable_ip ( snd_ptrs(num_snd+1)-snd_ptrs(1), ptr_chunk_size, pack_idx, x, sndbuf )
+    
+    ! First post all the non blocking receives   
+    do i=1, num_rcv
+       proc_to_comm = list_rcv(i) - 1
+
+       ! Message size to be received
+       sizmsg = ptr_chunk_size_rcv(i+1)-ptr_chunk_size_rcv(i)
+
+       if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
+          call mpi_irecv(  rcvbuf(ptr_chunk_size_rcv(i)), sizmsg,        &
+               &  mpi_context_ip, proc_to_comm,                         &
+               &  mpi_context_tag, this%icontxt, rcvhd(i), istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+
+    ! Secondly post all non-blocking sends
+    do i=1, num_snd
+       proc_to_comm = list_snd(i) - 1
+
+       ! Message size to be sent
+       sizmsg = ptr_chunk_size_snd(i+1)-ptr_chunk_size_snd(i)
+
+       if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then 
+          call mpi_isend(sndbuf(ptr_chunk_size_snd(i)), sizmsg,         &
+               & mpi_context_ip, proc_to_comm,                          &
+               & mpi_context_tag, this%icontxt, sndhd(i), istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+
+    ! Wait on all non-blocking receives
+    do i=1, num_rcv
+       proc_to_comm = list_rcv(i) - 1
+
+       ! Message size to be received
+       sizmsg = ptr_chunk_size_rcv(i+1)-ptr_chunk_size_rcv(i)
+
+       if ( (sizmsg > 0) .and. (list_rcv(i)-1 /= this%get_current_task()) ) then
+          call mpi_wait(rcvhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
+       else if ( list_rcv(i)-1 == this%get_current_task() ) then
+          if ( sizmsg /= (ptr_chunk_size_snd(i+1)-ptr_chunk_size_snd(i)) ) then 
+             write(0,*) 'Fatal error in single_exchange: mismatch on self sendf', & 
+                  & sizmsg, ptr_chunk_size_snd(i+1)-ptr_chunk_size_snd(i) 
+             check(.false.)     
+          end if
+          rcvbuf(   (ptr_chunk_size_rcv(i)+1):(ptr_chunk_size_rcv(i)+sizmsg) ) = &
+            sndbuf( (ptr_chunk_size_snd(i)+1):(ptr_chunk_size_snd(i)+sizmsg) )
+       end if
+    end do
+
+    ! Finally wait on all non-blocking sends
+    do i=1, num_snd
+       proc_to_comm = list_snd(i) - 1
+
+       ! Message size to be received
+       sizmsg = ptr_chunk_size_snd(i+1)-ptr_chunk_size_snd(i)
+
+       if ( (sizmsg > 0) .and. (list_snd(i)-1 /= this%get_current_task()) ) then
+          call mpi_wait(sndhd(i), p2pstat, istat)
+          check ( istat == mpi_success )
+       end if
+    end do
+    
+    ! Unpack recv buffers
+    call unpack_variable_ip (rcv_ptrs(num_rcv+1)-rcv_ptrs(1), ptr_chunk_size, unpack_idx, rcvbuf, y, mask )
+
+    call memfree (rcvhd,__FILE__,__LINE__) 
+    call memfree (sndhd,__FILE__,__LINE__)
+
+    call memfree (sndbuf,__FILE__,__LINE__)
+    call memfree (rcvbuf,__FILE__,__LINE__)
+    
+    call memfree ( ptr_chunk_size_snd, __FILE__, __LINE__ )
+    call memfree ( ptr_chunk_size_rcv, __FILE__, __LINE__ )
+    
+  end subroutine mpi_context_neighbours_exchange_variable_ip
+  
+  
+  !=============================================================================
   subroutine mpi_context_gather_scalar_ip ( this, input_data, output_data )
     implicit none
     class(mpi_context_t), intent(in)   :: this
@@ -1485,6 +1879,81 @@ contains
   end subroutine pack_igp
 
   !=============================================================================
+  subroutine pack_variable_igp ( n, ptr_chunk_size, pack_idx, x, y )
+    implicit none
+
+    !Parameters
+    integer (ip), intent(in)     :: n
+    integer (ip), intent(in)     :: ptr_chunk_size(:)
+    integer (ip), intent(in)     :: pack_idx(n)
+    integer (igp), intent(in)    :: x(*)
+    integer (igp), intent(inout) :: y(*)
+
+    !Locals
+    integer(ip) :: i, j, startx, endx
+    integer(ip) :: current
+    current=1
+    do i=1,n
+       startx = ptr_chunk_size(pack_idx(i))
+       endx   = ptr_chunk_size(pack_idx(i)+1)-1
+       do j=startx, endx
+          y(current) = x(j)
+          current = current + 1
+       end do
+    end do
+  end subroutine pack_variable_igp
+  
+  !=============================================================================
+  subroutine pack_variable_ip ( n, ptr_chunk_size, pack_idx, x, y )
+    implicit none
+
+    !Parameters
+    integer (ip), intent(in)     :: n
+    integer (ip), intent(in)     :: ptr_chunk_size(:)
+    integer (ip), intent(in)     :: pack_idx(n)
+    integer (ip), intent(in)     :: x(*)
+    integer (ip), intent(inout)  :: y(*)
+
+    !Locals
+    integer(ip) :: i, j, startx, endx
+    integer(ip) :: current
+    current=1
+    do i=1,n
+       startx = ptr_chunk_size(pack_idx(i))
+       endx   = ptr_chunk_size(pack_idx(i)+1)-1
+       do j=startx, endx
+          y(current) = x(j)
+          current = current + 1
+       end do
+    end do
+  end subroutine pack_variable_ip
+  
+  !=============================================================================
+  subroutine pack_variable_rp ( n, ptr_chunk_size, pack_idx, x, y )
+    implicit none
+
+    !Parameters
+    integer (ip), intent(in)     :: n
+    integer (ip), intent(in)     :: ptr_chunk_size(:)
+    integer (ip), intent(in)     :: pack_idx(n)
+    real (rp)   , intent(in)     :: x(*)
+    real (rp)   , intent(inout)  :: y(*)
+
+    !Locals
+    integer(ip) :: i, j, startx, endx
+    integer(ip) :: current
+    current=1
+    do i=1,n
+       startx = ptr_chunk_size(pack_idx(i))
+       endx   = ptr_chunk_size(pack_idx(i)+1)-1
+       do j=startx, endx
+          y(current) = x(j)
+          current = current + 1
+       end do
+    end do
+  end subroutine pack_variable_rp
+  
+  !=============================================================================
   subroutine unpack_igp ( n, chunk_size, unpack_idx, x, y, mask )
     implicit none
 
@@ -1514,6 +1983,143 @@ contains
        end do
     end do
   end subroutine unpack_igp
+  
+  !=============================================================================
+  subroutine unpack_variable_igp ( n, ptr_chunk_size, unpack_idx, x, y, mask )
+    implicit none
+
+    !Parameters
+    integer (ip), intent(in)     :: n
+    integer (ip), intent(in)     :: ptr_chunk_size(:)
+    integer (ip), intent(in)     :: unpack_idx(n)
+    integer (igp), intent(in)    :: x(*)
+    integer (igp), intent(inout) :: y(*)
+    integer (igp), optional, intent(in) :: mask
+
+    !Locals
+    integer(ip) :: i, j, starty, endy, current
+    current = 1
+    do i=1,n
+       starty = ptr_chunk_size(unpack_idx(i))
+       endy   = ptr_chunk_size(unpack_idx(i)+1)-1
+       do j=starty, endy
+          if (present(mask)) then
+            if ( x(current) /= mask ) then
+              y(j) = x(current)
+            end if
+          else
+            y(j) = x(current)
+          end if
+          current = current + 1
+       end do
+    end do
+  end subroutine unpack_variable_igp
+  
+    !=============================================================================
+  subroutine unpack_variable_ip ( n, ptr_chunk_size, unpack_idx, x, y, mask )
+    implicit none
+
+    !Parameters
+    integer (ip), intent(in)     :: n
+    integer (ip), intent(in)     :: ptr_chunk_size(:)
+    integer (ip), intent(in)     :: unpack_idx(n)
+    integer (ip), intent(in)    :: x(*)
+    integer (ip), intent(inout) :: y(*)
+    integer (ip), optional, intent(in) :: mask
+
+    !Locals
+    integer(ip) :: i, j, starty, endy, current
+    current = 1
+    do i=1,n
+       starty = ptr_chunk_size(unpack_idx(i))
+       endy   = ptr_chunk_size(unpack_idx(i)+1)-1
+       do j=starty, endy
+          if (present(mask)) then
+            if ( x(current) /= mask ) then
+              y(j) = x(current)
+            end if
+          else
+            y(j) = x(current)
+          end if
+          current = current + 1
+       end do
+    end do
+  end subroutine unpack_variable_ip
+  
+  !=============================================================================
+  subroutine unpack_variable_rp ( n, ptr_chunk_size, unpack_idx, x, y )
+    implicit none
+
+    !Parameters
+    integer (ip), intent(in)     :: n
+    integer (ip), intent(in)     :: ptr_chunk_size(:)
+    integer (ip), intent(in)     :: unpack_idx(n)
+    real (rp)   , intent(in)     :: x(*)
+    real (rp)   , intent(inout)  :: y(*)
+
+    !Locals
+    integer(ip) :: i, j, starty, endy, current
+    current = 1
+    do i=1,n
+       starty = ptr_chunk_size(unpack_idx(i))
+       endy   = ptr_chunk_size(unpack_idx(i)+1)-1
+       do j=starty, endy
+          y(j) = x(current)
+          current = current + 1
+       end do
+    end do
+  end subroutine unpack_variable_rp
+  
+  !=============================================================================
+  subroutine fill_ptr_snd_rcv_size ( num_rcv,rcv_ptrs,unpack_idx,           &
+                                     num_snd,snd_ptrs,pack_idx,             &
+                                     ptr_rcv_size,ptr_snd_size,             &
+                                     ptr_chunk_size_rcv,ptr_chunk_size_snd )
+    implicit none
+
+    integer(ip), intent(in)    :: num_rcv, rcv_ptrs(num_rcv+1)
+    integer(ip), intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    integer(ip), intent(in)    :: num_snd, snd_ptrs(num_snd+1)
+    integer(ip), intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    integer(ip), intent(inout) :: ptr_rcv_size(:)
+    integer(ip), intent(inout) :: ptr_snd_size(:)
+    integer(ip), intent(in)    :: ptr_chunk_size_rcv(:)
+    integer(ip), intent(in)    :: ptr_chunk_size_snd(:)
+    
+    integer(ip) :: i,j,k
+    
+    ptr_snd_size = 0
+    ptr_rcv_size = 0
+    
+    ptr_snd_size(1) = 1
+    ptr_rcv_size(1) = 1
+    
+    do i = 1,num_rcv
+      do j = rcv_ptrs(i),rcv_ptrs(i+1)-1
+        k = unpack_idx(j)
+        ptr_rcv_size(i+1) = ptr_rcv_size(i+1) + & 
+                               ptr_chunk_size_rcv(k+1) - ptr_chunk_size_rcv(k)
+      end do
+    end do
+    
+    do i = 1,num_rcv
+      ptr_rcv_size(i+1) = ptr_rcv_size(i+1) + ptr_rcv_size(i)
+    end do
+    
+    do i = 1,num_snd
+      do j = snd_ptrs(i),snd_ptrs(i+1)-1
+        k = pack_idx(j)
+        ptr_snd_size(i+1) = ptr_snd_size(i+1) + & 
+                               ptr_chunk_size_snd(k+1) - ptr_chunk_size_snd(k)
+      end do
+    end do
+    
+    do i = 1,num_snd
+      ptr_snd_size(i+1) = ptr_snd_size(i+1) + ptr_snd_size(i)
+    end do
+    
+  end subroutine fill_ptr_snd_rcv_size
+  
   !=============================================================================
   !=============================================================================
   subroutine mpi_context_root_send_master_rcv_ip ( this, input_data, output_data )

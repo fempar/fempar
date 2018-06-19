@@ -58,7 +58,7 @@ module p4est_triangulation_names
 #endif
 # include "debug.i90"
   private
-  
+ 
   ! For 2D
   integer(ip), parameter :: NUM_SUBCELLS_IN_TOUCH_FACE_2D = 2
   integer(ip), parameter :: NUM_CORNERS_2D                = 4
@@ -66,7 +66,9 @@ module p4est_triangulation_names
   integer(ip), parameter :: NUM_SUBFACES_FACE_2D          = 2
   integer(ip), parameter :: NUM_FACE_CORNERS_2D           = 2
   integer(ip), parameter :: NUM_FACES_AT_CORNER_2D        = 2
-  integer(ip), parameter :: NUM_VEFS_2D              = NUM_CORNERS_2D+NUM_FACES_2D
+  integer(ip), parameter :: NUM_VEFS_2D                   = NUM_CORNERS_2D+NUM_FACES_2D
+  integer(ip), parameter :: MAX_NUM_CELLS_AROUND_2D       = 4 
+
   integer(ip), target :: P4EST_FACE_CORNERS_2D(NUM_FACE_CORNERS_2D,NUM_FACES_2D) = & 
                                                   reshape([1, 3,&
                                                            2, 4,&  
@@ -130,7 +132,9 @@ module p4est_triangulation_names
   integer(ip), parameter :: NUM_FACES_AT_CORNER_3D        = 3
   integer(ip), parameter :: NUM_FACES_AT_EDGE_3D          = 2
   integer(ip), parameter :: NUM_EDGES_AT_CORNER_3D        = 3
-  integer(ip), parameter :: NUM_VEFS_3D              = NUM_CORNERS_3D+NUM_FACES_3D+NUM_EDGES_3D
+  integer(ip), parameter :: NUM_VEFS_3D                   = NUM_CORNERS_3D+NUM_FACES_3D+NUM_EDGES_3D
+  integer(ip), parameter :: MAX_NUM_CELLS_AROUND_3D       = 8 
+
 
   integer(ip), target :: P4EST_OPPOSITE_FACE_3D(NUM_FACES_3D) = [ 2, 1, 4, 3, 6, 5 ]
 
@@ -324,9 +328,12 @@ module p4est_triangulation_names
   
   type, extends(cell_iterator_t) :: p4est_cell_iterator_t
     private
-    integer(ip) :: num_dims                  = 0
-    integer(ip) :: base_pos_in_lst_vefs_gids = 0
-    integer(ip) :: num_local_cells           = 0
+    integer(ip) :: num_dims                   = 0
+    integer(ip) :: num_vefs                   = 0
+    integer(ip) :: base_pos_in_lst_vefs_gids  = 0
+    integer(ip) :: num_vertices               = 0
+    integer(ip) :: base_pos_in_vertex_coords  = 0
+    integer(ip) :: num_local_cells            = 0
     type(p4est_base_triangulation_t), pointer :: p4est_triangulation => NULL()
   contains
     procedure                            :: create                  => p4est_cell_iterator_create
@@ -341,6 +348,7 @@ module p4est_triangulation_names
     procedure                            :: set_set_id              => p4est_cell_iterator_set_set_id
     procedure                            :: get_level               => p4est_cell_iterator_get_level
     procedure                            :: get_num_vefs            => p4est_cell_iterator_get_num_vefs
+    procedure                            :: get_num_vertices        => p4est_cell_iterator_get_num_vertices
     procedure                            :: get_num_nodes           => p4est_cell_iterator_get_num_nodes
     procedure                            :: get_nodes_coordinates   => p4est_cell_iterator_get_nodes_coordinates
     procedure                            :: get_ggid                => p4est_cell_iterator_get_ggid
@@ -358,6 +366,7 @@ module p4est_triangulation_names
     procedure                            :: set_for_coarsening      => p4est_cell_iterator_set_for_coarsening
     procedure                            :: set_for_refinement      => p4est_cell_iterator_set_for_refinement
     procedure                            :: set_for_do_nothing      => p4est_cell_iterator_set_for_do_nothing
+    procedure                            :: set_weight              => p4est_cell_iterator_set_weight
     procedure                            :: get_transformation_flag => p4est_cell_iterator_get_transformation_flag
     procedure                            :: get_permutation_index   => p4est_cell_iterator_get_permutation_index
     
@@ -476,6 +485,7 @@ module p4est_triangulation_names
     type(std_vector_logical_t)             :: proper_vefs_is_ghost
     type(std_vector_logical_t)             :: improper_vefs_is_ghost
     type(std_vector_integer_ip_t)          :: refinement_and_coarsening_flags
+    type(std_vector_integer_ip_t)          :: cell_weights
     type(std_vector_integer_ip_t)          :: cell_set_ids
     type(std_vector_integer_ip_t)          :: disconnected_cells_set_ids
     type(std_vector_integer_ip_t)          :: proper_vefs_set_ids
@@ -487,6 +497,7 @@ module p4est_triangulation_names
   
     ! Getters
     procedure                                   :: get_num_reference_fes                         => p4est_base_triangulation_get_num_reference_fes
+    procedure                                   :: get_reference_fe                              => p4est_base_triangulation_get_reference_fe
     procedure                                   :: get_max_num_shape_functions                   => p4est_base_triangulation_get_max_num_shape_functions
     procedure                                   :: get_num_proper_vefs                           => p4est_base_triangulation_get_num_proper_vefs
     procedure                                   :: get_num_improper_vefs                         => p4est_base_triangulation_get_num_improper_vefs
@@ -505,10 +516,12 @@ module p4est_triangulation_names
     procedure, private        , non_overridable  :: update_cell_myparts                                => p4est_base_triangulation_update_cell_myparts
     procedure, private        , non_overridable  :: comm_cell_myparts                                  => p4est_base_triangulation_comm_cell_myparts
     procedure, private        , non_overridable  :: update_cell_set_ids                                => p4est_bt_update_cell_set_ids
+    procedure, private        , non_overridable  :: update_cell_weights                                => p4est_bt_update_cell_weights
     procedure, private        , non_overridable  :: comm_cell_set_ids                                  => p4est_bt_comm_cell_set_ids
     procedure, private        , non_overridable  :: update_vef_set_ids                                 => p4est_bt_update_vef_set_ids
     procedure, private        , non_overridable  :: fill_x_cell_vertex_coordinates                     => p4est_bt_allocate_and_fill_x_cell_vertex_coordinates
     procedure                 , non_overridable  :: clear_refinement_and_coarsening_flags              => p4est_bt_clear_refinement_and_coarsening_flags
+    procedure                 , non_overridable  :: clear_cell_weights                                 => p4est_bt_clear_cell_weights
     procedure                 , non_overridable  :: clear_cell_set_ids                                 => p4est_bt_clear_cell_set_ids
     procedure                                    :: fill_cells_set                                     => p4est_bt_fill_cells_set
     procedure                                    :: compute_max_cells_set_id                           => p4est_bt_compute_max_cells_set_id
@@ -581,6 +594,7 @@ module p4est_triangulation_names
     procedure                                   :: redistribute                                     => p4est_par_triangulation_redistribute
     procedure                                   :: update_migration_control_data                    => p4est_par_triangulation_update_migration_control_data
     procedure                                   :: migrate_cell_set_ids                             => p4est_par_triangulation_migrate_cell_set_ids
+    procedure                                   :: migrate_cell_weights                             => p4est_par_triangulation_migrate_cell_weights
     procedure                                   :: migrate_vef_set_ids                              => p4est_par_triangulation_migrate_vef_set_ids
     procedure                                   :: get_migration_num_snd                            => p4est_par_triangulation_get_migration_num_snd
     procedure                                   :: get_migration_lst_snd                            => p4est_par_triangulation_get_migration_lst_snd
@@ -596,6 +610,13 @@ module p4est_triangulation_names
   
   public :: p4est_par_triangulation_t
 contains
+
+! The value of this CPP macro should be zero 
+! whenever the code below is extended to support forests of
+! octrees with more than a single octree. By now, it just
+! supports a single octree, and thus the sort of optimizations
+! that are enabled through the CPP macro can be activated.
+#define ENABLE_SINGLE_OCTREE_OPTS 1
 
 #include "sbm_p4est_base_triangulation.i90"
 #include "sbm_p4est_cell_iterator.i90"

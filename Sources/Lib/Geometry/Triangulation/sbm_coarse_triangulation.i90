@@ -114,10 +114,9 @@
       call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
       cells_set = 0
       call this%fill_cells_set(cells_set)
-      call memfree (cells_set, __FILE__, __LINE__)      
-      
-      this%subparts_coupling_criteria = subparts_coupling_criteria 
+      call memfree (cells_set, __FILE__, __LINE__)  
     end if
+    this%subparts_coupling_criteria = subparts_coupling_criteria 
     call this%setup_coarse_triangulation()
     !call this%print()
   end subroutine coarse_triangulation_create
