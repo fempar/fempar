@@ -99,7 +99,7 @@ end subroutine base_map_compute_quadrature_points_coordinates
 subroutine base_map_compute_jacobian(this)
   implicit none
   class(base_map_t), intent(inout) :: this
-  call fill_plane_array_with_vector_field_1D_array ( this%interpolation%shape_derivatives, &
+  call compute_3D_plain_array_lin_comb_with_point_1D_array ( this%interpolation%shape_derivatives, &
                                                      this%nodes_coordinates, &
                                                      this%jacobian, &
                                                      this%num_dims)
