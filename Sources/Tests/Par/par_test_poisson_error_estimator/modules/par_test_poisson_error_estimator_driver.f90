@@ -212,10 +212,11 @@ contains
     type(ParameterList_t) :: parameter_list
     integer(ip)           :: FPLError, istat, max_num_mesh_iterations
     logical               :: test
-    real(rp)              :: theoretical_rate, tol_rate = 0.1_rp
-    
+    real(rp)              :: theoretical_rate, tol_rate
+      
     global_estimate = 1.0_rp; global_true_error = 1.0_rp; theoretical_rate = 0.0_rp
-    
+    tol_rate = 0.1_rp   
+ 
     call poisson_cG_error_estimator%create(this%fe_space,this%parameter_list)
     call poisson_cG_error_estimator%set_analytical_functions(this%poisson_analytical_functions%get_analytical_functions())
     call poisson_cG_error_estimator%set_fe_function(this%solution)

@@ -294,6 +294,7 @@ contains
     real(rp) :: sq_avg_estimate, avg_estimate
     integer(ip) :: num_iterations
     real(rp) :: aux(2)
+    real(rp) :: initial_interval_size
     
     assert ( associated(this%error_estimator) )
     
@@ -319,8 +320,12 @@ contains
       call environment%l1_max(aux)
       min_estimate = -aux(1)
       max_estimate = aux(2)
+
+      write(*,*) 'XXX', min_estimate, max_estimate 
+      initial_interval_size = abs(max_estimate-min_estimate) 
+
       num_iterations=0
-      do while ( abs(max_estimate-min_estimate) > this%refinement_threshold_tolerance) 
+      do while ( abs(max_estimate-min_estimate)/initial_interval_size > this%refinement_threshold_tolerance) 
         ! Compute interval split point
         avg_estimate    = (1.0_rp/2.0_rp) * (min_estimate+max_estimate)
         sq_avg_estimate = avg_estimate*avg_estimate
@@ -344,19 +349,18 @@ contains
         num_iterations = num_iterations + 1 
       end do 
       if ( environment%am_i_l1_root() ) then
-        write(*,*) "Converged to ", this%refinement_threshold_tolerance, " in ", num_iterations
-        write(*,*) "Refinement threshold = ", avg_estimate, sq_avg_estimate
+        write(*,*) "Converged to ", this%refinement_threshold_tolerance, " in ", num_iterations, " iterations"
+        write(*,*) "Computed refinement threshold = ", avg_estimate
+        write(*,*) "% cells to be refined = ", real(current_num_cells_to_be_refined,rp)/real(num_global_cells,rp)
       end if
+      do i = 1, num_local_cells
+       if ( sq_local_estimate_entries(i) > sq_avg_estimate ) then
+         refinement_and_coarsening_flags_entries(i) = refinement
+       else
+         refinement_and_coarsening_flags_entries(i) = do_nothing
+       end if
+      end do
     end if
-    
-    do i = 1, num_local_cells
-      if ( sq_local_estimate_entries(i) > sq_avg_estimate ) then
-        refinement_and_coarsening_flags_entries(i) = refinement
-      else
-        refinement_and_coarsening_flags_entries(i) = do_nothing
-      end if
-    end do
-    
     this%current_mesh_iteration = this%current_mesh_iteration + 1
   end subroutine ffrs_update_refinement_flags
   
