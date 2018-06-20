@@ -44,6 +44,19 @@ subroutine time_stepping_operator_create(this, fe_nl_op, mass_op, initial_time, 
 end subroutine time_stepping_operator_create
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+subroutine time_stepping_operator_update(this, initial_time, final_time, time_step, time_integration_scheme)
+  implicit none
+  class(time_stepping_operator_t),         intent(inout) :: this
+  character(len=*)               ,         intent(in)    :: time_integration_scheme
+  real(rp)                       ,         intent(in)    :: initial_time, final_time, time_step
+  call this%deallocate_dofs_stages()
+  call this%scheme%create(time_integration_scheme)
+  call this%set_initial_time(initial_time)
+  call this%set_final_time(final_time)
+  call this%set_time_step_size(time_step)
+  
+end subroutine
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 subroutine time_stepping_operator_free(this)
   implicit none
   class(time_stepping_operator_t),         intent(inout) :: this
@@ -105,7 +118,7 @@ subroutine time_stepping_operator_update_current_time( this, current_time )
   real(rp)                       , intent(inout) :: current_time
   this%time = this%time + this%dt
   current_time = this%time
-  this%current_time_step = this%current_time_step + 1
+  !this%current_time_step = this%current_time_step + 1
 end subroutine time_stepping_operator_update_current_time
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
@@ -140,13 +153,21 @@ function time_stepping_operator_get_matrix( this )
   time_stepping_operator_get_matrix =>  this%fe_op%get_matrix()
 end function time_stepping_operator_get_matrix
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+function time_stepping_operator_get_order( this )
+  implicit none
+  class(time_stepping_operator_t), intent(in) :: this
+  real(rp) :: time_stepping_operator_get_order
+  time_stepping_operator_get_order =  this%scheme%order
+end function time_stepping_operator_get_order
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 function time_stepping_operator_has_finished( this )
   implicit none
   class(time_stepping_operator_t), intent(in) :: this
   logical :: time_stepping_operator_has_finished
   time_stepping_operator_has_finished = .false.
-  if (this%time >= this%final_time .or. this%current_time_step >= this%num_time_steps) then
+  if (this%time >= this%final_time) then
     time_stepping_operator_has_finished = .true.
   endif
 end function time_stepping_operator_has_finished

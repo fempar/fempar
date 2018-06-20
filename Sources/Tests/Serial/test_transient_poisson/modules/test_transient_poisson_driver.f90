@@ -93,9 +93,11 @@ module test_transient_poisson_driver_names
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
      procedure        , private :: check_solution
+     procedure        , private :: check_convergence_order
      procedure        , private :: initialize_output
      procedure        , private :: finalize_output
      procedure        , private :: write_time_step
+     procedure        , private :: get_error_norm
      procedure        , private :: free
   end type test_transient_poisson_driver_t
 
@@ -383,12 +385,9 @@ contains
     class(vector_t)                         , allocatable   :: dof_values_previous
     real(rp) :: final_time, time_step
     real(rp)                                                :: current_time
-    !! Time integration machinery
-    !final_time  = 2.0_rp
-    !time_step   = 0.5_rp
+    
     !! sbadia: for transient body force/bc's we will need the time t0 too
-    !call this%time_operator%set_time_step_size(time_step)
-    !call this%time_operator%set_initial_time(current_time)
+
     current_time = this%time_operator%get_current_time()
     final_time = this%time_operator%get_final_time()
     ! initialize dof_values_current
@@ -429,8 +428,10 @@ contains
        
        call this%time_operator%update_current_time(current_time) ! pmartorell: updated current_time after solve, time_operator solves at t=t^(n-1) + c_i * dt
        call this%fe_space%interpolate_dirichlet_values(this%solution, time=current_time) ! pmartorell: updated boundary values when not evaluated in the solver, e.g. forward_euler
-       call this%write_time_step(current_time)
-       call this%check_solution(current_time)
+       call this%write_time_step(current_time)       
+       if ( .not. this%test_params%get_is_test()) then
+         call this%check_solution(current_time)
+       endif
     end do
     
     if ( allocated(dof_values_previous) ) call dof_values_previous%free()
@@ -477,8 +478,97 @@ contains
     !write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
     call error_norm%free()
   end subroutine check_solution
- 
+  
   ! -----------------------------------------------------------------------------------------------
+  subroutine check_convergence_order(this)
+    implicit none
+    class(test_transient_poisson_driver_t), intent(inout) :: this
+    type(error_norms_scalar_t) :: error_norm
+    character(len=:), allocatable :: time_integration_scheme
+    real(rp) :: l2, l2_prev, dt, dt_variation, current_time, order_tol, final_time, error_tolerance
+    integer(ip) :: convergence_order
+    logical :: is_test , in_tol
+    
+    dt = 1.0e-03
+    final_time = 1.0e-02
+    dt_variation = 1.0e-01
+    order_tol = 0.05_rp
+    in_tol  = .false.
+    
+    
+    time_integration_scheme = this%test_params%get_time_integration_scheme()
+    is_test = this%test_params%get_is_test()
+    
+#ifdef ENABLE_MKL    
+    error_tolerance = 1.0e-10
+#else
+    error_tolerance = 1.0e-06
+#endif  
+    
+    
+    if (is_test) then
+
+      l2_prev = this%get_error_norm(dt,dt,time_integration_scheme)
+      l2      = this%get_error_norm(dt*dt_variation,dt*dt_variation,time_integration_scheme)
+      
+      if ( time_integration_scheme == 'trapezoidal_rule' ) then
+        if ( l2 < error_tolerance .and. l2_prev < error_tolerance) then
+          in_tol = .true.
+        endif
+      endif
+      
+      convergence_order = this%time_operator%get_order()
+
+      if ( abs((l2 - l2_prev*dt_variation**(convergence_order+1)) / l2) < order_tol .or. in_tol ) then
+        write(*,*) 'Local  convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
+      else
+        write(*,*) 'Local  convergence test for: ', time_integration_scheme , char(9) ,' ...  fail' 
+      endif
+      
+      l2_prev = this%get_error_norm(dt,final_time,time_integration_scheme)
+      l2      = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
+       
+      convergence_order = this%time_operator%get_order()
+      
+      
+      if ( time_integration_scheme == 'trapezoidal_rule' ) then
+        if ( l2 < error_tolerance .and. l2_prev < error_tolerance) then
+          in_tol = .true.
+        endif
+      endif
+      
+      if ( abs((l2 - l2_prev*dt_variation**convergence_order) / l2) < order_tol .or. in_tol ) then
+        write(*,*) 'Global convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
+      else
+        write(*,*) 'Global convergence test for: ', time_integration_scheme , char(9) ,' ...  fail' 
+      endif
+      
+      
+       deallocate(time_integration_scheme)
+    endif  
+  end subroutine check_convergence_order
+  
+  function get_error_norm ( this , dt , final_time, time_integration_scheme)
+    implicit none
+    class(test_transient_poisson_driver_t), intent(inout) :: this
+    real(rp)                              , intent(in)    :: dt, final_time
+    character(len=:), allocatable         , intent(in)    :: time_integration_scheme
+    real(rp)                                              :: get_error_norm, current_time
+    type(error_norms_scalar_t) :: error_norm
+    
+    call error_norm%create(this%fe_space,1)
+    call this%time_operator%update(0.0_rp,final_time,dt,time_integration_scheme)
+    call this%solve_system()
+    current_time = this%time_operator%get_current_time()
+    get_error_norm = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm, time=current_time) !pmartorell: l2_norm argumnent if tested for differents norms
+    call error_norm%free()                 
+  end function get_error_norm
+ ! ! -----------------------------------------------------------------------------------------------
+ ! subroutine avance_time(this)
+ !   implicit none
+ !   class(test_transient_poisson_driver_t), intent(inout) :: this 
+ !end subroutine
+ ! ! -----------------------------------------------------------------------------------------------
   subroutine initialize_output(this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
@@ -529,6 +619,7 @@ contains
     call this%setup_solver()
     call this%initialize_output()
     call this%solve_system()
+    call this%check_convergence_order() !hide?
     call this%finalize_output()
     call this%free()
   end subroutine run_simulation
