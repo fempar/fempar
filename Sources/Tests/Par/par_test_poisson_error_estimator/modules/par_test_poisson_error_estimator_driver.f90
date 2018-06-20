@@ -229,6 +229,7 @@ contains
     FPLError = FPLError + parameter_list%set(key = num_uniform_refinements_key, value = 2)
     assert(FPLError == 0)
     FPLError = FPLError + parameter_list%set(key = refinement_fraction_key, value = 0.30_rp)
+    FPLError = FPLError + parameter_list%set(key = coarsening_fraction_key, value = 0.10_rp)
     FPLError = FPLError + parameter_list%set(key = num_uniform_refinements_key, value = 2)
     assert(FPLError == 0)
     

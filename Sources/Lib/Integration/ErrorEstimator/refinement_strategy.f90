@@ -46,7 +46,8 @@ module refinement_strategy_names
   character(len=*), parameter :: max_num_mesh_iterations_key        = 'max_num_mesh_iterations'
   
   character(len=*), parameter :: refinement_fraction_key            = 'refinement_fraction'
-  character(len=*), parameter :: refinement_threshold_tolerance_key = 'refinement_threshold_tolerance_key'
+  character(len=*), parameter :: coarsening_fraction_key            = 'coarsening_fraction'
+  character(len=*), parameter :: threshold_tolerance_key            = 'threshold_tolerance_key'
   
   type, abstract :: refinement_strategy_t
     private
@@ -104,11 +105,20 @@ module refinement_strategy_names
     procedure :: has_finished_refinement    => eors_has_finished_refinement
   end type error_objective_refinement_strategy_t
   
+  ! Implements Algorithm for calculating coarsening and refinement thresholds
+  ! in Fig 5. of the following paper:
+  ! Algorithms and data structures for massively parallel generic adaptive finite element codes
+  ! W Bangerth, C Burstedde, T Heister, M Kronbichler
+  ! ACM Transactions on Mathematical Software 38 (2)
   type, extends(refinement_strategy_t) :: fixed_fraction_refinement_strategy_t
     private
-    ! Refine all cells s.t. #{e_i > \theta_r} \approx this%refinement_fraction * N_cells 
+    ! Refine all cells s.t. #{e_i > \theta_r} \approx this%refinement_fraction * N_cells
+    ! Coarsen all cells s.t. #{e_i < \theta_c} \approx this%coarsening_fraction * N_cells 
     real(rp)                          :: refinement_fraction
-    real(rp)                          :: refinement_threshold_tolerance
+    real(rp)                          :: coarsening_fraction
+    real(rp)                          :: threshold_tolerance
+    real(rp)                          :: sq_refinement_threshold
+    real(rp)                          :: sq_coarsening_threshold
     integer(ip)                       :: max_num_mesh_iterations
    contains
     procedure :: set_parameters             => ffrs_set_parameters
@@ -119,7 +129,7 @@ module refinement_strategy_names
   
   public :: num_uniform_refinements_key
   public :: error_objective_key, objective_tolerance_key, max_num_mesh_iterations_key
-  public :: refinement_fraction_key
+  public :: refinement_fraction_key, coarsening_fraction_key
   
   public :: refinement_strategy_t
   public :: uniform_refinement_strategy_t, error_objective_refinement_strategy_t, fixed_fraction_refinement_strategy_t
@@ -251,19 +261,25 @@ contains
     class(fixed_fraction_refinement_strategy_t), intent(inout) :: this
     type(parameterlist_t)                       , intent(in)    :: parameter_list
     integer(ip) :: FPLerror
-    ! Parse refinement_fraction
+    ! Parse refinement/coarsening fraction
     assert(parameter_list%isPresent(refinement_fraction_key))
     assert(parameter_list%isAssignable(refinement_fraction_key,this%refinement_fraction))
     FPLerror = parameter_list%get(key = refinement_fraction_key, value = this%refinement_fraction)
     assert(FPLerror==0)
     assert ( this%refinement_fraction >= 0.0_rp .and. this%refinement_fraction <= 1.0_rp )
     
+    assert(parameter_list%isPresent(coarsening_fraction_key))
+    assert(parameter_list%isAssignable(coarsening_fraction_key,this%coarsening_fraction))
+    FPLerror = parameter_list%get(key = coarsening_fraction_key, value = this%coarsening_fraction)
+    assert(FPLerror==0)
+    assert ( this%coarsening_fraction >= 0.0_rp .and. this%coarsening_fraction <= 1.0_rp )
+    
     ! Parse refinement_threshold
-    if ( parameter_list%isPresent(refinement_threshold_tolerance_key) ) then
-      FPLerror = parameter_list%get(key = refinement_threshold_tolerance_key, value = this%refinement_threshold_tolerance)
+    if ( parameter_list%isPresent(threshold_tolerance_key) ) then
+      FPLerror = parameter_list%get(key = threshold_tolerance_key, value = this%threshold_tolerance)
       assert(FPLerror==0)
     else
-      this%refinement_threshold_tolerance = 3.0_rp*1.0e-08_rp ! \approx 1/(2**25), with 25 being the 
+      this%threshold_tolerance = 3.0_rp*1.0e-08_rp ! \approx 1/(2**25), with 25 being the 
                                                               ! number of recursive bisection steps
     end if
     
@@ -283,15 +299,17 @@ contains
     integer(ip), pointer :: refinement_and_coarsening_flags_entries(:)
     integer(ip)          :: i, num_local_cells
     integer(igp)         :: num_global_cells
-    integer(igp)         :: target_num_cells_to_be_refined
-    integer(igp)         :: current_num_cells_to_be_refined
+    integer(igp)         :: target_num_cells_to_be_refined_coarsened(2)
+    integer(igp)         :: current_num_cells_to_be_refined_coarsened(2)
     real(rp)   , pointer :: sq_local_estimate_entries(:)
     class(serial_fe_space_t), pointer :: fe_space
     class(triangulation_t), pointer :: triangulation
     class(environment_t), pointer :: environment
-    real(rp) :: sq_min_estimate, min_estimate
-    real(rp) :: sq_max_estimate, max_estimate
-    real(rp) :: sq_avg_estimate, avg_estimate
+    real(rp) :: ref_sq_min_estimate, ref_min_estimate
+    real(rp) :: ref_sq_max_estimate, ref_max_estimate
+    real(rp) :: coarsening_sq_max_estimate, coarsening_max_estimate
+    real(rp) :: coarsening_sq_min_estimate, coarsening_min_estimate
+    real(rp) :: coarsening_split_estimate, ref_split_estimate
     integer(ip) :: num_iterations
     real(rp) :: aux(2)
     real(rp) :: initial_interval_size
@@ -310,55 +328,87 @@ contains
       num_global_cells = num_local_cells
       call environment%l1_sum(num_global_cells)
     
-      target_num_cells_to_be_refined = int(real(num_global_cells,rp)*this%refinement_fraction)
+      target_num_cells_to_be_refined_coarsened(1) = int(real(num_global_cells,rp)*this%refinement_fraction)
+      target_num_cells_to_be_refined_coarsened(2) = int(real(num_global_cells,rp)*this%coarsening_fraction)
     
-      sq_min_estimate = minval(sq_local_estimate_entries(1:num_local_cells))
-      sq_max_estimate = maxval(sq_local_estimate_entries(1:num_local_cells))
+      ref_sq_min_estimate = minval(sq_local_estimate_entries(1:num_local_cells))
+      ref_sq_max_estimate = maxval(sq_local_estimate_entries(1:num_local_cells))
     
-      aux(1) = -sqrt(sq_min_estimate)
-      aux(2) = sqrt(sq_max_estimate)
+      aux(1) = -sqrt(ref_sq_min_estimate)
+      aux(2) = sqrt(ref_sq_max_estimate)
       call environment%l1_max(aux)
-      min_estimate = -aux(1)
-      max_estimate = aux(2)
+      ref_min_estimate = -aux(1)
+      ref_max_estimate = aux(2)
+      coarsening_min_estimate = ref_min_estimate
+      coarsening_max_estimate = ref_max_estimate
 
-      write(*,*) 'XXX', min_estimate, max_estimate 
-      initial_interval_size = abs(max_estimate-min_estimate) 
-
+      initial_interval_size = abs(ref_max_estimate-ref_min_estimate)
       num_iterations=0
-      do while ( abs(max_estimate-min_estimate)/initial_interval_size > this%refinement_threshold_tolerance) 
-        ! Compute interval split point
-        avg_estimate    = (1.0_rp/2.0_rp) * (min_estimate+max_estimate)
-        sq_avg_estimate = avg_estimate*avg_estimate
-       
+      do while ( abs(ref_max_estimate-ref_min_estimate)/initial_interval_size > this%threshold_tolerance) 
+        ! Compute interval split point using the fact that the log of error estimators
+        ! is much better uniformly scattered than the error estimators themselves. This is required
+        ! in order to have faster convergence whenever the error estimators are scattered across very
+        ! different orders of magnitude
+        ! avg_estimate = exp(1/2*(log(min_estimate)+log(max_estimate))) = sqrt(min_estimate*max_estimate)
+        if (ref_min_estimate == 0.0_rp) then
+          ref_split_estimate = sqrt(1.0e-10_rp*ref_max_estimate)
+        else
+          ref_split_estimate = sqrt(ref_min_estimate*ref_max_estimate)
+        end if
+        this%sq_refinement_threshold = ref_split_estimate*ref_split_estimate
+        if (coarsening_min_estimate == 0.0_rp) then
+          coarsening_split_estimate = sqrt(1.0e-10_rp*coarsening_max_estimate)
+        else
+          coarsening_split_estimate = sqrt(coarsening_min_estimate*coarsening_max_estimate)
+        end if
+        this%sq_coarsening_threshold = coarsening_split_estimate*coarsening_split_estimate
+        
+         
         ! Count how many cells have local error estimate larger or equal to avg_estimate
         ! count = #{ i: e_i >= avg_estimate }
-        current_num_cells_to_be_refined = 0 
+        current_num_cells_to_be_refined_coarsened(1) = 0 
+        current_num_cells_to_be_refined_coarsened(2) = 0 
         do i=1, num_local_cells
-          if ( sq_local_estimate_entries(i) >= sq_avg_estimate ) then
-            current_num_cells_to_be_refined = current_num_cells_to_be_refined + 1 
+          if ( sq_local_estimate_entries(i) >= this%sq_refinement_threshold ) then
+            current_num_cells_to_be_refined_coarsened(1) = current_num_cells_to_be_refined_coarsened(1) + 1 
+          end if
+          if ( sq_local_estimate_entries(i) < this%sq_coarsening_threshold ) then
+            current_num_cells_to_be_refined_coarsened(2) = current_num_cells_to_be_refined_coarsened(2) + 1 
           end if 
         end do 
-        call environment%l1_sum(current_num_cells_to_be_refined)
+        call environment%l1_sum(current_num_cells_to_be_refined_coarsened)
        
-        if ( current_num_cells_to_be_refined > &
-             target_num_cells_to_be_refined ) then
-           min_estimate = avg_estimate
+        if ( current_num_cells_to_be_refined_coarsened(1) > &
+             target_num_cells_to_be_refined_coarsened(1) ) then
+           ref_min_estimate = ref_split_estimate
         else
-           max_estimate = avg_estimate
+           ref_max_estimate = ref_split_estimate
         end if
+        
+        if ( current_num_cells_to_be_refined_coarsened(2) > &
+             target_num_cells_to_be_refined_coarsened(2) ) then
+           coarsening_max_estimate = coarsening_split_estimate
+        else
+           coarsening_min_estimate = coarsening_split_estimate
+        end if
+        
         num_iterations = num_iterations + 1 
       end do 
       if ( environment%am_i_l1_root() ) then
-        write(*,*) "Converged to ", this%refinement_threshold_tolerance, " in ", num_iterations, " iterations"
-        write(*,*) "Computed refinement threshold = ", avg_estimate
-        write(*,*) "% cells to be refined = ", real(current_num_cells_to_be_refined,rp)/real(num_global_cells,rp)
+        write(*,*) "Converged to ", this%threshold_tolerance, " in ", num_iterations, " iterations"
+        write(*,*) "Computed refinement threshold squared = ", this%sq_refinement_threshold
+        write(*,*) "% cells to be refined = ", real(current_num_cells_to_be_refined_coarsened(1),rp)/real(num_global_cells,rp)
+        write(*,*) "Computed coarsening threshold squared = ", this%sq_coarsening_threshold
+        write(*,*) "% cells to be coarsened = ", real(current_num_cells_to_be_refined_coarsened(2),rp)/real(num_global_cells,rp)
       end if
       do i = 1, num_local_cells
-       if ( sq_local_estimate_entries(i) > sq_avg_estimate ) then
-         refinement_and_coarsening_flags_entries(i) = refinement
-       else
+        if ( sq_local_estimate_entries(i) > this%sq_refinement_threshold ) then
+          refinement_and_coarsening_flags_entries(i) = refinement
+        else if ( sq_local_estimate_entries(i) < this%sq_coarsening_threshold ) then
+         refinement_and_coarsening_flags_entries(i) = coarsening  
+        else
          refinement_and_coarsening_flags_entries(i) = do_nothing
-       end if
+        end if
       end do
     end if
     this%current_mesh_iteration = this%current_mesh_iteration + 1
