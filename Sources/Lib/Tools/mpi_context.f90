@@ -84,6 +84,7 @@ module mpi_context_names
      procedure :: min_scalar_rp      => mpi_context_min_scalar_rp
      procedure :: max_scalar_ip      => mpi_context_max_scalar_ip
      procedure :: sum_scalar_igp     => mpi_context_sum_scalar_igp
+     procedure :: sum_vector_igp     => mpi_context_sum_vector_igp
      procedure :: scatter_ip         => mpi_context_scatter_scalar_ip
      procedure :: gather_ip          => mpi_context_gather_scalar_ip
      procedure :: bcast_ip           => mpi_context_bcast_scalar_ip
@@ -433,6 +434,15 @@ contains
     call mpi_allreduce(n,dat,1,mpi_context_igp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
     n = dat
   end subroutine mpi_context_sum_scalar_igp
+  
+  !=============================================================================
+  subroutine mpi_context_sum_vector_igp (this,n)
+    implicit none
+    class(mpi_context_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n(:)
+    integer  :: istat
+    call mpi_allreduce(MPI_IN_PLACE,n,size(n),mpi_context_igp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
+  end subroutine mpi_context_sum_vector_igp
 
   !=============================================================================
   subroutine mpi_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)

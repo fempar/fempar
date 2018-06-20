@@ -136,6 +136,7 @@ module mpi_omp_context_names
      procedure :: min_scalar_rp      => mpi_omp_context_min_scalar_rp
      procedure :: max_scalar_ip      => mpi_omp_context_max_scalar_ip
      procedure :: sum_scalar_igp     => mpi_omp_context_sum_scalar_igp
+     procedure :: sum_vector_igp     => mpi_omp_context_sum_vector_igp
      procedure :: scatter_ip         => mpi_omp_context_scatter_scalar_ip
      procedure :: gather_ip          => mpi_omp_context_gather_scalar_ip
      procedure :: bcast_ip           => mpi_omp_context_bcast_scalar_ip
@@ -874,8 +875,14 @@ contains
     n = ip1_buffer(this%current_thread)
   end subroutine mpi_omp_context_sum_scalar_igp
   
-  
-
+  !=============================================================================
+  subroutine mpi_omp_context_sum_vector_igp(this,n)
+    implicit none
+    class(mpi_omp_context_t) , intent(in)    :: this
+    integer(igp)             , intent(inout) :: n(:)
+    mcheck(.false., "mpi_omp_context_sum_vector_igp :: Implementation pending!")
+  end subroutine mpi_omp_context_sum_vector_igp
+ 
   !=============================================================================
   subroutine mpi_omp_context_bcast_subcontext(this,subcontxt1,subcontxt2,condition)
     implicit none

@@ -193,7 +193,8 @@ module environment_names
      procedure :: l1_max_vector_rp            => environment_l1_max_vector_rp
      procedure :: l1_max_scalar_ip            => environment_l1_max_scalar_ip
      procedure :: l1_sum_scalar_igp           => environment_l1_sum_scalar_igp
-     generic  :: l1_sum                       => l1_sum_scalar_rp, l1_sum_vector_rp, l1_sum_scalar_igp
+     procedure :: l1_sum_vector_igp           => environment_l1_sum_vector_igp
+     generic  :: l1_sum                       => l1_sum_scalar_rp, l1_sum_vector_rp, l1_sum_scalar_igp, l1_sum_vector_igp
      generic  :: l1_max                       => l1_max_scalar_rp, l1_max_vector_rp, l1_max_scalar_ip
   end type environment_t
 
@@ -764,6 +765,16 @@ contains
     assert ( this%am_i_l1_task() )
     call this%l1_context%sum_scalar_igp(n)
   end subroutine environment_l1_sum_scalar_igp
+  
+  !=============================================================================
+  subroutine environment_l1_sum_vector_igp (this,n)
+    implicit none
+    class(environment_t) , intent(in)    :: this
+    integer(igp)         , intent(inout) :: n(:)
+    assert ( this%am_i_l1_task() )
+    call this%l1_context%sum_vector_igp(n)
+  end subroutine environment_l1_sum_vector_igp
+  
 
   !=============================================================================
   subroutine environment_l1_neighbours_exchange_rp ( this, & 
