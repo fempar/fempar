@@ -360,9 +360,7 @@ contains
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha
     integer  :: istat
-    real(rp) :: dat
-    call mpi_allreduce(alpha,dat,1,mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
-    alpha = dat
+    call mpi_allreduce(MPI_IN_PLACE,alpha,1,mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_sum_scalar_rp
 
   !=============================================================================
@@ -371,11 +369,7 @@ contains
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha(:) 
     integer  :: istat
-    real(rp), allocatable :: dat(:)
-    call memalloc(size(alpha),dat,__FILE__,__LINE__)
-    dat = alpha
-    call mpi_allreduce(dat,alpha,size(alpha),mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
-    call memfree(dat,__FILE__,__LINE__)
+    call mpi_allreduce(MPI_IN_PLACE,alpha,size(alpha),mpi_context_rp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_sum_vector_rp
 
   !=============================================================================
@@ -384,9 +378,7 @@ contains
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha
     integer  :: istat
-    real(rp) :: dat
-    call mpi_allreduce(alpha,dat,1,mpi_context_rp,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
-    alpha = dat
+    call mpi_allreduce(MPI_IN_PLACE,alpha,1,mpi_context_rp,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_max_scalar_rp
 
   !=============================================================================
@@ -395,11 +387,7 @@ contains
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha(:) 
     integer  :: istat
-    real(rp), allocatable :: dat(:)
-    call memalloc(size(alpha),dat,__FILE__,__LINE__)
-    dat = alpha
-    call mpi_allreduce(dat,alpha,size(alpha),mpi_context_rp,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
-    call memfree(dat,__FILE__,__LINE__)
+    call mpi_allreduce(MPI_IN_PLACE,alpha,size(alpha),mpi_context_rp,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_max_vector_rp
 
   !=============================================================================
@@ -407,10 +395,8 @@ contains
     implicit none
     class(mpi_context_t) , intent(in)    :: this
     real(rp)             , intent(inout) :: alpha
-    integer  :: istat
-    real(rp) :: dat
-    call mpi_allreduce(alpha,dat,1,mpi_context_rp,mpi_min,this%icontxt,istat); check ( istat == mpi_success )
-    alpha = dat
+    integer  :: istat 
+    call mpi_allreduce(MPI_IN_PLACE,alpha,1,mpi_context_rp,mpi_min,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_min_scalar_rp
   
   !=============================================================================
@@ -419,9 +405,7 @@ contains
     class(mpi_context_t) , intent(in)    :: this
     integer(ip)          , intent(inout) :: n
     integer  :: istat
-    integer(ip) :: dat
-    call mpi_allreduce(n,dat,1,mpi_context_ip,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
-    n = dat
+    call mpi_allreduce(MPI_IN_PLACE,n,1,mpi_context_ip,mpi_max,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_max_scalar_ip
   
   !=============================================================================
@@ -430,9 +414,7 @@ contains
     class(mpi_context_t) , intent(in)    :: this
     integer(igp)         , intent(inout) :: n
     integer  :: istat
-    integer(igp) :: dat
-    call mpi_allreduce(n,dat,1,mpi_context_igp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
-    n = dat
+    call mpi_allreduce(MPI_IN_PLACE,n,1,mpi_context_igp,mpi_sum,this%icontxt,istat); check ( istat == mpi_success )
   end subroutine mpi_context_sum_scalar_igp
   
   !=============================================================================
