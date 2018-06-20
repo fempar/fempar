@@ -25,14 +25,13 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-subroutine time_stepping_operator_create(this, fe_nl_op, mass_op, initial_time, final_time, time_step, num_time_steps, time_integration_scheme)
+subroutine time_stepping_operator_create(this, fe_nl_op, mass_op, initial_time, final_time, time_step, time_integration_scheme)
   implicit none
   class(time_stepping_operator_t),         intent(inout) :: this
   class(fe_nonlinear_operator_t) ,         intent(in)    :: fe_nl_op
   class(fe_nonlinear_operator_t) ,         intent(in)    :: mass_op
   character(len=*)               ,         intent(in)    :: time_integration_scheme
   real(rp)                       ,         intent(in)    :: initial_time, final_time, time_step
-  integer(ip)                    ,         intent(in)    :: num_time_steps
   
   call this%scheme%create(time_integration_scheme)
   call this%fe_op%create_from_operators(this,fe_nl_op,mass_op)
@@ -40,7 +39,6 @@ subroutine time_stepping_operator_create(this, fe_nl_op, mass_op, initial_time, 
   call this%set_initial_time(initial_time)
   call this%set_final_time(final_time)
   call this%set_time_step_size(time_step)
-  call this%set_num_time_steps(num_time_steps)
 end subroutine time_stepping_operator_create
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
@@ -54,7 +52,6 @@ subroutine time_stepping_operator_update(this, initial_time, final_time, time_st
   call this%set_initial_time(initial_time)
   call this%set_final_time(final_time)
   call this%set_time_step_size(time_step)
-  
 end subroutine
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
 subroutine time_stepping_operator_free(this)
@@ -84,8 +81,7 @@ subroutine time_stepping_operator_set_initial_time( this, t0 )
   implicit none
   class(time_stepping_operator_t), intent(inout) :: this
   real(rp)                       , intent(in)    :: t0
-  this%time = t0 !pmartorell: May be neecessary to store initial time
-  this%current_time_step = 0
+  this%current_initial_time = t0 
 end subroutine time_stepping_operator_set_initial_time
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
@@ -105,20 +101,10 @@ subroutine time_stepping_operator_set_final_time( this, final_time)
 end subroutine time_stepping_operator_set_final_time
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-subroutine time_stepping_operator_set_num_time_steps( this, num_time_steps)
+subroutine time_stepping_operator_update_current_time( this )
   implicit none
   class(time_stepping_operator_t), intent(inout) :: this
-  integer(ip)                    , intent(in)    :: num_time_steps
-  this%num_time_steps = num_time_steps
-end subroutine time_stepping_operator_set_num_time_steps
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-subroutine time_stepping_operator_update_current_time( this, current_time )
-  implicit none
-  class(time_stepping_operator_t), intent(inout) :: this
-  real(rp)                       , intent(inout) :: current_time
-  this%time = this%time + this%dt
-  current_time = this%time
-  !this%current_time_step = this%current_time_step + 1
+  this%current_initial_time = this%current_initial_time + this%dt
 end subroutine time_stepping_operator_update_current_time
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
@@ -134,7 +120,7 @@ function time_stepping_operator_get_current_time( this )
   implicit none
   class(time_stepping_operator_t), intent(inout) :: this
   real(rp) :: time_stepping_operator_get_current_time
-  time_stepping_operator_get_current_time = this%time 
+  time_stepping_operator_get_current_time = this%current_initial_time 
 end function time_stepping_operator_get_current_time
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
@@ -167,7 +153,7 @@ function time_stepping_operator_has_finished( this )
   class(time_stepping_operator_t), intent(in) :: this
   logical :: time_stepping_operator_has_finished
   time_stepping_operator_has_finished = .false.
-  if (this%time >= this%final_time) then
+  if (this%current_initial_time >= this%final_time) then
     time_stepping_operator_has_finished = .true.
   endif
 end function time_stepping_operator_has_finished

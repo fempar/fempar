@@ -246,7 +246,6 @@ contains
                                     initial_time            = this%test_params%get_initial_time() , &
                                     final_time              = this%test_params%get_final_time() , &
                                     time_step               = this%test_params%get_time_step() , &
-                                    num_time_steps          = this%test_params%get_num_time_steps() , &
                                     time_integration_scheme = this%test_params%get_time_integration_scheme() )  
     call this%time_operator%set_fe_functions( this%solution , this%mass_fe_fun ) !pmartorell: Should it be inside create? Not nice, provisional...
   
@@ -257,32 +256,32 @@ contains
     call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
     
     !pmartorell: Needed in release?
-    call this%fe_nl_op%set_evaluation_point(this%solution%get_free_dof_values())
-    call this%mass_nl_op%set_evaluation_point(this%mass_fe_fun%get_free_dof_values())
-    call this%fe_nl_op%compute_tangent()
-    call this%mass_nl_op%compute_tangent()
+    !call this%fe_nl_op%set_evaluation_point(this%solution%get_free_dof_values())
+    !call this%mass_nl_op%set_evaluation_point(this%mass_fe_fun%get_free_dof_values())
+    !call this%fe_nl_op%compute_tangent()
+    !call this%mass_nl_op%compute_tangent()
     
-    A => this%fe_nl_op%get_matrix()
-    M => this%mass_nl_op%get_matrix()
+    !A => this%fe_nl_op%get_matrix()
+    !M => this%mass_nl_op%get_matrix()
     
     
-    luout = io_open ( "A.mtx", 'write')
-    select type(A)
-    class is (sparse_matrix_t)  
-       call A%print_matrix_market(luout) 
-    class DEFAULT
-       assert(.false.) 
-    end select
-    call io_close(luout)
+    !luout = io_open ( "A.mtx", 'write')
+    !select type(A)
+    !class is (sparse_matrix_t)  
+    !   call A%print_matrix_market(luout) 
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
+    !call io_close(luout)
     
-    luout = io_open ( "M.mtx", 'write')
-    select type(M)
-    class is (sparse_matrix_t)  
-      call M%print_matrix_market(luout) 
-    class DEFAULT
-       assert(.false.) 
-    end select
-    call io_close(luout)
+    !luout = io_open ( "M.mtx", 'write')
+    !select type(M)
+    !class is (sparse_matrix_t)  
+    !  call M%print_matrix_market(luout) 
+    !class DEFAULT
+    !   assert(.false.) 
+    !end select
+    !call io_close(luout)
     
     
   end subroutine setup_system
@@ -390,11 +389,7 @@ contains
 
     current_time = this%time_operator%get_current_time()
     final_time = this%time_operator%get_final_time()
-    ! initialize dof_values_current
 
-    ! set a right initial value
-    ! put the right forcing term (time independent)
-    ! check solution for BE, ...
     call this%fe_space%interpolate(field_id=1, &
                                    function = this%poisson_analytical_functions%get_solution_function(), &
                                    fe_function=this%solution, &
@@ -411,22 +406,10 @@ contains
     do while ( .not. this%time_operator%has_finished() )
 
        call dof_values_previous%copy(dof_values_current) ! copy entries
-       call this%poisson_cG_integration%set_current_time(current_time)
-       !call this%poisson_cG_integration%set_current_time(this%time_operator%get_current_time())
-       call this%fe_space%interpolate(field_id=1, &
-                                   function = this%poisson_analytical_functions%get_solution_function(), &
-                                   fe_function=this%solution, &
-                                   time=current_time)
-       call this%fe_space%interpolate_dirichlet_values(this%solution, time=current_time)
-       call this%fe_mass_space%interpolate_dirichlet_values(this%mass_fe_fun, time=current_time)
-       !pmartorell: interpolate dirichlet values with the boundary derivative at current_time
-       
 
-       call this%time_operator%set_initial_data(dof_values_previous) 
        call this%time_solver%apply( dof_values_previous, dof_values_current )
-       ! sbadia: it is not nice to have to pass the initial data at two different levels 
        
-       call this%time_operator%update_current_time(current_time) ! pmartorell: updated current_time after solve, time_operator solves at t=t^(n-1) + c_i * dt
+       current_time = this%time_operator%get_current_time() ! pmartorell: updated current_time after solve, time_operator solves at t=t^(n-1) + c_i * dt
        call this%fe_space%interpolate_dirichlet_values(this%solution, time=current_time) ! pmartorell: updated boundary values when not evaluated in the solver, e.g. forward_euler
        call this%write_time_step(current_time)       
        if ( .not. this%test_params%get_is_test()) then
@@ -505,6 +488,10 @@ contains
     error_tolerance = 1.0e-06
 #endif  
     
+    if ( time_integration_scheme == 'trapezoidal_rule' ) then
+      dt = 1
+      final_time = 10
+    end if
     
     if (is_test) then
 

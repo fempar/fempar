@@ -154,8 +154,7 @@ module time_stepping_names
      type(time_stepping_stage_fe_operator_t)            :: fe_op
      class(vector_t)                          , pointer :: initial_value => NULL()
      class(vector_t)                      , allocatable :: dofs_stages(:)
-     real(rp)                                           :: dt, time, final_time !time => initial_time (t0)
-     integer(ip)                                        :: num_time_steps, current_time_step ! remove num_time_steps and curent_time_step
+     real(rp)                                           :: dt, current_initial_time, final_time !time => initial_time (t0)
      
      type(fe_function_t)                      , pointer :: solution_fe_fun
      type(fe_function_t)                      , pointer :: mass_fe_fun
@@ -173,9 +172,8 @@ module time_stepping_names
      procedure :: set_initial_data                => time_stepping_operator_set_initial_data
      procedure :: set_initial_time                => time_stepping_operator_set_initial_time 
      procedure :: set_final_time                  => time_stepping_operator_set_final_time 
-     procedure, private :: set_num_time_steps     => time_stepping_operator_set_num_time_steps ! remove num_time_steps
      procedure :: set_time_step_size              => time_stepping_operator_set_time_step_size 
-     procedure :: update_current_time             => time_stepping_operator_update_current_time
+     procedure :: update_current_time             => time_stepping_operator_update_current_time 
      procedure :: set_fe_functions                => time_stepping_operator_set_fe_functions
      procedure :: get_time_step                   => time_stepping_operator_get_time_step_size
      procedure :: get_current_time                => time_stepping_operator_get_current_time
