@@ -790,7 +790,7 @@ module fe_space_names
      generic                             :: refine_and_coarsen                            => serial_fe_space_refine_and_coarsen_single_fe_function, &
                                                                                              serial_fe_space_refine_and_coarsen_fe_function_array
 
-     procedure, non_overridable          :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
+     procedure                           :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
      procedure                           :: update_ghost_dof_values                       => serial_fe_space_update_ghost_dof_values
      
      
@@ -1021,8 +1021,9 @@ module fe_space_names
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator
-   
-   procedure, non_overridable                  :: update_ghost_dof_values                         => par_fe_space_update_ghost_dof_values
+
+   procedure                                   :: update_hanging_dof_values                       => par_fe_space_update_hanging_dof_values
+   procedure                                   :: update_ghost_dof_values                         => par_fe_space_update_ghost_dof_values
    
    end type par_fe_space_t
  
