@@ -5569,6 +5569,19 @@ end subroutine par_fe_space_redistribute_fe_function_array
     call fe_object%free()
  end subroutine par_fe_space_free_fe_object_iterator
 
+ subroutine par_fe_space_update_hanging_dof_values  (this, fe_function )
+  implicit none
+  class(par_fe_space_t)   , intent(in) :: this
+  class(fe_function_t)    , intent(inout) :: fe_function
+  class(triangulation_t)   , pointer     :: triangulation
+  type(environment_t)      , pointer     :: environment
+  triangulation => this%get_triangulation()
+  environment => triangulation%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    call this%serial_fe_space_t%update_hanging_dof_values(fe_function)
+  end if
+end subroutine par_fe_space_update_hanging_dof_values 
+ 
  subroutine par_fe_space_update_ghost_dof_values (this, fe_function )
   implicit none
   class(par_fe_space_t), intent(in)    :: this

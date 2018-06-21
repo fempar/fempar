@@ -193,6 +193,14 @@ recursive subroutine base_mlbddc_symbolic_setup ( this )
       end if
     end if
     call this%set_state_symbolic()
+    ! In the case the call to this subroutine is triggered by 
+    ! "this%update_matrix(same_nonzero_pattern=.false.)" it might be
+    ! necessary to re-generate vector spaces associated to this. 
+    ! Provided that we do not know who triggered this subroutine, 
+    ! and that the computational time spent here is not significant, 
+    ! we always regenerate vector spaces right before returning control
+    ! from a call to symbolic_setup
+    call this%create_vector_spaces()
   end if
 end subroutine base_mlbddc_symbolic_setup
 
@@ -1813,4 +1821,8 @@ function base_mlbddc_get_fe_space(this)
   assert(.false.)
 end function base_mlbddc_get_fe_space
 
-
+subroutine base_mlbddc_create_vector_spaces(this)
+  implicit none
+  class(base_mlbddc_t), intent(inout) :: this
+  assert(.false.)
+end subroutine base_mlbddc_create_vector_spaces
