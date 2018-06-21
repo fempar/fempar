@@ -639,6 +639,7 @@ contains
     ! vef global numbering (if needed), coordinates and boundary ids
     if(present(num_ghost_cells)) call memalloc(num_local_vefs,vefs_gids,__FILE__,__LINE__)
     call memalloc(SPACE_DIM,num_vertices,coordinates,__FILE__,__LINE__)
+    coordinates = 0.0_rp
     call memalloc(num_local_vefs,boundary_id,__FILE__,__LINE__)
     boundary_id=-1
     itype = -1
