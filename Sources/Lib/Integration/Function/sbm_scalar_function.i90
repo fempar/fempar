@@ -114,3 +114,31 @@ subroutine scalar_function_get_gradients_set_space_time( this, point, time, resu
      end do
   end do
 end subroutine scalar_function_get_gradients_set_space_time
+
+subroutine scalar_function_get_value_temporal_derivative( this, point, time, order, result )
+  implicit none
+  class(scalar_function_t), intent(in)    :: this
+  type(point_t)           , intent(in)    :: point
+  real(rp)                , intent(in)    :: time
+  integer(ip)             , intent(in)    :: order
+  real(rp)                , intent(inout) :: result
+  assert( .false. )
+end subroutine scalar_function_get_value_temporal_derivative
+
+subroutine scalar_function_get_values_set_temporal_derivative( this, point, time, order, result )
+  implicit none
+  class(scalar_function_t), intent(in)    :: this
+  type(point_t), intent(in)               :: point(:)
+  real(rp), intent(in)                    :: time(:)
+  integer(ip), intent(in)                 :: order
+  real(rp), intent(inout)                 :: result(:,:)
+  integer(ip) :: i, j, num_points, num_time_steps
+  num_points = size(point)
+  num_time_steps = size(time)
+  do j = 1, num_time_steps
+     do i = 1, num_points
+        call this%get_value_temporal_derivative( point(i), time(j), order, result(i,j) )
+     end do
+  end do
+end subroutine scalar_function_get_values_set_temporal_derivative
+

@@ -152,13 +152,14 @@ subroutine nodal_interpolator_evaluate_vector_function_moments( this, fe, vector
 end subroutine nodal_interpolator_evaluate_vector_function_moments
 
 !==================================================================================================
-subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, n_face_mask, fe, vector_function_scalar_components, dof_values, time)
+subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, n_face_mask, fe, vector_function_scalar_components, dof_values, time, time_derivative_order)
   class(nodal_interpolator_t)     , intent(inout) :: this
   logical                         , intent(in)    :: n_face_mask(:) 
   class(fe_cell_iterator_t)       , intent(in)    :: fe
   class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
   real(rp) , allocatable          , intent(inout) :: dof_values(:) 
   real(rp) , optional             , intent(in)    :: time
+  integer(ip) , optional          , intent(in)    :: time_derivative_order
 
   integer(ip)                         :: reference_fe_id 
   class(reference_fe_t) , pointer     :: reference_fe 
@@ -168,6 +169,7 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
   integer(ip)                         :: qpoint, inode, idime 
 
   real(rp)                            :: time_(1)
+  integer(ip)                         :: time_derivative_order_
   integer(ip)                         :: vef_lid 
   type(list_iterator_t)               :: own_dofs
   integer(ip)                         :: idof, icomp, inode_scalar
@@ -178,6 +180,12 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
   reference_fe_id =  fe%get_reference_fe_id(this%field_id) 
   reference_fe    => fe%get_reference_fe(this%field_id)
 
+  if (present(time_derivative_order) ) then
+     time_derivative_order_ = time_derivative_order
+  else
+     time_derivative_order_ = default_time_derivative_order 
+  end if 
+   
   num_nodal_qpoints = this%nodal_quadratures(reference_fe_id)%p%get_num_quadrature_points() 				
   cell_coordinates => this%cell_maps(reference_fe_id)%get_coordinates()
   call fe%get_nodes_coordinates( cell_coordinates ) 
@@ -208,9 +216,16 @@ subroutine nodal_interpolator_evaluate_function_scalar_components_moments(this, 
            end select
 
            if(present(time)) then
-              call vector_function_scalar_components(icomp, vef_lid)%p%get_values_set_space_time(nodal_coordinates(inode_scalar:inode_scalar), & 
-                   time_,                                        & 
-                   this%scalar_function_values(inode_scalar:inode_scalar,:))
+             if ( time_derivative_order_ == 0 ) then 
+               call vector_function_scalar_components(icomp, vef_lid)%p%get_values_set_space_time(nodal_coordinates(inode_scalar:inode_scalar), & 
+                     time_,                                        & 
+                     this%scalar_function_values(inode_scalar:inode_scalar,:))
+              else
+                call vector_function_scalar_components(icomp, vef_lid)%p%get_values_set_temporal_derivative(nodal_coordinates(inode_scalar:inode_scalar), & 
+                     time_,   &
+                     time_derivative_order_, & 
+                     this%scalar_function_values(inode_scalar:inode_scalar,:))
+              end if
            else
               call vector_function_scalar_components(icomp, vef_lid)%p%get_values_set_space(nodal_coordinates(inode_scalar:inode_scalar), & 
                    this%scalar_function_values(inode_scalar:inode_scalar,1))

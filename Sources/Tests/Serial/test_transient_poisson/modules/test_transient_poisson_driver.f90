@@ -54,12 +54,10 @@ module test_transient_poisson_driver_names
      
      ! Discrete weak problem integration-related data type instances 
      type(serial_fe_space_t)                      :: fe_space 
-     type(serial_fe_space_t)                      :: fe_mass_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      type(poisson_cG_discrete_integration_t)      :: poisson_cG_integration
      type(mass_discrete_integration_t)            :: mass_integration
      type(poisson_conditions_t)                   :: poisson_conditions
-     type(poisson_conditions_t)                   :: poisson_mass_conditions
      type(poisson_analytical_functions_t)         :: poisson_analytical_functions
           
      ! Place-holder for the coefficient matrix and RHS of the linear system
@@ -195,15 +193,10 @@ contains
 
     call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
-    call this%poisson_mass_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_derivative_function())
     call this%fe_space%create( triangulation       = this%triangulation, &
                                  reference_fes     = this%reference_fes, &
                                  conditions        = this%poisson_conditions )
     call this%fe_space%set_up_cell_integration()
-    call this%fe_mass_space%create( triangulation       = this%triangulation, &
-                                 reference_fes     = this%reference_fes, &
-                                 conditions        = this%poisson_mass_conditions )
-    call this%fe_mass_space%set_up_cell_integration()
     call this%setup_cell_quadratures_degree()
   end subroutine setup_fe_space
   
@@ -238,7 +231,7 @@ contains
                                           diagonal_blocks_symmetric_storage = [ .true. ], &
                                           diagonal_blocks_symmetric         = [ .true. ], &
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          fe_space                          = this%fe_mass_space, &
+                                          fe_space                          = this%fe_space, &
                                           discrete_integration              = this%mass_integration )
    
     call this%time_operator%create( fe_nl_op                = this%fe_nl_op, &
@@ -250,7 +243,7 @@ contains
     call this%time_operator%set_fe_functions( this%solution , this%mass_fe_fun ) !pmartorell: Should it be inside create? Not nice, provisional...
   
     call this%solution%create(this%fe_space) 
-    call this%mass_fe_fun%create(this%fe_mass_space) 
+    call this%mass_fe_fun%create(this%fe_space) 
     call this%poisson_cG_integration%set_fe_function(this%solution) 
     call this%mass_integration%set_fe_function(this%mass_fe_fun)
     call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
@@ -453,12 +446,12 @@ contains
     write(*,'(a20,e32.25)') 'l2_norm:', l2; !check ( l2 < error_tolerance )
     write(*,'(a20,e32.25)') 'lp_norm:', lp; !check ( lp < error_tolerance )
     write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; !check ( linfty < error_tolerance )
-    !write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance )
-    !write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance )
-    !write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance )
-    !write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance )
-    !write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance )
-    !write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; !check ( h1_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; !check ( h1 < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; !check ( w1p_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; !check ( w1p < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; !check ( w1infty_s < error_tolerance )
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; ! check ( w1infty < error_tolerance )
     call error_norm%free()
   end subroutine check_solution
   
@@ -550,12 +543,8 @@ contains
     get_error_norm = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm, time=current_time) !pmartorell: l2_norm argumnent if tested for differents norms
     call error_norm%free()                 
   end function get_error_norm
- ! ! -----------------------------------------------------------------------------------------------
- ! subroutine avance_time(this)
- !   implicit none
- !   class(test_transient_poisson_driver_t), intent(inout) :: this 
- !end subroutine
- ! ! -----------------------------------------------------------------------------------------------
+  
+  ! -----------------------------------------------------------------------------------------------
   subroutine initialize_output(this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
@@ -632,7 +621,6 @@ contains
     call this%fe_nl_op%free()
     call this%mass_nl_op%free()
     call this%fe_space%free()
-    call this%fe_mass_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)
         call this%reference_fes(i)%p%free()

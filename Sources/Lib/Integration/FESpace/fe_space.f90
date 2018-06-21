@@ -1154,6 +1154,7 @@ module fe_space_names
 
  character(*), parameter :: interpolator_type_nodal = "interpolator_type_nodal"
  character(*), parameter :: interpolator_type_Hcurl = "interpolator_type_Hcurl"
+ integer(ip) , parameter :: default_time_derivative_order = 0
  
  ! Abstract interpolator
  type, abstract :: interpolator_t
@@ -1212,7 +1213,7 @@ module fe_space_names
       real(rp) , optional             , intent(in)    :: time 
     end subroutine interpolator_evaluate_vector_function_moments_interface
 
-    subroutine interpolator_evaluate_function_components_moments_interface( this, n_face_mask, fe, vector_function_scalar_components, dof_values, time )
+    subroutine interpolator_evaluate_function_components_moments_interface( this, n_face_mask, fe, vector_function_scalar_components, dof_values, time, time_derivative_order )
       import :: interpolator_t, fe_cell_iterator_t, p_scalar_function_t, rp, ip 
       implicit none 
       class(interpolator_t)           , intent(inout) :: this
@@ -1221,6 +1222,7 @@ module fe_space_names
       class(p_scalar_function_t)      , intent(in)    :: vector_function_scalar_components(:,:)
       real(rp) , allocatable          , intent(inout) :: dof_values(:) 
       real(rp) , optional             , intent(in)    :: time 
+      integer(ip), optional           , intent(in)    :: time_derivative_order
     end subroutine interpolator_evaluate_function_components_moments_interface
 
     subroutine interpolator_free_interface( this )

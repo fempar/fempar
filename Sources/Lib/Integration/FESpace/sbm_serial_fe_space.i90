@@ -626,12 +626,13 @@ subroutine serial_fe_space_interpolate_vector_function (this, field_id, function
   call this%free_fe_cell_iterator(fe)
 end subroutine serial_fe_space_interpolate_vector_function
 
-subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, interpolator_type, time)
+subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, interpolator_type, time, time_derivative_order)
   implicit none
   class(serial_fe_space_t)          , intent(in)    :: this
   type(fe_function_t)               , intent(inout) :: fe_function
   character(*)            , optional, intent(in)    :: interpolator_type(:)
   real(rp)                , optional, intent(in)    :: time
+  integer(ip)             , optional, intent(in)    :: time_derivative_order
 
   class(reference_fe_t)    , pointer        :: reference_fe 
   class(fe_cell_iterator_t), allocatable    :: fe 
@@ -760,7 +761,8 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
                    fe,                         &
                    function_scalar_components, &
                    dof_values,                 &
-                   time = time )
+                   time = time,                &
+                   time_derivative_order = time_derivative_order)
 
 
               ! Insert nodal values on vefs at the dirichlet boundary 

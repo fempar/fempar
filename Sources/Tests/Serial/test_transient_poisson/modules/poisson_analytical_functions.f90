@@ -50,14 +50,8 @@ module poisson_analytical_functions_names
    contains
      procedure :: get_value_space      => boundary_function_get_value_space
      procedure :: get_value_space_time => boundary_function_get_value_space_time
+     procedure :: get_value_temporal_derivative => boundary_function_get_value_temporal_derivative
   end type boundary_function_t
-  
-type, extends(base_scalar_function_t) :: boundary_derivative_function_t
-    private
-  contains
-     procedure :: get_value_space      => boundary_derivative_function_get_value_space
-     procedure :: get_value_space_time => boundary_derivative_function_get_value_space_time
-end type boundary_derivative_function_t
    
 type, extends(base_scalar_function_t) :: solution_function_t
     private 
@@ -72,13 +66,11 @@ type, extends(base_scalar_function_t) :: solution_function_t
      private
      type(source_term_t)       :: source_term
      type(boundary_function_t) :: boundary_function
-     type(boundary_derivative_function_t) :: boundary_derivative_function
      type(solution_function_t) :: solution_function
    contains
      procedure :: set_num_dims            => poisson_analytical_functions_set_num_dims
      procedure :: get_source_term         => poisson_analytical_functions_get_source_term
      procedure :: get_boundary_function   => poisson_analytical_functions_get_boundary_function
-     procedure :: get_boundary_derivative_function => poisson_analytical_functions_get_boundary_derivative_function
      procedure :: get_solution_function   => poisson_analytical_functions_get_solution_function
   end type poisson_analytical_functions_t
 
@@ -132,16 +124,7 @@ contains
     real(rp)                , intent(inout) :: result
     mcheck(.false., "Implementation pending")
   end subroutine boundary_function_get_value_space 
-  
-  !===============================================================================================
-  subroutine boundary_derivative_function_get_value_space ( this, point, result )
-    implicit none
-    class(boundary_derivative_function_t), intent(in)  :: this
-    type(point_t)           , intent(in)    :: point
-    real(rp)                , intent(inout) :: result
-    mcheck(.false., "Implementation pending")
-  end subroutine boundary_derivative_function_get_value_space 
-  
+   
   !===============================================================================================
   subroutine boundary_function_get_value_space_time( this, point, time, result )
     implicit none
@@ -161,22 +144,23 @@ contains
     end if
   end subroutine boundary_function_get_value_space_time
   
-    !===============================================================================================
-  subroutine boundary_derivative_function_get_value_space_time( this, point, time, result )
+  !===============================================================================================
+  subroutine boundary_function_get_value_temporal_derivative( this, point, time, order, result )
     implicit none
-    class(boundary_derivative_function_t), intent(in)    :: this
+    class(boundary_function_t), intent(in)    :: this
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(in)    :: time
+    integer(ip)               , intent(in)    :: order
     real(rp)                  , intent(inout) :: result
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     if ( this%num_dims == 2 ) then
       !result = 0 ! du/dt = 0
       !result = point%get(1) + point%get(2) !du/dt = x + y 
       result = ( point%get(1) + point%get(2) ) * 2.0_rp * time !du/dt = ( x + y ) * 2 t
-    else if ( this%num_dims == 3 ) then
+    else if ( this%num_dims == 3 .or. order > 1 ) then
       mcheck(.false., "Implementation pending")
     end if
-  end subroutine boundary_derivative_function_get_value_space_time
+  end subroutine boundary_function_get_value_temporal_derivative
 
   !===============================================================================================
   subroutine solution_function_get_value_space ( this, point, result )
@@ -231,7 +215,6 @@ contains
     integer(ip), intent(in) ::  num_dims
     call this%source_term%set_num_dims(num_dims)
     call this%boundary_function%set_num_dims(num_dims)
-    call this%boundary_derivative_function%set_num_dims(num_dims)
     call this%solution_function%set_num_dims(num_dims)
   end subroutine poisson_analytical_functions_set_num_dims 
   
@@ -251,13 +234,6 @@ contains
     poisson_analytical_functions_get_boundary_function => this%boundary_function
   end function poisson_analytical_functions_get_boundary_function
  
-  !===============================================================================================
-  function poisson_analytical_functions_get_boundary_derivative_function ( this )
-    implicit none
-    class(poisson_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: poisson_analytical_functions_get_boundary_derivative_function
-    poisson_analytical_functions_get_boundary_derivative_function => this%boundary_derivative_function
-  end function poisson_analytical_functions_get_boundary_derivative_function
   !===============================================================================================
   function poisson_analytical_functions_get_solution_function ( this )
     implicit none
