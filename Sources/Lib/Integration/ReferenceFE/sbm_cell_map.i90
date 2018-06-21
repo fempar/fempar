@@ -52,11 +52,6 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry, cell_map_du
      call this%my_duties%assign_compute_jacobian_derivative(.false.)
   end if
 
-  !call memalloc(this%num_dims, &
-  !              this%num_dims, &
-  !              this%num_quadrature_points, &
-  !              this%jacobian,__FILE__,__LINE__)
-
   call memalloc(SPACE_DIM, &
                 SPACE_DIM, &
                 this%num_quadrature_points, &
@@ -141,11 +136,6 @@ subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadratu
                                                         this%interpolation )
   this%num_entries_symmetric_tensor = this%interpolation%num_entries_symmetric_tensor ! Encapsulation missing here 
 
-  !call memalloc(this%num_dims, &
-  !              this%num_dims, &
-  !              this%num_quadrature_points, &
-  !              this%jacobian,__FILE__,__LINE__)
-
   call memalloc(SPACE_DIM, &
                 SPACE_DIM, &
                 this%num_quadrature_points, &
@@ -215,20 +205,6 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
 #endif   
       
   if (cell_ressemblance == no_ressemblance ) then
-    !do ilocs=1,this%num_quadrature_points
-    ! ! Matmul is not thread safe
-    ! ! map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
-    ! do jdime=1,this%num_dims
-    !    aux_vector = 0.0_rp
-    !    do inode=1,this%num_nodes
-    !       aux_vector = aux_vector + this%nodes_coordinates(inode) * &
-    !            & this%interpolation%shape_derivatives(1,jdime,inode,ilocs)
-    !    end do
-    !    do idime=1,this%num_dims
-    !       this%jacobian(idime,jdime,ilocs) = aux_vector%get(idime)
-    !    end do
-    ! end do
-    !end do
   
     ! Compute jacobian matrix
     call this%compute_jacobian()
@@ -609,10 +585,7 @@ subroutine assign_cell_map ( this, other )
 
   call this%free()
   call this%base_map_t%copy(other%base_map_t)
-  !call memalloc(this%num_dims, &
-  !              this%num_dims, &
-  !              this%num_quadrature_points, &
-  !              this%jacobian,__FILE__,__LINE__)
+
   call memalloc(SPACE_DIM, &
                 SPACE_DIM, &
                 this%num_quadrature_points, &
