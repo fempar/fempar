@@ -60,7 +60,7 @@ subroutine edge_map_create(this, quadrature, reference_fe_geo)
   call memalloc(this%num_quadrature_points, &
                 this%det_jacobian,__FILE__,__LINE__)
 
-  call memalloc(this%num_dims, &
+  call memalloc(SPACE_DIM, &
                 this%num_quadrature_points, &
                 this%tangents,__FILE__,__LINE__)
 

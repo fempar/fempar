@@ -228,6 +228,7 @@ subroutine hex_lagrangian_reference_fe_fill_interpolation( this, quadrature, int
   
   if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
      call memalloc(SPACE_DIM,tensor_product_polynomial_space%get_num_polynomials(),tensor_product_gradients,__FILE__,__LINE__)
+     tensor_product_gradients = 0.0_rp
      do q_point=1, quadrature%get_num_quadrature_points()
        call tensor_product_polynomial_space%evaluate_gradients( q_point, tensor_product_gradients )
        interpolation%shape_derivatives(1,:,:,q_point) = tensor_product_gradients(:,:)
