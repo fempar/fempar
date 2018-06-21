@@ -161,18 +161,22 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_time(this,time) !pmart
   class(time_stepping_stage_fe_operator_t), target, intent(inout) :: this
   real(rp)                                           , intent(in) :: time
   class(serial_fe_space_t)                , pointer               :: fe_space
-  class(fe_function_t)                    , pointer               :: fe_fun
-  class(fe_function_t)                    , pointer               :: fe_fun_mass
+  !class(fe_function_t)                    , pointer               :: fe_fun
+  !class(fe_function_t)                    , pointer               :: fe_fun_mass
   class(discrete_integration_t)           , pointer               :: di_fe_op
+  class(discrete_integration_t)           , pointer               :: di_fe_mass_op
  
   fe_space         => this%fe_nl_op%get_fe_space()
   di_fe_op         => this%fe_nl_op%get_discrete_integration()
+  di_fe_mass_op    => this%mass_nl_op%get_discrete_integration()
   
-  call this%ts_op%get_fe_functions( fe_fun , fe_fun_mass )
-  call fe_space%interpolate_dirichlet_values(fe_fun, time=time)
-  call fe_space%interpolate_dirichlet_values(fe_fun_mass, time=time , time_derivative_order = 1 )
+  !call this%ts_op%get_fe_functions( fe_fun , fe_fun_mass )
+  !call fe_space%interpolate_dirichlet_values(fe_fun, time=time)
+  !call fe_space%interpolate_dirichlet_values(fe_fun_mass, time=time , time_derivative_order = 1 )
   
-  call di_fe_op%set_current_time(time) 
+  call di_fe_op%set_current_time(fe_space,time)
+  call di_fe_mass_op%set_current_time(fe_space,time)
+  
 end subroutine time_stepping_stage_fe_operator_set_evaluation_time
   
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -39,6 +39,7 @@ module mass_discrete_integration_names
      procedure :: integrate_residual 
      procedure :: set_evaluation_point
      procedure :: set_fe_function
+     procedure :: set_current_time
   end type mass_discrete_integration_t
   
   public :: mass_discrete_integration_t
@@ -175,5 +176,13 @@ contains
     class(vector_t)                   , intent(in)     :: evaluation_point
     call this%fe_function%set_free_dof_values(evaluation_point)
   end subroutine set_evaluation_point
+  
+  subroutine set_current_time (this, fe_space, current_time)
+   implicit none
+   class(mass_discrete_integration_t), intent(inout) :: this
+   class(serial_fe_space_t), pointer       , intent(in)    :: fe_space
+   real(rp)                                , intent(in)    :: current_time
+   call fe_space%interpolate_dirichlet_values(this%fe_function, time=current_time , time_derivative_order = 1)
+end subroutine set_current_time
  
 end module mass_discrete_integration_names

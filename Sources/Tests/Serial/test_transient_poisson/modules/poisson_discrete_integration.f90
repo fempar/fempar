@@ -66,11 +66,13 @@ contains
      this%fe_function => fe_function
   end subroutine set_fe_function
   
-  subroutine set_current_time (this, current_time)
+  subroutine set_current_time (this, fe_space, current_time)
      implicit none
      class(poisson_cG_discrete_integration_t), intent(inout) :: this
+     class(serial_fe_space_t), pointer       , intent(in)    :: fe_space
      real(rp)                                , intent(in)    :: current_time
      this%current_time = current_time
+     call fe_space%interpolate_dirichlet_values(this%fe_function, time=current_time)
   end subroutine set_current_time
   
   subroutine set_evaluation_point ( this, evaluation_point )
