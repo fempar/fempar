@@ -116,6 +116,7 @@ private
         procedure, non_overridable, public :: set                   => output_handler_cell_vector_set
         procedure, non_overridable, public :: get_name              => output_handler_cell_vector_get_name
         procedure, non_overridable, public :: get_cell_vector       => output_handler_cell_vector_get_cell_vector
+        procedure, non_overridable, public :: set_cell_vector       => output_handler_cell_vector_set_cell_vector
         procedure, non_overridable, public :: free                  => output_handler_cell_vector_free
         generic,                    public :: assignment(=)         => output_handler_cell_vector_assign
     end type
@@ -395,7 +396,7 @@ contains
 
     function output_handler_cell_vector_get_cell_vector(this) result(cell_vector)
     !-----------------------------------------------------------------
-    !< Return a fe_function pointer
+    !< Returns a pointer to the cell_vector member variable
     !-----------------------------------------------------------------
         class(output_handler_cell_vector_t), target, intent(in) :: this
         real(rp), pointer                                       :: cell_vector(:)
@@ -403,7 +404,17 @@ contains
         assert(associated(this%cell_vector))
         cell_vector => this%cell_vector
     end function output_handler_cell_vector_get_cell_vector
-
+    
+    subroutine output_handler_cell_vector_set_cell_vector(this,cell_vector)
+    !-----------------------------------------------------------------
+    !< Sets the pointer member variable cell_vector s.t. it points to 
+    !< the cell_vector dummy argument
+    !-----------------------------------------------------------------
+        class(output_handler_cell_vector_t)        , intent(inout) :: this
+        real(rp)                           , target, intent(in)    :: cell_vector(:)
+    !-----------------------------------------------------------------
+        this%cell_vector => cell_vector
+    end subroutine output_handler_cell_vector_set_cell_vector
 
 !---------------------------------------------------------------------
 ! output_handler_fe_field_1D_value_t PROCEDURES
