@@ -579,7 +579,7 @@ contains
     !< added **cell_vector**.
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
-        real(rp), allocatable,              intent(in)    :: cell_vector(:)
+        real(rp)                    ,       intent(in)    :: cell_vector(:)
         character(len=*),                   intent(in)    :: name
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
@@ -603,7 +603,6 @@ contains
     !-----------------------------------------------------------------
         integer(ip) :: i
         logical :: found
-        assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
         found = .false. 
         do i=1, this%num_cell_vectors
            if ( this%cell_vectors(i)%get_name() == name ) then

@@ -285,7 +285,7 @@ contains
     !< added **cell_vector**.
     !-----------------------------------------------------------------
         class(output_handler_t),    intent(inout) :: this
-        real(rp), allocatable,      intent(in)    :: cell_vector(:)
+        real(rp)               ,    intent(in)    :: cell_vector(:)
         character(len=*),           intent(in)    :: name
     !-----------------------------------------------------------------
         assert(allocated(this%state))
