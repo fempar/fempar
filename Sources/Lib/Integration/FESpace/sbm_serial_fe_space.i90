@@ -2450,17 +2450,14 @@ subroutine serial_fe_space_list_dofs ( this )
            end do
         end if
 
-        ! has_fixed_dofs_x_fe must also be filled on ghost FEs (as the 
-        ! `at_strong_dirichlet_boundary_x_fe` array), otherwise
-        ! the procedures fe_function_insert/gather_nodal_values skip inserting the
-        ! fixed dof values on ghost FEs (constraining dirichlet DoFs included)
-        call fe%determine_has_fixed_dofs(field_id)
-
-
-        ! Although the `hanging_dofs_x_fe` array (seems to be) only (currently) used 
-        ! in the local assembly procedures, we also compute it for ghost FEs for the
-        ! sake of correctness
-        call fe%determine_has_hanging_dofs(field_id)
+        ! Ghost FEs DoF numbering generation is completed in the loop 
+        ! over ghost FEs below. We avoid determining has_fixed_dofs and
+        ! has_hanging_dofs as we only have partially generated
+        ! DoFs on ghost DoFs at this point 
+        if ( fe_is_local ) then
+          call fe%determine_has_fixed_dofs(field_id)
+          call fe%determine_has_hanging_dofs(field_id)
+        end if 
      end do
      call fe%next()
   end do
@@ -2529,6 +2526,17 @@ subroutine serial_fe_space_list_dofs ( this )
               end do
            end if
         end if
+        ! has_fixed_dofs_x_fe must also be filled on ghost FEs (as the 
+        ! `at_strong_dirichlet_boundary_x_fe` array), otherwise
+        ! the procedures fe_function_insert/gather_nodal_values skip inserting the
+        ! fixed dof values on ghost FEs (constraining dirichlet DoFs included)
+        call fe%determine_has_fixed_dofs(field_id)
+
+
+        ! Although the `hanging_dofs_x_fe` array (seems to be) only (currently) used 
+        ! in the local assembly procedures, we also compute it for ghost FEs for the
+        ! sake of correctness
+        call fe%determine_has_hanging_dofs(field_id)
      end do
      call fe%next()
   end do
