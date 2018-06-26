@@ -193,6 +193,7 @@ end subroutine free_timers
     real(rp)                      :: domain(6)
     character(len=:), allocatable :: subparts_coupling_criteria
     integer(ip) :: num_refs
+    integer(ip) :: vef_set_id
 
     ! Create a structured mesh with a custom domain 
     domain = this%test_params%get_domain_limits() 
@@ -283,10 +284,23 @@ end subroutine free_timers
            end do
 
            if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
-
-               ! Set this face as Dirichlet boundary
-               call vef%set_set_id(1)
-
+               
+               !select case (trim(this%test_params%get_use_void_fes_case()))
+               !  case ('half')
+               !    ! This vef and its vefs are at the Neumann boundary
+               !    call vef%next()
+               !    cycle
+               !  case ('quarter')
+               !    ! This vef and its vefs are at the Neumann boundary
+               !    call vef%next()
+               !    cycle               
+               !  case ('popcorn')
+                   ! Set this vef and vefs of this vef at the Dirichlet boundary
+                   call vef%set_set_id(1)
+               !  case default
+               !    check(.false.)
+               !end select
+               
                ! Do a loop on all edges in 3D (vertex in 2D) of the face
                ivef = vef%get_gid()
                call vef%get_cell_around(1,cell) ! There is always one cell around
@@ -682,6 +696,7 @@ end subroutine free_timers
     call this%timer_solver%stop()
 
     call this%check_solution()
+    call this%write_solution()
     
     call this%print_info() 
     
