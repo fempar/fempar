@@ -109,6 +109,10 @@ subroutine par_fe_space_create_same_reference_fes_on_all_cells( this,           
      ! requires that num_fixed_dofs is initialize
      this%num_fixed_dofs = 0
      
+     ! This is a little bit DIRTY, force initialization of variable.
+     this%num_total_free_dofs  = 0
+     this%num_total_free_ghost_dofs = 0
+     
      ! This is a little bit DIRTY. Other data type relying on par_fe_space_t
      ! require that this%block_layout is created on all processes
      call this%block_layout%create(this%get_num_fields(), field_blocks, field_coupling)
@@ -170,6 +174,10 @@ subroutine par_fe_space_create_different_ref_fes_between_cells( this,           
      ! This is a little bit DIRTY. fe_function%create(fe_space)
      ! requires that num_fixed_dofs is initialize
      this%num_fixed_dofs = 0
+     
+     ! This is a little bit DIRTY, force initialization of variable.
+     this%num_total_free_dofs  = 0
+     this%num_total_free_ghost_dofs = 0
      
      ! This is a little bit DIRTY. Other data type relying on par_fe_space_t
      ! require that this%block_layout is created on all processes
