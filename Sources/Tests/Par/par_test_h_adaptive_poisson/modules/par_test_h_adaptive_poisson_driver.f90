@@ -285,21 +285,21 @@ end subroutine free_timers
 
            if(num_void_neigs==1) then ! If vef (face) is between a full and a void cell
                
-               !select case (trim(this%test_params%get_use_void_fes_case()))
-               !  case ('half')
-               !    ! This vef and its vefs are at the Neumann boundary
-               !    call vef%next()
-               !    cycle
-               !  case ('quarter')
-               !    ! This vef and its vefs are at the Neumann boundary
-               !    call vef%next()
-               !    cycle               
-               !  case ('popcorn')
+               select case (trim(this%test_params%get_use_void_fes_case()))
+                 case ('half')
+                   ! This vef and its vefs are at the Neumann boundary
+                   call vef%next()
+                   cycle
+                 case ('quarter')
+                   ! This vef and its vefs are at the Neumann boundary
+                   call vef%next()
+                   cycle               
+                 case ('popcorn')
                    ! Set this vef and vefs of this vef at the Dirichlet boundary
                    call vef%set_set_id(1)
-               !  case default
-               !    check(.false.)
-               !end select
+                 case default
+                   check(.false.)
+               end select
                
                ! Do a loop on all edges in 3D (vertex in 2D) of the face
                ivef = vef%get_gid()
@@ -431,6 +431,7 @@ end subroutine free_timers
     end if
     
     call this%fe_space%set_up_cell_integration()
+    call this%fe_space%set_up_facet_integration() 
 #ifdef ENABLE_MKL    
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
 #endif    
@@ -696,7 +697,6 @@ end subroutine free_timers
     call this%timer_solver%stop()
 
     call this%check_solution()
-    call this%write_solution()
     
     call this%print_info() 
     
