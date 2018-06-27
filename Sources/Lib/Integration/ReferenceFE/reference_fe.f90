@@ -155,10 +155,10 @@ module reference_fe_names
     ! Map's Jacobian det (num_quadrature_points)  
     real(rp), allocatable       :: det_jacobian(:) 
 
-    ! Coordinates of git points (num_dims,num_quadrature_points)       
+    ! Coordinates of git points (SPACE_DIM,num_quadrature_points)
     type(point_t), allocatable  :: quadrature_points_coordinates(:)  
     
-    ! Coordinates of evaluation points (num_dims,num_corners of element/face)  
+    ! Coordinates of evaluation points (SPACE_DIM,num_corners of element/face)
     type(point_t), allocatable  :: nodes_coordinates(:) 
     
     ! Geometry interpolation_t in the reference element domain    
@@ -202,7 +202,7 @@ module reference_fe_names
   type, extends(base_map_t) ::  cell_map_t
      private
      type(cell_map_duties_t)  :: my_duties
-     ! Map's Jacobian inverse (num_dims,num_dims,num_quadrature_points)       
+     ! Map's Jacobian inverse (SPACE_DIM,SPACE_DIM,num_quadrature_points)
      real(rp), allocatable    :: inv_jacobian(:,:,:)     
  
      ! Map's 2nd derivatives (num_dime,num_dime,num_dime,num_quadrature_points)         
