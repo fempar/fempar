@@ -82,6 +82,7 @@ contains
     real(rp), allocatable :: elmat(:,:), elvec(:)
     
     ! FACE matrix and vector, i.e., A_F + f_F
+    real(rp), allocatable :: facemat(:,:,:,:)
     real(rp), allocatable :: facevec(:,:)
     
     integer(ip)  :: istat
@@ -163,6 +164,8 @@ contains
        call fe%next()
     end do
     
+    call memalloc ( max_num_dofs, max_num_dofs, 2, 2, facemat, __FILE__, __LINE__ )
+    facemat = 0.0_rp
     call memalloc ( max_num_dofs, 2, facevec, __FILE__, __LINE__ )
     
     call fe_space%create_fe_facet_iterator(fe_facet)
@@ -176,10 +179,11 @@ contains
       num_quad_points =  quad%get_num_quadrature_points()
       
       ! If I am a facet on the Neumann boundary
-      if ( fe_facet%is_at_field_boundary(1) .and. fe_facet%get_set_id() == 0 ) then
+      if ( fe_facet%is_at_field_boundary(field_id=1) .and. fe_facet%get_set_id() == 0 ) then
         
         call fe_facet%update_integration()
         ineigh  = fe_facet%get_active_cell_id(1)
+        
         facevec = 0.0_rp
         quad_coords => fe_facet%get_quadrature_points_coordinates()
         call fe_facet%get_values(ineigh,shape_values)
@@ -197,7 +201,8 @@ contains
           end do   
         end do
         
-        call fe_facet%assembly( facevec, assembler )
+        ! TO-DO: Change when fe_facet_assembly_array covers nonconforming meshes
+        call fe_facet%assembly( facemat, facevec, assembler )
         
       end if
       
@@ -214,6 +219,7 @@ contains
     call memfree ( weights, __FILE__, __LINE__ )
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
+    call memfree ( facemat, __FILE__, __LINE__ )
     call memfree ( facevec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
   
