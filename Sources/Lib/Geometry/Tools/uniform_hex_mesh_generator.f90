@@ -639,6 +639,10 @@ contains
     ! vef global numbering (if needed), coordinates and boundary ids
     if(present(num_ghost_cells)) call memalloc(num_local_vefs,vefs_gids,__FILE__,__LINE__)
     call memalloc(SPACE_DIM,num_vertices,coordinates,__FILE__,__LINE__)
+    ! In case of 2D domains (num_dims=2) when SPACE_DIM is used, it is necessary to initialize the
+    ! coordinates array to zero in order to guarantee that the third component is initialized to zero.
+    ! The use of SPACE_DIM instead num_dims is based on the fact that this variable is known in
+    ! compilation time, allowing the compiler to perform additional optimizations.
     coordinates = 0.0_rp
     call memalloc(num_local_vefs,boundary_id,__FILE__,__LINE__)
     boundary_id=-1
