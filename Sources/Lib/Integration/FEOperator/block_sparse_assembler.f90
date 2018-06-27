@@ -58,17 +58,15 @@ public :: block_sparse_assembler_t
 contains
 
   subroutine block_sparse_assembler_assembly_array( this,           &
-                                                                 num_fields,  &
-                                                                 field_blocks,   &
-                                                                 field_coupling, &
-                                                                 num_dofs,    &
-                                                                 fe_dofs,       &
-                                                                 elvec )
+                                                    num_fields,  &
+                                                    field_blocks,   &
+                                                    num_dofs,    &
+                                                    fe_dofs,       &
+                                                    elvec )
     implicit none
     class(block_sparse_assembler_t) , intent(inout) :: this
     integer(ip)                                  , intent(in)    :: num_fields
     integer(ip)                                  , intent(in)    :: field_blocks(num_fields)
-    logical                                      , intent(in)    :: field_coupling(num_fields,num_fields)
     integer(ip)                                  , intent(in)    :: num_dofs(num_fields)
     type(i1p_t)                                  , intent(in)    :: fe_dofs(num_fields)
     real(rp)                                     , intent(in)    :: elvec(:)

@@ -1723,7 +1723,6 @@ subroutine fe_cell_iterator_assembly_array ( this,  &
   call this%update_assembly_scratch_data()
   call assembler%assembly_array( this%fe_space%num_fields,           &
                                  this%fe_space%get_field_blocks(),   &
-                                 this%fe_space%get_field_coupling(), &
                                  this%num_cell_dofs_x_field,         &
                                  this%fe_dofs,                       &
                                  elvec )
@@ -1795,7 +1794,6 @@ subroutine fe_cell_iterator_assembly_matrix_array ( this,  &
                                     elmat )
     call assembler%assembly_array( this%fe_space%num_fields,            &
                                    this%fe_space%get_field_blocks(),    &
-                                   this%fe_space%get_field_coupling(),  &
                                    this%num_cell_dofs_x_field,          &
                                    this%fe_dofs,                        &
                                    elvec )
@@ -1811,7 +1809,6 @@ subroutine fe_cell_iterator_assembly_matrix_array ( this,  &
                                      this%extended_elmat%a )
      call assembler%assembly_array( this%fe_space%num_fields,           &
                                     this%fe_space%get_field_blocks(),   &
-                                    this%fe_space%get_field_coupling(), &
                                     this%num_cell_dofs_x_field,         &
                                     this%fe_dofs,                       &
                                     this%extended_elvec%a )
@@ -1859,7 +1856,6 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
                                     elmat )
     call assembler%assembly_array( this%fe_space%num_fields,            &
                                    field_blocks,    &
-                                   field_coupling,  &
                                    this%num_cell_dofs_x_field,          &
                                    this%fe_dofs,                        &
                                    elvec )
@@ -1876,7 +1872,6 @@ subroutine fe_cell_iterator_assembly_matrix_array_with_strong_bcs ( this,       
                                      this%extended_elmat%a )
      call assembler%assembly_array( this%fe_space%num_fields,           &
                                     field_blocks,   &
-                                    field_coupling, &
                                     this%num_cell_dofs_x_field,         &
                                     this%fe_dofs,                       &
                                     this%extended_elvec%a )
