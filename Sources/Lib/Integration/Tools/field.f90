@@ -139,7 +139,7 @@ module field_names
   public :: fill_vector_field_2D_array_with_4D_plain_array_perm
   public :: compute_point_1D_array_lin_comb_with_3D_plain_array
   public :: compute_3D_plain_array_lin_comb_with_point_1D_array
-  public :: compute_vector_field_lin_comb_with_2D_plain_array
+  public :: apply_2D_plain_array_to_vector_field
   
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -736,24 +736,21 @@ contains
     
   end subroutine compute_3D_plain_array_lin_comb_with_point_1D_array
 
-  subroutine compute_vector_field_lin_comb_with_2D_plain_array(plain_2D_array, vector_field_1D, vector_field_1D_out)
+  subroutine apply_2D_plain_array_to_vector_field(plain_2D_array, vector_field, vector_field_out)
     implicit none
     real(rp)            , intent(in)    :: plain_2D_array(:,:)
-    type(vector_field_t), intent(in)    :: vector_field_1D
-    type(vector_field_t), intent(inout) :: vector_field_1D_out
-
+    type(vector_field_t), intent(in)    :: vector_field
+    type(vector_field_t), intent(inout) :: vector_field_out
     integer(ip)  :: i,j
-
     assert (size(plain_2D_array,1) == SPACE_DIM)
     assert (size(plain_2D_array,2) == SPACE_DIM)
-    !call vector_field_1D_out%init(0.0_rp)
-    vector_field_1D_out%value(:) = 0.0_rp
+    vector_field_out%value(:) = 0.0_rp
     do j = 1, SPACE_DIM
        do i = 1,  SPACE_DIM
-          vector_field_1D_out%value(i) = vector_field_1D_out%value(i) + plain_2D_array(i,j)*vector_field_1D%value(j)
+          vector_field_out%value(i) = vector_field_out%value(i) + plain_2D_array(i,j)*vector_field%value(j)
        end do
     end do
 
-  end subroutine compute_vector_field_lin_comb_with_2D_plain_array
+  end subroutine apply_2D_plain_array_to_vector_field
 
 end module field_names

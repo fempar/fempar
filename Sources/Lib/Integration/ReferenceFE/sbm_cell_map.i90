@@ -529,7 +529,7 @@ function cell_map_apply_inv_jacobian ( this, qpoin, v_in ) result ( v_out )
 
   assert( qpoin>=1 .and. qpoin <= this%num_quadrature_points)
   if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
-     call compute_vector_field_lin_comb_with_2D_plain_array(this%inv_jacobian(:,:,qpoin),v_in,v_out)
+     call apply_2D_plain_array_to_vector_field(this%inv_jacobian(:,:,qpoin),v_in,v_out)
   else
      mcheck(.false.,'Calling cell_map_get_inv_jacobian_tensor requires compute_jacobian_inverse_is_assigned to be true')
   end if
