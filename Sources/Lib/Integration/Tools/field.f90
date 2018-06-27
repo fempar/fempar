@@ -746,7 +746,8 @@ contains
 
     assert (size(plain_2D_array,1) == SPACE_DIM)
     assert (size(plain_2D_array,2) == SPACE_DIM)
-    call vector_field_1D_out%init(0.0_rp)
+    !call vector_field_1D_out%init(0.0_rp)
+    vector_field_1D_out%value(:) = 0.0_rp
     do j = 1, SPACE_DIM
        do i = 1,  SPACE_DIM
           vector_field_1D_out%value(i) = vector_field_1D_out%value(i) + plain_2D_array(i,j)*vector_field_1D%value(j)
