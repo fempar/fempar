@@ -192,7 +192,7 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
   real(rp) , optional,   intent(in)      :: scaling_factor 
   
   ! Locals
-  integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
+  integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens,icomp
   type(vector_field_t) :: aux_vector
   logical  :: supported_cell_ressemblance
   real(rp) :: scaling_factor_to_the_num_dims
@@ -210,8 +210,16 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
     call this%compute_jacobian()
     
     this%measure = 0.0_rp 
+    this%inv_jacobian = 0.0_rp
     if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
        do ilocs=1,this%num_quadrature_points
+          ! In case of 2D problems (num_dims=2) when SPACE_DIM is used, the inverse of the jacobian matrix is
+          ! allocated as (SPACE_DIM,SPACE_DIM,num_quadrature_points) matrix, and initialized with the identity matrix.
+          ! This change is proposed to give support to 2D problems when SPACE_DIM is used to allocate jacobian and
+          ! inv_jacobian matrices.
+          do icomp=1, SPACE_DIM
+             this%inv_jacobian(icomp,icomp,ilocs) = 1.0_rp
+          end do
           call invmtx(SPACE_DIM,this%num_dims,this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs))
           this%measure = this%measure + abs(this%det_jacobian(ilocs)) * quadrature%get_weight(ilocs)
        end do
