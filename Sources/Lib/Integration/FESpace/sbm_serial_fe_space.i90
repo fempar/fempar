@@ -766,7 +766,6 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
   logical                  , allocatable :: is_void_field(:) 
   logical                  , allocatable :: n_face_mask(:,:) 
   logical                                :: reallocate 
-  logical                                :: local_found
   integer(ip)                            :: ielem
   class(triangulation_t), pointer        :: triangulation 
   
@@ -844,29 +843,18 @@ subroutine serial_fe_space_interpolate_dirichlet_values (this, fe_function, inte
                  call fe%get_vef(vef_lid, vef)
                  if ( .not. vef%is_ghost() ) then
                     if ( vef%get_set_id() /= 0 .and. vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
-                       local_found = .false.
-                       do ielem=1, vef%get_num_cells_around()
-                          call vef%get_cell_around(ielem, aux_fe)
-                          if (aux_fe%is_local()) then
-                             local_found = .true.
-                             exit
+                       ! Get scalar boundary functions 
+                       call this%conditions%get_components_code( vef%get_set_id(), components_code )
+                       component_id = offset_component(field_id) + 1
+                       do icomp=1, reference_fe%get_num_field_components()
+                          if ( components_code(component_id+icomp-1) ) then
+                             n_face_mask(icomp, vef_lid) = .true. 
+                             ! Retreive the scalar functions corresponding to the components of the function to be projected
+                             call this%conditions%get_function(vef%get_set_id(),                 &
+                                                               component_id+icomp-1,             &
+                                                               function_scalar_components(icomp, vef_lid)%p)
                           end if
                        end do
-
-                       if (  fe%is_local() .or. .not. local_found ) then
-                          ! Get scalar boundary functions 
-                          call this%conditions%get_components_code( vef%get_set_id(), components_code )
-                          component_id = offset_component(field_id) + 1
-                          do icomp=1, reference_fe%get_num_field_components()
-                             if ( components_code(component_id+icomp-1) ) then
-                                n_face_mask(icomp, vef_lid) = .true. 
-                                ! Retreive the scalar functions corresponding to the components of the function to be projected
-                                call this%conditions%get_function(vef%get_set_id(),                 &
-                                                                  component_id+icomp-1,             &
-                                                                  function_scalar_components(icomp, vef_lid)%p)
-                             end if
-                          end do
-                       end if
                     end if
                  end if
               end do
