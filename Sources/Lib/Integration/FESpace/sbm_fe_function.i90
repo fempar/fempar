@@ -163,8 +163,8 @@
                                              fe_dofs, &
                                              nodal_values )
     
-    if ( fe%is_ghost() .and. associated(fe_dofs) ) then
-      ! fe_dofs is not associated when subdomain is empty
+    if ( fe%is_ghost() .and. num_nodes_field > 0 ) then
+      ! fe_dofs is not associated (GNU) when subdomain is empty
       call this%free_ghost_dof_values%insert_subvector ( 1,                            &
                                                     num_nodes_field,              &
                                                     fe_dofs - this%num_total_free_dofs, &
