@@ -15,33 +15,40 @@ then
       do
        for order in 2
         do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH -tt structured -dim 2 -nx 4 -ny 4 -in_space .true. -order $order -gorder $gorder"
-            $TEST_BINARY_PATH -tt structured -dim 2 -nx 4 -ny 4 -in_space .true. -order $order -gorder $gorder 
-            if [ $? -ne 0 ] 
+          for constr in .true. .false.
+          do
+            if [ $order -ge $gorder ]
             then
-             final_exit_code=1
+              cmd="$TEST_BINARY_PATH -tt structured -dim 2 -nx 4 -ny 4 -in_space .true. -order $order -gorder $gorder -uconstraints $constr"
+              echo $cmd
+              $cmd
+              if [ $? -ne 0 ] 
+              then
+               final_exit_code=1
+              fi
             fi
-          fi
+          done
         done
       done
-
 
       # Cube + Hexas       
       for gorder in 1
       do
        for order in 1
         do
-          if [ $order -ge $gorder ]
-          then
-            echo "$TEST_BINARY_PATH -tt structured -dim 3 -nx 4 -ny 4 -nz 4 -in_space .true. -order $order -gorder $gorder"
-            $TEST_BINARY_PATH  -tt structured -dim 3 -nx 4 -ny 4 -nz 4 -in_space .true. -order $order -gorder $gorder
-            if [ $? -ne 0 ]
+          for constr in .true. .false.
+          do
+            if [ $order -ge $gorder ]
             then
-             final_exit_code=1
+              cmd="$TEST_BINARY_PATH  -tt structured -dim 3 -nx 4 -ny 4 -nz 4 -in_space .true. -order $order -gorder $gorder -uconstraints $constr"
+              echo $cmd
+              $cmd
+              if [ $? -ne 0 ]
+              then
+               final_exit_code=1
+              fi
             fi
-          fi
+          done
         done
       done
 
