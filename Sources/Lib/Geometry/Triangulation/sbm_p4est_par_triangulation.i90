@@ -94,7 +94,9 @@ subroutine p4est_par_triangulation_create (this, parameters, environment)
                                         1, &
                                         field_type_scalar, & 
                                         conformity=.true.)  
-     
+    
+     call this%allocate_and_gen_reference_fe_geo_scratch_data()
+ 
      context => p_environment%get_l1_context()
      select type(context)
      class is (mpi_context_t)
@@ -248,6 +250,7 @@ subroutine p4est_par_triangulation_free ( this)
         this%bounding_box_limits = 0.0_rp
         
         call this%reference_fe_geo%free()
+        call this%free_reference_fe_geo_scratch_data()
         
         context => p_environment%get_l1_context()
         select type(context)
