@@ -3505,17 +3505,21 @@ subroutine pfs_fetch_lst_parts_dofs_cell_wise(this,field_id)
        call fe%set_gid(k)
        reference_fe => fe%get_reference_fe(field_id)
        call fe%get_field_fe_dofs( field_id, fe_dofs )
-       do idof=1, size(fe_dofs)
-         dof_gid = fe_dofs(idof)
-         if ( this%is_free_dof(dof_gid) ) then
-          if ( this%dof_gid_to_itfc_dof_gid(dof_gid) /= -1  ) then
-            do k=2,this%lst_parts_around_itfc_dofs(1,this%dof_gid_to_itfc_dof_gid(dof_gid))+1
-              p_lst_parts_dofs_cell_wise(current) = this%lst_parts_around_itfc_dofs(k,this%dof_gid_to_itfc_dof_gid(dof_gid))
-              current = current + 1
-            end do 
-          end if  
-         end if
-       end do 
+       ! fe_dofs is not associated when subdomain is empty  
+       ! INTEL 18 does not allow to use it, unless associated
+       if ( associated(fe_dofs) ) then
+         do idof=1, size(fe_dofs)
+           dof_gid = fe_dofs(idof)
+           if ( this%is_free_dof(dof_gid) ) then
+            if ( this%dof_gid_to_itfc_dof_gid(dof_gid) /= -1  ) then
+              do k=2,this%lst_parts_around_itfc_dofs(1,this%dof_gid_to_itfc_dof_gid(dof_gid))+1
+                p_lst_parts_dofs_cell_wise(current) = this%lst_parts_around_itfc_dofs(k,this%dof_gid_to_itfc_dof_gid(dof_gid))
+                current = current + 1
+              end do 
+            end if  
+           end if
+         end do 
+       end if
     end do  
   end do   
   call this%free_fe_cell_iterator(fe)
