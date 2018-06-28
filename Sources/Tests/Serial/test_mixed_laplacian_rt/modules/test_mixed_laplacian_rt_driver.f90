@@ -347,10 +347,12 @@ contains
        ! Get DoF numbering within current FE
        call fe%get_fe_dofs(fe_dofs)
        
-       call dof_values%extract_subvector ( 1, &
-                                           size(nodal_values_rt), &
-                                           fe_dofs(1)%p, & 
-                                           nodal_values_rt)
+       if ( associated(fe_dofs(1)%p) ) then
+         call dof_values%extract_subvector ( 1, &
+                                             size(nodal_values_rt), &
+                                             fe_dofs(1)%p, & 
+                                             nodal_values_rt)
+       end if
               
        select type(rt_ref_fe => this%reference_fes(1)%p)
        class is (raviart_thomas_reference_fe_t)

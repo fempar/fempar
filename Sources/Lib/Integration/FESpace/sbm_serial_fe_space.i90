@@ -199,7 +199,11 @@ subroutine serial_fe_space_print ( this )
      call fe%get_fe_dofs(fe_dofs)
      do field_id = 1, fe%get_num_fields()
         write(*,'(a,i10,a)') '********* FIELD: ',field_id,'********'
-        write(*,'(10i10)') fe_dofs(field_id)%p
+        if ( associated(fe_dofs(field_id)%p) ) then
+          write(*,'(10i10)') fe_dofs(field_id)%p
+        else
+          write(*,'(a)') '(not associated)'
+        end if
      end do
      call fe%next()
   end do
@@ -1037,11 +1041,13 @@ subroutine serial_fe_space_project_dirichlet_values_curl_conforming (this, fe_fu
               
                  ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
                  subset_fe_dofs = 0
-                 do idof = 1, size(fe_dofs(field_id)%p)
-                    if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
-                        subset_fe_dofs(idof) = global2subset_dirichlet_dofs( -fe_dofs(field_id)%p(idof) )
-                    end if
-                 end do
+                 if ( associated(fe_dofs(field_id)%p) ) then
+                   do idof = 1, size(fe_dofs(field_id)%p)
+                      if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
+                          subset_fe_dofs(idof) = global2subset_dirichlet_dofs( -fe_dofs(field_id)%p(idof) )
+                      end if
+                   end do
+                 end if
                  
                  reference_fe => fe%get_reference_fe(field_id)
                  call matrix%insert(num_rows = reference_fe%get_num_shape_functions(),& 
@@ -1207,14 +1213,16 @@ function serial_fe_space_allocate_and_fill_global2subset_and_inverse(this,      
            field_id = fields_to_project(ifield) 
            if ( fe%at_strong_dirichlet_boundary(field_id) ) then 
               call fe%get_fe_dofs(fe_dofs)
-              do idof = 1,size(fe_dofs(field_id)%p)
-                 if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
-                    if (global2subset(-fe_dofs(field_id)%p(idof))==0) then 
-                       num_subset_strong_dirichlet_dofs = num_subset_strong_dirichlet_dofs + 1
-                       global2subset(-fe_dofs(field_id)%p(idof)) = num_subset_strong_dirichlet_dofs 
-                    end if
-                 end if
-              end do
+              if ( associated(fe_dofs(field_id)%p) ) then
+                do idof = 1,size(fe_dofs(field_id)%p)
+                   if ( fe%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
+                      if (global2subset(-fe_dofs(field_id)%p(idof))==0) then 
+                         num_subset_strong_dirichlet_dofs = num_subset_strong_dirichlet_dofs + 1
+                         global2subset(-fe_dofs(field_id)%p(idof)) = num_subset_strong_dirichlet_dofs 
+                      end if
+                   end if
+                end do
+              end if
            end if
         end do
      end if

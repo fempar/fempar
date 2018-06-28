@@ -3837,11 +3837,13 @@ subroutine par_fe_space_project_dirichlet_values_curl_conforming (this, fe_funct
               
                     ! Consecutive DOF re-numbering for the subset of Dirichlet DOFs to be projected 
                     subset_fe_dofs = 0
-                    do idof = 1, size(fe_dofs(field_id)%p)
-                       if ( this%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
-                          subset_fe_dofs(idof) = global2subset_dirichlet_dofs( -fe_dofs(field_id)%p(idof) )
-                       end if
-                    end do
+                    if ( associated(fe_dofs(field_id)%p) ) then
+                      do idof = 1, size(fe_dofs(field_id)%p)
+                         if ( this%is_strong_dirichlet_dof(fe_dofs(field_id)%p(idof)) ) then 
+                            subset_fe_dofs(idof) = global2subset_dirichlet_dofs( -fe_dofs(field_id)%p(idof) )
+                         end if
+                      end do
+                    end if
                  
                     reference_fe => fe%get_reference_fe(field_id)
                     call matrix%insert(num_rows = reference_fe%get_num_shape_functions(),& 
