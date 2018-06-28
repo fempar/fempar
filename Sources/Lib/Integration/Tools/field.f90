@@ -140,6 +140,7 @@ module field_names
   public :: fill_vector_field_2D_array_with_4D_plain_array
   public :: fill_vector_field_2D_array_with_4D_plain_array_perm
   public :: compute_point_1D_array_lin_comb_with_3D_plain_array
+  public :: evaluate_gradient_fe_function_scalar
   public :: compute_3D_plain_array_lin_comb_with_point_1D_array
   public :: apply_2D_plain_array_to_vector_field
   public :: gather_facet_vertex_coordinates_from_cell_vertex_coordinates
@@ -739,6 +740,25 @@ contains
       end do 
     end do
   end subroutine compute_point_1D_array_lin_comb_with_3D_plain_array
+  
+  subroutine evaluate_gradient_fe_function_scalar (shape_derivatives,nodal_values,gradients)
+    implicit none
+    real(rp)            , intent(in)    :: shape_derivatives(:,:,:,:)
+    real(rp)            , intent(in)    :: nodal_values(:)
+    type(vector_field_t), intent(inout) :: gradients(:)
+    integer(ip) :: qpoint, inode, idime
+    assert ( size(shape_derivatives,4) <= size(gradients) )
+    assert ( size(shape_derivatives,2) <= size(nodal_values) )
+    do qpoint = 1, size(shape_derivatives,4)
+      gradients(qpoint)%value = 0.0_rp
+      do inode=1,size(shape_derivatives,3)
+        do idime = 1, SPACE_DIM
+          gradients(qpoint)%value(idime) = gradients(qpoint)%value(idime) + &
+                 nodal_values(inode)*shape_derivatives(1,idime,inode,qpoint)
+        end do 
+      end do
+    end do 
+  end subroutine evaluate_gradient_fe_function_scalar
 
   subroutine compute_3D_plain_array_lin_comb_with_point_1D_array( plain_array, point_1D_array_in, plain_array_out)
     implicit none
