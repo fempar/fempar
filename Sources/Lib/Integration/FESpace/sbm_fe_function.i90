@@ -49,7 +49,7 @@
   subroutine fe_function_gather_nodal_values_through_iterator ( this, fe_cell_iterator, field_id, nodal_values )
     implicit none
     class(fe_function_t)       , intent(in)    :: this 
-    class(fe_cell_iterator_t)       , intent(in)    :: fe_cell_iterator
+    class(fe_cell_iterator_t)  , intent(in)    :: fe_cell_iterator
     integer(ip)                , intent(in)    :: field_id
     real(rp)                   , intent(inout) :: nodal_values(:)
     
@@ -75,25 +75,26 @@
     block_id = field_blocks(field_id)
     
     ! Extract nodal values associated to dofs
-    call this%free_dof_values%extract_subvector ( block_id, &
-                                             num_nodes_field, &
-                                             fe_dofs, &
-                                             nodal_values )
+    call this%free_dof_values%extract_subvector ( block_id,        &
+                                                  num_nodes_field, &
+                                                  fe_dofs,         &
+                                                  nodal_values )
     
-    if ( fe_cell_iterator%is_ghost() ) then
-      call this%free_ghost_dof_values%extract_subvector ( 1,                            &
-                                                     num_nodes_field,              &
-                                                     fe_dofs - this%num_total_free_dofs, &
-                                                     nodal_values )
+    if ( fe_cell_iterator%is_ghost() .and. num_nodes_field > 0 ) then
+      ! fe_dofs is not associated when subdomain is empty
+      call this%free_ghost_dof_values%extract_subvector ( 1,                                  &
+                                                          num_nodes_field,                    &
+                                                          fe_dofs - this%num_total_free_dofs, &
+                                                          nodal_values )
     end if
     
   end subroutine fe_function_gather_nodal_values_through_iterator
   
-  subroutine fe_function_gather_nodal_values_from_raw_data ( this,               &
-                                                             field_id,           &
-                                                             fe_dofs,           &
+  subroutine fe_function_gather_nodal_values_from_raw_data ( this,            &
+                                                             field_id,        &
+                                                             fe_dofs,         &
                                                              num_nodes_field, & 
-                                                             field_blocks,       &
+                                                             field_blocks,    &
                                                              nodal_values )
     implicit none
     class(fe_function_t)       , intent(in)    :: this
@@ -121,10 +122,13 @@
                                              fe_dofs,           &
                                              nodal_values )
     
-    call this%free_ghost_dof_values%extract_subvector ( 1,                            &
-                                                   num_nodes_field,              &
-                                                   fe_dofs - this%num_total_free_dofs, &
-                                                   nodal_values )
+    if ( num_nodes_field > 0 ) then
+      ! avoid evaluating fe_dofs - this%num_total_free_dofs when num_nodes_field = 0
+      call this%free_ghost_dof_values%extract_subvector ( 1,                                  &
+                                                          num_nodes_field,                    &
+                                                          fe_dofs - this%num_total_free_dofs, &
+                                                          nodal_values )
+    end if
     
   end subroutine fe_function_gather_nodal_values_from_raw_data
   
@@ -164,7 +168,7 @@
                                              nodal_values )
     
     if ( fe%is_ghost() .and. num_nodes_field > 0 ) then
-      ! fe_dofs is not associated (GNU) when subdomain is empty
+      ! fe_dofs is not associated when subdomain is empty
       call this%free_ghost_dof_values%insert_subvector ( 1,                            &
                                                     num_nodes_field,              &
                                                     fe_dofs - this%num_total_free_dofs, &
