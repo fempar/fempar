@@ -373,11 +373,11 @@ function cell_map_compute_h ( this, qpoin)
 
   assert( qpoin>=1 .and. qpoin <= this%num_quadrature_points)
   if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
-
      inverse_h = 0.0_rp
      do idime = 1, this%num_dims
         do jdime = 1,  this%num_dims
-           inverse_h(idime) = inverse_h(idime) + this%inv_jacobian(idime,jdime,qpoin)**2.0_rp
+           inverse_h(idime) = inverse_h(idime) + &
+             this%inv_jacobian(idime,jdime,qpoin)*this%inv_jacobian(idime,jdime,qpoin)
         end do
         inverse_h(idime) = sqrt(inverse_h(idime))
      end do
