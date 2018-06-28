@@ -41,6 +41,8 @@ subroutine p4est_serial_triangulation_create (this, parameters)
 #ifdef ENABLE_P4EST
   call this%free()
   
+  call this%set_single_octree_mesh(.true.)
+  
   istat = parameters%set(key = execution_context_key, value = serial_context) ; check(istat==0)
   call this%allocate_environment()
   environment => this%get_environment()
@@ -87,18 +89,13 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%comm_cell_myparts()
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%update_vefs_is_ghost()
     call this%fill_x_cell_vertex_coordinates()
     call old_lst_vefs_gids%free()
     call this%clear_refinement_and_coarsening_flags()
+    call this%clear_cell_weights()
     call this%clear_cell_set_ids()
     call this%set_up_lst_itfc_vefs()
-    !call this%update_lst_vef_gids_and_cells_around_ghost_cells()
-    call this%update_local_proper_vefs_actually_on_the_interface()
     call this%clear_vef_set_ids()
-    ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
-    ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
-    call this%set_up_lst_itfc_vefs()
   else if ( this%get_num_dims() == 3 ) then
     call F90_p8est_connectivity_new_unitcube(this%p4est_connectivity)
     call F90_p8est_new(dummy_comm,this%p4est_connectivity, this%p4est)
@@ -112,14 +109,12 @@ subroutine p4est_serial_triangulation_create (this, parameters)
     call this%extend_p4est_topology_arrays_to_ghost_cells()
     call this%find_missing_corner_neighbours()
     call this%update_lst_vefs_gids_and_cells_around(old_lst_vefs_gids)
-    call this%update_vefs_is_ghost()
     call this%fill_x_cell_vertex_coordinates()
     call old_lst_vefs_gids%free()
     call this%clear_refinement_and_coarsening_flags()
+    call this%clear_cell_weights()
     call this%clear_cell_set_ids()
     call this%set_up_lst_itfc_vefs()
-    !call this%update_lst_vef_gids_and_cells_around_ghost_cells()
-    call this%update_local_proper_vefs_actually_on_the_interface()
     call this%clear_vef_set_ids()
     ! IMPORTANT NOTE: we need to RE-SETUP lst_itfc_vefs as we may have added 
     ! new proper interface VEFs in update_lst_vef_gids_and_cells_around_ghost_cells()
@@ -135,7 +130,7 @@ subroutine p4est_serial_triangulation_free ( this)
   class(p4est_serial_triangulation_t), target, intent(inout) :: this
   type(cell_import_t), pointer :: cell_import
   
-#ifdef ENABLE_P4EST
+#ifdef ENABLE_P4EST  
   if ( this%get_num_dims() == 2 ) then
     call F90_p4est_destroy(this%p4est)
     call F90_p4est_connectivity_destroy(this%p4est_connectivity)
@@ -174,6 +169,7 @@ subroutine p4est_serial_triangulation_free ( this)
   call this%improper_vefs_at_interface%free()
   call this%refinement_and_coarsening_flags%free()
   call this%cell_set_ids%free()
+  call this%cell_weights%free()
   call this%proper_vefs_set_ids%free()
   call this%improper_vefs_set_ids%free()
   call this%free_lst_itfc_vefs()
@@ -224,6 +220,8 @@ subroutine p4est_serial_triangulation_free ( this)
 
   call this%reference_fe_geo%free()
   call this%free_environment()
+  
+  call triangulation_free(this)
 #else
   call this%not_enabled_error()
 #endif     

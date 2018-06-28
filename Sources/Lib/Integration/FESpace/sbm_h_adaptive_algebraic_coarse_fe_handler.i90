@@ -166,7 +166,7 @@ subroutine h_adaptive_algebraic_l1_get_num_coarse_dofs(this, field_id, par_fe_sp
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
                  dof_lid = fe_dofs(idof)
-                 if ( dof_lid > 0 ) then
+                 if ( par_fe_space%is_free_dof(dof_lid) ) then
                     dofs_on_vef = .true.
                     exit
                  end if
@@ -239,7 +239,7 @@ subroutine h_adaptive_algebraic_l1_setup_constraint_matrix(this, field_id, par_f
                 do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                    idof    = own_dofs_on_vef_iterator%get_current()
                    dof_lid = fe_dofs(idof)
-                   if ( dof_lid > 0 ) then
+                   if ( par_fe_space%is_free_dof(dof_lid) ) then
                       call visited_dofs%put(key=dof_lid,val=ivef_within_cell,stat=istat)
                       if ( istat == now_stored ) then
                          num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + 1
@@ -266,7 +266,7 @@ subroutine h_adaptive_algebraic_l1_setup_constraint_matrix(this, field_id, par_f
                    idof    = own_dofs_on_vef_iterator%get_current()
                    icomp   = reference_fe%get_component_node(idof)
                    dof_lid = fe_dofs(idof)
-                   if ( dof_lid > 0 ) then
+                   if ( par_fe_space%is_free_dof(dof_lid) ) then
                       call visited_dofs%put(key=dof_lid,val=ivef_within_cell,stat=istat)
                       if ( istat == now_stored ) then
                          call constraint_matrix%insert(dof_lid, coarse_dof_lid + icomp, reference_fe%get_num_field_components()/real(num_fine_dofs_on_coarse_dof,rp))

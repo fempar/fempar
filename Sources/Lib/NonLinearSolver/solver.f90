@@ -25,29 +25,19 @@
 ! resulting work.
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module linear_solver_names
-  use solver_names
+module solver_names
+  use operator_names
   implicit none
 # include "debug.i90"
   private
   
-  type, abstract, extends(solver_t) :: linear_solver_t
+  type, abstract, extends(operator_t) :: solver_t
      private
    contains
-     procedure :: is_linear          => linear_solver_is_linear
-  end type linear_solver_t
+  end type solver_t
   
-public :: linear_solver_t
-
+  public :: solver_t
+  
 contains 
-function linear_solver_is_linear(this) result(is_linear)
-  !-----------------------------------------------------------------
-  !< Return .false.
-  !-----------------------------------------------------------------
-  class(linear_solver_t), intent(in) :: this
-  logical                            :: is_linear
-  !-----------------------------------------------------------------
-  is_linear = .true.
-end function linear_solver_is_linear
-
-end module linear_solver_names
+  
+end module solver_names

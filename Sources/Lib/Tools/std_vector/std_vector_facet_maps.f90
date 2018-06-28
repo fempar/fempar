@@ -50,6 +50,7 @@ contains
   STD_VECTOR_ERASE(type(facet_maps_t),facet_maps)
   STD_VECTOR_COPY(type(facet_maps_t),facet_maps)
   STD_VECTOR_SET(type(facet_maps_t),facet_maps)
+  STD_VECTOR_INIT(type(facet_maps_t),facet_maps)
   STD_VECTOR_CAT(type(facet_maps_t),facet_maps)
   STD_VECTOR_SIZE(type(facet_maps_t),facet_maps)
   STD_VECTOR_CAPACITY(type(facet_maps_t),facet_maps)

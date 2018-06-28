@@ -571,9 +571,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   ! Set nodes on vertices (with id = id of the vertex)
   call cell%first()
   do while ( .not. cell%has_finished() )
-     if ( cell%is_local() ) then
-       call cell%fill_nodes_on_vertices()
-     end if  
+     call cell%fill_nodes_on_vertices()
      call cell%next()
   end do
   this%num_nodes=this%num_vertices
@@ -581,23 +579,18 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   call cell2%create(this)
   call vef%create(this)
   do while ( .not. vef%has_finished() )     
-     if( (vef%get_dim()>0) .and. (.not.vef%is_ghost()) ) then
+     if( vef%get_dim()>0 ) then
         ivef = vef%get_gid()
+        
+        ! There is always one cell around
+        call vef%get_cell_around(1,cell) 
 
-        call vef%get_cell_around(1,cell) ! There is always one cell around
-
-        ! The first cell around a local or interface vef is always local provided
-        ! that we first enumerate local, followed by ghost cells, and how the dual
-        ! mesh is computed (from 1st to last cell).
-        assert ( cell%is_local() )
         call cell%fill_nodes_on_vef_new(ivef,this%num_nodes)
         do icell = 2, vef%get_num_cells_around()
            call vef%get_cell_around(icell,cell2)
-           if ( cell2%is_local() ) then
-               call cell%fill_nodes_on_vef_from_source(ivef,cell2)
-           end if 
+           call cell%fill_nodes_on_vef_from_source(ivef,cell2)
         end do
-
+        
      end if
      call vef%next()
   end do
@@ -606,9 +599,7 @@ subroutine fine_triangulation_allocate_and_fill_nodes(this)
   ! Fill nodes on volume
   call cell%first()
   do while ( .not. cell%has_finished() )
-     if ( cell%is_local() ) then
-       call cell%fill_internal_nodes_new(this%num_nodes)
-      end if 
+      call cell%fill_internal_nodes_new(this%num_nodes) 
       call cell%next()  
   end do
   call cell%free()
@@ -667,7 +658,7 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
     call cell%create(this)
     call vef%first()
     do while ( .not. vef%has_finished() )
-       if ( vef%is_facet() .and. .not. vef%is_ghost() ) then
+       if ( vef%is_facet() ) then
           ivef = vef%get_gid()
 
           call vef%get_cell_around (1, cell) ! there is always one element around
@@ -726,22 +717,20 @@ subroutine fine_triangulation_allocate_and_fill_coordinates(this,vertices_coordi
     ! write(*,*) 'Fill internal nodes'
     call cell%first()
     do while ( .not. cell%has_finished() )
-       if ( cell%is_local() ) then
-         ! Reallocate coordinates (if needed) and get them from cell
-         cell_num_nodes = cell%get_num_nodes()
-         call memrealloc( cell_num_nodes, coordinates, __FILE__,__LINE__)
-         call cell%get_nodes_coordinates(coordinates)
+       ! Reallocate coordinates (if needed) and get them from cell
+       cell_num_nodes = cell%get_num_nodes()
+       call memrealloc( cell_num_nodes, coordinates, __FILE__,__LINE__)
+       call cell%get_nodes_coordinates(coordinates)
 
-         ! Call reference_fe to make the blending
-         !write(*,*) 'Calling blending:'
-         cell_num_vefs = cell%get_num_vefs()
-         call this%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
-         assert(istat==key_found)
-         call this%reference_fe_geo_list(cell_type)%p%blending(coordinates)
+       ! Call reference_fe to make the blending
+       !write(*,*) 'Calling blending:'
+       cell_num_vefs = cell%get_num_vefs()
+       call this%reference_fe_geo_index%get(key=cell_num_vefs,val=cell_type,stat=istat)
+       assert(istat==key_found)
+       call this%reference_fe_geo_list(cell_type)%p%blending(coordinates)
 
-         ! Store coordinates
-         call cell%set_nodes_coordinates(coordinates)
-       end if
+       ! Store coordinates
+       call cell%set_nodes_coordinates(coordinates)
        call cell%next()
     end do
     call memfree( coordinates, __FILE__,__LINE__)

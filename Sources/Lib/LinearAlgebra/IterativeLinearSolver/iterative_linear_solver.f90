@@ -89,6 +89,7 @@ contains
      implicit none
      class(iterative_linear_solver_t)      , intent(inout) :: this
      class(environment_t), target, intent(in)    :: environment
+     call this%free()
      assert ( this%state == not_created )
      this%environment => environment
      this%state = environment_set

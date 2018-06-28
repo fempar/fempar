@@ -217,7 +217,7 @@ subroutine sufs_count_dofs ( this )
           if ( fe_space_type_x_field(field_id) == fe_space_type_cg ) then
             do ivef = 1, fe%get_num_vefs()
               call fe%get_vef(ivef,vef)
-              if ( .not. vef%has_free_dofs(field_id,coarser_fe) ) cycle
+              if ( .not. vef%all_coarser_cells_are_void(field_id,coarser_fe) ) cycle
               vef_lid = abs(fe%get_vef_gid(ivef))
               if ( vef%is_proper() ) then
                 if ( .not. per_field_proper_vefs_visited (field_id,vef_lid) ) then
@@ -395,7 +395,7 @@ subroutine sufs_list_dofs ( this )
          call fe%generate_own_dofs_cell ( field_id, fields_current_dof(field_id) )
          do ivef= 1, fe%get_num_vefs()
            call fe%get_vef(ivef,vef)
-           if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+           if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
              vef_lid = abs(fe%get_vef_gid(ivef))
              is_owner = .false.
              if ( vef%is_proper() ) then
@@ -492,7 +492,7 @@ subroutine sufs_list_dofs ( this )
           call fe%generate_own_dofs_cell ( field_id, current_fixed_dof, are_free_dofs=.false. )
           do ivef= 1, fe%get_num_vefs()
             call fe%get_vef(ivef,vef)
-            if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+            if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
               vef_lid = abs(fe%get_vef_gid(ivef))
               is_owner = .false.
               if ( vef%is_proper() ) then
@@ -533,7 +533,7 @@ subroutine sufs_list_dofs ( this )
         if ( .not. fe%is_void(field_id)) then
           do ivef= 1, fe%get_num_vefs()
             call fe%get_vef(ivef,vef)
-            if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+            if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
               vef_lid = abs(fe%get_vef_gid(ivef))
               is_owner = .false.
               if ( vef%is_proper() ) then
@@ -603,6 +603,10 @@ subroutine sufs_list_dofs ( this )
   call this%set_num_hanging_dofs( current_fixed_dof - this%get_num_fixed_dofs() )
   call this%set_num_fixed_dofs(current_fixed_dof)
 
+  call this%set_num_hanging_ghost_dofs(0)
+  call this%set_num_total_free_dofs(sum(num_dofs_x_field))
+  call this%set_num_total_free_ghost_dofs(0)
+
   assert(this%get_num_hanging_dofs() == this%num_hanging_dofs_full_cells + this%num_aggregated_dofs + this%num_hanging_dofs_other )
   assert(this%get_num_fixed_dofs() == this%get_num_dirichlet_dofs() + this%num_hanging_dofs_full_cells + this%num_aggregated_dofs + this%num_hanging_dofs_other )
   
@@ -669,8 +673,10 @@ subroutine sufs_set_up_cell_integration ( this, interpolation_duties, cell_map_d
   type(interpolation_duties_t), optional, intent(in) :: interpolation_duties(:)
   type(cell_map_duties_t)     , optional, intent(in)    :: cell_map_duties
   call this%serial_fe_space_t%set_up_cell_integration(interpolation_duties, cell_map_duties)
+  call this%set_cell_integration_was_set_up(.false.)
   call this%unfitted_integration%init_cut_integration()
   call this%unfitted_integration%init_cut_boundary_integration()
+  call this%set_cell_integration_was_set_up(.true.)
 end subroutine sufs_set_up_cell_integration
 
 !========================================================================================
@@ -1341,7 +1347,7 @@ subroutine sufs_setup_only_cell_aggregation_constraints ( this )
         else
           call cell_integrator(field_id)%update_interpolation(nodal_quad_in_root_fe(field_id))
         end if
-        call cell_integrator(field_id)%update(root_cell_map)
+        call cell_integrator(field_id)%update(no_ressemblance,root_cell_map)
         if (root_reference_fe%get_field_type() == field_type_scalar) then
           call cell_integrator(field_id)%get_values(shape_values_scalar)
         else if (root_reference_fe%get_field_type() == field_type_vector) then
@@ -1476,7 +1482,7 @@ subroutine sufs_setup_only_cell_aggregation_constraints ( this )
     
       ! Check that we have an affine fe map
 #ifdef DEBUG
-      det_jacobians => cell_map%get_det_jacobians()
+      det_jacobians => cell_map%get_pointer_det_jacobians()
       do qpoint = 1, size(det_jacobians)
         massert( abs(det_jacobians(1) - det_jacobians(qpoint)) < 1.0e-13, 'We assume that the FE map is afine')
       end do
@@ -1945,7 +1951,7 @@ subroutine sufs_fill_proper_vef_constrains_full_cell(this,proper_vef_constrains_
           if ( .not. fe%is_void(field_id)) then
             do ivef = 1, fe%get_num_vefs()
               call fe%get_vef(ivef,vef)
-              if ( vef%has_free_dofs(field_id,coarser_fe) ) cycle
+              if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) cycle
               if ( .not. vef%is_proper() ) then
                 do icell = 1,vef%get_num_improper_cells_around()
                   call vef%get_improper_cell_around(icell,coarser_fe)

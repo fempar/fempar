@@ -696,7 +696,9 @@ contains
     call this%fe_space%create( triangulation       = this%triangulation,      &
                                reference_fes       = this%reference_fes,      &
                                coarse_fe_handlers  = this%coarse_fe_handlers, &
-                               conditions          = this%linear_elasticity_conditions )
+                               conditions          = this%linear_elasticity_conditions, &
+                               field_blocks        = this%linear_elasticity_integration%get_field_blocks(), &
+                               field_coupling      = this%linear_elasticity_integration%get_field_coupling() )
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()
   end subroutine setup_fe_space
@@ -711,9 +713,7 @@ contains
          diagonal_blocks_symmetric         = [ .true. ], &
          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
          fe_space                          = this%fe_space, &
-         discrete_integration              = this%linear_elasticity_integration, &
-         field_blocks                      = this%linear_elasticity_integration%get_field_blocks(), &
-         field_coupling                    = this%linear_elasticity_integration%get_field_coupling()) 
+         discrete_integration              = this%linear_elasticity_integration) 
 
     call this%solution%create(this%fe_space) 
     call zero_vector_field%init(0.0_rp)

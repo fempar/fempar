@@ -43,7 +43,12 @@ module par_sparse_assembler_names
   private
 
   type, extends(assembler_t) :: par_sparse_assembler_t
+    private
+    type(par_sparse_matrix_t), pointer :: par_sparse_matrix => NULL()
+    type(par_scalar_array_t) , pointer :: par_scalar_array  => NULL()
   contains
+    procedure :: set_matrix              => par_sparse_assembler_set_matrix
+    procedure :: set_array               => par_sparse_assembler_set_array
     procedure :: assembly_array          => par_sparse_assembler_assembly_array
     procedure :: assembly_matrix         => par_sparse_assembler_assembly_matrix
     procedure :: allocate                => par_sparse_assembler_allocate
@@ -55,39 +60,57 @@ module par_sparse_assembler_names
 public :: par_sparse_assembler_t
 
 contains
+  subroutine par_sparse_assembler_set_matrix ( this, matrix ) 
+     implicit none
+     class(par_sparse_assembler_t) , intent(inout) :: this
+     class(matrix_t),       pointer, intent(in)    :: matrix
+     call assembler_set_matrix(this,matrix)
+     select type(matrix)
+       class is(par_sparse_matrix_t)
+         this%par_sparse_matrix => matrix
+       class default
+       check(.false.)
+     end select
+  end subroutine par_sparse_assembler_set_matrix 
+  
+  subroutine par_sparse_assembler_set_array ( this, array ) 
+     implicit none
+     class(par_sparse_assembler_t) , intent(inout) :: this
+     class(array_t)  ,      pointer, intent(in)    :: array
+     call assembler_set_array(this,array)
+     select type(array)
+       class is(par_scalar_array_t)
+         this%par_scalar_array => array
+       class default
+       check(.false.)
+     end select
+  end subroutine par_sparse_assembler_set_array
 
   subroutine par_sparse_assembler_assembly_array( this,           & 
-                                                     num_fields,  &
-                                                     field_blocks,   &
-                                                     field_coupling, &
-                                                     num_dofs,    &
-                                                     fe_dofs,       &
-                                                     elvec )
+                                                  num_fields,  &
+                                                  field_blocks,   &
+                                                  num_dofs,    &
+                                                  fe_dofs,       &
+                                                  elvec )
     implicit none
     class(par_sparse_assembler_t), intent(inout) :: this
     integer(ip)                               , intent(in)    :: num_fields
     integer(ip)                               , intent(in)    :: field_blocks(num_fields)
-    logical                                   , intent(in)    :: field_coupling(num_fields,num_fields)
     integer(ip)                               , intent(in)    :: num_dofs(num_fields)
     type(i1p_t)                               , intent(in)    :: fe_dofs(num_fields)
     real(rp)                                  , intent(in)    :: elvec(:)
-
-    class(array_t) , pointer :: array
-
-    array  => this%get_array()
-    select type(array)
-       class is(par_scalar_array_t)
-       call element_par_scalar_array_assembly( array,         &
-                                               num_fields, &
-                                               num_dofs,   &
-                                               fe_dofs,      &
-                                               elvec )
-       class default
-       check(.false.)
-    end select
-
+    integer(ip) :: inode, idof, ielvec, ife_space
+    assert ( associated(this%par_scalar_array) )
+    ielvec = 0
+    do ife_space = 1, num_fields
+      call this%par_scalar_array%add( num_dofs(ife_space), &
+                                      fe_dofs(ife_space)%p,  &
+                                      ielvec,                 &
+                                      elvec )
+      ielvec = ielvec + num_dofs(ife_space)
+    end do
   end subroutine par_sparse_assembler_assembly_array
-  
+      
   subroutine par_sparse_assembler_assembly_matrix( this,           &
                                                    num_fields,     &
                                                    field_blocks,   &
@@ -107,32 +130,31 @@ contains
     type(i1p_t)                               , intent(in)    :: fe_dofs_row(num_fields)
     type(i1p_t)                               , intent(in)    :: fe_dofs_col(num_fields)
     real(rp)                                  , intent(in)    :: elmat(:,:) 
-
-    class(matrix_t), pointer :: matrix
-
-    matrix => this%get_matrix()
-    select type(matrix)
-       class is(par_sparse_matrix_t)
-       call element_par_sparse_matrix_assembly( matrix,          &
-                                                num_fields,   &
-                                                num_row_dofs, &
-                                                num_col_dofs, &
-                                                fe_dofs_row,   &
-                                                fe_dofs_col,   &
-                                                field_coupling,  &
-                                                elmat )
-       class default
-       check(.false.)
-    end select
-
+    integer(ip) :: ife_space, jfe_space
+    integer(ip) :: idof, jdof 
+    integer(ip) :: inode, jnode
+    integer(ip) :: ielmat, jelmat
+    assert ( associated(this%par_sparse_matrix) )
+    ielmat=0
+    do ife_space=1, num_fields
+       jelmat=0
+       do jfe_space=1, num_fields
+          if ((field_coupling(ife_space,jfe_space))) then
+             call this%par_sparse_matrix%insert(num_row_dofs(ife_space),num_col_dofs(jfe_space),               &
+                  &                             fe_dofs_row(ife_space)%p,fe_dofs_col(jfe_space)%p,ielmat,jelmat, &
+                  &                             elmat)
+          end if
+          jelmat=jelmat+num_col_dofs(jfe_space)
+       end do
+       ielmat=ielmat+num_row_dofs(ife_space)
+    end do    
   end subroutine par_sparse_assembler_assembly_matrix
-
+    
   subroutine par_sparse_assembler_allocate( this )
     implicit none
     class(par_sparse_assembler_t), intent(inout) :: this
-    class(array_t), pointer :: array
-    array=>this%get_array()
-    call array%allocate()
+    assert ( associated(this%par_scalar_array) )
+    call this%par_scalar_array%allocate()
   end subroutine par_sparse_assembler_allocate
 
   subroutine par_sparse_assembler_compress_storage_matrix( this, & 
@@ -140,89 +162,16 @@ contains
     implicit none
     class(par_sparse_assembler_t) , intent(inout) :: this
     character(*)                              , intent(in)    ::  sparse_matrix_storage_format
-    class(matrix_t), pointer :: matrix
-    
-    matrix=>this%get_matrix() 
-    select type(matrix)
-      class is(par_sparse_matrix_t)
-      call matrix%convert(sparse_matrix_storage_format)
-      class default
-      check(.false.)
-    end select
-    
+    assert ( associated(this%par_sparse_matrix) )
+    call this%par_sparse_matrix%convert(sparse_matrix_storage_format)
   end subroutine par_sparse_assembler_compress_storage_matrix
   
   subroutine par_sparse_assembler_compress_storage_array( this )
     implicit none
     class(par_sparse_assembler_t) , intent(inout) :: this
-    class(array_t) , pointer :: array
-
-    array=>this%get_array() 
-    select type(array)
-       class is(par_scalar_array_t)
-       call array%comm() 
-       class default
-       check(.false.)
-    end select
-
+    assert ( associated(this%par_scalar_array) )
+    call this%par_scalar_array%comm() 
   end subroutine par_sparse_assembler_compress_storage_array
-
-  subroutine element_par_scalar_array_assembly( array, num_fields, num_dofs, fe_dofs, elvec )
-    implicit none
-    ! Parameters
-    type(par_scalar_array_t), intent(inout) :: array
-    integer(ip)             , intent(in) :: num_fields
-    integer(ip)             , intent(in) :: num_dofs(num_fields)
-    type(i1p_t)             , intent(in) :: fe_dofs(num_fields)
-    real(rp)                , intent(in) :: elvec(:) 
-    
-    integer(ip) :: inode, idof, ielvec, ife_space
-    
-    ielvec = 0
-    do ife_space = 1, num_fields
-      call array%add( num_dofs(ife_space), &
-                      fe_dofs(ife_space)%p,  &
-                      ielvec,                 &
-                      elvec )
-      ielvec = ielvec + num_dofs(ife_space)
-    end do
-    
-  end subroutine element_par_scalar_array_assembly
-
-  subroutine element_par_sparse_matrix_assembly( matrix, num_fields, num_row_dofs,        &
-       &                                         num_col_dofs, fe_dofs_row, fe_dofs_col, &
-       &                                         field_coupling, facemat )
-    implicit none
-    ! Parameters
-    type(par_sparse_matrix_t), intent(inout) :: matrix
-    integer(ip)              , intent(in)    :: num_fields
-    integer(ip)              , intent(in)    :: num_row_dofs(num_fields)
-    integer(ip)              , intent(in)    :: num_col_dofs(num_fields)
-    type(i1p_t)              , intent(in)    :: fe_dofs_row(num_fields)
-    type(i1p_t)              , intent(in)    :: fe_dofs_col(num_fields)
-    logical                  , intent(in)    :: field_coupling(num_fields,num_fields)
-    real(rp)                 , intent(in)    :: facemat(:,:) 
-
-    integer(ip) :: ife_space, jfe_space
-    integer(ip) :: idof, jdof 
-    integer(ip) :: inode, jnode
-    integer(ip) :: ielmat, jelmat
-
-    ielmat=0
-    do ife_space=1, num_fields
-       jelmat=0
-       do jfe_space=1, num_fields
-          if ((field_coupling(ife_space,jfe_space))) then
-             call matrix%insert(num_row_dofs(ife_space),num_col_dofs(jfe_space),               &
-                  &             fe_dofs_row(ife_space)%p,fe_dofs_col(jfe_space)%p,ielmat,jelmat, &
-                  &             facemat)
-          end if
-          jelmat=jelmat+num_col_dofs(jfe_space)
-       end do
-       ielmat=ielmat+num_row_dofs(ife_space)
-    end do
-
-  end subroutine element_par_sparse_matrix_assembly
 
 end module par_sparse_assembler_names
 
