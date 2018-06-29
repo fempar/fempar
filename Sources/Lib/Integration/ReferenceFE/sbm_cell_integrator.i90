@@ -612,23 +612,23 @@ subroutine vetoma(ndime,ntens,vecto,xmatr)
 end subroutine vetoma
 
 !-----------------------------------------------------------------------
-subroutine btdbma(n1,n2,aloca,bmatr,aglob)
+subroutine btdbma(ldaloca,ldbmatr,ldaglob,n1,n2,aloca,bmatr,aglob)
   !-----------------------------------------------------------------------
   !                                      
-  ! This routine computes Ag = Bt Al B  when Ag and Al are stored as full
-  ! matrices (Ag := aglob, Al := aloca, B := bmatr). The dimensions are
-  ! Al -> Mat(n1,n1), Ag -> Mat(n2,n2), B -> Mat(n2,n1) 
+  ! This routine computes aglob = bmatr^t aloca bmatr. The dimensions are
+  ! aloca -> Mat(n1,n1), bmatr -> Mat(n2,n1), aglob -> Mat(n2,n2).
   !
   !-----------------------------------------------------------------------
   implicit none
+  integer(ip), intent(in)  :: ldaloca,ldbmatr,ldaglob
   integer(ip), intent(in)  :: n1,n2
-  real(rp)   , intent(in)  :: aloca(n1,n1), bmatr(n1,n2)
-  real(rp)   , intent(out) :: aglob(n2,n2)
+  real(rp)   , intent(in)  :: aloca(ldaloca,n1), bmatr(ldbmatr,n2)
+  real(rp)   , intent(out) :: aglob(ldaglob,n2)
   integer(ip)              :: i,j,k,l
 
   do i=1,n2
      do j=1,n2
-        aglob(i,j)=0.0
+        aglob(i,j)=0.0_rp
         do k=1,n1
            do l=1,n1
               aglob(i,j)=aglob(i,j)+bmatr(k,i)*aloca(k,l)*bmatr(l,j)

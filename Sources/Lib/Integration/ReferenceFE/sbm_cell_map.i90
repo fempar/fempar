@@ -271,7 +271,8 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
           ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for
           ! each node
           do inode=1,this%num_nodes
-           call btdbma(this%num_dims, this%num_dims, & 
+           call btdbma(this%num_dims, SPACE_DIM, this%num_dims, & ! Leading dimensions
+                       this%num_dims, this%num_dims, &            ! Sizes
                        this%wmat1(1,1,inode), & 
                        this%inv_jacobian(:,:,ilocs),this%wmat2(1,1,inode))
           end do

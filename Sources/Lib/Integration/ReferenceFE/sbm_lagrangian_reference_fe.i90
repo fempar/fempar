@@ -1254,7 +1254,7 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
            end do
            ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
            do inode=1,nnode
-              call btdbma(ndime,ndime,wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs),wmat2(1,1,inode))
+              call btdbma(ndime,SPACE_DIM,ndime,ndime,ndime,wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs),wmat2(1,1,inode))
            end do
            if(map%my_duties%compute_jacobian_derivative_is_assigned()) then
               ! Add second cartesian derivatives of the map times 
