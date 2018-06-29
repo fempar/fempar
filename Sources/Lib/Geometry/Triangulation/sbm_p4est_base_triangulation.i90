@@ -1678,24 +1678,26 @@ subroutine p4est_bt_allocate_and_fill_x_cell_vertex_coordinates(this)
   integer(ip) :: idime, icell, istat, num_corners, current, corner
   real(rp) :: vxyz(3)
   type(point_t), pointer :: raw_per_cell_vertex_coordinates(:)
+  integer(ip) :: num_dims
 
   
 #ifdef ENABLE_P4EST
-  if ( this%get_num_dims() == 2 ) then
+  
+  num_dims = this%get_num_dims()
+  if ( num_dims == 2 ) then
     num_corners = NUM_CORNERS_2D
-  else if ( this%get_num_dims() == 3 ) then
+  else if ( num_dims == 3 ) then
     num_corners = NUM_CORNERS_3D
   end if
   call this%per_cell_vertex_coordinates%resize(0)
   call this%per_cell_vertex_coordinates%resize(this%get_num_cells()*num_corners)
   
   raw_per_cell_vertex_coordinates => this%per_cell_vertex_coordinates%get_pointer()
-
-  
+ 
   current = 1 
   do icell=1, this%get_num_cells()
      do corner=0, num_corners-1
-       if ( this%get_num_dims() == 2 ) then
+       if ( num_dims == 2 ) then
          call F90_p4est_get_quadrant_vertex_coordinates(this%p4est_connectivity,&
                                                         int(0,P4EST_F90_TOPIDX),&
                                                         this%quad_coords(1,icell),&
@@ -1703,7 +1705,7 @@ subroutine p4est_bt_allocate_and_fill_x_cell_vertex_coordinates(this)
                                                         this%quad_level(icell),&
                                                         corner,&
                                                         vxyz)
-       else if ( this%get_num_dims() == 3 ) then
+       else if ( num_dims == 3 ) then
          call F90_p8est_get_quadrant_vertex_coordinates(this%p4est_connectivity,&
                                                         int(0,P4EST_F90_TOPIDX),&
                                                         this%quad_coords(1,icell),&
@@ -1713,7 +1715,7 @@ subroutine p4est_bt_allocate_and_fill_x_cell_vertex_coordinates(this)
                                                         corner,&
                                                         vxyz)
        end if
-       do idime = 1,this%get_num_dims()
+       do idime = 1, num_dims
          vxyz(idime) = ( this%bounding_box_limits(idime,2) - this%bounding_box_limits(idime,1) ) * &
                          vxyz(idime) + this%bounding_box_limits(idime,1)
        end do

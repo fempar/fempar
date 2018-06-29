@@ -138,6 +138,8 @@ module field_names
   public :: fill_vector_field_2D_array_with_4D_plain_array
   public :: fill_vector_field_2D_array_with_4D_plain_array_perm
   public :: compute_point_1D_array_lin_comb_with_3D_plain_array
+  public :: compute_3D_plain_array_lin_comb_with_point_1D_array
+  public :: apply_2D_plain_array_to_vector_field
   
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -707,10 +709,48 @@ contains
       end do 
     end do
   end subroutine compute_point_1D_array_lin_comb_with_3D_plain_array
-  
+
+  subroutine compute_3D_plain_array_lin_comb_with_point_1D_array( plain_array, point_1D_array_in, plain_array_out)
+    implicit none
+    real(rp)            , intent(in)    :: plain_array(:,:,:,:)
+    type(point_t)       , intent(in)    :: point_1D_array_in(:)
+    real(rp)            , intent(inout) :: plain_array_out(:,:,:)
+    
+    integer(ip) :: i, j, k, l
+    real(rp)    :: alpha
+
+    assert (size(point_1D_array_in) == size(plain_array,3))
+    assert (size(plain_array,1) >= 1)
+    
+    do i=1, size(plain_array,4) !quadrature points
+       do j=1, SPACE_DIM !num dimensions
+         plain_array_out(:,j,i) = 0.0_rp
+         do k=1, size(plain_array,3) !num nodes
+            alpha = plain_array(1,j,k,i)
+            do l = 1, SPACE_DIM
+              plain_array_out(l,j,i) = plain_array_out(l,j,i) + alpha * point_1D_array_in(k)%value(l)
+            end do
+         end do 
+      end do
+    end do
+    
+  end subroutine compute_3D_plain_array_lin_comb_with_point_1D_array
+
+  subroutine apply_2D_plain_array_to_vector_field(plain_2D_array, vector_field, vector_field_out)
+    implicit none
+    real(rp)            , intent(in)    :: plain_2D_array(:,:)
+    type(vector_field_t), intent(in)    :: vector_field
+    type(vector_field_t), intent(inout) :: vector_field_out
+    integer(ip)  :: i,j
+    assert (size(plain_2D_array,1) == SPACE_DIM)
+    assert (size(plain_2D_array,2) == SPACE_DIM)
+    vector_field_out%value(:) = 0.0_rp
+    do j = 1, SPACE_DIM
+       do i = 1,  SPACE_DIM
+          vector_field_out%value(i) = vector_field_out%value(i) + plain_2D_array(i,j)*vector_field%value(j)
+       end do
+    end do
+
+  end subroutine apply_2D_plain_array_to_vector_field
+
 end module field_names
-
-
-
-
-
