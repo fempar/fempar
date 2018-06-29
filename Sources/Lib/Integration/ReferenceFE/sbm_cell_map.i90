@@ -265,14 +265,15 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
              do itens = 1, this%num_entries_symmetric_tensor
                 this%wvec1(itens) = this%interpolation%hessian(1,itens,inode,ilocs)
              end do
-             call vetoma(this%wvec1,this%wmat1(1,1,inode),this%num_dims,this%num_entries_symmetric_tensor)
+             call vetoma(this%num_dims,this%num_entries_symmetric_tensor,this%wvec1,this%wmat1(1,1,inode))
           end do
 
           ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for
           ! each node
           do inode=1,this%num_nodes
-           call btdbma(this%wmat2(1,1,inode),this%wmat1(1,1,inode), &
-                &        this%inv_jacobian(:,:,ilocs),this%num_dims,this%num_dims)
+           call btdbma(this%num_dims, this%num_dims, & 
+                       this%wmat1(1,1,inode), & 
+                       this%inv_jacobian(:,:,ilocs),this%wmat2(1,1,inode))
           end do
 
           ! Obtains (d^2 s_k / d x_i d x_j) as the solution of the system

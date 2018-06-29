@@ -1250,12 +1250,11 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
               do itens = 1, ntens
                  wvec1(itens) = ref%hessian(1,itens,inode,ilocs)
               end do
-              call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
+              call vetoma(ndime,ntens,wvec1,wmat1(1,1,inode))
            end do
            ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
            do inode=1,nnode
-              call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
-                   &        ndime,ndime)
+              call btdbma(ndime,ndime,wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs),wmat2(1,1,inode))
            end do
            if(map%my_duties%compute_jacobian_derivative_is_assigned()) then
               ! Add second cartesian derivatives of the map times 

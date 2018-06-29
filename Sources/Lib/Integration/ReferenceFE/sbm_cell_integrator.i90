@@ -581,7 +581,7 @@ end subroutine invert
 
 
 !-----------------------------------------------------------------------
-subroutine vetoma(vecto,xmatr,ndime,ntens)
+subroutine vetoma(ndime,ntens,vecto,xmatr)
   !-----------------------------------------------------------------------
   !                                      
   ! This routine stores a vector VECTO as a symmetric matrix XMATR
@@ -612,7 +612,7 @@ subroutine vetoma(vecto,xmatr,ndime,ntens)
 end subroutine vetoma
 
 !-----------------------------------------------------------------------
-subroutine btdbma(aglob,aloca,bmatr,n1,n2)
+subroutine btdbma(n1,n2,aloca,bmatr,aglob)
   !-----------------------------------------------------------------------
   !                                      
   ! This routine computes Ag = Bt Al B  when Ag and Al are stored as full
