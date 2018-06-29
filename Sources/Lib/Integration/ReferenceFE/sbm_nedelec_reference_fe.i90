@@ -802,8 +802,8 @@ subroutine nedelec_apply_cell_map_to_interpolation(this,cell_ressemblance,map,re
      phy%shape_functions=0.0_rp
      do ilocs=1,phy%num_quadrature_points
         do inode=1,this%num_shape_functions
-           do idime=1,this%num_dims
-              do jdime=1,this%num_dims
+           do idime=1,SPACE_DIM
+              do jdime=1,SPACE_DIM
                  phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) &
                       + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_functions(jdime,inode,ilocs)
               end do
@@ -817,10 +817,10 @@ subroutine nedelec_apply_cell_map_to_interpolation(this,cell_ressemblance,map,re
         phy%shape_derivatives=0.0_rp
         do ilocs=1,phy%num_quadrature_points
            do inode=1,this%num_shape_functions
-              do idime=1,this%num_dims
-                 do jdime=1,this%num_dims
-                    do kdime=1,this%num_dims
-                       do ldime=1,this%num_dims
+              do idime=1,SPACE_DIM
+                 do jdime=1,SPACE_DIM
+                    do kdime=1,SPACE_DIM
+                       do ldime=1,SPACE_DIM
                           phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
                                + map%inv_jacobian(ldime,jdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(kdime,idime,ilocs)
                        end do
@@ -949,7 +949,7 @@ subroutine nedelec_apply_change_basis_matrix_to_interpolation(this, interpolatio
   do qpoint = 1, interpolation%num_quadrature_points
      do i=1, this%num_shape_functions
         do j=1, this%num_shape_functions
-           do idime=1, this%num_dims
+           do idime=1, SPACE_DIM
               interpolation%shape_functions(idime, i, qpoint) = interpolation%shape_functions(idime, i, qpoint) + &
                    this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(idime, j, qpoint)
            end do
@@ -963,8 +963,8 @@ subroutine nedelec_apply_change_basis_matrix_to_interpolation(this, interpolatio
     do qpoint = 1, interpolation%num_quadrature_points
         do i=1, this%num_shape_functions
            do j=1, this%num_shape_functions
-              do idime=1, this%num_dims
-                 do jdime=1, this%num_dims
+              do idime=1, SPACE_DIM
+                 do jdime=1, SPACE_DIM
                     interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
                          this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
                  end do

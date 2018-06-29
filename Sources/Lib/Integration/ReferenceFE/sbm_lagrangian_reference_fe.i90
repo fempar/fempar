@@ -1216,8 +1216,8 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
        phy%shape_derivatives=0.0_rp
        do ilocs=1,phy%num_quadrature_points
         do inode=1,size(phy%shape_functions,2)
-           do idime=1,ndime
-              do jdime=1,ndime
+           do idime=1,SPACE_DIM
+              do jdime=1,SPACE_DIM
                  phy%shape_derivatives(1,idime,inode,ilocs) = phy%shape_derivatives(1,idime,inode,ilocs) &
                       + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(1,jdime,inode,ilocs)
               end do

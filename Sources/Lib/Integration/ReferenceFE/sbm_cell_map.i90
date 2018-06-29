@@ -52,8 +52,8 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry, cell_map_du
      call this%my_duties%assign_compute_jacobian_derivative(.false.)
   end if
 
-  call memalloc(this%num_dims, &
-                this%num_dims, &
+  call memalloc(SPACE_DIM, &
+                SPACE_DIM, &
                 this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
 
@@ -92,8 +92,8 @@ subroutine cell_map_create( this, quadrature, reference_fe_geometry, cell_map_du
   end if
 
   if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
-     call memalloc(this%num_dims, &
-          &        this%num_dims, &
+     call memalloc(SPACE_DIM, &
+          &        SPACE_DIM, &
           &        this%num_quadrature_points, &
           &        this%inv_jacobian,__FILE__,__LINE__)
   end if
@@ -136,8 +136,8 @@ subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadratu
                                                         this%interpolation )
   this%num_entries_symmetric_tensor = this%interpolation%num_entries_symmetric_tensor ! Encapsulation missing here 
 
-  call memalloc(this%num_dims, &
-                this%num_dims, &
+  call memalloc(SPACE_DIM, &
+                SPACE_DIM, &
                 this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
 
@@ -154,8 +154,8 @@ subroutine cell_map_restricted_to_facet( this, facet_lid, subfacet_lid, quadratu
   this%reference_fe_characteristic_length = reference_fe_geometry%get_characteristic_length()
 
   if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
-     call memalloc(this%num_dims, &
-          &        this%num_dims, &
+     call memalloc(SPACE_DIM, &
+          &        SPACE_DIM, &
           &        this%num_quadrature_points, &
           &        this%inv_jacobian,__FILE__,__LINE__)
   end if
@@ -192,7 +192,7 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
   real(rp) , optional,   intent(in)      :: scaling_factor 
   
   ! Locals
-  integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens
+  integer(ip) :: ilocs,idime,jdime,kdime,ldime,inode,itens,icomp
   type(vector_field_t) :: aux_vector
   logical  :: supported_cell_ressemblance
   real(rp) :: scaling_factor_to_the_num_dims
@@ -205,30 +205,27 @@ subroutine cell_map_update( this, quadrature, cell_ressemblance, scaling_factor)
 #endif   
       
   if (cell_ressemblance == no_ressemblance ) then
-    do ilocs=1,this%num_quadrature_points
-     ! Matmul is not thread safe
-     ! map%jacob(:,:,ilocs)=matmul(elcod,transpose(int%deriv(:,:,ilocs)))
-     do jdime=1,this%num_dims
-        aux_vector = 0.0_rp
-        do inode=1,this%num_nodes
-           aux_vector = aux_vector + this%nodes_coordinates(inode) * &
-                & this%interpolation%shape_derivatives(1,jdime,inode,ilocs)
-        end do
-        do idime=1,this%num_dims
-           this%jacobian(idime,jdime,ilocs) = aux_vector%get(idime)
-        end do
-     end do
-    end do
-
+  
+    ! Compute jacobian matrix
+    call this%compute_jacobian()
+    
     this%measure = 0.0_rp 
+    this%inv_jacobian = 0.0_rp
     if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
        do ilocs=1,this%num_quadrature_points
-          call invmtx(this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs),this%num_dims)
+          ! In case of 2D problems (num_dims=2) when SPACE_DIM is used, the inverse of the jacobian matrix is
+          ! allocated as (SPACE_DIM,SPACE_DIM,num_quadrature_points) matrix, and initialized with the identity matrix.
+          ! This change is proposed to give support to 2D problems when SPACE_DIM is used to allocate jacobian and
+          ! inv_jacobian matrices.
+          do icomp=1, SPACE_DIM
+             this%inv_jacobian(icomp,icomp,ilocs) = 1.0_rp
+          end do
+          call invmtx(SPACE_DIM,this%num_dims,this%jacobian(:,:,ilocs),this%inv_jacobian(:,:,ilocs),this%det_jacobian(ilocs))
           this%measure = this%measure + abs(this%det_jacobian(ilocs)) * quadrature%get_weight(ilocs)
        end do
     else
        do ilocs=1,this%num_quadrature_points
-          call determinant(this%jacobian(:,:,ilocs),this%det_jacobian(ilocs),this%num_dims)
+          call determinant(SPACE_DIM,this%num_dims,this%jacobian(:,:,ilocs),this%det_jacobian(ilocs))
           this%measure = this%measure + abs(this%det_jacobian(ilocs)) * quadrature%get_weight(ilocs)
        end do
     end if
@@ -529,18 +526,10 @@ function cell_map_apply_inv_jacobian ( this, qpoin, v_in ) result ( v_out )
   integer(ip)         , intent(in) :: qpoin
   type(vector_field_t), intent(in) :: v_in
   type(vector_field_t) :: v_out
-  integer(ip)          :: idime,jdime
-  real(rp)             :: vector_value
 
   assert( qpoin>=1 .and. qpoin <= this%num_quadrature_points)
   if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
-     call v_out%init(0.0_rp)
-     do jdime = 1, this%num_dims
-        vector_value = v_in%get(jdime)
-        do idime = 1,  this%num_dims
-           call v_out%add(idime, this%inv_jacobian(idime,jdime,qpoin)*vector_value)
-        end do
-     end do
+     call apply_2D_plain_array_to_vector_field(this%inv_jacobian(:,:,qpoin),v_in,v_out)
   else
      mcheck(.false.,'Calling cell_map_get_inv_jacobian_tensor requires compute_jacobian_inverse_is_assigned to be true')
   end if
@@ -604,11 +593,12 @@ subroutine assign_cell_map ( this, other )
 
   call this%free()
   call this%base_map_t%copy(other%base_map_t)
-  call memalloc(this%num_dims, &
-                this%num_dims, &
+
+  call memalloc(SPACE_DIM, &
+                SPACE_DIM, &
                 this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
-  this%jacobian = other%jacobian
+  this%jacobian(:,:,:) = other%jacobian(:,:,:)
   this%det_jacobian = other%det_jacobian
   this%det_jacobian_positiveness = other%det_jacobian_positiveness
 
@@ -638,11 +628,11 @@ subroutine assign_cell_map ( this, other )
 
   call this%my_duties%assign_compute_jacobian_inverse(other%my_duties%compute_jacobian_inverse_is_assigned())
   if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
-     call memalloc(this%num_dims, &
-          &        this%num_dims, &
+     call memalloc(SPACE_DIM, &
+          &        SPACE_DIM, &
           &        this%num_quadrature_points, &
           &        this%inv_jacobian,__FILE__,__LINE__)
-     this%inv_jacobian = other%inv_jacobian
+     this%inv_jacobian(:,:,:) = other%inv_jacobian(:,:,:)
   end if
 
 end subroutine assign_cell_map
@@ -675,7 +665,7 @@ subroutine p_cell_map_free( this )
 end subroutine p_cell_map_free
 
 !==================================================================================================
-subroutine determinant(a,deter,nsize)
+subroutine determinant(ld,n,a,deter)
   !-----------------------------------------------------------------------
   !
   ! This routine inverts a square matrix A -> Mat(nsize,nsize). The
@@ -683,14 +673,13 @@ subroutine determinant(a,deter,nsize)
   !    
   !-----------------------------------------------------------------------
   implicit none
-  integer(ip), intent(in)  :: nsize
-  real(rp),    intent(in)  :: a(nsize,nsize)
+  integer(ip), intent(in)  :: ld, n
+  real(rp),    intent(in)  :: a(ld,*)
   real(rp),    intent(out) :: deter
   integer(ip)              :: isize,jsize
   real(rp)                 :: denom,t1,t2,t3,t4
 
-  select case (nsize)
-
+  select case (n)
   case(1)
      deter=a(1,1)
 
@@ -719,7 +708,7 @@ subroutine determinant(a,deter,nsize)
      deter= a(1,1)*t1 + a(1,2)*t2 + a(1,3)*t3 + a(1,4)*t4
 
   case default
-     mcheck(.false.,'determinant not available for nsize>4')
+     mcheck(.false.,'determinant not available for n>4')
   end select
 
 end subroutine determinant
