@@ -218,7 +218,6 @@ contains
     implicit none
     character*(*), intent(in), optional :: file                     ! Calling file
     integer(ip)  , intent(in), optional :: line                     ! Calling line
-    integer(ip)    :: luout
     character(20)  :: lsize,lstat
     write(luout,'(a)') '[Fempar Fatal Error] ***Attempting to (re)allocate an (un)allocated variable.'
     if(present(file)) then
