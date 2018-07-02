@@ -309,7 +309,7 @@ contains
        assert(.false.) 
     end select
     
-    call this%nl_solver%create( convergence_criteria = 'abs_res_norm', &
+    call this%nl_solver%create( convergence_criteria = abs_res_norm, &
                                 abs_tol = 1.0e-6_rp, &
                                 rel_tol = 1.0e-6_rp, &
                                 max_iters = 10_ip, &
@@ -329,12 +329,15 @@ contains
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
     
-    call this%nl_solver%create( convergence_criteria = 'abs_res_norm', &
+    call this%nl_solver%create( convergence_criteria = abs_res_norm, &
                                 abs_tol = 1.0e-6_rp, &
                                 rel_tol = 1.0e-6_rp, &
                                 max_iters = 10_ip, &
                                 linear_solver = this%iterative_linear_solver, &
                                 environment = this%fe_space%get_environment() )
+    
+    call this%time_solver%create( ts_op = this%time_operator, &
+                                  nl_solver = this%nl_solver )
 #endif
     call parameter_list%free()
   end subroutine setup_solver
@@ -428,12 +431,12 @@ contains
     l2 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm, time=current_time)   
     lp = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, lp_norm, time=current_time)   
     linfty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, linfty_norm, time=current_time)   
-    !h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm, time=current_time) 
-    !h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm, time=current_time) 
-    !w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm, time=current_time)   
-    !w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm, time=current_time)   
-    !w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm, time=current_time) 
-    !w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm, time=current_time)
+    h1_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_seminorm, time=current_time) 
+    h1 = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, h1_norm, time=current_time) 
+    w1p_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_seminorm, time=current_time)   
+    w1p = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1p_norm, time=current_time)   
+    w1infty_s = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm, time=current_time) 
+    w1infty = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, w1infty_norm, time=current_time)
 
 #ifdef ENABLE_MKL    
     error_tolerance = 1.0e-08
