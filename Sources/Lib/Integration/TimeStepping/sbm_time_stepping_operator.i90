@@ -168,6 +168,7 @@ subroutine time_stepping_operator_allocate_dofs_stages( this )
   end if
   assert ( size(this%dofs_stages) == this%scheme%num_stages )
   do i = 1, this%scheme%num_stages
+     call this%dofs_stages(i)%default_initialization()
      call this%dofs_stages(i)%clone(this%initial_value)
      call this%dofs_stages(i)%init(0.0_rp)
   end do
