@@ -447,9 +447,12 @@ module fe_space_names
     type(p_facet_integrator_t), allocatable  :: facet_integrators(:)
     
     ! Scratch data to optimize some TBPs of this data type
+    class(reference_fe_t), pointer           :: ref_fe_geo => NULL()
     logical :: facet_integration_is_set_up        = .false.
     logical :: single_quad_facet_map_facet_integs = .false.
-    
+    logical :: integration_updated                = .false.
+    logical :: single_octree_mesh                 = .false.
+    logical :: cell_integration_is_set_up         = .false.
    contains
     procedure                           :: create                         => fe_facet_iterator_create
     procedure                           :: free                           => fe_facet_iterator_free
@@ -526,6 +529,10 @@ module fe_space_names
     & fe_facet_iterator_evaluate_gradient_fe_function_vector
     
     procedure, non_overridable :: get_current_qpoints_perm => fe_facet_iterator_get_current_qpoints_perm
+    procedure, non_overridable :: is_integration_updated   => fe_facet_iterator_is_integration_updated
+    procedure, non_overridable :: set_integration_updated  => fe_facet_iterator_set_integration_updated
+    procedure, non_overridable :: is_single_octree_mesh    => fe_facet_iterator_is_single_octree_mesh
+    procedure, non_overridable :: set_single_octree_mesh   => fe_facet_iterator_set_single_octree_mesh
     
   end type fe_facet_iterator_t
       

@@ -31,6 +31,7 @@ subroutine fe_facet_iterator_create ( this, fe_space, vef )
   class(fe_facet_iterator_t), target, intent(inout) :: this
   class(serial_fe_space_t) , target, intent(in)    :: fe_space
   class(vef_iterator_t)    , intent(in)            :: vef
+  class(triangulation_t), pointer :: triangulation
   call this%free()
   call this%fe_vef_iterator_t%create(fe_space,vef)
   call this%allocate_scratch_data()
@@ -43,7 +44,10 @@ subroutine fe_facet_iterator_create ( this, fe_space, vef )
   else
     this%single_quad_facet_map_facet_integs = .false.
   end if 
-  
+  call this%set_integration_updated(.false.)
+  triangulation => this%fe_space%get_triangulation()
+  massert ( (triangulation%get_num_reference_fes() == 1), "FE_FACET_ITERATOR does NOT support mixed cells topology. All triangulation cells MUST have the same topology.")
+  this%ref_fe_geo => triangulation%get_reference_fe(1)
 end subroutine fe_facet_iterator_create
 
 subroutine fe_facet_iterator_free ( this )
@@ -55,6 +59,8 @@ subroutine fe_facet_iterator_free ( this )
   call this%free_scratch_data()
   this%facet_integration_is_set_up = .false.
   this%single_quad_facet_map_facet_integs = .false.
+  call this%set_integration_updated(.false.)
+  nullify(this%ref_fe_geo)
 end subroutine fe_facet_iterator_free
 
 subroutine fe_facet_iterator_allocate_scratch_data ( this )
@@ -103,7 +109,7 @@ subroutine fe_facet_iterator_first ( this )
       call this%update_facet_integrators()
     end if 
   end if
-  
+  call this%set_integration_updated(.false.)
 end subroutine fe_facet_iterator_first
 
 subroutine fe_facet_iterator_next ( this )
@@ -119,6 +125,7 @@ subroutine fe_facet_iterator_next ( this )
       call this%update_facet_integrators()
     end if 
   end if
+  call this%set_integration_updated(.false.)
 end subroutine fe_facet_iterator_next
 
 function fe_facet_iterator_has_finished ( this )
@@ -140,6 +147,7 @@ subroutine fe_facet_iterator_set_gid ( this, gid )
    call this%update_facet_maps()
    call this%update_facet_integrators()
   end if 
+  call this%set_integration_updated(.false.)
 end subroutine fe_facet_iterator_set_gid
 
 function fe_facet_iterator_get_gid (this) result(facet_gid)
@@ -212,44 +220,40 @@ end subroutine fe_facet_iterator_update_fes_around
 subroutine fe_facet_iterator_update_integration( this )
   implicit none
   class(fe_facet_iterator_t), intent(inout) :: this 
-  integer(ip)                      :: icell_around, field_id
-  integer(ip)                      :: facet_lpos_within_cells_around(2)
-  integer(ip)                      :: subfacet_lid_within_cells_around(2)
-  type(point_t)          , pointer :: coords(:)
-  type(quadrature_t)     , pointer :: quadrature
+  integer(ip)                       :: icell_around, field_id
+  integer(ip)                       :: facet_lpos_within_cells_around(2)
+  integer(ip)                       :: subfacet_lid_within_cells_around(2)
+  type(point_t)           , pointer :: coords(:)
+  type(quadrature_t)      , pointer :: quadrature
   type(facet_integrator_t), pointer :: facet_integrator
+  if ( .not. this%is_integration_updated() ) then
+    coords => this%facet_maps%get_facet_coordinates()
+    call this%get_nodes_coordinates(coords)
   
-  class(reference_fe_t), pointer :: reference_fe_geo
+    quadrature => this%get_quadrature() 
+    do icell_around=1, this%get_num_cells_around()
+      facet_lpos_within_cells_around(icell_around) = &
+      this%get_lpos_within_cell_around(icell_around) - this%ref_fe_geo%get_first_facet_id() + 1
+      subfacet_lid_within_cells_around(icell_around) = this%get_subfacet_lid_cell_around(icell_around)
+      coords => this%facet_maps%get_coordinates_neighbour(icell_around,                                &
+                                                          facet_lpos_within_cells_around(icell_around), &
+                                                          subfacet_lid_within_cells_around(icell_around))
+      call this%fes_around(icell_around)%p%get_nodes_coordinates(coords)
+    end do
   
-  coords => this%facet_maps%get_facet_coordinates()
-  call this%get_nodes_coordinates(coords)
+    call this%facet_maps%update(facet_lpos_within_cells_around,   &
+                                subfacet_lid_within_cells_around, &
+                                quadrature,                       &
+                                this%ref_fe_geo)
   
-  quadrature => this%get_quadrature() 
-  do icell_around=1, this%get_num_cells_around()
-    reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
-    facet_lpos_within_cells_around(icell_around) = &
-      this%get_lpos_within_cell_around(icell_around) - reference_fe_geo%get_first_facet_id() + 1
-    subfacet_lid_within_cells_around(icell_around) = this%get_subfacet_lid_cell_around(icell_around)
-    coords => this%facet_maps%get_coordinates_neighbour(icell_around,                                &
-                                                 facet_lpos_within_cells_around(icell_around), &
-                                                 subfacet_lid_within_cells_around(icell_around))
-    call this%fes_around(icell_around)%p%get_nodes_coordinates(coords)
-  end do
-
-  reference_fe_geo => this%fes_around(1)%p%get_reference_fe_geo()
-  
-  call this%facet_maps%update(facet_lpos_within_cells_around,   &
-                       subfacet_lid_within_cells_around, &
-                       quadrature,                       &
-                       reference_fe_geo)
-  
-  do field_id = 1, this%fe_space%get_num_fields()
-     call this%facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
-                                 subfacet_lid_within_cells_around, &
-                                 this%facet_maps, &             
-                                 this%get_facet_permutation_index())
-  end do
-  
+    do field_id = 1, this%fe_space%get_num_fields()
+       call this%facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
+                                                      subfacet_lid_within_cells_around, &
+                                                      this%facet_maps, &             
+                                                      this%get_facet_permutation_index())
+    end do
+    call this%set_integration_updated(.true.)
+  end if
 end subroutine fe_facet_iterator_update_integration
 
 subroutine fe_facet_iterator_assembly_array ( this,    &
@@ -670,12 +674,10 @@ function fe_facet_iterator_get_lpos_within_cell_around(this, icell_around) resul
   class(fe_facet_iterator_t), intent(inout) :: this
   integer(ip)               , intent(in)    :: icell_around
   integer(ip)                               :: facet_lpos_within_cell_around
-  class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip)                    :: vef_gid_of_face
   if ( .not. this%is_proper() .and. icell_around == 2 ) then
     facet_lpos_within_cell_around = this%get_improper_cell_around_ivef(1)
   else
-    reference_fe_geo => this%fes_around(icell_around)%p%get_reference_fe_geo()
     vef_gid_of_face = this%base_fe_vef_iterator_t%get_gid()
     assert ( this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face) /= -1 )
     facet_lpos_within_cell_around = this%fes_around(icell_around)%p%get_vef_lid_from_gid(vef_gid_of_face)
@@ -893,3 +895,35 @@ function fe_facet_iterator_get_current_qpoints_perm ( this, neighbour_id, field_
   field_id_=1; if (present(field_id)) field_id_ = field_id
   fe_facet_iterator_get_current_qpoints_perm => this%facet_integrators(field_id_)%p%get_current_qpoints_perm(neighbour_id)
 end function fe_facet_iterator_get_current_qpoints_perm
+
+!==================================================================================================
+function fe_facet_iterator_is_integration_updated ( this )
+  implicit none
+  class(fe_facet_iterator_t), intent(in) :: this
+  logical :: fe_facet_iterator_is_integration_updated
+  fe_facet_iterator_is_integration_updated = this%integration_updated
+end function fe_facet_iterator_is_integration_updated
+
+!==================================================================================================
+subroutine fe_facet_iterator_set_integration_updated ( this, integration_updated )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  logical                  , intent(in)    :: integration_updated
+  this%integration_updated = integration_updated
+end subroutine fe_facet_iterator_set_integration_updated
+
+!==================================================================================================
+function fe_facet_iterator_is_single_octree_mesh ( this )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  logical :: fe_facet_iterator_is_single_octree_mesh
+  fe_facet_iterator_is_single_octree_mesh = this%single_octree_mesh
+end function fe_facet_iterator_is_single_octree_mesh
+
+!==================================================================================================
+subroutine fe_facet_iterator_set_single_octree_mesh ( this, single_octree_mesh )
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  logical                  , intent(in)    :: single_octree_mesh
+  this%single_octree_mesh = single_octree_mesh
+end subroutine fe_facet_iterator_set_single_octree_mesh
