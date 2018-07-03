@@ -554,6 +554,7 @@ module fe_space_names
      type(hash_table_ip_ip_t)                    :: cell_integrators_position             ! Key = [geo_reference_fe_id,quadrature_degree,reference_fe_id]
      
      ! Finite Face-related integration containers
+     logical                                     :: facet_integration_is_set_up = .false.
      type(std_vector_quadrature_t)               :: facet_quadratures
      type(std_vector_facet_maps_t)               :: facet_maps
      type(std_vector_facet_integrator_t)         :: facet_integrators
@@ -694,6 +695,8 @@ module fe_space_names
      procedure, non_overridable, private :: free_facet_permutation_indices                => serial_fe_space_free_facet_permutation_indices
      
      procedure                           :: set_up_facet_integration                 => serial_fe_space_set_up_facet_integration
+     procedure                           :: get_facet_integration_is_set_up          => serial_fe_space_get_facet_integration_is_set_up
+     procedure                           :: set_facet_integration_is_set_up          => serial_fe_space_set_facet_integration_is_set_up
      procedure, non_overridable, private :: free_facet_integration                   => serial_fe_space_free_facet_integration
      procedure, non_overridable, private :: generate_facet_quadratures_position_key  => serial_fe_space_facet_quadratures_position_key
      procedure, non_overridable, private :: generate_facet_integrators_position_key  => serial_fe_space_facet_integrators_position_key

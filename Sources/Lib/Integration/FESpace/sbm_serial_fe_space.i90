@@ -1935,6 +1935,12 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   class(vef_iterator_t), allocatable :: vef
   class(triangulation_t), pointer :: triangulation
   
+  ! We need to set to .false. this member variable as the traversal over all
+  ! facets below would fail if the value of this variable is .true. This can
+  ! happen, e.g. if we call this%set_up_facet_integration(...) twice in a FE
+  ! program
+  this%facet_integration_is_set_up = .false.
+  
   call this%compute_facet_permutation_indices()
   call this%compute_max_order_field_cell_to_ref_fes_face()
   max_order_field_cell_to_ref_fes_face => this%max_order_field_cell_to_ref_fes_face%get_pointer()
@@ -2018,8 +2024,24 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   end do
   call fe%free()
   call fe_face%free()
-  
+  this%facet_integration_is_set_up = .true.
 end subroutine serial_fe_space_set_up_facet_integration
+
+
+function serial_fe_space_get_facet_integration_is_set_up(this)
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this
+  logical :: serial_fe_space_get_facet_integration_is_set_up
+  serial_fe_space_get_facet_integration_is_set_up = this%facet_integration_is_set_up
+end function serial_fe_space_get_facet_integration_is_set_up
+
+subroutine serial_fe_space_set_facet_integration_is_set_up (this, is_set_up)
+  implicit none
+  class(serial_fe_space_t), intent(inout) :: this
+  logical                 , intent(in)    :: is_set_up
+  this%facet_integration_is_set_up = is_set_up
+end subroutine serial_fe_space_set_facet_integration_is_set_up
+
 
 subroutine serial_fe_space_free_facet_integration ( this )
   implicit none
