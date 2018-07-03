@@ -1821,29 +1821,42 @@ subroutine serial_fe_space_compute_max_order_field_cell_to_ref_fes_face ( this )
   integer(ip)          :: max_order, max_order_reference_fe_id, reference_fe_id
   integer(ip)          :: max_order_fes_around_fe_face
   integer(ip)          :: field_id, icell_around
+  integer(ip)          :: i 
   
   call this%max_order_field_cell_to_ref_fes_face%resize(this%facet_gids%size())
   max_order_field_cell_to_ref_fes_face => this%max_order_field_cell_to_ref_fes_face%get_pointer()
   
-  call this%create_fe_facet_iterator(fe_face)
-  call this%create_fe_cell_iterator(fe)
-  do while ( .not. fe_face%has_finished())
-     max_order_fes_around_fe_face = -1
-     max_order_reference_fe_id    =  1 
-     do icell_around = 1, fe_face%get_num_cells_around()
-        call fe_face%get_cell_around(icell_around, fe)
-        do field_id=1, fe%get_num_fields()
-           if ( max_order_fes_around_fe_face <= fe%get_max_order_single_field(field_id) ) then
-              max_order_fes_around_fe_face = fe%get_max_order_single_field(field_id)
-              max_order_reference_fe_id = fe%get_reference_fe_id(field_id)
-           end if
-        end do
-     end do
-     max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) = max_order_reference_fe_id 
-     call fe_face%next()
-  end do
-  call this%free_fe_facet_iterator(fe_face)
-  call this%free_fe_cell_iterator(fe)
+  if ( this%same_reference_fes_on_all_cells ) then
+    max_order_reference_fe_id=1
+    max_order = -1
+    do i=1, size(this%reference_fes)
+      if ( this%reference_fes(i)%p%get_max_order() > max_order ) then
+        max_order = this%reference_fes(i)%p%get_max_order()
+        max_order_reference_fe_id = i 
+      end if
+    end do
+    max_order_field_cell_to_ref_fes_face = max_order_reference_fe_id
+  else
+    call this%create_fe_facet_iterator(fe_face)
+    call this%create_fe_cell_iterator(fe)
+    do while ( .not. fe_face%has_finished())
+       max_order_fes_around_fe_face = -1
+       max_order_reference_fe_id    =  1 
+       do icell_around = 1, fe_face%get_num_cells_around()
+          call fe_face%get_cell_around(icell_around, fe)
+          do field_id=1, fe%get_num_fields()
+             if ( max_order_fes_around_fe_face <= fe%get_max_order_single_field(field_id) ) then
+                max_order_fes_around_fe_face = fe%get_max_order_single_field(field_id)
+                max_order_reference_fe_id = fe%get_reference_fe_id(field_id)
+             end if
+          end do
+       end do
+       max_order_field_cell_to_ref_fes_face(fe_face%facet_gid) = max_order_reference_fe_id 
+       call fe_face%next()
+    end do
+    call this%free_fe_facet_iterator(fe_face)
+    call this%free_fe_cell_iterator(fe)
+  end if 
 end subroutine serial_fe_space_compute_max_order_field_cell_to_ref_fes_face  
 
 subroutine serial_fe_space_fill_facet_gids ( this )
