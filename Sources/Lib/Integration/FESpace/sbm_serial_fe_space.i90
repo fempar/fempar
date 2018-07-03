@@ -1878,21 +1878,25 @@ subroutine serial_fe_space_compute_facet_permutation_indices ( this )
   class(fe_cell_iterator_t)            , allocatable :: second_fe
   integer(ip) :: fe_facet_permutation_index
   
-  call this%facet_permutation_indices%resize(this%facet_gids%size(),-1)
-  call this%create_fe_cell_iterator(first_fe)
-  call this%create_fe_cell_iterator(second_fe)
-  call this%create_fe_facet_iterator(fe_face)
-  do while ( .not. fe_face%has_finished() )
-    if ( .not. fe_face%is_ghost() .and. fe_face%get_num_cells_around() == 2 ) then
-      fe_facet_permutation_index = fe_face%compute_fe_facet_permutation_index(first_fe,second_fe)
-      call this%facet_permutation_indices%set(fe_face%facet_gid,fe_facet_permutation_index)
-    end if
-    call fe_face%next()
-  end do
-  call this%free_fe_facet_iterator(fe_face)
-  call this%free_fe_cell_iterator(second_fe)
-  call this%free_fe_cell_iterator(first_fe)
-
+  if ( this%triangulation%is_single_octree_mesh() ) then
+    call this%facet_permutation_indices%resize(0)
+    call this%facet_permutation_indices%resize(this%facet_gids%size(),1)
+  else
+    call this%facet_permutation_indices%resize(this%facet_gids%size(),-1)
+    call this%create_fe_cell_iterator(first_fe)
+    call this%create_fe_cell_iterator(second_fe)
+    call this%create_fe_facet_iterator(fe_face)
+    do while ( .not. fe_face%has_finished() )
+      if ( .not. fe_face%is_ghost() .and. fe_face%get_num_cells_around() == 2 ) then
+        fe_facet_permutation_index = fe_face%compute_fe_facet_permutation_index(first_fe,second_fe)
+        call this%facet_permutation_indices%set(fe_face%facet_gid,fe_facet_permutation_index)
+      end if
+      call fe_face%next()
+    end do
+    call this%free_fe_facet_iterator(fe_face)
+    call this%free_fe_cell_iterator(second_fe)
+    call this%free_fe_cell_iterator(first_fe)
+  end if 
 end subroutine serial_fe_space_compute_facet_permutation_indices
 
 subroutine serial_fe_space_free_facet_permutation_indices ( this )
