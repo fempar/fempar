@@ -444,7 +444,12 @@ module fe_space_names
     class(fe_cell_iterator_t) , allocatable  :: fe2
     type(p_fe_cell_iterator_t)               :: fes_around(2)
     type(facet_maps_t), pointer              :: facet_maps => NULL()
-    type(p_facet_integrator_t), allocatable :: facet_integrators(:)
+    type(p_facet_integrator_t), allocatable  :: facet_integrators(:)
+    
+    ! Scratch data to optimize some TBPs of this data type
+    logical :: facet_integration_is_set_up        = .false.
+    logical :: single_quad_facet_map_facet_integs = .false.
+    
    contains
     procedure                           :: create                         => fe_facet_iterator_create
     procedure                           :: free                           => fe_facet_iterator_free

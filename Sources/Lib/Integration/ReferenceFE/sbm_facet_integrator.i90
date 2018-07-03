@@ -348,6 +348,13 @@ function facet_maps_get_cell_maps ( this )
   facet_maps_get_cell_maps => this%cell_maps
 end function facet_maps_get_cell_maps
 
+function facet_maps_get_is_at_boundary ( this )
+  implicit none
+  class(facet_maps_t), intent(in) :: this
+  logical :: facet_maps_get_is_at_boundary
+  facet_maps_get_is_at_boundary = this%is_at_boundary
+end function facet_maps_get_is_at_boundary
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !cell_integrator_facet_restriction_t type bound procedures
 subroutine cell_integrator_facet_restriction_create(this, quadrature, reference_fe)

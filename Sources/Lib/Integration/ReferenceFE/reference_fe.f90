@@ -1918,6 +1918,7 @@ contains
   procedure, non_overridable :: get_det_jacobian     => facet_maps_get_det_jacobian
   procedure, non_overridable :: get_facet_map        => facet_maps_get_facet_map
   procedure, non_overridable :: get_cell_maps        => facet_maps_get_cell_maps
+  procedure, non_overridable :: get_is_at_boundary   => facet_maps_get_is_at_boundary
 end type facet_maps_t
 
 public :: facet_maps_t
