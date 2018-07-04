@@ -408,6 +408,7 @@ module p4est_triangulation_names
      procedure                           :: is_at_interface           => p4est_vef_iterator_is_at_interface
      procedure                           :: is_proper                       => p4est_vef_iterator_is_proper
      procedure                           :: is_within_valid_range           => p4est_vef_iterator_is_within_valid_range
+     procedure                           :: is_cut                          => p4est_vef_iterator_is_cut
      
      procedure                           :: get_num_cells_around            => p4est_vef_iterator_get_num_cells_around
      procedure                           :: get_cell_around                 => p4est_vef_iterator_get_cell_around

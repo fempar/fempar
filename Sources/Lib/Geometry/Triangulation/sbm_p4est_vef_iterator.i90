@@ -322,6 +322,13 @@ function p4est_vef_iterator_is_within_valid_range(this)
           .or. (this%get_gid() < 0 .and. this%get_gid() >= -this%p4est_triangulation%num_improper_vefs)
 end function p4est_vef_iterator_is_within_valid_range
 
+function p4est_vef_iterator_is_cut(this)
+  implicit none
+  class(p4est_vef_iterator_t), intent(in) :: this
+  logical :: p4est_vef_iterator_is_cut
+  p4est_vef_iterator_is_cut = .false.
+end function p4est_vef_iterator_is_cut
+
 function p4est_vef_iterator_get_num_cells_around (this)
   implicit none
   class(p4est_vef_iterator_t), intent(in) :: this
