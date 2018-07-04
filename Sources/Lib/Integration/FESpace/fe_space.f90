@@ -448,11 +448,11 @@ module fe_space_names
     
     ! Scratch data to optimize some TBPs of this data type
     class(reference_fe_t), pointer           :: ref_fe_geo => NULL()
-    logical :: facet_integration_is_set_up        = .false.
-    logical :: single_quad_facet_map_facet_integs = .false.
-    logical :: integration_updated                = .false.
-    logical :: single_octree_mesh                 = .false.
-    logical :: cell_integration_is_set_up         = .false.
+    logical                                  :: facet_integration_is_set_up        = .false.
+    logical                                  :: single_quad_facet_map_facet_integs = .false.
+    logical                                  :: integration_updated                = .false.
+    logical                                  :: single_octree_mesh                 = .false.
+    class(fe_facet_iterator_t), pointer      :: previous_facet => NULL()
    contains
     procedure                           :: create                         => fe_facet_iterator_create
     procedure                           :: free                           => fe_facet_iterator_free

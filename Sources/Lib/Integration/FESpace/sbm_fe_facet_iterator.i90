@@ -27,41 +27,66 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 subroutine fe_facet_iterator_create ( this, fe_space, vef )
-  implicit none
-  class(fe_facet_iterator_t), target, intent(inout) :: this
-  class(serial_fe_space_t) , target, intent(in)    :: fe_space
-  class(vef_iterator_t)    , intent(in)            :: vef
-  class(triangulation_t), pointer :: triangulation
-  call this%free()
-  call this%fe_vef_iterator_t%create(fe_space,vef)
-  call this%allocate_scratch_data()
-  call this%first()
-  this%facet_integration_is_set_up = fe_space%get_facet_integration_is_set_up()
-  if ( this%facet_integration_is_set_up .and. fe_space%facet_quadratures%size() == 2 ) then
-    this%single_quad_facet_map_facet_integs = .true.
-    assert ( fe_space%facet_maps%size() == 2 ) 
-    assert ( fe_space%facet_integrators%size() == 2*fe_space%get_num_fields() ) 
-  else
-    this%single_quad_facet_map_facet_integs = .false.
-  end if 
-  call this%set_integration_updated(.false.)
-  triangulation => this%fe_space%get_triangulation()
-  massert ( (triangulation%get_num_reference_fes() == 1), "FE_FACET_ITERATOR does NOT support mixed cells topology. All triangulation cells MUST have the same topology.")
-  this%ref_fe_geo => triangulation%get_reference_fe(1)
-end subroutine fe_facet_iterator_create
+   implicit none
+   class(fe_facet_iterator_t), target, intent(inout) :: this
+   class(serial_fe_space_t) , target, intent(in)    :: fe_space
+   class(vef_iterator_t)    , intent(in)            :: vef
+   integer(ip) :: istat
+   call this%free()
+   call aux_create_facet(this,fe_space,vef)
+   allocate ( this%previous_facet, mold=this, stat=istat ); check(istat==0)
+   call aux_create_facet(this%previous_facet,fe_space,vef)
+   call this%first()
+   call aux_set_gid_facet(this%previous_facet,this%fe_space%facet_gids%size()+1)
+ end subroutine fe_facet_iterator_create
+
+subroutine aux_create_facet(this,fe_space,vef)
+   implicit none
+   class(fe_facet_iterator_t), intent(inout) :: this
+   class(serial_fe_space_t)  , intent(in)    :: fe_space
+   class(vef_iterator_t)     , intent(in)    :: vef
+   class(triangulation_t), pointer :: triangulation
+   call this%fe_vef_iterator_t%create(fe_space,vef)
+   call this%allocate_scratch_data()
+   call this%set_integration_updated(.false.)
+   triangulation => this%fe_space%get_triangulation()
+   massert ( (triangulation%get_num_reference_fes() == 1), "FE_FACET_ITERATOR does NOT support mixed cells topology. All triangulation cells MUST have the same topology.")
+   this%ref_fe_geo => triangulation%get_reference_fe(1)
+   this%facet_integration_is_set_up = fe_space%get_facet_integration_is_set_up()
+   if ( this%facet_integration_is_set_up .and. fe_space%facet_quadratures%size() == 2 ) then
+     this%single_quad_facet_map_facet_integs = .true.
+     assert ( fe_space%facet_maps%size() == 2 ) 
+     assert ( fe_space%facet_integrators%size() == 2*fe_space%get_num_fields() ) 
+   else
+     this%single_quad_facet_map_facet_integs = .false.
+   end if 
+   call this%set_single_octree_mesh(triangulation%is_single_octree_mesh())
+end subroutine aux_create_facet 
 
 subroutine fe_facet_iterator_free ( this )
   implicit none
   class(fe_facet_iterator_t) , intent(inout)      :: this
   integer(ip) :: istat
+  call aux_free_facet(this)
+  if ( associated ( this%previous_facet ) ) then
+    call aux_free_facet(this%previous_facet)
+    deallocate ( this%previous_facet, stat=istat ); check(istat==0)
+    nullify(this%previous_facet)
+  end if 
+end subroutine fe_facet_iterator_free
+
+subroutine aux_free_facet(this)
+  implicit none
+  class(fe_facet_iterator_t) , intent(inout)      :: this
   call this%fe_vef_iterator_t%free()
   this%facet_gid = -1
   call this%free_scratch_data()
   this%facet_integration_is_set_up = .false.
   this%single_quad_facet_map_facet_integs = .false.
   call this%set_integration_updated(.false.)
+  call this%set_single_octree_mesh(.false.)
   nullify(this%ref_fe_geo)
-end subroutine fe_facet_iterator_free
+end subroutine aux_free_facet
 
 subroutine fe_facet_iterator_allocate_scratch_data ( this )
   implicit none
@@ -99,12 +124,18 @@ end subroutine fe_facet_iterator_free_scratch_data
 subroutine fe_facet_iterator_first ( this )
   implicit none
   class(fe_facet_iterator_t) , intent(inout)      :: this
-  this%facet_gid = 1
+  if ( this%facet_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( .not. this%is_cut() ) then
+         call aux_set_gid_facet(this%previous_facet,this%get_gid())
+         call this%previous_facet%set_integration_updated(this%is_integration_updated())
+      end if
+    end if
+  end if
+  call aux_first_facet(this)
   if ( .not. this%has_finished() ) then
-    call this%base_fe_vef_iterator_t%set_gid( &
-      this%fe_space%facet_gids%get(this%facet_gid) )
     call this%update_fes_around()
-    if ( this%fe_space%get_facet_integration_is_set_up() ) then
+    if ( this%facet_integration_is_set_up ) then
       call this%update_facet_maps()
       call this%update_facet_integrators()
     end if 
@@ -112,19 +143,40 @@ subroutine fe_facet_iterator_first ( this )
   call this%set_integration_updated(.false.)
 end subroutine fe_facet_iterator_first
 
+subroutine aux_first_facet ( this ) 
+  implicit none
+  class(fe_facet_iterator_t) , intent(inout)      :: this
+  this%facet_gid = 1
+  if ( .not. this%has_finished() ) then
+    call this%base_fe_vef_iterator_t%set_gid( &
+      this%fe_space%facet_gids%get(this%facet_gid) )
+  end if
+end subroutine aux_first_facet
+  
 subroutine fe_facet_iterator_next ( this )
   implicit none
   class(fe_facet_iterator_t) , intent(inout)      :: this
+  
+  if ( this%facet_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( .not. this%is_cut() ) then
+         call aux_set_gid_facet(this%previous_facet,this%get_gid())
+         call this%previous_facet%set_integration_updated(this%is_integration_updated())
+      end if
+    end if
+  end if  
+ 
   this%facet_gid = this%facet_gid + 1
   if ( .not. this%has_finished() ) then
     call this%base_fe_vef_iterator_t%set_gid( &
       this%fe_space%facet_gids%get(this%facet_gid) )
     call this%update_fes_around()
-    if ( this%fe_space%get_facet_integration_is_set_up() ) then
+    if ( this%facet_integration_is_set_up ) then
       call this%update_facet_maps()
       call this%update_facet_integrators()
     end if 
   end if
+  
   call this%set_integration_updated(.false.)
 end subroutine fe_facet_iterator_next
 
@@ -140,15 +192,32 @@ subroutine fe_facet_iterator_set_gid ( this, gid )
   class(fe_facet_iterator_t), intent(inout) :: this
   integer(ip)              , intent(in)    :: gid
   assert ( gid >= 1 .and. gid <= this%fe_space%facet_gids%size() )
-  this%facet_gid = gid
-  call this%base_fe_vef_iterator_t%set_gid(this%fe_space%facet_gids%get(gid))
-  call this%update_fes_around()
-  if ( this%fe_space%get_facet_integration_is_set_up() ) then
-   call this%update_facet_maps()
-   call this%update_facet_integrators()
+  if ( this%facet_integration_is_set_up ) then
+    if ( .not. this%has_finished() ) then
+      if ( .not. this%is_cut() ) then
+        call aux_set_gid_facet(this%previous_facet,this%get_gid())
+        call this%previous_facet%set_integration_updated(this%is_integration_updated())
+      end if
+    end if
   end if 
+  call aux_set_gid_facet(this,gid)
   call this%set_integration_updated(.false.)
 end subroutine fe_facet_iterator_set_gid
+
+subroutine aux_set_gid_facet(this,gid)
+  implicit none
+  class(fe_facet_iterator_t), intent(inout) :: this
+  integer(ip)               , intent(in)    :: gid
+  this%facet_gid = gid
+  if ( gid >=1 .and. gid <= this%fe_space%facet_gids%size() ) then
+    call this%base_fe_vef_iterator_t%set_gid(this%fe_space%facet_gids%get(gid))
+    call this%update_fes_around()
+    if ( this%facet_integration_is_set_up ) then
+     call this%update_facet_maps()
+     call this%update_facet_integrators()
+    end if
+  end if 
+end subroutine aux_set_gid_facet
 
 function fe_facet_iterator_get_gid (this) result(facet_gid)
   implicit none
