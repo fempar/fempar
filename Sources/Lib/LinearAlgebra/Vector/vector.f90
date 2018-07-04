@@ -189,11 +189,9 @@ contains
          call vector%free()
          deallocate(vector, stat=istat); check(istat==0);
          allocate(vector, mold=this, stat=istat); check(istat==0);
-         call vector%default_initialization()
       end if
     else
       allocate(vector, mold=this, stat=istat); check(istat==0);
-      call vector%default_initialization()
     end if
   end subroutine mold
 				 
