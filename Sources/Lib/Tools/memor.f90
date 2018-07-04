@@ -168,7 +168,6 @@ contains
     integer(imp) , intent(in), optional :: lbyts
     character*(*), intent(in), optional :: file                     ! Calling file
     integer(ip)  , intent(in), optional :: line                     ! Calling line
-    integer(ip)    :: luout
     character(20)  :: lsize,lstat
     lsize = ' unknown'
     lstat = ' unknown'
@@ -193,7 +192,6 @@ contains
     integer(ip)  , intent(in), optional :: istat
     character*(*), intent(in), optional :: file                     ! Calling file
     integer(ip)  , intent(in), optional :: line                     ! Calling line
-    integer(ip)    :: luout
     character(20)  :: lsize,lstat
     lstat = ' unknown'
     if(present(istat)) write(lstat,'(i20)') istat
@@ -214,7 +212,6 @@ contains
     implicit none
     character*(*), intent(in), optional :: file                     ! Calling file
     integer(ip)  , intent(in), optional :: line                     ! Calling line
-    integer(ip)    :: luout
     character(20)  :: lsize,lstat
     write(luout,'(a)') '[Fempar Fatal Error] ***Attempting to (re)allocate an (un)allocated variable.'
     if(present(file)) then
