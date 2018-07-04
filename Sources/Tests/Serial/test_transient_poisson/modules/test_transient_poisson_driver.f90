@@ -240,7 +240,6 @@ contains
                                     final_time              = this%test_params%get_final_time() , &
                                     time_step               = this%test_params%get_time_step() , &
                                     time_integration_scheme = this%test_params%get_time_integration_scheme() )  
-    call this%time_operator%set_fe_functions( this%solution , this%mass_fe_fun ) !pmartorell: Should it be inside create? Not nice, provisional...
   
     call this%solution%create(this%fe_space) 
     call this%mass_fe_fun%create(this%fe_space) 

@@ -156,8 +156,6 @@ module time_stepping_names
      class(vector_t)                      , allocatable :: dofs_stages(:)
      real(rp)                                           :: dt, current_initial_time, final_time !time => initial_time (t0)
      
-     type(fe_function_t)                      , pointer :: solution_fe_fun
-     type(fe_function_t)                      , pointer :: mass_fe_fun
      ! sbadia: For the moment, we are not interested in full RK implementations,
      ! even though it would be an easy paper about preconditioning these schemes
      ! So, we don't really need to use the block assembler for the
@@ -174,11 +172,9 @@ module time_stepping_names
      procedure :: set_final_time                  => time_stepping_operator_set_final_time 
      procedure :: set_time_step_size              => time_stepping_operator_set_time_step_size 
      procedure :: update_current_time             => time_stepping_operator_update_current_time 
-     procedure :: set_fe_functions                => time_stepping_operator_set_fe_functions
      procedure :: get_time_step                   => time_stepping_operator_get_time_step_size
      procedure :: get_current_time                => time_stepping_operator_get_current_time
      procedure :: get_final_time                  => time_stepping_operator_get_final_time 
-     procedure :: get_fe_functions                => time_stepping_operator_get_fe_functions
      procedure :: get_matrix                      => time_stepping_operator_get_matrix
      procedure :: get_order                       => time_stepping_operator_get_order 
      procedure :: has_finished                    => time_stepping_operator_has_finished
