@@ -32,13 +32,13 @@ module mass_discrete_integration_names
 # include "debug.i90"
   private
   type, extends(linear_discrete_integration_t) :: mass_discrete_integration_t
-     class(fe_function_t), pointer :: fe_function => null()
+     type(fe_function_t) :: fe_function 
    contains
      procedure :: integrate_galerkin    => integrate_tangent 
      procedure :: integrate_tangent
      procedure :: integrate_residual 
      procedure :: set_evaluation_point
-     procedure :: set_fe_function
+     procedure :: create_fe_function
      procedure :: set_current_time
   end type mass_discrete_integration_t
   
@@ -163,12 +163,12 @@ contains
     call u_h%free()
   end subroutine integrate_residual
   
-  subroutine set_fe_function (this, fe_function)
+  subroutine create_fe_function (this, fe_space)
     implicit none
     class(mass_discrete_integration_t), intent(inout) :: this
-    type(fe_function_t) , target      , intent(in)    :: fe_function
-    this%fe_function => fe_function
-  end subroutine set_fe_function
+    type(serial_fe_space_t)           , intent(in)    :: fe_space
+    call this%fe_function%create(fe_space)
+  end subroutine create_fe_function
   
   subroutine set_evaluation_point ( this, evaluation_point )
     implicit none

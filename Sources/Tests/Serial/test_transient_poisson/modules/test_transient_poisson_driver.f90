@@ -76,7 +76,6 @@ module test_transient_poisson_driver_names
  
      ! Poisson problem solution FE function
      type(fe_function_t)                       :: solution
-     type(fe_function_t)                       :: mass_fe_fun
      
      type(output_handler_t)                    :: oh
    contains
@@ -241,10 +240,9 @@ contains
                                     time_step               = this%test_params%get_time_step() , &
                                     time_integration_scheme = this%test_params%get_time_integration_scheme() )  
   
-    call this%solution%create(this%fe_space) 
-    call this%mass_fe_fun%create(this%fe_space) 
+    call this%solution%create(this%fe_space)
     call this%poisson_cG_integration%set_fe_function(this%solution) 
-    call this%mass_integration%set_fe_function(this%mass_fe_fun)
+    call this%mass_integration%create_fe_function(this%fe_space) !hide too
     call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
     
     !pmartorell: Needed in release?
@@ -608,7 +606,6 @@ contains
     integer(ip) :: i, istat
     
     call this%solution%free()
-    call this%mass_fe_fun%free()
     
 #ifdef ENABLE_MKL        
     call this%direct_solver%free()
