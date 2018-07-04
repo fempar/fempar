@@ -310,7 +310,7 @@ contains
     call this%source_term%set_num_dims(num_dims)
     call this%solution%set_num_dims(num_dims)
   end subroutine mn_set_num_dims
-
+  
   !===============================================================================================
   function mn_get_boundary_function_Hx ( this )
     implicit none

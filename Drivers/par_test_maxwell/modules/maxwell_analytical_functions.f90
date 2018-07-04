@@ -37,7 +37,54 @@ module maxwell_analytical_functions_names
     integer(ip) :: num_dims = -1  
   contains
   end type base_scalar_function_t
+    
+  type, extends(base_scalar_function_t) :: resistivity_function_t
+   private 
+    real(rp) :: default_value 
+   contains
+     procedure :: set_value          => resistivity_function_set_default_value
+  end type resistivity_function_t 
   
+  type :: resistivity_holder_t 
+     class(resistivity_function_t), pointer :: p => NULL()  
+  end type resistivity_holder_t 
+  
+  type, extends(resistivity_function_t) :: resistivity_function_white_t
+    private 
+   contains
+     procedure :: get_value_space    => resistivity_function_white_get_value_space
+  end type resistivity_function_white_t 
+  
+  type, extends(resistivity_function_t) :: resistivity_function_black_t
+    private 
+   contains
+     procedure :: get_value_space    => resistivity_function_black_get_value_space
+  end type resistivity_function_black_t 
+  
+  type, extends(base_scalar_function_t) :: permeability_function_t
+   private 
+    real(rp) :: default_value 
+   contains
+     procedure :: set_value          => permeability_function_set_default_value
+  end type permeability_function_t 
+  
+  type :: permeability_holder_t 
+     class(permeability_function_t), pointer :: p => NULL()  
+  end type permeability_holder_t 
+  
+  type, extends(permeability_function_t) :: permeability_function_white_t
+    private 
+   contains
+     procedure :: get_value_space    => permeability_function_white_get_value_space
+  end type permeability_function_white_t 
+  
+  type, extends(permeability_function_t) :: permeability_function_black_t
+    private 
+   contains
+     procedure :: get_value_space    => permeability_function_black_get_value_space
+  end type permeability_function_black_t 
+  
+  ! Boundary scalar functions definition 
     type, extends(base_scalar_function_t) :: boundary_function_Hx_t
     private 
    contains
@@ -78,6 +125,8 @@ module maxwell_analytical_functions_names
   
   type maxwell_analytical_functions_t
      private
+   type(resistivity_holder_t), pointer     :: resistivity(:)
+   type(permeability_holder_t), pointer    :: permeability(:) 
 	  type(boundary_function_Hx_t)            :: boundary_function_Hx
 	  type(boundary_function_Hy_t)            :: boundary_function_Hy
 	  type(boundary_function_Hz_t)            :: boundary_function_Hz
@@ -85,7 +134,12 @@ module maxwell_analytical_functions_names
    type(solution_t)                        :: solution
    contains
    procedure :: set_num_dims                     => mn_set_num_dims
+   procedure :: set_resistivity                  => mn_set_resistivity_holder
+   procedure :: set_permeability                 => mn_set_permeability_holder 
    procedure :: set_parameter_values             => mn_set_parameter_values 
+   ! Getters 
+   procedure :: get_resistivity                  => mn_get_resistivity
+   procedure :: get_permeability                 => mn_get_permeability 
 	  procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
 	  procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
 	  procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
@@ -94,8 +148,26 @@ module maxwell_analytical_functions_names
   end type maxwell_analytical_functions_t
 
   public :: maxwell_analytical_functions_t
+  public :: resistivity_holder_t, resistivity_function_white_t, resistivity_function_black_t 
+  public :: permeability_holder_t, permeability_function_white_t, permeability_function_black_t 
 
 contains  
+  !===============================================================================================
+  subroutine resistivity_function_set_default_value ( this, default_value )
+    implicit none
+    class(resistivity_function_t), intent(inout)    :: this
+    real(rp), intent(in) ::  default_value
+    this%default_value = default_value
+  end subroutine resistivity_function_set_default_value
+  
+    !===============================================================================================
+  subroutine permeability_function_set_default_value ( this, default_value )
+    implicit none
+    class(permeability_function_t), intent(inout)    :: this
+    real(rp), intent(in) ::  default_value
+    this%default_value = default_value
+  end subroutine permeability_function_set_default_value
+  
   !===============================================================================================
   subroutine base_vector_function_set_num_dims ( this, num_dims )
     implicit none
@@ -103,8 +175,44 @@ contains
     integer(ip), intent(in) ::  num_dims
     this%num_dims = num_dims
   end subroutine base_vector_function_set_num_dims
-    
+  
+        !===============================================================================================
+  subroutine resistivity_function_white_get_value_space( this, point, result )
+    implicit none 
+    class(resistivity_function_white_t)  , intent(in)    :: this 
+    type(point_t)                  , intent(in)    :: point 
+    real(rp)                       , intent(inout) :: result 
+	   result = this%default_value  
+  end subroutine resistivity_function_white_get_value_space
+  
     !===============================================================================================
+  subroutine resistivity_function_black_get_value_space( this, point, result )
+    implicit none 
+    class(resistivity_function_black_t)  , intent(in)    :: this 
+    type(point_t)                  , intent(in)    :: point 
+    real(rp)                       , intent(inout) :: result 
+    result = this%default_value  
+  end subroutine resistivity_function_black_get_value_space
+  
+          !===============================================================================================
+  subroutine permeability_function_white_get_value_space( this, point, result )
+    implicit none 
+    class(permeability_function_white_t)  , intent(in)    :: this 
+    type(point_t)                  , intent(in)    :: point 
+    real(rp)                       , intent(inout) :: result 
+	   result = this%default_value  
+  end subroutine permeability_function_white_get_value_space
+  
+    !===============================================================================================
+  subroutine permeability_function_black_get_value_space( this, point, result )
+    implicit none 
+    class(permeability_function_black_t)  , intent(in)    :: this 
+    type(point_t)                  , intent(in)    :: point 
+    real(rp)                       , intent(inout) :: result 
+    result = this%default_value  
+  end subroutine permeability_function_black_get_value_space
+  
+      !===============================================================================================
   subroutine boundary_function_Hx_get_value_space( this, point, result )
     implicit none 
     class(boundary_function_Hx_t)  , intent(in)    :: this 
@@ -113,9 +221,8 @@ contains
 		real(rp) :: x,y,z 
 	x = point%get(1); y=point%get(2); z=point%get(3)
 	 result = -y
- !  result = 0.0_rp 
   end subroutine boundary_function_Hx_get_value_space
-
+  
   !===============================================================================================
   subroutine boundary_function_Hy_get_value_space( this, point, result )
     implicit none 
@@ -125,7 +232,6 @@ contains
 		  real(rp) :: x,y,z 
 	   x = point%get(1); y=point%get(2); z=point%get(3)
      result = x
-    !  result = 0.0_rp 
   end subroutine boundary_function_Hy_get_value_space
 
   !===============================================================================================
@@ -151,8 +257,8 @@ contains
 	assert ( this%num_dims == 2 .or. this%num_dims == 3 )
 	x = point%get(1); y=point%get(2); z=point%get(3)     
 	 ! call result%init(1.0_rp) 
-	 call result%set(1, -this%permeability*y ) 
-	 call result%set(2,  this%permeability*x ) 
+	 call result%set(1, -y ) 
+	 call result%set(2,  x ) 
 	 call result%set(3,  0.0_rp )
 
   end subroutine source_term_get_value_space
@@ -199,6 +305,22 @@ contains
   end subroutine mn_set_num_dims
   
     !===============================================================================================
+  subroutine mn_set_resistivity_holder ( this, resistivity_holder )
+    implicit none
+    class(maxwell_analytical_functions_t), intent(inout)    :: this
+    type(resistivity_holder_t), target   , intent(in)       :: resistivity_holder(:)
+    this%resistivity => resistivity_holder 
+  end subroutine mn_set_resistivity_holder
+  
+      !===============================================================================================
+  subroutine mn_set_permeability_holder ( this, permeability_holder )
+    implicit none
+    class(maxwell_analytical_functions_t), intent(inout)    :: this
+    type(permeability_holder_t), target   , intent(in)      :: permeability_holder(:)
+    this%permeability => permeability_holder 
+  end subroutine mn_set_permeability_holder
+  
+    !===============================================================================================
   subroutine mn_set_parameter_values ( this, permeability, resistivity )
     implicit none
     class(maxwell_analytical_functions_t), intent(inout)    :: this
@@ -207,6 +329,22 @@ contains
     this%source_term%permeability = permeability 
     this%source_term%resistivity  = resistivity 
   end subroutine mn_set_parameter_values
+  
+      !===============================================================================================
+  function mn_get_resistivity ( this )
+    implicit none
+    class(maxwell_analytical_functions_t), target, intent(in)    :: this
+    type(resistivity_holder_t), pointer     :: mn_get_resistivity(:)
+    mn_get_resistivity => this%resistivity 
+  end function mn_get_resistivity
+  
+        !===============================================================================================
+  function mn_get_permeability ( this )
+    implicit none
+    class(maxwell_analytical_functions_t), target, intent(in)    :: this
+    type(permeability_holder_t), pointer     :: mn_get_permeability(:)
+    mn_get_permeability => this%permeability 
+  end function mn_get_permeability
   
   !===============================================================================================
   function mn_get_boundary_function_Hx ( this )

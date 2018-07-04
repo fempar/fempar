@@ -37,9 +37,9 @@ module maxwell_discrete_integration_names
   integer(ip), parameter :: problem = 1  
   public :: preconditioner, problem 
   
-  integer(ip), parameter :: black =  0 
-  integer(ip), parameter :: white =  1
-  public :: black, white 
+  integer(ip), parameter :: BLACK =  0 
+  integer(ip), parameter :: WHITE =  1
+  public :: BLACK, WHITE 
   
   type, extends(discrete_integration_t) :: maxwell_cG_discrete_integration_t
    type(maxwell_analytical_functions_t), pointer :: analytical_functions => NULL()
@@ -155,14 +155,18 @@ contains
     type(vector_field_t), allocatable  :: source_term_values(:)
 
     integer(ip)                            :: number_fields
-    class(vector_function_t) , pointer     :: source_term
+    class(vector_function_t)  , pointer    :: source_term
+    type(resistivity_holder_t), pointer    :: resistivity_holder(:)
     real(rp)                               :: permeability, resistivity 
+    integer(ip)                            :: material_id 
+    real(rp) :: resis2
     
     assert (associated(this%analytical_functions)) 
 	   assert (associated(this%fe_function))
 
-    source_term => this%analytical_functions%get_source_term()
-	
+    source_term        => this%analytical_functions%get_source_term()
+	   resistivity_holder => this%analytical_functions%get_resistivity()
+    
 	   call fe_space%set_up_cell_integration()
     call fe_space%create_fe_cell_iterator(fe)
     
@@ -203,6 +207,14 @@ contains
           call fe%get_values(shape_values)
           do qpoint = 1, num_quad_points
              factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+             material_id = 1 + fe%get_set_id() 
+             call resistivity_holder(material_id)%p%get_value_space(quad_coords(qpoint), resis2)
+             
+             if (abs(resis2 - resistivity)>1e-14_rp) then 
+             WRITE(*,*)  resis2, 'vs', resistivity, 'FEid', fe%get_set_id()
+             wassert(.false., 'Not consistent income')
+             end if 
+             
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
                    ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)

@@ -57,7 +57,14 @@ module par_test_maxwell_driver_names
      type(p_l1_coarse_fe_handler_t), allocatable   :: coarse_fe_handlers(:)
      type(maxwell_CG_discrete_integration_t)       :: maxwell_integration
      type(maxwell_conditions_t)                    :: maxwell_conditions
+       
      type(maxwell_analytical_functions_t)          :: maxwell_analytical_functions
+     type(resistivity_holder_t), allocatable       :: resistivity_holder(:) 
+     type(resistivity_function_white_t)            :: resistivity_white 
+     type(resistivity_function_black_t)            :: resistivity_black 
+     type(permeability_holder_t), allocatable      :: permeability_holder(:) 
+     type(permeability_function_white_t)           :: permeability_white 
+     type(permeability_function_black_t)           :: permeability_black 
 
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
@@ -93,6 +100,7 @@ module par_test_maxwell_driver_names
      procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
      procedure        , private :: set_cells_set_id 
+     procedure        , private :: setup_analytical_functions 
      procedure        , private :: setup_reference_fes
 	    procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
@@ -178,9 +186,7 @@ end subroutine free_timers
     real(rp)                           :: domain(6)
 				integer(ip)                        :: istat 
     
-    ! Create a structured mesh with a custom domain 
-    !domain   = (/ 0.0_rp, 0.1_rp, 0.0_rp, 0.1_rp, 0.0_rp, 0.1_rp /)
-    !istat = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
+    ! Create a structured mesh 
     call this%triangulation%create(this%parameter_list, this%par_environment)
 	
        call this%triangulation%create_vef_iterator(vef)
@@ -222,9 +228,9 @@ end subroutine free_timers
 
        ! Checkboard distribution    
        if ( mod( sum(ijk),2 ) == 0 ) then 
-       this%colour = white 
+       this%colour = WHITE 
        else 
-       this%colour = black 
+       this%colour = BLACK 
        end if 
     end if
 
@@ -241,6 +247,33 @@ end subroutine free_timers
 
     call this%triangulation%fill_cells_set(this%cells_set_id) 
   end subroutine set_cells_set_id
+  
+    subroutine setup_analytical_functions(this)
+    implicit none
+    class(par_test_maxwell_fe_driver_t), target, intent(inout) :: this
+    integer(ip) :: istat
+    
+     ! Initialize resistivity values for different materials 
+     call this%resistivity_black%set_value(this%test_params%get_resistivity_black())
+     call this%resistivity_white%set_value(this%test_params%get_resistivity_white()) 
+     call this%permeability_black%set_value(this%test_params%get_resistivity_black())
+     call this%permeability_white%set_value(this%test_params%get_resistivity_white()) 
+    
+     allocate(this%resistivity_holder(2), stat=istat)
+     allocate(this%permeability_holder(2), stat=istat) 
+     
+     this%resistivity_holder(1)%p => this%resistivity_black 
+     this%resistivity_holder(2)%p => this%resistivity_white
+     this%permeability_holder(1)%p => this%permeability_black 
+     this%permeability_holder(2)%p => this%permeability_white 
+     
+     call this%maxwell_analytical_functions%set_resistivity( this%resistivity_holder )
+     call this%maxwell_analytical_functions%set_permeability( this%permeability_holder ) 
+     
+     call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+     call this%maxwell_analytical_functions%set_parameter_values(this%permeability, this%resistivity)
+		 
+  end subroutine setup_analytical_functions 
   
   subroutine setup_reference_fes(this)
     implicit none
@@ -280,6 +313,12 @@ end subroutine free_timers
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
 	
    	call this%maxwell_conditions%set_num_dims(this%triangulation%get_num_dims())
+    call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
+	   call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
+	   if ( this%triangulation%get_num_dims() == 3) then 
+     call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
+    end if 
+     
     call this%fe_space%create( triangulation       = this%triangulation,      &
                                reference_fes       = this%reference_fes,      &
                                coarse_fe_handlers  = this%coarse_fe_handlers, & 
@@ -322,16 +361,8 @@ end subroutine free_timers
                                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
                                                fe_space                          = this%fe_space, &
                                                discrete_integration              = this%maxwell_integration )
-	
-	! Set-up solution with Dirichlet boundary conditions  
- call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
- call this%maxwell_analytical_functions%set_parameter_values(this%permeability, this%resistivity)
-	call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
-	call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
-	if ( this%triangulation%get_num_dims() == 3) then 
-	call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
-	end if 
-	
+		
+ 	! Set-up solution with Dirichlet boundary conditions
 	call this%solution%create(this%fe_space)
 	call this%fe_space%interpolate_dirichlet_values(this%solution) 
 	call this%maxwell_integration%set_fe_function(this%solution)
@@ -405,7 +436,7 @@ end subroutine free_timers
     call this%mlbddc%numerical_setup()  
    
     call parameter_list%init()
-    !FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-8_rp)
+    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-8_rp)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 1000)
     assert(FPLError == 0)
     
@@ -428,25 +459,8 @@ end subroutine free_timers
     call this%fe_affine_operator%compute()
     call this%maxwell_integration%set_integration_type( preconditioner ) 
     call this%fe_affine_prec_operator%compute() 
-
-    rhs                => this%fe_affine_operator%get_translation()
-    matrix             => this%fe_affine_operator%get_matrix()
     
-    !select type(matrix)
-    !class is (par_sparse_matrix_t)  
-    !   call matrix%print_matrix_market(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    
-    !select type(rhs)
-    !class is (par_scalar_array_t)  
-    !   call rhs%print(6) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
   end subroutine assemble_system
-  
   
   subroutine solve_system(this)
     implicit none
@@ -483,7 +497,7 @@ end subroutine free_timers
     w1infty_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     w1infty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
-      tol=1.0e-4_rp 
+      tol=1.0e-3_rp 
       write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < tol )
       write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < tol )
       write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < tol )
@@ -511,11 +525,12 @@ end subroutine free_timers
 	   integer(ip)                                        :: i, istat
 	 
 	 if ( this%par_environment%am_i_l1_task() ) then
-    if(this%test_params%get_write_solution() .and. (this%test_params%get_reference_fe_order()==1) ) then
-	    call build_set_ids()
+    if( this%test_params%get_write_solution() .and. (this%test_params%get_reference_fe_order()==1) ) then
+	       call build_set_ids()
         call oh%create()
         call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'solution')
+        call oh%add_fe_function(this%solution, 1, 'u')
+        call oh%add_fe_function(this%solution, 1, 'curl(u)', curl_diff_operator)
 		      call oh%add_cell_vector(set_id_cell_vector, 'set_id')
         call oh%add_cell_vector(set_id_checkboard , 'checkboard')
         call oh%add_cell_vector(set_id_permeability, 'permeability')
@@ -540,9 +555,9 @@ end subroutine free_timers
       do i=1, this%triangulation%get_num_local_cells()
             set_id_cell_vector(i) = this%par_environment%get_l1_rank() + 1
       enddo
-      set_id_checkboard = this%colour 
+      set_id_checkboard   = this%colour 
       set_id_permeability = this%permeability
-      set_id_resistivity = this%resistivity
+      set_id_resistivity  = this%resistivity
     end subroutine build_set_ids
        
     subroutine free_set_ids()
@@ -569,6 +584,7 @@ end subroutine free_timers
     call this%timer_fe_space%stop()
 
     call this%timer_assemply%start()
+    call this%setup_analytical_functions()
     call this%setup_system()
     call this%assemble_system()
     call this%timer_assemply%stop()
@@ -612,6 +628,17 @@ end subroutine free_timers
       deallocate(this%reference_fes, stat=istat)
       check(istat==0)
     end if
+    
+    if ( allocated(this%resistivity_holder) ) then
+      deallocate(this%resistivity_holder, stat=istat)
+      check(istat==0)
+    end if
+    
+    if ( allocated(this%permeability_holder) ) then
+      deallocate(this%permeability_holder, stat=istat)
+      check(istat==0)
+    end if
+    
     call this%triangulation%free()
     call memfree( this%cells_set_id, __FILE__ ,__LINE__ )
 		
