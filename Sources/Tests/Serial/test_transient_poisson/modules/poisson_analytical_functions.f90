@@ -205,13 +205,7 @@ contains
     type(point_t)             , intent(in)    :: point
     real(rp)                  , intent(in)    :: time
     type(vector_field_t)      , intent(inout) :: result
-    assert ( this%num_dims == 2 .or. this%num_dims == 3 )
-    if ( this%num_dims == 2 ) then
-      call result%set( 1, time ** 2 ) 
-      call result%set( 2, time ** 2 )
-    else if ( this%num_dims == 3 ) then
-      mcheck(.false., "Implementation pending")
-    end if
+    mcheck(.false., "Implementation pending")
   end subroutine solution_function_get_gradient_space_time
   
   !===============================================================================================
