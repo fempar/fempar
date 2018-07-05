@@ -57,7 +57,8 @@ module par_test_maxwell_driver_names
      type(p_l1_coarse_fe_handler_t), allocatable   :: coarse_fe_handlers(:)
      type(maxwell_CG_discrete_integration_t)       :: maxwell_integration
      type(maxwell_conditions_t)                    :: maxwell_conditions
-       
+     ! Analytical functions describing parameters
+     type(hash_table_ip_ip_t)                      :: cell_id_to_material 
      type(maxwell_analytical_functions_t)          :: maxwell_analytical_functions
      type(resistivity_holder_t), allocatable       :: resistivity_holder(:) 
      type(resistivity_function_white_t)            :: resistivity_white 
@@ -65,7 +66,6 @@ module par_test_maxwell_driver_names
      type(permeability_holder_t), allocatable      :: permeability_holder(:) 
      type(permeability_function_white_t)           :: permeability_white 
      type(permeability_function_black_t)           :: permeability_black 
-
      
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
@@ -146,11 +146,11 @@ subroutine report_timers(this)
     implicit none
     class(par_test_maxwell_fe_driver_t), intent(inout) :: this
 
-    call this%timer_triangulation%report(.false.)
-    call this%timer_fe_space%report(.false.)
-    call this%timer_assemply%report(.false.)
-    call this%timer_solver_setup%report(.false.)
-    call this%timer_solver_run%report(.false.)
+    call this%timer_triangulation%report(.true.)
+    call this%timer_fe_space%report(.true.)
+    call this%timer_assemply%report(.true.)
+    call this%timer_solver_setup%report(.true.)
+    call this%timer_solver_run%report(.true.)
 
 end subroutine report_timers
 
@@ -213,6 +213,7 @@ end subroutine free_timers
     real(rp)    :: nparts  
     integer(ip) :: i, ndime
     integer(ip) :: ijk(3), aux 
+    integer(ip) :: dummy_val 
 
     ijk = 0
     if ( this%par_environment%am_i_l1_task() ) then 
@@ -593,7 +594,7 @@ end subroutine free_timers
     call this%timer_solver_run%stop()
     
     call this%write_solution()
-    call this%check_solution()    
+    ! call this%check_solution()    
     call this%free()
   end subroutine run_simulation
   
