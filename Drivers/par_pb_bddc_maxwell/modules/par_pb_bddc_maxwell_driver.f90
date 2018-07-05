@@ -35,21 +35,20 @@ module par_pb_bddc_maxwell_driver_names
 
   implicit none
   private
-  
+
   type par_pb_bddc_maxwell_fe_driver_t 
      private 
-     
+
      ! Place-holder for parameter-value set provided through command-line interface
      type(par_pb_bddc_maxwell_params_t)   :: test_params
      type(ParameterList_t), pointer       :: parameter_list
-     
+
      ! Cells and lower dimension objects container
      type(par_triangulation_t)             :: triangulation
      integer(ip), allocatable              :: cells_set_id(:)
-     integer(ip)                           :: colour 
      real(rp)                              :: permeability
      real(rp)                              :: resistivity 
-     
+
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                          :: fe_space 
      type(p_reference_fe_t), allocatable           :: reference_fes(:) 
@@ -65,22 +64,22 @@ module par_pb_bddc_maxwell_driver_names
      type(permeability_holder_t), allocatable         :: permeability_holder(:) 
      type(permeability_function_white_t)              :: permeability_white 
      type(permeability_function_black_t)              :: permeability_black 
-     
+
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
      type(fe_affine_operator_t)            :: fe_affine_prec_operator 
-     
-!#ifdef ENABLE_MKL     
+
+     !#ifdef ENABLE_MKL     
      ! MLBDDC preconditioner
      type(mlbddc_t)                            :: mlbddc
-!#endif  
-    
+     !#endif  
+
      ! Iterative linear solvers data type
      type(iterative_linear_solver_t)           :: iterative_linear_solver
- 
+
      ! maxwell problem solution FE function
      type(fe_function_t)                   :: solution
-     
+
      ! Environment required for fe_affine_operator + vtk_handler
      type(environment_t)                    :: par_environment
 
@@ -101,7 +100,7 @@ module par_pb_bddc_maxwell_driver_names
      procedure        , private :: set_cells_set_id 
      procedure        , private :: setup_analytical_functions 
      procedure        , private :: setup_reference_fes
-	    procedure        , private :: setup_coarse_fe_handlers
+     procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
      procedure        , private :: setup_solver
@@ -127,8 +126,8 @@ contains
     this%parameter_list => this%test_params%get_values()
   end subroutine parse_command_line_parameters
 
-!========================================================================================
-subroutine setup_timers(this)
+  !========================================================================================
+  subroutine setup_timers(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     class(execution_context_t), pointer :: w_context
@@ -138,10 +137,10 @@ subroutine setup_timers(this)
     call this%timer_assemply%create(     w_context,"FE INTEGRATION AND ASSEMBLY")
     call this%timer_solver_setup%create( w_context,"SETUP SOLVER AND PRECONDITIONER")
     call this%timer_solver_run%create(   w_context,"SOLVER RUN")
-end subroutine setup_timers
+  end subroutine setup_timers
 
-!========================================================================================
-subroutine report_timers(this)
+  !========================================================================================
+  subroutine report_timers(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
 
@@ -151,10 +150,10 @@ subroutine report_timers(this)
     call this%timer_solver_setup%report(.true.)
     call this%timer_solver_run%report(.true.)
 
-end subroutine report_timers
+  end subroutine report_timers
 
-!========================================================================================
-subroutine free_timers(this)
+  !========================================================================================
+  subroutine free_timers(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     call this%timer_triangulation%free()
@@ -162,9 +161,9 @@ subroutine free_timers(this)
     call this%timer_assemply%free()
     call this%timer_solver_setup%free()
     call this%timer_solver_run%free()
-end subroutine free_timers
+  end subroutine free_timers
 
-!========================================================================================
+  !========================================================================================
   subroutine setup_environment(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
@@ -177,131 +176,171 @@ end subroutine free_timers
     istat = this%parameter_list%set(key = execution_context_key, value = mpi_context) ; check(istat==0)
     call this%par_environment%create (this%parameter_list)
   end subroutine setup_environment
-   
+
   subroutine setup_triangulation(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     class(vef_iterator_t), allocatable :: vef
     real(rp)                           :: domain(6)
-				integer(ip)                        :: istat 
-    
+    integer(ip)                        :: istat 
+
     ! Create a structured mesh 
     call this%triangulation%create(this%parameter_list, this%par_environment)
-	
-       call this%triangulation%create_vef_iterator(vef)
-       do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then 
-             call vef%set_set_id(1)
-          else
-             call vef%set_set_id(0)
-          end if
-          call vef%next()
-       end do
-       call this%triangulation%free_vef_iterator(vef)
-	
+
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+       if(vef%is_at_boundary()) then 
+          call vef%set_set_id(1)
+       else
+          call vef%set_set_id(0)
+       end if
+       call vef%next()
+    end do
+    call this%triangulation%free_vef_iterator(vef)
+
     call this%set_cells_set_id() 
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
-  
+
   subroutine set_cells_set_id( this ) 
     implicit none 
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     class(cell_iterator_t), allocatable :: cell 
+    type(point_t), allocatable    :: cell_coordinates(:)
 
+    logical, allocatable   :: is_grav_center_within_channel(:)
+    real(rp)               :: channel_size 
+    real(rp)    :: grav_center(3) 
     integer(ip) :: nparts_x_dir 
     real(rp)    :: nparts  
     integer(ip) :: i, ndime
+    integer(ip) :: idime, inode 
     integer(ip) :: ijk(3), aux 
-    integer(ip) :: dummy_val 
+    integer(ip) :: istat, dummy_val 
 
+    if ( .not. this%par_environment%am_i_l1_task() ) return 
+
+    ! Determine indices i,j,k for the current subdomain 
     ijk = 0
-    if ( this%par_environment%am_i_l1_task() ) then 
-       nparts = (real(this%par_environment%get_num_tasks()-1,rp))**(1.0_rp/(real(this%triangulation%get_num_dims(),rp)))   
-       nparts_x_dir = nint(nparts,ip)
-       aux = this%par_environment%get_l1_rank()
-       do i = 1,this%triangulation%get_num_dims()-1
-          ijk(i) = mod(aux, nparts_x_dir)
-          aux = aux/nparts_x_dir
-       end do
-       ijk(this%triangulation%get_num_dims()) = aux
-       ijk = ijk+1
-
-       ! Checkboard distribution    
-       if ( mod( sum(ijk),2 ) == 0 ) then 
-       this%colour = WHITE 
-       else 
-       this%colour = BLACK 
-       end if 
-    end if
+    nparts = (real(this%par_environment%get_num_tasks()-1,rp))**(1.0_rp/(real(this%triangulation%get_num_dims(),rp)))   
+    nparts_x_dir = nint(nparts,ip)
+    aux = this%par_environment%get_l1_rank()
+    do i = 1,this%triangulation%get_num_dims()-1
+       ijk(i) = mod(aux, nparts_x_dir)
+       aux = aux/nparts_x_dir
+    end do
+    ijk(this%triangulation%get_num_dims()) = aux
+    ijk = ijk+1
 
     call this%triangulation%create_cell_iterator(cell)
     call memalloc( this%triangulation%get_num_local_cells(), this%cells_set_id, __FILE__, __LINE__ )
+    if ( this%test_params%get_materials_distribution_case() == channels ) then  
+    allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
+    call memalloc( this%triangulation%get_num_dims(), is_grav_center_within_channel, __FILE__, __LINE__ )
+    end if 
     this%cells_set_id = 0
     do while ( .not. cell%has_finished() )
        if ( cell%is_local() ) then 
-          this%cells_set_id(cell%get_gid()) = this%colour 
+          select case ( this%test_params%get_materials_distribution_case() )
+          case ( checkerboard )  
+             if ( mod( sum(ijk),2 ) == 0 ) then 
+                this%cells_set_id(cell%get_gid()) = WHITE 
+             else 
+                this%cells_set_id(cell%get_gid()) = BLACK 
+             end if
+          case ( channels ) 
+             call cell%get_nodes_coordinates(cell_coordinates)
+             grav_center = 0
+             do inode=1, cell%get_num_nodes() 
+                do idime = 1, this%triangulation%get_num_dims()
+                   grav_center(idime) = grav_center(idime) + cell_coordinates(inode)%get(idime)/cell%get_num_nodes() 
+                end do
+             end do
+             
+             is_grav_center_within_channel = .false. 
+             do idime=1, this%triangulation%get_num_dims()
+                channel_size = 1.0_rp/real(nparts_x_dir,rp)*this%test_params%get_channels_ratio()
+                if ( grav_center(idime) >= (real(ijk(idime)-1,rp))/real(nparts_x_dir,rp) .and. & 
+                     grav_center(idime) <= (real(ijk(idime)-1,rp))/real(nparts_x_dir,rp) + channel_size ) then  
+                     is_grav_center_within_channel(idime) = .true. 
+                end if
+             end do
+
+             if ( count(is_grav_center_within_channel) >= this%triangulation%get_num_dims()-1 ) then 
+                this%cells_set_id(cell%get_gid()) = WHITE
+             else 
+                this%cells_set_id(cell%get_gid()) = BLACK 
+             end if
+
+          case DEFAULT 
+             massert( .false., 'Materials distribution case not valid')
+          end select
        end if
        call cell%next()
     end do
     call this%triangulation%free_cell_iterator(cell)
+    if ( this%test_params%get_materials_distribution_case() == channels ) then 
+    if (allocated(cell_coordinates)) deallocate(cell_coordinates, stat=istat); check(istat==0)
+    if (allocated(is_grav_center_within_channel)) call memfree(is_grav_center_within_channel, __FILE__, __LINE__ )
+    end if 
 
     call this%triangulation%fill_cells_set(this%cells_set_id) 
   end subroutine set_cells_set_id
-  
-    subroutine setup_analytical_functions(this)
+
+  subroutine setup_analytical_functions(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), target, intent(inout) :: this
     integer(ip) :: istat
-    
-     ! Initialize resistivity values for different materials 
-     call this%resistivity_black%set_value(this%test_params%get_resistivity_black())
-     call this%resistivity_white%set_value(this%test_params%get_resistivity_white()) 
-     call this%permeability_black%set_value(this%test_params%get_permeability_black())
-     call this%permeability_white%set_value(this%test_params%get_permeability_white()) 
-    
-     allocate(this%resistivity_holder(2), stat=istat)
-     allocate(this%permeability_holder(2), stat=istat) 
-     
-     this%resistivity_holder(1)%p => this%resistivity_black 
-     this%resistivity_holder(2)%p => this%resistivity_white
-     this%permeability_holder(1)%p => this%permeability_black 
-     this%permeability_holder(2)%p => this%permeability_white 
-     
-     call this%maxwell_analytical_functions%set_resistivity( this%resistivity_holder )
-     call this%maxwell_analytical_functions%set_permeability( this%permeability_holder ) 
-     
-     call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
-		 
-  end subroutine setup_analytical_functions 
-  
+
+    ! Initialize resistivity values for different materials 
+    call this%resistivity_black%set_value(this%test_params%get_resistivity_black())
+    call this%resistivity_white%set_value(this%test_params%get_resistivity_white()) 
+    call this%permeability_black%set_value(this%test_params%get_permeability_black())
+    call this%permeability_white%set_value(this%test_params%get_permeability_white()) 
+
+    allocate(this%resistivity_holder(2), stat=istat)
+    allocate(this%permeability_holder(2), stat=istat) 
+
+    this%resistivity_holder(1)%p => this%resistivity_black 
+    this%resistivity_holder(2)%p => this%resistivity_white
+    this%permeability_holder(1)%p => this%permeability_black 
+    this%permeability_holder(2)%p => this%permeability_white 
+
+    call this%maxwell_analytical_functions%set_resistivity( this%resistivity_holder )
+    call this%maxwell_analytical_functions%set_permeability( this%permeability_holder ) 
+
+    call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
+
+  end subroutine setup_analytical_functions
+
   subroutine setup_reference_fes(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     integer(ip) :: istat
     class(cell_iterator_t), allocatable    :: cell
     class(reference_fe_t), pointer         :: reference_fe_geo
-    
+
     allocate(this%reference_fes(1), stat=istat)
     check(istat==0)
-    
+
     if ( this%par_environment%am_i_l1_task() ) then
-      call this%triangulation%create_cell_iterator(cell)
-      reference_fe_geo => cell%get_reference_fe()
-      this%reference_fes(1) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
-                                                   fe_type    = fe_type_nedelec,                           &
-                                                   num_dims   = this%triangulation%get_num_dims(),         &
-                                                   order      = this%test_params%get_reference_fe_order(), &
-                                                   field_type = field_type_vector,                         &
-                                                   conformity = .true. )
-      call this%triangulation%free_cell_iterator(cell)
-    end if  
-		 
+       call this%triangulation%create_cell_iterator(cell)
+       reference_fe_geo => cell%get_reference_fe()
+       this%reference_fes(1) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
+            fe_type    = fe_type_nedelec,                           &
+            num_dims   = this%triangulation%get_num_dims(),         &
+            order      = this%test_params%get_reference_fe_order(), &
+            field_type = field_type_vector,                         &
+            conformity = .true. )
+       call this%triangulation%free_cell_iterator(cell)
+    end if
+
   end subroutine setup_reference_fes
-  
+
   subroutine setup_coarse_fe_handlers(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout), target :: this
-   	integer(ip) :: istat 
+    integer(ip) :: istat 
 
     allocate(this%coarse_fe_handlers(1), stat=istat); check(istat==0)
     this%coarse_fe_handlers(1)%p => this%coarse_fe_handler
@@ -310,79 +349,69 @@ end subroutine free_timers
   subroutine setup_fe_space(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
-	
-   	call this%maxwell_conditions%set_num_dims(this%triangulation%get_num_dims())
+
+    call this%maxwell_conditions%set_num_dims(this%triangulation%get_num_dims())
     call this%maxwell_conditions%set_boundary_function_Hx(this%maxwell_analytical_functions%get_boundary_function_Hx())
-	   call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
-	   if ( this%triangulation%get_num_dims() == 3) then 
-     call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
-    end if 
-     
+    call this%maxwell_conditions%set_boundary_function_Hy(this%maxwell_analytical_functions%get_boundary_function_Hy())
+    if ( this%triangulation%get_num_dims() == 3) then 
+       call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
+    end if
+
     call this%fe_space%create( triangulation       = this%triangulation,      &
-                               reference_fes       = this%reference_fes,      &
-                               coarse_fe_handlers  = this%coarse_fe_handlers, & 
-							                        conditions          = this%maxwell_conditions  )
-    
+         reference_fes       = this%reference_fes,      &
+         coarse_fe_handlers  = this%coarse_fe_handlers, & 
+         conditions          = this%maxwell_conditions  )
+
     call this%fe_space%set_up_cell_integration()
     call this%fe_space%set_up_facet_integration()   
   end subroutine setup_fe_space
-  
+
   subroutine setup_system (this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
-    
-    if ( this%colour == white ) then 
-    this%permeability = this%test_params%get_permeability_white()
-    this%resistivity  = this%test_params%get_resistivity_white()
-    elseif ( this%colour == black ) then 
-    this%permeability = this%test_params%get_permeability_black() 
-    this%resistivity = this%test_params%get_resistivity_black()
-    else 
-    assert(.false.) 
-    end if 
-    
+
     call this%maxwell_integration%set_analytical_functions(this%maxwell_analytical_functions)
-    
+
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true. ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          fe_space                          = this%fe_space, &
-                                          discrete_integration              = this%maxwell_integration )
-    
+         diagonal_blocks_symmetric_storage = [ .true. ], &
+         diagonal_blocks_symmetric         = [ .true. ], &
+         diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+         fe_space                          = this%fe_space, &
+         discrete_integration              = this%maxwell_integration )
+
     call this%fe_affine_prec_operator%create ( sparse_matrix_storage_format      = csr_format, &
-                                               diagonal_blocks_symmetric_storage = [ .true. ], &
-                                               diagonal_blocks_symmetric         = [ .true. ], &
-                                               diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                               fe_space                          = this%fe_space, &
-                                               discrete_integration              = this%maxwell_integration )
-		
- 	! Set-up solution with Dirichlet boundary conditions
-	call this%solution%create(this%fe_space)
-	call this%fe_space%interpolate_dirichlet_values(this%solution) 
-	call this%maxwell_integration%set_fe_function(this%solution)
-		
+         diagonal_blocks_symmetric_storage = [ .true. ], &
+         diagonal_blocks_symmetric         = [ .true. ], &
+         diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+         fe_space                          = this%fe_space, &
+         discrete_integration              = this%maxwell_integration )
+
+    ! Set-up solution with Dirichlet boundary conditions
+    call this%solution%create(this%fe_space)
+    call this%fe_space%interpolate_dirichlet_values(this%solution) 
+    call this%maxwell_integration%set_fe_function(this%solution)
+
   end subroutine setup_system
-  
+
   subroutine setup_solver (this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
-	   type(parameterlist_t) :: parameter_list
+    type(parameterlist_t) :: parameter_list
     type(parameterlist_t), pointer :: plist, dirichlet, neumann, coarse
     integer(ip) :: FPLError
     integer(ip) :: ilev
     integer(ip) :: iparm(64)
     class(matrix_t), pointer :: matrix 
 
-      if ( this%par_environment%am_i_l1_task() ) then 
-      
-      matrix => this%fe_affine_operator%get_matrix() 
-      select type ( matrix ) 
-      class is (par_sparse_matrix_t) 
-    	 call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%permeability, this%resistivity )
-      end select 
-      end if
-      
+    if ( this%par_environment%am_i_l1_task() ) then 
+
+       matrix => this%fe_affine_operator%get_matrix() 
+       select type ( matrix ) 
+          class is (par_sparse_matrix_t) 
+          call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%permeability, this%resistivity )
+       end select
+    end if
+
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
     iparm(1)   = 1 ! no solver default
@@ -407,14 +436,14 @@ end subroutine free_timers
        FPLError = dirichlet%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_spd); assert(FPLError == 0)
        FPLError = dirichlet%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = dirichlet%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-       
+
        ! Set current level Neumann solver parameters
        neumann => plist%NewSubList(key=mlbddc_neumann_solver_params)
        FPLError = neumann%set(key=direct_solver_type, value=pardiso_mkl); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_matrix_type, value=pardiso_mkl_sin); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_message_level, value=0); assert(FPLError == 0)
        FPLError = neumann%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
-     
+
        coarse => plist%NewSubList(key=mlbddc_coarse_solver_params) 
        plist  => coarse 
     end do
@@ -429,34 +458,34 @@ end subroutine free_timers
     call this%mlbddc%create(this%fe_affine_prec_operator, this%parameter_list)
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()  
-   
+
     call parameter_list%init()
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-8_rp)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 1000)
     assert(FPLError == 0)
-    
+
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    
+
     call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), this%mlbddc) 
     call parameter_list%free()
   end subroutine setup_solver
-  
-  
+
+
   subroutine assemble_system (this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     class(matrix_t)                  , pointer       :: matrix
     class(vector_t)                  , pointer       :: rhs
-    
+
     call this%maxwell_integration%set_integration_type( problem ) 
     call this%fe_affine_operator%compute()
     call this%maxwell_integration%set_integration_type( preconditioner ) 
     call this%fe_affine_prec_operator%compute() 
-    
+
   end subroutine assemble_system
-  
+
   subroutine solve_system(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
@@ -468,16 +497,16 @@ end subroutine free_timers
     rhs        => this%fe_affine_operator%get_translation()
     dof_values => this%solution%get_free_dof_values()
     call this%iterative_linear_solver%apply(this%fe_affine_operator%get_translation(), dof_values)
-   
+
   end subroutine solve_system
-   
+
   subroutine check_solution(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     type(error_norms_vector_t) :: error_norm 
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, hcurl_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: tol
-    
+
     call error_norm%create(this%fe_space,1)    
     mean = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, mean_norm)   
     l1 = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, l1_norm)   
@@ -492,78 +521,76 @@ end subroutine free_timers
     w1infty_s = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_seminorm) 
     w1infty = error_norm%compute(this%maxwell_analytical_functions%get_solution_function(), this%solution, w1infty_norm)  
     if ( this%par_environment%am_i_l1_root() ) then
-      tol=1.0e-3_rp 
-      write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < tol )
-      write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < tol )
-      write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < tol )
-      write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < tol )
-      write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < tol )
-      write(*,'(a20,e32.25)') 'hcurl_seminorm:', hcurl_s; check ( linfty < tol)
-      write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < tol )
-      write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < tol )
-      write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < tol )
-      write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < tol )
-      write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < tol )
-      write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < tol )
-    end if  
+       tol=1.0e-3_rp 
+       write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < tol )
+       write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < tol )
+       write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < tol )
+       write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < tol )
+       write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < tol )
+       write(*,'(a20,e32.25)') 'hcurl_seminorm:', hcurl_s; check ( linfty < tol)
+       write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < tol )
+       write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < tol )
+       write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < tol )
+       write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < tol )
+       write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < tol )
+       write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; check ( w1infty < tol )
+    end if
     call error_norm%free()
   end subroutine check_solution
-  
+
   subroutine write_solution(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(in)    :: this
     type(output_handler_t)                             :: oh	
-	   real(rp), allocatable                              :: set_id_cell_vector(:)
-    real(rp), allocatable                              :: set_id_checkboard(:)
-    real(rp), allocatable                              :: set_id_permeability(:) 
-    real(rp), allocatable                              :: set_id_resistivity(:) 
-	   integer(ip)                                        :: i, istat
-	 
-	 if ( this%par_environment%am_i_l1_task() ) then
-    if( this%test_params%get_write_solution() .and. (this%test_params%get_reference_fe_order()==1) ) then
-	       call build_set_ids()
-        call oh%create()
-        call oh%attach_fe_space(this%fe_space)
-        call oh%add_fe_function(this%solution, 1, 'u')
-        call oh%add_fe_function(this%solution, 1, 'curl(u)', curl_diff_operator)
-		      call oh%add_cell_vector(set_id_cell_vector, 'set_id')
-        call oh%add_cell_vector(set_id_checkboard , 'checkboard')
-        call oh%add_cell_vector(set_id_permeability, 'permeability')
-        call oh%add_cell_vector(set_id_resistivity, 'resistivity')
-        call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
-        call oh%write()
-        call oh%close()
-        call oh%free()
-		call free_set_ids()
+    real(rp), allocatable                              :: set_id_cell_vector(:)
+    real(rp), allocatable                              :: set_id_rank(:)
+    integer(ip)                                        :: i, istat
+
+    if ( this%par_environment%am_i_l1_task() ) then
+       if( this%test_params%get_write_solution() .and. (this%test_params%get_reference_fe_order()==1) ) then
+          call build_set_ids()
+          call oh%create()
+          call oh%attach_fe_space(this%fe_space)
+          call oh%add_fe_function(this%solution, 1, 'u')
+          call oh%add_fe_function(this%solution, 1, 'curl(u)', curl_diff_operator)
+          call oh%add_cell_vector(set_id_rank, 'rank')
+          call oh%add_cell_vector(set_id_cell_vector, 'set_id')
+          call oh%open(this%test_params%get_dir_path(), this%test_params%get_prefix())
+          call oh%write()
+          call oh%close()
+          call oh%free()
+          call free_set_ids()
+       end if
     end if
-	end if 
-	
+
   contains 
-      subroutine build_set_ids()
+    subroutine build_set_ids()
+      implicit none 
+      class(cell_iterator_t), allocatable :: cell 
+
       ! Allocate set ids 
       call memalloc(this%triangulation%get_num_local_cells(), set_id_cell_vector, __FILE__, __LINE__)
-      call memalloc(this%triangulation%get_num_local_cells(), set_id_checkboard, __FILE__, __LINE__)
-      call memalloc(this%triangulation%get_num_local_cells(), set_id_permeability, __FILE__, __LINE__)
-      call memalloc(this%triangulation%get_num_local_cells(), set_id_resistivity, __FILE__, __LINE__)
-      
+      call memalloc(this%triangulation%get_num_local_cells(), set_id_rank, __FILE__, __LINE__)
+
       ! Fill Set ids 
-      do i=1, this%triangulation%get_num_local_cells()
-            set_id_cell_vector(i) = this%par_environment%get_l1_rank() + 1
+      call this%triangulation%create_cell_iterator(cell) 
+      do while ( .not. cell%has_finished() ) 
+         if ( cell%is_local() ) then 
+            set_id_cell_vector(cell%get_gid()) = cell%get_set_id()
+            set_id_rank(cell%get_gid())        = this%par_environment%get_l1_rank() + 1
+         end if
+         call cell%next() 
       enddo
-      set_id_checkboard   = this%colour 
-      set_id_permeability = this%permeability
-      set_id_resistivity  = this%resistivity
+      call this%triangulation%free_cell_iterator(cell) 
     end subroutine build_set_ids
-       
+
     subroutine free_set_ids()
       call memfree(set_id_cell_vector, __FILE__, __LINE__)
-      call memfree(set_id_checkboard, __FILE__, __LINE__)
-      call memfree(set_id_permeability, __FILE__, __LINE__)
-      call memfree(set_id_resistivity, __FILE__, __LINE__)
+      call memfree(set_id_rank, __FILE__, __LINE__)
     end subroutine free_set_ids
-    
-	end subroutine write_solution
-  
+
+  end subroutine write_solution
+
   subroutine run_simulation(this) 
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
@@ -574,7 +601,7 @@ end subroutine free_timers
 
     call this%timer_fe_space%start()
     call this%setup_reference_fes()
-	   call this%setup_coarse_fe_handlers()
+    call this%setup_coarse_fe_handlers()
     call this%setup_fe_space()
     call this%timer_fe_space%stop()
 
@@ -583,7 +610,7 @@ end subroutine free_timers
     call this%setup_system()
     call this%assemble_system()
     call this%timer_assemply%stop()
-    
+
     call this%timer_solver_setup%start()
     call this%setup_solver()
     call this%timer_solver_setup%stop()
@@ -591,53 +618,53 @@ end subroutine free_timers
     call this%timer_solver_run%start()
     call this%solve_system()
     call this%timer_solver_run%stop()
-    
+
     call this%write_solution()
     ! call this%check_solution()    
     call this%free()
   end subroutine run_simulation
-  
+
   subroutine free(this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     integer(ip) :: i, istat
-    
+
     call this%solution%free()
     call this%mlbddc%free()  
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
     call this%fe_affine_prec_operator%free()
-	
-	   if ( this%par_environment%am_i_l1_task() ) then 
-	    if (allocated(this%coarse_fe_handlers) ) then 
-	    call this%coarse_fe_handler%free() 
-	    deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
-	    end if 
-	   end if 
-	
+
+    if ( this%par_environment%am_i_l1_task() ) then 
+       if (allocated(this%coarse_fe_handlers) ) then 
+          call this%coarse_fe_handler%free() 
+          deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
+       end if
+    end if
+
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
-      do i=1, size(this%reference_fes)
-        call this%reference_fes(i)%free()
-      end do
-      deallocate(this%reference_fes, stat=istat)
-      check(istat==0)
+       do i=1, size(this%reference_fes)
+          call this%reference_fes(i)%free()
+       end do
+       deallocate(this%reference_fes, stat=istat)
+       check(istat==0)
     end if
-    
+
     if ( allocated(this%resistivity_holder) ) then
-      deallocate(this%resistivity_holder, stat=istat)
-      check(istat==0)
+       deallocate(this%resistivity_holder, stat=istat)
+       check(istat==0)
     end if
-    
+
     if ( allocated(this%permeability_holder) ) then
-      deallocate(this%permeability_holder, stat=istat)
-      check(istat==0)
+       deallocate(this%permeability_holder, stat=istat)
+       check(istat==0)
     end if
-    
+
     call this%triangulation%free()
-    call memfree( this%cells_set_id, __FILE__ ,__LINE__ )
-		
-  end subroutine free  
+    if (allocated(this%cells_set_id) ) call memfree( this%cells_set_id, __FILE__ ,__LINE__ )
+
+  end subroutine free
 
   !========================================================================================
   subroutine free_environment(this)
@@ -652,5 +679,5 @@ end subroutine free_timers
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
     call this%test_params%free()
   end subroutine free_command_line_parameters
-  
+
 end module par_pb_bddc_maxwell_driver_names
