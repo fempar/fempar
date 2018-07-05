@@ -29,7 +29,6 @@ module test_transient_poisson_driver_names
   use fempar_names
   use test_transient_poisson_params_names
   use poisson_cG_discrete_integration_names
-  use mass_discrete_integration_names
   use poisson_conditions_names
   use poisson_analytical_functions_names
   use time_stepping_names
@@ -56,13 +55,11 @@ module test_transient_poisson_driver_names
      type(serial_fe_space_t)                      :: fe_space 
      type(p_reference_fe_t), allocatable          :: reference_fes(:) 
      type(poisson_cG_discrete_integration_t)      :: poisson_cG_integration
-     type(mass_discrete_integration_t)            :: mass_integration
      type(poisson_conditions_t)                   :: poisson_conditions
      type(poisson_analytical_functions_t)         :: poisson_analytical_functions
           
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_nonlinear_operator_t)                :: fe_nl_op
-     type(fe_nonlinear_operator_t)                :: mass_nl_op
      type(nonlinear_solver_t)                     :: nl_solver
      type(time_stepping_operator_t)               :: time_operator
      type(dirk_solver_t)                          :: time_solver
@@ -226,15 +223,8 @@ contains
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%poisson_cG_integration )
     
-    call this%mass_nl_op%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true. ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          fe_space                          = this%fe_space, &
-                                          discrete_integration              = this%mass_integration )
    
     call this%time_operator%create( fe_nl_op                = this%fe_nl_op, &
-                                    mass_op                 = this%mass_nl_op, &
                                     initial_time            = this%test_params%get_initial_time() , &
                                     final_time              = this%test_params%get_final_time() , &
                                     time_step               = this%test_params%get_time_step() , &
@@ -242,17 +232,14 @@ contains
   
     call this%solution%create(this%fe_space)
     call this%poisson_cG_integration%set_fe_function(this%solution) 
-    call this%mass_integration%create_fe_function(this%fe_space) !hide too
     call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
     
     !pmartorell: Needed in release?
     !call this%fe_nl_op%set_evaluation_point(this%solution%get_free_dof_values())
-    !call this%mass_nl_op%set_evaluation_point(this%mass_fe_fun%get_free_dof_values())
     !call this%fe_nl_op%compute_tangent()
-    !call this%mass_nl_op%compute_tangent()
     
     !A => this%fe_nl_op%get_matrix()
-    !M => this%mass_nl_op%get_matrix()
+
     
     
     !luout = io_open ( "A.mtx", 'write')
@@ -264,14 +251,6 @@ contains
     !end select
     !call io_close(luout)
     
-    !luout = io_open ( "M.mtx", 'write')
-    !select type(M)
-    !class is (sparse_matrix_t)  
-    !  call M%print_matrix_market(luout) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    !call io_close(luout)
     
     
   end subroutine setup_system
@@ -618,7 +597,6 @@ contains
     
     call this%time_operator%free()
     call this%fe_nl_op%free()
-    call this%mass_nl_op%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)

@@ -48,33 +48,34 @@ subroutine time_stepping_stage_fe_operator_create (this, &
 end subroutine time_stepping_stage_fe_operator_create
 
 
-subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, fe_nl_op, mass_nl_op )
+subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, fe_nl_op )
   implicit none
   class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
   type(time_stepping_operator_t),  target   , intent(in)    :: ts_op
   class(fe_nonlinear_operator_t),  target   , intent(in)    :: fe_nl_op
-  class(fe_nonlinear_operator_t),  target   , intent(in)    :: mass_nl_op
   class(serial_fe_space_t), pointer :: trial_fe_space
   
   type(vector_space_t), pointer :: fe_nl_op_domain, fe_nl_op_range
   type(vector_space_t), pointer :: mass_nl_op_domain, mass_nl_op_range
  
   call this%free()
-
+  
+  this%fe_nl_op   => fe_nl_op
+  this%ts_op      => ts_op
+  call this%create_mass_operator()
+  
+  !pmartorell: Are those checks needed?
   fe_nl_op_domain   => fe_nl_op%get_domain_vector_space()
-  mass_nl_op_domain => mass_nl_op%get_domain_vector_space()
+  mass_nl_op_domain => this%mass_nl_op%get_domain_vector_space()
   massert (fe_nl_op_domain%equal_to(mass_nl_op_domain), "fe_nl_op%domain_space() MUST MATCH mass_nl_op%domain_space()" )
   
   call fe_nl_op_domain%create_vector(this%aux)
   !call this%aux%allocate()
 
   fe_nl_op_range    => fe_nl_op%get_range_vector_space()
-  mass_nl_op_range  => mass_nl_op%get_range_vector_space()
+  mass_nl_op_range  => this%mass_nl_op%get_range_vector_space()
   massert (fe_nl_op_range%equal_to(mass_nl_op_range), "fe_nl_op%range_space() MUST MATCH mass_nl_op%range_space()" )
-  
-  this%ts_op      => ts_op
-  this%fe_nl_op   => fe_nl_op
-  this%mass_nl_op => mass_nl_op
+
 
   trial_fe_space => this%fe_nl_op%get_trial_fe_space()
   if ( associated(trial_fe_space) ) then
@@ -96,6 +97,22 @@ subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, f
 end subroutine time_stepping_stage_fe_operator_create_from_operators
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_create_mass_operator ( this )
+  implicit none
+  class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
+  
+  call this%mass_integration%create_fe_function(this%fe_nl_op%get_fe_space())
+  
+  call this%mass_nl_op%create ( sparse_matrix_storage_format      = this%fe_nl_op%get_sparse_matrix_storage_format(), &
+                                diagonal_blocks_symmetric_storage = this%fe_nl_op%get_diagonal_blocks_symmetric_storage(), &
+                                diagonal_blocks_symmetric         = this%fe_nl_op%get_diagonal_blocks_symmetric(), &
+                                diagonal_blocks_sign              = this%fe_nl_op%get_diagonal_blocks_sign(), &
+                                fe_space                          = this%fe_nl_op%get_fe_space(), &
+                                discrete_integration              = this%mass_integration )
+  
+end subroutine time_stepping_stage_fe_operator_create_mass_operator
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_free(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this
@@ -103,7 +120,7 @@ subroutine time_stepping_stage_fe_operator_free(this)
   call this%fe_nonlinear_operator_t%free()
   nullify(this%ts_op)
   nullify(this%fe_nl_op)
-  nullify(this%mass_nl_op)
+  call this%mass_nl_op%free()
   if ( allocated(this%aux) ) then
     call this%aux%free()
     deallocate(this%aux, stat=istat); check(istat==0);

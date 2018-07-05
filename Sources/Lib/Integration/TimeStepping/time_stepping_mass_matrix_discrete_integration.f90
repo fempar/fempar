@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module mass_discrete_integration_names
+module time_stepping_mass_discrete_integration_names
   use fempar_names
   
   implicit none
@@ -185,4 +185,4 @@ contains
    call fe_space%interpolate_dirichlet_values(this%fe_function, time=current_time , time_derivative_order = 1)
 end subroutine set_current_time
  
-end module mass_discrete_integration_names
+end module time_stepping_mass_discrete_integration_names

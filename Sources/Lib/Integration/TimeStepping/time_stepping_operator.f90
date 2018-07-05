@@ -59,6 +59,7 @@ module time_stepping_names
   use fe_nonlinear_operator_names
   use nonlinear_solver_names
   
+  use time_stepping_mass_discrete_integration_names
   implicit none
 # include "debug.i90"
 
@@ -102,7 +103,8 @@ module time_stepping_names
      private
      type(time_stepping_operator_t), pointer :: ts_op      => NULL()
      class(fe_nonlinear_operator_t), pointer :: fe_nl_op   => NULL()
-     class(fe_nonlinear_operator_t), pointer :: mass_nl_op => NULL()
+     type(fe_nonlinear_operator_t)           :: mass_nl_op 
+     type(mass_discrete_integration_t)       :: mass_integration
      integer(ip) :: i
      integer(ip) :: j
      ! Scratch data to support the efficient implementation of 
@@ -111,6 +113,7 @@ module time_stepping_names
    contains
      procedure :: create                => time_stepping_stage_fe_operator_create
      procedure :: create_from_operators => time_stepping_stage_fe_operator_create_from_operators
+     procedure :: create_mass_operator  => time_stepping_stage_fe_operator_create_mass_operator
      procedure :: free                  => time_stepping_stage_fe_operator_free
      procedure :: set_row               => time_stepping_stage_fe_operator_set_row     
      procedure :: set_evaluation_point  => time_stepping_stage_fe_operator_set_evaluation_point
