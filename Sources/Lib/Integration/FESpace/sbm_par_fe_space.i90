@@ -226,6 +226,10 @@ subroutine par_fe_space_free( this )
         ! fields is also set on coarse-grid tasks
         this%num_fields = 0
         
+        ! This is a little bit DIRTY, force initialization of variable.
+        this%num_total_free_dofs  = 0
+        this%num_total_free_ghost_dofs = 0
+        
         ! This is a little bit DIRTY. fe_function%create(fe_space)
         ! requires that num_fixed_dofs is initialize
         this%num_fixed_dofs = 0
@@ -436,7 +440,7 @@ subroutine par_fe_space_renum_dofs_first_interior_then_interface( this )
   integer(ip) :: iblock
   integer(ip), allocatable :: perm_old2new_block(:)
   type(environment_t), pointer :: environment
-  integer(ip) :: i 
+  integer(ip) :: i, constraining_free_dof_gid
   environment => this%get_environment()
   if ( environment%am_i_l1_task() ) then
     do iblock=1, this%block_layout%get_num_blocks()
@@ -445,8 +449,11 @@ subroutine par_fe_space_renum_dofs_first_interior_then_interface( this )
       call this%renum_dofs_block(iblock, perm_old2new_block)
       call this%blocks_dof_import(iblock)%renum_dofs(perm_old2new_block)
 
-      do i=1, this%constraining_free_dofs%size() 
-       call this%constraining_free_dofs%set(i, perm_old2new_block(this%constraining_free_dofs%get(i)))
+      do i=1, this%constraining_free_dofs%size()
+       constraining_free_dof_gid = this%constraining_free_dofs%get(i)
+       if ( this%is_free_dof(constraining_free_dof_gid) ) then
+         call this%constraining_free_dofs%set(i, perm_old2new_block(constraining_free_dof_gid))
+       end if
       end do 
 
       call memfree (perm_old2new_block, __FILE__, __LINE__)
@@ -535,7 +542,7 @@ end subroutine par_fe_space_renum_dofs_first_interior_then_interface
        do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof    =  own_dofs_on_vef_iterator%get_current()
            dof_gid = fe_dofs(field_id)%p(idof)
-           if ( dof_gid <= 0 ) then
+           if ( .not. this%is_free_dof(dof_gid) ) then
              call own_dofs_on_vef_iterator%next()
              cycle
            end if
@@ -997,7 +1004,7 @@ function pfs_compute_ubound_num_itfc_couplings_by_continuity_nc_mesh( this, fiel
   call this%create_fe_cell_iterator(coarser_fe)
   result = 0 
   do while(.not. vef%has_finished())
-     if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+     if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
        touched_neighbours = .false.
        do ielem=1, vef%get_num_cells_around()
           reference_fe => fe%get_reference_fe(field_id)
@@ -1331,7 +1338,7 @@ function par_fe_space_compute_boundary_raw_interface_data_by_continuity (  this,
            do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
               idof =  own_dofs_on_vef_iterator%get_current()
               dof_gid = fe_dofs(field_id)%p(idof)
-              if ( dof_gid >= 0 ) then
+              if ( dof_gid == 0 .or. this%is_free_dof(dof_gid) ) then
                  call own_dofs_on_vef_iterator%next()
                  cycle
               end if
@@ -1508,7 +1515,7 @@ subroutine pfs_compute_max_part_id_my_part_id_and_dofs_ggids_field ( this, field
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   do while(.not. vef%has_finished())
-    if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+    if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
       touched_neighbours = .false.
       all_ghosts = .true.
       free_dofs = .false. 
@@ -1933,7 +1940,7 @@ function par_fe_space_compute_raw_interface_data_by_continuity (  this, &
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof =  own_dofs_on_vef_iterator%get_current()
            dof_gid = fe_dofs(field_id)%p(idof)
-           if ( dof_gid <= 0 ) then
+           if ( .not. this%is_free_dof(dof_gid) ) then
              call own_dofs_on_vef_iterator%next()
              cycle
            end if
@@ -2120,7 +2127,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
             idof =  own_dofs_on_vef_iterator%get_current()
             dof_gid = fe_dofs(idof)
-            if ( dof_gid == 0 .or. this%is_fixed_dof(dof_gid) ) then
+            if ( .not. this%is_free_dof(dof_gid) ) then
                call own_dofs_on_vef_iterator%next()
                cycle
             end if
@@ -2172,7 +2179,7 @@ function pfs_compute_raw_itfc_data_by_continuity_nc_mesh_rev (  this, &
             do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
               idof =  own_dofs_on_vef_iterator%get_current()
               dof_gid = fe_dofs(idof)
-              if ( dof_gid == 0 .or. this%is_fixed_dof(dof_gid) ) then
+              if ( .not. this%is_free_dof(dof_gid) ) then
                  call own_dofs_on_vef_iterator%next()
                  cycle
               end if
@@ -2461,7 +2468,7 @@ function pfs_compute_raw_itfc_data_by_continuity_non_conforming_mesh (  this, &
     num_vefs = 0
   end if  
   do while(.not. vef%has_finished())
-     if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+     if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
         touched_neighbours = .false.
         num_parts_nearest_neighbour = 0
         num_parts_neighbours_nearest_neighbours = 0
@@ -3129,7 +3136,7 @@ subroutine pfs_compute_max_part_id_and_dofs_ggids_field(this, field_id)
   ! Traverse vefs on the interface
   call this%create_itfc_fe_vef_iterator(vef)
   do while(.not. vef%has_finished())
-    if ( vef%has_free_dofs(field_id,coarser_fe) ) then
+    if ( vef%all_coarser_cells_are_void(field_id,coarser_fe) ) then
       no_local_cell_around_free_dof = .true.
       free_dofs = .false. 
       max_part_id = mypart_id 
@@ -4618,6 +4625,8 @@ subroutine par_fe_space_update_after_refine_coarsen(this, old_ptr_dofs_x_fe, old
      call this%allocate_and_init_at_strong_dirichlet_bound()
      call this%allocate_and_init_has_fixed_dofs()
      call this%allocate_and_init_has_hanging_dofs_x_fe()
+     call this%fill_same_reference_fe_or_void_x_field()
+     call this%allocate_and_fill_gen_dof_num_scratch_data()
      call this%set_up_strong_dirichlet_bcs()
 
      ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
@@ -4865,9 +4874,11 @@ subroutine par_fe_space_update_after_redistribute(this, old_ptr_dofs_x_fe, old_l
      call this%allocate_and_init_at_strong_dirichlet_bound()
      call this%allocate_and_init_has_fixed_dofs()
      call this%allocate_and_init_has_hanging_dofs_x_fe()
+     call this%fill_same_reference_fe_or_void_x_field()
+     call this%allocate_and_fill_gen_dof_num_scratch_data()
      call this%set_up_strong_dirichlet_bcs()
 
-     ! Force that a new DoF numbering is generated for the refined/coarsened triangulation
+     ! Force that a new DoF numbering is generated for the redistributed triangulation
      call this%generate_global_dof_numbering()
   end if
 #else  
@@ -5574,3 +5585,101 @@ end subroutine par_fe_space_redistribute_fe_function_array
     type(fe_object_iterator_t), intent(inout) :: fe_object
     call fe_object%free()
  end subroutine par_fe_space_free_fe_object_iterator
+
+ subroutine par_fe_space_update_hanging_dof_values  (this, fe_function )
+  implicit none
+  class(par_fe_space_t)   , intent(in) :: this
+  class(fe_function_t)    , intent(inout) :: fe_function
+  class(triangulation_t)   , pointer     :: triangulation
+  type(environment_t)      , pointer     :: environment
+  triangulation => this%get_triangulation()
+  environment => triangulation%get_environment()
+  if ( environment%am_i_l1_task() ) then
+    call this%serial_fe_space_t%update_hanging_dof_values(fe_function)
+  end if
+end subroutine par_fe_space_update_hanging_dof_values 
+ 
+ subroutine par_fe_space_update_ghost_dof_values (this, fe_function )
+  implicit none
+  class(par_fe_space_t), intent(in)    :: this
+  class(fe_function_t) , intent(inout) :: fe_function
+  
+  class(triangulation_t)   , pointer     :: triangulation
+  type(environment_t)      , pointer     :: environment
+  class(cell_import_t)     , pointer     :: cell_import
+  real(rp)                 , allocatable :: fe_function_nodal_values(:)
+  class(fe_cell_iterator_t), allocatable :: fe
+  integer(ip)                            :: field_id
+  integer(ip)                            :: spos, epos
+  
+  triangulation => this%get_triangulation()
+  environment => triangulation%get_environment()
+  
+  if ( environment%am_i_l1_task() ) then
+    if ( triangulation%get_num_cells() > 0 ) then
+      
+      call memalloc ( this%ptr_dofs_x_fe(1)%get(triangulation%get_num_cells()+1)-1, & 
+                      fe_function_nodal_values,__FILE__, __LINE__ ) 
+      call this%create_fe_cell_iterator(fe)
+      
+      ! Gather local nodal values
+      do while ( .not. fe%has_finished() )
+        if ( fe%is_local() ) then
+          do field_id = 1, this%get_num_fields()
+            call get_lst_dofs_spos_epos(spos,epos)
+            call fe_function%gather_nodal_values( fe, field_id, &
+                                                  fe_function_nodal_values(spos:epos))
+          end do
+        end if
+        call fe%next()
+      end do
+      
+      
+      ! Comm local to ghost
+      cell_import => triangulation%get_cell_import()
+      call environment%l1_neighbours_exchange ( cell_import%get_num_neighbours(),    &
+                                                cell_import%get_neighbours_ids(),    &
+                                                cell_import%get_rcv_ptrs(),          &
+                                                cell_import%get_rcv_leids(),         &
+                                                cell_import%get_num_neighbours(),    &
+                                                cell_import%get_neighbours_ids(),    &
+                                                cell_import%get_snd_ptrs(),          &
+                                                cell_import%get_snd_leids(),         &
+                                                fe_function_nodal_values,            &
+                                                fe_function_nodal_values,            &
+                                                this%ptr_dofs_x_fe(1)%get_pointer(), &
+                                                this%ptr_dofs_x_fe(1)%get_pointer() )
+      
+      ! Insert ghost dof values
+      call fe%set_gid(triangulation%get_num_local_cells()+1)
+      do while ( .not. fe%has_finished() )
+        if ( fe%is_ghost() ) then
+          do field_id = 1, this%get_num_fields()
+            call get_lst_dofs_spos_epos(spos,epos)
+            call fe_function%insert_nodal_values( fe, field_id, &
+                                                  fe_function_nodal_values(spos:epos))
+          end do
+        end if
+        call fe%next()
+      end do
+      
+      call this%free_fe_cell_iterator(fe)
+      call memfree ( fe_function_nodal_values,__FILE__, __LINE__ ) 
+      
+    end if
+  end if
+  
+  contains
+   
+   subroutine get_lst_dofs_spos_epos(spos,epos)
+     implicit none
+     integer(ip), intent(inout) :: spos, epos
+     spos = this%ptr_dofs_x_fe(field_id)%get(fe%get_gid())
+     if ( field_id == this%get_num_fields() ) then
+       epos = this%ptr_dofs_x_fe(1)%get(fe%get_gid()+1)-1
+     else
+       epos = this%ptr_dofs_x_fe(field_id+1)%get(fe%get_gid())-1
+     end if
+   end subroutine get_lst_dofs_spos_epos
+   
+end subroutine par_fe_space_update_ghost_dof_values 

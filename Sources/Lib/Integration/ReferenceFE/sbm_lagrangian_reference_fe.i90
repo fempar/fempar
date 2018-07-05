@@ -396,7 +396,7 @@ subroutine lagrangian_reference_fe_get_gradient_scalar( this, actual_cell_interp
   assert( this%field_type == field_type_scalar )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
-  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradient scalar requires cell interpolation to compute derivaties ')
+  massert(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradient scalar requires cell interpolation to compute derivaties ')
   call vector_field%init(0.0_rp)
   do idime=1,this%num_dims
      call vector_field%set(idime,actual_cell_interpolation%shape_derivatives(1,idime,ishape,qpoint))
@@ -416,7 +416,7 @@ subroutine lagrangian_reference_fe_get_gradient_vector( this, actual_cell_interp
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
-  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradient vector requires cell interpolation to compute derivaties ')
+  massert(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradient vector requires cell interpolation to compute derivaties ')
   call tensor_field%init(0.0_rp)
   do idime=1,this%num_dims
      call tensor_field%set(idime,this%node_component_array(ishape,2), &
@@ -435,7 +435,7 @@ subroutine lagrangian_reference_fe_get_gradients_scalar( this, actual_cell_inter
   integer(ip) :: idime, ishape, qpoint, istat, actual_qpoint
   logical     :: reallocate
   assert( this%field_type == field_type_scalar )
-  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradients scalar requires cell interpolation to compute derivaties ')
+  massert(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradients scalar requires cell interpolation to compute derivaties ')
 
   reallocate = .false.
   if (allocated(gradients)) reallocate = (size(gradients,1) < this%num_shape_functions) .or. &
@@ -450,24 +450,17 @@ subroutine lagrangian_reference_fe_get_gradients_scalar( this, actual_cell_inter
      allocate(gradients(this%num_shape_functions, &
                         actual_cell_interpolation%num_quadrature_points), stat=istat); check(istat==0);      
   else
-     do qpoint=1, actual_cell_interpolation%num_quadrature_points
-        do ishape=1, this%num_shape_functions
-           call gradients(ishape,qpoint)%init(0.0_rp)
-        end do
-     end do
+     call init_vector_field_2D_array (this%num_shape_functions, &
+                                      actual_cell_interpolation%num_quadrature_points, &
+                                      0.0_rp, gradients )
   end if
-  do qpoint=1, actual_cell_interpolation%num_quadrature_points
-     if (present(qpoints_perm)) then
-       actual_qpoint = qpoints_perm(qpoint)
-     else
-       actual_qpoint = qpoint
-     end if
-     do ishape=1, this%num_shape_functions
-        do idime=1,this%num_dims
-           call gradients(ishape,qpoint)%set(idime,actual_cell_interpolation%shape_derivatives(1,idime,ishape,actual_qpoint))
-        end do
-     end do
-  end do
+  if ( present(qpoints_perm) )  then
+    call fill_vector_field_2D_array_with_4D_plain_array_perm( actual_cell_interpolation%shape_derivatives, &
+                                                              qpoints_perm, gradients )
+  else
+    call fill_vector_field_2D_array_with_4D_plain_array ( actual_cell_interpolation%shape_derivatives, & 
+                                                          gradients )
+  end if 
 end subroutine lagrangian_reference_fe_get_gradients_scalar
 
 !==================================================================================================
@@ -480,7 +473,7 @@ subroutine lagrangian_reference_fe_get_gradients_vector( this, actual_cell_inter
   integer(ip) :: idime, ishape, qpoint, istat, actual_qpoint
   logical     :: reallocate
   assert( this%field_type == field_type_vector )
-  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradients vector requires cell interpolation to compute derivaties ')
+  massert(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get gradients vector requires cell interpolation to compute derivaties ')
 
   reallocate = .false.
   if (allocated(gradients)) reallocate = (size(gradients,1) < this%num_shape_functions) .or. &
@@ -529,7 +522,7 @@ subroutine lagrangian_reference_fe_get_divergence_vector( this, actual_cell_inte
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
-  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get divergence vector requires cell interpolation to compute derivaties ')
+  massert(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get divergence vector requires cell interpolation to compute derivaties ')
 
   scalar_field = actual_cell_interpolation%shape_derivatives(1,this%node_component_array(ishape,2), &
        & this%node_component_array(ishape,1), &
@@ -547,7 +540,7 @@ subroutine lagrangian_reference_fe_get_divergences_vector( this, actual_cell_int
   integer(ip) :: ishape, qpoint, actual_qpoint
   logical     :: reallocate
   assert( this%field_type == field_type_vector )
-  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get divergences vector requires cell interpolation to compute derivaties ')
+  massert(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get divergences vector requires cell interpolation to compute derivaties ')
 
   reallocate = .false.
   if (allocated(divergences)) reallocate = (size(divergences,1) < this%num_shape_functions) .or. &
@@ -587,7 +580,7 @@ subroutine lagrangian_reference_fe_get_curl_vector( this, actual_cell_interpolat
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )  
-  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get curl vector requires cell interpolation to compute derivaties ')
+  massert(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get curl vector requires cell interpolation to compute derivaties ')
 
  ishape_scalar = this%node_component_array(ishape,1) 
  icomp         = this%node_component_array(ishape,2)
@@ -625,7 +618,7 @@ subroutine lagrangian_reference_fe_get_curls_vector(this, actual_cell_interpolat
   logical     :: reallocate
   integer(ip)   :: icomp, ishape_scalar 
   assert( this%field_type == field_type_vector )
-  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get curls vector requires cell interpolation to compute derivaties ')
+  massert(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'Lagrangian reference FE get curls vector requires cell interpolation to compute derivaties ')
 
   reallocate = .false.
   if (allocated(curls)) reallocate = (size(curls,1) < this%num_shape_functions) .or. &
@@ -690,7 +683,7 @@ subroutine lagrangian_reference_fe_get_laplacian_scalar( this, actual_cell_inter
   assert( this%field_type == field_type_scalar )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
-  mcheck(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
+  massert(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
   scalar_field = sum(actual_cell_interpolation%hessian(1,1:this%num_dims,ishape,qpoint))
 end subroutine lagrangian_reference_fe_get_laplacian_scalar
 
@@ -707,7 +700,7 @@ subroutine lagrangian_reference_fe_get_laplacian_vector( this, actual_cell_inter
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
-  mcheck(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
+  massert(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
   call vector_field%init(0.0_rp)
   call vector_field%set(this%node_component_array(ishape,2), &
        & sum(actual_cell_interpolation%hessian(1,1:this%num_dims,this%node_component_array(ishape,1),qpoint)))
@@ -996,13 +989,11 @@ subroutine lagrangian_reference_fe_evaluate_laplacian_fe_function_scalar( this, 
   type(interpolation_t)           , intent(in)    :: actual_cell_interpolation 
   real(rp)                        , intent(in)    :: nodal_values(:)
   real(rp), allocatable           , intent(inout) :: quadrature_points_values(:)
-  character(:), allocatable :: msg
+  character(*), parameter :: msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
   integer(ip)               :: qpoint, ishape
   real(rp)                  :: shape_laplacian
 
-  msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
-  mcheck(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
-
+  massert(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
   if ( allocated(quadrature_points_values) ) then
       if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
          call memrealloc (actual_cell_interpolation%num_quadrature_points, & 
@@ -1034,13 +1025,11 @@ subroutine lagrangian_reference_fe_evaluate_laplacian_fe_function_vector( this, 
   type(interpolation_t)            , intent(in)    :: actual_cell_interpolation 
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  character(:), allocatable :: msg
+  character(*), parameter   :: msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
   integer(ip)               :: qpoint, inode, istat
   type(vector_field_t)      :: shape_laplacian
 
-  msg = 'Lagrangian reference FE get laplacian vector requires cell interpolation to compute the hessian'
-  mcheck(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
-
+  massert(actual_cell_interpolation%my_duties%compute_second_derivatives_is_assigned(),msg)
   if ( allocated(quadrature_points_values) ) then
     if ( size(quadrature_points_values) < actual_cell_interpolation%num_quadrature_points ) then
       deallocate(quadrature_points_values, stat=istat); check(istat==0);
@@ -1283,8 +1272,8 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
        phy%shape_derivatives=0.0_rp
        do ilocs=1,phy%num_quadrature_points
         do inode=1,size(phy%shape_functions,2)
-           do idime=1,ndime
-              do jdime=1,ndime
+           do idime=1,SPACE_DIM
+              do jdime=1,SPACE_DIM
                  phy%shape_derivatives(1,idime,inode,ilocs) = phy%shape_derivatives(1,idime,inode,ilocs) &
                       + map%inv_jacobian(jdime,idime,ilocs)*ref%shape_derivatives(1,jdime,inode,ilocs)
               end do
@@ -1317,12 +1306,11 @@ subroutine lagrangian_reference_fe_apply_cell_map_to_interpolation(this, &
               do itens = 1, ntens
                  wvec1(itens) = ref%hessian(1,itens,inode,ilocs)
               end do
-              call vetoma(wvec1,wmat1(1,1,inode),ndime,ntens)
+              call vetoma(ndime,ntens,wvec1,wmat1(1,1,inode))
            end do
            ! Computes (d^2 N / d s_k d s_l) (d s_k/ d x_i)(d s_l/ d x_j) for each node
            do inode=1,nnode
-              call btdbma(wmat2(1,1,inode),wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs), &
-                   &        ndime,ndime)
+              call btdbma(ndime,SPACE_DIM,ndime,ndime,ndime,wmat1(1,1,inode),map%inv_jacobian(:,:,ilocs),wmat2(1,1,inode))
            end do
            if(map%my_duties%compute_jacobian_derivative_is_assigned()) then
               ! Add second cartesian derivatives of the map times 
@@ -1471,6 +1459,7 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
   type(facet_iterator_t) :: facet_iterator
   type(list_iterator_t) :: list_iterator
   integer(ip) :: topology, i, n_face_dim, node, children,num_n_faces, ones_dim(SPACE_DIM)
+  logical, allocatable :: visited(:)
   ! Change topology definition to these numbers from the very beginning (not parameter, dim independent)
   if ( this%topology == topology_hex) then
      topology = 2**this%num_dims-1
@@ -1580,6 +1569,22 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         call list_iterator%next()
      end do
   end do
+  
+  call memalloc ( num_n_faces, visited, __FILE__, __LINE__ )
+  call this%n_faces_n_face%create(num_n_faces)
+  do i = 1,num_n_faces
+    visited(:) = .false.
+    call this%n_faces_n_face%sum_to_pointer_index(i,count_n_faces_in_n_face(i,visited))
+  end do
+  call this%n_faces_n_face%calculate_header()
+  call this%n_faces_n_face%allocate_list_from_pointer()
+  do i = 1,num_n_faces
+    visited(:) = .false.
+    list_iterator = this%n_faces_n_face%create_iterator(i)
+    call list_n_faces_in_n_face(i,list_iterator,visited)
+  end do
+  call memfree ( visited, __FILE__, __LINE__ )
+  
   ! orientation
   call this%orientation%create(num_n_faces)
   do i = 1,num_n_faces
@@ -1602,6 +1607,48 @@ subroutine lagrangian_reference_fe_fill_scalar (this)
         i = i + 1 
      enddo
   end if
+  
+contains
+  recursive function count_n_faces_in_n_face(i, visited) result (num_n_faces)
+    implicit none
+    integer(ip), intent(in)    :: i
+    logical    , intent(inout) :: visited(:)
+    integer(ip) :: num_n_faces
+    integer(ip) :: n_face_id
+    type(list_iterator_t) :: facets_n_face_iter
+    num_n_faces = 0
+    facets_n_face_iter = this%facets_n_face%create_iterator(i)
+    do while ( .not. facets_n_face_iter%is_upper_bound() )
+      n_face_id = facets_n_face_iter%get_current()
+      if ( .not. visited(n_face_id) ) then
+        num_n_faces = num_n_faces + 1 
+        visited(n_face_id) = .true.
+        num_n_faces =  num_n_faces + count_n_faces_in_n_face(n_face_id,visited)
+      end if
+      call facets_n_face_iter%next()
+    end do
+  end function count_n_faces_in_n_face
+  
+  recursive subroutine list_n_faces_in_n_face(i,n_faces_n_face_iterator,visited)
+    implicit none
+    integer(ip)          , intent(in)    :: i
+    type(list_iterator_t), intent(inout) :: n_faces_n_face_iterator
+    logical              , intent(inout) :: visited(:)
+    type(list_iterator_t) :: facets_n_face_iter
+    integer(ip) :: n_face_id
+    facets_n_face_iter = this%facets_n_face%create_iterator(i)
+    do while ( .not. facets_n_face_iter%is_upper_bound() )
+      n_face_id = facets_n_face_iter%get_current()
+      if ( .not. visited(n_face_id) ) then
+        call n_faces_n_face_iterator%set_current(n_face_id)
+        call n_faces_n_face_iterator%next()
+        visited(n_face_id) = .true.
+        call list_n_faces_in_n_face(n_face_id,n_faces_n_face_iterator,visited)
+      end if
+      call facets_n_face_iter%next()
+    end do
+  end subroutine list_n_faces_in_n_face
+  
 end subroutine lagrangian_reference_fe_fill_scalar
 
 !=================================================================================================

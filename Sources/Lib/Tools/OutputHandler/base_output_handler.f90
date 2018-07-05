@@ -164,6 +164,7 @@ private
         procedure, non_overridable, public :: add_fe_function               => base_output_handler_add_fe_function
         procedure, non_overridable, public :: add_field_generator           => base_output_handler_add_field_generator
         procedure, non_overridable, public :: add_cell_vector               => base_output_handler_add_cell_vector
+        procedure, non_overridable, public :: update_cell_vector            => base_output_handler_update_cell_vector
         procedure, non_overridable, public :: fill_data                     => base_output_handler_fill_data
         procedure, non_overridable, public :: fill_patch                    => base_output_handler_fill_patch
         procedure, non_overridable, public :: open                          => base_output_handler_open
@@ -572,12 +573,13 @@ contains
 
     subroutine base_output_handler_add_cell_vector(this, cell_vector, name)
     !-----------------------------------------------------------------
-    !< Add a **cell_vector**. 
-    !< The attached [[serial_fe_space_t(type)]] must agree with
-    !< all **cell_vector** added.
+    !< Adds a new **cell_vector** entry to base_output_handler_t identified 
+    !< by **name**. The user is responsible for ensuring compatibility 
+    !< between the [[serial_fe_space_t(type)]] attached and the newly
+    !< added **cell_vector**.
     !-----------------------------------------------------------------
         class(base_output_handler_t),       intent(inout) :: this
-        real(rp), allocatable,              intent(in)    :: cell_vector(:)
+        real(rp)                    ,       intent(in)    :: cell_vector(:)
         character(len=*),                   intent(in)    :: name
     !-----------------------------------------------------------------
         assert(this%state == BASE_OUTPUT_HANDLER_STATE_INIT)
@@ -585,8 +587,35 @@ contains
         this%num_cell_vectors = this%num_cell_vectors + 1
         call this%cell_vectors(this%num_cell_vectors)%set(cell_vector, name)
     end subroutine base_output_handler_add_cell_Vector
-
-
+    
+    subroutine base_output_handler_update_cell_vector(this, cell_vector, name)
+    !-----------------------------------------------------------------
+    !< Update the pointer to which an existing cell_vector entry already
+    !< registered in output_handler_t is pointing to s.t. it points to
+    !< **cell_vector**. The provided **name** is used to locate the cell_vector
+    !< within output_handler_t. If **name** is not found, a warning message is issued. 
+    !< The user is responsible for ensuring compatibility between the [[serial_fe_space_t(type)]] 
+    !< attached and the updated **cell_vector**.
+    !-----------------------------------------------------------------
+        class(base_output_handler_t),       intent(inout) :: this
+        real(rp)                    ,       intent(in)    :: cell_vector(:)
+        character(len=*),                   intent(in)    :: name
+    !-----------------------------------------------------------------
+        integer(ip) :: i
+        logical :: found
+        found = .false. 
+        do i=1, this%num_cell_vectors
+           if ( this%cell_vectors(i)%get_name() == name ) then
+             found = .true. 
+             exit
+           end if
+        end do
+        wassert( found, "base_output_handler_update_cell_vector :: name not found, cell_vector cannot be updated")
+        if ( found ) then
+          call this%cell_vectors(i)%set_cell_vector(cell_vector)
+        end if
+    end subroutine base_output_handler_update_cell_vector
+    
     subroutine base_output_handler_open(this, dir_path, prefix, parameter_list)
     !-----------------------------------------------------------------
     !< Open procedure. 

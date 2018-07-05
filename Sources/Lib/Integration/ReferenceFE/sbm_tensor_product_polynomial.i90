@@ -107,6 +107,11 @@ subroutine tensor_product_polynomial_space_evaluate_gradients( this, q_point, gr
   integer(ip)                             , intent(in)    :: q_point
   real(rp)                                , intent(inout) :: gradients(:,:)
   integer(ip) :: ijk(SPACE_DIM),idime,ishape,jdime
+  ! In case of 2D domains (num_dims=2) when SPACE_DIM is used, it is necessary to initialize the
+  ! gradients array to zero in order to guarantee that the third component is initialized to zero.
+  ! The use of SPACE_DIM instead num_dims is based on the fact that this variable is known in
+  ! compilation time, allowing the compiler to perform additional optimizations.
+  gradients = 0.0_rp
   do ishape = 1, this%num_polynomials
      call index_to_ijk( ishape, this%num_dims, this%num_pols_dim, ijk )
      do idime = 1, this%num_dims

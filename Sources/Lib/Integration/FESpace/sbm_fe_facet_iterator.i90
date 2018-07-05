@@ -251,7 +251,6 @@ subroutine fe_facet_iterator_assembly_array ( this,    &
   do ineigh = 1, this%get_num_cells_around()
     call assembler%assembly_array( this%fe_space%num_fields,                    &
                                                 this%fe_space%get_field_blocks(),               &
-                                                this%fe_space%get_field_coupling(),             &
                                                 this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
                                                 this%fes_around(ineigh)%p%fe_dofs,               &
                                                 facevec(:,ineigh) )
@@ -319,7 +318,6 @@ subroutine fe_facet_iterator_assembly_matrix_array ( this,    &
     end do
     call assembler%assembly_array( this%fe_space%num_fields,                    &
                                                   this%fe_space%get_field_blocks(),               &
-                                                  this%fe_space%get_field_coupling(),             &
                                                   this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
                                                   this%fes_around(ineigh)%p%fe_dofs,               &
                                                   facevec(:,ineigh) )
@@ -362,7 +360,6 @@ subroutine fe_facet_iterator_assembly_matrix_array_with_strong_bcs (&
     end do
     call assembler%assembly_array( this%fe_space%num_fields,                    &
                                                   this%fe_space%get_field_blocks(),               &
-                                                  this%fe_space%get_field_coupling(),             &
                                                   this%fes_around(ineigh)%p%num_cell_dofs_x_field,  &
                                                   this%fes_around(ineigh)%p%fe_dofs,               &
                                                   facevec(:,ineigh) )

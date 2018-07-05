@@ -400,7 +400,7 @@ end subroutine free_timers
     call this%poisson_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
     call this%poisson_analytical_functions%set_solution_polynomial_order(this%test_params%get_reference_fe_order())
     call this%poisson_conditions%set_boundary_function(this%poisson_analytical_functions%get_boundary_function())
-
+ 
     if (this%test_params%get_use_void_fes()) then
       set_ids_to_reference_fes(1,PAR_TEST_POISSON_FULL) = PAR_TEST_POISSON_FULL
       set_ids_to_reference_fes(1,PAR_TEST_POISSON_VOID) = PAR_TEST_POISSON_VOID
@@ -827,6 +827,8 @@ end subroutine free_timers
              cy = 0.0_rp 
              cz = 0.0_rp 
              select case ( this%test_params%get_refinement_pattern_case() ) 
+             case ( uniform )
+                call cell%set_for_refinement()
              case ( even_cells ) 
                 if ( (mod(cell%get_gid(),2)==0) )then
                    call cell%set_for_refinement()

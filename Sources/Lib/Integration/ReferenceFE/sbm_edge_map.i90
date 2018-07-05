@@ -48,15 +48,15 @@ subroutine edge_map_create(this, quadrature, reference_fe_geo)
   call reference_fe_geo%create_edget_interpolation &
        &                ( quadrature, this%interpolation)
 
-  call memalloc(this%num_dims, &
-                num_edge_dims, &
+  call memalloc(SPACE_DIM, &
+                SPACE_DIM, &
                 this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
 
   call memalloc(this%num_quadrature_points, &
                 this%det_jacobian,__FILE__,__LINE__)
 
-  call memalloc(this%num_dims, &
+  call memalloc(SPACE_DIM, &
                 this%num_quadrature_points, &
                 this%tangents,__FILE__,__LINE__)
 
@@ -92,18 +92,9 @@ subroutine edge_map_update(this,local_edge_id,reference_fe,quadrature)
   this%jacobian           = 0.0_rp
   this%measure            = 0.0_rp 
   do evaluation_point_id = 1, quadrature%num_quadrature_points
-     ! Updating the Jacobian Matrix
-     do jdime=1, num_edge_dims
-        aux_vector = 0.0_rp
-        do node_id = 1, this%interpolation%num_shape_functions
-           aux_vector = aux_vector + this%nodes_coordinates(node_id) * &
-                & this%interpolation%shape_derivatives(1,jdime,node_id,evaluation_point_id)
-        end do
-        do idime=1,num_cell_dims
-           this%jacobian(idime,jdime,evaluation_point_id) = aux_vector%get(idime)
-        end do
 
-     end do
+     ! Compute jacobian matrix
+     call this%compute_jacobian()
 
      this%tangents (:, evaluation_point_id) = this%jacobian(:, 1, evaluation_point_id)
      

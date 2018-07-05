@@ -83,15 +83,16 @@ module reference_fe_names
           coordinates(:,:),   &   
           weight(:)                         
    contains
-     procedure, non_overridable :: create => quadrature_create
-     procedure, non_overridable :: free   => quadrature_free
-     procedure, non_overridable :: print  => quadrature_print
-     procedure, non_overridable :: get_num_dims => quadrature_get_num_dims
-     procedure, non_overridable :: get_num_quadrature_points => quadrature_get_num_quadrature_points
-     procedure, non_overridable :: get_coordinates => quadrature_get_coordinates
-     procedure, non_overridable :: get_coordinates_as_points => quadrature_get_coordinates_as_points
-     procedure, non_overridable :: get_weight => quadrature_get_weight
-     procedure, non_overridable :: get_weights => quadrature_get_weights
+     procedure, non_overridable :: create                         => quadrature_create
+     procedure, non_overridable :: free                           => quadrature_free
+     procedure, non_overridable :: print                          => quadrature_print
+     procedure, non_overridable :: get_num_dims                   => quadrature_get_num_dims
+     procedure, non_overridable :: get_num_quadrature_points      => quadrature_get_num_quadrature_points
+     procedure, non_overridable :: get_coordinates                => quadrature_get_coordinates
+     procedure, non_overridable :: get_coordinates_as_points      => quadrature_get_coordinates_as_points
+     procedure, non_overridable :: get_weight                     => quadrature_get_weight
+     procedure, non_overridable :: get_weights                    => quadrature_get_weights
+     procedure, non_overridable :: get_pointer_weights            => quadrature_get_pointer_weights
 
      procedure, non_overridable          :: fill_tet_gauss_legendre            => quadrature_fill_tet_gauss_legendre
      procedure, non_overridable, private :: fill_tet_gauss_legendre_hard_coded => quadrature_fill_tet_gauss_legendre_symmetric_hard_coded
@@ -148,16 +149,16 @@ module reference_fe_names
     integer(ip)                 :: num_nodes
     integer(ip)                 :: num_quadrature_points
     
-    ! Map's Jacobian (num_dims,num_dims,num_quadrature_points)
+    ! Map's Jacobian (SPACE_DIM,SPACE_DIM,num_quadrature_points)
     real(rp), allocatable       :: jacobian(:,:,:)
 
     ! Map's Jacobian det (num_quadrature_points)  
     real(rp), allocatable       :: det_jacobian(:) 
 
-    ! Coordinates of git points (num_dims,num_quadrature_points)       
+    ! Coordinates of git points (SPACE_DIM,num_quadrature_points)
     type(point_t), allocatable  :: quadrature_points_coordinates(:)  
     
-    ! Coordinates of evaluation points (num_dims,num_corners of element/face)  
+    ! Coordinates of evaluation points (SPACE_DIM,num_corners of element/face)
     type(point_t), allocatable  :: nodes_coordinates(:) 
     
     ! Geometry interpolation_t in the reference element domain    
@@ -169,17 +170,19 @@ module reference_fe_names
     ! Measure of the map of the real element 
     real(rp)                    :: measure 
   contains
-    procedure                  :: free                              => base_map_free
-    procedure, non_overridable :: copy                              => base_map_copy
-    procedure                  :: update_interpolation              => base_map_update_interpolation
-    procedure, non_overridable :: get_coordinates                   => base_map_get_coordinates
-    procedure, non_overridable :: get_quadrature_points_coordinates => base_map_get_quadrature_points_coordinates
-    procedure, non_overridable :: compute_quadrature_points_coordinates    => base_map_compute_quadrature_points_coordinates
-    procedure, non_overridable :: get_det_jacobian                  => base_map_get_det_jacobian
-    procedure, non_overridable :: get_det_jacobians                 => base_map_get_det_jacobians
-    procedure, non_overridable :: get_jacobian_column               => base_map_get_jacobian_column
-    procedure, non_overridable :: get_reference_h                   => base_map_get_reference_h
-    procedure, non_overridable :: get_measure                       => base_map_get_measure 
+    procedure                  :: free                                  => base_map_free
+    procedure, non_overridable :: copy                                  => base_map_copy
+    procedure                  :: update_interpolation                  => base_map_update_interpolation
+    procedure, non_overridable :: get_coordinates                       => base_map_get_coordinates
+    procedure, non_overridable :: get_quadrature_points_coordinates     => base_map_get_quadrature_points_coordinates
+    procedure, non_overridable :: compute_quadrature_points_coordinates => base_map_compute_quadrature_points_coordinates
+    procedure, non_overridable :: compute_jacobian                      => base_map_compute_jacobian
+    procedure, non_overridable :: get_det_jacobian                      => base_map_get_det_jacobian
+    procedure, non_overridable :: get_det_jacobians                     => base_map_get_det_jacobians
+    procedure, non_overridable :: get_pointer_det_jacobians             => base_map_get_pointer_det_jacobians
+    procedure, non_overridable :: get_jacobian_column                   => base_map_get_jacobian_column
+    procedure, non_overridable :: get_reference_h                       => base_map_get_reference_h
+    procedure, non_overridable :: get_measure                           => base_map_get_measure 
   end type base_map_t
 
 #define duties cell_map_duties
@@ -199,7 +202,7 @@ module reference_fe_names
   type, extends(base_map_t) ::  cell_map_t
      private
      type(cell_map_duties_t)  :: my_duties
-     ! Map's Jacobian inverse (num_dims,num_dims,num_quadrature_points)       
+     ! Map's Jacobian inverse (SPACE_DIM,SPACE_DIM,num_quadrature_points)
      real(rp), allocatable    :: inv_jacobian(:,:,:)     
  
      ! Map's 2nd derivatives (num_dime,num_dime,num_dime,num_quadrature_points)         
@@ -455,7 +458,8 @@ module reference_fe_names
      type(node_array_t)            :: vertex_array
      type(allocatable_array_ip1_t)  :: orientation      ! orientation of the n-faces 
      type(list_t)                   :: vertices_n_face  ! vertices per n-face
-     type(list_t)                   :: facets_n_face   ! all facets per n-face
+     type(list_t)                   :: facets_n_face    ! all facets per n-face
+     type(list_t)                   :: n_faces_n_face   ! all n-faces per n-face
      type(list_t)                   :: dofs_n_face      ! all DoFs per n-face
      type(list_t)                   :: own_dofs_n_face  ! owned DoFs per n-face
 
@@ -605,10 +609,12 @@ module reference_fe_names
      procedure :: get_num_shape_functions => reference_fe_get_num_shape_functions
      procedure :: get_n_face_dim  => reference_fe_get_n_face_dim
      procedure :: get_vertices_n_face  =>   reference_fe_get_vertices_n_face
-
+     procedure :: get_n_faces_n_face  => reference_fe_get_n_faces_n_face
      procedure :: create_vertices_n_face_iterator => reference_fe_create_vertices_n_face_iterator
+     procedure :: create_n_faces_n_face_iterator  => reference_fe_create_n_faces_n_face_iterator
      procedure :: create_dofs_n_face_iterator => reference_fe_create_dofs_n_face_iterator
-     procedure :: get_dofs_n_face   =>   reference_fe_get_dofs_n_face
+     procedure :: get_dofs_n_face => reference_fe_get_dofs_n_face
+     procedure :: get_own_dofs_n_face =>  reference_fe_get_own_dofs_n_face
                     
      procedure :: get_facets_n_face   =>   reference_fe_get_facets_n_face
      procedure :: get_num_vertices_n_face => reference_fe_get_num_vertices_n_face

@@ -190,13 +190,18 @@ module fe_space_names
     ! Scratch data to support FE assembly
     integer(ip)                        , allocatable :: num_cell_dofs_x_field(:)
     type(i1p_t)                        , allocatable :: fe_dofs(:)
+    type(quadrature_t)                 , pointer     :: quadrature => NULL()
     type(cell_map_t)                   , pointer     :: cell_map => NULL()
     type(p_cell_integrator_t)          , allocatable :: cell_integrators(:)
     type(std_vector_integer_ip_t)      , allocatable :: extended_fe_dofs(:)
     type(allocatable_array_ip1_t)      , allocatable :: gid_to_lid_map(:)
     type(allocatable_array_rp2_t)                    :: extended_elmat
     type(allocatable_array_rp1_t)                    :: extended_elvec
+    
+    ! Scratch data required to improve performance of some TBPs of this data type
     type(p_reference_fe_t)             , allocatable :: reference_fes(:)
+    logical                                          :: single_quad_cell_map_cell_integs = .false.
+    
     
     ! Scratch member variables required to determine the type of cell 
     ! ressemblance among a current visited cell and the previous visited one
@@ -223,11 +228,24 @@ module fe_space_names
     procedure, non_overridable          :: update_performance_scratch_data            => fe_cell_iterator_update_performance_scratch_data
     procedure, non_overridable          :: free_performance_scratch_data              => fe_cell_iterator_free_performance_scratch_data
     procedure, non_overridable          :: count_own_dofs_cell                        => fe_cell_iterator_count_own_dofs_cell
+    procedure, non_overridable          :: count_own_dofs_cell_general                => fe_cell_iterator_count_own_dofs_cell_general
+    procedure, non_overridable          :: count_own_dofs_cell_w_scratch_data         => fe_cell_iterator_count_own_dofs_cell_w_scratch_data
     procedure, non_overridable          :: count_own_dofs_vef                         => fe_cell_iterator_count_own_dofs_vef
+    procedure, non_overridable          :: count_own_dofs_vef_general                 => fe_cell_iterator_count_own_dofs_vef_general
+    procedure, non_overridable          :: count_own_dofs_vef_w_scratch_data          => fe_cell_iterator_count_own_dofs_vef_w_scratch_data
     procedure, non_overridable          :: generate_own_dofs_cell                     => fe_cell_iterator_generate_own_dofs_cell
+    procedure, non_overridable          :: generate_own_dofs_cell_general             => fe_cell_iterator_generate_own_dofs_cell_general
+    procedure, non_overridable          :: generate_own_dofs_cell_w_scratch_data      => fe_cell_iterator_generate_own_dofs_cell_w_scratch_data
     procedure, non_overridable          :: generate_own_dofs_vef                      => fe_cell_iterator_generate_own_dofs_vef
+    procedure, non_overridable          :: generate_own_dofs_vef_general              => fe_cell_iterator_generate_own_dofs_vef_general
+    procedure, non_overridable          :: generate_own_dofs_vef_w_scratch_data       => fe_cell_iterator_generate_own_dofs_vef_w_scratch_data
     procedure, non_overridable          :: generate_own_dofs_vef_component_wise       => fe_cell_iterator_generate_own_dofs_vef_component_wise
+    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_general         => fci_generate_own_dofs_vef_component_wise_general
+    procedure, non_overridable          :: generate_own_dofs_vef_component_wise_w_scratch_data  => fci_generate_own_dofs_vef_component_wise_w_scratch_data  
+
     procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe          => fe_cell_iterator_fetch_own_dofs_vef_from_source_fe
+    procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe_general  => fci_fetch_own_dofs_vef_from_source_fe_general
+    procedure, non_overridable          :: fetch_own_dofs_vef_from_source_fe_w_scratch_data => fci_fetch_own_dofs_vef_from_source_fe_w_scratch_data
     procedure, non_overridable          :: generate_dofs_facet_integration_coupling   => fe_cell_iterator_generate_dofs_facet_integration_coupling
     procedure, non_overridable, private :: renum_dofs_block                           => fe_cell_iterator_renum_dofs_block
     procedure, non_overridable, private :: renum_dofs_field                           => fe_cell_iterator_renum_dofs_field
@@ -246,6 +264,7 @@ module fe_space_names
     
     procedure, non_overridable :: get_quadrature_points_coordinates => fe_cell_iterator_get_quadrature_points_coordinates
     procedure, non_overridable :: get_det_jacobian                  => fe_cell_iterator_get_det_jacobian
+    procedure, non_overridable :: get_det_jacobians                 => fe_cell_iterator_get_det_jacobians
 
     procedure, non_overridable          :: get_fe_space                               => fe_cell_iterator_get_fe_space
     procedure, non_overridable          :: get_num_fields                             => fe_cell_iterator_get_num_fields
@@ -274,6 +293,7 @@ module fe_space_names
     procedure, non_overridable          :: determine_has_fixed_dofs                   => fe_cell_iterator_set_has_fixed_dofs
     procedure                           :: determine_has_hanging_dofs                 => fe_cell_iterator_set_has_hanging_dofs
     procedure, non_overridable          :: is_free_dof                                => fe_cell_iterator_is_free_dof
+    procedure, non_overridable          :: is_ghost_dof                               => fe_cell_iterator_is_ghost_dof
     procedure                           :: is_strong_dirichlet_dof                    => fe_cell_iterator_is_strong_dirichlet_dof   
     procedure, non_overridable          :: is_fixed_dof                               => fe_cell_iterator_is_fixed_dof
     procedure                           :: is_hanging_dof                             => fe_cell_iterator_is_hanging_dof
@@ -406,7 +426,7 @@ module fe_space_names
      final                               :: fe_vef_iterator_final
      
      procedure, non_overridable          :: is_proper                         => fe_vef_iterator_is_proper
-     procedure, non_overridable          :: has_free_dofs                     => fe_vef_iterator_has_free_dofs
+     procedure, non_overridable          :: all_coarser_cells_are_void        => fe_vef_iterator_all_coarser_cells_are_void
      
      procedure                 , private :: fe_vef_iterator_get_fe_around
      generic                             :: get_cell_around                   => fe_vef_iterator_get_fe_around
@@ -520,6 +540,8 @@ module fe_space_names
      ! Reference FE container
      integer(ip)                                 :: reference_fes_size
      type(p_reference_fe_t)        , allocatable :: reference_fes(:)
+     logical                                     :: same_reference_fes_on_all_cells = .false.
+     logical                       , allocatable :: same_reference_fe_or_void_x_field(:)
 
      ! Finite Element-related integration containers
      logical                                     :: cell_integration_is_set_up = .false.
@@ -560,8 +582,17 @@ module fe_space_names
      
      ! Strong Dirichlet BCs-related member variables
      class(conditions_t)           , pointer     :: conditions    => NULL()
+     ! Total number (among all fields) of free DoFs EXCLUDING free ghost DoFs
+     integer(ip)                                 :: num_total_free_dofs
+     ! Total number (among all fields) of free ghost DoFs
+     integer(ip)                                 :: num_total_free_ghost_dofs
+     ! Total number (among all fields) of fixed DoFs INCLUDING fixed ghost DoFs
      integer(ip)                                 :: num_fixed_dofs
+     ! Total number (among all fields) of hanging DoFs INCLUDING hanging ghost DoFs
      integer(ip)                                 :: num_hanging_dofs
+     ! Total number (among all fields) of hanging ghost DoFs
+     integer(ip)                                 :: num_hanging_ghost_dofs
+     ! Total number (among all fields) of DoFs s.t. Dirichlet BCs, INCLUDING ghost DoFs
      integer(ip)                                 :: num_dirichlet_dofs
      type(std_vector_logical_t)    , allocatable :: at_strong_dirichlet_boundary_x_fe(:)
      type(std_vector_logical_t)    , allocatable :: has_fixed_dofs_x_fe(:)
@@ -587,6 +618,14 @@ module fe_space_names
      type(std_vector_real_rp_t)                  :: constraining_dirichlet_dofs_coefficients
      type(std_vector_real_rp_t)                  :: constraints_independent_term
      
+     ! Scratch data required to optimize general_global_dof_numbering_below()
+     integer(ip), allocatable                    :: ptr_n_faces_n_face(:)
+     integer(ip), allocatable                    :: lst_n_faces_n_face(:)
+     
+     type(allocatable_array_ip1_t), allocatable  :: ptr_own_dofs_n_face(:)    
+     type(allocatable_array_ip1_t), allocatable  :: lst_own_dofs_n_face(:)    
+     type(allocatable_array_ip1_t), allocatable  :: dofs_component(:)    
+ 
    contains
      procedure                           :: serial_fe_space_create_same_reference_fes_on_all_cells
      procedure                           :: serial_fe_space_create_different_ref_fes_between_cells
@@ -596,6 +635,9 @@ module fe_space_names
      procedure                           :: print                                        => serial_fe_space_print
      procedure, non_overridable          :: allocate_and_fill_reference_fes              => serial_fe_space_allocate_and_fill_reference_fes
      procedure, non_overridable, private :: free_reference_fes                           => serial_fe_space_free_reference_fes
+     procedure, non_overridable, private :: allocate_same_reference_fe_or_void_x_field   => sfs_allocate_same_reference_fe_or_void_x_field
+     procedure, non_overridable, private :: free_same_reference_fe_or_void_x_field       => serial_fe_space_free_same_reference_fe_or_void_x_field
+     procedure, non_overridable, private :: fill_same_reference_fe_or_void_x_field       => serial_fe_space_fill_same_reference_fe_or_void_x_field
      
      procedure                           :: allocate_and_fill_set_ids_to_reference_fes   => sfs_allocate_and_fill_set_ids_to_reference_fes
      procedure                           :: free_set_ids_to_reference_fes                => sfs_free_set_ids_to_reference_fes
@@ -660,12 +702,14 @@ module fe_space_names
      procedure, non_overridable, private :: generate_facet_quadratures_position_key  => serial_fe_space_facet_quadratures_position_key
      procedure, non_overridable, private :: generate_facet_integrators_position_key  => serial_fe_space_facet_integrators_position_key
 
-     procedure                           :: create_dof_values                        => serial_fe_space_create_dof_values
-     procedure                           :: generate_global_dof_numbering            => serial_fe_space_generate_global_dof_numbering
-     procedure                           :: allocate_num_dofs_x_field                => serial_fe_space_allocate_num_dofs_x_field
-     procedure                           :: count_dofs                               => serial_fe_space_count_dofs
-     procedure                           :: list_dofs                                => serial_fe_space_list_dofs
-     procedure                 , private :: renum_dofs_block                         => serial_fe_space_renum_dofs_block
+     procedure                           :: create_dof_values                          => serial_fe_space_create_dof_values
+     procedure                           :: generate_global_dof_numbering              => serial_fe_space_generate_global_dof_numbering
+     procedure                           :: allocate_num_dofs_x_field                  => serial_fe_space_allocate_num_dofs_x_field
+     procedure                           :: count_dofs                                 => serial_fe_space_count_dofs
+     procedure                           :: list_dofs                                  => serial_fe_space_list_dofs
+     procedure                 , private :: renum_dofs_block                           => serial_fe_space_renum_dofs_block
+     procedure                           :: allocate_and_fill_gen_dof_num_scratch_data => serial_fe_space_allocate_and_fill_gen_dof_num_scratch_data
+     procedure                           :: free_gen_dof_num_scratch_data              => serial_fe_space_free_gen_dof_num_scratch_data
  
      ! Getters
      procedure                           :: get_num_dims                              => serial_fe_space_get_num_dims
@@ -687,11 +731,17 @@ module fe_space_names
      procedure, non_overridable          :: get_conditions                               => serial_fe_space_get_conditions
      procedure, non_overridable          :: set_conditions                               => serial_fe_space_set_conditions
      procedure, non_overridable          :: get_ptr_dofs_x_fe                            => serial_fe_space_get_ptr_dofs_per_fe
+     procedure                           :: get_num_total_free_dofs                      => serial_fe_space_get_num_total_free_dofs
+     procedure, non_overridable          :: set_num_total_free_dofs                      => serial_fe_space_set_num_total_free_dofs
+     procedure                           :: get_num_total_free_ghost_dofs                => serial_fe_space_get_num_total_free_ghost_dofs
+     procedure, non_overridable          :: set_num_total_free_ghost_dofs                => serial_fe_space_set_num_total_free_ghost_dofs
      procedure                           :: get_num_fixed_dofs                           => serial_fe_space_get_num_fixed_dofs
      procedure, non_overridable          :: set_num_fixed_dofs                           => serial_fe_space_set_num_fixed_dofs
      procedure                           :: get_num_dirichlet_dofs                       => serial_fe_space_get_num_dirichlet_dofs
      procedure                           :: get_num_hanging_dofs                         => serial_fe_space_get_num_hanging_dofs
      procedure, non_overridable          :: set_num_hanging_dofs                         => serial_fe_space_set_num_hanging_dofs
+     procedure                           :: get_num_hanging_ghost_dofs                   => serial_fe_space_get_num_hanging_ghost_dofs
+     procedure, non_overridable          :: set_num_hanging_ghost_dofs                   => serial_fe_space_set_num_hanging_ghost_dofs
      procedure                           :: get_num_blocks                            => serial_fe_space_get_num_blocks
      procedure                           :: get_field_blocks                             => serial_fe_space_get_field_blocks
      procedure                           :: get_field_coupling                           => serial_fe_space_get_field_coupling
@@ -706,6 +756,7 @@ module fe_space_names
      procedure, non_overridable          :: get_constraining_dirichlet_dofs_coefficients => serial_fe_space_get_constraining_dirichlet_dofs_coefficients
      procedure, non_overridable          :: get_constraints_independent_term             => serial_fe_space_get_constraints_independent_term
      procedure, non_overridable          :: is_free_dof                                  => serial_fe_space_is_free_dof 
+     procedure, non_overridable          :: is_ghost_dof                                 => serial_fe_space_is_ghost_dof 
      procedure, non_overridable          :: is_strong_dirichlet_dof                      => serial_fe_space_is_strong_dirichlet_dof
      procedure, non_overridable          :: is_fixed_dof                                 => serial_fe_space_is_fixed_dof
      procedure, non_overridable          :: is_hanging_dof                               => serial_fe_space_is_hanging_dof
@@ -742,7 +793,9 @@ module fe_space_names
      generic                             :: refine_and_coarsen                            => serial_fe_space_refine_and_coarsen_single_fe_function, &
                                                                                              serial_fe_space_refine_and_coarsen_fe_function_array
 
-     procedure, non_overridable          :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
+     procedure                           :: update_hanging_dof_values                     => serial_fe_space_update_hanging_dof_values
+     procedure                           :: update_ghost_dof_values                       => serial_fe_space_update_ghost_dof_values
+     
      
 #ifndef ENABLE_P4EST
     procedure, non_overridable           :: not_enabled_error                             => serial_fe_space_not_enabled_error
@@ -970,6 +1023,10 @@ module fe_space_names
    ! Objects-related traversals
    procedure, non_overridable                  :: create_fe_object_iterator                       => par_fe_space_create_fe_object_iterator
    procedure, non_overridable                  :: free_fe_object_iterator                         => par_fe_space_free_fe_object_iterator
+
+   procedure                                   :: update_hanging_dof_values                       => par_fe_space_update_hanging_dof_values
+   procedure                                   :: update_ghost_dof_values                         => par_fe_space_update_ghost_dof_values
+   
    end type par_fe_space_t
  
  public :: par_fe_space_t
@@ -1372,7 +1429,10 @@ module fe_space_names
  
   type fe_function_t
    private
+   ! Total number (among all fields) of free DoFs EXCLUDING free ghost DoFs
+   integer(ip)                   :: num_total_free_dofs
    class(vector_t), allocatable  :: free_dof_values
+   type(serial_scalar_array_t)   :: free_ghost_dof_values
    type(serial_scalar_array_t)   :: fixed_dof_values
    type(serial_scalar_array_t)   :: constraining_x_fixed_dof_values ! C_D u_D
   contains

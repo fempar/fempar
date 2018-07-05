@@ -303,6 +303,7 @@ contains
       call this%poisson_unfitted_analytical_functions%set_degree(this%test_params%get_reference_fe_order())
       call this%poisson_unfitted_conditions%set_boundary_function(this%poisson_unfitted_analytical_functions%get_boundary_function())
       if (this%test_params%get_fe_formulation() == 'cG') then
+        call this%fe_space%set_use_constraints(this%test_params%get_use_constraints())
         call this%fe_space%create( triangulation            = this%triangulation, &
                                    reference_fes            = this%reference_fes, &
                                    set_ids_to_reference_fes = set_ids_to_reference_fes, &
@@ -428,6 +429,7 @@ contains
     call this%iterative_linear_solver%solve(this%fe_affine_operator%get_translation(), &
                                             dof_values)
 #endif
+    call this%fe_space%update_hanging_dof_values(this%solution)
     !select type (dof_values)
     !class is (serial_scalar_array_t)
     !   call dof_values%print(6)

@@ -3343,14 +3343,37 @@ contains
         integer(ip),                intent(in)    :: ioffset
         integer(ip),                intent(in)    :: joffset
         real(rp),                   intent(in)    :: val(:, :)
-        integer(ip)                               :: i, j
+        integer(ip)                               :: i, j, newnnz, nnz, newsize
+        integer(ip)                               :: ias, jas
     !-----------------------------------------------------------------
         if(num_rows<1 .or. num_cols<1) return
+        
+        if(.not. allocated(this%val)) call this%allocate_values_body(size(this%ia))
+        
+        newnnz = this%nnz + num_rows*num_cols
+        ! Realloc this%ia, this%ja, this%val to the right size if is needed
+        if( size(this%ia) < newnnz) then
+            newsize = max(newnnz, int(1.5*size(this%ia)))
+            call memrealloc(newsize, this%ia,  __FILE__, __LINE__)
+            call memrealloc(newsize, this%ja,  __FILE__, __LINE__)
+            call memrealloc(newsize, this%val, __FILE__, __LINE__)
+        endif
+        
+        nnz = this%nnz
         do j=1, num_cols
-            do i=1, num_rows
-                call this%append_body(ia(i), ja(j), val(i+ioffset,j+joffset),1 , this%num_rows, 1, this%num_cols)
-            enddo
-        enddo
+          jas = ja(j)
+          if(jas<1 .or. jas>this%num_cols) cycle
+          do i=1, num_rows
+             ias = ia(i)
+             if(ias<1 .or. ias>this%num_rows .or. (this%symmetric_storage .and. ias>jas) ) cycle
+             nnz = nnz + 1
+             this%ia(nnz) = ias
+             this%ja(nnz) = jas
+             this%val(nnz) = val(i+ioffset,j+joffset)
+          end do
+        end do 
+        this%nnz = nnz
+        this%sort_status = COO_SPARSE_MATRIX_SORTED_NONE
     end subroutine coo_sparse_matrix_append_dense_values_body
 
 

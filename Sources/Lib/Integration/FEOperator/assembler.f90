@@ -59,18 +59,16 @@ module assembler_names
   abstract interface
      
      subroutine assembly_array_interface( this,           & 
-                                          num_fields,  &
+                                          num_fields,     &
                                           field_blocks,   &
-                                          field_coupling, &
-                                          num_dofs,    &
-                                          fe_dofs,       &
+                                          num_dofs,       &
+                                          fe_dofs,        &
                                           elvec )
        import :: assembler_t, rp, ip, i1p_t
        implicit none
        class(assembler_t) , intent(inout) :: this
        integer(ip)                     , intent(in)    :: num_fields
        integer(ip)                     , intent(in)    :: field_blocks(num_fields)
-       logical                         , intent(in)    :: field_coupling(num_fields,num_fields)
        integer(ip)                     , intent(in)    :: num_dofs(num_fields)
        type(i1p_t)                     , intent(in)    :: fe_dofs(num_fields)
        real(rp)                        , intent(in)    :: elvec(:)
@@ -116,6 +114,7 @@ module assembler_names
     
   ! Data types
   public :: assembler_t
+  public :: assembler_set_matrix, assembler_set_array
   
 contains
   subroutine assembler_compress_storage_array(this)
@@ -196,7 +195,6 @@ contains
     call this%free_in_stages(free_numerical_setup)
     call this%free_in_stages(free_symbolic_setup)
     call this%free_in_stages(free_clean)
-
   end subroutine assembler_free
   
     function assembler_get_matrix(this)

@@ -1,72 +1,71 @@
+subroutine fe_affine_operator_compute_residual (this,y)
+  implicit none
+  class(fe_affine_operator_t), intent(in) :: this
+  class(vector_t) , intent(inout) :: y 
+  class(matrix_t) , pointer       :: matrix
+  class(array_t)  , pointer       :: array
+  assert ( associated(this%current_evaluation_point) )
+  call this%compute()
+  matrix => this%assembler%get_matrix()
+  call matrix%apply(this%current_evaluation_point,y)
+  array => this%assembler%get_array()
+  call y%axpby( -1.0_rp, array, 1.0_rp )
+end subroutine fe_affine_operator_compute_residual
+
+
+subroutine fe_affine_operator_compute_tangent (this)
+  implicit none
+  class(fe_affine_operator_t), intent(in) :: this
+  assert ( associated(this%current_evaluation_point) )
+  call this%compute()  
+end subroutine fe_affine_operator_compute_tangent
+
 subroutine fe_affine_operator_compute (this)
   implicit none
   class(fe_affine_operator_t), intent(in) :: this
   class(environment_t), pointer :: environment
   
   assert ( associated(this%state) )
-
-  if ( this%state == assembler_computed ) return
-
-  environment => this%test_fe_space%get_environment()
-  if ( environment%am_i_l1_task() ) then
-     if ( associated(this%trial_fe_space) ) then
-        call this%discrete_integration%integrate( this%test_fe_space, this%trial_fe_space, this%assembler )
-     else
-        call this%discrete_integration%integrate( this%test_fe_space, this%assembler )
-     end if
-  end if
-  call this%assembler%compress_storage(this%sparse_matrix_storage_format)
   
-  this%state = assembler_computed
+  if ( .not. ( this%state == assembler_computed ) ) then
+    environment => this%test_fe_space%get_environment()
+    if ( environment%am_i_l1_task() ) then
+      if ( associated(this%trial_fe_space) ) then
+         call this%discrete_integration%integrate( this%test_fe_space, this%trial_fe_space, this%assembler )
+      else
+         call this%discrete_integration%integrate( this%test_fe_space, this%assembler )
+      end if
+    end if
+    call this%assembler%compress_storage(this%sparse_matrix_storage_format)
+    this%state = assembler_computed
+ end if
 end subroutine fe_affine_operator_compute
 
-function fe_affine_operator_get_matrix(this)
-  implicit none
-  class(fe_affine_operator_t), target, intent(in) :: this
-  class(matrix_t), pointer :: fe_affine_operator_get_matrix
-  call this%compute()
-  fe_affine_operator_get_matrix => this%assembler%get_matrix()
-end function fe_affine_operator_get_matrix
 
-! op%apply(x,y) <=> y <- op*x
-! Implicitly assumes that y is already allocated
-subroutine fe_affine_operator_apply(this,x,y) 
+
+subroutine fe_affine_operator_set_evaluation_point(this,x) 
   implicit none
   class(fe_affine_operator_t), intent(inout)    :: this
-  class(vector_t) , intent(in)    :: x
-  class(vector_t) , intent(inout) :: y 
-  class(matrix_t) , pointer       :: matrix
-  class(array_t)  , pointer       :: array
-  call this%compute()
-  call this%abort_if_not_in_domain(x)
-  call this%abort_if_not_in_range(y)
-  call x%GuardTemp()
-  matrix => this%assembler%get_matrix()
-  call matrix%apply(x,y)
-  array => this%assembler%get_array()
-  call y%axpby( -1.0_rp, array, 1.0_rp )
-  call x%CleanTemp()
-end subroutine fe_affine_operator_apply
-
-! op%apply(x,y) <=> y <- op*x+y
-! Implicitly assumes that y is already allocated
-subroutine fe_affine_operator_apply_add(this,x,y) 
+  class(vector_t) ,  target,      intent(in)    :: x
+  this%current_evaluation_point => x
+end subroutine fe_affine_operator_set_evaluation_point  
+  
+! Triggers the computation of the linear system matrix and 
+! right hand side independently of the current state of this. 
+! This is though to be called whenever something external to this, 
+! but that affects to the entries of the coefficient matrix AND/OR
+! right hand side, e.g., the level set function in a topology optimization 
+! simulation.
+subroutine fe_affine_operator_force_compute(this)
   implicit none
   class(fe_affine_operator_t), intent(inout)    :: this
-  class(vector_t) , intent(in)    :: x
-  class(vector_t) , intent(inout) :: y 
-  class(matrix_t) , pointer       :: matrix
-  class(array_t)  , pointer       :: array
+  assert ( associated(this%state) )
+  this%state = created
+  call this%assembler%init_array(0.0_rp)  
+  call this%assembler%init_matrix(0.0_rp)
   call this%compute()
-  call this%abort_if_not_in_domain(x)
-  call this%abort_if_not_in_range(y)
-  call x%GuardTemp()
-  matrix => this%assembler%get_matrix()
-  call matrix%apply_add(x,y)
-  array => this%assembler%get_array()
-  call y%axpby( -1.0_rp, array, 1.0_rp )
-  call x%CleanTemp()
-end subroutine fe_affine_operator_apply_add
+end subroutine fe_affine_operator_force_compute
+
 
 function fe_affine_operator_is_linear(this)
   implicit none
@@ -74,33 +73,4 @@ function fe_affine_operator_is_linear(this)
   logical :: fe_affine_operator_is_linear
   fe_affine_operator_is_linear = .true.
 end function fe_affine_operator_is_linear
-
-function fe_affine_operator_get_tangent(this) result(tangent)
-  implicit none
-  class(fe_affine_operator_t), intent(in) :: this
-  type(lvalue_operator_t)          :: tangent
-  call this%compute()
-  tangent = this%assembler%get_matrix()
-  call tangent%SetTemp()
-end function fe_affine_operator_get_tangent
-
-function fe_affine_operator_get_translation(this) result(translation)
-  implicit none
-  class(fe_affine_operator_t), intent(in) :: this
-  class(vector_t), pointer                :: translation
-  call this%compute()
-  translation => this%assembler%get_array()
-end function fe_affine_operator_get_translation
-
-function fe_affine_operator_apply_fun(op,x) result(y)
-  implicit none
-  class(fe_affine_operator_t)   , intent(inout)  :: op
-  class(vector_t)     , intent(in)  :: x
-  class(vector_t)     , allocatable :: y
-  type(vector_space_t), pointer     :: range_vector_space
-  range_vector_space => op%get_range_vector_space()
-  call op%compute()
-  call range_vector_space%create_vector(y)
-  call op%apply(x,y)
-end function fe_affine_operator_apply_fun
 

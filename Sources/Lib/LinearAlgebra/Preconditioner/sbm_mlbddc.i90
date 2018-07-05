@@ -28,7 +28,7 @@
 subroutine mlbddc_create ( this, fe_nonlinear_operator, mlbddc_params )
   implicit none
   class(mlbddc_t)                   , intent(inout) :: this
-  class(fe_nonlinear_operator_t), target, intent(in)    :: fe_nonlinear_operator
+  class(fe_operator_t), target, intent(in)    :: fe_nonlinear_operator
   type(parameterlist_t)    , target , intent(in)    :: mlbddc_params
   type(par_fe_space_t), pointer :: fe_space
   class(triangulation_t), pointer :: triangulation
