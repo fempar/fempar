@@ -452,7 +452,6 @@ module fe_space_names
     logical                                  :: single_quad_facet_map_facet_integs = .false.
     logical                                  :: integration_updated                = .false.
     logical                                  :: single_octree_mesh                 = .false.
-    class(fe_facet_iterator_t), pointer      :: previous_facet => NULL()
    contains
     procedure                           :: create                         => fe_facet_iterator_create
     procedure                           :: free                           => fe_facet_iterator_free

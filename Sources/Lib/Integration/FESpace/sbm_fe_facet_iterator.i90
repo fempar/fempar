@@ -34,10 +34,7 @@ subroutine fe_facet_iterator_create ( this, fe_space, vef )
    integer(ip) :: istat
    call this%free()
    call aux_create_facet(this,fe_space,vef)
-   allocate ( this%previous_facet, mold=this, stat=istat ); check(istat==0)
-   call aux_create_facet(this%previous_facet,fe_space,vef)
    call this%first()
-   call aux_set_gid_facet(this%previous_facet,this%fe_space%facet_gids%size()+1)
  end subroutine fe_facet_iterator_create
 
 subroutine aux_create_facet(this,fe_space,vef)
@@ -68,11 +65,6 @@ subroutine fe_facet_iterator_free ( this )
   class(fe_facet_iterator_t) , intent(inout)      :: this
   integer(ip) :: istat
   call aux_free_facet(this)
-  if ( associated ( this%previous_facet ) ) then
-    call aux_free_facet(this%previous_facet)
-    deallocate ( this%previous_facet, stat=istat ); check(istat==0)
-    nullify(this%previous_facet)
-  end if 
 end subroutine fe_facet_iterator_free
 
 subroutine aux_free_facet(this)
@@ -124,14 +116,6 @@ end subroutine fe_facet_iterator_free_scratch_data
 subroutine fe_facet_iterator_first ( this )
   implicit none
   class(fe_facet_iterator_t) , intent(inout)      :: this
-  if ( this%facet_integration_is_set_up ) then
-    if ( .not. this%has_finished() ) then
-      if ( .not. this%is_cut() ) then
-         call aux_set_gid_facet(this%previous_facet,this%get_gid())
-         call this%previous_facet%set_integration_updated(this%is_integration_updated())
-      end if
-    end if
-  end if
   call aux_first_facet(this)
   if ( .not. this%has_finished() ) then
     call this%update_fes_around()
@@ -155,17 +139,7 @@ end subroutine aux_first_facet
   
 subroutine fe_facet_iterator_next ( this )
   implicit none
-  class(fe_facet_iterator_t) , intent(inout)      :: this
-  
-  if ( this%facet_integration_is_set_up ) then
-    if ( .not. this%has_finished() ) then
-      if ( .not. this%is_cut() ) then
-         call aux_set_gid_facet(this%previous_facet,this%get_gid())
-         call this%previous_facet%set_integration_updated(this%is_integration_updated())
-      end if
-    end if
-  end if  
- 
+  class(fe_facet_iterator_t) , intent(inout)      :: this 
   this%facet_gid = this%facet_gid + 1
   if ( .not. this%has_finished() ) then
     call this%base_fe_vef_iterator_t%set_gid( &
@@ -192,14 +166,6 @@ subroutine fe_facet_iterator_set_gid ( this, gid )
   class(fe_facet_iterator_t), intent(inout) :: this
   integer(ip)              , intent(in)    :: gid
   assert ( gid >= 1 .and. gid <= this%fe_space%facet_gids%size() )
-  if ( this%facet_integration_is_set_up ) then
-    if ( .not. this%has_finished() ) then
-      if ( .not. this%is_cut() ) then
-        call aux_set_gid_facet(this%previous_facet,this%get_gid())
-        call this%previous_facet%set_integration_updated(this%is_integration_updated())
-      end if
-    end if
-  end if 
   call aux_set_gid_facet(this,gid)
   call this%set_integration_updated(.false.)
 end subroutine fe_facet_iterator_set_gid
