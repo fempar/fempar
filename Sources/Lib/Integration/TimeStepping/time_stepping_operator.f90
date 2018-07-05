@@ -199,9 +199,10 @@ module time_stepping_names
     type(time_stepping_operator_t), pointer :: ts_op     => NULL()
     type(nonlinear_solver_t)      , pointer :: nl_solver => NULL()
   contains
-    procedure :: create => dirk_solver_create
-    procedure :: apply  => dirk_solver_apply
-    procedure :: free   => dirk_solver_free
+    procedure :: create              => dirk_solver_create
+    procedure :: apply               => dirk_solver_apply
+    procedure :: advance_fe_function => dirk_solver_advance_fe_function
+    procedure :: free                => dirk_solver_free
   end type dirk_solver_t
   
   public :: time_stepping_operator_t, dirk_solver_t

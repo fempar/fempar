@@ -233,7 +233,11 @@ contains
     call this%solution%create(this%fe_space)
     call this%poisson_cG_integration%set_fe_function(this%solution) 
     call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions) 
-
+    
+    call this%fe_space%interpolate(field_id=1, &
+                                   function = this%poisson_analytical_functions%get_solution_function(), &
+                                   fe_function=this%solution, &
+                                   time=this%time_operator%get_current_time())
   end subroutine setup_system
   
   
@@ -305,48 +309,15 @@ contains
     class(test_transient_poisson_driver_t), intent(inout) :: this
   end subroutine assemble_system
   
-  
   subroutine solve_system(this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout)   :: this
-    class(vector_t)                         , pointer       :: dof_values_current
-    class(vector_t)                         , allocatable   :: dof_values_previous
-    real(rp) :: final_time, time_step
-    real(rp)                                                :: current_time
-    
 
-    current_time = this%time_operator%get_current_time()
-    final_time = this%time_operator%get_final_time()
-
-    call this%fe_space%interpolate(field_id=1, &
-                                   function = this%poisson_analytical_functions%get_solution_function(), &
-                                   fe_function=this%solution, &
-                                   time=current_time)
-  
-    dof_values_current => this%solution%get_free_dof_values()
-
-    call dof_values_current%mold(dof_values_previous)  ! select dynamic type of dof_values_previous
-    
-    call dof_values_previous%clone(dof_values_current) ! allocate dof_values_current
-    
-
-    
     do while ( .not. this%time_operator%has_finished() )
-
-       call dof_values_previous%copy(dof_values_current) ! copy entries
-
-       call this%time_solver%apply( dof_values_previous, dof_values_current )
-       
-       current_time = this%time_operator%get_current_time() ! pmartorell: updated current_time after solve, time_operator solves at t=t^(n-1) + c_i * dt
-       call this%fe_space%interpolate_dirichlet_values(this%solution, time=current_time) ! pmartorell: updated boundary values when not evaluated in the solver, e.g. forward_euler
-       call this%write_time_step(current_time)       
-       if ( .not. this%test_params%get_is_test()) then
-         call this%check_solution(current_time)
-       endif
+       call this%time_solver%advance_fe_function(this%solution)
+       call this%write_time_step( this%time_operator%get_current_time() )
+       if ( .not. this%test_params%get_is_test() ) call this%check_solution( this%time_operator%get_current_time())
     end do
-    
-    if ( allocated(dof_values_previous) ) call dof_values_previous%free()
-  
   end subroutine solve_system
     
   subroutine check_solution(this,current_time)
@@ -478,6 +449,11 @@ contains
     
     call error_norm%create(this%fe_space,1)
     call this%time_operator%update(0.0_rp,final_time,dt,time_integration_scheme)
+    
+    call this%fe_space%interpolate(field_id=1, &
+                                   function = this%poisson_analytical_functions%get_solution_function(), &
+                                   fe_function=this%solution, &
+                                   time=this%time_operator%get_current_time())
     call this%solve_system()
     current_time = this%time_operator%get_current_time()
     get_error_norm = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm, time=current_time) !pmartorell: l2_norm argumnent if tested for differents norms
