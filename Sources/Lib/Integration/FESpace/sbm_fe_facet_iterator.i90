@@ -292,6 +292,9 @@ subroutine fe_facet_iterator_update_integration( this )
   integer(ip)                       :: icell_around, field_id
   integer(ip)                       :: facet_lpos_within_cells_around(2)
   integer(ip)                       :: subfacet_lid_within_cells_around(2)
+  integer(ip)                       :: cell_ressemblance(2)
+  integer(ip)                       :: this_get_lev, prev_get_lev
+  real(rp)                          :: scaling_factor(2)
   type(point_t)           , pointer :: coords(:)
   type(quadrature_t)      , pointer :: quadrature
   type(facet_integrator_t), pointer :: facet_integrator
@@ -308,12 +311,38 @@ subroutine fe_facet_iterator_update_integration( this )
                                                           facet_lpos_within_cells_around(icell_around), &
                                                           subfacet_lid_within_cells_around(icell_around))
       call this%fes_around(icell_around)%p%get_nodes_coordinates(coords)
+      
+      cell_ressemblance(icell_around) = no_ressemblance
+      scaling_factor(icell_around) = 1.0_rp
+      if ( .not. this%previous_facet%has_finished() ) then
+       if ( this%previous_facet%is_integration_updated() &
+            .and. this%is_single_octree_mesh() &
+            .and. icell_around <= this%previous_facet%get_num_cells_around() ) then 
+          if ( associated(this%facet_maps,this%previous_facet%facet_maps) ) then
+           if ( (facet_lpos_within_cells_around(icell_around) == &
+                 this%previous_facet%facet_maps%get_current_facet_lid(icell_around)) .and. &
+               (subfacet_lid_within_cells_around(icell_around) == &
+                 this%previous_facet%facet_maps%get_current_subfacet_lid(icell_around)) ) then 
+              this_get_lev = this%fes_around(icell_around)%p%get_level()
+              prev_get_lev = this%previous_facet%fes_around(icell_around)%p%get_level()
+              if ( this_get_lev == prev_get_lev ) then
+                cell_ressemblance(icell_around) = is_only_translated
+              else
+                cell_ressemblance(icell_around) = is_scaled_and_translated
+                scaling_factor(icell_around) = 2.0_rp**(real(prev_get_lev-this_get_lev,rp))
+              end if
+           end if
+          end if
+        end if 
+      end if 
     end do
   
     call this%facet_maps%update(facet_lpos_within_cells_around,   &
                                 subfacet_lid_within_cells_around, &
                                 quadrature,                       &
-                                this%ref_fe_geo)
+                                this%ref_fe_geo,                  &
+                                cell_ressemblance,                &
+                                scaling_factor)
   
     do field_id = 1, this%fe_space%get_num_fields()
        call this%facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &

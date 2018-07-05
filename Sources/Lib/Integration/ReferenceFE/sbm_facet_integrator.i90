@@ -52,18 +52,18 @@ subroutine cell_map_facet_restriction_create( this, quadrature, reference_fe_geo
 end subroutine cell_map_facet_restriction_create
 
 !==================================================================================================
-subroutine cell_map_facet_restriction_update( this, facet_lid, subfacet_lid, quadrature)
+subroutine cell_map_facet_restriction_update( this, facet_lid, subfacet_lid, quadrature, cell_ressemblance, scaling_factor)
   implicit none
   ! Parameters
   class(cell_map_facet_restriction_t), intent(inout) :: this
-  integer(ip)                     , intent(in)    :: facet_lid
-  integer(ip)                     , intent(in)    :: subfacet_lid
-  type(quadrature_t)           , intent(in)    :: quadrature
-
+  integer(ip)                        , intent(in)    :: facet_lid
+  integer(ip)                        , intent(in)    :: subfacet_lid
+  type(quadrature_t)                 , intent(in)    :: quadrature
+  integer(ip)                        , intent(in)    :: cell_ressemblance
+  real(rp)                           , intent(in)    :: scaling_factor
   this%current_facet_lid = facet_lid
   this%current_subfacet_lid = subfacet_lid
-  call this%cell_map(facet_lid+subfacet_lid*this%num_facets)%update(quadrature,no_ressemblance)
-
+  call this%cell_map(facet_lid+subfacet_lid*this%num_facets)%update(quadrature,cell_ressemblance,scaling_factor)
 end subroutine cell_map_facet_restriction_update
 
 !==================================================================================================
@@ -187,21 +187,23 @@ subroutine facet_maps_free(this)
 end subroutine facet_maps_free
 
 !==================================================================================================
-subroutine facet_maps_update(this,facet_lid,subfacet_lid,facet_quadrature,left_reference_fe_geo)
+subroutine facet_maps_update(this,facet_lid,subfacet_lid,facet_quadrature,left_reference_fe_geo,cell_ressemblance,scaling_factor)
   implicit none
   ! Parameters
-  class(facet_maps_t)    , intent(inout) :: this
+  class(facet_maps_t)  , intent(inout) :: this
   integer(ip)          , intent(in)    :: facet_lid(2)
   integer(ip)          , intent(in)    :: subfacet_lid(2)
-  type(quadrature_t), intent(in)    :: facet_quadrature
+  type(quadrature_t)   , intent(in)    :: facet_quadrature
   class(reference_fe_t), intent(in)    :: left_reference_fe_geo
-  real   (rp)             :: reorientation_factor
+  integer(ip)          , intent(in)    :: cell_ressemblance(2)    
+  real(rp)             , intent(in)    :: scaling_factor(2)
+  real   (rp) :: reorientation_factor
 
   ! Update cell_maps
-  call this%cell_maps(1)%update(facet_lid(1),subfacet_lid(1),facet_quadrature)
+  call this%cell_maps(1)%update(facet_lid(1),subfacet_lid(1),facet_quadrature,cell_ressemblance(1),scaling_factor(1))
   if (.not. this%is_at_boundary) then
      assert ( facet_lid(2) >= 1 )
-     call this%cell_maps(2)%update(facet_lid(2),subfacet_lid(2),facet_quadrature)
+     call this%cell_maps(2)%update(facet_lid(2),subfacet_lid(2),facet_quadrature,cell_ressemblance(2),scaling_factor(2))
   end if
   
   ! Compute normals reorientation factors from |J|'s original sign and face orientation
@@ -354,6 +356,25 @@ function facet_maps_get_is_at_boundary ( this )
   logical :: facet_maps_get_is_at_boundary
   facet_maps_get_is_at_boundary = this%is_at_boundary
 end function facet_maps_get_is_at_boundary
+
+function facet_maps_get_current_facet_lid ( this, neighbour_id ) 
+  implicit none
+  class(facet_maps_t), intent(in) :: this
+  integer(ip)        , intent(in) :: neighbour_id
+  integer(ip) :: facet_maps_get_current_facet_lid
+  assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_at_boundary)))
+  facet_maps_get_current_facet_lid = this%cell_maps(neighbour_id)%current_facet_lid
+end function facet_maps_get_current_facet_lid
+
+function facet_maps_get_current_subfacet_lid ( this, neighbour_id ) 
+  implicit none
+  class(facet_maps_t), intent(in) :: this
+  integer(ip)        , intent(in) :: neighbour_id
+  integer(ip) :: facet_maps_get_current_subfacet_lid
+  assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_at_boundary)))
+  facet_maps_get_current_subfacet_lid = this%cell_maps(neighbour_id)%current_subfacet_lid
+end function facet_maps_get_current_subfacet_lid
+
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !cell_integrator_facet_restriction_t type bound procedures
