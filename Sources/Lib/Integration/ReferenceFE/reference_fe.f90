@@ -280,19 +280,21 @@ module reference_fe_names
 
   type cell_map_facet_restriction_t
      private
-     integer(ip)                 :: num_facets = 0
-     integer(ip)                 :: num_subfacets = 0
-     integer(ip)                 :: current_facet_lid
-     integer(ip)                 :: current_subfacet_lid
+     integer(ip)                   :: num_facets = 0
+     integer(ip)                   :: num_subfacets = 0
+     integer(ip)                   :: current_facet_lid
+     integer(ip)                   :: current_subfacet_lid
      type(cell_map_t), allocatable :: cell_map(:)
+     integer(ip), allocatable      :: last_visited_cell_gid(:)
    contains
-     procedure, non_overridable :: create               => cell_map_facet_restriction_create
-     procedure, non_overridable :: update               => cell_map_facet_restriction_update
-     procedure, non_overridable :: update_interpolation => cell_map_facet_restriction_update_interpolation
-     procedure, non_overridable :: free                 => cell_map_facet_restriction_free
-     procedure, non_overridable :: copy                 => cell_map_facet_restriction_copy
-     procedure, non_overridable :: get_coordinates      => cell_map_facet_restriction_get_coordinates
-     procedure, non_overridable :: get_current_cell_map => cell_map_facet_restriction_get_current_cell_map 
+     procedure, non_overridable :: create                    => cell_map_facet_restriction_create
+     procedure, non_overridable :: update                    => cell_map_facet_restriction_update
+     procedure, non_overridable :: update_interpolation      => cell_map_facet_restriction_update_interpolation
+     procedure, non_overridable :: free                      => cell_map_facet_restriction_free
+     procedure, non_overridable :: copy                      => cell_map_facet_restriction_copy
+     procedure, non_overridable :: get_coordinates           => cell_map_facet_restriction_get_coordinates
+     procedure, non_overridable :: get_current_cell_map      => cell_map_facet_restriction_get_current_cell_map
+     procedure, non_overridable :: get_last_visited_cell_gid => cell_map_facet_restriction_get_last_visited_cell_gid
   end type cell_map_facet_restriction_t
   
   public :: cell_map_facet_restriction_t
@@ -1884,6 +1886,7 @@ public :: cell_integrator_t, p_cell_integrator_t
      integer(ip)                          :: current_facet_lid
      integer(ip)                          :: current_subfacet_lid
      type(cell_integrator_t), allocatable :: cell_integrator(:) 
+     integer(ip), allocatable             :: last_visited_cell_gid(:)
    contains
      procedure, non_overridable :: create                      => cell_integrator_facet_restriction_create
      procedure, non_overridable :: update                      => cell_integrator_facet_restriction_update
@@ -1891,6 +1894,7 @@ public :: cell_integrator_t, p_cell_integrator_t
      procedure, non_overridable :: free                        => cell_integrator_facet_restriction_free
      procedure, non_overridable :: copy                        => cell_integrator_facet_restriction_copy
      procedure, non_overridable :: get_current_cell_integrator => cell_integrator_facet_restriction_get_current_cell_integrator
+     procedure, non_overridable :: get_last_visited_cell_gid   => cell_integrator_facet_restriction_get_last_visited_cell_gid
   end type cell_integrator_facet_restriction_t
 
   public :: cell_integrator_facet_restriction_t
@@ -1898,10 +1902,10 @@ public :: cell_integrator_t, p_cell_integrator_t
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 type facet_maps_t
   private
-  logical                         :: is_at_boundary
-  type(facet_map_t)                :: facet_map
+  logical                            :: is_at_boundary
+  type(facet_map_t)                  :: facet_map
   type(cell_map_facet_restriction_t) :: cell_maps(2)
-  integer(ip)                     :: num_dims
+  integer(ip)                        :: num_dims
 contains
   procedure, non_overridable :: create               => facet_maps_create
   procedure, non_overridable :: free                 => facet_maps_free
@@ -1921,6 +1925,7 @@ contains
   procedure, non_overridable :: get_is_at_boundary    => facet_maps_get_is_at_boundary
   procedure, non_overridable :: get_current_facet_lid => facet_maps_get_current_facet_lid
   procedure, non_overridable :: get_current_subfacet_lid => facet_maps_get_current_subfacet_lid
+  procedure, non_overridable :: get_last_visited_cell_gid => facet_maps_get_last_visited_cell_gid
 end type facet_maps_t
 
 public :: facet_maps_t
@@ -1964,6 +1969,8 @@ contains
   procedure, non_overridable :: get_curl           => facet_integrator_get_curl_vector 
   procedure, non_overridable :: get_curls          => facet_integrator_get_curls_vector 
   procedure, non_overridable :: get_current_qpoints_perm => facet_integrator_get_current_qpoints_perm
+  procedure, non_overridable :: get_last_visited_cell_gid => facet_integrator_get_last_visited_cell_gid
+
 
   procedure, non_overridable, private :: facet_integrator_evaluate_fe_function_scalar
   procedure, non_overridable, private :: facet_integrator_evaluate_fe_function_vector
