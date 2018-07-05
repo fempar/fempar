@@ -25,9 +25,9 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module maxwell_discrete_integration_names
+module par_pb_bddc_maxwell_discrete_integration_names
   use fempar_names
-  use maxwell_analytical_functions_names
+  use par_pb_bddc_maxwell_analytical_functions_names
   
   implicit none
 # include "debug.i90"
@@ -42,7 +42,7 @@ module maxwell_discrete_integration_names
   public :: BLACK, WHITE 
   
   type, extends(discrete_integration_t) :: maxwell_cG_discrete_integration_t
-   type(maxwell_analytical_functions_t), pointer :: analytical_functions => NULL()
+   type(par_pb_bddc_maxwell_analytical_functions_t), pointer :: analytical_functions => NULL()
 	  type(fe_function_t)                 , pointer :: fe_function          => NULL()
    integer(ip)                                   :: integration_type
    contains
@@ -59,7 +59,7 @@ contains
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
      class(maxwell_cG_discrete_integration_t)    ,intent(inout)  :: this
-     type(maxwell_analytical_functions_t), target, intent(in)    :: analytical_functions
+     type(par_pb_bddc_maxwell_analytical_functions_t), target, intent(in)    :: analytical_functions
      this%analytical_functions => analytical_functions
   end subroutine set_analytical_functions
   
@@ -220,4 +220,4 @@ contains
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
   
-end module maxwell_discrete_integration_names
+end module par_pb_bddc_maxwell_discrete_integration_names

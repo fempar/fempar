@@ -25,7 +25,7 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-module maxwell_conditions_names
+module par_pb_bddc_maxwell_conditions_names
   use fempar_names
 
   implicit none
@@ -118,4 +118,4 @@ subroutine maxwell_conditions_get_function ( this, boundary_id, component_id, fu
 
 end subroutine maxwell_conditions_get_function
 
-end module maxwell_conditions_names
+end module par_pb_bddc_maxwell_conditions_names

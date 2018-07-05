@@ -1,9 +1,9 @@
-program par_test_maxwell
+program par_pb_bddc_maxwell
   use fempar_names
-  use par_test_maxwell_driver_names
+  use par_pb_bddc_maxwell_driver_names
   implicit none
   integer(ip) :: i
-  type(par_test_maxwell_fe_driver_t), save :: test_driver 
+  type(par_pb_bddc_maxwell_fe_driver_t), save :: test_driver 
 
   call fempar_init()  
   call test_driver%parse_command_line_parameters()
@@ -18,4 +18,4 @@ program par_test_maxwell
   call test_driver%free_environment()
   call fempar_finalize()
  
-end program par_test_maxwell
+end program par_pb_bddc_maxwell

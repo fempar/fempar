@@ -26,7 +26,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-module maxwell_analytical_functions_names
+module par_pb_bddc_maxwell_analytical_functions_names
   use fempar_names
   implicit none
 # include "debug.i90"
@@ -123,7 +123,7 @@ module maxwell_analytical_functions_names
      procedure :: get_gradient_space => solution_get_gradient_space
   end type solution_t
   
-  type maxwell_analytical_functions_t
+  type par_pb_bddc_maxwell_analytical_functions_t
      private
    type(resistivity_holder_t), pointer     :: resistivity(:)
    type(permeability_holder_t), pointer    :: permeability(:) 
@@ -144,9 +144,9 @@ module maxwell_analytical_functions_names
 	  procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
    procedure :: get_source_term                  => mn_get_source_term
    procedure :: get_solution_function            => mn_get_solution_function
-  end type maxwell_analytical_functions_t
+  end type par_pb_bddc_maxwell_analytical_functions_t
 
-  public :: maxwell_analytical_functions_t
+  public :: par_pb_bddc_maxwell_analytical_functions_t
   public :: resistivity_holder_t, resistivity_function_white_t, resistivity_function_black_t 
   public :: permeability_holder_t, permeability_function_white_t, permeability_function_black_t 
 
@@ -297,7 +297,7 @@ contains
   !===============================================================================================
   subroutine mn_set_num_dims ( this, num_dims )
     implicit none
-    class(maxwell_analytical_functions_t), intent(inout)    :: this
+    class(par_pb_bddc_maxwell_analytical_functions_t), intent(inout)    :: this
     integer(ip), intent(in) ::  num_dims
     call this%source_term%set_num_dims(num_dims)
     call this%solution%set_num_dims(num_dims)
@@ -306,7 +306,7 @@ contains
     !===============================================================================================
   subroutine mn_set_resistivity_holder ( this, resistivity_holder )
     implicit none
-    class(maxwell_analytical_functions_t), intent(inout)    :: this
+    class(par_pb_bddc_maxwell_analytical_functions_t), intent(inout)    :: this
     type(resistivity_holder_t), target   , intent(in)       :: resistivity_holder(:)
     this%resistivity => resistivity_holder 
   end subroutine mn_set_resistivity_holder
@@ -314,7 +314,7 @@ contains
       !===============================================================================================
   subroutine mn_set_permeability_holder ( this, permeability_holder )
     implicit none
-    class(maxwell_analytical_functions_t), intent(inout)    :: this
+    class(par_pb_bddc_maxwell_analytical_functions_t), intent(inout)    :: this
     type(permeability_holder_t), target   , intent(in)      :: permeability_holder(:)
     this%permeability => permeability_holder 
   end subroutine mn_set_permeability_holder
@@ -322,7 +322,7 @@ contains
       !===============================================================================================
   function mn_get_resistivity ( this )
     implicit none
-    class(maxwell_analytical_functions_t), target, intent(in)    :: this
+    class(par_pb_bddc_maxwell_analytical_functions_t), target, intent(in)    :: this
     type(resistivity_holder_t), pointer     :: mn_get_resistivity(:)
     mn_get_resistivity => this%resistivity 
   end function mn_get_resistivity
@@ -330,7 +330,7 @@ contains
         !===============================================================================================
   function mn_get_permeability ( this )
     implicit none
-    class(maxwell_analytical_functions_t), target, intent(in)    :: this
+    class(par_pb_bddc_maxwell_analytical_functions_t), target, intent(in)    :: this
     type(permeability_holder_t), pointer     :: mn_get_permeability(:)
     mn_get_permeability => this%permeability 
   end function mn_get_permeability
@@ -338,7 +338,7 @@ contains
   !===============================================================================================
   function mn_get_boundary_function_Hx ( this )
     implicit none
-    class(maxwell_analytical_functions_t), target, intent(in)    :: this
+    class(par_pb_bddc_maxwell_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hx
     mn_get_boundary_function_Hx => this%boundary_function_Hx 
   end function mn_get_boundary_function_Hx
@@ -346,7 +346,7 @@ contains
   !===============================================================================================
   function mn_get_boundary_function_Hy ( this )
     implicit none
-    class(maxwell_analytical_functions_t), target, intent(in)    :: this
+    class(par_pb_bddc_maxwell_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hy
     mn_get_boundary_function_Hy => this%boundary_function_Hy 
   end function mn_get_boundary_function_Hy
@@ -354,7 +354,7 @@ contains
   !===============================================================================================
   function mn_get_boundary_function_Hz ( this )
     implicit none
-    class(maxwell_analytical_functions_t), target, intent(in)    :: this
+    class(par_pb_bddc_maxwell_analytical_functions_t), target, intent(in)    :: this
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hz
     mn_get_boundary_function_Hz => this%boundary_function_Hz 
   end function mn_get_boundary_function_Hz
@@ -362,7 +362,7 @@ contains
   !===============================================================================================
   function mn_get_solution_function ( this )
     implicit none
-    class(maxwell_analytical_functions_t), target, intent(in)    :: this
+    class(par_pb_bddc_maxwell_analytical_functions_t), target, intent(in)    :: this
     class(vector_function_t), pointer :: mn_get_solution_function
     mn_get_solution_function => this%solution
   end function mn_get_solution_function
@@ -370,10 +370,10 @@ contains
   !===============================================================================================
   function mn_get_source_term ( this )
     implicit none
-    class(maxwell_analytical_functions_t), target, intent(in)    :: this
+    class(par_pb_bddc_maxwell_analytical_functions_t), target, intent(in)    :: this
     class(vector_function_t), pointer :: mn_get_source_term
     mn_get_source_term => this%source_term
   end function mn_get_source_term
 
-end module maxwell_analytical_functions_names
+end module par_pb_bddc_maxwell_analytical_functions_names
 !***************************************************************************************************

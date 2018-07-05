@@ -1,4 +1,4 @@
-module par_test_maxwell_params_names
+module par_pb_bddc_maxwell_params_names
   use fempar_names
 
   implicit none
@@ -15,7 +15,7 @@ module par_test_maxwell_params_names
   character(len=*), parameter :: permeability_black_key               = 'permeability_black'
   character(len=*), parameter :: resistivity_black_key                = 'resistivity_black'
   
-  type, extends(parameter_handler_t) :: par_test_maxwell_params_t
+  type, extends(parameter_handler_t) :: par_pb_bddc_maxwell_params_t
      private
      contains
        procedure :: define_parameters  => par_test_maxwell_params_define_parameters
@@ -29,17 +29,17 @@ module par_test_maxwell_params_names
        procedure, non_overridable             :: get_resistivity_white  
        procedure, non_overridable             :: get_permeability_black 
        procedure, non_overridable             :: get_resistivity_black 
-  end type par_test_maxwell_params_t
+  end type par_pb_bddc_maxwell_params_t
 
   ! Types
-  public :: par_test_maxwell_params_t
+  public :: par_pb_bddc_maxwell_params_t
 
 contains
 
   !==================================================================================================
   subroutine par_test_maxwell_params_define_parameters(this)
     implicit none
-    class(par_test_maxwell_params_t), intent(inout) :: this
+    class(par_pb_bddc_maxwell_params_t), intent(inout) :: this
     type(ParameterList_t), pointer :: list, switches, switches_ab, helpers, required
     integer(ip)    :: error
     character(len=:), allocatable            :: msg
@@ -180,7 +180,7 @@ contains
   ! GETTERS *****************************************************************************************
   function get_dir_path(this)
     implicit none
-    class(par_test_maxwell_params_t) , intent(in) :: this
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_dir_path
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -193,7 +193,7 @@ contains
   !==================================================================================================
   function get_prefix(this)
     implicit none
-    class(par_test_maxwell_params_t) , intent(in) :: this
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     character(len=:),      allocatable            :: get_prefix
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -206,7 +206,7 @@ contains
     !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
-    class(par_test_maxwell_params_t) , intent(in) :: this
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     integer(ip)                                   :: get_reference_fe_geo_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -219,7 +219,7 @@ contains
   !==================================================================================================
   function get_reference_fe_order(this)
     implicit none
-    class(par_test_maxwell_params_t) , intent(in) :: this
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     integer(ip)                                   :: get_reference_fe_order
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -232,7 +232,7 @@ contains
   !==================================================================================================
   function get_write_solution(this)
     implicit none
-    class(par_test_maxwell_params_t) , intent(in) :: this
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     logical                                       :: get_write_solution
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -248,7 +248,7 @@ contains
   !==================================================================================================
   function get_triangulation_type(this)
     implicit none
-    class(par_test_maxwell_params_t) , intent(in) :: this
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     integer(ip)                                   :: get_triangulation_type
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -261,7 +261,7 @@ contains
     !==================================================================================================
   function get_permeability_white(this)
     implicit none
-    class(par_test_maxwell_params_t) , intent(in) :: this
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     real(rp)                                      :: get_permeability_white
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -274,7 +274,7 @@ contains
       !==================================================================================================
   function get_permeability_black(this)
     implicit none
-    class(par_test_maxwell_params_t) , intent(in) :: this
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     real(rp)                                      :: get_permeability_black
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -287,7 +287,7 @@ contains
      !==================================================================================================
   function get_resistivity_white (this)
     implicit none
-    class(par_test_maxwell_params_t) , intent(in) :: this
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     real(rp)                                      :: get_resistivity_white 
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -300,7 +300,7 @@ contains
        !==================================================================================================
   function get_resistivity_black (this)
     implicit none
-    class(par_test_maxwell_params_t) , intent(in) :: this
+    class(par_pb_bddc_maxwell_params_t) , intent(in) :: this
     real(rp)                                      :: get_resistivity_black 
     type(ParameterList_t), pointer                :: list
     integer(ip)                                   :: error
@@ -311,4 +311,4 @@ contains
   end function get_resistivity_black 
 
 
-end module par_test_maxwell_params_names
+end module par_pb_bddc_maxwell_params_names
