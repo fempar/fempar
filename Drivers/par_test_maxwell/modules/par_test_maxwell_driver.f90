@@ -256,8 +256,8 @@ end subroutine free_timers
      ! Initialize resistivity values for different materials 
      call this%resistivity_black%set_value(this%test_params%get_resistivity_black())
      call this%resistivity_white%set_value(this%test_params%get_resistivity_white()) 
-     call this%permeability_black%set_value(this%test_params%get_resistivity_black())
-     call this%permeability_white%set_value(this%test_params%get_resistivity_white()) 
+     call this%permeability_black%set_value(this%test_params%get_permeability_black())
+     call this%permeability_white%set_value(this%test_params%get_permeability_white()) 
     
      allocate(this%resistivity_holder(2), stat=istat)
      allocate(this%permeability_holder(2), stat=istat) 
@@ -271,7 +271,6 @@ end subroutine free_timers
      call this%maxwell_analytical_functions%set_permeability( this%permeability_holder ) 
      
      call this%maxwell_analytical_functions%set_num_dims(this%triangulation%get_num_dims())
-     call this%maxwell_analytical_functions%set_parameter_values(this%permeability, this%resistivity)
 		 
   end subroutine setup_analytical_functions 
   
@@ -343,10 +342,7 @@ end subroutine free_timers
     end if 
     
     call this%maxwell_integration%set_analytical_functions(this%maxwell_analytical_functions)
-    call this%maxwell_integration%set_params(this%test_params%get_permeability_white(), this%test_params%get_resistivity_white(), & 
-                                             this%test_params%get_permeability_black(), this%test_params%get_resistivity_black() )
     
-    ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                           diagonal_blocks_symmetric_storage = [ .true. ], &
                                           diagonal_blocks_symmetric         = [ .true. ], &
@@ -354,7 +350,6 @@ end subroutine free_timers
                                           fe_space                          = this%fe_space, &
                                           discrete_integration              = this%maxwell_integration )
     
-    ! if (test_single_scalar_valued_reference_fe) then
     call this%fe_affine_prec_operator%create ( sparse_matrix_storage_format      = csr_format, &
                                                diagonal_blocks_symmetric_storage = [ .true. ], &
                                                diagonal_blocks_symmetric         = [ .true. ], &

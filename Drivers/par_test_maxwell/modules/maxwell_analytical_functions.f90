@@ -136,7 +136,6 @@ module maxwell_analytical_functions_names
    procedure :: set_num_dims                     => mn_set_num_dims
    procedure :: set_resistivity                  => mn_set_resistivity_holder
    procedure :: set_permeability                 => mn_set_permeability_holder 
-   procedure :: set_parameter_values             => mn_set_parameter_values 
    ! Getters 
    procedure :: get_resistivity                  => mn_get_resistivity
    procedure :: get_permeability                 => mn_get_permeability 
@@ -319,16 +318,6 @@ contains
     type(permeability_holder_t), target   , intent(in)      :: permeability_holder(:)
     this%permeability => permeability_holder 
   end subroutine mn_set_permeability_holder
-  
-    !===============================================================================================
-  subroutine mn_set_parameter_values ( this, permeability, resistivity )
-    implicit none
-    class(maxwell_analytical_functions_t), intent(inout)    :: this
-    real(rp), intent(in) ::  permeability
-    real(rp), intent(in) ::  resistivity 
-    this%source_term%permeability = permeability 
-    this%source_term%resistivity  = resistivity 
-  end subroutine mn_set_parameter_values
   
       !===============================================================================================
   function mn_get_resistivity ( this )

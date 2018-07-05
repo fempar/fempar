@@ -44,17 +44,10 @@ module maxwell_discrete_integration_names
   type, extends(discrete_integration_t) :: maxwell_cG_discrete_integration_t
    type(maxwell_analytical_functions_t), pointer :: analytical_functions => NULL()
 	  type(fe_function_t)                 , pointer :: fe_function          => NULL()
-   real(rp)                                      :: permeability_white 
-   real(rp)                                      :: resistivity_white
-   real(rp)                                      :: permeability_black
-   real(rp)                                      :: resistivity_black
    integer(ip)                                   :: integration_type
    contains
      procedure :: set_analytical_functions
 	    procedure :: set_fe_function 
-     procedure :: set_params 
-     procedure :: compute_permeability
-     procedure :: compute_resistivity 
      procedure :: set_integration_type 
      procedure :: integrate_galerkin 
   end type maxwell_cG_discrete_integration_t
@@ -76,52 +69,7 @@ contains
     type(fe_function_t)                     , target, intent(in)  :: fe_function
     this%fe_function => fe_function
   end subroutine set_fe_function
-  
-  subroutine set_params (this, permeability_white, resistivity_white, permeability_black, resistivity_black  )
-    implicit none
-    class(maxwell_cG_discrete_integration_t), intent(inout)  :: this
-    real(rp)                                , intent(in)     :: permeability_white
-    real(rp)                                , intent(in)     :: resistivity_white 
-    real(rp)                                , intent(in)     :: permeability_black
-    real(rp)                                , intent(in)     :: resistivity_black 
-    this%permeability_white = permeability_white
-    this%resistivity_white  = resistivity_white 
-    this%permeability_black = permeability_black
-    this%resistivity_black  = resistivity_black 
-  end subroutine set_params
-  
-  function compute_permeability (this, colour)
-    implicit none
-    class(maxwell_cG_discrete_integration_t), intent(in)  :: this
-    integer(ip)                             , intent(in)  :: colour 
-    real(rp) :: compute_permeability
-    
-    if ( colour == white ) then 
-    compute_permeability = this%permeability_white 
-    elseif ( colour == black ) then 
-    compute_permeability = this%permeability_black 
-    else 
-    assert(.false.) 
-    end if
-
-  end function compute_permeability
-  
-  function compute_resistivity (this, colour)
-    implicit none
-    class(maxwell_cG_discrete_integration_t), intent(in)  :: this
-    integer(ip)                             , intent(in)  :: colour
-    real(rp) :: compute_resistivity
-     
-    if ( colour == white ) then 
-    compute_resistivity = this%resistivity_white  
-    elseif ( colour == black ) then 
-    compute_resistivity = this%resistivity_black 
-    else 
-    assert(.false.) 
-    end if 
-
-  end function compute_resistivity
-  
+      
   subroutine set_integration_type (this, integration_type )
     implicit none
     class(maxwell_cG_discrete_integration_t), intent(inout)  :: this
@@ -157,15 +105,17 @@ contains
     integer(ip)                            :: number_fields
     class(vector_function_t)  , pointer    :: source_term
     type(resistivity_holder_t), pointer    :: resistivity_holder(:)
-    real(rp)                               :: permeability, resistivity 
+    type(permeability_holder_t), pointer   :: permeability_holder(:)
+    real(rp), allocatable                  :: permeability(:), resistivity(:) 
     integer(ip)                            :: material_id 
-    real(rp) :: resis2
     
     assert (associated(this%analytical_functions)) 
 	   assert (associated(this%fe_function))
 
-    source_term        => this%analytical_functions%get_source_term()
-	   resistivity_holder => this%analytical_functions%get_resistivity()
+    ! Extract analytical functions 
+    source_term         => this%analytical_functions%get_source_term()
+	   resistivity_holder  => this%analytical_functions%get_resistivity()
+    permeability_holder => this%analytical_functions%get_permeability()
     
 	   call fe_space%set_up_cell_integration()
     call fe_space%create_fe_cell_iterator(fe)
@@ -177,6 +127,8 @@ contains
    	quad            => fe%get_quadrature()
 	   num_quad_points = quad%get_num_quadrature_points()
 	   allocate (source_term_values(num_quad_points), stat=istat); check(istat==0)
+    call memalloc( num_quad_points, resistivity, __FILE__, __LINE__ )
+    call memalloc( num_quad_points, permeability, __FILE__, __LINE__ )
 
     do while ( .not. fe%has_finished())
     
@@ -184,10 +136,6 @@ contains
 	   
           ! Update FE-integration related data structures
           call fe%update_integration()
-       
-          ! Get parameter values 
-          permeability = this%compute_permeability( fe%get_set_id() )
-          resistivity  = this%compute_resistivity( fe%get_set_id() )
 
           ! Very important: this has to be inside the loop, as different FEs can be present! Study the multifield case, what happens with source term? 
           quad            => fe%get_quadrature()
@@ -197,8 +145,11 @@ contains
           ! Get quadrature coordinates to evaluate source_term
 										quad_coords => fe%get_quadrature_points_coordinates()
 		  
-		        ! Evaluate pressure source term at quadrature points
+		        ! Evaluate analytical functions at quadrature points 
+          material_id = 1 + fe%get_set_id() 
           call source_term%get_values_set(quad_coords, source_term_values)
+          call resistivity_holder(material_id)%p%get_values_set(quad_coords, resistivity)
+          call permeability_holder(material_id)%p%get_values_set(quad_coords, permeability)  
                     
           ! Compute element matrix and vector
           elmat = 0.0_rp
@@ -206,20 +157,12 @@ contains
           call fe%get_curls(shape_curls)
           call fe%get_values(shape_values)
           do qpoint = 1, num_quad_points
-             factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
-             material_id = 1 + fe%get_set_id() 
-             call resistivity_holder(material_id)%p%get_value_space(quad_coords(qpoint), resis2)
-             
-             if (abs(resis2 - resistivity)>1e-14_rp) then 
-             WRITE(*,*)  resis2, 'vs', resistivity, 'FEid', fe%get_set_id()
-             wassert(.false., 'Not consistent income')
-             end if 
-             
+             factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)                        
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
                    ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( resistivity* shape_curls(jdof,qpoint)* shape_curls(idof,qpoint) & 
-                                                                  + permeability*shape_values(jdof,qpoint)*shape_values(idof,qpoint) )
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * ( resistivity(qpoint)* shape_curls(jdof,qpoint)* shape_curls(idof,qpoint) & 
+                                                                  + permeability(qpoint)*shape_values(jdof,qpoint)*shape_values(idof,qpoint) )
                 end do
              end do
              
@@ -237,7 +180,8 @@ contains
           call fe%update_integration()
        
           ! Get parameter values 
-          permeability = this%compute_permeability( fe%get_set_id() )
+          material_id = 1 + fe%get_set_id()
+          call permeability_holder(material_id)%p%get_values_set(quad_coords, permeability)   
           
           ! Very important: this has to be inside the loop, as different FEs can be present! Study the multifield case, what happens with source term? 
           quad            => fe%get_quadrature()
@@ -250,10 +194,11 @@ contains
           call fe%get_values(shape_values)
           do qpoint = 1, num_quad_points
              factor = fe%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
+          
              do idof = 1, num_dofs
                 do jdof = 1, num_dofs
                    ! A_K(i,j) =  (curl(phi_i),curl(phi_j)) + (phi_i,phi_j)
-                   elmat(idof,jdof) = elmat(idof,jdof) + factor * permeability*shape_values(jdof,qpoint)*shape_values(idof,qpoint)
+                   elmat(idof,jdof) = elmat(idof,jdof) + factor * permeability(qpoint)*shape_values(jdof,qpoint)*shape_values(idof,qpoint)
                 end do
              end do
           end do
@@ -269,6 +214,8 @@ contains
     deallocate (shape_values, stat=istat);       check(istat==0)
     deallocate (shape_curls, stat=istat);        check(istat==0)
     deallocate (source_term_values, stat=istat); check(istat==0)
+    call memfree ( resistivity, __FILE__, __LINE__ ) 
+    call memfree ( permeability, __FILE__, __LINE__ ) 
     call memfree ( elmat, __FILE__, __LINE__ )
     call memfree ( elvec, __FILE__, __LINE__ )
   end subroutine integrate_galerkin
