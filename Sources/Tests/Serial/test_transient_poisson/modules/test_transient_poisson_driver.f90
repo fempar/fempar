@@ -396,13 +396,15 @@ contains
     class(test_transient_poisson_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: error_norm
     character(len=:), allocatable :: time_integration_scheme
-    real(rp) :: l2, l2_prev, dt, dt_variation, current_time, order_tol, final_time, error_tolerance
+    real(rp) :: l2, l2_prev, dt, dt_variation, current_time, order_tol, final_time, error_tolerance, dt_global, dt_variation_global
     integer(ip) :: convergence_order
     logical :: is_test , in_tol
     
-    dt = 1.0e-03
+    dt = 1.0e-04
+    dt_global = 1.0e-3
     final_time = 1.0e-02
     dt_variation = 1.0e-01
+    dt_variation_global = 0.5
     order_tol = 0.05_rp
     in_tol  = .false.
     
@@ -417,12 +419,14 @@ contains
 #endif  
     
     if ( time_integration_scheme == 'trapezoidal_rule' ) then
-      dt = 1
+      dt = 1.0
+      dt_global = 1.0
       final_time = 10
+      dt_variation_global = dt_variation
     end if
     
     if (is_test) then
-
+      !Local test
       l2_prev = this%get_error_norm(dt,dt,time_integration_scheme)
       l2      = this%get_error_norm(dt*dt_variation,dt*dt_variation,time_integration_scheme)
       
@@ -433,13 +437,15 @@ contains
       endif
       
       convergence_order = this%time_operator%get_order()
-
       if ( abs((l2 - l2_prev*dt_variation**(convergence_order+1)) / l2) < order_tol .or. in_tol ) then
         write(*,*) 'Local  convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
       else
         write(*,*) 'Local  convergence test for: ', time_integration_scheme , char(9) ,' ...  fail' 
       endif
       
+      !Global test
+      dt = dt_global
+      dt_variation = dt_variation_global
       l2_prev = this%get_error_norm(dt,final_time,time_integration_scheme)
       l2      = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
        
@@ -451,7 +457,6 @@ contains
           in_tol = .true.
         endif
       endif
-      
       if ( abs((l2 - l2_prev*dt_variation**convergence_order) / l2) < order_tol .or. in_tol ) then
         write(*,*) 'Global convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
       else
