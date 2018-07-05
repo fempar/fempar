@@ -285,7 +285,7 @@ contains
        assert(.false.) 
     end select
     
-    call this%nl_solver%create( convergence_criteria = abs_res_norm, &
+    call this%nl_solver%create( convergence_criteria = rel_r0_res_norm, &
                                 abs_tol = 1.0e-6_rp, &
                                 rel_tol = 1.0e-6_rp, &
                                 max_iters = 10_ip, &

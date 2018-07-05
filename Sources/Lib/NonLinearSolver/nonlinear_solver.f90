@@ -141,9 +141,6 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
   call nonlinear_operator%compute_residual()
   this%current_residual => nonlinear_operator%get_translation()
   
-  ! Print initial residual
-  call this%print_iteration_output_header()
-  call this%print_current_iteration_output()
     
   ! Store initial residual for the stopping criterium that needs it
   if (this%convergence_criteria == rel_r0_res_norm) then
@@ -155,6 +152,10 @@ subroutine nonlinear_solver_solve(this,nonlinear_operator,unknown)
     this%initial_residual = this%current_residual
   end if
     
+   ! Print initial residual
+  call this%print_iteration_output_header()
+  call this%print_current_iteration_output()
+  
   do while (.not. this%has_finished())
     this%current_iteration = this%current_iteration + 1
     call nonlinear_operator%compute_tangent()  
