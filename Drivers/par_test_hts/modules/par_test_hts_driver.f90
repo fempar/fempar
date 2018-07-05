@@ -528,8 +528,7 @@ contains
          &                                         rel_tol = this%test_params%get_relative_nonlinear_tolerance(),   &
          &                                       max_iters = this%test_params%get_max_nonlinear_iterations()    ,   &
          &                                   linear_solver = this%linear_solver                                 ,   &
-         &                                     environment = this%environment                                   ,   & 
-		       &                                line_search_type = this%test_params%get_line_search_type()                )   
+         &                                     environment = this%environment                                       )   
 
   end subroutine setup_operators
 
