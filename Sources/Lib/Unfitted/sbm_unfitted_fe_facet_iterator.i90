@@ -145,7 +145,9 @@ subroutine unfitted_fe_facet_iterator_update_integration(this)
     call this%unfitted_facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
                                 subfacet_lid_within_cells_around, &
                                 this%unfitted_facet_maps, &             
-                                this%get_facet_permutation_index())
+                                this%get_facet_permutation_index(), &
+                                cell_ressemblance, &
+                                scaling_factor)
   end do
 
 end subroutine unfitted_fe_facet_iterator_update_integration

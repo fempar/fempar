@@ -298,6 +298,10 @@ subroutine fe_facet_iterator_update_integration( this )
   type(point_t)           , pointer :: coords(:)
   type(quadrature_t)      , pointer :: quadrature
   type(facet_integrator_t), pointer :: facet_integrator
+  
+  integer(ip), parameter :: no_cell_ressemblance(2) = [ no_ressemblance, no_ressemblance ]
+  real(rp)   , parameter :: no_scaling_factor(2)    = [ 1.0_rp         , 1.0_rp          ]
+  
   if ( .not. this%is_integration_updated() ) then
     coords => this%facet_maps%get_facet_coordinates()
     call this%get_nodes_coordinates(coords)
@@ -345,10 +349,19 @@ subroutine fe_facet_iterator_update_integration( this )
                                 scaling_factor)
   
     do field_id = 1, this%fe_space%get_num_fields()
-       call this%facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
-                                                      subfacet_lid_within_cells_around, &
-                                                      this%facet_maps, &             
-                                                      this%get_facet_permutation_index())
+       if ( associated(this%facet_integrators(field_id)%p,this%previous_facet%facet_integrators(field_id)%p ) ) then 
+         call this%facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
+                                                        subfacet_lid_within_cells_around, &
+                                                        this%facet_maps, &             
+                                                        this%get_facet_permutation_index(), &
+                                                        cell_ressemblance, scaling_factor )
+       else
+         call this%facet_integrators(field_id)%p%update(facet_lpos_within_cells_around,  &
+                                                        subfacet_lid_within_cells_around, &
+                                                        this%facet_maps, &             
+                                                        this%get_facet_permutation_index(), &
+                                                        no_cell_ressemblance, no_scaling_factor )
+       end if 
     end do
     call this%set_integration_updated(.true.)
   end if

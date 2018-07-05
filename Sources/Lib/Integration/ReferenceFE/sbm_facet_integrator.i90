@@ -400,15 +400,22 @@ subroutine cell_integrator_facet_restriction_create(this, quadrature, reference_
 end subroutine cell_integrator_facet_restriction_create
 
 !==================================================================================================
-subroutine cell_integrator_facet_restriction_update(this, cell_map, facet_lid, subfacet_lid)
+subroutine cell_integrator_facet_restriction_update(this, &
+                                                    cell_map, &
+                                                    facet_lid, &
+                                                    subfacet_lid, &
+                                                    cell_ressemblance, &
+                                                    scaling_factor)
   implicit none
   class(cell_integrator_facet_restriction_t), intent(inout) :: this
-  type(cell_map_t)                           , intent(in)    :: cell_map
-  integer(ip)                              , intent(in)    :: facet_lid
-  integer(ip)                              , intent(in)    :: subfacet_lid
+  type(cell_map_t)                          , intent(in)    :: cell_map
+  integer(ip)                               , intent(in)    :: facet_lid
+  integer(ip)                               , intent(in)    :: subfacet_lid
+  integer(ip)                               , intent(in)    :: cell_ressemblance
+  real(rp)                                  , intent(in)    :: scaling_factor
   this%current_facet_lid = facet_lid
   this%current_subfacet_lid = subfacet_lid
-  call this%cell_integrator(facet_lid+subfacet_lid*this%num_facets)%update(no_ressemblance,cell_map)
+  call this%cell_integrator(facet_lid+subfacet_lid*this%num_facets)%update(cell_ressemblance,cell_map,scaling_factor)
 end subroutine cell_integrator_facet_restriction_update
 
 !==================================================================================================
@@ -534,20 +541,35 @@ subroutine facet_integrator_free(this)
 end subroutine facet_integrator_free
 
 !==================================================================================================
-subroutine facet_integrator_update(this,facet_lid,subfacet_lid,facet_map,permutation_index)
+subroutine facet_integrator_update(this, &
+                                   facet_lid, &
+                                   subfacet_lid, &
+                                   facet_map, &
+                                   permutation_index, &
+                                   cell_ressemblance, &
+                                   scaling_factor)
   implicit none
   ! Parameters
   class(facet_integrator_t), intent(inout) :: this
-  integer(ip)             , intent(in)    :: facet_lid(2)
-  integer(ip)             , intent(in)    :: subfacet_lid(2)
-  integer(ip)             , intent(in)    :: permutation_index
+  integer(ip)              , intent(in)    :: facet_lid(2)
+  integer(ip)              , intent(in)    :: subfacet_lid(2)
   type(facet_maps_t)       , intent(in)    :: facet_map
+  integer(ip)              , intent(in)    :: permutation_index
+  integer(ip)              , intent(in)    :: cell_ressemblance(2)
+  real(rp)                 , intent(in)    :: scaling_factor(2)
+
   call this%cell_integrator_facet_restriction(1)%update( facet_map%cell_maps(1)%get_current_cell_map(), &
-                                                        facet_lid(1), subfacet_lid(1) )
+                                                         facet_lid(1), & 
+                                                         subfacet_lid(1), &
+                                                         cell_ressemblance(1), &
+                                                         scaling_factor(1) )
   if (.not. this%is_at_boundary) then
      this%current_permutation_index = permutation_index
      call this%cell_integrator_facet_restriction(2)%update( facet_map%cell_maps(2)%get_current_cell_map(), &
-                                                           facet_lid(2), subfacet_lid(2) )
+                                                            facet_lid(2), &
+                                                            subfacet_lid(2), &
+                                                            cell_ressemblance(2), &
+                                                            scaling_factor(2) )
   end if
 end subroutine facet_integrator_update
 
