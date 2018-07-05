@@ -164,8 +164,6 @@ module time_stepping_names
      ! So, we don't really need to use the block assembler for the
      ! all-stages operator. We note that the matrix is not needed to be computed
      ! for every stage since it is always the same
-     ! class(assembler_t)                   , allocatable :: assembler
-     ! type(block_vector_t)                               :: dofs_stages_block_vector
    contains
      procedure :: create                          => time_stepping_operator_create
      procedure :: free                            => time_stepping_operator_free

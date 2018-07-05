@@ -46,7 +46,7 @@ subroutine dirk_solver_apply( this, x, y )
   assert ( associated(this%ts_op) )
   assert ( associated(this%nl_solver) )
   
-  call this%ts_op%set_initial_data(x) ! pmartorell: initial_values is already pointing to x (previous_dofs_values) in driver, hence, x is not needed
+  call this%ts_op%set_initial_data(x) 
   call y%copy(x)
   do i = 1, this%ts_op%scheme%num_stages
     stage_op => this%ts_op%get_stage_operator(i,i)

@@ -232,27 +232,8 @@ contains
   
     call this%solution%create(this%fe_space)
     call this%poisson_cG_integration%set_fe_function(this%solution) 
-    call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions)
-    
-    !pmartorell: Needed in release?
-    !call this%fe_nl_op%set_evaluation_point(this%solution%get_free_dof_values())
-    !call this%fe_nl_op%compute_tangent()
-    
-    !A => this%fe_nl_op%get_matrix()
+    call this%poisson_cG_integration%set_analytical_functions(this%poisson_analytical_functions) 
 
-    
-    
-    !luout = io_open ( "A.mtx", 'write')
-    !select type(A)
-    !class is (sparse_matrix_t)  
-    !   call A%print_matrix_market(luout) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    !call io_close(luout)
-    
-    
-    
   end subroutine setup_system
   
   
@@ -322,30 +303,6 @@ contains
   subroutine assemble_system (this)
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
-    !class(matrix_t)                  , pointer       :: matrix
-    !class(vector_t)                  , pointer       :: rhs
-    !integer(ip) :: luout
-    !call this%fe_affine_operator%compute()
-    !rhs                => this%fe_affine_operator%get_translation()
-    !matrix             => this%fe_affine_operator%get_matrix()
-    
-    !luout = io_open ( "matrix.mtx", 'write')
-    !select type(matrix)
-    !class is (sparse_matrix_t)  
-    !   call matrix%print_matrix_market(luout) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    !call io_close(luout)
-    
-    !luout = io_open ( "force_term.mtx", 'write')
-    !select type(rhs)
-    !class is (serial_scalar_array_t)  
-    !  call rhs%print_matrix_market(luout) 
-    !class DEFAULT
-    !   assert(.false.) 
-    !end select
-    !call io_close(luout)
   end subroutine assemble_system
   
   
@@ -357,7 +314,6 @@ contains
     real(rp) :: final_time, time_step
     real(rp)                                                :: current_time
     
-    !! sbadia: for transient body force/bc's we will need the time t0 too
 
     current_time = this%time_operator%get_current_time()
     final_time = this%time_operator%get_final_time()

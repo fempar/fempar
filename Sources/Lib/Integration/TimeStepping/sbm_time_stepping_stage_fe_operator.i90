@@ -162,8 +162,7 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
       call dummy_v%axpby(this%ts_op%dt*this%ts_op%scheme%a(this%i,j), this%ts_op%dofs_stages(j), 1.0_rp) 
     end if
   end do
-  !di_fe_op   => this%fe_nl_op%get_discrete_integration()
-  !di_mass_op => this%mass_nl_op%get_discrete_integration()
+
   call this%fe_nl_op%set_evaluation_point(this%aux)
   call this%mass_nl_op%set_evaluation_point(x)
   
@@ -173,13 +172,12 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
 end subroutine time_stepping_stage_fe_operator_set_evaluation_point
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine time_stepping_stage_fe_operator_set_evaluation_time(this,time) !pmartorell: Set evaluation time in boundary
+subroutine time_stepping_stage_fe_operator_set_evaluation_time(this,time) 
   implicit none
   class(time_stepping_stage_fe_operator_t), target, intent(inout) :: this
   real(rp)                                           , intent(in) :: time
   class(serial_fe_space_t)                , pointer               :: fe_space
-  !class(fe_function_t)                    , pointer               :: fe_fun
-  !class(fe_function_t)                    , pointer               :: fe_fun_mass
+
   class(discrete_integration_t)           , pointer               :: di_fe_op
   class(discrete_integration_t)           , pointer               :: di_fe_mass_op
  
@@ -187,9 +185,6 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_time(this,time) !pmart
   di_fe_op         => this%fe_nl_op%get_discrete_integration()
   di_fe_mass_op    => this%mass_nl_op%get_discrete_integration()
   
-  !call this%ts_op%get_fe_functions( fe_fun , fe_fun_mass )
-  !call fe_space%interpolate_dirichlet_values(fe_fun, time=time)
-  !call fe_space%interpolate_dirichlet_values(fe_fun_mass, time=time , time_derivative_order = 1 )
   
   call di_fe_op%set_current_time(fe_space,time)
   call di_fe_mass_op%set_current_time(fe_space,time)
@@ -235,14 +230,10 @@ subroutine time_stepping_stage_fe_operator_compute_residual(this)
       residual => this_assembler%get_array()
       if ( associated(trial_fe_sp) ) then
          call di_fe_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, this_assembler )
-        ! call residual%scal(this%ts_op%dt, residual) ! BUG?
-         ! sbadia: here we should consider as Dirichlet data the time derivative of the fixed value, to be done
          if ( this%i == this%j ) call di_mass_op%integrate_petrov_galerkin_residual( fe_sp, trial_fe_sp, this_assembler )
       else
-           call di_fe_op%integrate_residual( fe_sp, this_assembler )
-          ! call residual%scal(this%ts_op%dt, residual) ! BUG?
-           ! sbadia: here we should consider as Dirichlet data the time derivative of the fixed value, to be done
-           if ( this%i == this%j ) call di_mass_op%integrate_residual( fe_sp, this_assembler ) 
+         call di_fe_op%integrate_residual( fe_sp, this_assembler )
+         if ( this%i == this%j ) call di_mass_op%integrate_residual( fe_sp, this_assembler ) 
       end if
     end if
 
