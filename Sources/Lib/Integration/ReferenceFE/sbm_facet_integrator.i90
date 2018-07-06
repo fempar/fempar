@@ -250,26 +250,17 @@ function facet_maps_compute_characteristic_length(this,qpoin)
   class(facet_maps_t), target, intent(in) :: this
   integer(ip)              , intent(in) :: qpoin
   real(rp) :: facet_maps_compute_characteristic_length
-
   real(rp)    :: h
-  integer(ip) :: i, cell_map_index
-  type(cell_map_t), pointer :: cell_map
-  
+  integer(ip) :: cell_map_index
   cell_map_index = this%cell_maps(1)%current_facet_lid + & 
-                 this%cell_maps(1)%current_subfacet_lid * this%cell_maps(1)%num_facets
-  cell_map => this%cell_maps(1)%cell_map(cell_map_index)
-  facet_maps_compute_characteristic_length = cell_map%compute_h(qpoin)
-
+                 this%cell_maps(1)%current_subfacet_lid * this%cell_maps(1)%num_facets 
+  facet_maps_compute_characteristic_length = this%cell_maps(1)%cell_map(cell_map_index)%compute_h(qpoin)
   if (.not. this%is_at_boundary) then
-     i = 2
-     cell_map_index = this%cell_maps(i)%current_facet_lid + & 
-                    this%cell_maps(i)%current_subfacet_lid * this%cell_maps(i)%num_facets
-     cell_map => this%cell_maps(i)%cell_map(cell_map_index)
-
-     h = cell_map%compute_h(qpoin) 
+     cell_map_index = this%cell_maps(2)%current_facet_lid + & 
+                    this%cell_maps(2)%current_subfacet_lid * this%cell_maps(2)%num_facets
+     h = this%cell_maps(2)%cell_map(cell_map_index)%compute_h(qpoin) 
      facet_maps_compute_characteristic_length = min(facet_maps_compute_characteristic_length, h)
   end if
-
 end function facet_maps_compute_characteristic_length
 
 !==================================================================================================
