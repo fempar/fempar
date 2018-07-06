@@ -36,7 +36,7 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list,
   real(rp), target                      , intent(in)    :: average_resistivity(:) 
   ! Initialize parameters 
   character(len=*), parameter :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
-  integer(ip)    :: continuity_algorithm
+  character(len=:), allocatable :: continuity_algorithm
   integer(ip)    :: FPLError
 
   type(environment_t), pointer        :: environment  
@@ -49,8 +49,8 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list,
   if ( .not. environment%am_i_l1_task() ) return 
 
   ! Mandatory parameter: choose BDDC enforced continuity 
-  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, continuity_algorithm))
-  FPLError = parameter_list%Get(bddc_edge_continuity_algorithm_key, continuity_algorithm)
+  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
+  FPLError = parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=continuity_algorithm)
   assert(FPLError == 0)
   if ( par_fe_space%get_num_dims()==2 ) then  
      massert( continuity_algorithm .ne. tangential_average_and_first_order_moment, 'Enforced continuity criteria not allowed for 2D problems' ) 
@@ -165,9 +165,9 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_
   type(list_iterator_t)       :: coarse_subedge_iterator
   type(list_iterator_t)       :: fine_edges_iterator 
   type(list_iterator_t)       :: own_dofs 
-  integer(ip)                 :: edge_continuity_algorithm 
   integer(ip)                 :: num_fine_edges_in_subedge 
   character(len=*), parameter :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
+  character(len=:), allocatable :: edge_continuity_algorithm 
   integer(ip)                 :: FPLError
 
   environment=> par_fe_space%get_environment()
@@ -180,8 +180,8 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_
   call par_fe_space%create_fe_vef_iterator(edge)
   call par_fe_space%create_fe_object_iterator(object)
 
-  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, edge_continuity_algorithm))
-  FPLError = parameter_list%Get(bddc_edge_continuity_algorithm_key, edge_continuity_algorithm);   assert(FPLError == 0)
+  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
+  FPLError = parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=edge_continuity_algorithm);   assert(FPLError == 0)
   if ( edge_continuity_algorithm == tangential_average_and_first_order_moment ) then  
      massert( par_fe_space%get_num_dims() /= 2,  'BDDC continuity algorithm not valid for 2D problems') 
   end if
@@ -223,6 +223,8 @@ subroutine Hcurl_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_
                  num_coarse_dofs(object%get_gid()) = num_coarse_dofs(object%get_gid()) + own_dofs%get_size()    
                  call fine_edges_iterator%next() 
               end do
+           case DEFAULT 
+           massert(.false., 'H(curl) BDDC selected continuity algorithm is not valid') 
            end select
 
            call coarse_subedge_iterator%next()
@@ -256,7 +258,7 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
   integer(ip) :: dof_lid, coarse_dof_lid
   integer(ip), pointer    :: fe_dofs(:)
 
-  integer(ip)                    :: edge_continuity_algorithm 
+  character(len=:), allocatable  :: edge_continuity_algorithm 
   character(len=*), parameter    :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
   integer(ip)                    :: FPLError
   type(serial_scalar_array_t)    :: first_moment_constraint_in_edges 
@@ -274,8 +276,8 @@ subroutine Hcurl_l1_setup_constraint_matrix(this, field_id, par_fe_space, parame
   assert (associated(environment))
   assert (environment%am_i_l1_task())
 
-  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, edge_continuity_algorithm))
-  FPLError = parameter_list%Get(bddc_edge_continuity_algorithm_key, edge_continuity_algorithm);   assert(FPLError == 0)
+  assert(parameter_list%isAssignable(bddc_edge_continuity_algorithm_key, 'string'))
+  FPLError = parameter_list%GetAsString(key=bddc_edge_continuity_algorithm_key, string=edge_continuity_algorithm);   assert(FPLError == 0)
   if ( edge_continuity_algorithm == tangential_average_and_first_order_moment ) then  
      massert( par_fe_space%get_num_dims() /= 2,  'BDDC continuity algorithm not valid for 2D problems') 
      call this%compute_first_order_moment_in_edges(par_fe_space, first_moment_constraint_in_edges)
@@ -519,11 +521,13 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   type(environment_t), pointer         :: p_env
   type(dof_import_t),  pointer         :: dof_import
   type(serial_scalar_array_t), pointer :: serial_array
-  real(rp), pointer                    :: assembled_diag(:)
-  real(rp), allocatable                :: sub_assembled_diag(:)
+  real(rp), pointer                    :: assembled_w(:)
+  real(rp), allocatable                :: sub_assembled_w(:)
   integer(ip)                          :: istat
-  logical :: parameter_scaling
-
+  character(len=*), parameter          :: bddc_weighting_function_case_key = 'bddc_weighting_function_case'
+  character(len=:), allocatable        :: weighting_function 
+  integer(ip) :: FPLError
+  
   ! We assume a single field for the moment
   assert(field_id == 1)
   assert(par_fe_space%get_num_fields() == 1)
@@ -539,30 +543,40 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   num_dofs = par_fe_space%get_block_num_dofs(block_id)
   call memalloc(num_dofs,weighting_operator,__FILE__,__LINE__)
 
-  parameter_scaling = .false.
-  if ( parameter_scaling )  then 
-     allocate( sub_assembled_diag(num_dofs), stat=istat); check(istat==0)
-     sub_assembled_diag = this%resistivity(1)
-  else 
+  assert(parameter_list%isAssignable(bddc_weighting_function_case_key, 'string'))
+  FPLError = parameter_list%GetAsString(key=bddc_weighting_function_case_key, string=weighting_function); assert(FPLError == 0)
+  
+  allocate( sub_assembled_w(num_dofs), stat=istat); check(istat==0)
+  select case ( weighting_function ) 
+  case ( cardinality ) 
+     sub_assembled_w = 1.0_rp 
+  case ( permeability, resistivity ) 
+     sub_assembled_w = this%resistivity(1)
+  case ( stiffness ) 
      ! Get the sub-assembled diagonal
      massert(associated(this%matrix),'The matrix is not associated. Have you called `stiffness_weighting_l1_coarse_fe_handler_t%create` ? ')
-     call this%matrix%extract_diagonal(sub_assembled_diag)
-  end if
+     call this%matrix%extract_diagonal(sub_assembled_w)
+  case DEFAULT 
+  wassert(.false., 'H(curl) BDDC weighting function case not defined, using inverse of cardinality' ) 
+  sub_assembled_w = 1.0_rp 
+  end select 
 
+  WRITE(*,*) 'SUB', sub_assembled_w 
+  
   ! Communicate to compute the fully assembled diagonal
   p_env => par_fe_space%get_environment()
   dof_import => par_fe_space%get_block_dof_import(block_id)
   call par_array%create_and_allocate(p_env, dof_import)
   serial_array   => par_array%get_serial_scalar_array()
-  assembled_diag => serial_array%get_entries()
-  assembled_diag(:) = sub_assembled_diag(:)
+  assembled_w => serial_array%get_entries()
+  assembled_w(:) = sub_assembled_w(:)
   call par_array%comm()
 
   ! Compute the weighting
-  weighting_operator(:) = sub_assembled_diag(:)/assembled_diag(:)
+  weighting_operator(:) = sub_assembled_w(:)/assembled_w(:)
 
   ! Clean up
-  deallocate(sub_assembled_diag,stat=istat); check(istat == 0)
+  deallocate(sub_assembled_w,stat=istat); check(istat == 0)
   call par_array%free()
 
 end subroutine Hcurl_l1_setup_weighting_operator

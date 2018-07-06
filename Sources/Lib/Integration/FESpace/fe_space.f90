@@ -1202,11 +1202,17 @@ module fe_space_names
   integer(ip), parameter :: opposite_to_coarse_edge = 0
   integer(ip), parameter :: same_as_coarse_edge     = 1  
   ! Coarse Edges enforced Continuity algorithm 
-  integer(ip), parameter :: tangential_average                        = 1
-  integer(ip), parameter :: tangential_average_and_first_order_moment = 2
-  integer(ip), parameter :: all_dofs_in_coarse_edges                  = 3 
+  character(len=*), parameter :: tangential_average                        = 'tangential_average'
+  character(len=*), parameter :: tangential_average_and_first_order_moment = 'tangential_average_and_first_order_moment'
+  character(len=*), parameter :: all_dofs_in_coarse_edges                  = 'all_dofs_in_coarse_edges'
+  ! Weighting function 
+  character(len=*), parameter :: cardinality    = 'cardinality'
+  character(len=*), parameter :: resistivity    = 'resistivity' 
+  character(len=*), parameter :: permeability   = 'permeability' 
+  character(len=*), parameter :: stiffness      = 'stiffness' 
   
   public :: tangential_average, tangential_average_and_first_order_moment, all_dofs_in_coarse_edges
+  public :: cardinality, resistivity, permeability, stiffness 
   public :: Hcurl_l1_coarse_fe_handler_t
 
   type, extends(standard_l1_coarse_fe_handler_t) :: vector_laplacian_pb_bddc_l1_coarse_fe_handler_t

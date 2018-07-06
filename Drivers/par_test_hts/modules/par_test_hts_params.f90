@@ -144,7 +144,7 @@ subroutine par_test_hts_params_define_parameters(this)
  error = list%set(key = coarse_space_use_vertices_key     , value =  .true.)                                   ; check(error==0)
  error = list%set(key = coarse_space_use_edges_key        , value =  .true.)                                    ; check(error==0)
  error = list%set(key = coarse_space_use_faces_key        , value =  .false.)                                   ; check(error==0)
- error = list%set(key = bddc_edge_continuity_algorithm_key, value =  tangential_average_and_first_order_moment) ; check(error==0)
+ error = list%set(key = bddc_edge_continuity_algorithm_key, value =  'tangential_average_and_first_order_moment') ; check(error==0)
 
  ! Domain length 
  error = list%set(key = domain_limits_key     , value = [0.0,1.0,0.0,1.0,0.0,1.0]) ; check(error==0)
