@@ -527,7 +527,15 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   character(len=*), parameter          :: bddc_weighting_function_case_key = 'bddc_weighting_function_case'
   character(len=:), allocatable        :: weighting_function 
   integer(ip) :: FPLError
-  
+  ! Fill the parameter-based case 
+  class(fe_cell_iterator_t), allocatable :: fe 
+  type(fe_vef_iterator_t)                :: vef
+  integer(ip)                            :: set_id 
+  integer(ip)                            :: ielem
+  integer(ip), pointer                   :: fe_dofs(:)
+  type(list_iterator_t)                  :: own_dofs 
+  logical, allocatable                   :: touched_set_id(:) 
+
   ! We assume a single field for the moment
   assert(field_id == 1)
   assert(par_fe_space%get_num_fields() == 1)
@@ -545,24 +553,64 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
 
   assert(parameter_list%isAssignable(bddc_weighting_function_case_key, 'string'))
   FPLError = parameter_list%GetAsString(key=bddc_weighting_function_case_key, string=weighting_function); assert(FPLError == 0)
-  
+
   allocate( sub_assembled_w(num_dofs), stat=istat); check(istat==0)
+  sub_assembled_w = 0.0_rp 
+
   select case ( weighting_function ) 
   case ( cardinality ) 
      sub_assembled_w = 1.0_rp 
-  case ( permeability, resistivity ) 
-     sub_assembled_w = this%resistivity(1)
+
+  case ( permeability, resistivity )    
+     sub_assembled_w(1:this%num_interior_dofs) = 1.0_rp 
+
+     call memalloc( size(this%resistivity), touched_set_id, __FILE__, __LINE__ ) 
+     call par_fe_space%create_fe_cell_iterator(fe) 
+     call par_fe_space%create_fe_vef_iterator(vef)
+
+     do while ( .not. vef%has_finished() )
+        if ( vef%is_at_interface() ) then 
+           touched_set_id = .false. 
+           do ielem=1, vef%get_num_cells_around() 
+              call vef%get_cell_around(ielem, fe) 
+              if ( fe%is_local() ) then 
+                 call fe%get_field_fe_dofs(field_id, fe_dofs)
+
+                 set_id = fe%get_set_id()+1 ! 1-based array vs 0-based definition  
+                 if ( .not. touched_set_id(set_id) ) then 
+                    touched_set_id(set_id) = .true. 
+                    own_dofs = fe%create_own_dofs_on_vef_iterator( fe%get_vef_lid_from_gid(vef%get_gid()), this%field_id ) 
+                    do while ( .not. own_dofs%is_upper_bound() )
+                       if ( fe_dofs(own_dofs%get_current()) > 0 ) then 
+                          if ( weighting_function == permeability ) then 
+                             sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + this%permeability(set_id) 
+                          elseif ( weighting_function == resistivity ) then 
+                             sub_assembled_w(fe_dofs(own_dofs%get_current())) = sub_assembled_w(fe_dofs(own_dofs%get_current())) + this%resistivity(set_id)
+                          end if
+                       end if
+                       call own_dofs%next() 
+                    end do
+                 end if
+
+              end if
+           end do
+        end if
+        call vef%next() 
+     end do
+     call par_fe_space%free_fe_cell_iterator(fe) 
+     call par_fe_space%free_fe_vef_iterator(vef) 
+     call memfree( touched_set_id, __FILE__, __LINE__ )
+
   case ( stiffness ) 
      ! Get the sub-assembled diagonal
      massert(associated(this%matrix),'The matrix is not associated. Have you called `stiffness_weighting_l1_coarse_fe_handler_t%create` ? ')
      call this%matrix%extract_diagonal(sub_assembled_w)
-  case DEFAULT 
-  wassert(.false., 'H(curl) BDDC weighting function case not defined, using inverse of cardinality' ) 
-  sub_assembled_w = 1.0_rp 
-  end select 
 
-  WRITE(*,*) 'SUB', sub_assembled_w 
-  
+  case DEFAULT 
+     wassert(.false., 'H(curl) BDDC weighting function case not defined, using inverse of cardinality' ) 
+     sub_assembled_w = 1.0_rp 
+  end select
+
   ! Communicate to compute the fully assembled diagonal
   p_env => par_fe_space%get_environment()
   dof_import => par_fe_space%get_block_dof_import(block_id)
