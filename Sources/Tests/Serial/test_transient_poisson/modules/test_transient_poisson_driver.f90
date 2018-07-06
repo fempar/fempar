@@ -401,7 +401,7 @@ contains
           write(*,*) 'Local  convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
           write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)!add to the same line as above
         else
-          write(*,*) 'Local  convergence test for: ', time_integration_scheme , convergence_order , ')' ,char(9) ,' ...  fail' 
+          write(*,*) 'Local  convergence test for: ', time_integration_scheme ,char(9) ,' ...  fail' 
           write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation) !add to the same line as above
           check( .false. )
         endif

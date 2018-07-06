@@ -249,8 +249,7 @@ contains
     call this%cli%add(switch='--num-time-steps',switch_ab='-nt',help='Maximum number of time steps: nt',&
          &            required=.false.,act='store',def=trim(this%default_time_step),error=error) 
     check(error==0)
-    call this%cli%add(switch='--time-integration-scheme',switch_ab='-rk-scheme', & 
-    help='Time disctetization scheme of the DIRK solver. Possible values `forward_euler`, `backward_euler`, `trapezoidal_rule`, `mid_point`, `runge_kutta_3`, `runge_kutta_4`, `runge_kutta_4_3_8`',&
+    call this%cli%add(switch='--time-integration-scheme',switch_ab='-rk-scheme',help='Time disctetization scheme of the DIRK solver.',&
          &            required=.false.,act='store',def=trim(this%default_time_integration_scheme),error=error) 
     check(error==0) 
     call this%cli%add(switch='--is-test',switch_ab='-test',help='Test convergence order of the runge kutta scheme',&

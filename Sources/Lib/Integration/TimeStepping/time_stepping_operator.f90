@@ -68,12 +68,19 @@ module time_stepping_names
   character(*), parameter :: forward_euler     = "forward_euler"
   character(*), parameter :: backward_euler    = "backward_euler"
   character(*), parameter :: trapezoidal_rule  = "trapezoidal_rule"
-  character(*), parameter :: mid_point         = "mid_point"
-  character(*), parameter :: runge_kutta_2_3_implicit = "runge_kutta_2_3_implicit"
-  character(*), parameter :: runge_kutta_2_3_explicit = "runge_kutta_2_3_explicit"
+  character(*), parameter :: mid_point_implicit = "mid_point_implicit"
+  character(*), parameter :: mid_point_explicit = "mid_point_explicit"
+  character(*), parameter :: imex_rk_2_2_1_implicit = "imex_rk_2_2_1_implicit"
+  character(*), parameter :: imex_rk_2_2_1_explicit = "imex_rk_2_2_1_explicit"
+  character(*), parameter :: imex_rk_2_2_2_implicit = "imex_rk_2_2_2_implicit"
+  character(*), parameter :: imex_rk_2_2_2_explicit = "imex_rk_2_2_2_explicit"
+  character(*), parameter :: imex_rk_2_3_implicit = "imex_rk_2_3_implicit"
+  character(*), parameter :: imex_rk_2_3_explicit = "imex_rk_2_3_explicit"
   character(*), parameter :: runge_kutta_3     = "runge_kutta_3"
   character(*), parameter :: runge_kutta_4     = "runge_kutta_4"
   character(*), parameter :: runge_kutta_4_3_8 = "runge_kutta_4_3_8"
+  character(*), parameter :: imex_rk_4_3_implicit = "imex_rk_4_3_implicit"
+  character(*), parameter :: imex_rk_4_3_explicit = "imex_rk_4_3_explicit" 
 
   ! states to be defined
   integer(ip), parameter :: created             = 0

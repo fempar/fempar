@@ -3,9 +3,9 @@ TEST_BINARY_PATH="$1"
 TEST_INPUT_DATA_PATH="$2"
 final_exit_code=0
 
-lst_integration_schemes="forward_euler#backward_euler#trapezoidal_rule#mid_point#runge_kutta_2_3_implicit#runge_kutta_2_3_explicit#runge_kutta_3#runge_kutta_4#runge_kutta_4_3_8"
+lst_integration_schemes="forward_euler#backward_euler#trapezoidal_rule#mid_point_implicit#mid_point_explicit#imex_rk_2_2_1_implicit#imex_rk_2_2_1_explicit#imex_rk_2_2_2_implicit#imex_rk_2_2_2_explicit#imex_rk_2_3_implicit#imex_rk_2_3_explicit#runge_kutta_3#runge_kutta_4#runge_kutta_4_3_8#imex_rk_4_3_implicit#imex_rk_4_3_explicit"
 
-num_integration_schemes=9
+num_integration_schemes=16
 
 if [ -f "$TEST_BINARY_PATH" ]
 then
