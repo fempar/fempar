@@ -52,6 +52,7 @@ module discrete_integration_names
      procedure                                          :: set_evaluation_point
      procedure                                          :: set_boundary_data
      procedure                                          :: set_current_time
+     procedure                                          :: get_boundary_data
      generic   :: integrate => integrate_galerkin, integrate_petrov_galerkin
   end type discrete_integration_t
   
@@ -147,5 +148,12 @@ module discrete_integration_names
        real(rp)                       ,    intent(in)       :: current_time     
        mcheck(.false.,"You must implement set_current_time if you want to use it")
      end subroutine  set_current_time
-  
+     
+     function get_boundary_data ( this )
+       implicit none
+       class(discrete_integration_t)  ,    intent(inout)    :: this
+       class(vector_t), pointer :: get_boundary_data
+       mcheck(.false.,"You must implement set_current_time if you want to use it")
+     end function get_boundary_data
+       
 end module discrete_integration_names

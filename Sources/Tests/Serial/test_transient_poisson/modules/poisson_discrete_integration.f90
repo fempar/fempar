@@ -44,6 +44,7 @@ module poisson_cG_discrete_integration_names
      procedure :: set_current_time
      procedure :: set_up
      procedure :: set_evaluation_point
+     procedure :: get_boundary_data
      procedure :: integrate_galerkin
      procedure :: integrate_tangent
      procedure :: integrate_residual 
@@ -97,6 +98,13 @@ contains
     class(vector_t)                   , intent(in)     :: evaluation_point
     call this%fe_function%set_free_dof_values(evaluation_point)
   end subroutine set_evaluation_point
+  
+  function get_boundary_data ( this )
+    implicit none
+    class(poisson_cG_discrete_integration_t),    intent(inout)    :: this
+    class(vector_t) , pointer :: get_boundary_data
+    get_boundary_data => this%fe_function%get_fixed_dof_values() 
+  end function get_boundary_data
 
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
