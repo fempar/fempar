@@ -25,15 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list, permeability, resistivity )
+subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list, average_permeability, average_resistivity )
   implicit none 
   class(Hcurl_l1_coarse_fe_handler_t)   , intent(inout) :: this
   integer(ip)                           , intent(in)    :: field_id 
   type(par_fe_space_t)                  , intent(inout) :: par_fe_space
   class(par_sparse_matrix_t) , target   , intent(in)    :: matrix  
   type(parameterlist_t)                 , intent(in)    :: parameter_list 
-  real(rp)                              , intent(in)    :: permeability
-  real(rp)                              , intent(in)    :: resistivity 
+  real(rp), target                      , intent(in)    :: average_permeability(:) 
+  real(rp), target                      , intent(in)    :: average_resistivity(:) 
   ! Initialize parameters 
   character(len=*), parameter :: bddc_edge_continuity_algorithm_key     = 'bddc_edge_continuity_algorithm'
   integer(ip)    :: continuity_algorithm
@@ -63,8 +63,8 @@ subroutine Hcurl_l1_create(this, field_id, par_fe_space, matrix, parameter_list,
   end if
 
   ! Init parameters 
-  this%permeability = permeability 
-  this%resistivity  = resistivity 
+  this%permeability => average_permeability 
+  this%resistivity  => average_resistivity 
  
   this%field_id = field_id 
   this%matrix => matrix 
@@ -542,7 +542,7 @@ subroutine Hcurl_l1_setup_weighting_operator(this, field_id, par_fe_space, param
   parameter_scaling = .false.
   if ( parameter_scaling )  then 
      allocate( sub_assembled_diag(num_dofs), stat=istat); check(istat==0)
-     sub_assembled_diag = this%resistivity
+     sub_assembled_diag = this%resistivity(1)
   else 
      ! Get the sub-assembled diagonal
      massert(associated(this%matrix),'The matrix is not associated. Have you called `stiffness_weighting_l1_coarse_fe_handler_t%create` ? ')

@@ -45,9 +45,7 @@ module par_pb_bddc_maxwell_driver_names
 
      ! Cells and lower dimension objects container
      type(par_triangulation_t)             :: triangulation
-     integer(ip), allocatable              :: cells_set_id(:)
-     real(rp)                              :: permeability
-     real(rp)                              :: resistivity 
+     integer(ip), allocatable              :: cells_set_id(:) 
 
      ! Discrete weak problem integration-related data type instances 
      type(par_fe_space_t)                          :: fe_space 
@@ -64,6 +62,8 @@ module par_pb_bddc_maxwell_driver_names
      type(permeability_holder_t), allocatable         :: permeability_holder(:) 
      type(permeability_function_white_t)              :: permeability_white 
      type(permeability_function_black_t)              :: permeability_black 
+     real(rp), allocatable                            :: average_permeability(:) 
+     real(rp), allocatable                            :: average_resistivity(:) 
 
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(fe_affine_operator_t)            :: fe_affine_operator
@@ -103,6 +103,7 @@ module par_pb_bddc_maxwell_driver_names
      procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_system
+     procedure        , private :: compute_average_parameter_values
      procedure        , private :: setup_solver
      procedure        , private :: assemble_system
      procedure        , private :: solve_system
@@ -404,12 +405,14 @@ contains
     integer(ip) :: iparm(64)
     class(matrix_t), pointer :: matrix 
 
-    if ( this%par_environment%am_i_l1_task() ) then 
-
+    if ( this%par_environment%am_i_l1_task() ) then       
+       ! Compute average parameters to be sent to the preconditioner for weights computation 
+       call this%compute_average_parameter_values() 
+     
        matrix => this%fe_affine_operator%get_matrix() 
        select type ( matrix ) 
           class is (par_sparse_matrix_t) 
-          call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%permeability, this%resistivity )
+          call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%average_permeability, this%average_resistivity )
        end select
     end if
 
@@ -473,6 +476,74 @@ contains
     call parameter_list%free()
   end subroutine setup_solver
 
+  ! -----------------------------------------------------------------------------------------------
+  subroutine compute_average_parameter_values(this)
+    implicit none 
+    class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this  
+    class(fe_cell_iterator_t), allocatable :: fe
+    ! Integration loop 
+    type(quadrature_t)       , pointer     :: quad
+    integer(ip)                            :: qpoin, num_quad_points
+    type(point_t)            , pointer     :: quad_coords(:)
+    real(rp)                               :: factor 
+    real(rp), allocatable                  :: set_id_volume(:)
+    real(rp), allocatable                  :: permeability(:)
+    real(rp), allocatable                  :: resistivity(:) 
+    integer(ip) :: max_cell_set_id, set_id 
+    integer(ip) :: istat 
+
+    max_cell_set_id = maxval(this%cells_set_id)+1 ! 1-based arrays  
+    call memalloc( max_cell_set_id, this%average_permeability, __FILE__, __LINE__ )
+    call memalloc( max_cell_set_id, this%average_resistivity, __FILE__, __LINE__ ) 
+    call memalloc( max_cell_set_id, set_id_volume, __FILE__, __LINE__ )
+    this%average_permeability = 0.0_rp 
+    this%average_resistivity  = 0.0_rp 
+    set_id_volume = 0.0_rp 
+
+    ! Integrate structures needed 
+    call this%fe_space%set_up_cell_integration()
+    call this%fe_space%create_fe_cell_iterator(fe)
+    call fe%update_integration()
+    quad             => fe%get_quadrature()
+    num_quad_points  = quad%get_num_quadrature_points()
+    quad_coords      => fe%get_quadrature_points_coordinates()
+    call memalloc( num_quad_points, resistivity, __FILE__, __LINE__ )
+    call memalloc( num_quad_points, permeability, __FILE__, __LINE__ )
+
+    ! Loop over elements
+    do while ( .not. fe%has_finished())
+       if ( fe%is_local() ) then  
+          call fe%update_integration()
+          quad_coords => fe%get_quadrature_points_coordinates()
+
+          ! Evaluate parameters on the cell 
+          set_id = fe%get_set_id()+1 ! Arrays are 1-based and set_ids are 0-based 
+          call this%resistivity_holder(set_id)%p%get_values_set(quad_coords, resistivity)
+          call this%permeability_holder(set_id)%p%get_values_set(quad_coords, permeability)  
+
+          ! Integrate cell contribution to averages 
+          do qpoin=1, num_quad_points
+             factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 						         
+             ! Average magnetic field 
+             this%average_permeability(set_id) = this%average_permeability(set_id) + permeability(qpoin)*factor 
+             this%average_resistivity(set_id)  = this%average_resistivity(set_id)  + resistivity(qpoin)*factor
+             set_id_volume(set_id)             = set_id_volume(set_id) + factor
+          end do
+       end if
+       call fe%next()
+    end do
+    call this%fe_space%free_fe_cell_iterator(fe)
+
+    do set_id=1, max_cell_set_id
+       if ( set_id_volume(set_id) == 0.0_rp ) cycle  
+       this%average_permeability(set_id) = this%average_permeability(set_id)/set_id_volume(set_id)
+       this%average_resistivity(set_id)  = this%average_resistivity(set_id)/set_id_volume(set_id)
+    end do
+
+    call memfree ( resistivity, __FILE__, __LINE__ ) 
+    call memfree ( permeability, __FILE__, __LINE__ ) 
+    call memfree(set_id_volume, __FILE__, __LINE__)
+  end subroutine compute_average_parameter_values
 
   subroutine assemble_system (this)
     implicit none
@@ -701,8 +772,10 @@ contains
     end if
 
     call this%triangulation%free()
-    if (allocated(this%cells_set_id) ) call memfree( this%cells_set_id, __FILE__ ,__LINE__ )
-
+    if (allocated(this%cells_set_id) )        call memfree( this%cells_set_id, __FILE__ ,__LINE__ )
+    if (allocated(this%average_resistivity))  call memfree( this%average_resistivity, __FILE__, __LINE__ ) 
+    if (allocated(this%average_permeability)) call memfree( this%average_permeability, __FILE__, __LINE__ ) 
+    
   end subroutine free
 
   !========================================================================================

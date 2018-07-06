@@ -1146,8 +1146,8 @@ module fe_space_names
     logical                                 :: use_alternative_basis 
     logical                                 :: arithmetic_average
     integer(ip)                             :: field_id 
-    real(rp)                                :: permeability 
-    real(rp)                                :: resistivity
+    real(rp), pointer                       :: permeability(:) 
+    real(rp), pointer                       :: resistivity(:) 
     type(par_sparse_matrix_t), pointer      :: matrix
 				integer(ip)                             :: num_interior_dofs
 				integer(ip)                             :: num_total_dofs 				
