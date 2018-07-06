@@ -1921,9 +1921,7 @@ end subroutine serial_fe_space_free_facet_permutation_indices
 subroutine serial_fe_space_set_up_facet_integration ( this )
   implicit none
   class(serial_fe_space_t), target, intent(inout) :: this
-
   type(fe_facet_iterator_t) :: fe_face
-  type(fe_cell_iterator_t)  :: fe
 
   integer(ip) :: facet_quadrature_position
   integer(ip) :: facet_maps_position
@@ -1942,6 +1940,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   integer(ip) :: field_id, istat, icell_around
 
   class(reference_fe_t), pointer :: reference_fe
+  class(reference_fe_t), pointer :: reference_fe_geo
   integer(ip)          , pointer :: max_order_field_cell_to_ref_fes_face(:)
   type(quadrature_t), pointer    :: quadrature
 
@@ -1951,6 +1950,7 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   
   class(vef_iterator_t), allocatable :: vef
   class(triangulation_t), pointer :: triangulation
+  integer(ip) :: num_cells_around
   
   ! We need to set to .false. this member variable as the traversal over all
   ! facets below would fail if the value of this variable is .true. This can
@@ -1970,8 +1970,6 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   facet_quadrature_position = 1
   facet_maps_position = 1
   facet_integrator_position = 1
-
-  call fe%create(this)
   
   ! Creating fe_facet_iterator_t
   triangulation => this%get_triangulation()
@@ -1981,10 +1979,10 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
   do while ( .not. fe_face%has_finished() ) 
      reference_fes_geo_id(2) = 0
      nullify(reference_fes_geo(2)%p)
-     do icell_around = 1, fe_face%get_num_cells_around()
-        call fe_face%get_cell_around(icell_around, fe)
-        reference_fes_geo_id(icell_around) =  fe%get_reference_fe_geo_id()
-        reference_fes_geo(icell_around)%p  => fe%get_reference_fe_geo()
+     num_cells_around = fe_face%get_num_cells_around()
+     do icell_around = 1, num_cells_around
+       reference_fes_geo_id(icell_around) =  1                  ! fe%get_reference_fe_geo_id()
+       reference_fes_geo(icell_around)%p  => fe_face%ref_fe_geo ! fe%get_reference_fe_geo()
      end do
 
      facet_quadratures_position_key = &
@@ -2013,10 +2011,10 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
      do field_id=1, this%get_num_fields()
         reference_fes_id(2) = 0  
         nullify(reference_fes(2)%p)
-        do icell_around = 1, fe_face%get_num_cells_around()
-           call fe_face%get_cell_around(icell_around, fe)
-           reference_fes_id(icell_around) = this%field_cell_to_ref_fes(field_id)%get(fe%get_gid())
-           reference_fes(icell_around)%p => fe%get_reference_fe(field_id)
+        do icell_around = 1, num_cells_around
+           reference_fes_id(icell_around) = & 
+               this%field_cell_to_ref_fes(field_id)%get(fe_face%fes_around(icell_around)%p%get_gid())
+           reference_fes(icell_around)%p => fe_face%fes_around(icell_around)%p%get_reference_fe(field_id)
         end do
 
         facet_integrators_position_key = &
@@ -2039,7 +2037,6 @@ subroutine serial_fe_space_set_up_facet_integration ( this )
      end do
      call fe_face%next()
   end do
-  call fe%free()
   call fe_face%free()
   this%facet_integration_is_set_up = .true.
 end subroutine serial_fe_space_set_up_facet_integration
