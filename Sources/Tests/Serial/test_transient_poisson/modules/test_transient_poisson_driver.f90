@@ -316,7 +316,7 @@ contains
     do while ( .not. this%time_operator%has_finished() )
        call this%time_solver%advance_fe_function(this%solution)
        call this%write_time_step( this%time_operator%get_current_time() )
-       if ( .not. this%test_params%get_is_test() ) call this%check_solution( this%time_operator%get_current_time())
+       call this%check_solution( this%time_operator%get_current_time())
     end do
   end subroutine solve_system
     
@@ -327,6 +327,13 @@ contains
     type(error_norms_scalar_t) :: error_norm
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: error_tolerance
+    logical :: exact_solution 
+   
+    
+    exact_solution = .false.
+    if ( this%test_params%get_time_integration_scheme() == 'trapezoidal_rule' ) exact_solution = .true.
+    
+    if ( .not. this%test_params%get_is_test() .or. exact_solution ) then
     
     call error_norm%create(this%fe_space,1)
     mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm, time=current_time)   
@@ -347,18 +354,20 @@ contains
     error_tolerance = 1.0e-06
 #endif    
     
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; !check ( abs(mean) < error_tolerance )
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; !check ( l1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; !check ( l2 < error_tolerance )
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; !check ( lp < error_tolerance )
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; !check ( linfty < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; !check ( h1_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; !check ( h1 < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; !check ( w1p_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; !check ( w1p < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; !check ( w1infty_s < error_tolerance )
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty; ! check ( w1infty < error_tolerance )
+    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance .or. .not. exact_solution)
+    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance .or. .not. exact_solution)
+    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance .or. .not. exact_solution)
+    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance .or. .not. exact_solution)
+    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance .or. .not. exact_solution)
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance .or. .not. exact_solution)
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance .or. .not. exact_solution)
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance .or. .not. exact_solution)
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance .or. .not. exact_solution)
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance .or. .not. exact_solution)
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty;  check ( w1infty < error_tolerance .or. .not. exact_solution)
     call error_norm%free()
+    
+    endif
   end subroutine check_solution
   
   ! -----------------------------------------------------------------------------------------------
@@ -397,6 +406,7 @@ contains
     end if
     
     if (is_test) then
+      convergence_order = this%time_operator%get_order()
       !Local test
       l2_prev = this%get_error_norm(dt,dt,time_integration_scheme)
       l2      = this%get_error_norm(dt*dt_variation,dt*dt_variation,time_integration_scheme)
@@ -407,11 +417,17 @@ contains
         endif
       endif
       
-      convergence_order = this%time_operator%get_order()
       if ( abs((l2 - l2_prev*dt_variation**(convergence_order+1)) / l2) < order_tol .or. in_tol ) then
         write(*,*) 'Local  convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
+        if ( time_integration_scheme == 'trapezoidal_rule' ) then
+          write(*,*) 'Error tested in tolerance '
+        else
+          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)
+        endif
       else
-        write(*,*) 'Local  convergence test for: ', time_integration_scheme , char(9) ,' ...  fail' 
+        write(*,*) 'Local  convergence test for: ', time_integration_scheme , convergence_order , ')' ,char(9) ,' ...  fail' 
+        if ( time_integration_scheme .ne. 'trapezoidal_rule' )  write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)
+        check( .false. )
       endif
       
       !Global test
@@ -420,7 +436,6 @@ contains
       l2_prev = this%get_error_norm(dt,final_time,time_integration_scheme)
       l2      = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
        
-      convergence_order = this%time_operator%get_order()
       
       
       if ( time_integration_scheme == 'trapezoidal_rule' ) then
@@ -430,8 +445,15 @@ contains
       endif
       if ( abs((l2 - l2_prev*dt_variation**convergence_order) / l2) < order_tol .or. in_tol ) then
         write(*,*) 'Global convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
+        if ( time_integration_scheme == 'trapezoidal_rule' ) then
+          write(*,*) 'Error tested in tolerance '
+        else
+          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)
+        endif
       else
         write(*,*) 'Global convergence test for: ', time_integration_scheme , char(9) ,' ...  fail' 
+        if ( time_integration_scheme .ne. 'trapezoidal_rule' )  write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)
+        check( .false. )
       endif
       
       
