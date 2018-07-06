@@ -133,7 +133,6 @@ contains
     class(scalar_function_t), pointer :: source_term
 
     assert (associated(this%analytical_functions))
-    assert (associated(this%fe_function)) 
     
     source_term => this%analytical_functions%get_source_term()
     
@@ -210,7 +209,6 @@ contains
     real(rp)     :: factor
 
     assert (associated(this%analytical_functions))
-    assert (associated(this%fe_function)) 
     
     max_num_dofs = fe_space%get_max_num_dofs_on_a_cell()
     call memalloc ( max_num_dofs, max_num_dofs, elmat, __FILE__, __LINE__ )

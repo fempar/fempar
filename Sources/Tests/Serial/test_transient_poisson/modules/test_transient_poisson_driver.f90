@@ -88,6 +88,7 @@ module test_transient_poisson_driver_names
      procedure        , private :: solve_system
      procedure        , private :: check_solution
      procedure        , private :: check_convergence_order
+     procedure        , private :: is_exact_solution
      procedure        , private :: initialize_output
      procedure        , private :: finalize_output
      procedure        , private :: write_time_step
@@ -327,13 +328,8 @@ contains
     type(error_norms_scalar_t) :: error_norm
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: error_tolerance
-    logical :: exact_solution 
-   
-    
-    exact_solution = .false.
-    if ( this%test_params%get_time_integration_scheme() == 'trapezoidal_rule' ) exact_solution = .true.
-    
-    if ( .not. this%test_params%get_is_test() .or. exact_solution ) then
+  
+    if ( .not. this%test_params%get_is_test() .or. this%is_exact_solution() ) then
     
     call error_norm%create(this%fe_space,1)
     mean = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, mean_norm, time=current_time)   
@@ -354,17 +350,17 @@ contains
     error_tolerance = 1.0e-06
 #endif    
     
-    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance .or. .not. exact_solution)
-    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance .or. .not. exact_solution)
-    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance .or. .not. exact_solution)
-    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance .or. .not. exact_solution)
-    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance .or. .not. exact_solution)
-    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance .or. .not. exact_solution)
-    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance .or. .not. exact_solution)
-    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance .or. .not. exact_solution)
-    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance .or. .not. exact_solution)
-    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance .or. .not. exact_solution)
-    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty;  check ( w1infty < error_tolerance .or. .not. exact_solution)
+    write(*,'(a20,e32.25)') 'mean_norm:', mean; check ( abs(mean) < error_tolerance .or. .not. this%is_exact_solution())
+    write(*,'(a20,e32.25)') 'l1_norm:', l1; check ( l1 < error_tolerance .or. .not. this%is_exact_solution())
+    write(*,'(a20,e32.25)') 'l2_norm:', l2; check ( l2 < error_tolerance .or. .not. this%is_exact_solution())
+    write(*,'(a20,e32.25)') 'lp_norm:', lp; check ( lp < error_tolerance .or. .not. this%is_exact_solution())
+    write(*,'(a20,e32.25)') 'linfnty_norm:', linfty; check ( linfty < error_tolerance .or. .not. this%is_exact_solution())
+    write(*,'(a20,e32.25)') 'h1_seminorm:', h1_s; check ( h1_s < error_tolerance .or. .not. this%is_exact_solution())
+    write(*,'(a20,e32.25)') 'h1_norm:', h1; check ( h1 < error_tolerance .or. .not. this%is_exact_solution())
+    write(*,'(a20,e32.25)') 'w1p_seminorm:', w1p_s; check ( w1p_s < error_tolerance .or. .not. this%is_exact_solution())
+    write(*,'(a20,e32.25)') 'w1p_norm:', w1p; check ( w1p < error_tolerance .or. .not. this%is_exact_solution())
+    write(*,'(a20,e32.25)') 'w1infty_seminorm:', w1infty_s; check ( w1infty_s < error_tolerance .or. .not. this%is_exact_solution())
+    write(*,'(a20,e32.25)') 'w1infty_norm:', w1infty;  check ( w1infty < error_tolerance .or. .not. this%is_exact_solution())
     call error_norm%free()
     
     endif
@@ -376,88 +372,56 @@ contains
     class(test_transient_poisson_driver_t), intent(inout) :: this
     type(error_norms_scalar_t) :: error_norm
     character(len=:), allocatable :: time_integration_scheme
-    real(rp) :: l2, l2_prev, dt, dt_variation, current_time, order_tol, final_time, error_tolerance, dt_global, dt_variation_global
+    real(rp) :: l2, l2_prev, dt, dt_variation, current_time, order_tol, final_time
     integer(ip) :: convergence_order
-    logical :: is_test , in_tol
-    
-    dt = 1.0e-04
-    dt_global = 1.0e-3
-    final_time = 1.0e-02
-    dt_variation = 1.0e-01
-    dt_variation_global = 0.5
+
     order_tol = 0.05_rp
-    in_tol  = .false.
     
-    
+    if( this%test_params%get_is_test() ) then
     time_integration_scheme = this%test_params%get_time_integration_scheme()
-    is_test = this%test_params%get_is_test()
+    convergence_order       = this%time_operator%get_order()
     
-#ifdef ENABLE_MKL    
-    error_tolerance = 1.0e-10
-#else
-    error_tolerance = 1.0e-06
-#endif  
-    
-    if ( time_integration_scheme == 'trapezoidal_rule' ) then
-      dt = 1.0
-      dt_global = 1.0
-      final_time = 10
-      dt_variation_global = dt_variation
-    end if
-    
-    if (is_test) then
-      convergence_order = this%time_operator%get_order()
-      !Local test
-      l2_prev = this%get_error_norm(dt,dt,time_integration_scheme)
-      l2      = this%get_error_norm(dt*dt_variation,dt*dt_variation,time_integration_scheme)
-      
-      if ( time_integration_scheme == 'trapezoidal_rule' ) then
-        if ( l2 < error_tolerance .and. l2_prev < error_tolerance) then
-          in_tol = .true.
-        endif
-      endif
-      
-      if ( abs((l2 - l2_prev*dt_variation**(convergence_order+1)) / l2) < order_tol .or. in_tol ) then
-        write(*,*) 'Local  convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
-        if ( time_integration_scheme == 'trapezoidal_rule' ) then
-          write(*,*) 'Error tested in tolerance '
-        else
-          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)
-        endif
-      else
-        write(*,*) 'Local  convergence test for: ', time_integration_scheme , convergence_order , ')' ,char(9) ,' ...  fail' 
-        if ( time_integration_scheme .ne. 'trapezoidal_rule' )  write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)
-        check( .false. )
-      endif
-      
-      !Global test
-      dt = dt_global
-      dt_variation = dt_variation_global
-      l2_prev = this%get_error_norm(dt,final_time,time_integration_scheme)
-      l2      = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
+      if ( this%is_exact_solution() ) then
+        !Check tolerance of all error norms
+        dt           = 1.0_rp
+        dt_variation = 0.1_rp
+        final_time   = 10_rp
+        
+        l2 = this%get_error_norm(dt,final_time,time_integration_scheme)
+        l2 = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
        
-      
-      
-      if ( time_integration_scheme == 'trapezoidal_rule' ) then
-        if ( l2 < error_tolerance .and. l2_prev < error_tolerance) then
-          in_tol = .true.
-        endif
-      endif
-      if ( abs((l2 - l2_prev*dt_variation**convergence_order) / l2) < order_tol .or. in_tol ) then
-        write(*,*) 'Global convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
-        if ( time_integration_scheme == 'trapezoidal_rule' ) then
-          write(*,*) 'Error tested in tolerance '
-        else
-          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)
-        endif
+        write(*,*) 'Exact solution test for: ', time_integration_scheme , ' ...  pass' 
       else
-        write(*,*) 'Global convergence test for: ', time_integration_scheme , char(9) ,' ...  fail' 
-        if ( time_integration_scheme .ne. 'trapezoidal_rule' )  write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)
-        check( .false. )
+        !Local error convergence test
+        dt           = 1.0e-04
+        dt_variation = 1.0e-01
+        l2_prev      = this%get_error_norm(dt,dt,time_integration_scheme)
+        l2           = this%get_error_norm(dt*dt_variation,dt*dt_variation,time_integration_scheme)
+        if ( abs((l2 - l2_prev*dt_variation**(convergence_order+1)) / l2) < order_tol ) then
+          write(*,*) 'Local  convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
+          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)!add to the same line as above
+        else
+          write(*,*) 'Local  convergence test for: ', time_integration_scheme , convergence_order , ')' ,char(9) ,' ...  fail' 
+          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation) !add to the same line as above
+          check( .false. )
+        endif
+        
+        !Local error convergence test
+        dt           = 1.0e-03
+        final_time   = 1.0e-02
+        dt_variation = 0.5
+        l2_prev      = this%get_error_norm(dt,final_time,time_integration_scheme)
+        l2           = this%get_error_norm(dt*dt_variation,final_time,time_integration_scheme)
+        if ( abs((l2 - l2_prev*dt_variation**convergence_order) / l2) < order_tol ) then
+          write(*,*) 'Global convergence test for: ', time_integration_scheme , char(9) ,' ...  pass' 
+          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation)!add to the same line as above
+        else
+          write(*,*) 'Global convergence test for: ', time_integration_scheme , char(9) ,' ...  fail' 
+          write(*,*) 'Integration order of the test: ', log(l2/l2_prev)/log(dt_variation) !add to the same line as above
+          check( .false. )
+        endif
       endif
-      
-      
-       deallocate(time_integration_scheme)
+      deallocate(time_integration_scheme)
     endif  
   end subroutine check_convergence_order
   
@@ -482,6 +446,16 @@ contains
     call error_norm%free()                 
   end function get_error_norm
   
+  function is_exact_solution ( this ) 
+    implicit none
+    class(test_transient_poisson_driver_t), intent(inout) :: this
+    logical is_exact_solution
+    if ( this%test_params%get_time_integration_scheme() == 'trapezoidal_rule' ) then
+      is_exact_solution = .true.
+    else 
+      is_exact_solution = .false.
+    endif
+  end function is_exact_solution
   ! -----------------------------------------------------------------------------------------------
   subroutine initialize_output(this)
     implicit none
