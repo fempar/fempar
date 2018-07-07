@@ -292,8 +292,10 @@ function facet_maps_get_coordinates_neighbour(this,neighbour_id,facet_lid,subfac
   integer(ip)               , intent(in) :: facet_lid
   integer(ip)               , intent(in) :: subfacet_lid
   type(point_t), pointer :: facet_maps_get_coordinates_neighbour(:)
+  integer(ip) :: indx
   assert( (neighbour_id == 1) .or. ((neighbour_id == 2) .and. (.not. this%is_at_boundary)))
-  facet_maps_get_coordinates_neighbour => this%cell_maps(neighbour_id)%get_coordinates(facet_lid,subfacet_lid)
+  indx = facet_lid+subfacet_lid*this%cell_maps(neighbour_id)%num_facets
+  facet_maps_get_coordinates_neighbour => this%cell_maps(neighbour_id)%cell_map(indx)%nodes_coordinates
 end function facet_maps_get_coordinates_neighbour
 
 !==================================================================================================
