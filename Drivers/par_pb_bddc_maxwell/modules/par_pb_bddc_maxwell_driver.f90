@@ -371,6 +371,7 @@ contains
   subroutine setup_system (this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
+    class(matrix_t), pointer :: matrix 
 
     call this%maxwell_integration%set_analytical_functions(this%maxwell_analytical_functions)
 
@@ -381,18 +382,31 @@ contains
          fe_space                          = this%fe_space, &
          discrete_integration              = this%maxwell_integration )
 
+    if ( this%test_params%get_boundary_mass_trick() ) then 
     call this%fe_affine_prec_operator%create ( sparse_matrix_storage_format      = csr_format, &
          diagonal_blocks_symmetric_storage = [ .true. ], &
          diagonal_blocks_symmetric         = [ .true. ], &
          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
          fe_space                          = this%fe_space, &
          discrete_integration              = this%maxwell_integration )
-
+    end if 
+    
     ! Set-up solution with Dirichlet boundary conditions
     call this%solution%create(this%fe_space)
     call this%fe_space%interpolate_dirichlet_values(this%solution) 
     call this%maxwell_integration%set_fe_function(this%solution)
 
+        if ( this%par_environment%am_i_l1_task() ) then       
+       ! Compute average parameters to be sent to the preconditioner for weights computation 
+       call this%compute_average_parameter_values() 
+     
+       matrix => this%fe_affine_operator%get_matrix() 
+       select type ( matrix ) 
+          class is (par_sparse_matrix_t) 
+          call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%average_permeability, this%average_resistivity )
+       end select
+    end if
+    
   end subroutine setup_system
 
   subroutine setup_solver (this)
@@ -404,17 +418,6 @@ contains
     integer(ip) :: ilev
     integer(ip) :: iparm(64)
     class(matrix_t), pointer :: matrix 
-
-    if ( this%par_environment%am_i_l1_task() ) then       
-       ! Compute average parameters to be sent to the preconditioner for weights computation 
-       call this%compute_average_parameter_values() 
-     
-       matrix => this%fe_affine_operator%get_matrix() 
-       select type ( matrix ) 
-          class is (par_sparse_matrix_t) 
-          call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%average_permeability, this%average_resistivity )
-       end select
-    end if
 
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
@@ -459,7 +462,11 @@ contains
 
     ! Set-up MLBDDC preconditioner
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
+    if ( this%test_params%get_boundary_mass_trick() ) then 
     call this%mlbddc%create(this%fe_affine_prec_operator, this%parameter_list)
+    else 
+    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
+    end if 
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()  
 
@@ -535,7 +542,7 @@ contains
     call this%fe_space%free_fe_cell_iterator(fe)
 
     do set_id=1, max_cell_set_id
-       if ( set_id_volume(set_id) == 0.0_rp ) cycle  
+       if ( set_id_volume(set_id) == 0.0_rp ) cycle
        this%average_permeability(set_id) = this%average_permeability(set_id)/set_id_volume(set_id)
        this%average_resistivity(set_id)  = this%average_resistivity(set_id)/set_id_volume(set_id)
     end do
@@ -553,9 +560,12 @@ contains
 
     call this%maxwell_integration%set_integration_type( problem ) 
     call this%fe_affine_operator%compute()
+    
+    if ( this%test_params%get_boundary_mass_trick() ) then 
     call this%maxwell_integration%set_integration_type( preconditioner ) 
     call this%fe_affine_prec_operator%compute() 
-
+    end if 
+    
   end subroutine assemble_system
 
   subroutine solve_system(this)
@@ -743,7 +753,9 @@ contains
     call this%mlbddc%free()  
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
+    if ( this%test_params%get_boundary_mass_trick() ) then 
     call this%fe_affine_prec_operator%free()
+    end if 
 
     if ( this%par_environment%am_i_l1_task() ) then 
        if (allocated(this%coarse_fe_handlers) ) then 

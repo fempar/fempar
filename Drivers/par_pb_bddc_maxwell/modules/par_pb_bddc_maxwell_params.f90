@@ -17,6 +17,7 @@ module par_pb_bddc_maxwell_params_names
   character(len=*), parameter :: resistivity_black_key                = 'resistivity_black'
   character(len=*), parameter :: materials_distribution_case_key      = 'materials_distribution_case'
   character(len=*), parameter :: channels_ratio_key                   = 'channels_ratio' 
+  character(len=*), parameter :: boundary_mass_trick_key              = 'boundary_mass_trick'
   
   character(len=*), parameter :: checkerboard    = 'checkerboard'       
   character(len=*), parameter :: channels        = 'channels'  
@@ -37,6 +38,7 @@ module par_pb_bddc_maxwell_params_names
        procedure, non_overridable             :: get_resistivity_black 
        procedure, non_overridable             :: get_materials_distribution_case 
        procedure, non_overridable             :: get_channels_ratio 
+       procedure, non_overridable             :: get_boundary_mass_trick 
   end type par_pb_bddc_maxwell_params_t
 
   ! Types
@@ -85,6 +87,7 @@ contains
     error = list%set(key = resistivity_black_key    , value =  1.0 ); check(error==0)
     error = list%set(key = materials_distribution_case_key, value = checkerboard); check(error==0) 
     error = list%set(key = channels_ratio_key   , value =  0.1 ); check(error==0)
+    error = list%set(key = boundary_mass_trick_key, value =  .false.); check(error==0)
     
     ! Only some of them are controlled from cli
     error = switches%set(key = dir_path_key                  , value = '--dir-path')                 ; check(error==0)
@@ -111,6 +114,7 @@ contains
     error = switches%set(key = resistivity_black_key   , value = '--resistivity_black' )  ; check(error==0)
     error = switches%set(key = materials_distribution_case_key   , value = '--materials_distribution_case' )  ; check(error==0)
     error = switches%set(key = channels_ratio_key  , value = '--channels_ratio' )  ; check(error==0)
+    error = switches%set(key = boundary_mass_trick_key  , value = '--boundary_mass_trick' )  ; check(error==0)
                                                              
     error = switches_ab%set(key = dir_path_key               , value = '-d')        ; check(error==0) 
     error = switches_ab%set(key = prefix_key                 , value = '-p')        ; check(error==0) 
@@ -136,6 +140,7 @@ contains
     error = switches_ab%set(key = resistivity_black_key    , value = '-resistivity_black' )  ; check(error==0)
     error = switches_ab%set(key = materials_distribution_case_key, value = '-materials_case' )  ; check(error==0)
     error = switches_ab%set(key = channels_ratio_key    , value = '-channels_ratio' )  ; check(error==0)
+    error = switches_ab%set(key = boundary_mass_trick_key    , value = '-bmass_trick' )  ; check(error==0)
 
     error = helpers%set(key = dir_path_key                   , value = 'Directory of the source files')            ; check(error==0)
     error = helpers%set(key = prefix_key                     , value = 'Name of the GiD files')                    ; check(error==0)
@@ -173,6 +178,7 @@ contains
     error = helpers%set(key = resistivity_black_key    , value  = 'resistivity_black value' )  ; check(error==0)
     error = helpers%set(key = materials_distribution_case_key, value  = 'Materials distribution case: choose between: checkerboard, channels' )  ; check(error==0)
     error = helpers%set(key = channels_ratio_key   , value  = 'Ratio channel/non-channel of the cross section for every direction)' ) ; check(error==0)
+    error = helpers%set(key = boundary_mass_trick_key   , value  = 'Is the boundary mass trick active?' ) ; check(error==0)
     
     error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
     error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)
@@ -198,6 +204,7 @@ contains
     error = required%set(key = resistivity_black_key    , value = .false.) ; check(error==0)
     error = required%set(key = materials_distribution_case_key, value = .false.) ; check(error==0)
     error = required%set(key = channels_ratio_key    , value = .false.) ; check(error==0)
+    error = required%set(key = boundary_mass_trick_key    , value = .false.) ; check(error==0)
 
   end subroutine par_test_maxwell_params_define_parameters
 
@@ -360,5 +367,18 @@ contains
     error = list%Get(key = channels_ratio_key, Value = get_channels_ratio )
     assert(error==0)
   end function get_channels_ratio
+  
+    !==================================================================================================
+  function get_boundary_mass_trick(this)
+    implicit none
+    class(par_pb_bddc_maxwell_params_t), intent(in) :: this
+    logical                                       :: get_boundary_mass_trick
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(boundary_mass_trick_key, get_boundary_mass_trick))
+    error = list%Get(key = boundary_mass_trick_key, Value = get_boundary_mass_trick)
+    assert(error==0)
+  end function get_boundary_mass_trick
 
 end module par_pb_bddc_maxwell_params_names
