@@ -44,55 +44,55 @@ subroutine time_stepping_stage_fe_operator_create (this, &
   class(serial_fe_space_t)        , target  , intent(inout) :: fe_space
   class(discrete_integration_t)   , target  , intent(in)    :: discrete_integration
   class(serial_fe_space_t), target, optional, intent(inout) :: trial_fe_space
-  mcheck ( .false., "time_stepping_stage_fe_operator_t :: Illegal to call time_stepping_stage_fe_operator_t inherited from fe_nonlinear_operator_t")
+  mcheck ( .false., "time_stepping_stage_fe_operator_t :: Illegal to call time_stepping_stage_fe_operator_t inherited from fe_operator_t")
 end subroutine time_stepping_stage_fe_operator_create
 
 
-subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, fe_nl_op )
+subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, fe_op )
   implicit none
   class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
   type(time_stepping_operator_t),  target   , intent(in)    :: ts_op
-  class(fe_nonlinear_operator_t),  target   , intent(in)    :: fe_nl_op
-  class(serial_fe_space_t), pointer :: trial_fe_space
+  class(fe_operator_t),            target   , intent(in)    :: fe_op
+  class(serial_fe_space_t),        pointer                  :: trial_fe_space
   
-  type(vector_space_t), pointer :: fe_nl_op_domain, fe_nl_op_range
-  type(vector_space_t), pointer :: mass_nl_op_domain, mass_nl_op_range
+  type(vector_space_t), pointer :: fe_op_domain, fe_op_range
+  type(vector_space_t), pointer :: mass_op_domain, mass_op_range
  
   call this%free()
   
-  this%fe_nl_op   => fe_nl_op
+  this%fe_op   => fe_op
   this%ts_op      => ts_op
   call this%create_mass_operator()
   
   !pmartorell: Are those checks needed?
-  fe_nl_op_domain   => fe_nl_op%get_domain_vector_space()
-  mass_nl_op_domain => this%mass_nl_op%get_domain_vector_space()
-  massert (fe_nl_op_domain%equal_to(mass_nl_op_domain), "fe_nl_op%domain_space() MUST MATCH mass_nl_op%domain_space()" )
+  fe_op_domain   => fe_op%get_domain_vector_space()
+  mass_op_domain => this%mass_op%get_domain_vector_space()
+  massert (fe_op_domain%equal_to(mass_op_domain), "fe_op%domain_space() MUST MATCH mass_op%domain_space()" )
   
-  call fe_nl_op_domain%create_vector(this%aux)
+  call fe_op_domain%create_vector(this%aux)
   !call this%aux%allocate()
 
-  fe_nl_op_range    => fe_nl_op%get_range_vector_space()
-  mass_nl_op_range  => this%mass_nl_op%get_range_vector_space()
-  massert (fe_nl_op_range%equal_to(mass_nl_op_range), "fe_nl_op%range_space() MUST MATCH mass_nl_op%range_space()" )
+  fe_op_range    => fe_op%get_range_vector_space()
+  mass_op_range  => this%mass_op%get_range_vector_space()
+  massert (fe_op_range%equal_to(mass_op_range), "fe_op%range_space() MUST MATCH mass_op%range_space()" )
 
 
-  trial_fe_space => this%fe_nl_op%get_trial_fe_space()
+  trial_fe_space => this%fe_op%get_trial_fe_space()
   if ( associated(trial_fe_space) ) then
-    call this%fe_nonlinear_operator_t%create(this%fe_nl_op%get_sparse_matrix_storage_format(), &
-                                             this%fe_nl_op%get_diagonal_blocks_symmetric_storage(),&
-                                             this%fe_nl_op%get_diagonal_blocks_symmetric(),&
-                                             this%fe_nl_op%get_diagonal_blocks_sign(),&
-                                             this%fe_nl_op%get_fe_space(), &
-                                             this%fe_nl_op%get_discrete_integration(), &
+    call this%fe_operator_t%create(this%fe_op%get_sparse_matrix_storage_format(), &
+                                             this%fe_op%get_diagonal_blocks_symmetric_storage(),&
+                                             this%fe_op%get_diagonal_blocks_symmetric(),&
+                                             this%fe_op%get_diagonal_blocks_sign(),&
+                                             this%fe_op%get_fe_space(), &
+                                             this%fe_op%get_discrete_integration(), &
                                              trial_fe_space)  
   else
-    call this%fe_nonlinear_operator_t%create(this%fe_nl_op%get_sparse_matrix_storage_format(), &
-                                             this%fe_nl_op%get_diagonal_blocks_symmetric_storage(),&
-                                             this%fe_nl_op%get_diagonal_blocks_symmetric(),&
-                                             this%fe_nl_op%get_diagonal_blocks_sign(),&
-                                             this%fe_nl_op%get_fe_space(), &
-                                             this%fe_nl_op%get_discrete_integration())
+    call this%fe_operator_t%create(this%fe_op%get_sparse_matrix_storage_format(), &
+                                             this%fe_op%get_diagonal_blocks_symmetric_storage(),&
+                                             this%fe_op%get_diagonal_blocks_symmetric(),&
+                                             this%fe_op%get_diagonal_blocks_sign(),&
+                                             this%fe_op%get_fe_space(), &
+                                             this%fe_op%get_discrete_integration())
   end if
 end subroutine time_stepping_stage_fe_operator_create_from_operators
 
@@ -101,13 +101,13 @@ subroutine time_stepping_stage_fe_operator_create_mass_operator ( this )
   implicit none
   class(time_stepping_stage_fe_operator_t)  , intent(inout) :: this
   
-  call this%mass_integration%set_up(this%fe_nl_op%get_fe_space())
+  call this%mass_integration%set_up(this%fe_op%get_fe_space())
   
-  call this%mass_nl_op%create ( sparse_matrix_storage_format      = this%fe_nl_op%get_sparse_matrix_storage_format(), &
-                                diagonal_blocks_symmetric_storage = this%fe_nl_op%get_diagonal_blocks_symmetric_storage(), &
-                                diagonal_blocks_symmetric         = this%fe_nl_op%get_diagonal_blocks_symmetric(), &
-                                diagonal_blocks_sign              = this%fe_nl_op%get_diagonal_blocks_sign(), &
-                                fe_space                          = this%fe_nl_op%get_fe_space(), &
+  call this%mass_op%create ( sparse_matrix_storage_format      = this%fe_op%get_sparse_matrix_storage_format(), &
+                                diagonal_blocks_symmetric_storage = this%fe_op%get_diagonal_blocks_symmetric_storage(), &
+                                diagonal_blocks_symmetric         = this%fe_op%get_diagonal_blocks_symmetric(), &
+                                diagonal_blocks_sign              = this%fe_op%get_diagonal_blocks_sign(), &
+                                fe_space                          = this%fe_op%get_fe_space(), &
                                 discrete_integration              = this%mass_integration )
   
 end subroutine time_stepping_stage_fe_operator_create_mass_operator
@@ -117,10 +117,10 @@ subroutine time_stepping_stage_fe_operator_free(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this
   integer(ip) :: istat
-  call this%fe_nonlinear_operator_t%free()
+  call this%fe_operator_t%free()
   nullify(this%ts_op)
-  nullify(this%fe_nl_op)
-  call this%mass_nl_op%free()
+  nullify(this%fe_op)
+  call this%mass_op%free()
   if ( allocated(this%aux) ) then
     call this%aux%free()
     deallocate(this%aux, stat=istat); check(istat==0);
@@ -163,10 +163,10 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
     end if
   end do
 
-  call this%fe_nl_op%set_evaluation_point(this%aux)
-  call this%mass_nl_op%set_evaluation_point(x)
+  call this%fe_op%set_evaluation_point(this%aux)
+  call this%mass_op%set_evaluation_point(x)
   
-  call this%fe_nonlinear_operator_t%set_evaluation_point(this%aux) !pmartorell: Evaluation point set to x_i
+  call this%fe_operator_t%set_evaluation_point(this%aux) !pmartorell: Evaluation point set to x_i
     
   call x%CleanTemp()
 end subroutine time_stepping_stage_fe_operator_set_evaluation_point
@@ -180,8 +180,8 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_time(this,time)
   class(discrete_integration_t)           , pointer               :: di_fe_op
   class(discrete_integration_t)           , pointer               :: di_fe_mass_op
  
-  di_fe_op         => this%fe_nl_op%get_discrete_integration()
-  di_fe_mass_op    => this%mass_nl_op%get_discrete_integration()
+  di_fe_op         => this%fe_op%get_discrete_integration()
+  di_fe_mass_op    => this%mass_op%get_discrete_integration()
 
   call di_fe_op%set_current_time(time)
   call di_fe_mass_op%set_current_time(time)
@@ -194,11 +194,11 @@ function time_stepping_stage_fe_operator_is_linear(this)
   class(time_stepping_stage_fe_operator_t), intent(in) :: this
   logical :: time_stepping_stage_fe_operator_is_linear
   time_stepping_stage_fe_operator_is_linear = &
-     ( this%fe_nl_op%is_linear() .and. this%mass_nl_op%is_linear() )
+     ( this%fe_op%is_linear() .and. this%mass_op%is_linear() )
 end function time_stepping_stage_fe_operator_is_linear
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-subroutine time_stepping_stage_fe_operator_compute_residual(this)
+subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(inout) :: this
   class(environment_t)         , pointer :: environment
@@ -219,8 +219,8 @@ subroutine time_stepping_stage_fe_operator_compute_residual(this)
   fe_sp            => this%get_fe_space()
   trial_fe_sp      => this%get_trial_fe_space()
   environment      => fe_sp%get_environment()
-  di_fe_op         => this%fe_nl_op%get_discrete_integration()
-  di_mass_op       => this%mass_nl_op%get_discrete_integration()
+  di_fe_op         => this%fe_op%get_discrete_integration()
+  di_mass_op       => this%mass_op%get_discrete_integration()
 
   if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
     if ( environment%am_i_l1_task() ) then
@@ -242,7 +242,7 @@ subroutine time_stepping_stage_fe_operator_compute_residual(this)
     end if
   end if
 
-end subroutine time_stepping_stage_fe_operator_compute_residual
+end subroutine time_stepping_stage_fe_operator_compute_internal_residual
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_compute_tangent(this)
@@ -269,8 +269,8 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
   fe_sp       => this%get_fe_space()
   trial_fe_sp => this%get_trial_fe_space()
   environment => fe_sp%get_environment()
-  di_fe_op    => this%fe_nl_op%get_discrete_integration()
-  di_mass_op  => this%mass_nl_op%get_discrete_integration()
+  di_fe_op    => this%fe_op%get_discrete_integration()
+  di_mass_op  => this%mass_op%get_discrete_integration()
   assembler   => this%get_assembler()
 
   if ( .not. ( this%get_state() == tangent_computed .or. this%get_state() == assembler_computed ) ) then

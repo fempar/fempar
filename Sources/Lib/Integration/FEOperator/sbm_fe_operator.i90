@@ -458,17 +458,6 @@ function fe_operator_get_current_evaluation_point(this) result(evaluation_point)
   evaluation_point => this%current_evaluation_point
 end function fe_operator_get_current_evaluation_point
 
-function fe_operator_apply_fun(this,x) result(y)
-  implicit none
-  class(fe_operator_t)   , intent(inout)  :: this
-  class(vector_t)     , intent(in)  :: x
-  class(vector_t)     , allocatable :: y
-  type(vector_space_t), pointer     :: range_vector_space
-  range_vector_space => this%get_range_vector_space()
-  call range_vector_space%create_vector(y)
-  call this%apply(x,y)
-end function fe_operator_apply_fun
-
 ! Triggers the computation of the residual and tangent
 ! for the currently associated evaluation point, independently
 ! of the current state of this. This is though to be called
@@ -489,8 +478,8 @@ end subroutine fe_operator_force_compute
 subroutine fe_operator_compute_residual(this,y)
   implicit none
   class(fe_operator_t), intent(in) :: this
-  class(vector_t) ,        intent(inout) :: y 
-  class(environment_t), pointer :: environment
+  class(vector_t) ,  intent(inout) :: y 
+  class(environment_t),    pointer :: environment
   call this%compute_internal_residual()
   y = this%get_translation()
 end subroutine fe_operator_compute_residual

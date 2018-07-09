@@ -59,7 +59,7 @@ module test_transient_poisson_driver_names
      type(poisson_analytical_functions_t)         :: poisson_analytical_functions
           
      ! Place-holder for the coefficient matrix and RHS of the linear system
-     type(fe_nonlinear_operator_t)                :: fe_nl_op
+     type(fe_operator_t)                :: fe_op
      type(nonlinear_solver_t)                     :: nl_solver
      type(time_stepping_operator_t)               :: time_operator
      type(dirk_solver_t)                          :: time_solver
@@ -217,7 +217,7 @@ contains
     class(matrix_t), pointer :: A, M
     integer(ip) :: luout
    
-    call this%fe_nl_op%create ( sparse_matrix_storage_format      = csr_format, &
+    call this%fe_op%create ( sparse_matrix_storage_format      = csr_format, &
                                           diagonal_blocks_symmetric_storage = [ .true. ], &
                                           diagonal_blocks_symmetric         = [ .true. ], &
                                           diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
@@ -225,7 +225,7 @@ contains
                                           discrete_integration              = this%poisson_cG_integration )
     
    
-    call this%time_operator%create( fe_nl_op                = this%fe_nl_op, &
+    call this%time_operator%create( fe_op                = this%fe_op, &
                                     initial_time            = this%test_params%get_initial_time() , &
                                     final_time              = this%test_params%get_final_time() , &
                                     time_step               = this%test_params%get_time_step() , &
@@ -276,7 +276,8 @@ contains
                                 rel_tol = 1.0e-6_rp, &
                                 max_iters = 10_ip, &
                                 linear_solver = this%direct_solver, &
-                                environment = this%fe_space%get_environment() )
+                                environment = this%fe_space%get_environment() , & 
+                                fe_operator = this%time_solver )
     
     call this%time_solver%create( ts_op = this%time_operator, &
                                   nl_solver = this%nl_solver )
@@ -529,7 +530,7 @@ contains
     call this%nl_solver%free()
     
     call this%time_operator%free()
-    call this%fe_nl_op%free()
+    call this%fe_op%free()
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
       do i=1, size(this%reference_fes)

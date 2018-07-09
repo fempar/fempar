@@ -137,7 +137,6 @@ module fe_operator_names
      procedure          :: apply                                 => fe_operator_apply
      procedure          :: apply_add                             => fe_operator_apply_add
      procedure          :: is_linear                             => fe_operator_is_linear
-     procedure          :: apply_fun                             => fe_operator_apply_fun
                                                                 
      procedure          :: get_tangent                           => fe_operator_get_tangent 
      procedure          :: get_matrix                            => fe_operator_get_matrix
@@ -154,7 +153,7 @@ module fe_operator_names
      procedure          :: get_sparse_matrix_storage_format      => fe_operator_get_sparse_matrix_storage_format
      procedure          :: get_state                             => fe_operator_get_state
      procedure          :: get_current_evaluation_point          => fe_operator_get_current_evaluation_point
-     procedure          :: get_assambler                         => fe_operator_get_assambler
+     procedure          :: get_assembler                         => fe_operator_get_assembler
      
      procedure          :: allocate_state                        => fe_operator_allocate_state
      procedure          :: deallocate_state                      => fe_operator_deallocate_state

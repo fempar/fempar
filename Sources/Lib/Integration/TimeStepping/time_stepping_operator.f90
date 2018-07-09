@@ -56,7 +56,7 @@ module time_stepping_names
   use direct_solver_names
   use block_layout_names
 
-  use fe_nonlinear_operator_names
+  use fe_operator_names
   use nonlinear_solver_names
   
   use time_stepping_mass_discrete_integration_names
@@ -106,11 +106,11 @@ module time_stepping_names
   ! where the x denotes that the unknown is fixed. It requires to add
   ! contributions from the nonlinear operator A and mass nonlinear operator 
   ! M as alpha*A + beta*M
-  type, extends(fe_nonlinear_operator_t) :: time_stepping_stage_fe_operator_t
+  type, extends(fe_operator_t) :: time_stepping_stage_fe_operator_t
      private
      type(time_stepping_operator_t), pointer :: ts_op      => NULL()
-     class(fe_nonlinear_operator_t), pointer :: fe_nl_op   => NULL()
-     type(fe_nonlinear_operator_t)           :: mass_nl_op 
+     class(fe_operator_t), pointer :: fe_op   => NULL()
+     type(fe_operator_t)           :: mass_op 
      type(mass_discrete_integration_t)       :: mass_integration
      integer(ip) :: i
      integer(ip) :: j
@@ -126,7 +126,7 @@ module time_stepping_names
      procedure :: set_evaluation_point  => time_stepping_stage_fe_operator_set_evaluation_point
      procedure :: set_evaluation_time   => time_stepping_stage_fe_operator_set_evaluation_time
      procedure :: is_linear             => time_stepping_stage_fe_operator_is_linear
-     procedure :: compute_residual      => time_stepping_stage_fe_operator_compute_residual
+     procedure :: compute_internal_residual      => time_stepping_stage_fe_operator_compute_internal_residual
      procedure :: compute_tangent       => time_stepping_stage_fe_operator_compute_tangent
   end type time_stepping_stage_fe_operator_t
 

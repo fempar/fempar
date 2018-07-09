@@ -25,15 +25,15 @@
 ! resulting work. 
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
-subroutine time_stepping_operator_create(this, fe_nl_op, initial_time, final_time, time_step, time_integration_scheme)
+subroutine time_stepping_operator_create (this, fe_op, initial_time, final_time, time_step, time_integration_scheme)
   implicit none
   class(time_stepping_operator_t),         intent(inout) :: this
-  class(fe_nonlinear_operator_t) ,         intent(in)    :: fe_nl_op
+  class(fe_operator_t) ,                   intent(in)    :: fe_op
   character(len=*)               ,         intent(in)    :: time_integration_scheme
   real(rp)                       ,         intent(in)    :: initial_time, final_time, time_step
   
   call this%scheme%create(time_integration_scheme)
-  call this%fe_op%create_from_operators(this,fe_nl_op)
+  call this%fe_op%create_from_operators(this,fe_op)
   
   call this%set_initial_time(initial_time)
   call this%set_final_time(final_time)
