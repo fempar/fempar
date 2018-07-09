@@ -188,6 +188,16 @@ subroutine facet_map_get_normal(this, qpoint, normal)
 end subroutine  facet_map_get_normal
 
 !==================================================================================================
+subroutine facet_map_get_normals(this, normals)
+ implicit none
+ class(facet_map_t)  , intent(in)    :: this
+ type(vector_field_t), intent(inout) :: normals(:,:)
+ assert ( size(normals,2) == 2 )
+ call init_vector_field_1D_array_plain_2D_array(this%normals,normals(:,1))
+ call init_vector_field_1D_array_minus_plain_2D_array(this%normals,normals(:,2))
+end subroutine  facet_map_get_normals
+
+!==================================================================================================
 function facet_map_get_raw_normals(this)
  implicit none
  class(facet_map_t), target, intent(in)    :: this

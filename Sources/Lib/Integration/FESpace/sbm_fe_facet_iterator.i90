@@ -818,6 +818,14 @@ subroutine fe_facet_iterator_get_normal (this, qpoint, normal)
   call this%facet_maps%get_normal(qpoint, normal)
 end subroutine fe_facet_iterator_get_normal
 
+!=================================================================================================
+subroutine fe_facet_iterator_get_normals (this, normals)
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  type(vector_field_t)      , intent(inout) :: normals(:,:)
+  call this%facet_maps%get_normals(normals)
+end subroutine fe_facet_iterator_get_normals
+
 !==================================================================================================
 function fe_facet_iterator_compute_characteristic_length(this,qpoint)
   implicit none

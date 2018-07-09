@@ -246,6 +246,7 @@ module reference_fe_names
      procedure                  :: update_interpolation => facet_map_update_interpolation
      procedure                  :: free              => facet_map_free
      procedure, non_overridable :: get_normal        => facet_map_get_normal
+     procedure, non_overridable :: get_normals       => facet_map_get_normals
      procedure, non_overridable :: get_raw_normals   => facet_map_get_raw_normals
   end type facet_map_t
   
@@ -1923,6 +1924,7 @@ contains
   &                                             => facet_maps_get_coordinates_neighbour
   procedure, non_overridable :: get_neighbour_cell_map => facet_maps_get_neighbour_cell_map
   procedure, non_overridable :: get_normal          => facet_maps_get_normal
+  procedure, non_overridable :: get_normals         => facet_maps_get_normals
   procedure, non_overridable :: get_det_jacobian     => facet_maps_get_det_jacobian
   procedure, non_overridable :: get_det_jacobians    => facet_maps_get_det_jacobians
   procedure, non_overridable :: get_facet_map        => facet_maps_get_facet_map

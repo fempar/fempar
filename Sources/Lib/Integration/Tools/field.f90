@@ -135,6 +135,8 @@ module field_names
   public :: operator(*), operator(+), operator(-), assignment(=)
   public :: double_contract, cross_product, symmetric_part, trace
   public :: init_vector_field_2D_array
+  public :: init_vector_field_1D_array_plain_2D_array
+  public :: init_vector_field_1D_array_minus_plain_2D_array
   public :: fill_vector_field_2D_array_with_4D_plain_array
   public :: fill_vector_field_2D_array_with_4D_plain_array_perm
   public :: compute_point_1D_array_lin_comb_with_3D_plain_array
@@ -636,7 +638,6 @@ contains
     end do
   end function trace
   
-  
   ! "Friend" subroutines of reference_fe_t implementors that are here for optimization purposes.
   ! We assume that the actual arguments passed to the dummy arguments fulfill the preconditions
   ! encompassed in the asserts(...). Thus, they cannot be considered a generally applicable 
@@ -654,7 +655,35 @@ contains
       end do 
     end do
   end subroutine init_vector_field_2D_array
- 
+  
+  subroutine init_vector_field_1D_array_plain_2D_array(plain_2D_array,vector_field_1D_array)
+    implicit none
+    real(rp)            , intent(in)    :: plain_2D_array(:,:)
+    type(vector_field_t), intent(inout) :: vector_field_1D_array(:)
+    integer(ip) :: i,j
+    assert ( size(plain_2D_array,1) == SPACE_DIM )
+    assert ( size(plain_2D_array,2) == size(vector_field_1D_array) )
+    do j=1,size(vector_field_1D_array)
+      do i=1,SPACE_DIM
+        vector_field_1D_array(j)%value(i) = plain_2D_array(i,j)
+      end do 
+    end do
+  end subroutine init_vector_field_1D_array_plain_2D_array
+  
+  subroutine init_vector_field_1D_array_minus_plain_2D_array(plain_2D_array,vector_field_1D_array)
+    implicit none
+    real(rp)            , intent(in)    :: plain_2D_array(:,:)
+    type(vector_field_t), intent(inout) :: vector_field_1D_array(:)
+    integer(ip) :: i,j
+    assert ( size(plain_2D_array,1) == SPACE_DIM )
+    assert ( size(plain_2D_array,2) == size(vector_field_1D_array) )
+    do j=1,size(vector_field_1D_array)
+      do i=1,SPACE_DIM
+        vector_field_1D_array(j)%value(i) = -plain_2D_array(i,j)
+      end do 
+    end do
+  end subroutine init_vector_field_1D_array_minus_plain_2D_array
+  
   subroutine fill_vector_field_2D_array_with_4D_plain_array ( plain_array, vector_field_2D_array )
     implicit none
     real(rp)            , intent(in)    :: plain_array(:,:,:,:)

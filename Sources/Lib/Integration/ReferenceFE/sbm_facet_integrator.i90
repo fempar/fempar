@@ -350,6 +350,14 @@ subroutine facet_maps_get_normal (this, qpoint, normal)
 end subroutine facet_maps_get_normal
 
 !=================================================================================================
+subroutine facet_maps_get_normals (this, normals)
+  implicit none
+  class(facet_maps_t)     , intent(in)    :: this
+  type(vector_field_t)    , intent(out)   :: normals(:,:)
+  call this%facet_map%get_normals(normals)
+end subroutine facet_maps_get_normals
+
+!=================================================================================================
 function facet_maps_get_det_jacobian ( this, i )
   implicit none
   class(facet_maps_t), intent(in) :: this
