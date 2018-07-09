@@ -499,9 +499,13 @@ module fe_space_names
     procedure, non_overridable          :: get_subfacet_lid_cell_around  => fe_facet_iterator_get_subfacet_lid_cell_around
     
     procedure                           :: get_quadrature_points_coordinates => fe_facet_iterator_get_quadrature_points_coordinates
-    procedure                           :: get_normals                       => fe_facet_iterator_get_normals
+    procedure                           :: get_normal                        => fe_facet_iterator_get_normal
     procedure                           :: get_det_jacobian                  => fe_facet_iterator_get_det_jacobian
+    procedure                           :: get_det_jacobians                 => fe_facet_iterator_get_det_jacobians
     procedure                           :: compute_characteristic_length     => fe_facet_iterator_compute_characteristic_length
+    procedure                           :: compute_characteristic_lengths    => fe_facet_iterator_compute_characteristic_lengths
+
+
     
     procedure                           :: get_fes_around  => fe_facet_iterator_get_fes_around
     

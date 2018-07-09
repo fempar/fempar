@@ -196,6 +196,9 @@ subroutine facet_maps_create(this, quadrature, left_geo_reference_fe, right_geo_
   if (associated(right_geo_reference_fe)) then
      call this%cell_maps(2)%create(quadrature,right_geo_reference_fe)
   end if
+  call memallocp(quadrature%get_num_quadrature_points(), &
+                 this%aux_characteristic_lengths, &
+                 __FILE__, __LINE__ )
 end subroutine facet_maps_create
 
 !==================================================================================================
@@ -208,6 +211,9 @@ subroutine facet_maps_free(this)
   do i=1,2
      call this%cell_maps(i)%free()
   end do
+  if ( associated(this%aux_characteristic_lengths) ) then
+    call memfreep(this%aux_characteristic_lengths,__FILE__,__LINE__)
+  end if
 end subroutine facet_maps_free
 
 !==================================================================================================
@@ -264,6 +270,25 @@ function facet_maps_compute_characteristic_length(this,qpoin)
 end function facet_maps_compute_characteristic_length
 
 !==================================================================================================
+subroutine facet_maps_compute_characteristic_lengths(this,characteristic_lengths)
+  implicit none
+  class(facet_maps_t), intent(in)    :: this
+  real(rp)           , intent(inout) :: characteristic_lengths(:)
+  integer(ip) :: cell_map_index,i
+  cell_map_index = this%cell_maps(1)%current_facet_lid + & 
+                 this%cell_maps(1)%current_subfacet_lid * this%cell_maps(1)%num_facets 
+  call this%cell_maps(1)%cell_map(cell_map_index)%compute_hs(characteristic_lengths)
+  if (.not. this%is_at_boundary) then
+     cell_map_index = this%cell_maps(2)%current_facet_lid + & 
+                    this%cell_maps(2)%current_subfacet_lid * this%cell_maps(2)%num_facets
+     call this%cell_maps(2)%cell_map(cell_map_index)%compute_hs(this%aux_characteristic_lengths) 
+     do i=1,size(this%aux_characteristic_lengths)
+       characteristic_lengths(i) = min(characteristic_lengths(i),this%aux_characteristic_lengths(i))
+     end do 
+  end if
+end subroutine facet_maps_compute_characteristic_lengths
+
+!==================================================================================================
 function facet_maps_get_facet_coordinates(this)
   implicit none
   ! Parameters
@@ -311,20 +336,18 @@ function facet_maps_get_neighbour_cell_map(this,neighbour_id)
 end function facet_maps_get_neighbour_cell_map
 
 !=================================================================================================
-subroutine facet_maps_get_normals (this, qpoint, normal)
+subroutine facet_maps_get_normal (this, qpoint, normal)
   implicit none
   class(facet_maps_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: qpoint
   type(vector_field_t)    , intent(out)   :: normal(2)
 
   integer(ip) :: idime
-  call normal(1)%init(0.0_rp)
-  call normal(2)%init(0.0_rp)
-  do idime = 1, this%num_dims
+  do idime = 1, SPACE_DIM
      call normal(1)%set(idime,this%facet_map%normals(idime,qpoint))
      call normal(2)%set(idime,- this%facet_map%normals(idime,qpoint))
   end do
-end subroutine facet_maps_get_normals
+end subroutine facet_maps_get_normal
 
 !=================================================================================================
 function facet_maps_get_det_jacobian ( this, i )
@@ -335,6 +358,15 @@ function facet_maps_get_det_jacobian ( this, i )
   facet_maps_get_det_jacobian = this%facet_map%get_det_jacobian(i)
 end function facet_maps_get_det_jacobian
 
+!=================================================================================================
+subroutine facet_maps_get_det_jacobians ( this, det_jacobians )
+  implicit none
+  class(facet_maps_t), intent(in)    :: this
+  real(rp)           , intent(inout) :: det_jacobians(:)
+  call this%facet_map%get_det_jacobians(det_jacobians)
+end subroutine facet_maps_get_det_jacobians
+
+!=================================================================================================
 function facet_maps_get_facet_map ( this )
   implicit none
   class(facet_maps_t), target, intent(in) :: this
@@ -356,6 +388,9 @@ subroutine assign_facet_maps(this,other)
     call this%cell_maps(2)%copy(other%cell_maps(2))
   end if
   this%num_dims = other%num_dims
+  call memallocp (size(other%aux_characteristic_lengths), & 
+                  this%aux_characteristic_lengths, __FILE__, __LINE__ )
+  this%aux_characteristic_lengths(:) = other%aux_characteristic_lengths(:)
 end subroutine assign_facet_maps
 
 !==================================================================================================

@@ -56,7 +56,7 @@ subroutine facet_map_create(this,quadrature,reference_fe_geo)
   call memalloc(this%num_quadrature_points, &
        this%det_jacobian,__FILE__,__LINE__)
 
-  call memalloc(this%num_dims, &
+  call memalloc(SPACE_DIM, &
                 this%num_quadrature_points, &
                 this%normals,__FILE__,__LINE__)
 
@@ -87,7 +87,8 @@ subroutine facet_map_update(this,reorientation_factor,quadrature)
   call this%compute_jacobian()
   
   ! Initialize values
-  this%measure            = 0.0_rp 
+  this%measure  = 0.0_rp 
+  this%normals  = 0.0_rp         
   do qpoint = 1, this%num_quadrature_points
      ! Compute outside normals (using the Jacobian Matrix)
      if ( this%num_dims == 1) then
@@ -155,10 +156,10 @@ subroutine assign_facet_map( this, other )
                 this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
   this%jacobian(:,:,:) = other%jacobian(:,:,:)
-  call memalloc(this%num_dims, &
+  call memalloc(SPACE_DIM, &
                 this%num_quadrature_points, &
                 this%normals,__FILE__,__LINE__)
-  this%normals = other%normals
+  this%normals(:,:) = other%normals(:,:)
 end subroutine assign_facet_map
 
 !==================================================================================================
@@ -181,8 +182,7 @@ subroutine facet_map_get_normal(this, qpoint, normal)
  type(vector_field_t), intent(inout) :: normal
  integer(ip) :: idime
  assert ( allocated(this%normals) )
- call normal%init(0.0_rp)
- do idime = 1, this%num_dims
+ do idime = 1, SPACE_DIM
    call normal%set(idime,this%normals(idime,qpoint))
  end do
 end subroutine  facet_map_get_normal

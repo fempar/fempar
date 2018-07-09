@@ -396,6 +396,39 @@ function cell_map_compute_h ( this, qpoin)
 end function cell_map_compute_h
 
 !==================================================================================================
+subroutine cell_map_compute_hs ( this, hs )
+  implicit none
+  class(cell_map_t), intent(in)    :: this
+  real(rp)         , intent(inout) :: hs(:)
+
+  integer(ip) :: idime, jdime, qpoin, j
+  real(rp)    :: inverse_h(SPACE_DIM)
+
+  if(this%my_duties%compute_jacobian_inverse_is_assigned()) then
+     do qpoin=1,this%num_quadrature_points
+       inverse_h = 0.0_rp
+       do idime = 1, this%num_dims
+         do jdime = 1,  this%num_dims
+           inverse_h(idime) = inverse_h(idime) + &
+             this%inv_jacobian(idime,jdime,qpoin)*this%inv_jacobian(idime,jdime,qpoin)
+         end do
+       end do
+       inverse_h(1:this%num_dims) = sqrt(inverse_h(1:this%num_dims))
+       hs(qpoin) = inverse_h(1)
+       do j = 2, this%num_dims
+         hs(qpoin) = hs(qpoin) * inverse_h(j)
+       end do
+       hs(qpoin) = 1.0_rp / hs(qpoin)
+     end do
+     hs(1:this%num_quadrature_points) = hs(1:this%num_quadrature_points)**(1.0_rp/real(this%num_dims))
+     hs(1:this%num_quadrature_points) = this%reference_fe_characteristic_length*hs(1:this%num_quadrature_points)
+  else
+     mcheck(.false.,'Calling cell_map_compute_h requires compute_jacobian_inverse_is_assigned to be true')
+  end if
+
+end subroutine cell_map_compute_hs
+
+!==================================================================================================
 function cell_map_compute_h_min ( this, qpoin)
   implicit none
   class(cell_map_t), intent(in) :: this

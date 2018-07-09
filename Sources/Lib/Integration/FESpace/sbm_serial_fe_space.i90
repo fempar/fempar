@@ -1379,7 +1379,7 @@ subroutine serial_fe_space_project_curl_conforming_compute_elmat_elvec ( this, &
      elvec = 0.0_rp
      call fe_face%get_values(1,shape_values)
      do qpoint = 1, n_q_points
-     call fe_face%get_normals(qpoint, normals)
+     call fe_face%get_normal(qpoint, normals)
         factor = fe_face%get_det_jacobian(qpoint) * quadrature%get_weight(qpoint)
         
         do ishape = 1, reference_fe%get_num_shape_functions() 

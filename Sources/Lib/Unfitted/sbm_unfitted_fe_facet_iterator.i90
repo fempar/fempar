@@ -365,11 +365,11 @@ subroutine unfitted_fe_facet_iterator_get_normals(this, qpoint, normal)
   integer(ip)             , intent(in)    :: qpoint
   type(vector_field_t)    , intent(out)   :: normal(2)
   if ( this%is_cut() ) then
-    call this%unfitted_facet_maps%get_normals(qpoint, normal)
+    call this%unfitted_facet_maps%get_normal(qpoint, normal)
   else if ( this%is_interior() ) then
-    call this%fe_facet_iterator_t%get_normals(qpoint, normal)
+    call this%fe_facet_iterator_t%get_normal(qpoint, normal)
   else if ( this%is_exterior() ) then
-    call this%unfitted_facet_maps%get_normals(qpoint, normal)
+    call this%unfitted_facet_maps%get_normal(qpoint, normal)
   else
     check(.false.)
   end if

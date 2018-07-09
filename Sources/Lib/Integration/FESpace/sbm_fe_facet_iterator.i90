@@ -802,13 +802,21 @@ function fe_facet_iterator_get_det_jacobian ( this, i )
 end function fe_facet_iterator_get_det_jacobian
 
 !=================================================================================================
-subroutine fe_facet_iterator_get_normals (this, qpoint, normal)
+subroutine fe_facet_iterator_get_det_jacobians ( this, det_jacobians )
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  real(rp)                  , intent(inout) :: det_jacobians(:)
+  call this%facet_maps%get_det_jacobians(det_jacobians)
+end subroutine fe_facet_iterator_get_det_jacobians
+
+!=================================================================================================
+subroutine fe_facet_iterator_get_normal (this, qpoint, normal)
   implicit none
   class(fe_facet_iterator_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: qpoint
   type(vector_field_t)    , intent(out)   :: normal(2)
-  call this%facet_maps%get_normals(qpoint, normal)
-end subroutine fe_facet_iterator_get_normals
+  call this%facet_maps%get_normal(qpoint, normal)
+end subroutine fe_facet_iterator_get_normal
 
 !==================================================================================================
 function fe_facet_iterator_compute_characteristic_length(this,qpoint)
@@ -818,6 +826,14 @@ function fe_facet_iterator_compute_characteristic_length(this,qpoint)
   real(rp) :: fe_facet_iterator_compute_characteristic_length
   fe_facet_iterator_compute_characteristic_length = this%facet_maps%compute_characteristic_length(qpoint)
 end function fe_facet_iterator_compute_characteristic_length
+
+!==================================================================================================
+subroutine fe_facet_iterator_compute_characteristic_lengths(this,characteristic_lengths)
+  implicit none
+  class(fe_facet_iterator_t), intent(in)    :: this
+  real(rp)                  , intent(inout) :: characteristic_lengths(:)
+  call this%facet_maps%compute_characteristic_lengths(characteristic_lengths)
+end subroutine fe_facet_iterator_compute_characteristic_lengths
 
 !==================================================================================================
 function fe_facet_iterator_get_fes_around(this)

@@ -222,6 +222,7 @@ module reference_fe_names
      procedure, non_overridable :: update_interpolation_restricted_to_facet => cell_map_update_interpolation_restricted_to_facet
      procedure, non_overridable :: print                             => cell_map_print
      procedure, non_overridable :: compute_h                         => cell_map_compute_h
+     procedure, non_overridable :: compute_hs                        => cell_map_compute_hs
      procedure, non_overridable :: compute_h_min                     => cell_map_compute_h_min
      procedure, non_overridable :: compute_h_max                     => cell_map_compute_h_max
      procedure, non_overridable :: get_inv_jacobian_tensor           => cell_map_get_inv_jacobian_tensor
@@ -1906,20 +1907,24 @@ type facet_maps_t
   type(facet_map_t)                  :: facet_map
   type(cell_map_facet_restriction_t) :: cell_maps(2)
   integer(ip)                        :: num_dims
+  real(rp), pointer                  :: aux_characteristic_lengths(:)
 contains
   procedure, non_overridable :: create               => facet_maps_create
   procedure, non_overridable :: free                 => facet_maps_free
   procedure, non_overridable :: update               => facet_maps_update
   procedure, non_overridable :: compute_characteristic_length                                      &
   &                                             => facet_maps_compute_characteristic_length
-  procedure, non_overridable :: get_quadrature_points_coordinates                                         &
+  procedure, non_overridable :: compute_characteristic_lengths                                     &
+  &                                             => facet_maps_compute_characteristic_lengths
+  procedure, non_overridable :: get_quadrature_points_coordinates                                  &
   &                                             => facet_maps_get_quadrature_points_coordinates
   procedure, non_overridable :: get_facet_coordinates => facet_maps_get_facet_coordinates
   procedure, non_overridable :: get_coordinates_neighbour                                          &
   &                                             => facet_maps_get_coordinates_neighbour
   procedure, non_overridable :: get_neighbour_cell_map => facet_maps_get_neighbour_cell_map
-  procedure, non_overridable :: get_normals          => facet_maps_get_normals
+  procedure, non_overridable :: get_normal          => facet_maps_get_normal
   procedure, non_overridable :: get_det_jacobian     => facet_maps_get_det_jacobian
+  procedure, non_overridable :: get_det_jacobians    => facet_maps_get_det_jacobians
   procedure, non_overridable :: get_facet_map        => facet_maps_get_facet_map
   procedure, non_overridable :: get_cell_maps         => facet_maps_get_cell_maps
   procedure, non_overridable :: get_is_at_boundary    => facet_maps_get_is_at_boundary

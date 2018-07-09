@@ -193,7 +193,7 @@ contains
          call fe_face%get_gradients(2,shape_gradients_second)
 
          do qpoint = 1, num_quad_points
-            call fe_face%get_normals(qpoint,normals)
+            call fe_face%get_normal(qpoint,normals)
             h_length = fe_face%compute_characteristic_length(qpoint)
             factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             do ineigh = 1, fe_face%get_num_cells_around()
