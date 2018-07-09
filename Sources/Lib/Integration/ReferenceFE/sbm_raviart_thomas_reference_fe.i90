@@ -47,23 +47,16 @@ end subroutine raviart_thomas_get_subcells_connectivity
 ! Deferred TBP implementors from reference_fe_t
 !**************************************************************************************************
 !==================================================================================================
-subroutine raviart_thomas_create_interpolation ( this, quadrature, & 
-     &                                           interpolation, compute_hessian )
+subroutine raviart_thomas_create_interpolation ( this, quadrature, interpolation, & 
+     &                                           interpolation_duties)
   implicit none 
   class(raviart_thomas_reference_fe_t), intent(in)    :: this 
   type(quadrature_t)              , intent(in)    :: quadrature
   type(interpolation_t)           , intent(inout) :: interpolation
-  logical               , optional, intent(in)    :: compute_hessian
-
-  integer(ip) :: ntens, i
-
-  ntens = 0
-  do i = 1, this%num_dims
-     ntens = ntens + i
-  end do
+  type(interpolation_duties_t), optional, intent(in)    :: interpolation_duties
 
   call interpolation%create( this%num_dims, this%num_shape_functions, &
-       quadrature%num_quadrature_points, ntens, compute_hessian )
+       &                     quadrature%num_quadrature_points, interpolation_duties )
 
   call this%fill_interpolation( quadrature, interpolation )
 
@@ -81,12 +74,11 @@ subroutine rt_create_interpolation_restricted_to_facet( this, facet_lid, &
   integer(ip)                     , intent(in)    :: subfacet_lid
   type(quadrature_t)              , intent(in)    :: local_quadrature
   type(interpolation_t)           , intent(inout) :: facet_interpolation
-
+  
   ! Allocate the arrays of the interpolation
   call facet_interpolation%create(this%num_dims, &
                                  this%num_shape_functions, &
-                                 local_quadrature%num_quadrature_points, &
-                                 0 )
+                                 local_quadrature%num_quadrature_points)
 
   ! Fill the values of the shape functions
   call this%fill_interp_restricted_to_facet(local_quadrature, &
@@ -490,6 +482,7 @@ subroutine raviart_thomas_get_gradient_vector( this, actual_cell_interpolation, 
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'RT reference FE get gradient vector requires cell interpolation to compute derivaties ')
   do i=1, this%num_dims
     do j=1, this%num_dims
      call tensor_field%set(i,j,actual_cell_interpolation%shape_derivatives(j,i,ishape,qpoint))
@@ -508,7 +501,8 @@ subroutine raviart_thomas_get_gradients_vector( this, actual_cell_interpolation,
   logical     :: reallocate
   
   assert( this%field_type == field_type_vector )
-  
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'RT reference FE get gradients vector requires cell interpolation to compute derivaties ')
+ 
   reallocate = .false.
   if (allocated(gradients)) reallocate = (size(gradients,1) < this%num_shape_functions) .or. &
                                           (size(gradients,2) < actual_cell_interpolation%num_quadrature_points)                                  
@@ -552,6 +546,7 @@ subroutine raviart_thomas_get_divergence_vector( this, actual_cell_interpolation
   assert( this%field_type == field_type_vector )
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'RT reference FE get divergence vector requires cell interpolation to compute derivaties ')
   scalar_field = 0.0_rp
   do idime = 1, this%num_dims
      scalar_field = scalar_field + actual_cell_interpolation%shape_derivatives(idime,idime,ishape,qpoint)
@@ -568,6 +563,7 @@ subroutine raviart_thomas_get_divergences_vector( this, actual_cell_interpolatio
   integer(ip) :: idime, ishape, qpoint,actual_qpoint
   logical     :: reallocate
   assert( this%field_type == field_type_vector )
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'RT reference FE get divergences vector requires cell interpolation to compute derivaties ')
   
   reallocate = .false.
   if (allocated(divergences)) reallocate = (size(divergences,1) < this%num_shape_functions) .or. &
@@ -610,6 +606,8 @@ subroutine raviart_thomas_get_curl_vector( this, actual_cell_interpolation, &
   assert( ishape >= 1 .and. ishape <= this%num_shape_functions )
   assert( qpoint >= 1 )  
   assert( SPACE_DIM == 3 )
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'RT reference FE get curl vector requires cell interpolation to compute derivaties ')
+
   call vector_field%init(0.0_rp)
   if (this%num_dims == 2) then 
                              ! d_x u_y - d_y u_x
@@ -639,6 +637,8 @@ subroutine raviart_thomas_get_curls_vector( this, actual_cell_interpolation, cur
   logical     :: reallocate
   integer(ip)   :: icomp, ishape_scalar 
   assert( this%field_type == field_type_vector )
+  mcheck(actual_cell_interpolation%my_duties%compute_first_derivatives_is_assigned(),'RT reference FE get curls vector requires cell interpolation to compute derivaties ')
+
   reallocate = .false.
   if (allocated(curls)) reallocate = (size(curls,1) < this%num_shape_functions) .or. &
                                       (size(curls,2) < actual_cell_interpolation%num_quadrature_points)                                  
@@ -773,58 +773,73 @@ end subroutine raviart_thomas_create_data_out_quadrature
 !**************************************************************************************************
 ! Concrete TBPs of this derived data type
 !**************************************************************************************************
-
 !==================================================================================================
-subroutine raviart_thomas_apply_cell_map_to_interpolation(this,map,ref,phy)
+subroutine raviart_thomas_apply_cell_map_to_interpolation(this,cell_ressemblance,map,ref,phy,scaling_factor)
   implicit none
   class(raviart_thomas_reference_fe_t), intent(in)    :: this 
-  type(cell_map_t)                  , intent(in)    :: map
-  type(interpolation_t)           , intent(in)    :: ref
-  type(interpolation_t)           , intent(inout) :: phy
+  integer(ip)                         , intent(in)    :: cell_ressemblance
+  type(cell_map_t)                    , intent(in)    :: map
+  type(interpolation_t)               , intent(in)    :: ref
+  type(interpolation_t)               , intent(inout) :: phy
+  real(rp), optional                  , intent(in)    :: scaling_factor
   real(rp), allocatable :: wmat1(:,:,:)
   real(rp), allocatable :: wmat2(:,:,:), wvec1(:)
   integer(ip) :: ndime,nnode,nlocs,ntens
   integer(ip) :: ilocs,inode,idime,jdime,kdime,ldime
+  real(rp) :: inv_scaling_factor_to_the_num_dims
 
   ndime = ref%num_dims
   ntens = ref%num_entries_symmetric_tensor
   nlocs = ref%num_quadrature_points
   !nnode = ref%num_shape_functions
   nnode = size(ref%shape_functions,2)
-  
-  ! Piola map for shape functions
-  ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J \phi(X_g)
-  phy%shape_functions=0.0_rp
-  do ilocs=1,phy%num_quadrature_points
-     do inode=1,this%num_shape_functions
-        do idime=1,this%num_dims
-           do jdime=1,this%num_dims
-               phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) &
-                    + map%jacobian(idime,jdime,ilocs)*ref%shape_functions(jdime,inode,ilocs)
+
+  if ( cell_ressemblance == no_ressemblance ) then
+     ! Piola map for shape functions
+     ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J \phi(X_g)
+     phy%shape_functions=0.0_rp
+     do ilocs=1,phy%num_quadrature_points
+        do inode=1,this%num_shape_functions
+           do idime=1,SPACE_DIM
+              do jdime=1,SPACE_DIM
+                 phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) &
+                      + map%jacobian(idime,jdime,ilocs)*ref%shape_functions(jdime,inode,ilocs)
+              end do
+              phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) / map%det_jacobian(ilocs)
            end do
-           phy%shape_functions(idime,inode,ilocs) = phy%shape_functions(idime,inode,ilocs) / map%det_jacobian(ilocs)
         end do
      end do
-  end do
   
-  ! Piola map for shape derivatives
-  ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J grad(phi(X_g)) J^{-1}
-  phy%shape_derivatives=0.0_rp
-  do ilocs=1,phy%num_quadrature_points
-     do inode=1,this%num_shape_functions
-        do idime=1,this%num_dims
-           do jdime=1,this%num_dims
-              do kdime=1,this%num_dims
-                 do ldime=1,this%num_dims
-                    phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
-                       + map%jacobian(idime,kdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(jdime,ldime,ilocs)
+     ! Piola map for shape derivatives
+     ! \phi(x_g) = \phi(F(X_g))= 1/det(J) * J grad(phi(X_g)) J^{-1}
+     if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+        phy%shape_derivatives=0.0_rp
+        do ilocs=1,phy%num_quadrature_points
+           do inode=1,this%num_shape_functions
+              do idime=1,SPACE_DIM
+                 do jdime=1,SPACE_DIM
+                    do kdime=1,SPACE_DIM
+                       do ldime=1,SPACE_DIM
+                          phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) &
+                               + map%jacobian(idime,kdime,ilocs)*ref%shape_derivatives(ldime,kdime,inode,ilocs)*map%inv_jacobian(jdime,ldime,ilocs)
+                       end do
+                    end do
+                    phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) / map%det_jacobian(ilocs)
                  end do
               end do
-           phy%shape_derivatives(jdime,idime,inode,ilocs) = phy%shape_derivatives(jdime,idime,inode,ilocs) / map%det_jacobian(ilocs)
+           end do
         end do
-        end do
-     end do
-  end do
+     end if
+  else if ( cell_ressemblance == is_scaled_and_translated ) then
+     massert ( present(scaling_factor), 'Optional "scaling_factor" dummy argument MUST BE provided if cell_ressemblance == is_scaled_and_translated')
+     inv_scaling_factor_to_the_num_dims = scaling_factor**(-real(this%num_dims,rp))
+     phy%shape_functions(:,:,:) =  scaling_factor * inv_scaling_factor_to_the_num_dims * phy%shape_functions(:,:,:)
+     if(phy%my_duties%compute_first_derivatives_is_assigned()) then
+        phy%shape_derivatives(:,:,:,:) = inv_scaling_factor_to_the_num_dims*phy%shape_derivatives(:,:,:,:)
+     end if
+  end if
+ 
+  massert(.not.phy%my_duties%compute_second_derivatives_is_assigned(),'Hessian not implemented for RT')
   
   !! @sbadia: put Piola here
   !phy%shape_derivatives=0.0_rp
@@ -944,15 +959,12 @@ subroutine rt_apply_change_basis_matrix_to_interpolation(this, interpolation_pre
   
   integer(ip)           :: i, j, idime, jdime, qpoint
 
-  ! Initialize both shape functions and derivatives to zero.
-  interpolation%shape_functions   = 0.0_rp
-  interpolation%shape_derivatives = 0.0_rp
-  
   ! Compute shape functions
+  interpolation%shape_functions   = 0.0_rp
   do qpoint = 1, interpolation%num_quadrature_points
      do i=1, this%num_shape_functions
         do j=1, this%num_shape_functions
-           do idime=1, this%num_dims
+           do idime=1, SPACE_DIM
               interpolation%shape_functions(idime, i, qpoint) = interpolation%shape_functions(idime, i, qpoint) + &
                    this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_functions(idime, j, qpoint)
            end do
@@ -960,17 +972,20 @@ subroutine rt_apply_change_basis_matrix_to_interpolation(this, interpolation_pre
      end do
   end do
   
-  ! Compute shape derivatives
-  do qpoint = 1, interpolation%num_quadrature_points
-     do i=1, this%num_shape_functions
-        do j=1, this%num_shape_functions
-           do idime=1, this%num_dims
-              do jdime=1, this%num_dims
-                 interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
-                      this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     ! Compute shape derivatives
+     interpolation%shape_derivatives = 0.0_rp
+     do qpoint = 1, interpolation%num_quadrature_points
+        do i=1, this%num_shape_functions
+           do j=1, this%num_shape_functions
+              do idime=1, SPACE_DIM
+                 do jdime=1, SPACE_DIM
+                    interpolation%shape_derivatives(idime, jdime, i, qpoint) = interpolation%shape_derivatives(idime, jdime, i, qpoint) + &
+                         this%change_basis_matrix(j,i) * interpolation_pre_basis%shape_derivatives(idime, jdime, j, qpoint)
+                 end do
               end do
            end do
         end do
      end do
-  end do
+  end if
 end subroutine rt_apply_change_basis_matrix_to_interpolation

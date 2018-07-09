@@ -83,6 +83,9 @@ subroutine serial_triangulation_create ( this, parameters)
   if(geometry_interpolation_order>1) call the_GiD_geometry_reader%fill_geometry(parameters, this%geometry)
 
   if(triangulation_generate==triangulation_generate_from_mesh) then
+     
+     call this%set_single_octree_mesh(.false.)
+  
      call mesh%read(parameters)
 
      ! Extract data from mesh
@@ -104,6 +107,8 @@ subroutine serial_triangulation_create ( this, parameters)
 
   else if(triangulation_generate==triangulation_generate_structured) then
 
+     call this%set_single_octree_mesh(.true.)
+  
      this%num_ghost_cells=0
 
      ! Get num_dims from FPL
@@ -125,7 +130,7 @@ subroutine serial_triangulation_create ( this, parameters)
 
      ! Allocate and fill to default values cells_set==1 local variable
      call memalloc(this%num_local_cells, cells_set, __FILE__, __LINE__)
-     cells_set = 1
+     cells_set = 0
 
      call this%reference_fe_geo_index%init(1)
      if(this%num_dims==2) then

@@ -93,7 +93,7 @@ subroutine standard_l1_get_num_coarse_dofs(this, field_id, par_fe_space, paramet
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
                  dof_lid = fe_dofs(idof)
-                 if ( dof_lid > 0 ) then
+                 if ( par_fe_space%is_free_dof(dof_lid) ) then
                     dofs_on_vef = .true.
                     exit
                  end if
@@ -157,7 +157,7 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
 
        num_fine_dofs_on_coarse_dof = 0 
        ! Count how many fine DoFs current coarse DoF aggregates
-       do ivef_within_object=1, object%get_num_vefs()
+       do ivef_within_object=1, object%get_num_vefs() 
           call object%get_vef(ivef_within_object,vef)
           do icell_around=1, vef%get_num_cells_around()          
              call vef%get_cell_around(icell_around,fe)
@@ -168,7 +168,7 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
                 do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                    idof    = own_dofs_on_vef_iterator%get_current()
                    dof_lid = fe_dofs(idof)
-                   if ( dof_lid > 0 ) then
+                   if ( par_fe_space%is_free_dof(dof_lid) ) then
                       call visited_dofs%put(key=dof_lid,val=ivef_within_cell,stat=istat)
                       if ( istat == now_stored ) then
                          num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + 1
@@ -198,7 +198,7 @@ subroutine standard_l1_setup_constraint_matrix(this, field_id, par_fe_space, par
                    idof    = own_dofs_on_vef_iterator%get_current()
                    icomp   = reference_fe%get_component_node(idof)
                    dof_lid = fe_dofs(idof)
-                   if ( dof_lid > 0 ) then
+                   if ( par_fe_space%is_free_dof(dof_lid) ) then
                       call visited_dofs%put(key=dof_lid,val=ivef_within_cell,stat=istat)
                       if ( istat == now_stored ) then
                          call constraint_matrix%insert(dof_lid, coarse_dof_lid + icomp, reference_fe%get_num_field_components()/real(num_fine_dofs_on_coarse_dof,rp))
@@ -272,7 +272,7 @@ subroutine standard_l1_setup_weighting_operator(this, field_id, par_fe_space, pa
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
                  dof_lid = fe_dofs(idof)
-                 if ( dof_lid > 0 ) then
+                 if ( par_fe_space%is_free_dof(dof_lid) ) then
                     part_id = fe%get_my_part()
                     local_part_id = cell_import%get_local_neighbour_id(part_id)
                     call visited_dofs(local_part_id)%put(key=dof_lid,val=ivef_within_cell,stat=istat)

@@ -47,6 +47,8 @@ contains
   STD_VECTOR_ERASE(real(rp),real_rp)
   STD_VECTOR_COPY(real(rp),real_rp)
   STD_VECTOR_SET(real(rp),real_rp)
+  STD_VECTOR_INIT(real(rp),real_rp)
+  STD_VECTOR_CAT(real(rp),real_rp)
   STD_VECTOR_SIZE(real(rp),real_rp)
   STD_VECTOR_CAPACITY(real(rp),real_rp)
   STD_VECTOR_GET(real(rp),real_rp)

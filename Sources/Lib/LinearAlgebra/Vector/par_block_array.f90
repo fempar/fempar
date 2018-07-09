@@ -50,13 +50,13 @@ module par_block_array_names
      integer(ip) :: state = not_created
      integer(ip) :: nblocks = 0
      type(par_scalar_array_t), allocatable :: blocks(:)
-   contains	 
+   contains  
      procedure, private :: par_block_array_create_only_blocks_container
      !procedure, private :: par_block_array_create_blocks_container_and_blocks
      generic :: create => par_block_array_create_only_blocks_container!, & 
      !                     par_block_array_create_blocks_container_and_blocks
      !procedure :: create_and_allocate => par_block_array_create_blocks_container_and_allocate_blocks
-     procedure :: allocate => par_block_array_create_blocks_allocate_blocks						  
+     procedure :: allocate => par_block_array_create_blocks_allocate_blocks        
 
      procedure :: create_view       => par_block_array_create_view
      procedure :: print             => par_block_array_print
@@ -454,7 +454,7 @@ contains
       end select
     end if 
   end function par_block_array_same_vector_space
-	
+ 
   !=============================================================================
   function par_block_array_get_num_blocks(this) result(res)
     implicit none 

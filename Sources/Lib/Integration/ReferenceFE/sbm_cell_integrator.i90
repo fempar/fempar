@@ -27,21 +27,24 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! cell_integrator_t type procedures
-subroutine cell_integrator_create( this, quadrature, reference_fe )
+subroutine cell_integrator_create( this, quadrature, reference_fe, interpolation_duties)
   implicit none
   ! Parameters
-  class(cell_integrator_t), intent(inout) :: this 
-  type(quadrature_t)        ,  intent(in)   :: quadrature
-  class(reference_fe_t), target,  intent(in)   :: reference_fe  
+  class(cell_integrator_t)                , intent(inout) :: this 
+  type(quadrature_t)                      ,  intent(in)   :: quadrature
+  class(reference_fe_t)         , target  ,  intent(in)   :: reference_fe  
+  type(interpolation_duties_t)  , optional, intent(in)    :: interpolation_duties
 
   call this%free()
-  
+
   this%num_quadrature_points = quadrature%num_quadrature_points
   this%num_shape_functions   = reference_fe%num_shape_functions
-  this%reference_fe             => reference_fe
+  this%reference_fe          => reference_fe
 
-  call reference_fe%create_interpolation( quadrature, this%interpolation_reference_cell )
+  call reference_fe%create_interpolation( quadrature, this%interpolation_reference_cell, interpolation_duties)
+
   call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
+
 end subroutine cell_integrator_create
 
 subroutine cell_integrator_restricted_to_facet( this, quadrature, reference_fe, facet_lid, subfacet_lid )
@@ -71,12 +74,17 @@ subroutine cell_integrator_free( this )
 end subroutine cell_integrator_free
 
 !==================================================================================================
-subroutine cell_integrator_update( this, cell_map )
+subroutine cell_integrator_update( this, cell_ressemblance, cell_map, scaling_factor )
   implicit none
   class(cell_integrator_t), intent(inout) :: this
-  type(cell_map_t)               , intent(in)    :: cell_map
-
-  call this%reference_fe%apply_cell_map(cell_map, this%interpolation_reference_cell,this%interpolation_real_cell)
+  integer(ip)             , intent(in)    :: cell_ressemblance
+  type(cell_map_t)        , intent(in)    :: cell_map
+  real(rp), optional      , intent(in)    :: scaling_factor
+  call this%reference_fe%apply_cell_map(cell_ressemblance, &
+                                        cell_map, &
+                                        this%interpolation_reference_cell, &
+                                        this%interpolation_real_cell, &
+                                        scaling_factor)
   end subroutine cell_integrator_update
 
 !==================================================================================================
@@ -101,6 +109,19 @@ subroutine cell_integrator_update_interpolation( this, quadrature )
 end subroutine cell_integrator_update_interpolation
 
 !==================================================================================================
+subroutine cell_integrator_update_interpolation_restricted_to_facet( this, quadrature, reference_fe, facet_lid, subfacet_lid )
+  implicit none
+  ! Parameters
+  class(cell_integrator_t)      , intent(inout) :: this 
+  type(quadrature_t)            , intent(in)    :: quadrature
+  class(reference_fe_t), target , intent(in)    :: reference_fe  
+  integer(ip)                   , intent(in)    :: facet_lid
+  integer(ip)                   , intent(in)    :: subfacet_lid
+  call reference_fe%create_interpolation_restricted_to_facet( facet_lid, subfacet_lid, quadrature, this%interpolation_reference_cell )
+  call this%interpolation_real_cell%copy(source_interpolation = this%interpolation_reference_cell)
+end subroutine cell_integrator_update_interpolation_restricted_to_facet
+
+!==================================================================================================
 function cell_integrator_get_interpolation_reference_cell(this)
   implicit none
   class(cell_integrator_t), target, intent(in):: this
@@ -117,6 +138,14 @@ function cell_integrator_get_interpolation_real_cell(this)
 
   cell_integrator_get_interpolation_real_cell => this%interpolation_real_cell
 end function cell_integrator_get_interpolation_real_cell
+
+!==================================================================================================
+function cell_integrator_get_interpolation_duties_real_cell(this)
+  implicit none
+  class(cell_integrator_t), target, intent(in) :: this
+  type(interpolation_duties_t), pointer :: cell_integrator_get_interpolation_duties_real_cell
+  cell_integrator_get_interpolation_duties_real_cell => this%interpolation_real_cell%my_duties
+end function cell_integrator_get_interpolation_duties_real_cell
 
 !==================================================================================================
 subroutine cell_integrator_get_value_scalar (this, ishape, qpoint, scalar_field)
@@ -274,6 +303,45 @@ subroutine cell_integrator_get_curls_vector (this, curls, qpoints_perm)
   call this%reference_fe%get_curls(this%interpolation_real_cell,curls,qpoints_perm)
 end subroutine cell_integrator_get_curls_vector
 
+subroutine cell_integrator_get_laplacian_scalar (this, ishape, qpoint, scalar_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  real(rp)                     , intent(out)   :: scalar_field
+  assert( this%reference_fe%field_type == field_type_scalar ) 
+  call this%reference_fe%get_laplacian(this%interpolation_real_cell,ishape,qpoint,scalar_field)
+end subroutine cell_integrator_get_laplacian_scalar
+
+subroutine cell_integrator_get_laplacian_vector (this, ishape, qpoint, vector_field)
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  integer(ip)                  , intent(in)    :: ishape
+  integer(ip)                  , intent(in)    :: qpoint
+  type(vector_field_t)         , intent(out)   :: vector_field
+  assert( this%reference_fe%field_type == field_type_scalar ) 
+  call this%reference_fe%get_laplacian(this%interpolation_real_cell,ishape,qpoint,vector_field)
+end subroutine cell_integrator_get_laplacian_vector
+
+subroutine cell_integrator_get_laplacians_scalar (this, laplacians, qpoints_perm)
+  implicit none
+  class(cell_integrator_t)   , intent(in)    :: this
+  real(rp), allocatable        , intent(inout) :: laplacians(:,:)
+  integer(ip)     , optional   , intent(in)    :: qpoints_perm(:)
+
+  assert( this%reference_fe%field_type == field_type_scalar )
+  call this%reference_fe%get_laplacians(this%interpolation_real_cell,laplacians,qpoints_perm)
+end subroutine cell_integrator_get_laplacians_scalar
+
+subroutine cell_integrator_get_laplacians_vector (this, laplacians, qpoints_perm)
+  implicit none
+  class(cell_integrator_t)       , intent(in)    :: this
+  type(vector_field_t), allocatable, intent(inout) :: laplacians(:,:)
+  integer(ip)     , optional       , intent(in)    :: qpoints_perm(:)
+  assert( this%reference_fe%field_type == field_type_vector )
+  call this%reference_fe%get_laplacians(this%interpolation_real_cell,laplacians,qpoints_perm)
+end subroutine cell_integrator_get_laplacians_vector
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ! procedures to evaluate the fe_function at the quadrature points
 
@@ -317,6 +385,22 @@ subroutine cell_integrator_evaluate_gradient_fe_function_vector ( this, nodal_va
   call this%reference_fe%evaluate_gradient_fe_function ( this%interpolation_real_cell, nodal_values, quadrature_points_values )
 end subroutine cell_integrator_evaluate_gradient_fe_function_vector
 
+subroutine cell_integrator_evaluate_laplacian_fe_function_scalar ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(cell_integrator_t), intent(in)    :: this
+  real(rp)                , intent(in)    :: nodal_values(:)
+  real(rp), allocatable   , intent(inout) :: quadrature_points_values(:)
+  call this%reference_fe%evaluate_laplacian_fe_function ( this%interpolation_real_cell, nodal_values, quadrature_points_values )
+end subroutine cell_integrator_evaluate_laplacian_fe_function_scalar
+
+subroutine cell_integrator_evaluate_laplacian_fe_function_vector ( this, nodal_values, quadrature_points_values )
+  implicit none
+  class(cell_integrator_t)         , intent(in)    :: this
+  real(rp)                         , intent(in)    :: nodal_values(:)
+  type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
+  call this%reference_fe%evaluate_laplacian_fe_function ( this%interpolation_real_cell, nodal_values, quadrature_points_values )
+end subroutine cell_integrator_evaluate_laplacian_fe_function_vector
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !Auxiliar routines
 subroutine vecpro(v1,v2,v3,n)
@@ -349,27 +433,26 @@ subroutine vecpro(v1,v2,v3,n)
 
 end subroutine vecpro
 
-subroutine invmtx(a,b,deter,nsize)
+subroutine invmtx(ld, n, a, b, deter)
   !-----------------------------------------------------------------------
   !
-  ! This routine inverts a square matrix A -> Mat(nsize,nsize). The
-  ! inverse is stored in B. Its determinant is DETER
+  ! This routine inverts a square matrix A -> Mat(ld,n). The
+  ! inverse is stored in B(ld,n). Its determinant is deter
   !    
   !-----------------------------------------------------------------------
   implicit none
-  integer(ip), intent(in)  :: nsize
-  real(rp),    intent(in)  :: a(nsize,nsize)
-  real(rp),    intent(out) :: b(nsize,nsize),deter
-  integer(ip)              :: isize,jsize
+  integer(ip), intent(in)  :: ld, n
+  real(rp),    intent(in)  :: a(ld,*)
+  real(rp),    intent(out) :: b(ld,*)
+  real(rp),    intent(out) :: deter
+  integer(ip)              :: isize,jsize,i,j
   real(rp)                 :: denom,t1,t2,t3,t4
-
-  select case (nsize)
-
+    
+  select case (n)
   case(1)
      deter=a(1,1)
      if(deter==0.0_rp) return
      b(1,1) = 1.0_rp/a(1,1)
-
   case(2)
      deter=a(1,1)*a(2,2)-a(2,1)*a(1,2)
      if(deter/=0.0_rp) then
@@ -453,49 +536,52 @@ subroutine invmtx(a,b,deter,nsize)
      b(4,4) =(  a(1,1)*a(2,2)*a(3,3) + a(1,2)*a(2,3)*a(3,1)&
           + a(1,3)*a(2,1)*a(3,2) - a(1,3)*a(2,2)*a(3,1)&
           - a(1,2)*a(2,1)*a(3,3) - a(1,1)*a(2,3)*a(3,2))*denom
-
   case default
-     b=a
-     call invert(b,nsize,nsize)
+     do j=1,n
+       do i=1,n
+         b(i,j)=a(i,j)
+       end do 
+     end do 
+     call invert(ld,n,b)
   end select
 
 end subroutine invmtx
 
 !-----------------------------------------------------------------------
-subroutine invert(a,nmax,ndm)
+subroutine invert(ld,n,a)
   !-----------------------------------------------------------------------
   !
-  ! This routine performs the inversion of a ndm*ndm square matrix 
-  ! or just part of it (nmax*nmax)
+  ! This routine performs the inversion of a n*n square matrix 
+  ! with leading dimension ld
   !
   !-----------------------------------------------------------------------
   implicit none
-  integer(ip), intent(in)    :: ndm,nmax
-  real(rp),    intent(inout) :: a(ndm,ndm)
+  integer(ip), intent(in)    :: ld,n
+  real(rp),    intent(inout) :: a(ld,n)
   real(rp)                   :: d
-  integer(ip)                :: n,j,i
+  integer(ip)                :: k,j,i
 
-  do n = 1,nmax
-     d = a(n,n)
-     do j = 1,nmax
-        a(n,j) = -a(n,j)/d
+  do k = 1,n
+     d = a(k,k)
+     do j = 1,n
+        a(k,j) = -a(k,j)/d
      end do
-     do i = 1,nmax
-        if(n/=i) then
-           do j = 1,nmax
-              if(n/=j) a(i,j) = a(i,j) +a(i,n)*a(n,j)
+     do i = 1,n
+        if(k/=i) then
+           do j = 1,n
+              if(k/=j) a(i,j) = a(i,j) +a(i,k)*a(k,j)
            end do
         end if
-        a(i,n) = a(i,n)/d
+        a(i,k) = a(i,k)/d
      end do
-     a(n,n) = 1.0_rp/d
+     a(k,k) = 1.0_rp/d
   end do
 
 end subroutine invert
 
 
 !-----------------------------------------------------------------------
-subroutine vetoma(vecto,xmatr,ndime,ntens)
+subroutine vetoma(ndime,ntens,vecto,xmatr)
   !-----------------------------------------------------------------------
   !                                      
   ! This routine stores a vector VECTO as a symmetric matrix XMATR
@@ -526,23 +612,23 @@ subroutine vetoma(vecto,xmatr,ndime,ntens)
 end subroutine vetoma
 
 !-----------------------------------------------------------------------
-subroutine btdbma(aglob,aloca,bmatr,n1,n2)
+subroutine btdbma(ldaloca,ldbmatr,ldaglob,n1,n2,aloca,bmatr,aglob)
   !-----------------------------------------------------------------------
   !                                      
-  ! This routine computes Ag = Bt Al B  when Ag and Al are stored as full
-  ! matrices (Ag := aglob, Al := aloca, B := bmatr). The dimensions are
-  ! Al -> Mat(n1,n1), Ag -> Mat(n2,n2), B -> Mat(n2,n1) 
+  ! This routine computes aglob = bmatr^t aloca bmatr. The dimensions are
+  ! aloca -> Mat(n1,n1), bmatr -> Mat(n2,n1), aglob -> Mat(n2,n2).
   !
   !-----------------------------------------------------------------------
   implicit none
+  integer(ip), intent(in)  :: ldaloca,ldbmatr,ldaglob
   integer(ip), intent(in)  :: n1,n2
-  real(rp)   , intent(in)  :: aloca(n1,n1), bmatr(n1,n2)
-  real(rp)   , intent(out) :: aglob(n2,n2)
+  real(rp)   , intent(in)  :: aloca(ldaloca,n1), bmatr(ldbmatr,n2)
+  real(rp)   , intent(out) :: aglob(ldaglob,n2)
   integer(ip)              :: i,j,k,l
 
   do i=1,n2
      do j=1,n2
-        aglob(i,j)=0.0
+        aglob(i,j)=0.0_rp
         do k=1,n1
            do l=1,n1
               aglob(i,j)=aglob(i,j)+bmatr(k,i)*aloca(k,l)*bmatr(l,j)

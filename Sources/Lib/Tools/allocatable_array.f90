@@ -58,6 +58,8 @@ module allocatable_array_ip1_names
    contains
      procedure, non_overridable :: create         => allocatable_array_ip1_create
      procedure, non_overridable :: free           => allocatable_array_ip1_free
+     procedure, non_overridable :: assign         => allocatable_array_ip1_assign
+     generic  :: assignment(=) => assign
   end type allocatable_array_ip1_t
 
   public :: allocatable_array_ip1_t
@@ -69,7 +71,7 @@ module allocatable_array_ip1_names
 
 contains
 
-  subroutine allocatable_array_ip1_create(this, nd1)	
+  subroutine allocatable_array_ip1_create(this, nd1) 
     implicit none
     class(allocatable_array_ip1_t), intent(inout) :: this
     integer(ip)                   , intent(in)    :: nd1
@@ -78,12 +80,21 @@ contains
     call memalloc(nd1,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip1_create
 
-  subroutine allocatable_array_ip1_free(this)	
+  subroutine allocatable_array_ip1_free(this) 
     implicit none
     class(allocatable_array_ip1_t), intent(inout) :: this
     this%nd1 = 0
     if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip1_free
+  
+  subroutine allocatable_array_ip1_assign(this,array_in)
+    implicit none
+    class(allocatable_array_ip1_t), intent(inout) :: this
+    type(allocatable_array_ip1_t) , intent(in)    :: array_in
+    call this%free()
+    call this%create(array_in%nd1)
+    this%a = array_in%a
+  end subroutine allocatable_array_ip1_assign
   
 # include "mem_body.i90"
 
@@ -120,7 +131,7 @@ module allocatable_array_ip2_names
 
 contains
 
-  subroutine allocatable_array_ip2_create(this, nd1, nd2)	
+  subroutine allocatable_array_ip2_create(this, nd1, nd2) 
     implicit none
     class(allocatable_array_ip2_t), intent(inout) :: this
     integer(ip)                   , intent(in)  :: nd1, nd2
@@ -130,7 +141,7 @@ contains
     call memalloc(nd1,nd2,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip2_create
 
-  subroutine allocatable_array_ip2_free(this)	
+  subroutine allocatable_array_ip2_free(this) 
     implicit none
     class(allocatable_array_ip2_t), intent(inout) :: this
     this%nd1 = 0
@@ -138,7 +149,7 @@ contains
     if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_ip2_free
   
-  subroutine allocatable_array_ip2_resize(this, nd1, nd2)	
+  subroutine allocatable_array_ip2_resize(this, nd1, nd2) 
     implicit none
     class(allocatable_array_ip2_t), intent(inout) :: this
     integer(ip)                   , intent(in)  :: nd1, nd2
@@ -152,11 +163,13 @@ contains
     this%nd2 = nd2
   end subroutine allocatable_array_ip2_resize
   
-  
-
 # include "mem_body.i90"
 
 end module allocatable_array_ip2_names
+
+!=============================================================================
+! module allocatable_array_igp1_names
+!=============================================================================
 
 module allocatable_array_igp1_names
   use types_names
@@ -186,7 +199,7 @@ module allocatable_array_igp1_names
 
 contains
 
-  subroutine allocatable_array_igp1_create(this, nd1)	
+  subroutine allocatable_array_igp1_create(this, nd1) 
     implicit none
     integer(ip)    , intent(in)  :: nd1
     class(allocatable_array_igp1_t), intent(inout) :: this
@@ -195,7 +208,7 @@ contains
     call memalloc(nd1,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_igp1_create
 
-  subroutine allocatable_array_igp1_free(this)	
+  subroutine allocatable_array_igp1_free(this) 
     implicit none
     class(allocatable_array_igp1_t), intent(inout) :: this
     this%nd1 = 0
@@ -206,7 +219,73 @@ contains
 
 end module allocatable_array_igp1_names
 
+!=============================================================================
+! module allocatable_array_igp2_names
+!=============================================================================
 
+module allocatable_array_igp2_names
+  use types_names
+  use memor_names
+#ifdef memcheck
+  use iso_c_binding
+#endif
+  implicit none
+# include "debug.i90"
+  private
+
+  type allocatable_array_igp2_t
+     !private alert.SB : It should be private
+     integer(ip)               :: nd1=0, nd2=0
+     integer(igp), allocatable :: a(:,:)
+   contains
+     procedure :: create => allocatable_array_igp2_create
+     procedure :: free   => allocatable_array_igp2_free
+     procedure :: resize => allocatable_array_igp2_resize
+  end type allocatable_array_igp2_t
+  public :: allocatable_array_igp2_t
+# define var_type type(allocatable_array_igp2_t)
+# define var_size 52
+# define bound_kind ip
+# include "mem_header.i90"
+  public :: memalloc,  memrealloc,  memfree, memmovealloc
+
+contains
+
+  subroutine allocatable_array_igp2_create(this, nd1, nd2) 
+    implicit none
+    class(allocatable_array_igp2_t), intent(inout) :: this
+    integer(ip)                   , intent(in)  :: nd1, nd2
+    call this%free()
+    this%nd1 = nd1
+    this%nd2 = nd2
+    call memalloc(nd1,nd2,this%a,__FILE__,__LINE__)
+  end subroutine allocatable_array_igp2_create
+
+  subroutine allocatable_array_igp2_free(this) 
+    implicit none
+    class(allocatable_array_igp2_t), intent(inout) :: this
+    this%nd1 = 0
+    this%nd2 = 0
+    if ( allocated(this%a) ) call memfree(this%a,__FILE__,__LINE__)
+  end subroutine allocatable_array_igp2_free
+  
+  subroutine allocatable_array_igp2_resize(this, nd1, nd2) 
+    implicit none
+    class(allocatable_array_igp2_t), intent(inout) :: this
+    integer(ip)                   , intent(in)  :: nd1, nd2
+    
+    if ( .not. allocated(this%a) ) then
+      call this%create(nd1, nd2)
+    else if ( this%nd1 < nd1 .or. this%nd2 < nd2 ) then
+      call memrealloc(nd1,nd2,this%a,__FILE__,__LINE__)
+    end if 
+    this%nd1 = nd1
+    this%nd2 = nd2
+  end subroutine allocatable_array_igp2_resize
+  
+# include "mem_body.i90"
+
+end module allocatable_array_igp2_names
 
 !=============================================================================
 ! module allocatable_array_rp1_names
@@ -232,6 +311,8 @@ module allocatable_array_rp1_names
      procedure, non_overridable :: move_alloc_out => allocatable_array_rp1_move_alloc_out
      procedure, non_overridable :: move_alloc_in  => allocatable_array_rp1_move_alloc_in
      procedure, non_overridable :: get_array      => allocatable_array_rp1_get_array
+     procedure, non_overridable :: assign         => allocatable_array_rp1_assign
+     generic  :: assignment(=) => assign
   end type allocatable_array_rp1_t
   
   public :: allocatable_array_rp1_t
@@ -243,7 +324,7 @@ module allocatable_array_rp1_names
 
 contains
 
-  subroutine allocatable_array_rp1_create(this, nd1)	
+  subroutine allocatable_array_rp1_create(this, nd1) 
     implicit none
     class(allocatable_array_rp1_t), intent(inout) :: this
     integer(ip)                   , intent(in)    :: nd1
@@ -252,7 +333,7 @@ contains
     call memalloc(nd1,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp1_create
    
-  subroutine allocatable_array_rp1_resize(this, nd1)	
+  subroutine allocatable_array_rp1_resize(this, nd1) 
     implicit none
     integer(ip)    , intent(in)  :: nd1
     class(allocatable_array_rp1_t), intent(inout) :: this
@@ -262,7 +343,7 @@ contains
     end if
   end subroutine allocatable_array_rp1_resize
 
-  subroutine allocatable_array_rp1_free(this)	
+  subroutine allocatable_array_rp1_free(this) 
     implicit none
     class(allocatable_array_rp1_t), intent(inout) :: this
     this%nd1 = 0
@@ -294,6 +375,15 @@ contains
     real(rp), pointer :: allocatable_array_rp1_get_array(:)
     allocatable_array_rp1_get_array => this%a
   end function allocatable_array_rp1_get_array
+  
+  subroutine allocatable_array_rp1_assign(this,array_in)
+    implicit none
+    class(allocatable_array_rp1_t), intent(inout) :: this
+    type(allocatable_array_rp1_t) , intent(in)    :: array_in
+    call this%free()
+    call this%create(array_in%nd1)
+    this%a = array_in%a
+  end subroutine allocatable_array_rp1_assign
   
 
 # include "mem_body.i90"
@@ -331,7 +421,7 @@ module allocatable_array_rp2_names
 
 contains
 
-  subroutine allocatable_array_rp2_create(this, nd1, nd2)	
+  subroutine allocatable_array_rp2_create(this, nd1, nd2) 
     implicit none
     integer(ip)    , intent(in)  :: nd1, nd2
     class(allocatable_array_rp2_t), intent(inout) :: this
@@ -341,7 +431,7 @@ contains
     call memalloc(nd1,nd2,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp2_create
 
-  subroutine allocatable_array_rp2_resize(this, nd1, nd2)	
+  subroutine allocatable_array_rp2_resize(this, nd1, nd2) 
     implicit none
     integer(ip)    , intent(in)  :: nd1, nd2
     class(allocatable_array_rp2_t), intent(inout) :: this
@@ -352,7 +442,7 @@ contains
     end if
   end subroutine allocatable_array_rp2_resize
 
-  subroutine allocatable_array_rp2_free(this)	
+  subroutine allocatable_array_rp2_free(this) 
     implicit none
     class(allocatable_array_rp2_t), intent(inout) :: this
     this%nd1 = 0
@@ -394,7 +484,7 @@ module allocatable_array_rp3_names
 
 contains
 
-  subroutine allocatable_array_rp3_create(this, nd1, nd2, nd3)	
+  subroutine allocatable_array_rp3_create(this, nd1, nd2, nd3) 
     implicit none
     class(allocatable_array_rp3_t), intent(inout) :: this
     integer(ip)    , intent(in)  :: nd1, nd2, nd3
@@ -405,7 +495,7 @@ contains
     call memalloc(nd1,nd2,nd3,this%a,__FILE__,__LINE__)
   end subroutine allocatable_array_rp3_create
 
-  subroutine allocatable_array_rp3_free(this)	
+  subroutine allocatable_array_rp3_free(this) 
     implicit none
     class(allocatable_array_rp3_t), intent(inout) :: this
     this%nd1 = 0
@@ -428,6 +518,7 @@ module allocatable_array_names
   use allocatable_array_ip1_names
   use allocatable_array_ip2_names
   use allocatable_array_igp1_names
+  use allocatable_array_igp2_names
   use allocatable_array_rp1_names
   use allocatable_array_rp2_names
   use allocatable_array_rp3_names
@@ -440,7 +531,7 @@ module allocatable_array_names
 
   ! Types
   public :: allocatable_array_ip1_t, allocatable_array_ip2_t, &
-       &    allocatable_array_igp1_t, & 
+       &    allocatable_array_igp1_t, allocatable_array_igp2_t, & 
        &    allocatable_array_rp1_t, allocatable_array_rp2_t, allocatable_array_rp3_t
 
   ! Functions

@@ -836,6 +836,22 @@ void F90_p8est_balance( p8est_t * p8est )
   p8est_balance(p8est, P8EST_CONNECT_FULL, NULL);
 }
 
+int weight_callback_2d(p4est_t * p4est,
+                       p4est_topidx_t which_tree,
+                       p4est_quadrant_t * quadrant)
+{
+    P4EST_ASSERT(which_tree == 0);
+    return (*((int *)quadrant->p.user_data));
+}
+
+int weight_callback_3d(p8est_t * p8est,
+                       p4est_topidx_t which_tree,
+                       p8est_quadrant_t * quadrant)
+{
+    P4EST_ASSERT(which_tree == 0);
+    return (*((int *)quadrant->p.user_data));
+}
+
 void F90_p4est_partition ( p4est_t * p4est )
 {
     /*
@@ -845,7 +861,7 @@ void F90_p4est_partition ( p4est_t * p4est )
     * \param [in]     weight_fn  A weighting function or NULL
     *                            for uniform partitioning.
     */
-    p4est_partition(p4est, 1, NULL);
+    p4est_partition(p4est, 1, weight_callback_2d);
 }
 
 void F90_p8est_partition ( p8est_t * p8est )
@@ -857,7 +873,7 @@ void F90_p8est_partition ( p8est_t * p8est )
     * \param [in]     weight_fn  A weighting function or NULL
     *                            for uniform partitioning.
     */
-    p8est_partition(p8est, 1, NULL);
+    p8est_partition(p8est, 1, weight_callback_3d);
 }
 
 
@@ -1020,6 +1036,14 @@ void F90_p4est_get_quadrant_vertex_coordinates(p4est_connectivity_t * connectivi
                             neighbour.x, 
                             neighbour.y, 
                             vxyz);
+    
+    // IMPORTANT NOTE: this initialization to zero is absolutely necessary in the case
+    // of 2D domains (num_dims=2) with SPACE_DIM == 3 (FEMPAR global parameter). It is 
+    // necessary to  guarantee that the third component is initialized to zero in order
+    // to avoid polluting uninitialized data across the whole system. In any case, this
+    // subroutine is highly tangled to its client (thus immobile). It will only work if the preconditions
+    // established in its current's client are fullfilled. Thus, it might be needed to revisit
+    // the way both cooperate with each other for cleanliness arguments.
     vxyz[2] = 0.0;
 }
 

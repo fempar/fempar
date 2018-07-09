@@ -485,7 +485,7 @@ contains
       end select
     end if   
   end function serial_scalar_array_same_vector_space
-	
+ 
   !=============================================================================
   function serial_scalar_array_get_num_blocks(this) result(res)
     implicit none 
@@ -512,8 +512,7 @@ contains
     assert(iblock == 1)
         
     do i=1, size_indices
-      assert ( indices(i) <= this%size )
-      if ( indices(i) > 0 ) then
+      if ( indices(i) > 0 .and. indices(i) <= this%size ) then
         values(i) = this%b(indices(i))
       end if
     end do 
@@ -537,8 +536,7 @@ contains
     assert(iblock == 1)
         
     do i=1, size_indices
-      assert ( indices(i) <= this%size )
-      if ( indices(i) > 0 ) then
+      if ( indices(i) > 0 .and. indices(i) <= this%size ) then
         this%b(indices(i)) = values(i)
       end if
     end do 

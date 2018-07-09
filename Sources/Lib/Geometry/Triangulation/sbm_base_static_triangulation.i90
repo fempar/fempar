@@ -127,6 +127,13 @@ subroutine bst_allocate_cells_set (this)
   call memalloc ( this%num_local_cells + this%num_ghost_cells, this%cells_set, __FILE__, __LINE__ )
 end subroutine bst_allocate_cells_set
 
+subroutine bst_allocate_disconnected_cells_set (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  call this%free_disconnected_cells_set()
+  call memalloc ( this%num_local_cells + this%num_ghost_cells, this%disconnected_cells_set_ids, __FILE__, __LINE__ )
+end subroutine bst_allocate_disconnected_cells_set
+
 subroutine bst_fill_cells_set (this, cells_set)
   implicit none
   class(base_static_triangulation_t), intent(inout) :: this
@@ -146,6 +153,45 @@ subroutine bst_fill_cells_set (this, cells_set)
                                              this%cells_set,                           & 
                                              this%cells_set)
 end subroutine bst_fill_cells_set
+
+function bst_compute_max_cells_set_id (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(ip)                                       :: bst_compute_max_cells_set_id
+  class(environment_t), pointer :: environment 
+  
+  bst_compute_max_cells_set_id = maxval(this%cells_set)
+  environment => this%get_environment()
+  call environment%l1_max(bst_compute_max_cells_set_id) 
+end function bst_compute_max_cells_set_id 
+
+subroutine bst_resize_disconnected_cells_set (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  if (allocated( this%disconnected_cells_set_ids )) call memfree( this%disconnected_cells_set_ids, __FILE__, __LINE__) 
+  call memalloc( this%get_num_cells(), this%disconnected_cells_set_ids, __FILE__, __LINE__) 
+  this%disconnected_cells_set_ids = 0
+end subroutine bst_resize_disconnected_cells_set
+
+subroutine bst_fill_disconnected_cells_set (this, disconnected_cells_set)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  integer(ip)                       , intent(in)    :: disconnected_cells_set(:)
+  
+  assert ( size(disconnected_cells_set) == this%num_local_cells )
+  this%disconnected_cells_set_ids(1:this%num_local_cells) = disconnected_cells_set
+  if(this%environment%get_l1_size()>1) &
+    call this%environment%l1_neighbours_exchange ( this%cell_import%get_num_neighbours(), &
+                                             this%cell_import%get_neighbours_ids(),    &
+                                             this%cell_import%get_rcv_ptrs(),          &
+                                             this%cell_import%get_rcv_leids(),         &
+                                             this%cell_import%get_num_neighbours(),    &
+                                             this%cell_import%get_neighbours_ids(),    &
+                                             this%cell_import%get_snd_ptrs(),          &
+                                             this%cell_import%get_snd_leids(),         &
+                                             this%disconnected_cells_set_ids,          & 
+                                             this%disconnected_cells_set_ids)
+end subroutine bst_fill_disconnected_cells_set
 
 subroutine bst_free_ptr_vefs_x_cell (this)
   implicit none
@@ -176,6 +222,12 @@ subroutine bst_free_cells_set (this)
   class(base_static_triangulation_t), intent(inout) :: this
   if (allocated (this%cells_set)) call memfree ( this%cells_set, __FILE__, __LINE__ )
 end subroutine bst_free_cells_set
+
+subroutine bst_free_disconnected_cells_set (this)
+  implicit none
+  class(base_static_triangulation_t), intent(inout) :: this
+  if (allocated (this%disconnected_cells_set_ids)) call memfree ( this%disconnected_cells_set_ids, __FILE__, __LINE__ )
+end subroutine bst_free_disconnected_cells_set
 
 subroutine bst_orient_tet_mesh(this,lst_vefs_gids_ghost_extended)
   implicit none
@@ -863,6 +915,7 @@ subroutine bst_print ( this )
         call this%free_cells_ggid()
         call this%free_cells_mypart() 
         call this%free_cells_set()
+        call this%free_disconnected_cells_set()
      
         ! Free vef-related data
         call this%free_vefs_ggid()
@@ -885,8 +938,23 @@ subroutine bst_print ( this )
      implicit none
      class(base_static_triangulation_t), intent(in) :: this
      integer(ip) :: bst_get_num_reference_fes
-     bst_get_num_reference_fes = max_num_reference_fes_geo
+     integer(ip) :: i
+     bst_get_num_reference_fes = 0
+     do i=1, max_num_reference_fes_geo
+       if ( associated(this%reference_fe_geo_list(i)%p) ) then
+         bst_get_num_reference_fes = bst_get_num_reference_fes + 1 
+       end if
+     end do 
    end function bst_get_num_reference_fes
+   
+   function bst_get_reference_fe ( this, ref_fe_geo_id )
+     implicit none
+     class(base_static_triangulation_t), target, intent(in) :: this 
+     integer(ip)                               , intent(in) :: ref_fe_geo_id
+     class(reference_fe_t), pointer :: bst_get_reference_fe
+     assert ( ref_fe_geo_id >= 1 .and. ref_fe_geo_id <= this%get_num_reference_fes() ) 
+     bst_get_reference_fe => this%reference_fe_geo_list(ref_fe_geo_id)%p
+   end function bst_get_reference_fe 
    
    function bst_get_max_num_shape_functions ( this ) 
      implicit none

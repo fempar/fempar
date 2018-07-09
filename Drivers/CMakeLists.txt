@@ -36,17 +36,18 @@ ENDIF(NOT CMAKE_BUILD_TYPE)
 
 GET_FILENAME_COMPONENT(Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
 
-IF(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
+IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
 #   SET(MACROS "${MACROS} -DDEBUG -Dmemcheck")
     ADD_DEFINITIONS(-DDEBUG)
     ADD_DEFINITIONS(-Dmemcheck)
 ENDIF()
 
-SET(EXTRA_FLAGS "")
+SET(OPENMP_FLAGS "")
 IF(DEFINED ${PROJECT_NAME}_ENABLE_OPENMP AND ${PROJECT_NAME}_ENABLE_OPENMP) 
   FIND_PACKAGE( OpenMP )
   IF(${OPENMP_FOUND})
-     SET(EXTRA_FLAGS ${OpenMP_Fortran_FLAGS})
+     SET(OPENMP_FLAGS ${OpenMP_Fortran_FLAGS})
   ENDIF()
 ENDIF()
 
@@ -54,24 +55,22 @@ message(STATUS "COMPILER INFO: ${CMAKE_Fortran_COMPILER_ID} - ${Fortran_COMPILER
 
 IF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU" OR Fortran_COMPILER_NAME MATCHES "gfortran*")
   # gfortran 
-  set(FORTRAN_FLAGS "-fdefault-real-8 -ffree-line-length-0 -cpp -Wimplicit-interface ${EXTRA_FLAGS} ")
-  set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES} " CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -fprofile-arcs -ftest-coverage -Wimplicit-interface ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+  set (FORTRAN_EXTRA_FLAGS "-fdefault-real-8 -ffree-line-length-0 -cpp -Wimplicit-interface ${OPENMP_FLAGS}  ${FORTRAN_EXTRA_FLAGS}")
+  set (CMAKE_Fortran_FLAGS "${FORTRAN_EXTRA_FLAGS} ${MACROS} ${INCLUDES} " CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-g -fbacktrace -fbounds-check -fprofile-arcs -ftest-coverage -Wimplicit-interface " CACHE STRING "" FORCE)
 ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel" OR Fortran_COMPILER_NAME MATCHES "ifort*")
   # ifort
-  set(FORTRAN_FLAGS "-r8 -fpp -W1 -fPIC -assume realloc-lhs ${EXTRA_FLAGS} ")
-  set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_RELEASE "-O3 ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all,noarg_temp_created -ftrapuv -warn nointerfaces ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+  set (FORTRAN_EXTRA_FLAGS "-r8 -fpp -W1 -fPIC -assume realloc-lhs ${OPENMP_FLAGS}  ${FORTRAN_EXTRA_FLAGS}")
+  set (CMAKE_Fortran_FLAGS "${FORTRAN_EXTRA_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -traceback -g -debug all -check all,noarg_temp_created -ftrapuv -warn nointerfaces" CACHE STRING "" FORCE)
 # A partir de CMake 3.1
 # -prof-gen:srcpos -prof-dir${PROJECT_BINARY_DIR}
 ELSEIF (${CMAKE_Fortran_COMPILER_ID} STREQUAL "XL" OR Fortran_COMPILER_NAME MATCHES "xlf*")
   # xlf
-  set(FORTRAN_FLAGS "-q64 -qrealsize=8 -qsuffix=f=f90:cpp=f90 ${EXTRA_FLAGS} ")
-  set (CMAKE_Fortran_FLAGS "${FORTRAN_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_RELEASE "-O3 -qstrict ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g -qfullpath -qkeepparm ${EXTRA_FLAGS} " CACHE STRING "" FORCE)
+  set (FORTRAN_EXTRA_FLAGS "-q64 -qrealsize=8 -qsuffix=f=f90:cpp=f90 ${OPENMP_FLAGS}  ${FORTRAN_EXTRA_FLAGS}")
+  set (CMAKE_Fortran_FLAGS "${FORTRAN_EXTRA_FLAGS} ${MACROS} ${INCLUDES}" CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_RELEASE "-O3 -qstrict " CACHE STRING "" FORCE)
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g -qfullpath -qkeepparm " CACHE STRING "" FORCE)
 ELSE ()
   message ("No optimized Fortran compiler flags are known, we just try -O2...")
   set (CMAKE_Fortran_FLAGS_RELEASE "-O2")

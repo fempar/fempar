@@ -137,6 +137,8 @@ private
         procedure, non_overridable, public :: print_matrix_market              => sparse_matrix_print_matrix_market
         procedure                 , public :: create_iterator                  => sparse_matrix_create_iterator
         procedure, non_overridable, public :: get_entry                        => sparse_matrix_get_entry
+        procedure, non_overridable, public :: set_sum_duplicates               => sparse_matrix_set_sum_duplicates
+        procedure, non_overridable, public :: get_sum_duplicates               => sparse_matrix_get_sum_duplicates
     end type sparse_matrix_t
 
     class(base_sparse_matrix_t), save, allocatable :: sparse_matrix_prototype
@@ -1415,7 +1417,29 @@ contains
       assert(this%State%state_is_assembled() .or. this%State%state_is_update() )
       sparse_matrix_get_entry = this%State%get_entry(ia, ja, val)
     end function sparse_matrix_get_entry
+    
+    subroutine sparse_matrix_set_sum_duplicates(this, sum_duplicates)
+    !-----------------------------------------------------------------
+    !< Set sum_duplicates value (.true. => sum, .false. => overwrite)
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(inout) :: this
+        logical,                     intent(in)    :: sum_duplicates
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        call this%State%set_sum_duplicates(sum_duplicates) 
+    end subroutine sparse_matrix_set_sum_duplicates
 
+    function sparse_matrix_get_sum_duplicates(this) result(sum_duplicates)
+    !-----------------------------------------------------------------
+    !< Get sum_duplicates value (.true. => sum, .false. => overwrite)
+    !-----------------------------------------------------------------
+        class(sparse_matrix_t), intent(in) :: this
+        logical                                 :: sum_duplicates
+    !-----------------------------------------------------------------
+        assert(allocated(this%State))
+        sum_duplicates = this%State%get_sum_duplicates()
+    end function sparse_matrix_get_sum_duplicates
+    
     !-----------------------------------------------------------------
     !< SPARSE_MATRIX_ITERATOR SUBROUTINES
     !-----------------------------------------------------------------

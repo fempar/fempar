@@ -34,10 +34,14 @@ module vector_poisson_conditions_names
   private
   type, extends(conditions_t) :: vector_poisson_conditions_t
      private
-     type(boundary_function_t), pointer :: boundary_function
+     integer(ip) :: num_dims = -1
+     type(vector_component_function_t) :: boundary_function_x
+     type(vector_component_function_t) :: boundary_function_y
+     type(vector_component_function_t) :: boundary_function_z
    contains
+     procedure :: set_num_dims                => vector_poisson_conditions_set_num_dims
      procedure :: set_boundary_function       => vector_poisson_conditions_set_boundary_function
-     procedure :: get_num_components       => vector_poisson_conditions_get_num_components  
+     procedure :: get_num_components          => vector_poisson_conditions_get_num_components  
      procedure :: get_components_code         => vector_poisson_conditions_get_components_code
      procedure :: get_function                => vector_poisson_conditions_get_function
   end type vector_poisson_conditions_t
@@ -45,19 +49,29 @@ module vector_poisson_conditions_names
   public :: vector_poisson_conditions_t
   
 contains
+
+  subroutine vector_poisson_conditions_set_num_dims(this,num_dims)
+    implicit none
+    class(vector_poisson_conditions_t)      , intent(inout) :: this
+    integer(ip) :: num_dims
+    this%num_dims = num_dims
+  end subroutine vector_poisson_conditions_set_num_dims
   
   subroutine vector_poisson_conditions_set_boundary_function (this, boundary_function)
     implicit none
     class(vector_poisson_conditions_t), intent(inout)      :: this
-    type(boundary_function_t)          , target, intent(in) :: boundary_function
-    this%boundary_function => boundary_function
+    class(vector_function_t)           , target, intent(in) :: boundary_function
+    call this%boundary_function_x%set(boundary_function,1)
+    call this%boundary_function_y%set(boundary_function,2)
+    call this%boundary_function_z%set(boundary_function,3)
   end subroutine vector_poisson_conditions_set_boundary_function
 
   function vector_poisson_conditions_get_num_components(this)
     implicit none
     class(vector_poisson_conditions_t), intent(in) :: this
     integer(ip) :: vector_poisson_conditions_get_num_components
-    vector_poisson_conditions_get_num_components = this%boundary_function%num_dims
+    assert(this%num_dims == 2 .or. this%num_dims == 3)
+    vector_poisson_conditions_get_num_components = this%num_dims
   end function vector_poisson_conditions_get_num_components
 
   subroutine vector_poisson_conditions_get_components_code(this, boundary_id, components_code)
@@ -65,6 +79,7 @@ contains
     class(vector_poisson_conditions_t), intent(in)  :: this
     integer(ip)                       , intent(in)  :: boundary_id
     logical                           , intent(out) :: components_code(:)
+    assert(this%num_dims == 2 .or. this%num_dims == 3)
     assert ( size(components_code) == 2 .or. size(components_code) == 3 )
     components_code(1:size(components_code)) = .false.
     if ( boundary_id == 1 ) then
@@ -78,10 +93,31 @@ contains
     integer(ip)                                    , intent(in)  :: boundary_id
     integer(ip)                                    , intent(in)  :: component_id
     class(scalar_function_t)          , pointer    , intent(out) :: function
-    assert ( component_id == 1 .or. component_id == 2 .or.  component_id == 3 )
     nullify(function)
     if ( boundary_id == 1 ) then
-      function => this%boundary_function
+       if(this%num_dims==2) then
+          select case ( component_id )
+          case (1)
+             function => this%boundary_function_x
+          case (2)
+             function => this%boundary_function_y
+          case default
+             check(.false.)
+          end select
+       else if(this%num_dims==3) then
+          select case ( component_id )
+          case (1)
+             function => this%boundary_function_x
+          case (2)
+             function => this%boundary_function_y
+          case (3)
+             function => this%boundary_function_z
+          case default
+             check(.false.)
+          end select
+       else
+          check(.false.)
+       end if
     end if  
   end subroutine vector_poisson_conditions_get_function 
 

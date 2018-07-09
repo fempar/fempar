@@ -137,7 +137,7 @@ subroutine H1_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parame
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
                  dof_lid = fe_dofs(idof)
-                 if ( dof_lid > 0 ) then
+                 if ( par_fe_space%is_free_dof(dof_lid) ) then
                     num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + 1
                  end if
                  call own_dofs_on_vef_iterator%next()
@@ -153,7 +153,7 @@ subroutine H1_l1_setup_constraint_matrix_CI(this, field_id, par_fe_space, parame
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
                  dof_lid = fe_dofs(idof)
-                 if ( dof_lid > 0 ) then
+                 if ( par_fe_space%is_free_dof(dof_lid) ) then
                     call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp/real(num_fine_dofs_on_coarse_dof,rp))
                  end if
                  call own_dofs_on_vef_iterator%next()
@@ -277,7 +277,7 @@ subroutine H1_l1_setup_constraint_matrix_CM(this, field_id, par_fe_space, parame
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
                  dof_lid = fe_dofs(idof)
-                 if ( dof_lid > 0 ) then
+                 if ( par_fe_space%is_free_dof(dof_lid) ) then
                     num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + 1
                  end if
                  call own_dofs_on_vef_iterator%next()
@@ -293,7 +293,7 @@ subroutine H1_l1_setup_constraint_matrix_CM(this, field_id, par_fe_space, parame
               do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                  idof    = own_dofs_on_vef_iterator%get_current()
                  dof_lid = fe_dofs(idof)
-                 if ( dof_lid > 0 ) then
+                 if ( par_fe_space%is_free_dof(dof_lid) ) then
                     call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp/real(num_fine_dofs_on_coarse_dof,rp))
                  end if
                  call own_dofs_on_vef_iterator%next()
@@ -323,7 +323,7 @@ subroutine H1_l1_setup_constraint_matrix_CM(this, field_id, par_fe_space, parame
              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
                 idof    = own_dofs_on_vef_iterator%get_current()
                 dof_lid = fe_dofs(idof)
-                if ( dof_lid > 0 ) then
+                if ( par_fe_space%is_free_dof(dof_lid) ) then
                    call constraint_matrix%insert(dof_lid, icol, 0.0_rp)
                 end if
                 call own_dofs_on_vef_iterator%next()
@@ -716,7 +716,7 @@ subroutine H1_l1_setup_weighting_operator(this, field_id, par_fe_space, paramete
         do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
            idof    = own_dofs_on_vef_iterator%get_current()
            dof_lid = fe_dofs(idof)
-           if ( dof_lid > 0 ) then
+           if ( par_fe_space%is_free_dof(dof_lid) ) then
               weighting_operator(dof_lid) = weigh
            end if
            call own_dofs_on_vef_iterator%next()

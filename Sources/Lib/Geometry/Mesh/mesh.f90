@@ -306,7 +306,7 @@ contains
     character(6)   :: dum6
     character(1000) :: tel
     integer(ip), allocatable :: lnods_aux(:)
-	integer(ip), allocatable :: sorted_nodes(:) 
+ integer(ip), allocatable :: sorted_nodes(:) 
     integer(ip), allocatable :: bound_list_aux(:)
     type(list_iterator_t)    :: bound_iterator
     integer(ip), pointer     :: permu(:)
@@ -320,6 +320,10 @@ contains
 
     ! Read nodes
     call memalloc(SPACE_DIM,msh%npoin,msh%coord,__FILE__,__LINE__)
+    ! In case of 2D domains (num_dims=2) when SPACE_DIM is used, it is necessary to initialize the
+    ! coordinates array to zero in order to guarantee that the third component is initialized to zero.
+    ! The use of SPACE_DIM instead num_dims is based on the fact that this variable is known in
+    ! compilation time, allowing the compiler to perform additional optimizations.
     msh%coord = 0.0_rp
     do while(tel(1:5).ne.'coord')
        read(lunio,'(a)') tel

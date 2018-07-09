@@ -67,6 +67,17 @@ subroutine put_create_cell_iterator ( this, cell )
   call cell%create(this)
 end subroutine put_create_cell_iterator
 
+!!!========================================================================================
+!!subroutine put_create_vef_iterator ( this, vef )
+!!  implicit none
+!!  class(par_unfitted_triangulation_t), intent(in)    :: this
+!!  class(vef_iterator_t), allocatable, intent(inout) :: vef
+!!  integer(ip) :: istat
+!!  call this%free_vef_iterator(vef)
+!!  allocate(unfitted_vef_iterator_t :: vef, stat=istat); check(istat==0)
+!!  call vef%create(this)
+!!end subroutine put_create_vef_iterator
+
 !========================================================================================
 function put_get_marching_cubes(this) result (val)
   implicit none
@@ -154,32 +165,6 @@ function put_get_max_num_subnodes_in_cell(this) result (val)
   integer(ip) :: val
   val = this%marching_cubes%get_max_num_subnodes_in_cell()
 end function put_get_max_num_subnodes_in_cell
-
-!========================================================================================
-function put_get_num_mc_cases(this) result (val)
-  implicit none
-  class(par_unfitted_triangulation_t), intent(in)    :: this
-  integer(ip) :: val
-  val = this%marching_cubes%get_num_mc_cases()
-end function put_get_num_mc_cases
-
-!========================================================================================
-function put_get_num_subcells_mc_case(this,mc_case) result (val)
-  implicit none
-  class(par_unfitted_triangulation_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  integer(ip) :: val
-  val = this%marching_cubes%get_num_subcells_mc_case(mc_case)
-end function put_get_num_subcells_mc_case
-
-!========================================================================================
-function put_get_num_subfacets_mc_case(this,mc_case) result (val)
-  implicit none
-  class(par_unfitted_triangulation_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  integer(ip) :: val
-  val = this%marching_cubes%get_num_subfacets_mc_case(mc_case)
-end function put_get_num_subfacets_mc_case
 
 !========================================================================================
 subroutine put_print(this)

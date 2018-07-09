@@ -99,12 +99,20 @@ function quadrature_get_weight ( this, i )
   quadrature_get_weight = this%weight(i)
 end function quadrature_get_weight
 
-function quadrature_get_weights ( this )
+subroutine quadrature_get_weights ( this, weights )
+  implicit none
+  class(quadrature_t), intent(in)    :: this
+  real(rp)           , intent(inout) :: weights(:)
+  assert ( size(weights) >= this%num_quadrature_points )
+  weights(1:this%num_quadrature_points) = this%weight(1:this%num_quadrature_points)
+end subroutine quadrature_get_weights
+
+function quadrature_get_pointer_weights ( this )
   implicit none
   class(quadrature_t), target, intent(in) :: this
-  real(rp), pointer :: quadrature_get_weights(:)
-  quadrature_get_weights => this%weight
-end function quadrature_get_weights
+  real(rp), pointer :: quadrature_get_pointer_weights(:)
+  quadrature_get_pointer_weights => this%weight
+end function quadrature_get_pointer_weights
 
 ! function quadrature_get_pointer_coordinates ( this )
 !   implicit none
@@ -123,14 +131,14 @@ end function quadrature_get_weights
 subroutine p_quadrature_allocate ( this)
   implicit none       
   class(p_quadrature_t), intent(inout) :: this
-		call this%free()
+  call this%free()
   allocate(this%p)
 end subroutine p_quadrature_allocate
 
 subroutine p_quadrature_free ( this)
   implicit none       
   class(p_quadrature_t), intent(inout) :: this
-		if (associated(this%p)) then
+  if (associated(this%p)) then
      call this%p%free()
      deallocate(this%p)
      nullify(this%p)

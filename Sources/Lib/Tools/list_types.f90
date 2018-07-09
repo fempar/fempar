@@ -361,7 +361,7 @@ contains
         integer(ip),      intent(in)    :: n1
         integer(ip),      intent(in)    :: n2
     !-----------------------------------------------------------------
-	    call this%free()
+     call this%free()
         this%n1 = n1
         this%n2 = n2
         call memalloc(this%n1+1, this%p, __FILE__, __LINE__)

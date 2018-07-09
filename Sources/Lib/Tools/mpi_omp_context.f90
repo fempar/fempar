@@ -111,6 +111,11 @@ module mpi_omp_context_names
      integer :: min_num_threads = -1
      !integer, allocatable :: threads_x_rank(:)
      !integer :: master_thread  = -1
+     real(rp) :: time_exchange
+     real(rp) :: time_bcasts
+     real(rp) :: time_reduction
+     real(rp) :: time_gather
+     real(rp) :: time_scatter
    contains
      ! These functions should be non_overridable but there is a bug in gfotran
      procedure :: create             => mpi_omp_context_create
@@ -119,6 +124,7 @@ module mpi_omp_context_names
      procedure :: split_by_color     => mpi_omp_context_split_by_color
      procedure :: free               => mpi_omp_context_free
      procedure :: nullify            => mpi_omp_context_nullify
+     procedure :: report_times       => mpi_omp_context_report_times
      procedure :: am_i_member        => mpi_omp_context_am_i_member
      procedure :: am_i_root          => mpi_omp_context_am_i_root
      procedure :: barrier            => mpi_omp_context_barrier
@@ -138,15 +144,19 @@ module mpi_omp_context_names
      procedure :: bcast_subcontext   => mpi_omp_context_bcast_subcontext
      procedure :: neighbours_exchange_rp                   => mpi_omp_context_neighbours_exchange_rp  
      procedure :: neighbours_exchange_wo_alpha_beta_rp     => mpi_omp_context_neighbours_exchange_wo_alpha_beta_rp
+     procedure :: neighbours_exchange_wo_alpha_beta_rp_v   => mpi_omp_context_neighbours_exchange_wo_alpha_beta_rp_v
      procedure :: neighbours_exchange_ip                   => mpi_omp_context_neighbours_exchange_ip                 
      procedure :: neighbours_exchange_igp                  => mpi_omp_context_neighbours_exchange_igp                
      procedure :: neighbours_exchange_single_ip            => mpi_omp_context_neighbours_exchange_single_ip          
      procedure :: neighbours_exchange_wo_pack_unpack_ieep  => mpi_omp_context_neighbours_exchange_wo_pack_unpack_ieep
      procedure :: neighbours_exchange_wo_unpack_ip         => mpi_omp_context_neighbours_exchange_wo_unpack_ip
+     procedure :: neighbours_exchange_variable_igp         => mpi_omp_context_neighbours_exchange_variable_igp       
+     procedure :: neighbours_exchange_variable_ip          => mpi_omp_context_neighbours_exchange_variable_ip 
      procedure :: root_send_master_rcv_ip          => mpi_omp_context_root_send_master_rcv_ip
      procedure :: root_send_master_rcv_ip_1D_array => mpi_omp_context_root_send_master_rcv_ip_1D_array
      procedure :: root_send_master_rcv_rp          => mpi_omp_context_root_send_master_rcv_rp
      procedure :: root_send_master_rcv_rp_1D_array => mpi_omp_context_root_send_master_rcv_rp_1D_array
+     procedure :: root_send_master_rcv_logical     => mpi_omp_context_root_send_master_rcv_logical
      procedure :: gather_to_master_ip              => mpi_omp_context_gather_to_master_ip            
      procedure :: gather_to_master_igp             => mpi_omp_context_gather_to_master_igp           
      procedure :: gather_to_master_ip_1D_array     => mpi_omp_context_gather_to_master_ip_1D_array   
@@ -159,6 +169,14 @@ module mpi_omp_context_names
 
   ! Types
   public :: mpi_omp_context_t
+  
+  interface
+     subroutine report_bindings(Fcomm) bind(c,name='report_bindings')
+       use iso_c_binding
+       implicit none
+       integer, value, intent(in) :: Fcomm
+     end subroutine report_bindings
+  end interface
 
 contains
 
@@ -194,7 +212,7 @@ contains
        ! We assume that the number of threads is the same in all ranks except the last one
        call mpi_allreduce(this%num_threads,this%max_num_threads,1,mpi_omp_context_ip,mpi_max,this%icontxt,istat); check(istat == mpi_success)
        call mpi_allreduce(this%num_threads,this%min_num_threads,1,mpi_omp_context_ip,mpi_min,this%icontxt,istat); check(istat == mpi_success)
-       assert(this%min_num_threads==1)
+       !assert(this%min_num_threads==1)
        assert(this%num_threads==this%max_num_threads.or.this%num_threads==this%min_num_threads)
        if(this%num_threads==this%min_num_threads) then
           call mpi_allreduce(1,num_ranks_with_min_threads,1,mpi_omp_context_ip,mpi_sum,this%icontxt,istat); check(istat == mpi_success)
@@ -222,7 +240,7 @@ contains
     end if
     this%type = mpi_omp_context_homogeneous
     !$OMP BARRIER
-    
+
     this%icontxt = ip1_buffer(this%current_thread)
     call mpi_comm_size(this%icontxt,this%num_ranks,istat)    ; check(istat == mpi_success)
     call mpi_comm_rank(this%icontxt,this%current_rank,istat) ; check(istat == mpi_success)
@@ -233,6 +251,14 @@ contains
     call this%set_num_tasks   ( this%max_num_threads*(this%num_ranks-1)+ this%min_num_threads )
     
     !write(*,*) 'After task def',this%get_current_task(),this%get_num_tasks()
+!!!#ifdef DEBUG
+    call report_bindings(this%icontxt)
+!!!#endif
+    this%time_exchange  = 0.0_rp
+    this%time_bcasts    = 0.0_rp
+    this%time_reduction = 0.0_rp
+    this%time_gather    = 0.0_rp
+    this%time_scatter   = 0.0_rp
 
   end subroutine mpi_omp_context_create
 
@@ -264,6 +290,11 @@ contains
        assert(this%current_rank == that%current_rank)
        call this%set_current_task(that%get_current_task())
        call this%set_num_tasks(that%get_num_tasks())
+       this%time_exchange  = that%time_exchange  
+       this%time_bcasts    = that%time_bcasts    
+       this%time_reduction = that%time_reduction 
+       this%time_gather    = that%time_gather    
+       this%time_scatter   = that%time_scatter   
     class default
        check(.false.)
     end select
@@ -421,6 +452,12 @@ contains
           call new_subcontext%set_current_task( new_subcontext%max_num_threads*new_subcontext%current_rank + new_subcontext%current_thread )
           call new_subcontext%set_num_tasks   ( new_subcontext%max_num_threads*(new_subcontext%num_ranks-1)+ new_subcontext%min_num_threads )
 
+          new_subcontext%time_exchange  = 0.0_rp
+          new_subcontext%time_bcasts    = 0.0_rp
+          new_subcontext%time_reduction = 0.0_rp
+          new_subcontext%time_gather    = 0.0_rp
+          new_subcontext%time_scatter   = 0.0_rp
+
        end if
        class default
        check(.false.)
@@ -495,6 +532,12 @@ contains
              call mpi_comm_size(subcontext1%icontxt,subcontext1%num_ranks,istat)    ; check(istat == mpi_success)
              call subcontext1%set_current_task( subcontext1%max_num_threads*subcontext1%current_rank + subcontext1%current_thread )
              call subcontext1%set_num_tasks   ( subcontext1%max_num_threads*(subcontext1%num_ranks-1)+ subcontext1%min_num_threads )
+             subcontext1%time_exchange  = 0.0_rp
+             subcontext1%time_bcasts    = 0.0_rp
+             subcontext1%time_reduction = 0.0_rp
+             subcontext1%time_gather    = 0.0_rp
+             subcontext1%time_scatter   = 0.0_rp
+
              call subcontext2%nullify()             
           else
              subcontext2%current_thread = current_thread
@@ -517,6 +560,12 @@ contains
              call mpi_comm_size(subcontext2%icontxt,subcontext2%num_ranks,istat)    ; check(istat == mpi_success)
              call subcontext2%set_current_task( subcontext2%max_num_threads*subcontext2%current_rank + subcontext2%current_thread )
              call subcontext2%set_num_tasks   ( subcontext2%max_num_threads*(subcontext2%num_ranks-1)+ subcontext2%min_num_threads )
+             subcontext2%time_exchange  = 0.0_rp
+             subcontext2%time_bcasts    = 0.0_rp
+             subcontext2%time_reduction = 0.0_rp
+             subcontext2%time_gather    = 0.0_rp
+             subcontext2%time_scatter   = 0.0_rp
+
              call subcontext1%nullify()             
           end if
 
@@ -535,7 +584,9 @@ contains
     class(mpi_omp_context_t), intent(inout) :: this
     logical                 , intent(in)    :: finalize
     integer :: istat
-    
+
+    if(this%icontxt/=mpi_comm_null) call report_bindings(this%icontxt) 
+
     !$OMP BARRIER
     if(this%created_from_mpi) then
        if(this%icontxt/=mpi_comm_null.and.this%icontxt/=mpi_comm_world) then
@@ -566,6 +617,47 @@ contains
 
   end subroutine mpi_omp_context_free
 
+  subroutine mpi_omp_context_report_times ( this, show_header, luout )
+    implicit none 
+    class(mpi_omp_context_t), intent(inout) :: this
+    logical, intent(in), optional      :: show_header 
+    integer(ip), intent(in), optional  :: luout
+      
+      ! Locals
+      character(len=*), parameter    :: fmt_header = '(a25,1x,3(2x,a15),3(2x,a15))'
+      character(len=*), parameter    :: fmt_data   = '(a25,1x,3(2x,es15.9),3(2x,es15.9))'
+      real(rp)                       :: accum_max, accum_min, accum_sum
+      logical                        :: show_header_
+
+      accum_max = this%time_exchange
+      accum_min = this%time_exchange
+      accum_sum = this%time_exchange
+      call this%max_scalar_rp(accum_max)
+      call this%min_scalar_rp(accum_min)
+      call this%sum_scalar_rp(accum_sum)
+
+      show_header_ = .true.
+      if (present(show_header)) show_header_ = show_header 
+
+      if ( show_header_ ) then 
+         if (present(luout) ) then
+            if ( this%am_i_root() ) write(luout,fmt_header) '', 'Min (secs.)', 'Max (secs.)', 'Avg (secs.)'
+         else
+            if ( this%am_i_root() ) write(*,fmt_header) '', 'Min (secs.)', 'Max (secs.)', 'Avg (secs.)'
+         end if
+      end if         
+      
+      if (present(luout) ) then
+         if ( this%am_i_root() ) write(luout,fmt_data) 'NEIGHBOURS EXCHANGE', accum_min, accum_max, accum_sum/this%get_num_tasks()
+      else
+         if ( this%am_i_root() ) write(*,fmt_data) 'NEIGHBOURS EXCHANGE', accum_min, accum_max, accum_sum/this%get_num_tasks()
+      end if
+
+      this%time_exchange = 0.0_rp
+      
+    end subroutine mpi_omp_context_report_times
+
+
   !=============================================================================
   subroutine mpi_omp_context_nullify ( this )
     implicit none 
@@ -578,6 +670,11 @@ contains
     this%current_thread = -1
     call this%set_current_task(-1)
     call this%set_num_tasks(-1)
+    this%time_exchange  = 0.0_rp
+    this%time_bcasts    = 0.0_rp
+    this%time_reduction = 0.0_rp
+    this%time_gather    = 0.0_rp
+    this%time_scatter   = 0.0_rp
   end subroutine mpi_omp_context_nullify
 
   !=============================================================================
@@ -601,7 +698,9 @@ contains
     implicit none 
     class(mpi_omp_context_t), intent(in) :: this
     integer :: istat
-    if(this%current_thread==this%root_thread) call mpi_barrier ( this%icontxt, istat); check ( istat == mpi_success )
+    if(this%current_thread==this%root_thread) then
+       call mpi_barrier ( this%icontxt, istat); check ( istat == mpi_success )
+    end if
     !$OMP BARRIER
   end subroutine mpi_omp_context_barrier
 
@@ -779,7 +878,7 @@ contains
                 recv_rank = (this%get_num_tasks() - subcontxt2%get_num_tasks())/this%max_num_threads
              end if
 
-             if(this%current_rank==send_rank) then
+             if(this%current_rank==send_rank.and.recv_rank<this%num_ranks) then
                 call mpi_send(condition, 1, mpi_omp_context_lg, recv_rank,  &
                      & mpi_omp_context_tag, this%icontxt, istat); check( istat == mpi_success )
              else if(this%current_rank==recv_rank) then
@@ -823,7 +922,7 @@ contains
        &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
        &                                          alpha, beta, x, y)
     implicit none
-    class(mpi_omp_context_t), intent(in) :: this
+    class(mpi_omp_context_t), intent(inout) :: this
 
     ! Control info to receive
     integer(ip)             , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
@@ -851,6 +950,9 @@ contains
     real(rp), allocatable :: sndbuf(:) 
     real(rp), allocatable :: rcvbuf(:)
 
+    real(rp) :: t_start, t_stop
+    t_start = mpi_wtime ()
+    
     call memalloc (num_rcv, rcvhd, __FILE__,__LINE__)
     call memalloc (num_snd, sndhd, __FILE__,__LINE__)
 
@@ -939,6 +1041,9 @@ contains
     call memfree (sndbuf,__FILE__,__LINE__)
     call memfree (rcvbuf,__FILE__,__LINE__)
 
+    t_stop = mpi_wtime ()
+    this%time_exchange = this%time_exchange + t_stop - t_start
+    
   end subroutine mpi_omp_context_neighbours_exchange_rp
 
   
@@ -962,6 +1067,26 @@ contains
     check(.false.)
   end subroutine mpi_omp_context_neighbours_exchange_wo_alpha_beta_rp
   
+  !=============================================================================
+  subroutine mpi_omp_context_neighbours_exchange_wo_alpha_beta_rp_v ( this, & 
+       &                                                              num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                                              num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                                              x, y, ptr_chunk_size_snd, ptr_chunk_size_rcv )
+    implicit none
+    class(mpi_omp_context_t), intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    real(rp)                , intent(in)    :: x(:)
+    real(rp)                , intent(inout) :: y(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size_snd(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size_rcv(:)
+    mcheck(.false.,'mpi_omp_context_neighbours_exchange_wo_alpha_beta_rp_v is not implemented')
+  end subroutine mpi_omp_context_neighbours_exchange_wo_alpha_beta_rp_v
   
   !=============================================================================
   ! When packing   (gathering) ,    buffer <- alpha * x
@@ -1405,6 +1530,49 @@ contains
   end subroutine mpi_omp_context_neighbours_exchange_wo_unpack_ip
 
   !=============================================================================
+  subroutine mpi_omp_context_neighbours_exchange_variable_igp ( this, & 
+       &                                              num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                              num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                              x, y, ptr_chunk_size, mask)
+    implicit none
+    class(mpi_omp_context_t), intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    integer(igp)            , intent(in)    :: x(:)
+    integer(igp)            , intent(inout) :: y(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size(:)
+    integer(igp)  , optional, intent(in)    :: mask
+    mcheck(.false.,'mpi_omp_context_neighbours_exchange_variable_igp is not implemented')
+  end subroutine mpi_omp_context_neighbours_exchange_variable_igp
+  
+  !=============================================================================
+  subroutine mpi_omp_context_neighbours_exchange_variable_ip ( this, & 
+       &                                              num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                              num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                              x, y, ptr_chunk_size, mask)
+    implicit none
+    class(mpi_omp_context_t), intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    integer(ip)             , intent(in)    :: x(:)
+    integer(ip)             , intent(inout) :: y(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size(:)
+    integer(ip)   , optional, intent(in)    :: mask
+    mcheck(.false.,'mpi_omp_context_neighbours_exchange_variable_ip is not implemented')
+  end subroutine mpi_omp_context_neighbours_exchange_variable_ip
+  
+  
+  !=============================================================================
   subroutine mpi_omp_context_gather_scalar_ip ( this, input_data, output_data )
     implicit none
     class(mpi_omp_context_t), intent(in)   :: this
@@ -1746,7 +1914,27 @@ contains
                & mpi_omp_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
     end if
   end subroutine mpi_omp_context_root_send_master_rcv_rp_1D_array
-
+  
+  !=============================================================================
+  subroutine mpi_omp_context_root_send_master_rcv_logical ( this, input_data, output_data )
+    implicit none
+    class(mpi_omp_context_t), intent(in)      :: this
+    logical                 , intent(in)      :: input_data
+    logical                 , intent(inout)   :: output_data
+    integer :: send_rank, recv_rank, istat
+    integer :: send_thread
+    send_rank = mpi_omp_context_root_rank
+    recv_rank = (this%get_num_tasks()-1)/this%max_num_threads
+    send_thread = this%root_thread
+    if(this%current_rank==send_rank.and.this%current_thread==send_thread) then
+       call mpi_send(input_data, 1, mpi_omp_context_lg, recv_rank,  &
+               & mpi_omp_context_tag, this%icontxt, istat); check( istat == mpi_success )
+    else if(this%current_rank==recv_rank) then
+       call mpi_recv(output_data, 1, mpi_omp_context_lg, send_rank,  &
+               & mpi_omp_context_tag, this%icontxt, mpi_status_ignore, istat); check( istat == mpi_success )
+    end if
+  end subroutine mpi_omp_context_root_send_master_rcv_logical
+  
   !=============================================================================
   !=============================================================================
   subroutine mpi_omp_context_gather_to_master_ip ( this, input_data, output_data )

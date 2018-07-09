@@ -430,7 +430,7 @@ contains
      end select
    end if
  end function block_vector_same_vector_space
-	
+ 
  function get_num_blocks(this) result(res)
    implicit none 
    class(block_vector_t), intent(in) :: this

@@ -14,7 +14,7 @@ then
       # Square + Quads       
       for gorder in 1
       do
-       for order in 3
+       for order in 1
         do
           if [ $order -ge $gorder ]
           then
@@ -31,7 +31,7 @@ then
       # Cube + Hexas         
       for gorder in 1
       do
-       for order in 2
+       for order in 1
         do
           if [ $order -ge $gorder ]
           then
@@ -48,7 +48,7 @@ then
       # Square +  Tetrahedra       
       for gorder in 1
       do
-       for order in 3
+       for order in 1
         do
           if [ $order -ge $gorder ]
           then
@@ -65,7 +65,7 @@ then
       # Cube + Tetrahedra
       for gorder in 1
       do
-        for order in 2
+        for order in 1
         do
           if [ $order -ge $gorder ]
           then

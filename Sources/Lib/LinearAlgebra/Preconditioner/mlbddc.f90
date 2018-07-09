@@ -36,7 +36,7 @@ module mlbddc_names
  ! Integration related modules
  use triangulation_names
  use fe_space_names
- use fe_nonlinear_operator_names
+ use fe_operator_names
  
  ! Linear Algebra related modules
  use operator_names
@@ -68,12 +68,62 @@ module mlbddc_names
 # include "debug.i90"
  private
 
- character(len=*), parameter :: mlbddc_dirichlet_solver_params = "mlbddc_dirichlet_solver_params"
- character(len=*), parameter :: mlbddc_neumann_solver_params   = "mlbddc_neumann_solver_params"
- character(len=*), parameter :: mlbddc_coarse_solver_params    = "mlbddc_coarse_solver_params"
+ character(len=*), parameter :: mlbddc_dirichlet_solver_params            = "mlbddc_dirichlet_solver_params"
+ character(len=*), parameter :: mlbddc_neumann_solver_params              = "mlbddc_neumann_solver_params"
+ character(len=*), parameter :: mlbddc_coarse_matrix_params               = "mlbddc_coarse_matrix_params"
+ character(len=*), parameter :: mlbddc_coarse_matrix_symmetric_storage    = "mlbddc_coarse_matrix_symmetric_storage"
+ character(len=*), parameter :: mlbddc_coarse_matrix_is_symmetric         = "mlbddc_coarse_matrix_is_symmetric"
+ character(len=*), parameter :: mlbddc_coarse_matrix_sign                 = "mlbddc_coarse_matrix_sign"
+ character(len=*), parameter :: mlbddc_coarse_solver_params               = "mlbddc_coarse_solver_params"
+ 
+ integer(ip), parameter :: BASE_MLBDDC_STATE_START    = 0
+ integer(ip), parameter :: BASE_MLBDDC_STATE_CREATED  = 1
+ integer(ip), parameter :: BASE_MLBDDC_STATE_SYMBOLIC = 2 ! Symbolic data already computed
+ integer(ip), parameter :: BASE_MLBDDC_STATE_NUMERIC  = 3 ! Numerical data already computed
 
+  !-----------------------------------------------------------------
+  ! State transition diagram for type(base_mlbddc_t)
+  !-----------------------------------------------------------------
+  ! Input State         | Action                | Output State 
+  !-----------------------------------------------------------------
+  ! Start               | create                | Created
+  ! Start               | free_clean            | Start
+  ! Start               | free_symbolic         | Start
+  ! Start               | free_numeric          | Start
+  ! Start               | update_matrix         | Start ! it does nothing
+
+ 
+  ! Created             | symbolic_setup        | Symbolic         ! perform symbolic_setup()
+  ! Created             | numerical_setup       | Numeric          ! perform symbolic_setup()+numerical_setup()
+  ! Created             | apply                 | Numeric          ! perform symbolic_setup()+numerical_setup()
+  ! Created             | free_clean            | Start
+  ! Created             | free_symbolic         | Create           ! it does nothing
+  ! Created             | free_numeric          | Create           ! it does nothing
+  ! Created             | update_matrix         | Create           ! it does nothing
+
+  ! Symbolic            | symbolic_setup                        | Symbolic         ! it does nothing
+  ! Symbolic            | numerical_setup                       | Numeric          ! perform numerical_setup() 
+  ! Symbolic            | apply                                 | Numeric          ! perform numerical_setup()
+  ! Symbolic            | free_clean                            | Start
+  ! Symbolic            | free_symbolic                         | Created
+  ! Symbolic            | free_numeric                          | Symbolic         ! it does nothing
+  ! Symbolic            | update_matrix + same_nonzero_pattern  | Symbolic         ! it does nothing
+  ! Symbolic            | update_matrix + !same_nonzero_pattern | Symbolic         ! free_symbolic()+symbolic_setup()
+    
+    
+  ! Numeric             | symbolic_setup                        | Numeric          ! it does nothing
+  ! Numeric             | numeric_setup                         | Numeric          ! it does nothing
+  ! Numeric             | apply                                 | Numeric          ! it does nothing
+  ! Numeric             | free_numeric                          | Symbolic
+  ! Numeric             | free_symbolic                         | Created
+  ! Numeric             | free_clean                            | Start
+  ! Numeric             | update_matrix + same_nonzero_pattern  | Numeric          ! free_numerical_setup()+numerical_setup()
+  ! Numeric             | update_matrix + !same_nonzero_pattern | Numeric          ! free_numerical_setup()+free_symbolic_setup()
+                                                                                   ! symbolic_setup()+numeric_setup()
  type, abstract, extends(operator_t) :: base_mlbddc_t
    private
+   
+   integer(ip)                                 :: state  = BASE_MLBDDC_STATE_START
    
    class(environment_t), pointer               :: environment => NULL()
 
@@ -121,9 +171,22 @@ module mlbddc_names
    ! value being in turn a (sub) parameter list
    type(parameterlist_t)         , pointer     :: mlbddc_params   => NULL()
  contains
+ 
+   ! State transition handling-related TBPs
+   procedure, non_overridable, private :: set_state_start              => base_mlbddc_set_state_start
+   procedure, non_overridable, private :: set_state_created            => base_mlbddc_set_state_created
+   procedure, non_overridable, private :: set_state_symbolic           => base_mlbddc_set_state_symbolic
+   procedure, non_overridable, private :: set_state_numeric            => base_mlbddc_set_state_numeric
+   procedure, non_overridable, private :: state_is_start               => base_mlbddc_state_is_start
+   procedure, non_overridable, private :: state_is_created             => base_mlbddc_state_is_created
+   procedure, non_overridable, private :: state_is_symbolic            => base_mlbddc_state_is_symbolic
+   procedure, non_overridable, private :: state_is_numeric             => base_mlbddc_state_is_numeric
+ 
+ 
    ! Parameter treatment-related TBPs
    procedure, non_overridable, private :: assert_dirichlet_solver_params                   => base_mlbddc_assert_dirichlet_solver_params 
    procedure, non_overridable, private :: assert_neumann_solver_params                     => base_mlbddc_assert_neumann_solver_params 
+   procedure, non_overridable, private :: parse_or_transfer_coarse_matrix_params           => base_mlbddc_parse_or_transfer_coarse_matrix_params 
    procedure, non_overridable, private :: assert_coarse_solver_params                      => base_mlbddc_assert_coarse_solver_params 
 
    ! Symbolic setup-related TBPs
@@ -206,6 +269,7 @@ module mlbddc_names
    procedure, private                  :: get_fe_space                                     => base_mlbddc_get_fe_space
    procedure, private                  :: is_operator_associated                           => base_mlbddc_is_operator_associated
    procedure, private                  :: nullify_operator                                 => base_mlbddc_nullify_operator
+   procedure, private                  :: create_vector_spaces                             => base_mlbddc_create_vector_spaces
 end type base_mlbddc_t
  
  type, extends(base_mlbddc_t) :: mlbddc_t
@@ -215,13 +279,13 @@ end type base_mlbddc_t
    ! This pointer is set-up during mlbddc_t%create() and re-used in the rest of stages.
    ! Therefore, type(parameter_list_t) to which type(mlbddc_t) points to MUST NOT BE
    ! freed before type(mlbddc_t)
-   type(parameterlist_t)         , pointer :: parameter_list
+   type(parameterlist_t)            , pointer :: parameter_list
    
    ! Pointer to the fe_nonlinear_operator_t this mlbddc_t instance has been created from
-   type(fe_nonlinear_operator_t)    , pointer :: fe_nonlinear_operator => NULL()
+   type(fe_operator_t)    , pointer :: fe_nonlinear_operator => NULL()
  contains
     procedure, non_overridable          :: create                                          => mlbddc_create
-    procedure, non_overridable, private :: create_vector_spaces                            => mlbddc_create_vector_spaces
+    procedure,                  private :: create_vector_spaces                            => mlbddc_create_vector_spaces
 
     ! Symbolic-setup related TBPs
     procedure,                  private :: setup_constraint_matrix                         => mlbddc_setup_constraint_matrix
@@ -248,7 +312,7 @@ end type base_mlbddc_t
  contains
  
    procedure, non_overridable          :: create                                            => mlbddc_coarse_create
-   procedure, non_overridable          :: create_vector_spaces                              => mlbddc_coarse_create_vector_spaces
+   procedure, private                  :: create_vector_spaces                              => mlbddc_coarse_create_vector_spaces
    
    
    ! Symbolic setup-related TBPs
@@ -265,6 +329,7 @@ end type base_mlbddc_t
  
  public :: mlbddc_t
  public :: mlbddc_dirichlet_solver_params, mlbddc_neumann_solver_params, mlbddc_coarse_solver_params
+ public :: mlbddc_coarse_matrix_params, mlbddc_coarse_matrix_symmetric_storage, mlbddc_coarse_matrix_is_symmetric, mlbddc_coarse_matrix_sign
 
 contains
 

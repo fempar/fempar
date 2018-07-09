@@ -1,0 +1,575 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine fe_operator_create (this, &
+                                         sparse_matrix_storage_format, &
+                                         diagonal_blocks_symmetric_storage,&
+                                         diagonal_blocks_symmetric,&
+                                         diagonal_blocks_sign,&
+                                         fe_space, &
+                                         discrete_integration, &
+                                         trial_fe_space )
+  implicit none
+  class(fe_operator_t)            , intent(inout) :: this
+  character(*)                              , intent(in)    :: sparse_matrix_storage_format
+  logical                                   , intent(in)    :: diagonal_blocks_symmetric_storage(:)
+  logical                                   , intent(in)    :: diagonal_blocks_symmetric(:)
+  integer(ip)                               , intent(in)    :: diagonal_blocks_sign(:)
+  class(serial_fe_space_t)        , target  , intent(inout) :: fe_space
+  class(discrete_integration_t)   , target  , intent(in)    :: discrete_integration
+  class(serial_fe_space_t), target, optional, intent(inout) :: trial_fe_space
+  integer(ip) :: istat
+
+  call this%free()
+
+  ! Equivalent to: "assert ( this%state == start )"
+  assert(.not. associated(this%get_state())) 
+  call this%allocate_state()
+
+  this%sparse_matrix_storage_format = sparse_matrix_storage_format
+  call memalloc ( size(diagonal_blocks_symmetric_storage), this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
+  this%diagonal_blocks_symmetric_storage = diagonal_blocks_symmetric_storage
+  call memalloc ( size(diagonal_blocks_symmetric), this%diagonal_blocks_symmetric, __FILE__, __LINE__ ) 
+  this%diagonal_blocks_symmetric = diagonal_blocks_symmetric
+  call memalloc ( size(diagonal_blocks_sign), this%diagonal_blocks_sign, __FILE__, __LINE__ ) 
+  this%diagonal_blocks_sign = diagonal_blocks_sign
+  this%test_fe_space                => fe_space
+  this%discrete_integration         => discrete_integration
+
+  if ( present(trial_fe_space) ) then
+     this%trial_fe_space => trial_fe_space
+  end if
+
+  call this%reallocate_after_remesh()
+end subroutine fe_operator_create
+
+subroutine fe_operator_free(this)
+  implicit none
+  class(fe_operator_t), intent(inout) :: this
+  integer(ip) :: istat
+  if (associated (this%get_state())) then
+     deallocate(this%sparse_matrix_storage_format)
+     call memfree ( this%diagonal_blocks_symmetric_storage, __FILE__, __LINE__ ) 
+     call memfree ( this%diagonal_blocks_symmetric, __FILE__, __LINE__ ) 
+     call memfree ( this%diagonal_blocks_sign, __FILE__, __LINE__ ) 
+     nullify(this%test_fe_space)
+     nullify(this%trial_fe_space)
+     nullify(this%discrete_integration)
+     call this%assembler%free()
+     deallocate(this%assembler, stat=istat ); check(istat==0);
+     nullify(this%assembler)
+     call this%free_vector_spaces()
+     call this%deallocate_state()
+     nullify(this%current_evaluation_point)
+  end if
+end subroutine fe_operator_free
+
+subroutine fe_operator_reallocate_after_remesh(this)
+  implicit none
+  class(fe_operator_t)              , intent(inout) :: this
+  integer(ip) :: istat
+
+  assert(associated(this%get_state()))
+
+  if ( associated(this%assembler) ) then
+     call this%assembler%free()
+     deallocate(this%assembler,stat=istat); check(istat==0);
+  end if
+
+  select type(fe_space => this%test_fe_space)
+     class is(serial_fe_space_t) 
+     this%assembler  => this%create_serial_assembler(this%diagonal_blocks_symmetric_storage, &
+          this%diagonal_blocks_symmetric, &
+          this%diagonal_blocks_sign)
+     class is(par_fe_space_t) 
+     this%assembler  => this%create_par_assembler(this%diagonal_blocks_symmetric_storage, &
+          this%diagonal_blocks_symmetric, &
+          this%diagonal_blocks_sign)
+     class default
+     check(.false.)
+  end select
+  
+  call this%assembler%allocate_array()
+  call this%assembler%init_array(0.0_rp)  
+ 
+  call this%create_vector_spaces()
+  call this%set_state(created)
+end subroutine fe_operator_reallocate_after_remesh
+
+subroutine fe_operator_create_vector_spaces(this)
+  implicit none
+  class(fe_operator_t), intent(inout) :: this
+  type(vector_space_t), pointer                 :: fe_operator_domain_vector_space
+  type(vector_space_t), pointer                 :: fe_operator_range_vector_space
+  type(vector_space_t), pointer                 :: matrix_domain_vector_space
+  type(vector_space_t), pointer                 :: matrix_range_vector_space
+  class(matrix_t)     , pointer :: matrix
+  matrix => this%assembler%get_matrix()
+  matrix_domain_vector_space => matrix%get_domain_vector_space()
+  matrix_range_vector_space => matrix%get_range_vector_space()
+  fe_operator_domain_vector_space => operator_get_domain_vector_space(this)
+  fe_operator_range_vector_space => operator_get_range_vector_space(this)
+  call matrix_domain_vector_space%clone(fe_operator_domain_vector_space)
+  call matrix_range_vector_space%clone(fe_operator_range_vector_space)
+end subroutine fe_operator_create_vector_spaces
+
+function fe_operator_create_serial_assembler (this, &
+     diagonal_blocks_symmetric_storage,&
+     diagonal_blocks_symmetric, & 
+     diagonal_blocks_sign)
+  implicit none
+  class(fe_operator_t)  , intent(in) :: this
+  logical                         , intent(in) :: diagonal_blocks_symmetric_storage(:)
+  logical                         , intent(in) :: diagonal_blocks_symmetric(:)
+  integer(ip)                     , intent(in) :: diagonal_blocks_sign(:)
+  class(assembler_t) , pointer    :: fe_operator_create_serial_assembler
+
+  ! Locals
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+  integer(ip)          :: ife_space, jfe_space
+  integer(ip)          :: iblock, jblock
+
+  type(block_layout_t), pointer :: block_layout
+
+  block_layout => this%test_fe_space%get_block_layout()
+
+  if (block_layout%get_num_blocks() == 1) then
+     allocate ( sparse_assembler_t :: fe_operator_create_serial_assembler )
+     allocate ( sparse_matrix_t :: matrix )
+     allocate ( serial_scalar_array_t  :: array )
+     select type(matrix)
+        class is(sparse_matrix_t)
+        call matrix%create(block_layout%get_block_num_dofs(1), &
+             diagonal_blocks_symmetric_storage(1),&
+             diagonal_blocks_symmetric(1),&
+             diagonal_blocks_sign(1))
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_scalar_array_t)
+        call array%create(block_layout%get_block_num_dofs(1))
+        class default
+        check(.false.)
+     end select
+  else
+     allocate ( block_sparse_assembler_t :: fe_operator_create_serial_assembler )
+     allocate ( block_sparse_matrix_t :: matrix )
+     allocate ( serial_block_array_t  :: array )
+     select type(matrix)
+        class is (block_sparse_matrix_t)
+        call matrix%create(block_layout%get_num_blocks(), &
+             block_layout%get_num_dofs_x_block(),&
+             block_layout%get_num_dofs_x_block(),&
+             diagonal_blocks_symmetric_storage,&
+             diagonal_blocks_symmetric,&
+             diagonal_blocks_sign)
+
+        do jblock=1,block_layout%get_num_blocks()
+           do iblock=1,block_layout%get_num_blocks()
+              if (.not. block_layout%blocks_coupled(iblock,jblock) ) then
+                 call matrix%set_block_to_zero(iblock,jblock)
+              end if
+           end do
+        end do
+        class default
+        check(.false.)
+     end select
+     select type(array)
+        class is(serial_block_array_t)
+        call array%create(block_layout%get_num_blocks(),block_layout%get_num_dofs_x_block())
+        class default
+        check(.false.)
+     end select
+  end if
+  call fe_operator_create_serial_assembler%set_matrix(matrix)
+  call fe_operator_create_serial_assembler%set_array(array)
+end function fe_operator_create_serial_assembler
+
+function fe_operator_create_par_assembler(this, &
+     diagonal_blocks_symmetric_storage,&
+     diagonal_blocks_symmetric, & 
+     diagonal_blocks_sign)
+  implicit none
+  class(fe_operator_t)       , intent(in) :: this
+  logical                           , intent(in) :: diagonal_blocks_symmetric_storage(:)
+  logical                           , intent(in) :: diagonal_blocks_symmetric(:)
+  integer(ip)                       , intent(in) :: diagonal_blocks_sign(:)
+  class(assembler_t)   , pointer    :: fe_operator_create_par_assembler
+
+  ! Locals
+  class(matrix_t), pointer :: matrix
+  class(array_t) , pointer :: array
+  type(environment_t), pointer :: par_environment
+  type(block_layout_t), pointer :: block_layout
+
+  block_layout => this%test_fe_space%get_block_layout()
+
+
+  select type(fe_space => this%test_fe_space)
+     class is(par_fe_space_t)
+     par_environment => fe_space%get_environment()
+     if (block_layout%get_num_blocks() == 1) then
+        allocate ( par_sparse_assembler_t :: fe_operator_create_par_assembler )
+        allocate ( par_sparse_matrix_t :: matrix )
+        allocate ( par_scalar_array_t  :: array )
+        select type(matrix)
+           class is(par_sparse_matrix_t)
+           call matrix%create(par_environment, &
+                fe_space%get_block_dof_import(1), &
+                diagonal_blocks_symmetric_storage(1),&
+                diagonal_blocks_symmetric(1),&
+                diagonal_blocks_sign(1))
+           class default
+           check(.false.)
+        end select
+        select type(array)
+           class is(par_scalar_array_t)
+           call array%create(par_environment, &
+                fe_space%get_block_dof_import(1))
+           class default
+           check(.false.)
+        end select
+     else
+        check(.false.)
+     end if
+     call fe_operator_create_par_assembler%set_matrix(matrix)
+     call fe_operator_create_par_assembler%set_array(array)
+     class default
+     check(.false.)
+  end select
+end function fe_operator_create_par_assembler
+
+function fe_operator_get_diagonal_blocks_symmetric_storage(this)
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  logical, pointer :: fe_operator_get_diagonal_blocks_symmetric_storage(:)
+  assert ( associated(this%get_state())  )
+  fe_operator_get_diagonal_blocks_symmetric_storage => this%diagonal_blocks_symmetric_storage
+end function fe_operator_get_diagonal_blocks_symmetric_storage
+
+function fe_operator_get_diagonal_blocks_symmetric(this)
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  logical, pointer :: fe_operator_get_diagonal_blocks_symmetric(:)
+  assert ( associated(this%get_state())  )
+  fe_operator_get_diagonal_blocks_symmetric => this%diagonal_blocks_symmetric
+end function fe_operator_get_diagonal_blocks_symmetric
+
+function fe_operator_get_diagonal_blocks_sign(this)
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  integer(ip), pointer :: fe_operator_get_diagonal_blocks_sign(:)
+  assert ( associated(this%get_state())  )
+  fe_operator_get_diagonal_blocks_sign => this%diagonal_blocks_sign
+end function fe_operator_get_diagonal_blocks_sign
+
+function fe_operator_get_sparse_matrix_storage_format(this)
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  character(:), pointer :: fe_operator_get_sparse_matrix_storage_format
+  assert ( associated(this%get_state())  )
+  fe_operator_get_sparse_matrix_storage_format => this%sparse_matrix_storage_format
+end function fe_operator_get_sparse_matrix_storage_format
+
+function fe_operator_get_state(this)
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  integer(ip), pointer :: fe_operator_get_state
+  fe_operator_get_state => this%state
+end function fe_operator_get_state
+
+function fe_operator_get_fe_space(this)
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  class(serial_fe_space_t), pointer :: fe_operator_get_fe_space
+  assert ( associated(this%get_state())  )
+  fe_operator_get_fe_space => this%test_fe_space
+end function fe_operator_get_fe_space
+
+function fe_operator_get_trial_fe_space(this)
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  class(serial_fe_space_t), pointer :: fe_operator_get_trial_fe_space
+  assert ( associated(this%get_state())  )
+  fe_operator_get_trial_fe_space => this%trial_fe_space
+end function fe_operator_get_trial_fe_space
+
+
+function fe_operator_get_discrete_integration(this)
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  class(discrete_integration_t), pointer :: fe_operator_get_discrete_integration
+  assert ( associated(this%get_state())  )
+  fe_operator_get_discrete_integration => this%discrete_integration
+end function fe_operator_get_discrete_integration
+
+function fe_operator_get_assembler(this)
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  class(assembler_t), pointer :: fe_operator_get_assembler
+  assert ( associated(this%get_state())  )
+  fe_operator_get_assembler => this%assembler
+end function fe_operator_get_assembler
+
+! op%apply(x,y) <=> y <- op*x
+! Implicitly assumes that y is already allocated
+subroutine fe_operator_apply(this,x,y) 
+  implicit none
+  class(fe_operator_t), intent(inout)    :: this
+  class(vector_t) , intent(in)    :: x
+  class(vector_t) , intent(inout) :: y 
+  call x%GuardTemp()
+  call this%abort_if_not_in_domain(x)
+  call this%abort_if_not_in_range(y)
+  call this%set_evaluation_point(x)
+  call this%compute_residual(y)
+  call x%CleanTemp()
+end subroutine fe_operator_apply
+
+! op%apply(x,y) <=> y <- op*x+y
+! Implicitly assumes that y is already allocated
+subroutine fe_operator_apply_add(this,x,y) 
+  implicit none
+  class(fe_operator_t), intent(inout)    :: this
+  class(vector_t) , intent(in)    :: x
+  class(vector_t) , intent(inout) :: y
+  class(vector_t), allocatable :: ws
+  integer(ip) :: istat
+  call this%create_range_vector(ws)
+  call x%GuardTemp()
+  call this%abort_if_not_in_domain(x)
+  call this%abort_if_not_in_range(y)
+  call this%set_evaluation_point(x)
+  call this%compute_residual(ws)
+  call y%axpby( 1.0_rp, ws, 1.0_rp )
+  call x%CleanTemp()
+  call ws%free()
+  deallocate(ws,stat=istat); check(istat == 0);
+end subroutine fe_operator_apply_add
+
+subroutine fe_operator_set_evaluation_point(this,x) 
+  implicit none
+  class(fe_operator_t), intent(inout)    :: this
+  class(vector_t) , target, intent(in)    :: x
+  assert ( associated(this%get_state()) )
+  call x%GuardTemp()
+  this%current_evaluation_point => x
+  call this%discrete_integration%set_evaluation_point(x)
+  call this%set_state(created)
+  call this%assembler%init_array(0.0_rp)  
+  call this%assembler%init_matrix(0.0_rp)
+  call x%CleanTemp()
+end subroutine fe_operator_set_evaluation_point
+
+function fe_operator_is_linear(this)
+  implicit none
+  class(fe_operator_t), intent(in) :: this
+  logical :: fe_operator_is_linear
+  fe_operator_is_linear = .false.
+end function fe_operator_is_linear
+
+function fe_operator_get_tangent(this) result(tangent)
+  implicit none
+  class(fe_operator_t), intent(in) :: this
+  type(lvalue_operator_t)          :: tangent
+  assert ( associated(this%get_state())  )
+  tangent = this%assembler%get_matrix()
+  call tangent%SetTemp()
+end function fe_operator_get_tangent
+
+function fe_operator_get_matrix(this)
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  class(matrix_t), pointer :: fe_operator_get_matrix
+  assert ( associated(this%get_state())  )
+  fe_operator_get_matrix => this%assembler%get_matrix()
+end function fe_operator_get_matrix
+
+function fe_operator_get_translation(this) result(translation)
+  implicit none
+  class(fe_operator_t), intent(in) :: this
+  class(vector_t), pointer                :: translation
+  assert ( associated(this%get_state())  )
+  translation => this%assembler%get_array()
+end function fe_operator_get_translation
+
+subroutine fe_operator_abort_if_not_in_domain ( this, vector )
+  implicit none
+  class(fe_operator_t), intent(in)  :: this
+  class(vector_t)            , intent(in)  :: vector
+  assert ( associated(this%get_state())  )
+  call operator_abort_if_not_in_domain(this,vector)
+end subroutine fe_operator_abort_if_not_in_domain
+
+subroutine fe_operator_abort_if_not_in_range ( this, vector )
+  implicit none
+  class(fe_operator_t), intent(in) :: this
+  class(vector_t)            , intent(in) :: vector
+  assert ( associated(this%get_state())  )
+  call operator_abort_if_not_in_range(this,vector)
+end subroutine fe_operator_abort_if_not_in_range
+
+function fe_operator_get_domain_vector_space ( this )
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  type(vector_space_t)               , pointer    :: fe_operator_get_domain_vector_space
+  assert ( associated(this%get_state())  )
+  fe_operator_get_domain_vector_space => operator_get_domain_vector_space(this)
+end function fe_operator_get_domain_vector_space
+
+function fe_operator_get_range_vector_space ( this )
+  implicit none
+  class(fe_operator_t), target, intent(in) :: this
+  type(vector_space_t)                  , pointer :: fe_operator_get_range_vector_space
+  assert ( associated(this%get_state())  )
+  fe_operator_get_range_vector_space => operator_get_range_vector_space(this)
+end function fe_operator_get_range_vector_space
+
+function fe_operator_get_current_evaluation_point(this) result(evaluation_point)
+  implicit none
+  class(fe_operator_t), intent(in) :: this
+  class(vector_t), pointer                :: evaluation_point
+  evaluation_point => this%current_evaluation_point
+end function fe_operator_get_current_evaluation_point
+
+function fe_operator_apply_fun(this,x) result(y)
+  implicit none
+  class(fe_operator_t)   , intent(inout)  :: this
+  class(vector_t)     , intent(in)  :: x
+  class(vector_t)     , allocatable :: y
+  type(vector_space_t), pointer     :: range_vector_space
+  range_vector_space => this%get_range_vector_space()
+  call range_vector_space%create_vector(y)
+  call this%apply(x,y)
+end function fe_operator_apply_fun
+
+! Triggers the computation of the residual and tangent
+! for the currently associated evaluation point, independently
+! of the current state of this. This is though to be called
+! whenever something external to this, but that affects to the
+! entries of the residual and tangent has changed, e.g., the level
+! set function in a topology optimization simulation.
+subroutine fe_operator_force_compute(this)
+  implicit none
+  class(fe_operator_t), intent(inout)    :: this  
+  assert ( associated(this%get_state()) )
+  call this%set_state(created)
+  call this%assembler%init_array(0.0_rp)  
+  call this%assembler%init_matrix(0.0_rp)
+  call this%compute_internal_residual()
+  call this%compute_tangent() 
+end subroutine fe_operator_force_compute
+
+subroutine fe_operator_compute_residual(this,y)
+  implicit none
+  class(fe_operator_t), intent(in) :: this
+  class(vector_t) ,        intent(inout) :: y 
+  class(environment_t), pointer :: environment
+  call this%compute_internal_residual()
+  y = this%get_translation()
+end subroutine fe_operator_compute_residual
+
+subroutine fe_operator_compute_internal_residual(this)
+  implicit none
+  class(fe_operator_t), intent(in) :: this
+  class(environment_t), pointer :: environment
+  assert ( associated(this%get_state())  )
+  assert ( associated(this%current_evaluation_point) )
+
+  if ( .not. ( this%get_state() == residual_computed .or. this%get_state() == assembler_computed ) ) then
+     environment => this%test_fe_space%get_environment()
+     if ( environment%am_i_l1_task() ) then
+        if ( associated(this%trial_fe_space) ) then
+           call this%discrete_integration%integrate_petrov_galerkin_residual( this%test_fe_space, this%trial_fe_space, this%assembler )
+        else
+           call this%discrete_integration%integrate_residual( this%test_fe_space, this%assembler )
+        end if
+     end if
+     call this%assembler%compress_storage_array()
+     if (this%get_state() == tangent_computed) then
+        call this%set_state(assembler_computed)
+     else ! created
+        assert ( this%get_state() == created )
+        call this%set_state(residual_computed)
+     end if
+  end if
+
+end subroutine fe_operator_compute_internal_residual
+
+subroutine fe_operator_compute_tangent(this)
+  implicit none
+  class(fe_operator_t), intent(inout) :: this
+  class(environment_t), pointer :: environment
+  assert ( associated(this%get_state())  )
+  assert ( associated(this%current_evaluation_point) )
+
+  if ( .not. ( this%get_state() == tangent_computed .or. this%get_state() == assembler_computed ) ) then
+     environment => this%test_fe_space%get_environment()
+     if ( environment%am_i_l1_task() ) then
+        if ( associated(this%trial_fe_space) ) then
+           call this%discrete_integration%integrate_petrov_galerkin_tangent( this%test_fe_space, this%trial_fe_space, this%assembler )
+        else
+           call this%discrete_integration%integrate_tangent( this%test_fe_space, this%assembler )
+        end if
+     end if
+     call this%assembler%compress_storage_matrix(this%sparse_matrix_storage_format)
+     if (this%get_state() == residual_computed) then
+        call this%set_state(assembler_computed)
+     else ! created
+        assert ( this%get_state() == created )
+        call this%set_state(assembler_computed)
+     end if
+  end if
+ end subroutine fe_operator_compute_tangent
+
+subroutine fe_operator_allocate_state(this)
+  implicit none
+  class(fe_operator_t), intent(inout) :: this
+  integer(ip) :: istat
+  call this%deallocate_state()
+  allocate(this%state, stat=istat); check(istat==0);  
+end subroutine fe_operator_allocate_state
+
+subroutine fe_operator_set_state(this, state)
+  implicit none
+  class(fe_operator_t), intent(in) :: this
+  integer(ip)                   , intent(in) :: state
+  assert ( associated(this%get_state()) ) 
+  this%state = state
+end subroutine fe_operator_set_state
+
+subroutine fe_operator_deallocate_state(this)
+  implicit none
+  class(fe_operator_t), intent(inout) :: this
+  integer(ip) :: istat
+  if ( associated(this%get_state()) )  then
+    deallocate(this%state, stat=istat); check(istat==0);
+  end if
+  nullify(this%state)
+end subroutine fe_operator_deallocate_state

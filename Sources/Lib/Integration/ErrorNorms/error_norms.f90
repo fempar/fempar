@@ -170,7 +170,7 @@ contains
        call environment%l1_max(aux)
        norm = norm + aux
     end select
-	
+ 
     select case ( trim(norm_type) )
     case(hcurl_seminorm) 
        assert( present(curl_values_norm) )
@@ -201,7 +201,7 @@ contains
                      (trim(norm_type) == w1infty_norm) .or. &
                      (trim(norm_type) == h1_seminorm) .or. &
                      (trim(norm_type) == hdiv_seminorm) .or. &
-					                (trim(norm_type) == hcurl_seminorm)    .or. &
+                     (trim(norm_type) == hcurl_seminorm)    .or. &
                      (trim(norm_type) == w1p_seminorm) .or. &
                      (trim(norm_type) == w1infty_seminorm) )
   end function error_norm_is_supported

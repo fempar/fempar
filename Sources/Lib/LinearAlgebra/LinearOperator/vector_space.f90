@@ -102,7 +102,7 @@ contains
        call vector%clone(this%vector)
        call vector%allocate()
      end subroutine vector_space_create_vector
-	
+ 
      ! Determines the dynamic type of the pointer result to match that of this 
      ! (when allocating the pointer result), copying the contents of this into the result 
      ! of the function. This deferred TBP only has sense in case of an aggregation/composition
@@ -143,12 +143,12 @@ contains
          deallocate(this%vector)
        end if  
      end subroutine vector_space_free
-					
-			function get_num_blocks(this) result(res)
+     
+   function get_num_blocks(this) result(res)
      implicit none 
      class(vector_space_t), intent(in) :: this
      integer(ip) :: res
-			  res = this%vector%get_num_blocks()
+     res = this%vector%get_num_blocks()
    end function get_num_blocks
      
 end module vector_space_names

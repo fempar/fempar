@@ -1,0 +1,41 @@
+#!/bin/sh
+export MKL_NUM_THREADS=1
+export OMP_NUM_THREADS=1
+MPIEXEC_PATH="$1"
+MPIEXEC_NP_FLAG="$2"
+MPIEXEC_PREFLAGS="$3"
+TEST_BINARY_PATH="$4"
+TEST_INPUT_DATA_PATH="$5"
+final_exit_code=0
+DIR=$(dirname "$TEST_BINARY_PATH")
+echo "$DIR"
+
+if [ -d "$DIR" ]
+then
+if [ -f "$TEST_BINARY_PATH" ]
+then
+  if [ -d "$TEST_INPUT_DATA_PATH" ] 
+  then
+
+     echo "$MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0"
+     $MPIEXEC_PATH $MPIEXEC_NP_FLAG 5 $MPIEXEC_PREFLAGS $TEST_BINARY_PATH -tt 1 -l 2 -np 2 2 0 1 1 0 -n 8 8 0
+     if [ $? -ne 0 ] 
+     then
+      final_exit_code=1
+     fi
+
+   else
+      echo "$0: input data directory not found!"
+      final_exit_code=1
+   fi
+else
+  echo "$0: BINARY not found! Value PROVIDED: $4."
+  final_exit_code=1
+fi
+else
+  echo "$0: PART not found! Value PROVIDED: $DIR/part."
+  final_exit_code=1
+fi
+rm -Rf $TEST_COMBINATIONS_FILE_NAME
+exit $final_exit_code 
+

@@ -41,34 +41,34 @@ module assembler_names
    contains
      procedure (assembly_array_interface)  , deferred :: assembly_array
      procedure (assembly_matrix_interface) , deferred :: assembly_matrix
-     procedure (compress_storage_interface), deferred :: compress_storage
-     procedure                                        :: set_matrix       => assembler_set_matrix
-     procedure                                        :: set_array        => assembler_set_array
-     procedure                                        :: allocate_array   => assembler_allocate_array
-     procedure                                        :: allocate_matrix  => assembler_allocate_matrix
-     procedure                                        :: init_array       => assembler_init_array
-     procedure                                        :: init_matrix      => assembler_init_matrix
-     procedure                                        :: free_in_stages   => assembler_free_in_stages
-     procedure                                        :: free             => assembler_free
-     procedure                                        :: get_matrix       => assembler_get_matrix
-     procedure                                        :: get_array        => assembler_get_array
+     procedure (compress_storage_matrix_interface), deferred :: compress_storage_matrix 
+     procedure                                        :: compress_storage_array => assembler_compress_storage_array 
+     procedure                                        :: compress_storage       => assembler_compress_storage 
+     procedure                                        :: set_matrix             => assembler_set_matrix
+     procedure                                        :: set_array              => assembler_set_array
+     procedure                                        :: allocate_array         => assembler_allocate_array
+     procedure                                        :: allocate_matrix        => assembler_allocate_matrix
+     procedure                                        :: init_array             => assembler_init_array
+     procedure                                        :: init_matrix            => assembler_init_matrix
+     procedure                                        :: free_in_stages         => assembler_free_in_stages
+     procedure                                        :: free                   => assembler_free
+     procedure                                        :: get_matrix             => assembler_get_matrix
+     procedure                                        :: get_array              => assembler_get_array
   end type assembler_t
-		 
+   
   abstract interface
      
      subroutine assembly_array_interface( this,           & 
-                                          num_fields,  &
+                                          num_fields,     &
                                           field_blocks,   &
-                                          field_coupling, &
-                                          num_dofs,    &
-                                          fe_dofs,       &
+                                          num_dofs,       &
+                                          fe_dofs,        &
                                           elvec )
        import :: assembler_t, rp, ip, i1p_t
        implicit none
        class(assembler_t) , intent(inout) :: this
        integer(ip)                     , intent(in)    :: num_fields
        integer(ip)                     , intent(in)    :: field_blocks(num_fields)
-       logical                         , intent(in)    :: field_coupling(num_fields,num_fields)
        integer(ip)                     , intent(in)    :: num_dofs(num_fields)
        type(i1p_t)                     , intent(in)    :: fe_dofs(num_fields)
        real(rp)                        , intent(in)    :: elvec(:)
@@ -96,20 +96,41 @@ module assembler_names
        real(rp)                       , intent(in)    :: elmat(:,:) 
      end subroutine assembly_matrix_interface
 
-     subroutine compress_storage_interface( this, & 
+     subroutine compress_storage_matrix_interface( this, & 
           &                                 sparse_matrix_storage_format )
        import :: assembler_t
        implicit none
        class(assembler_t) , intent(inout) :: this
        character(*)          , intent(in)    :: sparse_matrix_storage_format
-     end subroutine compress_storage_interface
+     end subroutine compress_storage_matrix_interface
      
+     subroutine compress_storage_array_interface( this )
+       import :: assembler_t
+       implicit none
+       class(assembler_t) , intent(inout) :: this
+     end subroutine compress_storage_array_interface
+          
     end interface
     
   ! Data types
   public :: assembler_t
+  public :: assembler_set_matrix, assembler_set_array
   
 contains
+  subroutine assembler_compress_storage_array(this)
+    implicit none
+    class(assembler_t), intent(inout) :: this
+    ! Do-nothing unless being overriden 
+  end subroutine assembler_compress_storage_array
+
+  subroutine assembler_compress_storage(this, sparse_matrix_storage_format)
+    implicit none
+    class(assembler_t), intent(inout) :: this
+    character(*)      , intent(in)    :: sparse_matrix_storage_format
+    call this%compress_storage_matrix( sparse_matrix_storage_format ) 
+    call this%compress_storage_array() 
+  end subroutine assembler_compress_storage
+  
   ! Sets the pointer to class(matrix_t) in such a way that this 
   ! can become reponsible to free it later on 
   subroutine assembler_set_matrix(this,matrix)
@@ -174,7 +195,6 @@ contains
     call this%free_in_stages(free_numerical_setup)
     call this%free_in_stages(free_symbolic_setup)
     call this%free_in_stages(free_clean)
-
   end subroutine assembler_free
   
     function assembler_get_matrix(this)

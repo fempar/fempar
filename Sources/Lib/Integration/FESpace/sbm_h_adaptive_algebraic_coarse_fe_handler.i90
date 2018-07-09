@@ -1,0 +1,287 @@
+! Copyright (C) 2014 Santiago Badia, Alberto F. Martín and Javier Principe
+!
+! This file is part of FEMPAR (Finite Element Multiphysics PARallel library)
+!
+! FEMPAR is free software: you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! FEMPAR is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with FEMPAR. If not, see <http://www.gnu.org/licenses/>.
+!
+! Additional permission under GNU GPL version 3 section 7
+!
+! If you modify this Program, or any covered work, by linking or combining it 
+! with the Intel Math Kernel Library and/or the Watson Sparse Matrix Package 
+! and/or the HSL Mathematical Software Library (or a modified version of them), 
+! containing parts covered by the terms of their respective licenses, the
+! licensors of this Program grant you additional permission to convey the 
+! resulting work. 
+!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! ========================================================================================
+subroutine h_adaptive_algebraic_l1_setup_weighting_operator(this, field_id, par_fe_space, parameter_list, weighting_operator) 
+  implicit none
+  class(h_adaptive_algebraic_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  real(rp), allocatable                 , intent(inout) :: weighting_operator(:)
+  integer(ip)            , allocatable :: num_parts_around_dof(:)
+  integer(ip)                          :: block_id
+  integer(ip)            , pointer     :: field_to_block(:)
+  type(dof_import_t)     , pointer     :: dof_import
+  integer(ip)                          :: neighbour_gid, object_gid  
+  integer(ip)            , pointer     :: snd_ptrs(:), pack_idx(:)  
+  integer(ip)            , pointer     :: rcv_ptrs(:), unpack_idx(:)
+  integer(ip)                          :: idof, num_fine_dofs 
+  ! Check consistency of weighting operator 
+  type(environment_t), pointer         :: environment
+  type(par_scalar_array_t)             :: par_array 
+  type(serial_scalar_array_t), pointer :: serial_array
+  real(rp), pointer                    :: array_entries(:) 
+
+
+  field_to_block => par_fe_space%get_field_blocks()
+  block_id = field_to_block(field_id)
+  dof_import => par_fe_space%get_block_dof_import(block_id)
+  environment => par_fe_space%get_environment() 
+  num_fine_dofs =  size(weighting_operator)
+  call memalloc (num_fine_dofs, num_parts_around_dof, __FILE__, __LINE__ )
+  num_parts_around_dof=1
+
+  ! Count number of parts around for locally owned DoFs  
+  rcv_ptrs   => dof_import%get_rcv_ptrs()
+  unpack_idx => dof_import%get_unpack_idx()
+  do neighbour_gid=1, dof_import%get_num_rcv()  
+     do idof=rcv_ptrs(neighbour_gid),rcv_ptrs(neighbour_gid+1)-1
+        num_parts_around_dof(unpack_idx(idof)) = num_parts_around_dof(unpack_idx(idof))+1
+     end do
+  end do
+
+  ! Communicate number of parts around to non-owner parts
+  call environment%l1_neighbours_exchange ( dof_import%get_num_snd(),    &
+                                            dof_import%get_list_snd(),   &
+                                            dof_import%get_snd_ptrs(),   &
+                                            dof_import%get_pack_idx(),   &
+                                            dof_import%get_num_rcv(),    &
+                                            dof_import%get_list_rcv(),   &
+                                            dof_import%get_rcv_ptrs(),   &
+                                            dof_import%get_unpack_idx(), &
+                                            num_parts_around_dof,        &
+                                            num_parts_around_dof )
+
+  ! Fill weighting operator 
+  do idof =1,num_fine_dofs
+     weighting_operator(idof) = 1.0_rp/(real(num_parts_around_dof(idof),rp))
+  end do
+
+     
+#ifdef DEBUG  
+  ! Check consistent weighting operator (debug purposes)
+  call par_array%create_and_allocate(environment, dof_import)
+  serial_array  => par_array%get_serial_scalar_array()
+  array_entries => serial_array%get_entries()
+  array_entries(:) = weighting_operator(:) 
+  call par_array%comm()
+  do idof=1, num_fine_dofs
+     massert ( abs(array_entries(idof)-1.0_rp)<1e-15 , 'Weighting operator is not partition of unity' ) 
+  end do
+  call par_array%free()
+#endif
+  call memfree ( num_parts_around_dof, __FILE__, __LINE__ )
+end subroutine h_adaptive_algebraic_l1_setup_weighting_operator
+
+subroutine h_adaptive_algebraic_l1_get_num_coarse_dofs(this, field_id, par_fe_space, parameter_list, num_coarse_dofs)
+  implicit none
+  class(h_adaptive_algebraic_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  integer(ip)                           , intent(inout) :: num_coarse_dofs(:)
+  
+  integer(ip)                            :: ivef_within_cell
+  integer(ip)                            :: ivef_within_object
+  integer(ip)                            :: icell_around
+  integer(ip)                            :: idof, dof_lid
+  logical                                :: dofs_on_vef
+  type(environment_t), pointer           :: par_environment
+  type(fe_object_iterator_t)             :: object
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_cell_iterator_t), allocatable      :: fe
+  class(reference_fe_t), pointer         :: reference_fe
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator
+  integer(ip), pointer                   :: fe_dofs(:)
+  logical                                :: use_vertices, use_edges, use_faces
+  
+  par_environment => par_fe_space%get_environment()
+  assert ( associated ( par_environment ) )
+  assert ( par_environment%am_i_l1_task() )
+  assert ( size(num_coarse_dofs) == par_fe_space%get_num_fe_objects() )
+  
+  call this%get_coarse_space_use_vertices_edges_faces(parameter_list,& 
+                                                      use_vertices, &
+                                                      use_edges, &
+                                                      use_faces)
+
+  ! First, count how many coarse_dofs there are on the interface of my subdomain
+  num_coarse_dofs = 0
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_cell_iterator(fe)
+  call par_fe_space%create_fe_vef_iterator(vef)
+  do while ( .not. object%has_finished() )
+  
+     select case ( object%get_dim() )
+     case (0)
+       if (.not. use_vertices) then
+         call object%next(); cycle
+       end if  
+     case (1)
+       if (.not. use_edges) then
+         call object%next(); cycle
+       end if  
+     case (2)
+       if (.not. use_faces) then
+         call object%next(); cycle
+       end if  
+     end select
+     
+     dofs_on_vef = .false.
+     do ivef_within_object=1, object%get_num_vefs()
+        call object%get_vef(ivef_within_object,vef)
+        reference_fe => fe%get_reference_fe(field_id)
+        do icell_around=1, vef%get_num_cells_around()
+           call vef%get_cell_around(icell_around,fe)
+              !Get GID of dofs on cell fe
+              call fe%get_field_fe_dofs(field_id, fe_dofs)
+              ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
+
+              own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+              do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                 idof    = own_dofs_on_vef_iterator%get_current()
+                 dof_lid = fe_dofs(idof)
+                 if ( par_fe_space%is_free_dof(dof_lid) ) then
+                    dofs_on_vef = .true.
+                    exit
+                 end if
+                 call own_dofs_on_vef_iterator%next()
+              end do
+
+        end do
+        
+        if ( dofs_on_vef ) then
+           ! It must be thought for more general cases (vectors, tensor product...)
+           num_coarse_dofs(object%get_gid()) = num_coarse_dofs(object%get_gid()) + reference_fe%get_num_field_components()
+           exit
+        end if
+
+     end do
+     call object%next()
+  end do
+  call par_fe_space%free_fe_vef_iterator(vef)
+  call par_fe_space%free_fe_cell_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+end subroutine h_adaptive_algebraic_l1_get_num_coarse_dofs
+
+subroutine h_adaptive_algebraic_l1_setup_constraint_matrix(this, field_id, par_fe_space, parameter_list, constraint_matrix) 
+  implicit none
+  class(h_adaptive_algebraic_l1_coarse_fe_handler_t), intent(in)    :: this
+  integer(ip)                           , intent(in)    :: field_id
+  type(par_fe_space_t)                  , intent(in)    :: par_fe_space
+  type(parameterlist_t)                 , intent(in)    :: parameter_list
+  type(coo_sparse_matrix_t)             , intent(inout) :: constraint_matrix
+  type(environment_t), pointer :: par_environment
+  type(fe_object_iterator_t) :: object
+  type(fe_vef_iterator_t)                :: vef
+  class(fe_cell_iterator_t), allocatable      :: fe
+  class(reference_fe_t), pointer         :: reference_fe
+  type(list_iterator_t)                  :: own_coarse_dofs_iterator
+  type(list_iterator_t)                  :: own_dofs_on_vef_iterator 
+  integer(ip), pointer                   :: fe_dofs(:)
+  integer(ip)                            :: off
+  integer(ip) :: istat
+  integer(ip) :: num_cols
+  integer(ip) :: num_fine_dofs_on_coarse_dof
+  integer(ip) :: ivef_within_cell, ivef_within_object, idof, dof_lid, coarse_dof_lid, icell_around, icomp
+  type(hash_table_ip_ip_t) :: visited_dofs
+  
+  
+  par_environment => par_fe_space%get_environment()
+  assert (associated(par_environment))
+  assert (par_environment%am_i_l1_task())
+  
+  num_cols = par_fe_space%num_dofs_x_field(field_id)
+  call visited_dofs%init(num_cols)
+             
+  ! Fill constraint matrix entries (transposed)
+  call par_fe_space%create_fe_object_iterator(object)
+  call par_fe_space%create_fe_cell_iterator(fe)
+  call par_fe_space%create_fe_vef_iterator(vef)
+  do while ( .not. object%has_finished() )
+
+     if ( object%get_num_coarse_dofs(field_id) > 0 ) then
+
+       num_fine_dofs_on_coarse_dof = 0 
+       ! Count how many fine DoFs current coarse DoF aggregates
+       do ivef_within_object=1, object%get_num_vefs() 
+          call object%get_vef(ivef_within_object,vef)
+          do icell_around=1, vef%get_num_cells_around()          
+             call vef%get_cell_around(icell_around,fe)
+                call fe%get_field_fe_dofs(field_id, fe_dofs)
+                ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
+                own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+                do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                   idof    = own_dofs_on_vef_iterator%get_current()
+                   dof_lid = fe_dofs(idof)
+                   if ( par_fe_space%is_free_dof(dof_lid) ) then
+                      call visited_dofs%put(key=dof_lid,val=ivef_within_cell,stat=istat)
+                      if ( istat == now_stored ) then
+                         num_fine_dofs_on_coarse_dof = num_fine_dofs_on_coarse_dof + 1
+                      end if
+                   end if
+                   call own_dofs_on_vef_iterator%next()
+                end do
+          end do
+       end do
+       own_coarse_dofs_iterator = object%create_own_coarse_dofs_iterator(field_id)
+       coarse_dof_lid = own_coarse_dofs_iterator%get_current() - 1 
+       call visited_dofs%init(num_cols)       
+       
+       do ivef_within_object=1, object%get_num_vefs()
+          call object%get_vef(ivef_within_object,vef)
+          do icell_around=1, vef%get_num_cells_around() 
+             call vef%get_cell_around(icell_around,fe)
+                reference_fe => fe%get_reference_fe(field_id)
+                assert ( own_coarse_dofs_iterator%get_size() ==  reference_fe%get_num_field_components())
+                call fe%get_field_fe_dofs(field_id, fe_dofs)
+                ivef_within_cell = fe%get_vef_lid_from_gid(vef%get_gid())
+                own_dofs_on_vef_iterator = fe%create_own_dofs_on_vef_iterator(ivef_within_cell, field_id)
+                do while ( .not. own_dofs_on_vef_iterator%is_upper_bound() )
+                   idof    = own_dofs_on_vef_iterator%get_current()
+                   icomp   = reference_fe%get_component_node(idof)
+                   dof_lid = fe_dofs(idof)
+                   if ( par_fe_space%is_free_dof(dof_lid) ) then
+                      call visited_dofs%put(key=dof_lid,val=ivef_within_cell,stat=istat)
+                      if ( istat == now_stored ) then
+                         call constraint_matrix%insert(dof_lid, coarse_dof_lid + icomp, reference_fe%get_num_field_components()/real(num_fine_dofs_on_coarse_dof,rp))
+                         !call constraint_matrix%insert(dof_lid, coarse_dof_lid, 1.0_rp/real(num_fine_dofs_on_coarse_dof,rp))
+                      end if
+                   end if
+                   call own_dofs_on_vef_iterator%next()
+                end do
+          end do
+       end do
+     end if
+     call object%next()
+  end do
+  call par_fe_space%free_fe_cell_iterator(fe)
+  call par_fe_space%free_fe_object_iterator(object)
+  call par_fe_space%free_fe_vef_iterator(vef)
+
+end subroutine h_adaptive_algebraic_l1_setup_constraint_matrix

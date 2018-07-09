@@ -115,48 +115,52 @@ subroutine tet_raviart_thomas_fill_interpolation ( this, quadrature, interpolati
   type(interpolation_t)           , intent(inout) :: interpolation 
   integer(ip) , optional          , intent(in)    :: order_vector(SPACE_DIM)
   real(rp), pointer :: coord_ip(:,:)
-  type(interpolation_t) :: scalar_interpolation
+  type(interpolation_t)        :: scalar_interpolation
+  type(interpolation_duties_t) :: scalar_interpolation_duties
   integer(ip) :: iquad,idime,ishape
 
   coord_ip => quadrature%get_coordinates()
 
-  ! Create an auxiliary interpolation with num_nodes_scalar shape functions (scalar one)
-  call scalar_interpolation%create( interpolation%num_dims, this%node_array%num_nodes, &
-       interpolation%num_quadrature_points, 0, .false. )
+  mcheck(.not.interpolation%my_duties%compute_second_derivatives_is_assigned(),'Hessian not defined for vector Lagrangian')
 
-  if ( allocated( interpolation%hessian ) )  then 
-     write(*,*) __FILE__,__LINE__,'ERROR:: Hessian not defined for vector Lagrangian'
-     check(.false.)
-  else
-     do iquad = 1,interpolation%num_quadrature_points
-        call this%raviart_thomas_evaluate_interpolation( coord_ip(:,iquad),                             &
-             scalar_interpolation%num_dims,               &
-             scalar_interpolation%num_shape_functions,          &
-             scalar_interpolation%num_entries_symmetric_tensor, &
-             scalar_interpolation%shape_functions(1,:,iquad),        &
-             scalar_interpolation%shape_derivatives(1,:,:,iquad) )
-     end do
-  end if
+  ! Create an auxiliary interpolation with num_nodes_scalar shape functions (scalar one)
+  call scalar_interpolation_duties%assign_compute_first_derivatives(.true.)
+  call scalar_interpolation_duties%assign_compute_second_derivatives(.false.)
+  call scalar_interpolation%create( interpolation%num_dims, this%node_array%num_nodes, &
+       interpolation%num_quadrature_points, scalar_interpolation_duties )
+
+  do iquad = 1,interpolation%num_quadrature_points
+     call this%raviart_thomas_evaluate_interpolation( coord_ip(:,iquad), &
+          &           scalar_interpolation%num_dims, &
+          &           scalar_interpolation%num_shape_functions, &
+          &           scalar_interpolation%num_entries_symmetric_tensor, &
+          &           scalar_interpolation%shape_functions(1,:,iquad), &
+          &           scalar_interpolation%shape_derivatives(1,:,:,iquad) )
+  end do
 
   interpolation%shape_functions = 0.0_rp
-  interpolation%shape_derivatives = 0.0_rp  
   do idime = 1,this%num_dims
      do ishape = 1,this%num_shape_functions
         do iquad = 1, interpolation%num_quadrature_points
            interpolation%shape_functions(this%node_component_array(ishape,2),ishape,iquad) &
                 & = scalar_interpolation%shape_functions(1,this%node_component_array(ishape,1),iquad)
-           interpolation%shape_derivatives(this%node_component_array(ishape,2),:,ishape,iquad) &
-                & = scalar_interpolation%shape_derivatives(1,:,this%node_component_array(ishape,1),iquad)
         end do
      end do
   end do
+  if(interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     interpolation%shape_derivatives = 0.0_rp  
+     do idime = 1,this%num_dims
+        do ishape = 1,this%num_shape_functions
+           do iquad = 1, interpolation%num_quadrature_points
+              interpolation%shape_derivatives(this%node_component_array(ishape,2),:,ishape,iquad) &
+                   & = scalar_interpolation%shape_derivatives(1,:,this%node_component_array(ishape,1),iquad)
+           end do
+        end do
+     end do
+  end if
 
   call scalar_interpolation%free()
 
-  if ( allocated( interpolation%hessian ) )  then 
-     write(*,*) __FILE__,__LINE__,'ERROR:: Hessian not defined for vector Lagrangian'
-     check(.false.)
-  end if
 end subroutine tet_raviart_thomas_fill_interpolation
 
 !==================================================================================================
@@ -173,63 +177,69 @@ subroutine tet_raviart_thomas_fill_interp_restricted_to_facet (this, local_quadr
   real(rp)   , allocatable :: global_coordinates(:)
   integer(ip)              :: idime, iquad, ishape, p_local_coordinate
   type(interpolation_t)    :: scalar_interpolation
+  type(interpolation_duties_t) :: scalar_interpolation_duties
 
   ! Exit if attempts to fill the interpolation of a subface
   if ( subfacet_lid >= 0 ) return
+ 
+  mcheck(.not.facet_interpolation%my_duties%compute_second_derivatives_is_assigned(),'Hessian not defined for vector Lagrangian')
   
   ! Create an auxiliary interpolation with num_nodes_scalar shape functions (scalar one)
+  call scalar_interpolation_duties%assign_compute_first_derivatives(.true.)
+  call scalar_interpolation_duties%assign_compute_second_derivatives(.false.)
   call scalar_interpolation%create( facet_interpolation%num_dims, this%node_array%num_nodes, &
-       facet_interpolation%num_quadrature_points, 0, .false. )
+       facet_interpolation%num_quadrature_points, scalar_interpolation_duties )
 
   call memalloc(facet_interpolation%num_dims,global_coordinates,__FILE__,__LINE__)
 
-  ! Evaluate shape functions and derivatives at the gauss points
-  if ( allocated( facet_interpolation%hessian ) )  then  
-     write(*,*) 'Hessian not implemented for vector Lagrangian ref fe'
-     check(.false.)
-  else
-     do iquad = 1,scalar_interpolation%num_quadrature_points
-        ! Transform face local coordinates to element global coordinates
-        if (facet_lid <= scalar_interpolation%num_dims ) then 
-           ! Orthogonal face in the reference element
-           p_local_coordinate = 1
-           do idime = 1, scalar_interpolation%num_dims
-              if (idime == scalar_interpolation%num_dims + 1 - facet_lid ) then
-                 global_coordinates(idime) = 0.0_rp
-              else
-                 global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
-                 p_local_coordinate = p_local_coordinate + 1
-              end if
-           end do
-        else 
-           ! Non-orthogonal face in the reference element
-           global_coordinates(1) = 1 - sum(local_quadrature%coordinates(:,iquad))
-           global_coordinates(2:scalar_interpolation%num_dims) = & 
-                & local_quadrature%coordinates(:,iquad)
-        end if
-        ! Evaluate shape functions and derivatives at the gauss points
-        call this%raviart_thomas_evaluate_interpolation( global_coordinates,                                 &
-             scalar_interpolation%num_dims,               &
+  do iquad = 1,scalar_interpolation%num_quadrature_points
+     ! Transform face local coordinates to element global coordinates
+     if (facet_lid <= scalar_interpolation%num_dims ) then 
+        ! Orthogonal face in the reference element
+        p_local_coordinate = 1
+        do idime = 1, scalar_interpolation%num_dims
+           if (idime == scalar_interpolation%num_dims + 1 - facet_lid ) then
+              global_coordinates(idime) = 0.0_rp
+           else
+              global_coordinates(idime) = local_quadrature%coordinates(p_local_coordinate,iquad)
+              p_local_coordinate = p_local_coordinate + 1
+           end if
+        end do
+     else 
+        ! Non-orthogonal face in the reference element
+        global_coordinates(1) = 1 - sum(local_quadrature%coordinates(:,iquad))
+        global_coordinates(2:scalar_interpolation%num_dims) = & 
+             & local_quadrature%coordinates(:,iquad)
+     end if
+     ! Evaluate shape functions and derivatives at the gauss points
+     call this%raviart_thomas_evaluate_interpolation( global_coordinates,                                 &
+          scalar_interpolation%num_dims,               &
              scalar_interpolation%num_shape_functions,          &
              scalar_interpolation%num_entries_symmetric_tensor, &
              scalar_interpolation%shape_functions(1,:,iquad),        &
-             scalar_interpolation%shape_derivatives(1,:,:,iquad) )
-     end do
-  end if
+             scalar_interpolation%shape_derivatives(1,:,:,iquad))
+  end do
 
   facet_interpolation%shape_functions = 0.0_rp
-  facet_interpolation%shape_derivatives = 0.0_rp  
   do idime = 1,this%num_dims
      do ishape = 1,this%num_shape_functions
         do iquad = 1, facet_interpolation%num_quadrature_points
            facet_interpolation%shape_functions(this%node_component_array(ishape,2),ishape,iquad) &
                 & = scalar_interpolation%shape_functions(1,this%node_component_array(ishape,1),iquad)
-           facet_interpolation%shape_derivatives(this%node_component_array(ishape,2),:,ishape,iquad) &
-                & = scalar_interpolation%shape_derivatives(1,:,this%node_component_array(ishape,1),iquad)
         end do
      end do
   end do
-
+  if(facet_interpolation%my_duties%compute_first_derivatives_is_assigned()) then
+     facet_interpolation%shape_derivatives = 0.0_rp  
+     do idime = 1,this%num_dims
+        do ishape = 1,this%num_shape_functions
+           do iquad = 1, facet_interpolation%num_quadrature_points
+              facet_interpolation%shape_derivatives(this%node_component_array(ishape,2),:,ishape,iquad) &
+                   & = scalar_interpolation%shape_derivatives(1,:,this%node_component_array(ishape,1),iquad)
+           end do
+        end do
+     end do
+  end if
   call memfree(global_coordinates,__FILE__,__LINE__)
 
 end subroutine tet_raviart_thomas_fill_interp_restricted_to_facet

@@ -50,6 +50,8 @@ contains
   STD_VECTOR_ERASE(type(quadrature_t),quadrature)
   STD_VECTOR_COPY(type(quadrature_t),quadrature)
   STD_VECTOR_SET(type(quadrature_t),quadrature)
+  STD_VECTOR_INIT(type(quadrature_t),quadrature)
+  STD_VECTOR_CAT(type(quadrature_t),quadrature)
   STD_VECTOR_SIZE(type(quadrature_t),quadrature)
   STD_VECTOR_CAPACITY(type(quadrature_t),quadrature)
   STD_VECTOR_GET(type(quadrature_t),quadrature)

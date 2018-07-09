@@ -46,6 +46,7 @@ subroutine base_map_copy( this, other )
   integer(ip) :: istat
   call this%free()
   this%num_dims = other%num_dims
+  this%num_nodes = other%num_nodes
   this%num_quadrature_points = other%num_quadrature_points
   call memalloc(this%num_quadrature_points, &
                 this%det_jacobian,__FILE__,__LINE__)
@@ -89,17 +90,19 @@ end function base_map_get_quadrature_points_coordinates
 subroutine base_map_compute_quadrature_points_coordinates(this)
   implicit none
   class(base_map_t), intent(inout) :: this
-  integer(ip)   :: qpoin,inode,nnode,nquad
-  nnode = this%interpolation%num_shape_functions
-  nquad = this%num_quadrature_points
-  do qpoin = 1,nquad
-     call this%quadrature_points_coordinates(qpoin)%init(0.0_rp)
-     do inode=1,nnode
-        this%quadrature_points_coordinates(qpoin) = this%quadrature_points_coordinates(qpoin) + &
-             & this%nodes_coordinates(inode) * this%interpolation%shape_functions(1,inode,qpoin)
-     end do
-  end do
+  call compute_point_1D_array_lin_comb_with_3D_plain_array ( this%interpolation%shape_functions, &
+                                                             this%nodes_coordinates, &
+                                                             this%quadrature_points_coordinates )
 end subroutine base_map_compute_quadrature_points_coordinates
+
+!==================================================================================================
+subroutine base_map_compute_jacobian(this)
+  implicit none
+  class(base_map_t), intent(inout) :: this
+  call compute_3D_plain_array_lin_comb_with_point_1D_array ( this%interpolation%shape_derivatives, &
+                                                     this%nodes_coordinates, &
+                                                     this%jacobian)
+end subroutine base_map_compute_jacobian
 
 !==================================================================================================
 function base_map_get_det_jacobian ( this, i )
@@ -111,12 +114,21 @@ function base_map_get_det_jacobian ( this, i )
 end function base_map_get_det_jacobian
 
 !==================================================================================================
-function base_map_get_det_jacobians ( this )
+subroutine  base_map_get_det_jacobians ( this, det_jacobians )
+  implicit none
+  class(base_map_t), intent(in)    :: this
+  real(rp)         , intent(inout) :: det_jacobians(:)
+  assert ( size(det_jacobians) >= this%num_quadrature_points )
+  det_jacobians(1:this%num_quadrature_points) = this%det_jacobian(1:this%num_quadrature_points)
+end subroutine  base_map_get_det_jacobians
+
+!==================================================================================================
+function base_map_get_pointer_det_jacobians ( this )
   implicit none
   class(base_map_t), target, intent(in) :: this
-  real(rp), pointer :: base_map_get_det_jacobians(:)
-  base_map_get_det_jacobians => this%det_jacobian
-end function base_map_get_det_jacobians
+  real(rp), pointer :: base_map_get_pointer_det_jacobians(:)
+  base_map_get_pointer_det_jacobians => this%det_jacobian
+end function base_map_get_pointer_det_jacobians
 
 !==================================================================================================
 subroutine base_map_get_jacobian_column ( this, column_id, qpoint, column )

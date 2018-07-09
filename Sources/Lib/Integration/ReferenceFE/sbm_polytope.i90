@@ -702,7 +702,14 @@ subroutine node_iterator_create_on_n_subface ( this, node_array, n_face, n_subfa
   do i = 0, node_array%polytope%num_dims-1
      if ( IBITS( this%n_face, node_array%polytope%num_dims+i, 1 ) == 1 ) then 
         aux_order(c+1) = node_array%order(i+1) / ( num_refinements + 1 )
-        if ( IBITS( n_subface, c, 1 ) == 1 ) this%min_value(c) = aux_order(c+1)
+
+        if ( IBITS( n_subface, c, 1 ) == 1 ) then 
+        this%min_value(c) = aux_order(c+1)
+         if ( node_array%order(i+1) == 1 ) then 
+            this%min_value(c) = this%min_value(c) + 1
+         end if 
+        end if 
+        
         if ( IBITS( this%node_array%polytope%topology, i, 1 ) == 1 ) then 
            this%topology = IBSET( this%topology, c )
         else
@@ -710,7 +717,7 @@ subroutine node_iterator_create_on_n_subface ( this, node_array, n_face, n_subfa
            check(.false.)
         end if
         c = c+1
-     end if
+     end if   
   end do
   this%max_value = this%min_value + aux_order
   if ( .not. own_boundary ) then
@@ -732,14 +739,14 @@ subroutine node_iterator_init ( this )
   c = 0
   do i = 0, this%node_array%polytope%num_dims-1
      if ( IBITS( this%n_face, this%node_array%polytope%num_dims+i, 1 ) == 0 ) then  ! if is fixed component in n-face
-	       if ( this%node_array%order(i+1) > 0) then ! order >= 1 otherwise no sense coordinate
+        if ( this%node_array%order(i+1) > 0) then ! order >= 1 otherwise no sense coordinate
            if ( IBITS( this%n_face, i, 1 ) == 0 ) then   ! if coordinate of anchor node == 0
               this%coordinate(i) = 0                     ! fixed coordinate = min value
            else
               this%coordinate(i) = this%node_array%order(i+1) ! fixed coordinate = max value   
            end if
         else
-	          this%overflow = .true.
+           this%overflow = .true.
         end if
      else 
         this%displacement(c) = this%min_value(c)

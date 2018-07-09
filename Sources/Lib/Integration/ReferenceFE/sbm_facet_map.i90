@@ -48,8 +48,8 @@ subroutine facet_map_create(this,quadrature,reference_fe_geo)
   call reference_fe_geo%create_facet_interpolation &
        &                ( quadrature, this%interpolation)
 
-  call memalloc(this%num_dims, &
-                num_facet_dims, &
+  call memalloc(SPACE_DIM, &
+                SPACE_DIM, &
                 this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
 
@@ -78,10 +78,7 @@ subroutine facet_map_update(this,reorientation_factor,quadrature)
   type(quadrature_t)   , intent(in)    :: quadrature
 
   integer(ip) :: evaluation_point_id, node_id, idime, jdime
-  integer(ip) :: num_facet_dims
   type(vector_field_t) :: aux_vector
-
-  num_facet_dims = this%interpolation%num_dims
   
   ! See comment in facet_orientation (polytope module) about the reasoning behind this
   call this%compute_quadrature_points_coordinates()
@@ -90,18 +87,8 @@ subroutine facet_map_update(this,reorientation_factor,quadrature)
   this%measure            = 0.0_rp 
   do evaluation_point_id = 1, quadrature%num_quadrature_points
 
-     ! Update the Jacobian Matrix
-     do jdime=1, num_facet_dims
-        aux_vector = 0.0_rp
-        do node_id = 1, this%interpolation%num_shape_functions
-           aux_vector = aux_vector + this%nodes_coordinates(node_id) * &
-                & this%interpolation%shape_derivatives(1,jdime,node_id,evaluation_point_id)
-        end do
-        do idime=1,this%num_dims
-           this%jacobian(idime,jdime,evaluation_point_id) = aux_vector%get(idime)
-        end do
-
-     end do
+     ! Compute jacobian matrix
+     call this%compute_jacobian()
 
      ! Compute outside normals (using the Jacobian Matrix)
      if ( this%num_dims == 1) then
@@ -135,10 +122,19 @@ subroutine facet_map_update(this,reorientation_factor,quadrature)
      ! and make it point in the correct direction
      this%normals (:,evaluation_point_id) = this%normals (:,evaluation_point_id) *                &
           &                                                             real(reorientation_factor) 
-										
+          
      this%measure = this%measure + this%det_jacobian(evaluation_point_id) * quadrature%get_weight(evaluation_point_id)
   end do
 end subroutine facet_map_update
+
+!==================================================================================================
+subroutine facet_map_update_interpolation( this, quadrature, reference_fe_geometry )
+  implicit none
+  class(facet_map_t)               , intent(inout) :: this
+  type(quadrature_t)              , intent(in)    :: quadrature
+  class(reference_fe_t), intent(in)    :: reference_fe_geometry
+  call reference_fe_geometry%create_facet_interpolation( quadrature, this%interpolation )
+end subroutine facet_map_update_interpolation
 
 !==================================================================================================
 subroutine facet_map_free( this )
@@ -155,11 +151,11 @@ subroutine assign_facet_map( this, other )
   type(facet_map_t), intent(in)    :: other
   call this%free()
   call this%base_map_t%copy(other%base_map_t)
-  call memalloc(this%num_dims,   &
-                this%num_dims-1, &
+  call memalloc(SPACE_DIM,   &
+                SPACE_DIM, &
                 this%num_quadrature_points, &
                 this%jacobian,__FILE__,__LINE__)
-  this%jacobian = other%jacobian
+  this%jacobian(:,:,:) = other%jacobian(:,:,:)
   call memalloc(this%num_dims, &
                 this%num_quadrature_points, &
                 this%normals,__FILE__,__LINE__)

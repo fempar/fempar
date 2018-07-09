@@ -232,18 +232,18 @@ function base_fe_cell_iterator_get_permutation_index(this,target_cell, source_ve
   base_fe_cell_iterator_get_permutation_index = this%cell%get_permutation_index(target_cell%cell,source_vef_lid,target_vef_lid)
 end function base_fe_cell_iterator_get_permutation_index
 
+function base_fe_cell_iterator_get_level(this)
+  implicit none
+  class(base_fe_cell_iterator_t), intent(in) :: this
+  integer(ip) :: base_fe_cell_iterator_get_level
+  base_fe_cell_iterator_get_level = this%cell%get_level()
+end function base_fe_cell_iterator_get_level
+
 subroutine base_fe_cell_iterator_update_sub_triangulation( this )
   implicit none
   class(base_fe_cell_iterator_t), intent(inout) :: this
   call this%cell%update_sub_triangulation()
 end subroutine base_fe_cell_iterator_update_sub_triangulation
-
-function base_fe_cell_iterator_get_mc_case( this ) result ( mc_case )
-  implicit none
-  class(base_fe_cell_iterator_t), intent(in)    :: this
-  integer(ip) :: mc_case
-  mc_case = this%cell%get_mc_case()
-end function base_fe_cell_iterator_get_mc_case
 
 function base_fe_cell_iterator_get_num_subcells( this ) result ( num_subcells )
   implicit none

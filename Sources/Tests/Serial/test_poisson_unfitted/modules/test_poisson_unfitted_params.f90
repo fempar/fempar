@@ -54,6 +54,7 @@ module test_poisson_unfitted_params_names
      character(len=:), allocatable :: default_is_periodic_in_z
      character(len=:), allocatable :: default_is_in_fe_space
      character(len=:), allocatable :: default_check_solution
+     character(len=:), allocatable :: default_use_constraints
 
      type(Command_Line_Interface):: cli 
 
@@ -73,6 +74,7 @@ module test_poisson_unfitted_params_names
      integer(ip) :: is_dir_periodic(0:SPACE_DIM-1)
      logical :: in_fe_space
      logical :: check_sol
+     logical :: use_constraints
 
    contains
      procedure, non_overridable             :: create       => test_poisson_unfitted_create
@@ -92,6 +94,7 @@ module test_poisson_unfitted_params_names
      procedure, non_overridable             :: get_num_dims
      procedure, non_overridable             :: is_in_fe_space
      procedure, non_overridable             :: are_checks_active
+     procedure, non_overridable             :: get_use_constraints
   end type test_poisson_unfitted_params_t  
 
   ! Types
@@ -141,6 +144,7 @@ contains
     this%default_is_periodic_in_z = '0'
     this%default_is_in_fe_space = '.true.'
     this%default_check_solution = '.true.'
+    this%default_use_constraints = '.true.'
 
   end subroutine test_poisson_unfitted_set_default
   
@@ -210,6 +214,9 @@ contains
         call this%cli%add(switch='--check_solution',switch_ab='-check',help='Check or not the solution',&
          &            required=.false.,act='store',def=trim(this%default_check_solution),error=error) 
     check(error==0) 
+        call this%cli%add(switch='--use_constraints',switch_ab='-uconstraints',help='Use or not the constraints provided by the cut cell aggregation',&
+         &            required=.false.,act='store',def=trim(this%default_use_constraints),error=error) 
+    check(error==0) 
 
   end subroutine test_poisson_unfitted_add_to_cli
   
@@ -241,6 +248,7 @@ contains
     call this%cli%get(switch='-pz',val=this%is_dir_periodic(2),error=istat); check(istat==0)
     call this%cli%get(switch='-in_space',val=this%in_fe_space,error=istat); check(istat==0)
     call this%cli%get(switch='-check',val=this%check_sol,error=istat); check(istat==0)
+    call this%cli%get(switch='-uconstraints',val=this%use_constraints,error=istat); check(istat==0)
 
     call parameter_list%init()
     istat = 0
@@ -273,6 +281,7 @@ contains
     if(allocated(this%default_laplacian_type)) deallocate(this%default_laplacian_type)
     if(allocated(this%default_is_in_fe_space)) deallocate(this%default_is_in_fe_space)
     if(allocated(this%default_check_solution)) deallocate(this%default_check_solution)
+    if(allocated(this%default_use_constraints)) deallocate(this%default_use_constraints)
     call this%cli%free()
   end subroutine test_poisson_unfitted_free
 
@@ -371,5 +380,13 @@ contains
     logical :: are_checks_active
     are_checks_active = this%check_sol
   end function are_checks_active
+
+  !==================================================================================================
+  function get_use_constraints(this)
+    implicit none
+    class(test_poisson_unfitted_params_t) , intent(in) :: this
+    logical :: get_use_constraints
+    get_use_constraints = this%use_constraints
+  end function get_use_constraints
 
 end module test_poisson_unfitted_params_names

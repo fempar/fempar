@@ -39,8 +39,9 @@
   !  val_type
   !  
   type hash_node
-     class(hash_node), pointer :: child => null()
-     class(hash_node), pointer :: parent => null()
+     private
+     type(hash_node), pointer :: child => null()
+     type(hash_node), pointer :: parent => null()
      key_type :: key = -1
      val_type :: val
    contains
@@ -52,6 +53,7 @@
   end type hash_node
 
   type hash_table
+     private
      type(hash_node), dimension(:), allocatable :: vec
      integer(ip)                                :: vec_min = 0
      integer(ip)                                :: vec_len = 0

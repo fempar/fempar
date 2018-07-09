@@ -63,15 +63,19 @@ module serial_context_names
      procedure :: bcast_subcontext   => serial_context_bcast_subcontext
      procedure :: neighbours_exchange_rp                  =>  serial_context_neighbours_exchange_rp        
      procedure :: neighbours_exchange_wo_alpha_beta_rp    =>  serial_context_neighbours_exchange_wo_alpha_beta_rp
+     procedure :: neighbours_exchange_wo_alpha_beta_rp_v  =>  serial_context_neighbours_exchange_wo_alpha_beta_rp_v
      procedure :: neighbours_exchange_ip                  =>  serial_context_neighbours_exchange_ip                 
      procedure :: neighbours_exchange_igp                 =>  serial_context_neighbours_exchange_igp                
      procedure :: neighbours_exchange_single_ip           =>  serial_context_neighbours_exchange_single_ip          
      procedure :: neighbours_exchange_wo_pack_unpack_ieep =>  serial_context_neighbours_exchange_wo_pack_unpack_ieep
      procedure :: neighbours_exchange_wo_unpack_ip        =>  serial_context_neighbours_exchange_wo_unpack_ip
+     procedure :: neighbours_exchange_variable_igp        =>  serial_context_neighbours_exchange_variable_igp       
+     procedure :: neighbours_exchange_variable_ip         =>  serial_context_neighbours_exchange_variable_ip       
      procedure :: root_send_master_rcv_ip          => serial_context_root_send_master_rcv_ip
      procedure :: root_send_master_rcv_ip_1D_array => serial_context_root_send_master_rcv_ip_1D_array
      procedure :: root_send_master_rcv_rp          => serial_context_root_send_master_rcv_rp
      procedure :: root_send_master_rcv_rp_1D_array => serial_context_root_send_master_rcv_rp_1D_array
+     procedure :: root_send_master_rcv_logical     => serial_context_root_send_master_rcv_logical
      procedure :: gather_to_master_ip              => serial_context_gather_to_master_ip           
      procedure :: gather_to_master_igp             => serial_context_gather_to_master_igp          
      procedure :: gather_to_master_ip_1D_array     => serial_context_gather_to_master_ip_1D_array  
@@ -234,7 +238,7 @@ contains
        &                                          num_snd, list_snd, snd_ptrs, pack_idx,   &
        &                                          alpha, beta, x, y)
     implicit none
-    class(serial_context_t), intent(in) :: this
+    class(serial_context_t), intent(inout) :: this
     integer(ip)             , intent(in) :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
     integer(ip)             , intent(in) :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
     integer(ip)             , intent(in) :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
@@ -263,7 +267,27 @@ contains
     integer(ip)   , optional, intent(in)    :: chunk_size  
     check(.false.)
   end subroutine serial_context_neighbours_exchange_wo_alpha_beta_rp
- 
+  
+  !=============================================================================
+  subroutine serial_context_neighbours_exchange_wo_alpha_beta_rp_v ( this, & 
+       &                                                        num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                                        num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                                        x, y, ptr_chunk_size_snd, ptr_chunk_size_rcv )
+    implicit none
+    class(serial_context_t) , intent(in)    :: this
+    ! Control info to receive
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    ! Control info to send
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    ! Raw data to be exchanged
+    real(rp)                , intent(in)    :: x(:)
+    real(rp)                , intent(inout) :: y(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size_snd(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size_rcv(:)
+    mcheck(.false.,'serial_context_neighbours_exchange_wo_alpha_beta_rp_v is not implemented')
+  end subroutine serial_context_neighbours_exchange_wo_alpha_beta_rp_v
   
   !=============================================================================
   subroutine serial_context_neighbours_exchange_ip ( this, & 
@@ -351,6 +375,42 @@ contains
   end subroutine serial_context_neighbours_exchange_wo_unpack_ip 
 
   !=============================================================================
+  subroutine serial_context_neighbours_exchange_variable_igp ( this, & 
+       &                                              num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                              num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                              x, y, ptr_chunk_size,mask)
+    implicit none
+    class(serial_context_t), intent(in)    :: this
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    integer(igp)            , intent(in)    :: x(:)
+    integer(igp)            , intent(inout) :: y(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size(:)
+    integer(igp)  , optional, intent(in)    :: mask
+    mcheck(.false.,'serial_context_neighbours_exchange_variable_igp is not implemented')
+  end subroutine serial_context_neighbours_exchange_variable_igp
+  
+  !=============================================================================
+  subroutine serial_context_neighbours_exchange_variable_ip ( this, & 
+       &                                              num_rcv, list_rcv, rcv_ptrs, unpack_idx, & 
+       &                                              num_snd, list_snd, snd_ptrs, pack_idx,   &
+       &                                              x, y, ptr_chunk_size,mask)
+    implicit none
+    class(serial_context_t), intent(in)    :: this
+    integer(ip)             , intent(in)    :: num_rcv, list_rcv(num_rcv), rcv_ptrs(num_rcv+1)
+    integer(ip)             , intent(in)    :: unpack_idx (rcv_ptrs(num_rcv+1)-1)
+    integer(ip)             , intent(in)    :: num_snd, list_snd(num_snd), snd_ptrs(num_snd+1)
+    integer(ip)             , intent(in)    :: pack_idx (snd_ptrs(num_snd+1)-1)
+    integer(ip)             , intent(in)    :: x(:)
+    integer(ip)             , intent(inout) :: y(:)
+    integer(ip)             , intent(in)    :: ptr_chunk_size(:)
+    integer(ip)   , optional, intent(in)    :: mask
+    mcheck(.false.,'serial_context_neighbours_exchange_variable_ip is not implemented')
+  end subroutine serial_context_neighbours_exchange_variable_ip
+  
+  !=============================================================================
   subroutine serial_context_gather_scalar_ip ( this, input_data, output_data )
     implicit none
     class(serial_context_t), intent(in)   :: this
@@ -437,6 +497,15 @@ contains
     real(rp)            , intent(inout)   :: output_data(:)
     check(.false.)       ! This routine should be never called
   end subroutine serial_context_root_send_master_rcv_rp_1D_array
+  
+  !=============================================================================
+  subroutine serial_context_root_send_master_rcv_logical ( this, input_data, output_data )
+    implicit none
+    class(serial_context_t), intent(in)      :: this
+    logical                , intent(in)      :: input_data
+    logical                , intent(inout)   :: output_data
+    check(.false.)       ! This routine should be never called
+  end subroutine serial_context_root_send_master_rcv_logical 
   
   !=============================================================================
   !=============================================================================

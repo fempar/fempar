@@ -115,7 +115,7 @@ contains
 
     call this%triangulation%create_cell_iterator(cell)
     reference_fe_geo => cell%get_reference_fe()
-	
+ 
     this%reference_fes(1) =  make_reference_fe ( topology = reference_fe_geo%get_topology(),                  &
                                                  fe_type = fe_type_nedelec,                                   &
                                                  num_dims = this%triangulation%get_num_dims(), &
@@ -124,12 +124,12 @@ contains
                                                  conformity = .true. ) 
     
     call this%triangulation%free_cell_iterator(cell)
-		
+  
     if ( trim(this%test_params%get_triangulation_type()) == 'structured' ) then
        call this%triangulation%create_vef_iterator(vef)
        do while ( .not. vef%has_finished() )
           if(vef%is_at_boundary()) then
-		           call vef%set_set_id(1)
+             call vef%set_set_id(1)
           else
              call vef%set_set_id(0)
           end if
@@ -164,11 +164,11 @@ contains
                                           fe_space                          = this%fe_space,           &
                                           discrete_integration              = this%maxwell_nedelec_integration )
     call this%solution%create(this%fe_space) 
-	   call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
-	   call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
-	   if ( this%triangulation%get_num_dims() == 3) then 
-	     call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
-	   end if 
+    call this%maxwell_nedelec_conditions%set_boundary_function_Hx(this%problem_functions%get_boundary_function_Hx())
+    call this%maxwell_nedelec_conditions%set_boundary_function_Hy(this%problem_functions%get_boundary_function_Hy())
+    if ( this%triangulation%get_num_dims() == 3) then 
+      call this%maxwell_nedelec_conditions%set_boundary_function_Hz(this%problem_functions%get_boundary_function_Hz())
+    end if 
     call this%fe_space%project_dirichlet_values_curl_conforming(this%solution)
     call this%maxwell_nedelec_integration%set_fe_function(this%solution)
   end subroutine setup_system
@@ -203,7 +203,7 @@ contains
 #else
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-10_rp)
     FPLError = FPLError + parameter_list%set(key = ils_output_frequency, value = 30)
-	FPLError = FPLError + parameter_list%set(key = ils_max_num_iterations, value = 5000)
+ FPLError = FPLError + parameter_list%set(key = ils_max_num_iterations, value = 5000)
     assert(FPLError == 0)
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)

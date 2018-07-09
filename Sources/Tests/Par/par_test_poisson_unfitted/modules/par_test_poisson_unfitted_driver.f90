@@ -209,6 +209,7 @@ end subroutine free_timers
     select type ( levset )
       class is (level_set_sphere_t)
         call levset%set_radius(0.95)
+        call levset%set_center([0.0,0.0,0.0])
     end select
 
   end subroutine setup_levelset

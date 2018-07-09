@@ -95,9 +95,9 @@ module field_names
   type :: symmetric_tensor_field_t
      private
      real(rp)  :: value(SPACE_DIM,SPACE_DIM)
-   contains			
+   contains   
      procedure, non_overridable :: init  => symmetric_tensor_field_init
-     procedure, non_overridable :: set   => symmetric_tensor_field_set					
+     procedure, non_overridable :: set   => symmetric_tensor_field_set     
   end type symmetric_tensor_field_t
 
   type, extends(vector_field_t) :: point_t
@@ -134,6 +134,12 @@ module field_names
   public :: allocatable_array_vector_field_t, allocatable_array_tensor_field_t
   public :: operator(*), operator(+), operator(-), assignment(=)
   public :: double_contract, cross_product, symmetric_part, trace
+  public :: init_vector_field_2D_array
+  public :: fill_vector_field_2D_array_with_4D_plain_array
+  public :: fill_vector_field_2D_array_with_4D_plain_array_perm
+  public :: compute_point_1D_array_lin_comb_with_3D_plain_array
+  public :: compute_3D_plain_array_lin_comb_with_point_1D_array
+  public :: apply_2D_plain_array_to_vector_field
   
 # define var_attr allocatable, target
 # define point(a,b) call move_alloc(a,b)
@@ -629,10 +635,122 @@ contains
       s = s + v1%value(i,i)
     end do
   end function trace
+  
+  
+  ! "Friend" subroutines of reference_fe_t implementors that are here for optimization purposes.
+  ! We assume that the actual arguments passed to the dummy arguments fulfill the preconditions
+  ! encompassed in the asserts(...). Thus, they cannot be considered a generally applicable 
+  ! subroutines, but only in the context corresponding to the caller. 
+  subroutine init_vector_field_2D_array(m,n,value,vector_field_2D_array)
+    implicit none
+    integer(ip)         , intent(in)    :: m
+    integer(ip)         , intent(in)    :: n
+    real(rp)            , intent(in)    :: value
+    type(vector_field_t), intent(inout) :: vector_field_2D_array(:,:)
+    integer(ip) :: i,j
+    do j=1,n
+      do i=1,m
+        vector_field_2D_array(i,j)%value = value
+      end do 
+    end do
+  end subroutine init_vector_field_2D_array
+ 
+  subroutine fill_vector_field_2D_array_with_4D_plain_array ( plain_array, vector_field_2D_array )
+    implicit none
+    real(rp)            , intent(in)    :: plain_array(:,:,:,:)
+    type(vector_field_t), intent(inout) :: vector_field_2D_array(:,:)
+    integer(ip) :: i, j
+    assert (size(vector_field_2D_array,1) == size(plain_array,3))
+    assert (size(vector_field_2D_array,2) >= size(plain_array,4))
+    assert (size(plain_array,2) == SPACE_DIM)
+    assert (size(plain_array,1) >= 1)
+    do j=1, size(plain_array,4)
+      do i=1, size(plain_array,3)
+        vector_field_2D_array(i,j)%value(:) = plain_array(1,:,i,j)
+      end do
+    end do
+  end subroutine fill_vector_field_2D_array_with_4D_plain_array
+  
+  subroutine fill_vector_field_2D_array_with_4D_plain_array_perm ( plain_array, perm, vector_field_2D_array)
+    implicit none
+    real(rp)            , intent(in)    :: plain_array(:,:,:,:)
+    integer(ip)         , intent(in)    :: perm(:)
+    type(vector_field_t), intent(inout) :: vector_field_2D_array(:,:)
+    integer(ip) :: i, j
+    assert (size(vector_field_2D_array,1) == size(plain_array,3))
+    assert (size(vector_field_2D_array,2) >= size(plain_array,4))
+    assert (size(perm) >= size(plain_array,4)) 
+    assert (size(plain_array,2) == SPACE_DIM)
+    assert (size(plain_array,1) >= 1)
+    do j=1, size(plain_array,4)
+      do i=1, size(plain_array,3)
+        vector_field_2D_array(i,j)%value(:) = plain_array(1,:,i,perm(j))
+      end do
+    end do
+  end subroutine fill_vector_field_2D_array_with_4D_plain_array_perm 
+  
+  subroutine compute_point_1D_array_lin_comb_with_3D_plain_array ( plain_array, point_1D_array_in, point_1D_array_out )
+    implicit none
+    real(rp)     , intent(in)    :: plain_array(:,:,:)
+    type(point_t), intent(in)    :: point_1D_array_in(:)
+    type(point_t), intent(inout) :: point_1D_array_out(:)
+    integer(ip) :: i, j, k
+    real(rp) :: alpha
+    assert ( size(plain_array,1) >= 1 )
+    assert ( size(point_1D_array_out) == size(plain_array,3) )
+    assert ( size(point_1D_array_in)  == size(plain_array,2) )
+    do i=1, size(point_1D_array_out) 
+      point_1D_array_out(i)%value(:) = 0.0_rp 
+      do j=1, size(point_1D_array_in)
+        alpha = plain_array(1,j,i)
+        do k=1, SPACE_DIM
+          point_1D_array_out(i)%value(k) = point_1D_array_out(i)%value(k) + alpha * point_1D_array_in(j)%value(k)
+        end do
+      end do 
+    end do
+  end subroutine compute_point_1D_array_lin_comb_with_3D_plain_array
+
+  subroutine compute_3D_plain_array_lin_comb_with_point_1D_array( plain_array, point_1D_array_in, plain_array_out)
+    implicit none
+    real(rp)            , intent(in)    :: plain_array(:,:,:,:)
+    type(point_t)       , intent(in)    :: point_1D_array_in(:)
+    real(rp)            , intent(inout) :: plain_array_out(:,:,:)
+    
+    integer(ip) :: i, j, k, l
+    real(rp)    :: alpha
+
+    assert (size(point_1D_array_in) == size(plain_array,3))
+    assert (size(plain_array,1) >= 1)
+    
+    do i=1, size(plain_array,4) !quadrature points
+       do j=1, SPACE_DIM !num dimensions
+         plain_array_out(:,j,i) = 0.0_rp
+         do k=1, size(plain_array,3) !num nodes
+            alpha = plain_array(1,j,k,i)
+            do l = 1, SPACE_DIM
+              plain_array_out(l,j,i) = plain_array_out(l,j,i) + alpha * point_1D_array_in(k)%value(l)
+            end do
+         end do 
+      end do
+    end do
+    
+  end subroutine compute_3D_plain_array_lin_comb_with_point_1D_array
+
+  subroutine apply_2D_plain_array_to_vector_field(plain_2D_array, vector_field, vector_field_out)
+    implicit none
+    real(rp)            , intent(in)    :: plain_2D_array(:,:)
+    type(vector_field_t), intent(in)    :: vector_field
+    type(vector_field_t), intent(inout) :: vector_field_out
+    integer(ip)  :: i,j
+    assert (size(plain_2D_array,1) == SPACE_DIM)
+    assert (size(plain_2D_array,2) == SPACE_DIM)
+    vector_field_out%value(:) = 0.0_rp
+    do j = 1, SPACE_DIM
+       do i = 1,  SPACE_DIM
+          vector_field_out%value(i) = vector_field_out%value(i) + plain_2D_array(i,j)*vector_field%value(j)
+       end do
+    end do
+
+  end subroutine apply_2D_plain_array_to_vector_field
 
 end module field_names
-
-
-
-
-

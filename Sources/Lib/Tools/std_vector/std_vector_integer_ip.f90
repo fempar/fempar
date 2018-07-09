@@ -39,6 +39,7 @@ module std_vector_integer_ip_names
   type, extends(std_vector_base_integer_ip_t) :: std_vector_integer_ip_t
   contains
     procedure :: transform_length_to_header => std_vector_integer_ip_transform_length_to_header
+    procedure :: cat_ptr => std_vector_integer_ip_cat_ptr
   end type
  
   public :: std_vector_integer_ip_t
@@ -52,6 +53,8 @@ contains
   STD_VECTOR_ERASE(integer(ip),base_integer_ip)
   STD_VECTOR_COPY(integer(ip),base_integer_ip)
   STD_VECTOR_SET(integer(ip),base_integer_ip)
+  STD_VECTOR_INIT(integer(ip),base_integer_ip)
+  STD_VECTOR_CAT(integer(ip),base_integer_ip)
   STD_VECTOR_SIZE(integer(ip),base_integer_ip)
   STD_VECTOR_CAPACITY(integer(ip),base_integer_ip)
   STD_VECTOR_GET(integer(ip),base_integer_ip)
@@ -64,9 +67,22 @@ contains
     class(std_vector_integer_ip_t)      , intent(inout) :: this
     integer(ip) :: i
     call this%set(1,1)
-    do i=1, this%size()-1
+    do i=1, this%SIZE_MEMBER_VARIABLE_NAME-1
       call this%set(i+1,this%get(i)+this%get(i+1))
     end do
   end subroutine std_vector_integer_ip_transform_length_to_header
+
+  subroutine std_vector_integer_ip_cat_ptr(this,v)
+    implicit none
+    class(std_vector_integer_ip_t)      , intent(inout) :: this
+    class(std_vector_integer_ip_t)      , intent(in)    :: v
+    integer(ip) :: i, s
+    s = this%SIZE_MEMBER_VARIABLE_NAME
+    assert(s>0)
+    call this%resize(s+v%SIZE_MEMBER_VARIABLE_NAME-1)
+    do i = 1, (v%SIZE_MEMBER_VARIABLE_NAME-1)
+      call this%set(s+i,v%get(i+1)+this%get(s)-1)
+    end do
+  end subroutine std_vector_integer_ip_cat_ptr
   
 end module std_vector_integer_ip_names

@@ -18,6 +18,13 @@ Finite Element Multiphysics PARallel solvers
 
 **FEMPAR** compiles with GNU Fortran compiler 5.3.0 (and newer versions) and Intel Fortran compiler 16.0.0 (and newer versions).
 
+**NOTE**: we have detected that some tests (e.g., `test_poisson_unffited`) do **NOT** pass with GNU Fortran compiler 5.5.0 for `experimental` 
+commit 2b44a887b4bd78fe847ea844a90d29d9f141123e due to what it seems to be a compiler BUG. Please also note that we do not actually know since 
+which commit in `experimental` this is happening, but only that it happens at this one. Thus, avoid using this GNU Fortran compiler version.
+
+**NOTE**: there is also an open issue with gfortran 6.4.1 and gfortran 7.3.1 (https://gitlab.com/fempar/XH5For/issues/7). An internal
+compiler error raises when compiling FoX, a third party library of XH5For. 
+
 **FEMPAR** uses [CMake](https://cmake.org/) as a portable compilation system. 
 
 The easiest way to compile **FEMPAR** under Linux is (with compilation of tests included):
@@ -69,10 +76,10 @@ Given a driver ```driver_name```, to run it (assuming it has been compiled, see 
 
 ```
 $ cd build/DRIVERS/driver_name/bin
-$ mpirun P ./driver_name [options]
+$ mpirun -np P ./driver_name [options]
 ```
 
-where ```P``` is the number of processors to be used. Clearly, ```mpirun P``` must be eliminated to run serial drivers.
+where ```P``` is the number of MPI processes to be used. Clearly, ```mpirun -np P``` must be eliminated to run serial drivers.
 
 To see the different options and default values we can do
 

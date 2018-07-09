@@ -28,12 +28,14 @@
 subroutine mlbddc_create ( this, fe_nonlinear_operator, mlbddc_params )
   implicit none
   class(mlbddc_t)                   , intent(inout) :: this
-  class(fe_nonlinear_operator_t), target, intent(in)    :: fe_nonlinear_operator
+  class(fe_operator_t), target, intent(in)    :: fe_nonlinear_operator
   type(parameterlist_t)    , target , intent(in)    :: mlbddc_params
   type(par_fe_space_t), pointer :: fe_space
   class(triangulation_t), pointer :: triangulation
-
+  
   call this%free()
+  
+  assert ( this%state_is_start() )
 
   this%fe_nonlinear_operator => fe_nonlinear_operator
   this%mlbddc_params         => mlbddc_params
@@ -42,6 +44,7 @@ subroutine mlbddc_create ( this, fe_nonlinear_operator, mlbddc_params )
   call this%set_par_environment(triangulation%get_environment())
   call this%create_vector_spaces()
   assert ( fe_space%get_num_blocks() == 1 )
+  call this%set_state_created()
 end subroutine mlbddc_create
 
 subroutine mlbddc_create_vector_spaces (this)
@@ -131,14 +134,24 @@ subroutine mlbddc_update_matrix(this, same_nonzero_pattern )
   implicit none
   class(mlbddc_t)          , intent(inout) :: this
   logical                  , intent(in)    :: same_nonzero_pattern
+  
+  assert ( this%state_is_created() .or. this%state_is_symbolic() .or. this%state_is_numeric() )
+
   if ( same_nonzero_pattern ) then
-    call this%free_numerical_setup()
-    call this%numerical_setup()
+    if ( this%state_is_numeric() ) then
+      call this%free_numerical_setup()
+      call this%numerical_setup()
+    end if   
   else
-    call this%free_numerical_setup()
-    call this%free_symbolic_setup()
-    call this%symbolic_setup()
-    call this%numerical_setup()
+    if ( this%state_is_numeric() ) then
+      call this%free_numerical_setup()
+      call this%free_symbolic_setup()
+      call this%symbolic_setup()
+      call this%numerical_setup()
+    else if ( this%state_is_symbolic() ) then
+      call this%free_symbolic_setup()
+      call this%symbolic_setup()
+    end if
   end if 
 end subroutine mlbddc_update_matrix
 

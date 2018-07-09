@@ -170,7 +170,7 @@ contains
     r_z = this%r%dot(this%z)
 
     if ( environment%am_i_l1_task() ) then ! Am I a fine task ?
-       wassert(r_z>0.0, 'Square root of a negative number!')
+       wassert(r_z>=0.0_rp, 'Square root of a negative number!')
        r_nrm_M = sqrt( r_z )
     end if
 
@@ -184,6 +184,7 @@ contains
 
     ! 5) Iteration
     num_iterations = 0
+    did_converge = .false.
     loop_cg: do
        num_iterations = num_iterations + 1
 
@@ -228,7 +229,7 @@ contains
        beta=beta*r_z
 
        if (environment%am_i_l1_task()) then ! Am I a fine task ?
-          wassert(r_z>0.0, 'Square root of a negative number!')
+          wassert(r_z>=0.0, 'Square root of a negative number!')
           r_nrm_M = sqrt( r_z )
        end if
 

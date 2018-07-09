@@ -86,13 +86,6 @@ module hts_nedelec_analytical_functions_names
      procedure :: get_value_space_time   => boundary_function_Hz_get_value_space_time
   end type boundary_function_Hz_t
   
-    type, extends(base_scalar_function_t) :: boundary_function_p_t
-     private 
-   contains
-     procedure :: get_value_space        => boundary_function_p_get_value_space
-     procedure :: get_value_space_time   => boundary_function_p_get_value_space_time
-  end type boundary_function_p_t
-
    type, extends(base_scalar_function_t) :: constraint_value_t 
     private 
      real(rp)  :: amplitude 
@@ -108,7 +101,6 @@ module hts_nedelec_analytical_functions_names
      type(boundary_function_Hx_t)            :: boundary_function_Hx
      type(boundary_function_Hy_t)            :: boundary_function_Hy
      type(boundary_function_Hz_t)            :: boundary_function_Hz 
-     type(boundary_function_p_t)             :: boundary_function_p
      type(constraint_value_t)                :: constraint_value 
    contains
      procedure :: set_num_dims               => mn_set_num_dims
@@ -118,7 +110,6 @@ module hts_nedelec_analytical_functions_names
      procedure :: get_boundary_function_Hx         => mn_get_boundary_function_Hx
      procedure :: get_boundary_function_Hy         => mn_get_boundary_function_Hy
      procedure :: get_boundary_function_Hz         => mn_get_boundary_function_Hz
-     procedure :: get_boundary_function_p          => mn_get_boundary_function_p
      procedure :: get_constraint_value             => mn_get_constraint_value 
   end type hts_nedelec_analytical_functions_t
 
@@ -194,7 +185,7 @@ contains
     y = point%get(2) 
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     call result%set(1, 0.0_rp ) 
-    call result%set(2,  x*x*x  ) 
+    call result%set(2, 0.0_rp ) 
     call result%set(3, 0.0_rp) 
  
   end subroutine solution_get_value_space
@@ -212,7 +203,7 @@ contains
     y = point%get(2) 
     assert ( this%num_dims == 2 .or. this%num_dims == 3 )
     call result%set(1,  0.0_rp ) 
-    call result%set(2,  time*x*x*x ) 
+    call result%set(2,  0.0_rp ) 
     call result%set(3, 0.0_rp) 
  
   end subroutine solution_get_value_space_time
@@ -229,8 +220,6 @@ contains
     y = point%get(2) 
     z = point%get(3) 
     
-    call result%set(1,2, 3.0_rp*x*x )
-
   end subroutine solution_get_gradient_space
   
    !===============================================================================================
@@ -246,8 +235,6 @@ contains
     y = point%get(2) 
     z = point%get(3) 
 
-    call result%set(1,2, time*3.0_rp*x*x) 
-
   end subroutine solution_get_gradient_space_time
 
   !===============================================================================================
@@ -260,11 +247,7 @@ contains
     real(rp)  :: x, y, z  
     x = point%get(1)
     y = point%get(2) 
-
-    !call result%set(1, 0.0_rp) 
-    !call result%set(2, 0.0_rp) 
-    !call result%set(3, 3.0_rp*x*x ) 
-    
+   
   end subroutine solution_get_curl_space
   
    subroutine solution_get_curl_space_time ( this, point, time, result )
@@ -278,10 +261,6 @@ contains
     x = point%get(1)
     y = point%get(2) 
 
-    !call result%set(1, 0.0_rp) 
-    !call result%set(2, 0.0_rp) 
-    !call result%set(3, time*3.0_rp*x*x ) 
-    
   end subroutine solution_get_curl_space_time
     
   !===============================================================================================
@@ -303,7 +282,7 @@ contains
     real(rp)                       , intent(in)    :: time
     real(rp)                       , intent(inout) :: result 
 
-    result = this%amplitude*sin(2.0_rp*this%frequency*pi*time)
+    result = this%amplitude*sin(2.0_rp*this%frequency*pi*time) 
 
   end subroutine boundary_function_Hx_get_value_space_time 
 
@@ -350,41 +329,9 @@ contains
     real(rp)                       , intent(inout) :: result    
 
     result = this%amplitude*sin(2.0_rp*this%frequency*pi*time) 
- 
-	! Benchmark ramp 
-	if ( time .le. 5 ) then 
-	result = this%amplitude*(time/5.0_rp) 
-	elseif ( time .le. 10 ) then 
-	result = this%amplitude 
-	elseif ( time .le. 15 ) then 
-	result = this%amplitude*(15.0_rp-time)/(5.0_rp)
-	else 
-	result = 0.0_rp
-	end if 
     
   end subroutine boundary_function_Hz_get_value_space_time
-  
-      ! ============================================================================================
-  subroutine boundary_function_p_get_value_space( this, point, result )
-    implicit none 
-    class(boundary_function_p_t)  , intent(in)    :: this 
-    type(point_t)                  , intent(in)    :: point 
-    real(rp)                       , intent(inout) :: result    
-
-    result = 0.0_rp    
-  end subroutine boundary_function_p_get_value_space
-  
-    ! ============================================================================================
-  subroutine boundary_function_p_get_value_space_time( this, point, time, result )
-    implicit none 
-    class(boundary_function_p_t)  , intent(in)    :: this 
-    type(point_t)                  , intent(in)    :: point 
-    real(rp)                       , intent(in)    :: time 
-    real(rp)                       , intent(inout) :: result    
-
-    result = 0.0_rp    
-  end subroutine boundary_function_p_get_value_space_time
-  
+    
       ! ============================================================================================
   subroutine constraint_value_get_constraint_value( this, time, result )
     implicit none 
@@ -463,15 +410,7 @@ contains
     class(scalar_function_t), pointer :: mn_get_boundary_function_Hz
     mn_get_boundary_function_Hz => this%boundary_function_Hz
   end function mn_get_boundary_function_Hz
-  
-    !===============================================================================================
-  function mn_get_boundary_function_p ( this )
-    implicit none
-    class(hts_nedelec_analytical_functions_t), target, intent(in)    :: this
-    class(scalar_function_t), pointer :: mn_get_boundary_function_p
-    mn_get_boundary_function_p => this%boundary_function_p
-  end function mn_get_boundary_function_p
-  
+    
      !===============================================================================================
   function mn_get_constraint_value ( this )
     implicit none
