@@ -359,7 +359,7 @@ function unfitted_fe_facet_iterator_get_quadrature_points_coordinates(this)
 end function unfitted_fe_facet_iterator_get_quadrature_points_coordinates
 
 !=============================================================================================
-subroutine unfitted_fe_facet_iterator_get_normals(this, qpoint, normal)
+subroutine unfitted_fe_facet_iterator_get_normal(this, qpoint, normal)
   implicit none
   class(unfitted_fe_facet_iterator_t), intent(in)    :: this
   integer(ip)             , intent(in)    :: qpoint
@@ -373,7 +373,7 @@ subroutine unfitted_fe_facet_iterator_get_normals(this, qpoint, normal)
   else
     check(.false.)
   end if
-end subroutine unfitted_fe_facet_iterator_get_normals
+end subroutine unfitted_fe_facet_iterator_get_normal
 
 !=============================================================================================
 function unfitted_fe_facet_iterator_get_det_jacobian( this, i )
