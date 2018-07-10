@@ -1025,9 +1025,11 @@ subroutine facet_integrator_evaluate_gradient_fe_function_scalar ( this,        
   integer(ip)                      , intent(in)    :: neighbour_id
   real(rp)                         , intent(in)    :: nodal_values(:)
   type(vector_field_t), allocatable, intent(inout) :: quadrature_points_values(:)
-  type(cell_integrator_t), pointer :: cell_integrator
-  cell_integrator => this%cell_integrator_facet_restriction(neighbour_id)%get_current_cell_integrator()
-  call cell_integrator%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
+  integer(ip) :: indx
+  indx = this%cell_integrator_facet_restriction(neighbour_id)%current_facet_lid + &
+         this%cell_integrator_facet_restriction(neighbour_id)%current_subfacet_lid* &
+         this%cell_integrator_facet_restriction(neighbour_id)%num_facets
+  call this%cell_integrator_facet_restriction(neighbour_id)%cell_integrator(indx)%evaluate_gradient_fe_function(nodal_values,quadrature_points_values)
 end subroutine facet_integrator_evaluate_gradient_fe_function_scalar
 
 !=================================================================================================
