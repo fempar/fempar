@@ -354,7 +354,9 @@ subroutine facet_maps_get_normals (this, normals)
   implicit none
   class(facet_maps_t)     , intent(in)    :: this
   type(vector_field_t)    , intent(out)   :: normals(:,:)
-  call this%facet_map%get_normals(normals)
+  assert ( size(normals,2) == 2 )
+  call init_vector_field_1D_array_plain_2D_array(this%facet_map%normals,normals(:,1))
+  call init_vector_field_1D_array_minus_plain_2D_array(this%facet_map%normals,normals(:,2))
 end subroutine facet_maps_get_normals
 
 !=================================================================================================
@@ -371,7 +373,7 @@ subroutine facet_maps_get_det_jacobians ( this, det_jacobians )
   implicit none
   class(facet_maps_t), intent(in)    :: this
   real(rp)           , intent(inout) :: det_jacobians(:)
-  call this%facet_map%get_det_jacobians(det_jacobians)
+  det_jacobians(1:this%facet_map%num_quadrature_points) = this%facet_map%det_jacobian(1:this%facet_map%num_quadrature_points)
 end subroutine facet_maps_get_det_jacobians
 
 !=================================================================================================
