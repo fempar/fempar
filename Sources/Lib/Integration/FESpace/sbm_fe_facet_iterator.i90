@@ -695,23 +695,29 @@ subroutine fe_facet_iterator_update_facet_integrators(this)
   integer(ip)                           :: reference_fes_id(2)
   integer(ip)                           :: field_id
   
-  do field_id = 1, this%fe_space%num_fields
-     reference_fes_id(2) = 0 
-     do icell_around = 1, this%get_num_cells_around()
-        reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id)%get(this%fes_around(icell_around)%p%get_gid())
-     end do
-     facet_integrators_position_key = &
-        this%fe_space%generate_facet_integrators_position_key(this%get_quadrature_degree(), &
+  if ( this%fe_space%num_fields == 1 .and. this%single_quad_facet_map_facet_integs ) then
+    this%facet_integrators(1)%p => this%fe_space%facet_integrators%get_pointer(1)
+    if ( .not. (this%facet_integrators(1)%p%get_is_at_boundary() .eqv. this%is_at_boundary()) ) then
+      this%facet_integrators(1)%p => this%fe_space%facet_integrators%get_pointer(2)
+    end if
+  else
+    do field_id = 1, this%fe_space%num_fields
+       reference_fes_id(2) = 0
+       do icell_around = 1, this%get_num_cells_around()
+         reference_fes_id(icell_around) = this%fe_space%field_cell_to_ref_fes(field_id)%get(this%fes_around(icell_around)%p%get_gid())
+       end do
+       facet_integrators_position_key = &
+         this%fe_space%generate_facet_integrators_position_key(this%get_quadrature_degree(), &
                                                                reference_fes_id(1), &
                                                                reference_fes_id(2) )
        
-     call this%fe_space%facet_integrators_position%get(key=facet_integrators_position_key, &
-                                                      val=facet_integrators_position, &
-                                                      stat=istat)
-     assert ( .not. istat == key_not_found )
-  
-     this%facet_integrators(field_id)%p => this%fe_space%facet_integrators%get_pointer(facet_integrators_position)
-  end do
+       call this%fe_space%facet_integrators_position%get(key=facet_integrators_position_key, &
+                                                         val=facet_integrators_position, &
+                                                        stat=istat)
+       assert ( .not. istat == key_not_found )
+       this%facet_integrators(field_id)%p => this%fe_space%facet_integrators%get_pointer(facet_integrators_position)
+    end do
+  end if   
 end subroutine fe_facet_iterator_update_facet_integrators
 
 !==================================================================================================
