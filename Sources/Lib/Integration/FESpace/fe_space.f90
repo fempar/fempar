@@ -701,14 +701,14 @@ module fe_space_names
      procedure, non_overridable, private :: allocate_and_init_facet_quadratures_degree => serial_fe_space_allocate_and_init_facet_quadratures_degree
      procedure, non_overridable, private :: free_facet_quadratures_degree              => serial_fe_space_free_facet_quadratures_degree
      
-     procedure, non_overridable, private :: free_max_order_field_cell_to_ref_fes_face     => serial_fe_space_free_max_order_field_cell_to_ref_fes_face
-     procedure, non_overridable, private :: compute_max_order_field_cell_to_ref_fes_face  => serial_fe_space_compute_max_order_field_cell_to_ref_fes_face   
+     procedure, non_overridable          :: free_max_order_field_cell_to_ref_fes_face     => serial_fe_space_free_max_order_field_cell_to_ref_fes_face
+     procedure, non_overridable          :: compute_max_order_field_cell_to_ref_fes_face  => serial_fe_space_compute_max_order_field_cell_to_ref_fes_face   
      
      procedure                 , private :: fill_facet_gids                    => serial_fe_space_fill_facet_gids
      procedure, non_overridable, private :: free_facet_gids                    => serial_fe_space_free_facet_gids
      
-     procedure, non_overridable, private :: compute_facet_permutation_indices             => serial_fe_space_compute_facet_permutation_indices
-     procedure, non_overridable, private :: free_facet_permutation_indices                => serial_fe_space_free_facet_permutation_indices
+     procedure, non_overridable          :: compute_facet_permutation_indices             => serial_fe_space_compute_facet_permutation_indices
+     procedure, non_overridable          :: free_facet_permutation_indices                => serial_fe_space_free_facet_permutation_indices
      
      procedure                           :: set_up_facet_integration                 => serial_fe_space_set_up_facet_integration
      procedure                           :: get_facet_integration_is_set_up          => serial_fe_space_get_facet_integration_is_set_up
