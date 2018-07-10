@@ -59,7 +59,7 @@ module test_transient_poisson_driver_names
      type(poisson_analytical_functions_t)         :: poisson_analytical_functions
           
      ! Place-holder for the coefficient matrix and RHS of the linear system
-     type(fe_operator_t)                :: fe_op
+     type(fe_operator_t)                          :: fe_op
      type(nonlinear_solver_t)                     :: nl_solver
      type(time_stepping_operator_t)               :: time_operator
      type(dirk_solver_t)                          :: time_solver
@@ -277,7 +277,7 @@ contains
                                 max_iters = 10_ip, &
                                 linear_solver = this%direct_solver, &
                                 environment = this%fe_space%get_environment() , & 
-                                fe_operator = this%time_solver )
+                                fe_operator = this%time_operator%get_fe_operator() )
     
     call this%time_solver%create( ts_op = this%time_operator, &
                                   nl_solver = this%nl_solver )

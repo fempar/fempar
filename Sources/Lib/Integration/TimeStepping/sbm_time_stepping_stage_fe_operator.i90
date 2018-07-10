@@ -139,7 +139,7 @@ end subroutine time_stepping_stage_fe_operator_set_row
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x) 
   implicit none
-  class(time_stepping_stage_fe_operator_t), target, intent(inout) :: this
+  class(time_stepping_stage_fe_operator_t),         intent(inout) :: this
   class(vector_t)                         , target, intent(in)    :: x
   
   class(discrete_integration_t), pointer :: di_fe_op, di_mass_op
@@ -153,13 +153,13 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
   call x%GuardTemp()
   
   ! sbadia: TO-DO: change this to intent(inout) and solve compilation errors in cascade
-  dummy_v => this%aux
-  call dummy_v%copy(this%ts_op%initial_value)
+  !dummy_v => this%aux
+  call this%aux%copy(this%ts_op%initial_value)
   call this%ts_op%dofs_stages(this%i)%copy(x)
    
   do j = 1, this%ts_op%scheme%num_stages
     if ( this%ts_op%scheme%a(this%i,j) /= 0.0_rp ) then
-      call dummy_v%axpby(this%ts_op%dt*this%ts_op%scheme%a(this%i,j), this%ts_op%dofs_stages(j), 1.0_rp) 
+      call this%aux%axpby(this%ts_op%dt*this%ts_op%scheme%a(this%i,j), this%ts_op%dofs_stages(j), 1.0_rp) 
     end if
   end do
 
@@ -200,7 +200,7 @@ end function time_stepping_stage_fe_operator_is_linear
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
   implicit none
-  class(time_stepping_stage_fe_operator_t), intent(inout) :: this
+  class(time_stepping_stage_fe_operator_t), intent(in) :: this
   class(environment_t)         , pointer :: environment
   class(assembler_t)           , pointer :: this_assembler
   class(assembler_t)           , pointer :: mass_assembler

@@ -184,6 +184,7 @@ module time_stepping_names
      procedure :: get_current_time                => time_stepping_operator_get_current_time
      procedure :: get_final_time                  => time_stepping_operator_get_final_time 
      procedure :: get_matrix                      => time_stepping_operator_get_matrix
+     procedure :: get_fe_operator                 => time_stepping_operator_get_fe_operator
      procedure :: get_order                       => time_stepping_operator_get_order 
      procedure :: has_finished                    => time_stepping_operator_has_finished
      procedure, private :: allocate_dofs_stages   => time_stepping_operator_allocate_dofs_stages
