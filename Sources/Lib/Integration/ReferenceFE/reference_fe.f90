@@ -1908,7 +1908,7 @@ type facet_maps_t
   type(facet_map_t)                  :: facet_map
   type(cell_map_facet_restriction_t) :: cell_maps(2)
   integer(ip)                        :: num_dims
-  real(rp), pointer                  :: aux_characteristic_lengths(:)
+  real(rp), pointer                  :: aux_characteristic_lengths(:) => null()
 contains
   procedure, non_overridable :: create               => facet_maps_create
   procedure, non_overridable :: free                 => facet_maps_free
