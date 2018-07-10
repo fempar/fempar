@@ -285,7 +285,7 @@ subroutine fe_facet_iterator_update_integration( this )
       
       cell_ressemblance(icell_around) = no_ressemblance
       scaling_factor(icell_around) = 1.0_rp
-      if ( this%is_single_octree_mesh() ) then
+      if ( this%single_octree_mesh ) then
         this_get_lev = cell_lev(icell_around)
         prev_get_lev = this%facet_maps%get_last_visited_cell_lev(icell_around, &
                                                                   facet_lpos_within_cells_around(icell_around), &
@@ -317,7 +317,7 @@ subroutine fe_facet_iterator_update_integration( this )
       do icell_around=1, num_neighbours
         cell_ressemblance(icell_around) = no_ressemblance
         scaling_factor(icell_around) = 1.0_rp
-        if ( this%is_single_octree_mesh() ) then
+        if ( this%single_octree_mesh ) then
           this_get_lev = cell_lev(icell_around)
           prev_get_lev = this%facet_integrators(field_id)%p%get_last_visited_cell_lev(icell_around, &
                                                                   facet_lpos_within_cells_around(icell_around), &
