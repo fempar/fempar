@@ -249,7 +249,7 @@ contains
          call fe_face%get_values(ineigh,shape_values_first)
          call fe_face%get_gradients(ineigh,shape_gradients_first)
          do qpoint = 1, num_quad_points
-            call fe_face%get_normals(qpoint,normals)
+            call fe_face%get_normal(qpoint,normals)
             h_length = fe_face%compute_characteristic_length(qpoint)
             factor = fe_face%get_det_jacobian(qpoint) * quad%get_weight(qpoint)
             call boundary_function%get_value(quad_coords(qpoint),boundary_value)
