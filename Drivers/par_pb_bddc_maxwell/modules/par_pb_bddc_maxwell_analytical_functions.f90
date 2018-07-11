@@ -181,7 +181,8 @@ contains
     class(resistivity_function_white_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-	   result = this%default_value  
+	   ! result = this%default_value 
+    result = 10**(-(point%get(1)+point%get(2)+point%get(3)))
   end subroutine resistivity_function_white_get_value_space
   
     !===============================================================================================
@@ -190,7 +191,8 @@ contains
     class(resistivity_function_black_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    result = this%default_value  
+    ! result = this%default_value 
+    result = 10**(point%get(1)+point%get(2)+point%get(3))
   end subroutine resistivity_function_black_get_value_space
   
           !===============================================================================================
@@ -199,7 +201,8 @@ contains
     class(permeability_function_white_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-	   result = this%default_value  
+	   !result = this%default_value  
+    result = 10**(point%get(1) + point%get(2) + point%get(3) )
   end subroutine permeability_function_white_get_value_space
   
     !===============================================================================================
@@ -208,7 +211,8 @@ contains
     class(permeability_function_black_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    result = this%default_value  
+    ! result = this%default_value  
+     result = 10**(-(point%get(1)+point%get(2)+point%get(3)))
   end subroutine permeability_function_black_get_value_space
   
       !===============================================================================================
@@ -252,8 +256,7 @@ contains
     type(vector_field_t)    , intent(inout) :: result
  
 	real(rp) :: x,y,z 
-	
-	assert ( this%num_dims == 2 .or. this%num_dims == 3 )
+
 	x = point%get(1); y=point%get(2); z=point%get(3)     
 	 ! call result%init(1.0_rp) 
 	 !call result%set(1, -y ) 

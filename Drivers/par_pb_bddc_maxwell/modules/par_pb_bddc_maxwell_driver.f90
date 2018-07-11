@@ -88,6 +88,7 @@ module par_pb_bddc_maxwell_driver_names
      type(timer_t) :: timer_fe_space
      type(timer_t) :: timer_assemply
      type(timer_t) :: timer_solver_setup
+     type(timer_t) :: timer_change_basis_setup 
      type(timer_t) :: timer_solver_run
 
    contains
@@ -137,6 +138,7 @@ contains
     call this%timer_triangulation%create(w_context,"SETUP TRIANGULATION")
     call this%timer_fe_space%create(     w_context,"SETUP FE SPACE")
     call this%timer_assemply%create(     w_context,"FE INTEGRATION AND ASSEMBLY")
+    call this%timer_change_basis_setup%create( w_context, "CHANGE BASIS SETUP")
     call this%timer_solver_setup%create( w_context,"SETUP SOLVER AND PRECONDITIONER")
     call this%timer_solver_run%create(   w_context,"SOLVER RUN")
   end subroutine setup_timers
@@ -149,6 +151,7 @@ contains
     call this%timer_triangulation%report(.true.)
     call this%timer_fe_space%report(.true.)
     call this%timer_assemply%report(.true.)
+    call this%timer_change_basis_setup%report(.true.)
     call this%timer_solver_setup%report(.true.)
     call this%timer_solver_run%report(.true.)
 
@@ -161,6 +164,7 @@ contains
     call this%timer_triangulation%free()
     call this%timer_fe_space%free()
     call this%timer_assemply%free()
+    call this%timer_change_basis_setup%free() 
     call this%timer_solver_setup%free()
     call this%timer_solver_run%free()
   end subroutine free_timers
@@ -219,6 +223,11 @@ contains
     integer(ip) :: idime, inode 
     integer(ip) :: ijk(3), aux 
     integer(ip) :: istat, dummy_val 
+    real(rp)    :: resistivity, permeability 
+    real(rp)    :: resistivity_curr, permeability_curr 
+    real(rp)    :: resistivity_max, resistivity_min 
+    real(rp)    :: permeability_max, permeability_min 
+    logical     :: min_values_initialized
 
     if ( .not. this%par_environment%am_i_l1_task() ) return 
 
@@ -236,14 +245,43 @@ contains
 
     call this%triangulation%create_cell_iterator(cell)
     call memalloc( this%triangulation%get_num_local_cells(), this%cells_set_id, __FILE__, __LINE__ )
-    if ( this%test_params%get_materials_distribution_case() == channels ) then  
     allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
-    call memalloc( this%triangulation%get_num_dims(), is_grav_center_within_channel, __FILE__, __LINE__ )
-    end if 
+    if ( this%test_params%get_materials_distribution_case() == channels ) then 
+       call memalloc( this%triangulation%get_num_dims(), is_grav_center_within_channel, __FILE__, __LINE__ )
+    end if
+
+    ! rPB-BDDC needs a first cell loop to determine the minimum value of the coefficient 
+    if ( this%test_params%get_materials_distribution_case() == heterogeneous ) then  
+       min_values_initialized=.false. 
+       do while ( .not. cell%has_finished() ) 
+          if ( cell%is_local() ) then 
+             call cell%get_nodes_coordinates(cell_coordinates)
+
+             do inode=1, cell%get_num_nodes() 
+                call this%resistivity_holder(1)%p%get_value(cell_coordinates(inode), resistivity)
+                call this%permeability_holder(1)%p%get_value(cell_coordinates(inode), permeability)
+                if ( .not. min_values_initialized ) then 
+                resistivity_min  = resistivity 
+                permeability_min = permeability
+                min_values_initialized = .true. 
+                else 
+                resistivity_min  = min(resistivity_min,  resistivity) 
+                permeability_min = min(permeability_min, permeability) 
+                end if 
+             end do
+          end if
+          call cell%next()
+       end do
+          ! Init cell iterator 
+          call cell%first() 
+    end if
+
     this%cells_set_id = 0
     do while ( .not. cell%has_finished() )
        if ( cell%is_local() ) then 
           select case ( this%test_params%get_materials_distribution_case() )
+          case ( homogeneous ) 
+             this%cells_set_id(cell%get_gid()) = 0
           case ( checkerboard )  
              if ( mod( sum(ijk),2 ) == 0 ) then 
                 this%cells_set_id(cell%get_gid()) = WHITE 
@@ -258,13 +296,13 @@ contains
                    grav_center(idime) = grav_center(idime) + cell_coordinates(inode)%get(idime)/cell%get_num_nodes() 
                 end do
              end do
-             
+
              is_grav_center_within_channel = .false. 
              do idime=1, this%triangulation%get_num_dims()
                 channel_size = 1.0_rp/real(nparts_x_dir,rp)*this%test_params%get_channels_ratio()
                 if ( grav_center(idime) >= (real(ijk(idime)-1,rp))/real(nparts_x_dir,rp) .and. & 
                      grav_center(idime) <= (real(ijk(idime)-1,rp))/real(nparts_x_dir,rp) + channel_size ) then  
-                     is_grav_center_within_channel(idime) = .true. 
+                   is_grav_center_within_channel(idime) = .true. 
                 end if
              end do
 
@@ -274,6 +312,20 @@ contains
                 this%cells_set_id(cell%get_gid()) = BLACK 
              end if
 
+          case ( heterogeneous ) 
+             ! Extract coordinates, evaluate resistivity/permeability
+             call cell%get_nodes_coordinates(cell_coordinates)
+
+             permeability_max = 0.0_rp 
+             resistivity_max  = 0.0_rp 
+             do inode=1, cell%get_num_nodes() 
+                call this%resistivity_holder(1)%p%get_value(cell_coordinates(inode), resistivity)
+                call this%permeability_holder(1)%p%get_value(cell_coordinates(inode), permeability)
+                permeability_max = max( permeability_max, permeability ) 
+                resistivity_max  = max( resistivity_max, resistivity ) 
+             end do
+
+             this%cells_set_id(cell%get_gid()) = floor( log(permeability_max/permeability_min)/log(this%test_params%get_rpb_bddc_threshold()) )
           case DEFAULT 
              massert( .false., 'Materials distribution case not valid')
           end select
@@ -282,9 +334,9 @@ contains
     end do
     call this%triangulation%free_cell_iterator(cell)
     if ( this%test_params%get_materials_distribution_case() == channels ) then 
-    if (allocated(cell_coordinates)) deallocate(cell_coordinates, stat=istat); check(istat==0)
-    if (allocated(is_grav_center_within_channel)) call memfree(is_grav_center_within_channel, __FILE__, __LINE__ )
-    end if 
+       if (allocated(cell_coordinates)) deallocate(cell_coordinates, stat=istat); check(istat==0)
+       if (allocated(is_grav_center_within_channel)) call memfree(is_grav_center_within_channel, __FILE__, __LINE__ )
+    end if
 
     call this%triangulation%fill_cells_set(this%cells_set_id) 
   end subroutine set_cells_set_id
@@ -300,6 +352,8 @@ contains
     call this%permeability_black%set_value(this%test_params%get_permeability_black())
     call this%permeability_white%set_value(this%test_params%get_permeability_white()) 
 
+    select case ( this%test_params%get_materials_distribution_case() ) 
+    case ( checkerboard, channels ) 
     allocate(this%resistivity_holder(2), stat=istat)
     allocate(this%permeability_holder(2), stat=istat) 
 
@@ -307,6 +361,16 @@ contains
     this%resistivity_holder(2)%p => this%resistivity_white
     this%permeability_holder(1)%p => this%permeability_black 
     this%permeability_holder(2)%p => this%permeability_white 
+    case ( homogeneous, heterogeneous ) 
+    
+    allocate(this%resistivity_holder(1), stat=istat)
+    allocate(this%permeability_holder(1), stat=istat) 
+    this%resistivity_holder(1)%p => this%resistivity_white 
+    this%permeability_holder(1)%p => this%permeability_white
+    
+    case DEFAULT 
+    massert(.false., 'Not valid material distribution case') 
+    end select 
 
     call this%maxwell_analytical_functions%set_resistivity( this%resistivity_holder )
     call this%maxwell_analytical_functions%set_permeability( this%permeability_holder ) 
@@ -359,6 +423,16 @@ contains
        call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
     end if
 
+    ! Reassign cell set id to 0 once the coarse triangulation has been computed for integration purposes 
+    if ( this%par_environment%am_i_l1_task() ) then
+       if ( this%test_params%get_materials_distribution_case() == homogeneous .or. &
+            this%test_params%get_materials_distribution_case() == heterogeneous) then 
+          this%cells_set_id = 0 
+
+       end if
+       call this%triangulation%fill_cells_set(this%cells_set_id) 
+    end if
+
     call this%fe_space%create( triangulation       = this%triangulation,      &
          reference_fes       = this%reference_fes,      &
          coarse_fe_handlers  = this%coarse_fe_handlers, & 
@@ -383,30 +457,19 @@ contains
          discrete_integration              = this%maxwell_integration )
 
     if ( this%test_params%get_boundary_mass_trick() ) then 
-    call this%fe_affine_prec_operator%create ( sparse_matrix_storage_format      = csr_format, &
-         diagonal_blocks_symmetric_storage = [ .true. ], &
-         diagonal_blocks_symmetric         = [ .true. ], &
-         diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-         fe_space                          = this%fe_space, &
-         discrete_integration              = this%maxwell_integration )
-    end if 
-    
+       call this%fe_affine_prec_operator%create ( sparse_matrix_storage_format      = csr_format, &
+            diagonal_blocks_symmetric_storage = [ .true. ], &
+            diagonal_blocks_symmetric         = [ .true. ], &
+            diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+            fe_space                          = this%fe_space, &
+            discrete_integration              = this%maxwell_integration )
+    end if
+
     ! Set-up solution with Dirichlet boundary conditions
     call this%solution%create(this%fe_space)
     call this%fe_space%interpolate_dirichlet_values(this%solution) 
     call this%maxwell_integration%set_fe_function(this%solution)
 
-        if ( this%par_environment%am_i_l1_task() ) then       
-       ! Compute average parameters to be sent to the preconditioner for weights computation 
-       call this%compute_average_parameter_values() 
-     
-       matrix => this%fe_affine_operator%get_matrix() 
-       select type ( matrix ) 
-          class is (par_sparse_matrix_t) 
-          call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%average_permeability, this%average_resistivity )
-       end select
-    end if
-    
   end subroutine setup_system
 
   subroutine setup_solver (this)
@@ -418,6 +481,19 @@ contains
     integer(ip) :: ilev
     integer(ip) :: iparm(64)
     class(matrix_t), pointer :: matrix 
+
+    call this%timer_change_basis_setup%start()
+    if ( this%par_environment%am_i_l1_task() ) then       
+       ! Compute average parameters to be sent to the preconditioner for weights computation 
+       call this%compute_average_parameter_values() 
+
+       matrix => this%fe_affine_operator%get_matrix() 
+       select type ( matrix ) 
+          class is (par_sparse_matrix_t) 
+          call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%average_permeability, this%average_resistivity )
+       end select
+    end if
+    call this%timer_change_basis_setup%stop()
 
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
@@ -463,15 +539,16 @@ contains
     ! Set-up MLBDDC preconditioner
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
     if ( this%test_params%get_boundary_mass_trick() ) then 
-    call this%mlbddc%create(this%fe_affine_prec_operator, this%parameter_list)
+       call this%mlbddc%create(this%fe_affine_prec_operator, this%parameter_list)
     else 
-    call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
-    end if 
+       call this%mlbddc%create(this%fe_affine_operator, this%parameter_list)
+    end if
     call this%mlbddc%symbolic_setup()
     call this%mlbddc%numerical_setup()  
 
     call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-8_rp)
+    FPLError = parameter_list%set(key = ils_stopping_criteria, value=res_res)
+    FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-6_rp)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 1000)
     assert(FPLError == 0)
 
@@ -560,12 +637,12 @@ contains
 
     call this%maxwell_integration%set_integration_type( problem ) 
     call this%fe_affine_operator%compute()
-    
+
     if ( this%test_params%get_boundary_mass_trick() ) then 
-    call this%maxwell_integration%set_integration_type( preconditioner ) 
-    call this%fe_affine_prec_operator%compute() 
-    end if 
-    
+       call this%maxwell_integration%set_integration_type( preconditioner ) 
+       call this%fe_affine_prec_operator%compute() 
+    end if
+
   end subroutine assemble_system
 
   subroutine solve_system(this)
@@ -672,8 +749,8 @@ contains
     end subroutine free_set_ids
 
   end subroutine write_solution
-  
-   !========================================================================================
+
+  !========================================================================================
   subroutine print_info (this)
     implicit none
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
@@ -689,23 +766,23 @@ contains
     environment => this%fe_space%get_environment()
 
     if (environment%am_i_l1_task()) then
-      num_total_cells  = real(this%triangulation%get_num_local_cells(),kind=rp)
-      num_dofs         = real(this%fe_space%get_field_num_dofs(1),kind=rp)
-      call environment%l1_sum(num_total_cells )
-      call environment%l1_sum(num_dofs        )
+       num_total_cells  = real(this%triangulation%get_num_local_cells(),kind=rp)
+       num_dofs         = real(this%fe_space%get_field_num_dofs(1),kind=rp)
+       call environment%l1_sum(num_total_cells )
+       call environment%l1_sum(num_dofs        )
     end if
 
     if (environment%get_l1_rank() == 0) then
-      num_sub_domains = environment%get_l1_size()
-      write(*,'(a,i22)') 'num_sub_domains:          ', num_sub_domains
-      write(*,'(a,i22)') 'num_total_cells:          ', nint(num_total_cells , kind=ip )
-      write(*,'(a,i22)') 'num_dofs (sub-assembled): ', nint(num_dofs        , kind=ip )
+       num_sub_domains = environment%get_l1_size()
+       write(*,'(a,i22)') 'num_sub_domains:          ', num_sub_domains
+       write(*,'(a,i22)') 'num_total_cells:          ', nint(num_total_cells , kind=ip )
+       write(*,'(a,i22)') 'num_dofs (sub-assembled): ', nint(num_dofs        , kind=ip )
     end if
 
     if (environment%am_i_lgt1_task()) then
-      coarse_fe_space => this%fe_space%get_coarse_fe_space()
-      num_coarse_dofs = coarse_fe_space%get_field_num_dofs(1)
-      write(*,'(a,i22)') 'num_coarse_dofs:  ', num_coarse_dofs
+       coarse_fe_space => this%fe_space%get_coarse_fe_space()
+       num_coarse_dofs = coarse_fe_space%get_field_num_dofs(1)
+       write(*,'(a,i22)') 'num_coarse_dofs:  ', num_coarse_dofs
     end if
 
   end subroutine print_info
@@ -715,6 +792,7 @@ contains
     class(par_pb_bddc_maxwell_fe_driver_t), intent(inout) :: this
 
     call this%timer_triangulation%start()
+    call this%setup_analytical_functions()
     call this%setup_triangulation()
     call this%timer_triangulation%stop()
 
@@ -725,7 +803,6 @@ contains
     call this%timer_fe_space%stop()
 
     call this%timer_assemply%start()
-    call this%setup_analytical_functions()
     call this%setup_system()
     call this%assemble_system()
     call this%timer_assemply%stop()
@@ -754,14 +831,12 @@ contains
     call this%iterative_linear_solver%free()
     call this%fe_affine_operator%free()
     if ( this%test_params%get_boundary_mass_trick() ) then 
-    call this%fe_affine_prec_operator%free()
-    end if 
+       call this%fe_affine_prec_operator%free()
+    end if
 
-    if ( this%par_environment%am_i_l1_task() ) then 
-       if (allocated(this%coarse_fe_handlers) ) then 
-          call this%coarse_fe_handler%free() 
-          deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
-       end if
+    if (allocated(this%coarse_fe_handlers) ) then 
+       call this%coarse_fe_handler%free() 
+       deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
     end if
 
     call this%fe_space%free()
@@ -787,7 +862,7 @@ contains
     if (allocated(this%cells_set_id) )        call memfree( this%cells_set_id, __FILE__ ,__LINE__ )
     if (allocated(this%average_resistivity))  call memfree( this%average_resistivity, __FILE__, __LINE__ ) 
     if (allocated(this%average_permeability)) call memfree( this%average_permeability, __FILE__, __LINE__ ) 
-    
+
   end subroutine free
 
   !========================================================================================
