@@ -198,6 +198,16 @@ function time_stepping_stage_fe_operator_is_linear(this)
 end function time_stepping_stage_fe_operator_is_linear
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine time_stepping_stage_fe_operator_compute_residual(this,y)
+  implicit none
+  class(time_stepping_stage_fe_operator_t), intent(in) :: this
+  class(vector_t) ,  intent(inout) :: y 
+  class(environment_t),    pointer :: environment
+  call this%compute_internal_residual()
+  y = this%get_translation()
+end subroutine time_stepping_stage_fe_operator_compute_residual
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
   implicit none
   class(time_stepping_stage_fe_operator_t), intent(in) :: this

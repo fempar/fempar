@@ -118,16 +118,17 @@ module time_stepping_names
      ! time_stepping_stage_fe_operator_set_evaluation_point
      class(vector_t), allocatable    :: aux
    contains
-     procedure :: create                => time_stepping_stage_fe_operator_create
-     procedure :: create_from_operators => time_stepping_stage_fe_operator_create_from_operators
-     procedure :: create_mass_operator  => time_stepping_stage_fe_operator_create_mass_operator
-     procedure :: free                  => time_stepping_stage_fe_operator_free
-     procedure :: set_row               => time_stepping_stage_fe_operator_set_row     
-     procedure :: set_evaluation_point  => time_stepping_stage_fe_operator_set_evaluation_point
-     procedure :: set_evaluation_time   => time_stepping_stage_fe_operator_set_evaluation_time
-     procedure :: is_linear             => time_stepping_stage_fe_operator_is_linear
-     procedure :: compute_internal_residual      => time_stepping_stage_fe_operator_compute_internal_residual
-     procedure :: compute_tangent       => time_stepping_stage_fe_operator_compute_tangent
+     procedure          :: create                    => time_stepping_stage_fe_operator_create
+     procedure          :: create_from_operators     => time_stepping_stage_fe_operator_create_from_operators
+     procedure          :: create_mass_operator      => time_stepping_stage_fe_operator_create_mass_operator
+     procedure          :: free                      => time_stepping_stage_fe_operator_free
+     procedure          :: set_row                   => time_stepping_stage_fe_operator_set_row     
+     procedure          :: set_evaluation_point      => time_stepping_stage_fe_operator_set_evaluation_point
+     procedure          :: set_evaluation_time       => time_stepping_stage_fe_operator_set_evaluation_time
+     procedure          :: is_linear                 => time_stepping_stage_fe_operator_is_linear
+     procedure          :: compute_residual          => time_stepping_stage_fe_operator_compute_residual
+     procedure, private :: compute_internal_residual => time_stepping_stage_fe_operator_compute_internal_residual
+     procedure          :: compute_tangent           => time_stepping_stage_fe_operator_compute_tangent
   end type time_stepping_stage_fe_operator_t
 
   ! sbadia: to make auto-documentation style
