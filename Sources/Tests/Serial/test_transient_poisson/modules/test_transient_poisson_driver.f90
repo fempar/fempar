@@ -290,7 +290,7 @@ contains
     call this%iterative_linear_solver%create(this%fe_space%get_environment())
     call this%iterative_linear_solver%set_type_from_string(cg_name)
     call this%iterative_linear_solver%set_parameters_from_pl(parameter_list)
-    call this%iterative_linear_solver%set_operators(this%fe_affine_operator%get_tangent(), .identity. this%fe_affine_operator) 
+    call this%iterative_linear_solver%set_operators(this%time_operator%get_matrix(), .identity. this%time_operator%get_fe_operator())
     
     call this%nl_solver%create( convergence_criteria = abs_res_norm, &
                                 abs_tol = 1.0e-6_rp, &
