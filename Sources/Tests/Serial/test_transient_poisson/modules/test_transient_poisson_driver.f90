@@ -218,14 +218,14 @@ contains
     integer(ip) :: luout
    
     call this%fe_op%create ( sparse_matrix_storage_format      = csr_format, &
-                                          diagonal_blocks_symmetric_storage = [ .true. ], &
-                                          diagonal_blocks_symmetric         = [ .true. ], &
-                                          diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
-                                          fe_space                          = this%fe_space, &
-                                          discrete_integration              = this%poisson_cG_integration )
+                             diagonal_blocks_symmetric_storage = [ .true. ], &
+                             diagonal_blocks_symmetric         = [ .true. ], &
+                             diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
+                             fe_space                          = this%fe_space, &
+                             discrete_integration              = this%poisson_cG_integration )
     
    
-    call this%time_operator%create( fe_op                = this%fe_op, &
+    call this%time_operator%create( fe_op                   = this%fe_op, &
                                     initial_time            = this%test_params%get_initial_time() , &
                                     final_time              = this%test_params%get_final_time() , &
                                     time_step               = this%test_params%get_time_step() , &
@@ -271,13 +271,14 @@ contains
        assert(.false.) 
     end select
     
-    call this%nl_solver%create( convergence_criteria = rel_r0_res_norm, &
+    call this%nl_solver%create( convergence_criteria = abs_res_norm, &
                                 abs_tol = 1.0e-6_rp, &
                                 rel_tol = 1.0e-6_rp, &
-                                max_iters = 10_ip, &
+                                max_iters = 0_ip, &
                                 linear_solver = this%direct_solver, &
                                 environment = this%fe_space%get_environment() , & 
-                                fe_operator = this%time_operator%get_fe_operator() )
+                                fe_operator = this%time_operator%get_fe_operator(), &
+                                print_iteration_output = this%test_params%get_print_nonlinear_iteration() )
     
     call this%time_solver%create( ts_op = this%time_operator, &
                                   nl_solver = this%nl_solver )
@@ -298,7 +299,8 @@ contains
                                 max_iters = 10_ip, &
                                 linear_solver = this%iterative_linear_solver, &
                                 environment = this%fe_space%get_environment(),&
-                                fe_operator = this%time_operator%get_fe_operator())
+                                fe_operator = this%time_operator%get_fe_operator(), &
+                                print_iteration_ouput = .false. )
     
     call this%time_solver%create( ts_op = this%time_operator, &
                                   nl_solver = this%nl_solver )
@@ -331,6 +333,8 @@ contains
     real(rp) :: mean, l1, l2, lp, linfty, h1, h1_s, w1p_s, w1p, w1infty_s, w1infty
     real(rp) :: error_tolerance
   
+    check(this%nl_solver%has_converged())
+    
     if ( .not. this%test_params%get_is_test() .or. this%is_exact_solution() ) then
     
     call error_norm%create(this%fe_space,1)

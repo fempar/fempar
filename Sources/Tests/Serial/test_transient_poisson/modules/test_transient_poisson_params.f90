@@ -58,7 +58,7 @@ module test_transient_poisson_params_names
      character(len=:), allocatable :: default_time_step
      character(len=:), allocatable :: default_time_integration_scheme
      character(len=:), allocatable :: default_is_test
-     
+     character(len=:), allocatable :: default_print_nonlinear_iteration
      
      type(Command_Line_Interface):: cli 
 
@@ -86,6 +86,7 @@ module test_transient_poisson_params_names
      character(len=str_cla_len)    :: time_integration_scheme
      
      logical                       :: is_test
+     logical                       :: print_nonlinear_iteration
 
    contains
      procedure, non_overridable             :: create       => test_transient_poisson_create
@@ -110,6 +111,7 @@ module test_transient_poisson_params_names
      procedure, non_overridable             :: get_time_step
      procedure, non_overridable             :: get_time_integration_scheme
      procedure, non_overridable             :: get_is_test
+     procedure, non_overridable             :: get_print_nonlinear_iteration
   end type test_transient_poisson_params_t  
 
   ! Types
@@ -167,6 +169,7 @@ contains
     this%default_time_integration_scheme = 'backward_euler'
     
     this%default_is_test = '.false.'
+    this%default_print_nonlinear_iteration = '.false.'
   end subroutine test_transient_poisson_set_default
   
   !==================================================================================================
@@ -255,6 +258,9 @@ contains
     call this%cli%add(switch='--is-test',switch_ab='-test',help='Test convergence order of the runge kutta scheme',&
          &            required=.false.,act='store',def=trim(this%default_is_test),error=error) 
     check(error==0)
+    call this%cli%add(switch='--print-nonlinear-iteration',switch_ab='-nl-it',help='Print nonlinear iteration output',&
+         &            required=.false.,act='store',def=trim(this%default_print_nonlinear_iteration),error=error) 
+    check(error==0)
   end subroutine test_transient_poisson_add_to_cli
   
   subroutine test_transient_poisson_parse(this,parameter_list)
@@ -292,6 +298,7 @@ contains
     call this%cli%get(switch='-rk-scheme',val=this%time_integration_scheme,error=istat); check(istat==0)
 
     call this%cli%get(switch='-test',val=this%is_test,error=istat); check(istat==0)
+    call this%cli%get(switch='-nl-it',val=this%print_nonlinear_iteration,error=istat); check(istat==0)
     
     call parameter_list%init()
     istat = 0
@@ -329,6 +336,7 @@ contains
     if(allocated(this%default_time_step)) deallocate(this%default_time_step) 
     if(allocated(this%default_time_integration_scheme)) deallocate(this%default_time_integration_scheme)
     if(allocated(this%default_is_test)) deallocate(this%default_is_test)
+    if(allocated(this%default_print_nonlinear_iteration)) deallocate(this%default_print_nonlinear_iteration)
     call this%cli%free()
   end subroutine test_transient_poisson_free
 
@@ -467,5 +475,13 @@ contains
     logical                                   :: get_is_test
     get_is_test = this%is_test
   end function get_is_test
+  
+    !==================================================================================================
+  function get_print_nonlinear_iteration(this)
+    implicit none
+    class(test_transient_poisson_params_t) , intent(in) :: this
+    logical                                   :: get_print_nonlinear_iteration
+    get_print_nonlinear_iteration = this%print_nonlinear_iteration
+  end function get_print_nonlinear_iteration
   
 end module test_transient_poisson_params_names
