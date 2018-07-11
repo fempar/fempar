@@ -121,6 +121,7 @@ subroutine time_stepping_stage_fe_operator_free(this)
   nullify(this%ts_op)
   nullify(this%fe_op)
   call this%mass_op%free()
+  call this%mass_integration%free()
   if ( allocated(this%aux) ) then
     call this%aux%free()
     deallocate(this%aux, stat=istat); check(istat==0);

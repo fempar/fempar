@@ -109,8 +109,8 @@ module time_stepping_names
   type, extends(fe_operator_t) :: time_stepping_stage_fe_operator_t
      private
      type(time_stepping_operator_t), pointer :: ts_op      => NULL()
-     class(fe_operator_t), pointer :: fe_op   => NULL()
-     type(fe_operator_t)           :: mass_op 
+     class(fe_operator_t),           pointer :: fe_op   => NULL()
+     type(fe_operator_t)                     :: mass_op 
      type(mass_discrete_integration_t)       :: mass_integration
      integer(ip) :: i
      integer(ip) :: j

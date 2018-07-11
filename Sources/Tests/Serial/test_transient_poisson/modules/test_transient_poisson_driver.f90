@@ -528,6 +528,7 @@ contains
     
     call this%time_solver%free()
     call this%nl_solver%free()
+    call this%poisson_cG_integration%free()
     
     call this%time_operator%free()
     call this%fe_op%free()

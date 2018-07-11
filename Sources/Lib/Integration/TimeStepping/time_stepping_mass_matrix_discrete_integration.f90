@@ -32,8 +32,8 @@ module time_stepping_mass_discrete_integration_names
 # include "debug.i90"
   private
   type, extends(linear_discrete_integration_t) :: mass_discrete_integration_t
-     type(fe_function_t) :: fe_function 
-     class(serial_fe_space_t), pointer :: fe_space => NULL()
+     type(fe_function_t)                       :: fe_function 
+     class(serial_fe_space_t),         pointer :: fe_space => NULL()
    contains
      procedure :: integrate_galerkin    => integrate_tangent 
      procedure :: integrate_tangent
@@ -41,12 +41,19 @@ module time_stepping_mass_discrete_integration_names
      procedure :: set_evaluation_point
      procedure :: set_up
      procedure :: set_current_time
+     procedure :: free
   end type mass_discrete_integration_t
   
   public :: mass_discrete_integration_t
   
 contains
    
+  subroutine free (this)
+    class(mass_discrete_integration_t), intent(inout)    :: this
+    call this%fe_function%free()
+    nullify(this%fe_space)
+  end subroutine free
+  
   subroutine integrate_tangent ( this, fe_space, assembler )
     implicit none
     class(mass_discrete_integration_t), intent(in)    :: this

@@ -48,13 +48,20 @@ module poisson_cG_discrete_integration_names
      procedure :: integrate_galerkin
      procedure :: integrate_tangent
      procedure :: integrate_residual 
+     procedure :: free
   end type poisson_cG_discrete_integration_t
 
   
   public :: poisson_cG_discrete_integration_t
   
 contains
-   
+  subroutine free (this)
+    class(poisson_cG_discrete_integration_t), intent(inout) :: this
+    call this%fe_function%free()
+    nullify(this%fe_space)
+    nullify(this%analytical_functions)
+  end subroutine free
+  
   subroutine set_analytical_functions ( this, analytical_functions )
      implicit none
      class(poisson_cG_discrete_integration_t)    , intent(inout) :: this
