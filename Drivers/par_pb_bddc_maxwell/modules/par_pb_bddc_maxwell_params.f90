@@ -186,7 +186,7 @@ contains
     error = helpers%set(key = materials_distribution_case_key, value  = 'Materials distribution case: choose between: checkerboard, channels' )  ; check(error==0)
     error = helpers%set(key = channels_ratio_key   , value  = 'Ratio channel/non-channel of the cross section for every direction)' ) ; check(error==0)
     error = helpers%set(key = rpb_bddc_threshold_key   , value  = 'Threshold for the relaxed PB-BDDC subparts partition' ) ; check(error==0)
-    error = helpers%set(key = boundary_mass_trick_key   , value  = 'Is the boundary mass trick active?' ) ; check(error==0)
+    error = helpers%set(key = boundary_mass_trick_key   , value  = 'Is the boundary mass trick active?' ); check(error==0)
     
     error = required%set(key = dir_path_key                  , value = .false.) ; check(error==0)
     error = required%set(key = prefix_key                    , value = .false.) ; check(error==0)

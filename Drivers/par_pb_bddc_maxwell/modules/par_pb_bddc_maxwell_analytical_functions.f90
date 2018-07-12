@@ -182,7 +182,7 @@ contains
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
 	   ! result = this%default_value 
-    result = 10**(-(point%get(1)+point%get(2)+point%get(3)))
+    result = exp( 4.0_rp*sin(5*pi*(point%get(1)+point%get(2)+point%get(3))))
   end subroutine resistivity_function_white_get_value_space
   
     !===============================================================================================
@@ -191,8 +191,8 @@ contains
     class(resistivity_function_black_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    ! result = this%default_value 
-    result = 10**(point%get(1)+point%get(2)+point%get(3))
+    result = this%default_value 
+    ! result = 10**(point%get(1) + point%get(2) + point%get(3) ) 
   end subroutine resistivity_function_black_get_value_space
   
           !===============================================================================================
@@ -201,8 +201,8 @@ contains
     class(permeability_function_white_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-	   !result = this%default_value  
-    result = 10**(point%get(1) + point%get(2) + point%get(3) )
+	   result = this%default_value  
+    !result = 10**(point%get(1) + point%get(2) + point%get(3) )
   end subroutine permeability_function_white_get_value_space
   
     !===============================================================================================
@@ -211,8 +211,8 @@ contains
     class(permeability_function_black_t)  , intent(in)    :: this 
     type(point_t)                  , intent(in)    :: point 
     real(rp)                       , intent(inout) :: result 
-    ! result = this%default_value  
-     result = 10**(-(point%get(1)+point%get(2)+point%get(3)))
+     result = this%default_value  
+    ! result = 10**(-(point%get(1)+point%get(2)+point%get(3)))
   end subroutine permeability_function_black_get_value_space
   
       !===============================================================================================

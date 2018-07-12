@@ -27,6 +27,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module par_pb_bddc_maxwell_discrete_integration_names
   use fempar_names
+  use par_pb_bddc_maxwell_params_names
   use par_pb_bddc_maxwell_analytical_functions_names
   
   implicit none
@@ -45,8 +46,10 @@ module par_pb_bddc_maxwell_discrete_integration_names
    type(par_pb_bddc_maxwell_analytical_functions_t), pointer :: analytical_functions => NULL()
 	  type(fe_function_t)                 , pointer :: fe_function          => NULL()
    integer(ip)                                   :: integration_type
+   character(len=:), allocatable                 :: materials_distribution_case 
    contains
      procedure :: set_analytical_functions
+     procedure :: set_materials_distribution_case 
 	    procedure :: set_fe_function 
      procedure :: set_integration_type 
      procedure :: integrate_galerkin 
@@ -77,6 +80,14 @@ contains
     
     this%integration_type = integration_type
   end subroutine set_integration_type
+  
+  subroutine set_materials_distribution_case (this,  materials_distribution_case )
+    implicit none
+    class(maxwell_cG_discrete_integration_t), intent(inout)  :: this
+    character(len=*)                        , intent(in)     :: materials_distribution_case
+    
+    this%materials_distribution_case = materials_distribution_case
+  end subroutine set_materials_distribution_case
 
   subroutine integrate_galerkin ( this, fe_space, assembler )
     implicit none
@@ -146,7 +157,13 @@ contains
 										quad_coords => fe%get_quadrature_points_coordinates()
 		  
 		        ! Evaluate analytical functions at quadrature points 
-          material_id = 1 + fe%get_set_id() 
+          select case ( this%materials_distribution_case )
+          case ( homogeneous, heterogeneous )
+          material_id = 1
+          case ( checkerboard, channels ) 
+          material_id = 1 + fe%get_set_id()
+          end select 
+          
           call source_term%get_values_set(quad_coords, source_term_values)
           call resistivity_holder(material_id)%p%get_values_set(quad_coords, resistivity)
           call permeability_holder(material_id)%p%get_values_set(quad_coords, permeability)  
@@ -180,7 +197,13 @@ contains
           call fe%update_integration()
        
           ! Get parameter values 
+          select case ( this%materials_distribution_case )
+          case ( homogeneous, heterogeneous )
+          material_id = 1
+          case ( checkerboard, channels ) 
           material_id = 1 + fe%get_set_id()
+          end select 
+
           call permeability_holder(material_id)%p%get_values_set(quad_coords, permeability)   
           
           ! Very important: this has to be inside the loop, as different FEs can be present! Study the multifield case, what happens with source term? 

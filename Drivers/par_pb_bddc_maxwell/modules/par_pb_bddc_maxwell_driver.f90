@@ -223,8 +223,8 @@ contains
     integer(ip) :: idime, inode 
     integer(ip) :: ijk(3), aux 
     integer(ip) :: istat, dummy_val 
+    real(rp)    :: contrast
     real(rp)    :: resistivity, permeability 
-    real(rp)    :: resistivity_curr, permeability_curr 
     real(rp)    :: resistivity_max, resistivity_min 
     real(rp)    :: permeability_max, permeability_min 
     logical     :: min_values_initialized
@@ -274,8 +274,11 @@ contains
        end do
           ! Init cell iterator 
           call cell%first() 
+         
     end if
 
+
+    
     this%cells_set_id = 0
     do while ( .not. cell%has_finished() )
        if ( cell%is_local() ) then 
@@ -324,8 +327,10 @@ contains
                 permeability_max = max( permeability_max, permeability ) 
                 resistivity_max  = max( resistivity_max, resistivity ) 
              end do
-
-             this%cells_set_id(cell%get_gid()) = floor( log(permeability_max/permeability_min)/log(this%test_params%get_rpb_bddc_threshold()) )
+             
+             contrast=(resistivity_max)/(resistivity_min)
+             massert(this%test_params%get_rpb_bddc_threshold()>1.0_rp, 'Not valid Relaxed PB-BDDC threshold') 
+             this%cells_set_id(cell%get_gid()) = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
           case DEFAULT 
              massert( .false., 'Materials distribution case not valid')
           end select
@@ -423,16 +428,6 @@ contains
        call this%maxwell_conditions%set_boundary_function_Hz(this%maxwell_analytical_functions%get_boundary_function_Hz())
     end if
 
-    ! Reassign cell set id to 0 once the coarse triangulation has been computed for integration purposes 
-    if ( this%par_environment%am_i_l1_task() ) then
-       if ( this%test_params%get_materials_distribution_case() == homogeneous .or. &
-            this%test_params%get_materials_distribution_case() == heterogeneous) then 
-          this%cells_set_id = 0 
-
-       end if
-       call this%triangulation%fill_cells_set(this%cells_set_id) 
-    end if
-
     call this%fe_space%create( triangulation       = this%triangulation,      &
          reference_fes       = this%reference_fes,      &
          coarse_fe_handlers  = this%coarse_fe_handlers, & 
@@ -448,7 +443,8 @@ contains
     class(matrix_t), pointer :: matrix 
 
     call this%maxwell_integration%set_analytical_functions(this%maxwell_analytical_functions)
-
+    call this%maxwell_integration%set_materials_distribution_case(this%test_params%get_materials_distribution_case())
+                                                                  
     call this%fe_affine_operator%create ( sparse_matrix_storage_format      = csr_format, &
          diagonal_blocks_symmetric_storage = [ .true. ], &
          diagonal_blocks_symmetric         = [ .true. ], &
@@ -547,7 +543,6 @@ contains
     call this%mlbddc%numerical_setup()  
 
     call parameter_list%init()
-    FPLError = parameter_list%set(key = ils_stopping_criteria, value=res_res)
     FPLError = parameter_list%set(key = ils_rtol, value = 1.0e-6_rp)
     FPLError = parameter_list%set(key = ils_max_num_iterations, value = 1000)
     assert(FPLError == 0)
@@ -573,7 +568,7 @@ contains
     real(rp), allocatable                  :: set_id_volume(:)
     real(rp), allocatable                  :: permeability(:)
     real(rp), allocatable                  :: resistivity(:) 
-    integer(ip) :: max_cell_set_id, set_id 
+    integer(ip) :: max_cell_set_id, set_id, material_id 
     integer(ip) :: istat 
 
     max_cell_set_id = maxval(this%cells_set_id)+1 ! 1-based arrays  
@@ -601,9 +596,15 @@ contains
           quad_coords => fe%get_quadrature_points_coordinates()
 
           ! Evaluate parameters on the cell 
-          set_id = fe%get_set_id()+1 ! Arrays are 1-based and set_ids are 0-based 
-          call this%resistivity_holder(set_id)%p%get_values_set(quad_coords, resistivity)
-          call this%permeability_holder(set_id)%p%get_values_set(quad_coords, permeability)  
+          select case ( this%test_params%get_materials_distribution_case() )
+          case ( homogeneous, heterogeneous )
+          material_id = 1
+          case ( checkerboard, channels ) 
+          material_id = 1 + fe%get_set_id()
+          end select 
+          set_id = 1 + fe%get_set_id() ! 1-based arrays 
+          call this%resistivity_holder(material_id)%p%get_values_set(quad_coords, resistivity)
+          call this%permeability_holder(material_id)%p%get_values_set(quad_coords, permeability)  
 
           ! Integrate cell contribution to averages 
           do qpoin=1, num_quad_points
