@@ -277,8 +277,6 @@ contains
          
     end if
 
-
-    
     this%cells_set_id = 0
     do while ( .not. cell%has_finished() )
        if ( cell%is_local() ) then 
