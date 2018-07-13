@@ -37,6 +37,9 @@ module par_test_hts_params_names
   character(len=*), parameter :: nonlinear_exponent_key         = 'nonlinear_exponent' 
   character(len=*), parameter :: hts_device_type_key            = 'hts_device_type'
   
+  character(len=*), parameter :: rpb_bddc_threshold_key         = 'rpb_bddc_threshold'
+  character(len=*), parameter :: boundary_mass_trick_key        = 'boundary_mass_trick'
+  
   character(len=*), parameter :: stack = 'stack'
   character(len=*), parameter :: bulk  = 'bulk' 
 
@@ -104,6 +107,8 @@ contains
   procedure, non_overridable             :: get_relative_nonlinear_tolerance 
   procedure, non_overridable             :: get_max_nonlinear_iterations 
   procedure, non_overridable             :: get_line_search_type 
+  procedure, non_overridable             :: get_rpb_bddc_threshold 
+  procedure, non_overridable             :: get_boundary_mass_trick 
 end type par_test_hts_params_t
 
 ! Types
@@ -171,6 +176,8 @@ subroutine par_test_hts_params_define_parameters(this)
  error = list%set(key = critical_electric_field_key , value = 1.0)      ; check(error==0)
  error = list%set(key = nonlinear_exponent_key      , value = 1.0)      ; check(error==0)
  error = list%set(key = hts_device_type_key         , value = bulk)     ; check(error==0)
+ error = list%set(key = rpb_bddc_threshold_key      , value = 10.0 ); check(error==0)
+ error = list%set(key = boundary_mass_trick_key     , value =  .false.); check(error==0)
 
  ! TIME INTEGRATION parameters 
  error = list%set(key = theta_value_key              , value = 1.0)      ; check(error==0)
@@ -189,7 +196,7 @@ subroutine par_test_hts_params_define_parameters(this)
  error = list%set(key = absolute_nonlinear_tolerance_key   , value = 1.0e-2)               ; check(error==0)
  error = list%set(key = relative_nonlinear_tolerance_key   , value = 1.0e-12)              ; check(error==0)
  error = list%set(key = max_nonlinear_iterations_key       , value = 50)                   ; check(error==0)
- error = list%set(key = line_search_type_key               , value = static)               ; check(error==0)
+ error = list%set(key = line_search_type_key               , value = 'static')             ; check(error==0)
 
 
  ! CLI declarations ===============================================================================================
@@ -227,7 +234,7 @@ subroutine par_test_hts_params_define_parameters(this)
  error = switches%set(key = apply_current_density_constraint_key , value = '--apply_current_density_constraint')  ; check(error==0)
 
  ! PHYSICAL PROPERTIES parameters
- error = switches%set(key = is_analytical_solution_key  , value ='--is_analytical_solution')     ; check(error==0)
+ error = switches%set(key = is_analytical_solution_key  , value ='--is_analytical_solution')   ; check(error==0)
  error = switches%set(key = air_permeability_key        , value = '--air_permeability')        ; check(error==0)
  error = switches%set(key = air_resistivity_key         , value = '--air_resistivity')         ; check(error==0)
  error = switches%set(key = hts_permeability_key        , value = '--hts_permeability')        ; check(error==0)
@@ -236,6 +243,8 @@ subroutine par_test_hts_params_define_parameters(this)
  error = switches%set(key = critical_electric_field_key , value = '--critical_electric_field') ; check(error==0)
  error = switches%set(key = nonlinear_exponent_key      , value = '--nonlinear_exponent')      ; check(error==0)
  error = switches%set(key = hts_device_type_key         , value = '--device_type')             ; check(error==0)
+ error = switches%set(key = rpb_bddc_threshold_key      , value = '--rpb_bddc_threshold' )     ; check(error==0)
+ error = switches%set(key = boundary_mass_trick_key     , value = '--boundary_mass_trick' )    ; check(error==0)
 
  ! TIME INTEGRATION parameters
  error = switches%set(key = theta_value_key              , value = '--theta_value')              ; check(error==0)
@@ -300,6 +309,8 @@ subroutine par_test_hts_params_define_parameters(this)
  error = switches_ab%set(key = critical_electric_field_key , value = '-Ec')         ; check(error==0)
  error = switches_ab%set(key = nonlinear_exponent_key      , value = '-nl_exp')     ; check(error==0)
  error = switches_ab%set(key = hts_device_type_key         , value = '-hts_type')   ; check(error==0)
+ error = switches_ab%set(key = rpb_bddc_threshold_key      , value = '-rpb_bddc_threshold' )  ; check(error==0)
+ error = switches_ab%set(key = boundary_mass_trick_key     , value = '-bmass_trick' )  ; check(error==0)
 
  ! TIME INTEGRATION parameters
  error = switches_ab%set(key = theta_value_key              , value = '-theta')  ; check(error==0)
@@ -376,6 +387,8 @@ subroutine par_test_hts_params_define_parameters(this)
  error = helpers%set(key = critical_electric_field_key , value = 'Critical Electric Field [Ec]')  ; check(error==0)
  error = helpers%set(key = nonlinear_exponent_key      , value = 'Nonlinear exponent (E-J law)')  ; check(error==0)
  error = helpers%set(key = hts_device_type_key         , value = 'Device type: bulk or stack')    ; check(error==0)
+ error = helpers%set(key = rpb_bddc_threshold_key      , value  = 'Threshold for the relaxed PB-BDDC subparts partition' ) ; check(error==0)
+ error = helpers%set(key = boundary_mass_trick_key     , value  = 'Is the boundary mass trick active?' ); check(error==0)
 
  ! TIME INTEGRATION parameters
  error = helpers%set(key = theta_value_key              , value = 'Theta value')        ; check(error==0)
@@ -439,6 +452,8 @@ subroutine par_test_hts_params_define_parameters(this)
  error = required%set(key = critical_electric_field_key , value = .false.)    ; check(error==0)
  error = required%set(key = nonlinear_exponent_key      , value = .false.)    ; check(error==0)
  error = required%set(key = hts_device_type_key         , value = .false.)    ; check(error==0)
+ error = required%set(key = rpb_bddc_threshold_key      , value = .false.) ; check(error==0)
+ error = required%set(key = boundary_mass_trick_key     , value = .false.) ; check(error==0)
 
  ! TIME INTEGRATION parameters
  error = required%set(key = theta_value_key              , value = .false.)   ; check(error==0)
@@ -997,5 +1012,31 @@ function get_line_search_type(this)
  error = list%GetAsString(key = line_search_type_key, string = get_line_search_type)
  assert(error==0)
 end function get_line_search_type
+
+!==================================================================================================
+  function get_rpb_bddc_threshold(this)
+    implicit none
+     class(par_test_hts_params_t) , intent(in) :: this
+    real(rp)                                      :: get_rpb_bddc_threshold
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(rpb_bddc_threshold_key, get_rpb_bddc_threshold))
+    error = list%Get(key = rpb_bddc_threshold_key, Value = get_rpb_bddc_threshold)
+    assert(error==0)
+  end function get_rpb_bddc_threshold
+  
+!==================================================================================================
+  function get_boundary_mass_trick(this)
+    implicit none
+     class(par_test_hts_params_t) , intent(in) :: this
+    logical                                       :: get_boundary_mass_trick
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(boundary_mass_trick_key, get_boundary_mass_trick))
+    error = list%Get(key = boundary_mass_trick_key, Value = get_boundary_mass_trick)
+    assert(error==0)
+  end function get_boundary_mass_trick
 
 end module par_test_hts_params_names

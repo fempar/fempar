@@ -64,9 +64,13 @@ module par_test_hts_driver_names
      type(hts_conditions_t)                        :: hts_conditions
      type(hts_analytical_functions_t)              :: hts_analytical_functions
 
+     ! Parameter-based solver 
+     real(rp), allocatable                            :: average_permeability(:) 
+     real(rp), allocatable                            :: average_resistivity(:) 
+
      ! Place-holder for the coefficient matrix and RHS of the linear system
      type(iterative_linear_solver_t)             :: linear_solver
-     type(fe_nonlinear_operator_t)               :: nonlinear_operator
+     type(fe_operator_t)                         :: fe_operator
      type(nonlinear_solver_t)                    :: nonlinear_solver 
      type(mlbddc_t)                              :: mlbddc
 
@@ -102,13 +106,15 @@ module par_test_hts_driver_names
      procedure                  :: free_timers
      procedure                  :: setup_environment
      procedure        , private :: setup_triangulation
-     procedure        , private :: set_cells_set_id
+     procedure        , private :: set_material_cells_set_id
+     procedure        , private :: set_pb_cells_set_id 
      procedure        , private :: setup_reference_fes
      procedure        , private :: setup_coarse_fe_handlers
      procedure        , private :: setup_fe_space
      procedure        , private :: setup_discrete_integration
      procedure        , private :: setup_operators
      procedure        , private :: setup_theta_method 
+     procedure        , private :: compute_average_parameter_values
      procedure        , private :: setup_system
      procedure        , private :: solve_problem 
      procedure        , private :: compute_hysteresis_data 
@@ -203,22 +209,22 @@ contains
     istat    = this%parameter_list%set(key = hex_mesh_domain_limits_key , value = domain); check(istat==0)
     call this%triangulation%create(this%parameter_list, this%environment)
 
-       call this%triangulation%create_vef_iterator(vef)
-       do while ( .not. vef%has_finished() )
-          if(vef%is_at_boundary()) then 
-             call vef%set_set_id(1)
-          else
-             call vef%set_set_id(0)
-          end if
-          call vef%next()
-       end do
-       call this%triangulation%free_vef_iterator(vef)
-               
-    call this%set_cells_set_id() 
+    call this%triangulation%create_vef_iterator(vef)
+    do while ( .not. vef%has_finished() )
+       if(vef%is_at_boundary()) then 
+          call vef%set_set_id(1)
+       else
+          call vef%set_set_id(0)
+       end if
+       call vef%next()
+    end do
+    call this%triangulation%free_vef_iterator(vef)
+
+    call this%set_material_cells_set_id() 
     call this%triangulation%setup_coarse_triangulation()
   end subroutine setup_triangulation
 
-  subroutine set_cells_set_id(this) 
+  subroutine set_material_cells_set_id(this) 
     implicit none 
     class(par_test_hts_fe_driver_t), intent(inout) :: this
     ! Locals 
@@ -296,8 +302,62 @@ contains
        call this%triangulation%free_cell_iterator(cell)
     end if
 
-  end subroutine set_cells_set_id
-  
+  end subroutine set_material_cells_set_id
+
+  subroutine set_pb_cells_set_id( this ) 
+    implicit none 
+    class(par_test_hts_fe_driver_t), intent(inout) :: this
+    class(cell_iterator_t), allocatable :: cell 
+    type(point_t), allocatable    :: cell_coordinates(:)
+    integer(ip) :: i, ndime
+    integer(ip) :: idime, inode 
+    integer(ip) :: istat, dummy_val 
+    real(rp)    :: contrast
+    real(rp)    :: resistivity
+    real(rp)    :: resistivity_max, resistivity_min 
+
+    if ( .not. this%environment%am_i_l1_task() ) return 
+
+    call this%triangulation%create_cell_iterator(cell)
+    massert( allocated( this%cells_set_ids ), 'Cells set ids must contain at least geometric material info at this point' )  
+    allocate(cell_coordinates( cell%get_num_nodes() ) , stat=istat); check(istat==0)
+
+    ! rPB-BDDC needs a first cell loop to determine the minimum value of the coefficient 
+    resistivity_min = this%test_params%get_air_resistivity() 
+    do while ( .not. cell%has_finished() ) 
+       if ( cell%is_local() .and. cell%get_set_id() > 0) then 
+          call cell%get_nodes_coordinates(cell_coordinates)
+          do inode=1, cell%get_num_nodes()               
+             ! Compute resistivity from cell fe function  
+             resistivity = 1.0_rp 
+             resistivity_min  = min(resistivity_min,  resistivity) 
+          end do
+       end if
+       call cell%next()
+    end do
+    ! Init cell iterator 
+    call cell%first() 
+
+    do while ( .not. cell%has_finished() )
+       if ( cell%is_local() .and. cell%get_set_id() > 0) then 
+          ! Extract coordinates, evaluate resistivity/permeability
+          call cell%get_nodes_coordinates(cell_coordinates)
+          resistivity_max  = 0.0_rp 
+          do inode=1, cell%get_num_nodes() 
+             ! Compute resistivity 
+             resistivity = 1.0_rp 
+             resistivity_max  = max( resistivity_max, resistivity ) 
+          end do
+          contrast=(resistivity_max)/(resistivity_min)
+          massert(this%test_params%get_rpb_bddc_threshold()>1.0_rp, 'Not valid Relaxed PB-BDDC threshold') 
+          this%cells_set_ids(cell%get_gid()) = floor( log(contrast)/log(this%test_params%get_rpb_bddc_threshold()) )
+       end if
+       call cell%next()
+    end do
+    call this%triangulation%free_cell_iterator(cell)
+    call this%triangulation%fill_cells_set(this%cells_set_ids) 
+  end subroutine set_pb_cells_set_id
+
   subroutine setup_reference_fes(this)
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
@@ -312,11 +372,11 @@ contains
        call this%triangulation%create_cell_iterator(cell)
        reference_fe_geo => cell%get_reference_fe()
        this%reference_fes(1) =  make_reference_fe ( topology   = reference_fe_geo%get_topology(),           &
-                                                    fe_type    = fe_type_nedelec,                           &
-                                                    num_dims   = this%triangulation%get_num_dims(),         &
-                                                    order      = this%test_params%get_reference_fe_order(), &
-                                                    field_type = field_type_vector,                         &
-                                                    conformity = .true. )
+            fe_type    = fe_type_nedelec,                           &
+            num_dims   = this%triangulation%get_num_dims(),         &
+            order      = this%test_params%get_reference_fe_order(), &
+            field_type = field_type_vector,                         &
+            conformity = .true. )
        call this%triangulation%free_cell_iterator(cell)
     end if
 
@@ -327,13 +387,13 @@ contains
     class(par_test_hts_fe_driver_t), intent(inout) :: this
 
     call this%theta_method%create( this%environment,                            & 
-                                   this%test_params%get_theta_value(),          &               
-                                   this%test_params%get_initial_time(),         &
-                                   this%test_params%get_final_time(),           & 
-                                   this%test_params%get_num_time_steps(),       &
-                                   this%test_params%get_max_time_step(),        & 
-                                   this%test_params%get_min_time_step(),        &
-                                   this%test_params%get_save_solution_n_steps() )
+         this%test_params%get_theta_value(),          &               
+         this%test_params%get_initial_time(),         &
+         this%test_params%get_final_time(),           & 
+         this%test_params%get_num_time_steps(),       &
+         this%test_params%get_max_time_step(),        & 
+         this%test_params%get_min_time_step(),        &
+         this%test_params%get_save_solution_n_steps() )
 
   end subroutine setup_theta_method
 
@@ -364,9 +424,9 @@ contains
 
        ! Create FE SPACE 
        call this%fe_space%create( triangulation       = this%triangulation,      &
-                                  reference_fes       = this%reference_fes,      &
-                                  coarse_fe_handlers  = this%coarse_fe_handlers, & 
-                                  conditions          = this%maxwell_conditions  )			
+            reference_fes       = this%reference_fes,      &
+            coarse_fe_handlers  = this%coarse_fe_handlers, & 
+            conditions          = this%maxwell_conditions  )			
 
     elseif ( .not. this%test_params%get_is_analytical_solution() ) then 		
        call this%hts_conditions%set_num_dims(this%triangulation%get_num_dims())
@@ -376,16 +436,16 @@ contains
        call this%hts_conditions%set_boundary_function_Hx(this%hts_analytical_functions%get_boundary_function_Hx())
        call this%hts_conditions%set_boundary_function_Hy(this%hts_analytical_functions%get_boundary_function_Hy())
        call this%hts_analytical_functions%get_parameter_values( H = this%test_params%get_external_magnetic_field_amplitude(),  &
-                                                               wH = this%test_params%get_external_magnetic_field_frequency()   ) 
+            wH = this%test_params%get_external_magnetic_field_frequency()   ) 
        if ( this%triangulation%get_num_dims() == 3) then 
           call this%hts_conditions%set_boundary_function_Hz(this%hts_analytical_functions%get_boundary_function_Hz())
        end if
 
        ! Create FE SPACE 
        call this%fe_space%create( triangulation       = this%triangulation,      &
-                                  reference_fes       = this%reference_fes,      &
-                                  coarse_fe_handlers  = this%coarse_fe_handlers, & 
-                                  conditions          = this%hts_conditions  )
+            reference_fes       = this%reference_fes,      &
+            coarse_fe_handlers  = this%coarse_fe_handlers, & 
+            conditions          = this%hts_conditions  )
     end if
 
     call this%fe_space%set_up_cell_integration()
@@ -415,12 +475,12 @@ contains
     call this%H_previous%create(this%fe_space)
     if (this%test_params%get_is_analytical_solution() ) then 
        call this%fe_space%interpolate_vector_function( 1, this%maxwell_analytical_functions%get_solution_function(), &
-                                                       this%H_previous,                                              &  
-                                                       time=this%theta_method%get_initial_time() ) 
+            this%H_previous,                                              &  
+            time=this%theta_method%get_initial_time() ) 
     else 
        call this%fe_space%interpolate_vector_function( 1, this%hts_analytical_functions%get_initial_conditions(), &
-                                                       this%H_previous,                                           &  
-                                                       time=this%theta_method%get_initial_time() ) 
+            this%H_previous,                                           &  
+            time=this%theta_method%get_initial_time() ) 
     end if
     call this%fe_space%interpolate_dirichlet_values( this%H_previous, time=this%theta_method%get_initial_time() ) 
 
@@ -428,12 +488,12 @@ contains
     call this%H_current%create(this%fe_space)
     if (this%test_params%get_is_analytical_solution() ) then 
        call this%fe_space%interpolate_vector_function( 1, this%maxwell_analytical_functions%get_solution_function(), &
-                                                       this%H_current,                                               &  
-                                                       time=this%theta_method%get_current_time() ) 
+            this%H_current,                                               &  
+            time=this%theta_method%get_current_time() ) 
     else 
        call this%fe_space%interpolate_vector_function( 1, this%hts_analytical_functions%get_initial_conditions(), &
-                                                       this%H_current,                                            &  
-                                                       time=this%theta_method%get_current_time() ) 
+            this%H_current,                                            &  
+            time=this%theta_method%get_current_time() ) 
     end if
     call this%fe_space%interpolate_dirichlet_values( this%H_current, time=this%theta_method%get_current_time() ) 
 
@@ -453,23 +513,23 @@ contains
     class(matrix_t), pointer :: matrix
 
     ! FE operator
-    call this%nonlinear_operator%create ( sparse_matrix_storage_format      = csr_format, &
+    call this%fe_operator%create ( sparse_matrix_storage_format      = csr_format, &
          &                                diagonal_blocks_symmetric_storage = [ .true. ], &
          &                                diagonal_blocks_symmetric         = [ .true. ], &
          &                                diagonal_blocks_sign              = [ SPARSE_MATRIX_SIGN_POSITIVE_DEFINITE ], &
          &                                fe_space                          = this%fe_space, &
          &                                discrete_integration              = this%hts_integration ) 
 
-    
+
     ! BDDC preconditioner 
-      matrix => this%nonlinear_operator%get_matrix() 
-      select type ( matrix ) 
-      class is (par_sparse_matrix_t) 
-    	 call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, 1.0_rp, 1.0_rp )
-      class DEFAULT
-      assert(.false.) 
-      end select 
-    
+    matrix => this%fe_operator%get_matrix() 
+    select type ( matrix ) 
+       class is (par_sparse_matrix_t) 
+       call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%average_permeability, this%average_resistivity )
+       class DEFAULT
+       assert(.false.) 
+    end select
+
     ! Prepare the internal parameter list of pardiso
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
@@ -510,8 +570,8 @@ contains
     FPLError = coarse%set(key=pardiso_mkl_iparm, value=iparm); assert(FPLError == 0)
 
     call this%fe_space%setup_coarse_fe_space(this%parameter_list)
-    call this%mlbddc%create(this%nonlinear_operator, this%parameter_list)     
-    
+    call this%mlbddc%create(this%fe_operator, this%parameter_list)     
+
     ! Linear solver
     call this%linear_solver%create(this%fe_space%get_environment())
     call this%linear_solver%set_type_from_string(cg_name)
@@ -519,7 +579,7 @@ contains
     FPLError = linear_pl%set(key = ils_rtol, value = this%test_params%get_relative_linear_tolerance()); assert(FPLError == 0)
     FPLError = linear_pl%set(key = ils_max_num_iterations, value = 1000); assert(FPLError == 0)
     call this%linear_solver%set_parameters_from_pl(linear_pl)
-    call this%linear_solver%set_operators( this%nonlinear_operator%get_tangent(), this%mlbddc)
+    call this%linear_solver%set_operators( this%fe_operator%get_tangent(), this%mlbddc)
     call linear_pl%free()
 
     ! Nonlinear solver
@@ -528,21 +588,102 @@ contains
          &                                         rel_tol = this%test_params%get_relative_nonlinear_tolerance(),   &
          &                                       max_iters = this%test_params%get_max_nonlinear_iterations()    ,   &
          &                                   linear_solver = this%linear_solver                                 ,   &
-         &                                     environment = this%environment                                       )   
+         &                                     environment = this%environment                                   ,   &
+         &                                     fe_operator = this%fe_operator                                       )   
 
   end subroutine setup_operators
+
+  ! -----------------------------------------------------------------------------------------------
+  subroutine compute_average_parameter_values(this)
+    implicit none 
+    class(par_test_hts_fe_driver_t), intent(inout) :: this  
+    class(fe_cell_iterator_t), allocatable :: fe
+    ! Integration loop 
+    type(quadrature_t)       , pointer     :: quad
+    integer(ip)                            :: qpoin, num_quad_points
+    type(point_t)            , pointer     :: quad_coords(:)
+    real(rp)                               :: factor 
+    real(rp), allocatable                  :: set_id_volume(:)
+    real(rp)                               :: permeability
+    type(tensor_field_t)                   :: resistivity
+    integer(ip) :: max_cell_set_id, set_id, material_id 
+    integer(ip) :: istat 
+    ! Compute resistivity 
+    type(fe_cell_function_vector_t)        :: fe_cell_function
+    type(vector_field_t)                   :: H_value, H_curl 
+
+    if ( .not. this%environment%am_i_l1_task() ) return 
+
+    ! Integrate structures needed 
+    call fe_cell_function%create(this%fe_space, field_id=1)
+    call this%fe_space%set_up_cell_integration()
+
+    max_cell_set_id = maxval(this%cells_set_ids)+1 ! 1-based arrays  
+    call memalloc( max_cell_set_id, this%average_permeability, __FILE__, __LINE__ )
+    call memalloc( max_cell_set_id, this%average_resistivity, __FILE__, __LINE__ ) 
+    call memalloc( max_cell_set_id, set_id_volume, __FILE__, __LINE__ )
+    this%average_permeability = 0.0_rp 
+    this%average_resistivity  = 0.0_rp 
+    set_id_volume = 0.0_rp 
+
+    ! Integrate structures needed 
+    call this%fe_space%set_up_cell_integration()
+    call this%fe_space%create_fe_cell_iterator(fe)
+    call fe%update_integration()
+    quad             => fe%get_quadrature()
+    num_quad_points  = quad%get_num_quadrature_points()
+    quad_coords      => fe%get_quadrature_points_coordinates()
+
+    ! Loop over elements
+    this%average_permeability = this%test_params%get_air_permeability() 
+    do while ( .not. fe%has_finished())
+       if ( fe%is_local() ) then  
+          set_id = 1 + fe%get_set_id() ! 1-based arrays 
+          call fe%update_integration()
+          quad_coords => fe%get_quadrature_points_coordinates()
+
+          ! Evaluate parameters on the cell 
+          call fe_cell_function%get_value(qpoin, H_value)
+          call fe_cell_function%compute_curl(qpoin, H_curl)
+
+          ! Integrate cell contribution to averages 
+          do qpoin=1, num_quad_points
+             factor = fe%get_det_jacobian(qpoin) * quad%get_weight(qpoin) 		
+             resistivity                       = this%hts_integration%compute_resistivity( H_value, H_curl, fe%get_set_id() ) 
+             this%average_resistivity(set_id)  = this%average_resistivity(set_id)+resistivity%get(1,1)*factor
+             set_id_volume(set_id)             = set_id_volume(set_id) + factor
+          end do
+       end if
+       call fe%next()
+    end do
+    call this%fe_space%free_fe_cell_iterator(fe)
+
+    do set_id=1, max_cell_set_id
+       if ( set_id_volume(set_id) == 0.0_rp ) cycle
+       this%average_permeability(set_id) = this%average_permeability(set_id)/set_id_volume(set_id)
+       this%average_resistivity(set_id)  = this%average_resistivity(set_id)/set_id_volume(set_id)
+    end do
+    call memfree(set_id_volume, __FILE__, __LINE__)
+
+  end subroutine compute_average_parameter_values
 
   subroutine solve_problem (this)
     implicit none
     class(par_test_hts_fe_driver_t), intent(inout) :: this
-    class(vector_t) , pointer                      :: free_dof_values 
+    class(vector_t) , allocatable  :: rhs_dof_values
+    class(vector_t) , pointer      :: free_dof_values 
+    integer(ip) :: istat 
+
+    ! Solve the nonlinear, transient problem
+    call this%fe_operator%create_range_vector(rhs_dof_values) 
+    call rhs_dof_values%init(0.0_rp)
 
     temporal: do while ( .not. this%theta_method%finished() ) 
        call this%theta_method%print(6) 
 
        ! Solve the problem
        free_dof_values => this%H_current%get_free_dof_values() 
-       call this%nonlinear_solver%solve(this%nonlinear_operator, free_dof_values )
+       call this%nonlinear_solver%apply(this%fe_operator%get_translation(), free_dof_values )
 
        if ( this%nonlinear_solver%has_converged() ) then  ! Theta method goes forward 
           call this%compute_hysteresis_data() 
@@ -559,6 +700,9 @@ contains
        end if
 
     end do temporal
+
+    call rhs_dof_values%free()
+    deallocate(rhs_dof_values, stat=istat); check(istat==0);
 
   end subroutine solve_problem
 
@@ -613,11 +757,11 @@ contains
     call e_z%init(0.0_rp); call e_z%set(3, 1.0_rp) 
     call e_alpha%init(0.0_rp); 
     if ( this%triangulation%get_num_dims()==2) then 
-    call e_alpha%set(2, 1.0_rp) 
+       call e_alpha%set(2, 1.0_rp) 
     else 
-    call e_alpha%set(1, cos(pi/6) ) 
-    call e_alpha%set(3, sin(pi/6) )
-    end if 
+       call e_alpha%set(1, cos(pi/6) ) 
+       call e_alpha%set(3, sin(pi/6) )
+    end if
 
     ! Define r0 vector 
     if ( this%test_params%get_triangulation_type() == triangulation_generate_structured ) then
@@ -710,7 +854,7 @@ contains
        write(*,*) ' Mz', (Mz/2.0_rp/hts_volume)/(Jc*h_b) 
        write(*,*) ' Malpha', (Malpha/2.0_rp/hts_volume)/(Jc*h_b)			
        write(*,*) ' Q_JE', Q_JE
-	      write(*,*) ' HTS volume', hts_volume 
+       write(*,*) ' HTS volume', hts_volume 
        write(*,*) ' --------------------------------------------------------' 
     end if
 
@@ -768,21 +912,21 @@ contains
 
   contains  
     subroutine initialize_field_generator() 
-    call this%resistivity_field_generator%set_parameter_values( this%test_params%get_nonlinear_exponent(),     & 
-                                                                this%test_params%get_critical_current(),       & 
-                                                                this%test_params%get_critical_electric_field() )                                                         
-    call this%resistivity_field_generator%set_magnetic_field( this%H_current ) 
+      call this%resistivity_field_generator%set_parameter_values( this%test_params%get_nonlinear_exponent(),     & 
+           this%test_params%get_critical_current(),       & 
+           this%test_params%get_critical_electric_field() )                                                         
+      call this%resistivity_field_generator%set_magnetic_field( this%H_current ) 
     end subroutine initialize_field_generator
-    
+
     subroutine build_set_id_cell_vector()
       call memalloc(this%triangulation%get_num_local_cells(), this%set_id_cell_vector, __FILE__, __LINE__)
       call this%triangulation%create_cell_iterator(cell) 
       i=0
       do while ( .not. cell%has_finished() ) 
          if (cell%is_local() ) then  
-         i=i+1
-         this%set_id_cell_vector(i) = cell%get_set_id()
-         end if 
+            i=i+1
+            this%set_id_cell_vector(i) = cell%get_set_id()
+         end if
          call cell%next() 
       enddo
       call this%triangulation%free_cell_iterator(cell) 
@@ -869,14 +1013,16 @@ contains
     call this%H_previous%free() 
     call this%linear_solver%free()
     call this%nonlinear_solver%free()
-    call this%nonlinear_operator%free()
+    call this%fe_operator%free()
     call this%mlbddc%free() 
     call this%linear_solver%free()
+    if (allocated(this%average_resistivity))  call memfree( this%average_resistivity, __FILE__, __LINE__ ) 
+    if (allocated(this%average_permeability)) call memfree( this%average_permeability, __FILE__, __LINE__ ) 
 
     if (allocated(this%coarse_fe_handlers) ) then 
-	    call this%coarse_fe_handler%free() 
-	    deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
-	   end if 
+       call this%coarse_fe_handler%free() 
+       deallocate(this%coarse_fe_handlers, stat=istat); check(istat==0) 
+    end if
 
     call this%fe_space%free()
     if ( allocated(this%reference_fes) ) then
@@ -887,8 +1033,8 @@ contains
        check(istat==0)
     end if
     if (allocated(this%cells_set_ids)) then 
-    call memfree(this%cells_set_ids, __FILE__, __LINE__)
-    end if 
+       call memfree(this%cells_set_ids, __FILE__, __LINE__)
+    end if
     call this%triangulation%free()
   end subroutine free
 
@@ -904,7 +1050,7 @@ contains
     real(rp) :: num_interface_dofs 
     integer(ip) :: num_coarse_dofs
     real(rp) :: num_hts_cells 
-    
+
     class(fe_cell_iterator_t), allocatable :: fe 
     class(environment_t), pointer :: environment
     class(coarse_fe_space_t), pointer :: coarse_fe_space
@@ -912,21 +1058,21 @@ contains
     environment => this%fe_space%get_environment()
 
     if (environment%am_i_l1_task()) then
-      call this%fe_space%create_fe_cell_iterator(fe)  
-      num_hts_cells=0
-      do while ( .not. fe%has_finished())
-         if (fe%is_local()) then
-            if ( fe%get_set_id() > 0 ) num_hts_cells = num_hts_cells+1
-         end if
-         call fe%next()
-      enddo
-      call this%fe_space%free_fe_cell_iterator(fe)
-      
+       call this%fe_space%create_fe_cell_iterator(fe)  
+       num_hts_cells=0
+       do while ( .not. fe%has_finished())
+          if (fe%is_local()) then
+             if ( fe%get_set_id() > 0 ) num_hts_cells = num_hts_cells+1
+          end if
+          call fe%next()
+       enddo
+       call this%fe_space%free_fe_cell_iterator(fe)
+
        num_total_cells      = real(this%triangulation%get_num_local_cells(),kind=rp)
        num_dofs             = real(this%fe_space%get_field_num_dofs(1),kind=rp)
        num_fixed_dofs       = real(this%fe_space%get_num_fixed_dofs(),kind=rp)
        num_interface_dofs   = real(this%fe_space%get_total_num_interface_dofs(),kind=rp)
-       
+
        call environment%l1_sum(num_total_cells )
        call environment%l1_sum(num_dofs        )
        call environment%l1_sum(num_fixed_dofs  )
