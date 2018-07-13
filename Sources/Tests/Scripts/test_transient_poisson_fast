@@ -25,6 +25,16 @@ then
           then
             final_exit_code=1
           fi
+          
+          if [ "$(echo $integration_scheme | grep -E 'backward|implicit')" != "" ]
+          then
+            echo "$TEST_BINARY_PATH -tt structured -dim 2 -nx 3 -ny 3 -rk-scheme $integration_scheme -dt 1 -tf 10 "
+            $TEST_BINARY_PATH -tt structured -dim 2 -nx 3 -ny 3 -rk-scheme $integration_scheme -dt 1 -tf 10
+            if [ $? -ne 0 ]
+            then
+              final_exit_code=1
+            fi
+          fi
       let id_scheme=id_scheme+1
       done
 # Add more size and shape variations for non-fast test
