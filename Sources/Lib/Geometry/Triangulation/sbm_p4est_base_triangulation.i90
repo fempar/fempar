@@ -94,7 +94,11 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
   if ( p_environment%am_i_l1_task () ) then
     if ( this%get_num_dims() == 2 ) then
       user_pointer => this%refinement_and_coarsening_flags%get_pointer()
-      call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else 
+        call F90_p4est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if 
       p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old)
       call F90_p4est_refine(this%p4est)
       call F90_p4est_coarsen(this%p4est)
@@ -103,7 +107,11 @@ subroutine p4est_base_triangulation_refine_and_coarsen(this)
       call F90_p4est_destroy(p4est_old)
     else if ( this%get_num_dims() == 3 ) then
       user_pointer => this%refinement_and_coarsening_flags%get_pointer()
-      call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else
+        call F90_p8est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if
       p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old)
       call F90_p8est_refine(this%p4est)
       call F90_p8est_coarsen(this%p4est)
@@ -2974,15 +2982,17 @@ subroutine p4est_base_triangulation_update_cell_ggids ( this )
   end do
   global_ggids => this%cell_ggids%get_pointer()
   
-  if ( this%get_num_dims() == 2 ) then
-    call F90_p4est_fill_ghost_ggids(this%p4est_ghost,&
-                                    this%global_first_quadrant, &
-                                    global_ggids(this%get_num_local_cells()+1:))
-  else if ( this%get_num_dims() == 3 ) then
-    call F90_p8est_fill_ghost_ggids(this%p4est_ghost,&
-                                    this%global_first_quadrant, &
-                                    global_ggids(this%get_num_local_cells()+1:))
-  end if
+  if ( associated(global_ggids) ) then
+    if ( this%get_num_dims() == 2 ) then
+      call F90_p4est_fill_ghost_ggids(this%p4est_ghost,&
+                                      this%global_first_quadrant, &
+                                      global_ggids(this%get_num_local_cells()+1:))
+    else if ( this%get_num_dims() == 3 ) then
+      call F90_p8est_fill_ghost_ggids(this%p4est_ghost,&
+                                      this%global_first_quadrant, &
+                                      global_ggids(this%get_num_local_cells()+1:))
+    end if
+  end if   
 #else  
   call this%not_enabled_error()
 #endif  

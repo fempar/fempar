@@ -324,12 +324,20 @@ subroutine p4est_par_triangulation_redistribute ( this )
   if ( p_environment%am_i_l1_task() ) then
     if ( this%get_num_dims() == 2 ) then
       user_pointer => this%cell_weights%get_pointer()
-      call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p4est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else
+        call F90_p4est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if 
       p4est_old = c_null_ptr; call F90_p4est_copy(this%p4est,p4est_old) 
       call F90_p4est_partition(this%p4est)
     else if ( this%get_num_dims() == 3 ) then
       user_pointer => this%cell_weights%get_pointer()
-      call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      if ( associated(user_pointer) ) then
+        call F90_p8est_set_user_pointer(c_loc(user_pointer),this%p4est)
+      else
+        call F90_p8est_set_user_pointer(C_NULL_PTR,this%p4est)
+      end if
       p4est_old = c_null_ptr; call F90_p8est_copy(this%p4est,p4est_old) 
       call F90_p8est_partition(this%p4est)
     end if
