@@ -214,8 +214,6 @@ contains
     implicit none
     class(test_transient_poisson_driver_t), intent(inout) :: this
     
-    class(matrix_t), pointer :: A, M
-    integer(ip) :: luout
    
     call this%fe_op%create ( sparse_matrix_storage_format      = csr_format, &
                              diagonal_blocks_symmetric_storage = [ .true. ], &
@@ -261,16 +259,8 @@ contains
     
     call this%direct_solver%set_type_from_pl(parameter_list)
     call this%direct_solver%set_parameters_from_pl(parameter_list)    
-    matrix => this%time_operator%get_matrix()
-    
-    
-    select type(matrix)
-    class is (matrix_t)  
-       call this%direct_solver%set_matrix(matrix)
-    class DEFAULT
-       assert(.false.) 
-    end select
-    
+    call this%direct_solver%set_matrix(this%time_operator%get_matrix())
+
     call this%nl_solver%create( convergence_criteria = abs_res_norm, &
                                 abs_tol = 1.0e-6_rp, &
                                 rel_tol = 1.0e-6_rp, &
@@ -300,7 +290,7 @@ contains
                                 linear_solver = this%iterative_linear_solver, &
                                 environment = this%fe_space%get_environment(),&
                                 fe_operator = this%time_operator%get_fe_operator(), &
-                                print_iteration_ouput = .false. )
+                                print_iteration_ouput = this%test_params%get_print_nonlinear_iteration() )
     
     call this%time_solver%create( ts_op = this%time_operator, &
                                   nl_solver = this%nl_solver )
@@ -448,7 +438,7 @@ contains
                                    time=this%time_operator%get_current_time())
     call this%solve_system()
     current_time = this%time_operator%get_current_time()
-    get_error_norm = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm, time=current_time) !pmartorell: l2_norm argumnent if tested for differents norms
+    get_error_norm = error_norm%compute(this%poisson_analytical_functions%get_solution_function(), this%solution, l2_norm, time=current_time) 
     call error_norm%free()                 
   end function get_error_norm
   
@@ -513,7 +503,7 @@ contains
     call this%setup_solver()
     call this%initialize_output()
     call this%solve_system()
-    call this%check_convergence_order() !hide?
+    call this%check_convergence_order() 
     call this%finalize_output()
     call this%free()
   end subroutine run_simulation

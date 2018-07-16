@@ -55,29 +55,20 @@ subroutine time_stepping_stage_fe_operator_create_from_operators (this, ts_op, f
   class(fe_operator_t),            target   , intent(in)    :: fe_op
   class(serial_fe_space_t),        pointer                  :: trial_fe_space
   
-  type(vector_space_t), pointer :: fe_op_domain, fe_op_range
-  type(vector_space_t), pointer :: mass_op_domain, mass_op_range
+  type(vector_space_t), pointer :: fe_op_domain
  
   call this%free()
   
   this%fe_op   => fe_op
-  this%ts_op      => ts_op
-  call this%create_mass_operator()
+  this%ts_op   => ts_op
+  call this%create_mass_operator()   
   
-  !pmartorell: Are those checks needed?
   fe_op_domain   => fe_op%get_domain_vector_space()
-  mass_op_domain => this%mass_op%get_domain_vector_space()
-  massert (fe_op_domain%equal_to(mass_op_domain), "fe_op%domain_space() MUST MATCH mass_op%domain_space()" )
+  trial_fe_space => this%fe_op%get_trial_fe_space()
   
   call fe_op_domain%create_vector(this%aux)
-  !call this%aux%allocate()
 
-  fe_op_range    => fe_op%get_range_vector_space()
-  mass_op_range  => this%mass_op%get_range_vector_space()
-  massert (fe_op_range%equal_to(mass_op_range), "fe_op%range_space() MUST MATCH mass_op%range_space()" )
-
-
-  trial_fe_space => this%fe_op%get_trial_fe_space()
+ 
   if ( associated(trial_fe_space) ) then
     call this%fe_operator_t%create(this%fe_op%get_sparse_matrix_storage_format(), &
                                              this%fe_op%get_diagonal_blocks_symmetric_storage(),&
@@ -104,11 +95,11 @@ subroutine time_stepping_stage_fe_operator_create_mass_operator ( this )
   call this%mass_integration%set_up(this%fe_op%get_fe_space())
   
   call this%mass_op%create ( sparse_matrix_storage_format      = this%fe_op%get_sparse_matrix_storage_format(), &
-                                diagonal_blocks_symmetric_storage = this%fe_op%get_diagonal_blocks_symmetric_storage(), &
-                                diagonal_blocks_symmetric         = this%fe_op%get_diagonal_blocks_symmetric(), &
-                                diagonal_blocks_sign              = this%fe_op%get_diagonal_blocks_sign(), &
-                                fe_space                          = this%fe_op%get_fe_space(), &
-                                discrete_integration              = this%mass_integration )
+                             diagonal_blocks_symmetric_storage = this%fe_op%get_diagonal_blocks_symmetric_storage(), &
+                             diagonal_blocks_symmetric         = this%fe_op%get_diagonal_blocks_symmetric(), &
+                             diagonal_blocks_sign              = this%fe_op%get_diagonal_blocks_sign(), &
+                             fe_space                          = this%fe_op%get_fe_space(), &
+                             discrete_integration              = this%mass_integration )
   
 end subroutine time_stepping_stage_fe_operator_create_mass_operator
 
@@ -143,18 +134,13 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
   class(time_stepping_stage_fe_operator_t),         intent(inout) :: this
   class(vector_t)                         , target, intent(in)    :: x
   
-  class(discrete_integration_t), pointer :: di_fe_op, di_mass_op
-  class(assembler_t), pointer :: assembler
-  integer(ip) :: j, istat
-  class(vector_t), pointer :: dummy_v
+  integer(ip) :: j
   
   assert(same_type_as(this%aux, x))
   assert(same_type_as(this%ts_op%initial_value,x))
   
   call x%GuardTemp()
-  
-  ! sbadia: TO-DO: change this to intent(inout) and solve compilation errors in cascade
-  !dummy_v => this%aux
+
   call this%aux%copy(this%ts_op%initial_value)
   call this%ts_op%dofs_stages(this%i)%copy(x)
    
@@ -167,7 +153,7 @@ subroutine time_stepping_stage_fe_operator_set_evaluation_point(this,x)
   call this%fe_op%set_evaluation_point(this%aux)
   call this%mass_op%set_evaluation_point(x)
   
-  call this%fe_operator_t%set_evaluation_point(this%aux) !pmartorell: Evaluation point set to x_i
+  call this%fe_operator_t%set_evaluation_point(this%aux) 
     
   call x%CleanTemp()
 end subroutine time_stepping_stage_fe_operator_set_evaluation_point
@@ -214,8 +200,6 @@ subroutine time_stepping_stage_fe_operator_compute_internal_residual(this)
   class(time_stepping_stage_fe_operator_t), intent(in) :: this
   class(environment_t)         , pointer :: environment
   class(assembler_t)           , pointer :: this_assembler
-  class(assembler_t)           , pointer :: mass_assembler
-  class(assembler_t)           , pointer :: fe_op_assembler
   class(discrete_integration_t), pointer :: di_mass_op
   class(discrete_integration_t), pointer :: di_fe_op
   class(serial_fe_space_t)     , pointer :: fe_sp
@@ -268,12 +252,7 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
   integer(ip)                  , pointer :: state
   class(matrix_t)              , pointer :: tangent
   class(array_t)               , pointer :: array 
-  
-
-  ! DEBUG variables
-  class(matrix_t), pointer :: A
-  
-  
+    
   state => this%get_state() 
   assert (associated(state))
 
