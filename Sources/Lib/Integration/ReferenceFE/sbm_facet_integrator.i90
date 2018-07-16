@@ -1059,7 +1059,7 @@ subroutine assign_facet_integrator(this,other)
   this%active_cell_id = other%active_cell_id
   this%reference_fe(1)%p => other%reference_fe(1)%p
   call this%cell_integrator_facet_restriction(1)%copy(other%cell_integrator_facet_restriction(1))
-  if ( .not. this%is_at_field_boundary ) then
+  if ( .not. this%is_at_boundary ) then
      call this%cell_integrator_facet_restriction(2)%copy(other%cell_integrator_facet_restriction(2))
   end if 
   this%reference_fe(2)%p => other%reference_fe(2)%p
