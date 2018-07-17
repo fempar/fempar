@@ -737,7 +737,8 @@ module fe_space_names
      procedure, non_overridable          :: get_max_num_dofs_on_a_cell                => serial_fe_space_get_max_num_dofs_on_a_cell
      procedure, non_overridable          :: get_max_num_quadrature_points             => serial_fe_space_get_max_num_quadrature_points
      procedure, non_overridable          :: get_max_num_nodal_quadrature_points       => serial_fe_space_get_max_num_nodal_quadrature_points
-     procedure, non_overridable          :: get_max_num_facet_quadrature_points        => serial_fe_space_get_max_num_facet_quadrature_points     
+     procedure, non_overridable          :: get_max_num_facet_quadrature_points        => serial_fe_space_get_max_num_facet_quadrature_points   
+     procedure, non_overridable          :: get_num_facet_quadratures                  => serial_fe_space_get_num_facet_quadratures
      procedure, non_overridable          :: get_max_order                                => serial_fe_space_get_max_order
      procedure, non_overridable          :: get_triangulation                            => serial_fe_space_get_triangulation
      procedure, non_overridable          :: set_triangulation                            => serial_fe_space_set_triangulation

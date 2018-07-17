@@ -2950,6 +2950,13 @@ function serial_fe_space_get_max_num_facet_quadrature_points( this )
   end do
 end function serial_fe_space_get_max_num_facet_quadrature_points
 
+function serial_fe_space_get_num_facet_quadratures(this)
+  implicit none
+  class(serial_fe_space_t), intent(in) :: this 
+  integer(ip) :: serial_fe_space_get_num_facet_quadratures
+  serial_fe_space_get_num_facet_quadratures = this%facet_quadratures%size()
+end function serial_fe_space_get_num_facet_quadratures
+
 function serial_fe_space_get_max_order( this )
   implicit none
   class(serial_fe_space_t), intent(in) :: this 
