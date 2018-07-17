@@ -3044,8 +3044,10 @@ subroutine p4est_base_triangulation_update_cell_myparts ( this )
                                       P)
     end if 
   else if ( this%get_num_dims() == 3 ) then
+    if (size(global_myparts)>this%get_num_local_cells()) then
       call F90_p8est_fill_ghost_procs(this%p4est_ghost,&
                                       P)    
+    end if
   end if
 #else  
   call this%not_enabled_error()
