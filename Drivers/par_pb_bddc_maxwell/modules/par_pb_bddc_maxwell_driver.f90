@@ -138,7 +138,7 @@ contains
     call this%timer_triangulation%create(w_context,"SETUP TRIANGULATION")
     call this%timer_fe_space%create(     w_context,"SETUP FE SPACE")
     call this%timer_assemply%create(     w_context,"FE INTEGRATION AND ASSEMBLY")
-    call this%timer_change_basis_setup%create( w_context, "CHANGE BASIS SETUP")
+    call this%timer_change_basis_setup%create( w_context, "CHANGE BASIS SETUP") 
     call this%timer_solver_setup%create( w_context,"SETUP SOLVER AND PRECONDITIONER")
     call this%timer_solver_run%create(   w_context,"SOLVER RUN")
   end subroutine setup_timers
@@ -217,8 +217,7 @@ contains
     logical, allocatable   :: is_grav_center_within_channel(:)
     real(rp)               :: channel_size 
     real(rp)    :: grav_center(3) 
-    integer(ip) :: nparts_x_dir 
-    real(rp)    :: nparts  
+    integer(ip) :: nparts_x_dir(3) 
     integer(ip) :: i, ndime
     integer(ip) :: idime, inode 
     integer(ip) :: ijk(3), aux 
@@ -233,12 +232,12 @@ contains
 
     ! Determine indices i,j,k for the current subdomain 
     ijk = 0
-    nparts = (real(this%par_environment%get_num_tasks()-1,rp))**(1.0_rp/(real(this%triangulation%get_num_dims(),rp)))   
-    nparts_x_dir = nint(nparts,ip)
+    nparts_x_dir = this%test_params%get_nparts()  
+    
     aux = this%par_environment%get_l1_rank()
     do i = 1,this%triangulation%get_num_dims()-1
-       ijk(i) = mod(aux, nparts_x_dir)
-       aux = aux/nparts_x_dir
+       ijk(i) = mod(aux, nparts_x_dir(i))
+       aux = aux/nparts_x_dir(i)
     end do
     ijk(this%triangulation%get_num_dims()) = aux
     ijk = ijk+1
@@ -300,9 +299,9 @@ contains
 
              is_grav_center_within_channel = .false. 
              do idime=1, this%triangulation%get_num_dims()
-                channel_size = 1.0_rp/real(nparts_x_dir,rp)*this%test_params%get_channels_ratio()
-                if ( grav_center(idime) >= (real(ijk(idime)-1,rp))/real(nparts_x_dir,rp) .and. & 
-                     grav_center(idime) <= (real(ijk(idime)-1,rp))/real(nparts_x_dir,rp) + channel_size ) then  
+                channel_size = 1.0_rp/real(nparts_x_dir(idime),rp)*this%test_params%get_channels_ratio()
+                if ( grav_center(idime) >= (real(ijk(idime)-1,rp))/real(nparts_x_dir(idime),rp) .and. & 
+                     grav_center(idime) <= (real(ijk(idime)-1,rp))/real(nparts_x_dir(idime),rp) + channel_size ) then  
                    is_grav_center_within_channel(idime) = .true. 
                 end if
              end do
@@ -484,20 +483,21 @@ contains
        matrix => this%fe_affine_operator%get_matrix() 
        select type ( matrix ) 
           class is (par_sparse_matrix_t) 
-          call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, this%average_permeability, this%average_resistivity )
+          call this%coarse_fe_handler%create( 1, this%fe_space, matrix, this%parameter_list, & 
+                                             this%average_permeability, this%average_resistivity )
        end select
     end if
     call this%timer_change_basis_setup%stop()
 
     ! See https://software.intel.com/en-us/node/470298 for details
     iparm      = 0 ! Init all entries to zero
-    iparm(1)   = 1 ! no solver default
-    iparm(2)   = 2 ! fill-in reordering from METIS
-    iparm(8)   = 2 ! numbers of iterative refinement steps
-    iparm(10)  = 8 ! perturb the pivot elements with 1E-8
-    iparm(11)  = 1 ! use scaling 
-    iparm(13)  = 1 ! use maximum weighted matching algorithm 
-    iparm(21)  = 1 ! 1x1 + 2x2 pivots
+    !iparm(1)   = 1 ! no solver default
+    !iparm(2)   = 2 ! fill-in reordering from METIS
+    !iparm(8)   = 2 ! numbers of iterative refinement steps
+    !iparm(10)  = 8 ! perturb the pivot elements with 1E-8
+    !iparm(11)  = 1 ! use scaling 
+    !iparm(13)  = 1 ! use maximum weighted matching algorithm 
+    !iparm(21)  = 1 ! 1x1 + 2x2 pivots
 
     plist => this%parameter_list 
     if ( this%par_environment%get_l1_size() == 1 ) then

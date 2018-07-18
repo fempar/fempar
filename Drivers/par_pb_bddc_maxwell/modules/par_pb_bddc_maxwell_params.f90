@@ -43,6 +43,7 @@ module par_pb_bddc_maxwell_params_names
        procedure, non_overridable             :: get_channels_ratio 
        procedure, non_overridable             :: get_rpb_bddc_threshold 
        procedure, non_overridable             :: get_boundary_mass_trick 
+       procedure, non_overridable             :: get_nparts 
   end type par_pb_bddc_maxwell_params_t
 
   ! Types
@@ -242,7 +243,33 @@ contains
     error = list%GetAsString(key = prefix_key, string = get_prefix)
     assert(error==0)
   end function get_prefix
+  
+  ! =======================================================================================
+   function get_nparts(this)
+    implicit none
+    class(par_pb_bddc_maxwell_params_t)           :: this
+    integer(ip)                                   :: num_levels
+    integer(ip)                                   :: get_nparts(3)
+    integer(ip), allocatable :: num_parts_x_dir(:) 
+    integer(ip), allocatable :: array_size(:)
+    type(ParameterList_t), pointer                :: list
+    integer(ip)                                   :: error
+    list  => this%get_values()
+    assert(list%isAssignable(num_levels_key, num_levels))
+    error = list%Get(key = num_levels_key, Value = num_levels)
+    assert(error==0)       
+    error = list%GetShape(key = num_parts_x_dir_key   , shape = array_size); 
+    check(error==0)
+    assert(array_size(1) >= num_levels*SPACE_DIM)
+    call memalloc(array_size(1), num_parts_x_dir)
+    error = list%get(key = num_parts_x_dir_key , value = num_parts_x_dir) 
+    check(error==0)
+    get_nparts=num_parts_x_dir(1:3)
+    if (allocated(array_size)) deallocate(array_size) 
+    call memfree(num_parts_x_dir)
 
+  end function get_nparts
+  
     !==================================================================================================
   function get_reference_fe_geo_order(this)
     implicit none
