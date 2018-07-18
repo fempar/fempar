@@ -245,8 +245,7 @@ contains
     class(test_transient_poisson_driver_t), intent(inout) :: this
     integer :: FPLError
     type(parameterlist_t) :: parameter_list
-    integer :: iparm(64), luout
-    class(matrix_t), pointer       :: matrix
+    integer :: iparm(64)
 
     call parameter_list%init()
 #ifdef ENABLE_MKL

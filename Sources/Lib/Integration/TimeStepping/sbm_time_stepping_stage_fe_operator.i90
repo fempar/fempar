@@ -267,12 +267,16 @@ subroutine time_stepping_stage_fe_operator_compute_tangent(this)
     if ( environment%am_i_l1_task() ) then
        tangent => assembler%get_matrix()
        if ( associated(this%get_trial_fe_space()) ) then
-          call di_fe_op%integrate_petrov_galerkin_tangent( fe_sp, trial_fe_sp, assembler )
-          call tangent%scal( this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j) ) ! times dt * aij
+          if ( this%ts_op%scheme%a(this%i,this%j) .ne. 0 ) then
+            call di_fe_op%integrate_petrov_galerkin_tangent( fe_sp, trial_fe_sp, assembler )
+            call tangent%scal( this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j) ) ! times dt * aij
+          end if
           call di_mass_op%integrate_petrov_galerkin_tangent( fe_sp, trial_fe_sp, assembler )
        else
-          call di_fe_op%integrate_tangent( fe_sp, assembler )
-          call tangent%scal( this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j) ) ! times dt * aij
+          if ( this%ts_op%scheme%a(this%i,this%j) .ne. 0 ) then
+            call di_fe_op%integrate_tangent( fe_sp, assembler )
+            call tangent%scal( this%ts_op%dt * this%ts_op%scheme%a(this%i,this%j) ) ! times dt * aij
+          end if
           call di_mass_op%integrate_tangent( fe_sp, assembler )
           ! amartin: Can we avoid calling compress storage? 
           call assembler%compress_storage(csr_format)        
